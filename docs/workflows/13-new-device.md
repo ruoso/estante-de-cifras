@@ -39,9 +39,8 @@ come in the shelf list's order. Recents are kept per device, so there is no
 
 For a new device to restore the shelf, it has to be written down where the
 account keeps it. The home book holds the list of books on the shelf: each
-one's link, the user's label for it, and, for a book followed by read link,
-the link's secret. The home book is private to its owner, so the secret is
-as safe there as on the device.
+one's link, and the user's label for it. Access itself is the account's,
+held by the service, so nothing secret is written down.
 
 ### Books that were only on the other device
 

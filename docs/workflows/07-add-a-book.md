@@ -46,8 +46,8 @@ business. What the link lets its holder do is workflow 10's.
 
 *Put online*, on a local book, creates the book on Estante, adds it as the
 remote, and pushes. **It goes online private**: only its owner can open it.
-Sharing (workflow 10) is how it is opened up — a read link, or people invited
-as readers or editors. Private is where a book starts, not where it must
+Sharing (workflow 10) is how it is opened up: people invited as readers or
+editors, at most fifty. Private is where a book starts, not where it must
 stay; it is never shared by default, since a book with words in it is
 copyrighted text.
 

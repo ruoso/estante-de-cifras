@@ -146,8 +146,17 @@ session cookie that simply flows, and a passkey for the one domain.
 Moving the app to a CDN later is possible but not free, since a shelf
 belongs to the app's origin; it would keep the same domain.
 
+**No book is reachable without an account, and a book reaches at most fifty
+people** besides its owner (workflow 10). Every request for a book needs a
+session and a membership; there is no anonymous read and no link that opens
+a book to whoever holds it, and nothing the service serves is indexed by
+search engines (`noindex`). Books hold songs' words, which are other
+people's copyrighted text: kept to named groups this size, a book stays a
+songbook passed around a class or a band, and cannot drift into being a
+public lyrics site because a link was posted somewhere.
+
 - **Postgres** holds accounts, sessions and passkeys, and the book registry:
-  each book's owner, its members and their roles, and its read link.
+  each book's owner, its members and their roles, and its invitations.
 - **A volume** holds one bare git repository per book,
   `/data/books/<id>.git`.
 - **A transactional email provider** sends the sign-in links that back up
@@ -328,12 +337,12 @@ Written down as a contract, `api/`, and both sides tested against it:
   deleting one (owner only); forking one (workflows 7, 11).
 - **The change check**: one request for a whole shelf, each book with the
   head the device has, answered with the books that moved (workflow 8).
-- **Sharing**: the read link turned on, off or reset; members listed,
-  their roles changed, removed; invitations made with a role, an expiry and
-  a limit, listed with who joined, withdrawn, and accepted (workflow 10).
-- **Git**: smart HTTP for each book. Reads for anyone the book is shared
-  with, by session or read link; pushes for editors and the owner, and every
-  push through the hook.
+- **Sharing**: members listed, their roles changed, removed; invitations
+  made with a role, an expiry and a limit on uses, listed with who joined,
+  withdrawn, and accepted, up to fifty people per book (workflow 10).
+- **Git**: smart HTTP for each book, for its members only, by session.
+  Reads for every member; pushes for editors and the owner, and every push
+  through the hook.
 
 #### Repositories
 

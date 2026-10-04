@@ -23,11 +23,14 @@ state says what a book is, and offers the ways to fill the shelf:
 - **write a song**, which goes into *My songs* (below);
 - **add a book** by its link (workflow 7);
 - **sign in** to bring back a shelf from another device (workflow 13);
-- **open the example book**, a public book of songs written for the purpose,
-  added like any other book and removable like one.
+- **open the example book**, songs written for the purpose that ship with
+  the app.
 
-Nothing is bundled into the app. A bundled book would have to be cleared out
-once real ones arrive; the example book is just a book.
+No book on Estante can be read without an account (workflow 10), so the
+example book comes with the app instead: *open the example book* puts it on
+the shelf as a local book, and it is removed like any other. Nothing of it is
+on the shelf until asked for, so it never has to be cleared out once real
+books arrive.
 
 ### *My songs*
 
@@ -38,22 +41,21 @@ then there is nothing to store.
 
 ## Invited
 
-A link to a book opens the app on that book (workflow 10 says what links
-there are):
+An invitation (workflow 10) opens the app on that book. It always asks the
+person to sign in, or to make an account first — a passkey, which takes
+seconds — since no book can be read without one. Then the book is cloned,
+as the reader or editor the invitation makes them, and the first screen is
+its song list, or the song the invitation was made from.
 
-- **A read link** clones the book without signing in, as a reader. The first
-  screen is its song list, or the song the link was made from.
-- **An invitation** asks the person to sign in, or to make an account, and
-  then does the same, as the reader or editor it invites them to be.
+The user is on someone else's book until they choose to be more (workflow
+11, fork).
 
-Either way the user is on someone else's book until they choose to be more
-(workflow 11, fork).
-
-**A link that no longer works** — a read link reset, an invitation expired or
-withdrawn, a private book's plain address — cannot be cloned. The app says
-the link does not open the book, and suggests asking whoever sent it for a
-new one. It does not say whose book it is: a dead link should tell its holder
-nothing about the book.
+**A link that no longer works** — an invitation expired or withdrawn, a book
+that has reached its limit of people, a book's plain address opened by someone
+who is not a member — cannot be cloned. The app says the link does not open
+the book, and suggests asking whoever sent it for a new one; a full book says
+so, so that the person knows to ask the owner. It does not say whose book it
+is: a dead link should tell its holder nothing about the book.
 
 ## The instrument
 

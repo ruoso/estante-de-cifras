@@ -63,8 +63,8 @@ shows *syncing*, and tries again at the next sync.
 
 ## Losing access
 
-A request refused because the user is no longer a member, or the read link
-was reset, turns the book into *no longer shared with you*: readable as it
+A request refused because the user is no longer a member turns the book
+into *no longer shared with you*: readable as it
 is, never synced again. Saves not yet pushed are kept, and the book offers a
 fork or the download (workflow 10).
 

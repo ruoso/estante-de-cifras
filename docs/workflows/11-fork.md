@@ -29,11 +29,10 @@ every song in search twice, for no gain.
 shelf shows *from Ana's Choros* beneath it. The user can rename it on their
 shelf, as any book (workflow 7).
 
-**Where it lives.** Signed in, on Estante, private: the service copies the
-repository on its volume (DIRECTION §3.3). With no account, holding a read
-link, the fork stays on the device, still follows the original through the
-read link, and can be put online later (workflow 7). Forking never requires
-signing up.
+**Where it lives.** On Estante, private: the service copies the repository
+on its volume (DIRECTION §3.3). Everyone who can open a book has an account
+(workflow 10), so a fork is always on Estante, with its own limit of fifty
+people.
 
 **A fork of a fork** is allowed. Its original is the book it was forked from,
 not the first one; nothing follows more than one step.
@@ -49,8 +48,8 @@ saves*. *Bring them in* shows the same preview an upload does (workflow 7),
 song by song; confirming merges, commits and pushes. Conflicts go to workflow
 9.
 
-**When the original goes away** — its read link reset, the user removed from
-it, the book deleted — the fork is untouched. It has the whole history up to
+**When the original goes away** — the user removed from it, the book
+deleted — the fork is untouched. It has the whole history up to
 the last time it followed the original, and its shelf entry says *the
 original is no longer shared with you*. Following ends; nothing else does.
 
