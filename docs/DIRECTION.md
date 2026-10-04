@@ -47,10 +47,9 @@ Git is chosen because it already is what this needed:
   touch the same lines, and a cifra-aware merge resolves most that do.
 - **History is a feature.** Undo, what changed since last week, restoring an
   old version.
-- **Openness.** A book is an ordinary repository. A power user can clone it,
-  edit it in any editor, and push; the app sees an ordinary commit. Any host
-  works — GitHub, Codeberg, a self-hosted Forgejo — or none, for a book that
-  only lives on the device.
+- **Openness.** A book is an ordinary repository, and can be downloaded as
+  one: a zip of the repository, history and all, that any git tool opens.
+  Nothing about a book is locked in the app or its host (§3.3).
 
 Collaboration is therefore asynchronous: edit, save, sync, merge. Real-time
 co-editing is out of scope.
@@ -123,44 +122,51 @@ a repository like any other but committed automatically — explicit save is
 for what the user authors, not for preferences. One mechanism then replaces
 both a backup and setting up each new device.
 
-### 3.3 The one server: hosts and the Worker
+### 3.3 The one server: the host and the Worker
 
 Books are hosted on **Cloudflare Artifacts**: git storage driven from code,
 where each repository is reached over ordinary smart HTTP with a token
-scoped to that one repository, read or write, and expiring. This is the
-default host, and with it an *Estante account*: a musician needs no GitHub
-account to put a book online. **GitHub** is a second host, for those who
-want their books there. Because both speak git, the app does not care which
-one a book lives on, and leaving either is a clone.
+scoped to that one repository, read or write, and expiring. With it comes an
+*Estante account*: a musician needs no account anywhere else to put a book
+online.
 
-Neither can be reached from a browser directly. Artifacts answers the
+**In the first pass this is the only host.** A book is on the device only,
+or on Estante. What keeps that from being a lock-in is that **any book can be
+downloaded** as a zip of its git repository, history and all (workflow 7):
+a clone in a file, which any git tool opens and any host accepts. Other
+hosts, GitHub first, are a later addition; nothing in the design depends on
+there being only one, since every host speaks git.
+
+Artifacts cannot be reached from a browser directly: it answers the
 preflight a browser sends before any authenticated request with a 401 and no
-CORS headers (checked October 2026), and GitHub's git endpoints and its
-sign-in token exchange send none either. So the project runs **one
-Worker**, which:
+CORS headers (checked October 2026). So the project runs **one Worker**,
+which:
 
 - answers CORS, for the app's origin only;
 - signs users in, and keeps their session;
 - knows which books each user owns, which they have been given, and which
   are public;
-- forwards git requests to the book's host — for Artifacts, attaching a
-  short-lived token for that repository, read or write as the user is
-  entitled; for GitHub, the user's own GitHub token;
+- forwards git requests to Artifacts, attaching a short-lived token for
+  that repository, read or write as the user is entitled;
 - serves public books to anyone, as a reader;
 - keeps each book's latest commit, updated from the host's push events, so
   a client can ask whether anything changed before spending a fetch on it.
 
-**The browser only ever holds its session with the Worker.** Host tokens
-stay in the Worker, so nothing in the page can leak one. The cost of that is
-trust: every song passes through the Worker, and the Worker holds accounts,
-the book registry and GitHub tokens. That is a service with users' data in
+**The browser only ever holds its session with the Worker.** Artifacts
+tokens stay in the Worker, so nothing in the page can leak one. The cost of
+that is trust: every song passes through the Worker, and the Worker holds
+accounts and the book registry. That is a service with users' data in
 it, which brings terms of service, a privacy policy and a way to handle a
 copyright notice — books with words in them are copyrighted text.
 
-Only git's own endpoints, the sign-in exchange and the change check are
-forwarded, and only to the hosts the Worker knows; it is not a general
-proxy. A host that sends CORS headers itself — a self-hosted Forgejo — may
-be reached directly instead, with a token the user holds.
+Only git's own endpoints and the change check are forwarded, and only to
+Artifacts; it is not a general proxy.
+
+*Later:* GitHub as a second host would add its sign-in token exchange and its
+git endpoints to what the Worker forwards (they send no CORS headers
+either), and the user's GitHub token to what it holds. A host that sends
+CORS headers itself — a self-hosted Forgejo — could be reached directly, with
+a token the user holds.
 
 isomorphic-git has been checked against a local server behaving as Artifacts
 does (protocol v1, a bearer token, no `include-tag` or `filter`): clone,
