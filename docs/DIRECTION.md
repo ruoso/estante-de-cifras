@@ -70,8 +70,9 @@ A book's title is the level-1 heading of its README, or the repository name.
 ### 2.2 Merging
 
 Songs and setlists merge by their meaning, as cifra.md's merge chapter
-specifies (cifra.md §11), so that two people working on different things
-never conflict:
+specifies (cifra.md §11), implemented in its Python reference and pinned by
+a merge corpus that the app's and the driver's implementations must
+reproduce, so that two people working on different things never conflict:
 
 - every version is canonicalised first (cifra.md §8), and the result is
   canonical;
@@ -469,9 +470,25 @@ its decisions are explained. So do the sections of Explore Chords'
 
 ## 6. Open decisions
 
-- **The merge is drafted, not yet proven.** cifra.md §11 specifies it, but
-  its examples were worked by hand. A reference implementation and merge
-  corpus entries come before the app builds it.
+Nothing in the direction itself is undecided. What is left are gaps the
+workflows do not yet cover, and work that comes before building:
+
+- **Setting up an instrument**: tunings, a second instrument, the voicing
+  rules with their presets and expert panel. Half of Explore Chords, and the
+  reading view depends on it, but no workflow designs it yet.
+- **The chord explorer's screen**: workflow 2 makes it a search result,
+  not what it shows — fingerings ranked and grouped by position, starring a
+  shape as *my shape*.
+- **Leaving**: deleting an account and taking one's data out, and what
+  happens to books others are members of.
+- **How a screen reader reads a sung line**: an order for chords and words
+  read aloud, decided rather than left to the markup.
+- **The theme picker**, decided (workflow 1) but not drawn.
+- **The home book's format**: JSON with a time on every key, so that "the
+  later change wins" can be done; short, but it needs writing down.
+- **Setlists in the canonical corpus**: the reference reads and writes them
+  and the merge corpus has setlists, but the canonical corpus has no
+  setlist entries for implementations to agree on.
 
 ## 7. Workflows
 
