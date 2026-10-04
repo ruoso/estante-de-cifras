@@ -462,9 +462,6 @@ its decisions are explained. So do the sections of Explore Chords'
   implementations must agree on it as they do on that. It belongs in the
   cifra.md specification, with corpus entries of base, ours, theirs and
   result, before the app builds it.
-- **Before anyone else's book is hosted**: terms of service, a privacy
-  policy, and a designated agent registered with the US Copyright Office for
-  copyright notices, since the service hosts words of songs in a US region.
 
 ## 7. Workflows
 
@@ -495,6 +492,15 @@ with the visual language they share. Roughly in the order a user meets them:
 ## 8. Later
 
 Deferred on purpose, with what is known so far.
+
+- **The legal groundwork, as Estante grows.** Books hold songs' words, which
+  are other people's copyrighted text. Keeping every book behind an account
+  and within fifty people (§3.3) keeps the exposure small enough for now.
+  When Estante reaches beyond friends and students: terms of service, a
+  privacy policy (Brazil's LGPD applies to Brazilian users wherever the
+  servers are), a designated agent registered with the US Copyright Office
+  so that the US safe harbour for hosted content applies, and perhaps a
+  company to hold the service. Worth a lawyer's hour when it comes.
 
 - **The app stores.** People look for an app in their phone's store, and
   not finding one there confuses them, though the PWA needs none. Google Play
