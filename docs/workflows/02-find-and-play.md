@@ -73,9 +73,8 @@ does: the chart, then the shapes, a page at a time on a phone.
   one variation for that tuning, a picker chooses between them; which one is
   in use is remembered per song and tuning, in the home book.
 - **A song with no voicings for the instrument in use** still plays: every
-  chord takes the default fingering the app works out. Those shapes are
-  marked as the app's choice, not the song's, and the page offers
-  **arrange for cavaquinho**, which leads into workflow 5.
+  chord takes a default (below), marked as not the song's choice, and the
+  page offers **arrange for cavaquinho**, which leads into workflow 5.
 - **A song with only some chords voiced** shows the song's shapes where it
   has them and defaults elsewhere, marked the same way.
 - **A song that does not fully parse** is shown anyway, with what was not
@@ -83,7 +82,71 @@ does: the chart, then the shapes, a page at a time on a phone.
   did not understand).
 
 From the reading view the song can be edited (workflow 4), its history
-opened (workflow 6), and it can be printed.
+opened (workflow 6), transposed (below), and printed.
+
+### Where a chord's shape comes from
+
+A chord the song has chosen no shape for (cifra.md §7.6) takes a default,
+and the spec leaves the default to the app. Here it is, in order:
+
+1. **the song's choice**, from its block for this tuning and the variation in
+   use;
+2. **my shape**: the shape the user saved as how they play that chord on this
+   instrument, kept in the home book;
+3. **the app's default**: the easiest shape the fingering search finds under
+   the instrument's rules.
+
+Each is marked for what it is: the song's choice plain, *your shape*, or
+*default*. On paper they print alike, since a student needs the shape, not
+its provenance.
+
+My shapes match by chord, not by spelling, so one saved as `Cmaj7` serves a
+song that writes `C7M`. They are applied when the song is shown and are never
+written into it. Explore Chords wrote a starred shape into a song the first
+time its chord appeared there; in a shared book that would put one person's
+habits into everyone's song at their next save. Writing them in is an
+explicit act instead (workflow 5).
+
+## Transposing
+
+The reading view can transpose a song, up or down by semitones. **It changes
+the view, never the song**: the text, the chart and every voicing block stay
+as they are. This is what makes transposing cheap here, where Explore Chords
+deferred it: nothing a teacher chose is invalidated, because nothing is
+rewritten. cifra.md §8.6 leaves transposing a document undefined; this is
+not that, but a reader showing what it read in another key.
+
+**A transposed song has no chosen shapes.** The song's voicings were chosen
+for the chords it is written in, so while it is transposed, every chord takes
+my shape or the app's default (above). This holds even where a transposed
+chord coincides with one the song voices — up a fourth, the song's `G` is a
+`C`, and the song may well voice a `C` — because the song's footnote markers
+and its arrangement were made for the original harmony, and a match is a
+coincidence.
+
+*Later:* transposing up two with a capo at the second fret on the same tuning
+is the one case where the song's own shapes are exactly right. That is the
+capo feature, and it builds on this one.
+
+**Spelling.** With a `key` property, the transposed chords are spelled as the
+new key spells them: up a semitone from C is D♭, with flats. Without one,
+whichever of the sharp or the flat spelling gives the song fewer accidentals.
+
+**It is remembered per song.** A singer does that song in D, every time. The
+transposition is kept in the home book, beside the variation in use, and is
+shown plainly while it applies — *transposed to D (+2)* — with a way back to
+the written key.
+
+**It is for reading.** While transposed:
+
+- *edit* opens the text as written;
+- *arrange* (workflow 5) is not offered, since it writes voicings for the
+  chords as written;
+- tapping a chord still opens the picker, and what is chosen there is saved
+  as *my shape* for that chord on this instrument, not into the song.
+
+Printing and a link to the song carry the transposition; search matches the
+chords as written.
 
 ## Offline
 
