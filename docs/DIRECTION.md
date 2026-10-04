@@ -288,11 +288,20 @@ its decisions are explained. So do the sections of Explore Chords'
   repository, beside the Python reference, as the format's own JS
   implementation; the merge driver would ship from there.
 
+- **The domain.** The service and the email both need one: the sign-in
+  links are mailed from it, with the records that keep them out of spam
+  folders. The app should be served from it too, rather than from GitHub
+  Pages. Two reasons: a passkey is bound to the domain it was made for, so
+  the app and the service must share one; and IndexedDB belongs to an
+  origin, so moving the app later would leave every shelf behind. Something
+  like `estantedecifras.app`, the app at its root and the service at
+  `api.` beneath it. Which name, and where it is registered, is open.
+
 ## 7. Workflows
 
-To be worked through one at a time, in [workflows/](workflows/), each to the
-point where its screens and its edge cases are known. Roughly in the order a
-user meets them:
+Worked through one at a time, in [workflows/](workflows/), each to the point
+where its screens and its edge cases are known; all fourteen are decided.
+Roughly in the order a user meets them:
 
 1. **First run** — what a new user sees, and how they reach a song.
 2. **Find and play a song** — search, open, read, choose an instrument and a
@@ -312,3 +321,18 @@ user meets them:
 13. **A new device** — signing in, getting the home book and the books back.
 14. **The file view** — what an advanced user does there, and how it relates
     to the song views.
+
+## 8. Later
+
+Deferred on purpose, with what is known so far.
+
+- **The app stores.** People look for an app in their phone's store, and
+  not finding one there confuses them, though the PWA needs none. Google Play
+  takes a PWA as a Trusted Web Activity (Bubblewrap or PWABuilder), which
+  loads the live site, so deploys need no review; it asks for a
+  `/.well-known/assetlinks.json` at the domain's root (§6). The Microsoft
+  Store takes a PWA much the same way. Apple's needs a native shell around a
+  web view (Capacitor), a yearly fee and a review that rejects apps that are
+  only a website — and would in return give the iOS app storage that is never
+  evicted. Play and Microsoft first, when it is wanted; Apple when iPhone
+  users ask.
