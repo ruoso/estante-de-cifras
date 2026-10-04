@@ -69,17 +69,29 @@ A book's title is the level-1 heading of its README, or the repository name.
 
 ### 2.2 Merging
 
-The cifra.md format makes a semantic merge tractable. Normalisation (cifra.md
-§8) keeps the chart verbatim and the voicings part canonical, so:
+Songs and setlists merge by their meaning, as cifra.md's merge chapter
+specifies (cifra.md §11), so that two people working on different things
+never conflict:
 
-- the chart merges line by line, as text;
-- the voicings merge structurally, by tuning, variation and key;
-- what genuinely collides is shown to the user to resolve in the editor,
-  never written into the file as conflict markers.
+- every version is canonicalised first (cifra.md §8), and the result is
+  canonical;
+- the chart merges section by section, then line by line, with sections
+  matched by heading or by content, so a section renamed on one side and
+  edited on the other merges cleanly;
+- footnote markers are matched by the chord occurrences they share, not by
+  name, so renumbering on either side is absorbed;
+- the voicings merge by tuning, variation and key, so two people arranging
+  for different instruments never meet;
+- properties merge one by one.
 
-The same merge ships as a git merge driver, so a desktop clone with
-`*.cifra.md merge=cifra` in its `.gitattributes` merges songs the way the app
-does.
+What genuinely collides becomes a conflict the app shows in musical terms
+(workflow 9). Its *edit* option writes git's conflict markers into the text
+for the user to edit away, and a text holding them is never canonical, so it
+is never saved or pushed.
+
+The same merge ships as a git merge driver, `git-merge-cifra` (§3.6), so a
+clone on a computer with `*.cifra.md merge=cifra` in its `.gitattributes`
+merges songs the way the app does.
 
 ## 3. Storage
 
@@ -457,11 +469,9 @@ its decisions are explained. So do the sections of Explore Chords'
 
 ## 6. Open decisions
 
-- **The cifra-aware merge is not specified.** §2.2 describes it in a
-  paragraph; it is the most intricate thing after the canonical form, and
-  implementations must agree on it as they do on that. It belongs in the
-  cifra.md specification, with corpus entries of base, ours, theirs and
-  result, before the app builds it.
+- **The merge is drafted, not yet proven.** cifra.md §11 specifies it, but
+  its examples were worked by hand. A reference implementation and merge
+  corpus entries come before the app builds it.
 
 ## 7. Workflows
 
