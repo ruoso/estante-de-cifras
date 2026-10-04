@@ -116,12 +116,12 @@ component (§3.3).
 
 ### 3.2 Personal state
 
-Instruments, voicing rules, preferred notation, which variation is in use
-and how far a song is transposed, *my shapes* — how the user plays a chord on
-an instrument, used wherever a song has chosen none (workflow 2): none of
-this belongs to a song. It lives in a **home book**,
-a repository like any other but committed automatically — explicit save is
-for what the user authors, not for preferences. One mechanism then replaces
+Instruments, voicing rules, preferred notation, the theme, which variation
+is in use and how far a song is transposed, *my shapes* — how the user plays
+a chord on an instrument, used wherever a song has chosen none (workflow 2):
+none of this belongs to a song. It lives in a **home book**, a repository
+like any other but committed automatically — explicit save is for what the
+user authors, not for preferences. One mechanism then replaces
 both a backup and setting up each new device.
 
 ### 3.3 The one server

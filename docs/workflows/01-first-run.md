@@ -80,3 +80,25 @@ when the account already has a home book from another device is workflow
 As Explore Chords did: the browser's language until one is chosen in the
 header, then that one. The choice is a preference, so it lives in the home
 book and follows the user to a new device.
+
+## Theme
+
+The app comes in three themes, drawn in [the mockups](../mockups/):
+**Estante** (neutral, ink-blue chords), **Caderno** (paper, chords in red
+pen, serif titles) and **Palco** (a dark stage, amber chords, a typeface
+made to be read from a music stand). The user chooses one, from the same
+place as the language.
+
+Until they do, the theme is **automatic**: Estante while the device is in
+light mode, Palco while it is in dark mode, following the device as it
+changes. Two of the three are light and one is dark, so this is the one
+pairing that respects what the device asks for. Choosing a theme replaces
+automatic, and *automatic* stays one of the choices.
+
+The choice is a preference, kept in the home book like the language, so it
+follows the user to a new device. Automatic still follows each device's
+own light or dark mode, so a phone in dark mode at a gig shows Palco while
+the laptop at home shows Estante.
+
+The chart itself never changes with the theme beyond colour and typeface:
+which chord sits over which syllable is the song's, not the theme's.

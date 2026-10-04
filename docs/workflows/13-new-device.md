@@ -28,12 +28,12 @@ already has.
 
 ## What comes down
 
-The **home book** first, so the instrument in use, the notation and the
-language are right before anything else appears. Then **the shelf** fills:
-every book the account had is listed at once, and each clones in the
-background, its songs searchable as they arrive (workflow 2). Books come in
-the shelf list's order. Recents are kept per device, so there is no "most
-recently played" to go by, and a shelf is a handful of small books.
+The **home book** first, so the instrument in use, the notation, the
+language and the theme are right before anything else appears. Then **the
+shelf** fills: every book the account had is listed at once, and each clones
+in the background, its songs searchable as they arrive (workflow 2). Books
+come in the shelf list's order. Recents are kept per device, so there is no
+"most recently played" to go by, and a shelf is a handful of small books.
 
 ### The shelf is in the home book
 
