@@ -139,13 +139,13 @@ US region (§3.6).
   passkeys and recover an account (workflow 13). Small, but a dependency,
   and one whose mail has to stay out of spam folders.
 - **The service** answers CORS for the app's origin only, signs users in,
-  checks every request against the registry, and hands the git requests it
-  allows to **`git http-backend`** — git's own HTTP server — over the
-  repository on the volume. It also answers *has this book changed?* by
-  reading one ref off the disk, so a client spends a fetch only on a book
-  that did. A `pre-receive` hook, a Go program of its own, checks every
-  push against what a book may hold, its canonical form, and the limits per
-  book and per account (workflow 14).
+  checks every request against the registry, and runs the git requests it
+  allows with **git's own commands**, `git upload-pack` and `git
+  receive-pack`, over the repository on the volume (§3.6). It also answers
+  *has this book changed?* by reading one ref off the disk, so a client spends
+  a fetch only on a book that did. A `pre-receive` hook, a Go program of its
+  own, checks every push against what a book may hold, its canonical form, and
+  the limits per book and per account (workflow 14).
 
 **The git server is git.** Every part of the protocol works — deltas,
 negotiation, shallow fetches — so isomorphic-git in the browser and, later,
@@ -259,9 +259,47 @@ one static binary, `git-merge-cifra`, the easiest thing to install where
 there is no runtime to rely on. The app merges with the JavaScript one; both
 are held to the same corpus.
 
-**Inside the service**, nothing unusual: `net/http`; `net/http/cgi` to run
-`git http-backend`; `pgx` for Postgres; `go-webauthn` for passkeys; the
-email provider's HTTP API. One binary, with git beside it in the image.
+**Inside the service**, nothing unusual: `net/http`; `pgx` for Postgres;
+`go-webauthn` for passkeys; the email provider's HTTP API. One binary, with
+git beside it in the image.
+
+#### Git over HTTP
+
+The service speaks git's smart HTTP protocol itself, the way Gitea, Forgejo
+and GitLab do, rather than through `git http-backend` and CGI. Its part is
+the HTTP; git does the rest.
+
+- **`GET …/info/refs?service=…`** runs `git upload-pack` or `git
+  receive-pack` with `--stateless-rpc --advertise-refs`, and the service
+  writes the service header before git's output: `# service=…` as a
+  pkt-line, then a flush.
+- **`POST …/git-upload-pack`** and **`POST …/git-receive-pack`** run the
+  same command with `--stateless-rpc`, the request body piped in and the
+  output streamed back.
+- The client's `Git-Protocol` header becomes `GIT_PROTOCOL` in the
+  command's environment, so protocol v2 fetches work; a request body sent
+  with `Content-Encoding: gzip` is decompressed on the way in.
+
+The protocol, the packs, ref locking, the quarantine and running the hook
+stay git's own. What the service gains by doing the framing:
+
+- **Authentication and refusals are all its own, before git starts.** A
+  request with no access, a book over quota, a book deleted: refused by the
+  service with a clear message, git never spawned. What the hook refuses
+  still reaches the client through git's own channel.
+- **The hook knows who is pushing.** It inherits the environment of the
+  `git receive-pack` that runs it, so the service sets `ESTANTE_USER`,
+  `ESTANTE_BOOK`, `ESTANTE_ROLE` and what the account has left of its
+  limits. The hook checks a push against the account's limits with no
+  database connection of its own, and names the user in its messages.
+- **Control of each request**: a size cap before git reads a byte, a
+  deadline, and the git process killed when the client goes away.
+- **Nothing hidden.** No `http-backend` rules about `REMOTE_USER`,
+  `http.receivepack`, exports or dumb HTTP; only the two commands the
+  service means to run.
+
+The cost is owning about two hundred lines of framing, tested for gzip
+bodies, protocol v2, and a client that disconnects mid-push.
 
 #### The API
 
