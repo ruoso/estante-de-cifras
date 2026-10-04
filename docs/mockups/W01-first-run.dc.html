@@ -17,13 +17,13 @@
   <div class="board-head">
     <div class="board-num">Workflow 1</div>
     <h1 class="board-title">First run</h1>
-    <p class="board-sub">Two doors, and neither asks anything before showing something. A cold start lands on search with an empty shelf and four ways to fill it; a link lands on the book it was sent for. The instrument is asked about once, the first time a song shows it.</p>
+    <p class="board-sub">Two doors, and neither asks anything before showing something. A cold start lands on search with an empty shelf and four ways to fill it, the example book among them, shipped with the app; an invitation names its book and asks for an account first, since no book opens without one. The instrument is asked about once, the first time a song shows it.</p>
   </div>
 
   <div class="devices">
     <!-- Phones -->
     <div class="dev-col">
-      <div class="dev-label"><b>Phone</b> · the cold door, then the invited one</div>
+      <div class="dev-label"><b>Phone</b> · the cold door, then the invited one: sign in or make an account to open the book</div>
       <div class="dev-pair">
         <div class="dev phone">
           <div class="screen">
@@ -44,7 +44,7 @@
                 <a class="row" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg><span class="grow"><span class="name">Write a song</span><span class="meta">It goes into My songs</span></span></a>
                 <a class="row" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg><span class="grow"><span class="name">Add a book by its link</span><span class="meta">From a teacher or a bandmate</span></span></a>
                 <a class="row" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg><span class="grow"><span class="name">Sign in</span><span class="meta">Bring back your shelf from another device</span></span></a>
-                <a class="row" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg><span class="grow"><span class="name">Open the example book</span><span class="meta">Songs written for trying the app; remove it any time</span></span></a>
+                <a class="row" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg><span class="grow"><span class="name">Open the example book</span><span class="meta">Songs that come with the app, put on your shelf; remove it any time</span></span></a>
               </div>
               <div class="section-label"><span class="t-h3">Books</span></div>
               <div class="list">
@@ -64,24 +64,24 @@
             <div style="display: flex; align-items: center; gap: 10px; padding: 18px 16px 10px">
               <span class="t-h1" style="flex: 1">Estante</span>
               <span class="chip accent">Guitar</span>
-              <button class="btn quiet" style="padding: 0 8px">Sign in</button>
             </div>
-            <div style="padding: 0 16px 12px">
-              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span class="scope">Choros da Ana</span><span style="flex: 1; color: var(--ink-2)">Search this book</span></div>
-            </div>
-            <div class="scroll" style="padding-top: 4px; gap: 12px">
-              <div class="notice accent"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 1px"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg><span>Opened from a link. You are reading this book; no account needed.</span></div>
-              <div class="section-label"><span class="t-h3">Choros da Ana</span><span class="badge">reading</span></div>
-              <div class="list">
-                <sc-for list="{{anaSongs}}" as="r" hint-placeholder-count="6">
-                  <a class="row" href="#"><span class="grow"><span class="name">{{r.title}}</span><span class="meta">{{r.where}}</span><sc-if value="{{r.voiced}}" hint-placeholder-val="{{ true }}"><span class="badges"><span class="badge voiced">voiced for guitar</span></span></sc-if></span></a>
-                </sc-for>
+            <div class="scroll" style="padding-top: 28px; gap: 18px">
+              <div style="display: flex; flex-direction: column; gap: 10px; align-items: flex-start">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent)"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>
+                <span class="t-h3">You're invited to a book</span>
+                <h2 class="t-h1">Choros da Ana</h2>
+                <span class="chip">as a reader</span>
               </div>
-            </div>
-            <div class="tabbar">
-              <button class="tab on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Search</button>
-              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>Books</button>
-              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg>Setlists</button>
+              <p class="t-body">Readers read the book and keep it on their shelf. To open it, sign in, or make an account first.</p>
+              <div class="card pad" style="gap: 6px">
+                <div style="display: flex; align-items: center; gap: 10px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--accent)"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg><span style="font-weight: 600">An account is a passkey</span></div>
+                <span class="t-small">No password to choose. Your phone makes it, and it takes seconds.</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 10px">
+                <button class="btn primary block">Make an account</button>
+                <button class="btn block">I have an account: sign in</button>
+              </div>
+              <p class="t-small">Then Choros da Ana goes on your shelf, and opens on its songs.</p>
             </div>
           </div>
         </div>
@@ -140,7 +140,7 @@
 
     <!-- Desktop -->
     <div class="dev-col">
-      <div class="dev-label"><b>Computer</b> · a link that no longer opens its book</div>
+      <div class="dev-label"><b>Computer</b> · a link that does not open its book (expired, withdrawn, not a member), and a full book; neither says whose</div>
       <div class="dev desktop">
         <div class="split">
           <div class="pane side">
@@ -165,21 +165,33 @@
                 <a class="card pad" href="#" style="text-decoration: none; color: inherit"><span class="t-h2">Write a song</span><span class="t-small">It goes into My songs.</span></a>
                 <a class="card pad" href="#" style="text-decoration: none; color: inherit"><span class="t-h2">Add a book by its link</span><span class="t-small">From a teacher or a bandmate.</span></a>
                 <a class="card pad" href="#" style="text-decoration: none; color: inherit"><span class="t-h2">Sign in</span><span class="t-small">Bring back your shelf from another device.</span></a>
-                <a class="card pad" href="#" style="text-decoration: none; color: inherit"><span class="t-h2">Open the example book</span><span class="t-small">Songs written for trying the app; remove it any time.</span></a>
+                <a class="card pad" href="#" style="text-decoration: none; color: inherit"><span class="t-h2">Open the example book</span><span class="t-small">Songs that come with the app, put on your shelf. Remove it any time.</span></a>
               </div>
             </div>
           </div>
         </div>
         <div class="scrim center">
-          <div class="dialog" role="dialog" aria-labelledby="w01-dead-title">
-            <div style="display: flex; align-items: center; gap: 12px">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--conflict); flex: none"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg>
-              <h2 class="t-h2" id="w01-dead-title">This link doesn’t open a book</h2>
+          <div style="display: flex; gap: 24px; align-items: flex-start">
+            <div class="dialog" role="dialog" aria-labelledby="w01-dead-title" style="width: 470px">
+              <div style="display: flex; align-items: center; gap: 12px">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--conflict); flex: none"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg>
+                <h2 class="t-h2" id="w01-dead-title">This link doesn’t open a book</h2>
+              </div>
+              <p class="t-body">The invitation may have expired or been withdrawn, or this account isn’t in the book. Ask whoever sent it to you for a new one.</p>
+              <div class="actions">
+                <button class="btn quiet">Add a book by its link</button>
+                <button class="btn primary">OK</button>
+              </div>
             </div>
-            <p class="t-body">It may have been reset, expired or withdrawn. Ask whoever sent it to you for a new one.</p>
-            <div class="actions">
-              <button class="btn quiet">Add a book by its link</button>
-              <button class="btn primary">OK</button>
+            <div class="dialog" role="dialog" aria-labelledby="w01-full-title" style="width: 470px">
+              <div style="display: flex; align-items: center; gap: 12px">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--conflict); flex: none"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg>
+                <h2 class="t-h2" id="w01-full-title">This book is full</h2>
+              </div>
+              <p class="t-body">It has reached its limit of people, so the invitation can’t let anyone else in. Ask the book’s owner to make room, then open the link again.</p>
+              <div class="actions">
+                <button class="btn primary">OK</button>
+              </div>
             </div>
           </div>
         </div>
@@ -214,14 +226,6 @@ class Component extends DCLogic {
     return {
       theme: this.props.theme ?? 'current',
       density: this.props.density ?? 'comfortable',
-      anaSongs: [
-        { title: 'Carinhoso', where: 'choro/', voiced: true },
-        { title: 'Brasileirinho', where: 'choro/', voiced: true },
-        { title: 'Lamentos', where: 'choro/', voiced: false },
-        { title: 'Odeon', where: 'choro/', voiced: false },
-        { title: 'Valsa da Janela', where: 'valsas/', voiced: true },
-        { title: 'A Banda', where: 'bossa/', voiced: true },
-      ],
       valsa: [
         L.sec('Introdução'),
         L.bars('D | A7 | D | D'),
