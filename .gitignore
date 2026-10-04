@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.vite/
+test-results/
+playwright-report/
+*.log
+/test-results/
+/playwright-report/
+/blob-report/
+
+# Local agent worktrees are not part of the project.
+.claude/worktrees/
