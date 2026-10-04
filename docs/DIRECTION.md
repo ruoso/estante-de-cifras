@@ -122,61 +122,98 @@ a repository like any other but committed automatically — explicit save is
 for what the user authors, not for preferences. One mechanism then replaces
 both a backup and setting up each new device.
 
-### 3.3 The one server: the host and the Worker
+### 3.3 The one server
 
-Books are hosted on **Cloudflare Artifacts**: git storage driven from code,
-where each repository is reached over ordinary smart HTTP with a token
-scoped to that one repository, read or write, and expiring. With it comes an
-*Estante account*: a musician needs no account anywhere else to put a book
-online.
+The app itself is static — a PWA served from a CDN, which scales without
+limit and holds nothing. Behind it the project runs **one service**: a small
+Node process in a container, with **PostgreSQL** beside it, on Railway.
 
-**In the first pass this is the only host.** A book is on the device only,
-or on Estante. What keeps that from being a lock-in is that **any book can be
-downloaded** as a zip of its git repository, history and all (workflow 7):
-a clone in a file, which any git tool opens and any host accepts. Other
-hosts, GitHub first, are a later addition; nothing in the design depends on
-there being only one, since every host speaks git.
+- **Postgres** holds accounts, sessions and passkeys, and the book registry:
+  each book's owner, its members and their roles, and its read link.
+- **A volume** holds one bare git repository per book,
+  `/data/books/<id>.git`.
+- **The service** answers CORS for the app's origin only, signs users in,
+  checks every request against the registry, and hands the git requests it
+  allows to **`git http-backend`** — git's own HTTP server — over the
+  repository on the volume. It also answers *has this book changed?* by
+  reading one ref off the disk, so a client spends a fetch only on a book
+  that did.
 
-Artifacts cannot be reached from a browser directly: it answers the
-preflight a browser sends before any authenticated request with a 401 and no
-CORS headers (checked October 2026). So the project runs **one Worker**,
-which:
+**The git server is git.** Every part of the protocol works — deltas,
+negotiation, shallow fetches — so isomorphic-git in the browser and, later,
+git on a computer both talk to it with nothing written for either. Two pushes
+racing are settled by git's own ref locking. Forks (workflow 11) are copies
+on the same volume.
 
-- answers CORS, for the app's origin only;
-- signs users in, and keeps their session;
-- knows which books each user owns, which they have been given, and which
-  are public;
-- forwards git requests to Artifacts, attaching a short-lived token for
-  that repository, read or write as the user is entitled;
-- serves public books to anyone, as a reader;
-- keeps each book's latest commit, updated from the host's push events, so
-  a client can ask whether anything changed before spending a fetch on it.
-
-**The browser only ever holds its session with the Worker.** Artifacts
-tokens stay in the Worker, so nothing in the page can leak one. The cost of
-that is trust: every song passes through the Worker, and the Worker holds
-accounts and the book registry. That is a service with users' data in
-it, which brings terms of service, a privacy policy and a way to handle a
+**The browser only ever holds its session with the service.** It speaks git
+to the service, never to storage, which is what keeps storage replaceable
+(below). The cost is trust: every song passes through the service, which
+holds accounts and the registry. That is a service with users' data in it,
+which brings terms of service, a privacy policy and a way to handle a
 copyright notice — books with words in them are copyrighted text.
 
-Only git's own endpoints and the change check are forwarded, and only to
-Artifacts; it is not a general proxy.
+**Estante is the only host in the first pass.** A book is on the device
+only, or on Estante. What keeps that from being lock-in is that **any book
+can be downloaded** as a zip of its git repository, history and all, and
+uploaded back (workflow 7): a clone in a file, which any git tool opens and
+any host accepts. Other hosts, GitHub first, are a later addition; nothing in
+the design depends on there being only one, since every host speaks git.
 
-*Later:* GitHub as a second host would add its sign-in token exchange and its
-git endpoints to what the Worker forwards (they send no CORS headers
-either), and the user's GitHub token to what it holds. A host that sends
-CORS headers itself — a self-hosted Forgejo — could be reached directly, with
-a token the user holds.
+**Everything runs locally as it runs in production**: the container and
+Postgres under docker compose, so end-to-end tests sync against a real
+server.
 
-isomorphic-git has been checked against a local server behaving as Artifacts
-does (protocol v1, a bearer token, no `include-tag` or `filter`): clone,
-shallow clone, push, fetch and pull work, with the token passed in `headers`
-rather than through `onAuth`. Both findings still want confirming against a
-real Artifacts namespace.
+### 3.4 One instance, and what comes after it
 
-Running cost is the Workers Paid plan plus Artifacts usage, billed per
-operation and per GB stored. The change check is what keeps idle books from
-costing operations.
+A volume belongs to one instance, and the repositories must have one owner:
+git coordinates writers with lock files, and a disk shared between machines
+is a known way to corrupt a repository. So the service is a **single
+instance**. That suits this app better than most:
+
+- the load is small text repositories fetched now and then, and a ref read
+  for the change check;
+- the app is offline first, so a minute of downtime during a deploy is a
+  push retried at the next sync, not an outage anyone sees.
+
+**Durability** is the price of one disk. The volume is backed up, Postgres is
+backed up, and a nightly `git bundle` of every book goes to object storage as
+a second copy that does not depend on the host.
+
+**When one instance is not enough**, the way on never shares a disk:
+
+1. **Split the stateless part off.** Sign-in, the registry and permission
+   checks run as many replicas as needed, and forward git requests to the one
+   storage node.
+2. **Shard books across storage nodes.** The registry says which node owns
+   each book, and the API routes to it; each repository still has exactly one
+   machine writing it. This is how the large git hosts scale.
+3. **Or hand storage to a managed service** — Cloudflare Artifacts, or
+   repositories in object storage with refs in Postgres — and have no disk at
+   all.
+
+All of it happens behind the service. The browser never knows where a book
+lives.
+
+### 3.5 What was considered
+
+**Cloudflare Artifacts** — git storage driven from code, with repo-scoped,
+expiring tokens and server-side forks — was the first choice. It needs a
+database beside it anyway, it is in beta and billed per git operation, it
+cannot be run locally, and it is not reachable from a browser directly: it
+answers a CORS preflight with a 401 and no CORS headers (checked October
+2026), so a server would sit in front of it regardless. isomorphic-git was
+checked against a local server behaving as it does, and works. It remains the
+managed option in §3.4.
+
+**Git objects inside the database** — Postgres, or a Durable Object per book
+— would put a book's permissions and refs in one transaction, at the cost of
+writing a git server: the server side of the protocol is the code where a
+subtle bug corrupts data, which is why the client uses isomorphic-git rather
+than its own.
+
+**Forgejo** would bring accounts, collaborators and forks ready-made, but
+built for developers, with an interface and an account model the app would
+spend its effort working around.
 
 ## 4. The interface
 
