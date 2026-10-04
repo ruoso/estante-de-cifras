@@ -105,6 +105,22 @@ between.
 
 **Which branch**: the zip's checked-out branch only, named in the preview.
 
+**A merge left half done.** A zip from a computer may hold git's conflict
+markers (cifra.md §11.12.3), and a text holding them is never canonical, so
+it can never be saved or pushed (workflow 14). Two places they can be:
+
+- **In the zip's working tree**: someone stopped in the middle of a merge.
+  The preview shows that file as *unresolved merge: fix it before
+  importing*, pointing at its first marker line, and leaves it out; the rest
+  of the upload goes ahead. A merge into an existing book never merges a
+  marked file either (cifra.md §11.4): that song stays as the book has it.
+- **In the zip's history**: markers were committed. Rewriting that history
+  into canonical form is impossible, since a marked text has no canonical
+  form. The preview names the commit and the file, and offers two ways on:
+  fix it on the computer and upload again, or **import the latest version
+  without its history**, if the latest version is itself clean — as a book
+  with one first commit, like a zip with no history.
+
 **Unsaved changes in the book merged into** are handled as sync handles them
 (DIRECTION §3.1): the merge lands in the saved book, and the unsaved changes
 are carried on top of it, still unsaved.
