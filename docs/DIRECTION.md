@@ -133,7 +133,15 @@ beside it (§3.6). The same service serves the app — a static PWA, which the
 browser installs and caches, so serving it costs little — at the root of
 **`estantedecifras.app`**, and its API beneath it. The `.app` domain is
 HTTPS-only for every browser, which a PWA and passkeys need anyway. Sign-in
-links are mailed from it too. **One origin** for both: no CORS, a
+links are mailed from it too.
+
+**Commits are authored with a per-user no-reply address**,
+`<user-id>@users.estantedecifras.app`, never the user's real email: a
+book's history goes wherever the book is shared or downloaded, and a
+person's address does not belong in it. History recognises *you* by that
+address (workflow 6); before sign-in, a device's commits carry a local id
+in its place, which the account's address replaces in the saves not yet
+pushed when the user signs in. **One origin** for both: no CORS, a
 session cookie that simply flows, and a passkey for the one domain.
 Moving the app to a CDN later is possible but not free, since a shelf
 belongs to the app's origin; it would keep the same domain.
@@ -445,10 +453,6 @@ its decisions are explained. So do the sections of Explore Chords'
   implementations must agree on it as they do on that. It belongs in the
   cifra.md specification, with corpus entries of base, ours, theirs and
   result, before the app builds it.
-- **The email a commit is authored with.** Before sign-in there is none,
-  and a person's real address does not belong in a shared book's history.
-  Leaning towards a per-user no-reply address,
-  `<user-id>@users.estantedecifras.app`, for every commit.
 - **Before anyone else's book is hosted**: terms of service, a privacy
   policy, and a designated agent registered with the US Copyright Office for
   copyright notices, since the service hosts words of songs in a US region.
