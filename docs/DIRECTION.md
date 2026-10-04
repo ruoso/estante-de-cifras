@@ -126,7 +126,8 @@ both a backup and setting up each new device.
 
 The app itself is static — a PWA served from a CDN, which scales without
 limit and holds nothing. Behind it the project runs **one service**: a small
-Node process in a container, with **PostgreSQL** beside it, on Railway.
+Node process in a container, with **PostgreSQL** beside it, on Railway,
+in a US region.
 
 - **Postgres** holds accounts, sessions and passkeys, and the book registry:
   each book's owner, its members and their roles, and its read link.
