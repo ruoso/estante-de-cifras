@@ -83,7 +83,7 @@ does.
 ## 3. Storage
 
 Everything is in the browser: each book is a git repository on a filesystem
-backed by IndexedDB, operated by isomorphic-git in a Worker.
+backed by IndexedDB, operated by isomorphic-git in a Web Worker.
 
 - **A real working copy.** Each book is cloned with a working tree. What the
   user is editing is the working copy, written to storage as they type, so
@@ -110,9 +110,8 @@ Fetch, merge, push, retried when the push races another. With unsaved work
 in the working copy, incoming changes are merged into it — base, theirs, and
 the working text — so the user's edits stay unsaved and land on top.
 
-Browsers cannot talk to GitHub's git endpoints directly (no CORS), and
-GitHub's OAuth token exchange has the same problem, so hosted books need a
-small stateless proxy. A host that sends CORS headers itself needs none.
+Every git request to a hosted book goes through the app's one server
+component (§3.3).
 
 ### 3.2 Personal state
 
@@ -123,6 +122,55 @@ this belongs to a song. It lives in a **home book**,
 a repository like any other but committed automatically — explicit save is
 for what the user authors, not for preferences. One mechanism then replaces
 both a backup and setting up each new device.
+
+### 3.3 The one server: hosts and the Worker
+
+Books are hosted on **Cloudflare Artifacts**: git storage driven from code,
+where each repository is reached over ordinary smart HTTP with a token
+scoped to that one repository, read or write, and expiring. This is the
+default host, and with it an *Estante account*: a musician needs no GitHub
+account to put a book online. **GitHub** is a second host, for those who
+want their books there. Because both speak git, the app does not care which
+one a book lives on, and leaving either is a clone.
+
+Neither can be reached from a browser directly. Artifacts answers the
+preflight a browser sends before any authenticated request with a 401 and no
+CORS headers (checked October 2026), and GitHub's git endpoints and its
+sign-in token exchange send none either. So the project runs **one
+Worker**, which:
+
+- answers CORS, for the app's origin only;
+- signs users in, and keeps their session;
+- knows which books each user owns, which they have been given, and which
+  are public;
+- forwards git requests to the book's host — for Artifacts, attaching a
+  short-lived token for that repository, read or write as the user is
+  entitled; for GitHub, the user's own GitHub token;
+- serves public books to anyone, as a reader;
+- keeps each book's latest commit, updated from the host's push events, so
+  a client can ask whether anything changed before spending a fetch on it.
+
+**The browser only ever holds its session with the Worker.** Host tokens
+stay in the Worker, so nothing in the page can leak one. The cost of that is
+trust: every song passes through the Worker, and the Worker holds accounts,
+the book registry and GitHub tokens. That is a service with users' data in
+it, which brings terms of service, a privacy policy and a way to handle a
+copyright notice — books with words in them are copyrighted text.
+
+Only git's own endpoints, the sign-in exchange and the change check are
+forwarded, and only to the hosts the Worker knows; it is not a general
+proxy. A host that sends CORS headers itself — a self-hosted Forgejo — may
+be reached directly instead, with a token the user holds.
+
+isomorphic-git has been checked against a local server behaving as Artifacts
+does (protocol v1, a bearer token, no `include-tag` or `filter`): clone,
+shallow clone, push, fetch and pull work, with the token passed in `headers`
+rather than through `onAuth`. Both findings still want confirming against a
+real Artifacts namespace.
+
+Running cost is the Workers Paid plan plus Artifacts usage, billed per
+operation and per GB stored. The change check is what keeps idle books from
+costing operations.
 
 ## 4. The interface
 
@@ -183,10 +231,8 @@ its decisions are explained. So do the sections of Explore Chords'
 
 - **Framework.** Explore Chords' single store and one `render()` suited one
   local library. This app has asynchronous state from many directions — sync
-  results, merges, a Worker's index. Vanilla with a sturdier component
+  results, merges, a Web Worker's index. Vanilla with a sturdier component
   structure, or a small reactive library?
-- **Hosting.** Bring your own host behind a proxy, a hosted Forgejo, or both.
-  This decides the running cost.
 - **Sharing one song.** Explore Chords' link-in-the-fragment needs no host
   and could stay alongside books.
 - **Where the cifra.md JS library lives.** Leaning towards the cifra.md
