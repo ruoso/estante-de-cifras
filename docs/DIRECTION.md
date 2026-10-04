@@ -131,7 +131,9 @@ be small, and one place to run is worth more than a CDN. The project runs
 **one service**, a small Go program in a container, with **PostgreSQL**
 beside it (§3.6). The same service serves the app — a static PWA, which the
 browser installs and caches, so serving it costs little — at the root of
-its domain, and its API beneath it. **One origin** for both: no CORS, a
+**`estantedecifras.app`**, and its API beneath it. The `.app` domain is
+HTTPS-only for every browser, which a PWA and passkeys need anyway. Sign-in
+links are mailed from it too. **One origin** for both: no CORS, a
 session cookie that simply flows, and a passkey for the one domain.
 Moving the app to a CDN later is possible but not free, since a shelf
 belongs to the app's origin; it would keep the same domain.
@@ -438,14 +440,18 @@ its decisions are explained. So do the sections of Explore Chords'
 
 ## 6. Open decisions
 
-- **The domain.** The service and the email both need one: the sign-in
-  links are mailed from it, with the records that keep them out of spam
-  folders. The app should be served from it too, rather than from GitHub
-  Pages. Two reasons: a passkey is bound to the domain it was made for, so
-  the app and the service must share one; and IndexedDB belongs to an
-  origin, so moving the app later would leave every shelf behind. Something
-  like `estantedecifras.app`, the app and its API on the one origin
-  (§3.3). Which name, and where it is registered, is open.
+- **The cifra-aware merge is not specified.** §2.2 describes it in a
+  paragraph; it is the most intricate thing after the canonical form, and
+  implementations must agree on it as they do on that. It belongs in the
+  cifra.md specification, with corpus entries of base, ours, theirs and
+  result, before the app builds it.
+- **The email a commit is authored with.** Before sign-in there is none,
+  and a person's real address does not belong in a shared book's history.
+  Leaning towards a per-user no-reply address,
+  `<user-id>@users.estantedecifras.app`, for every commit.
+- **Before anyone else's book is hosted**: terms of service, a privacy
+  policy, and a designated agent registered with the US Copyright Office for
+  copyright notices, since the service hosts words of songs in a US region.
 
 ## 7. Workflows
 
