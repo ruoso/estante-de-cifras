@@ -133,6 +133,9 @@ in a US region.
   each book's owner, its members and their roles, and its read link.
 - **A volume** holds one bare git repository per book,
   `/data/books/<id>.git`.
+- **A transactional email provider** sends the sign-in links that back up
+  passkeys and recover an account (workflow 13). Small, but a dependency,
+  and one whose mail has to stay out of spam folders.
 - **The service** answers CORS for the app's origin only, signs users in,
   checks every request against the registry, and hands the git requests it
   allows to **`git http-backend`** — git's own HTTP server — over the
