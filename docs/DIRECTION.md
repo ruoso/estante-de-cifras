@@ -60,8 +60,10 @@ A song is any file named `*.cifra.md` (cifra.md §1.2), anywhere in the book.
 The app prescribes no layout. Folders are the user's to organise with, and
 the app shows a song's folder and can filter by it.
 
-Other `.md` files are not songs, even when they would parse as one, so that
-search stays predictable. The file view may offer to rename one that parses.
+A setlist is any file named `*.setlist.md` (workflow 12). Besides songs and
+setlists, a book holds a `README.md` and a `.gitattributes`, and nothing else:
+every song and setlist in canonical form, and every push checked by the
+service for all of it (workflow 14). A book is a songbook, not file storage.
 
 A book's title is the level-1 heading of its README, or the repository name.
 
@@ -141,7 +143,9 @@ in a US region.
   allows to **`git http-backend`** — git's own HTTP server — over the
   repository on the volume. It also answers *has this book changed?* by
   reading one ref off the disk, so a client spends a fetch only on a book
-  that did.
+  that did. A `pre-receive` hook checks every push against what a book may
+  hold, its canonical form, and the limits per book and per account
+  (workflow 14).
 
 **The git server is git.** Every part of the protocol works — deltas,
 negotiation, shallow fetches — so isomorphic-git in the browser and, later,
