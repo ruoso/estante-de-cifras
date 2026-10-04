@@ -280,9 +280,6 @@ its decisions are explained. So do the sections of Explore Chords'
 - **Where the cifra.md JS library lives.** Leaning towards the cifra.md
   repository, beside the Python reference, as the format's own JS
   implementation; the merge driver would ship from there.
-- **Setlists.** Probably `*.setlist.md`, a Markdown list of relative links to
-  songs, which reads correctly on any git host. Whether a setlist may point
-  into another book is open; leaning no.
 
 ## 7. Workflows
 
