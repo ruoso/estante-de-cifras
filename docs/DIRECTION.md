@@ -126,10 +126,15 @@ both a backup and setting up each new device.
 
 ### 3.3 The one server
 
-The app itself is static — a PWA served from a CDN, which scales without
-limit and holds nothing. Behind it the project runs **one service**: a small
-Go program in a container, with **PostgreSQL** beside it, on Railway, in a
-US region (§3.6).
+Everything runs on Railway at first, in a US region: traffic is expected to
+be small, and one place to run is worth more than a CDN. The project runs
+**one service**, a small Go program in a container, with **PostgreSQL**
+beside it (§3.6). The same service serves the app — a static PWA, which the
+browser installs and caches, so serving it costs little — at the root of
+its domain, and its API beneath it. **One origin** for both: no CORS, a
+session cookie that simply flows, and a passkey for the one domain.
+Moving the app to a CDN later is possible but not free, since a shelf
+belongs to the app's origin; it would keep the same domain.
 
 - **Postgres** holds accounts, sessions and passkeys, and the book registry:
   each book's owner, its members and their roles, and its read link.
@@ -138,7 +143,7 @@ US region (§3.6).
 - **A transactional email provider** sends the sign-in links that back up
   passkeys and recover an account (workflow 13). Small, but a dependency,
   and one whose mail has to stay out of spam folders.
-- **The service** answers CORS for the app's origin only, signs users in,
+- **The service** serves the app, signs users in,
   checks every request against the registry, and runs the git requests it
   allows with **git's own commands**, `git upload-pack` and `git
   receive-pack`, over the repository on the volume (§3.6). It also answers
@@ -184,8 +189,9 @@ instance**. That suits this app better than most:
   push retried at the next sync, not an outage anyone sees.
 
 **Durability** is the price of one disk. The volume is backed up, Postgres is
-backed up, and a nightly `git bundle` of every book goes to object storage as
-a second copy that does not depend on the host.
+backed up, both with Railway's own backups at first. *Later*, a nightly `git
+bundle` of every book goes to object storage outside Railway, as a second
+copy that does not depend on the host.
 
 **When one instance is not enough**, the way on never shares a disk:
 
@@ -333,11 +339,12 @@ estante-de-cifras/            cifra.md/
 ```
 
 **Locally, everything runs as in production**: `compose.yaml` brings up
-Postgres, the service's image with git and the hook, a local mail catcher in
-place of the email provider, and the app's dev server, and the end-to-end
-tests sync against it. CI runs the app's tests, the Go tests and the
-end-to-end tests here; the corpus and the cross-implementation comparison
-run in cifra.md.
+Postgres, the service's image with git, the hook and the built app, and a
+local mail catcher in place of the email provider, and the end-to-end tests
+run against that one origin. While developing the app, its dev server proxies
+the API to the service, so it is one origin there too. CI runs the app's
+tests, the Go tests and the end-to-end tests here; the corpus and the cross-
+implementation comparison run in cifra.md.
 
 ### 3.7 The app
 
@@ -437,8 +444,8 @@ its decisions are explained. So do the sections of Explore Chords'
   Pages. Two reasons: a passkey is bound to the domain it was made for, so
   the app and the service must share one; and IndexedDB belongs to an
   origin, so moving the app later would leave every shelf behind. Something
-  like `estantedecifras.app`, the app at its root and the service at
-  `api.` beneath it. Which name, and where it is registered, is open.
+  like `estantedecifras.app`, the app and its API on the one origin
+  (§3.3). Which name, and where it is registered, is open.
 
 ## 7. Workflows
 
