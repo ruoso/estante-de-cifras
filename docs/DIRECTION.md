@@ -227,7 +227,7 @@ spend its effort working around.
 
 | Component | Written in | Lives in | Does |
 |---|---|---|---|
-| **The app** | JavaScript, a PWA | this repository, `app/` | Everything the user sees. Git through isomorphic-git in a Web Worker; the music core from Explore Chords. |
+| **The app** | JavaScript, React, a PWA | this repository, `app/` | Everything the user sees (§3.7). Git through isomorphic-git in a Web Worker; the music core from Explore Chords. |
 | **cifra.md for JavaScript** | JavaScript | the cifra.md repository, `js/` | Reads and canonicalizes songs and setlists, merges, diffs in musical terms. The app's. |
 | **The service** | Go | this repository, `service/` | Sign-in, the registry, sharing, the change check, and git over HTTP. |
 | **The hook** | Go | this repository, `service/cmd/pre-receive` | Checks every push (workflow 14). |
@@ -339,6 +339,40 @@ tests sync against it. CI runs the app's tests, the Go tests and the
 end-to-end tests here; the corpus and the cross-implementation comparison
 run in cifra.md.
 
+### 3.7 The app
+
+**React, with React Aria Components**, chosen for the richest accessible
+experience. The app is installed and cached up front, so its weight is not a
+constraint; what is expensive to build well is accessible interaction on a
+phone, a tablet and a computer alike — sheets, dialogs that hold focus,
+menus, the shape picker, comboboxes, segmented controls, drag to reorder a
+setlist — and React Aria is the most complete answer to it: keyboard and
+screen-reader behaviour, press and touch handling that works on phones, drag
+and drop with a keyboard alternative, and formatting by locale for the four
+languages. Its components carry no look of their own, so the visual language
+(`docs/mockups/theme.css`) applies as drawn.
+
+- **One owner for the data: a Web Worker.** It holds git, the working copy
+  and the search index, and does every clone, fetch, merge, save and index
+  update. The main thread never touches IndexedDB.
+- **The interface mirrors it.** A store on the main thread is fed by the
+  Worker's messages, and components read the slices they need through
+  `useSyncExternalStore`; the React Compiler keeps re-rendering to what
+  changed. A sync finishing, a merge landing, a clone's progress: each is a
+  message, and only what shows it moves.
+- **Framework-free below the view.** The music core from Explore Chords and
+  cifra.md for JavaScript know nothing of React; the view is the only layer
+  that does.
+- **The source editor is CodeMirror 6**: the cifra.md text with its syntax
+  coloured, conflict markers, pasting into a fence, undo. Writing an editor
+  is not worth it.
+- **Charts are drawn by the app**, in a proportional face, as chords stacked
+  over the syllables they belong to, with a centred hyphen where a chord
+  opens room inside a word (`docs/mockups/`).
+- **Tooling carries over from Explore Chords**: Vite, the PWA plugin, Vitest
+  with Testing Library, Playwright, axe at WCAG 2.1 AA, and the i18n set-up
+  with its four languages.
+
 ## 4. The interface
 
 **Song search is the primary interface.** One search across every loaded
@@ -377,7 +411,8 @@ never rewritten.
 - **The state layer and shell are not.** `store.js`, `persist.js`,
   `sheets.js` and `main.js` are built around one local library and have
   nothing to offer books.
-- **UI components come piecemeal**: chord input, results, shape and wizard
+- **UI components are rewritten in React** (§3.7), with Explore Chords'
+  as the guide to what each must do: chord input, results, shape and wizard
   dialogs, the instrument form, chart layout, printing.
 - **Infrastructure comes too**: i18n and its four languages, the PWA setup,
   the Playwright and axe harness, CI, and writing acceptance criteria before
@@ -396,10 +431,6 @@ its decisions are explained. So do the sections of Explore Chords'
 
 ## 6. Open decisions
 
-- **Framework.** Explore Chords' single store and one `render()` suited one
-  local library. This app has asynchronous state from many directions — sync
-  results, merges, a Web Worker's index. Vanilla with a sturdier component
-  structure, or a small reactive library?
 - **The domain.** The service and the email both need one: the sign-in
   links are mailed from it, with the records that keep them out of spam
   folders. The app should be served from it too, rather than from GitHub
