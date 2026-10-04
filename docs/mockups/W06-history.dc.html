@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>6. History</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 6</div>
+    <h1 class="board-title">History</h1>
+    <p class="board-sub">A song's versions, newest first, from its first save to what is on screen now: each with its note, who, when, and what changed in musical terms. An old version is read as it was, and restoring it writes it into the working copy, to be saved as a new version; history is never rewritten.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · the song's history, then one old version</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back to the song"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">History</span>
+            </div>
+            <div class="scroll" style="gap: 12px">
+              <div style="display: flex; flex-direction: column; gap: 2px">
+                <span class="t-h2">Rua do Porto</span>
+                <span class="t-small">Banda do Bairro · newest first</span>
+              </div>
+              <div class="list">
+                <a class="row" href="#" style="background: var(--unsaved-soft)">
+                  <span class="grow">
+                    <span class="name">Unsaved, on this device</span>
+                    <span class="t-small" style="color: var(--ink)">{{unsaved.summary}}</span>
+                    <span class="badges"><span class="badge unsaved dot">unsaved</span></span>
+                  </span>
+                </a>
+                <sc-for list="{{entries}}" as="h" hint-placeholder-count="5">
+                  <a class="row" href="#">
+                    <span class="grow">
+                      <span class="name">{{h.note}}</span>
+                      <span class="meta">{{h.by}}</span>
+                      <span class="t-small" style="color: var(--ink)">{{h.summary}}</span>
+                    </span>
+                  </a>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back to history"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Rua do Porto · 28 Sep</span>
+            </div>
+            <div class="scroll" style="gap: 12px">
+              <div style="display: flex; flex-direction: column; gap: 2px">
+                <span class="t-h2">{{picked.note}}</span>
+                <span class="t-small">{{picked.by}}</span>
+              </div>
+              <div class="card pad" style="gap: 8px">
+                <div class="t-h3">What changed from the version before</div>
+                <div class="diff">
+                  <div class="d"><span class="k">Primeira Parte bar 4</span><span class="was">G7</span><span>→</span><span class="now">D♭7</span></div>
+                  <div class="d"><span class="k">Voicings for guitar</span><span>added</span><span class="now">D♭7</span></div>
+                </div>
+              </div>
+              <div class="t-h3">The song as it was</div>
+              <div class="chart">
+                <sc-for list="{{chartThen}}" as="l" hint-placeholder-count="6">
+                  <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; padding: 12px 16px 22px; border-top: 1px solid var(--line); background: var(--surface)">
+              <button class="btn" style="flex: 1">Compare with now</button>
+              <button class="btn primary" style="flex: 1">Restore this version</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · restoring over unsaved changes asks first, showing what would be lost</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Back to history"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Rua do Porto · 20 Sep</span>
+            <span class="badge unsaved dot">unsaved changes</span>
+            <button class="btn">Compare with now</button>
+            <button class="btn primary">Restore this version</button>
+          </div>
+          <div class="scroll" style="padding: 24px 28px; gap: 20px">
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <span class="t-h1">Second part</span>
+              <span class="t-small">Ana · 20 Sep, 18:02</span>
+            </div>
+            <div class="card pad">
+              <div class="t-h3">What changed from the version before</div>
+              <div class="diff">
+                <div class="d"><span class="k">Segunda Parte</span><span>added, 4 bars</span></div>
+              </div>
+            </div>
+            <div class="chart" style="--chart-size: 20px">
+              <sc-for list="{{chartSep20}}" as="l" hint-placeholder-count="6">
+                <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" role="dialog" aria-labelledby="w06-restore-title">
+            <h2 class="t-h2" id="w06-restore-title">Restore the version of 20 Sep?</h2>
+            <p class="t-body">Rua do Porto has unsaved changes on this device. Restoring replaces them, and this would be lost:</p>
+            <div class="card pad" style="background: var(--unsaved-soft); border-color: transparent">
+              <div class="diff">
+                <div class="d"><span class="k">Primeira Parte bar 2</span><span class="was">Am</span><span>→</span><span class="now">Am7</span></div>
+              </div>
+            </div>
+            <p class="t-small">The whole version is restored. It is then unsaved, and saving it makes a new version; nothing in the history is changed.</p>
+            <div class="actions">
+              <button class="btn">Keep my changes</button>
+              <button class="btn danger">Lose them and restore</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · the list beside a version, with the text of the file shown</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side">
+            <div style="padding: 18px 16px 12px; display: flex; align-items: center; gap: 8px">
+              <button class="btn icon" aria-label="Back to the song"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><span class="t-h2">History</span><span class="t-small">Rua do Porto · Banda do Bairro</span></span>
+            </div>
+            <div style="padding: 0 16px; display: flex; flex-direction: column; overflow: hidden">
+              <div class="list">
+                <a class="row" href="#" style="background: var(--unsaved-soft)">
+                  <span class="grow">
+                    <span class="name">Unsaved, on this device</span>
+                    <span class="t-small" style="color: var(--ink)">{{unsaved.summary}}</span>
+                  </span>
+                </a>
+                <sc-for list="{{entriesDesk}}" as="h" hint-placeholder-count="5">
+                  <a class="row {{h.cls}}" href="#">
+                    <span class="grow">
+                      <span class="name">{{h.note}}</span>
+                      <span class="meta">{{h.by}}</span>
+                    </span>
+                  </a>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="appbar" style="padding: 14px 24px">
+              <span class="title">{{picked.note}}</span>
+              <button class="btn">Compare with now</button>
+              <button class="btn primary">Restore this version</button>
+            </div>
+            <div class="scroll" style="padding: 20px 32px; gap: 16px">
+              <span class="t-small">{{picked.by}} · Rua do Porto as it was then</span>
+              <div class="diff">
+                <div class="d"><span class="k">Primeira Parte bar 4</span><span class="was">G7</span><span>→</span><span class="now">D♭7</span></div>
+                <div class="d"><span class="k">Voicings for E2 A2 D3 G3 B3 E4</span><span>added</span><span class="now">D♭7</span></div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span class="toggle on" role="switch" aria-checked="true" aria-label="Show the text"></span>
+                <span class="t-body" style="font-weight: 600">Show the text</span>
+                <span class="t-small">the line diff of rua-do-porto.cifra.md against the version before</span>
+              </div>
+              <div class="editor">
+                <sc-for list="{{fileDiff}}" as="ln" hint-placeholder-count="17">
+                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var at = function (a, col, b) {
+      var n = col - a.length;
+      return a + new Array(n > 1 ? n + 1 : 2).join(' ') + b;
+    };
+    const segsOf = (chords, words) => {
+      const toks = []; const re = /\S+/g; let m;
+      while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
+      if (!toks.length) return [{ c: '', w: words }];
+      const segs = [];
+      if (toks[0].at > 0) segs.push({ c: '', w: words.slice(0, toks[0].at).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') });
+      toks.forEach((t, i) => {
+        const end = i + 1 < toks.length ? toks[i + 1].at : Math.max(words.length, t.at);
+        segs.push({ c: t.c, w: words.slice(t.at, end).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') || ' ' });
+      });
+      return segs.map((sg, i) => ({ c: sg.c, w: sg.w, j: i + 1 < segs.length && /\S$/.test(sg.w) && /^\S/.test(segs[i + 1].w) }));
+    };
+    const L = {
+      sec: (t) => ({ isSec: true, text: t }),
+      sung: (c, w, cls) => ({ isSung: true, segs: segsOf(c, w), cls: cls || '' }),
+      bars: (t, cls) => ({ isBars: true, ms: t.split('|').map((x) => x.trim()).filter((x) => x).map((x) => ({ cs: x })), cls: cls || '' }),
+      run: (t, cls) => ({ isRun: true, text: t, cls: cls || '' }),
+      words: (t) => ({ isWords: true, text: t }),
+      gap: () => ({ isGap: true }),
+    };
+    var verse = function (bar4) {
+      return [
+        L.sec('Primeira Parte'),
+        L.sung(at('C', 15, 'Am'), 'Desci a rua do porto'),
+        L.sung(at('Dm', 15, bar4), 'com a viola na mão'),
+        L.sung(at('F', 14, 'C'), 'o sol caía no rio'),
+        L.sung(at('G7', 16, 'C'), 'e a noite pedia canção'),
+      ];
+    };
+    var second = [
+      L.sec('Segunda Parte'),
+      L.sung(at('Am', 18, 'Em'), 'Ninguém sabia meu nome'),
+      L.sung(at('F', 13, 'G7'), 'só a maré me ouvia'),
+      L.sec('Refrão'),
+      L.bars('F | G7 | C | C'),
+    ];
+    var picked = { note: 'Darker turn into the chorus', by: 'you · 28 Sep, 22:40' };
+    var entries = [
+      { note: 'Ukulele shapes', by: 'Ana · yesterday, 21:14', summary: 'Voicings for G4 C4 E4 A4: added Am, C, Dm, F' },
+      { note: 'Merged, with your resolution', by: 'you · 2 Oct, 19:05', summary: 'Refrão bar 2: your G7 kept over Ana’s G7(13)' },
+      { note: picked.note, by: picked.by, summary: 'Primeira Parte bar 4: G7 → D♭7; voicings for E2 A2 D3 G3 B3 E4: added D♭7' },
+      { note: 'Second part', by: 'Ana · 20 Sep, 18:02', summary: 'Added Segunda Parte, 4 bars' },
+      { note: 'First version', by: 'you · 14 Sep, 11:30', summary: 'New song: Primeira Parte, Refrão' },
+    ];
+    var entriesDesk = entries.map(function (e) {
+      return { note: e.note, by: e.by, cls: e.note === picked.note ? 'sel' : '' };
+    });
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      unsaved: { summary: 'Primeira Parte bar 2: Am → Am7' },
+      entries: entries,
+      entriesDesk: entriesDesk,
+      picked: picked,
+      chartThen: verse('D♭7').concat(second),
+      chartSep20: verse('G7').concat(second),
+      fileDiff: [
+        { cls: 'md', text: '@@ Primeira Parte, lines 6–13' },
+        { cls: '', text: '  [Primeira Parte]' },
+        { cls: 'ch', text: '  ' + at('C', 15, 'Am') },
+        { cls: '', text: '  Desci a rua do porto' },
+        { cls: 'del', text: '- ' + at('Dm', 15, 'G7') },
+        { cls: 'add', text: '+ ' + at('Dm', 15, 'Db7') },
+        { cls: '', text: '  com a viola na mão' },
+        { cls: 'ch', text: '  ' + at('F', 14, 'C') },
+        { cls: 'gap', text: '' },
+        { cls: 'md', text: '@@ Voicings, lines 31–37' },
+        { cls: 'md', text: '  ## Voicings: E2 A2 D3 G3 B3 E4' },
+        { cls: '', text: '  - Am: x02210' },
+        { cls: '', text: '  - C: x32010' },
+        { cls: 'add', text: '+ - Db7: x4342x' },
+        { cls: '', text: '  - Dm: xx0231' },
+        { cls: '', text: '  - F: 133211' },
+        { cls: '', text: '  - G7: 320001' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>1. First run</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 1</div>
+    <h1 class="board-title">First run</h1>
+    <p class="board-sub">Two doors, and neither asks anything before showing something. A cold start lands on search with an empty shelf and four ways to fill it; a link lands on the book it was sent for. The instrument is asked about once, the first time a song shows it.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · the cold door, then the invited one</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 18px 16px 10px">
+              <span class="t-h1" style="flex: 1">Estante</span>
+              <span class="chip accent">Guitar</span>
+              <button class="btn icon" aria-label="Account"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></button>
+            </div>
+            <div style="padding: 0 16px 12px">
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span style="flex: 1; color: var(--ink-2)">Songs, words, chords…</span></div>
+            </div>
+            <div class="scroll" style="padding-top: 4px">
+              <div style="display: flex; flex-direction: column; gap: 6px; padding: 0 2px">
+                <h2 class="t-h2">Your shelf is empty</h2>
+                <p class="t-body" style="color: var(--ink-2)">A book is a collection of songs: yours, a teacher’s, your band’s. Search looks through every book on your shelf.</p>
+              </div>
+              <div class="list">
+                <a class="row" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg><span class="grow"><span class="name">Write a song</span><span class="meta">It goes into My songs</span></span></a>
+                <a class="row" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg><span class="grow"><span class="name">Add a book by its link</span><span class="meta">From a teacher or a bandmate</span></span></a>
+                <a class="row" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg><span class="grow"><span class="name">Sign in</span><span class="meta">Bring back your shelf from another device</span></span></a>
+                <a class="row" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg><span class="grow"><span class="name">Open the example book</span><span class="meta">Songs written for trying the app; remove it any time</span></span></a>
+              </div>
+              <div class="section-label"><span class="t-h3">Books</span></div>
+              <div class="list">
+                <div class="row"><span class="grow"><span class="name">My songs</span><span class="meta">No songs yet · your own, on this device</span></span></div>
+              </div>
+            </div>
+            <div class="tabbar">
+              <button class="tab on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Search</button>
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>Books</button>
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg>Setlists</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 18px 16px 10px">
+              <span class="t-h1" style="flex: 1">Estante</span>
+              <span class="chip accent">Guitar</span>
+              <button class="btn quiet" style="padding: 0 8px">Sign in</button>
+            </div>
+            <div style="padding: 0 16px 12px">
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span class="scope">Choros da Ana</span><span style="flex: 1; color: var(--ink-2)">Search this book</span></div>
+            </div>
+            <div class="scroll" style="padding-top: 4px; gap: 12px">
+              <div class="notice accent"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 1px"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg><span>Opened from a link. You are reading this book; no account needed.</span></div>
+              <div class="section-label"><span class="t-h3">Choros da Ana</span><span class="badge">reading</span></div>
+              <div class="list">
+                <sc-for list="{{anaSongs}}" as="r" hint-placeholder-count="6">
+                  <a class="row" href="#"><span class="grow"><span class="name">{{r.title}}</span><span class="meta">{{r.where}}</span><sc-if value="{{r.voiced}}" hint-placeholder-val="{{ true }}"><span class="badges"><span class="badge voiced">voiced for guitar</span></span></sc-if></span></a>
+                </sc-for>
+              </div>
+            </div>
+            <div class="tabbar">
+              <button class="tab on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Search</button>
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>Books</button>
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg>Setlists</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · the first song opened asks about the instrument, once</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Valsa da Janela</span>
+            <span class="chip accent">Guitar</span>
+            <button class="btn">Transpose</button>
+            <button class="btn icon" aria-label="More"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+          </div>
+          <div class="scroll" style="padding: 24px 28px; gap: 20px">
+            <div class="notice accent" style="align-items: center">
+              <span style="flex: 1; font-size: 17px"><b>Playing on guitar</b> — change?</span>
+              <button class="btn">Change instrument</button>
+              <button class="btn icon" aria-label="Keep guitar and dismiss"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+              <span class="t-small">Lúcia Mendes · Choros da Ana · valsas/</span>
+              <span class="chip">Key of D</span>
+            </div>
+            <div style="display: flex; gap: 32px; align-items: flex-start">
+              <div class="chart" style="flex: 1; --chart-size: 20px">
+                <sc-for list="{{valsa}}" as="l" hint-placeholder-count="6">
+                  <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                </sc-for>
+              </div>
+              <div class="card pad" style="width: 230px; flex: none">
+                <div class="t-h3">Shapes · guitar</div>
+                <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+                  <dc-import name="ChordBox" chord="D" frets="xx0232" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                  <dc-import name="ChordBox" chord="A7" frets="x02020" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                  <dc-import name="ChordBox" chord="Bm" frets="x24432" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                  <dc-import name="ChordBox" chord="G" frets="320003" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                  <dc-import name="ChordBox" chord="Em" frets="022000" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                </div>
+                <p class="t-small">Chosen by Ana for guitar.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · a link that no longer opens its book</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side">
+            <div style="padding: 18px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; align-items: center; gap: 8px"><span class="t-h1" style="flex: 1">Estante</span><span class="chip accent">Guitar</span></div>
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span style="flex: 1; color: var(--ink-2)">Songs, words, chords…</span></div>
+            </div>
+            <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 10px">
+              <div class="t-h3">Books</div>
+              <div class="list">
+                <div class="row"><span class="grow"><span class="name">My songs</span><span class="meta">No songs yet</span></span></div>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="scroll" style="padding: 56px 72px; gap: 24px">
+              <div style="display: flex; flex-direction: column; gap: 8px; max-width: 620px">
+                <h2 class="t-display">Your shelf is empty</h2>
+                <p class="t-body" style="color: var(--ink-2)">A book is a collection of songs: yours, a teacher’s, your band’s. Search looks through every book on your shelf.</p>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; max-width: 760px">
+                <a class="card pad" href="#" style="text-decoration: none; color: inherit"><span class="t-h2">Write a song</span><span class="t-small">It goes into My songs.</span></a>
+                <a class="card pad" href="#" style="text-decoration: none; color: inherit"><span class="t-h2">Add a book by its link</span><span class="t-small">From a teacher or a bandmate.</span></a>
+                <a class="card pad" href="#" style="text-decoration: none; color: inherit"><span class="t-h2">Sign in</span><span class="t-small">Bring back your shelf from another device.</span></a>
+                <a class="card pad" href="#" style="text-decoration: none; color: inherit"><span class="t-h2">Open the example book</span><span class="t-small">Songs written for trying the app; remove it any time.</span></a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" role="dialog" aria-labelledby="w01-dead-title">
+            <div style="display: flex; align-items: center; gap: 12px">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--conflict); flex: none"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg>
+              <h2 class="t-h2" id="w01-dead-title">This link doesn’t open a book</h2>
+            </div>
+            <p class="t-body">It may have been reset, expired or withdrawn. Ask whoever sent it to you for a new one.</p>
+            <div class="actions">
+              <button class="btn quiet">Add a book by its link</button>
+              <button class="btn primary">OK</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const segsOf = (chords, words) => {
+      const toks = []; const re = /\S+/g; let m;
+      while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
+      if (!toks.length) return [{ c: '', w: words }];
+      const segs = [];
+      if (toks[0].at > 0) segs.push({ c: '', w: words.slice(0, toks[0].at).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') });
+      toks.forEach((t, i) => {
+        const end = i + 1 < toks.length ? toks[i + 1].at : Math.max(words.length, t.at);
+        segs.push({ c: t.c, w: words.slice(t.at, end).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') || ' ' });
+      });
+      return segs.map((sg, i) => ({ c: sg.c, w: sg.w, j: i + 1 < segs.length && /\S$/.test(sg.w) && /^\S/.test(segs[i + 1].w) }));
+    };
+    const L = {
+      sec: (t) => ({ isSec: true, text: t }),
+      sung: (c, w, cls) => ({ isSung: true, segs: segsOf(c, w), cls: cls || '' }),
+      bars: (t, cls) => ({ isBars: true, ms: t.split('|').map((x) => x.trim()).filter((x) => x).map((x) => ({ cs: x })), cls: cls || '' }),
+      run: (t, cls) => ({ isRun: true, text: t, cls: cls || '' }),
+      words: (t) => ({ isWords: true, text: t }),
+      gap: () => ({ isGap: true }),
+    };
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      anaSongs: [
+        { title: 'Carinhoso', where: 'choro/', voiced: true },
+        { title: 'Brasileirinho', where: 'choro/', voiced: true },
+        { title: 'Lamentos', where: 'choro/', voiced: false },
+        { title: 'Odeon', where: 'choro/', voiced: false },
+        { title: 'Valsa da Janela', where: 'valsas/', voiced: true },
+        { title: 'A Banda', where: 'bossa/', voiced: true },
+      ],
+      valsa: [
+        L.sec('Introdução'),
+        L.bars('D | A7 | D | D'),
+        L.sec('Primeira Parte'),
+        L.sung('D             A7', 'Abri a janela cedo'),
+        L.sung('Bm            G', 'pra ver o dia chegar'),
+        L.gap(),
+        L.sung('Em          A7', 'a rua ainda dormia'),
+        L.sung('D    G       A7  D', 'e eu quis te ver passar'),
+        L.sec('Segunda Parte'),
+        L.sung('G                D', 'O vento trouxe a voz'),
+        L.sung('Em      A7         D', 'de quem cantava ao longe'),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

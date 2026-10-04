@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chord diagram</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{rootClass}}" style="display: inline-flex; flex-direction: column; align-items: center; gap: 4px; padding: {{outerPad}}px; font-family: var(--font-ui); color: var(--ink)">
+  <div style="font-family: var(--font-chart); font-weight: 600; font-size: {{nameSize}}px; color: var(--chord); line-height: 1.1">{{name}}</div>
+  <div style="position: relative; width: {{boxW}}px; height: {{boxH}}px">
+    <sc-for list="{{marks}}" as="m" hint-placeholder-count="6">
+      <div style="position: absolute; left: {{m.x}}px; top: {{m.y}}px; width: {{m.w}}px; text-align: center; font-size: {{m.fs}}px; line-height: 1; color: var(--ink-2); font-weight: 700">{{m.t}}</div>
+    </sc-for>
+    <sc-for list="{{frets}}" as="f" hint-placeholder-count="5">
+      <div style="position: absolute; left: {{f.x}}px; top: {{f.y}}px; width: {{f.w}}px; height: {{f.h}}px; background: var(--ink)"></div>
+    </sc-for>
+    <sc-for list="{{strings}}" as="s" hint-placeholder-count="6">
+      <div style="position: absolute; left: {{s.x}}px; top: {{s.y}}px; width: 1px; height: {{s.h}}px; background: var(--ink)"></div>
+    </sc-for>
+    <sc-for list="{{dots}}" as="d" hint-placeholder-count="3">
+      <div style="position: absolute; left: {{d.x}}px; top: {{d.y}}px; width: {{d.d}}px; height: {{d.d}}px; border-radius: 50%; box-sizing: border-box; background: {{dotFill}}; border: 2px solid var(--ink)"></div>
+    </sc-for>
+    <sc-if value="{{hasBase}}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; left: 0px; top: {{baseY}}px; width: {{baseW}}px; text-align: right; font-size: {{markSize}}px; line-height: 1; color: var(--ink-2); font-weight: 700">{{baseLabel}}</div>
+    </sc-if>
+  </div>
+  <sc-if value="{{hasWho}}" hint-placeholder-val="{{ false }}">
+    <div style="font-size: 11px; font-weight: 700; color: var(--ink-2); letter-spacing: 0.02em">{{who}}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"chord":{"editor":"text","default":"C"},"frets":{"editor":"text","default":"x32010"},"kind":{"editor":"enum","options":["song","yours","default"],"default":"song"},"size":{"editor":"enum","options":["s","m","l"],"default":"m"},"inherit":{"editor":"boolean","default":false},"$preview":{"width":120,"height":150}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const name = this.props.chord ?? 'C';
+    const raw = String(this.props.frets ?? 'x32010');
+    const kind = this.props.kind ?? 'song';
+    const size = this.props.size ?? 'm';
+    const k = size === 's' ? 0.72 : size === 'l' ? 1.35 : 1;
+    const parts = raw.indexOf('-') >= 0 ? raw.split('-') : raw.split('');
+    const vals = parts.map((p) => (p === 'x' || p === 'X') ? null : parseInt(p, 10));
+    const n = vals.length || 6;
+    const fretted = vals.filter((v) => v !== null && v > 0);
+    const maxF = fretted.length ? Math.max(...fretted) : 0;
+    const minF = fretted.length ? Math.min(...fretted) : 0;
+    const base = maxF <= 4 ? 1 : minF;
+    const rows = 4;
+    const gap = Math.round(12 * k);
+    const fretH = Math.round(15 * k);
+    const left = Math.round(16 * k);
+    const top = Math.round(14 * k);
+    const width = gap * (n - 1);
+    const strings = vals.map((v, i) => ({ x: left + i * gap, y: top, h: fretH * rows }));
+    const frets = [];
+    for (let r = 0; r <= rows; r++) {
+      const thick = r === 0 && base === 1;
+      frets.push({ x: left, y: top + r * fretH - (thick ? 2 : 0), w: width + 1, h: thick ? 4 : 1 });
+    }
+    const d = Math.round(10 * k);
+    const dots = [];
+    vals.forEach((v, i) => {
+      if (v !== null && v > 0) {
+        dots.push({ x: left + i * gap - d / 2 + 0.5, y: top + (v - base + 0.5) * fretH - d / 2, d });
+      }
+    });
+    const markSize = Math.round(10 * k);
+    const marks = [];
+    vals.forEach((v, i) => {
+      if (v === null || v === 0) {
+        marks.push({ x: left + i * gap - 6, y: 0, w: 13, fs: markSize, t: v === null ? '×' : '○' });
+      }
+    });
+    const who = kind === 'yours' ? 'your shape' : kind === 'default' ? 'default' : '';
+    const dotFill = kind === 'song' ? 'var(--ink)' : kind === 'yours' ? 'var(--chord)' : 'var(--default-dot)';
+    return {
+      rootClass: this.props.inherit ? '' : 'est theme-current',
+      outerPad: this.props.inherit ? 0 : 12,
+      name,
+      nameSize: Math.round(15 * k),
+      boxW: left + width + Math.round(8 * k),
+      boxH: top + fretH * rows + 4,
+      strings, frets, dots, marks,
+      dotFill,
+      hasBase: base > 1,
+      baseLabel: String(base),
+      baseY: top + Math.round((fretH - markSize) / 2),
+      baseW: left - Math.round(4 * k),
+      markSize,
+      hasWho: who !== '',
+      who,
+    };
+  }
+}
+</script>
+</body>
+</html>

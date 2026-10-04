@@ -300,8 +300,9 @@ its decisions are explained. So do the sections of Explore Chords'
 ## 7. Workflows
 
 Worked through one at a time, in [workflows/](workflows/), each to the point
-where its screens and its edge cases are known; all fourteen are decided.
-Roughly in the order a user meets them:
+where its screens and its edge cases are known; all fourteen are decided, and
+each is drawn on a phone, a tablet and a computer in [mockups/](mockups/),
+with the visual language they share. Roughly in the order a user meets them:
 
 1. **First run** — what a new user sees, and how they reach a song.
 2. **Find and play a song** — search, open, read, choose an instrument and a

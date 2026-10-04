@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>9. Conflicts</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 9</div>
+    <h1 class="board-title">Conflicts</h1>
+    <p class="board-sub">What the cifra-aware merge cannot settle alone goes to whoever synced second, one conflict at a time, in musical terms: keep mine, take theirs, or edit the text with git's markers. Until then the song reads as yours, and the rest of the book carries on.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · a bar both changed, then a shape both chose</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Carinhoso</span>
+              <span class="badge conflict dot">conflict</span>
+            </div>
+            <div class="scroll" style="gap: 14px">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <span class="t-h3" style="flex: 1">Conflict 1 of 2</span>
+                <button class="btn icon" aria-label="Previous conflict" style="width: 36px; min-height: 36px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+                <button class="btn icon" aria-label="Next conflict" style="width: 36px; min-height: 36px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+              </div>
+              <div>
+                <p class="t-h2">Primeira parte, bar 5</p>
+                <p class="t-small">You and Ana both changed this bar.</p>
+              </div>
+              <div style="display: flex; gap: 10px">
+                <div class="card pad" style="flex: 1; min-width: 0; align-items: center">
+                  <span class="t-h3" style="align-self: flex-start">Yours</span>
+                  <div class="chart">
+  <sc-for list="{{barsMine}}" as="l" hint-placeholder-count="1">
+    <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+    <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+    <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+    <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+    <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+    <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+  </sc-for>
+</div>
+                  <dc-import name="ChordBox" chord="G7" frets="320001" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                </div>
+                <div class="card pad" style="flex: 1; min-width: 0; align-items: center">
+                  <span class="t-h3" style="align-self: flex-start">Ana's</span>
+                  <div class="chart">
+  <sc-for list="{{barsAna}}" as="l" hint-placeholder-count="1">
+    <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+    <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+    <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+    <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+    <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+    <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+  </sc-for>
+</div>
+                  <dc-import name="ChordBox" chord="D♭7" frets="x43424" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px">
+                <button class="btn" style="flex: 1; padding: 0 8px">Keep mine</button>
+                <button class="btn" style="flex: 1; padding: 0 8px">Take theirs</button>
+                <button class="btn" style="flex: 1; padding: 0 8px">Edit</button>
+              </div>
+              <div class="notice"><span class="t-small" style="color: var(--ink)">Until you settle it, Carinhoso reads as your version, with the places in conflict marked.</span></div>
+              <div class="chart" style="--chart-size: 13px">
+  <sc-for list="{{chartMine}}" as="l" hint-placeholder-count="5">
+    <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+    <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+    <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+    <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+    <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+    <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+  </sc-for>
+</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Carinhoso</span>
+              <span class="badge conflict dot">conflict</span>
+            </div>
+            <div class="scroll" style="gap: 16px">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <span class="t-h3" style="flex: 1">Conflict 2 of 2</span>
+                <button class="btn icon" aria-label="Previous conflict" style="width: 36px; min-height: 36px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+                <button class="btn icon" aria-label="Next conflict" style="width: 36px; min-height: 36px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+              </div>
+              <div>
+                <p class="t-h2">The shape for G7</p>
+                <p class="t-small">Guitar · E A D G B E · main variation. You and Ana each chose a different shape.</p>
+              </div>
+              <div style="display: flex; gap: 10px">
+                <div class="card pad" style="flex: 1; min-width: 0; align-items: center; padding-top: 18px; padding-bottom: 18px">
+                  <span class="t-h3">Yours</span>
+                  <dc-import name="ChordBox" chord="G7" frets="320001" kind="song" size="l" inherit="yes" hint-size="122px,150px"></dc-import>
+                  <span class="t-small">open, at the nut</span>
+                </div>
+                <div class="card pad" style="flex: 1; min-width: 0; align-items: center; padding-top: 18px; padding-bottom: 18px">
+                  <span class="t-h3">Ana's</span>
+                  <dc-import name="ChordBox" chord="G7" frets="353433" kind="song" size="l" inherit="yes" hint-size="122px,150px"></dc-import>
+                  <span class="t-small">barre, 3rd fret</span>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 10px">
+                <button class="btn block">Keep mine</button>
+                <button class="btn block">Take theirs</button>
+                <button class="btn block">Edit</button>
+              </div>
+              <p class="t-small">To keep both shapes, choose Edit and put Ana's in a variation of its own.</p>
+              <div class="card pad" style="gap: 6px">
+                <span class="t-h3">Settled so far</span>
+                <div class="diff">
+                  <div class="d"><span class="k">Primeira parte, bar 5</span><span class="now">D♭7</span><span class="t-small">Ana's</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · “Edit” chosen: the text with git's markers, and Save refusing</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Carinhoso</span>
+            <span class="badge conflict dot">conflict</span>
+            <button class="btn">Preview</button>
+            <button class="btn primary">Save</button>
+          </div>
+          <div class="scroll" style="padding: 24px 28px; gap: 18px">
+            <div class="notice conflict">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--conflict); flex: none"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg>
+              <span><b>Not saved.</b> Line 10 is still a conflict marker. Remove every marker line once you have chosen what stays, then save again.</span>
+              <a class="act" href="#">Go to line 10</a>
+            </div>
+            <div class="editor" style="font-size: 16px">
+              <sc-for list="{{editorLines}}" as="ln" hint-placeholder-count="24">
+                <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
+              </sc-for>
+            </div>
+            <div class="card pad">
+              <span class="t-h3">Reading the markers</span>
+              <div class="diff">
+                <div class="d"><span class="t-mono" style="min-width: 120px">&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span><span>your version starts</span></div>
+                <div class="d"><span class="t-mono" style="min-width: 120px">=======</span><span>yours ends, Ana's starts</span></div>
+                <div class="d"><span class="t-mono" style="min-width: 120px">&gt;&gt;&gt;&gt;&gt;&gt;&gt;</span><span>Ana's version ends</span></div>
+              </div>
+              <p class="t-small">Keep the lines you want, from either side or both, and delete the three marker lines.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · the book needs you; the rest of it carries on</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side">
+            <div style="padding: 18px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; align-items: center; gap: 8px"><span class="t-h1" style="flex: 1">Estante</span><span class="chip accent">Guitar</span></div>
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span style="flex: 1; color: var(--ink-2)">Songs, words, chords…</span></div>
+            </div>
+            <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+              <div class="t-h3">Books</div>
+              <div class="list">
+                <a class="row" href="#"><span class="grow"><span class="name">My songs</span><span class="meta">14 songs</span></span></a>
+                <a class="row sel" href="#"><span class="grow"><span class="name">Choros da Ana</span><span class="meta">32 songs · on Estante</span><span class="badges"><span class="badge conflict dot">needs you</span></span></span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Banda do Bairro</span><span class="meta">21 songs · on Estante</span></span></a>
+              </div>
+              <div class="t-h3" style="margin-top: 6px">Recent</div>
+              <div class="list">
+                <a class="row" href="#"><span class="grow"><span class="name">Carinhoso</span><span class="meta">Choros da Ana · choro/</span><span class="badges"><span class="badge conflict dot">conflict</span></span></span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Doce de Coco</span><span class="meta">Choros da Ana · choro/</span><span class="badges"><span class="badge unsaved dot">unsaved</span></span></span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Tarde Clara</span><span class="meta">My songs</span></span></a>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="appbar" style="padding: 14px 24px">
+              <span class="title">Choros da Ana</span>
+              <span class="badge conflict dot">needs you</span>
+              <button class="btn">History</button>
+              <button class="btn">Files</button>
+              <button class="btn">Share</button>
+            </div>
+            <div class="scroll" style="padding: 20px 28px; gap: 16px">
+              <div class="notice conflict">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--conflict); flex: none"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg>
+                <span><b>2 songs need you.</b> Ana's latest saves and yours changed the same places. Everything else from Ana is already here, and you can read and edit as usual; this book takes nothing new from sync until these are settled.</span>
+              </div>
+              <div style="display: flex; gap: 24px; align-items: flex-start">
+                <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+                  <div class="t-h3">In conflict</div>
+                  <div class="list">
+                    <a class="row" href="#"><span class="grow"><span class="name">Carinhoso</span><span class="meta">Primeira parte, bar 5 · the shape for G7 on guitar</span></span><span class="badge conflict dot">2 conflicts</span><span class="btn quiet" style="min-height: 36px">Settle</span></a>
+                  </div>
+                  <div class="card pad">
+                    <div style="display: flex; align-items: center; gap: 10px"><span class="t-h2" style="flex: 1">Brejeiro</span><span class="badge conflict dot">conflict</span></div>
+                    <p class="t-body">Ana deleted this song. You had edited it: Segunda parte, bars 3 and 4.</p>
+                    <div style="display: flex; gap: 10px">
+                      <button class="btn primary">Keep the song, with the edits</button>
+                      <button class="btn">Delete it</button>
+                    </div>
+                  </div>
+                  <div class="t-h3" style="margin-top: 4px">Came in from Ana, already here</div>
+                  <div class="list">
+                    <a class="row" href="#"><span class="grow"><span class="name">Tico-tico no Fubá</span><span class="meta">added by Ana</span></span></a>
+                    <a class="row" href="#"><span class="grow"><span class="name">Lamentos</span><span class="meta">Segunda parte, bar 2: Am → A7</span></span></a>
+                    <a class="row" href="#"><span class="grow"><span class="name">Doce de Coco</span><span class="meta">Ana's change merged under your unsaved edits</span></span><span class="badge unsaved dot">unsaved</span></a>
+                  </div>
+                </div>
+                <div style="width: 300px; flex: none; display: flex; flex-direction: column; gap: 14px">
+                  <div class="card pad">
+                    <span class="t-h3">Saving in this book</span>
+                    <p class="t-body">Settle the 2 songs first. A save made now would be folded into the merge with Ana's saves.</p>
+                    <p class="t-small">Your edits to Doce de Coco are safe as they are, unsaved, until then.</p>
+                    <button class="btn" style="opacity: 0.5" disabled="disabled">Save Doce de Coco</button>
+                  </div>
+                  <div class="card pad">
+                    <span class="t-h3">Not now</span>
+                    <p class="t-small">The conflicts can wait as long as you like. Abandoning puts the book back as it was before this sync; Ana's saves wait to be merged at the next one.</p>
+                    <button class="btn">Abandon the merge</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const segsOf = (chords, words) => {
+      const toks = []; const re = /\S+/g; let m;
+      while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
+      if (!toks.length) return [{ c: '', w: words }];
+      const segs = [];
+      if (toks[0].at > 0) segs.push({ c: '', w: words.slice(0, toks[0].at).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') });
+      toks.forEach((t, i) => {
+        const end = i + 1 < toks.length ? toks[i + 1].at : Math.max(words.length, t.at);
+        segs.push({ c: t.c, w: words.slice(t.at, end).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') || ' ' });
+      });
+      return segs.map((sg, i) => ({ c: sg.c, w: sg.w, j: i + 1 < segs.length && /\S$/.test(sg.w) && /^\S/.test(segs[i + 1].w) }));
+    };
+    const L = {
+      sec: (t) => ({ isSec: true, text: t }),
+      sung: (c, w, cls) => ({ isSung: true, segs: segsOf(c, w), cls: cls || '' }),
+      bars: (t, cls) => ({ isBars: true, ms: t.split('|').map((x) => x.trim()).filter((x) => x).map((x) => ({ cs: x })), cls: cls || '' }),
+      run: (t, cls) => ({ isRun: true, text: t, cls: cls || '' }),
+      words: (t) => ({ isWords: true, text: t }),
+      gap: () => ({ isGap: true }),
+    };
+    const lines = [
+      ['md', '# Carinhoso'],
+      ['md', '- notation: brazilian'],
+      ['gap', ''],
+      ['md', '## Primeira parte'],
+      ['md', '```'],
+      ['ch', 'F | F | C7 | C7'],
+      ['ch', 'Db7 | C7 | F | F'],
+      ['ch', 'Bb | Bbm | F | D7'],
+      ['ch', 'Gm | C7 | F | %'],
+      ['mk cur', '>>>>>>> Ana\'s'],
+      ['md', '```'],
+      ['gap', ''],
+      ['md', '---'],
+      ['gap', ''],
+      ['md', '## Voicings: E2 A2 D3 G3 B3 E4'],
+      ['md', '- C7: x32310'],
+      ['md', '- Db7: x43424'],
+      ['md', '- F: 133211'],
+      ['mk', '<<<<<<< yours'],
+      ['md', '- G7: 320001'],
+      ['mk', '======='],
+      ['md', '- G7: 353433'],
+      ['mk', '>>>>>>> Ana\'s'],
+      ['md', '- Gm: 355333'],
+    ];
+    const editorLines = lines.map((l, i) => ({ cls: l[0], text: l[1], n: String(i + 1) }));
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      barsMine: [L.bars('G7')],
+      barsAna: [L.bars('D♭7')],
+      chartMine: [
+        L.sec('Primeira parte'),
+        L.bars('F | F | C7 | C7'),
+        L.bars('G7 | C7 | F | F', 'mark-conf'),
+        L.bars('B♭ | B♭m | F | D7'),
+        L.bars('Gm | C7 | F | %'),
+      ],
+      editorLines,
+    };
+  }
+}
+</script>
+</body>
+</html>

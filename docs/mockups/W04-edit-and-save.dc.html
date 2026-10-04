@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>4. Edit and save</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 4</div>
+    <h1 class="board-title">Edit and save</h1>
+    <p class="board-sub">Every change goes to the working copy as it is made, so nothing is ever lost by leaving. Save is two taps, because seeing what changed is part of choosing to keep it; it commits and shares. Discard always asks.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · unsaved changes, then the save sheet</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Tarde Clara</span>
+              <button class="btn primary">Save</button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--unsaved-soft)">
+              <span class="badge unsaved dot">unsaved changes</span>
+              <span class="t-small" style="flex: 1">Kept on this device</span>
+            </div>
+            <div class="scroll" style="gap: 12px">
+              <div class="seg" style="align-self: flex-start"><button class="on">Text</button><button>Preview</button></div>
+              <div class="editor">
+                <sc-for list="{{edPhone}}" as="ln" hint-placeholder-count="20">
+                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; padding: 12px 16px 22px; border-top: 1px solid var(--line); background: var(--surface)">
+              <button class="btn" style="flex: 1">Add section</button>
+              <button class="btn" style="flex: 1">Discard changes</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Tarde Clara</span>
+              <button class="btn primary">Save</button>
+            </div>
+            <div class="scroll" style="gap: 12px">
+              <span class="badge unsaved dot" style="align-self: flex-start">unsaved changes</span>
+              <div class="chart">
+                <sc-for list="{{tarde}}" as="l" hint-placeholder-count="6">
+                  <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div class="scrim">
+            <div class="sheet" role="dialog" aria-labelledby="w04-sheet-title">
+              <div class="grip"></div>
+              <h2 class="t-h2" id="w04-sheet-title">Save Tarde Clara</h2>
+              <div class="t-h3">What changed</div>
+              <div class="diff">
+                <div class="d"><span class="k">Primeira Parte bar 2</span><span class="was">D</span><span>→</span><span class="now">D7</span></div>
+                <div class="d"><span class="k">Voicings</span><span>added for G4 C4 E4 A4</span></div>
+              </div>
+              <div class="field">
+                <label for="w04-note">Note</label>
+                <div class="input" id="w04-note" style="min-height: 72px; align-items: flex-start; padding-top: 10px; padding-bottom: 10px; line-height: 1.4">Primeira Parte bar 2: D → D7; added voicings for G4 C4 E4 A4</div>
+              </div>
+              <p class="t-small">Saving shares this version with whoever shares the book; with no network, at the next sync.</p>
+              <div class="actions">
+                <button class="btn">Cancel</button>
+                <button class="btn primary">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · discard shows what would be lost, and always asks</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Tarde Clara</span>
+            <span class="badge unsaved dot">unsaved changes</span>
+            <button class="btn">Discard changes</button>
+            <button class="btn primary">Save</button>
+          </div>
+          <div class="scroll" style="padding: 20px 24px">
+            <div style="display: flex; gap: 20px; align-items: flex-start">
+              <div class="editor" style="flex: 1; min-width: 0">
+                <sc-for list="{{edPhone}}" as="ln" hint-placeholder-count="20">
+                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                </sc-for>
+              </div>
+              <div class="card pad" style="width: 330px; flex: none">
+                <div class="t-h3">Preview</div>
+                <div class="chart">
+                  <sc-for list="{{tarde}}" as="l" hint-placeholder-count="6">
+                    <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                    <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                    <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" role="dialog" aria-labelledby="w04-discard-title">
+            <h2 class="t-h2" id="w04-discard-title">Discard changes to Tarde Clara?</h2>
+            <p class="t-body">The song goes back to how it was last saved. This would be lost:</p>
+            <div class="diff">
+              <div class="d"><span class="k">Primeira Parte bar 2</span><span class="was">D</span><span>→</span><span class="now">D7</span></div>
+              <div class="d"><span class="k">Voicings</span><span>added for G4 C4 E4 A4</span></div>
+            </div>
+            <div class="actions">
+              <button class="btn">Keep editing</button>
+              <button class="btn danger">Discard changes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · a save stopped by an unreadable voicing; the first save asks your name</div>
+      <div class="dev desktop">
+        <div class="screen">
+          <div class="appbar" style="padding: 12px 24px">
+            <span class="title">Tarde Clara</span>
+            <span class="badge unsaved dot">unsaved changes</span>
+            <button class="btn">Discard changes</button>
+            <button class="btn primary">Save</button>
+          </div>
+          <div class="split">
+            <div class="pane side" style="width: 300px; padding: 16px; gap: 12px">
+              <div class="t-h3">Unsaved</div>
+              <div class="list">
+                <a class="row sel" href="#"><span class="grow"><span class="name">Tarde Clara</span><span class="meta">My songs</span></span><span class="badge unsaved dot">unsaved</span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Carinhoso</span><span class="meta">Choros da Ana · choro/</span></span><span class="badge unsaved dot">unsaved</span></a>
+              </div>
+              <div class="card pad">
+                <div class="t-h3">Saving Carinhoso</div>
+                <p class="t-small" style="color: var(--ink)">Choros da Ana is Ana’s book, so this can’t be saved there. Your changes stay on this device, marked unsaved.</p>
+                <button class="btn primary block"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"></circle><circle cx="18" cy="5" r="2"></circle><circle cx="12" cy="19" r="2"></circle><path d="M6 7v2a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V7M12 12v5"></path></svg>Make this book your own</button>
+                <button class="btn quiet block">Not now</button>
+              </div>
+            </div>
+            <div class="pane main" style="padding: 16px 20px; gap: 12px">
+              <div class="notice conflict">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--conflict); flex: none; margin-top: 1px"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg>
+                <span><b>Not saved.</b> Line 23 is a voicing that can’t be read, and saving would drop it. Fix it or delete it, then save again.</span>
+              </div>
+              <div class="editor">
+                <sc-for list="{{edDesk}}" as="ln" hint-placeholder-count="24">
+                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                </sc-for>
+              </div>
+            </div>
+            <div class="pane side" style="width: 360px; border-right: 0; border-left: 1px solid var(--line); padding: 20px; gap: 14px">
+              <h2 class="t-h2">Save Tarde Clara</h2>
+              <div class="field">
+                <label for="w04-name">Your name, as it will appear in a song’s history</label>
+                <input class="input" id="w04-name" type="text" value="Marina Souza">
+                <span class="t-small">Asked once. After you sign in, your account’s name is offered instead.</span>
+              </div>
+              <div class="t-h3">What changed</div>
+              <div class="diff">
+                <div class="d"><span class="k">Primeira Parte bar 2</span><span class="was">D</span><span>→</span><span class="now">D7</span></div>
+                <div class="d"><span class="k">Voicings</span><span>for E2 A2 D3 G3 B3 E4: D7, Em</span></div>
+              </div>
+              <div class="field">
+                <label for="w04-note2">Note</label>
+                <input class="input" id="w04-note2" type="text" value="Primeira Parte bar 2: D → D7">
+              </div>
+              <button class="btn primary block">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const segsOf = (chords, words) => {
+      const toks = []; const re = /\S+/g; let m;
+      while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
+      if (!toks.length) return [{ c: '', w: words }];
+      const segs = [];
+      if (toks[0].at > 0) segs.push({ c: '', w: words.slice(0, toks[0].at).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') });
+      toks.forEach((t, i) => {
+        const end = i + 1 < toks.length ? toks[i + 1].at : Math.max(words.length, t.at);
+        segs.push({ c: t.c, w: words.slice(t.at, end).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') || ' ' });
+      });
+      return segs.map((sg, i) => ({ c: sg.c, w: sg.w, j: i + 1 < segs.length && /\S$/.test(sg.w) && /^\S/.test(segs[i + 1].w) }));
+    };
+    const L = {
+      sec: (t) => ({ isSec: true, text: t }),
+      sung: (c, w, cls) => ({ isSung: true, segs: segsOf(c, w), cls: cls || '' }),
+      bars: (t, cls) => ({ isBars: true, ms: t.split('|').map((x) => x.trim()).filter((x) => x).map((x) => ({ cs: x })), cls: cls || '' }),
+      run: (t, cls) => ({ isRun: true, text: t, cls: cls || '' }),
+      words: (t) => ({ isWords: true, text: t }),
+      gap: () => ({ isGap: true }),
+    };
+    const F = '```';
+    const source = [
+      { cls: 'md', text: '# Tarde Clara' },
+      { cls: 'md', text: '- artist: Pedro Araújo' },
+      { cls: 'md', text: '- notation: brazilian' },
+      { cls: '', text: '' },
+      { cls: 'md', text: '## Primeira Parte' },
+      { cls: 'md', text: F },
+      { cls: 'ch cur', text: 'G           D7' },
+      { cls: '', text: 'Quando eu te vi passar' },
+      { cls: 'ch', text: 'Em              C' },
+      { cls: '', text: 'naquela tarde clara' },
+      { cls: '', text: '' },
+      { cls: 'ch', text: 'G             D' },
+      { cls: '', text: 'A tarde era clara' },
+      { cls: 'ch', text: 'Em          C' },
+      { cls: '', text: 'e o mar estava calmo' },
+      { cls: 'md', text: F },
+      { cls: '', text: '' },
+      { cls: 'md', text: '---' },
+      { cls: '', text: '' },
+      { cls: 'md', text: '## Voicings: E2 A2 D3 G3 B3 E4' },
+      { cls: '', text: '- G: 320003' },
+      { cls: '', text: '- D7: xx0212' },
+      { cls: 'err', text: '- Em: 02200' },
+      { cls: '', text: '- C: x32010' },
+    ];
+    const phone = source.slice(0, 19).concat([
+      { cls: 'md', text: '## Voicings: G4 C4 E4 A4' },
+      { cls: 'add', text: '- G: 0232' },
+      { cls: 'add', text: '- D7: 2223' },
+    ]);
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      edPhone: phone,
+      edDesk: source.map((ln, i) => ({ cls: ln.cls, text: String(i + 1).padStart(2, ' ') + '  ' + ln.text })),
+      tarde: [
+        L.sec('Primeira Parte'),
+        L.sung('G           D7', 'Quando eu te vi passar'),
+        L.sung('Em              C', 'naquela tarde clara'),
+        L.gap(),
+        L.sung('G             D', 'A tarde era clara'),
+        L.sung('Em          C', 'e o mar estava calmo'),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

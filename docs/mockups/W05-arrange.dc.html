@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>5. Arrange for an instrument</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 5</div>
+    <h1 class="board-title">Arrange for an instrument</h1>
+    <p class="board-sub">Arranging is a mode, so a tap on a music stand never changes the song. Choosing a shape writes it into the block for this tuning; only “only here” touches the chart everyone shares, and it says so first. Every change is an ordinary unsaved edit.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · arrange mode, then the picker from one bar</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Tarde Clara</span>
+              <button class="btn primary">Done</button>
+            </div>
+            <div class="scroll" style="gap: 12px">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+                <span class="chip accent">Arranging · Guitar</span>
+                <span class="t-small">Tap a chord to choose its shape</span>
+              </div>
+              <div class="chart">
+                <sc-for list="{{tardeTap}}" as="l" hint-placeholder-count="6">
+                  <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                </sc-for>
+              </div>
+              <div class="t-h3">Shapes</div>
+              <div class="shapes">
+                <dc-import name="ChordBox" chord="G" frets="320003" kind="song" size="s" inherit="yes" hint-size="64px,80px"></dc-import>
+                <dc-import name="ChordBox" chord="D" frets="xx0232" kind="song" size="s" inherit="yes" hint-size="64px,80px"></dc-import>
+                <dc-import name="ChordBox" chord="Em" frets="022000" kind="yours" size="s" inherit="yes" hint-size="64px,94px"></dc-import>
+                <dc-import name="ChordBox" chord="C" frets="x32010" kind="default" size="s" inherit="yes" hint-size="64px,94px"></dc-import>
+              </div>
+              <p class="t-small">G and D are chosen in this song. Em and C are not: they show your shape and the app’s default.</p>
+              <button class="btn block">Choose these for every unchosen chord</button>
+            </div>
+            <div style="display: flex; gap: 10px; padding: 12px 16px 22px; border-top: 1px solid var(--line); background: var(--surface)">
+              <button class="btn" style="flex: 1">Run the wizard</button>
+              <button class="btn" style="flex: 1">Variations</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Choro da Chuva</span>
+              <button class="btn primary">Done</button>
+            </div>
+            <div class="scroll" style="gap: 12px">
+              <span class="chip accent" style="align-self: flex-start">Arranging · Guitar</span>
+              <div class="chart">
+                <sc-for list="{{chuva}}" as="l" hint-placeholder-count="6">
+                  <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div class="scrim">
+            <div class="sheet" role="dialog" aria-labelledby="w05-picker-title" style="gap: 12px">
+              <div class="grip"></div>
+              <div style="display: flex; align-items: baseline; gap: 10px">
+                <h2 class="t-h1" id="w05-picker-title">Cm</h2>
+                <span class="t-small">Primeira Parte, bar 3</span>
+              </div>
+              <div class="seg" style="align-self: stretch; display: flex"><button style="flex: 1">Every Cm</button><button class="on" style="flex: 1">Only here</button></div>
+              <div class="notice unsaved" style="font-size: 14px">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--unsaved); flex: none; margin-top: 1px"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg>
+                <span>Only here marks this bar in the chart, for everyone who plays the song. On their instruments it shows the default until someone chooses.</span>
+              </div>
+              <div class="list">
+                <a class="row explore" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M12 5v14M5 12h14"></path></svg><span class="grow"><span class="name">Enter a shape</span></span></a>
+              </div>
+              <div class="t-h3">Around fret 3</div>
+              <div class="shapes">
+                <button class="btn" style="height: auto; padding: 8px" aria-label="Cm, x35543"><dc-import name="ChordBox" chord="Cm" frets="x35543" kind="song" size="s" inherit="yes" hint-size="64px,80px"></dc-import></button>
+                <button class="btn" style="height: auto; padding: 8px" aria-label="Cm, x3101x"><dc-import name="ChordBox" chord="Cm" frets="x3101x" kind="song" size="s" inherit="yes" hint-size="64px,80px"></dc-import></button>
+              </div>
+              <div class="t-h3">Around fret 8</div>
+              <div class="shapes">
+                <button class="btn" style="height: auto; padding: 8px" aria-label="Cm, 8 10 10 8 8 8"><dc-import name="ChordBox" chord="Cm" frets="8-10-10-8-8-8" kind="song" size="s" inherit="yes" hint-size="64px,80px"></dc-import></button>
+                <button class="btn" style="height: auto; padding: 8px" aria-label="Cm, x x 10 12 13 11"><dc-import name="ChordBox" chord="Cm" frets="x-x-10-12-13-11" kind="song" size="s" inherit="yes" hint-size="64px,80px"></dc-import></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · entering a shape by hand</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Enter a shape for Cm</span>
+            <span class="chip accent">Guitar · E A D G B E</span>
+          </div>
+          <div class="scroll" style="padding: 28px; gap: 24px">
+            <p class="t-small">Choro da Chuva · Primeira Parte, bar 3 · only here. Tap a string at a fret to place a finger; tap above the nut to mute or open it.</p>
+            <div style="display: flex; gap: 32px; align-items: flex-start">
+              <div class="card pad" style="width: 290px; flex: none; align-items: center">
+                <div style="width: 250px; height: 290px; overflow: hidden">
+                  <div style="transform: scale(2.2); transform-origin: top left; width: 113px">
+                    <dc-import name="ChordBox" chord="Cm" frets="x35544" kind="song" size="l" inherit="yes" hint-size="113px,130px"></dc-import>
+                  </div>
+                </div>
+              </div>
+              <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+                <div class="t-h3">Notes it holds</div>
+                <div class="t-h2">C · E♭ · G · A♭</div>
+                <div class="list">
+                  <sc-for list="{{strings}}" as="st" hint-placeholder-count="6">
+                    <div class="row"><span class="grow"><span class="name">{{st.string}}</span><span class="meta">{{st.fret}}</span></span><span class="t-h2">{{st.note}}</span><sc-if value="{{st.out}}" hint-placeholder-val="{{ false }}"><span class="badge conflict">not in Cm</span></sc-if><sc-if value="{{st.role}}" hint-placeholder-val="{{ true }}"><span class="badge">{{st.roleText}}</span></sc-if></div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+            <div class="notice conflict">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--conflict); flex: none; margin-top: 1px"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg>
+              <span>The A♭ on the high E string is not in Cm, which is C, E♭ and G. You can still choose this shape.</span>
+            </div>
+            <div class="actions">
+              <button class="btn">Cancel</button>
+              <button class="btn primary">Choose this shape</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · the wizard’s plan, offered into a new variation first</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side" style="width: 380px; padding: 24px; gap: 14px">
+            <div class="t-h3">Voicing wizard</div>
+            <h2 class="t-h1">The plan is ready</h2>
+            <p class="t-small" style="color: var(--ink)">Voicings already has shapes chosen in this song. Put the plan beside them, or over them?</p>
+            <div class="card pad" style="border-color: var(--accent); background: var(--accent-soft)">
+              <div style="display: flex; gap: 12px; align-items: flex-start">
+                <span class="check on" style="border-radius: 50%; margin-top: 2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>
+                <span style="display: flex; flex-direction: column; gap: 3px"><span class="t-h2">Into a new variation</span><span class="t-small">Voicings stays as it is</span></span>
+              </div>
+              <div class="field">
+                <label for="w05-var">Name</label>
+                <input class="input" id="w05-var" type="text" value="Up the neck">
+              </div>
+            </div>
+            <div class="card pad">
+              <div style="display: flex; gap: 12px; align-items: flex-start">
+                <span class="check" style="border-radius: 50%; margin-top: 2px"></span>
+                <span style="display: flex; flex-direction: column; gap: 3px"><span class="t-h2">Over Voicings</span><span class="t-small">Replaces what is chosen there</span></span>
+              </div>
+            </div>
+            <p class="t-small">Either way it is an edit in the working copy: the save sheet shows what it chose, and discard undoes it.</p>
+            <div class="actions" style="margin-top: auto">
+              <button class="btn">Back</button>
+              <button class="btn primary">Write the plan</button>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="appbar" style="padding: 14px 24px">
+              <span class="title">Tarde Clara</span>
+              <span class="chip accent">Arranging · Guitar</span>
+              <button class="btn primary">Done</button>
+            </div>
+            <div class="scroll" style="padding: 20px 32px; gap: 18px">
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+                <span class="t-h3">Variation</span>
+                <div class="seg"><button>Voicings</button><button class="on">Up the neck</button><button>+ New variation</button></div>
+                <span class="t-small">Preview of the plan</span>
+              </div>
+              <div style="display: flex; gap: 40px; align-items: flex-start">
+                <div class="chart" style="flex: 1; --chart-size: 20px">
+                  <sc-for list="{{tardeTap}}" as="l" hint-placeholder-count="6">
+                    <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                    <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                    <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                  </sc-for>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px; width: 300px; flex: none">
+                  <div class="t-h3">Shapes · Up the neck</div>
+                  <div class="shapes">
+                    <dc-import name="ChordBox" chord="G" frets="355433" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                    <dc-import name="ChordBox" chord="D" frets="x57775" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                    <dc-import name="ChordBox" chord="Em" frets="x-7-9-9-8-7" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                    <dc-import name="ChordBox" chord="C" frets="8-10-10-9-8-8" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                  </div>
+                  <p class="t-small">The selector shows only when guitar has more than one variation in this song.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const segsOf = (chords, words) => {
+      const toks = []; const re = /\S+/g; let m;
+      while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
+      if (!toks.length) return [{ c: '', w: words }];
+      const segs = [];
+      if (toks[0].at > 0) segs.push({ c: '', w: words.slice(0, toks[0].at).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') });
+      toks.forEach((t, i) => {
+        const end = i + 1 < toks.length ? toks[i + 1].at : Math.max(words.length, t.at);
+        segs.push({ c: t.c, w: words.slice(t.at, end).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') || ' ' });
+      });
+      return segs.map((sg, i) => ({ c: sg.c, w: sg.w, j: i + 1 < segs.length && /\S$/.test(sg.w) && /^\S/.test(segs[i + 1].w) }));
+    };
+    const L = {
+      sec: (t) => ({ isSec: true, text: t }),
+      sung: (c, w, cls) => ({ isSung: true, segs: segsOf(c, w), cls: cls || '' }),
+      bars: (t, cls) => ({ isBars: true, ms: t.split('|').map((x) => x.trim()).filter((x) => x).map((x) => ({ cs: x })), cls: cls || '' }),
+      run: (t, cls) => ({ isRun: true, text: t, cls: cls || '' }),
+      words: (t) => ({ isWords: true, text: t }),
+      gap: () => ({ isGap: true }),
+    };
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      tardeTap: [
+        L.sec('Primeira Parte'),
+        L.sung('G           D', 'Quando eu te vi passar', 'mark-tap'),
+        L.sung('Em              C', 'naquela tarde clara', 'mark-tap'),
+        L.gap(),
+        L.sung('G             D', 'A tarde era clara', 'mark-tap'),
+        L.sung('Em          C', 'e o mar estava calmo', 'mark-tap'),
+      ],
+      chuva: [
+        L.sec('Primeira Parte'),
+        L.bars('Cm | Fm | Cm | G7', 'mark-tap'),
+        L.bars('Cm | C7 | Fm | Fm', 'mark-tap'),
+      ],
+      strings: [
+        { string: 'E2 · low E', fret: 'muted', note: '—', out: false, role: false, roleText: '' },
+        { string: 'A2', fret: 'fret 3', note: 'C', out: false, role: true, roleText: 'root' },
+        { string: 'D3', fret: 'fret 5', note: 'G', out: false, role: true, roleText: 'fifth' },
+        { string: 'G3', fret: 'fret 5', note: 'C', out: false, role: true, roleText: 'root' },
+        { string: 'B3', fret: 'fret 4', note: 'E♭', out: false, role: true, roleText: 'minor third' },
+        { string: 'E4 · high E', fret: 'fret 4', note: 'A♭', out: true, role: false, roleText: '' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

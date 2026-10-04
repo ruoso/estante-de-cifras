@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>7. Add a book</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 7</div>
+    <h1 class="board-title">Add a book</h1>
+    <p class="board-sub">Putting a book on the shelf — a new one, one on Estante already, or one brought in as a zip — and taking one off, or out. A book put online starts private, any book can be downloaded as its whole repository, and an upload shows what it would do, song by song, before anything is written.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · the books on the shelf, then the four ways in</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 18px 16px 10px">
+              <span class="t-h1" style="flex: 1">Books</span>
+              <button class="btn primary" style="min-height: 40px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add a book</button>
+            </div>
+            <div class="scroll" style="padding-top: 6px; gap: 12px">
+              <div class="list">
+                <sc-for list="{{books}}" as="b" hint-placeholder-count="4">
+                  <a class="row" href="#">
+                    <span class="grow">
+                      <span class="name">{{b.title}}</span>
+                      <span class="meta">{{b.where}} · {{b.role}}</span>
+                      <sc-if value="{{b.hasState}}" hint-placeholder-val="{{ true }}"><span class="badges"><span class="badge {{b.stateCls}}">{{b.state}}</span></span></sc-if>
+                    </span>
+                    <span class="t-small" aria-hidden="true">▸</span>
+                  </a>
+                </sc-for>
+              </div>
+              <p class="t-small">A sync state shows only when a book is not in step with Estante.</p>
+              <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14-5l-2 2M4 4v4h4M4 13a8 8 0 0 0 14 5l2-2M20 20v-4h-4"></path></svg>Sync now</button>
+            </div>
+            <div class="tabbar">
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Search</button>
+              <button class="tab on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>Books</button>
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg>Setlists</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 18px 16px 10px">
+              <span class="t-h1" style="flex: 1">Books</span>
+            </div>
+            <div class="scroll" style="padding-top: 6px">
+              <div class="list">
+                <sc-for list="{{books}}" as="b" hint-placeholder-count="4">
+                  <a class="row" href="#"><span class="grow"><span class="name">{{b.title}}</span><span class="meta">{{b.where}} · {{b.role}}</span></span></a>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div class="scrim">
+            <div class="sheet" role="dialog" aria-labelledby="w07-add-title">
+              <div class="grip"></div>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <h2 class="t-h2" id="w07-add-title" style="flex: 1">Add a book</h2>
+                <button class="btn icon" aria-label="Close"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+              </div>
+              <div class="list">
+                <a class="row" href="#">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M12 5v14M5 12h14"></path></svg>
+                  <span class="grow"><span class="name">New book</span><span class="meta">A name, and an empty book. No account needed.</span></span>
+                </a>
+                <a class="row" href="#">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>
+                  <span class="grow"><span class="name">By link</span><span class="meta">Paste a link to a book on Estante.</span></span>
+                </a>
+                <div class="row" style="align-items: flex-start">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none; margin-top: 2px"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>
+                  <span class="grow" style="gap: 8px">
+                    <span class="name">Mine on Estante</span>
+                    <span class="t-small">Your books that are not on this shelf yet. Sign in to see them.</span>
+                    <button class="btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Sign in with a passkey</button>
+                    <a class="t-small" href="#" style="color: var(--accent); font-weight: 600">No passkey here? Email me a link</a>
+                  </span>
+                </div>
+                <a class="row" href="#">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M12 20V8M7 13l5-5 5 5M4 4h16"></path></svg>
+                  <span class="grow"><span class="name">Upload</span><span class="meta">A zip of a book, with or without its history.</span></span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · uploading a zip: the preview, before anything is written</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Cancel the upload"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+            <span class="title">Upload banda-do-bairro.zip</span>
+          </div>
+          <div class="scroll" style="padding: 24px 28px; gap: 18px">
+            <div style="display: flex; flex-direction: column; gap: 10px">
+              <span class="t-h3">What to do with it</span>
+              <div class="seg" role="radiogroup" aria-label="What to do with the upload">
+                <button role="radio" aria-checked="false">Import as a new book</button>
+                <button class="on" role="radio" aria-checked="true">Merge into an existing book</button>
+              </div>
+              <div class="field" style="max-width: 420px">
+                <label>Merge into</label>
+                <div class="input"><span style="flex: 1">Banda do Bairro</span><span class="t-small">▾</span></div>
+              </div>
+              <p class="t-small">From the zip's branch <b>main</b>, which shares its history with Banda do Bairro. Edits in the zip that were never saved are read as one more save: <i>changes from the upload</i>, by you.</p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <span class="t-h3">Song by song</span>
+              <div class="list">
+                <sc-for list="{{preview}}" as="p" hint-placeholder-count="4">
+                  <div class="row">
+                    <span class="grow">
+                      <span class="name">{{p.title}}</span>
+                      <span class="meta">{{p.detail}}</span>
+                    </span>
+                    <span class="badge {{p.cls}}">{{p.state}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 16px">
+              <div class="card pad" style="flex: 1">
+                <span class="t-h3">Left out</span>
+                <p class="t-small">A book holds songs, setlists, a README and .gitattributes, so these stay behind:</p>
+                <sc-for list="{{leftOut}}" as="f" hint-placeholder-count="2">
+                  <span class="t-mono" style="font-size: 14px">{{f.path}}</span>
+                </sc-for>
+              </div>
+              <div class="card pad" style="flex: 1">
+                <span class="t-h3">Put in canonical form</span>
+                <p class="t-small">The voicings are put in canonical order; the chart is left as written.</p>
+                <sc-for list="{{canon}}" as="f" hint-placeholder-count="2">
+                  <span class="t-mono" style="font-size: 14px">{{f.path}}</span>
+                </sc-for>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="w07-note">Note</label>
+              <input id="w07-note" class="input" value="Merge the upload from banda-do-bairro.zip">
+            </div>
+            <div class="actions" style="align-items: center">
+              <span class="t-small" style="margin-right: auto">Nothing is written until you confirm. The conflict goes to resolution.</span>
+              <button class="btn">Cancel</button>
+              <button class="btn primary">Merge and save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · a book's detail, and deleting it from Estante</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side">
+            <div style="padding: 18px 16px 12px; display: flex; align-items: center; gap: 8px">
+              <span class="t-h1" style="flex: 1">Books</span>
+              <button class="btn">Add a book</button>
+            </div>
+            <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 12px; overflow: hidden">
+              <div class="list">
+                <sc-for list="{{booksDesk}}" as="b" hint-placeholder-count="4">
+                  <a class="row {{b.cls}}" href="#"><span class="grow"><span class="name">{{b.title}}</span><span class="meta">{{b.where}} · {{b.role}}</span></span></a>
+                </sc-for>
+              </div>
+              <div class="card pad">
+                <span class="t-h2">Exercícios de violão</span>
+                <p class="t-small">Only on this device. Putting it online creates it on Estante, private: only you can open it until you share it.</p>
+                <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V8M7 13l5-5 5 5M4 4h16"></path></svg>Put online</button>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="appbar" style="padding: 14px 24px">
+              <span class="title">My songs</span>
+              <button class="btn">Share</button>
+            </div>
+            <div class="scroll" style="padding: 24px 32px; gap: 18px">
+              <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                <span class="chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>On Estante · private</span>
+                <span class="chip">You own it</span>
+                <span class="chip">You can save</span>
+              </div>
+              <div class="card pad">
+                <span class="t-h2">Download</span>
+                <p class="t-small">A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.</p>
+                <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"></path></svg>Download</button>
+              </div>
+              <div style="display: flex; gap: 16px">
+                <div class="card pad" style="flex: 1">
+                  <span class="t-h2">Remove from my shelf</span>
+                  <p class="t-small">Deletes this device's copy only. The book stays on Estante.</p>
+                  <button class="btn" style="align-self: flex-start">Remove from my shelf</button>
+                </div>
+                <div class="card pad" style="flex: 1">
+                  <span class="t-h2">Delete the book</span>
+                  <p class="t-small">Deletes it from Estante, for everyone. Only its owner can.</p>
+                  <button class="btn danger" style="align-self: flex-start">Delete the book</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" role="dialog" aria-labelledby="w07-del-title">
+            <h2 class="t-h2" id="w07-del-title">Delete My songs from Estante?</h2>
+            <p class="t-body">This deletes the book, with its whole history, for everyone who shares it. It cannot be undone.</p>
+            <div class="field">
+              <label for="w07-del-name">Type the book's name to confirm</label>
+              <input id="w07-del-name" class="input" value="My songs">
+            </div>
+            <div class="actions">
+              <button class="btn">Cancel</button>
+              <button class="btn danger">Delete the book</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var books = [
+      { title: 'My songs', where: 'On Estante', role: 'can save', hasState: false, state: '', stateCls: '' },
+      { title: 'Choros da Ana', where: 'On Estante', role: 'reader', hasState: true, state: 'syncing', stateCls: '' },
+      { title: 'Banda do Bairro', where: 'On Estante', role: 'can save', hasState: true, state: '2 saves waiting to go up', stateCls: 'unsaved' },
+      { title: 'Exercícios de violão', where: 'On this device', role: 'can save', hasState: false, state: '', stateCls: '' },
+    ];
+    var booksDesk = books.map(function (b) {
+      return { title: b.title, where: b.where, role: b.role, cls: b.title === 'My songs' ? 'sel' : '' };
+    });
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      books: books,
+      booksDesk: booksDesk,
+      preview: [
+        { title: 'Rua do Porto', detail: 'Primeira Parte bar 2: Am → Am7', state: 'changed', cls: 'voiced' },
+        { title: 'Asa Branca', detail: 'Voicings for G4 C4 E4 A4: added F, G7', state: 'changed', cls: 'voiced' },
+        { title: 'Noite de São João', detail: 'New song, Pedro Araújo', state: 'added', cls: 'ok' },
+        { title: 'Blues in D minor', detail: 'Refrão bar 3 changed here and in the book', state: 'conflict', cls: 'conflict' },
+      ],
+      leftOut: [
+        { path: 'ensaio/gravacao.m4a' },
+        { path: '.DS_Store' },
+      ],
+      canon: [
+        { path: 'asa-branca.cifra.md' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Visual language</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 2560px; min-height: 2100px">
+  <div class="board-head">
+    <div class="board-num">Estante de Cifras</div>
+    <h1 class="board-title">Visual language</h1>
+    <p class="board-sub">Three directions to choose between, drawn with the same parts. Charts are set in each direction's text face, not a monospace: every chord is stacked over the syllable it belongs to, so a long chord opens room in the words instead of drifting off them. Every workflow board below uses these tokens; each board's Tweaks switch it to any direction, and <span class="t-mono">theme.css</span> sets the one they all show.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px">
+    <sc-for list="{{directions}}" as="dir" hint-placeholder-count="3">
+      <div class="est theme-{{dir.key}} density-{{density}}" style="border-radius: 20px; padding: 36px; display: flex; flex-direction: column; gap: 28px; border: 1px solid var(--line)">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <div class="t-h3">{{dir.label}}</div>
+          <h2 class="t-display" style="font-size: 40px">{{dir.name}}</h2>
+          <p class="t-body" style="color: var(--ink-2)">{{dir.idea}}</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
+          <div style="display: flex; flex-direction: column; gap: 4px"><div class="sw" style="background: var(--bg)"></div><span class="t-small">Ground</span></div>
+          <div style="display: flex; flex-direction: column; gap: 4px"><div class="sw" style="background: var(--surface)"></div><span class="t-small">Surface</span></div>
+          <div style="display: flex; flex-direction: column; gap: 4px"><div class="sw" style="background: var(--ink)"></div><span class="t-small">Ink</span></div>
+          <div style="display: flex; flex-direction: column; gap: 4px"><div class="sw" style="background: var(--accent)"></div><span class="t-small">Accent</span></div>
+          <div style="display: flex; flex-direction: column; gap: 4px"><div class="sw" style="background: var(--chord)"></div><span class="t-small">Chords</span></div>
+          <div style="display: flex; flex-direction: column; gap: 4px"><div class="sw" style="background: var(--unsaved)"></div><span class="t-small">Unsaved</span></div>
+          <div style="display: flex; flex-direction: column; gap: 4px"><div class="sw" style="background: var(--conflict)"></div><span class="t-small">Conflict</span></div>
+          <div style="display: flex; flex-direction: column; gap: 4px"><div class="sw" style="background: var(--ok)"></div><span class="t-small">In step</span></div>
+        </div>
+
+        <div class="card pad">
+          <div class="t-h3">Type</div>
+          <div class="t-display">Tarde Clara</div>
+          <p class="t-body">Pedro Araújo · in G · voiced for your guitar</p>
+          <p class="t-small">{{dir.fonts}}</p>
+        </div>
+
+        <div class="card pad">
+          <div class="t-h3">The chart</div>
+          <div class="chart">
+                <sc-for list="{{chart}}" as="l" hint-placeholder-count="6">
+                  <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                </sc-for>
+              </div>
+          <div class="shapes" style="margin-top: 6px">
+            <dc-import name="ChordBox" chord="G" frets="320003" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+            <dc-import name="ChordBox" chord="D" frets="xx0232" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+            <dc-import name="ChordBox" chord="Em" frets="022000" kind="yours" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+            <dc-import name="ChordBox" chord="C" frets="x32010" kind="default" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+            <dc-import name="ChordBox" chord="Cm[2]" frets="8-10-10-8-8-8" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center">
+          <button class="btn primary">Save</button>
+          <button class="btn">Arrange</button>
+          <button class="btn quiet">Discard changes</button>
+          <span class="chip accent">Guitar · E A D G B E</span>
+        </div>
+        <div class="badges">
+          <span class="badge voiced">voiced for guitar</span>
+          <span class="badge unsaved dot">unsaved changes</span>
+          <span class="badge conflict dot">conflict</span>
+          <span class="badge ok dot">in step</span>
+          <span class="badge">2 saves waiting</span>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div class="card pad" style="padding: 36px; gap: 28px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div class="t-h3">Parts, in the direction these Tweaks select</div>
+      <p class="t-body" style="color: var(--ink-2)">Badges always carry a word; colour only repeats it. Defaults are hollow and dashed, your shapes filled in the chord colour, the song's own shapes filled in ink.</p>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; align-items: start">
+      <div style="display: flex; flex-direction: column; gap: 16px">
+        <div class="t-h3">Search</div>
+        <div class="search focus"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span style="flex: 1">A</span></div>
+        <div class="list">
+          <a class="row explore" href="#"><span class="grow"><span class="name">Explore A on your guitar</span><span class="meta">every way to play it, easiest first</span></span></a>
+          <a class="row" href="#"><span class="grow"><span class="name">A Banda</span><span class="meta">Choros da Ana · bossa/</span></span><span class="badge voiced">voiced</span></a>
+          <a class="row" href="#"><span class="grow"><span class="name">Tarde Clara</span><span class="meta">My songs · uses A</span></span><span class="badge unsaved dot">unsaved</span></a>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 16px">
+        <div class="t-h3">Notices</div>
+        <div class="notice accent"><span>Updated by Ana while you were reading.</span><span class="act">See what changed</span></div>
+        <div class="notice unsaved"><span>Unsaved changes on this device.</span><span class="act">Save</span></div>
+        <div class="notice conflict"><span>Two changes to bar 5 need you.</span><span class="act">Settle</span></div>
+        <div class="notice"><span>Offline since 14:02. Your saves will go up when you are back.</span></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 16px">
+        <div class="t-h3">What changed</div>
+        <div class="diff card pad">
+          <div class="d"><span class="k">Verse, bar 5</span><span class="was">G7</span><span>→</span><span class="now">D♭7</span></div>
+          <div class="d"><span class="k">Voicings for G4 C4 E4 A4</span><span>added</span></div>
+          <div class="d"><span class="k">Cm</span><span class="was">x35543</span><span>→</span><span class="now">8-10-10-8-8-8</span></div>
+        </div>
+        <div class="seg" role="group" aria-label="Variation"><button class="on">Voicings</button><button>Up the neck</button><button>Simple</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":2560,"height":2100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const segsOf = (chords, words) => {
+      const toks = []; const re = /\S+/g; let m;
+      while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
+      if (!toks.length) return [{ c: '', w: words }];
+      const segs = [];
+      if (toks[0].at > 0) segs.push({ c: '', w: words.slice(0, toks[0].at).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') });
+      toks.forEach((t, i) => {
+        const end = i + 1 < toks.length ? toks[i + 1].at : Math.max(words.length, t.at);
+        segs.push({ c: t.c, w: words.slice(t.at, end).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') || ' ' });
+      });
+      return segs.map((sg, i) => ({ c: sg.c, w: sg.w, j: i + 1 < segs.length && /\S$/.test(sg.w) && /^\S/.test(segs[i + 1].w) }));
+    };
+    const L = {
+      sec: (t) => ({ isSec: true, text: t }),
+      sung: (c, w, cls) => ({ isSung: true, segs: segsOf(c, w), cls: cls || '' }),
+      bars: (t, cls) => ({ isBars: true, ms: t.split('|').map((x) => x.trim()).filter((x) => x).map((x) => ({ cs: x })), cls: cls || '' }),
+      run: (t, cls) => ({ isRun: true, text: t, cls: cls || '' }),
+      words: (t) => ({ isWords: true, text: t }),
+      gap: () => ({ isGap: true }),
+    };
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      directions: [
+        { key: 'estante', label: 'Direction 1', name: 'Estante', idea: 'Quiet and neutral, ink-blue chords on a cool ground. The app steps back; the song is the loudest thing on screen.', fonts: 'Figtree for the app, JetBrains Mono for the chart.' },
+        { key: 'caderno', label: 'Direction 2', name: 'Caderno', idea: 'The notebook songs are copied into: warm paper, chords in red pen, serif titles. Personal, and a little old-fashioned on purpose.', fonts: 'Fraunces for titles, Source Sans 3 for the app, IBM Plex Mono for the chart.' },
+        { key: 'palco', label: 'Direction 3', name: 'Palco', idea: 'The stage at night: dark ground, amber chords, a typeface built to be read from a music stand.', fonts: 'Atkinson Hyperlegible, and its Mono for the chart.' },
+      ],
+      chart: [
+        L.sec('Primeira Parte'),
+        L.sung('G           D', 'Quando eu te vi passar'),
+        L.sung('Em              C', 'naquela tarde clara'),
+        L.gap(),
+        L.sec('A word split by a long chord'),
+        L.sung('Cmaj7(9) G', 'Qu_______ando o mar'),
+        L.sec('Refrão'),
+        L.bars('G | D | C | G'),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

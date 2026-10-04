@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>13. A new device</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 13</div>
+    <h1 class="board-title">A new device</h1>
+    <p class="board-sub">Sign in with a passkey, or an emailed link where none can be reached. The home book comes down first, so instrument, notation and language are right; then every book on the shelf is listed at once and clones in the background. Signing out asks what on this device is the account's.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · signing in on a new phone, then the shelf filling</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div style="padding: 56px 24px 0; display: flex; flex-direction: column; gap: 14px">
+              <span class="t-h1">Estante</span>
+              <h2 class="t-display">Sign in</h2>
+              <p class="t-body" style="color: var(--ink-2)">Bring your books, instruments and preferences to this phone.</p>
+              <button class="btn primary block" style="margin-top: 12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Use a passkey</button>
+              <button class="btn block">Email me a link</button>
+              <p class="t-small">No passkey here? The link signs you in on this phone, and recovers your account if every device with a passkey is lost.</p>
+            </div>
+          </div>
+          <div class="scrim">
+            <div class="sheet">
+              <div class="grip"></div>
+              <span class="t-h3">The phone's own passkey prompt</span>
+              <div style="display: flex; align-items: center; gap: 14px">
+                <span style="width: 48px; height: 48px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg></span>
+                <span style="display: flex; flex-direction: column; gap: 2px"><span class="t-h2">Sign in to Estante?</span><span class="t-small">With your saved passkey, synced from your other devices</span></span>
+              </div>
+              <button class="btn primary block">Continue with face or fingerprint</button>
+              <button class="btn quiet block">Other options</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 18px 16px 10px">
+              <span class="t-h1" style="flex: 1">Books</span>
+              <span class="chip accent">Guitar</span>
+            </div>
+            <div class="scroll" style="padding-top: 4px; gap: 12px">
+              <div class="notice accent" style="flex-direction: column; gap: 8px">
+                <span><b>Home book restored.</b> Your instrument, notation and language are set.</span>
+                <span style="display: flex; gap: 6px; flex-wrap: wrap"><span class="badge voiced">Guitar · E A D G B E</span><span class="badge voiced">Brazilian notation</span><span class="badge voiced">English</span></span>
+              </div>
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span style="flex: 1; color: var(--ink-2)">Search songs as they arrive</span></div>
+              <div class="section-label"><span class="t-h3">Your shelf</span><span class="t-small">3 books</span></div>
+              <div class="list">
+                <sc-for list="{{shelf}}" as="b" hint-placeholder-count="3">
+                  <div class="row" style="flex-direction: column; align-items: stretch; gap: 8px">
+                    <div style="display: flex; align-items: center; gap: 10px">
+                      <span class="grow"><span class="name">{{b.title}}</span><span class="meta">{{b.meta}}</span></span>
+                      <sc-if value="{{b.ready}}" hint-placeholder-val="{{ true }}"><span class="badge ok">ready</span></sc-if>
+                      <sc-if value="{{b.cloning}}" hint-placeholder-val="{{ false }}"><span class="badge">cloning</span></sc-if>
+                      <sc-if value="{{b.waiting}}" hint-placeholder-val="{{ false }}"><span class="badge">waiting</span></sc-if>
+                    </div>
+                    <sc-if value="{{b.cloning}}" hint-placeholder-val="{{ false }}"><div class="bar"><div style="width: {{b.pct}}"></div></div></sc-if>
+                  </div>
+                </sc-for>
+              </div>
+              <div class="notice" style="flex-direction: column; gap: 4px">
+                <span><b>Only on your iPhone: Rascunhos</b></span>
+                <span class="t-small">Put it online there to have it here.</span>
+              </div>
+            </div>
+            <div class="tabbar">
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Search</button>
+              <button class="tab on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>Books</button>
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg>Setlists</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · used before signing in: two My songs, merge or keep both</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <span class="title">Your two My songs</span>
+            <button class="btn quiet">Later</button>
+          </div>
+          <div class="scroll" style="padding: 24px 28px; gap: 18px">
+            <div class="notice" style="background: var(--ok-soft)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--ok); flex: none"><path d="M5 12l5 5 9-10"></path></svg><span>This tablet's preferences and shapes were merged into your account's, setting by setting.</span></div>
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <h2 class="t-display">This tablet has its own My songs</h2>
+              <p class="t-body" style="color: var(--ink-2)">Your account has a My songs too. Bring the two together, or keep them apart.</p>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px">
+              <a class="card pad" href="#" style="text-decoration: none; color: inherit; border: 2px solid var(--accent); background: var(--accent-soft)">
+                <span class="t-h2">Merge</span>
+                <span class="t-small">This tablet's songs go into your account's My songs. Preview first, song by song.</span>
+              </a>
+              <a class="card pad" href="#" style="text-decoration: none; color: inherit">
+                <span class="t-h2">Keep both</span>
+                <span class="t-small">This one stays on the shelf as <b>My songs (this device)</b>.</span>
+              </a>
+            </div>
+            <div class="section-label"><span class="t-h3">What merging would do</span><span class="t-small">Nothing is written until you confirm</span></div>
+            <div class="notice unsaved"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--unsaved)"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg><span>The two share no history, so every song that is in both is shown as a conflict to choose between.</span></div>
+            <div class="list">
+              <sc-for list="{{mergePreview}}" as="r" hint-placeholder-count="4">
+                <div class="row"><span class="grow"><span class="name">{{r.title}}</span><span class="meta">{{r.meta}}</span></span>
+                  <sc-if value="{{r.added}}" hint-placeholder-val="{{ true }}"><span class="badge ok">added</span></sc-if>
+                  <sc-if value="{{r.conflict}}" hint-placeholder-val="{{ false }}"><span class="badge conflict dot">conflict</span></sc-if>
+                </div>
+              </sc-for>
+            </div>
+            <div class="field">
+              <label for="w13-note">Note</label>
+              <input id="w13-note" class="input" value="Merge My songs from this tablet">
+            </div>
+            <div class="actions">
+              <button class="btn">Keep both instead</button>
+              <button class="btn primary">Merge and save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · the account screen, and signing out of this computer</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side" style="width: 300px">
+            <div style="padding: 22px 20px; display: flex; flex-direction: column; gap: 14px">
+              <span class="t-h1">Account</span>
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span style="width: 44px; height: 44px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></span>
+                <span style="display: flex; flex-direction: column"><span class="t-h2">Rafael Lima</span><span class="t-small">rafael@example.com</span></span>
+              </div>
+              <button class="btn block">Sign out of this computer</button>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="scroll" style="padding: 24px 32px; gap: 14px">
+              <div class="t-h3">Signed-in devices</div>
+              <div class="list">
+                <sc-for list="{{devices}}" as="d" hint-placeholder-count="4">
+                  <div class="row"><span class="grow"><span class="name">{{d.name}}</span><span class="meta">{{d.meta}}</span></span><button class="btn">Sign out</button></div>
+                </sc-for>
+              </div>
+              <div class="t-h3" style="margin-top: 8px">Passkeys</div>
+              <div class="list">
+                <sc-for list="{{passkeys}}" as="k" hint-placeholder-count="3">
+                  <div class="row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg><span class="grow"><span class="name">{{k.name}}</span><span class="meta">{{k.meta}}</span></span><button class="btn quiet">Remove</button></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" style="width: 600px">
+            <h2 class="t-h1">Sign out of this computer?</h2>
+            <div style="display: flex; flex-direction: column; gap: 10px">
+              <a class="card pad" href="#" style="flex-direction: row; align-items: flex-start; gap: 12px; text-decoration: none; color: inherit; border: 2px solid var(--accent)">
+                <span class="check on" style="border-radius: 50%"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>
+                <span style="display: flex; flex-direction: column; gap: 2px"><span class="t-h2">Remove this account's books from this computer</span><span class="t-small">For a borrowed or shared computer.</span></span>
+              </a>
+              <a class="card pad" href="#" style="flex-direction: row; align-items: flex-start; gap: 12px; text-decoration: none; color: inherit">
+                <span class="check" style="border-radius: 50%"></span>
+                <span style="display: flex; flex-direction: column; gap: 2px"><span class="t-h2">Keep them here</span><span class="t-small">As local books, no longer synced.</span></span>
+              </a>
+            </div>
+            <div class="notice unsaved" style="flex-direction: column; gap: 4px">
+              <span><b>Not yet on Estante:</b></span>
+              <span>Banda do Bairro · unsaved changes in 2 songs</span>
+              <span>Valsas · 1 save not yet pushed</span>
+            </div>
+            <div class="notice" style="align-items: center"><span><b>Rascunhos</b> is only on this computer. Download it before it is removed.</span><a class="act" href="#">Download</a></div>
+            <div class="actions">
+              <button class="btn">Cancel</button>
+              <button class="btn danger">Sign out and remove</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      shelf: [
+        { title: 'Banda do Bairro', meta: '21 songs · 2 setlists · searchable', ready: true, cloning: false, waiting: false, pct: '100%' },
+        { title: 'Choros da Ana', meta: 'reading · songs searchable as they arrive', ready: false, cloning: true, waiting: false, pct: '45%' },
+        { title: 'Valsas', meta: 'next in line', ready: false, cloning: false, waiting: true, pct: '0%' },
+      ],
+      mergePreview: [
+        { title: 'Tarde Clara', meta: 'in both · choose which to keep', added: false, conflict: true },
+        { title: 'Noite de Lua', meta: 'only on this tablet', added: true, conflict: false },
+        { title: 'Valsa da Esquina', meta: 'only on this tablet', added: true, conflict: false },
+        { title: 'Chuva no Telhado', meta: 'only on this tablet', added: true, conflict: false },
+      ],
+      devices: [
+        { name: 'This computer', meta: 'Edge on Windows · in use now' },
+        { name: 'Phone', meta: 'Chrome on Android · last used 10 minutes ago' },
+        { name: 'iPad', meta: 'Safari · last used yesterday' },
+        { name: 'iPhone', meta: 'Safari · last used 3 weeks ago' },
+      ],
+      passkeys: [
+        { name: 'iCloud Keychain', meta: 'iPhone and iPad · added 12 March' },
+        { name: 'Google Password Manager', meta: 'Phone · added today' },
+        { name: 'Windows Hello', meta: 'This computer · added today' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

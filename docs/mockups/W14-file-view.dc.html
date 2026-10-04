@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>14. The file view</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 14</div>
+    <h1 class="board-title">The file view</h1>
+    <p class="board-sub">The book as git sees it: the tree with each file's status in words, a raw editor, the whole history with plain line diffs. Renaming, moving and deleting happen only here, and a book holds only songs, setlists, its README and .gitattributes.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · the book's files, then one opened in the raw editor</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Files</span>
+              <button class="btn icon" aria-label="History"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"></path></svg></button>
+              <button class="btn icon" aria-label="New"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+            </div>
+            <div class="scroll" style="gap: 10px; padding-top: 12px">
+              <span class="t-small">Banda do Bairro</span>
+              <div class="list">
+                <sc-for list="{{tree}}" as="f" hint-placeholder-count="8">
+                  <a class="row" href="#" style="padding: 7px 12px 7px {{f.pad}}; min-height: 38px; gap: 8px">
+                    <sc-if value="{{f.isFolder}}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--ink-2); flex: none"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path></svg></sc-if>
+                    <sc-if value="{{f.isFile}}" hint-placeholder-val="{{ true }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--ink-2); flex: none"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"></path><path d="M14 3v5h5"></path></svg></sc-if>
+                    <span class="grow"><span class="name t-mono" style="font-size: 13px; font-weight: {{f.weight}}; text-decoration: {{f.deco}}">{{f.name}}</span></span>
+                    <sc-if value="{{f.unsaved}}" hint-placeholder-val="{{ false }}"><span class="badge unsaved dot">unsaved changes</span></sc-if>
+                    <sc-if value="{{f.isNew}}" hint-placeholder-val="{{ false }}"><span class="badge ok">new</span></sc-if>
+                    <sc-if value="{{f.deleted}}" hint-placeholder-val="{{ false }}"><span class="badge">deleted</span></sc-if>
+                    <sc-if value="{{f.conflict}}" hint-placeholder-val="{{ false }}"><span class="badge conflict dot">conflict</span></sc-if>
+                  </a>
+                </sc-for>
+              </div>
+              <p class="t-small">A book holds songs (*.cifra.md), setlists (*.setlist.md), README.md and .gitattributes, and nothing else.</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; padding: 12px 16px 22px; border-top: 1px solid var(--line); background: var(--surface)">
+              <span class="t-small" style="flex: 1">4 files changed</span>
+              <button class="btn primary">Save…</button>
+            </div>
+          </div>
+          <div class="card" style="position: absolute; top: 62px; right: 12px; width: 210px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2); display: flex; flex-direction: column; overflow: hidden">
+            <a class="row" href="#"><span class="grow"><span class="name">Song</span><span class="meta t-mono">*.cifra.md</span></span></a>
+            <a class="row" href="#"><span class="grow"><span class="name">Setlist</span><span class="meta t-mono">*.setlist.md</span></span></a>
+            <a class="row" href="#"><span class="grow"><span class="name">Folder</span><span class="meta">exists once a file is in it</span></span></a>
+            <div style="padding: 10px 16px" class="t-small">README.md already exists</div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back to files"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title t-mono" style="font-size: 17px">tarde-clara.cifra.md</span>
+              <button class="btn icon" aria-label="More"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+            </div>
+            <div class="scroll" style="gap: 10px; padding-top: 12px">
+              <div style="display: flex; align-items: center; gap: 8px"><span class="t-small" style="flex: 1">Banda do Bairro · mpb/</span><span class="badge unsaved dot">unsaved changes</span></div>
+              <div class="editor" style="font-size: 13px">
+                <sc-for list="{{rawTarde}}" as="ln" hint-placeholder-count="12">
+                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; padding: 12px 16px 22px; border-top: 1px solid var(--line); background: var(--surface)">
+              <button class="btn" style="flex: 1">Discard</button>
+              <button class="btn primary" style="flex: 1">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · tree and file side by side, renaming a song</div>
+      <div class="dev tablet">
+        <div class="appbar">
+          <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+          <span class="title">Banda do Bairro · Files</span>
+          <button class="btn">History</button>
+          <button class="btn">New</button>
+        </div>
+        <div class="split">
+          <div class="pane side" style="width: 320px">
+            <div class="scroll" style="padding: 14px 12px">
+              <div class="list">
+                <sc-for list="{{treeTablet}}" as="f" hint-placeholder-count="8">
+                  <a class="row {{f.sel}}" href="#" style="padding: 7px 10px 7px {{f.pad}}; min-height: 38px; gap: 8px">
+                    <sc-if value="{{f.isFolder}}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--ink-2); flex: none"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path></svg></sc-if>
+                    <sc-if value="{{f.isFile}}" hint-placeholder-val="{{ true }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--ink-2); flex: none"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"></path><path d="M14 3v5h5"></path></svg></sc-if>
+                    <span class="grow"><span class="name t-mono" style="font-size: 13px; font-weight: {{f.weight}}; text-decoration: {{f.deco}}">{{f.name}}</span></span>
+                    <sc-if value="{{f.unsaved}}" hint-placeholder-val="{{ false }}"><span class="badge unsaved dot">unsaved</span></sc-if>
+                    <sc-if value="{{f.isNew}}" hint-placeholder-val="{{ false }}"><span class="badge ok">new</span></sc-if>
+                    <sc-if value="{{f.deleted}}" hint-placeholder-val="{{ false }}"><span class="badge">deleted</span></sc-if>
+                    <sc-if value="{{f.conflict}}" hint-placeholder-val="{{ false }}"><span class="badge conflict dot">conflict</span></sc-if>
+                  </a>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="appbar" style="padding: 10px 18px">
+              <span class="title t-mono" style="font-size: 16px">mpb/valsa.cifra.md</span>
+              <button class="btn">Rename</button>
+              <button class="btn icon" aria-label="Delete"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg></button>
+            </div>
+            <div class="scroll" style="padding: 16px 18px">
+              <div class="editor">
+                <sc-for list="{{rawValsa}}" as="ln" hint-placeholder-count="12">
+                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" style="width: 560px">
+            <h2 class="t-h1">Rename song</h2>
+            <div class="field">
+              <label for="w14-name">Name, in mpb/</label>
+              <div style="display: flex; align-items: stretch">
+                <input id="w14-name" class="input t-mono" value="valsa-da-esquina" style="border-radius: var(--radius) 0 0 var(--radius); border-right: 0; font-size: 15px">
+                <span class="t-mono" style="display: flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid var(--line); border-radius: 0 var(--radius) var(--radius) 0; background: var(--surface-2); color: var(--ink-2); font-size: 15px; white-space: nowrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>.cifra.md</span>
+              </div>
+              <span class="t-small">A song keeps .cifra.md, so it stays a song. The title inside it does not change.</span>
+            </div>
+            <div class="notice accent" style="flex-direction: column; gap: 4px">
+              <span><b>Links to it are updated in the same save</b></span>
+              <span class="t-mono" style="font-size: 13px">gigs/ensaio-de-quinta.setlist.md · item 3</span>
+            </div>
+            <div class="actions">
+              <button class="btn">Cancel</button>
+              <button class="btn primary">Rename</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · the book's history as git sees it, one commit open, saving chosen files</div>
+      <div class="dev desktop">
+        <div class="appbar" style="padding: 12px 20px">
+          <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+          <span class="title">Banda do Bairro · History</span>
+          <button class="btn">Files</button>
+        </div>
+        <div class="split">
+          <div class="pane side" style="width: 420px">
+            <div class="scroll" style="padding: 16px; gap: 10px">
+              <div class="section-label"><span class="t-h3">Changes not saved</span><span class="t-small">One save, one commit</span></div>
+              <div class="list">
+                <sc-for list="{{changes}}" as="c" hint-placeholder-count="3">
+                  <div class="row" style="padding-top: 9px; padding-bottom: 9px">
+                    <span class="check {{c.on}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="visibility: {{c.vis}}"><path d="M5 12l5 5 9-10"></path></svg></span>
+                    <span class="grow"><span class="name t-mono" style="font-size: 13px">{{c.path}}</span></span>
+                    <span class="badge {{c.badge}}">{{c.status}}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <button class="btn primary block">Save 2 files…</button>
+              <div class="t-h3" style="margin-top: 8px">History</div>
+              <div class="list">
+                <sc-for list="{{commits}}" as="k" hint-placeholder-count="4">
+                  <a class="row {{k.sel}}" href="#" style="padding-top: 10px; padding-bottom: 10px">
+                    <span class="grow">
+                      <span class="name" style="font-size: 15px">{{k.msg}}</span>
+                      <span class="meta">{{k.meta}}</span>
+                      <span class="badges">
+                        <span class="badge t-mono">{{k.hash}}</span>
+                        <sc-if value="{{k.merge}}" hint-placeholder-val="{{ false }}"><span class="badge voiced">merge</span></sc-if>
+                        <span class="t-small" style="font-size: 12px">{{k.files}}</span>
+                      </span>
+                    </span>
+                  </a>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="scroll" style="padding: 20px 28px; gap: 14px">
+              <div style="display: flex; flex-direction: column; gap: 4px">
+                <h2 class="t-h1">Tarde Clara: Em → Em7 in the first part</h2>
+                <span class="t-small">Rafael Lima · 2 October 2026, 21:14 · <span class="t-mono">a41c9e2</span> · 2 files</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <div style="display: flex; align-items: center; gap: 10px">
+                  <span class="t-mono" style="flex: 1; font-size: 14px; font-weight: 600">mpb/tarde-clara.cifra.md</span>
+                  <button class="btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"></path></svg>Restore this version</button>
+                </div>
+                <div class="editor" style="font-size: 13px">
+                  <sc-for list="{{diffSong}}" as="ln" hint-placeholder-count="10">
+                    <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <div style="display: flex; align-items: center; gap: 10px">
+                  <span class="t-mono" style="flex: 1; font-size: 14px; font-weight: 600">gigs/bar-do-ze.setlist.md</span>
+                  <button class="btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"></path></svg>Restore this version</button>
+                </div>
+                <div class="editor" style="font-size: 13px">
+                  <sc-for list="{{diffSetlist}}" as="ln" hint-placeholder-count="5">
+                    <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                  </sc-for>
+                </div>
+              </div>
+              <p class="t-small">Restoring writes that file as it was after this commit into the working copy, to be saved as a new version.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const F = (name, depth, opts) => {
+      const o = opts || {};
+      return {
+        name: name,
+        pad: (12 + depth * 22) + 'px',
+        isFolder: !!o.folder,
+        isFile: !o.folder,
+        weight: o.folder ? '600' : '400',
+        deco: o.deleted ? 'line-through' : 'none',
+        unsaved: !!o.unsaved,
+        isNew: !!o.isNew,
+        deleted: !!o.deleted,
+        conflict: !!o.conflict,
+        sel: o.sel ? 'sel' : '',
+      };
+    };
+    const tree = [
+      F('bossa/', 0, { folder: true }),
+      F('choro/', 0, { folder: true }),
+      F('asa-branca.cifra.md', 1, { deleted: true }),
+      F('carinhoso.cifra.md', 1, { conflict: true }),
+      F('forro/', 0, { folder: true }),
+      F('gigs/', 0, { folder: true }),
+      F('bar-do-ze.setlist.md', 1, { isNew: true }),
+      F('ensaio-de-quinta.setlist.md', 1, {}),
+      F('mpb/', 0, { folder: true }),
+      F('tarde-clara.cifra.md', 1, { unsaved: true }),
+      F('valsa.cifra.md', 1, {}),
+      F('README.md', 0, {}),
+      F('.gitattributes', 0, {}),
+    ];
+    const treeTablet = tree.map((f) => (f.name === 'valsa.cifra.md' ? Object.assign({}, f, { sel: 'sel' }) : f));
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      tree: tree,
+      treeTablet: treeTablet,
+      rawTarde: [
+        { cls: 'md', text: '# Tarde Clara' },
+        { cls: 'md', text: '- artist: Pedro Araújo' },
+        { cls: 'md', text: '- key: G' },
+        { cls: '', text: '' },
+        { cls: 'md', text: '## Primeira Parte' },
+        { cls: 'ch', text: 'G           D' },
+        { cls: '', text: 'Quando eu te vi passar' },
+        { cls: 'ch cur', text: 'Em7             C' },
+        { cls: '', text: 'naquela tarde clara' },
+        { cls: '', text: '' },
+        { cls: 'ch', text: 'G             D' },
+        { cls: '', text: 'A tarde era clara' },
+        { cls: 'ch', text: 'Em7         C' },
+        { cls: '', text: 'e o mar estava calmo' },
+        { cls: '', text: '' },
+        { cls: 'md', text: '---' },
+        { cls: '', text: '' },
+        { cls: 'md', text: '## Voicings: E2 A2 D3 G3 B3 E4' },
+        { cls: '', text: '- G: 320003' },
+        { cls: '', text: '- D: xx0232' },
+        { cls: 'cur', text: '- Em7: 022030' },
+        { cls: '', text: '- C: x32010' },
+      ],
+      rawValsa: [
+        { cls: 'md', text: '# Valsa da Esquina' },
+        { cls: 'md', text: '- artist: Pedro Araújo' },
+        { cls: 'md', text: '- key: C' },
+        { cls: '', text: '' },
+        { cls: 'md', text: '## Primeira Parte' },
+        { cls: 'ch', text: 'C               Am' },
+        { cls: '', text: 'Na esquina da saudade' },
+        { cls: 'ch', text: 'Dm             G7' },
+        { cls: '', text: 'uma valsa a tocar' },
+        { cls: 'ch', text: 'C               E7' },
+        { cls: '', text: 'gira a saia na calçada' },
+        { cls: 'ch', text: 'Am      D7     G7' },
+        { cls: '', text: 'até a lua passar' },
+        { cls: '', text: '' },
+        { cls: 'md', text: '---' },
+        { cls: '', text: '' },
+        { cls: 'md', text: '## Voicings: E2 A2 D3 G3 B3 E4' },
+        { cls: '', text: '- C: x32010' },
+        { cls: '', text: '- Am: x02210' },
+        { cls: '', text: '- Dm: xx0231' },
+        { cls: '', text: '- G7: 320001' },
+      ],
+      changes: [
+        { path: 'mpb/tarde-clara.cifra.md', status: 'unsaved changes', badge: 'unsaved', on: 'on', vis: 'visible' },
+        { path: 'gigs/bar-do-ze.setlist.md', status: 'new', badge: 'ok', on: 'on', vis: 'visible' },
+        { path: 'choro/asa-branca.cifra.md', status: 'deleted', badge: '', on: '', vis: 'hidden' },
+      ],
+      commits: [
+        { msg: 'Tarde Clara: Em → Em7 in the first part', meta: 'Rafael Lima · 2 Oct', hash: 'a41c9e2', merge: false, files: '2 files', sel: 'sel' },
+        { msg: 'Merge', meta: 'Bea Costa · 1 Oct', hash: '7d03f11', merge: true, files: '3 files', sel: '' },
+        { msg: 'Corcovado: added voicings for D4 G4 B4 D5', meta: 'Bea Costa · 1 Oct', hash: '19e2b70', merge: false, files: '1 file', sel: '' },
+        { msg: 'Move Asa Branca to forro/', meta: 'Marcos Dias · 28 Sep', hash: 'c58fa03', merge: false, files: '1 file', sel: '' },
+      ],
+      diffSong: [
+        { cls: 'md', text: '@@ -6,9 +6,9 @@' },
+        { cls: '', text: ' G           D' },
+        { cls: '', text: ' Quando eu te vi passar' },
+        { cls: 'del', text: '-Em              C' },
+        { cls: 'add', text: '+Em7             C' },
+        { cls: '', text: ' naquela tarde clara' },
+        { cls: 'md', text: '@@ -19,4 +19,4 @@' },
+        { cls: '', text: ' - D: xx0232' },
+        { cls: 'del', text: '-- Em: 022000' },
+        { cls: 'add', text: '+- Em7: 022030' },
+      ],
+      diffSetlist: [
+        { cls: 'md', text: '@@ -5,2 +5,2 @@' },
+        { cls: '', text: ' 2. [Tarde Clara](../mpb/tarde-clara.cifra.md)' },
+        { cls: 'del', text: '-   - key: G' },
+        { cls: 'add', text: '+   - key: A' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

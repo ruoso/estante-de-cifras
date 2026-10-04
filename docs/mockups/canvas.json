@@ -1,0 +1,154 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-10-04T19:55:54Z"
+ },
+ "title": "Estante de Cifras — workflow mockups",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 2560,
+   "h": 2100,
+   "title": "Visual language"
+  },
+  "ChordBox.dc.html": {
+   "x": 2640,
+   "y": 0,
+   "w": 120,
+   "h": 150,
+   "title": "Chord diagram (component)"
+  },
+  "W01-first-run.dc.html": {
+   "x": 0,
+   "y": 2420,
+   "w": 3208,
+   "h": 1500,
+   "title": "1. First run"
+  },
+  "W02-find-and-play.dc.html": {
+   "x": 0,
+   "y": 4040,
+   "w": 3208,
+   "h": 1500,
+   "title": "2. Find and play a song"
+  },
+  "W03-write-a-new-song.dc.html": {
+   "x": 0,
+   "y": 5660,
+   "w": 3208,
+   "h": 1500,
+   "title": "3. Write a new song"
+  },
+  "W04-edit-and-save.dc.html": {
+   "x": 0,
+   "y": 7280,
+   "w": 3208,
+   "h": 1500,
+   "title": "4. Edit and save"
+  },
+  "W05-arrange.dc.html": {
+   "x": 0,
+   "y": 8900,
+   "w": 3208,
+   "h": 1500,
+   "title": "5. Arrange for an instrument"
+  },
+  "W06-history.dc.html": {
+   "x": 0,
+   "y": 10520,
+   "w": 3208,
+   "h": 1500,
+   "title": "6. History"
+  },
+  "W07-add-a-book.dc.html": {
+   "x": 0,
+   "y": 12140,
+   "w": 3208,
+   "h": 1500,
+   "title": "7. Add a book"
+  },
+  "W08-sync.dc.html": {
+   "x": 0,
+   "y": 13760,
+   "w": 3208,
+   "h": 1500,
+   "title": "8. Sync"
+  },
+  "W09-conflicts.dc.html": {
+   "x": 0,
+   "y": 15380,
+   "w": 3208,
+   "h": 1500,
+   "title": "9. Conflicts"
+  },
+  "W10-share.dc.html": {
+   "x": 0,
+   "y": 17000,
+   "w": 3208,
+   "h": 1500,
+   "title": "10. Share"
+  },
+  "W11-fork.dc.html": {
+   "x": 0,
+   "y": 18620,
+   "w": 3208,
+   "h": 1500,
+   "title": "11. Fork"
+  },
+  "W12-setlists.dc.html": {
+   "x": 0,
+   "y": 20240,
+   "w": 3208,
+   "h": 1500,
+   "title": "12. Setlists"
+  },
+  "W13-new-device.dc.html": {
+   "x": 0,
+   "y": 21860,
+   "w": 3208,
+   "h": 1500,
+   "title": "13. A new device"
+  },
+  "W14-file-view.dc.html": {
+   "x": 0,
+   "y": 23480,
+   "w": 3208,
+   "h": 1500,
+   "title": "14. The file view"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "ChordBox.dc.html",
+  "W01-first-run.dc.html",
+  "W02-find-and-play.dc.html",
+  "W03-write-a-new-song.dc.html",
+  "W04-edit-and-save.dc.html",
+  "W05-arrange.dc.html",
+  "W06-history.dc.html",
+  "W07-add-a-book.dc.html",
+  "W08-sync.dc.html",
+  "W09-conflicts.dc.html",
+  "W10-share.dc.html",
+  "W11-fork.dc.html",
+  "W12-setlists.dc.html",
+  "W13-new-device.dc.html",
+  "W14-file-view.dc.html"
+ ],
+ "notes": {
+  "workflows": {
+   "x": 0,
+   "y": 2160,
+   "text": "Workflows · phone, tablet, computer",
+   "kind": "title1",
+   "maxW": 3208
+  }
+ },
+ "designSystems": []
+}

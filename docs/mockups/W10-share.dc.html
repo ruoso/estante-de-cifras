@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>10. Share</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 10</div>
+    <h1 class="board-title">Share</h1>
+    <p class="board-sub">A book on Estante starts private. Its owner opens it two ways: a read link that anyone holding it can use without an account, and invitations by link that make people readers or editors by name, each of whom can be removed alone.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · Ana shares her book: the read link, then an invitation</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Choros da Ana</span>
+              <button class="btn icon" aria-label="Share"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v12M7 8l5-5 5 5"></path></svg></button>
+            </div>
+            <div class="scroll">
+              <div class="list">
+                <a class="row" href="#"><span class="grow"><span class="name">Brejeiro</span><span class="meta">choro/</span></span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Carinhoso</span><span class="meta">choro/</span></span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Doce de Coco</span><span class="meta">choro/</span></span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Lamentos</span><span class="meta">choro/</span></span></a>
+              </div>
+            </div>
+          </div>
+          <div class="scrim">
+            <div class="sheet">
+              <div class="grip"></div>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <span class="t-h2" style="flex: 1">Share Choros da Ana</span>
+                <button class="btn icon" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+              </div>
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span class="t-h2" style="font-size: 16px">Read link</span><span class="t-small">Anyone holding it can read the book and keep it on their shelf. No account needed.</span></span>
+                <span class="toggle on" role="switch" aria-checked="true" aria-label="Read link"></span>
+              </div>
+              <div style="display: flex; gap: 8px">
+                <div class="input" style="flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; font-size: 14px; color: var(--ink-2)">{{readLinkShort}}</div>
+                <button class="btn primary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Copy</button>
+              </div>
+              <p class="t-small">A read link is for sharing with people you choose, not for publishing.</p>
+              <div class="card pad" style="gap: 8px">
+                <button class="btn" style="align-self: flex-start">Reset link</button>
+                <p class="t-small">Makes a new link and ends access for everyone holding the old one. Their copies stay on their devices as they are, and stop syncing.</p>
+              </div>
+              <div style="border-top: 1px solid var(--line)"></div>
+              <a class="row" href="#" style="padding: 4px 0; border: 0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg><span class="grow"><span class="name">People</span><span class="meta">5 members · 2 invitations</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+              <button class="btn block">Invite people</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">New invitation</span>
+            </div>
+            <div class="scroll" style="gap: 18px">
+              <p class="t-small">One link, for as many people as you send it to. Each signs in, or makes an account, and the book goes on their shelf.</p>
+              <div class="field">
+                <label>Role</label>
+                <div class="seg" style="display: flex"><button class="on" style="flex: 1">Reader</button><button style="flex: 1">Editor</button></div>
+                <span class="t-small">Readers read the book and keep it on their shelf. Editors also save to it.</span>
+              </div>
+              <div class="field">
+                <label>Expires</label>
+                <div class="list">
+                  <sc-for list="{{expiry}}" as="e" hint-placeholder-count="4">
+                    <a class="row" href="#" style="padding-top: 8px; padding-bottom: 8px"><span class="grow"><span class="name" style="font-weight: 500">{{e.label}}</span></span><sc-if value="{{e.on}}" hint-placeholder-val="{{ false }}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent)"><path d="M5 12l5 5 9-10"></path></svg></sc-if></a>
+                  </sc-for>
+                </div>
+              </div>
+              <div class="field">
+                <div style="display: flex; align-items: center; gap: 12px">
+                  <span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 16px; font-weight: 600">Limit how many can use it</span><span class="t-small">Optional. Set it to 1 for one person.</span></span>
+                  <span class="toggle" role="switch" aria-checked="false" aria-label="Limit on uses"></span>
+                </div>
+              </div>
+              <p class="t-small">You'll see who joins through it, and can withdraw it at any time.</p>
+            </div>
+            <div style="padding: 12px 16px 22px; border-top: 1px solid var(--line); background: var(--surface)">
+              <button class="btn primary block">Create link</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · the owner's view of people and invitations, removing someone</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Choros da Ana · People</span>
+            <button class="btn primary">New invitation</button>
+          </div>
+          <div class="scroll" style="padding: 24px 28px; gap: 16px">
+            <div class="notice"><span>Read link is <b>on</b>. Those holding it are not listed here: everyone with the link is the same.</span><a class="act" href="#">Manage</a></div>
+            <div class="t-h3">Members</div>
+            <div class="list">
+              <sc-for list="{{members}}" as="p" hint-placeholder-count="6">
+                <div class="row"><span class="grow"><span class="name">{{p.name}}</span><span class="meta">{{p.meta}}</span></span><sc-if value="{{p.isOwner}}" hint-placeholder-val="{{ false }}"><span class="badge">Owner</span></sc-if><sc-if value="{{p.canChange}}" hint-placeholder-val="{{ true }}"><button class="btn" style="min-height: 36px">{{p.role}} ▾</button><button class="btn quiet" style="min-height: 36px">Remove</button></sc-if></div>
+              </sc-for>
+            </div>
+            <div class="t-h3" style="margin-top: 6px">Invitations</div>
+            <sc-for list="{{invites}}" as="iv" hint-placeholder-count="2">
+              <div class="card pad">
+                <div style="display: flex; align-items: center; gap: 10px">
+                  <span class="t-h2" style="flex: 1">{{iv.title}}</span>
+                  <span class="badge {{iv.badgeCls}}">{{iv.state}}</span>
+                  <button class="btn" style="min-height: 36px">Copy link</button>
+                  <button class="btn quiet" style="min-height: 36px">Withdraw</button>
+                </div>
+                <span class="t-small">{{iv.terms}}</span>
+                <span class="t-small"><b style="color: var(--ink)">Joined through it:</b> {{iv.joined}}</span>
+              </div>
+            </sc-for>
+            <p class="t-small">Withdrawing an invitation stops anyone new joining through it. Those who joined stay members.</p>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" style="width: 500px">
+            <span class="t-h1">Remove Lucas Pereira?</span>
+            <p class="t-body">Lucas joined through your reader invitation of 2 October. Removing him takes effect the next time his app reaches Estante; the other members are not affected.</p>
+            <p class="t-small">What is already on his device stays there. It can't be recalled.</p>
+            <div class="actions">
+              <button class="btn">Cancel</button>
+              <button class="btn danger">Remove Lucas</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · Share on a song: the book's full panel, with a link that opens on that song</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side" style="width: 260px">
+            <div style="padding: 18px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; align-items: center; gap: 8px"><span class="t-h1" style="flex: 1">Estante</span><span class="chip accent">Guitar</span></div>
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span class="scope">Choros da Ana</span></div>
+            </div>
+            <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+              <div class="list">
+                <a class="row" href="#"><span class="grow"><span class="name">Brejeiro</span><span class="meta">choro/</span></span></a>
+                <a class="row sel" href="#"><span class="grow"><span class="name">Carinhoso</span><span class="meta">choro/</span></span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Doce de Coco</span><span class="meta">choro/</span></span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Lamentos</span><span class="meta">choro/</span></span></a>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="appbar" style="padding: 14px 24px">
+              <span class="title">Carinhoso</span>
+              <button class="btn">Edit</button>
+              <button class="btn">History</button>
+              <button class="btn primary">Share</button>
+            </div>
+            <div style="display: flex; flex: 1; min-height: 0">
+              <div class="scroll" style="padding: 20px 28px; gap: 12px">
+                <span class="t-small">Choros da Ana · choro/</span>
+                <div class="chart">
+                  <sc-for list="{{chartCarinhoso}}" as="l" hint-placeholder-count="6">
+                    <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                    <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                    <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="width: 400px; flex: none; border-left: 1px solid var(--line); background: var(--surface); padding: 18px 22px; display: flex; flex-direction: column; gap: 12px; overflow: hidden">
+                <div style="display: flex; align-items: center; gap: 8px"><span class="t-h2" style="flex: 1">Share Carinhoso</span><button class="btn icon" aria-label="Close" style="min-height: 32px; width: 32px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+                <p class="t-small">A song is shared with its book, Choros da Ana. This link opens on Carinhoso.</p>
+                <div style="display: flex; align-items: center; gap: 12px">
+                  <span style="flex: 1; font-weight: 600">Read link</span>
+                  <span class="toggle on" role="switch" aria-checked="true" aria-label="Read link"></span>
+                </div>
+                <div style="display: flex; gap: 8px">
+                  <div class="input" style="flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; font-size: 13px; color: var(--ink-2)">{{songLink}}</div>
+                  <button class="btn primary">Copy</button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px"><button class="btn" style="min-height: 36px">Reset link</button><span class="t-small">ends access for everyone holding the old one</span></div>
+                <div style="border-top: 1px solid var(--line)"></div>
+                <div style="display: flex; align-items: center"><span class="t-h3" style="flex: 1">People</span><button class="btn quiet" style="min-height: 32px; padding: 0 4px">New invitation</button></div>
+                <div class="list">
+                  <sc-for list="{{membersShort}}" as="p" hint-placeholder-count="4">
+                    <div class="row" style="padding-top: 6px; padding-bottom: 6px; min-height: 36px"><span class="grow"><span class="name" style="font-size: 15px">{{p.name}}</span></span><span class="t-small">{{p.role}}</span></div>
+                  </sc-for>
+                </div>
+                <div class="t-h3">Invitations</div>
+                <div class="list">
+                  <sc-for list="{{invitesShort}}" as="iv" hint-placeholder-count="2">
+                    <div class="row" style="padding-top: 8px; padding-bottom: 8px"><span class="grow"><span class="name" style="font-size: 15px">{{iv.title}}</span><span class="meta">{{iv.short}}</span></span><button class="btn quiet" style="min-height: 32px; padding: 0 4px">Withdraw</button></div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dev-label"><b>Computer</b> · the same panel as a member sees it: the owner and editors, not other readers</div>
+      <div class="dev desktop" style="height: 320px">
+        <div class="appbar" style="padding: 14px 24px">
+          <span class="title">Choros da Ana · Sharing</span>
+          <span class="chip">You're a reader</span>
+        </div>
+        <div style="display: flex; gap: 32px; padding: 20px 28px; align-items: flex-start">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 10px">
+            <p class="t-body">Shared with you by Ana. You can read this book and keep it on your shelf; to change it, make it your own.</p>
+            <p class="t-small">Only Ana invites people. Other readers aren't listed.</p>
+          </div>
+          <div class="list" style="width: 460px; flex: none">
+            <div class="row"><span class="grow"><span class="name">Ana</span><span class="meta">shares this book</span></span><span class="badge">Owner</span></div>
+            <div class="row"><span class="grow"><span class="name">Marina Costa</span><span class="meta">saves to this book</span></span><span class="badge">Editor</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const segsOf = (chords, words) => {
+      const toks = []; const re = /\S+/g; let m;
+      while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
+      if (!toks.length) return [{ c: '', w: words }];
+      const segs = [];
+      if (toks[0].at > 0) segs.push({ c: '', w: words.slice(0, toks[0].at).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') });
+      toks.forEach((t, i) => {
+        const end = i + 1 < toks.length ? toks[i + 1].at : Math.max(words.length, t.at);
+        segs.push({ c: t.c, w: words.slice(t.at, end).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') || ' ' });
+      });
+      return segs.map((sg, i) => ({ c: sg.c, w: sg.w, j: i + 1 < segs.length && /\S$/.test(sg.w) && /^\S/.test(segs[i + 1].w) }));
+    };
+    const L = {
+      sec: (t) => ({ isSec: true, text: t }),
+      sung: (c, w, cls) => ({ isSung: true, segs: segsOf(c, w), cls: cls || '' }),
+      bars: (t, cls) => ({ isBars: true, ms: t.split('|').map((x) => x.trim()).filter((x) => x).map((x) => ({ cs: x })), cls: cls || '' }),
+      run: (t, cls) => ({ isRun: true, text: t, cls: cls || '' }),
+      words: (t) => ({ isWords: true, text: t }),
+      gap: () => ({ isGap: true }),
+    };
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      readLinkShort: 'estantedecifras.app/b/choros-da-ana?k=7fQ2xR9m',
+      songLink: 'estantedecifras.app/b/choros-da-ana/choro/carinhoso.cifra.md?k=7fQ2xR9m',
+      expiry: [
+        { label: 'A day', on: false },
+        { label: 'A week', on: true },
+        { label: 'A month', on: false },
+        { label: 'Until withdrawn', on: false },
+      ],
+      members: [
+        { name: 'Ana (you)', meta: 'owns this book', isOwner: true, canChange: false, role: 'Owner' },
+        { name: 'Marina Costa', meta: 'through the editor invitation of 28 Sep', isOwner: false, canChange: true, role: 'Editor' },
+        { name: 'Joana Lima', meta: 'through the reader invitation of 2 Oct', isOwner: false, canChange: true, role: 'Reader' },
+        { name: 'Rafael Souza', meta: 'through the reader invitation of 2 Oct', isOwner: false, canChange: true, role: 'Reader' },
+        { name: 'Beatriz Alves', meta: 'through the reader invitation of 2 Oct', isOwner: false, canChange: true, role: 'Reader' },
+        { name: 'Lucas Pereira', meta: 'through the reader invitation of 2 Oct', isOwner: false, canChange: true, role: 'Reader' },
+      ],
+      invites: [
+        { title: 'Reader invitation · 2 Oct', state: 'open', badgeCls: 'ok', terms: 'Expires 9 Oct (a week) · no limit on uses', joined: 'Joana Lima, Rafael Souza, Beatriz Alves, Lucas Pereira' },
+        { title: 'Editor invitation · 28 Sep', state: 'used up', badgeCls: '', terms: 'Until withdrawn · 1 use', joined: 'Marina Costa' },
+      ],
+      membersShort: [
+        { name: 'Marina Costa', role: 'Editor' },
+        { name: 'Joana Lima', role: 'Reader' },
+        { name: 'Rafael Souza', role: 'Reader' },
+        { name: 'Beatriz Alves', role: 'Reader' },
+        { name: 'Lucas Pereira', role: 'Reader' },
+      ],
+      invitesShort: [
+        { title: 'Reader · expires 9 Oct', short: '4 joined: Joana, Rafael, Beatriz, Lucas' },
+        { title: 'Editor · 1 use, used', short: 'joined: Marina' },
+      ],
+      chartCarinhoso: [
+        L.sec('Primeira parte'),
+        L.bars('F | F | C7 | C7'),
+        L.bars('D♭7 | C7 | F | F'),
+        L.bars('B♭ | B♭m | F | D7'),
+        L.bars('Gm | C7 | F | %'),
+        L.sec('Segunda parte'),
+        L.bars('Dm | A7 | Dm | D7'),
+        L.bars('Gm | Gm | Dm | Dm'),
+        L.bars('E7 | A7 | Dm | %'),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
