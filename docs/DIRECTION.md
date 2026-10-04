@@ -128,8 +128,8 @@ both a backup and setting up each new device.
 
 The app itself is static — a PWA served from a CDN, which scales without
 limit and holds nothing. Behind it the project runs **one service**: a small
-Node process in a container, with **PostgreSQL** beside it, on Railway,
-in a US region.
+Go program in a container, with **PostgreSQL** beside it, on Railway, in a
+US region (§3.6).
 
 - **Postgres** holds accounts, sessions and passkeys, and the book registry:
   each book's owner, its members and their roles, and its read link.
@@ -143,9 +143,9 @@ in a US region.
   allows to **`git http-backend`** — git's own HTTP server — over the
   repository on the volume. It also answers *has this book changed?* by
   reading one ref off the disk, so a client spends a fetch only on a book
-  that did. A `pre-receive` hook checks every push against what a book may
-  hold, its canonical form, and the limits per book and per account
-  (workflow 14).
+  that did. A `pre-receive` hook, a Go program of its own, checks every
+  push against what a book may hold, its canonical form, and the limits per
+  book and per account (workflow 14).
 
 **The git server is git.** Every part of the protocol works — deltas,
 negotiation, shallow fetches — so isomorphic-git in the browser and, later,
@@ -223,6 +223,84 @@ than its own.
 built for developers, with an interface and an account model the app would
 spend its effort working around.
 
+### 3.6 Components, and what each is written in
+
+| Component | Written in | Lives in | Does |
+|---|---|---|---|
+| **The app** | JavaScript, a PWA | this repository, `app/` | Everything the user sees. Git through isomorphic-git in a Web Worker; the music core from Explore Chords. |
+| **cifra.md for JavaScript** | JavaScript | the cifra.md repository, `js/` | Reads and canonicalizes songs and setlists, merges, diffs in musical terms. The app's. |
+| **The service** | Go | this repository, `service/` | Sign-in, the registry, sharing, the change check, and git over HTTP. |
+| **The hook** | Go | this repository, `service/cmd/pre-receive` | Checks every push (workflow 14). |
+| **cifra.md for Go** | Go | the cifra.md repository, `go/` | Reads and canonicalizes songs and setlists. The hook's; also a git merge driver for computers. |
+| **The reference** | Python | the cifra.md repository, `reference/` | The specification's second opinion. |
+
+**The app and the service share no code**, only the HTTP API and the format.
+The API calls are cleanly separate from the interface, and the service never
+needs to understand a song except to check that a push holds canonical
+ones, which the Go implementation does in the hook.
+
+**Implementations agree because they are checked, not because they are
+shared.** That is what the specification is for. The corpus holds, for every
+entry, the input, its model, the canonical text and the canonical model, and
+each implementation must reproduce all four byte for byte, in both
+directions. On top of the corpus, cifra.md's CI runs the same random
+documents through the Python, JavaScript and Go implementations and
+compares the bytes. A disagreement is a bug in one of them or a gap in the
+specification, and is settled in the specification.
+
+**Versions.** Each implementation says which version of the specification
+it conforms to. When the canonical form changes, the service accepts the
+previous form as well as the current one for a while (workflow 14), so the
+Go hook carries both; the app carries only the current one, and rewrites
+its saves not yet pushed when it updates.
+
+**The merge driver for a computer** is built from the Go implementation as
+one static binary, `git-merge-cifra`, the easiest thing to install where
+there is no runtime to rely on. The app merges with the JavaScript one; both
+are held to the same corpus.
+
+**Inside the service**, nothing unusual: `net/http`; `net/http/cgi` to run
+`git http-backend`; `pgx` for Postgres; `go-webauthn` for passkeys; the
+email provider's HTTP API. One binary, with git beside it in the image.
+
+#### The API
+
+Written down as a contract, `api/`, and both sides tested against it:
+
+- **Signing in**: registering a passkey and signing in with one; requesting
+  and redeeming an emailed link; signing out; the signed-in devices and the
+  passkeys, listed and removed (workflow 13).
+- **Books**: the user's own, listed; creating one, empty and private;
+  deleting one (owner only); forking one (workflows 7, 11).
+- **The change check**: one request for a whole shelf, each book with the
+  head the device has, answered with the books that moved (workflow 8).
+- **Sharing**: the read link turned on, off or reset; members listed,
+  their roles changed, removed; invitations made with a role, an expiry and
+  a limit, listed with who joined, withdrawn, and accepted (workflow 10).
+- **Git**: smart HTTP for each book. Reads for anyone the book is shared
+  with, by session or read link; pushes for editors and the owner, and every
+  push through the hook.
+
+#### Repositories
+
+```
+estante-de-cifras/            cifra.md/
+  app/        the PWA           spec/       the specification
+  service/    Go                corpus/     the agreed bytes
+    cmd/service                 reference/  Python
+    cmd/pre-receive             js/         for the app
+  api/        the contract      go/         for the hook, and git-merge-cifra
+  docs/
+  compose.yaml
+```
+
+**Locally, everything runs as in production**: `compose.yaml` brings up
+Postgres, the service's image with git and the hook, a local mail catcher in
+place of the email provider, and the app's dev server, and the end-to-end
+tests sync against it. CI runs the app's tests, the Go tests and the
+end-to-end tests here; the corpus and the cross-implementation comparison
+run in cifra.md.
+
 ## 4. The interface
 
 **Song search is the primary interface.** One search across every loaded
@@ -253,9 +331,9 @@ never rewritten.
   `src/render/`): pitch, chords, notation dialects, fingering search, finger
   assignment, scoring, heuristics, the voicing planner, diagrams. Pure,
   storage-free, and tested. Carried over as is.
-- **The song parser is rewritten** as a standalone JS cifra.md library,
-  written against the specification and its tests: parser, writer,
-  normalisation, merge, semantic diff. Explore Chords' `song.js` diverged
+- **The song parser is rewritten** as the cifra.md library for JavaScript
+  (§3.6), written against the specification and its corpus: parser, writer,
+  canonical form, merge, semantic diff. Explore Chords' `song.js` diverged
   from the spec in about fifteen ways (Appendix B), several structural; its
   editing operations are the guide to what the library must offer.
 - **The state layer and shell are not.** `store.js`, `persist.js`,
@@ -284,10 +362,6 @@ its decisions are explained. So do the sections of Explore Chords'
   local library. This app has asynchronous state from many directions — sync
   results, merges, a Web Worker's index. Vanilla with a sturdier component
   structure, or a small reactive library?
-- **Where the cifra.md JS library lives.** Leaning towards the cifra.md
-  repository, beside the Python reference, as the format's own JS
-  implementation; the merge driver would ship from there.
-
 - **The domain.** The service and the email both need one: the sign-in
   links are mailed from it, with the records that keep them out of spam
   folders. The app should be served from it too, rather than from GitHub
