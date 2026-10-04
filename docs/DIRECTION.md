@@ -277,8 +277,6 @@ its decisions are explained. So do the sections of Explore Chords'
   local library. This app has asynchronous state from many directions — sync
   results, merges, a Web Worker's index. Vanilla with a sturdier component
   structure, or a small reactive library?
-- **Sharing one song.** Explore Chords' link-in-the-fragment needs no host
-  and could stay alongside books.
 - **Where the cifra.md JS library lives.** Leaning towards the cifra.md
   repository, beside the Python reference, as the format's own JS
   implementation; the merge driver would ship from there.

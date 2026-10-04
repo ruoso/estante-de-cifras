@@ -38,15 +38,22 @@ then there is nothing to store.
 
 ## Invited
 
-A link to a book opens the app on that book. A public book is cloned without
-signing in, read-only, and the first screen is its song list; a link to one
-song opens that song to read. The user is a reader of someone else's book
-until they choose to be more (workflow 11, fork).
+A link to a book opens the app on that book (workflow 10 says what links
+there are):
 
-**A private book** cannot be cloned without access. The app says whose book
-it is and that it is private, and offers to sign in to the host it lives on.
-What signing in means, and how a book is shared so that it works, belongs to
-workflows 7 and 10.
+- **A read link** clones the book without signing in, as a reader. The first
+  screen is its song list, or the song the link was made from.
+- **An invitation** asks the person to sign in, or to make an account, and
+  then does the same, as the reader or editor it invites them to be.
+
+Either way the user is on someone else's book until they choose to be more
+(workflow 11, fork).
+
+**A link that no longer works** — a read link reset, an invitation expired or
+withdrawn, a private book's plain address — cannot be cloned. The app says
+the link does not open the book, and suggests asking whoever sent it for a
+new one. It does not say whose book it is: a dead link should tell its holder
+nothing about the book.
 
 ## The instrument
 
