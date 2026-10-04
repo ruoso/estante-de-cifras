@@ -88,9 +88,9 @@ backed by IndexedDB, operated by isomorphic-git in a Worker.
 - **A real working copy.** Each book is cloned with a working tree. What the
   user is editing is the working copy, written to storage as they type, so
   closing the tab loses nothing.
-- **Explicit save.** Saving is a commit. Persisting and versioning are
-  separate: the working copy is always safe; a save is a version the user
-  chose to keep.
+- **Explicit save.** Saving is a commit, and then a push (workflow 4).
+  Persisting and versioning are separate: the working copy is always safe; a
+  save is a version the user chose to keep.
 - **A derived index** of every song — title, properties, sections, words,
   chords — keyed by blob hash, so a song is parsed once per distinct text,
   and a pull re-reads only the trees that changed. It covers the working
@@ -185,9 +185,6 @@ its decisions are explained. So do the sections of Explore Chords'
   structure, or a small reactive library?
 - **Hosting.** Bring your own host behind a proxy, a hosted Forgejo, or both.
   This decides the running cost.
-- **Does save push?** Leaning yes: two states for the user, unsaved and
-  saved. A separate *publish* would let a teacher save drafts students do not
-  see yet.
 - **Sharing one song.** Explore Chords' link-in-the-fragment needs no host
   and could stay alongside books.
 - **Where the cifra.md JS library lives.** Leaning towards the cifra.md
