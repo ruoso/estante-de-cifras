@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Axe fixture — planted violation</title>
+  </head>
+  <body>
+    <main>
+      <h1>Planted accessibility violation</h1>
+      <p>
+        A purpose-written page (no song text, no copyrighted words — the
+        standing rule) whose only accessibility fault is deliberate, so the axe
+        fixture's failure path is proven: a real WCAG 2.1 AA violation is
+        detected, not just a clean page passed.
+      </p>
+      <!--
+        The planted fault: an image with no text alternative. axe reports this
+        as "image-alt" (WCAG 2.1 success criterion 1.1.1, tag wcag2a, which is
+        inside the WCAG 2.1 AA tag set). The 1×1 transparent GIF is inline so
+        the page needs no network and no service route.
+      -->
+      <img
+        src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+      />
+    </main>
+  </body>
+</html>

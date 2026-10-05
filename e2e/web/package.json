@@ -1,0 +1,22 @@
+{
+  "name": "estante-e2e-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Estante de Cifras — the e2e-web harness: Playwright against the compose stack, the app served by the service on its one origin (DIRECTION §3.6, §3.7).",
+  "license": "MIT",
+  "author": "Daniel Ruoso <daniel@ruoso.com>",
+  "scripts": {
+    "test": "playwright test",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.56.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.13.0"
+  }
+}

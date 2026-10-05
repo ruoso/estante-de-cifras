@@ -72,6 +72,7 @@ task foundation "Foundation" {
   task e2e_web "End-to-end web harness" {
     effort 2d
     allocate team
+    complete 100
     depends !e2e_api, !app_sw_register, service.serve_app
     note "e2e/web/: Playwright against the compose stack (the app served by the service on its one origin), run by scripts/gate with an explicit `--workers`; three projects — phone, tablet and computer viewports — so every test runs on all three; an axe fixture that checks WCAG 2.1 AA on every screen a test visits and fails on any violation; an offline mode (network cut after load, reload, network back); two-device helpers (two browser contexts, two accounts). DIRECTION §3.6, §3.7. Tests: e2e-web (the harness's own: the app loads at the origin on all three viewports; the axe fixture passes a clean page and fails a fixture page with a planted violation; offline mode cuts and restores the network). Refinement: tasks/refinements/foundation/e2e_web.md"
   }

@@ -536,3 +536,21 @@ Per the Tests-land-with-this-task rule the implementer stopped rather than landi
 **Blocking prerequisite registered:** `foundation.app_sw_register` (0.5d) — register the service worker in `app/src/main.jsx` by importing `virtual:pwa-register` and calling `registerSW()`. Once it is `complete 100`, `foundation.e2e_web` is unblocked and can be re-picked.
 
 No files were created or edited; nothing is staged.
+
+## Status
+
+**Done** — 2026-10-05.
+
+- `e2e/web/package.json` and `e2e/web/package-lock.json`: Node/Playwright package (`"type": "module"`) with `@playwright/test` and `@axe-core/playwright` as dependencies, committed lockfile for reproducible installs.
+- `e2e/web/playwright.config.js`: three Chromium viewport projects (phone, tablet, computer), `use.baseURL` from `ESTANTE_E2E_BASE_URL` (fail-fast on unset), `workers` left to the gate's `--workers`, `retries`/`forbidOnly` following `process.env.CI`.
+- `e2e/web/eslint.config.js`: ESLint flat config matching `app/`/`api/`/`e2e/api/`; the `lint` script in `package.json` triggers the gate's `npm run lint` check (gate lines 351–353).
+- `e2e/web/lib/axe.js`: Playwright fixture extending `test` with an axe check over `@axe-core/playwright` (`AxeBuilder`) at the WCAG 2.1 AA tag set (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`), asserting zero violations.
+- `e2e/web/lib/offline.js`: offline-mode helper — loads a page online, waits for `navigator.serviceWorker.ready`, calls `context.setOffline(true)`, reloads, asserts the shell renders, then `setOffline(false)`.
+- `e2e/web/lib/devices.js`: two-device primitive — opens a second isolated `browser.newContext()` for independent-session tests.
+- `e2e/web/lib/env.js`: `ESTANTE_E2E_BASE_URL` read and fail-fast validation, mirroring `e2e/api/lib/env.js`.
+- `e2e/web/fixtures/violation.html`: purpose-written page with a planted axe-detectable WCAG 2.1 AA violation for the negative axe test.
+- `e2e/web/tests/app-loads.spec.js`: smoke test — `page.goto('/')` renders the app shell and passes zero AA violations; ran on phone, tablet and computer (×3 projects).
+- `e2e/web/tests/axe-fixture.spec.js`: axe fixture self-test — passes on the clean shell, catches the planted violation in `fixtures/violation.html`; ran on all three projects.
+- `e2e/web/tests/offline.spec.js`: offline smoke test — cuts network after SW control, reload renders shell, restore works; ran on all three projects.
+- `e2e/web/README.md`: updated to describe how to run the harness (via `scripts/gate`, or with `ESTANTE_E2E_BASE_URL` set and `npx playwright install chromium`).
+- Gate's e2e-web level switches from "skipped" to "run": 12 tests passed (4 × 3 projects) in 4.1 s against the live compose stack.
