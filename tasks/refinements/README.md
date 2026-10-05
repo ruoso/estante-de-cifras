@@ -21,7 +21,7 @@ So `cifra_js.package` is `tasks/refinements/cifra_js/package.md`.
 
 Areas, matching `tasks/05-…80-*.tji`: `format`, `cifra_js`, `cifra_go`,
 `design`, `foundation`, `service`, `hook`, `storage`, `sync`, `shell`,
-`music`, `songs`, `books`, `account`, `quality`, `launch`. (`bootstrap` is
+`music`, `songs`, `books`, `account`, `launch`. (`bootstrap` is
 complete and has none.)
 
 ### Two repositories
@@ -65,14 +65,61 @@ Each refinement covers, in roughly this order:
    Worker owns the data) and the project's standing rules: canonical form
    over preserving content, accessibility, no song text in logs, offline
    first, no book without an account.
-7. **Acceptance criteria** — the concrete, testable check that says
-   "done": unit tests, corpus entries and the corpus check, end-to-end
-   paths, axe checks at WCAG 2.1 AA, API contract tests — or, for a design
-   task, what the workflow document must decide and the board must show.
+7. **Acceptance criteria** — the concrete check that says "done": the
+   behavior delivered, and **the tests the task lands with, by level**
+   (below), each named — its file where possible — with what it pins: the
+   workflow section, DIRECTION section, spec section or corpus entry. For a
+   design task, what the workflow document must decide and the board must
+   show.
 8. **Decisions** — pre-settled choices with rationale against alternatives.
 9. **Open questions** — what remains unresolved, or `(none — all decided)`.
 10. **Status** — appended on completion (see ritual below); until then a
     `## Status` heading with `_pending implementation_`.
+
+## Tests: the levels, and the rule
+
+**The WBS does not split tests out of the tasks.** Each task lands with the
+appropriate level of test for what it delivers, at the time it lands. Its
+`.tji` note ends with them — `Tests: unit (…); behavior (…); e2e-api (…);
+e2e-web (…).`, the levels that apply — and its refinement's acceptance
+criteria name them.
+
+- **unit** — pure modules and functions: Vitest (app, cifra.md js), `go
+  test` (service, hook, cifra.md go), pytest (cifra.md reference).
+- **behavior** — a component working with its real collaborators inside one
+  process: React components with Testing Library plus an axe check of what
+  they render; the Web Worker's storage and sync logic against a fake
+  IndexedDB and a local git remote; Go handlers through `httptest` against a
+  real Postgres (from compose) and real git.
+- **e2e-api** — black-box against the compose stack (the service's image
+  with git, the hook, Postgres, the mail catcher): HTTP calls and real git
+  clients (the git CLI and isomorphic-git) doing what a user's device would.
+  The harness is `e2e/api/` (`foundation.e2e_api`).
+- **e2e-web** — Playwright against the compose stack (the app served by the
+  service on its one origin), on phone, tablet and computer viewports, with
+  axe at WCAG 2.1 AA on every screen the task touches, and offline where the
+  task is about offline. The harness is `e2e/web/` (`foundation.e2e_web`).
+- **Format work** (cifra.md: reference, js, go) — unit plus the corpus (the
+  canonical and merge corpora are its behavior/conformance level).
+- **Design tasks** (workflow documents, mockup boards) — no code tests;
+  acceptance is the document and the board.
+
+Proportionate: a pure module gets unit tests; a screen gets behavior tests
+plus an e2e-web journey with axe; an endpoint gets behavior tests plus
+e2e-api.
+
+The rule, for every role in the loop:
+
+- The implementer writes the named tests **in the same task**. A feature
+  without its tests is not done. Tests are never deferred to a later task,
+  and tech debt may never be "add tests for X".
+- `scripts/gate` runs every level (the e2e levels against the compose stack
+  it brings up once and tears down); a harness that exists must run.
+- Nobody deletes, skips or weakens a test to get green.
+- The closer checks that the refinement's named tests exist and ran — not
+  skipped — in the gate's output before committing, and refuses otherwise.
+- A missing test is a defect of the task that should have had it, never a
+  new test-only task.
 
 ## Task-completion ritual
 
@@ -80,6 +127,9 @@ When a task ships, these happen in the **same commit** in this repository
 (after the work itself is committed in cifra.md, for a `cifra.md:` task —
 the Status block cites that commit):
 
+0. **The named tests exist and ran.** Every test the acceptance criteria
+   name is in the change and ran, not skipped, in the gate's output (see
+   above). Otherwise the task is not done: nothing is committed.
 1. **Refinement `## Status` block.** Append a `## Status` section at the
    bottom of the refinement noting **Done** with the date and brief
    pointers to the produced artifacts (files, tests, corpus entries,
@@ -106,10 +156,12 @@ the Status block cites that commit):
 4. **Tech-debt registration.** Any follow-up work the refinement or
    implementation deferred becomes a real WBS leaf (effort, `allocate
    team`, `depends`, a `note` citing the source refinement — starting with
-   `cifra.md:` when the work lands there), wired into a milestone's
+   `cifra.md:` when the work lands there, and ending with the `Tests:` it
+   will land with), wired into a milestone's
    `depends` — an unwired task is an orphan, flagged by
    `scripts/unblocked.py`'s ORPHANS audit. Human-judgment items go to
    [`tasks/parking-lot.md`](../parking-lot.md) instead, never into the WBS.
+   Tests are never tech debt: there is no "add tests for X" leaf.
 
 Before any commit, `scripts/gate` is green: it checks both repositories
 (see [`orchestrator/README.md`](../../orchestrator/README.md)).

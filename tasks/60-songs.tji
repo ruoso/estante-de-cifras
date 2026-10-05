@@ -3,60 +3,60 @@
 # Finding, reading, writing, editing, arranging and the history of a song.
 
 task songs "Songs" {
-  depends shell.layout, shell.chart
+  depends shell.layout, shell.chart, foundation.e2e_web
 
   task search "Search" {
     effort 3d
     allocate team
     depends storage.index
-    note "One box across every book; recents (kept on the device); books as sections; the explorer as a result when the text is a chord; badges; scope that resets each session. Workflow 2."
+    note "One box across every book; recents (kept on the device); books as sections; the explorer as a result when the text is a chord; badges; scope that resets each session. Workflow 2. Tests: unit (the query: a chord recognised, scope); behavior (results by book, recents, badges, scope reset, Testing Library and axe); e2e-web (search across books on the three viewports, a chord offering the explorer, search after an offline reload; axe)."
   }
   task reading "Reading a song" {
     effort 3d
     allocate team
     depends music.fallback, music.transpose
-    note "The chart and the shapes, variation picker, full screen, print, add to setlist, share; updated in place by sync. Workflows 2, 8."
+    note "The chart and the shapes, variation picker, full screen, print, add to setlist, share; updated in place by sync. Workflows 2, 8. Tests: behavior (variation picker, full screen, print styles, add to setlist, share; Testing Library and axe); e2e-web (open and read a song on the three viewports, transpose and reopen, updated in place by a sync from the stack; offline: after a reload with the network cut, the song, its shapes and the explorer; axe)."
   }
   task first_song "Playing on guitar — change?" {
     effort 0.5d
     allocate team
     depends !reading, music.instruments
-    note "The one-time prompt the first time a song is opened. Workflow 1."
+    note "The one-time prompt the first time a song is opened. Workflow 1. Tests: behavior (the prompt once, axe); e2e-web (the first song opened asks, the second does not)."
   }
   task editor "The source editor" {
     effort 4d
     allocate team
     depends storage.working_copy
-    note "CodeMirror 6 on the cifra.md text: syntax colour, the template, add section, preview beside or a tap away, pasting a cifra into a fence with undo, a voicing line it cannot read stopping the save. Workflows 3, 4."
+    note "CodeMirror 6 on the cifra.md text: syntax colour, the template, add section, preview beside or a tap away, pasting a cifra into a fence with undo, a voicing line it cannot read stopping the save. Workflows 3, 4. Tests: unit (syntax colouring, paste into a fence); behavior (CodeMirror with Testing Library: the template, add section, paste with undo, an unreadable voicing line stopping the save; axe); e2e-web (editing a song by keyboard and touch on the three viewports; axe)."
   }
   task new_song "Writing a new song" {
     effort 2d
     allocate team
     depends !editor, !search
-    note "From search, the empty shelf, a book, the file view; which book; named once at the first save; My songs created when first written to. Workflow 3."
+    note "From search, the empty shelf, a book, the file view; which book; named once at the first save; My songs created when first written to. Workflow 3. Tests: behavior (which book, the name at first save, My songs created; axe); e2e-web (write a new song from search, the empty shelf, a book and the file view, offline; axe)."
   }
   task save_sheet "Save, discard, and the save sheet" {
     effort 2d
     allocate team
     depends !editor, cifra_js.diff
-    note "What changed in musical terms, a note prefilled from it, save pushes; discard showing what would be lost; save all; the first save asking for a name. Workflow 4."
+    note "What changed in musical terms, a note prefilled from it, save pushes; discard showing what would be lost; save all; the first save asking for a name. Workflow 4. Tests: behavior (the sheet's musical summary, the prefilled note, discard showing what would be lost, save all; axe); e2e-web (edit, save, discard, save all on the three viewports; a save made offline waits and pushes when the network returns; axe)."
   }
   task arrange "Arrange mode and the picker" {
     effort 4d
     allocate team
     depends !reading, cifra_js.editing, music.explorer
-    note "Tappable chords, every Cm or only here, choose these for every unchosen chord, enter a shape by hand, variations. Workflow 5."
+    note "Tappable chords, every Cm or only here, choose these for every unchosen chord, enter a shape by hand, variations. Workflow 5. Tests: behavior (tappable chords, every Cm or only here, a shape by hand; a keyboard path through the picker; axe); e2e-web (arrange a song for guitar on the three viewports, keyboard only on the computer, a new variation; axe)."
   }
   task wizard_ui "The wizard in a song" {
     effort 1d
     allocate team
     depends !arrange, music.wizard
-    note "Into a new variation first, over this one second. Workflow 5."
+    note "Into a new variation first, over this one second. Workflow 5. Tests: behavior (into a new variation first, over this one second; axe); e2e-web (the wizard run in a song and its variation read back; axe)."
   }
   task history "History of a song" {
     effort 3d
     allocate team
     depends storage.history, cifra_js.diff
-    note "The list with unsaved changes first, a version read as it was, compare with now, show the text, restore. Workflow 6."
+    note "The list with unsaved changes first, a version read as it was, compare with now, show the text, restore. Workflow 6. Tests: behavior (unsaved changes first, a version read as it was, compare, show the text, restore; axe); e2e-web (a song's history on the three viewports, offline, a version restored and saved; axe)."
   }
 }

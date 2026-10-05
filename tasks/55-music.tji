@@ -9,31 +9,31 @@ task music "Music" {
   task instruments "Instruments and voicing rules" {
     effort 4d
     allocate team
-    depends design.instruments, storage.home_book, shell.layout
-    note "Workflow 15 built: tunings, instruments in the home book, the header chip, presets and the expert panel."
+    depends design.instruments, storage.home_book, shell.layout, foundation.e2e_web
+    note "Workflow 15 built: tunings, instruments in the home book, the header chip, presets and the expert panel. Tests: unit (voicing-rule presets and the expert panel's rules); behavior (the instrument screens with Testing Library and axe, stored in the home book); e2e-web (workflow 15 on the three viewports: a tuning, a second instrument, switching from the header chip; axe)."
   }
   task explorer "The chord explorer" {
     effort 3d
     allocate team
-    depends design.explorer, shell.diagram, !instruments
-    note "Workflow 16 built: search's chord row opens it; fingerings ranked, grouped by position; starring a shape as my shape."
+    depends design.explorer, shell.diagram, !instruments, foundation.e2e_web
+    note "Workflow 16 built: search's chord row opens it; fingerings ranked, grouped by position; starring a shape as my shape. Tests: unit (ranking and grouping by position); behavior (the explorer with Testing Library and axe, a keyboard path through fingerings, starring); e2e-web (search's chord row opens it, a shape starred as my shape, used offline too; axe)."
   }
   task fallback "Where a chord's shape comes from" {
     effort 1d
     allocate team
     depends !instruments, cifra_js.reader
-    note "The song's choice, then my shape, then the app's default; each marked for what it is. Workflow 2."
+    note "The song's choice, then my shape, then the app's default; each marked for what it is. Workflow 2. Tests: unit (the song's choice, then my shape, then the default, each marked for what it is)."
   }
   task transpose "Transposing for reading" {
     effort 2d
     allocate team
     depends !fallback, shell.chart
-    note "View only, never the song; no chosen shapes while transposed; spelling by the key property or fewest accidentals; remembered per song in the home book. Workflow 2."
+    note "View only, never the song; no chosen shapes while transposed; spelling by the key property or fewest accidentals; remembered per song in the home book. Workflow 2. Tests: unit (spelling by the key property or fewest accidentals; no chosen shapes while transposed; remembered per song); behavior (a transposed chart rendered, the song untouched). The reading journey is songs.reading's."
   }
   task wizard "The voicing wizard" {
     effort 2d
     allocate team
     depends !fallback, cifra_js.editing
-    note "Explore Chords' planners; the plan into a new variation first. Workflow 5."
+    note "Explore Chords' planners; the plan into a new variation first. Workflow 5. Tests: unit (Explore Chords' planners' tests carried over; the plan written into a new variation, canonical)."
   }
 }

@@ -9,42 +9,42 @@ task cifra_go "cifra.md for Go" {
   task module "Module and corpus harness" {
     effort 1d
     allocate team
-    note "cifra.md: go/ module, a test harness over every corpus entry."
+    note "cifra.md: go/ module, a test harness over every corpus entry. Tests: unit (go test: the harness finds every corpus entry and fails on a planted mismatch); corpus (every entry enumerated, the checks that need the reader wired as expected failures by name, flipped as they pass)."
   }
   task reader "Reader" {
     effort 8d
     allocate team
     depends !module
-    note "cifra.md: text layer, chord symbols, chart, sung lines with layout convergence, tunings, voicings."
+    note "cifra.md: text layer, chord symbols, chart, sung lines with layout convergence, tunings, voicings. Tests: unit (text layer, chord symbols, chart, sung lines with convergence, tunings, voicings, diagnostics); corpus (input to model for every entry)."
   }
   task writer "Canonical writer and check" {
     effort 4d
     allocate team
     depends !reader
-    note "cifra.md: §8 serializer, invariants, `is canonical` as the hook needs it, marker lines."
+    note "cifra.md: §8 serializer, invariants, `is canonical` as the hook needs it, marker lines. Tests: unit (the invariants; `is canonical` true and false on corpus texts and their non-canonical inputs; marker lines refused); corpus (canonical text byte for byte, every entry)."
   }
   task setlists "Setlists" {
     effort 2d
     allocate team
     depends !module, format.setlist_corpus
-    note "cifra.md: chapter 10 reader and canonical writer."
+    note "cifra.md: chapter 10 reader and canonical writer. Tests: unit (chapter 10 reader and writer); corpus (the setlist entries)."
   }
   task versions "Two canonical-form versions side by side" {
     effort 1d
     allocate team
     depends !writer
-    note "The hook accepts the current and the previous form for a while; the module exposes both. DIRECTION §3.6 Versions, workflow 14."
+    note "The hook accepts the current and the previous form for a while; the module exposes both. DIRECTION §3.6 Versions, workflow 14. Tests: unit (a text canonical only under the previous form passes the previous check and fails the current one, and the reverse; the module reports which form a text is in)."
   }
   task merge "Merge, and git-merge-cifra" {
     effort 8d
     allocate team
     depends !writer, !setlists, format.merge
-    note "cifra.md: chapter 11, and the git merge driver as one static binary (§11.14). Not needed by the hook; for a clone on a computer."
+    note "cifra.md: chapter 11, and the git merge driver as one static binary (§11.14). Not needed by the hook; for a clone on a computer. Tests: unit (chapter 11 section by section); corpus (every corpus/merge/ entry); behavior (git-merge-cifra configured as a merge driver in a throwaway repository, merging two branches through the git CLI, clean and conflicted)."
   }
   task conformance "Conformance" {
     effort 2d
     allocate team
     depends !writer, !setlists
-    note "cifra.md: every canonical-corpus entry passes byte for byte."
+    note "cifra.md: every canonical-corpus entry passes byte for byte. Tests: corpus (every canonical-corpus entry passing byte for byte, no expected failure left)."
   }
 }

@@ -1,7 +1,9 @@
 # 99 — Milestones
 #
 # Zero-duration milestones marking when major capability is in place; each
-# depends on the work that has to exist first.
+# depends on the work that has to exist first. There are no test tasks to
+# gate on: every task lands with its own tests (its note says which), so a
+# milestone's tasks being complete means their tests exist and pass.
 
 task milestones "Milestones" {
   task m0_design "M0: Design" {
@@ -19,26 +21,26 @@ task milestones "Milestones" {
 
   task m2_local "M2: A songbook on one device" {
     milestone
-    depends milestones.m1_format, songs.search, songs.reading, songs.first_song, songs.new_song, songs.save_sheet, songs.arrange, songs.wizard_ui, songs.history, music.explorer, books.shelf, books.file_view, shell.i18n, shell.pwa, account.first_run, quality.e2e_local, quality.offline
+    depends milestones.m1_format, songs.search, songs.reading, songs.first_song, songs.new_song, songs.save_sheet, songs.arrange, songs.wizard_ui, songs.history, music.explorer, books.shelf, books.file_view, shell.i18n, shell.pwa, account.first_run
     note "Local books only, no account: find, read, write, edit, arrange, history, the explorer, the file view — installed and offline."
   }
 
   task m3_service "M3: Estante online" {
     milestone
-    depends milestones.m2_local, hook.messages, account.sign_in, books.online, sync.states, sync.unsaved, sync.lost_access, quality.service_tests, launch.deploy, launch.email
+    depends milestones.m2_local, hook.messages, account.sign_in, books.online, sync.states, sync.unsaved, sync.lost_access, launch.deploy, launch.email
     note "Sign in, put a book online, every push checked, sync across one person's devices — running at estantedecifras.app."
   }
 
   task m4_together "M4: Together" {
     milestone
-    depends milestones.m3_service, books.add_by_link, books.share, books.fork, sync.conflicts, service.admin, quality.e2e_sync
+    depends milestones.m3_service, books.add_by_link, books.share, books.fork, sync.conflicts, service.admin
     note "Invitations, fifty per book, forks following their original, merges and conflicts between people."
   }
 
   task m5_complete "M5: The first pass, complete" {
     milestone
-    depends milestones.m4_together, books.setlists, books.play, books.upload_ui, storage.download, account.new_device, account.sign_out, account.leaving, quality.a11y, service.rate_limits
-    note "Setlists and playing through, upload and download, a new device, leaving, accessibility checked throughout."
+    depends milestones.m4_together, books.setlists, books.play, books.upload_ui, storage.download, account.new_device, account.sign_out, account.leaving, shell.a11y_chart, service.rate_limits
+    note "Setlists and playing through, upload and download, a new device, leaving, and a sung line read aloud as decided."
   }
 
   task m6_format_go "M6: The format in Go, everywhere" {

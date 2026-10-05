@@ -37,8 +37,14 @@ behind in either repository.
 The driver ran the canonical verification deterministically before invoking
 you, and it passed: `scripts/gate`, which checks both repositories — the WBS
 (`tj3`, `scripts/unblocked.py`), the app and the service when they exist,
-and in cifra.md the reference's tests, the corpus check, and the `js/` and
-`go/` implementations when they exist.
+the end-to-end levels against the compose stack once their harnesses exist
+(e2e-api in `e2e/api/`, e2e-web in `e2e/web/`), and in cifra.md the
+reference's tests, the corpus check, and the `js/` and `go/` implementations
+when they exist.
+
+Green is necessary, not sufficient: a gate that SKIPped a level, or a task
+that never wrote its tests, is also green. Before the ritual you check that
+the task's own tests exist and ran — §0 below.
 
 The exact results are listed below under §Verification results. You do NOT
 need to re-run any step. Trust the block — that's what it's for. Paste
@@ -115,6 +121,64 @@ the task was re-deferred so the orchestrator records it in
 
 ## Ritual (in order)
 
+### 0. The task's tests exist and ran — or refuse
+
+**The WBS does not split tests out of the tasks.** Each task lands with the
+appropriate level of test for what it delivers, at the time it lands:
+
+- **unit** — pure modules and functions: Vitest (app, cifra.md `js/`),
+  `go test` (service, hook, cifra.md `go/`), pytest (cifra.md reference).
+- **behavior** — a component working with its real collaborators inside one
+  process: React components with Testing Library plus an axe check of what
+  they render; the Web Worker's storage and sync logic against a fake
+  IndexedDB and a local git remote; Go handlers through `httptest` against a
+  real Postgres (from compose) and real git.
+- **e2e-api** — black-box against the compose stack (the service's image
+  with git, the hook, Postgres, the mail catcher): HTTP calls and real git
+  clients (the git CLI and isomorphic-git) doing what a user's device would.
+- **e2e-web** — Playwright against the compose stack (the app served by the
+  service on its one origin), on phone, tablet and computer viewports, with
+  axe at WCAG 2.1 AA on every screen the task touches, and offline where the
+  task is about offline.
+- **Format work** (cifra.md: reference, js, go) — unit plus the corpus (the
+  canonical and merge corpora are its behavior/conformance level).
+- **Design tasks** (workflow documents, mockup boards) — no code tests;
+  acceptance is the document and the board.
+
+Check, before anything else:
+
+1. Read the refinement's **Acceptance criteria** and list every test it
+   names, by level (and the `Tests:` clause of the task's `.tji` note, which
+   summarises them).
+2. **They exist**: each named test (file, case, corpus entry) is in the
+   working tree's changes (`git status` / `git diff --stat` in the
+   repository it belongs to, plus a search for the test's name).
+3. **They ran, not skipped**: dispatch an Explore sub-agent against the gate
+   log named in §Verification results to confirm, for each level the task
+   names, that the gate section for it ran (a `gate: … npm run test`, `go
+   test`, `pytest`, `corpus check`, `e2e-api: npm test` or `e2e-web:
+   playwright test` line — not a `gate: SKIP …` line for it), that the named
+   tests or files appear in the runner's output as passed, and that none of
+   them was reported skipped, pending, todo or fixme. For e2e-web, that
+   they ran on all three viewport projects.
+4. A **design task** passes this check when the workflow document and the
+   board the refinement names exist; there are no code tests to find.
+
+If anything named is missing, skipped, or ran on fewer viewports than
+named: **refuse**. Do not run the rest of the ritual, do not commit in either
+repository, do not touch the `.tji` files or the Status block, and leave
+the work exactly where it is in the working tree(s) — the orchestrator will
+re-dispatch the implementer for this same task. Return a summary whose
+first line is `REFUSED (missing tests): $task_id`, followed by the list of
+missing or skipped tests with their level and the acceptance criterion each
+comes from. Never resolve a refusal by registering a "tests for X" task, and
+never write the tests yourself.
+
+A task already `complete 100` that you find without its tests (a predecessor
+whose tests this task's work shows were never written) is that task's
+defect: append a `tasks/parking-lot.md` entry naming the task and the
+missing tests, for the human to reopen it — never a new WBS leaf.
+
 ### 1. Commit in cifra.md, if it changed
 
 If the repository block above shows uncommitted changes in cifra.md that
@@ -162,7 +226,11 @@ reports it).
 ### 5. Register tech-debt tasks in the WBS — and wire each to a milestone
 
 If the implementer's summary or the Status block names a follow-up task,
-add that task to the appropriate `tasks/<NN>-<area>.tji` file in the same
+add that task — unless it is a test-only task ("add tests for X", "e2e for
+X", "coverage of X"): tests are never tech debt, they land with the task
+that delivers what they test, so such a follow-up is a refusal under §0 (for
+this task) or a parking-lot entry (for an already complete one), never a
+WBS leaf. Otherwise add that task to the appropriate `tasks/<NN>-<area>.tji` file in the same
 commit. Use a stable snake_case id, give it:
 
 - an effort estimate (`0.5d` / `1d` / `2d`),
@@ -170,7 +238,10 @@ commit. Use a stable snake_case id, give it:
 - a `depends` list reflecting the real prerequisites,
 - a `note` line — starting with `cifra.md:` when the work lands in the
   cifra.md repository — citing the source-of-debt refinement + this commit,
-  and the governing document (DIRECTION section, workflow, or spec chapter).
+  and the governing document (DIRECTION section, workflow, or spec chapter),
+  and ending, like every leaf's note, with the tests it will land with:
+  `Tests: unit (…); behavior (…); e2e-api (…); e2e-web (…).` (the levels
+  that apply).
 
 Do NOT add `complete 100` (the task is deliberately open).
 
@@ -241,6 +312,8 @@ cifra.md: <short SHA> <its subject>
 Verification (driver-run `scripts/gate`, both repositories — see the
 results block): green.
   - <the rows of the results block>
+  - Tests landed, by level: <unit: …; behavior: …; e2e-api: …; e2e-web:
+    …; corpus: … — the ones §0 confirmed ran>
   - <task-specific verification if any>
 
 <the attribution trailer lines your environment requires>
@@ -300,10 +373,12 @@ Never stage generated output that is not meant to be tracked
 ## Return contract
 
 When done, your final assistant message must be a short summary
-(≤ 6 lines):
+(≤ 7 lines):
 
 - Commit SHA(s), per repository (estante-de-cifras, and cifra.md if it
-  changed).
+  changed) — or, on a refusal, `REFUSED (missing tests): $task_id` as the
+  first line and the missing tests instead of the rest of this list.
+- Tests confirmed by §0, by level (one line).
 - `complete 100` lines added (which task ids).
 - Milestone propagation done-yes-or-no (and which milestone if yes).
 - Tech-debt tasks registered (id list) and the milestone each was wired

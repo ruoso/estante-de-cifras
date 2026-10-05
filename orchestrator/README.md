@@ -80,13 +80,35 @@ skips, saying so, what does not yet:
   warning fails), `scripts/unblocked.py`; `app/` (npm install if needed,
   then `lint`, `test`, `build` scripts) when `app/package.json` exists;
   `service/` (`go vet`, `go test`, `go build`) when `service/go.mod` exists.
+- the end-to-end step, once `compose.yaml` and an e2e harness
+  (`e2e/api/package.json`, `e2e/web/package.json`) exist: a preflight
+  (Docker with the compose plugin and a reachable daemon; Playwright's
+  browsers), then the compose stack brought up **once** — built from the
+  working tree, under an isolated project name, on free ports, waiting for
+  every healthcheck — before the service's Go tests (whose behavior level
+  uses its Postgres, `ESTANTE_TEST_DATABASE_URL`); then e2e-api (`npm test`
+  in `e2e/api/`, `--maxWorkers=N`) and e2e-web (`playwright test
+  --workers=N` in `e2e/web/`, phone, tablet and computer, axe). The stack
+  is always torn down (a trap), with its volumes and built images. Until a
+  harness exists the step is skipped, saying so; once one exists it must
+  run — no Docker or no browsers is a FAIL with what to install.
+  `ESTANTE_E2E_WORKERS` sets N (default: `nproc`, at most 4).
 - cifra.md: the reference's `pytest` and `python -m tools.corpus --check`
   (creating `reference/.venv` if missing); `js/` and `go/` likewise when
   they exist.
 
 `scripts/gate estante` or `scripts/gate cifra.md` checks one repository,
 for a narrow check by hand; the driver always runs both. Parallelism is
-always bounded (`go … -p $(nproc)`).
+always bounded (`go … -p $(nproc)`, explicit e2e worker counts).
+
+Tests land with their task — the WBS has no test stream. The refinement
+names each task's tests by level (unit, behavior, e2e-api, e2e-web; the
+corpus for format work; none for design), the implementer writes them, the
+fixer may not delete or weaken them, and the closer checks in the gate's
+log that they exist and ran (not skipped) before committing — otherwise it
+returns `REFUSED (missing tests)` and leaves the work in the tree, and the
+orchestrator re-dispatches the implementer for the same task
+(`tasks/refinements/README.md`, "Tests: the levels, and the rule").
 
 When CI exists, a step replaying it locally (as arbitrarycomposer does with
 `act`) can be appended to `VERIFICATION_STEPS` in `driver.py`; until then
@@ -214,8 +236,8 @@ want to experiment.
 ## Prompts layout
 
 - `prompts/orchestrator_system.md` — orchestrator system prompt (mission,
-  the two repositories, read-only rule, pick heuristics, JSON envelope
-  contract). Not rendered: it has no variables.
+  the two repositories, read-only rule, pick heuristics, tests landing with
+  their task, JSON envelope contract). Not rendered: it has no variables.
 - `prompts/refinement_writer.md` — refinement-writer sub-agent brief.
   Vars: `$task_id`, `$refinement_path`.
 - `prompts/implementer.md` — implementer sub-agent brief.
@@ -237,8 +259,9 @@ the substitution syntax — escape literal dollar signs as `$$` (e.g. the
 Cross-cutting policies (the design documents as constitution, the corpus as
 what implementations agree on, the project's standing rules — canonical
 form, accessibility, no song text in logs, offline first, no book without
-an account — tech-debt registration, test-output handling, the two
-repositories, and "what sub-agents must NOT do") are embedded into each
+an account — the test levels and tests landing with their task, tech-debt
+registration, test-output handling, the two repositories, and "what
+sub-agents must NOT do") are embedded into each
 template that needs them, since sub-agents are fresh sessions with no shared
 state.
 

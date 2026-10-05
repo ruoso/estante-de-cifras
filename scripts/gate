@@ -9,7 +9,8 @@
 # It verifies BOTH repositories the project works in:
 #
 #   - this one, estante-de-cifras: the WBS (tj3 and scripts/unblocked.py), the
-#     app (`app/`) and the service (`service/`);
+#     app (`app/`), the service (`service/`), and the end-to-end levels
+#     against the compose stack (`e2e/api/`, `e2e/web/`);
 #   - the sibling cifra.md repository, where tasks whose .tji note starts with
 #     "cifra.md:" land: the Python reference's tests, the corpus check, and the
 #     JavaScript (`js/`) and Go (`go/`) implementations.
@@ -19,19 +20,52 @@
 # tasks create app/, service/, js/ and go/. A check that exists and fails
 # fails the gate.
 #
+# The test levels (tasks/refinements/README.md) and where they run here:
+#
+#   unit, behavior  `npm test` in app/ and cifra.md's js/, `go test` in
+#                   service/ and cifra.md's go/, pytest in the reference, and
+#                   the corpus check (format work's conformance level);
+#   e2e-api         e2e/api/ (Vitest, black-box: HTTP and real git clients);
+#   e2e-web         e2e/web/ (Playwright: phone, tablet and computer, axe).
+#
+# The end-to-end levels run against the compose stack. When compose.yaml and
+# an e2e harness (e2e/api/package.json or e2e/web/package.json) exist, the
+# gate brings the stack up ONCE — built from the working tree, under an
+# isolated project name, on free ports, waiting for every healthcheck — runs
+# the service's Go tests against its Postgres (behavior level), then e2e-api,
+# then e2e-web, and always tears it down (trap). The excuse rule is the same
+# as everywhere: skipped, saying why, only while no harness exists. A harness
+# that exists must run: if compose.yaml, Docker or Playwright's browsers are
+# missing, the gate FAILS and says what to install.
+#
+# What the stack is given (compose.yaml reads these; tests read them too):
+#   ESTANTE_HTTP_PORT, ESTANTE_PG_PORT, ESTANTE_MAIL_PORT   published ports
+#   ESTANTE_PG_USER, ESTANTE_PG_PASSWORD, ESTANTE_PG_DB     Postgres credentials
+#   ESTANTE_E2E_BASE_URL   the one origin (app and API), e.g. http://127.0.0.1:N
+#   ESTANTE_E2E_MAIL_URL   the mail catcher's HTTP API
+#   ESTANTE_TEST_DATABASE_URL  the stack's Postgres, for Go behavior tests
+#   ESTANTE_COMPOSE_PROJECT    the stack's compose project name
+#
 # Usage: scripts/gate [estante|cifra.md]...   (default: both)
 # Environment:
 #   ESTANTE_CIFRA_MD_DIR  the cifra.md checkout (default: ../cifra.md beside
 #                         this repository; relative paths resolve from here)
+#   ESTANTE_E2E_WORKERS   end-to-end workers (default: nproc, at most 4)
 #
-# Parallelism is always bounded: Go is given `-p $(nproc)`; nothing here runs
-# an unbounded `-j`.
+# Parallelism is always bounded: Go is given `-p $(nproc)`, Vitest in e2e/api
+# `--maxWorkers=N` and Playwright `--workers=N` with an explicit N; nothing
+# here runs an unbounded `-j`.
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 ROOT="$PWD"
 
 JOBS="$(nproc)"
+E2E_WORKERS="${ESTANTE_E2E_WORKERS:-$(( JOBS < 4 ? JOBS : 4 ))}"
+if ! [[ "$E2E_WORKERS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "gate: ESTANTE_E2E_WORKERS must be a positive integer, got '$E2E_WORKERS'" >&2
+  exit 2
+fi
 CIFRA_MD_DIR="${ESTANTE_CIFRA_MD_DIR:-../cifra.md}"
 case "$CIFRA_MD_DIR" in
   /*) ;;
@@ -56,10 +90,27 @@ if [[ $# -gt 0 ]]; then
 fi
 
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+STACK_PROJECT=""   # set while a compose stack of ours is up
 
 step() { echo; echo "gate: $*"; }
 skip() { echo "gate: SKIP $*"; }
+fail() { echo "gate: FAIL $*" >&2; exit 1; }
+
+# Tear down the compose stack this run brought up, if any: containers,
+# volumes and the images built for it. Idempotent; also run by the trap.
+stack_down() {
+  if [[ -n "$STACK_PROJECT" ]]; then
+    local project="$STACK_PROJECT"
+    STACK_PROJECT=""
+    step "estante e2e: tearing down the stack ($project)"
+    docker compose -p "$project" -f "$ROOT/compose.yaml" \
+      down --volumes --remove-orphans --rmi local >"$TMP/compose-down.log" 2>&1 \
+      || { cat "$TMP/compose-down.log"; echo "gate: WARNING could not tear down compose project $project" >&2; }
+  fi
+}
+cleanup() { stack_down; rm -rf "$TMP"; }
+trap cleanup EXIT
+trap 'exit 130' INT TERM
 
 # True when package.json in the current directory defines the npm script $1,
 # not counting the placeholder `npm init` writes for `test` (which exits 1 by
@@ -137,6 +188,84 @@ go_checks() {
   fi
 }
 
+# A free TCP port on the loopback interface (the kernel picks it).
+free_port() {
+  python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()'
+}
+
+# The browsers e2e/web's Playwright configuration uses: chromium always;
+# webkit when it names webkit or a WebKit device (iPhone, iPad, Safari);
+# firefox when it names firefox.
+playwright_browsers() {
+  local configs=(playwright.config.*)
+  local browsers="chromium"
+  if [[ -e "${configs[0]}" ]]; then
+    grep -qiE 'webkit|iphone|ipad|safari' "${configs[@]}" && browsers+=" webkit"
+    grep -qi 'firefox' "${configs[@]}" && browsers+=" firefox"
+  fi
+  echo "$browsers"
+}
+
+# Everything an existing e2e harness needs, checked before anything is
+# built, so a missing tool is a clear FAIL rather than a failure halfway.
+e2e_preflight() {
+  step "estante e2e: preflight (compose.yaml, Docker, Playwright's browsers)"
+  [[ -f compose.yaml ]] \
+    || fail "estante e2e: an e2e harness exists but compose.yaml does not — the harness runs against the compose stack"
+  command -v docker >/dev/null 2>&1 \
+    || fail "estante e2e: an e2e harness exists but docker is not installed — install Docker with the compose plugin"
+  docker compose version >/dev/null 2>&1 \
+    || fail "estante e2e: an e2e harness exists but 'docker compose' is unavailable — install the Docker compose plugin"
+  docker info >/dev/null 2>&1 \
+    || fail "estante e2e: an e2e harness exists but the Docker daemon is not reachable — start it, or give this user access"
+  if [[ -f e2e/web/package.json ]]; then
+    (
+      cd e2e/web
+      npm_install_if_needed "estante e2e-web"
+      local browsers
+      browsers="$(playwright_browsers)"
+      [[ -d node_modules/@playwright/test ]] \
+        || fail "estante e2e-web: e2e/web exists but @playwright/test is not among its dependencies"
+      local missing
+      if ! missing="$(node -e '
+        const pw = require("@playwright/test");
+        const fs = require("fs");
+        const missing = process.argv.slice(1).filter((name) => {
+          try { return !fs.existsSync(pw[name].executablePath()); } catch { return true; }
+        });
+        console.log(missing.join(" "));
+        process.exit(missing.length ? 1 : 0);
+      ' $browsers)"; then
+        fail "estante e2e-web: Playwright's browsers are missing ($missing) — run 'npx playwright install --with-deps $browsers' in e2e/web"
+      fi
+    )
+  fi
+}
+
+# Bring the compose stack up once, built from the working tree, under a
+# project name of its own and on free ports, and wait for every healthcheck.
+stack_up() {
+  export ESTANTE_HTTP_PORT ESTANTE_PG_PORT ESTANTE_MAIL_PORT
+  ESTANTE_HTTP_PORT="$(free_port)"
+  ESTANTE_PG_PORT="$(free_port)"
+  ESTANTE_MAIL_PORT="$(free_port)"
+  export ESTANTE_PG_USER=estante ESTANTE_PG_PASSWORD=estante ESTANTE_PG_DB=estante
+  export ESTANTE_E2E_BASE_URL="http://127.0.0.1:$ESTANTE_HTTP_PORT"
+  export ESTANTE_E2E_MAIL_URL="http://127.0.0.1:$ESTANTE_MAIL_PORT"
+  export ESTANTE_TEST_DATABASE_URL="postgres://$ESTANTE_PG_USER:$ESTANTE_PG_PASSWORD@127.0.0.1:$ESTANTE_PG_PORT/$ESTANTE_PG_DB?sslmode=disable"
+  export ESTANTE_COMPOSE_PROJECT="estante-gate-$$-$(date +%s)"
+
+  step "estante e2e: building and starting the stack ($ESTANTE_COMPOSE_PROJECT, origin $ESTANTE_E2E_BASE_URL)"
+  STACK_PROJECT="$ESTANTE_COMPOSE_PROJECT"
+  if ! docker compose -p "$ESTANTE_COMPOSE_PROJECT" -f compose.yaml \
+      up --build --detach --wait --wait-timeout 300 >"$TMP/compose-up.log" 2>&1; then
+    cat "$TMP/compose-up.log"
+    docker compose -p "$ESTANTE_COMPOSE_PROJECT" -f compose.yaml ps -a || true
+    docker compose -p "$ESTANTE_COMPOSE_PROJECT" -f compose.yaml logs --no-color --tail=200 || true
+    fail "estante e2e: the compose stack did not come up healthy"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # estante-de-cifras
 # ---------------------------------------------------------------------------
@@ -166,11 +295,56 @@ if [[ $want_estante -eq 1 ]]; then
     skip "estante app: app/package.json does not exist yet"
   fi
 
+  # The stack comes up before the service's Go tests, whose behavior level
+  # runs against its Postgres, and stays up for e2e-api and e2e-web.
+  has_e2e_api=0; [[ -f e2e/api/package.json ]] && has_e2e_api=1
+  has_e2e_web=0; [[ -f e2e/web/package.json ]] && has_e2e_web=1
+  if [[ $has_e2e_api -eq 1 || $has_e2e_web -eq 1 ]]; then
+    e2e_preflight
+    stack_up
+  elif [[ -f compose.yaml ]]; then
+    skip "estante e2e: compose.yaml exists but no e2e harness yet (e2e/api/package.json, e2e/web/package.json)"
+  else
+    skip "estante e2e: compose.yaml and the e2e harnesses do not exist yet"
+  fi
+
   if [[ -f service/go.mod ]]; then
     (cd service; go_checks "estante service")
   else
     skip "estante service: service/go.mod does not exist yet"
   fi
+
+  if [[ $has_e2e_api -eq 1 ]]; then
+    (
+      cd e2e/api
+      npm_install_if_needed "estante e2e-api"
+      if has_npm_script lint; then
+        step "estante e2e-api: npm run lint"
+        CI=true npm run lint
+      fi
+      has_npm_script test || fail "estante e2e-api: e2e/api/package.json has no 'test' script — a harness that exists must run"
+      step "estante e2e-api: npm test against the stack ($ESTANTE_E2E_BASE_URL, $E2E_WORKERS workers)"
+      CI=true npm test -- --maxWorkers="$E2E_WORKERS"
+    )
+  elif [[ $has_e2e_web -eq 1 ]]; then
+    skip "estante e2e-api: e2e/api/package.json does not exist yet"
+  fi
+
+  if [[ $has_e2e_web -eq 1 ]]; then
+    (
+      cd e2e/web
+      if has_npm_script lint; then
+        step "estante e2e-web: npm run lint"
+        CI=true npm run lint
+      fi
+      step "estante e2e-web: playwright test against the stack ($ESTANTE_E2E_BASE_URL, $E2E_WORKERS workers)"
+      CI=true npx --no-install playwright test --workers="$E2E_WORKERS"
+    )
+  elif [[ $has_e2e_api -eq 1 ]]; then
+    skip "estante e2e-web: e2e/web/package.json does not exist yet"
+  fi
+
+  stack_down
 fi
 
 # ---------------------------------------------------------------------------

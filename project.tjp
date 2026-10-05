@@ -12,6 +12,14 @@
 # notes reference the governing document. Work in the cifra.md repository
 # (the format's specification and its implementations) is planned here too,
 # since the app depends on it; its notes say "cifra.md:".
+#
+# Tests are never a separate stream: every leaf lands with the tests for what
+# it delivers, and its note ends with them, by level — `Tests: unit (…);
+# behavior (…); e2e-api (…); e2e-web (…).`, or `corpus (…)` for format work,
+# or `Tests: none — …` saying why (a design deliverable, infrastructure). The
+# levels are defined in tasks/refinements/README.md; the e2e harnesses are
+# foundation tasks (foundation.e2e_api, foundation.e2e_web) that land before
+# anything needs them, and scripts/gate runs every level.
 
 project estante "Estante de Cifras" 2026-10-04 +3y {
   timezone "America/New_York"
@@ -45,6 +53,5 @@ include "tasks/55-music.tji"
 include "tasks/60-songs.tji"
 include "tasks/65-books.tji"
 include "tasks/70-account.tji"
-include "tasks/75-quality.tji"
 include "tasks/80-launch.tji"
 include "tasks/99-milestones.tji"

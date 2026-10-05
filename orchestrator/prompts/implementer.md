@@ -26,9 +26,13 @@ Read the refinement in full first, and the document sections it cites.
 
 The orchestrator driver runs the canonical verification the moment you
 return: `scripts/gate`, which checks **both repositories** — here, the WBS
-(`tj3`, `scripts/unblocked.py`), the app (`app/`: install, lint, unit tests,
-build) and the service (`service/`: `go vet`, `go test`, build) once each
-exists; in cifra.md, the reference's test suite, the corpus check
+(`tj3`, `scripts/unblocked.py`), the app (`app/`: install, lint, unit and
+behavior tests, build), the service (`service/`: `go vet`, `go test` with its
+behavior tests against the stack's Postgres at `ESTANTE_TEST_DATABASE_URL`,
+build) and, once compose.yaml and an e2e harness exist, the end-to-end
+levels — it brings the compose stack up once (built from the working tree,
+isolated, on free ports), runs `e2e/api/` (e2e-api) then `e2e/web/`
+(Playwright, e2e-web), and tears it down; in cifra.md, the reference's test suite, the corpus check
 (`python -m tools.corpus --check`), and `js/` (npm lint/test/build) and
 `go/` (vet, test, build) once each exists. If the gate fails, the driver
 dispatches a `fixer` sub-agent against the failing log; you do not see that
@@ -40,8 +44,11 @@ through it costs wall-clock you can spend implementing, and the driver runs
 it anyway. A narrow local sanity check — one test file, one package, the
 corpus check, `scripts/gate cifra.md` or `scripts/gate estante` when only
 one side changed — is fine. If you build or test anything with a parallelism
-flag, give it an explicit bound (`-j $$(nproc)`, `go test -p $$(nproc)`);
-never a bare `-j` or an unbounded `--parallel`.
+flag, give it an explicit bound (`-j $$(nproc)`, `go test -p $$(nproc)`,
+`playwright test --workers=4`); never a bare `-j` or an unbounded
+`--parallel`. To run one e2e test by hand, bring the stack up the way the
+gate does (its header lists the variables compose.yaml and the tests read)
+and tear it down afterwards.
 
 If the task creates something the gate will start checking (the first
 `app/package.json`, `service/go.mod`, `$cifra_md_dir/js/package.json`,
@@ -121,11 +128,8 @@ $additional_context
 - **No gate tampering**: do not edit `scripts/gate`, lint configuration, or
   test-runner configuration to make something pass, unless the refinement
   explicitly scopes it.
-- If the refinement scopes tests (unit, corpus entries, end-to-end, axe,
-  contract), they are part of the implementation — a refinement that scopes
-  them and an implementation that skips them is incomplete. If a scoped
-  test cannot be written (missing seam), STOP and report rather than
-  silently landing without it.
+- **Tests land with the task** (see §Tests land with this task): every test
+  the refinement names is written here, at its level, and runs in the gate.
 - DO NOT touch any `.tji` file or the refinement's `## Status` section —
   that's the closer's job.
 - DO NOT commit, in either repository — the closer does that too.
@@ -143,18 +147,60 @@ exactly (theme classes, the `ChordBox` component), registered in
 closes. You cannot render or publish the board; say in your return summary
 that the canvas needs republishing.
 
-## New test additions still in scope
+## Tests land with this task
 
-If the refinement scopes a new test, corpus entry, end-to-end path or axe
-check, write it as part of your implementation work. The driver will
-execute it via the gate afterwards. Likewise: if the refinement DEFERS a
-test addition, do not add one — note the deferral in your return summary so
-the closer can register the follow-up task in the WBS.
+**The WBS does not split tests out of the tasks.** This task lands with the
+appropriate level of test for what it delivers, now. The refinement's
+acceptance criteria name the tests by level (the `.tji` note's `Tests:`
+clause summarises them); you write every one of them in this task. The
+levels:
+
+- **unit** — pure modules and functions: Vitest (app, cifra.md `js/`),
+  `go test` (service, hook, cifra.md `go/`), pytest (cifra.md reference).
+- **behavior** — a component working with its real collaborators inside one
+  process: React components with Testing Library plus an axe check of what
+  they render; the Web Worker's storage and sync logic against a fake
+  IndexedDB and a local git remote; Go handlers through `httptest` against a
+  real Postgres (from compose) and real git.
+- **e2e-api** — black-box against the compose stack (the service's image
+  with git, the hook, Postgres, the mail catcher): HTTP calls and real git
+  clients (the git CLI and isomorphic-git) doing what a user's device would.
+  In `e2e/api/`.
+- **e2e-web** — Playwright against the compose stack (the app served by the
+  service on its one origin), on phone, tablet and computer viewports, with
+  axe at WCAG 2.1 AA on every screen the task touches, and offline where the
+  task is about offline. In `e2e/web/`.
+- **Format work** (cifra.md: reference, js, go) — unit plus the corpus (the
+  canonical and merge corpora are its behavior/conformance level).
+- **Design tasks** (workflow documents, mockup boards) — no code tests;
+  acceptance is the document and the board.
+
+Rules:
+
+- **A feature without its tests is not done.** Write the tests the
+  refinement names, at the levels it names, in this task. Each test says in
+  a comment or its name what it pins (the workflow section, spec section or
+  corpus entry the refinement cites).
+- **Tests are never deferred** to a later task, and a tech-debt follow-up
+  may never be "add tests for X". If the refinement appears to defer a test
+  for what this task delivers, write it anyway and say so in your return
+  summary.
+- **Never land a test the gate does not run**: no `.skip`, `.todo`,
+  `test.fixme`, `t.Skip` without a reason the refinement scopes, no test
+  file outside what the runners pick up. The closer checks the gate's output
+  for the refinement's named tests and refuses to commit if any is missing
+  or skipped.
+- e2e tests go in the existing harnesses (`e2e/api/`, `e2e/web/`) and use
+  their helpers (viewports, the axe fixture, offline mode, two devices);
+  never a parallel harness. If the task needs a harness that does not exist
+  yet, or a scoped test cannot be written (a missing seam), STOP and report
+  rather than landing without it.
 
 ## Tech-debt surfacing
 
 When implementation surfaces a gap you can't close in scope, include the
-proposed follow-up task in your return summary (e.g. "deferred the
+proposed follow-up task in your return summary — implementation work that
+will carry its own tests, never "tests for" what this task delivered (e.g. "deferred the
 proportional-chart line breaking for very narrow phones —
 `shell.chart_narrow_wrap`, 1d, gating M2"). Say whether it is cifra.md work.
 The closer will register it as a real WBS leaf in the same commit.
@@ -185,10 +231,10 @@ When done, your final assistant message must be a short summary
 
 - Files created / edited (paths only), grouped by repository
   (estante-de-cifras / cifra.md).
-- Test additions you wrote (if any): kind + name(s) (unit / corpus entry /
-  end-to-end / axe / contract) or `none`.
-- Whether a refinement-scoped test was deferred (and why) — `n/a` if all
-  scoped tests landed.
+- Tests written, by level, with file names: unit / behavior / e2e-api /
+  e2e-web / corpus entries (`none` only for a design task).
+- Any test the refinement names that you could not write — which should
+  have been a STOP — or `all named tests written`.
 - Any tech-debt follow-up task proposed (stable id + one-line description)
   — `none` if none.
 - One-line summary of what shipped.

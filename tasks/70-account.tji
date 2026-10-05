@@ -3,42 +3,42 @@
 # Arriving, signing in on another device, and leaving.
 
 task account "First run and the account" {
-  depends shell.layout
+  depends shell.layout, foundation.e2e_web
 
   task first_run "First run" {
     effort 2d
     allocate team
     depends songs.search, design.example_book
-    note "The empty shelf and its four ways in; the example book shipped with the app; My songs. Workflow 1."
+    note "The empty shelf and its four ways in; the example book shipped with the app; My songs. Workflow 1. Tests: unit (the example book's songs read without diagnostics and are canonical under cifra.md for JavaScript); behavior (the empty shelf's four ways in, My songs; axe); e2e-web (a first visit on the three viewports, the example book opened, offline after a reload; axe)."
   }
   task sign_in "Signing in" {
     effort 3d
     allocate team
     depends service.passkeys, service.email_links, service.sessions
-    note "A passkey, the browser's cross-device flow, the emailed link; offering a passkey on a new device. Workflows 7, 13."
+    note "A passkey, the browser's cross-device flow, the emailed link; offering a passkey on a new device. Workflows 7, 13. Tests: behavior (passkey, cross-device and emailed-link screens; axe); e2e-web (on the stack: a passkey with a virtual authenticator, an emailed link read from the mail catcher, a passkey offered on a new device; axe)."
   }
   task new_device "A new device" {
     effort 3d
     allocate team
     depends !sign_in, storage.home_book, sync.engine
-    note "The home book first, the shelf filling, only on your iPhone, a device used before signing in (merge or keep both My songs). Workflow 13."
+    note "The home book first, the shelf filling, only on your iPhone, a device used before signing in (merge or keep both My songs). Workflow 13. Tests: behavior (the home book first, the shelf filling, only on your iPhone; axe); e2e-web (a second browser context signs in to the same account on the stack and fills its shelf; a device used before signing in merges or keeps both My songs; axe)."
   }
   task account_screen "The account screen" {
     effort 2d
     allocate team
     depends !sign_in, design.theme_picker
-    note "Signed-in devices with sign out, passkeys, language and theme. Workflow 13."
+    note "Signed-in devices with sign out, passkeys, language and theme. Workflow 13. Tests: behavior (devices with sign out, passkeys, language and theme; axe); e2e-web (another device signed out from here; theme and language kept across a reload; axe)."
   }
   task sign_out "Signing out" {
     effort 1d
     allocate team
     depends !account_screen
-    note "Remove this account's books (default) or keep them as local books, with unsaved changes and unpushed saves counted. Workflow 13."
+    note "Remove this account's books (default) or keep them as local books, with unsaved changes and unpushed saves counted. Workflow 13. Tests: behavior (the choice with unsaved changes and unpushed saves counted; axe); e2e-web (sign out removing the books, and keeping them as local books; axe)."
   }
   task leaving "Leaving" {
     effort 2d
     allocate team
     depends design.leaving, !account_screen, service.books
-    note "Workflow 17 built: deleting the account, taking the data out."
+    note "Workflow 17 built: deleting the account, taking the data out. Tests: behavior (the steps workflow 17 decides; axe); e2e-api (deleting an account against the stack: its books and sessions gone, books others are members of handled as decided); e2e-web (taking the data out, then deleting the account; axe)."
   }
 }

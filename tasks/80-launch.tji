@@ -7,25 +7,25 @@ task launch "Launch" {
     effort 1d
     allocate team
     depends foundation.compose
-    note "The service with its volume and Postgres in a US region; Railway's backups for both. DIRECTION §3.3, §3.4."
+    note "The service with its volume and Postgres in a US region; Railway's backups for both. DIRECTION §3.3, §3.4. Tests: none in code — infrastructure; checked by the deployed service's health check."
   }
   task domain "Domain and HTTPS" {
     effort 0.5d
     allocate team
     complete 50
     depends !railway
-    note "estantedecifras.app is registered; pointing it at Railway remains. DIRECTION §3.3."
+    note "estantedecifras.app is registered; pointing it at Railway remains. DIRECTION §3.3. Tests: none — DNS and certificates; checked by HTTPS answering at the domain."
   }
   task email "Email provider" {
     effort 1d
     allocate team
     depends !domain
-    note "A transactional provider sending from the domain, with the records that keep sign-in links out of spam folders. DIRECTION §3.3."
+    note "A transactional provider sending from the domain, with the records that keep sign-in links out of spam folders. DIRECTION §3.3. Tests: none in code — provider configuration; service.email_links' tests use the mail catcher, and a link sent from the domain is checked once by hand."
   }
   task deploy "Deploy pipeline" {
     effort 1d
     allocate team
     depends !railway, foundation.ci, service.serve_app
-    note "Merges to main that pass deploy the service, with the app built into it."
+    note "Merges to main that pass deploy the service, with the app built into it. Tests: the pipeline deploys only when scripts/gate (every level) is green, and checks the health check after deploying."
   }
 }

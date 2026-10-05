@@ -4,47 +4,47 @@
 # two drawings everything else uses: the chart and the chord diagram.
 
 task shell "Shell" {
-  depends foundation.app_tooling
+  depends foundation.app_tooling, foundation.e2e_web
 
   task tokens "Themes and tokens" {
     effort 2d
     allocate team
-    note "docs/mockups/theme.css as the app's stylesheet: Estante, Caderno, Palco, densities; automatic theme by the device's light or dark mode; the chosen theme from the home book. Workflow 1."
+    note "docs/mockups/theme.css as the app's stylesheet: Estante, Caderno, Palco, densities; automatic theme by the device's light or dark mode; the chosen theme from the home book. Workflow 1. Tests: unit (the theme chosen by the device's mode and by the home book); behavior (each theme and density rendered on a sample surface, axe contrast at AA); e2e-web (the shell in Estante light and Palco dark on the three viewports, axe)."
   }
   task layout "Navigation and layouts" {
     effort 3d
     allocate team
     depends !tokens
-    note "Phone tab bar (Search, Books, Setlists), tablet and computer splits; React Aria for every interactive part."
+    note "Phone tab bar (Search, Books, Setlists), tablet and computer splits; React Aria for every interactive part. Tests: behavior (tab bar and splits with Testing Library; keyboard navigation; axe); e2e-web (Search, Books and Setlists reached on phone, tablet and computer, axe on each)."
   }
   task i18n "Languages" {
     effort 2d
     allocate team
     depends !layout
-    note "English, Brazilian Portuguese, Latin American Spanish, Italian; the browser's until one is chosen; carried over from Explore Chords."
+    note "English, Brazilian Portuguese, Latin American Spanish, Italian; the browser's until one is chosen; carried over from Explore Chords. Tests: unit (every catalogue complete in the four languages); behavior (switching language re-renders and sets lang); e2e-web (the browser's language chosen on a first load; axe in each language's layout)."
   }
   task chart "The chart" {
     effort 4d
     allocate team
     depends !tokens, cifra_js.reader
-    note "Proportional: sung lines as chords stacked over the syllables they belong to, a centred hyphen where a chord opens room in a word, measures between bar rules, sections; marking for defaults, conflicts, arrange mode. docs/mockups/README.md."
+    note "Proportional: sung lines as chords stacked over the syllables they belong to, a centred hyphen where a chord opens room in a word, measures between bar rules, sections; marking for defaults, conflicts, arrange mode. docs/mockups/README.md. Tests: unit (sung-line layout: chords over syllables, the centred hyphen, measures between bar rules, sections); behavior (corpus songs rendered with Testing Library, defaults, conflicts and arrange-mode marking, axe); e2e-web (a chart on the three viewports without horizontal overflow, axe)."
   }
   task diagram "The chord diagram" {
     effort 1d
     allocate team
     depends !tokens, foundation.music_core_import
-    note "Song's shape in ink, my shape in the chord colour, default hollow; the starting fret as a plain number right-aligned beside the first fret. docs/mockups/ChordBox.dc.html."
+    note "Song's shape in ink, my shape in the chord colour, default hollow; the starting fret as a plain number right-aligned beside the first fret. docs/mockups/ChordBox.dc.html. Tests: unit (the starting fret, the marks for the song's shape, my shape and the default); behavior (rendered with an accessible name, axe)."
   }
   task pwa "Installable and offline" {
     effort 2d
     allocate team
     depends !layout, storage.migrations
-    note "Manifest, icons, the service worker precaching everything, the update taken on the next launch."
+    note "Manifest, icons, the service worker precaching everything, the update taken on the next launch. Tests: behavior (the manifest and icons; an update held until the next launch); e2e-web (offline: loaded on the stack, the network cut, reloaded — the app opens from the precache; an update taken on the next launch)."
   }
   task a11y_chart "A sung line for a screen reader" {
     effort 1d
     allocate team
     depends !chart, design.screen_reader
-    note "The decided reading order, implemented and checked."
+    note "The decided reading order, implemented and checked. Tests: unit (the reading-order text of a sung line, a chart, a diagram and a conflict); behavior (accessible names as design.screen_reader decided, Testing Library and axe); e2e-web (a chart read through the accessibility tree and by keyboard on the three viewports)."
   }
 }

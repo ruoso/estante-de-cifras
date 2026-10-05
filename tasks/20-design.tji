@@ -9,36 +9,36 @@ task design "Design gaps" {
   task instruments "Workflow 15: set up an instrument" {
     effort 2d
     allocate team
-    note "Tunings, a second instrument, switching, the voicing rules with presets and the expert panel. Explore Chords' DESIGN §2.1, 2.5 are the guide. DIRECTION §6."
+    note "Tunings, a second instrument, switching, the voicing rules with presets and the expert panel. Explore Chords' DESIGN §2.1, 2.5 are the guide. DIRECTION §6. Tests: none — design deliverable (the workflow document and its board)."
   }
   task explorer "Workflow 16: the chord explorer" {
     effort 2d
     allocate team
-    note "What 'Explore A on your guitar' opens: fingerings ranked and grouped by position, viewing by notation, starring a shape as my shape. Workflow 2."
+    note "What 'Explore A on your guitar' opens: fingerings ranked and grouped by position, viewing by notation, starring a shape as my shape. Workflow 2. Tests: none — design deliverable (the workflow document and its board)."
   }
   task leaving "Workflow 17: leaving" {
     effort 1d
     allocate team
-    note "Deleting an account and taking one's data out; what happens to books others are members of. DIRECTION §6."
+    note "Deleting an account and taking one's data out; what happens to books others are members of. DIRECTION §6. Tests: none — design deliverable (the workflow document and its board)."
   }
   task screen_reader "How a screen reader reads a sung line" {
     effort 1d
     allocate team
-    note "A decided order for chords and words read aloud, and how a chart, a diagram and a conflict are announced. DIRECTION §6."
+    note "A decided order for chords and words read aloud, and how a chart, a diagram and a conflict are announced. DIRECTION §6. Tests: none — design deliverable (the decided reading order, in a document and on the board); shell.a11y_chart's tests pin it."
   }
   task theme_picker "Draw the theme picker" {
     effort 0.5d
     allocate team
-    note "Decided in workflow 1 (automatic: Estante in light mode, Palco in dark); drawn on the account screen."
+    note "Decided in workflow 1 (automatic: Estante in light mode, Palco in dark); drawn on the account screen. Tests: none — design deliverable (the workflow document and its board)."
   }
   task home_book_format "The home book's format" {
     effort 1d
     allocate team
-    note "Settings as JSON with a time on every key, so 'the later change wins' key by key; the shelf list, labels, instruments, rules, my shapes, theme, language, variation in use, transpositions. Workflows 8, 13."
+    note "Settings as JSON with a time on every key, so 'the later change wins' key by key; the shelf list, labels, instruments, rules, my shapes, theme, language, variation in use, transpositions. Workflows 8, 13. Tests: none — design deliverable (the format decided in a document); storage.home_book's tests pin it."
   }
   task example_book "The example book's songs" {
     effort 2d
     allocate team
-    note "Songs written for the purpose (no one else's words), voiced for guitar, cavaquinho and ukulele, showing sections, words, variations and a setlist. Ships with the app. Workflow 1."
+    note "Songs written for the purpose (no one else's words), voiced for guitar, cavaquinho and ukulele, showing sections, words, variations and a setlist. Ships with the app. Workflow 1. Tests: none in code — each song and the setlist checked canonical with the cifra.md reference before it lands; account.first_run's tests pin them in the app."
   }
 }

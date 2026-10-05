@@ -4,60 +4,60 @@
 # forking, setlists and the file view.
 
 task books "Books" {
-  depends shell.layout
+  depends shell.layout, foundation.e2e_web
 
   task shelf "The book-management screen" {
     effort 2d
     allocate team
     depends storage.home_book
-    note "Title or label, where it lives, can save, sync state; new book; rename on my shelf. Workflow 7."
+    note "Title or label, where it lives, can save, sync state; new book; rename on my shelf. Workflow 7. Tests: behavior (title or label, where it lives, can save, sync state; new book; rename; axe); e2e-web (a new book made and renamed on the three viewports; axe)."
   }
   task online "Put online, remove, delete" {
     effort 2d
     allocate team
     depends !shelf, service.books, sync.engine
-    note "Put online private; remove from my shelf with what would be lost; delete the book (owner, type the name); download. Workflow 7."
+    note "Put online private; remove from my shelf with what would be lost; delete the book (owner, type the name); download. Workflow 7. Tests: behavior (the confirmations: what would be lost, typing the name; axe); e2e-web (on the stack: put a book online, remove it from the shelf, delete it as owner, download it; axe)."
   }
   task add_by_link "Add by invitation and mine on Estante" {
     effort 2d
     allocate team
     depends !online, service.sharing
-    note "An invitation always asks for an account first, then clones as reader or editor; a dead or full link telling nothing about whose book; the user's books not yet on this shelf. Workflows 1, 7."
+    note "An invitation always asks for an account first, then clones as reader or editor; a dead or full link telling nothing about whose book; the user's books not yet on this shelf. Workflows 1, 7. Tests: behavior (the account-first prompt, a dead or full link that says nothing of whose book; axe); e2e-web (a second account opens an invitation from the stack, signs in, clones as reader and as editor; a withdrawn and a full link; axe)."
   }
   task share "Sharing" {
     effort 3d
     allocate team
     depends !online, service.sharing
-    note "People 37 of 50, invitations with role, expiry and uses, who joined, withdraw, remove, a full book; share from a song; the member's view. Workflow 10."
+    note "People 37 of 50, invitations with role, expiry and uses, who joined, withdraw, remove, a full book; share from a song; the member's view. Workflow 10. Tests: behavior (people n of 50, invitations with role, expiry and uses, who joined, withdraw, remove, a full book, the member's view; axe); e2e-web (the two-device journey on the stack: the owner invites, a second person joins in another browser context, both edit and sync to a clean merge; withdraw and remove; axe)."
   }
   task fork "Make it my own" {
     effort 2d
     allocate team
     depends !online, sync.fork_follow, service.books
-    note "Offered by saving where one cannot, losing access, or deliberately; replaces the original on the shelf; from Ana's Choros beneath it. Workflow 11."
+    note "Offered by saving where one cannot, losing access, or deliberately; replaces the original on the shelf; from Ana's Choros beneath it. Workflow 11. Tests: behavior (the three ways in, replacing the original on the shelf, from the original beneath; axe); e2e-web (make it my own after losing access and deliberately, then a new save of the original counted; axe)."
   }
   task upload_ui "Upload preview" {
     effort 2d
     allocate team
     depends sync.upload, !shelf
-    note "Import as a new book or merge into one; song by song; left out and canonicalised; marked files; history that cannot be rewritten. Workflow 7."
+    note "Import as a new book or merge into one; song by song; left out and canonicalised; marked files; history that cannot be rewritten. Workflow 7. Tests: behavior (new book or merge, song by song, left out and canonicalised, marked files, history that cannot be rewritten; axe); e2e-web (a zip uploaded as a new book and merged into one on the three viewports; axe)."
   }
   task setlists "Setlists" {
     effort 4d
     allocate team
     depends cifra_js.setlists, songs.reading
-    note "Open, build (add to setlist, copying from another book), reorder, key and note, missing items pointed at a song; links kept when songs move. Workflow 12."
+    note "Open, build (add to setlist, copying from another book), reorder, key and note, missing items pointed at a song; links kept when songs move. Workflow 12. Tests: unit (keeping links when songs move); behavior (open, build, reorder by drag and by keyboard, key and note, a missing item; axe); e2e-web (build and reorder a setlist on the three viewports, by keyboard on the computer, copying from another book; axe)."
   }
   task play "Playing through" {
     effort 2d
     allocate team
     depends !setlists, music.transpose
-    note "Full screen in the setlist's key, swipe, edge tap or pedal keys, screen kept awake, next song's title, sync waiting. Workflow 12."
+    note "Full screen in the setlist's key, swipe, edge tap or pedal keys, screen kept awake, next song's title, sync waiting. Workflow 12. Tests: behavior (swipe, edge tap and pedal keys; the setlist's key; the next title; axe); e2e-web (play a setlist through on the three viewports, the screen kept awake asked for, sync waiting until the end; axe)."
   }
   task file_view "The file view" {
     effort 4d
     allocate team
     depends storage.history, songs.editor
-    note "The tree with statuses as words, only the allowed kinds, rename keeping its kind and updating setlist links, delete, raw editor, save several files, the book's log with line diffs and per-file restore. Workflow 14."
+    note "The tree with statuses as words, only the allowed kinds, rename keeping its kind and updating setlist links, delete, raw editor, save several files, the book's log with line diffs and per-file restore. Workflow 14. Tests: behavior (the tree with statuses as words, rename keeping its kind and updating setlist links, delete, raw editor, save several, the log with line diffs, per-file restore; axe); e2e-web (the file view on the three viewports: a rename, a raw edit saved with another file, a restore from the log; axe)."
   }
 }

@@ -11,8 +11,13 @@ stops at the first failure:
 
 - **estante-de-cifras** (your working directory): `tj3` on the WBS,
   `scripts/unblocked.py`, then the app (`app/`: npm install if needed, lint,
-  unit tests, build) and the service (`service/`: `go vet`, `go test`,
-  build) when each exists;
+  unit and behavior tests, build); then, once compose.yaml and an e2e
+  harness exist, the compose stack brought up once (preflight for Docker
+  and Playwright's browsers, `docker compose up --build --wait`); the
+  service (`service/`: `go vet`, `go test` — behavior tests against the
+  stack's Postgres — build) when it exists; then e2e-api (`e2e/api/`) and
+  e2e-web (Playwright in `e2e/web/`, phone, tablet and computer, axe); the
+  stack is always torn down;
 - **cifra.md** (checked out at **`$cifra_md_dir`**, and writable): the
   reference's `pytest`, the corpus check (`python -m tools.corpus --check`),
   then `js/` (npm lint, test, build) and `go/` (vet, test, build) when each
@@ -72,9 +77,36 @@ Explore queries to narrow down the responsible site before editing.
 
 ## Fix policy
 
+**Tests land with their task, and a test is the contract.** The task's tests
+are at the levels its refinement names — unit (Vitest, `go test`, pytest),
+behavior (Testing Library plus axe; the Worker against a fake IndexedDB and
+a local git remote; Go handlers through `httptest` against real Postgres and
+git), e2e-api (black-box HTTP and real git clients against the compose
+stack), e2e-web (Playwright on phone, tablet and computer with axe, offline
+where the task is about offline), and the corpus for format work. The closer
+checks that every test the refinement names exists and ran, and refuses to
+commit otherwise.
+
 - Fix the **implementation**, not the test, unless the test itself encodes
-  a bug or stale assumption. Tests are the contract; making them pass by
-  weakening them is never the right answer.
+  a bug or stale assumption — and then correct the test so it still pins
+  what the refinement says it pins, explaining why in your return summary.
+- **You may not delete or weaken a test to get green.** That includes
+  deleting a test or a test file, loosening or removing an assertion,
+  `.skip` / `.only` / `.todo` / `test.fixme` / `t.Skip` / `pytest.mark.skip`
+  / `xfail`, marking a check as an expected failure, dropping a viewport or
+  the offline mode from an e2e-web test, excluding an axe rule or scoping
+  axe away from part of a screen, raising a timeout to hide a race, or
+  removing or renaming a harness, a test file or compose.yaml so that the
+  gate SKIPs instead of failing. A skipped test is a failed task.
+- An **e2e failure** (e2e-api or e2e-web) is a real defect in what the user
+  or a device would see; find it in the code under test. A flaky one is a
+  race in the code or the test's waiting — fix the waiting on a real
+  condition, never with sleeps or retries that hide it.
+- A **preflight failure** (`gate: FAIL estante e2e…` saying Docker, the
+  compose plugin, the daemon or Playwright's browsers are missing) or a
+  stack that does not come up for reasons outside the tree is
+  environmental: STOP and report it — do not touch the harness to get past
+  it.
 - A **corpus failure** (a reading or merge entry whose files disagree with
   an implementation) means the implementation disagrees with the
   specification's agreed bytes. Fix the implementation. Regenerate corpus
@@ -93,8 +125,8 @@ Explore queries to narrow down the responsible site before editing.
 - A **lint failure** is fixed in the code; never by loosening the lint
   configuration.
 - If the failure is in test infrastructure (a fixture, test-runner wiring,
-  an npm script that waits for input), fix that infrastructure. Report this
-  clearly in your return summary.
+  an npm script that waits for input), fix that infrastructure — without
+  lowering what it checks. Report this clearly in your return summary.
 - If you cannot fix the failure in scope (architectural change required,
   environmental issue you can't reach — a missing toolchain, no network for
   an install), STOP and report. The driver caps fix attempts and will
@@ -107,10 +139,13 @@ Explore queries to narrow down the responsible site before editing.
 - **DO NOT run `git push`.**
 - **DO NOT touch any `.tji` file.** Task state is the closer's job.
 - **DO NOT touch the refinement's `## Status` section.** Closer territory.
-- **DO NOT weaken tests** to make them pass.
+- **DO NOT delete, skip or weaken tests** to make them pass (see §Fix
+  policy) — not one assertion, viewport, axe rule or corpus entry.
 - **DO NOT edit the gate or the checkers** (`scripts/gate`, lint and
-  test-runner configuration, `$cifra_md_dir/reference/tools/corpus.py`) —
-  fix the code, not the bar.
+  test-runner configuration, what the e2e harnesses check — their
+  viewports, the axe fixture's WCAG 2.1 AA rules, offline mode — and
+  compose.yaml's healthchecks,
+  `$cifra_md_dir/reference/tools/corpus.py`) — fix the code, not the bar.
 - **No song text, commit messages or secrets in logs**, and no one else's
   copyrighted words in fixtures — the project's rules hold for fixes too.
 - Any build or test you run with a parallelism flag gets an explicit bound

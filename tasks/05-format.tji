@@ -35,30 +35,30 @@ task format "The format" {
     effort 1d
     allocate team
     depends !setlists
-    note "cifra.md: canonical corpus entries for setlists (input, model, canonical text, canonical model), so implementations agree on setlists as on songs. DIRECTION §6."
+    note "cifra.md: canonical corpus entries for setlists (input, model, canonical text, canonical model), so implementations agree on setlists as on songs. DIRECTION §6. Tests: unit (pytest for any reference reader or writer change the new entries surface); corpus (the setlist entries pass `tools.corpus --check` in both directions)."
   }
   task setlist_schema "JSON Schema for the setlist model" {
     effort 1d
     allocate team
     depends !setlists
-    note "cifra.md: the setlist model is described only in prose (§10.6); the corpus's parsed JSON needs a schema as songs have."
+    note "cifra.md: the setlist model is described only in prose (§10.6); the corpus's parsed JSON needs a schema as songs have. Tests: unit (pytest: every setlist model in the corpus validates against the schema, and a malformed one is rejected); corpus (the corpus check validates setlist models against it)."
   }
   task conflicts_schema "JSON Schema for conflicts.json" {
     effort 1d
     allocate team
     depends !merge
-    note "cifra.md: §11.12.5 is normative until a schema exists (chapter 11 open questions)."
+    note "cifra.md: §11.12.5 is normative until a schema exists (chapter 11 open questions). Tests: unit (pytest: every conflicts.json in corpus/merge/ validates, and a malformed one is rejected); corpus (the merge-corpus check validates against it)."
   }
   task render_hyphen "Proportional rendering in §4" {
     effort 0.5d
     allocate team
     depends !sung_layout
-    note "cifra.md: a SHOULD for proportional renderers — segments, and a centred hyphen where a chord opens room inside a word. docs/mockups/README.md."
+    note "cifra.md: a SHOULD for proportional renderers — segments, and a centred hyphen where a chord opens room inside a word. docs/mockups/README.md. Tests: none — specification prose (a SHOULD for proportional renderers); the app's renderer pins it in shell.chart's tests."
   }
   task cross_check "Cross-implementation comparison in CI" {
     effort 2d
     allocate team
     depends !setlist_corpus, cifra_js.conformance, cifra_go.conformance
-    note "cifra.md: CI runs the same random documents through Python, JavaScript and Go and compares bytes; disagreements are settled in the spec. DIRECTION §3.6."
+    note "cifra.md: CI runs the same random documents through Python, JavaScript and Go and compares bytes; disagreements are settled in the spec. DIRECTION §3.6. Tests: unit (the comparison tool's own tests: identical outputs pass, a planted one-byte disagreement is reported with the document that caused it); corpus (CI runs it over generated documents through all three implementations)."
   }
 }

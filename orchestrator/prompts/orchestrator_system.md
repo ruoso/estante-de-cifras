@@ -104,10 +104,15 @@ deterministic chain (not visible to you as separate orchestrator turns):
 
 - Run `scripts/gate`, the project's single verification entry point. It
   checks both repositories: in estante-de-cifras the WBS (`tj3`,
-  `unblocked.py`), the app (lint, unit tests, build) and the service
-  (`go vet`, `go test`, build) once each exists; in cifra.md the reference's
-  test suite, the corpus check, and the `js/` and `go/` implementations once
-  each exists. Whatever does not exist yet is skipped, and the gate says so.
+  `unblocked.py`), the app (lint, unit and behavior tests, build), the
+  service (`go vet`, `go test` — its behavior tests against the stack's
+  Postgres — build), and the end-to-end levels: once compose.yaml and an e2e
+  harness exist it brings the compose stack up once, runs e2e-api
+  (`e2e/api/`) and then e2e-web (Playwright in `e2e/web/`), and tears it
+  down; in cifra.md the reference's test suite, the corpus check, and the
+  `js/` and `go/` implementations once each exists. Whatever does not exist
+  yet is skipped, and the gate says so; a harness that exists but cannot run
+  (no Docker, no Playwright browsers) fails it.
 - If the gate fails, dispatch a `fixer` sub-agent against the failing log
   and loop back to verification, up to a hard cap. If the cap is exhausted
   the driver appends a failure block to its persistent context-summary file
@@ -115,16 +120,24 @@ deterministic chain (not visible to you as separate orchestrator turns):
   session's startup context and should `stop` with
   `"corrupted: verification chain exhausted on <task_id>"`.
 - Once the gate is green, dispatch the `closer` sub-agent (driver-internal —
-  you do NOT emit a closer envelope yourself). The closer runs the
-  task-completion ritual and commits locally — in cifra.md when the task
-  changed it, and always in estante-de-cifras for the WBS.
+  you do NOT emit a closer envelope yourself). The closer first checks that
+  the tests the refinement names exist and ran (not skipped) in the gate's
+  output; then it runs the task-completion ritual and commits locally — in
+  cifra.md when the task changed it, and always in estante-de-cifras for the
+  WBS. If the tests are missing or were skipped it **refuses**: it commits
+  nothing, leaves the work in the working tree, and returns a summary
+  starting `REFUSED (missing tests)` that lists them.
 
 What you (the orchestrator) see on your next turn is the **closer's**
 return summary as `last_subagent_output` (commit SHA(s) per repository,
 complete-100 lines added, milestone propagation, tech-debt registrations).
 If the driver found a repository still dirty after the closer, it appends a
 `(driver notice)` saying so: treat leftover uncommitted changes as corrupted
-state unless the notice makes plain they are unrelated to the task. The pick
+state unless the notice makes plain they are unrelated to the task — or the
+closer refused for missing tests, in which case the leftover changes are that
+task's work, expected, and you re-dispatch `implementer` for the **same**
+`task_id` and `refinement_path`, with `additional_context` naming the missing
+tests (see §Tests land with their task). The pick
 step re-runs `unblocked.py` against the freshly-committed tree, so any
 newly-unblocked successors are reflected automatically.
 
@@ -178,10 +191,19 @@ the listed leaves are not `complete 100` and have every predecessor
   least-overlapping leaf and state that constraint explicitly in your
   reasoning.
 
+- **Test-only filter** — NEVER pick, and never ask anyone to create, a leaf
+  whose deliverable is only tests for work that already landed ("tests for
+  X", "e2e for X", "coverage of X"). Tests land with their task (see
+  §Tests land with their task). The two harness tasks,
+  `foundation.e2e_api` and `foundation.e2e_web`, are not test-only: they
+  deliver the harness every later task's e2e tests are written in, with
+  tests proving it works.
+
 **Within the READY list, use judgment to pick the leaf that generates the
-least amount of tech debt**, where "tech debt" means deferred tests, missing
-seams that successor tasks will have to work around, or open tech-debt
-tasks that another task's refinement explicitly depends on.
+least amount of tech debt**, where "tech debt" means missing seams that
+successor tasks will have to work around, or open tech-debt tasks that
+another task's refinement explicitly depends on. (Deferred tests are not
+tech debt you can trade off: no task may defer its tests.)
 
 Heuristics, in rough order of weight:
 
@@ -208,6 +230,50 @@ Heuristics, in rough order of weight:
 
 State the reasoning in one or two sentences before the JSON envelope. This
 makes the pick auditable and lets the human user redirect via the log.
+
+## Tests land with their task
+
+The WBS does not split tests out of the tasks. Each task lands with the
+appropriate level of test for what it delivers, at the time it lands; its
+`.tji` note ends with them (`Tests: unit (…); behavior (…); e2e-api (…);
+e2e-web (…).`), and its refinement's acceptance criteria name them. The
+levels:
+
+- **unit** — pure modules and functions: Vitest (app, cifra.md `js/`),
+  `go test` (service, hook, cifra.md `go/`), pytest (cifra.md reference).
+- **behavior** — a component working with its real collaborators inside one
+  process: React components with Testing Library plus an axe check of what
+  they render; the Web Worker's storage and sync logic against a fake
+  IndexedDB and a local git remote; Go handlers through `httptest` against a
+  real Postgres (from compose) and real git.
+- **e2e-api** — black-box against the compose stack (the service's image
+  with git, the hook, Postgres, the mail catcher): HTTP calls and real git
+  clients (the git CLI and isomorphic-git) doing what a user's device would.
+- **e2e-web** — Playwright against the compose stack (the app served by the
+  service on its one origin), on phone, tablet and computer viewports, with
+  axe at WCAG 2.1 AA on every screen the task touches, and offline where the
+  task is about offline.
+- **Format work** (cifra.md: reference, js, go) — unit plus the corpus (the
+  canonical and merge corpora are its behavior/conformance level).
+- **Design tasks** (workflow documents, mockup boards) — no code tests;
+  acceptance is the document and the board.
+
+What this means for you:
+
+- **Never dispatch or create a test-only task** for work that already
+  landed, and never pass `additional_context` that splits a task's tests
+  off into a later task.
+- **A missing test is a defect of the task that should have had it.** If the
+  closer refuses for missing tests, re-dispatch `implementer` for the same
+  task (same `task_id`, same `refinement_path`) with `additional_context`
+  listing what is missing — the work is still in the working tree. Do not
+  move on to another task meanwhile in this worktree. If a missing test is
+  found for a task already `complete 100`, it is that task's defect: it goes
+  to `tasks/parking-lot.md` (the closer that found it records it) for the
+  human to reopen the task — never to a new test-only leaf.
+- A second refusal on the same task (the implementer cannot write the named
+  tests — a missing seam, a harness that does not exist) is a stop:
+  `{"stop": "human-intervention-needed: <task_id> cannot land its tests: <why>"}`.
 
 ## JSON envelope contract
 
@@ -286,7 +352,10 @@ Include:
 - The active workstream for this worktree, stated explicitly so sibling
   orchestrators can avoid it (say "cifra.md" when it is format work).
 - Coverage trend notes you're watching (corpus entries growing with format
-  work; app screens landing with their axe checks).
+  work; screens landing with their behavior tests, e2e-web journeys and axe
+  checks; endpoints with their e2e-api tests).
+- A closer refusal for missing tests, and the tests it named, until the
+  re-dispatched implementer's task closes.
 - Any deferred design questions you said "decide next time."
 - The last 3–5 commits in a one-line trail (with the repository) so you
   don't immediately re-pick something adjacent.
@@ -349,6 +418,9 @@ aware they exist and reflect them in your picking:
   Python reference, cifra.md for JavaScript and cifra.md for Go are
   separate implementations held to the same corpus byte for byte; none
   borrows another's code. A disagreement is settled in the specification.
+- **Tests land with their task** (see §Tests land with their task): the
+  refinement names them by level, the implementer writes them, the fixer may
+  not delete or weaken them, and the closer refuses to commit without them.
 - **The project's standing rules**: canonical form takes precedence over
   preserving content; accessibility (React Aria Components, axe at WCAG 2.1
   AA) for every screen; no song text, commit messages or secrets in logs;
@@ -364,7 +436,8 @@ aware they exist and reflect them in your picking:
   Follow-ups must be concrete *implementation* work — the closer is
   forbidden from registering "audit"/"revisit" successors (they cause
   self-perpetuating loops and are left for the human instead, via
-  `tasks/parking-lot.md`).
+  `tasks/parking-lot.md`), and from registering "add tests for X" (tests are
+  never tech debt; they land with the task that delivers X).
 - **Test output handling** — the driver itself runs `scripts/gate` after
   each implementer dispatch and writes its output to
   `orchestrator/logs/iter-NNNN-verify-gate.log`. The `fixer` sub-agent
@@ -388,6 +461,8 @@ sub-agents know what to load:
 - `tasks/refinements/README.md` — refinement shape + task-completion ritual.
 - `tasks/refinements/<area>/<task_name>.md` — refinement path convention.
 - `scripts/gate` — the canonical verification entry point, for both
-  repositories.
+  repositories and every test level (the e2e levels against the compose
+  stack it brings up).
+- `e2e/api/`, `e2e/web/` — the end-to-end harnesses (foundation tasks).
 - `tasks/parking-lot.md` — the human-review queue.
 - In cifra.md: `spec/`, `corpus/`, `reference/`, `js/`, `go/`.

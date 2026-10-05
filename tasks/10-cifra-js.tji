@@ -9,60 +9,60 @@ task cifra_js "cifra.md for JavaScript" {
   task package "Package and corpus harness" {
     effort 1d
     allocate team
-    note "cifra.md: js/ package (ES modules, no runtime dependencies), Vitest, a harness running every corpus entry's checks in both directions."
+    note "cifra.md: js/ package (ES modules, no runtime dependencies), Vitest, a harness running every corpus entry's checks in both directions. Tests: unit (Vitest: the harness finds every corpus entry and fails on a planted mismatch); corpus (every entry enumerated, the checks the package cannot pass yet wired as expected failures by name, flipped by the tasks that make them pass — never skipped)."
   }
   task text_layer "Text layer" {
     effort 1d
     allocate team
     depends !package
-    note "cifra.md: §1.3 — UTF-8, NFC, LF, U+FEFF, tabs, whitespace as U+0020 only, marker lines."
+    note "cifra.md: §1.3 — UTF-8, NFC, LF, U+FEFF, tabs, whitespace as U+0020 only, marker lines. Tests: unit (each §1.3 rule: NFC, LF, U+FEFF, tabs, whitespace, marker lines); corpus (the text-layer checks of the entries that exercise them flipped to passing)."
   }
   task chords "Chord symbols and dialects" {
     effort 2d
     allocate team
     depends !text_layer
-    note "cifra.md: §5 grammar, the canonical chord model, the three dialects and their ambiguities. Explore Chords' core/notation is the guide."
+    note "cifra.md: §5 grammar, the canonical chord model, the three dialects and their ambiguities. Explore Chords' core/notation is the guide. Tests: unit (the §5 grammar in each dialect, its ambiguities, the canonical chord model; Explore Chords' notation cases as a guide); corpus (the chord-symbol entries)."
   }
   task reader "Reader" {
     effort 6d
     allocate team
     depends !chords
-    note "cifra.md: §1-7 — metadata, sections, fences, chord lines, repeats, sung lines with attachment and the layout convergence pass (§4.5), tunings, voicings, diagnostics."
+    note "cifra.md: §1-7 — metadata, sections, fences, chord lines, repeats, sung lines with attachment and the layout convergence pass (§4.5), tunings, voicings, diagnostics. Tests: unit (each §1-7 construct and every diagnostic, sung-line attachment and the §4.5 convergence pass); corpus (input to model for every entry)."
   }
   task writer "Canonical writer" {
     effort 4d
     allocate team
     depends !reader
-    note "cifra.md: §8 — invariants I1-I5, the numbered serializer, sung-line printing, refusing marked texts."
+    note "cifra.md: §8 — invariants I1-I5, the numbered serializer, sung-line printing, refusing marked texts. Tests: unit (invariants I1-I5, sung-line printing, a marked text refused); corpus (model to canonical text and canonical text to canonical model, every entry, byte for byte)."
   }
   task setlists "Setlists" {
     effort 2d
     allocate team
     depends !text_layer, format.setlist_corpus
-    note "cifra.md: chapter 10 reader, canonical writer and editing operations."
+    note "cifra.md: chapter 10 reader, canonical writer and editing operations. Tests: unit (chapter 10 reader, writer and each editing operation); corpus (the setlist entries from format.setlist_corpus, both directions)."
   }
   task editing "Editing operations" {
     effort 2d
     allocate team
     depends !writer
-    note "cifra.md: §8.5 — choose a shape for an occurrence or a key, clear, many at once, add a variation; what the arrange mode and the wizard call."
+    note "cifra.md: §8.5 — choose a shape for an occurrence or a key, clear, many at once, add a variation; what the arrange mode and the wizard call. Tests: unit (each §8.5 operation on corpus songs — one occurrence, a key, clear, many at once, a new variation — its output canonical and re-read to the expected model)."
   }
   task merge "Merge" {
     effort 8d
     allocate team
     depends !writer, !setlists, format.merge
-    note "cifra.md: chapter 11 — whole files, alignment, chart, footnote markers with the grouping merged three ways, voicings, setlists, the conflict model and marked text. Held to corpus/merge/."
+    note "cifra.md: chapter 11 — whole files, alignment, chart, footnote markers with the grouping merged three ways, voicings, setlists, the conflict model and marked text. Held to corpus/merge/. Tests: unit (alignment, the chart, footnote markers, voicings, setlists, the conflict model and marked text, chapter 11 section by section); corpus (every corpus/merge/ entry: merged text and conflicts.json)."
   }
   task diff "Diff in musical terms" {
     effort 3d
     allocate team
     depends !reader
-    note "The summary the save sheet, history and previews show: 'Verse bar 5: G7 -> D♭7; voicings for G4 C4 E4 A4 added'. Not in the spec; the app's own. Workflows 4, 6."
+    note "The summary the save sheet, history and previews show: 'Verse bar 5: G7 -> D♭7; voicings for G4 C4 E4 A4 added'. Not in the spec; the app's own. Workflows 4, 6. Tests: unit (the summary for each kind of change the save sheet and history show — chords, sections, words, voicings, properties — on songs written for the purpose)."
   }
   task conformance "Conformance" {
     effort 2d
     allocate team
     depends !writer, !setlists, !merge
-    note "cifra.md: every corpus and merge-corpus entry passes; the property tests of §11.3 ported; the Merger profile of §9 claimed."
+    note "cifra.md: every corpus and merge-corpus entry passes; the property tests of §11.3 ported; the Merger profile of §9 claimed. Tests: unit (the §11.3 property tests ported); corpus (every canonical and merge entry passing, no expected failure left; the Merger profile claimed)."
   }
 }

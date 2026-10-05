@@ -4,41 +4,41 @@
 # its limits. Workflow 14, What the service checks.
 
 task hook "The pre-receive hook" {
-  depends service.git_http
+  depends service.git_http, foundation.e2e_api
 
   task refs "Refs and history" {
     effort 1d
     allocate team
-    note "Only refs/heads/main, no tags or notes, no deletion, fast-forward only."
+    note "Only refs/heads/main, no tags or notes, no deletion, fast-forward only. Tests: behavior (the hook installed in a real bare repository, pushed to with the git CLI: a tag, a note, another branch, a deletion and a non-fast-forward each refused; a fast-forward to main accepted); e2e-api (a non-fast-forward push from the git CLI refused by the stack)."
   }
   task stowaways "No stowaways" {
     effort 2d
     allocate team
     depends !refs
-    note "List every object in quarantine and compare with rev-list --objects from the new head, excluding what the repository already had; one object more refuses the push."
+    note "List every object in quarantine and compare with rev-list --objects from the new head, excluding what the repository already had; one object more refuses the push. Tests: behavior (the hook installed in a real bare repository, pushed to with the git CLI: a pack carrying an object unreachable from the new head refused; a push reusing objects the repository already had accepted); e2e-api (a crafted pack with a stowaway pushed to the stack and refused)."
   }
   task contents "What a book may hold" {
     effort 2d
     allocate team
     depends !stowaways
-    note "Every blob reachable from a new commit: path against the allowed kinds (*.cifra.md, *.setlist.md, README.md, .gitattributes as the app writes it), regular files only, UTF-8, 256 KB; trees and commits of reasonable size."
+    note "Every blob reachable from a new commit: path against the allowed kinds (*.cifra.md, *.setlist.md, README.md, .gitattributes as the app writes it), regular files only, UTF-8, 256 KB; trees and commits of reasonable size. Tests: unit (path and kind rules, UTF-8, sizes); behavior (the hook installed in a real bare repository, pushed to with the git CLI: each disallowed path, a symlink, a non-UTF-8 file, a file over 256 KB refused; .gitattributes as the app writes it accepted)."
   }
   task canonical "Canonical form" {
     effort 2d
     allocate team
     depends !contents, cifra_go.writer, cifra_go.setlists, cifra_go.versions
-    note "Every song and setlist in a new commit canonical under the current or the previous form; README.md held to the text rules; marker lines refused."
+    note "Every song and setlist in a new commit canonical under the current or the previous form; README.md held to the text rules; marker lines refused. Tests: unit (the check over songs, setlists and README.md); behavior (the hook installed in a real bare repository, pushed to with the git CLI: a non-canonical song refused, a song in the previous form accepted, a marked file refused, README.md held to the text rules); e2e-api (isomorphic-git pushing a non-canonical song refused by the stack)."
   }
   task limits "Limits" {
     effort 1d
     allocate team
     depends !contents
-    note "50 MB per book, the account's remaining quota from ESTANTE_* in the environment, receive.maxInputSize, receive.fsckObjects."
+    note "50 MB per book, the account's remaining quota from ESTANTE_* in the environment, receive.maxInputSize, receive.fsckObjects. Tests: behavior (the hook installed in a real bare repository, pushed to with the git CLI: a book over 50 MB, a push over the account's remaining quota from ESTANTE_*, receive.maxInputSize, a corrupt object caught by fsck — each refused); e2e-api (a push over the account's quota, set in Postgres, refused by the stack)."
   }
   task messages "Refusal messages" {
     effort 1d
     allocate team
     depends !canonical, !limits
-    note "Each refusal names what failed, through git's own channel, readable by isomorphic-git and the app."
+    note "Each refusal names what failed, through git's own channel, readable by isomorphic-git and the app. Tests: unit (one message per refusal, naming what failed); e2e-api (the whole refusal matrix against the stack, each message read as the git CLI and isomorphic-git present it)."
   }
 }

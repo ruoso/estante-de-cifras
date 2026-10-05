@@ -9,60 +9,60 @@ task storage "Storage" {
   task worker "The Worker and its store protocol" {
     effort 3d
     allocate team
-    note "One owner for the data; messages to the main thread's store, read through useSyncExternalStore. The main thread never touches IndexedDB. DIRECTION §3.7."
+    note "One owner for the data; messages to the main thread's store, read through useSyncExternalStore. The main thread never touches IndexedDB. DIRECTION §3.7. Tests: unit (the message protocol, the store's reducer); behavior (the store fed by the Worker's logic in-process against a fake IndexedDB; components reading slices through useSyncExternalStore re-render only on their change — Testing Library). Sets up the behavior level for the Worker: fake IndexedDB and a local git remote served over HTTP inside the test."
   }
   task fs "The filesystem layer" {
     effort 2d
     allocate team
     depends !worker
-    note "lightning-fs behind a small interface, so OPFS can replace it; navigator.storage.persist()."
+    note "lightning-fs behind a small interface, so OPFS can replace it; navigator.storage.persist(). Tests: unit (the filesystem interface's contract suite, run against lightning-fs on a fake IndexedDB so OPFS can later pass the same suite); behavior (persist() asked for once)."
   }
   task git "isomorphic-git" {
     effort 3d
     allocate team
     depends !fs
-    note "Clone, fetch and push with credentials included to the one origin, protocol v1, a custom HTTP client; never getRemoteInfo2 for push."
+    note "Clone, fetch and push with credentials included to the one origin, protocol v1, a custom HTTP client; never getRemoteInfo2 for push. Tests: behavior (clone, fetch and push against a local git remote over HTTP; credentials included by the custom client; protocol v1; push never calls getRemoteInfo2)."
   }
   task working_copy "Working copy, save and discard" {
     effort 3d
     allocate team
     depends !git, !locks, cifra_js.writer
-    note "Real files written as the user types; save = canonicalise, commit one file or several, then push; discard; author as the per-user no-reply address. Workflows 3, 4, 14."
+    note "Real files written as the user types; save = canonicalise, commit one file or several, then push; discard; author as the per-user no-reply address. Workflows 3, 4, 14. Tests: unit (the author's no-reply address, canonicalising before commit); behavior (type, save one file and several, discard; the commit holds canonical text; push to the local remote; a marked text refused — workflows 3, 4, 14)."
   }
   task locks "One lock per book" {
     effort 1d
     allocate team
     depends !git
-    note "Web Locks around every git operation, so two tabs never interleave."
+    note "Web Locks around every git operation, so two tabs never interleave. Tests: behavior (two operations on one book serialised, on two books not; a second tab's operation waits — Web Locks in the test environment)."
   }
   task home_book "The home book" {
     effort 2d
     allocate team
     depends !working_copy, design.home_book_format
-    note "Committed automatically; settings and the shelf list; merged key by key, the later change winning. Workflows 1, 8, 13."
+    note "Committed automatically; settings and the shelf list; merged key by key, the later change winning. Workflows 1, 8, 13. Tests: unit (the key-by-key merge, the later change winning, equal times); behavior (settings changed in two working copies merged through the local remote, committed automatically)."
   }
   task index "The search index" {
     effort 3d
     allocate team
     depends !working_copy, cifra_js.reader
-    note "MiniSearch with accent folding; title, properties, sections, words, chords; keyed by blob hash; covers unsaved work; kept in IndexedDB. Workflow 2."
+    note "MiniSearch with accent folding; title, properties, sections, words, chords; keyed by blob hash; covers unsaved work; kept in IndexedDB. Workflow 2. Tests: unit (accent folding, the fields, ranking); behavior (the index built in the Worker from a book, updated on save and on unsaved edits, kept across a restart in a fake IndexedDB, keyed by blob hash so unchanged files are not re-read)."
   }
   task history "History" {
     effort 2d
     allocate team
     depends !working_copy
-    note "A song's log following renames, merges hidden unless resolved, versions read as they were, restore into the working copy; the book's whole log for the file view. Workflows 6, 14."
+    note "A song's log following renames, merges hidden unless resolved, versions read as they were, restore into the working copy; the book's whole log for the file view. Workflows 6, 14. Tests: behavior (a song's log following a rename, merges hidden unless resolved, a version read as it was, restore into the working copy, the book's whole log — against a repository built in the test)."
   }
   task download "Download a book" {
     effort 1d
     allocate team
     depends !working_copy
-    note "Zip of the repository as it is on the device, working tree and unsaved changes included, remote removed; Explore Chords' zip writer. Workflow 7."
+    note "Zip of the repository as it is on the device, working tree and unsaved changes included, remote removed; Explore Chords' zip writer. Workflow 7. Tests: behavior (the zip of a book with unsaved changes holds the working tree and its .git with no remote; unpacked, the git CLI shows the same log and the unsaved changes)."
   }
   task migrations "On-device versions" {
     effort 1d
     allocate team
     depends !worker
-    note "Versioned migrations of what the Worker keeps in IndexedDB; an app update applied on the next launch, never mid-song."
+    note "Versioned migrations of what the Worker keeps in IndexedDB; an app update applied on the next launch, never mid-song. Tests: unit (each migration step); behavior (a store at version N opened by N+1 in a fake IndexedDB and migrated; an update held until the next launch)."
   }
 }

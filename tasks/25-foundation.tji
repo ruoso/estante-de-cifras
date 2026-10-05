@@ -1,7 +1,8 @@
 # 25 — Foundation
 #
-# The monorepo, its tooling, the API contract, and running everything locally
-# as in production.
+# The monorepo, its tooling, the API contract, running everything locally as
+# in production, CI, and the two end-to-end harnesses every later task's
+# e2e tests are written in. The harnesses land before anything needs them.
 
 task foundation "Foundation" {
   depends bootstrap.architecture
@@ -9,42 +10,54 @@ task foundation "Foundation" {
   task monorepo "Monorepo layout" {
     effort 1d
     allocate team
-    note "app/, service/ (cmd/service, cmd/pre-receive), api/, docs/, compose.yaml. DIRECTION §3.6 Repositories."
+    note "app/, service/ (cmd/service, cmd/pre-receive), api/, e2e/ (api/ and web/, the end-to-end harnesses), docs/, compose.yaml. DIRECTION §3.6 Repositories. Tests: none — directories and ignore rules only; scripts/gate keeps passing over the new layout."
   }
   task app_tooling "App tooling" {
     effort 2d
     allocate team
     depends !monorepo
-    note "Vite, React 19 with the React Compiler, React Aria Components, the PWA plugin, Vitest + Testing Library, Playwright, axe. DIRECTION §3.7."
+    note "Vite, React 19 with the React Compiler, React Aria Components, the PWA plugin, Vitest + Testing Library with an axe matcher for the behavior level (Playwright belongs to foundation.e2e_web). DIRECTION §3.7. Tests: unit (a first Vitest test, so the gate runs app/'s `test`); behavior (one component rendered with Testing Library and checked with axe at WCAG 2.1 AA, proving the set-up every UI task uses)."
   }
   task music_core_import "Bring the music core over, with its history" {
     effort 1d
     allocate team
     depends !app_tooling
-    note "git filter-repo of Explore Chords' src/core (minus song.js) and src/render into app/src/core, tests passing; the DESIGN sections that explain it. DIRECTION §5, §5.1."
+    note "git filter-repo of Explore Chords' src/core (minus song.js) and src/render into app/src/core, tests passing; the DESIGN sections that explain it. DIRECTION §5, §5.1. Tests: unit (Explore Chords' own core and render tests, carried over with their history and passing under app/'s Vitest)."
   }
   task service_skeleton "Service skeleton" {
     effort 1d
     allocate team
     depends !monorepo
-    note "Go module, net/http, config, structured logging of request metadata only (never song text, commit messages or secrets), health check. DIRECTION §3.6."
+    note "Go module, net/http, config, structured logging of request metadata only (never song text, commit messages or secrets), health check. DIRECTION §3.6. Tests: unit (config from the environment; the log line carries method, path, status and duration and never a body); behavior (the health check through httptest)."
   }
   task api_contract "API contract" {
     effort 2d
     allocate team
     depends !monorepo
-    note "api/: sign-in, books, the shelf change check, sharing and invitations, git — both sides tested against it. DIRECTION §3.6 The API."
+    note "api/: sign-in, books, the shelf change check, sharing and invitations, git — both sides tested against it. DIRECTION §3.6 The API. Tests: unit (the contract document validates; the small helper both sides' tests use to check a request or response against it, tested on a conforming and a non-conforming sample)."
   }
   task compose "Everything locally, as in production" {
     effort 2d
     allocate team
     depends !service_skeleton, !app_tooling
-    note "compose.yaml: Postgres, the service's image with git, the hook and the built app on one origin, a local mail catcher; the app's dev server proxying the API. DIRECTION §3.6."
+    note "compose.yaml: Postgres, the service's image with git, the hook and the built app on one origin, a local mail catcher with an HTTP API; a healthcheck on every service so `docker compose up --wait` means ready; published ports and Postgres credentials read from the variables scripts/gate sets (ESTANTE_HTTP_PORT, ESTANTE_PG_PORT, ESTANTE_MAIL_PORT, ESTANTE_PG_USER/PASSWORD/DB, with defaults), so the gate can run an isolated stack beside a developer's; the app's dev server proxying the API. DIRECTION §3.6. Tests: none of its own — `docker compose config` valid; the stack is proven by foundation.e2e_api's smoke tests, which land next."
   }
   task ci "CI" {
     effort 1d
     allocate team
     depends !compose
-    note "GitHub Actions: app unit tests, Go tests, end-to-end tests against compose."
+    note "GitHub Actions calling scripts/gate and nothing else — both repositories (cifra.md checked out beside), with Docker and Playwright's browsers installed so the gate's e2e level runs once the harnesses exist. Tests: none of its own — the workflow runs scripts/gate green on a push."
+  }
+  task e2e_api "End-to-end API harness" {
+    effort 2d
+    allocate team
+    depends !ci
+    note "e2e/api/: a black-box test package (Node, Vitest; `npm test` takes `--maxWorkers`) run against the compose stack scripts/gate brings up — the service's image with git, the hook, Postgres, the mail catcher — at ESTANTE_E2E_BASE_URL and ESTANTE_E2E_MAIL_URL; helpers for HTTP calls with a session, reading mail from the catcher, and real git clients doing what a device would: the git CLI and isomorphic-git in Node. The stack's Postgres is also what the Go behavior tests use (ESTANTE_TEST_DATABASE_URL). DIRECTION §3.6. Tests: e2e-api (the harness's own: the stack is up and the health check answers; the mail catcher's API answers; the git CLI and isomorphic-git helpers init, commit and clone a local repository)."
+  }
+  task e2e_web "End-to-end web harness" {
+    effort 2d
+    allocate team
+    depends !e2e_api, service.serve_app
+    note "e2e/web/: Playwright against the compose stack (the app served by the service on its one origin), run by scripts/gate with an explicit `--workers`; three projects — phone, tablet and computer viewports — so every test runs on all three; an axe fixture that checks WCAG 2.1 AA on every screen a test visits and fails on any violation; an offline mode (network cut after load, reload, network back); two-device helpers (two browser contexts, two accounts). DIRECTION §3.6, §3.7. Tests: e2e-web (the harness's own: the app loads at the origin on all three viewports; the axe fixture passes a clean page and fails a fixture page with a planted violation; offline mode cuts and restores the network)."
   }
 }
