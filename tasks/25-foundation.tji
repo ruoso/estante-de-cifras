@@ -62,10 +62,16 @@ task foundation "Foundation" {
     depends !ci
     note "e2e/api/: a black-box test package (Node, Vitest; `npm test` takes `--maxWorkers`) run against the compose stack scripts/gate brings up — the service's image with git, the hook, Postgres, the mail catcher — at ESTANTE_E2E_BASE_URL and ESTANTE_E2E_MAIL_URL; helpers for HTTP calls with a session, reading mail from the catcher, and real git clients doing what a device would: the git CLI and isomorphic-git in Node. The stack's Postgres is also what the Go behavior tests use (ESTANTE_TEST_DATABASE_URL). DIRECTION §3.6. Tests: e2e-api (the harness's own: the stack is up and the health check answers; the mail catcher's API answers; the git CLI and isomorphic-git helpers init, commit and clone a local repository). Refinement: tasks/refinements/foundation/e2e_api.md"
   }
+  task app_sw_register "Register service worker on app load" {
+    effort 0.5d
+    allocate team
+    depends !app_tooling
+    note "app/src/main.jsx: import `virtual:pwa-register` and call `registerSW()` so the precached shell controls the page and the app works offline. VitePWA sets `injectRegister: null` and `registerType: 'prompt'`; without this call the service worker is never registered, `navigator.serviceWorker.ready` never resolves, and the offline-first promise (DIRECTION §1 lines 29–31, §3.7 lines 405/424–426) is not kept. Unblocks foundation.e2e_web whose offline smoke test requires the worker to control the page. Source: foundation.e2e_web re-defer (tasks/refinements/foundation/e2e_web.md). Tests: behavior (mock `virtual:pwa-register`, assert registerSW() is called on startup)."
+  }
   task e2e_web "End-to-end web harness" {
     effort 2d
     allocate team
-    depends !e2e_api, service.serve_app
-    note "e2e/web/: Playwright against the compose stack (the app served by the service on its one origin), run by scripts/gate with an explicit `--workers`; three projects — phone, tablet and computer viewports — so every test runs on all three; an axe fixture that checks WCAG 2.1 AA on every screen a test visits and fails on any violation; an offline mode (network cut after load, reload, network back); two-device helpers (two browser contexts, two accounts). DIRECTION §3.6, §3.7. Tests: e2e-web (the harness's own: the app loads at the origin on all three viewports; the axe fixture passes a clean page and fails a fixture page with a planted violation; offline mode cuts and restores the network)."
+    depends !e2e_api, !app_sw_register, service.serve_app
+    note "e2e/web/: Playwright against the compose stack (the app served by the service on its one origin), run by scripts/gate with an explicit `--workers`; three projects — phone, tablet and computer viewports — so every test runs on all three; an axe fixture that checks WCAG 2.1 AA on every screen a test visits and fails on any violation; an offline mode (network cut after load, reload, network back); two-device helpers (two browser contexts, two accounts). DIRECTION §3.6, §3.7. Tests: e2e-web (the harness's own: the app loads at the origin on all three viewports; the axe fixture passes a clean page and fails a fixture page with a planted violation; offline mode cuts and restores the network). Refinement: tasks/refinements/foundation/e2e_web.md"
   }
 }

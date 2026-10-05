@@ -83,3 +83,9 @@ Append one `###` block per item, newest at the bottom:
 - **Source**: closer for `design.instruments` (tasks/refinements/design/instruments.md).
 - **Question**: The W15 board (`docs/mockups/W15-set-up-an-instrument.dc.html`) is written and registered in `canvas.json`, but the published canvas on Diagram.Codes (or wherever it is hosted) needs to be updated to include it. The implementer cannot render or publish the board.
 - **Why parked**: work only a person can do — requires publishing access to the external canvas host.
+
+### 2026-10-05 — foundation.e2e_web re-deferred: app does not register its service worker
+
+- **Source**: closer for `foundation.e2e_web` (re-defer — no commit, nothing landed).
+- **Question**: The task halted because `app/src/main.jsx` never calls `registerSW()` and VitePWA's `injectRegister: null` means the service worker is never registered. The offline smoke test (`offline.spec.js`) cannot pass without fixing the app — which is outside the harness task's scope. **Concrete trigger to unblock**: `foundation.app_sw_register` must reach `complete 100` before `foundation.e2e_web` is re-attempted. That task is now registered in `tasks/25-foundation.tji` with `depends !app_tooling` and `foundation.e2e_web` updated to `depends !e2e_api, !app_sw_register, service.serve_app`.
+- **Why parked**: informational record of the re-defer; no human judgment needed — the prerequisite task is in the WBS and the orchestrator will pick it up.
