@@ -501,9 +501,10 @@ workflows do not yet cover, and work that comes before building:
 - **Setting up an instrument**: tunings, a second instrument, the voicing
   rules with their presets and expert panel. Half of Explore Chords, and the
   reading view depends on it, but no workflow designs it yet.
-- **The chord explorer's screen**: workflow 2 makes it a search result,
-  not what it shows — fingerings ranked and grouped by position, starring a
-  shape as *my shape*.
+- **The chord explorer's screen**, decided and drawn: workflow 16
+  ([workflows/16-chord-explorer.md](workflows/16-chord-explorer.md)). Workflow 2
+  made it a search result; workflow 16 is what it shows — fingerings ranked and
+  grouped by position, viewing by notation, starring a shape as *my shape*.
 - **Leaving**: deleting an account and taking one's data out, and what
   happens to books others are members of.
 - **How a screen reader reads a sung line**: an order for chords and words
@@ -513,9 +514,12 @@ workflows do not yet cover, and work that comes before building:
 ## 7. Workflows
 
 Worked through one at a time, in [workflows/](workflows/), each to the point
-where its screens and its edge cases are known; all fourteen are decided, and
-each is drawn on a phone, a tablet and a computer in [mockups/](mockups/),
-with the visual language they share. Roughly in the order a user meets them:
+where its screens and its edge cases are known, and each drawn on a phone, a
+tablet and a computer in [mockups/](mockups/), with the visual language they
+share. The first fourteen were decided together; the design-gap workflows of
+§6 join them as each is drawn — workflow 16 here, with workflow 15 (setting up
+an instrument) still a gap, so the numbering skips it for now. Roughly in the
+order a user meets them:
 
 1. **First run** — what a new user sees, and how they reach a song.
 2. **Find and play a song** — search, open, read, choose an instrument and a
@@ -535,6 +539,8 @@ with the visual language they share. Roughly in the order a user meets them:
 13. **A new device** — signing in, getting the home book and the books back.
 14. **The file view** — what an advanced user does there, and how it relates
     to the song views.
+16. **The chord explorer** — fingerings ranked and grouped by position,
+    viewing by notation, starring a shape as *my shape*.
 
 ## 8. Later
 

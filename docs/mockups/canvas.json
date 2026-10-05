@@ -121,6 +121,13 @@
    "w": 3208,
    "h": 1500,
    "title": "14. The file view"
+  },
+  "W16-chord-explorer.dc.html": {
+   "x": 0,
+   "y": 25100,
+   "w": 3208,
+   "h": 1500,
+   "title": "16. The chord explorer"
   }
  },
  "order": [
@@ -139,7 +146,8 @@
   "W11-fork.dc.html",
   "W12-setlists.dc.html",
   "W13-new-device.dc.html",
-  "W14-file-view.dc.html"
+  "W14-file-view.dc.html",
+  "W16-chord-explorer.dc.html"
  ],
  "notes": {
   "workflows": {

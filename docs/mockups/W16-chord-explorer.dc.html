@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>16. The chord explorer</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 16</div>
+    <h1 class="board-title">The chord explorer</h1>
+    <p class="board-sub">What “Explore A on your guitar” opens: every shape for a chord on the instrument in use, ranked easiest first and grouped by position, each with a difficulty word and a star. Starring keeps it as your shape in the home book — never into a song. The same ranked-and-grouped list the in-song picker uses (workflow 5).</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · exploring A on guitar, one shape starred; then an empty state</div>
+      <div class="dev-pair">
+        <!-- Phone 1: the explorer for A on guitar -->
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back to search"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Explore a chord</span>
+              <button class="chip accent" aria-label="Guitar, change instrument">Guitar</button>
+            </div>
+            <div style="padding: 12px 16px 6px; display: flex; flex-direction: column; gap: 6px">
+              <label class="t-h3" for="w16-chord-p">Chord</label>
+              <input class="input" id="w16-chord-p" type="text" value="A" style="font: 700 22px var(--font-chart); color: var(--chord)">
+            </div>
+            <div class="scroll" style="gap: 14px; padding-top: 10px">
+              <div class="list">
+                <a class="row explore" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M12 5v14M5 12h14"></path></svg><span class="grow"><span class="name">Enter a shape</span><span class="meta">place the fingers by hand, then star it</span></span></a>
+              </div>
+
+              <section style="display: flex; flex-direction: column; gap: 8px">
+                <div class="section-label"><span class="t-h3">Open</span><span class="t-small">6 shapes</span></div>
+                <div class="shapes" style="flex-wrap: nowrap; overflow: hidden; align-items: flex-start">
+                  <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none">
+                    <dc-import name="ChordBox" chord="A" frets="x02220" kind="yours" size="s" inherit="yes" hint-size="64px,94px"></dc-import>
+                    <div style="display: flex; align-items: center; gap: 8px"><span class="badge">easy</span><button class="btn icon" aria-pressed="true" aria-label="Your shape for A, x02220 — unstar" style="width: 34px; min-height: 34px"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" style="color: var(--chord)"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                  </div>
+                  <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none">
+                    <dc-import name="ChordBox" chord="A" frets="002220" kind="default" size="s" inherit="yes" hint-size="64px,94px"></dc-import>
+                    <div style="display: flex; align-items: center; gap: 8px"><span class="badge">easy</span><button class="btn icon" aria-pressed="false" aria-label="Star A, 002220 as your shape" style="width: 34px; min-height: 34px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                  </div>
+                  <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none">
+                    <dc-import name="ChordBox" chord="A" frets="x022x0" kind="default" size="s" inherit="yes" hint-size="64px,94px"></dc-import>
+                    <div style="display: flex; align-items: center; gap: 8px"><span class="badge">easy</span><button class="btn icon" aria-pressed="false" aria-label="Star A, x022x0 as your shape" style="width: 34px; min-height: 34px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                  </div>
+                </div>
+                <button class="btn quiet" aria-expanded="false" style="align-self: flex-start">Show 3 more</button>
+              </section>
+
+              <section style="display: flex; flex-direction: column; gap: 8px">
+                <div class="section-label"><span class="t-h3">Fret 5</span><span class="t-small">2 shapes</span></div>
+                <div class="shapes" style="flex-wrap: nowrap; overflow: hidden; align-items: flex-start">
+                  <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none">
+                    <dc-import name="ChordBox" chord="A" frets="577655" kind="default" size="s" inherit="yes" hint-size="64px,94px"></dc-import>
+                    <div style="display: flex; align-items: center; gap: 8px"><span class="badge">hard</span><button class="btn icon" aria-pressed="false" aria-label="Star A, 577655 as your shape" style="width: 34px; min-height: 34px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                  </div>
+                  <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none">
+                    <dc-import name="ChordBox" chord="A" frets="x-x-7-6-5-5" kind="default" size="s" inherit="yes" hint-size="64px,94px"></dc-import>
+                    <div style="display: flex; align-items: center; gap: 8px"><span class="badge">medium</span><button class="btn icon" aria-pressed="false" aria-label="Star A, x x 7 6 5 5 as your shape" style="width: 34px; min-height: 34px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phone 2: the empty state -->
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back to search"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Explore a chord</span>
+              <button class="chip accent" aria-label="Cavaquinho, change instrument">Cavaquinho</button>
+            </div>
+            <div style="padding: 12px 16px 6px; display: flex; flex-direction: column; gap: 6px">
+              <label class="t-h3" for="w16-chord-e">Chord</label>
+              <input class="input" id="w16-chord-e" type="text" value="C13" style="font: 700 22px var(--font-chart); color: var(--chord)">
+              <span class="t-small">Cavaquinho · D G B D</span>
+            </div>
+            <div class="scroll" style="gap: 16px; padding-top: 16px; align-items: center; justify-content: center">
+              <div class="card pad" style="align-items: center; text-align: center; gap: 14px; max-width: 320px">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--ink-2)"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg>
+                <h2 class="t-h2">No shape fits the rules</h2>
+                <p class="t-body" style="color: var(--ink-2)">C13 asks for more notes than the cavaquinho’s four strings can sound under your voicing rules. The search did not relax the rules to force one.</p>
+                <button class="btn block">Voicing rules</button>
+                <p class="t-small">Allow omitted notes there, or try a simpler chord.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · an ambiguous symbol, C7+, with the reading it took and the flip</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Back to search"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Explore a chord</span>
+            <button class="chip accent" aria-label="Guitar, change instrument">Guitar · E A D G B E</button>
+          </div>
+          <div class="scroll" style="padding: 28px; gap: 22px">
+            <div style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap">
+              <div class="field" style="flex: none; width: 240px">
+                <label for="w16-chord-t">Chord</label>
+                <input class="input" id="w16-chord-t" type="text" value="C7+" style="font: 700 24px var(--font-chart); color: var(--chord); min-height: 52px">
+              </div>
+              <div class="list" style="flex: none"><a class="row explore" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M12 5v14M5 12h14"></path></svg><span class="grow"><span class="name">Enter a shape</span></span></a></div>
+            </div>
+            <div class="notice accent">
+              <span>Read as <b>C7M</b> — major seventh. In Brazilian notation <span class="t-mono">7+</span> is the major seventh; in American and Real Book it is a sharp fifth.</span>
+              <button class="act btn quiet" style="min-height: 36px">Read as C7♯5 instead?</button>
+            </div>
+            <section style="display: flex; flex-direction: column; gap: 10px">
+              <div class="section-label"><span class="t-h3">Open</span><span class="t-small">2 shapes</span></div>
+              <div class="shapes" style="gap: 20px; align-items: flex-start">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+                  <dc-import name="ChordBox" chord="C7M" frets="x32000" kind="yours" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                  <div style="display: flex; align-items: center; gap: 8px"><span class="badge">easy</span><button class="btn icon" aria-pressed="true" aria-label="Your shape for C7M, x32000 — unstar" style="width: 36px; min-height: 36px"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" style="color: var(--chord)"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+                  <dc-import name="ChordBox" chord="C7M" frets="032000" kind="default" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                  <div style="display: flex; align-items: center; gap: 8px"><span class="badge">easy</span><button class="btn icon" aria-pressed="false" aria-label="Star C7M, 032000 as your shape" style="width: 36px; min-height: 36px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                </div>
+              </div>
+            </section>
+            <section style="display: flex; flex-direction: column; gap: 10px">
+              <div class="section-label"><span class="t-h3">Fret 3</span><span class="t-small">2 shapes</span></div>
+              <div class="shapes" style="gap: 20px; align-items: flex-start">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+                  <dc-import name="ChordBox" chord="C7M" frets="x35453" kind="default" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                  <div style="display: flex; align-items: center; gap: 8px"><span class="badge">medium</span><button class="btn icon" aria-pressed="false" aria-label="Star C7M, x35453 as your shape" style="width: 36px; min-height: 36px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+                  <dc-import name="ChordBox" chord="C7M" frets="x3545x" kind="default" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                  <div style="display: flex; align-items: center; gap: 8px"><span class="badge">medium</span><button class="btn icon" aria-pressed="false" aria-label="Star C7M, x3545x as your shape" style="width: 36px; min-height: 36px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                </div>
+              </div>
+            </section>
+            <section style="display: flex; flex-direction: column; gap: 10px">
+              <div class="section-label"><span class="t-h3">Fret 8</span><span class="t-small">1 shape</span></div>
+              <div class="shapes" style="gap: 20px; align-items: flex-start">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+                  <dc-import name="ChordBox" chord="C7M" frets="8-10-9-9-8-8" kind="default" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                  <div style="display: flex; align-items: center; gap: 8px"><span class="badge">hard</span><button class="btn icon" aria-pressed="false" aria-label="Star C7M, 8 10 9 9 8 8 as your shape" style="width: 36px; min-height: 36px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · reached from search’s chord row (workflow 2), the explorer beside it</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side">
+            <div style="padding: 18px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; align-items: center; gap: 8px"><span class="t-h1" style="flex: 1">Estante</span><button class="chip accent" aria-label="Guitar, change instrument">Guitar</button></div>
+              <div class="search focus"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span style="flex: 1">A</span><span class="t-small">✕</span></div>
+            </div>
+            <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+              <div class="list">
+                <a class="row explore sel" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="color: var(--accent)"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 3v18M13 3v18M5 9h14M5 14h14"></path></svg><span class="grow"><span class="name">Explore A on your guitar</span><span class="meta">every way to play it, easiest first</span></span></a>
+              </div>
+              <div class="section-label"><span class="t-h3">Songs matching “A”</span></div>
+              <div class="list">
+                <a class="row" href="#"><span class="grow"><span class="name">A Banda</span><span class="meta">Choros da Ana · bossa/</span></span><span class="badge voiced">voiced for guitar</span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Asa Branca</span><span class="meta">Banda do Bairro</span></span></a>
+              </div>
+              <div class="section-label"><span class="t-h3">Songs that use A</span></div>
+              <div class="list">
+                <a class="row" href="#"><span class="grow"><span class="name">Tarde Clara</span><span class="meta">My songs</span></span></a>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="appbar" style="padding: 14px 24px">
+              <span class="title">Explore a chord</span>
+              <button class="chip accent" aria-label="Guitar, change instrument">Guitar · E A D G B E</button>
+            </div>
+            <div class="scroll" style="padding: 20px 32px; gap: 18px">
+              <div style="display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap">
+                <div class="field" style="flex: none; width: 220px">
+                  <label for="w16-chord-d">Chord</label>
+                  <input class="input" id="w16-chord-d" type="text" value="A" style="font: 700 24px var(--font-chart); color: var(--chord); min-height: 52px">
+                </div>
+                <div class="list" style="flex: none"><a class="row explore" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent); flex: none"><path d="M12 5v14M5 12h14"></path></svg><span class="grow"><span class="name">Enter a shape</span></span></a></div>
+                <p class="t-small" style="flex: 1; min-width: 160px">A reads the same in every notation, so there is no reading to flip. Your shape is kept for A on this tuning, and used wherever a song chooses none — never written into the song.</p>
+              </div>
+              <section style="display: flex; flex-direction: column; gap: 10px">
+                <div class="section-label"><span class="t-h3">Open</span><span class="t-small">6 shapes</span></div>
+                <div class="shapes" style="gap: 20px; align-items: flex-start">
+                  <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+                    <dc-import name="ChordBox" chord="A" frets="x02220" kind="yours" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                    <div style="display: flex; align-items: center; gap: 8px"><span class="badge">easy</span><button class="btn icon" aria-pressed="true" aria-label="Your shape for A, x02220 — unstar" style="width: 36px; min-height: 36px"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" style="color: var(--chord)"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                  </div>
+                  <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+                    <dc-import name="ChordBox" chord="A" frets="002220" kind="default" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                    <div style="display: flex; align-items: center; gap: 8px"><span class="badge">easy</span><button class="btn icon" aria-pressed="false" aria-label="Star A, 002220 as your shape" style="width: 36px; min-height: 36px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                  </div>
+                  <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+                    <dc-import name="ChordBox" chord="A" frets="x022x0" kind="default" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                    <div style="display: flex; align-items: center; gap: 8px"><span class="badge">easy</span><button class="btn icon" aria-pressed="false" aria-label="Star A, x022x0 as your shape" style="width: 36px; min-height: 36px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                  </div>
+                </div>
+                <button class="btn quiet" aria-expanded="false" style="align-self: flex-start">Show 3 more</button>
+              </section>
+              <section style="display: flex; flex-direction: column; gap: 10px">
+                <div class="section-label"><span class="t-h3">Fret 5</span><span class="t-small">2 shapes</span></div>
+                <div class="shapes" style="gap: 20px; align-items: flex-start">
+                  <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+                    <dc-import name="ChordBox" chord="A" frets="577655" kind="default" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                    <div style="display: flex; align-items: center; gap: 8px"><span class="badge">hard</span><button class="btn icon" aria-pressed="false" aria-label="Star A, 577655 as your shape" style="width: 36px; min-height: 36px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                  </div>
+                  <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+                    <dc-import name="ChordBox" chord="A" frets="x-x-7-6-5-5" kind="default" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                    <div style="display: flex; align-items: center; gap: 8px"><span class="badge">medium</span><button class="btn icon" aria-pressed="false" aria-label="Star A, x x 7 6 5 5 as your shape" style="width: 36px; min-height: 36px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.92 6.26 6.72.58-5.1 4.44 1.53 6.56L12 16.9l-6.09 3.54 1.53-6.56-5.1-4.44 6.72-.58z"></path></svg></button></div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+    };
+  }
+}
+</script>
+</body>
+</html>

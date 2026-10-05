@@ -14,7 +14,8 @@ task design "Design gaps" {
   task explorer "Workflow 16: the chord explorer" {
     effort 2d
     allocate team
-    note "What 'Explore A on your guitar' opens: fingerings ranked and grouped by position, viewing by notation, starring a shape as my shape. Workflow 2. Tests: none — design deliverable (the workflow document and its board)."
+    complete 100
+    note "What 'Explore A on your guitar' opens: fingerings ranked and grouped by position, viewing by notation, starring a shape as my shape. Workflow 2. Tests: none — design deliverable (the workflow document and its board). Refinement: tasks/refinements/design/explorer.md"
   }
   task leaving "Workflow 17: leaving" {
     effort 1d
