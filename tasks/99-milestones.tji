@@ -15,6 +15,7 @@ task milestones "Milestones" {
 
   task m1_format "M1: The format in JavaScript" {
     milestone
+    complete 100
     depends cifra_js.conformance, cifra_js.editing, cifra_js.diff, format.setlist_corpus
     note "cifra.md for JavaScript passes the canonical and merge corpora; what the app needs from the format exists."
   }

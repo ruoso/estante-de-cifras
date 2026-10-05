@@ -71,7 +71,8 @@ task cifra_js "cifra.md for JavaScript" {
   task conformance "Conformance" {
     effort 2d
     allocate team
+    complete 100
     depends !writer, !setlists, !merge
-    note "cifra.md: every corpus and merge-corpus entry passes; the property tests of §11.3 ported; the Merger profile of §9 claimed. Tests: unit (the §11.3 property tests ported); corpus (every canonical and merge entry passing, no expected failure left; the Merger profile claimed)."
+    note "cifra.md: every corpus and merge-corpus entry passes; the property tests of §11.3 ported; the Merger profile of §9 claimed. Tests: unit (the §11.3 property tests ported); corpus (every canonical and merge entry passing, no expected failure left; the Merger profile claimed). Refinement: tasks/refinements/cifra_js/conformance.md"
   }
 }
