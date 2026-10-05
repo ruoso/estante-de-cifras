@@ -35,6 +35,15 @@ export const CommandKind = Object.freeze({
   // register a sync changed reaches the slice. The sync engine drives this on
   // its schedule; it is the testable trigger for the re-emit.
   SYNC_HOME: 'sync_home',
+  // The history reads (storage.history), each a local, offline read under the
+  // book lock: SONG_LOG a song's versions (rename-followed, merges hidden unless
+  // resolved), READ_VERSION a version's exact bytes, RESTORE_VERSION a version
+  // into the working copy (uncommitted), BOOK_LOG the book's whole log for the
+  // file view.
+  SONG_LOG: 'song_log',
+  READ_VERSION: 'read_version',
+  RESTORE_VERSION: 'restore_version',
+  BOOK_LOG: 'book_log',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -52,6 +61,14 @@ export const EventKind = Object.freeze({
   DISCARDED: 'discarded',
   SAVE_REFUSED: 'save_refused',
   PREFERENCES: 'preferences',
+  // The history outcomes (storage.history): SONG_LOG carries a song's filtered
+  // version list, VERSION a version's exact bytes, BOOK_LOG the book's whole log,
+  // and RESTORED `{ bookId, path }` so the UI can open the save sheet on the song
+  // just restored into the working copy.
+  SONG_LOG: 'song_log',
+  VERSION: 'version',
+  RESTORED: 'restored',
+  BOOK_LOG: 'book_log',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

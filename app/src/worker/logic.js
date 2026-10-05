@@ -22,6 +22,7 @@ import { createBookLocks } from './locks.js';
 import { createGitHttpClient } from './git-http.js';
 import { createGitLayer } from './git.js';
 import { createWorkingCopy } from './working-copy.js';
+import { createHistory } from './history.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { surfacePreferences } from './preferences.js';
 import { authorFrom } from './author.js';
@@ -133,6 +134,7 @@ export function createWorkerLogic(port, options = {}) {
   let git = null;
   let locks = null;
   let workingCopy = null;
+  let history = null;
   let homeBook = null;
 
   function ensureOpen() {
@@ -183,6 +185,21 @@ export function createWorkerLogic(port, options = {}) {
       });
     }
     return workingCopy;
+  }
+
+  // Compose the history reader once (memoised like the working copy) over the
+  // SAME fs, git layer and lock registry (history.md Decision 1): the Worker owns
+  // the data; the view reads history only through commands and the slices their
+  // events fold into (DIRECTION §3.7 L407-414).
+  function ensureHistory() {
+    if (!history) {
+      history = createHistory({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+      });
+    }
+    return history;
   }
 
   // Compose the home book once over the SAME fs, git layer and lock registry as
@@ -283,6 +300,55 @@ export function createWorkerLogic(port, options = {}) {
             const { bookId, paths } = message.payload;
             await ensureWorkingCopy().discard({ bookId, paths });
             port.postMessage(event(EventKind.DISCARDED, { bookId, paths }));
+            break;
+          }
+          case CommandKind.SONG_LOG: {
+            // A song's versions, newest first, rename-followed, merges hidden
+            // unless resolved (workflow 6). Local and offline; under the book lock.
+            const { bookId, path } = message.payload;
+            const { entries } = await ensureHistory().songLog({ bookId, path });
+            port.postMessage(
+              event(EventKind.SONG_LOG, { bookId, path, entries }),
+            );
+            break;
+          }
+          case CommandKind.READ_VERSION: {
+            // A version read as it was (workflow 6 L39-51): the song's exact bytes
+            // at a commit, at the path it had there. `path` is the entry's
+            // historical path so a pre-rename version reads correctly.
+            const { bookId, path, commit } = message.payload;
+            const { text } = await ensureHistory().readVersion({
+              bookId,
+              path,
+              commit,
+            });
+            port.postMessage(
+              event(EventKind.VERSION, { bookId, path, commit, text }),
+            );
+            break;
+          }
+          case CommandKind.RESTORE_VERSION: {
+            // Restore a version into the working copy, uncommitted (workflow 6
+            // L53-62): write the historical blob (`fromPath` at `commit`) to the
+            // song's CURRENT `path`. RESTORED carries `{ bookId, path }` so the UI
+            // can open the save sheet; the save is what commits (history.md
+            // Decision 4).
+            const { bookId, path, commit, fromPath } = message.payload;
+            await ensureHistory().restoreVersion({
+              bookId,
+              path,
+              commit,
+              fromPath,
+            });
+            port.postMessage(event(EventKind.RESTORED, { bookId, path }));
+            break;
+          }
+          case CommandKind.BOOK_LOG: {
+            // The book's whole log for the file view (workflow 14 L161-173): every
+            // commit, newest first, merges marked, each with the files it touched.
+            const { bookId } = message.payload;
+            const { commits } = await ensureHistory().bookLog({ bookId });
+            port.postMessage(event(EventKind.BOOK_LOG, { bookId, commits }));
             break;
           }
           case CommandKind.SYNC_HOME: {

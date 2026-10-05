@@ -143,6 +143,106 @@ describe('worker store reducer', () => {
     expect(Object.is(after.preferences, withPrefs.preferences)).toBe(true);
   });
 
+  it('folds a song log into the history slice under its book and path (storage.history)', () => {
+    // SONG_LOG sets `entries` under [bookId][path], leaving `versions`/`restored`
+    // at their empty defaults. Pins workflow 14 L161-173 (the per-entry shape the
+    // view reads) through the slice that carries it.
+    const entries = [
+      { commit: 'c2', short: 'c2', path: 's.cifra.md', isMerge: false, resolution: false },
+      { commit: 'c1', short: 'c1', path: 's.cifra.md', isMerge: false, resolution: false },
+    ];
+    const next = reduce(
+      initialState,
+      event(EventKind.SONG_LOG, { bookId: 'book-1', path: 's.cifra.md', entries }),
+    );
+    expect(next.history['book-1']['s.cifra.md']).toEqual({
+      entries,
+      versions: {},
+      restored: 0,
+    });
+  });
+
+  it('folds a version into the history slice, preserving entries, and a restore bumps its token', () => {
+    const entries = [{ commit: 'c1', short: 'c1', path: 's.cifra.md', isMerge: false, resolution: false }];
+    const logged = reduce(
+      initialState,
+      event(EventKind.SONG_LOG, { bookId: 'book-1', path: 's.cifra.md', entries }),
+    );
+    // VERSION caches the exact bytes under the commit, keeping the entries list.
+    const withVersion = reduce(
+      logged,
+      event(EventKind.VERSION, {
+        bookId: 'book-1',
+        path: 's.cifra.md',
+        commit: 'c1',
+        text: 'song bytes\n',
+      }),
+    );
+    expect(withVersion.history['book-1']['s.cifra.md'].entries).toBe(entries);
+    expect(withVersion.history['book-1']['s.cifra.md'].versions).toEqual({
+      c1: 'song bytes\n',
+    });
+
+    // RESTORED bumps a monotonic token (so restoring the same version twice still
+    // moves the slice and reopens the save sheet), preserving entries/versions.
+    const restored = reduce(
+      withVersion,
+      event(EventKind.RESTORED, { bookId: 'book-1', path: 's.cifra.md' }),
+    );
+    expect(restored.history['book-1']['s.cifra.md'].restored).toBe(1);
+    const restoredAgain = reduce(
+      restored,
+      event(EventKind.RESTORED, { bookId: 'book-1', path: 's.cifra.md' }),
+    );
+    expect(restoredAgain.history['book-1']['s.cifra.md'].restored).toBe(2);
+    expect(restoredAgain.history['book-1']['s.cifra.md'].versions).toEqual({
+      c1: 'song bytes\n',
+    });
+  });
+
+  it('folds a book log into the bookLog slice and keeps an untouched song path/book stable', () => {
+    const entries = [{ commit: 'c1', short: 'c1', path: 's.cifra.md', isMerge: false, resolution: false }];
+    const logged = reduce(
+      initialState,
+      event(EventKind.SONG_LOG, { bookId: 'book-1', path: 's.cifra.md', entries }),
+    );
+    const songEntry = logged.history['book-1']['s.cifra.md'];
+    const commits = [
+      { commit: 'c2', short: 'c2', isMerge: true, files: [{ path: 's.cifra.md', status: 'modified' }] },
+      { commit: 'c1', short: 'c1', isMerge: false, files: [{ path: 's.cifra.md', status: 'added' }] },
+    ];
+    const next = reduce(logged, event(EventKind.BOOK_LOG, { bookId: 'book-1', commits }));
+    expect(next.bookLog['book-1']).toEqual({ commits });
+    // Only the bookLog slice moved; the history slice (a different concern) keeps
+    // its references ("only what shows it moves" — DIRECTION §3.7 L410-414).
+    expect(Object.is(next.history, logged.history)).toBe(true);
+    expect(Object.is(next.history['book-1']['s.cifra.md'], songEntry)).toBe(true);
+  });
+
+  it('keeps an untouched song path referentially equal when another path logs (only what shows it moves)', () => {
+    const a = reduce(
+      initialState,
+      event(EventKind.SONG_LOG, { bookId: 'book-1', path: 'a.cifra.md', entries: [] }),
+    );
+    const entryA = a.history['book-1']['a.cifra.md'];
+    const b = reduce(
+      a,
+      event(EventKind.SONG_LOG, { bookId: 'book-1', path: 'b.cifra.md', entries: [] }),
+    );
+    // b's path is new; a's path keeps its exact reference, as does the bookLog slice.
+    expect(Object.is(b.history['book-1']['a.cifra.md'], entryA)).toBe(true);
+    expect(Object.is(b.bookLog, initialState.bookLog)).toBe(true);
+  });
+
+  it('ignores a history event missing its bookId/path/commit (no churn)', () => {
+    expect(reduce(initialState, event(EventKind.SONG_LOG, { bookId: 'b' }))).toBe(initialState);
+    expect(reduce(initialState, event(EventKind.VERSION, { bookId: 'b', path: 'p' }))).toBe(
+      initialState,
+    );
+    expect(reduce(initialState, event(EventKind.RESTORED, { path: 'p' }))).toBe(initialState);
+    expect(reduce(initialState, event(EventKind.BOOK_LOG, {}))).toBe(initialState);
+  });
+
   it('returns the same state reference for a command, a malformed message, or an unknown event kind', () => {
     expect(reduce(initialState, command(CommandKind.OPEN))).toBe(initialState);
     expect(reduce(initialState, null)).toBe(initialState);

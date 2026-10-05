@@ -114,6 +114,11 @@ Append one `###` block per item, newest at the bottom:
 - **Question**: `shell.tokens` ships density locked at `comfortable`. DIRECTION §3.2, Workflow 1, and `home-book-format §4.1` do not define a `density` register. Whether users can choose density (and where it would be stored and surfaced) is an unresolved product question. Deciding yes would require a new home-book register key (`density`), a format-spec edit (§4.1), a UI surface, and a `storage.preferences_surface`-style consumer task.
 - **Why parked**: product judgment call; no governing document currently mandates a density preference. Only a person can decide whether density becomes a user-chosen, synced preference.
 
+### 2026-10-05 — Content-similarity rename following for rename-and-edit in one commit
+- **Source**: closer for `storage.history` (Decision 3), surfaced by refinement §Decisions and §Open questions.
+- **Question**: `history.js` follows renames via `log({ follow: true })`, which tracks content-preserving renames (app renames, `git mv`). A non-app git user who renames *and* edits a song in a single commit produces a non-exact rename that exact following does not cross — the history chain starts at the rename. Adding content-similarity detection (git's `-M` heuristic or a bespoke similarity threshold) would cover this case, but it is a heuristic with a tunable threshold and ambiguity that is a product judgment, not a settled behavior, and it only affects non-app git users.
+- **Why parked**: product/heuristic judgment call. The shipping behavior (exact following) degrades gracefully (chain starts at the rename, as git's own default does). Deciding to add similarity detection requires choosing a threshold, handling ambiguity, and accepting the risk of false positives — a deliberate product decision, not a technical one.
+
 ### 2026-10-05 — Service book-id collision with reserved `'home'` id
 
 - **Source**: closer for `storage.preferences_surface` (Decision 2), surfaced by implementer's return summary.
