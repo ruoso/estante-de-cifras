@@ -9,7 +9,8 @@ task cifra_js "cifra.md for JavaScript" {
   task package "Package and corpus harness" {
     effort 1d
     allocate team
-    note "cifra.md: js/ package (ES modules, no runtime dependencies), Vitest, a harness running every corpus entry's checks in both directions. Tests: unit (Vitest: the harness finds every corpus entry and fails on a planted mismatch); corpus (every entry enumerated, the checks the package cannot pass yet wired as expected failures by name, flipped by the tasks that make them pass — never skipped)."
+    complete 100
+    note "cifra.md: js/ package (ES modules, no runtime dependencies), Vitest, a harness running every corpus entry's checks in both directions. Tests: unit (Vitest: the harness finds every corpus entry and fails on a planted mismatch); corpus (every entry enumerated, the checks the package cannot pass yet wired as expected failures by name, flipped by the tasks that make them pass — never skipped). Refinement: tasks/refinements/cifra_js/package.md"
   }
   task text_layer "Text layer" {
     effort 1d
