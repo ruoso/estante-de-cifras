@@ -42,6 +42,11 @@ Append one `###` block per item, newest at the bottom:
 - **Why parked**: judgment call / preconditions unmet / scope decision / needs a person.
 ```
 
+### 2026-10-05 — Normative diagnostic-code table missing from the spec
+- **Source**: closer for `cifra_js.reader` (cifra.md commit `9eb9a7c`), surfaced by the refinement's §Open questions.
+- **Question**: The spec states reader diagnostics as prose obligations (§9.2) with only `bad-fingering` having an explicit code (§7.5.1). The other 21 reader codes and their messages are normative only through the Python reference and the committed corpus. Should `spec/` gain a consolidated, normative diagnostic-code table so the reader's observable surface is pinned by the spec alone (not only the corpus)?
+- **Why parked**: format-area documentation decision; the scope is "should the spec gain a section?" — a human judgment call about where to bind normative status for diagnostic codes. Does not block any current task; the corpus already pins all 22 codes this reader emits.
+
 ### 2026-10-04 — §9.3 line 140 stale prose: "The corpus has no entries for reading setlists yet"
 - **Source**: closer for `cifra_js.setlists` (cifra.md commit `c72c24e`), surfaced by the refinement's §Open questions.
 - **Question**: `spec/9-conformance.md` line 140 reads *"The corpus has no entries for reading setlists yet (§10, Open questions)"*. This was falsified when `format.setlist_corpus` added entries 35–47. The correction is a one-line format-spec edit. Is the sentence simply deleted, or replaced with a count/cross-reference?

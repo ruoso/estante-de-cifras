@@ -29,8 +29,9 @@ task cifra_js "cifra.md for JavaScript" {
   task reader "Reader" {
     effort 6d
     allocate team
+    complete 100
     depends !chords
-    note "cifra.md: §1-7 — metadata, sections, fences, chord lines, repeats, sung lines with attachment and the layout convergence pass (§4.5), tunings, voicings, diagnostics. Tests: unit (each §1-7 construct and every diagnostic, sung-line attachment and the §4.5 convergence pass); corpus (input to model for every entry)."
+    note "cifra.md: §1-7 — metadata, sections, fences, chord lines, repeats, sung lines with attachment and the layout convergence pass (§4.5), tunings, voicings, diagnostics. Tests: unit (each §1-7 construct and every diagnostic, sung-line attachment and the §4.5 convergence pass); corpus (input to model for every entry). Refinement: tasks/refinements/cifra_js/reader.md"
   }
   task writer "Canonical writer" {
     effort 4d
