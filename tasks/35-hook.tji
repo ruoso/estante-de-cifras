@@ -1,0 +1,44 @@
+# 35 — The pre-receive hook (Go)
+#
+# Every push accounted for: what a book may hold, in canonical form, within
+# its limits. Workflow 14, What the service checks.
+
+task hook "The pre-receive hook" {
+  depends service.git_http
+
+  task refs "Refs and history" {
+    effort 1d
+    allocate team
+    note "Only refs/heads/main, no tags or notes, no deletion, fast-forward only."
+  }
+  task stowaways "No stowaways" {
+    effort 2d
+    allocate team
+    depends !refs
+    note "List every object in quarantine and compare with rev-list --objects from the new head, excluding what the repository already had; one object more refuses the push."
+  }
+  task contents "What a book may hold" {
+    effort 2d
+    allocate team
+    depends !stowaways
+    note "Every blob reachable from a new commit: path against the allowed kinds (*.cifra.md, *.setlist.md, README.md, .gitattributes as the app writes it), regular files only, UTF-8, 256 KB; trees and commits of reasonable size."
+  }
+  task canonical "Canonical form" {
+    effort 2d
+    allocate team
+    depends !contents, cifra_go.writer, cifra_go.setlists, cifra_go.versions
+    note "Every song and setlist in a new commit canonical under the current or the previous form; README.md held to the text rules; marker lines refused."
+  }
+  task limits "Limits" {
+    effort 1d
+    allocate team
+    depends !contents
+    note "50 MB per book, the account's remaining quota from ESTANTE_* in the environment, receive.maxInputSize, receive.fsckObjects."
+  }
+  task messages "Refusal messages" {
+    effort 1d
+    allocate team
+    depends !canonical, !limits
+    note "Each refusal names what failed, through git's own channel, readable by isomorphic-git and the app."
+  }
+}

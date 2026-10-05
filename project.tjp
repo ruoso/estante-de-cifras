@@ -1,0 +1,50 @@
+# Estante de Cifras — Work Breakdown Structure
+#
+# The structured decomposition of the first pass defined by docs/DIRECTION.md
+# and docs/workflows/01–14. It is not used for real scheduling — a single
+# placeholder resource, no calendars. tj3 parses it so structure and
+# dependencies stay valid, and writes one HTML report to `report/`
+# (gitignored). scripts/unblocked.py lists, per milestone, the leaf tasks that
+# can start now.
+#
+# Conventions: one include per work stream, numbered so listings sort in
+# rough build order; numeric gaps allow inserting streams later. Leaf task
+# notes reference the governing document. Work in the cifra.md repository
+# (the format's specification and its implementations) is planned here too,
+# since the app depends on it; its notes say "cifra.md:".
+
+project estante "Estante de Cifras" 2026-10-04 +3y {
+  timezone "America/New_York"
+  numberformat "-" "" "," "." 1
+  currencyformat "(" ")" "," "." 0
+  outputdir "report"
+}
+
+taskreport gantt "Gantt Chart" {
+  formats html
+  headline "Estante de Cifras Work Breakdown"
+  columns bsi, name, status, chart
+  loadunit days
+}
+
+# Single placeholder resource; effort-based tasks need one to be valid.
+resource team "Team"
+
+include "tasks/00-bootstrap.tji"
+include "tasks/05-format.tji"
+include "tasks/10-cifra-js.tji"
+include "tasks/15-cifra-go.tji"
+include "tasks/20-design.tji"
+include "tasks/25-foundation.tji"
+include "tasks/30-service.tji"
+include "tasks/35-hook.tji"
+include "tasks/40-storage.tji"
+include "tasks/45-sync.tji"
+include "tasks/50-shell.tji"
+include "tasks/55-music.tji"
+include "tasks/60-songs.tji"
+include "tasks/65-books.tji"
+include "tasks/70-account.tji"
+include "tasks/75-quality.tji"
+include "tasks/80-launch.tji"
+include "tasks/99-milestones.tji"

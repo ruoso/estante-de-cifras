@@ -1,0 +1,64 @@
+# 05 — The format (cifra.md repository)
+#
+# The specification, its Python reference and its corpus. What is done here is
+# what every implementation is held to.
+
+task format "The format" {
+  task canonical_form "Canonical form, complete and unambiguous" {
+    effort 5d
+    allocate team
+    complete 100
+    note "cifra.md: §1.3 text layer, §8 serializer, the reference writer, the four-file corpus closing the cycle both ways."
+  }
+  task sung_layout "Sung lines by attachment, words pushed" {
+    effort 3d
+    allocate team
+    complete 100
+    depends !canonical_form
+    note "cifra.md: §4.4-4.5 attachment and layout convergence, `_` padding inside words, anchor columns."
+  }
+  task setlists "Setlist format" {
+    effort 2d
+    allocate team
+    complete 100
+    depends !canonical_form
+    note "cifra.md: chapter 10, reader and canonical writer in the reference."
+  }
+  task merge "Three-way merge" {
+    effort 8d
+    allocate team
+    complete 100
+    depends !sung_layout, !setlists
+    note "cifra.md: chapter 11, the reference merge, the merge corpus, marked inputs, joins and repeated setlist songs, the grouping merged three ways."
+  }
+  task setlist_corpus "Setlists in the canonical corpus" {
+    effort 1d
+    allocate team
+    depends !setlists
+    note "cifra.md: canonical corpus entries for setlists (input, model, canonical text, canonical model), so implementations agree on setlists as on songs. DIRECTION §6."
+  }
+  task setlist_schema "JSON Schema for the setlist model" {
+    effort 1d
+    allocate team
+    depends !setlists
+    note "cifra.md: the setlist model is described only in prose (§10.6); the corpus's parsed JSON needs a schema as songs have."
+  }
+  task conflicts_schema "JSON Schema for conflicts.json" {
+    effort 1d
+    allocate team
+    depends !merge
+    note "cifra.md: §11.12.5 is normative until a schema exists (chapter 11 open questions)."
+  }
+  task render_hyphen "Proportional rendering in §4" {
+    effort 0.5d
+    allocate team
+    depends !sung_layout
+    note "cifra.md: a SHOULD for proportional renderers — segments, and a centred hyphen where a chord opens room inside a word. docs/mockups/README.md."
+  }
+  task cross_check "Cross-implementation comparison in CI" {
+    effort 2d
+    allocate team
+    depends !setlist_corpus, cifra_js.conformance, cifra_go.conformance
+    note "cifra.md: CI runs the same random documents through Python, JavaScript and Go and compares bytes; disagreements are settled in the spec. DIRECTION §3.6."
+  }
+}

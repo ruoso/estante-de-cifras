@@ -1,0 +1,62 @@
+# 60 — Songs
+#
+# Finding, reading, writing, editing, arranging and the history of a song.
+
+task songs "Songs" {
+  depends shell.layout, shell.chart
+
+  task search "Search" {
+    effort 3d
+    allocate team
+    depends storage.index
+    note "One box across every book; recents (kept on the device); books as sections; the explorer as a result when the text is a chord; badges; scope that resets each session. Workflow 2."
+  }
+  task reading "Reading a song" {
+    effort 3d
+    allocate team
+    depends music.fallback, music.transpose
+    note "The chart and the shapes, variation picker, full screen, print, add to setlist, share; updated in place by sync. Workflows 2, 8."
+  }
+  task first_song "Playing on guitar — change?" {
+    effort 0.5d
+    allocate team
+    depends !reading, music.instruments
+    note "The one-time prompt the first time a song is opened. Workflow 1."
+  }
+  task editor "The source editor" {
+    effort 4d
+    allocate team
+    depends storage.working_copy
+    note "CodeMirror 6 on the cifra.md text: syntax colour, the template, add section, preview beside or a tap away, pasting a cifra into a fence with undo, a voicing line it cannot read stopping the save. Workflows 3, 4."
+  }
+  task new_song "Writing a new song" {
+    effort 2d
+    allocate team
+    depends !editor, !search
+    note "From search, the empty shelf, a book, the file view; which book; named once at the first save; My songs created when first written to. Workflow 3."
+  }
+  task save_sheet "Save, discard, and the save sheet" {
+    effort 2d
+    allocate team
+    depends !editor, cifra_js.diff
+    note "What changed in musical terms, a note prefilled from it, save pushes; discard showing what would be lost; save all; the first save asking for a name. Workflow 4."
+  }
+  task arrange "Arrange mode and the picker" {
+    effort 4d
+    allocate team
+    depends !reading, cifra_js.editing, music.explorer
+    note "Tappable chords, every Cm or only here, choose these for every unchosen chord, enter a shape by hand, variations. Workflow 5."
+  }
+  task wizard_ui "The wizard in a song" {
+    effort 1d
+    allocate team
+    depends !arrange, music.wizard
+    note "Into a new variation first, over this one second. Workflow 5."
+  }
+  task history "History of a song" {
+    effort 3d
+    allocate team
+    depends storage.history, cifra_js.diff
+    note "The list with unsaved changes first, a version read as it was, compare with now, show the text, restore. Workflow 6."
+  }
+}

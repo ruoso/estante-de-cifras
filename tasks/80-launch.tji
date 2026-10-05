@@ -1,0 +1,31 @@
+# 80 — Launch
+#
+# Running on Railway at estantedecifras.app.
+
+task launch "Launch" {
+  task railway "Railway project" {
+    effort 1d
+    allocate team
+    depends foundation.compose
+    note "The service with its volume and Postgres in a US region; Railway's backups for both. DIRECTION §3.3, §3.4."
+  }
+  task domain "Domain and HTTPS" {
+    effort 0.5d
+    allocate team
+    complete 50
+    depends !railway
+    note "estantedecifras.app is registered; pointing it at Railway remains. DIRECTION §3.3."
+  }
+  task email "Email provider" {
+    effort 1d
+    allocate team
+    depends !domain
+    note "A transactional provider sending from the domain, with the records that keep sign-in links out of spam folders. DIRECTION §3.3."
+  }
+  task deploy "Deploy pipeline" {
+    effort 1d
+    allocate team
+    depends !railway, foundation.ci, service.serve_app
+    note "Merges to main that pass deploy the service, with the app built into it."
+  }
+}

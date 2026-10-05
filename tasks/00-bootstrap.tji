@@ -1,0 +1,33 @@
+# 00 — Bootstrap (done)
+#
+# The direction, the fourteen workflows, the mockups and the visual language.
+
+task bootstrap "Bootstrap" {
+  task direction "Direction" {
+    effort 3d
+    allocate team
+    complete 100
+    note "Books as git repositories, storage in the browser, the one service on Railway, the app and its API on estantedecifras.app, no book without an account and at most fifty people per book. docs/DIRECTION.md."
+  }
+  task workflows "Workflows 1-14" {
+    effort 5d
+    allocate team
+    complete 100
+    depends !direction
+    note "First run through the file view, each decided to its screens and edge cases. docs/workflows/."
+  }
+  task mockups "Mockups and visual language" {
+    effort 3d
+    allocate team
+    complete 100
+    depends !workflows
+    note "Every workflow on phone, tablet and computer; three themes (Estante, Caderno, Palco); proportional charts with the split-word hyphen. docs/mockups/."
+  }
+  task architecture "Architecture" {
+    effort 2d
+    allocate team
+    complete 100
+    depends !direction
+    note "Go service and hook, React + React Aria app, a Web Worker owning git, cifra.md implemented per language and held to the corpus. docs/DIRECTION.md §3.3-3.7."
+  }
+}

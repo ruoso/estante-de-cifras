@@ -1,0 +1,44 @@
+# 70 — First run and the account
+#
+# Arriving, signing in on another device, and leaving.
+
+task account "First run and the account" {
+  depends shell.layout
+
+  task first_run "First run" {
+    effort 2d
+    allocate team
+    depends songs.search, design.example_book
+    note "The empty shelf and its four ways in; the example book shipped with the app; My songs. Workflow 1."
+  }
+  task sign_in "Signing in" {
+    effort 3d
+    allocate team
+    depends service.passkeys, service.email_links, service.sessions
+    note "A passkey, the browser's cross-device flow, the emailed link; offering a passkey on a new device. Workflows 7, 13."
+  }
+  task new_device "A new device" {
+    effort 3d
+    allocate team
+    depends !sign_in, storage.home_book, sync.engine
+    note "The home book first, the shelf filling, only on your iPhone, a device used before signing in (merge or keep both My songs). Workflow 13."
+  }
+  task account_screen "The account screen" {
+    effort 2d
+    allocate team
+    depends !sign_in, design.theme_picker
+    note "Signed-in devices with sign out, passkeys, language and theme. Workflow 13."
+  }
+  task sign_out "Signing out" {
+    effort 1d
+    allocate team
+    depends !account_screen
+    note "Remove this account's books (default) or keep them as local books, with unsaved changes and unpushed saves counted. Workflow 13."
+  }
+  task leaving "Leaving" {
+    effort 2d
+    allocate team
+    depends design.leaving, !account_screen, service.books
+    note "Workflow 17 built: deleting the account, taking the data out."
+  }
+}

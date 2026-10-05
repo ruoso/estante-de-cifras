@@ -1,0 +1,68 @@
+# 40 — Storage in the browser (the Web Worker)
+#
+# Books as git repositories on IndexedDB, a working copy, the home book and
+# the index — all owned by one Web Worker. DIRECTION §3, §3.7.
+
+task storage "Storage" {
+  depends foundation.app_tooling
+
+  task worker "The Worker and its store protocol" {
+    effort 3d
+    allocate team
+    note "One owner for the data; messages to the main thread's store, read through useSyncExternalStore. The main thread never touches IndexedDB. DIRECTION §3.7."
+  }
+  task fs "The filesystem layer" {
+    effort 2d
+    allocate team
+    depends !worker
+    note "lightning-fs behind a small interface, so OPFS can replace it; navigator.storage.persist()."
+  }
+  task git "isomorphic-git" {
+    effort 3d
+    allocate team
+    depends !fs
+    note "Clone, fetch and push with credentials included to the one origin, protocol v1, a custom HTTP client; never getRemoteInfo2 for push."
+  }
+  task working_copy "Working copy, save and discard" {
+    effort 3d
+    allocate team
+    depends !git, !locks, cifra_js.writer
+    note "Real files written as the user types; save = canonicalise, commit one file or several, then push; discard; author as the per-user no-reply address. Workflows 3, 4, 14."
+  }
+  task locks "One lock per book" {
+    effort 1d
+    allocate team
+    depends !git
+    note "Web Locks around every git operation, so two tabs never interleave."
+  }
+  task home_book "The home book" {
+    effort 2d
+    allocate team
+    depends !working_copy, design.home_book_format
+    note "Committed automatically; settings and the shelf list; merged key by key, the later change winning. Workflows 1, 8, 13."
+  }
+  task index "The search index" {
+    effort 3d
+    allocate team
+    depends !working_copy, cifra_js.reader
+    note "MiniSearch with accent folding; title, properties, sections, words, chords; keyed by blob hash; covers unsaved work; kept in IndexedDB. Workflow 2."
+  }
+  task history "History" {
+    effort 2d
+    allocate team
+    depends !working_copy
+    note "A song's log following renames, merges hidden unless resolved, versions read as they were, restore into the working copy; the book's whole log for the file view. Workflows 6, 14."
+  }
+  task download "Download a book" {
+    effort 1d
+    allocate team
+    depends !working_copy
+    note "Zip of the repository as it is on the device, working tree and unsaved changes included, remote removed; Explore Chords' zip writer. Workflow 7."
+  }
+  task migrations "On-device versions" {
+    effort 1d
+    allocate team
+    depends !worker
+    note "Versioned migrations of what the Worker keeps in IndexedDB; an app update applied on the next launch, never mid-song."
+  }
+}

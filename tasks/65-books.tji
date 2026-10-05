@@ -1,0 +1,63 @@
+# 65 — Books, sharing, setlists and the file view
+#
+# Everything about books as books: the shelf, putting online, sharing,
+# forking, setlists and the file view.
+
+task books "Books" {
+  depends shell.layout
+
+  task shelf "The book-management screen" {
+    effort 2d
+    allocate team
+    depends storage.home_book
+    note "Title or label, where it lives, can save, sync state; new book; rename on my shelf. Workflow 7."
+  }
+  task online "Put online, remove, delete" {
+    effort 2d
+    allocate team
+    depends !shelf, service.books, sync.engine
+    note "Put online private; remove from my shelf with what would be lost; delete the book (owner, type the name); download. Workflow 7."
+  }
+  task add_by_link "Add by invitation and mine on Estante" {
+    effort 2d
+    allocate team
+    depends !online, service.sharing
+    note "An invitation always asks for an account first, then clones as reader or editor; a dead or full link telling nothing about whose book; the user's books not yet on this shelf. Workflows 1, 7."
+  }
+  task share "Sharing" {
+    effort 3d
+    allocate team
+    depends !online, service.sharing
+    note "People 37 of 50, invitations with role, expiry and uses, who joined, withdraw, remove, a full book; share from a song; the member's view. Workflow 10."
+  }
+  task fork "Make it my own" {
+    effort 2d
+    allocate team
+    depends !online, sync.fork_follow, service.books
+    note "Offered by saving where one cannot, losing access, or deliberately; replaces the original on the shelf; from Ana's Choros beneath it. Workflow 11."
+  }
+  task upload_ui "Upload preview" {
+    effort 2d
+    allocate team
+    depends sync.upload, !shelf
+    note "Import as a new book or merge into one; song by song; left out and canonicalised; marked files; history that cannot be rewritten. Workflow 7."
+  }
+  task setlists "Setlists" {
+    effort 4d
+    allocate team
+    depends cifra_js.setlists, songs.reading
+    note "Open, build (add to setlist, copying from another book), reorder, key and note, missing items pointed at a song; links kept when songs move. Workflow 12."
+  }
+  task play "Playing through" {
+    effort 2d
+    allocate team
+    depends !setlists, music.transpose
+    note "Full screen in the setlist's key, swipe, edge tap or pedal keys, screen kept awake, next song's title, sync waiting. Workflow 12."
+  }
+  task file_view "The file view" {
+    effort 4d
+    allocate team
+    depends storage.history, songs.editor
+    note "The tree with statuses as words, only the allowed kinds, rename keeping its kind and updating setlist links, delete, raw editor, save several files, the book's log with line diffs and per-file restore. Workflow 14."
+  }
+}

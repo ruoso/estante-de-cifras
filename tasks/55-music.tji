@@ -1,0 +1,39 @@
+# 55 — Music
+#
+# Instruments, the explorer, shapes and their fallbacks, transposition, the
+# wizard — the music core from Explore Chords put to work.
+
+task music "Music" {
+  depends foundation.music_core_import
+
+  task instruments "Instruments and voicing rules" {
+    effort 4d
+    allocate team
+    depends design.instruments, storage.home_book, shell.layout
+    note "Workflow 15 built: tunings, instruments in the home book, the header chip, presets and the expert panel."
+  }
+  task explorer "The chord explorer" {
+    effort 3d
+    allocate team
+    depends design.explorer, shell.diagram, !instruments
+    note "Workflow 16 built: search's chord row opens it; fingerings ranked, grouped by position; starring a shape as my shape."
+  }
+  task fallback "Where a chord's shape comes from" {
+    effort 1d
+    allocate team
+    depends !instruments, cifra_js.reader
+    note "The song's choice, then my shape, then the app's default; each marked for what it is. Workflow 2."
+  }
+  task transpose "Transposing for reading" {
+    effort 2d
+    allocate team
+    depends !fallback, shell.chart
+    note "View only, never the song; no chosen shapes while transposed; spelling by the key property or fewest accidentals; remembered per song in the home book. Workflow 2."
+  }
+  task wizard "The voicing wizard" {
+    effort 2d
+    allocate team
+    depends !fallback, cifra_js.editing
+    note "Explore Chords' planners; the plan into a new variation first. Workflow 5."
+  }
+}

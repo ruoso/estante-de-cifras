@@ -1,0 +1,50 @@
+# 45 — Sync and merging on the device
+#
+# Fetch, merge, push; conflicts; uploads. Workflows 7, 8, 9, 11.
+
+task sync "Sync" {
+  depends storage.working_copy, cifra_js.merge
+
+  task engine "Sync engine" {
+    effort 3d
+    allocate team
+    depends service.change_check
+    note "When it runs (open, foreground, network back, after save, every five minutes), the change check first, fetch, cifra-aware merge, push, retried three times on a lost race. Workflow 8."
+  }
+  task unsaved "Merging under unsaved changes" {
+    effort 2d
+    allocate team
+    depends !engine
+    note "Base, theirs and the working text merged; the edits stay unsaved on top. DIRECTION §3.1, workflow 4."
+  }
+  task states "States on the shelf" {
+    effort 1d
+    allocate team
+    depends !engine
+    note "Syncing, saves waiting, offline since, needs you, no longer shared with you; the one quiet mark; sync now. Workflow 8."
+  }
+  task conflicts "Conflicts" {
+    effort 4d
+    allocate team
+    depends !engine
+    note "The book paused while a merge waits; the conflict model shown in musical terms; keep mine, take theirs, edit with markers; deleted against edited; abandon the merge. Workflow 9."
+  }
+  task lost_access "Losing access" {
+    effort 1d
+    allocate team
+    depends !engine
+    note "Refused for not being a member: no longer shared with you, readable, never synced; unsaved saves kept, fork or download offered. Workflow 8."
+  }
+  task upload "Upload a zip" {
+    effort 4d
+    allocate team
+    depends !engine, storage.download
+    note "Read as a remote to pull from; the preview; edits never committed as a commit; no history; unrelated history; marked files left out; committed markers offer the latest version without history; history rewritten to canonical. Workflow 7."
+  }
+  task fork_follow "Following an original" {
+    effort 2d
+    allocate team
+    depends !engine
+    note "The original's new saves counted; bring them in through the preview; the original going away. Workflow 11."
+  }
+}

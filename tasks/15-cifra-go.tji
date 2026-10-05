@@ -1,0 +1,50 @@
+# 15 — cifra.md for Go (cifra.md repository, go/)
+#
+# The hook's implementation of the format, and git-merge-cifra for computers.
+# A second, independent implementation, held to the same corpus.
+
+task cifra_go "cifra.md for Go" {
+  depends format.canonical_form
+
+  task module "Module and corpus harness" {
+    effort 1d
+    allocate team
+    note "cifra.md: go/ module, a test harness over every corpus entry."
+  }
+  task reader "Reader" {
+    effort 8d
+    allocate team
+    depends !module
+    note "cifra.md: text layer, chord symbols, chart, sung lines with layout convergence, tunings, voicings."
+  }
+  task writer "Canonical writer and check" {
+    effort 4d
+    allocate team
+    depends !reader
+    note "cifra.md: §8 serializer, invariants, `is canonical` as the hook needs it, marker lines."
+  }
+  task setlists "Setlists" {
+    effort 2d
+    allocate team
+    depends !module, format.setlist_corpus
+    note "cifra.md: chapter 10 reader and canonical writer."
+  }
+  task versions "Two canonical-form versions side by side" {
+    effort 1d
+    allocate team
+    depends !writer
+    note "The hook accepts the current and the previous form for a while; the module exposes both. DIRECTION §3.6 Versions, workflow 14."
+  }
+  task merge "Merge, and git-merge-cifra" {
+    effort 8d
+    allocate team
+    depends !writer, !setlists, format.merge
+    note "cifra.md: chapter 11, and the git merge driver as one static binary (§11.14). Not needed by the hook; for a clone on a computer."
+  }
+  task conformance "Conformance" {
+    effort 2d
+    allocate team
+    depends !writer, !setlists
+    note "cifra.md: every canonical-corpus entry passes byte for byte."
+  }
+}

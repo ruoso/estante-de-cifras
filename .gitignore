@@ -11,3 +11,5 @@ playwright-report/
 
 # Local agent worktrees are not part of the project.
 .claude/worktrees/
+report/
+.unblocked-report.tjp

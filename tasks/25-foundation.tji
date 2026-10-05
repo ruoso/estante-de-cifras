@@ -1,0 +1,50 @@
+# 25 — Foundation
+#
+# The monorepo, its tooling, the API contract, and running everything locally
+# as in production.
+
+task foundation "Foundation" {
+  depends bootstrap.architecture
+
+  task monorepo "Monorepo layout" {
+    effort 1d
+    allocate team
+    note "app/, service/ (cmd/service, cmd/pre-receive), api/, docs/, compose.yaml. DIRECTION §3.6 Repositories."
+  }
+  task app_tooling "App tooling" {
+    effort 2d
+    allocate team
+    depends !monorepo
+    note "Vite, React 19 with the React Compiler, React Aria Components, the PWA plugin, Vitest + Testing Library, Playwright, axe. DIRECTION §3.7."
+  }
+  task music_core_import "Bring the music core over, with its history" {
+    effort 1d
+    allocate team
+    depends !app_tooling
+    note "git filter-repo of Explore Chords' src/core (minus song.js) and src/render into app/src/core, tests passing; the DESIGN sections that explain it. DIRECTION §5, §5.1."
+  }
+  task service_skeleton "Service skeleton" {
+    effort 1d
+    allocate team
+    depends !monorepo
+    note "Go module, net/http, config, structured logging of request metadata only (never song text, commit messages or secrets), health check. DIRECTION §3.6."
+  }
+  task api_contract "API contract" {
+    effort 2d
+    allocate team
+    depends !monorepo
+    note "api/: sign-in, books, the shelf change check, sharing and invitations, git — both sides tested against it. DIRECTION §3.6 The API."
+  }
+  task compose "Everything locally, as in production" {
+    effort 2d
+    allocate team
+    depends !service_skeleton, !app_tooling
+    note "compose.yaml: Postgres, the service's image with git, the hook and the built app on one origin, a local mail catcher; the app's dev server proxying the API. DIRECTION §3.6."
+  }
+  task ci "CI" {
+    effort 1d
+    allocate team
+    depends !compose
+    note "GitHub Actions: app unit tests, Go tests, end-to-end tests against compose."
+  }
+}

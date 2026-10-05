@@ -1,0 +1,73 @@
+# 30 — The service (Go)
+#
+# Sign-in, the registry, sharing, the change check, git over HTTP, and serving
+# the app — one binary, one origin. DIRECTION §3.3, §3.6.
+
+task service "The service" {
+  depends foundation.service_skeleton, foundation.api_contract
+
+  task schema "Postgres schema and migrations" {
+    effort 2d
+    allocate team
+    note "Accounts, sessions, passkeys, devices, books, members and roles, invitations with expiry and uses, quotas. pgx; versioned migrations."
+  }
+  task passkeys "Passkeys" {
+    effort 3d
+    allocate team
+    depends !schema
+    note "go-webauthn: register and sign in, the browser's own cross-device QR flow, several passkeys per account. Workflow 13."
+  }
+  task email_links "Emailed sign-in links" {
+    effort 2d
+    allocate team
+    depends !schema
+    note "Signed, short-lived, single-use links through the email provider; the fallback and account recovery. Workflow 13."
+  }
+  task sessions "Sessions and devices" {
+    effort 2d
+    allocate team
+    depends !passkeys
+    note "HttpOnly session cookie on the one origin; signed-in devices with last use; sign out any of them. Workflow 13."
+  }
+  task books "Books: create, list, delete, fork" {
+    effort 3d
+    allocate team
+    depends !sessions
+    note "Bare repositories on the volume at /data/books/<id>.git, random ids, owner-only delete (type the name), fork as a copy on the volume, per-account limits (100 books, 200 MB). Workflows 7, 11, 14."
+  }
+  task git_http "Git over HTTP" {
+    effort 4d
+    allocate team
+    depends !books
+    note "git upload-pack / receive-pack --stateless-rpc framed by the service: service header, Git-Protocol to GIT_PROTOCOL, gzip bodies, size cap, deadline, kill on disconnect, refusals before git starts, ESTANTE_* environment for the hook. DIRECTION §3.6 Git over HTTP."
+  }
+  task change_check "The shelf change check" {
+    effort 1d
+    allocate team
+    depends !git_http
+    note "One request for a whole shelf, each book with the head the device has, answered with the books that moved; one ref read per book. Workflow 8."
+  }
+  task sharing "Members and invitations" {
+    effort 3d
+    allocate team
+    depends !books
+    note "Invitations with role, expiry, limit on uses, who joined; accept; withdraw; members' roles; remove; at most fifty people per book, a full book refusing joins and telling the owner; who sees whom. Workflow 10."
+  }
+  task serve_app "Serve the app" {
+    effort 1d
+    allocate team
+    note "The built PWA at the root of the origin, its API beneath; cache headers for the service worker; noindex on everything. DIRECTION §3.3."
+  }
+  task admin "Admin actions for a notice" {
+    effort 1d
+    allocate team
+    depends !sharing
+    note "Withdraw a book's invitations, remove its members, or take it down, with the owner told why. Workflow 10."
+  }
+  task rate_limits "Rate limits" {
+    effort 1d
+    allocate team
+    depends !sessions
+    note "Sign-in attempts, emailed links, book creation, invitations accepted."
+  }
+}

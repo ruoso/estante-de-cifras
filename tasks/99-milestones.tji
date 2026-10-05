@@ -1,0 +1,49 @@
+# 99 — Milestones
+#
+# Zero-duration milestones marking when major capability is in place; each
+# depends on the work that has to exist first.
+
+task milestones "Milestones" {
+  task m0_design "M0: Design" {
+    milestone
+    complete 100
+    depends bootstrap.mockups, bootstrap.architecture, format.merge
+    note "Direction, fourteen workflows, mockups and visual language, the architecture, and the format specified through its merge."
+  }
+
+  task m1_format "M1: The format in JavaScript" {
+    milestone
+    depends cifra_js.conformance, cifra_js.editing, cifra_js.diff, format.setlist_corpus
+    note "cifra.md for JavaScript passes the canonical and merge corpora; what the app needs from the format exists."
+  }
+
+  task m2_local "M2: A songbook on one device" {
+    milestone
+    depends milestones.m1_format, songs.search, songs.reading, songs.first_song, songs.new_song, songs.save_sheet, songs.arrange, songs.wizard_ui, songs.history, music.explorer, books.shelf, books.file_view, shell.i18n, shell.pwa, account.first_run, quality.e2e_local, quality.offline
+    note "Local books only, no account: find, read, write, edit, arrange, history, the explorer, the file view — installed and offline."
+  }
+
+  task m3_service "M3: Estante online" {
+    milestone
+    depends milestones.m2_local, hook.messages, account.sign_in, books.online, sync.states, sync.unsaved, sync.lost_access, quality.service_tests, launch.deploy, launch.email
+    note "Sign in, put a book online, every push checked, sync across one person's devices — running at estantedecifras.app."
+  }
+
+  task m4_together "M4: Together" {
+    milestone
+    depends milestones.m3_service, books.add_by_link, books.share, books.fork, sync.conflicts, service.admin, quality.e2e_sync
+    note "Invitations, fifty per book, forks following their original, merges and conflicts between people."
+  }
+
+  task m5_complete "M5: The first pass, complete" {
+    milestone
+    depends milestones.m4_together, books.setlists, books.play, books.upload_ui, storage.download, account.new_device, account.sign_out, account.leaving, quality.a11y, service.rate_limits
+    note "Setlists and playing through, upload and download, a new device, leaving, accessibility checked throughout."
+  }
+
+  task m6_format_go "M6: The format in Go, everywhere" {
+    milestone
+    depends cifra_go.conformance, cifra_go.merge, format.cross_check, format.conflicts_schema, format.setlist_schema, format.render_hyphen
+    note "The second implementation complete with git-merge-cifra, and three implementations compared in CI."
+  }
+}
