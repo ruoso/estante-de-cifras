@@ -51,3 +51,8 @@ Append one `###` block per item, newest at the bottom:
 - **Source**: closer for `cifra_js.setlists` (cifra.md commit `c72c24e`), surfaced by the refinement's §Open questions.
 - **Question**: `spec/9-conformance.md` line 140 reads *"The corpus has no entries for reading setlists yet (§10, Open questions)"*. This was falsified when `format.setlist_corpus` added entries 35–47. The correction is a one-line format-spec edit. Is the sentence simply deleted, or replaced with a count/cross-reference?
 - **Why parked**: format-spec wording decision; the implementer correctly did not edit a conformance spec from a JS implementation task.
+
+### 2026-10-05 — Implement §8.5 editing operations in the Python reference and add editing corpus fixtures
+- **Source**: closer for `cifra_js.editing` (cifra.md commit `b1d1f94`), surfaced by refinement §Decisions.
+- **Question**: §8.5 was implemented in JavaScript only, against the spec prose; the Python reference does not implement editing operations and the corpus has no §8.5 fixtures. Should a future task add §8.5 to the Python reference and/or add editing corpus entries, to provide a cross-implementation second opinion for "two writers make the same change"?
+- **Why parked**: product scope decision. The current scope is correct per §Decisions — the app is the only editing client, Go never arranges, and the spec is the oracle. Adding §8.5 to the reference + corpus would require a non-trivial reference + corpus + (for symmetry) Go programme for behaviour no second implementation consumes. Only a person should decide whether the cross-check value justifies that work.

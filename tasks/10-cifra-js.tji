@@ -50,8 +50,9 @@ task cifra_js "cifra.md for JavaScript" {
   task editing "Editing operations" {
     effort 2d
     allocate team
+    complete 100
     depends !writer
-    note "cifra.md: §8.5 — choose a shape for an occurrence or a key, clear, many at once, add a variation; what the arrange mode and the wizard call. Tests: unit (each §8.5 operation on corpus songs — one occurrence, a key, clear, many at once, a new variation — its output canonical and re-read to the expected model)."
+    note "cifra.md: §8.5 — choose a shape for an occurrence or a key, clear, many at once, add a variation; what the arrange mode and the wizard call. Tests: unit (each §8.5 operation on corpus songs — one occurrence, a key, clear, many at once, a new variation — its output canonical and re-read to the expected model). Refinement: tasks/refinements/cifra_js/editing.md"
   }
   task merge "Merge" {
     effort 8d
