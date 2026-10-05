@@ -64,6 +64,12 @@ function seedBareRepo(root) {
     env,
   });
   execFileSync('git', ['clone', '-q', '--bare', work, bare], { env });
+  // git-http-backend serves upload-pack (clone/fetch) by default but refuses
+  // receive-pack (push) with a 403 unless the repo opts in. storage.git and the
+  // sync engine test push over this harness (worker.md Decision 5), so enable it.
+  execFileSync('git', ['-C', bare, 'config', 'http.receivepack', 'true'], {
+    env,
+  });
   return bare;
 }
 

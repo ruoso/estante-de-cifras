@@ -22,8 +22,9 @@ task storage "Storage" {
   task git "isomorphic-git" {
     effort 3d
     allocate team
+    complete 100
     depends !fs
-    note "Clone, fetch and push with credentials included to the one origin, protocol v1, a custom HTTP client; never getRemoteInfo2 for push. Tests: behavior (clone, fetch and push against a local git remote over HTTP; credentials included by the custom client; protocol v1; push never calls getRemoteInfo2)."
+    note "Clone, fetch and push with credentials included to the one origin, protocol v1, a custom HTTP client; never getRemoteInfo2 for push. Tests: behavior (clone, fetch and push against a local git remote over HTTP; credentials included by the custom client; protocol v1; push never calls getRemoteInfo2). Refinement: tasks/refinements/storage/git.md"
   }
   task working_copy "Working copy, save and discard" {
     effort 3d
