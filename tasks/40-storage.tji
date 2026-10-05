@@ -35,8 +35,9 @@ task storage "Storage" {
   task locks "One lock per book" {
     effort 1d
     allocate team
+    complete 100
     depends !git
-    note "Web Locks around every git operation, so two tabs never interleave. Tests: behavior (two operations on one book serialised, on two books not; a second tab's operation waits — Web Locks in the test environment)."
+    note "Web Locks around every git operation, so two tabs never interleave. Tests: behavior (two operations on one book serialised, on two books not; a second tab's operation waits — Web Locks in the test environment). Refinement: tasks/refinements/storage/locks.md"
   }
   task home_book "The home book" {
     effort 2d

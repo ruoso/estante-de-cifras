@@ -9,8 +9,11 @@
 //
 // Test infrastructure only: never imported from a production entry, so it never
 // enters the app bundle. It implements just enough of the Web Locks contract
-// for lightning-fs's `Mutex2` — exclusive locks, FIFO queueing, `ifAvailable`
-// and `steal` — not the full specification.
+// for lightning-fs's `Mutex2` and for storage.locks' `withLock` — exclusive
+// locks, FIFO queueing, `ifAvailable`, `steal`, and a `request()` promise that
+// settles with the grant callback's own result or rejection (the part withLock
+// relies on) — not the full specification. No `shared` mode and no
+// `AbortSignal`: the book lock is exclusive-only and never cancelled.
 
 export function makeLockManager() {
   // One FIFO queue of grant callbacks per lock name. The head of the queue
@@ -21,14 +24,23 @@ export function makeLockManager() {
   function runHead(name) {
     const q = queues.get(name);
     if (!q || q.length === 0) return;
-    const callback = q[0];
+    const entry = q[0];
     const lock = { name, mode: 'exclusive' };
     // Hold the lock until the callback's returned promise settles (that promise
-    // is what lightning-fs keeps pending until it releases), then grant the
-    // next waiter.
-    Promise.resolve(callback(lock)).then(release, release);
-    function release() {
+    // is what the holder keeps pending until it releases). Settle the request's
+    // own promise with the callback's outcome — the real Web Locks contract:
+    // `request()` resolves with the callback's return value and rejects with
+    // its error (this is what storage.locks' withLock relies on) — then grant
+    // the next waiter either way.
+    Promise.resolve()
+      .then(() => entry.callback(lock))
+      .then(
+        (value) => release(() => entry.resolve(value)),
+        (err) => release(() => entry.reject(err)),
+      );
+    function release(settle) {
       q.shift();
+      settle();
       runHead(name);
     }
   }
@@ -57,9 +69,17 @@ export function makeLockManager() {
       return Promise.resolve(callback(null));
     }
 
-    q.push(callback);
+    // The request promise settles when this entry reaches the head and its
+    // callback settles (see runHead).
+    let resolve;
+    let reject;
+    const promise = new Promise((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    q.push({ callback, resolve, reject });
     if (q.length === 1) runHead(name);
-    return Promise.resolve();
+    return promise;
   }
 
   return { request };
