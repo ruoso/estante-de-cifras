@@ -8,9 +8,25 @@ import { event, command, EventKind, CommandKind } from './protocol.js';
 describe('worker store reducer', () => {
   it('folds a ready event into the connection and meta slices', () => {
     const meta = { schemaVersion: 1, protocolVersion: 1, createdAt: 123 };
+    // A ready event with no persistence result defaults `persisted` to null.
     const next = reduce(initialState, event(EventKind.READY, { meta }));
-    expect(next.connection).toEqual({ status: 'ready', error: null });
+    expect(next.connection).toEqual({
+      status: 'ready',
+      error: null,
+      persisted: null,
+    });
     expect(next.meta).toEqual(meta);
+  });
+
+  it('carries the storage-durability result onto the connection slice (storage.fs)', () => {
+    // Pins that `persisted` from bring-up (DIRECTION §3 L114-115) rides the
+    // ready payload into the connection slice: true (granted), false (denied),
+    // null (unavailable) each surface unchanged.
+    const meta = { schemaVersion: 1, protocolVersion: 1, createdAt: 123 };
+    for (const persisted of [true, false, null]) {
+      const next = reduce(initialState, event(EventKind.READY, { meta, persisted }));
+      expect(next.connection.persisted).toBe(persisted);
+    }
   });
 
   it('leaves an untouched slice referentially equal while moving the changed one', () => {

@@ -17,6 +17,7 @@ import {
   latestVersion,
   runMigrations,
 } from './migrations.js';
+import { createFileSystem, createPersister } from './fs.js';
 
 // The schema version the database opens at, DERIVED from the migration step
 // list (single source of truth — migrations.js Decision 1): bumping the schema
@@ -102,25 +103,51 @@ function loadOrCreateMeta(db) {
 // `options.name` lets a test isolate its database; `options.migrations` injects
 // the step list (defaults to the production `MIGRATIONS`), reusing the existing
 // `options` seam so behavior tests can exercise genuine multi-step stepping
-// today, when only one real step exists. The version opened at is derived from
-// whichever list is in effect. Returns `{ handle }`: the adapter (real or
-// loopback) feeds each incoming command to `handle`.
+// today, when only one real step exists; `options.navigator` injects the object
+// `navigator.storage.persist()` is asked through (defaults to the global one).
+// The version opened at is derived from whichever list is in effect. Returns
+// `{ handle }`: the adapter (real or loopback) feeds each incoming command to
+// `handle`.
 export function createWorkerLogic(port, options = {}) {
   const idb = options.indexedDB ?? globalThis.indexedDB;
   const name = options.name ?? DB_NAME;
   const migrations = options.migrations ?? MIGRATIONS;
   const version = latestVersion(migrations);
+  // One persistence requester per Worker session, asked at most once (Decision
+  // 4). Built up front so the memoisation spans the whole session, not one open.
+  const requestPersistence = createPersister(
+    options.navigator ?? globalThis.navigator,
+  );
   let dbPromise = null;
+  let fs = null;
 
   function ensureOpen() {
     if (!dbPromise) dbPromise = openDatabase(idb, name, version, migrations);
     return dbPromise;
   }
 
+  // Materialise the one filesystem that serves the Worker, once (memoised like
+  // the database open). lightning-fs keeps its own IndexedDB database (named
+  // from the FS name, separate from `estante` — Decision 3), so the FS name is
+  // derived from the Worker's database name and a test's `options.name`
+  // isolates both. Books will become directories within it; the layout is
+  // storage.git's to settle.
+  function ensureFs() {
+    if (!fs) fs = createFileSystem(`${name}-fs`, { indexedDB: idb });
+    return fs;
+  }
+
   async function handleOpen() {
     const db = await ensureOpen();
     const meta = await loadOrCreateMeta(db);
-    port.postMessage(event(EventKind.READY, { meta }));
+    // Bring the rest of the storage stack up: the filesystem the storage tasks
+    // above will read and write, and the durable-storage request that protects
+    // the working copy written as the user types (DIRECTION §3 L103-105,
+    // L114-115). `persist()` is best-effort — `persisted` is true / false /
+    // null — and never blocks the ready report.
+    ensureFs();
+    const persisted = await requestPersistence();
+    port.postMessage(event(EventKind.READY, { meta, persisted }));
   }
 
   return {

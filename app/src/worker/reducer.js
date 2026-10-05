@@ -14,8 +14,12 @@ import { EVENT, EventKind } from './protocol.js';
 // the Worker's database yet, no persisted meta yet.
 export const initialState = {
   // The lifecycle of the Worker's IndexedDB connection, carried as a word
-  // (never colour alone): 'idle' | 'ready' | 'error'.
-  connection: { status: 'idle', error: null },
+  // (never colour alone): 'idle' | 'ready' | 'error'. `persisted` carries the
+  // result of `navigator.storage.persist()` once storage comes up — true
+  // (granted) / false (denied) / null (unavailable or not asked yet) — so a
+  // later task can nudge toward export when the durable store was denied
+  // (DIRECTION §3 L114-115).
+  connection: { status: 'idle', error: null, persisted: null },
   // The Worker's persisted `meta` record once it reports it, else null.
   meta: null,
 };
@@ -30,10 +34,15 @@ export function reduce(state, message) {
   switch (message.kind) {
     case EventKind.READY:
       // The connection is up and the Worker reported its meta: both slices
-      // move. `meta` becomes the reported record (a plain, cloned object).
+      // move. `meta` becomes the reported record (a plain, cloned object);
+      // `persisted` carries the storage-durability result from bring-up.
       return {
         ...state,
-        connection: { status: 'ready', error: null },
+        connection: {
+          status: 'ready',
+          error: null,
+          persisted: message.payload?.persisted ?? null,
+        },
         meta: message.payload?.meta ?? null,
       };
 

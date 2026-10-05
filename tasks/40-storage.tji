@@ -15,8 +15,9 @@ task storage "Storage" {
   task fs "The filesystem layer" {
     effort 2d
     allocate team
+    complete 100
     depends !worker
-    note "lightning-fs behind a small interface, so OPFS can replace it; navigator.storage.persist(). Tests: unit (the filesystem interface's contract suite, run against lightning-fs on a fake IndexedDB so OPFS can later pass the same suite); behavior (persist() asked for once)."
+    note "lightning-fs behind a small interface, so OPFS can replace it; navigator.storage.persist(). Tests: unit (the filesystem interface's contract suite, run against lightning-fs on a fake IndexedDB so OPFS can later pass the same suite); behavior (persist() asked for once). Refinement: tasks/refinements/storage/fs.md"
   }
   task git "isomorphic-git" {
     effort 3d
