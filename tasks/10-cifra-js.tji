@@ -22,8 +22,9 @@ task cifra_js "cifra.md for JavaScript" {
   task chords "Chord symbols and dialects" {
     effort 2d
     allocate team
+    complete 100
     depends !text_layer
-    note "cifra.md: §5 grammar, the canonical chord model, the three dialects and their ambiguities. Explore Chords' core/notation is the guide. Tests: unit (the §5 grammar in each dialect, its ambiguities, the canonical chord model; Explore Chords' notation cases as a guide); corpus (the chord-symbol entries)."
+    note "cifra.md: §5 grammar, the canonical chord model, the three dialects and their ambiguities. Explore Chords' core/notation is the guide. Tests: unit (the §5 grammar in each dialect, its ambiguities, the canonical chord model; Explore Chords' notation cases as a guide); corpus (the chord-symbol entries). Refinement: tasks/refinements/cifra_js/chords.md"
   }
   task reader "Reader" {
     effort 6d
