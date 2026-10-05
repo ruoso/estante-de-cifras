@@ -1,0 +1,32 @@
+# The image is built from the repository root but needs only app/ and
+# service/ sources; keep the build context small, deterministic and free of
+# host-built artefacts (node_modules and dist are rebuilt inside the image).
+**/node_modules
+**/dist
+**/coverage
+**/.vite
+**/test-results
+**/playwright-report
+**/blob-report
+**/*.log
+
+# Repository areas the service image does not build from.
+.git
+.github
+.claude
+docs
+tasks
+report
+orchestrator
+e2e
+api
+scripts
+
+# The build files themselves and docs never belong in the context.
+Dockerfile
+.dockerignore
+compose.yaml
+README.md
+app/README.md
+service/README.md
+service/cmd/pre-receive

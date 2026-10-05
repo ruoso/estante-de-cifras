@@ -1,0 +1,88 @@
+# compose.yaml — the whole system locally, as in production (DIRECTION §3.3,
+# §3.6). Three services, each with a healthcheck so `docker compose up --wait`
+# blocks until the stack is genuinely ready:
+#
+#   postgres  accounts, the registry and sessions (§3.3)
+#   mail      Mailpit, standing in for the transactional email provider (§3.3)
+#   service   the one Go binary, git beside it and the built PWA, on one origin
+#
+# Host ports and Postgres credentials come from ESTANTE_* variables with
+# defaults, so `docker compose up` works unset for a developer running the
+# stack by hand (8080/5432/8025, estante/estante/estante), while scripts/gate
+# injects free random ports and a unique project name (-p) to run an isolated
+# stack beside that one. Only the mail HTTP API is published; SMTP (1025) stays
+# on the compose network, as only the service posts to it.
+
+name: estante
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${ESTANTE_PG_USER:-estante}
+      POSTGRES_PASSWORD: ${ESTANTE_PG_PASSWORD:-estante}
+      POSTGRES_DB: ${ESTANTE_PG_DB:-estante}
+    ports:
+      # The DSN scripts/gate builds as ESTANTE_TEST_DATABASE_URL for the Go
+      # behavior tests; bound to loopback only.
+      - "127.0.0.1:${ESTANTE_PG_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # Healthy only when Postgres is accepting connections for this role and
+      # database, not merely when the port is open.
+      test: ["CMD-SHELL", "pg_isready -U ${ESTANTE_PG_USER:-estante} -d ${ESTANTE_PG_DB:-estante}"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  mail:
+    image: axllent/mailpit:latest
+    ports:
+      # The catcher's HTTP API (ESTANTE_E2E_MAIL_URL); SMTP (1025) is reachable
+      # from the service over the compose network and is not published.
+      - "127.0.0.1:${ESTANTE_MAIL_PORT:-8025}:8025"
+    healthcheck:
+      # The image is distroless (no shell); Mailpit's own binary answers its
+      # readiness probe.
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  service:
+    build:
+      # The context is the repository root so the image build spans app/ and
+      # service/ (see Dockerfile).
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      # The one binary comes up only once its backing services are healthy, so
+      # the whole stack is ready together under `up --wait`.
+      postgres:
+        condition: service_healthy
+      mail:
+        condition: service_healthy
+    ports:
+      # One origin: the published HTTP port serves both the app (at /, once
+      # service.serve_app lands) and the API beneath it (ESTANTE_E2E_BASE_URL).
+      # The binary binds its default internal 8080.
+      - "127.0.0.1:${ESTANTE_HTTP_PORT:-8080}:8080"
+    volumes:
+      # One bare git repository per book under /data/books (DIRECTION §3.3);
+      # the production shape, wired now though no route reads it yet.
+      - books:/data/books
+    healthcheck:
+      # GET /healthz answers 200 "ok" with no I/O (service/internal/server);
+      # busybox wget ships in the Alpine final image.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  postgres-data:
+  books:

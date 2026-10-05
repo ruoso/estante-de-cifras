@@ -44,8 +44,9 @@ task foundation "Foundation" {
   task compose "Everything locally, as in production" {
     effort 2d
     allocate team
+    complete 100
     depends !service_skeleton, !app_tooling
-    note "compose.yaml: Postgres, the service's image with git, the hook and the built app on one origin, a local mail catcher with an HTTP API; a healthcheck on every service so `docker compose up --wait` means ready; published ports and Postgres credentials read from the variables scripts/gate sets (ESTANTE_HTTP_PORT, ESTANTE_PG_PORT, ESTANTE_MAIL_PORT, ESTANTE_PG_USER/PASSWORD/DB, with defaults), so the gate can run an isolated stack beside a developer's; the app's dev server proxying the API. DIRECTION §3.6. Tests: none of its own — `docker compose config` valid; the stack is proven by foundation.e2e_api's smoke tests, which land next."
+    note "compose.yaml: Postgres, the service's image with git, the hook and the built app on one origin, a local mail catcher with an HTTP API; a healthcheck on every service so `docker compose up --wait` means ready; published ports and Postgres credentials read from the variables scripts/gate sets (ESTANTE_HTTP_PORT, ESTANTE_PG_PORT, ESTANTE_MAIL_PORT, ESTANTE_PG_USER/PASSWORD/DB, with defaults), so the gate can run an isolated stack beside a developer's; the app's dev server proxying the API. DIRECTION §3.6. Tests: none of its own — `docker compose config` valid; the stack is proven by foundation.e2e_api's smoke tests, which land next. Refinement: tasks/refinements/foundation/compose.md"
   }
   task ci "CI" {
     effort 1d
