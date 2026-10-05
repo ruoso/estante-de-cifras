@@ -102,6 +102,12 @@ Append one `###` block per item, newest at the bottom:
 - **Question**: Workflow 1 (lines 88–92) puts the theme chooser in the header alongside the language chooser, but no WBS leaf builds the theme chooser or the home-book write path for a theme preference. `shell.i18n` implies a language chooser, and `shell.layout` builds the header. Whether the theme chooser rides with `shell.i18n`, `shell.layout`, or a dedicated settings surface is an interface-placement call.
 - **Why parked**: product/interface judgment call; the home-book write path for `theme` is also unscoped. Only a person can decide where the chooser lives and which task owns it.
 
+### 2026-10-05 — Workflow 4: author display name for automatic home-book commits
+
+- **Source**: closer for `storage.home_book`, flagged by implementer's return summary.
+- **Question**: `home-book.js` calls `authorFrom({ id, name }, now)` from `author.js` for every automatic commit. Before sign-in the `id` is the device's local id, but what `name` should accompany it as the git author display name? After sign-in the account name is available; before sign-in (workflow 1 / workflow 4) no user name is on hand. Should the pre-sign-in display name be a device label (e.g. "This device"), the app name ("Estante de Cifras"), or a synthetic placeholder? Workflow 4's history view may surface this string to the user.
+- **Why parked**: UX/product judgment call; the email address (`<local-id>@users.estantedecifras.app`) is correct and sufficient for the automatic commit's identity, but the human-readable display name is not settled. Deciding requires agreement between `account.sign_in` (which reauthors pre-sign-in commits) and `shell`/`books` tasks that show commit history, not just `storage.home_book`.
+
 ### 2026-10-05 — Density as a user-chosen, synced preference
 
 - **Source**: closer for `shell.tokens`, surfaced by refinement §Open questions.

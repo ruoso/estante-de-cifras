@@ -43,8 +43,9 @@ task storage "Storage" {
   task home_book "The home book" {
     effort 2d
     allocate team
+    complete 100
     depends !working_copy, design.home_book_format
-    note "Committed automatically; settings and the shelf list; merged key by key, the later change winning. Workflows 1, 8, 13. Tests: unit (the key-by-key merge, the later change winning, equal times); behavior (settings changed in two working copies merged through the local remote, committed automatically)."
+    note "Committed automatically; settings and the shelf list; merged key by key, the later change winning. Workflows 1, 8, 13. Tests: unit (the key-by-key merge, the later change winning, equal times); behavior (settings changed in two working copies merged through the local remote, committed automatically). Refinement: tasks/refinements/storage/home_book.md"
   }
   task index "The search index" {
     effort 3d
