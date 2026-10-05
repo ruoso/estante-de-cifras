@@ -9,7 +9,8 @@ task storage "Storage" {
   task worker "The Worker and its store protocol" {
     effort 3d
     allocate team
-    note "One owner for the data; messages to the main thread's store, read through useSyncExternalStore. The main thread never touches IndexedDB. DIRECTION §3.7. Tests: unit (the message protocol, the store's reducer); behavior (the store fed by the Worker's logic in-process against a fake IndexedDB; components reading slices through useSyncExternalStore re-render only on their change — Testing Library). Sets up the behavior level for the Worker: fake IndexedDB and a local git remote served over HTTP inside the test."
+    complete 100
+    note "One owner for the data; messages to the main thread's store, read through useSyncExternalStore. The main thread never touches IndexedDB. DIRECTION §3.7. Tests: unit (the message protocol, the store's reducer); behavior (the store fed by the Worker's logic in-process against a fake IndexedDB; components reading slices through useSyncExternalStore re-render only on their change — Testing Library). Sets up the behavior level for the Worker: fake IndexedDB and a local git remote served over HTTP inside the test. Refinement: tasks/refinements/storage/worker.md"
   }
   task fs "The filesystem layer" {
     effort 2d
