@@ -1,9 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { createWorkerLogic } from './logic.js';
 import { MIGRATIONS, META_STORE, runMigrations } from './migrations.js';
 import { createStore } from './store.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
+import { installWebLocks } from '../test/web-locks.js';
 
 // behavior — the Worker's migration stepping against a real (fake) IndexedDB,
 // driven through the loopback where a command/event path is involved
@@ -14,6 +15,19 @@ import { createLoopbackEndpoint } from '../test/loopback.js';
 // database" on a user's device across an app update.
 
 const DB = 'estante-test';
+
+// OPEN now surfaces the home book's preferences on bring-up
+// (storage.preferences_surface), which reads the filesystem and takes a per-book
+// Web Lock; the shim puts lightning-fs's mutex and the lock registry on the Web
+// Locks path jsdom lacks (web-locks.js). The home book is independent of the
+// `estante` database these tests step, so the migration assertions are unchanged.
+let restoreLocks;
+beforeEach(() => {
+  restoreLocks = installWebLocks();
+});
+afterEach(() => {
+  restoreLocks();
+});
 
 // Wire a Worker-logic instance (with an injected step list) to a store through
 // the in-process loopback, exactly as the real main thread would wire a Worker.

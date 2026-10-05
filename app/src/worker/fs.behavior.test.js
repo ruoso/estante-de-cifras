@@ -29,9 +29,18 @@ afterEach(() => {
 
 // Wire a Worker-logic instance to a store through the in-process loopback, with
 // a fresh fake IndexedDB and a navigator stub whose persist() is `persistSpy`.
+// OPEN now also surfaces the home book's preferences (storage.preferences_surface),
+// whose per-book lock registry is taken on the SAME injected navigator (logic.js
+// `options.navigator` — persist AND locks). These tests inject a navigator to
+// control persist(), so the installed Web Locks shim is merged in so the
+// home-book bring-up on OPEN composes.
 function wireStore(idb, navigator) {
   const endpoint = createLoopbackEndpoint((port) =>
-    createWorkerLogic(port, { indexedDB: idb, name: DB, navigator }),
+    createWorkerLogic(port, {
+      indexedDB: idb,
+      name: DB,
+      navigator: { ...navigator, locks: globalThis.navigator.locks },
+    }),
   );
   return createStore(endpoint);
 }

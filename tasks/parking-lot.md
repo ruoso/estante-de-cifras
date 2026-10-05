@@ -113,3 +113,9 @@ Append one `###` block per item, newest at the bottom:
 - **Source**: closer for `shell.tokens`, surfaced by refinement §Open questions.
 - **Question**: `shell.tokens` ships density locked at `comfortable`. DIRECTION §3.2, Workflow 1, and `home-book-format §4.1` do not define a `density` register. Whether users can choose density (and where it would be stored and surfaced) is an unresolved product question. Deciding yes would require a new home-book register key (`density`), a format-spec edit (§4.1), a UI surface, and a `storage.preferences_surface`-style consumer task.
 - **Why parked**: product judgment call; no governing document currently mandates a density preference. Only a person can decide whether density becomes a user-chosen, synced preference.
+
+### 2026-10-05 — Service book-id collision with reserved `'home'` id
+
+- **Source**: closer for `storage.preferences_surface` (Decision 2), surfaced by implementer's return summary.
+- **Question**: `HOME_BOOK_ID = 'home'` is exported from `home-book.js` as the reserved id for the home book, which lives at `git.bookDir('home')` alongside service-assigned songbook ids. The mild assumption is that service-assigned book ids (opaque server ids) will never take the literal value `'home'`. Should the service's id-generation strategy explicitly reserve `'home'` (and other potential reserved values), or should the app's book-store layer enforce that reservation?
+- **Why parked**: service/account design judgment call; the current assumption is safe for the id schemes under consideration, but whether to encode it as an explicit invariant on the service side (in `account.sign_in`, the book-create endpoint, or hook validation) is a decision for the service and account tasks.

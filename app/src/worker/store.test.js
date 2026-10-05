@@ -1,8 +1,23 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { createStore } from './store.js';
 import { createWorkerLogic } from './logic.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
+import { installWebLocks } from '../test/web-locks.js';
+
+// OPEN now brings up the home book too (storage.preferences_surface surfaces its
+// preferences on bring-up), which — like every storage behavior flow — takes a
+// per-book Web Lock; the shim puts lightning-fs's mutex and the lock registry on
+// the Web Locks path jsdom otherwise lacks (web-locks.js). No global `indexedDB`
+// is touched (Mutex2 uses navigator.locks), so the "injected factory only" case
+// still holds.
+let restoreLocks;
+beforeEach(() => {
+  restoreLocks = installWebLocks();
+});
+afterEach(() => {
+  restoreLocks();
+});
 
 // behavior — the Worker's storage logic driven through the store, in-process,
 // against a fake IndexedDB (the README behavior level; DIRECTION §3.7 L394-401
@@ -68,10 +83,12 @@ describe('worker store (behavior)', () => {
     store.subscribe(notified);
 
     store.open();
-    await vi.waitFor(() =>
-      expect(store.slice('connection').status).toBe('ready'),
-    );
-    expect(notified).toHaveBeenCalledTimes(1);
+    // OPEN makes two real state moves — the connection+meta (READY) and the
+    // home book's preferences surfaced on bring-up (PREFERENCES, empty here) —
+    // so exactly two notifications, and no more (the reducer returns the same
+    // reference for an event that changes nothing).
+    await vi.waitFor(() => expect(notified).toHaveBeenCalledTimes(2));
+    expect(store.slice('connection').status).toBe('ready');
   });
 
   it('reaches IndexedDB only through the Worker logic (the injected factory), never a global one', async () => {

@@ -30,6 +30,11 @@ export const CommandKind = Object.freeze({
   WRITE: 'write',
   SAVE: 'save',
   DISCARD: 'discard',
+  // Sync the home book and re-surface its preferences (storage.preferences_surface):
+  // fetch → merge key by key → commit → push, then re-emit PREFERENCES so a
+  // register a sync changed reaches the slice. The sync engine drives this on
+  // its schedule; it is the testable trigger for the re-emit.
+  SYNC_HOME: 'sync_home',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;

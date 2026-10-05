@@ -75,7 +75,8 @@ task storage "Storage" {
   task preferences_surface "Surface preferences from the home book" {
     effort 1d
     allocate team
+    complete 100
     depends !home_book, shell.tokens
-    note "The Worker reads preferences.json from the home book and emits a PREFERENCES event the reducer folds into the preferences slice (the contract defined by shell.tokens), re-emitted when sync changes a register. DIRECTION §3.2, §3.7; home-book-format §4.1. Source of debt: tasks/refinements/shell/tokens.md (shell.tokens). Tests: unit (a preferences.json map → the event payload of {value, at} registers; an absent register stays absent); behavior (the Worker against a fake IndexedDB and a local git remote surfaces a theme change, the reducer folds it, the ThemeRoot re-applies)."
+    note "The Worker reads preferences.json from the home book and emits a PREFERENCES event the reducer folds into the preferences slice (the contract defined by shell.tokens), re-emitted when sync changes a register. DIRECTION §3.2, §3.7; home-book-format §4.1. Source of debt: tasks/refinements/shell/tokens.md (shell.tokens). Tests: unit (a preferences.json map → the event payload of {value, at} registers; an absent register stays absent); behavior (the Worker against a fake IndexedDB and a local git remote surfaces a theme change, the reducer folds it, the ThemeRoot re-applies). Refinement: tasks/refinements/storage/preferences_surface.md"
   }
 }

@@ -77,6 +77,14 @@ const GITATTRIBUTES_BYTES = `* text=auto eol=lf
 *.json merge=binary
 `;
 
+// The reserved id of the one home book per installation (storage.preferences_surface
+// Decision 2). It lives at `git.bookDir('home')` → `/books/home`, sharing the
+// `/books/<id>` namespace with songbooks; service-assigned book ids are opaque
+// server ids and never take this reserved literal. The home-book behavior test
+// already uses `'home'` (home-book.behavior.test.js:31); this is that
+// convention as the single production constant logic.js reads.
+export const HOME_BOOK_ID = 'home';
+
 // The singleton `meta` record's key and store — the same one logic.js's
 // `loadOrCreateMeta` reads (logic.js:33, migrations.js step 1). The §2.3 device
 // id is a field on that record (home-book.md Decision 7): no new store, no

@@ -22,6 +22,8 @@ import { createBookLocks } from './locks.js';
 import { createGitHttpClient } from './git-http.js';
 import { createGitLayer } from './git.js';
 import { createWorkingCopy } from './working-copy.js';
+import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
+import { surfacePreferences } from './preferences.js';
 import { authorFrom } from './author.js';
 
 // The schema version the database opens at, DERIVED from the migration step
@@ -128,7 +130,10 @@ export function createWorkerLogic(port, options = {}) {
   const requestPersistence = createPersister(navigator);
   let dbPromise = null;
   let fs = null;
+  let git = null;
+  let locks = null;
   let workingCopy = null;
+  let homeBook = null;
 
   function ensureOpen() {
     if (!dbPromise) dbPromise = openDatabase(idb, name, version, migrations);
@@ -146,20 +151,67 @@ export function createWorkerLogic(port, options = {}) {
     return fs;
   }
 
-  // Compose the working-copy flow once (memoised like the filesystem): the git
-  // transport over the shared fs and the git HTTP client, the per-book lock
-  // registry, and the filesystem. This is the wiring git.md Decision 4 and
-  // locks.md Decision 4 deferred to "the first consumer" — the git layer and the
-  // lock registry constructed here in the closure, beside ensureFs (Decision 1).
+  // The git transport over the shared fs and the git HTTP client, composed once
+  // (storage.preferences_surface Decision 3): a single owner of the transport
+  // for every book flow, so the working copy and the home book share one layer.
+  // This is the wiring git.md Decision 4 deferred to "the first consumer".
+  function ensureGit() {
+    if (!git) {
+      const http = createGitHttpClient({ fetch: options.fetch });
+      git = createGitLayer({ fs: ensureFs(), http });
+    }
+    return git;
+  }
+
+  // The per-book Web Lock registry, composed once (Decision 3): a single owner
+  // of the global Web Lock names, so the working copy and the home book never
+  // race two registries on one book's lock (locks.md Decision 4's "first
+  // consumer").
+  function ensureLocks() {
+    if (!locks) locks = createBookLocks({ navigator });
+    return locks;
+  }
+
+  // Compose the working-copy flow once (memoised like the filesystem) over the
+  // shared fs, git layer and lock registry.
   function ensureWorkingCopy() {
     if (!workingCopy) {
-      const fsLayer = ensureFs();
-      const http = createGitHttpClient({ fetch: options.fetch });
-      const git = createGitLayer({ fs: fsLayer, http });
-      const locks = createBookLocks({ navigator });
-      workingCopy = createWorkingCopy({ fs: fsLayer, git, locks });
+      workingCopy = createWorkingCopy({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+      });
     }
     return workingCopy;
+  }
+
+  // Compose the home book once over the SAME fs, git layer and lock registry as
+  // the working copy (Decision 3), mirroring ensureWorkingCopy. The Worker owns
+  // the home book; the view never reads it (DIRECTION §3.7 L407-409).
+  function ensureHomeBook() {
+    if (!homeBook) {
+      homeBook = createHomeBook({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+      });
+    }
+    return homeBook;
+  }
+
+  // Read the home book's preferences.json, project it to the flat map of
+  // `{value, at}` registers, and post the PREFERENCES event — the contract
+  // shell.tokens defined (protocol.js L39-42; reducer replaces the slice,
+  // reducer.js:120-125). A read before any home book exists returns `{}`
+  // (ENOENT, home-book.js:125-132), so the payload is `{}` and ThemeRoot stays
+  // automatic — never an error, never a crash. Logs nothing (no preference
+  // values; standing rule).
+  async function surfaceHomeBookPreferences() {
+    const model = await ensureHomeBook().read({
+      bookId: HOME_BOOK_ID,
+      file: 'preferences.json',
+    });
+    port.postMessage(event(EventKind.PREFERENCES, surfacePreferences(model)));
   }
 
   async function handleOpen() {
@@ -173,6 +225,12 @@ export function createWorkerLogic(port, options = {}) {
     ensureFs();
     const persisted = await requestPersistence();
     port.postMessage(event(EventKind.READY, { meta, persisted }));
+    // Surface the home book's preferences on bring-up, right after READY, so the
+    // themed shell reflects the chosen theme (and, later, language, notation) as
+    // soon as the Worker is up — "the theme is right before anything else"
+    // (workflow 13 L30-37; Decision 4). The read is local and offline-first, and
+    // emits `{}` when no home book exists yet.
+    await surfaceHomeBookPreferences();
   }
 
   return {
@@ -225,6 +283,21 @@ export function createWorkerLogic(port, options = {}) {
             const { bookId, paths } = message.payload;
             await ensureWorkingCopy().discard({ bookId, paths });
             port.postMessage(event(EventKind.DISCARDED, { bookId, paths }));
+            break;
+          }
+          case CommandKind.SYNC_HOME: {
+            // Sync the home book (fetch → merge key by key → commit → push, under
+            // one lock, offline-first — home-book.js:243) and re-surface its
+            // preferences, so a register the sync changed reaches the slice
+            // ("re-emitted when sync changes a register"). The sync forms the
+            // merge-commit identity from the command's author ({ id, name });
+            // a failed push keeps the local commit (home-book.js:317-324) and the
+            // re-surface runs regardless, reflecting whatever the local tree holds.
+            await ensureHomeBook().sync({
+              bookId: HOME_BOOK_ID,
+              author: message.payload.author,
+            });
+            await surfaceHomeBookPreferences();
             break;
           }
           default:
