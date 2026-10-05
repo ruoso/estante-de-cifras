@@ -44,6 +44,11 @@ export const CommandKind = Object.freeze({
   READ_VERSION: 'read_version',
   RESTORE_VERSION: 'restore_version',
   BOOK_LOG: 'book_log',
+  // Song search across every loaded book (storage.index, workflow 2). Payload
+  // `{ query, scope? }`; the Worker queries its in-memory index and replies with
+  // a SEARCH_RESULTS event. `scope` optionally narrows to book ids
+  // (`{ books: [...] }`) or a folder prefix within a book (`{ bookId, prefix }`).
+  SEARCH: 'search',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -69,6 +74,14 @@ export const EventKind = Object.freeze({
   VERSION: 'version',
   RESTORED: 'restored',
   BOOK_LOG: 'book_log',
+  // The search index (storage.index). SEARCH_RESULTS carries a query's ranked
+  // results — `{ query, results: [{ bookId, path, title, artist, score }] }`;
+  // INDEX_STATUS carries a per-book build state — `{ bookId, state }` where
+  // state is 'building' | 'ready' — so the search screen can say a book is
+  // still loading (workflow 2 L159-162). Two kinds, not one, so results and
+  // status update their slices at their own cadence (Decision 4).
+  SEARCH_RESULTS: 'search_results',
+  INDEX_STATUS: 'index_status',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

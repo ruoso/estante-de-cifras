@@ -23,6 +23,15 @@
 // creation; logic.js imports it.
 export const META_STORE = 'meta';
 
+// The search index's two object stores (storage.index, Decision 3), created by
+// step 2 and persisted into by logic.js (the one owner of the `estante`
+// database). `index_docs` is the content-addressed parse cache — one record per
+// distinct git blob oid; `index_locations` maps a song's location
+// (`<bookId>\0<path>`) to the oid of its current working-tree bytes. Both use an
+// in-line key path so a record carries its own key.
+export const INDEX_DOCS_STORE = 'index_docs';
+export const INDEX_LOCATIONS_STORE = 'index_locations';
+
 // The ordered migration steps. Contiguous integer versions from 1; each
 // `upgrade(db, tx, oldVersion)` runs inside the `versionchange` transaction.
 // Append a step to bump the schema — never edit a shipped one, never maintain a
@@ -40,6 +49,22 @@ export const MIGRATIONS = [
     upgrade(db) {
       if (!db.objectStoreNames.contains(META_STORE)) {
         db.createObjectStore(META_STORE);
+      }
+    },
+  },
+  {
+    version: 2,
+    label: 'create the search-index stores',
+    // The search index's content-addressed parse cache and location map
+    // (storage.index, Decision 3). `index_docs` is keyed by the git blob oid,
+    // `index_locations` by `<bookId>\0<path>`; both carry their key in-line.
+    // Guarded by `contains` so re-running over an existing store is a no-op.
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(INDEX_DOCS_STORE)) {
+        db.createObjectStore(INDEX_DOCS_STORE, { keyPath: 'oid' });
+      }
+      if (!db.objectStoreNames.contains(INDEX_LOCATIONS_STORE)) {
+        db.createObjectStore(INDEX_LOCATIONS_STORE, { keyPath: 'key' });
       }
     },
   },

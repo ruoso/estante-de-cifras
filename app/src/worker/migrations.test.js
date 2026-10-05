@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   MIGRATIONS,
   META_STORE,
+  INDEX_DOCS_STORE,
+  INDEX_LOCATIONS_STORE,
   latestVersion,
   runMigrations,
 } from './migrations.js';
@@ -49,8 +51,11 @@ describe('latestVersion (unit)', () => {
     expect(latestVersion(steps)).toBe(3);
   });
 
-  it('derives version 1 from the real single-step production list', () => {
-    expect(latestVersion(MIGRATIONS)).toBe(1);
+  it('derives the latest version from the real production list', () => {
+    // Step 1 is the meta store; step 2 is the search index's stores
+    // (storage.index). The version is derived from the list, so it tracks the
+    // number of steps.
+    expect(latestVersion(MIGRATIONS)).toBe(2);
   });
 
   it('rejects a gap in the sequence (not contiguous from 1)', () => {
@@ -129,6 +134,28 @@ describe('the real step 1 (unit)', () => {
   it('is idempotent when the meta store already exists', () => {
     const db = fakeDb([META_STORE]);
     step1.upgrade(db, {}, 1);
+    expect(db.created).toEqual([]);
+  });
+});
+
+describe('the real step 2 (unit)', () => {
+  // Pins the search-index stores (storage.index Decision 3): step 2 creates
+  // `index_docs` and `index_locations`, and is idempotent when they exist.
+  const step2 = MIGRATIONS[1];
+
+  it('is version 2', () => {
+    expect(step2.version).toBe(2);
+  });
+
+  it('creates the two search-index stores on an upgrade from version 1', () => {
+    const db = fakeDb([META_STORE]);
+    step2.upgrade(db, {}, 1);
+    expect(db.created).toEqual([INDEX_DOCS_STORE, INDEX_LOCATIONS_STORE]);
+  });
+
+  it('is idempotent when the index stores already exist', () => {
+    const db = fakeDb([META_STORE, INDEX_DOCS_STORE, INDEX_LOCATIONS_STORE]);
+    step2.upgrade(db, {}, 2);
     expect(db.created).toEqual([]);
   });
 });

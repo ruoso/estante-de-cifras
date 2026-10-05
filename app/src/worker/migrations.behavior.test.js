@@ -158,8 +158,9 @@ describe('worker migrations (behavior)', () => {
   });
 
   it('opens the real production schema from empty at the derived latest version', async () => {
-    // The default (injected-nothing) path: today's single real step runs from
-    // empty and meta tracks the derived version (1).
+    // The default (injected-nothing) path: the real steps run from empty and
+    // meta tracks the derived version. storage.index lands step 2 (the
+    // search-index stores), so the derived version is 2.
     const idb = new IDBFactory();
     const endpoint = createLoopbackEndpoint((port) =>
       createWorkerLogic(port, { indexedDB: idb, name: DB }),
@@ -169,7 +170,7 @@ describe('worker migrations (behavior)', () => {
     await vi.waitFor(() =>
       expect(store.slice('connection').status).toBe('ready'),
     );
-    expect(store.slice('meta').schemaVersion).toBe(1);
+    expect(store.slice('meta').schemaVersion).toBe(2);
   });
 
   it('holds the upgrade until the next launch: an open N-version connection blocks it', async () => {

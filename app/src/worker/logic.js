@@ -10,10 +10,13 @@
 // commit messages, or secrets (standing rule); this task stores none of those
 // anyway, only the schema `meta`.
 
+import { parse } from 'cifra-md';
 import { event, EventKind, COMMAND, CommandKind } from './protocol.js';
 import {
   MIGRATIONS,
   META_STORE,
+  INDEX_DOCS_STORE,
+  INDEX_LOCATIONS_STORE,
   latestVersion,
   runMigrations,
 } from './migrations.js';
@@ -24,6 +27,7 @@ import { createGitLayer } from './git.js';
 import { createWorkingCopy } from './working-copy.js';
 import { createHistory } from './history.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
+import { createSearchIndex } from './search-index.js';
 import { surfacePreferences } from './preferences.js';
 import { authorFrom } from './author.js';
 
@@ -105,6 +109,100 @@ function loadOrCreateMeta(db) {
   });
 }
 
+// Whether both search-index stores exist on this connection. They are created
+// by migration step 2, so they are always present in production; a database
+// opened against a schema that lacks them (e.g. the migration framework driven
+// with an injected step list) simply has no persistent index. The derived index
+// is a secondary layer and must never fault the open connection, so its reads
+// return empty and its writes no-op when the stores are absent.
+function hasIndexStores(db) {
+  return (
+    db.objectStoreNames.contains(INDEX_DOCS_STORE) &&
+    db.objectStoreNames.contains(INDEX_LOCATIONS_STORE)
+  );
+}
+
+// Read every persisted search-index record (storage.index). All IndexedDB
+// access for the index lives here in the one database owner; the index module
+// itself never touches IndexedDB (Decision 3). Resolved on transaction
+// completion so the full set is in hand before the in-memory index is rebuilt.
+function readIndexStores(db) {
+  if (!hasIndexStores(db)) return Promise.resolve({ docs: [], locations: [] });
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(
+      [INDEX_DOCS_STORE, INDEX_LOCATIONS_STORE],
+      'readonly',
+    );
+    const docs = [];
+    const locations = [];
+    tx.objectStore(INDEX_DOCS_STORE).openCursor().onsuccess = (ev) => {
+      const cursor = ev.target.result;
+      if (cursor) {
+        docs.push(cursor.value);
+        cursor.continue();
+      }
+    };
+    tx.objectStore(INDEX_LOCATIONS_STORE).openCursor().onsuccess = (ev) => {
+      const cursor = ev.target.result;
+      if (cursor) {
+        locations.push(cursor.value);
+        cursor.continue();
+      }
+    };
+    tx.oncomplete = () => resolve({ docs, locations });
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
+// Persist one change-set the index returned: `putDocs` into `index_docs`,
+// `putLocations` into `index_locations`, `deleteLocations` removed by key — all
+// in one `readwrite` transaction so a mutation and its records land atomically.
+// An empty change-set is a no-op.
+function applyIndexChanges(db, changes) {
+  const { putDocs = [], putLocations = [], deleteLocations = [] } = changes;
+  if (!putDocs.length && !putLocations.length && !deleteLocations.length) {
+    return Promise.resolve();
+  }
+  if (!hasIndexStores(db)) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(
+      [INDEX_DOCS_STORE, INDEX_LOCATIONS_STORE],
+      'readwrite',
+    );
+    const docs = tx.objectStore(INDEX_DOCS_STORE);
+    const locations = tx.objectStore(INDEX_LOCATIONS_STORE);
+    for (const doc of putDocs) docs.put(doc);
+    for (const location of putLocations) locations.put(location);
+    for (const key of deleteLocations) locations.delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
+// The book ids present on the filesystem (one directory per book under
+// `/books`, git.js's `bookDir`). The home book is excluded — it holds
+// preferences, not songs, so it contributes nothing to song search. An absent
+// `/books` (no book cloned yet) yields no ids.
+async function listBookIds(fs, homeBookId) {
+  let entries;
+  try {
+    entries = await fs.promises.readdir('/books');
+  } catch (err) {
+    if (err?.code === 'ENOENT') return [];
+    throw err;
+  }
+  return entries.filter((id) => id !== homeBookId);
+}
+
+// Fold one index change-set into an accumulator (SAVE/DISCARD touch many paths).
+function mergeIndexChanges(into, from) {
+  into.putDocs.push(...from.putDocs);
+  into.putLocations.push(...from.putLocations);
+  into.deleteLocations.push(...from.deleteLocations);
+}
+
 // Create the Worker logic bound to a `port` (anything with `postMessage`)
 // through which it emits events. `options.indexedDB` injects the IndexedDB
 // factory (defaults to the global one, present in a real Worker);
@@ -123,6 +221,10 @@ export function createWorkerLogic(port, options = {}) {
   const name = options.name ?? DB_NAME;
   const migrations = options.migrations ?? MIGRATIONS;
   const version = latestVersion(migrations);
+  // The `cifra-md` reader the search index parses songs through; injectable so a
+  // test can spy on it to assert content-addressing (a text is parsed once per
+  // distinct blob — storage.index Decision 2, acceptance 6).
+  const parseSong = options.parse ?? parse;
   // The object `navigator.storage.persist()` is asked through and the per-book
   // Web Locks are taken on (both the global one in a real Worker).
   const navigator = options.navigator ?? globalThis.navigator;
@@ -136,6 +238,8 @@ export function createWorkerLogic(port, options = {}) {
   let workingCopy = null;
   let history = null;
   let homeBook = null;
+  let searchIndex = null;
+  let indexHydration = null;
 
   function ensureOpen() {
     if (!dbPromise) dbPromise = openDatabase(idb, name, version, migrations);
@@ -216,6 +320,76 @@ export function createWorkerLogic(port, options = {}) {
     return homeBook;
   }
 
+  // Compose the search index once over the SAME fs and git layer (Decision 1),
+  // mirroring the other ensure* composers. The index owns only the in-memory
+  // MiniSearch instance and the extracted records; this module persists them.
+  function ensureSearchIndex() {
+    if (!searchIndex) {
+      searchIndex = createSearchIndex({
+        fs: ensureFs(),
+        git: ensureGit(),
+        parse: parseSong,
+      });
+    }
+    return searchIndex;
+  }
+
+  // Rebuild the in-memory index from its persisted records, once per session
+  // (memoised like the database open). Every index operation awaits this first,
+  // so a WRITE or SEARCH that arrives before OPEN still sees a hydrated index,
+  // and a relaunch re-reads nothing whose blob oid is unchanged (Decision 3).
+  function ensureIndexHydrated() {
+    if (!indexHydration) {
+      indexHydration = (async () => {
+        const db = await ensureOpen();
+        const { docs, locations } = await readIndexStores(db);
+        ensureSearchIndex().hydrate(docs, locations);
+      })();
+    }
+    return indexHydration;
+  }
+
+  // Persist one index change-set, reusing the memoised open.
+  async function persistIndexChanges(changes) {
+    await applyIndexChanges(await ensureOpen(), changes);
+  }
+
+  // (Re-)index one working-tree path, or drop it if the file is gone — the
+  // branch SAVE (a removed file) and DISCARD (a never-saved file) both need
+  // (acceptance 5). The index hashes the CURRENT bytes, so unsaved edits are
+  // findable (DIRECTION §3 L116-117).
+  async function reindexOrRemove({ bookId, path, unsaved }) {
+    const full = `${ensureGit().bookDir(bookId)}/${path}`;
+    try {
+      await ensureFs().promises.stat(full);
+    } catch (err) {
+      if (err?.code === 'ENOENT') {
+        return ensureSearchIndex().removePath({ bookId, path });
+      }
+      throw err;
+    }
+    return ensureSearchIndex().reindexPath({ bookId, path, unsaved });
+  }
+
+  // Build every book's index on bring-up (acceptance 1, 9): emit a per-book
+  // `building` → `ready` status around reconciling its working tree with the
+  // persisted records, so the search screen can say a book is "still loading"
+  // (workflow 2 L159-162). Reconcile re-parses only what a blob oid shows
+  // changed (Decision 3).
+  async function buildIndexes() {
+    await ensureIndexHydrated();
+    const bookIds = await listBookIds(ensureFs(), HOME_BOOK_ID);
+    for (const bookId of bookIds) {
+      port.postMessage(
+        event(EventKind.INDEX_STATUS, { bookId, state: 'building' }),
+      );
+      await persistIndexChanges(await ensureSearchIndex().reconcile(bookId));
+      port.postMessage(
+        event(EventKind.INDEX_STATUS, { bookId, state: 'ready' }),
+      );
+    }
+  }
+
   // Read the home book's preferences.json, project it to the flat map of
   // `{value, at}` registers, and post the PREFERENCES event — the contract
   // shell.tokens defined (protocol.js L39-42; reducer replaces the slice,
@@ -248,6 +422,11 @@ export function createWorkerLogic(port, options = {}) {
     // (workflow 13 L30-37; Decision 4). The read is local and offline-first, and
     // emits `{}` when no home book exists yet.
     await surfaceHomeBookPreferences();
+    // Build the song search index for every book on the device, emitting a
+    // per-book status as it goes (storage.index, acceptance 1/9). After READY so
+    // the shell is up first; the search screen shows "still loading" per book
+    // until its `ready` arrives.
+    await buildIndexes();
   }
 
   return {
@@ -263,6 +442,17 @@ export function createWorkerLogic(port, options = {}) {
             // write is silent; its only observable effect is the working copy.
             const { bookId, path, text } = message.payload;
             await ensureWorkingCopy().write({ bookId, path, text });
+            // Re-index just this path from its new working-tree bytes, so a
+            // title typed but not saved is findable immediately (storage.index
+            // acceptance 5, DIRECTION §3 L116-117). Marked unsaved.
+            await ensureIndexHydrated();
+            await persistIndexChanges(
+              await ensureSearchIndex().reindexPath({
+                bookId,
+                path,
+                unsaved: true,
+              }),
+            );
             break;
           }
           case CommandKind.SAVE: {
@@ -293,6 +483,22 @@ export function createWorkerLogic(port, options = {}) {
                   pushed: outcome.pushed,
                 }),
               );
+              // Re-index the saved paths — now canonical and committed, so no
+              // longer unsaved (storage.index acceptance 5). A path saved as a
+              // deletion is dropped from the index.
+              await ensureIndexHydrated();
+              const changes = {
+                putDocs: [],
+                putLocations: [],
+                deleteLocations: [],
+              };
+              for (const path of paths) {
+                mergeIndexChanges(
+                  changes,
+                  await reindexOrRemove({ bookId, path, unsaved: false }),
+                );
+              }
+              await persistIndexChanges(changes);
             }
             break;
           }
@@ -300,6 +506,22 @@ export function createWorkerLogic(port, options = {}) {
             const { bookId, paths } = message.payload;
             await ensureWorkingCopy().discard({ bookId, paths });
             port.postMessage(event(EventKind.DISCARDED, { bookId, paths }));
+            // Re-index the reverted paths (back to their last-saved bytes) and
+            // drop any never-saved file discard removed (storage.index
+            // acceptance 5).
+            await ensureIndexHydrated();
+            const changes = {
+              putDocs: [],
+              putLocations: [],
+              deleteLocations: [],
+            };
+            for (const path of paths) {
+              mergeIndexChanges(
+                changes,
+                await reindexOrRemove({ bookId, path, unsaved: false }),
+              );
+            }
+            await persistIndexChanges(changes);
             break;
           }
           case CommandKind.SONG_LOG: {
@@ -349,6 +571,18 @@ export function createWorkerLogic(port, options = {}) {
             const { bookId } = message.payload;
             const { commits } = await ensureHistory().bookLog({ bookId });
             port.postMessage(event(EventKind.BOOK_LOG, { bookId, commits }));
+            break;
+          }
+          case CommandKind.SEARCH: {
+            // Query the in-memory index in the Worker and post the ranked
+            // results back; the index itself never crosses the port (Decision
+            // 8). `scope` optionally narrows to books or a folder prefix.
+            const { query, scope } = message.payload;
+            await ensureIndexHydrated();
+            const results = ensureSearchIndex().search({ query, scope });
+            port.postMessage(
+              event(EventKind.SEARCH_RESULTS, { query, results }),
+            );
             break;
           }
           case CommandKind.SYNC_HOME: {

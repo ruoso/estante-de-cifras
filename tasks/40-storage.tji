@@ -50,8 +50,15 @@ task storage "Storage" {
   task index "The search index" {
     effort 3d
     allocate team
+    complete 100
     depends !working_copy, cifra_js.reader
-    note "MiniSearch with accent folding; title, properties, sections, words, chords; keyed by blob hash; covers unsaved work; kept in IndexedDB. Workflow 2. Tests: unit (accent folding, the fields, ranking); behavior (the index built in the Worker from a book, updated on save and on unsaved edits, kept across a restart in a fake IndexedDB, keyed by blob hash so unchanged files are not re-read)."
+    note "MiniSearch with accent folding; title, properties, sections, words, chords; keyed by blob hash; covers unsaved work; kept in IndexedDB. Workflow 2. Tests: unit (accent folding, the fields, ranking); behavior (the index built in the Worker from a book, updated on save and on unsaved edits, kept across a restart in a fake IndexedDB, keyed by blob hash so unchanged files are not re-read). Refinement: tasks/refinements/storage/index.md"
+  }
+  task progression_search "Chord-progression search" {
+    effort 2d
+    allocate team
+    depends !index
+    note "Chord n-gram field on the MiniSearch index plus a progression-aware query, so a query like 'Am F C G' finds songs that contain that chord run. App-side extension of the search index; the reader's structured item.chord is already available. Workflow 2 (Later, L42). Source of debt: tasks/refinements/storage/index.md (storage.index). Tests: unit (n-gram extraction and progression match); behavior (a progression query finds a song that contains the run, built in the Worker)."
   }
   task history "History" {
     effort 2d

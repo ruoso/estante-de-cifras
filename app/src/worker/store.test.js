@@ -50,7 +50,9 @@ describe('worker store (behavior)', () => {
       expect(store.slice('connection').status).toBe('ready'),
     );
     const meta = store.slice('meta');
-    expect(meta.schemaVersion).toBe(1);
+    // The production schema version is derived from the migration step list;
+    // storage.index lands step 2 (the search-index stores), so it is 2.
+    expect(meta.schemaVersion).toBe(2);
     expect(typeof meta.createdAt).toBe('number');
   });
 

@@ -50,6 +50,18 @@ export const initialState = {
   // (BOOK_LOG): `{ commits }`, every commit newest first with the files each
   // touched. A book an event does not touch keeps its reference. Starts empty.
   bookLog: {},
+  // The last song-search query and its ranked results (storage.index,
+  // SEARCH_RESULTS): `{ query, results }`, each result `{ bookId, path, title,
+  // artist, score }`. The whole slice is replaced on each SEARCH_RESULTS and
+  // left untouched by every other event, so only the search screen re-renders.
+  // Starts empty: nothing searched yet.
+  search: { query: null, results: [] },
+  // The per-book index build state (storage.index, INDEX_STATUS), keyed by
+  // `bookId`: 'building' while a book's songs are being indexed, 'ready' once
+  // done — carried as a word, so the search screen can say a book is "still
+  // loading" rather than looking empty (workflow 2 L159-162). A book an event
+  // does not touch keeps its reference. Starts empty: no book indexed yet.
+  index: {},
 };
 
 // Fold one message into the state. Only event-direction messages change
@@ -222,6 +234,30 @@ export function reduce(state, message) {
           ...state.bookLog,
           [bookId]: { commits: message.payload?.commits ?? [] },
         },
+      };
+    }
+
+    case EventKind.SEARCH_RESULTS:
+      // A search completed: replace the `search` slice with the query and its
+      // ranked results. Only this slice moves; every other slice keeps its
+      // reference ("only what shows it moves").
+      return {
+        ...state,
+        search: {
+          query: message.payload?.query ?? null,
+          results: message.payload?.results ?? [],
+        },
+      };
+
+    case EventKind.INDEX_STATUS: {
+      // A book's index changed build state: set it under the book's key. Only
+      // this book's entry moves; the rest of `index` keeps its references, so a
+      // view watching one book does not re-render on another's progress.
+      const bookId = message.payload?.bookId;
+      if (!bookId) return state;
+      return {
+        ...state,
+        index: { ...state.index, [bookId]: message.payload?.state ?? null },
       };
     }
 

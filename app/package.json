@@ -18,6 +18,7 @@
     "@isomorphic-git/lightning-fs": "^4.10.3",
     "cifra-md": "file:../../cifra.md/js",
     "isomorphic-git": "^1.43.0",
+    "minisearch": "^7.2.0",
     "react": "^19.3.0",
     "react-aria-components": "^1.21.1",
     "react-dom": "^19.3.0"
