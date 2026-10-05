@@ -66,3 +66,22 @@ export function createWorkerStore() {
   });
   return createStore(worker);
 }
+
+// The one store the running app subscribes to, created lazily and once so a
+// re-render (or StrictMode's double-invoke) never spawns a second Worker. In a
+// browser it is the real Worker-backed store; where no `Worker` global exists
+// (the jsdom unit/behavior tests, which render <App/> directly) it is an inert
+// store over a no-op endpoint, so importing the view never reaches the
+// `new Worker(...)` line those tests cannot run. The chosen-theme producer
+// (storage.preferences_surface) is deferred, so until it lands the
+// `preferences` slice stays `{}` and the app resolves to the automatic theme.
+let appStore;
+export function getAppStore() {
+  if (!appStore) {
+    appStore =
+      typeof Worker === 'function'
+        ? createWorkerStore()
+        : createStore({ postMessage() {}, onmessage: null });
+  }
+  return appStore;
+}

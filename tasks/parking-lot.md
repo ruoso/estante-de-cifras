@@ -89,3 +89,21 @@ Append one `###` block per item, newest at the bottom:
 - **Source**: closer for `foundation.e2e_web` (re-defer — no commit, nothing landed).
 - **Question**: The task halted because `app/src/main.jsx` never calls `registerSW()` and VitePWA's `injectRegister: null` means the service worker is never registered. The offline smoke test (`offline.spec.js`) cannot pass without fixing the app — which is outside the harness task's scope. **Concrete trigger to unblock**: `foundation.app_sw_register` must reach `complete 100` before `foundation.e2e_web` is re-attempted. That task is now registered in `tasks/25-foundation.tji` with `depends !app_tooling` and `foundation.e2e_web` updated to `depends !e2e_api, !app_sw_register, service.serve_app`.
 - **Why parked**: informational record of the re-defer; no human judgment needed — the prerequisite task is in the WBS and the orchestrator will pick it up.
+
+### 2026-10-05 — Font licensing for self-hosted typefaces
+
+- **Source**: closer for `shell.tokens`, surfaced by implementer's return summary and refinement §Open questions.
+- **Question**: `shell.tokens` ships `theme.css` with system-ui/Georgia/ui-monospace fallbacks only. Self-hosting the designed typefaces (Figtree, Fraunces, Source Sans 3, JetBrains Mono, IBM Plex Mono, Atkinson Hyperlegible + Mono) as local woff2 requires confirming redistribution licenses — a legal/human call. Once licenses are cleared, woff2 files can be committed, `@font-face` rules added to `theme.css`, and the PWA precache extended to include them.
+- **Why parked**: legal/licensing judgment call; only a human can confirm redistribution rights. No WBS task is blocked by the absence of self-hosted fonts — the fallback stack keeps every theme legible offline.
+
+### 2026-10-05 — Theme chooser placement in the shell
+
+- **Source**: closer for `shell.tokens`, surfaced by refinement §Open questions.
+- **Question**: Workflow 1 (lines 88–92) puts the theme chooser in the header alongside the language chooser, but no WBS leaf builds the theme chooser or the home-book write path for a theme preference. `shell.i18n` implies a language chooser, and `shell.layout` builds the header. Whether the theme chooser rides with `shell.i18n`, `shell.layout`, or a dedicated settings surface is an interface-placement call.
+- **Why parked**: product/interface judgment call; the home-book write path for `theme` is also unscoped. Only a person can decide where the chooser lives and which task owns it.
+
+### 2026-10-05 — Density as a user-chosen, synced preference
+
+- **Source**: closer for `shell.tokens`, surfaced by refinement §Open questions.
+- **Question**: `shell.tokens` ships density locked at `comfortable`. DIRECTION §3.2, Workflow 1, and `home-book-format §4.1` do not define a `density` register. Whether users can choose density (and where it would be stored and surfaced) is an unresolved product question. Deciding yes would require a new home-book register key (`density`), a format-spec edit (§4.1), a UI surface, and a `storage.preferences_surface`-style consumer task.
+- **Why parked**: product judgment call; no governing document currently mandates a density preference. Only a person can decide whether density becomes a user-chosen, synced preference.

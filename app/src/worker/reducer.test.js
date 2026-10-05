@@ -107,6 +107,42 @@ describe('worker store reducer', () => {
     expect(reduce(initialState, event(EventKind.SAVE_REFUSED, {}))).toBe(initialState);
   });
 
+  it('starts with an empty preferences slice (shell.tokens consumer seam)', () => {
+    // Nothing chosen and no producer yet: the theme resolves to automatic.
+    expect(initialState.preferences).toEqual({});
+  });
+
+  it('folds a preferences event into the preferences slice, leaving others stable', () => {
+    // The home book's preferences.json as a flat map of {value, at} registers
+    // (home-book-format §4.1). Pins the consumer contract the deferred producer
+    // (storage.preferences_surface) will feed.
+    const registers = {
+      theme: { value: 'palco', at: '2026-10-05T14:30:00.000Z' },
+      language: { value: 'pt-BR', at: '2026-10-05T14:29:12.500Z' },
+    };
+    const next = reduce(initialState, event(EventKind.PREFERENCES, registers));
+    expect(next.preferences).toEqual(registers);
+    // Only the preferences slice moved; the rest keep their references
+    // ("only what shows it moves" — DIRECTION §3.7 L410-414).
+    expect(Object.is(next.connection, initialState.connection)).toBe(true);
+    expect(Object.is(next.save, initialState.save)).toBe(true);
+
+    // An absent payload resets the slice to empty.
+    expect(reduce(next, event(EventKind.PREFERENCES)).preferences).toEqual({});
+  });
+
+  it('leaves the preferences slice referentially stable on an unrelated event', () => {
+    const withPrefs = reduce(
+      initialState,
+      event(EventKind.PREFERENCES, { theme: { value: 'caderno', at: 't' } }),
+    );
+    const after = reduce(
+      withPrefs,
+      event(EventKind.SAVED, { bookId: 'book-1', commit: 'c1', pushed: true }),
+    );
+    expect(Object.is(after.preferences, withPrefs.preferences)).toBe(true);
+  });
+
   it('returns the same state reference for a command, a malformed message, or an unknown event kind', () => {
     expect(reduce(initialState, command(CommandKind.OPEN))).toBe(initialState);
     expect(reduce(initialState, null)).toBe(initialState);

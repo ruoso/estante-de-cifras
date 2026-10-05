@@ -22,6 +22,13 @@ export const initialState = {
   connection: { status: 'idle', error: null, persisted: null },
   // The Worker's persisted `meta` record once it reports it, else null.
   meta: null,
+  // The home book's preferences (preferences.json), a flat map of `{value, at}`
+  // registers keyed by name — `theme`, `language`, … (home-book-format §4.1).
+  // The theme root reads `preferences.theme.value` to resolve the applied theme
+  // (shell.tokens). Starts empty: no register until the user chooses, and the
+  // producer that reads the home book (storage.preferences_surface) is deferred,
+  // so while absent the app's theme is automatic, following the device.
+  preferences: {},
   // The outcome of the last save/discard per book, keyed by `bookId`
   // (storage.working_copy). Each entry carries its status as a word (never
   // colour alone): 'saved' (with `commit` and whether the push landed),
@@ -109,6 +116,13 @@ export function reduce(state, message) {
         },
       };
     }
+
+    case EventKind.PREFERENCES:
+      // The home book's preferences surfaced (or changed): replace the slice
+      // with the reported map of registers. Only this slice moves; a component
+      // watching, say, `save` keeps its reference and does not re-render
+      // ("only what shows it moves"). An absent payload resets to empty.
+      return { ...state, preferences: message.payload ?? {} };
 
     default:
       return state;

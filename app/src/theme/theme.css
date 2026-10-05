@@ -1,0 +1,259 @@
+/* Estante de Cifras — the visual language, adopted as the app's stylesheet
+   (shell.tokens). This is docs/mockups/theme.css verbatim for the token layers
+   and every token-keyed shared component class; only the mockup-canvas
+   scaffolding (the `.board*` / `.dev*` framing used solely to draw on fake
+   phones) is dropped, as it has no place in the running app. Do not re-author
+   the visual language here — it is decided and drawn in the mockups.
+
+   The app root carries class="est theme-<name> density-<name>" (built by
+   app/src/theme/resolve.js, applied by app/src/theme/ThemeRoot.jsx). There is
+   no prefers-color-scheme query here by design: light vs dark is which theme
+   class is applied, and "automatic" is the device-mode mapping ThemeRoot does. */
+
+.est {
+  --u: 8px;                       /* spacing unit */
+  --radius: 10px;
+  --radius-s: 6px;
+  --font-ui: "Figtree", system-ui, sans-serif;
+  --font-display: "Figtree", system-ui, sans-serif;
+  --font-chart: "Figtree", system-ui, sans-serif;   /* the rendered chart: proportional */
+  --font-code: "JetBrains Mono", ui-monospace, monospace;  /* the raw source editor only */
+  --display-weight: 700;
+  --chart-size: 17px;
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* ---- Direction 1: Estante — neutral, ink blue, quiet ---------------- */
+.est.theme-estante, .est.theme-current {
+  --bg: #F3F4F1;
+  --surface: #FFFFFF;
+  --surface-2: #ECEEEA;
+  --ink: #1B1F24;
+  --ink-2: #545C66;
+  --line: #D6DAD4;
+  --accent: #1F4F8F;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E1E9F5;
+  --chord: #1F4F8F;
+  --unsaved: #9A4A00;
+  --unsaved-soft: #FBEBD9;
+  --conflict: #A1271B;
+  --conflict-soft: #F8E1DE;
+  --ok: #24663D;
+  --ok-soft: #DDF0E3;
+  --default-dot: #FFFFFF;
+  --frame: #2A2E33;
+  --radius: 10px;
+  --font-ui: "Figtree", system-ui, sans-serif;
+  --font-display: "Figtree", system-ui, sans-serif;
+  --font-chart: "Figtree", system-ui, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* ---- Direction 2: Caderno — paper, pen-red chords, serif titles ------ */
+.est.theme-caderno {
+  --bg: #F4EEE2;
+  --surface: #FFFCF6;
+  --surface-2: #EFE6D6;
+  --ink: #2A251E;
+  --ink-2: #645A4B;
+  --line: #E0D4BF;
+  --accent: #9E3A17;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #F6E2D6;
+  --chord: #A33A1D;
+  --unsaved: #7A4E00;
+  --unsaved-soft: #F7E8C8;
+  --conflict: #8E1F2A;
+  --conflict-soft: #F5DCDD;
+  --ok: #2F5E3A;
+  --ok-soft: #DDEBD9;
+  --default-dot: #FFFCF6;
+  --frame: #3A332A;
+  --radius: 6px;
+  --radius-s: 4px;
+  --font-ui: "Source Sans 3", system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+  --display-weight: 600;
+  --font-chart: "Source Sans 3", system-ui, sans-serif;
+  --font-code: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+/* ---- Direction 3: Palco — dark stage, amber, built for reading far --- */
+.est.theme-palco {
+  --bg: #0F1113;
+  --surface: #181B1F;
+  --surface-2: #22262B;
+  --ink: #F1F0EA;
+  --ink-2: #A9AFB6;
+  --line: #30353B;
+  --accent: #F2B544;
+  --accent-ink: #1A1300;
+  --accent-soft: #3A2F17;
+  --chord: #F2B544;
+  --unsaved: #FFB86B;
+  --unsaved-soft: #3B2A16;
+  --conflict: #FF8A7A;
+  --conflict-soft: #3D1F1B;
+  --ok: #7FD69B;
+  --ok-soft: #1B3324;
+  --default-dot: #181B1F;
+  --frame: #000000;
+  --radius: 14px;
+  --radius-s: 8px;
+  --font-ui: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --font-display: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --font-chart: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --font-code: "Atkinson Hyperlegible Mono", ui-monospace, monospace;
+  --chart-size: 17px;
+}
+
+.est.density-compact { --u: 6px; --chart-size: 15px; }
+.est.density-comfortable { --u: 8px; }
+.est.density-roomy { --u: 10px; --chart-size: 19px; }
+
+/* ---- Type ------------------------------------------------------------ */
+.t-display { font-family: var(--font-display); font-weight: var(--display-weight); font-size: 28px; line-height: 1.15; margin: 0; }
+.t-h1 { font-family: var(--font-display); font-weight: var(--display-weight); font-size: 24px; line-height: 1.2; margin: 0; }
+.t-h2 { font-size: 18px; font-weight: 700; line-height: 1.3; margin: 0; }
+.t-h3 { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); margin: 0; }
+.t-body { font-size: 16px; line-height: 1.45; margin: 0; }
+.t-small { font-size: 14px; line-height: 1.4; color: var(--ink-2); margin: 0; }
+.t-mono { font-family: var(--font-code); }
+
+/* ---- App chrome ------------------------------------------------------- */
+.appbar { display: flex; align-items: center; gap: calc(var(--u) * 1.5); padding: calc(var(--u) * 1.5) calc(var(--u) * 2); background: var(--surface); border-bottom: 1px solid var(--line); min-height: 44px; }
+.appbar .title { font-family: var(--font-display); font-weight: var(--display-weight); font-size: 20px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.screen { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.scroll { flex: 1; min-height: 0; overflow: hidden; padding: calc(var(--u) * 2); display: flex; flex-direction: column; gap: calc(var(--u) * 2); }
+.split { display: flex; flex: 1; min-height: 0; }
+.pane { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.pane.side { width: 340px; flex: none; border-right: 1px solid var(--line); background: var(--surface); }
+.pane.main { flex: 1; min-width: 0; }
+.tabbar { display: flex; justify-content: space-around; border-top: 1px solid var(--line); background: var(--surface); padding: 6px 4px 18px; }
+.tab { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; font-weight: 600; color: var(--ink-2); min-width: 64px; padding: 6px 0; background: none; border: 0; font-family: inherit; }
+.tab.on { color: var(--accent); }
+
+/* ---- Controls ---------------------------------------------------------- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 calc(var(--u) * 2); border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 600 15px/1 var(--font-ui); white-space: nowrap; text-decoration: none; box-sizing: border-box; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.quiet { background: transparent; border-color: transparent; color: var(--accent); }
+.btn.danger { background: var(--conflict); border-color: var(--conflict); color: #FFFFFF; }
+.btn.icon { width: 44px; padding: 0; border-color: transparent; background: transparent; }
+.btn.block { width: 100%; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.input { box-sizing: border-box; min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); padding: 0 calc(var(--u) * 1.5); font: 16px var(--font-ui); display: flex; align-items: center; gap: 10px; width: 100%; }
+.search { box-sizing: border-box; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 calc(var(--u) * 1.75); border-radius: 999px; background: var(--surface-2); color: var(--ink); font: 17px var(--font-ui); border: 1px solid transparent; }
+.search.focus { background: var(--surface); border-color: var(--accent); }
+.search .scope { font-size: 13px; font-weight: 700; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 4px 10px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.seg button { min-height: 40px; padding: 0 14px; background: var(--surface); border: 0; border-right: 1px solid var(--line); font: 600 14px var(--font-ui); color: var(--ink-2); }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: var(--accent-soft); color: var(--accent); }
+.toggle { width: 46px; height: 28px; border-radius: 999px; background: var(--line); position: relative; flex: none; }
+.toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--surface); }
+.toggle.on { background: var(--accent); }
+.toggle.on::after { left: 21px; }
+.check { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--ink-2); box-sizing: border-box; flex: none; display: flex; align-items: center; justify-content: center; }
+.check.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* ---- Chips and badges (always words, never colour alone) -------------- */
+.chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font: 600 14px var(--font-ui); color: var(--ink); white-space: nowrap; }
+.chip.accent { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.badge { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; font: 700 12px var(--font-ui); white-space: nowrap; background: var(--surface-2); color: var(--ink-2); }
+.badge.unsaved { background: var(--unsaved-soft); color: var(--unsaved); }
+.badge.conflict { background: var(--conflict-soft); color: var(--conflict); }
+.badge.ok { background: var(--ok-soft); color: var(--ok); }
+.badge.voiced { background: var(--accent-soft); color: var(--accent); }
+.badge.dot::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+/* ---- Lists and cards --------------------------------------------------- */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.card.pad { padding: calc(var(--u) * 2); display: flex; flex-direction: column; gap: calc(var(--u) * 1.25); }
+.list { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.row { display: flex; align-items: center; gap: calc(var(--u) * 1.5); padding: calc(var(--u) * 1.5) calc(var(--u) * 2); border-bottom: 1px solid var(--line); min-height: 44px; text-decoration: none; color: inherit; }
+.row:last-child { border-bottom: 0; }
+.row .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.row .name { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .meta { font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row.sel { background: var(--accent-soft); }
+.row.explore { background: var(--accent-soft); }
+.row.explore .name { color: var(--accent); }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.section-label { display: flex; align-items: center; justify-content: space-between; padding: 0 2px; }
+
+/* Notices inline on a screen */
+.notice { display: flex; gap: 12px; align-items: flex-start; padding: calc(var(--u) * 1.5) calc(var(--u) * 2); border-radius: var(--radius); background: var(--surface-2); font-size: 15px; line-height: 1.4; }
+.notice.accent { background: var(--accent-soft); color: var(--ink); }
+.notice.unsaved { background: var(--unsaved-soft); }
+.notice.conflict { background: var(--conflict-soft); }
+.notice .act { margin-left: auto; font-weight: 700; color: var(--accent); white-space: nowrap; }
+
+/* Bottom sheet and dialogs over a dimmed screen */
+.scrim { position: absolute; inset: 0; background: rgba(10, 12, 14, 0.45); display: flex; flex-direction: column; justify-content: flex-end; }
+.scrim.center { justify-content: center; align-items: center; }
+.sheet { background: var(--surface); border-radius: 22px 22px 0 0; padding: 12px calc(var(--u) * 2.5) 28px; display: flex; flex-direction: column; gap: calc(var(--u) * 1.75); }
+.sheet .grip { width: 40px; height: 5px; border-radius: 3px; background: var(--line); align-self: center; }
+.dialog { background: var(--surface); border-radius: calc(var(--radius) + 6px); padding: calc(var(--u) * 3); display: flex; flex-direction: column; gap: calc(var(--u) * 2); width: 520px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25); }
+.actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
+/* ---- The chart ---------------------------------------------------------
+   Rendered in a proportional face. A sung line is a row of segments: each
+   segment is a chord stacked over the words it is attached to, so the chord
+   stays over its syllable whatever the font. A segment is as wide as the
+   wider of its chord (plus a gap) and its words: a long chord over a short
+   syllable opens space in the words, which is what `_` records in the text.
+   Chord-only lines are measures between bar rules. */
+.chart { font-family: var(--font-chart); font-size: var(--chart-size); line-height: 1.3; display: flex; flex-direction: column; gap: 2px; }
+.chart .sung { display: flex; flex-wrap: wrap; align-items: flex-end; padding: 2px 0; }
+.chart .s { display: inline-flex; flex-direction: column; }
+.chart .s .c { color: var(--chord); font-weight: 700; min-height: 1.3em; padding-right: 0.45em; white-space: pre; }
+.chart .s .w { color: var(--ink); white-space: pre; display: flex; align-items: baseline; }
+/* A word split across two chords: when the chord opens room inside the word,
+   the gap shows a centred hyphen, as syllables do under notes in sheet music.
+   No room opened, nothing drawn. */
+.chart .s .w .fill { flex: 1; align-self: center; display: flex; justify-content: center; min-width: 0; }
+.chart .s .w .fill::after { content: ""; width: 60%; max-width: 0.7em; height: 1.5px; border-radius: 1px; background: var(--ink-2); }
+.chart .barline { display: flex; flex-wrap: wrap; padding: 4px 0; }
+.chart .m { min-width: 4.2em; padding: 0 0.7em; border-left: 2px solid var(--ink-2); color: var(--chord); font-weight: 700; white-space: pre; }
+.chart .m:last-child { border-right: 2px solid var(--ink-2); }
+.chart .runline { color: var(--chord); font-weight: 700; word-spacing: 0.6em; padding: 4px 0; }
+.chart .words { color: var(--ink); padding: 2px 0; }
+.chart .gap { height: 0.7em; }
+.sec-name { font: 700 13px var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); margin: 12px 0 4px; }
+.mark-def { outline: 1.5px dashed var(--ink-2); outline-offset: 3px; border-radius: 4px; }
+.mark-conf { background: var(--conflict-soft); border-radius: 4px; }
+.mark-tap .c { background: var(--accent-soft); border-radius: 4px; padding-left: 3px; margin-left: -3px; }
+
+/* Shapes strip (the legend) */
+.shapes { display: flex; flex-wrap: wrap; gap: calc(var(--u) * 1.5); }
+.shape { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.shape .who { font-size: 11px; font-weight: 700; color: var(--ink-2); }
+
+/* Editor */
+.editor { font-family: var(--font-code); font-size: 14px; line-height: 1.5; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: calc(var(--u) * 1.5); display: flex; flex-direction: column; }
+.editor .ln { white-space: pre; min-height: 1.5em; }
+.editor .md { color: var(--ink-2); }
+.editor .ch { color: var(--chord); font-weight: 600; }
+.editor .cur { background: var(--accent-soft); }
+.editor .err { background: var(--conflict-soft); color: var(--conflict); }
+.editor .mk { background: var(--unsaved-soft); color: var(--unsaved); font-weight: 600; }
+.editor .add { background: var(--ok-soft); }
+.editor .del { background: var(--conflict-soft); text-decoration: line-through; }
+
+/* Diff in musical terms */
+.diff { display: flex; flex-direction: column; gap: 8px; }
+.diff .d { display: flex; gap: 10px; font-size: 15px; line-height: 1.4; }
+.diff .d .k { font-weight: 700; min-width: 0; }
+.was { color: var(--conflict); text-decoration: line-through; font-family: var(--font-chart); font-weight: 600; }
+.now { color: var(--ok); font-weight: 700; font-family: var(--font-chart); }
+
+/* Progress */
+.bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.bar > div { height: 100%; background: var(--accent); border-radius: 3px; }
+
+/* Swatches on the specimen */
+.sw { width: 100%; height: 64px; border-radius: var(--radius-s); border: 1px solid var(--line); }

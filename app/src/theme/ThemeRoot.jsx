@@ -1,0 +1,52 @@
+// The theme root (shell.tokens): the one component that applies the visual
+// language to the app root. It reads the chosen theme from the store's
+// `preferences` slice (never IndexedDB from the view — DIRECTION §3.7 line 409)
+// and follows the device's light/dark mode live, then puts
+// `est theme-<applied> density-<density>` on its wrapper so theme.css cascades.
+//
+// The policy is the pure resolver; this is the only layer here that knows React
+// (DIRECTION §3.7 lines 415-417). The device-mode read is a live
+// `prefers-color-scheme` subscription through `useSyncExternalStore`, so
+// automatic follows each device as it changes (Workflow 1 lines 94-103), never
+// a one-time read and never written to the home book.
+
+import { useSyncExternalStore } from 'react';
+import { useSlice } from '../worker/useStore.js';
+import { resolveTheme, themeClasses, DEFAULT_DENSITY } from './resolve.js';
+
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+
+// The device's dark-mode media query, or null where `matchMedia` is absent
+// (jsdom provides none — the behavior test stubs it). A missing query reads as
+// light, so the first-run default is Estante.
+function darkModeQuery() {
+  return typeof globalThis.matchMedia === 'function'
+    ? globalThis.matchMedia(DARK_QUERY)
+    : null;
+}
+
+function subscribeDarkMode(onChange) {
+  const query = darkModeQuery();
+  if (!query?.addEventListener) return () => {};
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+function readDarkMode() {
+  return darkModeQuery()?.matches ?? false;
+}
+
+// Whether the device is currently in dark mode, re-read whenever it changes.
+export function usePrefersDark() {
+  return useSyncExternalStore(subscribeDarkMode, readDarkMode, readDarkMode);
+}
+
+// Apply the resolved theme to the app root. `store` carries the `preferences`
+// slice (the consumer seam; the producer is deferred — storage.preferences_surface),
+// `density` is a render axis fixed at comfortable by default.
+export default function ThemeRoot({ store, density = DEFAULT_DENSITY, children }) {
+  const preferences = useSlice(store, 'preferences');
+  const prefersDark = usePrefersDark();
+  const applied = resolveTheme(preferences?.theme?.value, prefersDark);
+  return <div className={themeClasses(applied, density)}>{children}</div>;
+}

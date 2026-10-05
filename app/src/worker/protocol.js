@@ -36,13 +36,17 @@ export const CommandKind = Object.freeze({
 // `ERROR` carries a message and a code. The working-copy outcomes
 // (storage.working_copy): `SAVED` (commit + whether the push landed),
 // `DISCARDED`, and `SAVE_REFUSED` (a marked or unreadable file named, with the
-// first marker line). Later tasks add progress / completion kinds the same way.
+// first marker line). `PREFERENCES` carries the home book's preferences.json as
+// a flat map of `{value, at}` registers (shell.tokens defines the consumer; the
+// producer that reads the home book is storage.preferences_surface). Later
+// tasks add progress / completion kinds the same way.
 export const EventKind = Object.freeze({
   READY: 'ready',
   ERROR: 'error',
   SAVED: 'saved',
   DISCARDED: 'discarded',
   SAVE_REFUSED: 'save_refused',
+  PREFERENCES: 'preferences',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

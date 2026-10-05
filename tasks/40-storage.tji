@@ -71,4 +71,10 @@ task storage "Storage" {
     depends !worker
     note "Versioned migrations of what the Worker keeps in IndexedDB; an app update applied on the next launch, never mid-song. Tests: unit (each migration step); behavior (a store at version N opened by N+1 in a fake IndexedDB and migrated; an update held until the next launch). Refinement: tasks/refinements/storage/migrations.md"
   }
+  task preferences_surface "Surface preferences from the home book" {
+    effort 1d
+    allocate team
+    depends !home_book, shell.tokens
+    note "The Worker reads preferences.json from the home book and emits a PREFERENCES event the reducer folds into the preferences slice (the contract defined by shell.tokens), re-emitted when sync changes a register. DIRECTION §3.2, §3.7; home-book-format §4.1. Source of debt: tasks/refinements/shell/tokens.md (shell.tokens). Tests: unit (a preferences.json map → the event payload of {value, at} registers; an absent register stays absent); behavior (the Worker against a fake IndexedDB and a local git remote surfaces a theme change, the reducer folds it, the ThemeRoot re-applies)."
+  }
 }

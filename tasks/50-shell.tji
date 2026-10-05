@@ -9,7 +9,8 @@ task shell "Shell" {
   task tokens "Themes and tokens" {
     effort 2d
     allocate team
-    note "docs/mockups/theme.css as the app's stylesheet: Estante, Caderno, Palco, densities; automatic theme by the device's light or dark mode; the chosen theme from the home book. Workflow 1. Tests: unit (the theme chosen by the device's mode and by the home book); behavior (each theme and density rendered on a sample surface, axe contrast at AA); e2e-web (the shell in Estante light and Palco dark on the three viewports, axe)."
+    complete 100
+    note "docs/mockups/theme.css as the app's stylesheet: Estante, Caderno, Palco, densities; automatic theme by the device's light or dark mode; the chosen theme from the home book. Workflow 1. Tests: unit (the theme chosen by the device's mode and by the home book); behavior (each theme and density rendered on a sample surface, axe contrast at AA); e2e-web (the shell in Estante light and Palco dark on the three viewports, axe). Refinement: tasks/refinements/shell/tokens.md"
   }
   task layout "Navigation and layouts" {
     effort 3d
