@@ -57,8 +57,9 @@ task storage "Storage" {
   task progression_search "Chord-progression search" {
     effort 2d
     allocate team
+    complete 100
     depends !index
-    note "Chord n-gram field on the MiniSearch index plus a progression-aware query, so a query like 'Am F C G' finds songs that contain that chord run. App-side extension of the search index; the reader's structured item.chord is already available. Workflow 2 (Later, L42). Source of debt: tasks/refinements/storage/index.md (storage.index). Tests: unit (n-gram extraction and progression match); behavior (a progression query finds a song that contains the run, built in the Worker)."
+    note "Chord n-gram field on the MiniSearch index plus a progression-aware query, so a query like 'Am F C G' finds songs that contain that chord run. App-side extension of the search index; the reader's structured item.chord is already available. Workflow 2 (Later, L42). Source of debt: tasks/refinements/storage/index.md (storage.index). Tests: unit (n-gram extraction and progression match); behavior (a progression query finds a song that contains the run, built in the Worker). Refinement: tasks/refinements/storage/progression_search.md"
   }
   task history "History" {
     effort 2d

@@ -14,6 +14,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
+import { hashBlob } from 'isomorphic-git';
 import { parse as realParse } from 'cifra-md';
 import { createFileSystem } from './fs.js';
 import { createGitLayer } from './git.js';
@@ -21,6 +22,12 @@ import { createGitHttpClient } from './git-http.js';
 import { createWorkerLogic } from './logic.js';
 import { createStore } from './store.js';
 import { command, CommandKind } from './protocol.js';
+import {
+  MIGRATIONS,
+  INDEX_DOCS_STORE,
+  INDEX_LOCATIONS_STORE,
+  runMigrations,
+} from './migrations.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { startGitHttpRemote } from '../test/git-http-remote.js';
 import { installWebLocks } from '../test/web-locks.js';
@@ -78,6 +85,51 @@ async function setup() {
     // Test-side write into the book's working tree (coherent with the Worker's
     // fs over the one backing store). Used BEFORE open to seed a book's songs.
     writeSong: (path, text) => fs.promises.writeFile(`${dir}/${path}`, text),
+    // Seed a store whose cache PREDATES the progression field
+    // (storage.progression_search Decision 3, acceptance 9): write the song to
+    // the working tree, then open the database at version 2 (steps 1-2 only, no
+    // progression step) and put a pre-field `index_docs`/`index_locations`
+    // record — note NO `chordSeq`, exactly as the old code wrote it — keyed by
+    // the file's real blob oid. When the Worker later opens at the latest
+    // version, the v2→v3 migration clears these derived records so reconcile
+    // reparses and backfills `progression`.
+    async seedStaleIndex(path, text) {
+      await fs.promises.writeFile(`${dir}/${path}`, text);
+      const bytes = await fs.promises.readFile(`${dir}/${path}`);
+      const { oid } = await hashBlob({ object: bytes });
+      await new Promise((resolve, reject) => {
+        const req = idb.open(name, 2);
+        req.onupgradeneeded = (ev) =>
+          runMigrations(req.result, req.transaction, ev.oldVersion, ev.newVersion, MIGRATIONS);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const db = req.result;
+          const tx = db.transaction([INDEX_DOCS_STORE, INDEX_LOCATIONS_STORE], 'readwrite');
+          tx.objectStore(INDEX_DOCS_STORE).put({
+            oid,
+            title: 'stale',
+            artist: '',
+            properties: '',
+            sections: '',
+            words: '',
+            chords: '',
+            // chordSeq deliberately absent — the pre-progression record shape.
+          });
+          tx.objectStore(INDEX_LOCATIONS_STORE).put({
+            key: `${bookId}\0${path}`,
+            bookId,
+            path,
+            oid,
+            unsaved: false,
+          });
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      });
+    },
     async cleanup() {
       await remote.stop();
     },
@@ -265,6 +317,192 @@ describe('search index (behavior)', () => {
       );
       // The second session re-parsed nothing: the oid was unchanged.
       expect(second.parseSpy).not.toHaveBeenCalled();
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+});
+
+// behavior — chord-progression search built and matched in the real Worker
+// (storage.progression_search). Same harness as above; all song text is written
+// for this test (no-song-text rule). No network beyond the local git remote
+// that seeds the book — progression search is entirely local (workflow 2
+// L152-155, "Offline"). Pins:
+//   - a progression query finds the song that contains the run, not a decoy
+//     with the chords reordered → `.tji` "a progression query finds a song that
+//     contains the run, built in the Worker"; workflow 2 L42; acceptance 7;
+//   - spelling-tolerant end-to-end → spec §5.2, Decision 2;
+//   - covers unsaved work → DIRECTION §3 L116-117;
+//   - backfill + restart → Decision 3, Decision 9;
+//   - merged with text, never exclusive → workflow 2 L37.
+describe('progression search (behavior)', () => {
+  it('finds the song that contains the run and not a decoy with the chords reordered', async () => {
+    const ctx = await setup();
+    try {
+      // Target: the refrain plays Am F C G in order.
+      ctx.writeSong(
+        'corrida.cifra.md',
+        song([
+          '# Corrida ao Sol',
+          '- artist: Trio Alpha',
+          '',
+          '## Refrão',
+          FENCE,
+          'Am  F   C   G',
+          'minha estrada segue',
+          FENCE,
+        ]),
+      );
+      // Decoy: the SAME four chords, reordered — must NOT match the progression,
+      // and its words avoid the query's chord letters so no text hit sneaks in.
+      ctx.writeSong(
+        'avesso.cifra.md',
+        song([
+          '# Avesso',
+          '- artist: Trio Beta',
+          '',
+          '## Ponte',
+          FENCE,
+          'G   C   F   Am',
+          'noite tranquila',
+          FENCE,
+        ]),
+      );
+      const { store } = ctx.makeStore();
+      store.open();
+      await until(() => expect(store.slice('index')[ctx.bookId]).toBe('ready'));
+
+      const results = await searchUntil(store, 'Am F C G', (rs) =>
+        rs.some((r) => r.path === 'corrida.cifra.md'),
+      );
+      const hit = results.find((r) => r.path === 'corrida.cifra.md');
+      expect(hit.bookId).toBe(ctx.bookId);
+      expect(hit.title).toBe('Corrida ao Sol');
+      expect(hit.artist).toBe('Trio Alpha');
+      // The reordered decoy is not a progression match and has no text hit.
+      expect(results.some((r) => r.path === 'avesso.cifra.md')).toBe(false);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('is spelling-tolerant: a song written A- F C G is found by Am F C G', async () => {
+    const ctx = await setup();
+    try {
+      ctx.writeSong(
+        'variacao.cifra.md',
+        song(['# Variação', '## A', FENCE, 'A-  F   C   G', FENCE]),
+      );
+      const { store } = ctx.makeStore();
+      store.open();
+      await until(() => expect(store.slice('index')[ctx.bookId]).toBe('ready'));
+
+      const results = await searchUntil(store, 'Am F C G', (rs) =>
+        rs.some((r) => r.path === 'variacao.cifra.md'),
+      );
+      expect(results.find((r) => r.path === 'variacao.cifra.md').title).toBe(
+        'Variação',
+      );
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('finds a progression typed but not saved (covers the working copy)', async () => {
+    const ctx = await setup();
+    try {
+      const { store } = ctx.makeStore();
+      store.open();
+      await until(() => expect(store.slice('index')[ctx.bookId]).toBe('ready'));
+
+      // WRITE only — no save. The run must be findable immediately.
+      store.send(
+        command(CommandKind.WRITE, {
+          bookId: ctx.bookId,
+          path: 'ideia.cifra.md',
+          text: song(['# Ideia Nova', '## A', FENCE, 'Dm  Bb  F  C', FENCE]),
+        }),
+      );
+
+      const results = await searchUntil(store, 'Dm Bb F C', (rs) =>
+        rs.some((r) => r.path === 'ideia.cifra.md'),
+      );
+      expect(results.find((r) => r.path === 'ideia.cifra.md').title).toBe(
+        'Ideia Nova',
+      );
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('backfills on upgrade and then serves from the cache across a restart', async () => {
+    const ctx = await setup();
+    try {
+      // A store whose cache predates the progression field: the song is on disk
+      // and indexed at v2 WITHOUT `chordSeq`, so progression cannot match it
+      // until the migration clears the cache and reconcile reparses.
+      await ctx.seedStaleIndex(
+        'antiga.cifra.md',
+        song(['# Antiga', '- artist: Coral', '## A', FENCE, 'Em  C   G   D', FENCE]),
+      );
+
+      // First launch at the latest version: the v2→v3 migration clears the
+      // derived stores, OPEN reconcile reparses the file (once) and backfills
+      // the progression field, so the run is now findable.
+      const first = ctx.makeStore();
+      first.store.open();
+      await until(() =>
+        expect(first.store.slice('index')[ctx.bookId]).toBe('ready'),
+      );
+      await searchUntil(first.store, 'Em C G D', (rs) =>
+        rs.some((r) => r.path === 'antiga.cifra.md'),
+      );
+      expect(first.parseSpy.mock.calls.length).toBeGreaterThan(0);
+
+      // Restart over the SAME database: hydrate rebuilds the progression field
+      // from the stored sequence; the unchanged blob oid means no reparse.
+      const second = ctx.makeStore();
+      second.store.open();
+      await until(() =>
+        expect(second.store.slice('index')[ctx.bookId]).toBe('ready'),
+      );
+      await searchUntil(second.store, 'Em C G D', (rs) =>
+        rs.some((r) => r.path === 'antiga.cifra.md'),
+      );
+      expect(second.parseSpy).not.toHaveBeenCalled();
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('merges with text so a song titled the progression still appears', async () => {
+    const ctx = await setup();
+    try {
+      // A song literally TITLED "Am F C G" but playing other chords: it must
+      // still appear for the query via the text component (workflow 2 L37,
+      // "Nothing is hidden by guessing which was meant").
+      ctx.writeSong(
+        'titulo.cifra.md',
+        song(['# Am F C G', '- artist: Autor', '## A', FENCE, 'D   A', FENCE]),
+      );
+      // And a song that actually contains the run.
+      ctx.writeSong(
+        'corre.cifra.md',
+        song(['# Corre', '## A', FENCE, 'Am  F   C   G', FENCE]),
+      );
+      const { store } = ctx.makeStore();
+      store.open();
+      await until(() => expect(store.slice('index')[ctx.bookId]).toBe('ready'));
+
+      // Both appear — the progression query does not suppress the text match
+      // for the same string (workflow 2 L37); the one that contains the run is
+      // found alongside the one that only carries the title.
+      const results = await searchUntil(store, 'Am F C G', (rs) =>
+        rs.some((r) => r.path === 'titulo.cifra.md') &&
+        rs.some((r) => r.path === 'corre.cifra.md'),
+      );
+      expect(results.some((r) => r.path === 'titulo.cifra.md')).toBe(true);
+      expect(results.some((r) => r.path === 'corre.cifra.md')).toBe(true);
     } finally {
       await ctx.cleanup();
     }

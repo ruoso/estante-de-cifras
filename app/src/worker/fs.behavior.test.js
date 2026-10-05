@@ -62,7 +62,7 @@ describe('storage bring-up (behavior)', () => {
     // Let the second open's event drain too, so a stray extra persist() would
     // have fired before we assert the count.
     await vi.waitFor(() =>
-      expect(store.slice('meta').schemaVersion).toBe(2),
+      expect(store.slice('meta').schemaVersion).toBe(3),
     );
 
     expect(persist).toHaveBeenCalledTimes(1);

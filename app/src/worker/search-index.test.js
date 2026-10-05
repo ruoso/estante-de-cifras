@@ -59,10 +59,16 @@ describe('extractFields', () => {
       fields.chords,
     ].join(' ');
     expect(haystack).not.toContain('rodape');
-    // The extracted record carries only the known keys.
+    // The extracted record carries only the known keys — the five searchable
+    // text fields, the oid/artist, and the ordered chord sequence `chordSeq`
+    // the progression field is derived from (storage.progression_search).
     expect(Object.keys(fields).sort()).toEqual(
-      ['artist', 'chords', 'oid', 'properties', 'sections', 'title', 'words'].sort(),
+      ['artist', 'chordSeq', 'chords', 'oid', 'properties', 'sections', 'title', 'words'].sort(),
     );
+    // The chord sequence is the ordered, consecutive-collapsed run (not the
+    // order-less `chords` set): canonical tokens, one per change.
+    expect(Array.isArray(fields.chordSeq)).toBe(true);
+    expect(fields.chordSeq.length).toBeGreaterThan(0);
   });
 
   it('tolerates a title-less, property-less song', () => {

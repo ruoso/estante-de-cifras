@@ -27,13 +27,38 @@
 import MiniSearch from 'minisearch';
 import { hashBlob } from 'isomorphic-git';
 import { fold } from './fold.js';
+import {
+  PROGRESSION_FIELD,
+  chordSequence,
+  progressionField,
+  progressionTokenize,
+  parseProgressionQuery,
+  queryProgressionTokens,
+  progressionMatch,
+} from './progression.js';
 
-// The five searchable fields (DIRECTION §3 L114-115, §4 L431). `title` carries
-// the heaviest boost so a title hit outranks a body-only hit; a query matching
-// more fields scores higher because MiniSearch sums each field's contribution
-// (acceptance 3, `.tji` "ranking").
-const SEARCH_FIELDS = ['title', 'properties', 'sections', 'words', 'chords'];
-const FIELD_BOOST = { title: 10, properties: 4, chords: 4, sections: 3, words: 1 };
+// The searchable fields (DIRECTION §3 L114-115, §4 L431). `title` carries the
+// heaviest boost so a title hit outranks a body-only hit; a query matching more
+// fields scores higher because MiniSearch sums each field's contribution
+// (acceptance 3, `.tji` "ranking"). `progression` (storage.progression_search)
+// is the ordered chord-run n-gram field (Decision 2); a plain text query never
+// matches it (its tokens are canonical n-grams), so it only affects the
+// progression-aware path in `search`.
+const SEARCH_FIELDS = ['title', 'properties', 'sections', 'words', 'chords', PROGRESSION_FIELD];
+const FIELD_BOOST = { title: 10, properties: 4, chords: 4, sections: 3, words: 1, [PROGRESSION_FIELD]: 6 };
+
+// The text fields a progression query searches ALONGSIDE the progression match
+// (Decision 4): everything except the order-less chord-*use* `chords` field, so
+// a song literally titled/worded "Am F C G" still appears (workflow 2 L37)
+// while a decoy that merely uses those four chords out of order does NOT slip
+// back in through chord-use (acceptance 5, 7). `progression` is excluded too —
+// a raw query string never matches a canonical n-gram token.
+const PROGRESSION_TEXT_FIELDS = ['title', 'properties', 'sections', 'words'];
+
+// How much the progression contribution outweighs a bare text hit when the two
+// are merged (acceptance 5, "progression contribution boosted"): a song that
+// contains the run ranks above one that merely mentions the string.
+const PROGRESSION_BOOST = 4;
 
 // A MiniSearch document id is a LOCATION — a book + path — not a title: two
 // songs with the same title are two results ("Results are not grouped by song",
@@ -102,6 +127,12 @@ export function extractFields(model, oid) {
     sections: sections.map((s) => s?.name ?? '').filter(Boolean).join(' '),
     words: words.join(' '),
     chords: [...chords].join(' '),
+    // The ordered, consecutive-collapsed canonical chord run
+    // (storage.progression_search, Decision 1). Kept as the array so the index
+    // can both build the `progression` n-gram field (`toMiniDoc`) and confirm a
+    // long query's contiguous run directly against it (Decision 2); it rides
+    // the per-oid parse cache like every other field.
+    chordSeq: chordSequence(model),
   };
 }
 
@@ -134,8 +165,14 @@ export function createSearchIndex({ fs, git, parse } = {}) {
       storeFields: ['bookId', 'path', 'title', 'artist'],
       // The accent fold is applied to indexed terms AND query terms alike
       // through `processTerm`, so `coracao` matches *Coração* (Decision 7,
-      // DIRECTION §4 L431-432). A term that folds to empty is dropped.
+      // DIRECTION §4 L431-432). A term that folds to empty is dropped. The
+      // canonical progression tokens are lowercase letters/digits and reserved
+      // separators, so `fold` leaves them whole — index and query agree.
       processTerm: (term) => fold(term) || null,
+      // Field-aware tokenizing (storage.progression_search, Decision 2): the
+      // `progression` field splits into whole n-gram tokens; every other field
+      // and a plain text query use MiniSearch's default splitting unchanged.
+      tokenize: progressionTokenize,
     });
   }
 
@@ -151,6 +188,9 @@ export function createSearchIndex({ fs, git, parse } = {}) {
       sections: doc.sections,
       words: doc.words,
       chords: doc.chords,
+      // The n-gram field, derived from the stored ordered sequence so hydrate
+      // rebuilds it with no re-parse (storage.progression_search, Decision 2).
+      [PROGRESSION_FIELD]: progressionField(doc.chordSeq ?? []),
     };
   }
 
@@ -161,7 +201,7 @@ export function createSearchIndex({ fs, git, parse } = {}) {
     try {
       return extractFields(parse(bytes), oid);
     } catch {
-      return { oid, title: '', artist: '', properties: '', sections: '', words: '', chords: '' };
+      return { oid, title: '', artist: '', properties: '', sections: '', words: '', chords: '', chordSeq: [] };
     }
   }
 
@@ -315,22 +355,67 @@ export function createSearchIndex({ fs, git, parse } = {}) {
    * @param {{ query?: string, scope?: object }} [opts]
    * @returns {Array<{ bookId: string, path: string, title: string, artist: string, score: number }>}
    */
-  function search({ query, scope } = {}) {
+  function search({ query, scope, dialect } = {}) {
     const q = (query ?? '').trim();
     if (!q) return [];
-    const hits = mini.search(q, {
-      prefix: true,
-      boost: FIELD_BOOST,
-      filter: (result) => matchesScope(result, scope),
-    });
-    return hits.map((r) => ({
-      bookId: r.bookId,
-      path: r.path,
-      title: r.title,
-      artist: r.artist,
-      score: r.score,
-    }));
+    const filter = (result) => matchesScope(result, scope);
+
+    const progression = parseProgressionQuery(q, dialect);
+    if (!progression.isProgression) {
+      // Ordinary query (including a single chord): the unchanged multi-field
+      // text search over every field — chord-*use* included (acceptance 5).
+      return toRows(mini.search(q, { prefix: true, boost: FIELD_BOOST, filter }));
+    }
+
+    // A progression query (two or more chords). Merge, never suppress
+    // (Decision 4): the ordered-run match PLUS a text search over the
+    // non-chord-use fields, so a song titled/worded "Am F C G" still appears
+    // but a decoy that merely uses those chords out of order does not.
+    const scores = new Map(); // location key -> { row, score }
+    const add = (hits, weight) => {
+      for (const r of hits) {
+        const prev = scores.get(r.id);
+        if (prev) prev.score += r.score * weight;
+        else scores.set(r.id, { row: toRow(r), score: r.score * weight });
+      }
+    };
+    add(mini.search(q, { fields: PROGRESSION_TEXT_FIELDS, prefix: true, boost: FIELD_BOOST, filter }), 1);
+    add(progressionHits(progression.seq, filter), PROGRESSION_BOOST);
+
+    return [...scores.values()]
+      .sort((a, b) => b.score - a.score)
+      .map(({ row, score }) => ({ ...row, score }));
   }
+
+  // Match a progression query's canonical sequence against the `progression`
+  // field (Decision 2, acceptance 4). For L ≤ MAX_N it is a single exact n-gram
+  // token; for L > MAX_N it is the AND of the query's MAX_N-grams (recall),
+  // confirmed by a direct contiguous-subsequence check against each candidate's
+  // stored ordered sequence (held in `docsByOid`), so a hit truly contains the
+  // whole run. The n-gram tokens are matched whole — a per-call `tokenize`
+  // override keeps each token intact regardless of its internal separators.
+  function progressionHits(seq, filter) {
+    const { tokens, confirm } = queryProgressionTokens(seq);
+    const searchOptions = {
+      fields: [PROGRESSION_FIELD],
+      boost: FIELD_BOOST,
+      tokenize: (text) => [text],
+      filter,
+    };
+    const hits =
+      tokens.length === 1
+        ? mini.search(tokens[0], searchOptions)
+        : mini.search({ combineWith: 'AND', queries: tokens }, searchOptions);
+    if (!confirm) return hits;
+    return hits.filter((r) => {
+      const location = locationByKey.get(r.id);
+      const doc = location && docsByOid.get(location.oid);
+      return doc ? progressionMatch(seq, doc.chordSeq ?? []) : false;
+    });
+  }
+
+  const toRow = (r) => ({ bookId: r.bookId, path: r.path, title: r.title, artist: r.artist });
+  const toRows = (hits) => hits.map((r) => ({ ...toRow(r), score: r.score }));
 
   return {
     hydrate,

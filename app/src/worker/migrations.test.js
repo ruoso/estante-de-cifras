@@ -53,9 +53,10 @@ describe('latestVersion (unit)', () => {
 
   it('derives the latest version from the real production list', () => {
     // Step 1 is the meta store; step 2 is the search index's stores
-    // (storage.index). The version is derived from the list, so it tracks the
-    // number of steps.
-    expect(latestVersion(MIGRATIONS)).toBe(2);
+    // (storage.index); step 3 clears that cache for the progression field
+    // (storage.progression_search). The version is derived from the list, so it
+    // tracks the number of steps.
+    expect(latestVersion(MIGRATIONS)).toBe(3);
   });
 
   it('rejects a gap in the sequence (not contiguous from 1)', () => {
@@ -157,6 +158,57 @@ describe('the real step 2 (unit)', () => {
     const db = fakeDb([META_STORE, INDEX_DOCS_STORE, INDEX_LOCATIONS_STORE]);
     step2.upgrade(db, {}, 2);
     expect(db.created).toEqual([]);
+  });
+});
+
+describe('the real step 3 (unit)', () => {
+  // Pins storage.progression_search Decision 3: step 3 clears the two DERIVED
+  // search-index stores (so the next OPEN reparses and backfills the
+  // progression field) and touches no other store; it is a no-op guard when a
+  // store is absent. `migrations.md`: "each later storage task lands its own
+  // step here."
+  const step3 = MIGRATIONS[2];
+
+  // A `versionchange`-time fake: `tx.objectStore(name).clear()` records the
+  // clear, and `db.objectStoreNames.contains` reports which stores exist.
+  function fakeUpgrade(existingStores = []) {
+    const stores = new Set(existingStores);
+    const cleared = [];
+    return {
+      cleared,
+      db: { objectStoreNames: { contains: (name) => stores.has(name) } },
+      tx: { objectStore: (name) => ({ clear: () => cleared.push(name) }) },
+    };
+  }
+
+  it('is version 3', () => {
+    expect(step3.version).toBe(3);
+  });
+
+  it('clears both search-index stores on an upgrade from version 2', () => {
+    const { db, tx, cleared } = fakeUpgrade([
+      META_STORE,
+      INDEX_DOCS_STORE,
+      INDEX_LOCATIONS_STORE,
+    ]);
+    step3.upgrade(db, tx, 2);
+    expect(cleared).toEqual([INDEX_DOCS_STORE, INDEX_LOCATIONS_STORE]);
+  });
+
+  it('leaves other stores (meta) untouched', () => {
+    const { db, tx, cleared } = fakeUpgrade([
+      META_STORE,
+      INDEX_DOCS_STORE,
+      INDEX_LOCATIONS_STORE,
+    ]);
+    step3.upgrade(db, tx, 2);
+    expect(cleared).not.toContain(META_STORE);
+  });
+
+  it('is a no-op when the index stores do not exist yet', () => {
+    const { db, tx, cleared } = fakeUpgrade([META_STORE]);
+    step3.upgrade(db, tx, 0);
+    expect(cleared).toEqual([]);
   });
 });
 

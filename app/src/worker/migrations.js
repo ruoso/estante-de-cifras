@@ -68,6 +68,27 @@ export const MIGRATIONS = [
       }
     },
   },
+  {
+    version: 3,
+    label: 'clear the search-index cache for the progression field',
+    // storage.progression_search (Decision 3): the progression n-gram field is
+    // a new property on the content-addressed `index_docs` record. Records
+    // cached before it existed lack it and — being keyed by blob oid — would
+    // never be re-parsed, leaving every already-indexed song unfindable by
+    // progression. Clearing the two DERIVED stores (never user content) makes
+    // the next OPEN `reconcile` reparse each file once and backfill the field;
+    // thereafter restart serves from the cache with no reparse. Runs inside the
+    // one `versionchange` transaction via `tx`; guarded by `contains` so a
+    // fresh database (the stores created by step 2 moments earlier, still
+    // empty) is a harmless no-op.
+    upgrade(db, tx) {
+      for (const store of [INDEX_DOCS_STORE, INDEX_LOCATIONS_STORE]) {
+        if (db.objectStoreNames.contains(store)) {
+          tx.objectStore(store).clear();
+        }
+      }
+    },
+  },
 ];
 
 // The latest schema version, derived from the step list (single source of
