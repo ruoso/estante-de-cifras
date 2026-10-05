@@ -16,8 +16,9 @@ task foundation "Foundation" {
   task app_tooling "App tooling" {
     effort 2d
     allocate team
+    complete 100
     depends !monorepo
-    note "Vite, React 19 with the React Compiler, React Aria Components, the PWA plugin, Vitest + Testing Library with an axe matcher for the behavior level (Playwright belongs to foundation.e2e_web). DIRECTION §3.7. Tests: unit (a first Vitest test, so the gate runs app/'s `test`); behavior (one component rendered with Testing Library and checked with axe at WCAG 2.1 AA, proving the set-up every UI task uses)."
+    note "Vite, React 19 with the React Compiler, React Aria Components, the PWA plugin, Vitest + Testing Library with an axe matcher for the behavior level (Playwright belongs to foundation.e2e_web). DIRECTION §3.7. Tests: unit (a first Vitest test, so the gate runs app/'s `test`); behavior (one component rendered with Testing Library and checked with axe at WCAG 2.1 AA, proving the set-up every UI task uses). Refinement: tasks/refinements/foundation/app_tooling.md"
   }
   task music_core_import "Bring the music core over, with its history" {
     effort 1d
