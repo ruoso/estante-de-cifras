@@ -20,19 +20,29 @@ export const PROTOCOL_VERSION = 1;
 export const COMMAND = 'command';
 export const EVENT = 'event';
 
-// Commands: main -> Worker. Open to extension; `OPEN` is the only one this
-// task needs (it demonstrates the Worker owning IndexedDB). Later tasks add
-// clone / fetch / merge / save / index without touching the envelope.
+// Commands: main -> Worker. Open to extension. `OPEN` brings the Worker's
+// database up (storage.fs). `WRITE`/`SAVE`/`DISCARD` are the working-copy flow
+// (storage.working_copy): WRITE persists the editor's current text, SAVE
+// canonicalises + commits + pushes, DISCARD puts files back as last saved.
+// Later tasks add clone / fetch / merge / index without touching the envelope.
 export const CommandKind = Object.freeze({
   OPEN: 'open',
+  WRITE: 'write',
+  SAVE: 'save',
+  DISCARD: 'discard',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
-// `ERROR` carries a message and a code. Later tasks add progress / completion
-// kinds here the same way.
+// `ERROR` carries a message and a code. The working-copy outcomes
+// (storage.working_copy): `SAVED` (commit + whether the push landed),
+// `DISCARDED`, and `SAVE_REFUSED` (a marked or unreadable file named, with the
+// first marker line). Later tasks add progress / completion kinds the same way.
 export const EventKind = Object.freeze({
   READY: 'ready',
   ERROR: 'error',
+  SAVED: 'saved',
+  DISCARDED: 'discarded',
+  SAVE_REFUSED: 'save_refused',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

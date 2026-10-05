@@ -51,6 +51,62 @@ describe('worker store reducer', () => {
     expect(Object.is(errored.meta, ready.meta)).toBe(true);
   });
 
+  it('folds a save outcome into the save slice under its book, as a word (storage.working_copy)', () => {
+    const saved = reduce(
+      initialState,
+      event(EventKind.SAVED, { bookId: 'book-1', commit: 'abc123', pushed: true }),
+    );
+    expect(saved.save['book-1']).toEqual({
+      status: 'saved',
+      commit: 'abc123',
+      pushed: true,
+    });
+
+    // A discard and a refusal carry their own words; a refusal names the file,
+    // reason and first marker line (spec §11.12.3).
+    const discarded = reduce(saved, event(EventKind.DISCARDED, { bookId: 'book-1' }));
+    expect(discarded.save['book-1']).toEqual({ status: 'discarded' });
+
+    const refused = reduce(
+      discarded,
+      event(EventKind.SAVE_REFUSED, {
+        bookId: 'book-1',
+        path: 'song.cifra.md',
+        reason: 'marked',
+        line: 3,
+        marker: '<<<<<<< ours',
+      }),
+    );
+    expect(refused.save['book-1']).toEqual({
+      status: 'refused',
+      path: 'song.cifra.md',
+      reason: 'marked',
+      line: 3,
+      marker: '<<<<<<< ours',
+    });
+  });
+
+  it('keeps an untouched book’s save entry referentially equal (only what shows it moves)', () => {
+    const a = reduce(
+      initialState,
+      event(EventKind.SAVED, { bookId: 'book-a', commit: 'a1', pushed: true }),
+    );
+    const entryA = a.save['book-a'];
+    // A save in a different book moves only that book's entry.
+    const b = reduce(a, event(EventKind.SAVED, { bookId: 'book-b', commit: 'b1', pushed: false }));
+    expect(b.save['book-b']).toEqual({ status: 'saved', commit: 'b1', pushed: false });
+    // book-a's entry keeps its exact reference (the Object.is bail-out), as do
+    // the unrelated connection/meta slices.
+    expect(Object.is(b.save['book-a'], entryA)).toBe(true);
+    expect(Object.is(b.connection, a.connection)).toBe(true);
+  });
+
+  it('ignores a save/discard/refused event with no bookId (no churn)', () => {
+    expect(reduce(initialState, event(EventKind.SAVED, {}))).toBe(initialState);
+    expect(reduce(initialState, event(EventKind.DISCARDED, {}))).toBe(initialState);
+    expect(reduce(initialState, event(EventKind.SAVE_REFUSED, {}))).toBe(initialState);
+  });
+
   it('returns the same state reference for a command, a malformed message, or an unknown event kind', () => {
     expect(reduce(initialState, command(CommandKind.OPEN))).toBe(initialState);
     expect(reduce(initialState, null)).toBe(initialState);

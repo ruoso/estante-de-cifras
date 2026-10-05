@@ -18,6 +18,11 @@ import {
   runMigrations,
 } from './migrations.js';
 import { createFileSystem, createPersister } from './fs.js';
+import { createBookLocks } from './locks.js';
+import { createGitHttpClient } from './git-http.js';
+import { createGitLayer } from './git.js';
+import { createWorkingCopy } from './working-copy.js';
+import { authorFrom } from './author.js';
 
 // The schema version the database opens at, DERIVED from the migration step
 // list (single source of truth — migrations.js Decision 1): bumping the schema
@@ -104,22 +109,26 @@ function loadOrCreateMeta(db) {
 // the step list (defaults to the production `MIGRATIONS`), reusing the existing
 // `options` seam so behavior tests can exercise genuine multi-step stepping
 // today, when only one real step exists; `options.navigator` injects the object
-// `navigator.storage.persist()` is asked through (defaults to the global one).
-// The version opened at is derived from whichever list is in effect. Returns
-// `{ handle }`: the adapter (real or loopback) feeds each incoming command to
-// `handle`.
+// `navigator.storage.persist()` is asked through AND the one the per-book Web
+// Locks are taken on (defaults to the global one); `options.fetch` injects the
+// `fetch` the git HTTP client rides (defaults to the global one), the seam
+// storage.git's behavior test uses. The version opened at is derived from
+// whichever list is in effect. Returns `{ handle }`: the adapter (real or
+// loopback) feeds each incoming command to `handle`.
 export function createWorkerLogic(port, options = {}) {
   const idb = options.indexedDB ?? globalThis.indexedDB;
   const name = options.name ?? DB_NAME;
   const migrations = options.migrations ?? MIGRATIONS;
   const version = latestVersion(migrations);
+  // The object `navigator.storage.persist()` is asked through and the per-book
+  // Web Locks are taken on (both the global one in a real Worker).
+  const navigator = options.navigator ?? globalThis.navigator;
   // One persistence requester per Worker session, asked at most once (Decision
   // 4). Built up front so the memoisation spans the whole session, not one open.
-  const requestPersistence = createPersister(
-    options.navigator ?? globalThis.navigator,
-  );
+  const requestPersistence = createPersister(navigator);
   let dbPromise = null;
   let fs = null;
+  let workingCopy = null;
 
   function ensureOpen() {
     if (!dbPromise) dbPromise = openDatabase(idb, name, version, migrations);
@@ -135,6 +144,22 @@ export function createWorkerLogic(port, options = {}) {
   function ensureFs() {
     if (!fs) fs = createFileSystem(`${name}-fs`, { indexedDB: idb });
     return fs;
+  }
+
+  // Compose the working-copy flow once (memoised like the filesystem): the git
+  // transport over the shared fs and the git HTTP client, the per-book lock
+  // registry, and the filesystem. This is the wiring git.md Decision 4 and
+  // locks.md Decision 4 deferred to "the first consumer" — the git layer and the
+  // lock registry constructed here in the closure, beside ensureFs (Decision 1).
+  function ensureWorkingCopy() {
+    if (!workingCopy) {
+      const fsLayer = ensureFs();
+      const http = createGitHttpClient({ fetch: options.fetch });
+      const git = createGitLayer({ fs: fsLayer, http });
+      const locks = createBookLocks({ navigator });
+      workingCopy = createWorkingCopy({ fs: fsLayer, git, locks });
+    }
+    return workingCopy;
   }
 
   async function handleOpen() {
@@ -158,6 +183,50 @@ export function createWorkerLogic(port, options = {}) {
           case CommandKind.OPEN:
             await handleOpen();
             break;
+          case CommandKind.WRITE: {
+            // Durability only: persist the editor's current text. No event — the
+            // write is silent; its only observable effect is the working copy.
+            const { bookId, path, text } = message.payload;
+            await ensureWorkingCopy().write({ bookId, path, text });
+            break;
+          }
+          case CommandKind.SAVE: {
+            // Canonicalise, commit one file or several, then push — the author
+            // formed from the command's identity (id -> no-reply address).
+            const { bookId, paths, message: note, author } = message.payload;
+            const outcome = await ensureWorkingCopy().save({
+              bookId,
+              paths,
+              message: note,
+              author: authorFrom(author),
+            });
+            if (outcome.refused) {
+              port.postMessage(
+                event(EventKind.SAVE_REFUSED, {
+                  bookId,
+                  path: outcome.refused.path,
+                  reason: outcome.refused.reason,
+                  marker: outcome.refused.marker ?? null,
+                  line: outcome.refused.line ?? null,
+                }),
+              );
+            } else {
+              port.postMessage(
+                event(EventKind.SAVED, {
+                  bookId,
+                  commit: outcome.commit,
+                  pushed: outcome.pushed,
+                }),
+              );
+            }
+            break;
+          }
+          case CommandKind.DISCARD: {
+            const { bookId, paths } = message.payload;
+            await ensureWorkingCopy().discard({ bookId, paths });
+            port.postMessage(event(EventKind.DISCARDED, { bookId, paths }));
+            break;
+          }
           default:
             port.postMessage(
               event(EventKind.ERROR, {

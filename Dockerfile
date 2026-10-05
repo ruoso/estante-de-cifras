@@ -12,9 +12,24 @@
 # clear of musl optional-dependency pitfalls; this stage is discarded, so its
 # size does not reach the final image.
 FROM node:24.20.0-slim AS app
-WORKDIR /app
+# The build tree lives two levels deep (/build/app) on purpose: the app is the
+# first consumer of the cifra.md for JavaScript package (storage.working_copy),
+# carried in package.json as a sibling-repo file: dependency,
+# "cifra-md": "file:../../cifra.md/js". npm records that literal two-segment
+# path in package-lock.json, and `npm ci` only accepts the lockfile when that
+# path round-trips from the project root — which needs the root at least two
+# directories deep (from /build/app, ../../cifra.md/js resolves to
+# /cifra.md/js; from a top-level /app it would clamp at / and npm would reject
+# the lockfile as invalid).
+WORKDIR /build/app
+# Bring the package's source in from the `cifra-md` named build context
+# (compose.yaml wires it to the sibling checkout) at exactly the file: target —
+# only package.json and src, never its node_modules — so `npm ci` can link it
+# and `npm run build` (vite) can bundle it.
+COPY --from=cifra-md package.json /cifra.md/js/package.json
+COPY --from=cifra-md src /cifra.md/js/src
 # Install from the lockfile first, for a cached layer only the lockfile busts;
-# then build the static bundle into /app/dist (vite build, base '/').
+# then build the static bundle into /build/app/dist (vite build, base '/').
 COPY app/package.json app/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY app/ ./
@@ -43,7 +58,7 @@ RUN apk add --no-cache git ca-certificates
 COPY --from=service /out/service /usr/local/bin/service
 # The built PWA, bundled now; serving it at / stays a pure Go change
 # (service.serve_app), which reads it from here.
-COPY --from=app /app/dist /srv/app
+COPY --from=app /build/app/dist /srv/app
 # The book volume's mount point: one bare repository per book under
 # /data/books (DIRECTION §3.3); compose mounts a named volume here.
 RUN mkdir -p /data/books

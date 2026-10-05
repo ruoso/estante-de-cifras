@@ -22,6 +22,14 @@ export const initialState = {
   connection: { status: 'idle', error: null, persisted: null },
   // The Worker's persisted `meta` record once it reports it, else null.
   meta: null,
+  // The outcome of the last save/discard per book, keyed by `bookId`
+  // (storage.working_copy). Each entry carries its status as a word (never
+  // colour alone): 'saved' (with `commit` and whether the push landed),
+  // 'discarded', or 'refused' (with the refused `path`/`reason` and the first
+  // marker `line`/`marker`). A book an event does not touch keeps its exact
+  // entry reference, so a view watching one book does not re-render on another's
+  // save. Starts empty: nothing saved yet.
+  save: {},
 };
 
 // Fold one message into the state. Only event-direction messages change
@@ -53,6 +61,54 @@ export function reduce(state, message) {
         ...state,
         connection: { status: 'error', error: message.payload ?? null },
       };
+
+    case EventKind.SAVED: {
+      // A save landed: record the commit and whether the push landed, under the
+      // book's key. Only this book's entry moves; the rest of `save` keeps its
+      // references (DIRECTION §3.7 "only what shows it moves").
+      const bookId = message.payload?.bookId;
+      if (!bookId) return state;
+      return {
+        ...state,
+        save: {
+          ...state.save,
+          [bookId]: {
+            status: 'saved',
+            commit: message.payload?.commit ?? null,
+            pushed: message.payload?.pushed ?? null,
+          },
+        },
+      };
+    }
+
+    case EventKind.DISCARDED: {
+      const bookId = message.payload?.bookId;
+      if (!bookId) return state;
+      return {
+        ...state,
+        save: { ...state.save, [bookId]: { status: 'discarded' } },
+      };
+    }
+
+    case EventKind.SAVE_REFUSED: {
+      // A marked or unreadable file stopped the save: carry the refused path and
+      // reason as a word, with the first marker line, so the view can point at it.
+      const bookId = message.payload?.bookId;
+      if (!bookId) return state;
+      return {
+        ...state,
+        save: {
+          ...state.save,
+          [bookId]: {
+            status: 'refused',
+            path: message.payload?.path ?? null,
+            reason: message.payload?.reason ?? null,
+            line: message.payload?.line ?? null,
+            marker: message.payload?.marker ?? null,
+          },
+        },
+      };
+    }
 
     default:
       return state;

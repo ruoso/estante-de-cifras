@@ -29,8 +29,9 @@ task storage "Storage" {
   task working_copy "Working copy, save and discard" {
     effort 3d
     allocate team
-    depends !git, !locks, cifra_js.writer
-    note "Real files written as the user types; save = canonicalise, commit one file or several, then push; discard; author as the per-user no-reply address. Workflows 3, 4, 14. Tests: unit (the author's no-reply address, canonicalising before commit); behavior (type, save one file and several, discard; the commit holds canonical text; push to the local remote; a marked text refused — workflows 3, 4, 14)."
+    complete 100
+    depends !git, !locks, cifra_js.writer, cifra_js.setlists
+    note "Real files written as the user types; save = canonicalise, commit one file or several, then push; discard; author as the per-user no-reply address. Workflows 3, 4, 14. Tests: unit (the author's no-reply address, canonicalising before commit); behavior (type, save one file and several, discard; the commit holds canonical text; push to the local remote; a marked text refused — workflows 3, 4, 14). Refinement: tasks/refinements/storage/working_copy.md"
   }
   task locks "One lock per book" {
     effort 1d
