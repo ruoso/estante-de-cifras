@@ -51,8 +51,9 @@ task foundation "Foundation" {
   task ci "CI" {
     effort 1d
     allocate team
+    complete 100
     depends !compose
-    note "GitHub Actions calling scripts/gate and nothing else — both repositories (cifra.md checked out beside), with Docker and Playwright's browsers installed so the gate's e2e level runs once the harnesses exist. Tests: none of its own — the workflow runs scripts/gate green on a push."
+    note "GitHub Actions calling scripts/gate and nothing else — both repositories (cifra.md checked out beside), with Docker and Playwright's browsers installed so the gate's e2e level runs once the harnesses exist. Tests: none of its own — the workflow runs scripts/gate green on a push. Refinement: tasks/refinements/foundation/ci.md"
   }
   task e2e_api "End-to-end API harness" {
     effort 2d
