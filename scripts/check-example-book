@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# Run the cifra.md reference over every file in app/example-book/, failing on
+# any non-canonical file or any reader diagnostic.
+#
+# The example book (tasks/refinements/design/example_book.md) is a bundled
+# songbook of purpose-written songs that ships with the app. The project's
+# first standing rule is that a book only ever holds canonical text, so the
+# book must itself be flawless: each `*.cifra.md` and `*.setlist.md` is
+# canonical under cifra.md (spec §8) and reads with no diagnostic (nothing
+# dropped). This check makes that a repeatable gate step rather than a
+# one-time author action; scripts/gate calls it on the estante side, guarded
+# by app/example-book/ existing.
+#
+# It checks the content with the cifra.md reference (the Python implementation
+# the gate already installs), exactly as the author did while writing the
+# book: `python -m cifra_md check` for canonical form and `python -m cifra_md
+# parse` for reader diagnostics. It also guards the "a well-formed songbook,
+# and nothing else" rule (DIRECTION §2.1): the directory holds only
+# `*.cifra.md`, `*.setlist.md`, a `README.md` and a `.gitattributes`.
+#
+# Environment:
+#   ESTANTE_CIFRA_MD_DIR  the cifra.md checkout (default: ../cifra.md beside
+#                         this repository; relative paths resolve from here)
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+ROOT="$PWD"
+BOOK="$ROOT/app/example-book"
+
+CIFRA_MD_DIR="${ESTANTE_CIFRA_MD_DIR:-../cifra.md}"
+case "$CIFRA_MD_DIR" in
+  /*) ;;
+  *) CIFRA_MD_DIR="$ROOT/$CIFRA_MD_DIR" ;;
+esac
+if [[ -d "$CIFRA_MD_DIR" ]]; then
+  CIFRA_MD_DIR="$(cd "$CIFRA_MD_DIR" && pwd)"
+fi
+REF="$CIFRA_MD_DIR/reference"
+
+if [[ ! -d "$BOOK" ]]; then
+  echo "check-example-book: app/example-book/ does not exist" >&2
+  exit 1
+fi
+if [[ ! -f "$REF/pyproject.toml" ]]; then
+  echo "check-example-book: no cifra.md reference at $REF (set ESTANTE_CIFRA_MD_DIR)" >&2
+  exit 1
+fi
+
+# The reference's venv, the same one scripts/gate builds (lines creating
+# reference/.venv). Build it if it is not there yet, so this check stands on
+# its own when run directly or before the gate's cifra.md section.
+PY="$REF/.venv/bin/python"
+if [[ ! -x "$PY" ]]; then
+  echo "check-example-book: creating the reference venv at $REF/.venv"
+  (cd "$REF" && python3 -m venv .venv && .venv/bin/pip install --quiet -e ".[test]")
+fi
+
+status=0
+
+# A well-formed songbook, and nothing else (DIRECTION §2.1).
+while IFS= read -r -d '' path; do
+  base="$(basename "$path")"
+  case "$base" in
+    README.md|.gitattributes) ;;
+    *.cifra.md|*.setlist.md) ;;
+    *)
+      echo "check-example-book: stray file not allowed in a songbook: app/example-book/$base" >&2
+      status=1
+      ;;
+  esac
+done < <(find "$BOOK" -mindepth 1 -maxdepth 1 -print0)
+
+if [[ ! -f "$BOOK/README.md" ]]; then
+  echo "check-example-book: app/example-book/README.md is missing (its heading is the book's title)" >&2
+  status=1
+fi
+
+# Every song and setlist: canonical, and no reader diagnostic.
+found=0
+while IFS= read -r -d '' f; do
+  found=1
+  rel="${f#"$ROOT"/}"
+  if ! "$PY" -m cifra_md check "$f" >/dev/null 2>&1; then
+    echo "check-example-book: NOT canonical: $rel" >&2
+    status=1
+  fi
+  diag="$("$PY" -m cifra_md parse "$f" 2>&1 >/dev/null)"
+  if [[ -n "$diag" ]]; then
+    echo "check-example-book: reader diagnostics for $rel:" >&2
+    echo "$diag" >&2
+    status=1
+  fi
+done < <(find "$BOOK" -mindepth 1 -maxdepth 1 \( -name '*.cifra.md' -o -name '*.setlist.md' \) -print0)
+
+if [[ $found -eq 0 ]]; then
+  echo "check-example-book: no *.cifra.md or *.setlist.md in app/example-book/" >&2
+  status=1
+fi
+
+if [[ $status -eq 0 ]]; then
+  echo "check-example-book: OK (every file canonical, no diagnostics)"
+fi
+exit $status

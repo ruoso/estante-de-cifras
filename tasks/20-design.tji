@@ -42,6 +42,7 @@ task design "Design gaps" {
   task example_book "The example book's songs" {
     effort 2d
     allocate team
-    note "Songs written for the purpose (no one else's words), voiced for guitar, cavaquinho and ukulele, showing sections, words, variations and a setlist. Ships with the app. Workflow 1. Tests: none in code — each song and the setlist checked canonical with the cifra.md reference before it lands; account.first_run's tests pin them in the app."
+    complete 100
+    note "Songs written for the purpose (no one else's words), voiced for guitar, cavaquinho and ukulele, showing sections, words, variations and a setlist. Ships with the app. Workflow 1. Tests: none in code — each song and the setlist checked canonical with the cifra.md reference before it lands; account.first_run's tests pin them in the app. Refinement: tasks/refinements/design/example_book.md"
   }
 }
