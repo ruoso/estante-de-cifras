@@ -58,8 +58,9 @@ task foundation "Foundation" {
   task e2e_api "End-to-end API harness" {
     effort 2d
     allocate team
+    complete 100
     depends !ci
-    note "e2e/api/: a black-box test package (Node, Vitest; `npm test` takes `--maxWorkers`) run against the compose stack scripts/gate brings up — the service's image with git, the hook, Postgres, the mail catcher — at ESTANTE_E2E_BASE_URL and ESTANTE_E2E_MAIL_URL; helpers for HTTP calls with a session, reading mail from the catcher, and real git clients doing what a device would: the git CLI and isomorphic-git in Node. The stack's Postgres is also what the Go behavior tests use (ESTANTE_TEST_DATABASE_URL). DIRECTION §3.6. Tests: e2e-api (the harness's own: the stack is up and the health check answers; the mail catcher's API answers; the git CLI and isomorphic-git helpers init, commit and clone a local repository)."
+    note "e2e/api/: a black-box test package (Node, Vitest; `npm test` takes `--maxWorkers`) run against the compose stack scripts/gate brings up — the service's image with git, the hook, Postgres, the mail catcher — at ESTANTE_E2E_BASE_URL and ESTANTE_E2E_MAIL_URL; helpers for HTTP calls with a session, reading mail from the catcher, and real git clients doing what a device would: the git CLI and isomorphic-git in Node. The stack's Postgres is also what the Go behavior tests use (ESTANTE_TEST_DATABASE_URL). DIRECTION §3.6. Tests: e2e-api (the harness's own: the stack is up and the health check answers; the mail catcher's API answers; the git CLI and isomorphic-git helpers init, commit and clone a local repository). Refinement: tasks/refinements/foundation/e2e_api.md"
   }
   task e2e_web "End-to-end web harness" {
     effort 2d
