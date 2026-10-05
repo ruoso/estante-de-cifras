@@ -295,6 +295,21 @@ if [[ $want_estante -eq 1 ]]; then
     skip "estante app: app/package.json does not exist yet"
   fi
 
+  # The API contract (api/) is self-contained: one OpenAPI document and a thin
+  # validator in each language the API has (JS for the app, Go for the service),
+  # which the app and the service later import but do not share with each other
+  # (DIRECTION §3.6). Its unit tests are plain npm/go checks, no stack needed.
+  if [[ -f api/package.json ]]; then
+    (cd api; npm_checks "estante api")
+  else
+    skip "estante api: api/package.json does not exist yet"
+  fi
+  if [[ -f api/go.mod ]]; then
+    (cd api; go_checks "estante api")
+  else
+    skip "estante api: api/go.mod does not exist yet"
+  fi
+
   # The stack comes up before the service's Go tests, whose behavior level
   # runs against its Postgres, and stays up for e2e-api and e2e-web.
   has_e2e_api=0; [[ -f e2e/api/package.json ]] && has_e2e_api=1

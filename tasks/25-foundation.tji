@@ -35,8 +35,9 @@ task foundation "Foundation" {
   task api_contract "API contract" {
     effort 2d
     allocate team
+    complete 100
     depends !monorepo
-    note "api/: sign-in, books, the shelf change check, sharing and invitations, git — both sides tested against it. DIRECTION §3.6 The API. Tests: unit (the contract document validates; the small helper both sides' tests use to check a request or response against it, tested on a conforming and a non-conforming sample)."
+    note "api/: sign-in, books, the shelf change check, sharing and invitations, git — both sides tested against it. DIRECTION §3.6 The API. Tests: unit (the contract document validates; the small helper both sides' tests use to check a request or response against it, tested on a conforming and a non-conforming sample). Refinement: tasks/refinements/foundation/api_contract.md"
   }
   task compose "Everything locally, as in production" {
     effort 2d

@@ -1,0 +1,1251 @@
+openapi: 3.1.0
+
+# The HTTP API contract for Estante de Cifras, written down once so the app
+# (JavaScript) and the service (Go) — which share no code (DIRECTION §3.6) —
+# can be tested against it instead of against each other. This document is the
+# source of truth; `validate.js` and `validate.go` are thin validators over it.
+#
+# Scope (DIRECTION §3.6 "The API"): signing in, books, the shelf change check,
+# sharing and invitations, and git over HTTP. It states the contract; it stands
+# up no endpoint. Each endpoint is implemented by a later task (service.*, and
+# the app's screens) that asserts its own traffic against this contract.
+
+info:
+  title: Estante de Cifras API
+  version: "1.0.0"
+  summary: Sign-in, books, the shelf change check, sharing, and git over HTTP.
+  description: >-
+    One origin (DIRECTION §3.3): the app at the root of `estantedecifras.app`,
+    this API beneath it, and each book's git smart-HTTP under `/git`. Session is
+    carried by a cookie — no CORS, no bearer tokens, no anonymous reads. Every
+    book-, share- and git-scoped operation needs a session **and** a membership;
+    a caller who is not a member is answered 404, so the API never confirms that
+    a private book exists (DIRECTION §3.3). Error bodies carry a machine-readable
+    `code` and a short human `message` and never song text, a commit message, an
+    email address or a token.
+  license:
+    name: MIT
+
+servers:
+  - url: /
+    description: >-
+      The one origin. The app is served at `/`, this JSON API beneath `/api`,
+      and git's smart HTTP under `/git/{bookId}`. The app-facing book link
+      `…/b/{book}` is the app's own routing and is not part of this contract
+      (workflow 07).
+
+tags:
+  - name: Sign-in
+    description: Passkeys and the emailed sign-in link; sessions and passkeys (workflow 13).
+  - name: Books
+    description: The user's own books — listed, created, deleted, forked (workflows 07, 11).
+  - name: Shelf
+    description: The one batched change check over the whole shelf (workflow 08, DIRECTION §3.3).
+  - name: Sharing
+    description: Members and invitations, up to fifty people per book (workflow 10).
+  - name: Git
+    description: >-
+      Git's smart HTTP per book, at the HTTP envelope only; git owns the pack
+      framing (DIRECTION §3.6 "Git over HTTP").
+
+# Every operation requires a session cookie unless it overrides this (the
+# sign-in begin/finish and the email-link request/redeem are public; passkey
+# registration is allowed with or without an existing session).
+security:
+  - sessionCookie: []
+
+paths:
+  # ---------------------------------------------------------------------------
+  # Signing in (workflow 13)
+  # ---------------------------------------------------------------------------
+
+  /api/auth/passkey/register/begin:
+    post:
+      operationId: registerPasskeyBegin
+      tags: [Sign-in]
+      summary: Begin registering a passkey (standard WebAuthn).
+      description: >-
+        Returns the WebAuthn credential-creation options. With an existing
+        session the passkey is added to that account; with none a new account is
+        created when `finish` succeeds (workflows 07, 13).
+      security:
+        - {}
+        - sessionCookie: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyRegisterBeginRequest'
+      responses:
+        '200':
+          description: The credential-creation options and an opaque handle to echo to `finish`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialCreationOptions'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/auth/passkey/register/finish:
+    post:
+      operationId: registerPasskeyFinish
+      tags: [Sign-in]
+      summary: Finish registering a passkey.
+      description: >-
+        Verifies the attestation and, for a new account, creates it and starts a
+        session (sets the session cookie).
+      security:
+        - {}
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyFinishRequest'
+      responses:
+        '200':
+          description: The signed-in account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/auth/passkey/authenticate/begin:
+    post:
+      operationId: authenticatePasskeyBegin
+      tags: [Sign-in]
+      summary: Begin signing in with a passkey (standard WebAuthn).
+      security:
+        - {}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyAuthenticateBeginRequest'
+      responses:
+        '200':
+          description: The credential-request options and an opaque handle to echo to `finish`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialRequestOptions'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/auth/passkey/authenticate/finish:
+    post:
+      operationId: authenticatePasskeyFinish
+      tags: [Sign-in]
+      summary: Finish signing in with a passkey.
+      description: Verifies the assertion and starts a session (sets the session cookie).
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyFinishRequest'
+      responses:
+        '200':
+          description: The signed-in account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/email/request:
+    post:
+      operationId: requestEmailLink
+      tags: [Sign-in]
+      summary: Request an emailed sign-in link (the WebAuthn fallback and recovery path).
+      description: >-
+        Always answered 202 whether or not an account exists at the address, so
+        the response never reveals who has an account. The address is kept to
+        this request body and is never echoed in an error (workflow 13).
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailLinkRequest'
+      responses:
+        '202':
+          description: Accepted; if the address has an account, a link is on its way.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/auth/email/redeem:
+    post:
+      operationId: redeemEmailLink
+      tags: [Sign-in]
+      summary: Redeem an emailed sign-in link.
+      description: Starts a session (sets the session cookie) when the token is valid and unexpired.
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailLinkRedeemRequest'
+      responses:
+        '200':
+          description: The signed-in account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/signout:
+    post:
+      operationId: signOut
+      tags: [Sign-in]
+      summary: Sign out of this device (clears the session cookie).
+      responses:
+        '204':
+          description: Signed out.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/account/sessions:
+    get:
+      operationId: listSessions
+      tags: [Sign-in]
+      summary: List the account's signed-in devices (workflow 13).
+      responses:
+        '200':
+          description: The signed-in devices, each with when it was last used.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/account/sessions/{sessionId}:
+    delete:
+      operationId: revokeSession
+      tags: [Sign-in]
+      summary: Sign a device out from another (workflow 13).
+      description: >-
+        The revoked session stops working at its next request (lazy enforcement,
+        workflow 13).
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '204':
+          description: Revoked.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/account/passkeys:
+    get:
+      operationId: listPasskeys
+      tags: [Sign-in]
+      summary: List the account's passkeys (workflow 13).
+      responses:
+        '200':
+          description: The passkeys.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasskeyList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/account/passkeys/{passkeyId}:
+    delete:
+      operationId: removePasskey
+      tags: [Sign-in]
+      summary: Remove a passkey (workflow 13).
+      parameters:
+        - $ref: '#/components/parameters/PasskeyId'
+      responses:
+        '204':
+          description: Removed.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------------
+  # Books (workflows 07, 11)
+  # ---------------------------------------------------------------------------
+
+  /api/books:
+    get:
+      operationId: listBooks
+      tags: [Books]
+      summary: List the books on the account (owned, shared and forks).
+      responses:
+        '200':
+          description: The account's books.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createBook
+      tags: [Books]
+      summary: Create an empty, private book; the caller becomes its owner (workflow 07).
+      description: >-
+        Returns the book's id and its git remote URL. The book goes online
+        private: only its owner can open it until it is shared (workflow 10).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookRequest'
+      responses:
+        '201':
+          description: The created book.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+
+  /api/books/{bookId}:
+    delete:
+      operationId: deleteBook
+      tags: [Books]
+      summary: Delete a book from Estante for everyone (owner only, workflow 07).
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/books/{bookId}/fork:
+    post:
+      operationId: forkBook
+      tags: [Books]
+      summary: Fork a book — a private server-side copy owned by the caller (workflow 11).
+      description: >-
+        The fork remembers its single-level original. Any member may fork a book
+        they can open; the caller becomes the fork's owner.
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        '201':
+          description: The created fork, with its `original` set.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+
+  # ---------------------------------------------------------------------------
+  # The change check (workflow 08, DIRECTION §3.3)
+  # ---------------------------------------------------------------------------
+
+  /api/shelf/change-check:
+    post:
+      operationId: changeCheck
+      tags: [Shelf]
+      summary: Ask, in one request, which books on the shelf have changed.
+      description: >-
+        One batched request carrying each shelf book's id and the head this
+        device has; the response names only the books with news — a book that
+        moved (its new head), a fork whose original advanced (a new-saves count
+        or a gone signal), and a book the caller is no longer a member of
+        (workflows 08, 11; DIRECTION §3.3). Books with nothing to report are
+        omitted. A book id the caller cannot see is simply absent from the
+        response — the change check never confirms a private book exists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeCheckRequest'
+      responses:
+        '200':
+          description: The books with news.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeCheckResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ---------------------------------------------------------------------------
+  # Sharing and invitations (workflow 10)
+  # ---------------------------------------------------------------------------
+
+  /api/books/{bookId}/members:
+    get:
+      operationId: listMembers
+      tags: [Sharing]
+      summary: List a book's members, role-filtered by the caller (workflow 10).
+      description: >-
+        The owner sees every member; a member sees the owner and the editors but
+        not other readers. The count is members besides the owner, against the
+        fifty cap (shown as "37 of 50").
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        '200':
+          description: The members visible to the caller, and the count against the cap.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/books/{bookId}/members/{userId}:
+    patch:
+      operationId: changeMemberRole
+      tags: [Sharing]
+      summary: Change a member's role (owner only, workflow 10).
+      description: Takes effect at the member's next request (workflow 10).
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeMemberRoleRequest'
+      responses:
+        '200':
+          description: The member with its new role.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: removeMember
+      tags: [Sharing]
+      summary: Remove a member (owner only, workflow 10).
+      description: Takes effect at the member's next request; the book becomes "no longer shared with you".
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Removed.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/books/{bookId}/invitations:
+    get:
+      operationId: listInvitations
+      tags: [Sharing]
+      summary: List a book's invitations with who joined through each (owner only, workflow 10).
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        '200':
+          description: The invitations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      operationId: createInvitation
+      tags: [Sharing]
+      summary: Create an invitation for a role, with an expiry and an optional use-limit (owner only).
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvitationRequest'
+      responses:
+        '201':
+          description: The created invitation, with its link.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/books/{bookId}/invitations/{invitationId}:
+    delete:
+      operationId: withdrawInvitation
+      tags: [Sharing]
+      summary: Withdraw an invitation (owner only, workflow 10).
+      description: Nobody new joins; those who already joined stay members.
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+        - $ref: '#/components/parameters/InvitationId'
+      responses:
+        '204':
+          description: Withdrawn.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/invitations/{token}/accept:
+    post:
+      operationId: acceptInvitation
+      tags: [Sharing]
+      summary: Accept an invitation and put the book on the caller's shelf (workflow 10).
+      description: >-
+        Requires a session (the person signs in or makes an account first) but no
+        prior membership. Refused 409 when the invitation is withdrawn, expired or
+        exhausted, or the book is full — with a machine-readable reason in `code`
+        (`invitation_withdrawn`, `invitation_expired`, `invitation_exhausted`,
+        `book_full`).
+      parameters:
+        - $ref: '#/components/parameters/InvitationToken'
+      responses:
+        '200':
+          description: The book, now on the caller's shelf.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ---------------------------------------------------------------------------
+  # Git over HTTP (DIRECTION §3.6 "Git over HTTP"; workflow 14)
+  # ---------------------------------------------------------------------------
+  #
+  # These three routes are pinned at the HTTP envelope only — method, path, auth,
+  # content types, the Git-Protocol pass-through and the service's pre-git
+  # refusals as status codes. Their bodies are git's own opaque media types and
+  # are NOT schema-validated: git owns the pkt-line and pack framing. Push-content
+  # refusals (workflow 14) come back through git's own channel inside the
+  # git-receive-pack result body, not as HTTP status codes.
+
+  /git/{bookId}/info/refs:
+    get:
+      operationId: gitInfoRefs
+      tags: [Git]
+      summary: Advertise refs for a fetch or a push (git smart HTTP).
+      description: >-
+        Runs `git upload-pack` or `git receive-pack` with
+        `--stateless-rpc --advertise-refs` and writes the `# service=…` header
+        before git's output. `service=git-upload-pack` needs a member;
+        `service=git-receive-pack` needs an editor or the owner. Authentication
+        and refusals are the service's own, before git starts (DIRECTION §3.6).
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+        - name: service
+          in: query
+          required: true
+          description: Which git command to advertise.
+          schema:
+            $ref: '#/components/schemas/GitService'
+        - $ref: '#/components/parameters/GitProtocol'
+      responses:
+        '200':
+          description: The git service header and ref advertisement (opaque).
+          content:
+            application/x-git-upload-pack-advertisement:
+              schema:
+                $ref: '#/components/schemas/GitPayload'
+            application/x-git-receive-pack-advertisement:
+              schema:
+                $ref: '#/components/schemas/GitPayload'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+
+  /git/{bookId}/git-upload-pack:
+    post:
+      operationId: gitUploadPack
+      tags: [Git]
+      summary: Serve a fetch (git smart HTTP); reads are for every member.
+      description: >-
+        Runs `git upload-pack --stateless-rpc`, the request body piped in and the
+        output streamed back. A body sent with `Content-Encoding: gzip` is
+        decompressed on the way in. Needs a member.
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+        - $ref: '#/components/parameters/GitProtocol'
+      requestBody:
+        required: true
+        description: The opaque git-upload-pack request (pkt-lines); git owns the framing.
+        content:
+          application/x-git-upload-pack-request:
+            schema:
+              $ref: '#/components/schemas/GitPayload'
+      responses:
+        '200':
+          description: The opaque git-upload-pack result (packfile stream).
+          content:
+            application/x-git-upload-pack-result:
+              schema:
+                $ref: '#/components/schemas/GitPayload'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+
+  /git/{bookId}/git-receive-pack:
+    post:
+      operationId: gitReceivePack
+      tags: [Git]
+      summary: Serve a push (git smart HTTP); pushes are for editors and the owner.
+      description: >-
+        Runs `git receive-pack --stateless-rpc`; every push runs the pre-receive
+        hook (workflow 14). A push that fails any of the hook's checks is refused
+        whole, naming what failed, through git's own channel inside the result
+        body — not as an HTTP status code. Needs an editor or the owner; the
+        service's pre-git refusals (no access, over quota, deleted) come back as
+        the status codes below before git is spawned.
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+        - $ref: '#/components/parameters/GitProtocol'
+      requestBody:
+        required: true
+        description: The opaque git-receive-pack request (pkt-lines and packfile); git owns the framing.
+        content:
+          application/x-git-receive-pack-request:
+            schema:
+              $ref: '#/components/schemas/GitPayload'
+      responses:
+        '200':
+          description: >-
+            The opaque git-receive-pack result (report-status). A hook refusal is
+            carried here, in git's own channel.
+          content:
+            application/x-git-receive-pack-result:
+              schema:
+                $ref: '#/components/schemas/GitPayload'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+
+components:
+
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: estante_session
+      description: >-
+        The session cookie, set on sign-in and cleared on sign-out. One origin,
+        so it simply flows; there is no CORS and no bearer token (DIRECTION §3.3).
+
+  parameters:
+    BookId:
+      name: bookId
+      in: path
+      required: true
+      description: The book's opaque id (not its app-facing `…/b/{book}` link).
+      schema:
+        $ref: '#/components/schemas/Id'
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: A member's opaque user id.
+      schema:
+        $ref: '#/components/schemas/Id'
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Id'
+    PasskeyId:
+      name: passkeyId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Id'
+    InvitationId:
+      name: invitationId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Id'
+    InvitationToken:
+      name: token
+      in: path
+      required: true
+      description: The invitation's opaque token, carried by its link.
+      schema:
+        type: string
+        minLength: 1
+    GitProtocol:
+      name: Git-Protocol
+      in: header
+      required: false
+      description: >-
+        Passed through to git as `GIT_PROTOCOL` so protocol v2 works
+        (DIRECTION §3.6). A request body sent with `Content-Encoding: gzip` is
+        decompressed on the way in.
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: The request body or parameters did not conform.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: No valid session. Sign in first.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: >-
+        Signed in and a member, but the role is insufficient (a reader pushing,
+        or a non-owner acting as owner).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: >-
+        No such resource, or the caller is not a member of the book — the two are
+        answered alike so the API never confirms a private book exists to a
+        non-member (DIRECTION §3.3).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: >-
+        A state refusal, with a machine-readable reason in `code` (e.g. an
+        invitation withdrawn, expired or exhausted, or a book at its fifty-member
+        cap).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooLarge:
+      description: >-
+        The request is over a size or quota limit, refused before git starts
+        (256 KB per file, 50 MB per book, 100 books and 200 MB per account —
+        workflow 14).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+
+    # --- Shared primitives ---------------------------------------------------
+
+    Id:
+      type: string
+      minLength: 1
+      description: An opaque, server-assigned identifier.
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      description: >-
+        A machine-readable `code` and a short human `message`. Never carries song
+        text, a commit message, an email address or a token (DIRECTION §3.3).
+      properties:
+        code:
+          type: string
+          minLength: 1
+          description: A stable, machine-readable error code.
+        message:
+          type: string
+          description: A short human-readable message, safe to show and to log.
+
+    Role:
+      type: string
+      enum: [owner, editor, reader]
+      description: A member's role on a book (workflow 10).
+
+    InvitableRole:
+      type: string
+      enum: [editor, reader]
+      description: A role an invitation may grant; the owner is never invited (workflow 10).
+
+    GitSha:
+      type: string
+      pattern: '^[0-9a-f]{40}([0-9a-f]{24})?$'
+      description: A git object id (40 hex for SHA-1, 64 for SHA-256).
+
+    # --- Sign-in (workflow 13) -----------------------------------------------
+
+    Account:
+      type: object
+      additionalProperties: false
+      required: [id]
+      description: The signed-in account. History recognises the user by a per-user no-reply address (DIRECTION §3.3).
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+
+    PasskeyRegisterBeginRequest:
+      type: object
+      additionalProperties: false
+      description: Optional label for the passkey being created.
+      properties:
+        label:
+          type: string
+          maxLength: 200
+
+    CredentialCreationOptions:
+      type: object
+      additionalProperties: false
+      required: [publicKey, state]
+      description: >-
+        The WebAuthn credential-creation options, plus an opaque handle. The
+        `publicKey` object is standard WebAuthn and the service owns its exact
+        shape (go-webauthn), so it is not pinned field by field here.
+      properties:
+        publicKey:
+          type: object
+          additionalProperties: true
+          description: Standard WebAuthn `PublicKeyCredentialCreationOptions` (JSON form).
+        state:
+          type: string
+          minLength: 1
+          description: Opaque handle correlating this begin with its finish.
+
+    CredentialRequestOptions:
+      type: object
+      additionalProperties: false
+      required: [publicKey, state]
+      description: The WebAuthn credential-request options, plus an opaque handle.
+      properties:
+        publicKey:
+          type: object
+          additionalProperties: true
+          description: Standard WebAuthn `PublicKeyCredentialRequestOptions` (JSON form).
+        state:
+          type: string
+          minLength: 1
+          description: Opaque handle correlating this begin with its finish.
+
+    PasskeyAuthenticateBeginRequest:
+      type: object
+      additionalProperties: false
+      description: No input is required for discoverable-credential sign-in.
+      properties: {}
+
+    PasskeyFinishRequest:
+      type: object
+      additionalProperties: false
+      required: [state, credential]
+      description: Echoes the begin handle and carries the WebAuthn credential (attestation or assertion).
+      properties:
+        state:
+          type: string
+          minLength: 1
+        credential:
+          type: object
+          additionalProperties: true
+          description: The standard WebAuthn credential JSON from the authenticator.
+        label:
+          type: string
+          maxLength: 200
+          description: Optional label for a newly registered passkey.
+
+    EmailLinkRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Kept to this request body; never echoed in an error (workflow 13).
+
+    EmailLinkRedeemRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 1
+
+    Session:
+      type: object
+      additionalProperties: false
+      required: [id, lastUsedAt, current]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        current:
+          type: boolean
+          description: Whether this is the session making the request.
+        lastUsedAt:
+          type: string
+          format: date-time
+        device:
+          type: string
+          description: A short device description (e.g. "Chrome on Linux"), when known.
+
+    SessionList:
+      type: object
+      additionalProperties: false
+      required: [sessions]
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+
+    Passkey:
+      type: object
+      additionalProperties: false
+      required: [id, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        label:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: [string, 'null']
+          format: date-time
+
+    PasskeyList:
+      type: object
+      additionalProperties: false
+      required: [passkeys]
+      properties:
+        passkeys:
+          type: array
+          items:
+            $ref: '#/components/schemas/Passkey'
+
+    # --- Books (workflows 07, 11) --------------------------------------------
+
+    Original:
+      type: object
+      additionalProperties: false
+      required: [bookId]
+      description: A fork's single-level original (workflow 11).
+      properties:
+        bookId:
+          $ref: '#/components/schemas/Id'
+        title:
+          type: string
+          description: The original's title as the fork last knew it.
+
+    Book:
+      type: object
+      additionalProperties: false
+      required: [id, title, role, visibility, gitUrl]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        title:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+        visibility:
+          type: string
+          enum: [private]
+          description: A book is always private on Estante; it is opened up only by sharing (workflow 10).
+        gitUrl:
+          type: string
+          format: uri
+          description: The book's git remote URL (the service's, not the app-facing link).
+        original:
+          oneOf:
+            - $ref: '#/components/schemas/Original'
+            - type: 'null'
+          description: Present (non-null) only when the book is a fork.
+
+    BookList:
+      type: object
+      additionalProperties: false
+      required: [books]
+      properties:
+        books:
+          type: array
+          items:
+            $ref: '#/components/schemas/Book'
+
+    CreateBookRequest:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+
+    # --- Change check (workflow 08, DIRECTION §3.3) --------------------------
+
+    ShelfBookHead:
+      type: object
+      additionalProperties: false
+      required: [bookId, head]
+      description: One shelf book and the head this device currently has.
+      properties:
+        bookId:
+          $ref: '#/components/schemas/Id'
+        head:
+          oneOf:
+            - $ref: '#/components/schemas/GitSha'
+            - type: 'null'
+          description: The head the device has, or null when it has nothing yet.
+
+    ChangeCheckRequest:
+      type: object
+      additionalProperties: false
+      required: [books]
+      properties:
+        books:
+          type: array
+          maxItems: 500
+          items:
+            $ref: '#/components/schemas/ShelfBookHead'
+
+    ShelfBookChange:
+      type: object
+      additionalProperties: false
+      required: [bookId, status]
+      description: >-
+        One book with news. `status` is the book's own ref: `changed` (with its
+        new `head`), `unchanged` (reported only because its original advanced), or
+        `gone` (deleted, or the caller is no longer a member — "no longer shared
+        with you"). A fork may also carry `originalNewSaves` (how far its original
+        advanced) or `originalGone` (the original went away; following ends).
+      properties:
+        bookId:
+          $ref: '#/components/schemas/Id'
+        status:
+          type: string
+          enum: [changed, unchanged, gone]
+        head:
+          $ref: '#/components/schemas/GitSha'
+        originalNewSaves:
+          type: integer
+          minimum: 1
+          description: How many new saves the fork's original has (workflow 11).
+        originalGone:
+          type: boolean
+          description: The fork's original is no longer available; following ends (workflow 11).
+
+    ChangeCheckResponse:
+      type: object
+      additionalProperties: false
+      required: [books]
+      properties:
+        books:
+          type: array
+          description: Only the books with news; unchanged books with no original news are omitted.
+          items:
+            $ref: '#/components/schemas/ShelfBookChange'
+
+    # --- Sharing and invitations (workflow 10) -------------------------------
+
+    Member:
+      type: object
+      additionalProperties: false
+      required: [userId, role]
+      properties:
+        userId:
+          $ref: '#/components/schemas/Id'
+        role:
+          $ref: '#/components/schemas/Role'
+        displayName:
+          type: string
+          description: A short display name, when the caller may see it.
+
+    MemberList:
+      type: object
+      additionalProperties: false
+      required: [members, count, limit]
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/Member'
+        count:
+          type: integer
+          minimum: 0
+          description: Members besides the owner (readers and editors together).
+        limit:
+          type: integer
+          const: 50
+          description: The fixed per-book cap (workflow 10).
+
+    ExpiryChoice:
+      type: string
+      enum: [day, week, month, until-withdrawn]
+      description: An invitation's expiry, chosen when it is made; the default is a week (workflow 10).
+
+    Joiner:
+      type: object
+      additionalProperties: false
+      required: [userId]
+      properties:
+        userId:
+          $ref: '#/components/schemas/Id'
+        displayName:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+
+    CreateInvitationRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role:
+          $ref: '#/components/schemas/InvitableRole'
+        expiry:
+          $ref: '#/components/schemas/ExpiryChoice'
+        useLimit:
+          type: integer
+          minimum: 1
+          description: Optional cap on uses, down to one; unlimited when absent (workflow 10).
+
+    Invitation:
+      type: object
+      additionalProperties: false
+      required: [id, role, expiry, createdAt, joined, joinedCount, withdrawn]
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        url:
+          type: string
+          format: uri
+          description: The invitation link to send; the owner sends it however they like.
+        role:
+          $ref: '#/components/schemas/InvitableRole'
+        expiry:
+          $ref: '#/components/schemas/ExpiryChoice'
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+          description: The resolved expiry time, or null for "until withdrawn".
+        useLimit:
+          type: [integer, 'null']
+          minimum: 1
+          description: The cap on uses, or null for unlimited.
+        joined:
+          type: array
+          description: Who has joined through this invitation (workflow 10).
+          items:
+            $ref: '#/components/schemas/Joiner'
+        joinedCount:
+          type: integer
+          minimum: 0
+        withdrawn:
+          type: boolean
+
+    InvitationList:
+      type: object
+      additionalProperties: false
+      required: [invitations]
+      properties:
+        invitations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invitation'
+
+    ChangeMemberRoleRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role:
+          $ref: '#/components/schemas/InvitableRole'
+          description: The new role; the owner role is never assigned this way (workflow 10).
+
+    # --- Git over HTTP (DIRECTION §3.6) --------------------------------------
+
+    GitService:
+      type: string
+      enum: [git-upload-pack, git-receive-pack]
+      description: Which git command the ref advertisement is for.
+
+    GitPayload:
+      description: >-
+        An opaque git smart-HTTP body (a pkt-line / packfile stream). Git owns
+        this framing; the contract does not schema-validate it (DIRECTION §3.6
+        "Git over HTTP"). Declared with no type so it matches any bytes.
