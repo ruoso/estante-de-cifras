@@ -41,3 +41,8 @@ Append one `###` block per item, newest at the bottom:
 - **Question**: the decision the loop could not make, or the work only a person can do.
 - **Why parked**: judgment call / preconditions unmet / scope decision / needs a person.
 ```
+
+### 2026-10-04 — §9.3 line 140 stale prose: "The corpus has no entries for reading setlists yet"
+- **Source**: closer for `cifra_js.setlists` (cifra.md commit `c72c24e`), surfaced by the refinement's §Open questions.
+- **Question**: `spec/9-conformance.md` line 140 reads *"The corpus has no entries for reading setlists yet (§10, Open questions)"*. This was falsified when `format.setlist_corpus` added entries 35–47. The correction is a one-line format-spec edit. Is the sentence simply deleted, or replaced with a count/cross-reference?
+- **Why parked**: format-spec wording decision; the implementer correctly did not edit a conformance spec from a JS implementation task.

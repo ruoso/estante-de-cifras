@@ -41,8 +41,9 @@ task cifra_js "cifra.md for JavaScript" {
   task setlists "Setlists" {
     effort 2d
     allocate team
+    complete 100
     depends !text_layer, format.setlist_corpus
-    note "cifra.md: chapter 10 reader, canonical writer and editing operations. Tests: unit (chapter 10 reader, writer and each editing operation); corpus (the setlist entries from format.setlist_corpus, both directions)."
+    note "cifra.md: chapter 10 reader, canonical writer and editing operations. Tests: unit (js/test/markdown.test.js: 13 tests, mdHeading/fence primitives; js/test/setlist.test.js: 82 tests, §10 reader/writer/paths/each §10.10 editing op); corpus (entries 35–47 checks /1 /2 /3 /4 /6, both directions). Refinement: tasks/refinements/cifra_js/setlists.md"
   }
   task editing "Editing operations" {
     effort 2d
