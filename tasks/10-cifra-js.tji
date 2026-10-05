@@ -62,8 +62,9 @@ task cifra_js "cifra.md for JavaScript" {
   task diff "Diff in musical terms" {
     effort 3d
     allocate team
+    complete 100
     depends !reader
-    note "The summary the save sheet, history and previews show: 'Verse bar 5: G7 -> D♭7; voicings for G4 C4 E4 A4 added'. Not in the spec; the app's own. Workflows 4, 6. Tests: unit (the summary for each kind of change the save sheet and history show — chords, sections, words, voicings, properties — on songs written for the purpose)."
+    note "cifra.md: The summary the save sheet, history and previews show: 'Verse bar 5: G7 -> D♭7; voicings for G4 C4 E4 A4 added'. Not in the spec; the app's own. Workflows 4, 6. Tests: unit (the summary for each kind of change the save sheet and history show — chords, sections, words, voicings, properties — on songs written for the purpose). Refinement: tasks/refinements/cifra_js/diff.md"
   }
   task conformance "Conformance" {
     effort 2d
