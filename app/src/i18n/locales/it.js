@@ -1,0 +1,1071 @@
+/**
+ * Italiano.
+ *
+ * Il lessico di chi insegna chitarra: tasto, barré, corda a vuoto,
+ * diteggiatura, battuta. "Voicing" resta in inglese, come si usa davvero.
+ */
+export default {
+  app: { name: 'Explore Chords' },
+
+  ordinal: { other: '{n}ª' },
+
+  locale: { label: 'Lingua' },
+
+  header: {
+    help: 'Aiuto',
+    helpLabel: 'Aiuto e novità',
+  },
+
+  nav: {
+    label: 'Sezioni',
+    explore: 'Accordi',
+    instrument: 'Strumento',
+    library: 'Salvati',
+    sheets: 'Canzoni',
+    backup: 'Backup',
+  },
+
+  chip: {
+    summary: 'Strumento: {label}. Cambia strumento.',
+    add: '+ Aggiungi strumento',
+  },
+
+  viewAs: {
+    fromSheet: 'da questa canzone',
+    fromLink: 'dal link',
+    viewing: ' Visualizzato come {label} ({source})',
+    back: 'Torna al mio {label}',
+    keep: 'Imposta come predefinito',
+  },
+
+  input: {
+    label: 'Accordo',
+    placeholder: 'C7M, Am7, F#m7b5…',
+    show: 'Mostra',
+    readAs: ' “{text}” letto come {reading}. ',
+    use: 'Usa {reading}',
+    build: 'Costruisci l’accordo',
+    root: 'Fondamentale',
+    quality: 'Qualità',
+    seventh: 'Settima',
+    bass: 'Basso',
+    bassRoot: 'Fondamentale',
+    extensions: 'Estensioni',
+  },
+
+  quality: {
+    major: 'Maggiore',
+    minor: 'Minore',
+    dim: 'Diminuito',
+    aug: 'Aumentato',
+    sus2: 'Sus2',
+    sus4: 'Sus4',
+    power: 'Power (5)',
+  },
+
+  seventh: {
+    none: 'Senza settima',
+    dominant: 'Settima dominante',
+    major: 'Settima maggiore',
+    diminished: 'Settima diminuita',
+  },
+
+  readings: {
+    sevenPlus: {
+      majorSeventh: 'settima maggiore',
+      dominantSharpFive: 'settima dominante con quinta aumentata',
+    },
+    bareNine: {
+      add: 'nona aggiunta, senza settima',
+      dominant: 'nona dominante, con la settima minore',
+    },
+    degreeSign: {
+      diminishedSeventh: 'settima diminuita',
+      diminishedTriad: 'triade diminuita, senza settima',
+    },
+  },
+
+  errors: {
+    empty: 'Scrivi un accordo.',
+    unexpected: 'Non mi aspettavo "{text}".',
+    needsNumber: '"{text}" deve essere seguito da un numero.',
+    bassNeeded: 'Dopo "/" ci va una nota di basso o un numero.',
+    badNote: 'Non capisco la nota: {text}',
+    badPitch: 'Non capisco l’altezza: {text}',
+    emptyTuning: 'Un’accordatura ha bisogno di almeno una corda.',
+    unknownQuality: 'Qualità dell’accordo sconosciuta: {quality}',
+    badDegree: 'Grado dell’estensione non valido: {degree}',
+    badAlteration: 'Alterazione dell’estensione non valida: {alter}',
+    unknownDialect: 'Sistema di notazione sconosciuto: {dialect}',
+    noRoot: '"{text}" non comincia con il nome di una nota.',
+    badRoot: 'Non capisco la fondamentale "{text}".',
+    badBass: 'Non capisco la nota di basso "{text}".',
+    unreadable: 'Non capisco "{text}" in "{whole}".',
+    noSheetInLink: 'Quel link non contiene nessuna canzone.',
+    cannotDecompress: 'Questo browser non riesce a leggere i link compressi delle canzoni.',
+    unknownLinkFormat: 'Quel link non è in un formato che l’app capisca.',
+    notASheet: 'Quel link non contiene una canzone.',
+  },
+
+  toggles: {
+    label: 'Vista del diagramma',
+    neck: 'Vista manico',
+    left: 'Mancino',
+  },
+
+  results: {
+    announceNone: 'Nessuna diteggiatura trovata.',
+    announceCount: '{count} diteggiature in {positions} posizioni.',
+    empty: 'Scrivi un accordo per vedere come si suona.',
+    none: 'Nessuna diteggiatura per questo accordo su {label}.',
+    noneHelp:
+      'Forse servono più corde di quante ne abbia lo strumento, o le tue regole di voicing sono troppo rigide.',
+    adjustRules: 'Modifica le regole di voicing',
+    save: ' Salva',
+    saved: ' Salvato',
+    saveLabel: 'Salva {shorthand} nella tua libreria',
+    removeLabel: 'Togli {shorthand} dalla tua libreria',
+  },
+
+  groups: {
+    open: 'Posizione aperta',
+    fret: 'Tasto {position}',
+    list: 'Diteggiature: {position}',
+    showFewer: 'Mostra meno',
+    showAll: 'Mostra tutte le {count}',
+  },
+
+  difficulty: { easy: 'Facile', medium: 'Media', hard: 'Difficile' },
+
+  diagram: {
+    open: 'posizione aperta',
+    startingAt: 'dal tasto {position}',
+    barre: 'barré su {count} corde al tasto {fret}',
+    fingers: 'dita {fingers}',
+    muted: { one: '{count} corda non suonata', other: '{count} corde non suonate' },
+    rootOn: 'fondamentale sulla {ordinal} corda',
+    noRoot: 'senza fondamentale',
+    voicedAs: 'suona come {chord}',
+    toPlay: 'difficoltà {difficulty}',
+  },
+
+  library: {
+    title: 'Forme salvate',
+    empty:
+      'Niente di salvato per {label}, per ora. Metti una stella a una forma nella schermata degli accordi per tenerla qui.',
+    count: '{count} salvate per {label}.',
+    list: 'Forme salvate per {label}',
+    open: 'Apri',
+    openLabel: 'Mostra {chord} nella schermata degli accordi',
+    remove: 'Togli',
+    removeLabel: 'Togli {chord} {shorthand} dalle forme salvate',
+  },
+
+  catalog: {
+    '6guitar': 'Chitarra (6 corde)',
+    '7guitar': 'Chitarra (7 corde)',
+    '4bass': 'Basso (4 corde)',
+    '5bass': 'Basso (5 corde)',
+    ukulele: 'Ukulele',
+    cavaquinho: 'Cavaquinho',
+    mandolin: 'Mandolino',
+    tenorbanjo: 'Banjo tenore',
+  },
+
+  tuning: {
+    Standard: 'Standard',
+    'Drop D': 'Drop D',
+    'Open G': 'Sol aperto',
+    'Open D': 'Re aperto',
+    DADGAD: 'DADGAD',
+    'Open C': 'Do aperto',
+    Brazilian: 'Brasiliana',
+    'Standard (re-entrant)': 'Standard (rientrante)',
+    'Low G': 'Sol basso',
+    Baritone: 'Baritono',
+    'Standard (Brazil)': 'Standard (Brasile)',
+    Irish: 'Irlandese',
+    custom: 'Personalizzata',
+    customOption: 'Accordatura personalizzata',
+  },
+
+  form: {
+    edit: 'Modifica strumento',
+    choose: 'Scegli il tuo strumento',
+    add: 'Aggiungi uno strumento',
+    firstRunHelp: 'Tutto viene mostrato per questo strumento. Puoi aggiungerne altri e cambiare quando vuoi.',
+    addHelp: 'Si aggiunge alla tua lista; il selettore nell’intestazione passa dall’uno all’altro.',
+    instrument: 'Strumento',
+    fallbackName: 'Strumento',
+    tuning: 'Accordatura',
+    strings: 'Corde',
+    stringsHelp:
+      'Dalla corda più grave alla più acuta. Va bene qualsiasi elenco di note separate da virgole, comprese le accordature rientranti.',
+    style: 'Come suoni',
+    styleHelp:
+      'Decide quali forme ti vengono proposte: con il fingerstyle una corda stoppata in mezzo all\'accordo è ammessa, con lo strumming no. La schermata dello strumento lo cambia in seguito.',
+    name: 'Nome',
+    nameHelp: 'Compare nel selettore. Dai alle accordature personalizzate nomi che riconosci.',
+    frets: 'Tasti',
+    save: 'Salva le modifiche',
+    start: 'Inizia a suonare',
+    addButton: 'Aggiungi strumento',
+    cancel: 'Annulla',
+    needName: 'Dai un nome allo strumento.',
+    badTuning: 'Non capisco quell’accordatura: {reason}',
+  },
+
+  backup: {
+    title: 'Backup',
+    help:
+      'Tutto quello che hai è tenuto in questo browser, che va bene finché non va bene il ' +
+      'dispositivo. Un backup è un solo zip con i tuoi strumenti e le impostazioni, le forme ' +
+      'salvate e ogni canzone come file di testo che puoi leggere e modificare dove vuoi.',
+    save: 'Salva un backup',
+    insideTitle: 'Cosa c’è dentro',
+    inside:
+      'Uno zip, con i tuoi strumenti e le loro regole e le impostazioni in un file, le forme ' +
+      'salvate in un altro, e ogni canzone come file di testo col suo nome. Metti un’altra ' +
+      'canzone nella cartella songs con qualunque programma di zip e torna con le altre.',
+    restore: 'Ripristina un backup',
+    confirmTitle: 'Ripristinare da “{name}”?',
+    confirmBody:
+      'Tutto su questo dispositivo viene sostituito da ciò che contiene il file: {instruments} e {songs}.',
+    instruments: { one: '{count} strumento', other: '{count} strumenti' },
+    songs: { one: '{count} canzone', other: '{count} canzoni' },
+    confirmButton: 'Sostituisci tutto',
+    nudgeTitle: 'Le tue canzoni esistono solo su questo dispositivo',
+    nudgeText: {
+      one:
+        'La canzone qui non è in nessun backup. Su Android un telefono nuovo non la ' +
+        'riceve, e un browser che cancella i dati se la porta via.',
+      other:
+        'Le {count} canzoni qui non sono in nessun backup. Su Android un telefono nuovo ' +
+        'non le riceve, e un browser che cancella i dati se le porta via.',
+    },
+    notNow: 'Non ora',
+    failed: 'Non riesco a leggere questo backup: {reason}',
+  },
+  instruments: {
+    title: 'Strumenti',
+    help:
+      'Tutto ciò che è sullo schermo è per lo strumento in uso. Ognuno conserva la sua accordatura, le sue regole di voicing, le sue forme salvate e le sue canzoni.',
+    inUse: 'In uso',
+    reentrant: 'Rientrante',
+    meta: '{tuning} · {count} tasti',
+    use: 'Usa',
+    useLabel: 'Usa {label}',
+    edit: 'Modifica',
+    editLabel: 'Modifica {label}',
+    delete: 'Elimina',
+    deleteLabel: 'Elimina {label}',
+    add: 'Aggiungi strumento',
+    back: '← Tutti gli strumenti',
+    deleteThis: 'Elimina questo strumento',
+    confirmTitle: 'Eliminare {label}?',
+    confirmShapes: {
+      one: 'La sua {count} forma salvata se ne va con lui. ',
+      other: 'Le sue {count} forme salvate se ne vanno con lui. ',
+    },
+    confirmSongs: 'Le canzoni restano, perché portano con sé la propria accordatura. Non si può annullare.',
+    confirmButton: 'Elimina strumento',
+  },
+
+  rules: {
+    title: 'Regole di voicing',
+    help: 'Come vengono costruiti gli accordi su {label}.',
+    preset: 'Impostazione',
+    custom: 'Personalizzata',
+    presets: {
+      beginner: 'Principiante',
+      strumming: 'Strumming',
+      fingerstyle: 'Fingerstyle',
+      jazz: 'Jazz',
+      bassFriendly: 'Per basso',
+    },
+    rules: 'Regole',
+    rootInBass: 'La fondamentale deve essere la nota più grave',
+    requireThird: 'Richiedi la terza',
+    omitFifth: 'La quinta può essere omessa',
+    allowRootless: 'Consenti voicing senza fondamentale',
+    requireExtensions: 'Richiedi tutte le estensioni scritte',
+    allowBarre: 'Consenti il barré',
+    allowInnerMutes: 'Consenti una corda stoppata tra corde che suonano',
+    allowDoubling: 'Consenti la stessa nota su più di una corda',
+    allowDuplicatePitch: 'Consenti la stessa altezza due volte',
+    limits: 'Limiti',
+    maxSpan: 'Apertura massima (tasti)',
+    minSoundingStrings: 'Minimo di corde che suonano',
+    maxResultsPerGroup: 'Forme mostrate per posizione',
+    weights: 'Pesi della difficoltà',
+    weightsHelp:
+      'Quanto pesa ogni cosa nel rendere difficile una forma. I valori negativi rendono la forma più facile.',
+    weight: {
+      spanPerFret: 'Apertura, per tasto',
+      barre: 'Barré',
+      fullBarre: 'Barré completo, extra',
+      perFinger: 'Ogni dito',
+      innerMute: 'Corda stoppata in mezzo',
+      mutedString: 'Ogni corda stoppata',
+      positionPerFret: 'Posizione, per tasto',
+      omittedFifth: 'Omettere la quinta',
+      rootless: 'Omettere la fondamentale',
+      nonRootBass: 'Rivolto non richiesto',
+      openString: 'Ogni corda a vuoto (un bonus)',
+      nonAdjacentStretch: 'Apertura ampia',
+    },
+  },
+
+  sheets: {
+    title: 'Canzoni',
+    help: 'Gli accordi di una canzone su {label}, ognuno fissato alla diteggiatura che vuoi insegnare.',
+    titlePlaceholder: 'Titolo della canzone',
+    newTitleLabel: 'Titolo della nuova canzone',
+    create: 'Nuova canzone',
+    untitled: 'Canzone senza titolo',
+    shared: 'Canzone condivisa',
+    sharedInstrument: 'Strumento condiviso',
+    empty: 'Ancora nessuna canzone.',
+    measures: { one: '{count} battuta', other: '{count} battute' },
+    chords: { one: '{count} accordo', other: '{count} accordi' },
+    chosenHere: { one: ' · {count} voicing scelto qui', other: ' · {count} voicing scelti qui' },
+    voicedFor: 'Con voicing per {list}',
+    view: 'Vedi',
+    viewLabel: 'Vedi {title}',
+    edit: 'Modifica',
+    editLabel: 'Modifica {title}',
+    duplicate: 'Duplica',
+    duplicateLabel: 'Duplica {title}',
+    delete: 'Elimina',
+    deleteLabel: 'Elimina {title}',
+    imported: 'Canzone "{title}" importata.',
+  },
+
+  editor: {
+    variationInUse: 'Variazione:',
+    variationLabel: 'Quale variazione usare',
+    variationDefault: 'Predefinito',
+    variationAdd: 'Aggiungi una variazione',
+    variationHelp:
+      'Uno strumento può avere più variazioni in un brano: una facile e una più piena, ' +
+      'per esempio. Stanno tutte nel testo, ognuna sotto il proprio titolo; quella in cui ' +
+      'stai lavorando è ricordata per brano.',
+    variationName: 'Nome di questa variazione',
+    variationPlaceholder: 'Più su sul manico',
+    variationCopy: 'Partire dalle forme di “{name}”',
+    variationNeedsName: 'Dai un nome alla variazione.',
+    variationTaken: 'C’è già una variazione chiamata “{name}” per questo strumento.',
+    variationCancel: 'Annulla',
+    variationConfirm: 'Aggiungi',
+    chartBarNumbers: 'Mostrare i numeri di battuta',
+    chartVoicedAs: 'Chiamare gli accordi della cifra come suonano le forme',
+    back: '← Tutte le canzoni',
+    titleLabel: 'Titolo della canzone',
+    title: 'Titolo',
+    song: 'La canzone',
+    placeholder: '# Strofa\nA | Cm | A | Cm',
+    help: {
+      sections: {
+        term: 'Sezioni',
+        text: 'Tre modi per darle un nome: una riga che comincia con #, un nome tra parentesi ' +
+          'quadre, o un nome con i due punti. Le ultime due possono portare gli accordi ' +
+          'della sezione sulla stessa riga. I due punti danno il nome a una sezione solo ' +
+          'quando ciò che segue sono accordi, così una riga cantata con i due punti resta ' +
+          'testo.',
+        example: '# Strofa\n[Intro] G  D  Em  C\nSolo: Am  F  C  G',
+      },
+      chart: {
+        term: 'Uno schema',
+        text: 'Una barra verticale apre una battuta; gli spazi separano gli accordi al suo interno.',
+        example: 'C  Am | F  G | C\nF     | G    | C',
+      },
+      words: {
+        term: 'Oppure con il testo sotto',
+        text: 'Una riga di accordi sopra la riga su cui si canta, ogni accordo sopra la sillaba su cui cade.',
+        example: 'G            D\nQuando ti ho vista passare',
+      },
+      either: {
+        term: 'Quando una riga potrebbe essere entrambe',
+        text: 'Una barra verticale la rende schema. Un > iniziale la rende testo, ed è l’unico modo di risolvere una riga che si legge come accordo.',
+        example: 'G\n> A',
+      },
+      bars: {
+        term: 'Numeri di battuta',
+        text: 'Le battute si contano da sole. Scrivi @9 all’inizio di una battuta dove la ' +
+          'cifra smette di corrispondere allo spartito da cui viene: scrivere per esteso una ' +
+          'ripetizione fa comparire due volte le stesse battute, e il conteggio va avvertito. ' +
+          'Un titolo può portare il numero, e un numero su una riga da sola vale per la ' +
+          'battuta successiva.',
+        example: '# A @9\nDm | G7 | @17 Em | A7',
+      },
+      variations: {
+        term: 'Più di una variazione',
+        text: 'La parola prima dei due punti dà il nome a una variazione, così uno strumento ' +
+          'può averne più di una in un brano: una versione facile e una più piena. Un titolo ' +
+          'che dice solo Voicings è la variazione predefinita. Quella in cui lavori si scegli ' +
+          'sopra le forme.',
+        example: '# Voicings: E2, A2, D3, G3, B3, E4\nC = x32010\n\n# Più su: E2, A2, D3, G3, B3, E4\nC = x35553',
+      },
+      voicings: {
+        term: 'Voicing',
+        text: 'Stanno dopo una riga ---, un blocco per accordatura sotto un titolo che la nomina, così la stessa canzone serve per tutti gli strumenti. Un accordo suonato in più di un modo ha una nota. Un accordo per cui hai salvato una forma riceve quella forma la prima volta che compare.',
+        example: '---\n\n# Posizioni: E2, A2, D3, G3, B3, E4\nCm = x35543\nCm[2] = 8-10-10-8-8-8',
+      },
+    },
+    notAChord: 'Non è un accordo: {list}',
+    badVoicingLines: 'Non riesco a leggere queste righe di voicing: {list}',
+    chart: 'Lo schema',
+    chartHelp: 'Clicca un accordo per scegliere come si suona lì.',
+    nothingYet: 'Ancora niente di scritto.',
+    chordVoicing: ', voicing {index}',
+    chordDefault: ', con la forma predefinita',
+    chordUnvoiced: ', senza diteggiatura possibile',
+    chordChoose: '. Scegli un voicing.',
+    voicings: 'Voicing',
+    voicingsHelp: 'Clicca una forma per cambiarla ovunque sia usata.',
+    voicingsDefaults:
+      ' Le forme segnate come predefinite sono ciò che la schermata degli accordi mostrerebbe per prima; scegli solo quelle che ne hanno bisogno.',
+    voicingsEmpty: 'Scrivi la canzone qui sopra e i suoi accordi compaiono qui.',
+    voicingsList: 'Voicing usati in questa canzone',
+    choose: 'Scegli',
+    change: 'Cambia',
+    everywhere: '{verb} {key} ovunque. ',
+    usingDefault: 'Con la forma predefinita. ',
+    usedIn: { one: 'Usato in {count} punto.', other: 'Usato in {count} punti.' },
+    default: 'predefinita',
+    missing: 'Nessuna forma suonabile su {label} per: {list}. Le sue regole di voicing potrebbero essere troppo rigide.',
+    share: 'Condividi link',
+    snapPage: 'Allinea questa pagina',
+    previousPage: 'Pagina precedente',
+    nextPage: 'Pagina successiva',
+    pageOf: 'Pagina {current} di {total}',
+    print: 'Stampa',
+    shareLabel: 'Link per condividere questa canzone',
+    shareHelp: 'Chi apre questo link vede la canzone così com’è scritta.',
+  },
+
+  picker: {
+    enter: 'Comporre una forma',
+    editCurrent: 'Modificare questa forma',
+    changeEverywhere: 'Cambia {label} ovunque',
+    howPlayed: 'Come si suona {chord} qui?',
+    noParse: 'Quell’accordo non si capisce.',
+    none: 'Nessuna diteggiatura per {chord} su {label}. Le sue regole di voicing potrebbero essere troppo rigide.',
+    replaces: { one: 'Sostituisce questa forma in {count} punto. ', other: 'Sostituisce questa forma in {count} punti. ' },
+    ways: '{count} modi di suonarlo, raggruppati per posizione e dal più facile al più difficile.',
+    changesOne: 'Cambia solo questo accordo. ',
+    chosen: ', scelta al momento',
+    clearEverywhere: 'Rimuovi ovunque',
+    clearChoice: 'Rimuovi la scelta',
+    cancel: 'Annulla',
+  },
+
+  wizard: {
+    open: 'Assistente delle forme',
+    barHelp: 'Scegli le forme per tutto il brano in una volta.',
+    title: 'Scegliere le forme per tutto il brano',
+    help:
+      'Ognuno di questi scegli una forma per ogni accordo del brano, tenendo conto del ' +
+      'percorso della mano lungo la cifra invece di giudicare ogni accordo da solo. Vedi ' +
+      'cosa farebbe prima che cambi qualcosa.',
+    planners: {
+      smoothest: {
+        name: 'Il percorso più scorrevole',
+        text:
+          'Lascia la mano dov’è ed evita salti nella voce più acuta. Due forme facili ai due ' +
+          'capi del manico costano più in sequenza di due intermedie vicine.',
+        how: [
+          'Ogni forma che la ricerca offre per l’accordo è una candidata.',
+          'Ognuna è valutata per quanto è difficile da tenere, più quanto dovrebbero muoversi ' +
+            'la mano e la voce più acuta rispetto alla forma precedente.',
+          'La cifra è percorsa nell’ordine di lettura, così ogni scelta risponde a quella prima.',
+        ],
+      },
+      openPosition: {
+        name: 'Vicino al capotasto',
+        text:
+          'La forma più bassa di ogni accordo, con le corde a vuoto dove aiutano. Le forme ' +
+          'che un principiante già conosce.',
+        how: [
+          'Ogni forma che la ricerca offre per l’accordo è una candidata.',
+          'Ognuna è valutata per quanto è difficile da tenere, più quanto sale sul manico, ' +
+            'meno un credito per ogni corda a vuoto.',
+          'La cifra è percorsa nell’ordine di lettura, così ogni scelta risponde a quella prima.',
+        ],
+      },
+      choroCentro: {
+        name: 'Choro, accanto a una sette corde',
+        text:
+          'La parte della chitarra a sei corde in un regional: basso col pollice e tre dita, ' +
+          'nel primo quarto del manico, col basso una terza sopra quello che suona la sette ' +
+          'corde, così che le due non si raddoppino.',
+        how: [
+          'Le forme sono enumerate, non cercate. La ricerca ordinaria scarta una forma con ' +
+            'corde smorzate quando ce n’è una più piena e altrettanto facile, cosa giusta per ' +
+            'chi suona da solo e sbagliata qui, dove le corde basse tacciono perché le ha la ' +
+            'sette corde.',
+          'Quattro corde che suonano, o cinque. Quattro è la norma in questo idioma e cinque ' +
+            'l’eccezione occasionale: un basso col pollice e il resto con tre dita.',
+          'Oppure tre note, col pollice sulla quarta corda e la corda bassa soppressa, che ' +
+            'una fonte dà come l’altra tessitura dell’idioma. Solo per un accordo con settima: ' +
+            'quel che esce è una fondamentale o una quinta, ed è permesso perché il tritono — ' +
+            'la terza e la settima — continua a suonare. Offerta, non preferita: le ' +
+            'trascrizioni mostrano quattro voci in quella posizione.',
+          'Le corde che suonano sono vicine, col pollice sulla più bassa, sulla seconda più ' +
+            'bassa o sulla quarta, e la presa che arriva almeno alla seconda corda dall’alto. ' +
+            'Un buco in mezzo è una decisione che puoi ancora prendere; una forma che ne ha ' +
+            'bisogno non si disfa.',
+          'Niente sopra il settimo tasto, corde a vuoto benvenute, e il basso della presa fra ' +
+            'il mi grave e il re sopra di esso. È il tratto di manico che le fonti nominano e ' +
+            'il registro in cui le trascrizioni dell’Época de Ouro stanno davvero.',
+          'La nota più bassa sta una terza sopra quello che suona la sette corde — la nota ' +
+            'dopo la barra quando la cifra ne scrive una, la fondamentale altrimenti — ' +
+            'nell’ottava in cui si trova quella chitarra. È tutto qui: le due chitarre ' +
+            'prendono rivolti diversi per non raddoppiarsi.',
+          'Dove una terza sopra quel basso non appartiene all’accordo, un’altra relazione ne ' +
+            'prende il posto — quale, lo decide la scelta qui sotto. Il caso è nominato nella ' +
+            'letteratura, non è una lacuna di qui: una terza sopra la settima di una ' +
+            'dominante che risolve su un accordo maggiore cade su una nota che lo stile non ' +
+            'usa.',
+          'Ogni nota dell’accordo è mantenuta tranne la quinta, che è quella che questo ' +
+            'idioma lascia — a meno che quella quinta sia diminuita o aumentata, perché una ' +
+            '5b o una 5# è ciò che rende l’accordo quell’accordo.',
+          'La cifra è percorsa nell’ordine di lettura, preferendo forme che tengano le stesse ' +
+            'corde in vibrazione, ed è questo che trasforma una serie come Gm, Gm6, Gm7 in una ' +
+            'sola presa con un dito che si muove.',
+          'Dove due forme costano uguale, vince quella più in basso sul manico, e un accordo ' +
+            'più pieno batte uno che spende una corda a raddoppiare una nota.',
+        ],
+        options: {
+          whenNoThirdAbove: {
+            label: 'Quando nessuna terza sopra l’altra chitarra è nell’accordo',
+            values: {
+              sixth: 'Una sesta, poi un’ottava',
+              thirdBelow: 'Una terza sotto',
+            },
+            rules: {
+              sixth:
+                'Dove una terza sopra il basso dell’altra chitarra non appartiene ' +
+                'all’accordo, si usa una sesta sopra di esso, e in mancanza di quella ' +
+                'un’ottava. Sono i primi rimedi che la letteratura dà per quel caso.',
+              thirdBelow:
+                'Dove una terza sopra il basso dell’altra chitarra non appartiene ' +
+                'all’accordo, la presa scende a una terza SOTTO di esso, posandosi sulla ' +
+                'quinta — il secondo rivolto. La letteratura lo dà per lo stesso caso, lo ' +
+                'descrive come in perfetto accordo con lo stile e nomina la registrazione da ' +
+                'cui viene.',
+            },
+          },
+        },
+      },
+    },
+    summary: {
+      one: '{count} accordo su {total} cambierebbe.',
+      other: '{count} accordi su {total} cambierebbero.',
+    },
+    covers: {
+      one: '{count} battuta',
+      other: '{count} battute',
+    },
+    nothing: 'Ogni accordo ha già la forma che questo scegliereb­be.',
+    missing: 'Nessuna forma per {list}.',
+    how: 'Come funziona',
+    howTitle: 'Come sceglie',
+    sources: 'Da dove viene',
+    noSources: 'Nessuna fonte: è una regola pratica sulle mani, non un’affermazione su come si suona la musica di qualcuno.',
+    apply: 'Usa queste forme',
+    back: '← Altri modi',
+    cancel: 'Annulla',
+  },
+
+  shape: {
+    foreign: '{note}, fuori dall’accordo',
+    title: 'Comporre una forma',
+    titleFor: 'Comporre una forma per {chord}',
+    help:
+      'Clicca su un tasto per metterci un dito, e di nuovo per toglierlo. La fila sopra il ' +
+      'capotasto alterna la corda fra a vuoto e non suonata.',
+    frets: 'Tasti da {from} a {to}',
+    towardsNut: 'Sposta la finestra verso il capotasto',
+    upTheNeck: 'Sposta la finestra su per il manico',
+    sketch: 'Forma in composizione: {shorthand}',
+    unplayable: 'Nessuna mano per questo',
+    empty: 'Ancora niente su nessuna corda.',
+    clear: 'Pulisci',
+    cancel: 'Annulla',
+    save: 'Usa questa forma',
+  },
+
+  print: { legend: 'Forme degli accordi usate' },
+
+  confirm: { cancel: 'Annulla', confirm: 'Elimina' },
+
+  install: {
+    title: 'Aggiungi Explore Chords alla schermata iniziale',
+    label: 'Installa questa app',
+    promptHelp: 'Si apre come un’app e continua a funzionare senza rete — comodo a lezione.',
+    iosHelp:
+      'Tocca Condividi, poi "Aggiungi alla schermata Home". Da lì si apre come un’app e funziona senza rete.',
+    install: 'Installa',
+    notNow: 'Non ora',
+    gotIt: 'Capito',
+    never: 'Non chiedere più',
+  },
+
+  update: {
+    ready: 'È pronta una nuova versione.',
+    reload: 'Ricarica',
+    later: 'Più tardi',
+  },
+
+  announce: {
+    whatsNew: 'Novità',
+    showTutorial: 'Mostra il tutorial',
+    letsGo: 'Andiamo',
+    close: 'Chiudi',
+    sinceLast: 'Cosa è cambiato dalla tua ultima visita',
+  },
+
+  announcements: {
+    welcome: {
+      title: 'Benvenuto in Explore Chords',
+      sections: [
+        {
+          heading: 'Trova un accordo',
+          text:
+            'Scrivilo come lo scrivi tu — C7M, Cmaj7 o C∆7 vanno tutti bene — e compaiono tutti i ' +
+            'modi di suonarlo sul tuo strumento, raggruppati per dove si trova la mano e dal più ' +
+            'facile al più difficile. Quando un simbolo può voler dire due cose, un avviso dice ' +
+            'quale lettura è stata scelta e ti lascia cambiarla.',
+        },
+        {
+          heading: 'Prima viene il tuo strumento',
+          text:
+            'Il selettore nell’intestazione passa tra gli strumenti che hai impostato. Ognuno ' +
+            'conserva la sua accordatura e le sue regole di voicing; la schermata Strumento è dove ' +
+            'le modifichi, e dove a un basso e a un ukulele è permesso volere cose diverse.',
+        },
+        {
+          heading: 'Salva le forme che ti piacciono',
+          text:
+            'Metti una stella a una forma e va tra i Salvati. Poi, un accordo per cui hai una forma ' +
+            'salvata prende quella forma da solo la prima volta che compare in una canzone.',
+        },
+        {
+          heading: 'Scrivi le canzoni come testo',
+          text:
+            'In Canzoni, uno schema è testo semplice: una riga che comincia con # dà il nome a una ' +
+            'sezione, una barra verticale apre una battuta, gli spazi separano gli accordi al suo ' +
+            'interno. Clicca un accordo per scegliere come si suona; la scelta viene riscritta nel ' +
+            'testo dopo una riga ---, un blocco per accordatura, così la stessa canzone serve per ' +
+            'tutti gli strumenti.',
+        },
+        {
+          heading: 'Funziona senza segnale',
+          text:
+            'Una volta caricata, tutto gira sul tuo dispositivo. Aggiungila alla schermata iniziale ' +
+            'e portala a lezione senza nessuna rete.',
+        },
+      ],
+    },
+    '0.2.0': {
+      title: 'Cosa è cambiato nella 0.2',
+      sections: [
+        {
+          heading: 'Una canzone, tutti gli strumenti',
+          text:
+            'Una canzone non appartiene più a uno strumento. I suoi voicing sono conservati per ' +
+            'accordatura, dopo una riga --- nel testo, così lo stesso schema si suona sulla tua ' +
+            'chitarra e sul tuo ukulele, ognuno con le sue forme. Le canzoni salvate nel formato ' +
+            'precedente si convertono da sole, e le copie separate per strumento di una stessa ' +
+            'canzone si fondono in una.',
+        },
+        {
+          heading: 'Gli accordi senza forma scelta ne hanno comunque una',
+          text:
+            'Prendono la forma che la schermata degli accordi mostrerebbe per prima, segnata come ' +
+            'predefinita. Scegli solo quelli che ne hanno bisogno.',
+        },
+        {
+          heading: 'Le forme salvate entrano nelle canzoni',
+          text:
+            'Una forma a cui hai messo la stella viene usata appena il suo accordo entra in una ' +
+            'canzone, se è diversa da quella predefinita.',
+        },
+        {
+          heading: 'B° è la settima',
+          text:
+            'Un ° da solo ora si legge come settima diminuita, che è ciò che il simbolo significa ' +
+            'in pratica; la parola dim è la triade, e un avviso offre l’altra lettura.',
+        },
+      ],
+    },
+    '0.3.0': {
+      title: 'Cosa è cambiato nella 0.3',
+      sections: [
+        {
+          heading: 'Português, español e italiano',
+          text:
+            'L’app ora parla portoghese brasiliano, spagnolo latinoamericano e italiano, oltre ' +
+            'all’inglese. Segue la lingua del browser; il selettore nell’intestazione la cambia, ' +
+            'e la scelta viene ricordata su questo dispositivo.',
+        },
+        {
+          heading: 'Schemi allineati',
+          text:
+            'Sullo schermo e in stampa, le battute di una sezione stanno in colonne, come in uno ' +
+            'schema scritto a mano, e il foglio stampato comincia dallo schema e tiene le forme ' +
+            'piccole sotto.',
+        },
+      ],
+    },
+    '0.4.0': {
+      title: 'Cosa è cambiato nella 0.4',
+      sections: [
+        {
+          heading: 'Strumming o fingerstyle',
+          text:
+            'Le regole che si chiamavano Standard ora si chiamano Strumming, e accanto a loro ' +
+            'c’è Fingerstyle. Chi suona con le dita semplicemente non pizzica la corda in mezzo ' +
+            'all’accordo, quindi il fingerstyle ammette forme che lo strumming non raggiunge. ' +
+            'Quando configuri uno strumento la domanda te la fa, e la schermata dello strumento ' +
+            'la cambia in seguito.',
+        },
+        {
+          heading: 'Niente più corde stoppate per niente',
+          text:
+            'Una forma non viene più proposta quando esiste anche la stessa forma con una delle ' +
+            'sue corde stoppate che suona, e le dita che la riempiono scendono senza fatica. Sol ' +
+            'minore ti dà 3x0333, con il re che suona, invece di 3xx333, che lo stoppa senza ' +
+            'motivo, e il do a corde vuote arriva intero invece che a pezzi. Un allungo o un ' +
+            'barré contano ancora come lavoro, quindi le forme che ne hanno bisogno ci sono ' +
+            'tutte. E una corda stoppata in mezzo ha smesso di pesare sulla difficoltà: con le ' +
+            'dita, una corda che non pizzichi non costa nulla.',
+        },
+      ],
+    },
+    '0.5.0': {
+      title: 'Cosa è cambiato nella 0.5',
+      sections: [
+        {
+          heading: 'Canzoni con il testo',
+          text:
+            'Ora una canzone si può scrivere come una cifra: una riga di accordi sopra la riga ' +
+            'su cui si canta, ogni accordo sopra la sillaba su cui cade. Incollane una e viene ' +
+            'letta così, con [Intro] e Intro: che danno il nome alle sezioni come già fa #. Il ' +
+            'testo la segue sul foglio stampato, che ora esce su due colonne quando la canzone è ' +
+            'abbastanza stretta — di solito dimezzando le pagine. E sul telefono la strofa va a ' +
+            'capo invece di scappare di lato.',
+        },
+        {
+          heading: 'Gli schemi di sempre restano uguali',
+          text:
+            'Una canzone senza testo sotto gli accordi viene letta esattamente come prima. ' +
+            'Quando una riga potrebbe essere entrambe le cose, una barra verticale la rende ' +
+            'schema e un > iniziale la rende testo: l’unico modo di risolvere una strofa che ' +
+            'dice davvero "A", contro l’accordo con lo stesso nome.',
+        },
+      ],
+    },
+    '0.6.0': {
+      title: 'Cosa è cambiato nella 0.6',
+      sections: [
+        {
+          heading: 'La canzone si apre per essere letta',
+          text:
+            'Ora ogni canzone ha una pagina propria che la mostra come uscirà sulla carta — il ' +
+            'testo sotto gli accordi e le forme che suoni — invece di aprire l’editor. Il testo ' +
+            'resta a un clic, e la lista offre entrambe le strade.',
+        },
+        {
+          heading: 'Una pagina alla volta',
+          text:
+            'Quella pagina è divisa in pagine grandi come il tuo schermo, così si vede dove la ' +
+            'canzone va oltre la fine di una. Le frecce nell’angolo le girano e mettono una ' +
+            'pagina intera in chiaro, il che rende suonare guardando lo schermo un girare ' +
+            'pagina invece che uno scorrere. Il loro centro riallinea la pagina dopo uno ' +
+            'scorrimento a mano, e la barra in alto non si prende più una striscia di finestra.',
+        },
+        {
+          heading: 'Le cifre si leggono meglio',
+          text:
+            'Le parentesi attorno a una sequenza di accordi segnano una ripetizione e non ' +
+            'vengono più lette come accordi. Gli accordi che continuano oltre la fine del testo ' +
+            'mantengono la spaziatura con cui sono stati scritti. E una strofa che va a capo su ' +
+            'una riga di una parola viene letta come testo, non come un accordo che nessuno ' +
+            'riconosce.',
+        },
+      ],
+    },
+    '0.7.0': {
+      title: 'Cosa è cambiato nella 0.7',
+      sections: [
+        {
+          heading: 'Salva tutto in un file',
+          text:
+            'Tutto quello che hai è tenuto in questo browser, che va bene finché non va bene ' +
+            'il dispositivo. La schermata dello strumento ora salva tutto in uno zip — i tuoi ' +
+            'strumenti e le loro regole, le impostazioni, le forme salvate e ogni canzone — e ' +
+            'lo ripristina qui o su un altro dispositivo.',
+        },
+        {
+          heading: 'Le tue canzoni sono file di testo',
+          text:
+            'Dentro lo zip ogni canzone è un file di testo che puoi leggere o modificare con ' +
+            'qualsiasi cosa. Mettine un altro nella cartella songs con qualunque programma di ' +
+            'zip e torna come canzone, col nome del suo file. Il backup è tuo da conservare, ' +
+            'non un formato che capisce solo questa app.',
+        },
+      ],
+    },
+    '0.8.0': {
+      title: 'Cosa è cambiato nella 0.8',
+      sections: [
+        {
+          heading: 'Un promemoria per il backup',
+          text:
+            'Il backup ora ha una schermata sua, e la lista delle canzoni avvisa quando ci sono ' +
+            'canzoni che non stanno in nessun backup — perché un Android nuovo non le porta ' +
+            'con sé, e un browser che cancella i dati se le porta via. Sul telefono, salvare ' +
+            'passa il file al menu di condivisione, dove stanno Drive, File e iCloud.',
+        },
+        {
+          heading: 'Le pagine si riempiono in basso prima che di lato',
+          text:
+            'Leggendo una canzone, una colonna ora arriva in fondo alla pagina prima che ' +
+            'qualcosa della canzone vada di lato. Prima, qualche strofa su uno schermo largo ' +
+            'usciva come una riga in cima a una pagina vuota. Una seconda colonna è una pagina ' +
+            'risparmiata, non larghezza da consumare.',
+        },
+        {
+          heading: 'Gli accordi si tengono le loro parentesi',
+          text:
+            'Em7(b5), A7(b13) e C7(9) venivano letti come un accordo chiamato Em7(b5 con una ' +
+            'parentesi spaiata accanto, perché le parentesi segnano anche una ripetizione. Ora ' +
+            'è marca di ripetizione solo la parentesi che niente chiude, o che niente ha aperto.',
+        },
+      ],
+    },
+    '0.9.0': {
+      title: 'Cosa è cambiato nella 0.9',
+      sections: [
+        {
+          heading: 'Il segno di ripetizione',
+          text:
+            'Uno schema può usare % per una battuta che continua come la precedente, e viene ' +
+            'letto così, non come un accordo che nessuno riconosce. Si vede come l’hai ' +
+            'scritto, senza diventare l’accordo che rappresenta, e non c’è niente da ' +
+            'scegliere: l’accordo che ripete ha già la sua forma dove è stato scritto.',
+        },
+      ],
+    },
+    '0.10.0': {
+      title: 'Cosa è cambiato nella 0.10',
+      sections: [
+        {
+          heading: 'Ogni diagramma della stessa misura',
+          text:
+            'Una forma più su sul manico porta il numero del tasto, e lo spazio per quel ' +
+            'numero rendeva il diagramma più largo degli altri, lasciando la fila irregolare e ' +
+            'ogni griglia fuori centro sotto il suo nome. Ora ogni diagramma riserva quello ' +
+            'spazio, che serva o no. Anche il numero del tasto è più grande, e così i ' +
+            'diagrammi sul foglio stampato: erano troppo piccoli da leggere dal leggio.',
+        },
+        {
+          heading: 'Come suona davvero la forma',
+          text:
+            "Il nome dell'accordo dice qual è l'armonia. La forma decide quale delle sue note " +
+            'finisce più in basso, e se la fondamentale suona. Dove le due cose divergono, il ' +
+            'nome porta ora una nota discreta di quello che stai davvero tenendo: un Gm7 con ' +
+            'la terza sotto si legge Gm7/Bb. Conta di più quando un altro strumento fa il ' +
+            'basso, perché allora prendere un rivolto diverso è l\'arrangiamento e non un caso.',
+        },
+        {
+          heading: 'L’assistente delle forme',
+          text:
+            'Un pulsante sopra la cifra scegli le forme per tutto il brano in una volta. Tre ' +
+            'modi per ora: il percorso più scorrevole per la mano, vicino al capotasto, o la ' +
+            'parte della chitarra a sei corde in un regional di choro accanto a una sette ' +
+            'corde. Mostra cosa farebbe prima che cambi qualcosa, e ognuno spiega le proprie ' +
+            'regole e cita le proprie fonti sotto “Come funziona”.',
+        },
+        {
+          heading: 'O chiamare la cifra come suoni davvero',
+          text:
+            'Una casella nella pagina di lettura chiama gli accordi della cifra come suonano ' +
+            'le forme scelte, così Gm si legge Gm/Bb quando la sua forma mette la terza ' +
+            'sotto. Spento per impostazione predefinita, dato che una cifra nomina ' +
+            'l’armonia. Vale anche per il foglio stampato, perché è lo stesso renderizzatore.',
+        },
+      ],
+    },
+    '0.11.0': {
+      title: 'Cosa è cambiato nella 0.11',
+      sections: [
+        {
+          heading: 'Comporre una forma cliccando',
+          text:
+            'L’elenco delle forme di un accordo è quello che ha trovato la ricerca, che non ' +
+            'serve quando sai già cosa vuoi suonare e non c’è. I due modi di scegliere una ' +
+            'forma ora offrono anche un diagramma grande da cliccare: un tasto per metterci un ' +
+            'dito, di nuovo per toglierlo, la fila sopra il capotasto per alternare la corda ' +
+            'fra a vuoto e non suonata. Parte dalla forma in uso, o da zero, e ti lascia ' +
+            'salvare un’apertura per cui non trova le dita: una forma può essere giusta e ' +
+            'scomoda. Sotto ci sono le note che tiene, con qualsiasi nota fuori dall’accordo ' +
+            'segnata.',
+        },
+        {
+          heading: 'Le forme scendono lungo la pagina sul telefono',
+          text:
+            'Le forme di un brano e quelle salvate stavano su una sola fila che scorreva di ' +
+            'lato, lasciando sette forme su otto fuori dallo schermo con tutta l’altezza della ' +
+            'pagina libera. Ora vanno a capo. I risultati degli accordi scorrono ancora di ' +
+            'lato, perché là c’è un ordine e il primo della fila è la risposta.',
+        },
+        {
+          heading: 'Meno pagine quando si legge un brano',
+          text:
+            'Un brano con righe di cifra più larghe dello schermo del telefono usciva con una ' +
+            'pagina per ogni titolo di sezione e le forme tagliate di lato. Ora la cifra ' +
+            'occupa l’unica pagina che le serve, e le forme continuano fra le pagine invece di ' +
+            'essere tagliate.',
+        },
+      ],
+    },
+    '0.12.0': {
+      title: 'Cosa è cambiato nella 0.12',
+      sections: [
+        {
+          heading: 'Numeri di battuta',
+          text:
+            'Trascrivere da uno spartito vuol dire spesso riscriverne la struttura: una ' +
+            'ripetizione si scrive per esteso, perché così si suona meglio. Allora le battute ' +
+            'della cifra smettono di corrispondere ai numeri dello spartito, e “dalla battuta ' +
+            '9” deve voler dire la battuta 9 dello spartito. Così le battute si contano da ' +
+            'sole, e @9 all’inizio di una battuta dice qual è davvero il suo numero — anche su ' +
+            'un titolo, come # A @9. I numeri vanno nel margine della pagina di lettura, e sul ' +
+            'foglio stampato con essa. Spenti finché non li chiedi, e non offerti per un brano ' +
+            'con il testo, dove un accordo può durare quattro battute o mezza e la cifra non ' +
+            'dice quale.',
+        },
+        {
+          heading: 'Si trova come comporre una forma',
+          text:
+            'Un accordo ha tante forme quante ne ha — quarantatré per un C sulla chitarra — e ' +
+            'i pulsanti stavano sotto quell’elenco, cosa che sul telefono li portava tutti ' +
+            'oltre il fondo dello schermo. Ora stanno sopra l’elenco, sotto il titolo.',
+        },
+      ],
+    },
+    '0.13.0': {
+      title: 'Cosa è cambiato nella 0.13',
+      sections: [
+        {
+          heading: 'Più di un modo di suonare lo stesso brano',
+          text:
+            'Un brano teneva un insieme di forme per strumento. Ora può tenerne più di uno: ' +
+            'una versione facile e una più piena, o due passaggi dell’assistente affiancati ' +
+            'per confrontarli. La parola prima dei due punti nel titolo delle forme dà il nome ' +
+            'alla variazione, così “# Più su: E2, A2, …” è una variazione chiamata Più su. ' +
+            'Aggiungine una sopra le forme, partendo da quella in cui sei o da zero, e passa ' +
+            'fra loro lì o nella pagina di lettura. Un accordo di cui la variazione non dice ' +
+            'niente resta sulla sua forma predefinita, come prima.',
+        },
+        {
+          heading: 'Via un “null” di troppo',
+          text:
+            'La pagina di lettura di un brano con il testo mostrava la parola null sotto il ' +
+            'titolo, e così il pannello delle forme di un brano senza accordi. Entrambi sono ' +
+            'corretti, insieme al motivo per cui succedeva.',
+        },
+      ],
+    },
+    '0.14.0': {
+      title: 'Cosa è cambiato nella 0.14',
+      sections: [
+        {
+          heading: 'L’assistente choro chiede come vuoi suonarlo',
+          text:
+            'Alcune domande di questo stile non hanno una risposta giusta, solo una ' +
+            'preferenza. Quando la sette corde sale di un semitono — fa a fa#, in una battuta ' +
+            'di F e una di F#° — una terza sopra è la in entrambe, così la sei corde prende ' +
+            'due volte la stessa nota al basso. Un chorão può fare esattamente questo, oppure ' +
+            'scendere a una terza sotto. Entrambe sono nella letteratura. Quella scelta sta ora ' +
+            'accanto alle forme: giralà e guarda rispondere tutto il brano. L’elenco “Come ' +
+            'sceglie” gira con lei, così quel che dice è sempre quel che sta per fare.',
+        },
+        {
+          heading: 'Accordi che lasciava in bianco',
+          text:
+            'Una dominante con la settima al basso — C7/Bb diretto a F — tornava senza alcuna ' +
+            'forma. Una risposta documentata c’è: la sei corde va una terza SOTTO l’altra ' +
+            'chitarra e si posa sulla quinta, C7/G. Ora suona quella. A Cm7 mancava la terza ' +
+            'per un motivo simile. E una dominante può ora essere suonata con tre note e il ' +
+            'pollice sulla quarta corda, che è l’altra tessitura dello stile e qui semplicemente ' +
+            'non c’era.',
+        },
+        {
+          heading: 'Gli accordi diminuiti tengono il loro tritono',
+          text:
+            'Chiedendo F#°, l’assistente dava quattro corde senza alcun tritono e una di esse ' +
+            'spesa a raddoppiare una nota. La quinta è la nota che questo stile lascia — ma non ' +
+            'quando è diminuita, che è proprio quella che rende diminuito l’accordo. Ora resta, ' +
+            'e così la quinta aumentata dell’accordo aumentato.',
+        },
+        {
+          heading: 'Un accordo, due forme, dove il brano le chiede',
+          text:
+            'L’assistente sceglieva una forma per accordo per tutto il brano. Ora può dare allo ' +
+            'stesso accordo una forma diversa in un’altra battuta, dove la sua politica lo ' +
+            'richiede, e scrive da sé il segno di rimando. L’anteprima mostra il brano come ' +
+            'sarà — le forme che porterà e quante battute copre ciascuna — così un accordo ' +
+            'diviso in due è qualcosa che vedi prima di accettare e non dopo.',
+        },
+      ],
+    },
+    '0.15.0': {
+      title: 'Cosa è cambiato nella 0.15',
+      sections: [
+        {
+          heading: 'Una tesi che non si trovava',
+          text:
+            'L’assistente choro segue fonti scritte, e l’unico lavoro dedicato interamente ' +
+            'alla parte della chitarra a sei corde — José Paulo Becker sull’Época de Ouro, ' +
+            '1996 — non si trovava da nessuna parte. È saltato fuori. Tutto quel che segue ' +
+            'viene dal leggerlo, ed è per questo che questa versione corregge cose che la ' +
+            '0.14 aveva solo a metà. Ora è elencato in “Da dove viene”, con le altre.',
+        },
+        {
+          heading: 'La domanda che ti fa è migliore',
+          text:
+            'Prima chiedeva cosa fare quando la terza sopra l’altra chitarra ripeteva la nota ' +
+            'appena suonata. Nessuna fonte lo chiede — e Becker, che documenta questa parte ' +
+            'nel dettaglio, non mette mai la sei corde sotto la sette corde. Così la domanda ' +
+            'è ora quella che la letteratura pone davvero: quando nessuna terza sopra ' +
+            'l’altra chitarra è nell’accordo, vuoi una sesta e poi un’ottava, o la terza ' +
+            'sotto? C7/Bb diretto a F è il caso, e si sentono entrambe.',
+        },
+        {
+          heading: 'Arriva al cantino, e resta nel suo registro',
+          text:
+            'Due fonti non concordano su dove vadano le dita, e ha vinto quella che trascrive ' +
+            'esecuzioni reali. La chitarra di Becker nell’Época de Ouro usa il cantino di ' +
+            'continuo — un re minore col re sotto la, re e fa, di traverso sulle prime quattro ' +
+            'corde — così l’assistente ora offre quelle forme. Misurare le sue trascrizioni ha ' +
+            'dato anche il registro in cui la parte sta davvero, mai sotto il mi a vuoto e per ' +
+            'lo più fra il sol e il re sopra, e l’assistente ora ci resta invece di salire sul ' +
+            'manico.',
+        },
+        {
+          heading: 'E una cosa lasciata apposta com’era',
+          text:
+            'La dominante di tre note col pollice sulla quarta corda, novità della 0.14, si ' +
+            'regge su una fonte sola. Becker non parla mai di sopprimere una corda, e le sue ' +
+            'trascrizioni mostrano quattro voci in quella posizione. Così la forma è ancora ' +
+            'offerta e non è più preferita. Dove “Come sceglie” dipende da una fonte sola, o ' +
+            'dalla nostra lettura e non dalla loro, ora lo dice.',
+        },
+      ],
+    },
+  },
+};

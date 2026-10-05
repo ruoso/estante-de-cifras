@@ -1,0 +1,165 @@
+/**
+ * Vertical chord-box diagram (docs/DESIGN.md §6).
+ *
+ * SVG rather than canvas, so printing and export are the same string that is
+ * already on screen. Colours come from CSS custom properties so light, dark and
+ * print run off one set of tokens, and no information is carried by colour
+ * alone — the X and O are distinct glyphs, not a red dot and a green one.
+ */
+
+import { diagramModel, esc } from './diagram.js';
+
+const UNIT = 16; // spacing between strings and frets, before scaling
+
+/**
+ * Room for a fret number whether or not there is one, and the same room on the
+ * other side. A diagram that grew when its shape sat up the neck made a row of
+ * them ragged, and left the grid off-centre under its chord name.
+ */
+const MARGIN_SIDE = UNIT * 1.2;
+
+/**
+ * How far the neck is inset from the edge of a chord box, in CSS pixels.
+ *
+ * Anything drawn *beside* a diagram rather than inside it has to line up with
+ * the neck and not with the diagram's edge, or a label sits out over the
+ * margin. The margin is the renderer's, so the measurement is too (§6.2).
+ */
+export function neckInset(size = 1) {
+  return MARGIN_SIDE * size;
+}
+
+/**
+ * How wide a chord box comes out, in CSS pixels.
+ *
+ * Given to whatever holds a diagram so the holder can be the diagram's width
+ * rather than its content's. That is what lets a long label wrap to a second
+ * line instead of stretching the cell and leaving a row of them ragged.
+ */
+export function boxWidth(stringCount, size = 1) {
+  return (MARGIN_SIDE * 2 + (stringCount - 1) * UNIT) * size;
+}
+
+/**
+ * @param {import('../core/search.js').Fingering} fingering
+ * @param {object} [options]  DiagramOptions plus { label } for the aria-label
+ * @returns {string} SVG markup
+ */
+export function renderChordBox(fingering, options = {}) {
+  const model = diagramModel(fingering, options);
+  const { stringCount, fretsShown, startFret, showNut, size } = model;
+
+  const marginTop = UNIT * 1.4; // room for the X and O row
+  const marginSide = MARGIN_SIDE;
+  const gridWidth = (stringCount - 1) * UNIT;
+  const gridHeight = fretsShown * UNIT;
+  const width = marginSide * 2 + gridWidth;
+  const height = marginTop + gridHeight + UNIT * 0.4;
+
+  const x = (stringIndex) => marginSide + stringIndex * UNIT;
+  const y = (row) => marginTop + row * UNIT;
+
+  const out = [];
+
+  // Frets
+  for (let f = 0; f <= fretsShown; f += 1) {
+    const thick = f === 0 && showNut;
+    out.push(
+      `<line x1="${x(0)}" y1="${y(f)}" x2="${x(stringCount - 1)}" y2="${y(f)}" ` +
+        `class="ec-fret${thick ? ' ec-nut' : ''}" />`
+    );
+  }
+
+  // Strings
+  for (let s = 0; s < stringCount; s += 1) {
+    out.push(
+      `<line x1="${x(s)}" y1="${y(0)}" x2="${x(s)}" y2="${y(fretsShown)}" class="ec-string" />`
+    );
+  }
+
+  // Starting fret label, when the shape does not sit at the nut
+  if (startFret > 1) {
+    out.push(
+      `<text x="${marginSide - UNIT * 0.6}" y="${y(0.5) + 4}" class="ec-fretnum" ` +
+        `text-anchor="middle">${startFret}</text>`
+    );
+  }
+
+  // Open and muted markers above the nut
+  for (const marker of model.markers) {
+    const cx = x(marker.stringIndex);
+    const cy = marginTop - UNIT * 0.45;
+    if (marker.kind === 'open') {
+      out.push(`<circle cx="${cx}" cy="${cy}" r="${UNIT * 0.22}" class="ec-open" />`);
+    } else {
+      const r = UNIT * 0.2;
+      out.push(
+        `<path d="M${cx - r} ${cy - r}L${cx + r} ${cy + r}M${cx + r} ${cy - r}L${cx - r} ${cy + r}" class="ec-muted" />`
+      );
+    }
+  }
+
+  // The barre, drawn as one bar rather than a row of separate dots
+  if (model.barre) {
+    const bx = x(model.barre.fromString);
+    const bw = x(model.barre.toString) - bx;
+    const by = y(model.barre.row + 0.5);
+    const r = UNIT * 0.3;
+    out.push(
+      `<rect x="${bx - r}" y="${by - r}" width="${bw + r * 2}" height="${r * 2}" ` +
+        `rx="${r}" class="ec-barre" />`
+    );
+    if (model.barre.finger) {
+      out.push(
+        `<text x="${bx + bw / 2}" y="${by + 4}" class="ec-finger" text-anchor="middle">` +
+          `${model.barre.finger}</text>`
+      );
+    }
+  }
+
+  // Fingered notes
+  for (const dot of model.dots) {
+    const cx = x(dot.stringIndex);
+    const cy = y(dot.row + 0.5);
+    out.push(`<circle cx="${cx}" cy="${cy}" r="${UNIT * 0.3}" class="ec-dot" />`);
+    if (dot.finger) {
+      out.push(
+        `<text x="${cx}" y="${cy + 4}" class="ec-finger" text-anchor="middle">${dot.finger}</text>`
+      );
+    }
+  }
+
+  // Click targets, for a diagram a shape is entered on rather than read from
+  // (§2.11). Emitted here so they come off the same geometry that drew the
+  // grid: a separate set of coordinates would drift the moment either moved.
+  //
+  // `data-string` is the logical string, mirroring undone, so the caller never
+  // has to think about left-handedness. The row above the nut is the one that
+  // sets open or muted, which is where its own markers are drawn.
+  if (options.hits) {
+    const logical = (d) => (model.handed === 'left' ? stringCount - 1 - d : d);
+    const half = UNIT / 2;
+    for (let d = 0; d < stringCount; d += 1) {
+      out.push(
+        `<rect class="ec-hit ec-hit-marker" data-string="${logical(d)}" data-fret="marker" ` +
+          `x="${x(d) - half}" y="${marginTop - UNIT}" width="${UNIT}" height="${UNIT}" />`
+      );
+      for (let r = 0; r < fretsShown; r += 1) {
+        out.push(
+          `<rect class="ec-hit" data-string="${logical(d)}" data-fret="${startFret + r}" ` +
+            `x="${x(d) - half}" y="${y(r)}" width="${UNIT}" height="${UNIT}" />`
+        );
+      }
+    }
+  }
+
+  const label = options.label ?? fingering.shorthand;
+  const w = width * size;
+  const h = height * size;
+
+  return (
+    `<svg class="ec-diagram ec-diagram-vertical" role="img" aria-label="${esc(label)}" ` +
+    `viewBox="0 0 ${width} ${height}" width="${w}" height="${h}" ` +
+    `xmlns="http://www.w3.org/2000/svg">${out.join('')}</svg>`
+  );
+}

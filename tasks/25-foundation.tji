@@ -23,8 +23,9 @@ task foundation "Foundation" {
   task music_core_import "Bring the music core over, with its history" {
     effort 1d
     allocate team
+    complete 100
     depends !app_tooling
-    note "git filter-repo of Explore Chords' src/core (minus song.js) and src/render into app/src/core, tests passing; the DESIGN sections that explain it. DIRECTION §5, §5.1. Tests: unit (Explore Chords' own core and render tests, carried over with their history and passing under app/'s Vitest)."
+    note "git filter-repo of Explore Chords' src/core (minus song.js) and src/render into app/src/core, tests passing; the DESIGN sections that explain it. DIRECTION §5, §5.1. Tests: unit (Explore Chords' own core and render tests, carried over with their history and passing under app/'s Vitest). Refinement: tasks/refinements/foundation/music_core_import.md"
   }
   task service_skeleton "Service skeleton" {
     effort 1d

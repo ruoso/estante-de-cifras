@@ -1,0 +1,1070 @@
+/**
+ * Español de Latinoamérica.
+ *
+ * Vocabulario de quien enseña guitarra: traste, cejilla, cuerda al aire,
+ * digitación, cifrado. "Voicing" se queda en inglés, como se usa en la práctica.
+ */
+export default {
+  app: { name: 'Explore Chords' },
+
+  ordinal: { other: '{n}ª' },
+
+  locale: { label: 'Idioma' },
+
+  header: {
+    help: 'Ayuda',
+    helpLabel: 'Ayuda y novedades',
+  },
+
+  nav: {
+    label: 'Secciones',
+    explore: 'Acordes',
+    instrument: 'Instrumento',
+    library: 'Guardados',
+    sheets: 'Canciones',
+    backup: 'Respaldo',
+  },
+
+  chip: {
+    summary: 'Instrumento: {label}. Cambiar de instrumento.',
+    add: '+ Agregar instrumento',
+  },
+
+  viewAs: {
+    fromSheet: 'de este cifrado',
+    fromLink: 'del enlace',
+    viewing: ' Viendo como {label} ({source})',
+    back: 'Volver a mi {label}',
+    keep: 'Dejar como predeterminado',
+  },
+
+  input: {
+    label: 'Acorde',
+    placeholder: 'C7M, Am7, F#m7b5…',
+    show: 'Mostrar',
+    readAs: ' “{text}” leído como {reading}. ',
+    use: 'Usar {reading}',
+    build: 'Armar el acorde',
+    root: 'Fundamental',
+    quality: 'Cualidad',
+    seventh: 'Séptima',
+    bass: 'Bajo',
+    bassRoot: 'Fundamental',
+    extensions: 'Extensiones',
+  },
+
+  quality: {
+    major: 'Mayor',
+    minor: 'Menor',
+    dim: 'Disminuido',
+    aug: 'Aumentado',
+    sus2: 'Sus2',
+    sus4: 'Sus4',
+    power: 'Power (5)',
+  },
+
+  seventh: {
+    none: 'Sin séptima',
+    dominant: 'Séptima dominante',
+    major: 'Séptima mayor',
+    diminished: 'Séptima disminuida',
+  },
+
+  readings: {
+    sevenPlus: {
+      majorSeventh: 'séptima mayor',
+      dominantSharpFive: 'séptima dominante con quinta aumentada',
+    },
+    bareNine: {
+      add: 'novena agregada, sin séptima',
+      dominant: 'novena dominante, con la séptima menor',
+    },
+    degreeSign: {
+      diminishedSeventh: 'séptima disminuida',
+      diminishedTriad: 'tríada disminuida, sin séptima',
+    },
+  },
+
+  errors: {
+    empty: 'Escribe un acorde.',
+    unexpected: 'No esperaba "{text}".',
+    needsNumber: '"{text}" debe ir seguido de un número.',
+    bassNeeded: 'Después de "/" va una nota de bajo o un número.',
+    badNote: 'No entiendo la nota: {text}',
+    badPitch: 'No entiendo la altura: {text}',
+    emptyTuning: 'Una afinación necesita al menos una cuerda.',
+    unknownQuality: 'Cualidad de acorde desconocida: {quality}',
+    badDegree: 'Grado de extensión inválido: {degree}',
+    badAlteration: 'Alteración de extensión inválida: {alter}',
+    unknownDialect: 'Sistema de cifrado desconocido: {dialect}',
+    noRoot: '"{text}" no empieza con el nombre de una nota.',
+    badRoot: 'No entiendo la fundamental "{text}".',
+    badBass: 'No entiendo la nota de bajo "{text}".',
+    unreadable: 'No entiendo "{text}" en "{whole}".',
+    noSheetInLink: 'Ese enlace no trae ningún cifrado.',
+    cannotDecompress: 'Este navegador no puede leer enlaces de cifrado comprimidos.',
+    unknownLinkFormat: 'Ese enlace no está en un formato que la app entienda.',
+    notASheet: 'Ese enlace no contiene un cifrado.',
+  },
+
+  toggles: {
+    label: 'Vista del diagrama',
+    neck: 'Vista del mástil',
+    left: 'Zurdo',
+  },
+
+  results: {
+    announceNone: 'No se encontraron digitaciones.',
+    announceCount: '{count} digitaciones en {positions} posiciones.',
+    empty: 'Escribe un acorde para ver cómo se toca.',
+    none: 'No hay digitaciones para este acorde en {label}.',
+    noneHelp:
+      'Puede que necesite más cuerdas de las que tiene el instrumento, o que tus reglas de voicing sean demasiado estrictas.',
+    adjustRules: 'Ajustar reglas de voicing',
+    save: ' Guardar',
+    saved: ' Guardado',
+    saveLabel: 'Guardar {shorthand} en tu biblioteca',
+    removeLabel: 'Quitar {shorthand} de tu biblioteca',
+  },
+
+  groups: {
+    open: 'Posición abierta',
+    fret: 'Traste {position}',
+    list: 'Digitaciones: {position}',
+    showFewer: 'Mostrar menos',
+    showAll: 'Mostrar las {count}',
+  },
+
+  difficulty: { easy: 'Fácil', medium: 'Media', hard: 'Difícil' },
+
+  diagram: {
+    open: 'posición abierta',
+    startingAt: 'desde el traste {position}',
+    barre: 'cejilla en {count} cuerdas en el traste {fret}',
+    fingers: 'dedos {fingers}',
+    muted: { one: '{count} cuerda sin tocar', other: '{count} cuerdas sin tocar' },
+    rootOn: 'fundamental en la {ordinal} cuerda',
+    noRoot: 'sin fundamental',
+    voicedAs: 'suena como {chord}',
+    toPlay: 'dificultad {difficulty}',
+  },
+
+  library: {
+    title: 'Formas guardadas',
+    empty:
+      'Nada guardado para {label} todavía. Marca una forma con estrella en la pantalla de acordes para tenerla aquí.',
+    count: '{count} guardadas para {label}.',
+    list: 'Formas guardadas para {label}',
+    open: 'Abrir',
+    openLabel: 'Mostrar {chord} en la pantalla de acordes',
+    remove: 'Quitar',
+    removeLabel: 'Quitar {chord} {shorthand} de tus formas guardadas',
+  },
+
+  catalog: {
+    '6guitar': 'Guitarra (6 cuerdas)',
+    '7guitar': 'Guitarra (7 cuerdas)',
+    '4bass': 'Bajo (4 cuerdas)',
+    '5bass': 'Bajo (5 cuerdas)',
+    ukulele: 'Ukelele',
+    cavaquinho: 'Cavaquinho',
+    mandolin: 'Mandolina',
+    tenorbanjo: 'Banjo tenor',
+  },
+
+  tuning: {
+    Standard: 'Estándar',
+    'Drop D': 'Drop D',
+    'Open G': 'Sol abierto',
+    'Open D': 'Re abierto',
+    DADGAD: 'DADGAD',
+    'Open C': 'Do abierto',
+    Brazilian: 'Brasileña',
+    'Standard (re-entrant)': 'Estándar (reentrante)',
+    'Low G': 'Sol grave',
+    Baritone: 'Barítono',
+    'Standard (Brazil)': 'Estándar (Brasil)',
+    Irish: 'Irlandesa',
+    custom: 'Personalizada',
+    customOption: 'Afinación personalizada',
+  },
+
+  form: {
+    edit: 'Editar instrumento',
+    choose: 'Elige tu instrumento',
+    add: 'Agregar un instrumento',
+    firstRunHelp: 'Todo se muestra para este instrumento. Puedes agregar otros y cambiar cuando quieras.',
+    addHelp: 'Se suma a tu lista; el selector del encabezado cambia entre ellos.',
+    instrument: 'Instrumento',
+    fallbackName: 'Instrumento',
+    tuning: 'Afinación',
+    strings: 'Cuerdas',
+    stringsHelp:
+      'De la cuerda más grave a la más aguda. Sirve cualquier lista de notas separadas por comas, incluidas las afinaciones reentrantes.',
+    style: 'Cómo tocas',
+    styleHelp:
+      'Define qué formas se ofrecen: con los dedos se permite una cuerda apagada en medio del acorde; al rasguear, no. La pantalla del instrumento lo cambia después.',
+    name: 'Nombre',
+    nameHelp: 'Aparece en el selector. Ponles a las afinaciones personalizadas nombres que reconozcas.',
+    frets: 'Trastes',
+    save: 'Guardar cambios',
+    start: 'Empezar a tocar',
+    addButton: 'Agregar instrumento',
+    cancel: 'Cancelar',
+    needName: 'Ponle un nombre al instrumento.',
+    badTuning: 'No entiendo esa afinación: {reason}',
+  },
+
+  backup: {
+    title: 'Respaldo',
+    help:
+      'Todo lo que tienes se guarda en este navegador, lo cual sirve hasta que el dispositivo ' +
+      'no. Un respaldo es un solo zip con tus instrumentos y ajustes, tus formas guardadas y ' +
+      'cada canción como un archivo de texto que puedes leer y editar en cualquier parte.',
+    save: 'Guardar un respaldo',
+    insideTitle: 'Qué trae dentro',
+    inside:
+      'Un zip, con tus instrumentos y sus reglas y tus ajustes en un archivo, tus formas ' +
+      'guardadas en otro, y cada canción como un archivo de texto con su nombre. Pon otra ' +
+      'canción en la carpeta songs con cualquier programa de zip y vuelve con el resto.',
+    restore: 'Restaurar un respaldo',
+    confirmTitle: '¿Restaurar desde “{name}”?',
+    confirmBody:
+      'Todo en este dispositivo se reemplaza por lo que trae el archivo: {instruments} y {songs}.',
+    instruments: { one: '{count} instrumento', other: '{count} instrumentos' },
+    songs: { one: '{count} canción', other: '{count} canciones' },
+    confirmButton: 'Reemplazar todo',
+    nudgeTitle: 'Tus canciones solo están en este dispositivo',
+    nudgeText: {
+      one:
+        'La canción de aquí no está en ningún respaldo. En Android un teléfono nuevo no ' +
+        'la recibe, y un navegador que borra sus datos se la lleva.',
+      other:
+        'Las {count} canciones de aquí no están en ningún respaldo. En Android un ' +
+        'teléfono nuevo no las recibe, y un navegador que borra sus datos se las lleva.',
+    },
+    notNow: 'Ahora no',
+    failed: 'No pude leer ese respaldo: {reason}',
+  },
+  instruments: {
+    title: 'Instrumentos',
+    help:
+      'Todo lo que está en pantalla es para el instrumento en uso. Cada uno guarda su afinación, sus reglas de voicing, sus formas guardadas y sus canciones.',
+    inUse: 'En uso',
+    reentrant: 'Reentrante',
+    meta: '{tuning} · {count} trastes',
+    use: 'Usar',
+    useLabel: 'Usar {label}',
+    edit: 'Editar',
+    editLabel: 'Editar {label}',
+    delete: 'Eliminar',
+    deleteLabel: 'Eliminar {label}',
+    add: 'Agregar instrumento',
+    back: '← Todos los instrumentos',
+    deleteThis: 'Eliminar este instrumento',
+    confirmTitle: '¿Eliminar {label}?',
+    confirmShapes: {
+      one: 'Su {count} forma guardada se va con él. ',
+      other: 'Sus {count} formas guardadas se van con él. ',
+    },
+    confirmSongs: 'Las canciones se conservan, porque llevan su propia afinación. Esto no se puede deshacer.',
+    confirmButton: 'Eliminar instrumento',
+  },
+
+  rules: {
+    title: 'Reglas de voicing',
+    help: 'Cómo se arman los acordes en {label}.',
+    preset: 'Ajuste predefinido',
+    custom: 'Personalizado',
+    presets: {
+      beginner: 'Principiante',
+      strumming: 'Rasgueo',
+      fingerstyle: 'Punteo',
+      jazz: 'Jazz',
+      bassFriendly: 'Para bajo',
+    },
+    rules: 'Reglas',
+    rootInBass: 'La fundamental debe ser la nota más grave',
+    requireThird: 'Exigir la tercera',
+    omitFifth: 'La quinta se puede omitir',
+    allowRootless: 'Permitir voicings sin fundamental',
+    requireExtensions: 'Exigir todas las extensiones escritas',
+    allowBarre: 'Permitir cejilla',
+    allowInnerMutes: 'Permitir una cuerda apagada entre cuerdas que suenan',
+    allowDoubling: 'Permitir la misma nota en más de una cuerda',
+    allowDuplicatePitch: 'Permitir la misma altura dos veces',
+    limits: 'Límites',
+    maxSpan: 'Apertura máxima (trastes)',
+    minSoundingStrings: 'Mínimo de cuerdas que suenan',
+    maxResultsPerGroup: 'Formas mostradas por posición',
+    weights: 'Pesos de dificultad',
+    weightsHelp:
+      'Cuánto pesa cada cosa para que una forma sea difícil. Los valores negativos hacen la forma más fácil.',
+    weight: {
+      spanPerFret: 'Apertura, por traste',
+      barre: 'Cejilla',
+      fullBarre: 'Cejilla completa, extra',
+      perFinger: 'Cada dedo',
+      innerMute: 'Cuerda apagada en medio',
+      mutedString: 'Cada cuerda apagada',
+      positionPerFret: 'Posición, por traste',
+      omittedFifth: 'Omitir la quinta',
+      rootless: 'Omitir la fundamental',
+      nonRootBass: 'Inversión no pedida',
+      openString: 'Cada cuerda al aire (una bonificación)',
+      nonAdjacentStretch: 'Apertura amplia',
+    },
+  },
+
+  sheets: {
+    title: 'Cifrados',
+    help: 'Los acordes de una canción en {label}, cada uno fijado a la digitación que quieres enseñar.',
+    titlePlaceholder: 'Título de la canción',
+    newTitleLabel: 'Título de la nueva canción',
+    create: 'Nueva canción',
+    untitled: 'Canción sin título',
+    shared: 'Canción compartida',
+    sharedInstrument: 'Instrumento compartido',
+    empty: 'Todavía no hay canciones.',
+    measures: { one: '{count} compás', other: '{count} compases' },
+    chords: { one: '{count} acorde', other: '{count} acordes' },
+    chosenHere: { one: ' · {count} voicing elegido aquí', other: ' · {count} voicings elegidos aquí' },
+    voicedFor: 'Con voicings para {list}',
+    view: 'Ver',
+    viewLabel: 'Ver {title}',
+    edit: 'Editar',
+    editLabel: 'Editar {title}',
+    duplicate: 'Duplicar',
+    duplicateLabel: 'Duplicar {title}',
+    delete: 'Eliminar',
+    deleteLabel: 'Eliminar {title}',
+    imported: 'Se importó la canción "{title}".',
+  },
+
+  editor: {
+    variationInUse: 'Variación:',
+    variationLabel: 'Qué variación usar',
+    variationDefault: 'Predeterminado',
+    variationAdd: 'Agregar variación',
+    variationHelp:
+      'Un instrumento puede tener varias variaciones en una canción: una fácil y una ' +
+      'más llena, por ejemplo. Todas viven en el texto, cada una bajo su propio título; en ' +
+      'cuál estás trabajando se recuerda por canción.',
+    variationName: 'Nombre de esta variación',
+    variationPlaceholder: 'Más arriba del mástil',
+    variationCopy: 'Empezar desde las formas de «{name}»',
+    variationNeedsName: 'Ponele un nombre a la variación.',
+    variationTaken: 'Ya hay una variación llamada «{name}» para este instrumento.',
+    variationCancel: 'Cancelar',
+    variationConfirm: 'Agregar',
+    chartBarNumbers: 'Mostrar los números de compás',
+    chartVoicedAs: 'Nombrar los acordes de la cifra por lo que suenan las formas',
+    back: '← Todas las canciones',
+    titleLabel: 'Título de la canción',
+    title: 'Título',
+    song: 'La canción',
+    placeholder: '# Verso\nA | Cm | A | Cm',
+    help: {
+      sections: {
+        term: 'Secciones',
+        text: 'Tres maneras de nombrar una: una línea que empieza con #, un nombre entre ' +
+          'corchetes, o un nombre con dos puntos. Las dos últimas pueden llevar los ' +
+          'acordes de la sección en la misma línea. Los dos puntos solo nombran una ' +
+          'sección cuando lo que sigue son acordes, así que una línea cantada con dos ' +
+          'puntos sigue siendo letra.',
+        example: '# Verso\n[Intro] G  D  Em  C\nSolo: Am  F  C  G',
+      },
+      chart: {
+        term: 'Un cifrado',
+        text: 'Una barra vertical inicia un compás; los espacios separan los acordes dentro de él.',
+        example: 'C  Am | F  G | C\nF     | G    | C',
+      },
+      words: {
+        term: 'O con la letra debajo',
+        text: 'Una línea de acordes sobre la línea que se canta, cada acorde encima de la sílaba en la que cae.',
+        example: 'G         D\nCuando te vi pasar',
+      },
+      either: {
+        term: 'Cuando la línea podría ser las dos cosas',
+        text: 'Una barra vertical la hace cifrado. Un > al principio la hace letra, y es la única manera de resolver una línea que se lee como acorde.',
+        example: 'G\n> A',
+      },
+      bars: {
+        term: 'Números de compás',
+        text: 'Los compases se cuentan solos. Escribí @9 al principio de un compás donde la ' +
+          'cifra deja de coincidir con la partitura de la que salió: escribir una repetición ' +
+          'completa hace que los mismos compases aparezcan dos veces, y hay que avisarle a la ' +
+          'cuenta. Un título puede llevar el número, y un número en una línea sola vale para ' +
+          'el compás siguiente.',
+        example: '# A @9\nDm | G7 | @17 Em | A7',
+      },
+      variations: {
+        term: 'Más de una variación',
+        text: 'La palabra antes de los dos puntos nombra una variación, así que un ' +
+          'instrumento puede tener varias en una canción: una versión fácil y una más llena. ' +
+          'Un título que sólo dice Voicings es la variación predeterminada. En cuál trabajás ' +
+          'se elige arriba de las formas.',
+        example: '# Voicings: E2, A2, D3, G3, B3, E4\nC = x32010\n\n# Más arriba: E2, A2, D3, G3, B3, E4\nC = x35553',
+      },
+      voicings: {
+        term: 'Voicings',
+        text: 'Van después de una línea ---, un bloque por afinación bajo un título que la nombra, para que la misma canción sirva en todos los instrumentos. Un acorde que se toca de más de una manera lleva una nota. Un acorde para el que guardaste una forma recibe esa forma la primera vez que aparece.',
+        example: '---\n\n# Posiciones: E2, A2, D3, G3, B3, E4\nCm = x35543\nCm[2] = 8-10-10-8-8-8',
+      },
+    },
+    notAChord: 'No es un acorde: {list}',
+    badVoicingLines: 'No pude leer estas líneas de voicing: {list}',
+    chart: 'El cifrado',
+    chartHelp: 'Haz clic en un acorde para elegir cómo se toca ahí.',
+    nothingYet: 'Todavía no hay nada escrito.',
+    chordVoicing: ', voicing {index}',
+    chordDefault: ', con la forma predeterminada',
+    chordUnvoiced: ', sin digitación posible',
+    chordChoose: '. Elegir un voicing.',
+    voicings: 'Voicings',
+    voicingsHelp: 'Haz clic en una forma para cambiarla en todos los lugares donde se usa.',
+    voicingsDefaults:
+      ' Las formas marcadas como predeterminadas son lo que la pantalla de acordes mostraría primero; elige solo las que lo necesiten.',
+    voicingsEmpty: 'Escribe la canción arriba y sus acordes aparecen aquí.',
+    voicingsList: 'Voicings usados en esta canción',
+    choose: 'Elegir',
+    change: 'Cambiar',
+    everywhere: '{verb} {key} en todos los lugares. ',
+    usingDefault: 'Con la forma predeterminada. ',
+    usedIn: { one: 'Usado en {count} lugar.', other: 'Usado en {count} lugares.' },
+    default: 'predeterminada',
+    missing: 'No hay forma tocable en {label} para: {list}. Sus reglas de voicing pueden ser demasiado estrictas.',
+    share: 'Compartir enlace',
+    snapPage: 'Encuadrar esta página',
+    previousPage: 'Página anterior',
+    nextPage: 'Página siguiente',
+    pageOf: 'Página {current} de {total}',
+    print: 'Imprimir',
+    shareLabel: 'Enlace para compartir esta canción',
+    shareHelp: 'Quien abra este enlace ve la canción tal como está escrita.',
+  },
+
+  picker: {
+    enter: 'Armar una forma',
+    editCurrent: 'Editar esta forma',
+    changeEverywhere: 'Cambiar {label} en todos los lugares',
+    howPlayed: '¿Cómo se toca {chord} aquí?',
+    noParse: 'Ese acorde no se entiende.',
+    none: 'No hay digitaciones para {chord} en {label}. Sus reglas de voicing pueden ser demasiado estrictas.',
+    replaces: { one: 'Reemplaza esta forma en {count} lugar. ', other: 'Reemplaza esta forma en {count} lugares. ' },
+    ways: '{count} maneras de tocarlo, agrupadas por posición y de la más fácil a la más difícil.',
+    changesOne: 'Cambia solo este acorde. ',
+    chosen: ', elegida actualmente',
+    clearEverywhere: 'Quitar en todos los lugares',
+    clearChoice: 'Quitar elección',
+    cancel: 'Cancelar',
+  },
+
+  wizard: {
+    open: 'Asistente de formas',
+    barHelp: 'Elegí formas para toda la canción de una vez.',
+    title: 'Elegir formas para toda la canción',
+    help:
+      'Cada uno de estos elige una forma para cada acorde de la canción, tomando en cuenta ' +
+      'el camino de la mano por la cifra en vez de juzgar cada acorde por separado. Ves qué ' +
+      'haría antes de que cambie nada.',
+    planners: {
+      smoothest: {
+        name: 'El camino más parejo',
+        text:
+          'Deja la mano donde está y evita saltos en la voz más aguda. Dos formas fáciles en ' +
+          'extremos opuestos del mástil cuestan más en secuencia que dos intermedias juntas.',
+        how: [
+          'Toda forma que la búsqueda ofrece para el acorde es candidata.',
+          'Cada una se puntúa por lo difícil que es de sostener, más cuánto tendrían que ' +
+            'moverse la mano y la voz más aguda respecto de la forma anterior.',
+          'La cifra se recorre en orden de lectura, así cada elección responde a la anterior.',
+        ],
+      },
+      openPosition: {
+        name: 'Junto a la cejuela',
+        text:
+          'La forma más grave de cada acorde, con cuerdas al aire donde ayudan. Las formas ' +
+          'que un principiante ya conoce.',
+        how: [
+          'Toda forma que la búsqueda ofrece para el acorde es candidata.',
+          'Cada una se puntúa por lo difícil que es de sostener, más cuánto sube por el ' +
+            'mástil, menos un crédito por cada cuerda al aire.',
+          'La cifra se recorre en orden de lectura, así cada elección responde a la anterior.',
+        ],
+      },
+      choroCentro: {
+        name: 'Choro, al lado de una siete cuerdas',
+        text:
+          'La parte de la guitarra de seis cuerdas en un regional: bajo con el pulgar y tres ' +
+          'dedos, en el primer cuarto del mástil, con su bajo una tercera arriba de lo que ' +
+          'toca la siete cuerdas, para que las dos no se dupliquen.',
+        how: [
+          'Las formas se enumeran, no se buscan. La búsqueda común descarta una forma con ' +
+            'cuerdas apagadas cuando hay una más llena e igual de fácil, lo que está bien para ' +
+            'quien toca solo y mal acá, donde las cuerdas graves callan porque las tiene la ' +
+            'siete cuerdas.',
+          'Cuatro cuerdas sonando, o cinco. Cuatro es la norma en este idioma y cinco la ' +
+            'excepción ocasional: un bajo con el pulgar y el resto con tres dedos.',
+          'O tres notas, con el pulgar en la cuarta cuerda y la cuerda grave suprimida, que ' +
+            'una fuente da como la otra textura del idioma. Solo para un acorde con séptima: ' +
+            'lo que sale es fundamental o quinta, y se permite porque el trítono — la tercera ' +
+            'y la séptima — sigue sonando. Se ofrece, no se prefiere: las transcripciones ' +
+            'muestran cuatro voces en esa posición.',
+          'Las cuerdas que suenan son vecinas, con el pulgar en la más grave, la segunda más ' +
+            'grave o la cuarta, y la toma llegando al menos a la segunda cuerda desde arriba. ' +
+            'Un hueco en el medio es una decisión que todavía podés tomar; una forma que lo ' +
+            'necesita no se deshace.',
+          'Nada arriba del séptimo traste, cuerdas al aire bienvenidas, y el bajo de la toma ' +
+            'entre el mi grave y el re que le sigue. Es el tramo de mástil que nombran las ' +
+            'fuentes y la región donde las transcripciones de Época de Ouro realmente están.',
+          'La nota más grave queda una tercera arriba de lo que toca la siete cuerdas — la ' +
+            'nota tras la barra cuando la cifra escribe una, la fundamental si no — en la ' +
+            'octava en que esté esa guitarra. De eso se trata: las dos guitarras toman ' +
+            'inversiones distintas para no duplicarse.',
+          'Cuando una tercera arriba de ese bajo no pertenece al acorde, otra relación ocupa ' +
+            'su lugar — cuál es la elección de abajo. El caso está nombrado en la literatura ' +
+            'y no es una falla de acá: una tercera arriba de la séptima de un dominante que ' +
+            'resuelve en acorde mayor cae en una nota que el estilo no usa.',
+          'Se conserva toda nota del acorde salvo la quinta, que es la que este idioma ' +
+            'deja — a menos que esa quinta esté disminuida o aumentada, porque una 5b o ' +
+            '5# es lo que hace que el acorde sea ese acorde.',
+          'La cifra se recorre en orden de lectura, prefiriendo formas que mantengan las ' +
+            'mismas cuerdas sonando, que es lo que vuelve una serie como Gm, Gm6, Gm7 una ' +
+            'sola toma con un dedo moviéndose.',
+          'Cuando dos formas cuestan lo mismo, gana la más grave en el mástil, y un acorde ' +
+            'más lleno le gana a uno que gasta una cuerda duplicando una nota.',
+        ],
+        options: {
+          whenNoThirdAbove: {
+            label: 'Cuando no hay tercera arriba de la otra guitarra dentro del acorde',
+            values: {
+              sixth: 'Una sexta, después una octava',
+              thirdBelow: 'Una tercera abajo',
+            },
+            rules: {
+              sixth:
+                'Cuando una tercera arriba del bajo de la otra guitarra no pertenece al ' +
+                'acorde, se usa una sexta arriba de él, y en su defecto una octava. Son los ' +
+                'primeros remedios que la literatura da para ese caso.',
+              thirdBelow:
+                'Cuando una tercera arriba del bajo de la otra guitarra no pertenece al ' +
+                'acorde, la toma baja a una tercera ABAJO de él, quedando en la quinta — la ' +
+                'segunda inversión. La literatura la da para el mismo caso, la describe como ' +
+                'en perfecta consonancia con el estilo y nombra la grabación de donde viene.',
+            },
+          },
+        },
+      },
+    },
+    summary: {
+      one: '{count} de {total} acordes cambiarían.',
+      other: '{count} de {total} acordes cambiarían.',
+    },
+    covers: {
+      one: '{count} compás',
+      other: '{count} compases',
+    },
+    nothing: 'Cada acorde ya tiene la forma que esto elegiría.',
+    missing: 'Ninguna forma para {list}.',
+    how: 'Cómo funciona',
+    howTitle: 'Cómo elige esto',
+    sources: 'De dónde viene esto',
+    noSources: 'Sin fuente: es una regla práctica sobre manos, no una afirmación sobre cómo se toca la música de nadie.',
+    apply: 'Usar estas formas',
+    back: '← Otras maneras',
+    cancel: 'Cancelar',
+  },
+
+  shape: {
+    foreign: '{note}, fuera del acorde',
+    title: 'Armar una forma',
+    titleFor: 'Armar una forma para {chord}',
+    help:
+      'Hacé clic en un traste para poner un dedo, y otra vez para sacarlo. La fila arriba de ' +
+      'la cejuela alterna la cuerda entre al aire y sin tocar.',
+    frets: 'Trastes {from} a {to}',
+    towardsNut: 'Mover la ventana hacia la cejuela',
+    upTheNeck: 'Mover la ventana hacia arriba del mástil',
+    sketch: 'Forma en armado: {shorthand}',
+    unplayable: 'Ninguna mano para esto',
+    empty: 'Nada en ninguna cuerda todavía.',
+    clear: 'Limpiar',
+    cancel: 'Cancelar',
+    save: 'Usar esta forma',
+  },
+
+  print: { legend: 'Formas de acorde usadas' },
+
+  confirm: { cancel: 'Cancelar', confirm: 'Eliminar' },
+
+  install: {
+    title: 'Agrega Explore Chords a tu pantalla de inicio',
+    label: 'Instalar esta app',
+    promptHelp: 'Se abre como una app y sigue funcionando sin red — útil en una clase.',
+    iosHelp:
+      'Toca Compartir y luego "Agregar a inicio". Después se abre como una app y sigue funcionando sin red.',
+    install: 'Instalar',
+    notNow: 'Ahora no',
+    gotIt: 'Entendido',
+    never: 'No volver a preguntar',
+  },
+
+  update: {
+    ready: 'Hay una nueva versión lista.',
+    reload: 'Recargar',
+    later: 'Después',
+  },
+
+  announce: {
+    whatsNew: 'Novedades',
+    showTutorial: 'Ver el tutorial',
+    letsGo: 'Vamos',
+    close: 'Cerrar',
+    sinceLast: 'Qué cambió desde tu última visita',
+  },
+
+  announcements: {
+    welcome: {
+      title: 'Bienvenido a Explore Chords',
+      sections: [
+        {
+          heading: 'Encuentra un acorde',
+          text:
+            'Escríbelo como lo escribes tú — C7M, Cmaj7 o C∆7 funcionan — y aparecen todas las ' +
+            'maneras de tocarlo en tu instrumento, agrupadas por dónde se apoya la mano y de la ' +
+            'más fácil a la más difícil. Cuando un símbolo puede significar dos cosas, un aviso ' +
+            'dice qué lectura se tomó y te deja cambiarla.',
+        },
+        {
+          heading: 'Tu instrumento va primero',
+          text:
+            'El selector del encabezado cambia entre los instrumentos que configuraste. Cada uno ' +
+            'guarda su afinación y sus reglas de voicing; la pantalla Instrumento es donde las ' +
+            'editas, y donde un bajo y un ukelele pueden querer cosas distintas.',
+        },
+        {
+          heading: 'Guarda las formas que te gusten',
+          text:
+            'Marca una forma con estrella y va a Guardados. Después, un acorde para el que tienes ' +
+            'una forma guardada toma esa forma automáticamente la primera vez que aparece en una ' +
+            'canción.',
+        },
+        {
+          heading: 'Escribe canciones como texto',
+          text:
+            'En Canciones, un cifrado es texto plano: una línea que empieza con # nombra una ' +
+            'sección, una barra vertical inicia un compás, los espacios separan los acordes dentro ' +
+            'de él. Haz clic en un acorde para elegir cómo se toca; la elección se escribe de vuelta ' +
+            'en el texto después de una línea ---, un bloque por afinación, para que la misma ' +
+            'canción sirva en todos los instrumentos.',
+        },
+        {
+          heading: 'Funciona sin señal',
+          text:
+            'Una vez cargada, todo corre en tu dispositivo. Agrégala a tu pantalla de inicio y ' +
+            'llévala a una clase sin red.',
+        },
+      ],
+    },
+    '0.2.0': {
+      title: 'Qué cambió en la 0.2',
+      sections: [
+        {
+          heading: 'Una canción, todos los instrumentos',
+          text:
+            'Una canción ya no pertenece a un instrumento. Sus voicings se guardan por afinación, ' +
+            'después de una línea --- en el texto, así que el mismo cifrado se toca en tu guitarra ' +
+            'y en tu ukelele, cada uno con sus formas. Las canciones guardadas en el formato ' +
+            'anterior se convierten solas, y las copias separadas por instrumento de una misma ' +
+            'canción se unen en una.',
+        },
+        {
+          heading: 'Los acordes sin forma elegida igual tienen una',
+          text:
+            'Toman la forma que la pantalla de acordes mostraría primero, marcada como ' +
+            'predeterminada. Elige solo los que lo necesiten.',
+        },
+        {
+          heading: 'Las formas guardadas entran en las canciones',
+          text:
+            'Una forma que marcaste con estrella se usa en cuanto su acorde entra en una canción, ' +
+            'si es distinta de la predeterminada.',
+        },
+        {
+          heading: 'B° es la séptima',
+          text:
+            'Un ° solo ahora se lee como séptima disminuida, que es lo que el símbolo significa en ' +
+            'la práctica; la palabra dim es la tríada, y un aviso ofrece la otra lectura.',
+        },
+      ],
+    },
+    '0.3.0': {
+      title: 'Qué cambió en la 0.3',
+      sections: [
+        {
+          heading: 'Português, español e italiano',
+          text:
+            'La app ahora habla portugués de Brasil, español de Latinoamérica e italiano, además de inglés. ' +
+            'Sigue el idioma del navegador; el selector del encabezado lo cambia, y la elección se ' +
+            'recuerda en este dispositivo.',
+        },
+        {
+          heading: 'Cifrados alineados',
+          text:
+            'En pantalla y al imprimir, los compases de una sección quedan en columnas, como en un ' +
+            'cifrado escrito a mano, y la hoja impresa empieza por el cifrado y deja las formas ' +
+            'pequeñas debajo.',
+        },
+      ],
+    },
+    '0.4.0': {
+      title: 'Qué cambió en la 0.4',
+      sections: [
+        {
+          heading: 'Rasgueo o punteo',
+          text:
+            'Las reglas que se llamaban Estándar ahora se llaman Rasgueo, y Punteo quedó al ' +
+            'lado. Quien puntea sencillamente no toca la cuerda del medio del acorde, así que ' +
+            'el punteo permite formas que el rasgueo no alcanza. Al configurar un instrumento ' +
+            'se te pregunta cuál tocas, y la pantalla del instrumento lo cambia después.',
+        },
+        {
+          heading: 'Se acabaron las cuerdas apagadas porque sí',
+          text:
+            'Una forma deja de ofrecerse cuando la misma forma con una de sus cuerdas apagadas ' +
+            'sonando también está y los dedos que la completan bajan sin esfuerzo. Sol menor te ' +
+            'da 3x0333, con la cuerda re sonando, en lugar de 3xx333, que la apaga sin razón, y ' +
+            'el do al aire aparece entero en vez de a pedazos. Una estirada o una cejilla siguen ' +
+            'contando como trabajo, así que las formas que necesitan una siguen ahí. Y una ' +
+            'cuerda apagada en medio dejó de contar en la dificultad: al puntear, una cuerda que ' +
+            'no tocas no cuesta nada.',
+        },
+      ],
+    },
+    '0.5.0': {
+      title: 'Qué cambió en la 0.5',
+      sections: [
+        {
+          heading: 'Canciones con su letra',
+          text:
+            'Ahora una canción se puede escribir como un cifrado con letra: una línea de ' +
+            'acordes sobre la línea que se canta, cada acorde encima de la sílaba en la que ' +
+            'cae. Pega una y se lee así, con [Intro] e Intro: nombrando secciones como ya lo ' +
+            'hacía #. La letra va con ella a la hoja impresa, que ahora sale en dos columnas ' +
+            'cuando la canción es lo bastante angosta — normalmente a la mitad de páginas. Y en ' +
+            'el teléfono la estrofa salta de línea en vez de irse de lado.',
+        },
+        {
+          heading: 'Los cifrados de siempre no cambian',
+          text:
+            'Una canción sin letra debajo de los acordes se lee exactamente como antes. Cuando ' +
+            'una línea podría ser las dos cosas, una barra vertical la hace cifrado y un > al ' +
+            'principio la hace letra, que es la única manera de resolver una estrofa que de ' +
+            'verdad dice "A", contra el acorde del mismo nombre.',
+        },
+      ],
+    },
+    '0.6.0': {
+      title: 'Qué cambió en la 0.6',
+      sections: [
+        {
+          heading: 'La canción abre para leerse',
+          text:
+            'Ahora cada canción tiene una página propia que la muestra como saldrá en papel — ' +
+            'la letra debajo de los acordes y las formas que tocas — en lugar de abrir el ' +
+            'editor. El texto sigue a un clic, y la lista ofrece los dos caminos.',
+        },
+        {
+          heading: 'Una página a la vez',
+          text:
+            'Esa página se divide en páginas del tamaño de tu pantalla, así se ve dónde la ' +
+            'canción pasa del final de una. Las flechas de la esquina las dan vuelta y dejan ' +
+            'la página entera a la vista, lo que convierte tocar mirando la pantalla en dar ' +
+            'vuelta la página en vez de desplazarse. Su centro vuelve a encuadrar la página ' +
+            'después de un desplazamiento a mano, y la barra de arriba ya no se lleva una ' +
+            'franja de la ventana.',
+        },
+        {
+          heading: 'Los cifrados se leen mejor',
+          text:
+            'Los paréntesis alrededor de una serie de acordes marcan una repetición y ya no se ' +
+            'leen como acordes. Los acordes que siguen después del final de la letra conservan ' +
+            'el espaciado con que se escribieron. Y una estrofa que salta a una línea de una ' +
+            'palabra se lee como letra, no como un acorde que nadie reconoce.',
+        },
+      ],
+    },
+    '0.7.0': {
+      title: 'Qué cambió en la 0.7',
+      sections: [
+        {
+          heading: 'Guarda todo en un archivo',
+          text:
+            'Todo lo que tienes se guarda en este navegador, lo cual sirve hasta que el ' +
+            'dispositivo no. La pantalla del instrumento ahora guarda todo en un zip — tus ' +
+            'instrumentos y sus reglas, tus ajustes, tus formas guardadas y cada canción — y ' +
+            'lo restaura aquí o en otro dispositivo.',
+        },
+        {
+          heading: 'Tus canciones son archivos de texto',
+          text:
+            'Dentro del zip cada canción es un archivo de texto que puedes leer o editar con ' +
+            'cualquier cosa. Pon otro en la carpeta songs con cualquier programa de zip y ' +
+            'vuelve como canción, con el nombre de su archivo. El respaldo es tuyo, no un ' +
+            'formato que solo esta app entiende.',
+        },
+      ],
+    },
+    '0.8.0': {
+      title: 'Qué cambió en la 0.8',
+      sections: [
+        {
+          heading: 'Un recordatorio para respaldar',
+          text:
+            'El respaldo ahora tiene su propia pantalla, y la lista de canciones avisa cuando ' +
+            'hay canciones que no están en ningún respaldo — porque un Android nuevo no las ' +
+            'trae, y un navegador que borra sus datos se las lleva. En el teléfono, guardar ' +
+            'entrega el archivo al menú de compartir, donde están Drive, Archivos e iCloud.',
+        },
+        {
+          heading: 'Las páginas se llenan hacia abajo antes que a lo ancho',
+          text:
+            'Al leer una canción, la columna ahora llega al pie de la página antes de que algo ' +
+            'de la canción vaya al lado. Antes, unas estrofas en una pantalla ancha salían como ' +
+            'una línea arriba de una página vacía. Una segunda columna es una página ahorrada, ' +
+            'no ancho para gastar.',
+        },
+        {
+          heading: 'Los acordes conservan sus paréntesis',
+          text:
+            'Em7(b5), A7(b13) y C7(9) se leían como un acorde llamado Em7(b5 con un paréntesis ' +
+            'suelto al lado, porque los paréntesis también marcan una repetición. Ahora solo es ' +
+            'marca de repetición el paréntesis que nada cierra, o que nada abrió.',
+        },
+      ],
+    },
+    '0.9.0': {
+      title: 'Qué cambió en la 0.9',
+      sections: [
+        {
+          heading: 'El signo de repetición',
+          text:
+            'El cifrado puede usar % para un compás que sigue igual al anterior, y se lee ' +
+            'así, no como un acorde que nadie reconoce. Se muestra tal como lo escribiste, ' +
+            'sin convertirse en el acorde que representa, y no hay nada que elegir en él: el ' +
+            'acorde que repite ya tiene su forma donde se escribió.',
+        },
+      ],
+    },
+    '0.10.0': {
+      title: 'Qué cambió en 0.10',
+      sections: [
+        {
+          heading: 'Todos los diagramas del mismo tamaño',
+          text:
+            'Una forma más arriba en el mástil lleva el número de traste, y el espacio para él ' +
+            'hacía ese diagrama más ancho que los demás, dejando la fila despareja y cada ' +
+            'cuadrícula descentrada bajo su nombre. Ahora todo diagrama reserva ese espacio, ' +
+            'lo necesite o no. El número de traste también es más grande, y los diagramas de ' +
+            'la hoja impresa igual: estaban demasiado chicos para leerlos desde el atril.',
+        },
+        {
+          heading: 'Lo que la forma suena de verdad',
+          text:
+            'El nombre del acorde dice cuál es la armonía. La forma decide cuál de sus notas ' +
+            'queda más grave, y si la fundamental suena. Cuando ambos difieren, el nombre ' +
+            'ahora lleva una nota discreta de lo que estás tomando en realidad: un Gm7 con la ' +
+            'tercera abajo aparece como Gm7/Bb. Importa más cuando otro instrumento hace el ' +
+            'bajo, porque entonces tomar otra inversión es el arreglo y no un accidente.',
+        },
+        {
+          heading: 'El asistente de formas',
+          text:
+            'Un botón arriba de la cifra elige formas para toda la canción de una vez. Tres ' +
+            'maneras hasta ahora: el camino más parejo para la mano, junto a la cejuela, o la ' +
+            'parte de la guitarra de seis cuerdas en un regional de choro al lado de una ' +
+            'siete cuerdas. Muestra qué haría antes de que cambie nada, y cada una explica ' +
+            'sus propias reglas y cita sus propias fuentes en «Cómo funciona».',
+        },
+        {
+          heading: 'O nombrar la cifra por lo que tocás',
+          text:
+            'Una casilla en la página de lectura nombra los acordes de la cifra por lo que ' +
+            'suenan las formas elegidas, así Gm aparece como Gm/Bb cuando su forma pone la ' +
+            'tercera abajo. Apagado por defecto, ya que una cifra nombra la armonía. Vale ' +
+            'también para la hoja impresa, porque es el mismo renderizador.',
+        },
+      ],
+    },
+    '0.11.0': {
+      title: 'Qué cambió en 0.11',
+      sections: [
+        {
+          heading: 'Armar una forma haciendo clic',
+          text:
+            'La lista de formas de un acorde es lo que encontró la búsqueda, que no sirve ' +
+            'cuando ya sabés qué querés tocar y no está ahí. Las dos maneras de elegir una ' +
+            'forma ahora también ofrecen un diagrama grande para hacer clic: un traste para ' +
+            'poner un dedo, otra vez para sacarlo, la fila arriba de la cejuela para alternar ' +
+            'la cuerda entre al aire y sin tocar. Empieza desde la forma en uso, o desde cero, ' +
+            'y te deja guardar una apertura para la que no encuentra dedos: una forma puede ' +
+            'estar bien y ser incómoda. Abajo están las notas que toma, con cualquier nota ' +
+            'fuera del acorde marcada.',
+        },
+        {
+          heading: 'Las formas bajan por la página en el teléfono',
+          text:
+            'Las formas de una canción y las que guardaste iban en una sola fila que se ' +
+            'desplazaba de costado, dejando siete de ocho fuera de la pantalla con todo el ' +
+            'alto de la página libre. Ahora se acomodan en varias filas. Los resultados de ' +
+            'acordes siguen desplazándose de costado, porque ahí hay un orden y el primero de ' +
+            'la fila es la respuesta.',
+        },
+        {
+          heading: 'Menos páginas al leer una canción',
+          text:
+            'Una canción con líneas de cifra más anchas que la pantalla del teléfono salía con ' +
+            'una página por título de sección y las formas cortadas al costado. Ahora la cifra ' +
+            'ocupa la única página que necesita, y las formas siguen entre páginas en vez de ' +
+            'quedar cortadas.',
+        },
+      ],
+    },
+    '0.12.0': {
+      title: 'Qué cambió en 0.12',
+      sections: [
+        {
+          heading: 'Números de compás',
+          text:
+            'Transcribir de una partitura suele implicar reescribir su estructura: una ' +
+            'repetición se escribe completa, porque así se toca mejor. Entonces los compases ' +
+            'de la cifra dejan de coincidir con los números de la partitura, y “desde el ' +
+            'compás 9” tiene que significar el compás 9 de la partitura. Así que los compases ' +
+            'se cuentan solos, y @9 al principio de un compás dice cuál es su número real ' +
+            '— también en un título, como # A @9. Los números van en el margen de la página de ' +
+            'lectura, y en la hoja impresa con ella. Apagados hasta que los pidas, y no se ' +
+            'ofrecen en una canción con letra, donde un acorde puede durar cuatro compases o ' +
+            'medio y el texto no dice cuál.',
+        },
+        {
+          heading: 'Se encuentra cómo armar una forma',
+          text:
+            'Un acorde tiene tantas formas como tiene — cuarenta y tres para un C en guitarra ' +
+            '— y los botones estaban debajo de esa lista, lo que en el teléfono los dejaba a ' +
+            'todos fuera de la pantalla. Ahora están arriba de la lista, bajo el título.',
+        },
+      ],
+    },
+    '0.13.0': {
+      title: 'Qué cambió en 0.13',
+      sections: [
+        {
+          heading: 'Más de una manera de tocar la misma canción',
+          text:
+            'Una canción guardaba un conjunto de formas por instrumento. Ahora puede guardar ' +
+            'varios: una versión fácil y una más llena, o dos pasadas del asistente lado a ' +
+            'lado para comparar. La palabra antes de los dos puntos en el título de las formas ' +
+            'nombra la variación, así que «# Más arriba: E2, A2, …» es una variación llamada ' +
+            'Más arriba. Agregá una arriba de las formas, partiendo de la que estás usando o ' +
+            'de cero, y cambiá entre ellas ahí o en la página de lectura. Un acorde del que la ' +
+            'variación no dice nada queda en su forma predeterminada, igual que antes.',
+        },
+        {
+          heading: 'Se fue un «null» perdido',
+          text:
+            'La página de lectura de una canción con letra mostraba la palabra null debajo del ' +
+            'título, y el panel de formas de una canción sin acordes también. Los dos están ' +
+            'arreglados, junto con la razón por la que pasaba.',
+        },
+      ],
+    },
+    '0.14.0': {
+      title: 'Qué cambió en 0.14',
+      sections: [
+        {
+          heading: 'El asistente de choro pregunta cómo lo querés tocar',
+          text:
+            'Algunas preguntas de este estilo no tienen respuesta correcta, solo preferencia. ' +
+            'Cuando la siete cuerdas sube un semitono — fa a fa#, en un compás de F y otro de ' +
+            'F#° — una tercera arriba es la en los dos, así que la seis cuerdas toma la misma ' +
+            'nota en el bajo dos veces. Un chorão puede hacer exactamente eso, o bajar a una ' +
+            'tercera abajo. Las dos están en la literatura. Esa elección ahora está al lado de ' +
+            'las formas: giralá y mirá responder a toda la canción. La lista “Cómo elige esto” ' +
+            'gira con ella, así que lo que dice es siempre lo que va a hacer.',
+        },
+        {
+          heading: 'Acordes que dejaba en blanco',
+          text:
+            'Un dominante con la séptima en el bajo — C7/Bb camino a F — volvía sin forma ' +
+            'alguna. Hay una respuesta documentada: la seis cuerdas va una tercera ABAJO de la ' +
+            'otra guitarra y queda en la quinta, C7/G. Ahora toca eso. A Cm7 le faltaba la ' +
+            'tercera por un motivo parecido. Y un dominante puede tocarse ahora con tres notas ' +
+            'y el pulgar en la cuarta cuerda, que es la otra textura del estilo y acá ' +
+            'simplemente no estaba.',
+        },
+        {
+          heading: 'Los acordes disminuidos conservan su trítono',
+          text:
+            'Al pedir F#°, el asistente daba cuatro cuerdas sin trítono y una de ellas gastada ' +
+            'en duplicar una nota. La quinta es la nota que este estilo deja — pero no cuando ' +
+            'está disminuida, que es justamente la que hace que el acorde sea disminuido. Ahora ' +
+            'se queda, y la quinta aumentada del acorde aumentado también.',
+        },
+        {
+          heading: 'Un acorde, dos formas, cuando la canción las pide',
+          text:
+            'El asistente elegía una forma por acorde para toda la canción. Ahora puede darle ' +
+            'al mismo acorde una forma distinta en otro compás, cuando su política lo pida, y ' +
+            'escribe la marca al pie solo. La vista previa muestra la canción como va a quedar ' +
+            '— las formas que va a llevar y cuántos compases cubre cada una — así que un acorde ' +
+            'partido en dos es algo que ves antes de aceptar y no después.',
+        },
+      ],
+    },
+    '0.15.0': {
+      title: 'Qué cambió en 0.15',
+      sections: [
+        {
+          heading: 'Una tesis que no encontrábamos',
+          text:
+            'El asistente de choro sigue fuentes escritas, y el único trabajo dedicado por ' +
+            'entero a la parte de la guitarra de seis — José Paulo Becker sobre Época de ' +
+            'Ouro, 1996 — no aparecía por ningún lado. Apareció. Todo lo de abajo sale de ' +
+            'leerlo, y por eso esta versión corrige cosas que la 0.14 tenía a medias. Ahora ' +
+            'figura en “De dónde viene esto”, con las demás.',
+        },
+        {
+          heading: 'La pregunta que te hace es mejor ahora',
+          text:
+            'Antes preguntaba qué hacer cuando la tercera arriba de la otra guitarra repetía ' +
+            'la nota que acababas de tocar. Ninguna fuente pregunta eso — y Becker, que ' +
+            'documenta esta parte en detalle, nunca pone la seis cuerdas por debajo de la ' +
+            'siete. Así que la pregunta es ahora la que la literatura sí hace: cuando ninguna ' +
+            'tercera arriba de la otra guitarra está en el acorde, ¿querés una sexta y luego ' +
+            'una octava, o la tercera abajo? C7/Bb camino a F es el caso, y se oyen las dos.',
+        },
+        {
+          heading: 'Llega a la prima, y se queda en su registro',
+          text:
+            'Dos fuentes discrepan sobre dónde van los dedos, y ganó la que transcribe ' +
+            'ejecuciones reales. La guitarra de Becker en Época de Ouro usa la prima todo el ' +
+            'tiempo — un re menor con re debajo de la, re y fa, sobre las cuatro primeras ' +
+            'cuerdas — así que el asistente ahora ofrece esas formas. Medir sus ' +
+            'transcripciones también dio el registro en que la parte realmente está, nunca ' +
+            'bajo el mi al aire y casi siempre entre el sol y el re que le sigue, y el ' +
+            'asistente ahora se queda ahí en vez de subir por el mástil.',
+        },
+        {
+          heading: 'Y algo dejado a propósito como estaba',
+          text:
+            'El dominante de tres notas con el pulgar en la cuarta cuerda, nuevo en 0.14, se ' +
+            'apoya en una sola fuente. Becker nunca habla de suprimir una cuerda, y sus ' +
+            'transcripciones muestran cuatro voces en esa posición. Así que la forma se sigue ' +
+            'ofreciendo y dejó de preferirse. Donde “Cómo elige esto” depende de una sola ' +
+            'fuente, o de nuestra lectura y no de la de ellas, ahora lo dice.',
+        },
+      ],
+    },
+  },
+};

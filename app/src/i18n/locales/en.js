@@ -1,0 +1,1059 @@
+/**
+ * English — the source language. Every other language is checked against the
+ * keys here; a key missing elsewhere falls back to this text.
+ *
+ * Plurals are written as `{ one, other }` and chosen by `count`.
+ */
+export default {
+  app: { name: 'Explore Chords' },
+
+  ordinal: { one: '{n}st', two: '{n}nd', few: '{n}rd', other: '{n}th' },
+
+  locale: { label: 'Language' },
+
+  header: {
+    help: 'Help',
+    helpLabel: 'Help and what changed',
+  },
+
+  nav: {
+    label: 'Sections',
+    explore: 'Chords',
+    instrument: 'Instrument',
+    library: 'Saved',
+    sheets: 'Songs',
+    backup: 'Backup',
+  },
+
+  chip: {
+    summary: 'Instrument: {label}. Change instrument.',
+    add: '+ Add instrument',
+  },
+
+  viewAs: {
+    fromSheet: 'from this sheet',
+    fromLink: 'from the link',
+    viewing: ' Viewing as {label} ({source})',
+    back: 'Back to my {label}',
+    keep: 'Keep as my default',
+  },
+
+  input: {
+    label: 'Chord',
+    placeholder: 'C7M, Am7, F#m7b5…',
+    show: 'Show',
+    readAs: ' Read “{text}” as {reading}. ',
+    use: 'Use {reading}',
+    build: 'Build the chord',
+    root: 'Root',
+    quality: 'Quality',
+    seventh: 'Seventh',
+    bass: 'Bass',
+    bassRoot: 'Root',
+    extensions: 'Extensions',
+  },
+
+  quality: {
+    major: 'Major',
+    minor: 'Minor',
+    dim: 'Diminished',
+    aug: 'Augmented',
+    sus2: 'Sus2',
+    sus4: 'Sus4',
+    power: 'Power (5)',
+  },
+
+  seventh: {
+    none: 'No 7th',
+    dominant: 'Dominant 7th',
+    major: 'Major 7th',
+    diminished: 'Diminished 7th',
+  },
+
+  readings: {
+    sevenPlus: {
+      majorSeventh: 'major 7th',
+      dominantSharpFive: 'dominant 7th, raised 5th',
+    },
+    bareNine: {
+      add: 'added 9th, no 7th',
+      dominant: 'dominant 9th, includes the flat 7th',
+    },
+    degreeSign: {
+      diminishedSeventh: 'diminished 7th',
+      diminishedTriad: 'diminished triad, no 7th',
+    },
+  },
+
+  errors: {
+    empty: 'Enter a chord.',
+    unexpected: 'Unexpected "{text}".',
+    needsNumber: '"{text}" must be followed by a number.',
+    bassNeeded: 'A "/" must be followed by a bass note or a number.',
+    badNote: 'Cannot parse note: {text}',
+    badPitch: 'Cannot parse pitch: {text}',
+    emptyTuning: 'A tuning needs at least one string.',
+    unknownQuality: 'Unknown chord quality: {quality}',
+    badDegree: 'Bad extension degree: {degree}',
+    badAlteration: 'Bad extension alteration: {alter}',
+    unknownDialect: 'Unknown notation dialect: {dialect}',
+    noRoot: '"{text}" does not start with a note name.',
+    badRoot: 'Cannot read the root note "{text}".',
+    badBass: 'Cannot read the bass note "{text}".',
+    unreadable: 'Cannot read "{text}" in "{whole}".',
+    noSheetInLink: 'That link carries no sheet.',
+    cannotDecompress: 'This browser cannot read compressed sheet links.',
+    unknownLinkFormat: 'That link is not in a format this app understands.',
+    notASheet: 'That link does not contain a song sheet.',
+  },
+
+  toggles: {
+    label: 'Diagram display',
+    neck: 'Neck view',
+    left: 'Left-handed',
+  },
+
+  results: {
+    announceNone: 'No fingerings found.',
+    announceCount: '{count} fingerings in {positions} positions.',
+    empty: 'Enter a chord to see how it can be played.',
+    none: 'No fingerings for this chord on {label}.',
+    noneHelp:
+      'It may need more strings than this instrument has, or your voicing rules may be too strict.',
+    adjustRules: 'Adjust voicing rules',
+    save: ' Save',
+    saved: ' Saved',
+    saveLabel: 'Save {shorthand} to your library',
+    removeLabel: 'Remove {shorthand} from your library',
+  },
+
+  groups: {
+    open: 'Open position',
+    fret: 'Fret {position}',
+    list: '{position} fingerings',
+    showFewer: 'Show fewer',
+    showAll: 'Show all {count}',
+  },
+
+  difficulty: { easy: 'Easy', medium: 'Medium', hard: 'Hard' },
+
+  diagram: {
+    open: 'open position',
+    startingAt: 'starting at fret {position}',
+    barre: 'barre across {count} strings at fret {fret}',
+    fingers: 'fingers {fingers}',
+    muted: { one: '{count} string not played', other: '{count} strings not played' },
+    rootOn: 'root on the {ordinal} string',
+    noRoot: 'no root',
+    voicedAs: 'voiced as {chord}',
+    toPlay: '{difficulty} to play',
+  },
+
+  library: {
+    title: 'Saved shapes',
+    empty: 'Nothing saved for {label} yet. Star a shape on the chords screen to keep it here.',
+    count: '{count} saved for {label}.',
+    list: 'Saved shapes for {label}',
+    open: 'Open',
+    openLabel: 'Show {chord} on the chords screen',
+    remove: 'Remove',
+    removeLabel: 'Remove {chord} {shorthand} from your saved shapes',
+  },
+
+  catalog: {
+    '6guitar': 'Guitar (6-string)',
+    '7guitar': 'Guitar (7-string)',
+    '4bass': 'Bass (4-string)',
+    '5bass': 'Bass (5-string)',
+    ukulele: 'Ukulele',
+    cavaquinho: 'Cavaquinho',
+    mandolin: 'Mandolin',
+    tenorbanjo: 'Tenor banjo',
+  },
+
+  tuning: {
+    Standard: 'Standard',
+    'Drop D': 'Drop D',
+    'Open G': 'Open G',
+    'Open D': 'Open D',
+    DADGAD: 'DADGAD',
+    'Open C': 'Open C',
+    Brazilian: 'Brazilian',
+    'Standard (re-entrant)': 'Standard (re-entrant)',
+    'Low G': 'Low G',
+    Baritone: 'Baritone',
+    'Standard (Brazil)': 'Standard (Brazil)',
+    Irish: 'Irish',
+    custom: 'Custom',
+    customOption: 'Custom tuning',
+  },
+
+  form: {
+    edit: 'Edit instrument',
+    choose: 'Choose your instrument',
+    add: 'Add an instrument',
+    firstRunHelp: 'Everything is shown for this instrument. You can add others and switch at any time.',
+    addHelp: 'It joins your list; the header switcher moves between them.',
+    instrument: 'Instrument',
+    fallbackName: 'Instrument',
+    tuning: 'Tuning',
+    strings: 'Strings',
+    stringsHelp: 'Lowest string first. Any comma-separated pitch list works, including re-entrant tunings.',
+    style: 'How you play',
+    styleHelp:
+      'It sets which shapes you are offered: fingerstyle allows a muted string in the middle of a chord, strumming does not. The instrument screen can change it later.',
+    name: 'Name',
+    nameHelp: 'Shown in the switcher. Give custom tunings names you will recognise.',
+    frets: 'Frets',
+    save: 'Save changes',
+    start: 'Start playing',
+    addButton: 'Add instrument',
+    cancel: 'Cancel',
+    needName: 'Give the instrument a name.',
+    badTuning: 'That tuning does not read: {reason}',
+  },
+
+  backup: {
+    title: 'Backup',
+    help:
+      'Everything you have is kept in this browser, which is fine until the device is not. ' +
+      'A backup is one zip holding your instruments and settings, your saved shapes, and ' +
+      'every song as a plain text file you can read and edit anywhere.',
+    save: 'Save a backup',
+    insideTitle: 'What is in it',
+    inside:
+      'One zip, with your instruments and their rules and your settings in one file, your ' +
+      'saved shapes in another, and every song as a text file named after it. Drop another ' +
+      'song into the songs folder with any zip tool and it comes back with the rest.',
+    restore: 'Restore a backup',
+    confirmTitle: 'Restore from “{name}”?',
+    confirmBody:
+      'Everything on this device is replaced by what the file holds: {instruments} and {songs}.',
+    instruments: { one: '{count} instrument', other: '{count} instruments' },
+    songs: { one: '{count} song', other: '{count} songs' },
+    confirmButton: 'Replace everything',
+    nudgeTitle: 'Your songs are only on this device',
+    nudgeText: {
+      one:
+        'The song here is in no backup. On Android a new phone does not get it, and a ' +
+        'browser that clears its data takes it with it.',
+      other:
+        'The {count} songs here are in no backup. On Android a new phone does not get ' +
+        'them, and a browser that clears its data takes them with it.',
+    },
+    notNow: 'Not now',
+    failed: 'That backup could not be read: {reason}',
+  },
+  instruments: {
+    title: 'Instruments',
+    help:
+      'Everything on screen is for the instrument in use. Each keeps its own tuning, voicing rules, saved shapes and songs.',
+    inUse: 'In use',
+    reentrant: 'Re-entrant',
+    meta: '{tuning} · {count} frets',
+    use: 'Use',
+    useLabel: 'Use {label}',
+    edit: 'Edit',
+    editLabel: 'Edit {label}',
+    delete: 'Delete',
+    deleteLabel: 'Delete {label}',
+    add: 'Add instrument',
+    back: '← All instruments',
+    deleteThis: 'Delete this instrument',
+    confirmTitle: 'Delete {label}?',
+    confirmShapes: {
+      one: 'Its {count} saved shape will go with it. ',
+      other: 'Its {count} saved shapes will go with it. ',
+    },
+    confirmSongs: 'Songs are kept, since they carry their own tuning. This cannot be undone.',
+    confirmButton: 'Delete instrument',
+  },
+
+  rules: {
+    title: 'Voicing rules',
+    help: 'How chords are voiced on {label}.',
+    preset: 'Preset',
+    custom: 'Custom',
+    presets: {
+      beginner: 'Beginner',
+      strumming: 'Strumming',
+      fingerstyle: 'Fingerstyle',
+      jazz: 'Jazz',
+      bassFriendly: 'Bass-friendly',
+    },
+    rules: 'Rules',
+    rootInBass: 'Root must be the lowest note',
+    requireThird: 'Require the 3rd',
+    omitFifth: 'The 5th may be omitted',
+    allowRootless: 'Allow rootless voicings',
+    requireExtensions: 'Require every named extension',
+    allowBarre: 'Allow barre chords',
+    allowInnerMutes: 'Allow a muted string between sounding ones',
+    allowDoubling: 'Allow a note on more than one string',
+    allowDuplicatePitch: 'Allow the identical pitch twice',
+    limits: 'Limits',
+    maxSpan: 'Maximum stretch (frets)',
+    minSoundingStrings: 'Fewest strings sounding',
+    maxResultsPerGroup: 'Shapes shown per position',
+    weights: 'Difficulty weights',
+    weightsHelp:
+      'How much each thing counts towards a shape being hard. Negative values make a shape easier.',
+    weight: {
+      spanPerFret: 'Stretch, per fret',
+      barre: 'Barre',
+      fullBarre: 'Full barre, extra',
+      perFinger: 'Each finger',
+      innerMute: 'Inner muted string',
+      mutedString: 'Each muted string',
+      positionPerFret: 'Position, per fret',
+      omittedFifth: 'Omitting the 5th',
+      rootless: 'Omitting the root',
+      nonRootBass: 'Unrequested inversion',
+      openString: 'Each open string (a bonus)',
+      nonAdjacentStretch: 'Wide stretch',
+    },
+  },
+
+  sheets: {
+    title: 'Song sheets',
+    help: 'Chords for a song on {label}, each pinned to the fingering you want taught.',
+    titlePlaceholder: 'Song title',
+    newTitleLabel: 'New song title',
+    create: 'New song',
+    untitled: 'Untitled song',
+    shared: 'Shared song',
+    sharedInstrument: 'Shared instrument',
+    empty: 'No songs yet.',
+    measures: { one: '{count} measure', other: '{count} measures' },
+    chords: { one: '{count} chord', other: '{count} chords' },
+    chosenHere: { one: ' · {count} voicing chosen here', other: ' · {count} voicings chosen here' },
+    voicedFor: 'Voiced for {list}',
+    view: 'View',
+    viewLabel: 'View {title}',
+    edit: 'Edit',
+    editLabel: 'Edit {title}',
+    duplicate: 'Duplicate',
+    duplicateLabel: 'Duplicate {title}',
+    delete: 'Delete',
+    deleteLabel: 'Delete {title}',
+    imported: 'Imported the song "{title}".',
+  },
+
+  editor: {
+    variationInUse: 'Variation:',
+    variationLabel: 'Which variation to use',
+    variationDefault: 'Default',
+    variationAdd: 'Add a variation',
+    variationHelp:
+      'One instrument can have several variations in a song — an easy one and a fuller ' +
+      'one, say. They all live in the text, each under its own heading; which one you are ' +
+      'working in is remembered per song.',
+    variationName: 'Name for this variation',
+    variationPlaceholder: 'Up the neck',
+    variationCopy: 'Start from the shapes in “{name}”',
+    variationNeedsName: 'Give the variation a name.',
+    variationTaken: 'There is already a variation called “{name}” for this instrument.',
+    variationCancel: 'Cancel',
+    variationConfirm: 'Add',
+    chartBarNumbers: 'Show bar numbers',
+    chartVoicedAs: 'Name the chords in the chart by what the shapes sound',
+    back: '← All songs',
+    titleLabel: 'Song title',
+    title: 'Title',
+    song: 'The song',
+    placeholder: '# Verse\nA | Cm | A | Cm',
+    help: {
+      sections: {
+        term: 'Sections',
+        text: 'Three ways to name one: a line beginning with #, a name in brackets, or a ' +
+          'name and a colon. The last two may carry that section’s chords on the same ' +
+          'line. A colon only names a section when chords follow it, so a sung line ' +
+          'with a colon in it stays a line of words.',
+        example: '# Verse\n[Intro] G  D  Em  C\nSolo: Am  F  C  G',
+      },
+      chart: {
+        term: 'A chart',
+        text: 'A vertical bar starts a new measure; spaces separate the chords inside one.',
+        example: 'C  Am | F  G | C\nF     | G    | C',
+      },
+      words: {
+        term: 'Or the words underneath',
+        text: 'A line of chords over the line it is sung to, each chord above the syllable it falls on.',
+        example: 'G            D\nWhen I first saw you',
+      },
+      either: {
+        term: 'When a line could be either',
+        text: 'A vertical bar makes it a chart. A leading > makes it words, and is the only way to settle a line that reads as a chord.',
+        example: 'G\n> A',
+      },
+      bars: {
+        term: 'Bar numbers',
+        text: 'Bars count on their own. Write @9 at the start of a measure where the chart ' +
+          'stops agreeing with the score it came from — writing a repeat out straight means ' +
+          'the same bars appear twice, and the count has to be told. A heading can carry it ' +
+          'instead, and a number on its own line applies to the bar after it.',
+        example: '# A @9\nDm | G7 | @17 Em | A7',
+      },
+      variations: {
+        term: 'More than one variation',
+        text: 'The word before the colon names a variation, so one instrument can have ' +
+          'several in one song — an easy version and a fuller one, say. A plain Voicings ' +
+          'heading is the default. Which one you are working in is chosen above the shapes.',
+        example: '# Voicings: E2, A2, D3, G3, B3, E4\nC = x32010\n\n# Up the neck: E2, A2, D3, G3, B3, E4\nC = x35553',
+      },
+      voicings: {
+        term: 'Voicings',
+        text: 'They sit after a --- rule, one block per tuning under a heading that names it, so the same song serves every instrument. A chord played more than one way is footnoted. A chord you have saved a shape for gets that shape when it first appears.',
+        example: '---\n\n# Voicings: E2, A2, D3, G3, B3, E4\nCm = x35543\nCm[2] = 8-10-10-8-8-8',
+      },
+    },
+    notAChord: 'Not a chord: {list}',
+    badVoicingLines: 'Could not read these voicing lines: {list}',
+    chart: 'The chart',
+    chartHelp: 'Click any chord to choose how that one is played.',
+    nothingYet: 'Nothing written yet.',
+    chordVoicing: ', voicing {index}',
+    chordDefault: ', using the default shape',
+    chordUnvoiced: ', cannot be voiced',
+    chordChoose: '. Choose a voicing.',
+    voicings: 'Voicings',
+    voicingsHelp: 'Click a shape to change it everywhere it is used.',
+    voicingsDefaults:
+      ' Shapes marked default are what the explorer would show first; choose only the ones that need it.',
+    voicingsEmpty: 'Write the song above and its chords appear here.',
+    voicingsList: 'Voicings used in this song',
+    choose: 'Choose',
+    change: 'Change',
+    everywhere: '{verb} {key} everywhere. ',
+    usingDefault: 'Using the default shape. ',
+    usedIn: { one: 'Used in {count} place.', other: 'Used in {count} places.' },
+    default: 'default',
+    missing: 'No playable shape on {label} for: {list}. Its voicing rules may be too strict.',
+    share: 'Share link',
+    snapPage: 'Line this page up',
+    previousPage: 'Previous page',
+    nextPage: 'Next page',
+    pageOf: 'Page {current} of {total}',
+    print: 'Print',
+    shareLabel: 'Share link for this song',
+    shareHelp: 'Anyone opening this link sees the song as written.',
+  },
+
+  picker: {
+    enter: 'Enter a shape',
+    editCurrent: 'Edit this shape',
+    changeEverywhere: 'Change {label} everywhere',
+    howPlayed: 'How is {chord} played here?',
+    noParse: 'That chord does not parse.',
+    none: 'No fingerings for {chord} on {label}. Its voicing rules may be too strict.',
+    replaces: { one: 'Replaces this shape in {count} place. ', other: 'Replaces this shape in {count} places. ' },
+    ways: '{count} ways to play it, grouped by position and easiest first.',
+    changesOne: 'Changes this one chord. ',
+    chosen: ', currently chosen',
+    clearEverywhere: 'Clear everywhere',
+    clearChoice: 'Clear choice',
+    cancel: 'Cancel',
+  },
+
+  wizard: {
+    open: 'Voicing wizard',
+    barHelp: 'Choose shapes for the whole song at once.',
+    title: 'Choose shapes for the whole song',
+    help:
+      'Each of these picks a shape for every chord in the song, taking the hand’s path ' +
+      'through the chart into account rather than judging each chord on its own. You see ' +
+      'what it would do before anything changes.',
+    planners: {
+      smoothest: {
+        name: 'The smoothest path',
+        text:
+          'Keeps the hand where it is and the top voice from leaping. Two easy shapes at ' +
+          'opposite ends of the neck are harder to play in sequence than two middling ones ' +
+          'next to each other.',
+        how: [
+          'Every shape the search offers for the chord is a candidate.',
+          'Each one is scored on how hard it is to hold, plus how far the hand and the top ' +
+            'voice would have to move from the shape before it.',
+          'The chart is walked in reading order, so each choice answers the one before it.',
+        ],
+      },
+      openPosition: {
+        name: 'Down at the nut',
+        text:
+          'The lowest shape each chord has, with open strings where they help. The shapes a ' +
+          'beginner already knows.',
+        how: [
+          'Every shape the search offers for the chord is a candidate.',
+          'Each one is scored on how hard it is to hold, plus how far up the neck it sits, ' +
+            'less a credit for each open string.',
+          'The chart is walked in reading order, so each choice answers the one before it.',
+        ],
+      },
+      choroCentro: {
+        name: 'Choro, beside a seven-string',
+        text:
+          'The six-string’s part in a regional: a thumb bass plus three fingers, in the first ' +
+          'quarter of the neck, with its bass a third above whatever the seven-string is ' +
+          'playing so the two do not double each other.',
+        how: [
+          'Shapes are enumerated rather than searched. The ordinary search discards a shape ' +
+            'with muted strings when a fuller one is no harder, which is right for a solo ' +
+            'player and wrong here, where the low strings are quiet because the seven-string ' +
+            'has them.',
+          'Four sounding strings, or five. Four is the norm in this idiom and five the ' +
+            'occasional departure: a bass note under the thumb and the rest under three fingers.',
+          'Or three notes with the thumb up on the fourth string and the low string ' +
+            'dropped, which one source gives as the idiom’s other texture. Offered only for ' +
+            'a chord with a seventh: what goes is a root or a fifth, and it is allowed ' +
+            'because the tritone — the third and the seventh — still sounds. Offered rather ' +
+            'than preferred, since the transcriptions show four voices in that position.',
+          'The strings sounded are next to each other, with the thumb on the lowest, the ' +
+            'second-lowest or the fourth, and the grip reaching at least the second string ' +
+            'from the top. A hole in the middle is a decision you can still make; a shape ' +
+            'that needs one cannot be undone.',
+          'Nothing above the seventh fret, open strings welcome, and the grip’s own bass ' +
+            'between the low E and the D above it. That is the stretch of neck the sources ' +
+            'name, and the register the transcriptions of Época de Ouro actually sit in.',
+          'The lowest note is a third above whatever the seven-string is playing — the slash ' +
+            'note where the chart writes one, the root otherwise — in whichever octave that ' +
+            'guitar is in. This is the whole point: the two guitars take different inversions ' +
+            'so they do not double each other.',
+          'Where a third above that bass is not in the chord, another relation stands in for ' +
+            'it — which one is the choice below. The case is named in the literature rather ' +
+            'than a gap here: a third above the seventh of a dominant resolving to a major ' +
+            'chord lands on a note the style does not use.',
+          'Every note of the chord is kept except the fifth, which is the one this idiom ' +
+            'drops — unless that fifth is flattened or sharpened, since a ♭5 or a ♯5 is what ' +
+            'makes the chord that chord.',
+          'The chart is walked in reading order, preferring shapes that keep the same strings ' +
+            'sounding, which is what turns a run like Gm, Gm6, Gm7 into one grip with one ' +
+            'finger moving.',
+          'Where two shapes cost the same, the one lower on the neck wins, and a fuller ' +
+            'chord beats one that spends a string doubling a note.',
+        ],
+        options: {
+          whenNoThirdAbove: {
+            label: 'Where no third above the other guitar is in the chord',
+            values: {
+              sixth: 'A sixth, then an octave',
+              thirdBelow: 'A third below',
+            },
+            rules: {
+              sixth:
+                'Where a third above the other guitar’s bass is not in the chord, a sixth ' +
+                'above it is used, and failing that an octave. These are the first remedies ' +
+                'the literature names for that case.',
+              thirdBelow:
+                'Where a third above the other guitar’s bass is not in the chord, the grip ' +
+                'drops a third BELOW it instead, resting on the fifth — the second ' +
+                'inversion. The literature gives this for the same case, describing it as in ' +
+                'perfect keeping with the style, and names the recording it comes from.',
+            },
+          },
+        },
+      },
+    },
+    summary: {
+      one: '{count} of {total} chords would change.',
+      other: '{count} of {total} chords would change.',
+    },
+    covers: {
+      one: '{count} bar',
+      other: '{count} bars',
+    },
+    nothing: 'Every chord already has the shape this would choose.',
+    missing: 'No shape for {list}.',
+    how: 'How it works',
+    howTitle: 'How this chooses',
+    sources: 'Where this comes from',
+    noSources: 'No source: this is a rule of thumb about hands, not a claim about how anybody’s music is played.',
+    apply: 'Use these shapes',
+    back: '← Other ways',
+    cancel: 'Cancel',
+  },
+
+  shape: {
+    foreign: '{note}, not in the chord',
+    title: 'Enter a shape',
+    titleFor: 'Enter a shape for {chord}',
+    help:
+      'Click a fret to put a finger on it, and again to take it off. The row above the nut ' +
+      'switches a string between open and not played.',
+    frets: 'Frets {from} to {to}',
+    towardsNut: 'Move the window towards the nut',
+    upTheNeck: 'Move the window up the neck',
+    sketch: 'Shape being entered: {shorthand}',
+    unplayable: 'No hand for this',
+    empty: 'Nothing on any string yet.',
+    clear: 'Clear',
+    cancel: 'Cancel',
+    save: 'Use this shape',
+  },
+
+  print: { legend: 'Chord shapes used' },
+
+  confirm: { cancel: 'Cancel', confirm: 'Delete' },
+
+  install: {
+    title: 'Add Explore Chords to your home screen',
+    label: 'Install this app',
+    promptHelp: 'It opens like an app and keeps working with no network — handy in a lesson.',
+    iosHelp:
+      'Tap Share, then "Add to Home Screen". It then opens like an app and keeps working with no network.',
+    install: 'Install',
+    notNow: 'Not now',
+    gotIt: 'Got it',
+    never: "Don't ask again",
+  },
+
+  update: {
+    ready: 'A new version is ready.',
+    reload: 'Reload',
+    later: 'Later',
+  },
+
+  announce: {
+    whatsNew: "What's new",
+    showTutorial: 'Show the tutorial',
+    letsGo: "Let's go",
+    close: 'Close',
+    sinceLast: 'What changed since your last visit',
+  },
+
+  announcements: {
+    welcome: {
+      title: 'Welcome to Explore Chords',
+      sections: [
+        {
+          heading: 'Find a chord',
+          text:
+            'Type it the way you write it — C7M, Cmaj7 or C∆7 all work — and every way to play ' +
+            'it on your instrument appears, grouped by where the hand sits and easiest first. ' +
+            'When a symbol could mean two things, a chip says which reading was taken and ' +
+            'lets you flip it.',
+        },
+        {
+          heading: 'Your instrument comes first',
+          text:
+            'The switcher in the header moves between the instruments you have set up. Each ' +
+            'keeps its own tuning and its own voicing rules; the Instrument screen is where ' +
+            'you edit them, and where a bass and a ukulele are allowed to want different things.',
+        },
+        {
+          heading: 'Save the shapes you like',
+          text:
+            'Star any shape and it goes to Saved. Later, a chord you have a saved shape for ' +
+            'takes that shape automatically when it first appears in a song.',
+        },
+        {
+          heading: 'Write songs as text',
+          text:
+            'Under Songs, a chart is plain text: a line starting with # names a section, a ' +
+            'vertical bar starts a new measure, spaces separate chords in one. Click any chord ' +
+            'to choose how it is played; the choice is written back into the text after a --- ' +
+            'rule, one block per tuning, so the same song serves every instrument.',
+        },
+        {
+          heading: 'It works without a signal',
+          text:
+            'Once loaded, everything runs on your device. Add it to your home screen and take ' +
+            'it into a lesson with no network at all.',
+        },
+      ],
+    },
+    '0.2.0': {
+      title: 'What changed in 0.2',
+      sections: [
+        {
+          heading: 'One song, every instrument',
+          text:
+            'A song no longer belongs to one instrument. Its voicings are kept per tuning, ' +
+            'after a --- rule in the text, so the same chart plays on your guitar and your ' +
+            'ukulele with each keeping its own shapes. Songs saved in the earlier form convert ' +
+            'on their own, and separate per-instrument copies of one song fold into one.',
+        },
+        {
+          heading: 'Chords you have not chosen a shape for still have one',
+          text:
+            'They take the shape the chord screen would show first, marked as a default. ' +
+            'Choose only the ones that need it.',
+        },
+        {
+          heading: 'Saved shapes flow into songs',
+          text:
+            'A shape you have starred is used the moment its chord first enters a song, if it ' +
+            'differs from the default.',
+        },
+        {
+          heading: 'B° means the seventh',
+          text:
+            'A bare ° now reads as the diminished seventh, which is what the symbol means in ' +
+            'practice; the word dim is the triad, and a chip offers the other reading.',
+        },
+      ],
+    },
+    '0.3.0': {
+      title: 'What changed in 0.3',
+      sections: [
+        {
+          heading: 'Português, español e italiano',
+          text:
+            'The app now speaks Brazilian Portuguese, Latin American Spanish and Italian as ' +
+            'well as English. It follows your browser’s language; the selector in the header changes ' +
+            'it, and the choice is remembered on this device.',
+        },
+        {
+          heading: 'Charts line up',
+          text:
+            'On screen and in print, the measures of a section sit in columns, the way a ' +
+            'hand-written chart does, and the printed sheet leads with the chart and keeps ' +
+            'the shapes small below it.',
+        },
+      ],
+    },
+    '0.4.0': {
+      title: 'What changed in 0.4',
+      sections: [
+        {
+          heading: 'Strumming or fingerstyle',
+          text:
+            'The rules that used to be called Standard are now Strumming, and Fingerstyle sits ' +
+            'beside them. A picking hand can simply not pick the string in the middle of a ' +
+            'chord, so fingerstyle allows shapes strumming cannot reach. Setting up an ' +
+            'instrument now asks which you play, and the instrument screen changes it later.',
+        },
+        {
+          heading: 'No more shapes muted for nothing',
+          text:
+            'A shape is no longer offered when the same shape with one of its muted strings ' +
+            'ringing is on offer too and the fingers that fill it go down easily. G minor gives ' +
+            'you 3x0333, where the D string rings, instead of 3xx333, where it is damped for ' +
+            'no reason, and open C is offered whole rather than as fragments of itself. A ' +
+            'reach or a barre still counts as work, so the shapes that need one are all still ' +
+            'there. A muted string in the middle also stopped counting against how hard a shape ' +
+            'is: played fingerstyle, a string you do not pick costs you nothing.',
+        },
+      ],
+    },
+    '0.5.0': {
+      title: 'What changed in 0.5',
+      sections: [
+        {
+          heading: 'Songs with their words',
+          text:
+            'A song can now be written the way a cifra is: a line of chords over the line it ' +
+            'is sung to, each chord above the syllable it falls on. Paste one in and it reads ' +
+            'as one, with [Intro] and Intro: naming sections the way # already does. The words ' +
+            'come with it onto the printed sheet, which now takes two columns where the song ' +
+            'is narrow enough — usually halving the pages. On a phone a verse wraps instead ' +
+            'of running off the side.',
+        },
+        {
+          heading: 'Charts are untouched',
+          text:
+            'A song with no words under its chords reads exactly as it did before. Where a ' +
+            'line could be either, a vertical bar makes it a chart and a leading > makes it ' +
+            'words — which is the only way to settle a verse that really does read "A", ' +
+            'against the chord of the same name.',
+        },
+      ],
+    },
+    '0.6.0': {
+      title: 'What changed in 0.6',
+      sections: [
+        {
+          heading: 'A song opens to be read',
+          text:
+            'A song now has a page of its own that shows it as it will come out on paper — ' +
+            'the words under the chords, and the shapes you play from — rather than opening ' +
+            'the editor. The text is still a button away, and the song list offers both.',
+        },
+        {
+          heading: 'One page at a time',
+          text:
+            'That page is broken into pages the size of your screen, so you can see where the ' +
+            'song runs past the end of one. The arrows in the corner turn them, and land a ' +
+            'whole page in the clear, which makes playing from a screen a page turn rather ' +
+            'than a scroll. Their middle straightens the page up again after a scroll by ' +
+            'hand, and the bar at the top no longer takes a strip of the window with it.',
+        },
+        {
+          heading: 'Cifras read better',
+          text:
+            'Brackets around a run of chords mark a repeat and are no longer read as chords. ' +
+            'Chords that carry on past the end of a line keep the spacing they were written ' +
+            'with. And a verse that wraps onto a line of one word is read as words, not as a ' +
+            'chord nobody recognises.',
+        },
+      ],
+    },
+    '0.7.0': {
+      title: 'What changed in 0.7',
+      sections: [
+        {
+          heading: 'Save everything to a file',
+          text:
+            'Everything you have is kept in this browser, which is fine until the device is ' +
+            'not. The instrument screen now saves the lot as one zip — your instruments and ' +
+            'their rules, your settings, your saved shapes and every song — and restores it ' +
+            'here or on another device.',
+        },
+        {
+          heading: 'Your songs are text files',
+          text:
+            'Inside the zip each song is a plain text file you can read or edit with anything. ' +
+            'Drop another one into the songs folder with any zip tool and it comes back as a ' +
+            'song, named after its file. A backup is yours to keep, not a format only this app ' +
+            'can make sense of.',
+        },
+      ],
+    },
+    '0.8.0': {
+      title: 'What changed in 0.8',
+      sections: [
+        {
+          heading: 'A reminder to back up',
+          text:
+            'Backup has a screen of its own now, and the song list speaks up when songs are ' +
+            'in no backup — because a new Android phone does not bring them across, and a ' +
+            'browser that clears its data takes them with it. On a phone, saving hands the ' +
+            'file to the share sheet, which is where Drive, Files and iCloud are.',
+        },
+        {
+          heading: 'Pages fill down before across',
+          text:
+            'Reading a song, a column now runs to the foot of the page before any of the song ' +
+            'goes beside it. A few verses on a wide screen used to come out as one line across ' +
+            'the top of an otherwise empty page. A second column is a page saved, not width to ' +
+            'be used up.',
+        },
+        {
+          heading: 'Chords keep their own brackets',
+          text:
+            'Em7(b5), A7(b13) and C7(9) were being read as a chord called Em7(b5 with a stray ' +
+            'bracket beside it, because brackets also mark a repeat. Only a bracket that ' +
+            'nothing closes, or that nothing opened, is a repeat mark now.',
+        },
+      ],
+    },
+    '0.9.0': {
+      title: 'What changed in 0.9',
+      sections: [
+        {
+          heading: 'The repeat sign',
+          text:
+            'A chart can say % for a measure that carries on as before, and it is read as ' +
+            'that rather than as a chord nobody recognises. It is shown the way you wrote it, ' +
+            'not turned into the chord it stands for, and there is nothing to choose for it: ' +
+            'the chord it repeats already has its shape where it was written.',
+        },
+      ],
+    },
+    '0.10.0': {
+      title: 'What changed in 0.10',
+      sections: [
+        {
+          heading: 'Every diagram the same size',
+          text:
+            'A shape that sits up the neck carries a fret number, and the room for it used to ' +
+            'make that diagram wider than the rest, leaving a row of them ragged and each grid ' +
+            'off-centre under its name. Every diagram now reserves that room whether it needs ' +
+            'it or not. The fret number is bigger too, and so are the diagrams on a printed ' +
+            'sheet, which were too small to read from a music stand.',
+        },
+        {
+          heading: 'What a shape actually sounds',
+          text:
+            'A chord name says what the harmony is. The shape decides which of its notes ends ' +
+            'up lowest, and whether the root is played at all. Where the two differ, the name ' +
+            'now carries a quiet note of what you are really holding: a Gm7 with its third ' +
+            'underneath reads Gm7/Bb. It matters most when another instrument has the bass, ' +
+            'because then taking a different inversion is the arrangement rather than an ' +
+            'accident.',
+        },
+        {
+          heading: 'The voicing wizard',
+          text:
+            'A button above the chart chooses shapes for the whole song at once. Three ways ' +
+            'so far: the smoothest path for the hand, down at the nut, or the six-string’s ' +
+            'part in a choro regional alongside a seven-string. It shows what it would do ' +
+            'before anything changes, and each one explains its own rules and cites its own ' +
+            'sources under "How it works".',
+        },
+        {
+          heading: 'Or name the chart by what you play',
+          text:
+            'A checkbox on the reading page names the chords in the chart by what the chosen ' +
+            'shapes actually sound, so Gm reads Gm/Bb where its shape puts the third ' +
+            'underneath. Off by default, since a chart names the harmony. It reaches the ' +
+            'printed sheet too, because that is the same renderer.',
+        },
+      ],
+    },
+    '0.11.0': {
+      title: 'What changed in 0.11',
+      sections: [
+        {
+          heading: 'Enter a shape by clicking it',
+          text:
+            'The list of shapes for a chord is what the search found, which is no help when ' +
+            'you already know what you want to play and it is not there. Both ways of ' +
+            'choosing a voicing now also offer a diagram big enough to click: a fret to put a ' +
+            'finger on it, again to take it off, the row above the nut to switch a string ' +
+            'between open and not played. It starts from the shape in effect, or from nothing, ' +
+            'and it will let you save a stretch it cannot find fingers for — a shape can be ' +
+            'right and awkward. Underneath are the notes it holds, with any note from outside ' +
+            'the chord marked.',
+        },
+        {
+          heading: 'Shapes go down the page on a phone',
+          text:
+            'A song\u2019s shapes and your saved ones were laid out in one row that scrolled ' +
+            'sideways, which left seven of eight off the edge of a screen with the whole page ' +
+            'height going spare. They wrap now. The chord results still scroll sideways, ' +
+            'because those are ranked and the first one in the row is the answer.',
+        },
+        {
+          heading: 'Fewer pages when reading a song',
+          text:
+            'A song whose chart lines are wider than a phone screen came out with a page per ' +
+            'section heading and its shapes cut off the side. The chart now takes the one page ' +
+            'it needs, and the shapes carry on across pages instead of being clipped.',
+        },
+      ],
+    },
+    '0.12.0': {
+      title: 'What changed in 0.12',
+      sections: [
+        {
+          heading: 'Bar numbers',
+          text:
+            'Transcribing from a score often means rewriting its structure: a repeat gets ' +
+            'written out straight, because that reads better to play from. The chart\u2019s bars ' +
+            'then stop matching the score\u2019s numbers, and \u201cfrom bar 9\u201d has to mean bar 9 of ' +
+            'the score. So bars count on their own, and @9 at the start of a measure says what ' +
+            'number that bar really is — on a heading too, as # A @9. The numbers run in the ' +
+            'margin of the reading page, and on the printed sheet with it. Off until you ask ' +
+            'for them, and not offered for a song with words in it, where a chord can last ' +
+            'four bars or half of one and the text does not say which.',
+        },
+        {
+          heading: 'The way to enter a shape is findable',
+          text:
+            'A chord has as many shapes as it has — forty-three for a C on a guitar — and the ' +
+            'buttons sat under that list, which on a phone put every one of them past the ' +
+            'bottom of the screen. They are above the list now, under the title.',
+        },
+      ],
+    },
+    '0.13.0': {
+      title: 'What changed in 0.13',
+      sections: [
+        {
+          heading: 'More than one way to play the same song',
+          text:
+            'A song used to hold one set of shapes per instrument. Now it can hold several — ' +
+            'an easy version and a fuller one, or two runs of the wizard kept side by side to ' +
+            'compare. The word before the colon on a voicings heading names the variation, so ' +
+            '“# Up the neck: E2, A2, …” is a variation called Up the neck. Add one above the ' +
+            'shapes, starting from the one you are in or from nothing, and switch between ' +
+            'them there or on the reading page. A chord a variation says nothing about sits on ' +
+            'its default, exactly as before.',
+        },
+        {
+          heading: 'A stray “null” is gone',
+          text:
+            'The reading page of a song with words in it printed the word null under the ' +
+            'title, and so did the shapes panel of a song with no chords yet. Both are fixed, ' +
+            'along with the reason they happened at all.',
+        },
+      ],
+    },
+    '0.14.0': {
+      title: 'What changed in 0.14',
+      sections: [
+        {
+          heading: 'The choro wizard asks how you want it played',
+          text:
+            'Some questions in this style have no right answer, only a preference. When the ' +
+            'seven-string walks up a semitone — F to F♯, under a bar of F and a bar of F♯° — a ' +
+            'third above it is A both times, so the six-string takes the same bass note twice. ' +
+            'A chorão might do exactly that, or drop to a third below instead. Both are in the ' +
+            'literature. That choice now sits beside the shapes: turn it and watch the whole ' +
+            'song answer. The “How this chooses” list turns with it, so what it says is always ' +
+            'what it is about to do.',
+        },
+        {
+          heading: 'Chords it used to leave blank',
+          text:
+            'A dominant with its seventh in the bass — C7/B♭ on its way to F — came back with ' +
+            'no shape at all. There is a documented answer: the six-string goes a third BELOW ' +
+            'the other guitar and rests on the fifth, C7/G. It plays that now. Cm7 was quietly ' +
+            'missing its third for a related reason. And a dominant can now be played as three ' +
+            'notes with the thumb up on the fourth string, which is the style’s other texture ' +
+            'and was simply absent here.',
+        },
+        {
+          heading: 'Diminished chords keep their tritone',
+          text:
+            'Asked for F♯°, the wizard gave four strings with no tritone in them and one of ' +
+            'those spent doubling a note. The fifth is the note this style drops — but not when ' +
+            'it is a flat fifth, which is the note that makes a diminished chord diminished. It ' +
+            'stays now, and so does the sharp fifth of an augmented chord.',
+        },
+        {
+          heading: 'One chord, two shapes, where the song wants them',
+          text:
+            'The wizard chose one shape per chord for a whole song. It can now give the same ' +
+            'chord a different shape in a different bar where its policy calls for one, and ' +
+            'writes the footnote marker itself. The preview shows the song as it will actually ' +
+            'be — the shapes it will carry, and how many bars each one covers — so a chord it ' +
+            'has split in two is something you see before you accept it rather than after.',
+        },
+      ],
+    },
+    '0.15.0': {
+      title: 'What changed in 0.15',
+      sections: [
+        {
+          heading: 'A dissertation we could not find last time',
+          text:
+            'The choro wizard follows written sources, and the one work devoted entirely to ' +
+            'the six-string’s part — José Paulo Becker on the Época de Ouro, 1996 — was not ' +
+            'to be had. It turned up. Everything below comes out of reading it, which is why ' +
+            'this release corrects things 0.14 had only half right. It is now listed under ' +
+            '“Where this comes from” with the rest.',
+        },
+        {
+          heading: 'The question it asks you is a better one now',
+          text:
+            'It used to ask what to do when the third above the other guitar repeated the ' +
+            'note you had just played. No source asks that — and Becker, who documents this ' +
+            'part in detail, never has the six-string go below the seven-string at all. So ' +
+            'the question is now the one the literature does ask: when no third above the ' +
+            'other guitar is in the chord, do you want a sixth and then an octave, or the ' +
+            'third below? C7/B♭ on its way to F is the case, and you can hear both.',
+        },
+        {
+          heading: 'It reaches the top string, and stays in its own register',
+          text:
+            'Two sources disagree about where the fingers go, and the one transcribing actual ' +
+            'performances won. Becker’s Época de Ouro guitar uses the first string constantly ' +
+            '— a D minor as D under A, D and F, straight across the top four — so the wizard ' +
+            'now offers those shapes. Measuring his transcriptions also gave the register the ' +
+            'part really sits in, never below the open sixth string and mostly between G and ' +
+            'the D above it, and the wizard now keeps to it instead of drifting up the neck.',
+        },
+        {
+          heading: 'And one thing deliberately left as it was',
+          text:
+            'The three-note dominant with the thumb on the fourth string, new in 0.14, rests ' +
+            'on a single source. Becker never mentions dropping a string, and his ' +
+            'transcriptions show four voices in that position. So the shape is still offered ' +
+            'and is no longer preferred. Where “How it works” tells you something rests on ' +
+            'one source, or on our reading rather than theirs, it now says so.',
+        },
+      ],
+    },
+  },
+};

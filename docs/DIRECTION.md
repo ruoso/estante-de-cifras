@@ -438,10 +438,20 @@ never rewritten.
 
 ## 5. What comes over from Explore Chords
 
-- **The music core and rendering** (`src/core/` except `song.js`,
+- **The music core and rendering** (`src/core/` except `song.js`, and
   `src/render/`): pitch, chords, notation dialects, fingering search, finger
-  assignment, scoring, heuristics, the voicing planner, diagrams. Pure,
-  storage-free, and tested. Carried over as is.
+  assignment, scoring, heuristics, diagrams — the parser-free primitives.
+  Pure, storage-free, and tested; carried over as is, together with the
+  instrument catalogue (`src/data/instruments.js`) and the i18n the
+  renderer's accessible labels need (`src/i18n/`), which they import.
+  **The song-document-coupled parts** — the voicing planner
+  (`src/core/voicing-plan/`), song analysis (`src/core/song-analysis.js`),
+  and the voicings document-adapters that resolve a song's chosen shapes or
+  write them back (`resolveSongVoicings`, `applySavedVoicings` in
+  `voicings.js`) — take a *parsed song* as input, so they come over with the
+  music stream that wires in cifra.md for JavaScript (the rewritten parser),
+  not with the foundational import; their Explore Chords tests carry over
+  there, against the new parser.
 - **The song parser is rewritten** as the cifra.md library for JavaScript
   (§3.6), written against the specification and its corpus: parser, writer,
   canonical form, merge, semantic diff. Explore Chords' `song.js` diverged
@@ -464,9 +474,11 @@ a song written there can be pasted into a new song here, and the parser
 accepts the legacy forms (cifra.md Appendix A) it would need.
 
 The music core comes over with its history (`git filter-repo` limited to
-`src/core/` and `src/render/`), since the commit messages are where many of
-its decisions are explained. So do the sections of Explore Chords'
-`DESIGN.md` that describe it (§§2.10, 2.11, 4, 5, 6).
+`src/core/`, `src/render/`, and the `src/data/instruments.js` and `src/i18n/`
+they import, with `song.js` and the parser-coupled modules deferred to the
+music stream left behind), since the commit messages are where many of its
+decisions are explained. So do the sections of Explore Chords' `DESIGN.md`
+that describe it (§§2.10, 2.11, 4, 5, 6).
 
 ## 6. Open decisions
 
