@@ -13,3 +13,8 @@ playwright-report/
 .claude/worktrees/
 report/
 .unblocked-report.tjp
+
+# The agent orchestrator's run logs and persisted state.
+orchestrator/logs/
+orchestrator/state/
+__pycache__/
