@@ -63,7 +63,8 @@ task storage "Storage" {
   task migrations "On-device versions" {
     effort 1d
     allocate team
+    complete 100
     depends !worker
-    note "Versioned migrations of what the Worker keeps in IndexedDB; an app update applied on the next launch, never mid-song. Tests: unit (each migration step); behavior (a store at version N opened by N+1 in a fake IndexedDB and migrated; an update held until the next launch)."
+    note "Versioned migrations of what the Worker keeps in IndexedDB; an app update applied on the next launch, never mid-song. Tests: unit (each migration step); behavior (a store at version N opened by N+1 in a fake IndexedDB and migrated; an update held until the next launch). Refinement: tasks/refinements/storage/migrations.md"
   }
 }

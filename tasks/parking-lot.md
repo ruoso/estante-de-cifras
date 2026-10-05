@@ -57,6 +57,12 @@ Append one `###` block per item, newest at the bottom:
 - **Question**: §8.5 was implemented in JavaScript only, against the spec prose; the Python reference does not implement editing operations and the corpus has no §8.5 fixtures. Should a future task add §8.5 to the Python reference and/or add editing corpus entries, to provide a cross-implementation second opinion for "two writers make the same change"?
 - **Why parked**: product scope decision. The current scope is correct per §Decisions — the app is the only editing client, Go never arranges, and the spec is the oracle. Adding §8.5 to the reference + corpus would require a non-trivial reference + corpus + (for symmetry) Go programme for behaviour no second implementation consumes. Only a person should decide whether the cross-check value justifies that work.
 
+### 2026-10-05 — Promote next-launch/never-mid-song lifecycle into DIRECTION §3.7
+
+- **Source**: closer for `storage.migrations` (commit TBD — see estante-de-cifras log), surfaced by refinement Decision 4.
+- **Question**: The next-launch / never-mid-song lifecycle (`skipWaiting: false`, `registerType: 'prompt'`) is documented in worker.md Decision 6 and the `protocol.js` header comment, but DIRECTION §3.7 has no prose sentence for it. Maintainers may want a sentence in DIRECTION §3.7 (around L394–396) recording the guarantee that a migration only activates on the next launch, never mid-session.
+- **Why parked**: documentation-scope decision. The behavior is already settled and tested (vite.config.js:39,52; worker.md Decision 6). Adding it to DIRECTION is a human judgment call about where normative prose should live; no current task is blocked.
+
 ### 2026-10-05 — Should the format specification carry a version string, and how should all three implementations declare it?
 - **Source**: closer for `cifra_js.conformance` (cifra.md commit `b7f5ce9`), surfaced by refinement §Open questions.
 - **Question**: `js/README.md` claims the §9 profiles against the in-repo specification; DIRECTION's *Versions* speaks of a canonical-form version the service negotiates (workflow 14), which is a different axis. Should the format spec itself carry a version number, and should all three implementations export a machine-readable `conformsTo` / `CONFORMANCE` constant or declare it in their READMEs? This is a cross-cutting format-governance decision that would move the spec, the reference, and both implementations together.

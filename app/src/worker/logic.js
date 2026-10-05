@@ -11,25 +11,47 @@
 // anyway, only the schema `meta`.
 
 import { event, EventKind, COMMAND, CommandKind } from './protocol.js';
+import {
+  MIGRATIONS,
+  META_STORE,
+  latestVersion,
+  runMigrations,
+} from './migrations.js';
 
-// The initial schema version. The IndexedDB database opens at this version and
-// carries a `meta` record stamped with it; `storage.migrations` steps the
-// version later (this task only opens at the initial one). Decision 7.
-export const SCHEMA_VERSION = 1;
+// The schema version the database opens at, DERIVED from the migration step
+// list (single source of truth — migrations.js Decision 1): bumping the schema
+// is appending a step there, nothing here. `storage.migrations` turned the
+// single-version open into this versioned stepping.
+export const SCHEMA_VERSION = latestVersion(MIGRATIONS);
 export const DB_NAME = 'estante';
-export const META_STORE = 'meta';
 export const META_KEY = 'meta';
 
-// Open (and, first time, create) the Worker's database at the initial schema
-// version with its `meta` object store. `idb` is the IndexedDB factory —
-// `globalThis.indexedDB` in a real Worker, an injected fake in a test.
-function openDatabase(idb, name, version) {
+// Open (and, first time or on upgrade, migrate) the Worker's database at the
+// latest schema version derived from `steps`. `idb` is the IndexedDB factory —
+// `globalThis.indexedDB` in a real Worker, an injected fake in a test. Every
+// step between the version found on disk and `version` runs in order inside the
+// one `versionchange` transaction.
+function openDatabase(idb, name, version, steps) {
   return new Promise((resolve, reject) => {
     const request = idb.open(name, version);
-    request.onupgradeneeded = () => {
+    request.onupgradeneeded = (ev) => {
       const db = request.result;
-      if (!db.objectStoreNames.contains(META_STORE)) {
-        db.createObjectStore(META_STORE);
+      // The `versionchange` transaction — the only place structural changes are
+      // valid, and the atomicity that keeps a half-applied upgrade from
+      // corrupting a user's only copy of their books.
+      const tx = request.transaction;
+      try {
+        runMigrations(db, tx, ev.oldVersion, ev.newVersion, steps);
+      } catch (err) {
+        // A step threw: abort so the on-disk version does not advance and no
+        // store is half-built, then surface the original cause. The abort also
+        // fires `onerror`, but the promise is already settled (Decision 3).
+        try {
+          tx.abort();
+        } catch {
+          // Already aborting — nothing more to do.
+        }
+        reject(err);
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -38,9 +60,14 @@ function openDatabase(idb, name, version) {
   });
 }
 
-// Read the persisted `meta` record, creating it on first open. The record is
-// what a fresh Worker instance over the same database recovers. Resolved on
-// transaction completion so the write is durable before we report it.
+// Read the persisted `meta` record, creating it on first open and keeping its
+// `schemaVersion` in step with the version on disk after an upgrade (Decision
+// 5): a fresh Worker instance reads `meta` to know what shape it is looking at,
+// so the record must never lie about the database. The on-disk version is
+// `db.version` — the version migrations just stepped the database to. The
+// record is what a fresh Worker instance over the same database recovers;
+// resolved on transaction completion so the write is durable before we report
+// it. `createdAt` is preserved across upgrades.
 function loadOrCreateMeta(db) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(META_STORE, 'readwrite');
@@ -51,10 +78,15 @@ function loadOrCreateMeta(db) {
       meta = request.result;
       if (!meta) {
         meta = {
-          schemaVersion: SCHEMA_VERSION,
+          schemaVersion: db.version,
           protocolVersion: 1,
           createdAt: Date.now(),
         };
+        store.put(meta, META_KEY);
+      } else if (meta.schemaVersion !== db.version) {
+        // An upgrade advanced the database since this record was written; keep
+        // it honest without disturbing the rest of the record.
+        meta = { ...meta, schemaVersion: db.version };
         store.put(meta, META_KEY);
       }
     };
@@ -67,15 +99,21 @@ function loadOrCreateMeta(db) {
 // Create the Worker logic bound to a `port` (anything with `postMessage`)
 // through which it emits events. `options.indexedDB` injects the IndexedDB
 // factory (defaults to the global one, present in a real Worker);
-// `options.name` lets a test isolate its database. Returns `{ handle }`:
-// the adapter (real or loopback) feeds each incoming command to `handle`.
+// `options.name` lets a test isolate its database; `options.migrations` injects
+// the step list (defaults to the production `MIGRATIONS`), reusing the existing
+// `options` seam so behavior tests can exercise genuine multi-step stepping
+// today, when only one real step exists. The version opened at is derived from
+// whichever list is in effect. Returns `{ handle }`: the adapter (real or
+// loopback) feeds each incoming command to `handle`.
 export function createWorkerLogic(port, options = {}) {
   const idb = options.indexedDB ?? globalThis.indexedDB;
   const name = options.name ?? DB_NAME;
+  const migrations = options.migrations ?? MIGRATIONS;
+  const version = latestVersion(migrations);
   let dbPromise = null;
 
   function ensureOpen() {
-    if (!dbPromise) dbPromise = openDatabase(idb, name, SCHEMA_VERSION);
+    if (!dbPromise) dbPromise = openDatabase(idb, name, version, migrations);
     return dbPromise;
   }
 
