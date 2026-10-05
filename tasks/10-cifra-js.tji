@@ -15,8 +15,9 @@ task cifra_js "cifra.md for JavaScript" {
   task text_layer "Text layer" {
     effort 1d
     allocate team
+    complete 100
     depends !package
-    note "cifra.md: §1.3 — UTF-8, NFC, LF, U+FEFF, tabs, whitespace as U+0020 only, marker lines. Tests: unit (each §1.3 rule: NFC, LF, U+FEFF, tabs, whitespace, marker lines); corpus (the text-layer checks of the entries that exercise them flipped to passing)."
+    note "cifra.md: §1.3 — UTF-8, NFC, LF, U+FEFF, tabs, whitespace as U+0020 only, marker lines. Tests: unit (each §1.3 rule: NFC, LF, U+FEFF, tabs, whitespace, marker lines); corpus (the text-layer checks of the entries that exercise them flipped to passing). Refinement: tasks/refinements/cifra_js/text_layer.md"
   }
   task chords "Chord symbols and dialects" {
     effort 2d
