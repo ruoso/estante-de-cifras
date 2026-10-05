@@ -57,8 +57,9 @@ task cifra_js "cifra.md for JavaScript" {
   task merge "Merge" {
     effort 8d
     allocate team
+    complete 100
     depends !writer, !setlists, format.merge
-    note "cifra.md: chapter 11 — whole files, alignment, chart, footnote markers with the grouping merged three ways, voicings, setlists, the conflict model and marked text. Held to corpus/merge/. Tests: unit (alignment, the chart, footnote markers, voicings, setlists, the conflict model and marked text, chapter 11 section by section); corpus (every corpus/merge/ entry: merged text and conflicts.json)."
+    note "cifra.md: chapter 11 — whole files, alignment, chart, footnote markers with the grouping merged three ways, voicings, setlists, the conflict model and marked text. Held to corpus/merge/. Tests: unit (alignment, the chart, footnote markers, voicings, setlists, the conflict model and marked text, chapter 11 section by section); corpus (every corpus/merge/ entry: merged text and conflicts.json). Refinement: tasks/refinements/cifra_js/merge.md"
   }
   task diff "Diff in musical terms" {
     effort 3d
