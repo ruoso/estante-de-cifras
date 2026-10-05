@@ -128,6 +128,13 @@
    "w": 3208,
    "h": 1500,
    "title": "16. The chord explorer"
+  },
+  "W15-set-up-an-instrument.dc.html": {
+   "x": 0,
+   "y": 26720,
+   "w": 3208,
+   "h": 1500,
+   "title": "15. Setting up an instrument"
   }
  },
  "order": [
@@ -147,7 +154,8 @@
   "W12-setlists.dc.html",
   "W13-new-device.dc.html",
   "W14-file-view.dc.html",
-  "W16-chord-explorer.dc.html"
+  "W16-chord-explorer.dc.html",
+  "W15-set-up-an-instrument.dc.html"
  ],
  "notes": {
   "workflows": {

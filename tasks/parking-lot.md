@@ -78,7 +78,8 @@ Append one `###` block per item, newest at the bottom:
 - **Question**: Explore Chords has display toggles for vertical/horizontal neck and left-handed mirror. The chord explorer (workflow 16) ships with the vertical `ChordBox` only. Should Estante carry these display toggles — and if so, as a home-book preference — so left-handed players can use the explorer and the in-song picker comfortably?
 - **Why parked**: product judgment call; no Estante workflow or mockup currently includes these toggles. Deciding yes would require a new home-book preference key, a `ChordBox` mirror mode, and a UI surface to toggle it — a deliberate decision, not an import.
 
-### 2026-10-05 — Browse / manage all my shapes surface
-- **Source**: closer for `design.explorer` (tasks/refinements/design/explorer.md), surfaced by implementer's return summary and the refinement §Open questions.
-- **Question**: The chord explorer (workflow 16) lets users star and unstar a shape per chord. There is no decided screen to review or remove *my shapes* across chords. Should a *browse / manage all my shapes* surface be added to Estante, and if so does it belong to `design.instruments` (workflow 15, which owns instrument-attached personal state)?
-- **Why parked**: scope decision; the explorer's per-chord starring is sufficient for now. Placing and scoping a management screen is a product judgment call — it may belong to `design.instruments` (workflow 15) or warrant its own design gap entry.
+### 2026-10-05 — Republish the mockup canvas after W15
+
+- **Source**: closer for `design.instruments` (tasks/refinements/design/instruments.md).
+- **Question**: The W15 board (`docs/mockups/W15-set-up-an-instrument.dc.html`) is written and registered in `canvas.json`, but the published canvas on Diagram.Codes (or wherever it is hosted) needs to be updated to include it. The implementer cannot render or publish the board.
+- **Why parked**: work only a person can do — requires publishing access to the external canvas host.

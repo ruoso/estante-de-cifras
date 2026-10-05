@@ -9,7 +9,8 @@ task design "Design gaps" {
   task instruments "Workflow 15: set up an instrument" {
     effort 2d
     allocate team
-    note "Tunings, a second instrument, switching, the voicing rules with presets and the expert panel. Explore Chords' DESIGN §2.1, 2.5 are the guide. DIRECTION §6. Tests: none — design deliverable (the workflow document and its board)."
+    complete 100
+    note "Tunings, a second instrument, switching, the voicing rules with presets and the expert panel. Explore Chords' DESIGN §2.1, 2.5 are the guide. DIRECTION §6. Tests: none — design deliverable (the workflow document and its board). Refinement: tasks/refinements/design/instruments.md"
   }
   task explorer "Workflow 16: the chord explorer" {
     effort 2d

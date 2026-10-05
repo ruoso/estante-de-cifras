@@ -135,10 +135,10 @@ component (§3.3).
 
 ### 3.2 Personal state
 
-Instruments, voicing rules, preferred notation, the theme, which variation
-is in use and how far a song is transposed, *my shapes* — how the user plays
-a chord on an instrument, used wherever a song has chosen none (workflow 2):
-none of this belongs to a song. It lives in a **home book**, a repository
+Instruments, which instrument is in use, voicing rules, preferred notation,
+the theme, which variation is in use and how far a song is transposed,
+*my shapes* — how the user plays a chord on an instrument, used wherever a
+song has chosen none (workflow 2): none of this belongs to a song. It lives in a **home book**, a repository
 like any other but committed automatically — explicit save is for what the
 user authors, not for preferences. One mechanism then replaces
 both a backup and setting up each new device.
@@ -498,9 +498,11 @@ that describe it (§§2.10, 2.11, 4, 5, 6).
 Nothing in the direction itself is undecided. What is left are gaps the
 workflows do not yet cover, and work that comes before building:
 
-- **Setting up an instrument**: tunings, a second instrument, the voicing
-  rules with their presets and expert panel. Half of Explore Chords, and the
-  reading view depends on it, but no workflow designs it yet.
+- **Setting up an instrument**, decided and drawn: workflow 15
+  ([workflows/15-set-up-an-instrument.md](workflows/15-set-up-an-instrument.md))
+  — the model of an instrument, a second instrument and switching, and the
+  voicing rules with their presets and expert panel, attached to each
+  instrument and stored in the home book.
 - **The chord explorer's screen**, decided and drawn: workflow 16
   ([workflows/16-chord-explorer.md](workflows/16-chord-explorer.md)). Workflow 2
   made it a search result; workflow 16 is what it shows — fingerings ranked and
@@ -517,8 +519,7 @@ Worked through one at a time, in [workflows/](workflows/), each to the point
 where its screens and its edge cases are known, and each drawn on a phone, a
 tablet and a computer in [mockups/](mockups/), with the visual language they
 share. The first fourteen were decided together; the design-gap workflows of
-§6 join them as each is drawn — workflow 16 here, with workflow 15 (setting up
-an instrument) still a gap, so the numbering skips it for now. Roughly in the
+§6 join them as each is drawn — workflows 15 and 16 here. Roughly in the
 order a user meets them:
 
 1. **First run** — what a new user sees, and how they reach a song.
@@ -539,6 +540,8 @@ order a user meets them:
 13. **A new device** — signing in, getting the home book and the books back.
 14. **The file view** — what an advanced user does there, and how it relates
     to the song views.
+15. **Set up an instrument** — tunings, a second instrument, switching, the
+    voicing rules with presets and the expert panel.
 16. **The chord explorer** — fingerings ranked and grouped by position,
     viewing by notation, starring a shape as *my shape*.
 
