@@ -10,7 +10,8 @@ task foundation "Foundation" {
   task monorepo "Monorepo layout" {
     effort 1d
     allocate team
-    note "app/, service/ (cmd/service, cmd/pre-receive), api/, e2e/ (api/ and web/, the end-to-end harnesses), docs/, compose.yaml. DIRECTION §3.6 Repositories. Tests: none — directories and ignore rules only; scripts/gate keeps passing over the new layout."
+    complete 100
+    note "app/, service/ (cmd/service, cmd/pre-receive), api/, e2e/ (api/ and web/, the end-to-end harnesses), docs/, compose.yaml. DIRECTION §3.6 Repositories. Tests: none — directories and ignore rules only; scripts/gate keeps passing over the new layout. Refinement: tasks/refinements/foundation/monorepo.md"
   }
   task app_tooling "App tooling" {
     effort 2d
