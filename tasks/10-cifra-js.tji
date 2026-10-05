@@ -36,8 +36,9 @@ task cifra_js "cifra.md for JavaScript" {
   task writer "Canonical writer" {
     effort 4d
     allocate team
+    complete 100
     depends !reader
-    note "cifra.md: §8 — invariants I1-I5, the numbered serializer, sung-line printing, refusing marked texts. Tests: unit (invariants I1-I5, sung-line printing, a marked text refused); corpus (model to canonical text and canonical text to canonical model, every entry, byte for byte)."
+    note "cifra.md: §8 — invariants I1-I5, the numbered serializer, sung-line printing, refusing marked texts. Tests: unit (invariants I1-I5, sung-line printing, a marked text refused); corpus (model to canonical text and canonical text to canonical model, every entry, byte for byte). Refinement: tasks/refinements/cifra_js/writer.md"
   }
   task setlists "Setlists" {
     effort 2d
