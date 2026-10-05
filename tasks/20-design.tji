@@ -34,7 +34,8 @@ task design "Design gaps" {
   task home_book_format "The home book's format" {
     effort 1d
     allocate team
-    note "Settings as JSON with a time on every key, so 'the later change wins' key by key; the shelf list, labels, instruments, rules, my shapes, theme, language, variation in use, transpositions. Workflows 8, 13. Tests: none — design deliverable (the format decided in a document); storage.home_book's tests pin it."
+    complete 100
+    note "Settings as JSON with a time on every key, so 'the later change wins' key by key; the shelf list, labels, instruments, rules, my shapes, theme, language, variation in use, transpositions. Workflows 8, 13. Tests: none — design deliverable (the format decided in a document); storage.home_book's tests pin it. Refinement: tasks/refinements/design/home_book_format.md"
   }
   task example_book "The example book's songs" {
     effort 2d

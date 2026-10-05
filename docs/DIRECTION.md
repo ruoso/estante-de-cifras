@@ -61,9 +61,15 @@ The app prescribes no layout. Folders are the user's to organise with, and
 the app shows a song's folder and can filter by it.
 
 A setlist is any file named `*.setlist.md` (workflow 12). Besides songs and
-setlists, a book holds a `README.md` and a `.gitattributes`, and nothing else:
-every song and setlist in canonical form, and every push checked by the
-service for all of it (workflow 14). A book is a songbook, not file storage.
+setlists, a **songbook** holds a `README.md` and a `.gitattributes`, and
+nothing else: every song and setlist in canonical form, and every push checked
+by the service for all of it (workflow 14). A songbook is not file storage.
+
+This "and nothing else" rule is a songbook's. The **home book** (§3.2) is a
+repository too, but a settings repository, not a songbook: its allowed kinds
+are its own — JSON settings files, a `README.md` and a `.gitattributes` —
+written down in [`home-book-format.md`](home-book-format.md) and checked as
+settings rather than songs (workflow 14).
 
 A book's title is the level-1 heading of its README, or the repository name.
 
@@ -136,6 +142,13 @@ none of this belongs to a song. It lives in a **home book**, a repository
 like any other but committed automatically — explicit save is for what the
 user authors, not for preferences. One mechanism then replaces
 both a backup and setting up each new device.
+
+The home book is a **settings repository**, not a songbook: its files are JSON
+that merge key by key, the later change winning (workflow 8), and its allowed
+kinds are its own, not §2.1's songbook kinds. The format — the tracked files,
+the per-key timestamped envelope, the merge, the canonical form and the
+per-device namespacing — is written down in
+[`home-book-format.md`](home-book-format.md).
 
 ### 3.3 The one server
 
@@ -496,8 +509,6 @@ workflows do not yet cover, and work that comes before building:
 - **How a screen reader reads a sung line**: an order for chords and words
   read aloud, decided rather than left to the markup.
 - **The theme picker**, decided (workflow 1) but not drawn.
-- **The home book's format**: JSON with a time on every key, so that "the
-  later change wins" can be done; short, but it needs writing down.
 
 ## 7. Workflows
 

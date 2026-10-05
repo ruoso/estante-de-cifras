@@ -41,4 +41,10 @@ task hook "The pre-receive hook" {
     depends !canonical, !limits
     note "Each refusal names what failed, through git's own channel, readable by isomorphic-git and the app. Tests: unit (one message per refusal, naming what failed); e2e-api (the whole refusal matrix against the stack, each message read as the git CLI and isomorphic-git present it)."
   }
+  task home_book "Validate a home-book push" {
+    effort 2d
+    allocate team
+    depends design.home_book_format, !contents, !canonical
+    note "The service tags the account's home book as its own repository kind and forwards that kind to the pre-receive hook through ESTANTE_*; the hook validates a home-book push against docs/home-book-format.md §8 — allowed kinds in canonical settings form, song files refused, malformed/non-canonical settings refused, no settings content logged — bypassing the songbook hook.contents/hook.canonical checks. Source: tasks/refinements/design/home_book_format.md (Decisions: The home book collides with the songbook rule). DIRECTION §2.1, §3.2, §3.3; workflow 8; docs/home-book-format.md §8. Tests: unit (settings-JSON validation: well-formed and canonical accepted, a song file refused, a malformed or non-canonical settings file refused); behavior (Go httptest against real git: a home-book push accepted, a song pushed to a home book refused, a settings file pushed to a songbook refused); e2e-api (isomorphic-git pushes a home book through the compose stack, a disallowed push refused — harness foundation.e2e_api)."
+  }
 }

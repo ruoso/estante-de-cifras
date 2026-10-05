@@ -15,7 +15,13 @@ is the service becoming file storage nobody meant to offer.
 
 ## What a book may hold
 
-These, and nothing else:
+This is a **songbook's** rule. The home book is a settings repository with its
+own allowed kinds (DIRECTION §3.2), written down in
+[`home-book-format.md`](../home-book-format.md) and checked as settings rather
+than songs; what follows governs songbooks, which is every book the file view
+shows.
+
+A songbook holds these, and nothing else:
 
 - `*.cifra.md` songs and `*.setlist.md` setlists, in any folder;
 - `README.md` at the root, which titles the book (DIRECTION §2.1);
