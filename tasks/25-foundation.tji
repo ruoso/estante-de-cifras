@@ -65,8 +65,9 @@ task foundation "Foundation" {
   task app_sw_register "Register service worker on app load" {
     effort 0.5d
     allocate team
+    complete 100
     depends !app_tooling
-    note "app/src/main.jsx: import `virtual:pwa-register` and call `registerSW()` so the precached shell controls the page and the app works offline. VitePWA sets `injectRegister: null` and `registerType: 'prompt'`; without this call the service worker is never registered, `navigator.serviceWorker.ready` never resolves, and the offline-first promise (DIRECTION §1 lines 29–31, §3.7 lines 405/424–426) is not kept. Unblocks foundation.e2e_web whose offline smoke test requires the worker to control the page. Source: foundation.e2e_web re-defer (tasks/refinements/foundation/e2e_web.md). Tests: behavior (mock `virtual:pwa-register`, assert registerSW() is called on startup)."
+    note "app/src/main.jsx: import `virtual:pwa-register` and call `registerSW()` so the precached shell controls the page and the app works offline. VitePWA sets `injectRegister: null` and `registerType: 'prompt'`; without this call the service worker is never registered, `navigator.serviceWorker.ready` never resolves, and the offline-first promise (DIRECTION §1 lines 29–31, §3.7 lines 405/424–426) is not kept. Unblocks foundation.e2e_web whose offline smoke test requires the worker to control the page. Source: foundation.e2e_web re-defer (tasks/refinements/foundation/e2e_web.md). Tests: behavior (mock `virtual:pwa-register`, assert registerSW() is called on startup). Refinement: tasks/refinements/foundation/app_sw_register.md"
   }
   task e2e_web "End-to-end web harness" {
     effort 2d
