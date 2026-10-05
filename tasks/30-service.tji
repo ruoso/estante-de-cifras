@@ -56,7 +56,8 @@ task service "The service" {
   task serve_app "Serve the app" {
     effort 1d
     allocate team
-    note "The built PWA at the root of the origin, its API beneath; cache headers for the service worker; noindex on everything. DIRECTION §3.3. Tests: behavior (httptest: the built app at the root, the API beneath, cache headers for the service worker, noindex on every response); e2e-api (against the stack: the app at /, an API route beside it, X-Robots-Tag on both)."
+    complete 100
+    note "The built PWA at the root of the origin, its API beneath; cache headers for the service worker; noindex on everything. DIRECTION §3.3. Tests: behavior (httptest: the built app at the root, the API beneath, cache headers for the service worker, noindex on every response); e2e-api (against the stack: the app at /, an API route beside it, X-Robots-Tag on both). Refinement: tasks/refinements/service/serve_app.md"
   }
   task admin "Admin actions for a notice" {
     effort 1d

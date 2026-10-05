@@ -27,6 +27,45 @@ func TestLoadDefaultsPortWhenUnset(t *testing.T) {
 	}
 }
 
+// TestLoadDefaultsAppRootWhenUnset pins that the app-root defaults to
+// DefaultAppRoot (the image's /srv/app, where the Dockerfile placed app/dist)
+// when ESTANTE_APP_ROOT is unset — so the deployed image needs no app-path
+// configuration (DIRECTION §3.3; service.serve_app, the config seam).
+func TestLoadDefaultsAppRootWhenUnset(t *testing.T) {
+	cfg, err := Load(envFrom(nil))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.AppRoot != DefaultAppRoot {
+		t.Errorf("AppRoot = %q, want default %q", cfg.AppRoot, DefaultAppRoot)
+	}
+}
+
+// TestLoadHonoursAppRoot pins that an explicit ESTANTE_APP_ROOT overrides the
+// default, so tests can point it at a fixture and dev at app/dist.
+func TestLoadHonoursAppRoot(t *testing.T) {
+	cfg, err := Load(envFrom(map[string]string{"ESTANTE_APP_ROOT": "/tmp/app-dist"}))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.AppRoot != "/tmp/app-dist" {
+		t.Errorf("AppRoot = %q, want /tmp/app-dist", cfg.AppRoot)
+	}
+}
+
+// TestLoadTreatsEmptyAppRootAsUnset pins that an empty ESTANTE_APP_ROOT (an
+// unset-but-present variable) falls back to the default rather than serving
+// from an empty path.
+func TestLoadTreatsEmptyAppRootAsUnset(t *testing.T) {
+	cfg, err := Load(envFrom(map[string]string{"ESTANTE_APP_ROOT": ""}))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.AppRoot != DefaultAppRoot {
+		t.Errorf("AppRoot = %q, want default %q", cfg.AppRoot, DefaultAppRoot)
+	}
+}
+
 // TestLoadHonoursPort pins that an explicit PORT overrides the default.
 func TestLoadHonoursPort(t *testing.T) {
 	cfg, err := Load(envFrom(map[string]string{"PORT": "3000"}))

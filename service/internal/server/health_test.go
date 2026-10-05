@@ -20,7 +20,11 @@ func TestHealthzThroughRealHandler(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
-	ts := httptest.NewServer(Handler(logger))
+	h, err := Handler(logger, newTestAppRoot(t))
+	if err != nil {
+		t.Fatalf("Handler: %v", err)
+	}
+	ts := httptest.NewServer(h)
 	defer ts.Close()
 
 	resp, err := http.Get(ts.URL + "/healthz")

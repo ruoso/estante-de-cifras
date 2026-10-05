@@ -1,20 +1,37 @@
 // Package server assembles the service's HTTP handler: a net/http.ServeMux
-// with the routes the skeleton serves, the request-logging middleware that
-// refuses bodies, and the health handler. Later service.* tasks register
-// their own routes on the mux; this package is the frame they hang on.
+// serving the built PWA at / with the health handler beside it, beneath the
+// origin-wide noindex and request-logging middlewares. Later service.* tasks
+// register their own /api and /git routes on the mux; this package is the
+// frame they hang on, and the origin-wide policies they inherit.
 package server
 
 import (
 	"log/slog"
 	"net/http"
+	"os"
 )
 
 // Handler builds the service's HTTP handler: a standard-library ServeMux
-// (method-and-path patterns, no third-party router — DIRECTION §3.6) behind
-// the request-logging middleware. Later service.* tasks register their routes
-// on a mux assembled the same way.
-func Handler(logger *slog.Logger) http.Handler {
+// (method-and-path patterns, no third-party router — DIRECTION §3.6) serving
+// the built PWA at / with the health check beside it, beneath two origin-wide
+// middlewares — X-Robots-Tag: noindex on every response, then request logging.
+// The app is read from appRoot on disk (service.serve_app); Handler fails fast
+// if that directory has no index.html. Later service.* tasks register their
+// /api and /git routes on a mux assembled the same way — ServeMux's
+// longest-prefix match lets those win over the app's / while every response
+// still inherits the noindex policy.
+func Handler(logger *slog.Logger, appRoot string) (http.Handler, error) {
+	app, err := newAppHandler(os.DirFS(appRoot))
+	if err != nil {
+		return nil, err
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", handleHealthz)
-	return LogRequests(logger, mux)
+	// The app at /: ServeMux routes everything not matched by a more specific
+	// pattern (GET /healthz now; /api/… and /git/… later) to the PWA, which
+	// serves a real asset or falls back to the shell for a client-side route.
+	mux.Handle("/", app)
+
+	return LogRequests(logger, NoIndex(mux)), nil
 }

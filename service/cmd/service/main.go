@@ -39,9 +39,14 @@ func run() error {
 		return err
 	}
 
+	handler, err := server.Handler(logger, cfg.AppRoot)
+	if err != nil {
+		return err
+	}
+
 	srv := &http.Server{
 		Addr:    net.JoinHostPort("", strconv.Itoa(cfg.Port)),
-		Handler: server.Handler(logger),
+		Handler: handler,
 	}
 
 	// A container is stopped by signal on every deploy and every
