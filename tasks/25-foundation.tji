@@ -29,8 +29,9 @@ task foundation "Foundation" {
   task service_skeleton "Service skeleton" {
     effort 1d
     allocate team
+    complete 100
     depends !monorepo
-    note "Go module, net/http, config, structured logging of request metadata only (never song text, commit messages or secrets), health check. DIRECTION §3.6. Tests: unit (config from the environment; the log line carries method, path, status and duration and never a body); behavior (the health check through httptest)."
+    note "Go module, net/http, config, structured logging of request metadata only (never song text, commit messages or secrets), health check. DIRECTION §3.6. Tests: unit (config from the environment; the log line carries method, path, status and duration and never a body); behavior (the health check through httptest). Refinement: tasks/refinements/foundation/service_skeleton.md"
   }
   task api_contract "API contract" {
     effort 2d
