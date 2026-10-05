@@ -486,9 +486,6 @@ workflows do not yet cover, and work that comes before building:
 - **The theme picker**, decided (workflow 1) but not drawn.
 - **The home book's format**: JSON with a time on every key, so that "the
   later change wins" can be done; short, but it needs writing down.
-- **Setlists in the canonical corpus**: the reference reads and writes them
-  and the merge corpus has setlists, but the canonical corpus has no
-  setlist entries for implementations to agree on.
 
 ## 7. Workflows
 

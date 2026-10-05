@@ -34,8 +34,9 @@ task format "The format" {
   task setlist_corpus "Setlists in the canonical corpus" {
     effort 1d
     allocate team
+    complete 100
     depends !setlists
-    note "cifra.md: canonical corpus entries for setlists (input, model, canonical text, canonical model), so implementations agree on setlists as on songs. DIRECTION §6. Tests: unit (pytest for any reference reader or writer change the new entries surface); corpus (the setlist entries pass `tools.corpus --check` in both directions)."
+    note "cifra.md: canonical corpus entries for setlists (input, model, canonical text, canonical model), so implementations agree on setlists as on songs. DIRECTION §6. Tests: unit (pytest for any reference reader or writer change the new entries surface); corpus (the setlist entries pass `tools.corpus --check` in both directions). Refinement: tasks/refinements/format/setlist_corpus.md"
   }
   task setlist_schema "JSON Schema for the setlist model" {
     effort 1d
