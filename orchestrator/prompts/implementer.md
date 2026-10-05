@@ -48,7 +48,16 @@ If the task creates something the gate will start checking (the first
 `$cifra_md_dir/go/go.mod`), make sure its `lint`, `test` and `build` scripts
 (or the Go module's packages) run non-interactively and pass: from then on
 the gate runs them on every task. Commit a lockfile with any new npm
-package.
+package, and make sure `node_modules/` is ignored in that repository
+(cifra.md has no root `.gitignore` yet).
+
+The gate **excuses** what is not set up yet, and says so with a
+`gate: SKIP` line: a directory that does not exist, an npm script that is
+missing or is `npm init`'s placeholder `test`, a package with no test files
+yet, a Go module with no packages yet. A SKIP is not a pass. When your task
+creates a package, give it its first real test in the same task, so the gate
+starts running its checks; and never meet an acceptance criterion with
+something the gate skipped.
 
 If you discover during implementation that a *test* itself needs to change
 (a stale fixture, a corpus entry that legitimately changes because the

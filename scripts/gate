@@ -61,9 +61,24 @@ trap 'rm -rf "$TMP"' EXIT
 step() { echo; echo "gate: $*"; }
 skip() { echo "gate: SKIP $*"; }
 
-# True when package.json in the current directory defines the npm script $1.
+# True when package.json in the current directory defines the npm script $1,
+# not counting the placeholder `npm init` writes for `test` (which exits 1 by
+# design: "Error: no test specified").
 has_npm_script() {
-  node -e 'const s = require("./package.json").scripts || {}; process.exit(s[process.argv[1]] ? 0 : 1)' "$1"
+  node -e '
+    const s = (require("./package.json").scripts || {})[process.argv[1]];
+    const placeholder = /no test specified/.test(s || "");
+    process.exit(s && !placeholder ? 0 : 1);
+  ' "$1"
+}
+
+# True when the npm package in the current directory has at least one test
+# file. A runner such as Vitest fails when it finds none, which is where every
+# package starts, so `test` is excused until the first test exists.
+has_js_tests() {
+  find . -path ./node_modules -prune -o -type f \
+    \( -name '*.test.*' -o -name '*.spec.*' -o -path '*/__tests__/*' \) \
+    -print -quit | grep -q .
 }
 
 # Install an npm package's dependencies when they are missing or older than
@@ -87,25 +102,39 @@ npm_checks() {
   npm_install_if_needed "$label"
   local script
   for script in lint test build; do
-    if has_npm_script "$script"; then
+    if ! has_npm_script "$script"; then
+      skip "$label: no '$script' script in package.json"
+    elif [[ "$script" == test ]] && ! has_js_tests; then
+      skip "$label: no test files yet"
+    else
       step "$label: npm run $script"
       CI=true npm run "$script"
-    else
-      skip "$label: no '$script' script in package.json"
     fi
   done
 }
 
-# go vet, go test and go build of the module in the current directory.
+# go vet, go test and go build of the module in the current directory. A
+# module that has no packages yet (just `go mod init`) makes all three fail
+# with "matched no packages", so it is excused until its first package exists.
+# Binaries go to a temporary directory, never into the tree.
 go_checks() {
   local label="$1"
+  if [[ -z "$(go list ./... 2>/dev/null)" ]]; then
+    skip "$label: no Go packages yet"
+    return
+  fi
   step "$label: go vet"
   go vet ./...
   step "$label: go test"
   go test -p "$JOBS" ./...
   step "$label: go build"
-  mkdir -p "$TMP/bin"
-  go build -p "$JOBS" -o "$TMP/bin/" ./...
+  if [[ -n "$(go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./...)" ]]; then
+    mkdir -p "$TMP/bin"
+    go build -p "$JOBS" -o "$TMP/bin/" ./...
+  else
+    # Libraries only: building several packages writes nothing.
+    go build -p "$JOBS" ./...
+  fi
 }
 
 # ---------------------------------------------------------------------------
