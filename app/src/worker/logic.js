@@ -25,6 +25,7 @@ import { createBookLocks } from './locks.js';
 import { createGitHttpClient } from './git-http.js';
 import { createGitLayer } from './git.js';
 import { createWorkingCopy } from './working-copy.js';
+import { createSavePreview } from './save-preview.js';
 import { createHistory } from './history.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createBooks } from './books.js';
@@ -271,6 +272,7 @@ export function createWorkerLogic(port, options = {}) {
   let git = null;
   let locks = null;
   let workingCopy = null;
+  let savePreview = null;
   let history = null;
   let homeBook = null;
   let books = null;
@@ -328,6 +330,23 @@ export function createWorkerLogic(port, options = {}) {
       });
     }
     return workingCopy;
+  }
+
+  // Compose the save-preview reader once (memoised like the working copy) over
+  // the SAME fs, git layer and lock registry, mirroring ensureWorkingCopy. It
+  // reads HEAD and the working copy and runs the semantic diff; the view only
+  // sends PREVIEW_SAVE (songs.save_sheet Decision 2). The cifra-md reader is the
+  // injectable `parseSong`, the same the index parses through.
+  function ensureSavePreview() {
+    if (!savePreview) {
+      savePreview = createSavePreview({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+        parse: parseSong,
+      });
+    }
+    return savePreview;
   }
 
   // Compose the history reader once (memoised like the working copy) over the
@@ -656,6 +675,41 @@ export function createWorkerLogic(port, options = {}) {
             }
             break;
           }
+          case CommandKind.PREVIEW_SAVE: {
+            // "What changed, in musical terms" for the save sheet, the discard
+            // confirm and *save all* (songs.save_sheet Decision 2): read HEAD and
+            // the working copy for each path and run the semantic diff. A read —
+            // no commit, no push. The preview itself is not logged (song text).
+            const { bookId, paths } = message.payload;
+            const { previews } = await ensureSavePreview().preview({ bookId, paths });
+            port.postMessage(event(EventKind.SAVE_PREVIEW, { bookId, previews }));
+            break;
+          }
+          case CommandKind.SET_IDENTITY_NAME: {
+            // Persist the author's display name to the home book, asked once
+            // (songs.save_sheet Decision 4; workflow 4 §Who made the change):
+            // provision a local home book if none exists, write the `authorName`
+            // register into preferences.json, and re-surface PREFERENCES so the
+            // slice carries it and the save sheet stops asking. Offline,
+            // auto-committed, never pushed (a preference). The name is a user's
+            // own words — never logged (standing rule).
+            const { name: displayName, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'preferences.json',
+              changes: [{ path: ['authorName'], value: displayName }],
+              author,
+            });
+            await surfaceHomeBookPreferences();
+            // Force the inode table out now (fs.js Decision 6), at the handler
+            // tail after the home book's lock has released: the only write was
+            // home.set's register change, which does not flush on its own, so an
+            // immediate reload reads the stored name — and never asks twice.
+            await ensureFs().flush();
+            break;
+          }
           case CommandKind.DISCARD: {
             const { bookId, paths } = message.payload;
             await ensureWorkingCopy().discard({ bookId, paths });
@@ -965,10 +1019,15 @@ export function createWorkerLogic(port, options = {}) {
             // collision-suffixed name are derived here (the Worker owns the dir
             // listing); the rename + canonical commit run under one lock in the
             // working copy.
-            const { bookId, fromPath, author } = message.payload;
+            const { bookId, fromPath, author, message: note, title: promptedTitle } =
+              message.payload;
             const dir = ensureGit().bookDir(bookId);
             const bytes = await ensureFs().promises.readFile(`${dir}/${fromPath}`);
-            const title = (parseSong(bytes)?.title ?? '').trim();
+            // The name the file carries, else the one the save sheet prompted for
+            // when the song has no title line yet (songs.save_sheet acceptance 7),
+            // which feeds both the slug filename and the default commit message.
+            const title =
+              (parseSong(bytes)?.title ?? '').trim() || (promptedTitle ?? '').trim();
             // Collision set: the folder's names minus the placeholder itself, so
             // a title whose slug equals the placeholder does not gain a suffix
             // against it.
@@ -982,9 +1041,10 @@ export function createWorkerLogic(port, options = {}) {
               bookId,
               fromPath,
               toPath,
-              // The W03 commit message, *Add {title}*. Git history, not a log —
-              // never written to `console` (standing rule).
-              message: `Add ${title || 'untitled'}`,
+              // The save sheet's note, else the W03 default *Add {title}*
+              // (songs.save_sheet Decision 5). Git history, not a log — never
+              // written to `console` (standing rule).
+              message: note || `Add ${title || 'untitled'}`,
               author: authorFrom(author),
             });
             if (outcome.refused) {

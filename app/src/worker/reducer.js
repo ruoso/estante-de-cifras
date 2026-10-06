@@ -86,6 +86,14 @@ export const initialState = {
   // (workflow 2 L17-20, Decision 2). Replaced whole on each RECENTS. Starts
   // empty: nothing opened yet.
   recents: [],
+  // The per-file save preview (songs.save_sheet, SAVE_PREVIEW), keyed by
+  // `bookId`: `{ [bookId]: { previews } }`, each preview `{ path, title,
+  // changes, summary, isNew }` — "what changed, in musical terms" the save sheet
+  // and the discard confirm render (Decision 2). Keyed by book like `save`, so a
+  // preview for one book leaves another's reference untouched; replaced whole on
+  // each SAVE_PREVIEW for that book (one sheet is open at a time). Starts empty:
+  // nothing previewed yet.
+  savePreview: {},
   // A song's working-copy text for the editor (songs.editor, SOURCE), nested
   // by `bookId` then `path`: `{ [bookId]: { [path]: { text } } }`. Nested, like
   // `history`, so a SOURCE for one song leaves every other song's entry at its
@@ -321,6 +329,21 @@ export function reduce(state, message) {
       // resets to empty — two independently-changing home-book files move two
       // slices independently (Decision 2).
       return { ...state, shelf: message.payload ?? {} };
+
+    case EventKind.SAVE_PREVIEW: {
+      // A save preview arrived: set this book's previews. Only this book's entry
+      // moves; the rest of `savePreview` keeps its references ("only what shows
+      // it moves"). An absent payload resets this book to an empty list.
+      const bookId = message.payload?.bookId;
+      if (!bookId) return state;
+      return {
+        ...state,
+        savePreview: {
+          ...state.savePreview,
+          [bookId]: { previews: message.payload?.previews ?? [] },
+        },
+      };
+    }
 
     case EventKind.SOURCE: {
       // A song's working-copy text arrived: set it under the book's path.

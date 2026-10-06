@@ -26,7 +26,9 @@ const HARBOUR = [
 ];
 
 // Replace the editor's template with `lines`, let the debounced WRITE settle so
-// the first save reads the typed title, then press Save.
+// the first save reads the typed title, then press Save and confirm the sheet.
+// The editor's Save opens the save sheet (songs.save_sheet); the first save ever
+// asks once for the author's name before it commits (§Who made the change).
 async function typeAndSave(page, lines) {
   const content = page.locator('.cm-content');
   await expect(content).toBeVisible();
@@ -38,6 +40,19 @@ async function typeAndSave(page, lines) {
   // wait for it before Save (mirrors editor.spec.js).
   await page.waitForTimeout(800);
   await page.getByRole('button', { name: 'Save' }).click();
+  await confirmSaveSheet(page);
+}
+
+// Confirm the open save sheet: wait for the preview (the note prefills from it,
+// and a typed title means no song-name prompt), give the author's name on this
+// first-ever save, then save and wait for the sheet to close.
+async function confirmSaveSheet(page) {
+  const sheet = page.getByRole('dialog');
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole('textbox', { name: 'Note' })).not.toHaveValue('');
+  await sheet.getByRole('textbox', { name: /Your name/ }).fill('Marina Souza');
+  await sheet.getByRole('button', { name: 'Save' }).click();
+  await expect(sheet).toBeHidden();
 }
 
 test('from the empty shelf: Write a song opens the editor on My songs, the first save names and keeps it', async ({
@@ -91,6 +106,7 @@ test('from search (no match): Create "{query}" opens the template titled with th
   await page.keyboard.insertText('Am G C');
   await page.waitForTimeout(800);
   await page.getByRole('button', { name: 'Save' }).click();
+  await confirmSaveSheet(page);
 
   await page.getByRole('searchbox').fill('Moonlit');
   await expect(page.getByText('Moonlit Pier')).toBeVisible();

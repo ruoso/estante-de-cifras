@@ -97,14 +97,34 @@ export const CommandKind = Object.freeze({
   // (the view knows the language), used only when provisioning *My songs*.
   NEW_SONG: 'new_song',
   // The first save of a new song (songs.new_song, workflow 3 §The first save).
-  // NAME_AND_SAVE `{ bookId, fromPath, author }`: the Worker parses the
-  // working-copy file for its title, derives the title's ASCII slug filename
-  // (`deriveSongFilename`, with a collision suffix against the folder), renames
-  // the placeholder to it, then canonicalises, commits *Add {title}* and pushes
-  // (a local book commits only; an online book pushes, or queues offline), and
+  // NAME_AND_SAVE `{ bookId, fromPath, author, message?, title? }`: the Worker
+  // parses the working-copy file for its title, derives the title's ASCII slug
+  // filename (`deriveSongFilename`, with a collision suffix against the folder),
+  // renames the placeholder to it, then canonicalises, commits and pushes (a
+  // local book commits only; an online book pushes, or queues offline), and
   // replies with the existing SAVED event carrying the final `path`. The app
-  // never renames it afterwards (DIRECTION §4 L446-448).
+  // never renames it afterwards (DIRECTION §4 L446-448). `message` is the save
+  // sheet's note — the commit message (songs.save_sheet Decision 5); absent, it
+  // falls back to the W03 *Add {title}*. `title` is the name the save sheet
+  // prompts for when the song has no title line yet (songs.save_sheet acceptance
+  // 7); it feeds `deriveSongFilename` and the default message when the parsed
+  // title is empty.
   NAME_AND_SAVE: 'name_and_save',
+  // Compute the per-file save preview (songs.save_sheet, Decision 2). PREVIEW_SAVE
+  // `{ bookId, paths }`: for each path the Worker reads the last-saved version
+  // (HEAD) and the working copy, parses both and runs the semantic `diff`,
+  // replying with a SAVE_PREVIEW event carrying `{ path, title, changes, summary,
+  // isNew }` per path — one reply serving a single save and *save all* alike. A
+  // read only: no canonicalise, no commit, no push. The Worker owns HEAD and the
+  // working copy (DIRECTION §3.7); the view renders what it returns.
+  PREVIEW_SAVE: 'preview_save',
+  // Persist the author's display name to the home book (songs.save_sheet,
+  // Decision 4; workflow 4 §Who made the change). SET_IDENTITY_NAME `{ name,
+  // author }`: the Worker provisions a local home book if none exists and writes
+  // the `authorName` register into preferences.json (home-book-format §4.1),
+  // then re-surfaces PREFERENCES so the slice carries it and the first save is
+  // the only one that asks. Offline, auto-committed, never pushed (a preference).
+  SET_IDENTITY_NAME: 'set_identity_name',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -168,6 +188,13 @@ export const EventKind = Object.freeze({
   // Decision 4): `{ bookId, path, text }`. The editor loads it into its
   // CodeMirror buffer; the `source` slice keeps it per book and path.
   SOURCE: 'source',
+  // The per-file save preview, in reply to PREVIEW_SAVE (songs.save_sheet,
+  // Decision 2): `{ bookId, previews: [{ path, title, changes, summary, isNew }] }`.
+  // `changes` is the diff's ordered record list and `summary` its neutral-English
+  // one-liner (cifra_js.diff); `title` is the working copy's title and `isNew`
+  // whether the path has no committed version yet. The `savePreview` slice keeps
+  // it per book for the save sheet and the discard confirm to render.
+  SAVE_PREVIEW: 'save_preview',
   // A new song's target book and placeholder path are ready, in reply to
   // NEW_SONG (songs.new_song, Decision 2): `{ bookId, path }`. A transient
   // command reply, NOT a read model — the host folds it into ephemeral view

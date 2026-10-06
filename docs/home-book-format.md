@@ -192,9 +192,10 @@ A flat map of singleton preferences, each a register:
 
 ```json
 {
-  "theme":    { "value": "palco",   "at": "2026-10-05T14:30:00.000Z" },
-  "language": { "value": "pt-BR",   "at": "2026-10-05T14:29:12.500Z" },
-  "notation": { "value": "<opaque>", "at": "2026-10-05T14:29:12.500Z" }
+  "theme":      { "value": "palco",   "at": "2026-10-05T14:30:00.000Z" },
+  "language":   { "value": "pt-BR",   "at": "2026-10-05T14:29:12.500Z" },
+  "notation":   { "value": "<opaque>", "at": "2026-10-05T14:29:12.500Z" },
+  "authorName": { "value": "Marina Souza", "at": "2026-10-05T14:29:12.500Z" }
 }
 ```
 
@@ -206,6 +207,11 @@ A flat map of singleton preferences, each a register:
   absent the app follows the browser.
 - `notation` — the notation dialect. Its value is **opaque** to this format;
   the music core owns the set of dialects.
+- `authorName` — the author's display name, as it will appear in a song's
+  history (workflow 4 §Who made the change). The first save asks for it once and
+  keeps it here; it is the commit author's name, distinct from the no-reply
+  address the id forms (§3.2). Absent until the first save; after sign-in the
+  account's name is offered in its place.
 
 ### 4.2 `shelf.json`
 

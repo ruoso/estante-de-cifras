@@ -14,10 +14,13 @@
 // them and routes presses back through callbacks. The unsaved badge carries the
 // word "unsaved" (never colour alone, mockups README L26).
 
+import { useState } from 'react';
 import { Button } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import SongEditor from '../editor/SongEditor.jsx';
 import WhichBook from './WhichBook.jsx';
+import SaveSheet from './SaveSheet.jsx';
+import DiscardConfirm from './DiscardConfirm.jsx';
 import './new-song.css';
 
 function BackIcon() {
@@ -45,10 +48,14 @@ export default function NewSongHost({
   mode,
   onBack,
   onChangeBook,
-  onSave,
   editorRef,
 }) {
   const { bookId, path, isNew, songTitle } = editing;
+  // The editor owns Save and its pre-save gate; the host owns what Save does
+  // (editor Decision 10) — it opens the save sheet (songs.save_sheet Decision 1).
+  // Discard is the host's own destructive affordance, which always asks.
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
   return (
     <div className="screen new-song">
       <div className="appbar">
@@ -57,6 +64,9 @@ export default function NewSongHost({
         </Button>
         <span className="title">{songTitle || t('newSong.untitled')}</span>
         <span className="badge unsaved dot">{t('newSong.unsaved')}</span>
+        <Button className="btn" onPress={() => setDiscardOpen(true)}>
+          {t('saveSheet.discard')}
+        </Button>
       </div>
       <WhichBook store={store} bookId={bookId} onChangeBook={onChangeBook} />
       {/* Keyed by book:path so changing the book (a re-target) remounts the
@@ -69,10 +79,29 @@ export default function NewSongHost({
         isNew={isNew}
         title={songTitle}
         layoutMode={mode}
-        onSave={onSave}
+        onSave={() => setSaveOpen(true)}
         editorRef={editorRef}
       />
       <p className="t-small new-song-note">{t('newSong.notationNote')}</p>
+      <SaveSheet
+        store={store}
+        isOpen={saveOpen}
+        onClose={() => setSaveOpen(false)}
+        bookId={bookId}
+        paths={[path]}
+        isNew
+        fromPath={path}
+        titleHint={songTitle}
+      />
+      <DiscardConfirm
+        store={store}
+        isOpen={discardOpen}
+        onClose={() => setDiscardOpen(false)}
+        onDiscarded={onBack}
+        bookId={bookId}
+        paths={[path]}
+        titleHint={songTitle || t('newSong.untitled')}
+      />
     </div>
   );
 }

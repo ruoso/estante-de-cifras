@@ -6,7 +6,7 @@
 // control. Fixtures are purpose-written — never anyone's copyrighted words.
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { MY_SONGS_ID } from '../worker/my-songs.js';
@@ -159,7 +159,7 @@ describe('which book', () => {
 });
 
 describe('the first save', () => {
-  it('pressing Save sends NAME_AND_SAVE, and SAVED closes the which-book control (workflow 3 §The first save)', async () => {
+  it('Save opens the sheet, confirming sends NAME_AND_SAVE, and SAVED closes the which-book control (workflow 3 §The first save; songs.save_sheet Decision 1)', async () => {
     const { store, sent, emit } = makeStore();
     render(<AppShell store={store} />);
 
@@ -167,10 +167,30 @@ describe('the first save', () => {
     emit(event(EventKind.SHELF, SHELF));
     emit(event(EventKind.NEW_SONG_READY, { bookId: MY_SONGS_ID, path: 'untitled.cifra.md' }));
 
+    // The editor's Save (its gate already passed) opens the save sheet — it does
+    // not commit directly any more (songs.save_sheet Decision 1).
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+    expect(lastCommand(sent, CommandKind.PREVIEW_SAVE)).toBeTruthy();
+
+    // The Worker replies with the preview and the stored author name, so the
+    // sheet shows what changed and can be confirmed.
+    emit(
+      event(EventKind.SAVE_PREVIEW, {
+        bookId: MY_SONGS_ID,
+        previews: [
+          { path: 'untitled.cifra.md', title: 'Garota', changes: [], summary: '', isNew: true },
+        ],
+      }),
+    );
+    emit(event(EventKind.PREFERENCES, { authorName: { value: 'Marina', at: AT } }));
+
+    // Confirming in the sheet sends NAME_AND_SAVE with the author name.
+    const dialog = screen.getByRole('dialog');
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Save' })));
     const cmd = lastCommand(sent, CommandKind.NAME_AND_SAVE);
     expect(cmd).toBeTruthy();
     expect(cmd.payload).toMatchObject({ bookId: MY_SONGS_ID, fromPath: 'untitled.cifra.md' });
+    expect(cmd.payload.author).toMatchObject({ id: 'local', name: 'Marina' });
 
     // The first save landed: the song is ordinary now, the which-book bar gone.
     emit(

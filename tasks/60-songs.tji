@@ -41,8 +41,15 @@ task songs "Songs" {
   task save_sheet "Save, discard, and the save sheet" {
     effort 2d
     allocate team
+    complete 100
     depends !editor, cifra_js.diff
-    note "What changed in musical terms, a note prefilled from it, save pushes; discard showing what would be lost; save all; the first save asking for a name. Workflow 4. Tests: behavior (the sheet's musical summary, the prefilled note, discard showing what would be lost, save all; axe); e2e-web (edit, save, discard, save all on the three viewports; a save made offline waits and pushes when the network returns; axe)."
+    note "What changed in musical terms, a note prefilled from it, save pushes; discard showing what would be lost; save all; the first save asking for a name. Workflow 4. Tests: unit (renderChange, buildSaveNote); behavior (the sheet's musical summary, the prefilled note, discard showing what would be lost, save all; axe); e2e-web (edit, save, discard, save all on the three viewports; a save made offline waits and pushes when the network returns; axe). Refinement: tasks/refinements/songs/save_sheet.md"
+  }
+  task editor_section_after_voicings "Place Add section in the song body, not after the voicings appendix" {
+    effort 0.5d
+    allocate team
+    depends !editor
+    note "The editor's Add section button inserts at document end; on a song with a voicings appendix (--- / ## Voicings:) the new section lands after the separator and is silently dropped by canonicalise at save — the user loses the edit without warning. Fix: insert the new section above the first --- that opens the appendix. Source of debt: tasks/refinements/songs/save_sheet.md (songs.save_sheet). Tests: unit (insert above the appendix separator); behavior (Add section in a song with voicings: the section lands in the body and a save round-trips it)."
   }
   task arrange "Arrange mode and the picker" {
     effort 4d

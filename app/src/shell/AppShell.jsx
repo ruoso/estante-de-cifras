@@ -247,20 +247,6 @@ export default function AppShell({ store = getAppStore() }) {
     setEditing(null);
   }, []);
 
-  // The first save: name the placeholder from the title, commit and push
-  // (songs.new_song, Decision 4). The editor's own pre-save gate (voicing /
-  // marker) has already passed when `onSave` fires.
-  const saveNewSong = useCallback(() => {
-    if (!editing?.bookId || !editing?.path) return;
-    store.send(
-      command(CommandKind.NAME_AND_SAVE, {
-        bookId: editing.bookId,
-        fromPath: editing.path,
-        author: LOCAL_IDENTITY,
-      }),
-    );
-  }, [store, editing]);
-
   // While a new song is open and its book/path are known, the host is a full
   // screen over the shell (W03 board: a Back affordance on every viewport, the
   // editor's own text/preview split as the wide layout).
@@ -272,7 +258,6 @@ export default function AppShell({ store = getAppStore() }) {
         mode={mode}
         onBack={exitEditing}
         onChangeBook={changeBook}
-        onSave={saveNewSong}
         editorRef={editorRef}
       />
     );

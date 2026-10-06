@@ -41,6 +41,7 @@ import {
   folderOf,
 } from './search-query.js';
 import FirstRun from './FirstRun.jsx';
+import SaveSheet from './SaveSheet.jsx';
 import { showsFirstRun, bookLabelFor as resolveBookLabel } from './first-run.js';
 import './search.css';
 
@@ -232,10 +233,14 @@ function BookSection({
   onOpen,
   onScopeBook,
   onWriteSong,
+  onSaveAll,
   canWrite,
 }) {
   const count = book?.count ?? 0;
   const songs = book?.songs ?? [];
+  // Save all is offered in a book's section for a book the user can push to when
+  // songs in it have unsaved changes (workflow 4 §Several songs at once).
+  const unsavedPaths = songs.filter((s) => s.unsaved).map((s) => s.path);
   const meta = building
     ? t('search.stillLoading')
     : t('search.songCount', { count });
@@ -265,6 +270,18 @@ function BookSection({
                 onPress={() => onWriteSong({ bookId })}
               >
                 <CreateIcon />
+              </Button>
+            )}
+            {/* Save all the book's changed songs in one commit (workflow 4
+                §Several songs at once); only for a book the user can push to and
+                only when something is unsaved. */}
+            {canWrite && unsavedPaths.length > 0 && (
+              <Button
+                className="btn save-all"
+                aria-label={t('saveSheet.saveAllLabel', { book: bookLabel })}
+                onPress={() => onSaveAll({ bookId, paths: unsavedPaths, bookLabel })}
+              >
+                {t('saveSheet.saveAll')}
               </Button>
             )}
             <Button
@@ -332,6 +349,9 @@ export default function SearchScreen({
 
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState(INITIAL_SCOPE);
+  // Save all opens the one save sheet over a book's changed songs (workflow 4
+  // §Several songs at once). Ephemeral view state: `{ bookId, paths, bookLabel }`.
+  const [saveAll, setSaveAll] = useState(null);
 
   const typedQuery = query.trim();
   const typed = typedQuery.length > 0;
@@ -560,6 +580,7 @@ export default function SearchScreen({
                     onOpen={onOpenSong}
                     onScopeBook={(bookId) => setScope({ books: [bookId] })}
                     onWriteSong={onWriteSong}
+                    onSaveAll={setSaveAll}
                     canWrite={canWriteTo(shelf, id)}
                   />
                 ))}
@@ -568,6 +589,17 @@ export default function SearchScreen({
           )}
         </>
       )}
+
+      {/* The one save sheet for *save all* (workflow 4 §Several songs at once):
+          one commit over every changed song in the book. */}
+      <SaveSheet
+        store={store}
+        isOpen={Boolean(saveAll)}
+        onClose={() => setSaveAll(null)}
+        bookId={saveAll?.bookId}
+        paths={saveAll?.paths ?? []}
+        titleHint={saveAll?.bookLabel ?? ''}
+      />
     </div>
   );
 }

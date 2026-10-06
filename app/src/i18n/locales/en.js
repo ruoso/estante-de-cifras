@@ -113,6 +113,69 @@ export default {
       'The notation comes from your preference, so the song reads the same to everyone.',
   },
 
+  // The save sheet, discard confirm and save-all (songs.save_sheet, workflow 4;
+  // W04 board). `{title}` is a song's title, `{count}` a number of songs,
+  // `{book}` a book's label. The on-screen "what changed" rows are localized
+  // (Decision 3); the saved note stays the diff's neutral English, so it reads
+  // the same for every member of a shared book.
+  saveSheet: {
+    title: 'Save {title}',
+    titleAll: { one: 'Save {count} song', other: 'Save {count} songs' },
+    whatChanged: 'What changed',
+    note: 'Note',
+    pushCaption:
+      'Saving shares this version with whoever shares the book; with no network, at the next sync.',
+    cancel: 'Cancel',
+    save: 'Save',
+    close: 'Close',
+    saveAll: 'Save all',
+    saveAllLabel: 'Save all changes in {book}',
+    // A new song with no title line yet is named here (acceptance 7), and the
+    // first save ever asks for the author's name (§Who made the change).
+    songNameLabel: 'Name this song',
+    songNameHelp: 'Used for its title and its file name.',
+    nameLabel: 'Your name, as it will appear in a song’s history',
+    nameHelp: 'Asked once. After you sign in, your account’s name is offered instead.',
+    // The Worker's backstop refusal surfaced (a marked/unreadable file); the
+    // editor's gate catches it first, so this is rare (Constraints).
+    refused: 'Not saved. Line {line} could not be read. Fix it in the editor, then save again.',
+    // Discard — the one destructive action, which always asks (§Discarding).
+    discardTitle: 'Discard changes to {title}?',
+    discardBody: 'The song goes back to how it was last saved. This would be lost:',
+    keepEditing: 'Keep editing',
+    discard: 'Discard changes',
+    // A book the user cannot push to (§A book the user cannot push to); the fork
+    // action itself is workflow 11's, delivered there (Deferred).
+    cannotSaveTitle: 'Saving {title}',
+    cannotSaveBody:
+      '{book} is someone else’s book, so this can’t be saved there. Your changes stay on this device, marked unsaved.',
+    makeYourOwn: 'Make this book your own',
+    notNow: 'Not now',
+    // The localized "what changed" rows (renderChange, Decision 3): a location
+    // and what changed there. Musical tokens — chords, note names, section
+    // names, property keys, bar numbers — pass through as data, never translated.
+    change: {
+      untitledSection: '(untitled)',
+      titleWhere: 'Title',
+      sectionsWhere: 'Sections',
+      voicingsWhere: 'Voicings',
+      sectionBar: '{section} bar {bar}',
+      added: '{value} added',
+      removed: '{value} removed',
+      changed: '{before} → {after}',
+      sectionAdded: 'section added',
+      sectionRemoved: 'section removed',
+      sectionRenamed: 'renamed to {name}',
+      sectionReordered: 'reordered',
+      wordsChanged: 'words changed',
+      voicingBlockAdded: 'added for {tuning}',
+      voicingBlockRemoved: 'removed for {tuning}',
+      voicingAdded: 'for {tuning}: {chord} added',
+      voicingRemoved: 'for {tuning}: {chord} removed',
+      voicingChanged: 'for {tuning}: {chord} changed',
+    },
+  },
+
   nav: {
     label: 'Sections',
     explore: 'Chords',

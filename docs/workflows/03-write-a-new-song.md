@@ -97,5 +97,6 @@ title, under the same message.
 ## The first save
 
 *Save* names the file, commits it with the message *Add Garota de Ipanema*,
-and from then on the song is an ordinary one: editing it is workflow 4.
-Whether a save also pushes is still open (DIRECTION §6).
+and from then on the song is an ordinary one: editing it is workflow 4. Like
+every save, it commits and then pushes — at once if there is a network, at the
+next sync if not (workflow 4, §Save pushes).

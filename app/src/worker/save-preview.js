@@ -1,0 +1,89 @@
+// save-preview.js — the per-file save preview (songs.save_sheet, Decision 2).
+// "What changed, in musical terms": the semantic diff between the last-saved
+// version and the working copy, for the save sheet, the discard confirm and
+// *save all* (workflow 4 §Saving, §Several songs at once, §Discarding).
+//
+// The Worker owns HEAD and the working copy (DIRECTION §3.7), so the diff is
+// computed here, not in the view: the view has neither, and one reply must serve
+// N paths in one go (save all). It is a READ — no canonicalise, no commit, no
+// push — composing the same primitives as the working copy and history (the git
+// transport for `bookDir`, the per-book lock, the shared fs), mirroring
+// `createHistory` (history.js).
+//
+// Framework-free, Worker-only: plain ESM, no React. Logs nothing — never song
+// text (standing rule); the diff records never reach `console`.
+
+import { diff } from 'cifra-md';
+import { resolveRef, readBlob } from 'isomorphic-git';
+
+/**
+ * Build the save-preview reader over the composed primitives — the same deps and
+ * shape as `createWorkingCopy`/`createHistory`. `parse` is the cifra-md reader
+ * (injected so logic.js can pass the same instance the index spies on).
+ *
+ * @param {{
+ *   fs: import('./fs.js').FileSystem,
+ *   git: ReturnType<typeof import('./git.js').createGitLayer>,
+ *   locks: ReturnType<typeof import('./locks.js').createBookLocks>,
+ *   parse: (input: string|Uint8Array) => object,
+ * }} deps
+ * @returns {{ preview: (opts: { bookId: string, paths: string[] }) =>
+ *   Promise<{ previews: Array<{ path: string, title: string, changes: object[], summary: string, isNew: boolean }> }> }}
+ */
+export function createSavePreview({ fs, git, locks, parse } = {}) {
+  if (!fs) throw new Error('createSavePreview requires an fs');
+  if (!git) throw new Error('createSavePreview requires a git layer');
+  if (!locks) throw new Error('createSavePreview requires a lock registry');
+  if (!parse) throw new Error('createSavePreview requires a parse');
+
+  const at = (dir, path) => `${dir}/${path}`;
+  // The empty model a never-saved song diffs against — all-added.
+  const EMPTY = parse('');
+
+  // The last-saved model for a path: the blob at HEAD parsed, or `null` when the
+  // path has no committed version yet — a never-saved song, or a book with no
+  // commits at all (resolveRef throws) — so the caller reads it as new.
+  async function headModel(dir, path) {
+    let head;
+    try {
+      head = await resolveRef({ fs, dir, ref: 'HEAD' });
+    } catch {
+      return null;
+    }
+    try {
+      const { blob } = await readBlob({ fs, dir, oid: head, filepath: path });
+      return parse(blob);
+    } catch (err) {
+      if (err?.code === 'NotFoundError') return null;
+      throw err;
+    }
+  }
+
+  // Preview one path: the semantic diff between HEAD (before) and the working
+  // copy (after), the working copy's title, and whether the song is new.
+  async function previewPath(dir, path) {
+    const after = parse(await fs.promises.readFile(at(dir, path)));
+    const before = await headModel(dir, path);
+    const { changes, summary } = diff(before ?? EMPTY, after);
+    return {
+      path,
+      title: (after?.title ?? '').trim(),
+      changes,
+      summary,
+      isNew: before === null,
+    };
+  }
+
+  // Preview every path under ONE lock on the book, so the read is consistent
+  // with any concurrent save/discard (mirrors history's read-under-lock).
+  function preview({ bookId, paths }) {
+    return locks.withLock(bookId, async () => {
+      const dir = git.bookDir(bookId);
+      const previews = [];
+      for (const path of paths) previews.push(await previewPath(dir, path));
+      return { previews };
+    });
+  }
+
+  return { preview };
+}

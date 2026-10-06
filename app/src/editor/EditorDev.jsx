@@ -6,9 +6,20 @@
 // (`#dev/editor?book=<id>&path=<path>`), or a blank template when none is given
 // (or `&new=1`). Like the chart gallery it uses raw dev copy for its own chrome
 // (not the i18n catalogues) and inherits the site-wide `.est` theme root.
+//
+// Save and Discard hand off to songs.save_sheet (Decision 1): when a concrete
+// book and path are open, Save opens the SaveSheet (an ordinary SAVE) and
+// Discard the DiscardConfirm; a discard reverts the working copy, so the editor
+// is remounted to reload the reverted text. The blank-template case (`new=1`,
+// no book) has nowhere to commit, so it keeps a lightweight confirmation — the
+// editor's pre-save gate is what that case exercises.
 
 import { useState } from 'react';
+import { Button } from 'react-aria-components';
 import SongEditor from './SongEditor.jsx';
+import SaveSheet from '../songs/SaveSheet.jsx';
+import DiscardConfirm from '../songs/DiscardConfirm.jsx';
+import { t } from '../i18n/index.js';
 import { getAppStore } from '../worker/store.js';
 
 function editorDevParams() {
@@ -24,10 +35,15 @@ function editorDevParams() {
 
 export default function EditorDev({ store = getAppStore() }) {
   const { bookId, path, isNew } = editorDevParams();
-  // The Save seam hands off to songs.save_sheet (Decision 10); that task is not
-  // built, so here a clean Save just confirms it would proceed — enough for the
-  // e2e to see the voicing-stop clear and Save go through.
+  const hasSong = Boolean(bookId && path);
+  // The blank-template case (no book) has nowhere to commit, so it keeps the
+  // old confirmation; a concrete song opens the real save sheet.
   const [saved, setSaved] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  // A discard reverts the working copy; bump the key so the editor remounts and
+  // re-reads the reverted text from the working copy (OPEN_SOURCE).
+  const [reloadKey, setReloadKey] = useState(0);
 
   return (
     <main
@@ -36,14 +52,38 @@ export default function EditorDev({ store = getAppStore() }) {
     >
       <h1 className="t-h1">Source editor (dev)</h1>
       {saved && <p role="status">Ready to save.</p>}
+      {hasSong && (
+        <Button className="btn" onPress={() => setDiscardOpen(true)}>
+          {t('saveSheet.discard')}
+        </Button>
+      )}
       <SongEditor
-        key={`${bookId ?? 'new'}:${path ?? ''}`}
+        key={`${bookId ?? 'new'}:${path ?? ''}:${reloadKey}`}
         store={store}
         bookId={bookId}
         path={path}
         isNew={isNew}
-        onSave={() => setSaved(true)}
+        onSave={() => (hasSong ? setSaveOpen(true) : setSaved(true))}
       />
+      {hasSong && (
+        <>
+          <SaveSheet
+            store={store}
+            isOpen={saveOpen}
+            onClose={() => setSaveOpen(false)}
+            bookId={bookId}
+            paths={[path]}
+          />
+          <DiscardConfirm
+            store={store}
+            isOpen={discardOpen}
+            onClose={() => setDiscardOpen(false)}
+            onDiscarded={() => setReloadKey((k) => k + 1)}
+            bookId={bookId}
+            paths={[path]}
+          />
+        </>
+      )}
     </main>
   );
 }

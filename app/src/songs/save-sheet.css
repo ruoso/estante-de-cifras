@@ -1,0 +1,35 @@
+/* save-sheet.css — layout for the save sheet and discard confirm (songs.save_sheet,
+   W04 board). The sheet/dialog scaffolding (.scrim, .sheet, .dialog, .grip,
+   .diff, .field, .input, .actions, .notice, .btn.danger) is the theme's
+   (theme.css); this adds only what the save surface needs on top. Tokens only,
+   never hard-coded colour (DIRECTION / mockups README L26). */
+
+/* The note's multi-line input: the mockup's roomy field (W04 phone Note). */
+.est-save-note {
+  min-height: 64px;
+  line-height: 1.4;
+  resize: vertical;
+  font: 400 15px/1.4 var(--font-ui);
+}
+
+/* The someone-else's-book explanation (W04 computer card). */
+.est-save-cannot {
+  color: var(--ink);
+}
+
+/* The Worker's backstop refusal, if it ever fires (editor gate catches first). */
+.est-save-refused {
+  margin: 0;
+}
+
+/* Save all: each song's changes under its own title (W04 computer Unsaved). */
+.est-save-songs {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}
+
+.est-save-song-title {
+  font-weight: 700;
+  color: var(--ink);
+}

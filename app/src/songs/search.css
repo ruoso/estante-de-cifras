@@ -143,6 +143,16 @@
   cursor: pointer;
 }
 
+/* Save all for a book's changed songs (songs.save_sheet, workflow 4 §Several
+   songs at once): a compact text button in the section head, beside the scope
+   controls. Keeps the 44px touch target. */
+.book-head .save-all {
+  flex: none;
+  min-height: 44px;
+  padding: 0 calc(var(--u) * 1.5);
+  font-size: 14px;
+}
+
 .book-panel {
   padding-top: var(--u);
 }
