@@ -9,6 +9,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { undo } from '@codemirror/commands';
+import { write, parse } from 'cifra-md';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind } from '../worker/protocol.js';
@@ -81,6 +82,74 @@ describe('SongEditor', () => {
     expect(cursorLine.text).toBe(''); // the empty line
     expect(state.doc.line(cursorLine.number - 1).text).toBe('```'); // fence open above
     expect(state.doc.line(cursorLine.number + 1).text).toBe('```'); // fence close below
+  });
+
+  it('adds a section in the body (not the voicings appendix) on a song with voicings, and the section survives a save', async () => {
+    // songs.editor_section_after_voicings: on a song whose chart is followed by
+    // a `---` / `## Voicings:` appendix, Add section must insert BEFORE the rule
+    // (the end of the chart), or canonicalise drops the section on save (spec
+    // §1.5/§8.2; corpus/29-voicings-part). Pins the note's behavior clause.
+    const { store, emit } = makeStore();
+    const editorRef = { current: null };
+    const SONG = [
+      '# Lua Nova',
+      '',
+      '## Primeira Parte',
+      '```',
+      'G  D',
+      '```',
+      '',
+      '---',
+      '',
+      '## Voicings: E2 A2 D3 G3 B3 E4',
+      '- G: 320003',
+      '',
+    ].join('\n');
+    const { container } = render(
+      <SongEditor store={store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} onSave={() => {}} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: SONG }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(SONG));
+
+    const button = screen.getByRole('button', { name: t('editor.source.addSection') });
+    act(() => {
+      fireEvent.keyDown(button, { key: 'Enter' });
+      fireEvent.keyUp(button, { key: 'Enter' });
+    });
+
+    const state = editorRef.current.state;
+    const doc = state.doc.toString();
+    // The new section's heading + empty fence lands in the chart, before the
+    // rule and the voicing block — not at the document end inside the appendix.
+    const headingAt = doc.indexOf('\n## \n'); // the new empty `## ` heading line
+    const ruleAt = doc.indexOf('\n---\n');
+    const voicingsAt = doc.indexOf('## Voicings:');
+    expect(headingAt).toBeGreaterThan(-1);
+    expect(headingAt).toBeLessThan(ruleAt);
+    expect(headingAt).toBeLessThan(voicingsAt);
+    // A blank line separates the new section from the following rule.
+    expect(doc).toContain('```\n\n---\n');
+
+    // The cursor sits on the empty line inside the new fence.
+    const cursorLine = state.doc.lineAt(state.selection.main.head);
+    expect(cursorLine.text).toBe('');
+    expect(state.doc.line(cursorLine.number - 1).text).toBe('```'); // fence open above
+    expect(state.doc.line(cursorLine.number + 1).text).toBe('```'); // fence close below
+
+    // The save round-trips the new section: canonicalising the buffer the way
+    // the Worker's save does (write ∘ parse) keeps the section in the chart (an
+    // empty section serialises as `##`), before the voicings part — whereas the
+    // same section appended AFTER the rule is dropped (spec §8.2).
+    const saved = write(parse(doc));
+    const savedHeadingAt = saved.indexOf('\n##\n');
+    const savedVoicingsAt = saved.indexOf('## Voicings:');
+    expect(savedHeadingAt).toBeGreaterThan(-1);
+    expect(savedHeadingAt).toBeLessThan(savedVoicingsAt);
+    const preFix = `${SONG}\n## \n\`\`\`\n\n\`\`\``; // the pre-fix behaviour: append at document end
+    expect(write(parse(preFix))).not.toContain('\n##\n');
+
+    // No UI change — the editor stays accessible.
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
   it('wraps a pasted cifra in a fence and promotes its title, reversible by the notice and by undo', async () => {

@@ -33,6 +33,7 @@ import { t } from '../i18n/index.js';
 import Chart from '../chart/Chart.jsx';
 import { classifyLines } from './cifra-syntax.js';
 import { fencePaste } from './fence-paste.js';
+import { sectionInsertPos } from './section-insert.js';
 import { template, templateDialect } from './template.js';
 import './editor.css';
 
@@ -252,13 +253,24 @@ export default function SongEditor({
     const view = viewRef.current;
     if (!view) return;
     const docStr = view.state.doc.toString();
-    const end = docStr.length;
-    const trailing = /\n*$/.exec(docStr)[0].length;
-    const sep = end === 0 ? '' : '\n'.repeat(Math.max(0, 2 - trailing));
-    const head = `${sep}## \n\`\`\`\n`;
-    const insert = `${head}\n\`\`\``;
-    const cursor = end + head.length; // the empty line between the fences
-    view.dispatch({ changes: { from: end, insert }, selection: { anchor: cursor }, scrollIntoView: true });
+    // The end of the chart, not the end of the document: on a song with a
+    // voicings appendix the new section must land before the rule, or
+    // canonicalise drops it on save (section-insert.js; spec §1.5/§8.2). With no
+    // appendix this is `docStr.length`, exactly as Add section behaved before.
+    const from = sectionInsertPos(docStr);
+    const before = docStr.slice(0, from);
+    const after = docStr.slice(from);
+    // Pad a blank line before the heading (unless inserting at the very start)
+    // and — when there is an appendix following — a blank line after the closing
+    // fence, honouring the newlines already present on each side.
+    const leadingNL = /\n*$/.exec(before)[0].length;
+    const afterNL = /^\n*/.exec(after)[0].length;
+    const leadSep = before.length === 0 ? '' : '\n'.repeat(Math.max(0, 2 - leadingNL));
+    const trailSep = after.length === 0 ? '' : '\n'.repeat(Math.max(0, 2 - afterNL));
+    const head = `${leadSep}## \n\`\`\`\n`;
+    const insert = `${head}\n\`\`\`${trailSep}`;
+    const cursor = from + head.length; // the empty line between the fences
+    view.dispatch({ changes: { from, insert }, selection: { anchor: cursor }, scrollIntoView: true });
     view.focus();
   };
 
