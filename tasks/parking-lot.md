@@ -146,6 +146,16 @@ Append one `###` block per item, newest at the bottom:
 - **Question**: Workflow 1 §Language (lines 82–84) and DIRECTION §Theme say the language is chosen in the header alongside the theme. The WBS instead routes the language+theme control to `account.account_screen` (`tasks/70-account.tji:26-30`). These two placements need reconciliation before `account.account_screen` is drawn, so the chooser control lands in the right place. `shell.i18n` is intentionally placement-agnostic — it applies whatever the `preferences` slice says regardless of where the chooser lives.
 - **Why parked**: product/interface judgment call; resolving it requires a human decision on whether Workflow 1's header placement or the account-screen placement wins, before the chooser control task is scoped.
 
+### 2026-10-06 — Final PWA icon artwork
+- **Source**: closer for `shell.pwa` (see estante-de-cifras log), surfaced by refinement §Open questions.
+- **Question**: `shell.pwa` commits functional, visual-language-derived icons (`icon.svg`, `icon-192.png`, `icon-512.png`, `icon-512-maskable.png`, `apple-touch-icon-180.png`). Brand-grade, design-reviewed icon artwork is a separate design call. Should a future design pass replace the current geometric icons with brand-quality artwork?
+- **Why parked**: design/product judgment call; the functional icons meet the installability criteria. Brand artwork requires a deliberate design decision, not an automated agent deliverable.
+
+### 2026-10-06 — Update-ready notice copy and placement within the shell
+- **Source**: closer for `shell.pwa` (see estante-de-cifras log), surfaced by refinement §Open questions.
+- **Question**: `shell.pwa` renders a defensible, non-modal update notice with placeholder copy. There is no workflow or mockup board specifying the exact wording, placement, or visual treatment of the update affordance within the shell. Should a future design pass define the notice's copy and its exact position in the shell layout?
+- **Why parked**: design/copy judgment call; the shipped notice is non-modal, keyboard-reachable, and axe-clean. Wording and placement refinement requires a human design decision about the in-shell hierarchy.
+
 ### 2026-10-06 — `.tji` note and `songs.search` Decision 6 say per-book status comes from `shelf.json`
 - **Source**: closer for `storage.shelf_surface` (see estante-de-cifras log), surfaced by implementer's return summary and refinement Decision 3.
 - **Question**: The `tasks/40-storage.tji` note for `shelf_surface` and `songs.search` Decision 6 both state the per-book status ('reading', 'N setlists') "comes from `shelf.json`." It does not — `home-book-format.md` §4.2 has no status field. The status is derived by consumers from index/derived state (Decision 3 of this refinement). Should the `.tji` note and any future refinement or workflow prose that mentions this status be re-worded to say it is composed by consumers from derived state rather than read from `shelf.json`?

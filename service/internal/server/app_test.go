@@ -42,6 +42,7 @@ func newTestAppRoot(t *testing.T) string {
 	write("sw.js", "/* service worker */\n")
 	write("workbox-deadbeef.js", "/* workbox runtime */\n")
 	write("manifest.webmanifest", `{"name":"Estante de Cifras"}`)
+	write("icon-192.png", "\x89PNG\r\n\x1a\n fixture icon bytes")
 	return dir
 }
 
@@ -147,6 +148,26 @@ func TestCacheHeaders(t *testing.T) {
 	}
 	if got := resp.Header.Get("Content-Type"); got != "application/manifest+json" {
 		t.Errorf("GET /manifest.webmanifest Content-Type = %q, want application/manifest+json", got)
+	}
+}
+
+// TestIconContentType pins that a PWA icon served at the dist root carries an
+// image content type (shell.pwa: the browser's install UI and the e2e-web
+// installable check need image/png, not octet-stream) and revalidates with the
+// shell, since it is served under its own un-fingerprinted name.
+func TestIconContentType(t *testing.T) {
+	ts := httptest.NewServer(newTestHandler(t))
+	defer ts.Close()
+
+	resp, _ := get(t, ts.URL, "/icon-192.png")
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("GET /icon-192.png status = %d, want 200", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Content-Type"); got != "image/png" {
+		t.Errorf("GET /icon-192.png Content-Type = %q, want image/png", got)
+	}
+	if got := resp.Header.Get("Cache-Control"); got != cacheRevalidate {
+		t.Errorf("GET /icon-192.png Cache-Control = %q, want %q", got, cacheRevalidate)
 	}
 }
 

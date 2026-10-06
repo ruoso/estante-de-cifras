@@ -421,6 +421,14 @@ languages. Its components carry no look of their own, so the visual language
 - **Charts are drawn by the app**, in a proportional face, as chords stacked
   over the syllables they belong to, with a centred hyphen where a chord
   opens room inside a word (`docs/mockups/`).
+- **Installed, and updated on the next launch.** The browser installs the
+  app from a web app manifest — its name, icons and colours — and caches the
+  shell up front, so it opens with no signal. A new version is fetched in the
+  background and never replaces a running session; it applies on the next
+  launch, or when the person chooses to reload. The middle of a performance is
+  the worst moment for anything to move (workflow 8), and the main thread and
+  the Worker stay the same build within one session, so a schema migration
+  (§3.2) only ever runs at that same launch boundary.
 - **Tooling carries over from Explore Chords**: Vite, the PWA plugin, Vitest
   with Testing Library, Playwright, axe at WCAG 2.1 AA, and the i18n set-up
   with its four languages.

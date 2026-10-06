@@ -1,0 +1,26 @@
+/* The update notice (shell.pwa). Built on the visual language's `.notice.accent`
+   (docs/mockups/theme.css) — a soft accent tint with ink text, so its status
+   reads on both the light and dark (Palco) themes. It is pinned over the shell,
+   centred near the top and clear of the phone tab bar, so it is non-modal: it
+   covers no control and traps no focus. */
+.update-ready {
+  position: fixed;
+  top: calc(var(--u) * 2);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  align-items: center;
+  width: max-content;
+  max-width: min(520px, calc(100vw - var(--u) * 4));
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
+
+.update-ready .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.update-ready .actions {
+  margin: 0;
+  flex-wrap: nowrap;
+}

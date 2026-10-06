@@ -689,10 +689,13 @@ export default {
     never: "Don't ask again",
   },
 
+  // The PWA update notice (shell.pwa): a quiet, dismissible status that a new
+  // version is waiting. `reload` takes it now; `dismiss` hides the notice and
+  // the update applies on the next launch.
   update: {
     ready: 'A new version is ready.',
-    reload: 'Reload',
-    later: 'Later',
+    reload: 'Reload now',
+    dismiss: 'Dismiss',
   },
 
   announce: {

@@ -24,6 +24,26 @@ describe('main entry', () => {
     await import('./main.jsx');
 
     expect(registerSW).toHaveBeenCalledTimes(1);
-    expect(registerSW).toHaveBeenCalledWith({ immediate: true });
+    const options = registerSW.mock.calls[0][0];
+    expect(options.immediate).toBe(true);
+    // shell.pwa wires onNeedRefresh so a waiting worker surfaces the update
+    // affordance; `immediate` still holds (foundation.app_sw_register).
+    expect(typeof options.onNeedRefresh).toBe('function');
+  });
+
+  // shell.pwa: the entry feeds the plugin's onNeedRefresh to the main-thread
+  // update store, so a waiting worker flips the store that the shell's notice
+  // reads (the user-visible "update on the next launch" affordance handed here
+  // by app_sw_register.md).
+  it('wires onNeedRefresh to the update store', async () => {
+    const { registerSW } = await import('virtual:pwa-register');
+    const { updateStore } = await import('./pwa/update-state.js');
+
+    await import('./main.jsx');
+
+    expect(updateStore.getSnapshot().updateReady).toBe(false);
+    const { onNeedRefresh } = registerSW.mock.calls[0][0];
+    onNeedRefresh();
+    expect(updateStore.getSnapshot().updateReady).toBe(true);
   });
 });

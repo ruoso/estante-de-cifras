@@ -1,0 +1,16 @@
+<!-- Source artwork for the PWA icons (shell.pwa Decision: hand-authored, no icon
+     generator dependency). The ink-blue field with three off-white book spines on
+     a shelf — the "estante". Rasterised by hand into icon-192.png, icon-512.png,
+     icon-512-maskable.png and apple-touch-icon-180.png; colours are the visual
+     language's --accent (#1F4F8F) and --bg (#F3F4F1) from docs/mockups/theme.css.
+     All marks sit inside the central 56% of the canvas, within the maskable safe
+     zone. Not referenced by the manifest (the PNGs are); kept as the source. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#1F4F8F" />
+  <g fill="#F3F4F1">
+    <rect x="128" y="154" width="61" height="184" rx="6" />
+    <rect x="225" y="133" width="61" height="205" rx="6" />
+    <rect x="323" y="164" width="61" height="174" rx="6" />
+    <rect x="113" y="343" width="286" height="31" rx="6" />
+  </g>
+</svg>

@@ -148,6 +148,12 @@ func contentType(name string) string {
 		return "application/json"
 	case strings.HasSuffix(name, ".svg"):
 		return "image/svg+xml"
+	case strings.HasSuffix(name, ".png"):
+		// The PWA's manifest icons and the favicon/apple-touch icon, served at
+		// the dist root by fixed name (app/public/, shell.pwa). Go's mime table
+		// knows .png, but the content type is pinned here with the rest so the
+		// bundle's types are not left to content sniffing.
+		return "image/png"
 	}
 	return "application/octet-stream"
 }

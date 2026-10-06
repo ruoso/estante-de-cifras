@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { manifest } from './src/pwa/manifest.js';
 
 // The service serves the app on one origin in production (DIRECTION §3.6); in
 // development Vite proxies the API to the service so dev is one origin too
@@ -51,20 +52,11 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: false,
       },
-      manifest: {
-        name: 'Estante de Cifras',
-        short_name: 'Estante',
-        description: 'Your shelf of chord charts. Works offline.',
-        id: '/',
-        start_url: '/',
-        scope: '/',
-        display: 'standalone',
-        // From the visual language's default direction (docs/mockups/theme.css):
-        // --bg and --accent.
-        background_color: '#F3F4F1',
-        theme_color: '#1F4F8F',
-        categories: ['music'],
-      },
+      // The manifest — fields and icons — lives in a pure module so it is
+      // unit-tested without pulling the plugin graph into the test environment
+      // (shell.pwa Decision). VitePWA emits it as manifest.webmanifest and links
+      // it from the built index.html.
+      manifest,
       devOptions: { enabled: false },
     }),
   ],

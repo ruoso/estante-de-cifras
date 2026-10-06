@@ -690,8 +690,8 @@ export default {
 
   update: {
     ready: 'Uma nova versão está pronta.',
-    reload: 'Recarregar',
-    later: 'Depois',
+    reload: 'Recarregar agora',
+    dismiss: 'Dispensar',
   },
 
   announce: {

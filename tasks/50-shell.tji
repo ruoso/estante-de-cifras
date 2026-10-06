@@ -43,8 +43,9 @@ task shell "Shell" {
   task pwa "Installable and offline" {
     effort 2d
     allocate team
+    complete 100
     depends !layout, storage.migrations
-    note "Manifest, icons, the service worker precaching everything, the update taken on the next launch. Tests: behavior (the manifest and icons; an update held until the next launch); e2e-web (offline: loaded on the stack, the network cut, reloaded — the app opens from the precache; an update taken on the next launch)."
+    note "Manifest, icons, the service worker precaching everything, the update taken on the next launch. Tests: behavior (the manifest and icons; an update held until the next launch); e2e-web (offline: loaded on the stack, the network cut, reloaded — the app opens from the precache; an update taken on the next launch). Refinement: tasks/refinements/shell/pwa.md"
   }
   task a11y_chart "A sung line for a screen reader" {
     effort 1d

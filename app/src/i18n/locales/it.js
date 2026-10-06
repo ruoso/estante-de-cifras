@@ -692,8 +692,8 @@ export default {
 
   update: {
     ready: 'È pronta una nuova versione.',
-    reload: 'Ricarica',
-    later: 'Più tardi',
+    reload: 'Ricarica ora',
+    dismiss: 'Ignora',
   },
 
   announce: {

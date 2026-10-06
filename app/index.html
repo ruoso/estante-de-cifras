@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1F4F8F" />
+    <!-- The installable PWA's home-screen identity (shell.pwa). The manifest and
+         icons are served at the dist root by fixed name (app/public/); the
+         manifest carries the full icons array, while iOS reads apple-touch-icon
+         from the head. VitePWA also emits the manifest link at build. -->
+    <link rel="icon" type="image/png" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>Estante de Cifras</title>
   </head>
   <body>

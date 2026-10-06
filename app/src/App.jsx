@@ -3,6 +3,7 @@ import ThemeRoot from './theme/ThemeRoot.jsx';
 import LocaleRoot from './i18n/LocaleRoot.jsx';
 import AppShell from './shell/AppShell.jsx';
 import ChartGallery from './chart/gallery/ChartGallery.jsx';
+import UpdateReady from './pwa/UpdateReady.jsx';
 import { getAppStore } from './worker/store.js';
 
 // The chart's dev gallery is reachable only at `#dev/chart` — absent from the
@@ -29,7 +30,13 @@ function isChartGallery() {
 export default function App({ store = getAppStore() }) {
   return (
     <ThemeRoot store={store}>
-      <LocaleRoot store={store}>{isChartGallery() ? <ChartGallery /> : <AppShell store={store} />}</LocaleRoot>
+      <LocaleRoot store={store}>
+        {isChartGallery() ? <ChartGallery /> : <AppShell store={store} />}
+        {/* The PWA update notice (shell.pwa) sits over the shell, inside the
+            token root and the locale boundary so it is themed and translated; it
+            renders nothing until a new version is waiting. */}
+        <UpdateReady />
+      </LocaleRoot>
     </ThemeRoot>
   );
 }
