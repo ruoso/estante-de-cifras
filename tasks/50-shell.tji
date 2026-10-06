@@ -52,4 +52,10 @@ task shell "Shell" {
     depends !chart, design.screen_reader
     note "The decided reading order, implemented and checked. Tests: unit (the reading-order text of a sung line, a chart, a diagram and a conflict); behavior (accessible names as design.screen_reader decided, Testing Library and axe); e2e-web (a chart read through the accessibility tree and by keyboard on the three viewports)."
   }
+  task portal_provider "Portal-scope provider at ThemeRoot" {
+    effort 0.5d
+    allocate team
+    depends !layout, books.shelf
+    note "React Aria Components portals overlays to document.body by default, outside ThemeRoot's .est element where all design tokens live. Add react-aria as a direct dependency and wrap ThemeRoot with UNSTABLE_PortalProvider so every future overlay inherits the token scope without per-screen UNSTABLE_portalContainer workarounds. Discovered in books.shelf fixer-2 (tasks/refinements/books/shelf.md). Tests: behavior (a RAC overlay rendered through the portal inherits design tokens, axe); e2e-web (the rename dialog and any sheet on the three viewports shows correct tokens and passes axe)."
+  }
 }

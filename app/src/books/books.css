@@ -1,0 +1,111 @@
+/* books.css — layout for the book-management screen (books.shelf). Like
+   search.css, the visual vocabulary (.list, .row, .btn, .field, .input, .badge,
+   .sheet, .dialog, .actions, …) lives in theme.css; this file only lays those
+   pieces out, resets the native <button> React Aria Components render a row as,
+   and gives the book rows their dividers. No colours of its own — every value is
+   a theme token (DIRECTION §3.7; mockups GUIDE.md). */
+
+.books-screen {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The heading and the Add-a-book trigger share one row (W07 board line 30-33). */
+.books-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+}
+
+.books-head .add-book {
+  flex: none;
+}
+
+/* A book row is the open control plus the rename control; the list draws the
+   divider between rows, so the inner .row carries none of its own. */
+.book-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.book-row:last-child {
+  border-bottom: 0;
+}
+
+.book-row.sel {
+  background: var(--accent-soft);
+}
+
+.book-row > .book-open {
+  flex: 1;
+  min-width: 0;
+  border-bottom: 0;
+}
+
+/* Reset the native button RAC renders a row as, back to the .row look (mirrors
+   search.css's `.search-screen button.row`). */
+.books-screen button.row {
+  width: 100%;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.book-row .caret {
+  flex: none;
+  color: var(--ink-2);
+}
+
+/* The rename control: an icon button beside the row, accent-tinted (named by its
+   aria-label, never colour alone). */
+.book-row .rename-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+/* The rename dialog's shared `.dialog` box is a fixed 520px (theme.css, the
+   mockup's computer width). On a phone that is wider than the viewport, which
+   pushes the actions row — and its Save button — off-screen; cap it to the
+   viewport so it fits a phone, a tablet and a computer alike (DIRECTION §3.7).
+   `.dialog` is content-box, so the cap leaves room for its own padding
+   (var(--u) * 3 each side) plus a var(--u) * 2 gutter each side: 100% − 10u.
+   Layout only — theme.css stays the verbatim visual language. */
+.dialog {
+  max-width: calc(100% - var(--u) * 10);
+}
+
+/* The Add-a-book sheet / rename dialog form: the field, help text and actions
+   stacked with the sheet's own gap. */
+.book-form {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.75);
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+}
+
+.books-screen .empty {
+  color: var(--ink-2);
+}

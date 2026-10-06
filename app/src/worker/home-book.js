@@ -117,6 +117,7 @@ function instant(now) {
  *   read: (opts: { bookId: string, file: string }) => Promise<Object>,
  *   set: (opts: { bookId: string, file: string, changes: Array<{ path: string[], value: * }>, author: { id: string, name: string }, now?: number }) => Promise<string>,
  *   sync: (opts: { bookId: string, author: { id: string, name: string } }) => Promise<{ commit: string | null, pushed: boolean }>,
+ *   ensureLocal: (opts?: { author: { id: string, name: string }, now?: number }) => Promise<boolean>,
  *   ensureDeviceId: (opts: { idb: IDBFactory, name: string, version?: number }) => Promise<string>,
  * }}
  */
@@ -333,6 +334,39 @@ export function createHomeBook({ fs, git, locks } = {}) {
   }
 
   /**
+   * Provision a LOCAL home book when none exists, so a write works before any
+   * account (books.shelf, workflow 7 L25: New book "No account needed"). Under
+   * one lock: if `main` already resolves (the home book was cloned, or a prior
+   * `ensureLocal` provisioned it) this is a no-op; otherwise `git.init` the
+   * repository with no remote and commit the §2.2 identity bytes (README.md +
+   * .gitattributes) scaffolded by `ensureScaffold`. Idempotent, offline-first —
+   * there is no fetch and no push (that is `sync`'s, once an account exists).
+   * Returns whether it provisioned a fresh home book.
+   */
+  function ensureLocal({ author, now = Date.now() } = {}) {
+    return locks.withLock(HOME_BOOK_ID, async () => {
+      const dir = git.bookDir(HOME_BOOK_ID);
+      try {
+        await resolveRef({ fs, dir, ref: 'main' });
+        return false; // already a committed home book — nothing to do
+      } catch {
+        // No committed `main` yet: provision a fresh local home book below.
+      }
+      await git.init({ dir });
+      await ensureScaffold(dir);
+      const identity = authorFrom(author, now);
+      await gitCommit({
+        fs,
+        dir,
+        message: 'Scaffold home book',
+        author: identity,
+        committer: identity,
+      });
+      return true;
+    });
+  }
+
+  /**
    * The §2.3 device id: one UUID per installation, generated the first time the
    * app runs and kept in the `meta` object store outside the home book, never
    * changing. It is a BARE value, never a register (§2.3, §7) — it is only ever a
@@ -385,7 +419,7 @@ export function createHomeBook({ fs, git, locks } = {}) {
     }
   }
 
-  return { read, set, sync, ensureDeviceId };
+  return { read, set, sync, ensureLocal, ensureDeviceId };
 }
 
 // Open (and, on a fresh database, migrate up to) the `estante` database at the

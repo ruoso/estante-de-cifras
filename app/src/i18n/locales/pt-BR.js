@@ -23,6 +23,34 @@ export default {
     setlists: 'Repertórios',
   },
 
+  // A tela de gerenciamento de livros (books.shelf, fluxo 7). `{name}` é o
+  // título de um livro; `{count}` o número de alterações aguardando sincronia.
+  books: {
+    add: 'Adicionar livro',
+    addTitle: 'Adicionar um livro',
+    close: 'Fechar',
+    nameLabel: 'Nome do livro',
+    namePlaceholder: 'Dê um nome ao livro',
+    newBookHelp: 'Um nome, e um livro vazio. Sem precisar de conta.',
+    create: 'Novo livro',
+    cancel: 'Cancelar',
+    save: 'Salvar',
+    onDevice: 'Neste dispositivo',
+    onEstante: 'No Estante',
+    canSave: 'pode salvar',
+    reader: 'leitor',
+    renameLabel: 'Renomear {name}',
+    renameTitle: 'Renomear “{name}”',
+    renameField: 'Nome na sua estante',
+    empty: 'Nenhum livro ainda. Adicione um livro para começar.',
+    syncing: 'sincronizando',
+    savesWaiting: {
+      one: '{count} alteração aguardando para subir',
+      other: '{count} alterações aguardando para subir',
+    },
+    needsYou: 'precisa de você',
+  },
+
   search: {
     label: 'Buscar músicas, palavras e acordes',
     placeholder: 'Músicas, palavras, acordes…',

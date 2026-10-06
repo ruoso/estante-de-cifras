@@ -9,8 +9,9 @@ task books "Books" {
   task shelf "The book-management screen" {
     effort 2d
     allocate team
-    depends storage.home_book
-    note "Title or label, where it lives, can save, sync state; new book; rename on my shelf. Workflow 7. Tests: behavior (title or label, where it lives, can save, sync state; new book; rename; axe); e2e-web (a new book made and renamed on the three viewports; axe)."
+    complete 100
+    depends storage.home_book, storage.shelf_surface
+    note "Title or label, where it lives, can save, sync state; new book; rename on my shelf. Workflow 7. Tests: behavior (title or label, where it lives, can save, sync state; new book; rename; axe); e2e-web (a new book made and renamed on the three viewports; axe). Refinement: tasks/refinements/books/shelf.md"
   }
   task online "Put online, remove, delete" {
     effort 2d

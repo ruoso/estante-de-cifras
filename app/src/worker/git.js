@@ -25,6 +25,7 @@
 // view never import it (DIRECTION §3.7).
 
 import {
+  init as gitInit,
   clone as gitClone,
   fetch as gitFetch,
   push as gitPush,
@@ -35,6 +36,7 @@ import {
  *
  * @param {{ fs: import('./fs.js').FileSystem, http: { request: Function } }} deps
  * @returns {{
+ *   init: (opts: { dir: string }) => Promise<void>,
  *   clone: (opts: { dir: string, url: string, onProgress?: Function }) => Promise<any>,
  *   fetch: (opts: { dir: string, url: string, onProgress?: Function }) => Promise<any>,
  *   push: (opts: { dir: string, url: string, onProgress?: Function }) => Promise<any>,
@@ -65,6 +67,19 @@ export function createGitLayer({ fs, http } = {}) {
   }
 
   /**
+   * Create an empty, non-bare repository on the `main` branch at `dir` — the
+   * device-side half of "a new book is a git repository on the device, not a
+   * format change" (books.shelf, workflow 7 L25). No network: a local book is
+   * born here and only reaches the service when it is later put online
+   * (books.online). `defaultBranch: 'main'` fixes the one branch every other
+   * operation already assumes (Decision 5).
+   * @param {{ dir: string }} opts
+   */
+  function init({ dir }) {
+    return gitInit({ fs, dir, defaultBranch: 'main' });
+  }
+
+  /**
    * Populate a book's working directory from the one origin.
    * @param {{ dir: string, url: string, onProgress?: Function }} opts
    */
@@ -89,5 +104,5 @@ export function createGitLayer({ fs, http } = {}) {
     return gitPush({ ...fixed, dir, url, onProgress });
   }
 
-  return { clone, fetch, push, bookDir };
+  return { init, clone, fetch, push, bookDir };
 }

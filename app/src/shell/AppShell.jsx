@@ -24,6 +24,7 @@ import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { getAppStore } from '../worker/store.js';
 import SearchScreen from '../songs/SearchScreen.jsx';
+import BooksScreen from '../books/BooksScreen.jsx';
 import { DESTINATIONS, WIDE_QUERY, layoutMode } from './layout-mode.js';
 import './shell.css';
 
@@ -114,16 +115,18 @@ function destinationTab(key, variant) {
 }
 
 // The destination regions: each a `TabPanel` (role=tabpanel, named by its tab).
-// The `search` panel now renders the real search screen — the app's primary
-// interface, threaded the store (songs.search, Decision 1) — while `books` and
-// `setlists` stay labelled slots their own content tasks will fill. RAC mounts
-// only the selected panel, so exactly one level-1 heading (the screen's own) is
-// present at a time.
+// The `search` panel renders the real search screen and the `books` panel the
+// book-management screen — both threaded the store (songs.search / books.shelf
+// Decision 1) — while `setlists` stays a labelled slot its own content task will
+// fill. RAC mounts only the selected panel, so exactly one level-1 heading (the
+// screen's own) is present at a time.
 function destinationPanels(store) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key}>
       {key === 'search' ? (
         <SearchScreen store={store} />
+      ) : key === 'books' ? (
+        <BooksScreen store={store} />
       ) : (
         <h1 className="t-h1">{t(`shell.${key}`)}</h1>
       )}

@@ -23,6 +23,34 @@ export default {
     setlists: 'Setlists',
   },
 
+  // The book-management screen (books.shelf, workflow 7). `{name}` is a book's
+  // title; `{count}` the number of saves waiting to sync.
+  books: {
+    add: 'Add a book',
+    addTitle: 'Add a book',
+    close: 'Close',
+    nameLabel: 'Book name',
+    namePlaceholder: 'Name this book',
+    newBookHelp: 'A name, and an empty book. No account needed.',
+    create: 'New book',
+    cancel: 'Cancel',
+    save: 'Save',
+    onDevice: 'On this device',
+    onEstante: 'On Estante',
+    canSave: 'can save',
+    reader: 'reader',
+    renameLabel: 'Rename {name}',
+    renameTitle: 'Rename “{name}”',
+    renameField: 'Name on your shelf',
+    empty: 'No books yet. Add a book to start.',
+    syncing: 'syncing',
+    savesWaiting: {
+      one: '{count} save waiting to go up',
+      other: '{count} saves waiting to go up',
+    },
+    needsYou: 'needs you',
+  },
+
   // The search screen (songs.search, workflow 2). `{instrument}` falls back to
   // the generic noun `instrument` when no instrument-in-use is surfaced yet.
   search: {

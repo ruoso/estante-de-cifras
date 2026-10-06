@@ -27,6 +27,7 @@ import { createGitLayer } from './git.js';
 import { createWorkingCopy } from './working-copy.js';
 import { createHistory } from './history.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
+import { createBooks } from './books.js';
 import { createSearchIndex } from './search-index.js';
 import { createRecents } from './recents.js';
 import { surfacePreferences } from './preferences.js';
@@ -208,6 +209,25 @@ async function listBookIds(fs, homeBookId) {
   return entries.filter((id) => id !== homeBookId);
 }
 
+// The next shelf position for a new book: one past the greatest `position`
+// register across the shared books and this device's local books — the shelf is
+// shown ascending by `position` (home-book-format §4.2, books.shelf acceptance
+// 6). A book with no position, or an empty shelf, does not raise the max, so a
+// first book lands at 0 and each later one increments.
+function nextShelfPosition(model, deviceId) {
+  let max = -1;
+  const scan = (map) => {
+    if (!map || typeof map !== 'object') return;
+    for (const id of Object.keys(map)) {
+      const position = map[id]?.position?.value;
+      if (typeof position === 'number' && position > max) max = position;
+    }
+  };
+  scan(model?.books);
+  scan(model?.local?.[deviceId]);
+  return max + 1;
+}
+
 // Fold one index change-set into an accumulator (SAVE/DISCARD touch many paths).
 function mergeIndexChanges(into, from) {
   into.putDocs.push(...from.putDocs);
@@ -250,6 +270,7 @@ export function createWorkerLogic(port, options = {}) {
   let workingCopy = null;
   let history = null;
   let homeBook = null;
+  let books = null;
   let searchIndex = null;
   let indexHydration = null;
   let recents = null;
@@ -331,6 +352,20 @@ export function createWorkerLogic(port, options = {}) {
       });
     }
     return homeBook;
+  }
+
+  // Compose the local-book creator once over the SAME fs, git layer and lock
+  // registry as the working copy and the home book (books.shelf), mirroring
+  // ensureHomeBook. The Worker owns the data; the view only sends CREATE_BOOK.
+  function ensureBooks() {
+    if (!books) {
+      books = createBooks({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+      });
+    }
+    return books;
   }
 
   // Compose the search index once over the SAME fs and git layer (Decision 1),
@@ -685,6 +720,60 @@ export function createWorkerLogic(port, options = {}) {
             // reaches the `shelf` slice (storage.shelf_surface; "re-emitted when
             // sync changes a register"). One command re-surfaces every
             // home-book-derived slice (Decision 1).
+            await surfaceHomeBookShelf();
+            break;
+          }
+          case CommandKind.CREATE_BOOK: {
+            // Make an empty local songbook with no account (workflow 7 L25):
+            // provision a local home book if none exists, init + scaffold the
+            // book's own repository, write its `shelf.local` entry through the
+            // home book (position = max + 1), re-surface SHELF so the slice
+            // reflects the new book at once, and announce it so the view can
+            // move focus to it. All local — no fetch, no push (offline-first).
+            // The lock on the new book and the lock on the home book are taken
+            // in sequence, never nested (locks.md Decision 1).
+            const { title, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            const { bookId } = await ensureBooks().createLocal({ title, author });
+            const deviceId = await home.ensureDeviceId({ idb, name, version });
+            const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+            const position = nextShelfPosition(shelf, deviceId);
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'shelf.json',
+              changes: [
+                { path: ['local', deviceId, bookId, 'title'], value: title },
+                { path: ['local', deviceId, bookId, 'position'], value: position },
+              ],
+              author,
+            });
+            await surfaceHomeBookShelf();
+            port.postMessage(event(EventKind.BOOK_CREATED, { bookId }));
+            break;
+          }
+          case CommandKind.RENAME_BOOK: {
+            // Rename a book on the shelf — a label kept in the home book that
+            // changes nothing in the repository (workflow 7 L16-18, Decision 3).
+            // A local book (in this device's `local` namespace) rewrites its
+            // `title` register; any other book its `label` register. Offline,
+            // auto-committed, never pushed. `name` is aliased so it does not
+            // shadow the Worker's database name the closure holds.
+            const { bookId, name: newName, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            const deviceId = await home.ensureDeviceId({ idb, name, version });
+            const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+            const isLocal = Boolean(shelf?.local?.[deviceId]?.[bookId]);
+            const path = isLocal
+              ? ['local', deviceId, bookId, 'title']
+              : ['books', bookId, 'label'];
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'shelf.json',
+              changes: [{ path, value: newName }],
+              author,
+            });
             await surfaceHomeBookShelf();
             break;
           }

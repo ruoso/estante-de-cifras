@@ -23,6 +23,34 @@ export default {
     setlists: 'Scalette',
   },
 
+  // La schermata di gestione dei libri (books.shelf, flusso 7). `{name}` è il
+  // titolo di un libro; `{count}` il numero di salvataggi in attesa di sincronia.
+  books: {
+    add: 'Aggiungi libro',
+    addTitle: 'Aggiungi un libro',
+    close: 'Chiudi',
+    nameLabel: 'Nome del libro',
+    namePlaceholder: 'Dai un nome al libro',
+    newBookHelp: 'Un nome e un libro vuoto. Senza account.',
+    create: 'Nuovo libro',
+    cancel: 'Annulla',
+    save: 'Salva',
+    onDevice: 'Su questo dispositivo',
+    onEstante: 'Su Estante',
+    canSave: 'puoi salvare',
+    reader: 'lettore',
+    renameLabel: 'Rinomina {name}',
+    renameTitle: 'Rinomina “{name}”',
+    renameField: 'Nome nella tua libreria',
+    empty: 'Ancora nessun libro. Aggiungi un libro per iniziare.',
+    syncing: 'sincronizzazione',
+    savesWaiting: {
+      one: '{count} salvataggio in attesa di caricamento',
+      other: '{count} salvataggi in attesa di caricamento',
+    },
+    needsYou: 'richiede attenzione',
+  },
+
   search: {
     label: 'Cerca brani, parole e accordi',
     placeholder: 'Brani, parole, accordi…',

@@ -10,6 +10,10 @@
 // in-process (store.test.js) and the adapter with a fake scope
 // (attach-worker.test.js).
 
+// First: point `global` at `globalThis` so the TextEncoder polyfill bundled by
+// lightning-fs initialises in a Worker (see worker-env.js). Must precede the
+// imports below, which pull in lightning-fs through logic.js → fs.js.
+import './worker-env.js';
 import { attachWorker } from './attach-worker.js';
 import { createWorkerLogic } from './logic.js';
 

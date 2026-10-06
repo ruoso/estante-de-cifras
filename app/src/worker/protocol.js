@@ -60,6 +60,16 @@ export const CommandKind = Object.freeze({
   // commit) and replies with a RECENTS event. `songs.reading` calls this on
   // open; the search screen displays it.
   RECORD_RECENT: 'record_recent',
+  // The shelf write path (books.shelf, workflow 7). CREATE_BOOK `{ title,
+  // author }` makes an empty local songbook with no account — `git.init` +
+  // §2.1 scaffold + one commit — writes its `shelf.local` entry through the
+  // home book (provisioning a local home book if none exists), re-surfaces
+  // SHELF and emits BOOK_CREATED. RENAME_BOOK `{ bookId, name, author }` writes
+  // the book's shelf label (shared) or title (local) register and re-surfaces
+  // SHELF — a label kept in the home book that changes nothing in the
+  // repository (workflow 7 L16-18). Both commit locally, never push.
+  CREATE_BOOK: 'create_book',
+  RENAME_BOOK: 'rename_book',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -112,6 +122,13 @@ export const EventKind = Object.freeze({
   // "Recent" section (workflow 2 L13-20); it is never read from the home book.
   BROWSE_RESULTS: 'browse_results',
   RECENTS: 'recents',
+  // A new local book was created (books.shelf, CREATE_BOOK): `{ bookId }`, the
+  // minted id of the book just added. It rides alongside the SHELF re-surface
+  // that adds the book to the slice; the book-management screen uses it to move
+  // focus to the new book (workflow 7 L25, Decision 2). It carries no title —
+  // the title reaches the view through the shelf slice (standing no-logging /
+  // no-labels rule).
+  BOOK_CREATED: 'book_created',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any
