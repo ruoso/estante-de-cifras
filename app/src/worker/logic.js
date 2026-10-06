@@ -30,6 +30,7 @@ import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createSearchIndex } from './search-index.js';
 import { createRecents } from './recents.js';
 import { surfacePreferences } from './preferences.js';
+import { surfaceShelf } from './shelf.js';
 import { authorFrom } from './author.js';
 
 // The schema version the database opens at, DERIVED from the migration step
@@ -104,7 +105,17 @@ function loadOrCreateMeta(db) {
         store.put(meta, META_KEY);
       }
     };
-    tx.oncomplete = () => resolve(meta);
+    tx.oncomplete = () => {
+      // The §2.3 device id is home-book's internal namespace key, kept as a bare
+      // field on this same singleton record (home-book.js `ensureDeviceId`,
+      // Decision 7) — it is never view state. Surface only the schema/protocol
+      // fields this owner manages, so the recovered `meta` slice is identical on
+      // every launch regardless of when the device id was written to the record
+      // (it is written after READY, out of this transaction's band).
+      const view = { ...meta };
+      delete view.deviceId;
+      resolve(view);
+    };
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
   });
@@ -415,6 +426,25 @@ export function createWorkerLogic(port, options = {}) {
     port.postMessage(event(EventKind.PREFERENCES, surfacePreferences(model)));
   }
 
+  // Read the home book's shelf.json, project it (narrowing `local` to this
+  // device's namespace, §7), and post the SHELF event — the labels and links the
+  // search screen and the future book-management screen read (home-book-format
+  // §4.2; reducer replaces the slice). A read before any home book exists returns
+  // `{}` (ENOENT, home-book.js), so the payload is `{ books: {}, local: {} }` and
+  // every book stays labelled by its id — never an error, never a crash. The
+  // device id comes from the same `idb`/`name`/`version` the closure holds —
+  // the version so `ensureDeviceId` attaches at the schema already on disk and
+  // never triggers an upgrade this session (opened at that version) would block.
+  // Logs nothing (a label is a user's words, a link is account data; standing rule).
+  async function surfaceHomeBookShelf() {
+    const model = await ensureHomeBook().read({
+      bookId: HOME_BOOK_ID,
+      file: 'shelf.json',
+    });
+    const deviceId = await ensureHomeBook().ensureDeviceId({ idb, name, version });
+    port.postMessage(event(EventKind.SHELF, surfaceShelf(model, deviceId)));
+  }
+
   // Read the device-local recents and post RECENTS, so the search screen shows
   // "the way back into what you were playing" on bring-up without asking for it
   // (songs.search, workflow 2 L13-14). Device-local, offline, no commit; an
@@ -443,6 +473,12 @@ export function createWorkerLogic(port, options = {}) {
     // (workflow 13 L30-37; Decision 4). The read is local and offline-first, and
     // emits `{}` when no home book exists yet.
     await surfaceHomeBookPreferences();
+    // Surface the home book's shelf right after preferences, so the search
+    // screen can label each book by the name the user gave it (and the future
+    // book-management screen read the same slice) as soon as the Worker is up.
+    // The read is local and offline-first, and emits `{ books: {}, local: {} }`
+    // when no home book exists yet.
+    await surfaceHomeBookShelf();
     // Surface the device-local recents right after preferences, before the
     // (slower) per-book index build, so the pre-typing "Recent" section fills
     // first — it is a plain `meta`-store read, independent of the index.
@@ -645,6 +681,11 @@ export function createWorkerLogic(port, options = {}) {
               author: message.payload.author,
             });
             await surfaceHomeBookPreferences();
+            // Re-surface the shelf too, so a label, link or order a sync merged
+            // reaches the `shelf` slice (storage.shelf_surface; "re-emitted when
+            // sync changes a register"). One command re-surfaces every
+            // home-book-derived slice (Decision 1).
+            await surfaceHomeBookShelf();
             break;
           }
           default:

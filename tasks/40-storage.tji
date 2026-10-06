@@ -91,8 +91,9 @@ task storage "Storage" {
   task shelf_surface "Surface shelf.json for book labels and status" {
     effort 1d
     allocate team
+    complete 100
     depends !home_book
-    note "The Worker reads shelf.json from the home book and emits a SHELF event the reducer folds into a shelf slice (each book's label, link, and per-book status — 'reading', 'N setlists'), mirroring storage.preferences_surface; the search screen and books.shelf both read it for labels and counts. Source of debt: tasks/refinements/songs/search.md (songs.search), Decision 6. Tests: unit (shelf.json → the shelf event payload; an absent book stays absent); behavior (the Worker against a fake IndexedDB and a local git remote surfaces a shelf change, the reducer folds it)."
+    note "The Worker reads shelf.json from the home book and emits a SHELF event the reducer folds into a shelf slice (each book's label, link, and per-book status — 'reading', 'N setlists'), mirroring storage.preferences_surface; the search screen and books.shelf both read it for labels and counts. Source of debt: tasks/refinements/songs/search.md (songs.search), Decision 6. Tests: unit (shelf.json → the shelf event payload; an absent book stays absent); behavior (the Worker against a fake IndexedDB and a local git remote surfaces a shelf change, the reducer folds it). Refinement: tasks/refinements/storage/shelf_surface.md"
   }
   task recents_reconcile "Remove synced recents.json and reconcile home-book-format" {
     effort 0.5d

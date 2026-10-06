@@ -77,6 +77,14 @@ export const EventKind = Object.freeze({
   DISCARDED: 'discarded',
   SAVE_REFUSED: 'save_refused',
   PREFERENCES: 'preferences',
+  // The home book's shelf.json surfaced (storage.shelf_surface): `{ books, local }`
+  // — two nested maps of `{value, at}` registers. `books` is the shared books
+  // keyed by book id (each a map of `label`/`link`/`position` registers); `local`
+  // is this device's local-only books (each a map of `title`/`position`),
+  // narrowed to the device's namespace (home-book-format §4.2, §7). The producer
+  // that reads the home book is storage.shelf_surface; the search screen and the
+  // future book-management screen read it for labels.
+  SHELF: 'shelf',
   // The history outcomes (storage.history): SONG_LOG carries a song's filtered
   // version list, VERSION a version's exact bytes, BOOK_LOG the book's whole log,
   // and RESTORED `{ bookId, path }` so the UI can open the save sheet on the song

@@ -219,6 +219,43 @@ describe('SearchScreen (behavior)', () => {
     expect(document.querySelector('.search .scope')).toBeNull();
   });
 
+  it('book labels: a shelf label names a book and its scope chip, falling back to the bookId when absent (songs.search Decision 6; workflow 2 L11, workflow 7 L14-21)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = render(<SearchScreen store={store} />);
+
+    emit(
+      event(EventKind.BROWSE_RESULTS, {
+        books: [
+          { bookId: 'b-1', count: 1, songs: [{ path: 'a.cifra.md', title: 'Alpha', artist: '', unsaved: false }] },
+          { bookId: 'b-2', count: 1, songs: [{ path: 'b.cifra.md', title: 'Beta', artist: '', unsaved: false }] },
+        ],
+      }),
+    );
+    // The shelf surfaces a label for b-1 only — b-2 has no label register.
+    emit(
+      event(EventKind.SHELF, {
+        books: { 'b-1': { label: { value: 'Turma de quarta', at: '2026-10-05T14:00:00.000Z' } } },
+        local: {},
+      }),
+    );
+
+    // b-1's section (and its "search only here" scope button) read the user's
+    // label, not the opaque bookId.
+    // The section disclosure trigger's name is the label followed by its count.
+    expect(screen.getByRole('button', { name: /Turma de quarta.*song/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Search only in Turma de quarta' })).toBeInTheDocument();
+    // b-2 has no label register, so it falls back to the bookId (Decision 6's
+    // fallback preserved).
+    expect(screen.getByRole('button', { name: 'Search only in b-2' })).toBeInTheDocument();
+
+    // Applying b-1's scope shows the label as the chip in the box, not the id.
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Search only in Turma de quarta' })));
+    const box = document.querySelector('.search');
+    expect(within(box).getByText('Turma de quarta')).toBeInTheDocument();
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
   it('the explorer is a result: a chord query offers the Explore row first and invokes onExploreChord by click and keyboard (workflow 2 L26-40)', async () => {
     const chosen = [];
     const { store, emit } = makeStore();

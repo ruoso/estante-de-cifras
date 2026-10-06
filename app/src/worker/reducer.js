@@ -29,6 +29,15 @@ export const initialState = {
   // producer that reads the home book (storage.preferences_surface) is deferred,
   // so while absent the app's theme is automatic, following the device.
   preferences: {},
+  // The home book's shelf (shelf.json), surfaced as `{ books, local }`: two
+  // nested maps of `{value, at}` registers — the shared books keyed by book id
+  // (each `label`/`link`/`position`), and this device's local-only books (each
+  // `title`/`position`), narrowed to the device's namespace (home-book-format
+  // §4.2, §7). The search screen reads `shelf.books[id].label.value` to label a
+  // book, falling back to the `bookId` when absent (songs.search Decision 6).
+  // Starts empty: no shelf until the home book is cloned and read
+  // (storage.shelf_surface); while absent every book is labelled by its id.
+  shelf: {},
   // The outcome of the last save/discard per book, keyed by `bookId`
   // (storage.working_copy). Each entry carries its status as a word (never
   // colour alone): 'saved' (with `commit` and whether the push landed),
@@ -295,6 +304,16 @@ export function reduce(state, message) {
       // watching, say, `save` keeps its reference and does not re-render
       // ("only what shows it moves"). An absent payload resets to empty.
       return { ...state, preferences: message.payload ?? {} };
+
+    case EventKind.SHELF:
+      // The home book's shelf surfaced (or changed): replace the slice with the
+      // reported `{ books, local }` map of registers, copying the PREFERENCES
+      // fold exactly (whole-slice replace). Only this slice moves; a component
+      // watching, say, `preferences` keeps its reference and does not re-render
+      // ("only what shows it moves", DIRECTION §3.7 L410-414). An absent payload
+      // resets to empty — two independently-changing home-book files move two
+      // slices independently (Decision 2).
+      return { ...state, shelf: message.payload ?? {} };
 
     default:
       return state;

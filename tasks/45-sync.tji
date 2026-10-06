@@ -8,7 +8,7 @@ task sync "Sync" {
   task engine "Sync engine" {
     effort 3d
     allocate team
-    depends service.change_check, storage.home_book, storage.preferences_surface
+    depends service.change_check, storage.home_book, storage.preferences_surface, storage.shelf_surface
     note "When it runs (open, foreground, network back, after save, every five minutes), the change check first, fetch, cifra-aware merge, push, retried three times on a lost race. Workflow 8. Tests: unit (when it runs, the retry policy); behavior (fetch, cifra-aware merge and push against a local git remote with a second clone racing it, retried three times); e2e-api (two isomorphic-git devices against the stack: both edit, the change check, a clean merge pushed and fetched back — the two-device journey's sync half)."
   }
   task unsaved "Merging under unsaved changes" {

@@ -118,7 +118,7 @@ function instant(now) {
  *   read: (opts: { bookId: string, file: string }) => Promise<Object>,
  *   set: (opts: { bookId: string, file: string, changes: Array<{ path: string[], value: * }>, author: { id: string, name: string }, now?: number }) => Promise<string>,
  *   sync: (opts: { bookId: string, author: { id: string, name: string } }) => Promise<{ commit: string | null, pushed: boolean }>,
- *   ensureDeviceId: (opts: { idb: IDBFactory, name: string }) => Promise<string>,
+ *   ensureDeviceId: (opts: { idb: IDBFactory, name: string, version?: number }) => Promise<string>,
  * }}
  */
 export function createHomeBook({ fs, git, locks } = {}) {
@@ -344,11 +344,18 @@ export function createHomeBook({ fs, git, locks } = {}) {
    * schema the migration list defines (creating the `meta` store on a fresh
    * database), reads the id, and generates-and-persists one once if absent.
    *
-   * @param {{ idb: IDBFactory, name: string }} opts
+   * `version` is the schema version the caller's session opened the database at
+   * — passed by `logic.js` so this attaches at the version already on disk and
+   * never triggers an upgrade a lower-version session (e.g. a test driving an
+   * injected step list, or a running build mid-update) would block (`onblocked`).
+   * It defaults to the production latest, the version a standalone caller's fresh
+   * database is migrated to.
+   *
+   * @param {{ idb: IDBFactory, name: string, version?: number }} opts
    * @returns {Promise<string>}
    */
-  async function ensureDeviceId({ idb, name }) {
-    const db = await openMetaDb(idb, name);
+  async function ensureDeviceId({ idb, name, version }) {
+    const db = await openMetaDb(idb, name, version);
     try {
       return await new Promise((resolve, reject) => {
         const tx = db.transaction(META_STORE, 'readwrite');
@@ -385,11 +392,14 @@ export function createHomeBook({ fs, git, locks } = {}) {
 // Open (and, on a fresh database, migrate up to) the `estante` database at the
 // version the migration list defines, so the `meta` store `ensureDeviceId` reads
 // exists. A separate connection from the one logic.js holds is fine — IndexedDB
-// allows several, and an open at the current version runs no upgrade. This
-// mirrors logic.js's `openDatabase` without coupling to it (Decision 1 keeps
-// logic.js untouched by this task).
-function openMetaDb(idb, name) {
-  const version = latestVersion(MIGRATIONS);
+// allows several, and an open at the current version runs no upgrade. `version`
+// is the version the caller's session is already running at (logic.js passes the
+// one it opened the database at); opening at that same version runs no upgrade,
+// so this never blocks on a connection a lower-version session holds. It defaults
+// to the production latest for a standalone caller that creates the database
+// itself (then the migration list runs it up to that version). This mirrors
+// logic.js's `openDatabase` without coupling to it.
+function openMetaDb(idb, name, version = latestVersion(MIGRATIONS)) {
   return new Promise((resolve, reject) => {
     const request = idb.open(name, version);
     request.onupgradeneeded = (ev) => {

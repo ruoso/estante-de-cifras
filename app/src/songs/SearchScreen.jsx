@@ -230,13 +230,16 @@ function BookSection({ bookId, book, building, bookLabel, instrument, onOpen, on
   );
 }
 
-// The display label for a scope chip. Book labels are the `bookId` until
-// `storage.shelf_surface` lands (Decision 6); a folder scope reads `book/prefix`.
-function scopeChipLabel(scope) {
+// The display label for a scope chip. A book is shown by the label the user
+// gave it on their shelf (storage.shelf_surface, workflow 7 L14-21), resolved
+// through `bookLabelFor` and falling back to the `bookId`; a folder scope reads
+// `book/prefix`.
+function scopeChipLabel(scope, bookLabelFor) {
   if (!scope) return '';
-  if (Array.isArray(scope.books)) return scope.books.join(', ');
+  if (Array.isArray(scope.books)) return scope.books.map(bookLabelFor).join(', ');
   if (scope.bookId) {
-    return scope.prefix ? `${scope.bookId}/${scope.prefix}` : scope.bookId;
+    const label = bookLabelFor(scope.bookId);
+    return scope.prefix ? `${label}/${scope.prefix}` : label;
   }
   return '';
 }
@@ -251,6 +254,7 @@ export default function SearchScreen({
   const browseSlice = useSlice(store, 'browse');
   const recentsSlice = useSlice(store, 'recents');
   const preferences = useSlice(store, 'preferences');
+  const shelf = useSlice(store, 'shelf');
 
   // Chord recognition reads the user's notation dialect (Decision 4), falling
   // back to the app default when none is surfaced. The instrument-in-use label
@@ -324,8 +328,11 @@ export default function SearchScreen({
     return m;
   }, [browseSlice]);
 
-  // Book labels are the bookId until shelf.json is surfaced (Decision 6).
-  const bookLabelFor = (bookId) => bookId;
+  // A book's label is the name the user gave it on their shelf, surfaced from the
+  // home book's shelf.json (storage.shelf_surface, resolving songs.search
+  // Decision 6); fall back to the opaque `bookId` when no label register is
+  // present or it is a cleared tombstone / empty (home-book-format §4.2, §5.3).
+  const bookLabelFor = (bookId) => shelf?.books?.[bookId]?.label?.value || bookId;
 
   const recognized = typed ? recognizeChord(query, dialect) : null;
   const results = searchSlice.results;
@@ -338,7 +345,7 @@ export default function SearchScreen({
         <SearchIcon />
         {scope && (
           <span className="scope">
-            <span>{scopeChipLabel(scope)}</span>
+            <span>{scopeChipLabel(scope, bookLabelFor)}</span>
             <Button
               className="scope-x"
               aria-label={t('search.clearFilter')}
