@@ -1,0 +1,109 @@
+/* The file view (books.file_view, workflow 14). Layout glue only — the row,
+ * badge, split, pane, editor, dialog and notice vocabulary comes from the
+ * theme (theme.css); this fills the screen and dresses the few file-view-only
+ * bits (the tree names, the rename dialog's pinned suffix). */
+
+.est-file-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  flex: 1;
+}
+
+.file-view-split {
+  flex: 1;
+  min-height: 0;
+}
+
+.file-view-narrow-editor,
+.raw-editor-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The per-file header above the raw editor: a lighter appbar carrying the file
+ * name and its Rename / Delete controls. */
+.raw-editor-head {
+  gap: calc(var(--u) * 1);
+}
+
+.raw-editor-name,
+.file-view-bar .title.t-mono {
+  font-family: var(--font-code);
+  font-size: 16px;
+}
+
+/* Tree and change-list names read as the raw source does: monospaced
+ * (mockups README L24). A folder's name is bold. */
+.file-folder-name {
+  font-weight: 600;
+}
+
+.file-view-empty,
+.file-view-foot {
+  padding: calc(var(--u) * 2);
+}
+
+/* The changed-files footer on the files tab (W14 phone board). */
+.file-view-foot {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+/* The rename dialog's name field with its kind suffix pinned beside it: the
+ * input and the read-only suffix read as one control (W14 tablet board). */
+.file-rename-input {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.file-rename-input .input {
+  border-radius: var(--radius) 0 0 var(--radius);
+  border-right: 0;
+}
+
+.file-rename-suffix {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 calc(var(--u) * 1.5);
+  border: 1px solid var(--line);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.file-rename-notice {
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* An open commit's per-file blocks (W14 desktop board). */
+.commit-file {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1);
+}
+
+.commit-file-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+}
+
+.commit-file-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.book-history .commit-list-head {
+  margin-top: calc(var(--u) * 1);
+}

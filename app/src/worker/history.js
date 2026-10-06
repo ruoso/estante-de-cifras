@@ -125,6 +125,8 @@ export function filterSongLog(rawEntries) {
  *   readVersion: (opts: { bookId: string, path: string, commit: string }) => Promise<{ text: string }>,
  *   restoreVersion: (opts: { bookId: string, path: string, commit: string, fromPath?: string }) => Promise<{ restored: true }>,
  *   bookLog: (opts: { bookId: string }) => Promise<{ commits: object[] }>,
+ *   commitDiff: (opts: { bookId: string, commit: string }) =>
+ *     Promise<{ files: { path: string, status: string, before: string, after: string }[] }>,
  * }}
  */
 export function createHistory({ fs, git, locks } = {}) {
@@ -355,5 +357,43 @@ export function createHistory({ fs, git, locks } = {}) {
     });
   }
 
-  return { songLog, readVersion, restoreVersion, bookLog };
+  // A blob's text at a ref, or '' when the path is absent there (an add has no
+  // parent blob, a delete no commit blob). Verbatim UTF-8, never
+  // re-canonicalised.
+  async function blobText(dir, oid, filepath) {
+    try {
+      const { blob } = await readBlob({ fs, dir, oid, filepath });
+      return decoder.decode(blob);
+    } catch (err) {
+      if (err?.code === 'NotFoundError') return '';
+      throw err;
+    }
+  }
+
+  /**
+   * One commit's per-file before/after texts for the file view's diff pane
+   * (workflow 14 L161-167; history.md Decision 4). Reuses the same tree-walk as
+   * `bookLog` to find the files the commit touched (against its first parent),
+   * then reads each file at the commit and at the parent: `before` is empty for
+   * an add, `after` empty for a delete. The view runs the pure `lineDiff` over
+   * them (the Worker owns only the git reads — Decision 4). Under ONE lock.
+   */
+  function commitDiff({ bookId, commit }) {
+    return locks.withLock(bookId, async () => {
+      const dir = git.bookDir(bookId);
+      const [entry] = await gitLog({ fs, dir, ref: commit, depth: 1 });
+      const firstParent = entry?.commit?.parent?.[0] ?? null;
+      const base = firstParent ?? EMPTY_TREE;
+      const touched = await changedFiles(dir, commit, firstParent);
+      const files = [];
+      for (const { path, status } of touched) {
+        const before = status === 'added' ? '' : await blobText(dir, base, path);
+        const after = status === 'deleted' ? '' : await blobText(dir, commit, path);
+        files.push({ path, status, before, after });
+      }
+      return { files };
+    });
+  }
+
+  return { songLog, readVersion, restoreVersion, bookLog, commitDiff };
 }

@@ -172,6 +172,12 @@ Append one `###` block per item, newest at the bottom:
 - **Question**: After `SET_IDENTITY_NAME` writes the author name, a real-browser reload appears to re-ask for the name (the home-book preferences write may not be durable), while the fake-indexeddb cold-reopen behavior test (`save-preview.behavior.test.js:154-171`) passes. The fixer suggests: set name → `page.reload()` → edit → Save → assert *Your name* absent, and confirm/fix `SET_IDENTITY_NAME`'s home-book write durability. Is there a real bug in the reload path, and if so which task owns the fix?
 - **Why parked**: potential bug in the home-book write path for `SET_IDENTITY_NAME`; requires confirming whether the reload path actually fails before the scope is clear. Touches `songs.save_sheet`, `storage.preferences_surface`, and the home-book write plumbing — a human needs to triage which task owns it and whether the durability gap is real.
 
+### 2026-10-06 — Non-song/no-change file restore+save leaves the save sheet open
+
+- **Source**: closer for `books.file_view` (see estante-de-cifras log), surfaced by fixer attempt 1's return summary.
+- **Question**: Restoring a non-song or no-change file (e.g. README.md, .gitattributes) from the book history and then saving appeared to leave the save sheet open in the browser even though the Worker emits SAVED. The fixer could not confirm this as a defect (it was out of scope for the restore-a-song test) and did not reproduce it in a throwaway harness. Is there a real UI bug in the non-song restore+save path, and which task (books.file_view? songs.save_sheet?) owns the fix if so?
+- **Why parked**: couldn't confirm as defect; "worth a closer look" is a revisit, not an implementable deliverable. Needs a human to reproduce and triage.
+
 ### 2026-10-06 — Extend the save gate to warn when a hand-typed section after a hand-typed rule would be dropped
 
 - **Source**: closer for `songs.editor_section_after_voicings` (see estante-de-cifras log), surfaced by refinement §Deferred.

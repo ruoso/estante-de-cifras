@@ -22,7 +22,7 @@ task milestones "Milestones" {
 
   task m2_local "M2: A songbook on one device" {
     milestone
-    depends milestones.m1_format, songs.search, songs.reading, songs.first_song, songs.new_song, songs.save_sheet, songs.editor_section_after_voicings, songs.arrange, songs.wizard_ui, songs.history, music.explorer, books.shelf, books.file_view, shell.i18n, shell.pwa, shell.portal_provider, account.first_run, storage.preferences_surface, storage.progression_search, storage.shelf_surface, storage.recents_reconcile, storage.fs_flush, storage.shelf_flush, storage.index_dirty_reconcile
+    depends milestones.m1_format, songs.search, songs.reading, songs.first_song, songs.new_song, songs.save_sheet, songs.editor_section_after_voicings, songs.arrange, songs.wizard_ui, songs.history, music.explorer, books.shelf, books.file_view, books.file_view_spec_narrow_comment, shell.i18n, shell.pwa, shell.portal_provider, account.first_run, storage.preferences_surface, storage.progression_search, storage.shelf_surface, storage.recents_reconcile, storage.fs_flush, storage.shelf_flush, storage.index_dirty_reconcile
     note "Local books only, no account: find, read, write, edit, arrange, history, the explorer, the file view — installed and offline."
   }
 

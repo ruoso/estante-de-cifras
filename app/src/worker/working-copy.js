@@ -32,6 +32,19 @@ import {
   statusMatrix,
 } from 'isomorphic-git';
 import { canonicaliseFile } from './canonicalise.js';
+import { relinkSetlists } from './setlist-links.js';
+
+const SETLIST_SUFFIX = '.setlist.md';
+
+// The kind of a file by its name (books.file_view: a move keeps its kind).
+function kindOfPath(path) {
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  if (name.endsWith('.cifra.md')) return 'song';
+  if (name.endsWith(SETLIST_SUFFIX)) return 'setlist';
+  if (name === 'README.md') return 'readme';
+  if (name === '.gitattributes') return 'gitattributes';
+  return 'other';
+}
 
 /**
  * Build the working-copy operations over the composed primitives. `fs` is the
@@ -50,6 +63,8 @@ import { canonicaliseFile } from './canonicalise.js';
  *   nameAndSave: (opts: { bookId: string, fromPath: string, toPath: string, message: string, author: object }) =>
  *     Promise<{ commit: string, pushed: boolean, path: string } | { refused: { path: string, reason: string, marker?: string, line?: number } }>,
  *   discard: (opts: { bookId: string, paths: string[] }) => Promise<void>,
+ *   move: (opts: { bookId: string, fromPath: string, toPath: string }) => Promise<void>,
+ *   remove: (opts: { bookId: string, path: string }) => Promise<void>,
  * }}
  */
 export function createWorkingCopy({ fs, git, locks } = {}) {
@@ -259,5 +274,85 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
     });
   }
 
-  return { write, save, nameAndSave, discard };
+  // The book's setlists with their current working-copy text, for the link
+  // rewrite a move performs (skipping any deleted from the working tree). Read
+  // within the caller's lock; never logged.
+  async function readSetlists(dir) {
+    const rows = await statusMatrix({ fs, dir });
+    const out = [];
+    for (const [path, , workdir] of rows) {
+      if (!path.endsWith(SETLIST_SUFFIX) || workdir === 0) continue;
+      try {
+        out.push({ path, text: await fs.promises.readFile(at(dir, path), 'utf8') });
+      } catch (err) {
+        if (err?.code !== 'ENOENT') throw err;
+      }
+    }
+    return out;
+  }
+
+  // Rename or move a file in the working copy, keeping its kind, and rewrite the
+  // book's setlist links to it — all uncommitted, saved together later in one
+  // commit (books.file_view, workflow 14 L144-146; Decision 2). The bytes move
+  // verbatim (canonical form is applied at save). A cross-kind move is refused
+  // ("a name keeps its kind"). Like `write`, this stages nothing and makes no
+  // commit: the tree's status derives from HEAD vs the working tree, and the
+  // shared SAVE stages and commits the new path, the removed old path and the
+  // rewritten setlists as one commit. Under ONE lock (Decision 1).
+  function move({ bookId, fromPath, toPath }) {
+    return locks.withLock(bookId, async () => {
+      if (kindOfPath(fromPath) !== kindOfPath(toPath)) {
+        throw new Error('a file keeps its kind on a move');
+      }
+      const dir = git.bookDir(bookId);
+      const fromFull = at(dir, fromPath);
+      const toFull = at(dir, toPath);
+
+      const bytes = await fs.promises.readFile(fromFull);
+      const slash = toFull.lastIndexOf('/');
+      if (slash > 0) await mkdirp(toFull.slice(0, slash));
+      await fs.promises.writeFile(toFull, bytes);
+      if (toFull !== fromFull) {
+        try {
+          await fs.promises.unlink(fromFull);
+        } catch (err) {
+          if (err?.code !== 'ENOENT') throw err;
+        }
+      }
+
+      // A moved song keeps its setlist links reachable (workflow 12); a moved
+      // setlist points at no song of its own, so nothing is relinked.
+      if (kindOfPath(toPath) === 'song') {
+        const changed = relinkSetlists({
+          setlists: await readSetlists(dir),
+          fromPath,
+          toPath,
+        });
+        for (const s of changed) {
+          await fs.promises.writeFile(at(dir, s.path), s.text);
+        }
+      }
+
+      await fs.flush();
+    });
+  }
+
+  // Remove a file from the working copy (books.file_view, workflow 14 L147). A
+  // committed file is unlinked from the working tree and reads as `deleted`
+  // until a SAVE commits the removal; a never-saved file simply disappears. No
+  // commit, and no setlist relink — a deleted song's links become missing items
+  // (workflow 12; Decision 2). Under ONE lock.
+  function remove({ bookId, path }) {
+    return locks.withLock(bookId, async () => {
+      const dir = git.bookDir(bookId);
+      try {
+        await fs.promises.unlink(at(dir, path));
+      } catch (err) {
+        if (err?.code !== 'ENOENT') throw err;
+      }
+      await fs.flush();
+    });
+  }
+
+  return { write, save, nameAndSave, discard, move, remove };
 }

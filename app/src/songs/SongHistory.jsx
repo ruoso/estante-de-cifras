@@ -142,7 +142,7 @@ function VersionList({ rows, selected, onSelect, label }) {
 
 // The file's line diff, classed del/add/gap, with a gap between hunks (mockup
 // W06 `editor` block). Pure presentation over `lineDiff`.
-function LineDiffView({ hunks, caption }) {
+export function LineDiffView({ hunks, caption }) {
   return (
     <div className="editor est-history-text" role="group" aria-label={caption}>
       {hunks.length === 0 ? (

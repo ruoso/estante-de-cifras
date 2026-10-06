@@ -215,6 +215,68 @@ export default {
     loseAndRestore: 'Lose them and restore',
   },
 
+  // The file view (books.file_view, workflow 14): the book as git sees it — the
+  // tree with each file's status as a word, a raw editor, the whole history with
+  // line diffs, and the file operations (rename/move, delete, new song, saving
+  // several). `{book}` is the book's title; `{name}`/`{file}` a file's path;
+  // `{folder}` its folder; `{count}` a file count.
+  fileView: {
+    filesEntry: 'Files',
+    filesFor: 'Files in {name}',
+    title: 'Files',
+    titleIn: '{book} · Files',
+    back: 'Back',
+    backToFiles: 'Back to files',
+    backToHistory: 'Back to history',
+    historyTab: 'History',
+    filesTab: 'Files',
+    historyTitle: '{book} · History',
+    newSong: 'New song',
+    tree: 'Files in {book}',
+    holds:
+      'A book holds songs (*.cifra.md), setlists (*.setlist.md), README.md and .gitattributes, and nothing else.',
+    status: {
+      unsaved: 'unsaved changes',
+      new: 'new',
+      deleted: 'deleted',
+      conflict: 'conflict',
+    },
+    filesChanged: { one: '{count} file changed', other: '{count} files changed' },
+    save: 'Save…',
+    saveFiles: { one: 'Save {count} file…', other: 'Save {count} files…' },
+    rename: 'Rename',
+    renameLabel: 'Rename {name}',
+    renameSong: 'Rename song',
+    renameSetlist: 'Rename setlist',
+    renameNameLabel: 'Name, in {folder}/',
+    renameNameLabelRoot: 'Name',
+    renameHintSong: 'A song keeps .cifra.md, so it stays a song. The title inside it does not change.',
+    renameHintSetlist: 'A setlist keeps .setlist.md, so it stays a setlist.',
+    linkNotice: 'Links to it are updated in the same save',
+    renameCancel: 'Cancel',
+    renameConfirm: 'Rename',
+    deleteLabel: 'Delete {name}',
+    deleteTitle: 'Delete {name}?',
+    deleteBody:
+      'It is removed from the book when you save. A setlist that points at it will show a missing item.',
+    deleteCancel: 'Keep it',
+    deleteConfirm: 'Delete',
+    changesTitle: 'Changes not saved',
+    changesCaption: 'One save, one commit',
+    noChanges: 'No changes to save.',
+    historyHeading: 'History',
+    merge: 'merge',
+    commits: 'Versions of {book}',
+    commitFiles: { one: '{count} file', other: '{count} files' },
+    commitMeta: '{author} · {date} · {hash} · {files}',
+    restore: 'Restore this version',
+    restoreCaption:
+      'Restoring writes that file as it was after this commit into the working copy, to be saved as a new version.',
+    diffCaption: 'the line diff of {file} in this commit',
+    emptyEditor: 'Choose a file to open it.',
+    emptyCommit: 'Choose a commit to see what it changed.',
+  },
+
   nav: {
     label: 'Sections',
     explore: 'Chords',

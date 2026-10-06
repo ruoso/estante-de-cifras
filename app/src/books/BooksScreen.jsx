@@ -116,7 +116,7 @@ function SyncBadge({ book }) {
 // task's seam, `onOpen`) and a rename control beside it. The row carries the
 // title, the `{where} · {role}` meta line, and the sync badge when present; it
 // reads `.sel` when it is the selected book (W07 desktop master-detail).
-function BookRow({ id, book, kind, selected, onOpen, onRename, rowRef }) {
+function BookRow({ id, book, kind, selected, onOpen, onFiles, onRename, rowRef }) {
   const title = titleFor(book, id);
   const where = t(`books.${whereFor(kind)}`);
   const canSave = canSaveFor(kind, book);
@@ -134,6 +134,13 @@ function BookRow({ id, book, kind, selected, onOpen, onRename, rowRef }) {
         <span className="caret t-small" aria-hidden="true">
           ▸
         </span>
+      </Button>
+      <Button
+        className="btn files-btn"
+        aria-label={t('fileView.filesFor', { name: title })}
+        onPress={() => onFiles(id)}
+      >
+        {t('fileView.filesEntry')}
       </Button>
       <RenameDialog bookId={id} currentName={title} onRename={onRename} />
     </div>
@@ -324,7 +331,8 @@ export default function BooksScreen({ store, onOpenBook = () => {} }) {
               book={book}
               kind={kind}
               selected={selected === id}
-              onOpen={(bookId) => {
+              onOpen={(bookId) => setSelected(bookId)}
+              onFiles={(bookId) => {
                 setSelected(bookId);
                 onOpenBook(bookId);
               }}

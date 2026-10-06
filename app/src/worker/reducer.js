@@ -59,6 +59,11 @@ export const initialState = {
   // (BOOK_LOG): `{ commits }`, every commit newest first with the files each
   // touched. A book an event does not touch keeps its reference. Starts empty.
   bookLog: {},
+  // The book's working tree for the file view (books.file_view), keyed by
+  // `bookId` (TREE): `{ entries }`, every allowed file with its working-copy
+  // status as a word. A book an event does not touch keeps its reference.
+  // Starts empty.
+  tree: {},
   // The last song-search query and its ranked results (storage.index,
   // SEARCH_RESULTS): `{ query, results }`, each result `{ bookId, path, title,
   // artist, score, unsaved, voicedFor?, conflict? }`. The whole slice is
@@ -272,6 +277,21 @@ export function reduce(state, message) {
         bookLog: {
           ...state.bookLog,
           [bookId]: { commits: message.payload?.commits ?? [] },
+        },
+      };
+    }
+
+    case EventKind.TREE: {
+      // The book's working tree arrived (books.file_view): replace this book's
+      // entry. Only this book's entry moves; the rest of `tree` keeps its
+      // references.
+      const bookId = message.payload?.bookId;
+      if (!bookId) return state;
+      return {
+        ...state,
+        tree: {
+          ...state.tree,
+          [bookId]: { entries: message.payload?.entries ?? [] },
         },
       };
     }

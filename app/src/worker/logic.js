@@ -27,6 +27,7 @@ import { createGitLayer } from './git.js';
 import { createWorkingCopy } from './working-copy.js';
 import { createSavePreview } from './save-preview.js';
 import { createHistory } from './history.js';
+import { createBookTree } from './book-tree.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createBooks } from './books.js';
 import { createExampleBook } from './example-book.js';
@@ -274,6 +275,7 @@ export function createWorkerLogic(port, options = {}) {
   let workingCopy = null;
   let savePreview = null;
   let history = null;
+  let bookTree = null;
   let homeBook = null;
   let books = null;
   let exampleBook = null;
@@ -362,6 +364,20 @@ export function createWorkerLogic(port, options = {}) {
       });
     }
     return history;
+  }
+
+  // Compose the file view's working-tree reader once (books.file_view) over the
+  // SAME fs, git layer and lock registry. Walks the book as git sees it; the
+  // view reads the `tree` slice and never touches the working tree directly.
+  function ensureBookTree() {
+    if (!bookTree) {
+      bookTree = createBookTree({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+      });
+    }
+    return bookTree;
   }
 
   // Compose the home book once over the SAME fs, git layer and lock registry as
@@ -779,6 +795,58 @@ export function createWorkerLogic(port, options = {}) {
             const { bookId } = message.payload;
             const { commits } = await ensureHistory().bookLog({ bookId });
             port.postMessage(event(EventKind.BOOK_LOG, { bookId, commits }));
+            break;
+          }
+          case CommandKind.BOOK_TREE: {
+            // The book's whole working tree for the file view (workflow 14
+            // L134-138): every allowed file with its working-copy status as a
+            // word. A local, offline read.
+            const { bookId } = message.payload;
+            const { entries } = await ensureBookTree().tree({ bookId });
+            port.postMessage(event(EventKind.TREE, { bookId, entries }));
+            break;
+          }
+          case CommandKind.MOVE_FILE: {
+            // Rename/move a file keeping its kind, rewriting the book's setlist
+            // links, all uncommitted (workflow 14 L144-146). Keep the index in
+            // step: a moved song leaves its old path and takes the new one, both
+            // unsaved until the shared save (storage.index acceptance 5).
+            const { bookId, fromPath, toPath } = message.payload;
+            await ensureWorkingCopy().move({ bookId, fromPath, toPath });
+            await ensureIndexHydrated();
+            const changes = { putDocs: [], putLocations: [], deleteLocations: [] };
+            mergeIndexChanges(
+              changes,
+              await reindexOrRemove({ bookId, path: fromPath, unsaved: true }),
+            );
+            mergeIndexChanges(
+              changes,
+              await reindexOrRemove({ bookId, path: toPath, unsaved: true }),
+            );
+            await persistIndexChanges(changes);
+            port.postMessage(event(EventKind.FILE_MOVED, { bookId, fromPath, toPath }));
+            break;
+          }
+          case CommandKind.DELETE_FILE: {
+            // Remove a file from the working copy (workflow 14 L147): a committed
+            // file reads as deleted until a save commits the removal, a
+            // never-saved one is unlinked outright. Drop it from the index (now
+            // gone), like a discard (storage.index acceptance 5).
+            const { bookId, path } = message.payload;
+            await ensureWorkingCopy().remove({ bookId, path });
+            await ensureIndexHydrated();
+            await persistIndexChanges(
+              await reindexOrRemove({ bookId, path, unsaved: true }),
+            );
+            port.postMessage(event(EventKind.FILE_DELETED, { bookId, path }));
+            break;
+          }
+          case CommandKind.COMMIT_DIFF: {
+            // One commit's per-file before/after texts for the history pane's
+            // line diff (workflow 14 L161-167): a local, offline read.
+            const { bookId, commit } = message.payload;
+            const { files } = await ensureHistory().commitDiff({ bookId, commit });
+            port.postMessage(event(EventKind.COMMIT_DIFF, { bookId, commit, files }));
             break;
           }
           case CommandKind.SEARCH: {

@@ -28,6 +28,7 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import SearchScreen from '../songs/SearchScreen.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
+import FileView from '../files/FileView.jsx';
 import { DESTINATIONS, WIDE_QUERY, layoutMode } from './layout-mode.js';
 import './shell.css';
 
@@ -128,7 +129,7 @@ function destinationTab(key, variant) {
 // Decision 1) — while `setlists` stays a labelled slot its own content task will
 // fill. RAC mounts only the selected panel, so exactly one level-1 heading (the
 // screen's own) is present at a time.
-function destinationPanels(store, onNavigate, onWriteSong) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key}>
       {key === 'search' ? (
@@ -145,7 +146,7 @@ function destinationPanels(store, onNavigate, onWriteSong) {
           onWriteSong={onWriteSong}
         />
       ) : key === 'books' ? (
-        <BooksScreen store={store} />
+        <BooksScreen store={store} onOpenBook={onOpenBook} />
       ) : (
         <h1 className="t-h1">{t(`shell.${key}`)}</h1>
       )}
@@ -163,6 +164,10 @@ export default function AppShell({ store = getAppStore() }) {
   // open it carries the song's title, its target book and placeholder path (set
   // once NEW_SONG_READY lands), and whether it is still a fresh template.
   const [editing, setEditing] = useState(null);
+  // The open book's file view (books.file_view): its bookId, or null. Like
+  // `editing`, a full-screen host over the shell and ephemeral view state (no
+  // router); the per-book Files control on the book-management screen sets it.
+  const [openFile, setOpenFile] = useState(null);
   // The live CodeMirror view, so Change book can carry the current text to the
   // new book's placeholder (Decision 3). A ref, not state — it never renders.
   const editorRef = useRef(null);
@@ -216,6 +221,9 @@ export default function AppShell({ store = getAppStore() }) {
   // on them. A re-target instead carries the text over and discards the old
   // placeholder, mounting on the existing file (isNew: false).
   useWorkerEvent(store, EventKind.NEW_SONG_READY, ({ bookId, path }) => {
+    // While the file view is open it owns its own new-song flow (its editor is
+    // embedded); the shell's editor host stays dormant.
+    if (openFile) return;
     const retarget = retargetRef.current;
     if (retarget) {
       retargetRef.current = null;
@@ -235,6 +243,7 @@ export default function AppShell({ store = getAppStore() }) {
   // The first save landed: the song is now an ordinary one (workflow 3 §The
   // first save). Close the host and return to where the writer was.
   useWorkerEvent(store, EventKind.SAVED, ({ bookId }) => {
+    if (openFile) return;
     retargetRef.current = null;
     setEditing((prev) => (prev && prev.bookId === bookId ? null : prev));
   });
@@ -246,6 +255,14 @@ export default function AppShell({ store = getAppStore() }) {
     retargetRef.current = null;
     setEditing(null);
   }, []);
+
+  // The file view is a full screen over the shell (books.file_view Decision 7),
+  // exactly as the new-song editor host is; Back returns to the shell.
+  if (openFile) {
+    return (
+      <FileView store={store} bookId={openFile} mode={mode} onBack={() => setOpenFile(null)} />
+    );
+  }
 
   // While a new song is open and its book/path are known, the host is a full
   // screen over the shell (W03 board: a Back affordance on every viewport, the
@@ -281,7 +298,9 @@ export default function AppShell({ store = getAppStore() }) {
             </TabList>
           </div>
           <main className="pane main">
-            <div className="scroll">{destinationPanels(store, setSelected, startNewSong)}</div>
+            <div className="scroll">
+              {destinationPanels(store, setSelected, startNewSong, setOpenFile)}
+            </div>
           </main>
         </div>
       ) : (
@@ -293,7 +312,9 @@ export default function AppShell({ store = getAppStore() }) {
           <TabList className="tabbar" aria-label={t('shell.nav')}>
             {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
           </TabList>
-          <main className="scroll">{destinationPanels(store, setSelected, startNewSong)}</main>
+          <main className="scroll">
+            {destinationPanels(store, setSelected, startNewSong, setOpenFile)}
+          </main>
         </div>
       )}
     </Tabs>

@@ -125,6 +125,21 @@ export const CommandKind = Object.freeze({
   // then re-surfaces PREFERENCES so the slice carries it and the first save is
   // the only one that asks. Offline, auto-committed, never pushed (a preference).
   SET_IDENTITY_NAME: 'set_identity_name',
+  // The file view's reads and file operations (books.file_view, workflow 14).
+  // BOOK_TREE `{ bookId }` walks the working tree and replies with a TREE event
+  // (every allowed file with its working-copy status). MOVE_FILE `{ bookId,
+  // fromPath, toPath }` moves/renames a file in the working copy keeping its
+  // kind and rewrites the book's setlist links to it, all uncommitted, replying
+  // with FILE_MOVED. DELETE_FILE `{ bookId, path }` removes a file from the
+  // working copy (a committed file shown deleted until save; a never-saved file
+  // unlinked), replying with FILE_DELETED. COMMIT_DIFF `{ bookId, commit }`
+  // reads each file a commit touched with its before/after text, replying with a
+  // COMMIT_DIFF event the view line-diffs. All local, offline; BOOK_LOG,
+  // RESTORE_VERSION, OPEN_SOURCE, WRITE, SAVE and PREVIEW_SAVE are reused.
+  BOOK_TREE: 'book_tree',
+  MOVE_FILE: 'move_file',
+  DELETE_FILE: 'delete_file',
+  COMMIT_DIFF: 'commit_diff',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -204,6 +219,22 @@ export const EventKind = Object.freeze({
   // adds no reducer slice; the host observes it through the store's event
   // subscription.
   NEW_SONG_READY: 'new_song_ready',
+  // The file view (books.file_view, workflow 14). TREE carries the book's whole
+  // working tree in reply to BOOK_TREE: `{ bookId, entries: [{ path, status }] }`
+  // where status is 'unsaved' | 'new' | 'deleted' | 'conflict' | null (in step),
+  // only the allowed kinds (`.git` and anything else excluded). The `tree` slice
+  // keeps it per book. FILE_MOVED `{ bookId, fromPath, toPath }` and FILE_DELETED
+  // `{ bookId, path }` are transient confirmations the view folds into ephemeral
+  // state and reacts to by re-requesting BOOK_TREE (no reducer slice, like
+  // NEW_SONG_READY / RESTORED). COMMIT_DIFF carries one commit's per-file texts
+  // in reply to the COMMIT_DIFF command: `{ bookId, commit, files: [{ path,
+  // status, before, after }] }`; the view runs the pure `lineDiff` over
+  // before/after (songs.history Decision 6) — also transient, folded into the
+  // open commit's view state.
+  TREE: 'tree',
+  FILE_MOVED: 'file_moved',
+  FILE_DELETED: 'file_deleted',
+  COMMIT_DIFF: 'commit_diff',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

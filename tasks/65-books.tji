@@ -58,7 +58,15 @@ task books "Books" {
   task file_view "The file view" {
     effort 4d
     allocate team
-    depends storage.history, songs.editor, songs.new_song
-    note "The tree with statuses as words, only the allowed kinds, rename keeping its kind and updating setlist links, delete, raw editor, save several files, the book's log with line diffs and per-file restore. Workflow 14. Tests: behavior (the tree with statuses as words, rename keeping its kind and updating setlist links, delete, raw editor, save several, the log with line diffs, per-file restore; axe); e2e-web (the file view on the three viewports: a rename, a raw edit saved with another file, a restore from the log; axe)."
+    complete 100
+    depends storage.history, songs.editor, songs.new_song, cifra_js.setlists
+    note "The tree with statuses as words, only the allowed kinds, rename keeping its kind and updating setlist links, delete, raw editor, save several files, the book's log with line diffs and per-file restore. Workflow 14. Tests: behavior (the tree with statuses as words, rename keeping its kind and updating setlist links, delete, raw editor, save several, the log with line diffs, per-file restore; axe); e2e-web (the file view on the three viewports: a rename, a raw edit saved with another file, a restore from the log; axe). Refinement: tasks/refinements/books/file_view.md"
+  }
+
+  task file_view_spec_narrow_comment "Fix stale narrow comment in the file-view e2e spec" {
+    effort 0.5d
+    allocate team
+    depends !file_view
+    note "e2e/web/tests/file-view.spec.js line ~50 calls the tablet viewport narrow. The tablet is 712px (wide, > 600px threshold); backToTree() no-ops in wide — the comment is inaccurate. Fix the comment for accuracy. Source of debt: books.file_view (tasks/refinements/books/file_view.md, iter-0116). Governing: workflow 14; foundation.e2e_web. Tests: no new tests; the fix is in the e2e spec itself (comment-only change)."
   }
 }
