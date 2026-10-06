@@ -1,7 +1,17 @@
 import './theme/theme.css';
 import ThemeRoot from './theme/ThemeRoot.jsx';
 import AppShell from './shell/AppShell.jsx';
+import ChartGallery from './chart/gallery/ChartGallery.jsx';
 import { getAppStore } from './worker/store.js';
+
+// The chart's dev gallery is reachable only at `#dev/chart` — absent from the
+// tab bar and from normal navigation, it is the e2e-web mount point for the
+// chart before any song screen exists (shell.chart). Read once at render: the
+// e2e spec navigates straight to the hash URL, so no live hashchange listener
+// is needed for a dev-only mount.
+function isChartGallery() {
+  return typeof location !== 'undefined' && location.hash.startsWith('#dev/chart');
+}
 
 // The app root: the resolved visual-language root (ThemeRoot, shell.tokens)
 // wrapping the navigation shell (AppShell, shell.layout) — the frame Search,
@@ -11,9 +21,5 @@ import { getAppStore } from './worker/store.js';
 // is view state, not Worker data — DIRECTION §3.7 lines 407-414). The view is
 // the only layer that knows React.
 export default function App({ store = getAppStore() }) {
-  return (
-    <ThemeRoot store={store}>
-      <AppShell />
-    </ThemeRoot>
-  );
+  return <ThemeRoot store={store}>{isChartGallery() ? <ChartGallery /> : <AppShell />}</ThemeRoot>;
 }

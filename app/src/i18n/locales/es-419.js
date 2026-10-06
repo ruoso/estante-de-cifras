@@ -158,6 +158,8 @@ export default {
     default: 'predeterminada',
   },
 
+  chart: { label: 'Cifrado' },
+
   library: {
     title: 'Formas guardadas',
     empty:

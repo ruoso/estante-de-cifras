@@ -158,6 +158,8 @@ export default {
     default: 'default',
   },
 
+  chart: { label: 'Chart' },
+
   library: {
     title: 'Saved shapes',
     empty: 'Nothing saved for {label} yet. Star a shape on the chords screen to keep it here.',

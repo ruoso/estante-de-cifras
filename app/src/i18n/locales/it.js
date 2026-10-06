@@ -158,6 +158,8 @@ export default {
     default: 'predefinita',
   },
 
+  chart: { label: 'Spartito' },
+
   library: {
     title: 'Forme salvate',
     empty:

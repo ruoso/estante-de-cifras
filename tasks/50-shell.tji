@@ -28,8 +28,9 @@ task shell "Shell" {
   task chart "The chart" {
     effort 4d
     allocate team
+    complete 100
     depends !tokens, cifra_js.reader
-    note "Proportional: sung lines as chords stacked over the syllables they belong to, a centred hyphen where a chord opens room in a word, measures between bar rules, sections; marking for defaults, conflicts, arrange mode. docs/mockups/README.md. Tests: unit (sung-line layout: chords over syllables, the centred hyphen, measures between bar rules, sections); behavior (corpus songs rendered with Testing Library, defaults, conflicts and arrange-mode marking, axe); e2e-web (a chart on the three viewports without horizontal overflow, axe)."
+    note "Proportional: sung lines as chords stacked over the syllables they belong to, a centred hyphen where a chord opens room in a word, measures between bar rules, sections; marking for defaults, conflicts, arrange mode. docs/mockups/README.md. Tests: unit (sung-line layout: chords over syllables, the centred hyphen, measures between bar rules, sections); behavior (corpus songs rendered with Testing Library, defaults, conflicts and arrange-mode marking, axe); e2e-web (a chart on the three viewports without horizontal overflow, axe). Refinement: tasks/refinements/shell/chart.md"
   }
   task diagram "The chord diagram" {
     effort 1d

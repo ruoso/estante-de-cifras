@@ -158,6 +158,8 @@ export default {
     default: 'padrão',
   },
 
+  chart: { label: 'Cifra' },
+
   library: {
     title: 'Desenhos salvos',
     empty:
