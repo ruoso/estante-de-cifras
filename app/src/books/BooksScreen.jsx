@@ -19,6 +19,9 @@
 // path and an accessible name; where-it-lives, can-save and the sync badge are
 // each a word, never colour alone (mockups README L26).
 
+// RAC overlays portal into the `.est` token root app-wide via the
+// UNSAFE_PortalProvider in ThemeRoot (shell.portal_provider) — no per-screen
+// portal container is threaded through here any more.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
@@ -113,7 +116,7 @@ function SyncBadge({ book }) {
 // task's seam, `onOpen`) and a rename control beside it. The row carries the
 // title, the `{where} · {role}` meta line, and the sync badge when present; it
 // reads `.sel` when it is the selected book (W07 desktop master-detail).
-function BookRow({ id, book, kind, selected, onOpen, onRename, rowRef, portalContainer }) {
+function BookRow({ id, book, kind, selected, onOpen, onRename, rowRef }) {
   const title = titleFor(book, id);
   const where = t(`books.${whereFor(kind)}`);
   const canSave = canSaveFor(kind, book);
@@ -132,12 +135,7 @@ function BookRow({ id, book, kind, selected, onOpen, onRename, rowRef, portalCon
           ▸
         </span>
       </Button>
-      <RenameDialog
-        bookId={id}
-        currentName={title}
-        onRename={onRename}
-        portalContainer={portalContainer}
-      />
+      <RenameDialog bookId={id} currentName={title} onRename={onRename} />
     </div>
   );
 }
@@ -146,7 +144,7 @@ function BookRow({ id, book, kind, selected, onOpen, onRename, rowRef, portalCon
 // the W07 board — this task introduces it). The trigger restores focus on close
 // (RAC); the field opens pre-filled with the current name and, on submit, sends
 // RENAME_BOOK and closes. The repository is never touched — only the shelf label.
-function RenameDialog({ bookId, currentName, onRename, portalContainer }) {
+function RenameDialog({ bookId, currentName, onRename }) {
   const [name, setName] = useState(currentName);
   return (
     <DialogTrigger
@@ -157,7 +155,7 @@ function RenameDialog({ bookId, currentName, onRename, portalContainer }) {
       <Button className="rename-btn" aria-label={t('books.renameLabel', { name: currentName })}>
         <PencilIcon />
       </Button>
-      <ModalOverlay className="scrim center" UNSTABLE_portalContainer={portalContainer ?? undefined}>
+      <ModalOverlay className="scrim center">
         <Modal className="dialog">
           <Dialog>
             {({ close }) => (
@@ -200,7 +198,7 @@ function RenameDialog({ bookId, currentName, onRename, portalContainer }) {
 // Mine on Estante / Upload are added by their own tasks (Decision 6). New book
 // takes a name and creates an empty local repository with no account (workflow 7
 // L25); on submit it sends CREATE_BOOK and closes.
-function AddBookSheet({ onCreate, portalContainer }) {
+function AddBookSheet({ onCreate }) {
   const [name, setName] = useState('');
   return (
     <DialogTrigger
@@ -212,7 +210,7 @@ function AddBookSheet({ onCreate, portalContainer }) {
         <PlusIcon />
         {t('books.add')}
       </Button>
-      <ModalOverlay className="scrim" UNSTABLE_portalContainer={portalContainer ?? undefined}>
+      <ModalOverlay className="scrim">
         <Modal className="sheet">
           <Dialog>
             {({ close }) => (
@@ -275,19 +273,6 @@ export default function BooksScreen({ store, onOpenBook = () => {} }) {
   const shelf = useSlice(store, 'shelf');
   const ordered = useMemo(() => orderedBooks(shelf), [shelf]);
 
-  // React Aria portals the sheet / dialog to document.body by default — outside
-  // ThemeRoot's `.est` root, where every design token (`--u`, `--surface`, the
-  // colours) is defined. There the overlay renders with no padding, no gaps and
-  // a raw 520px width (tokens all undefined), which overflows a phone and pushes
-  // the dialog's Save button off-screen. Portal the overlays back into `.est` so
-  // the visual language cascades (null until mounted, and in token-free jsdom —
-  // both fall back to document.body, which is harmless there).
-  const rootRef = useRef(null);
-  const [portalContainer, setPortalContainer] = useState(null);
-  useEffect(() => {
-    setPortalContainer(rootRef.current?.closest('.est') ?? null);
-  }, []);
-
   // Selection is ephemeral (Decision 7): it highlights the open book (`.sel`),
   // the seam the per-book detail (books.online) will read.
   const [selected, setSelected] = useState(null);
@@ -324,10 +309,10 @@ export default function BooksScreen({ store, onOpenBook = () => {} }) {
   };
 
   return (
-    <div className="books-screen" ref={rootRef}>
+    <div className="books-screen">
       <div className="books-head">
         <h1 className="t-h1 grow">{t('shell.books')}</h1>
-        <AddBookSheet onCreate={createBook} portalContainer={portalContainer} />
+        <AddBookSheet onCreate={createBook} />
       </div>
 
       {ordered.length ? (
@@ -348,7 +333,6 @@ export default function BooksScreen({ store, onOpenBook = () => {} }) {
                 if (node) rowRefs.current.set(id, node);
                 else rowRefs.current.delete(id);
               }}
-              portalContainer={portalContainer}
             />
           ))}
         </div>

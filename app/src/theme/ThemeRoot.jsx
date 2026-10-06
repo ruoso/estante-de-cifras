@@ -10,7 +10,8 @@
 // automatic follows each device as it changes (Workflow 1 lines 94-103), never
 // a one-time read and never written to the home book.
 
-import { useSyncExternalStore } from 'react';
+import { useRef, useSyncExternalStore } from 'react';
+import { UNSAFE_PortalProvider } from 'react-aria';
 import { useSlice } from '../worker/useStore.js';
 import { resolveTheme, themeClasses, DEFAULT_DENSITY } from './resolve.js';
 
@@ -44,9 +45,28 @@ export function usePrefersDark() {
 // Apply the resolved theme to the app root. `store` carries the `preferences`
 // slice (the consumer seam; the producer is deferred — storage.preferences_surface),
 // `density` is a render axis fixed at comfortable by default.
+//
+// React Aria Components portals its overlays (ModalOverlay/Modal/Popover/Tooltip)
+// to document.body by default — outside this `.est` root, where every design
+// token is defined (theme.css, scoped to `.est`), so a portaled overlay would
+// render with every `var(--…)` undefined. `UNSAFE_PortalProvider` here gives
+// every overlay anywhere beneath ThemeRoot a portal container inside the token
+// scope, once, so no screen re-plumbs it (shell.portal_provider; it retires the
+// per-screen `UNSAFE_portalContainer` workaround books.shelf carried).
+// `getContainer` is a lazy callback invoked at portal time, so the ref on the
+// `.est` div is populated by the time any overlay opens; it returns null in a
+// bare render with no mounted root, so RAC falls back to document.body — the
+// provider is additive, never required.
 export default function ThemeRoot({ store, density = DEFAULT_DENSITY, children }) {
   const preferences = useSlice(store, 'preferences');
   const prefersDark = usePrefersDark();
   const applied = resolveTheme(preferences?.theme?.value, prefersDark);
-  return <div className={themeClasses(applied, density)}>{children}</div>;
+  const rootRef = useRef(null);
+  return (
+    <div ref={rootRef} className={themeClasses(applied, density)}>
+      <UNSAFE_PortalProvider getContainer={() => rootRef.current}>
+        {children}
+      </UNSAFE_PortalProvider>
+    </div>
+  );
 }

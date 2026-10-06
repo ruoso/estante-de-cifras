@@ -8,16 +8,34 @@
 // (role/name/structure — the rules that run under jsdom) covers the list, the
 // open sheet, the rename dialog and the empty state; contrast is pinned at
 // e2e-web. All names are written for this test (no-song-text rule).
+//
+// The screen is rendered inside ThemeRoot, as the app mounts it (App.jsx): the
+// per-screen portal workaround is gone (shell.portal_provider), so the sheet and
+// the rename dialog portal into the `.est` token root through ThemeRoot's
+// UNSAFE_PortalProvider — the overlays still open, submit and close, and stay
+// axe-clean, now via the app-wide provider.
 
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
+import ThemeRoot from '../theme/ThemeRoot.jsx';
 import BooksScreen from './BooksScreen.jsx';
 
 const AT = '2026-10-05T14:00:00.000Z';
 const reg = (value) => ({ value, at: AT });
+
+// Render the screen the way the app mounts it — inside ThemeRoot, so its
+// overlays portal into the `.est` token root via the app-wide provider. The one
+// store carries both the `shelf` slice the screen reads and the `preferences`
+// slice ThemeRoot reads.
+const renderScreen = (store) =>
+  render(
+    <ThemeRoot store={store}>
+      <BooksScreen store={store} />
+    </ThemeRoot>,
+  );
 
 // A real store over a loopback endpoint: `sent` captures the commands the screen
 // posts (CREATE_BOOK / RENAME_BOOK); `emit` folds a Worker event into the store
@@ -35,7 +53,7 @@ const lastCommand = (sent, kind) => [...sent].reverse().find((m) => m.kind === k
 describe('BooksScreen (behavior)', () => {
   it('the shelf lists every book with title, where-it-lives and can-save, ordered by position (workflow 7 L14-21)', async () => {
     const { store, emit } = makeStore();
-    const { container } = render(<BooksScreen store={store} />);
+    const { container } = renderScreen(store);
 
     emit(
       event(EventKind.SHELF, {
@@ -60,7 +78,7 @@ describe('BooksScreen (behavior)', () => {
 
   it('title or label: a register shows, a tombstoned/absent register falls back to the id (workflow 7 L16-18; §5.3)', () => {
     const { store, emit } = makeStore();
-    render(<BooksScreen store={store} />);
+    renderScreen(store);
 
     emit(
       event(EventKind.SHELF, {
@@ -79,7 +97,7 @@ describe('BooksScreen (behavior)', () => {
 
   it('sync state shows only when not in step: a labelled badge when seeded, none when in step (workflow 7 L21/L47; mockups README L26)', () => {
     const { store, emit } = makeStore();
-    const { container } = render(<BooksScreen store={store} />);
+    const { container } = renderScreen(store);
 
     emit(
       event(EventKind.SHELF, {
@@ -103,7 +121,7 @@ describe('BooksScreen (behavior)', () => {
 
   it('the Add a book sheet opens by keyboard and by pointer (workflow 7 L25)', () => {
     const { store } = makeStore();
-    render(<BooksScreen store={store} />);
+    renderScreen(store);
     const add = screen.getByRole('button', { name: 'Add a book' });
 
     // Keyboard: focus the trigger and press Enter.
@@ -123,7 +141,7 @@ describe('BooksScreen (behavior)', () => {
 
   it('New book: submits a name, sends CREATE_BOOK, the book appears via the SHELF re-surface and focus moves to it (workflow 7 L25)', async () => {
     const { store, sent, emit } = makeStore();
-    render(<BooksScreen store={store} />);
+    renderScreen(store);
 
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Add a book' })));
     const dialog = screen.getByRole('dialog');
@@ -153,7 +171,7 @@ describe('BooksScreen (behavior)', () => {
 
   it('Rename: opens with the current name, submits RENAME_BOOK and the row re-labels (workflow 7 L16-18)', async () => {
     const { store, sent, emit } = makeStore();
-    render(<BooksScreen store={store} />);
+    renderScreen(store);
 
     emit(
       event(EventKind.SHELF, {
@@ -191,7 +209,7 @@ describe('BooksScreen (behavior)', () => {
 
   it('empty shelf: a role=status line and the Add a book affordance, never a blank pane (Decision 7)', async () => {
     const { store } = makeStore();
-    const { container } = render(<BooksScreen store={store} />);
+    const { container } = renderScreen(store);
 
     // No SHELF emitted — the slice starts empty.
     expect(screen.getByRole('status')).toHaveTextContent('No books yet. Add a book to start.');
