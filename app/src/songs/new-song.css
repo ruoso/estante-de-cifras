@@ -1,0 +1,44 @@
+/* The new-song host (songs.new_song). Layout plumbing only — no colours, no
+   type; the visual language stays in app/src/theme/theme.css (the `.appbar`,
+   `.badge`, `.btn`, `.screen` classes used here are drawn there). Spacing is in
+   the `--u` density token, like shell.css and editor.css. */
+
+/* The host fills its region as a column; the editor region takes the slack. */
+.new-song {
+  height: 100%;
+}
+
+.new-song .est-editor {
+  flex: 1;
+  min-height: 0;
+}
+
+/* The which-book bar above the editor (W03): an icon, the "In {book}" label,
+   and the Change book trigger, on the surface with a hairline under it. */
+.new-song-book {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+  padding: var(--u) calc(var(--u) * 2);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-2);
+}
+
+.new-song-book-label {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The "· can change until the first save" tail — dropped on the narrowest
+   viewport, where the label alone carries the book (W03 phone shows only
+   "In My songs"). */
+@media (max-width: 480px) {
+  .new-song-book-hint {
+    display: none;
+  }
+}
+
+.new-song-note {
+  padding: var(--u) calc(var(--u) * 2) calc(var(--u) * 2);
+}

@@ -47,6 +47,8 @@ import { canonicaliseFile } from './canonicalise.js';
  *   write: (opts: { bookId: string, path: string, text: string|Uint8Array }) => Promise<void>,
  *   save: (opts: { bookId: string, paths: string[], message: string, author: object }) =>
  *     Promise<{ commit: string, pushed: boolean } | { refused: { path: string, reason: string, marker?: string, line?: number } }>,
+ *   nameAndSave: (opts: { bookId: string, fromPath: string, toPath: string, message: string, author: object }) =>
+ *     Promise<{ commit: string, pushed: boolean, path: string } | { refused: { path: string, reason: string, marker?: string, line?: number } }>,
  *   discard: (opts: { bookId: string, paths: string[] }) => Promise<void>,
  * }}
  */
@@ -165,6 +167,71 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
     });
   }
 
+  // The first save of a new song (songs.new_song, workflow 3 §The first save):
+  // rename the uncommitted placeholder (`fromPath`) to its title's slug
+  // (`toPath`), then the same canonical commit-and-push a SAVE does — all under
+  // ONE lock (Decision 1). The placeholder was never committed (a `WRITE`-only
+  // file, no HEAD blob), so no `git mv` is needed: writing the canonical text at
+  // `toPath` and unlinking `fromPath` is the whole rename. Canonicality and the
+  // offline-push behavior are exactly the SAVE path's; the naming is a thin step
+  // in front of it (Decision 4). A marked/unreadable file refuses before any
+  // commit, like SAVE (Decision 5) — though the editor's pre-save gate blocks
+  // that for a new song (editor.md Decision 3).
+  function nameAndSave({ bookId, fromPath, toPath, message, author }) {
+    return locks.withLock(bookId, async () => {
+      const dir = git.bookDir(bookId);
+      const fromFull = at(dir, fromPath);
+      const toFull = at(dir, toPath);
+
+      // Canonicalise the placeholder's current bytes; a refusal here leaves the
+      // working copy and the repo untouched (nothing written back or staged).
+      const result = canonicaliseFile(toPath, await fs.promises.readFile(fromFull));
+      if (!result.ok) {
+        return {
+          refused: {
+            path: fromPath,
+            reason: result.reason,
+            marker: result.marker,
+            line: result.line,
+          },
+        };
+      }
+
+      // Rename: write the canonical text at the final name (creating its folder
+      // if the new song sits under one), then drop the placeholder. The
+      // committed blob and the working file agree (both canonical).
+      const slash = toFull.lastIndexOf('/');
+      if (slash > 0) await mkdirp(toFull.slice(0, slash));
+      await fs.promises.writeFile(toFull, result.text);
+      if (toFull !== fromFull) {
+        try {
+          await fs.promises.unlink(fromFull);
+        } catch (err) {
+          if (err?.code !== 'ENOENT') throw err;
+        }
+      }
+      await gitAdd({ fs, dir, filepath: toPath });
+      const commit = await gitCommit({ fs, dir, message, author, committer: author });
+
+      // Force the inode table out now (fs.js Decision 6), inside the one lock and
+      // before the best-effort push, so the commit the user chose to keep is
+      // durable without waiting on the network (mirrors `save`).
+      await fs.flush();
+
+      // The commit is durable locally; the push is best-effort (offline-first).
+      // A local book has no remote, so push throws and resolves `pushed: false`;
+      // an online book pushes, or queues (`pushed: false`) with the commit kept.
+      let pushed = false;
+      try {
+        await git.push({ dir });
+        pushed = true;
+      } catch {
+        pushed = false;
+      }
+      return { commit, pushed, path: toPath };
+    });
+  }
+
   // Put the named paths back as last saved (workflow 4 L73-77): a tracked file
   // is checked out from HEAD; a never-saved new file (no HEAD blob) is deleted
   // (workflow 3 L51-54). Under the book lock.
@@ -192,5 +259,5 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
     });
   }
 
-  return { write, save, discard };
+  return { write, save, nameAndSave, discard };
 }

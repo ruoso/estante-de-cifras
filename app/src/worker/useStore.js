@@ -9,7 +9,8 @@
 // named slices, not arbitrary derived selectors (Decision 3). A component that
 // wants a derived value memoizes it itself, with the React Compiler already on.
 
-import { useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { EVENT } from './protocol.js';
 
 export function useSlice(store, name) {
   return useSyncExternalStore(
@@ -17,4 +18,26 @@ export function useSlice(store, name) {
     () => store.slice(name),
     () => store.slice(name),
   );
+}
+
+// Observe a transient Worker event of one `kind` (songs.new_song): the command
+// replies that carry no read model and so add no slice — NEW_SONG_READY, and the
+// first-save SAVED the new-song host turns into ephemeral view state (Decision
+// 5). `handler` is called with the event payload. It is NOT a `useSyncExternal‐
+// Store` subscription: these are one-shot signals, not state a component renders
+// from. The latest handler is held in a ref so re-renders do not re-subscribe,
+// and a store with no `subscribeEvents` (the inert no-op store) is a no-op.
+export function useWorkerEvent(store, kind, handler) {
+  const handlerRef = useRef(handler);
+  useEffect(() => {
+    handlerRef.current = handler;
+  });
+  useEffect(() => {
+    if (typeof store?.subscribeEvents !== 'function') return undefined;
+    return store.subscribeEvents((message) => {
+      if (message?.dir === EVENT && message.kind === kind) {
+        handlerRef.current?.(message.payload);
+      }
+    });
+  }, [store, kind]);
 }

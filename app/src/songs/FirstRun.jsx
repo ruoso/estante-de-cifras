@@ -136,7 +136,7 @@ export default function FirstRun({
             icon={<WriteIcon />}
             name={t('firstRun.writeSong')}
             meta={t('firstRun.writeSongMeta')}
-            onPress={onWriteSong}
+            onPress={() => onWriteSong()}
           />
           <Way
             icon={<LinkIcon />}

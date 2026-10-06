@@ -68,6 +68,7 @@ export default function SongEditor({
   bookId = null,
   path = null,
   isNew = false,
+  title = '',
   onSave,
   layoutMode,
   editorRef,
@@ -93,9 +94,13 @@ export default function SongEditor({
   // The initial document: a template for a new song, else the working-copy text
   // once OPEN_SOURCE has returned it.
   const sourceText = sourceSlice?.[bookId]?.[path]?.text;
+  // A new song's template carries the title the host started it with (the
+  // search query, the file-view/book-section empty title) — songs.new_song
+  // wires the `title` the template seam already accepts (editor.md Decision 9;
+  // workflow 3 §Ways in). Empty when none, exactly as before.
   const templateDoc = useMemo(
-    () => (isNew ? template(preferences) : null),
-    [isNew, preferences],
+    () => (isNew ? template(preferences, { title }) : null),
+    [isNew, preferences, title],
   );
 
   const containerRef = useRef(null);

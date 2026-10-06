@@ -85,6 +85,26 @@ export const CommandKind = Object.freeze({
   // storage.working_copy left out (it built WRITE/SAVE/DISCARD and no way to
   // read the current text back). Local, offline, no commit.
   OPEN_SOURCE: 'open_source',
+  // Start a new song (songs.new_song, workflow 3). NEW_SONG `{ targetBookId?,
+  // folder?, mySongsTitle?, author }` ensures the target book exists — for *My
+  // songs* (when no `targetBookId`), idempotently under the reserved
+  // `local-my-songs` id, provisioning a local home book and a `shelf.local`
+  // entry if absent and re-surfacing SHELF; for a chosen book, a no-op — then
+  // allocates a free `untitled[-N].cifra.md` placeholder path against the
+  // book's working copy (in `folder` when given, else at the root) and replies
+  // with a NEW_SONG_READY event. All local — no account, no network, no push.
+  // `mySongsTitle` is the localised *My songs* shelf label and README identity
+  // (the view knows the language), used only when provisioning *My songs*.
+  NEW_SONG: 'new_song',
+  // The first save of a new song (songs.new_song, workflow 3 §The first save).
+  // NAME_AND_SAVE `{ bookId, fromPath, author }`: the Worker parses the
+  // working-copy file for its title, derives the title's ASCII slug filename
+  // (`deriveSongFilename`, with a collision suffix against the folder), renames
+  // the placeholder to it, then canonicalises, commits *Add {title}* and pushes
+  // (a local book commits only; an online book pushes, or queues offline), and
+  // replies with the existing SAVED event carrying the final `path`. The app
+  // never renames it afterwards (DIRECTION §4 L446-448).
+  NAME_AND_SAVE: 'name_and_save',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -148,6 +168,15 @@ export const EventKind = Object.freeze({
   // Decision 4): `{ bookId, path, text }`. The editor loads it into its
   // CodeMirror buffer; the `source` slice keeps it per book and path.
   SOURCE: 'source',
+  // A new song's target book and placeholder path are ready, in reply to
+  // NEW_SONG (songs.new_song, Decision 2): `{ bookId, path }`. A transient
+  // command reply, NOT a read model — the host folds it into ephemeral view
+  // state ("which song is open" is the view's, Decision 5) and mounts the
+  // editor on the returned book/path, so the editor's debounced WRITE has a
+  // concrete destination from the first keystroke (SongEditor.jsx:113). It
+  // adds no reducer slice; the host observes it through the store's event
+  // subscription.
+  NEW_SONG_READY: 'new_song_ready',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

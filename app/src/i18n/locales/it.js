@@ -90,6 +90,20 @@ export default {
     exampleLabel: 'Libro di esempio',
   },
 
+  newSong: {
+    create: 'Crea “{query}”',
+    createMeta: 'Un nuovo brano in {book}',
+    inThisBook: 'Nuovo brano in {book}',
+    inBook: 'In {book}',
+    changeable: 'puoi cambiarlo fino al primo salvataggio',
+    changeBook: 'Cambia libro',
+    back: 'Indietro',
+    unsaved: 'non salvato',
+    untitled: 'Brano senza titolo',
+    notationNote:
+      'La notazione viene dalla tua preferenza, così il brano si legge uguale per tutti.',
+  },
+
   nav: {
     label: 'Sezioni',
     explore: 'Accordi',

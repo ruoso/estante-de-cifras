@@ -19,15 +19,25 @@ import { command, CommandKind } from './protocol.js';
 export function createStore(endpoint) {
   let state = initialState;
   const listeners = new Set();
+  // Raw-event listeners (songs.new_song). Most events fold into a slice and the
+  // view reads the slice; a few are TRANSIENT command replies — NEW_SONG_READY
+  // — that carry no read model and so add no slice (Decision 5). The new-song
+  // host observes those here instead, turning the reply into ephemeral view
+  // state. These fire for every event, independent of whether a slice moved.
+  const eventListeners = new Set();
 
   endpoint.onmessage = (messageEvent) => {
-    const next = reduce(state, messageEvent.data);
+    const message = messageEvent.data;
+    const next = reduce(state, message);
     // The reducer returns the same reference when nothing changed; only
     // notify when the state object actually moved.
     if (next !== state) {
       state = next;
       for (const listener of listeners) listener();
     }
+    // Deliver the raw event to any transient-reply listeners, after the slices
+    // have settled so a handler reading a slice sees the folded state.
+    for (const listener of eventListeners) listener(message);
   };
 
   return {
@@ -44,6 +54,16 @@ export function createStore(endpoint) {
     },
     getState() {
       return state;
+    },
+    // Subscribe to raw events (songs.new_song) — the transient command replies
+    // that add no slice. Returns an unsubscribe. The listener is called with the
+    // event envelope for every message; it filters by kind itself (useStore's
+    // `useWorkerEvent` wraps this).
+    subscribeEvents(listener) {
+      eventListeners.add(listener);
+      return () => {
+        eventListeners.delete(listener);
+      };
     },
     // Send an arbitrary command envelope down the port.
     send(message) {

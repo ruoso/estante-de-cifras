@@ -29,6 +29,8 @@ import { createHistory } from './history.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createBooks } from './books.js';
 import { createExampleBook } from './example-book.js';
+import { createMySongs, MY_SONGS_ID } from './my-songs.js';
+import { deriveSongFilename } from '../songs/song-filename.js';
 import { createSearchIndex } from './search-index.js';
 import { createRecents } from './recents.js';
 import { surfacePreferences } from './preferences.js';
@@ -273,6 +275,7 @@ export function createWorkerLogic(port, options = {}) {
   let homeBook = null;
   let books = null;
   let exampleBook = null;
+  let mySongs = null;
   let searchIndex = null;
   let indexHydration = null;
   let recents = null;
@@ -384,6 +387,20 @@ export function createWorkerLogic(port, options = {}) {
     return exampleBook;
   }
 
+  // Compose the reserved *My songs* provisioner once over the SAME fs, git layer
+  // and lock registry (songs.new_song), mirroring ensureExampleBook. The Worker
+  // owns the data; the view only sends NEW_SONG.
+  function ensureMySongs() {
+    if (!mySongs) {
+      mySongs = createMySongs({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+      });
+    }
+    return mySongs;
+  }
+
   // Compose the search index once over the SAME fs and git layer (Decision 1),
   // mirroring the other ensure* composers. The index owns only the in-memory
   // MiniSearch instance and the extracted records; this module persists them.
@@ -441,6 +458,24 @@ export function createWorkerLogic(port, options = {}) {
       throw err;
     }
     return ensureSearchIndex().reindexPath({ bookId, path, unsaved });
+  }
+
+  // The file names directly in a book's folder (`folder` within the book, or the
+  // book root when absent) — the set a new song's placeholder/slug must not
+  // collide with (songs.new_song, workflow 3 §Its file name). A folder that does
+  // not exist yet (a new sub-folder) reads as empty; `.git` and the other
+  // entries are harmless (a name never collides with `untitled[-N].cifra.md` or
+  // a title slug unless it is exactly that file).
+  async function folderNames(bookId, folder) {
+    const dir = ensureGit().bookDir(bookId);
+    const trimmed = folder ? folder.replace(/\/+$/, '') : '';
+    const full = trimmed ? `${dir}/${trimmed}` : dir;
+    try {
+      return await ensureFs().promises.readdir(full);
+    } catch (err) {
+      if (err?.code === 'ENOENT') return [];
+      throw err;
+    }
   }
 
   // Build every book's index on bring-up (acceptance 1, 9): emit a per-book
@@ -870,6 +905,122 @@ export function createWorkerLogic(port, options = {}) {
             const full = `${ensureGit().bookDir(bookId)}/${path}`;
             const text = await ensureFs().promises.readFile(full, 'utf8');
             port.postMessage(event(EventKind.SOURCE, { bookId, path, text }));
+            break;
+          }
+          case CommandKind.NEW_SONG: {
+            // Start a new song (songs.new_song, workflow 3; Decision 2). Ensure
+            // the target book exists, allocate a free placeholder path against
+            // its working copy, and reply so the host can mount the editor on a
+            // concrete book/path. All local — no account, no network.
+            const { targetBookId, folder, mySongsTitle, author } = message.payload;
+            const bookId = targetBookId ?? MY_SONGS_ID;
+            if (bookId === MY_SONGS_ID) {
+              // *My songs* "created when first written to" (workflow 3 §Which
+              // book L28), idempotently under its reserved id — mirroring
+              // OPEN_EXAMPLE_BOOK: provision a local home book if none exists,
+              // mint the repository, write its shelf.local entry, re-surface
+              // SHELF. A second new song into it re-runs all of this as a no-op.
+              const home = ensureHomeBook();
+              await home.ensureLocal({ author });
+              await ensureMySongs().ensure({ title: mySongsTitle, author });
+              const deviceId = await home.ensureDeviceId({ idb, name, version });
+              const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+              // Keep an existing position; a fresh entry lands at the end.
+              // Rewriting the same register keys adds no duplicate (idempotence).
+              const existing = shelf?.local?.[deviceId]?.[MY_SONGS_ID];
+              const position =
+                typeof existing?.position?.value === 'number'
+                  ? existing.position.value
+                  : nextShelfPosition(shelf, deviceId);
+              await home.set({
+                bookId: HOME_BOOK_ID,
+                file: 'shelf.json',
+                changes: [
+                  { path: ['local', deviceId, MY_SONGS_ID, 'title'], value: mySongsTitle },
+                  { path: ['local', deviceId, MY_SONGS_ID, 'position'], value: position },
+                ],
+                author,
+              });
+              await surfaceHomeBookShelf();
+            }
+            // Allocate a free `untitled[-N].cifra.md` against the target folder
+            // (the Worker owns the dir listing — Decision 2). The file itself is
+            // not written here; the editor's first WRITE creates it.
+            const names = await folderNames(bookId, folder);
+            const base = deriveSongFilename('', names);
+            const prefix = folder ? `${folder.replace(/\/+$/, '')}/` : '';
+            const path = `${prefix}${base}`;
+            // Force the inode table out now (fs.js Decision 6), at the handler
+            // tail after the locks have released (Decision 4): one flush persists
+            // the *My songs* repo and the shelf write, so an immediate reload
+            // finds the book on the shelf — not seeded-but-orphaned.
+            await ensureFs().flush();
+            port.postMessage(event(EventKind.NEW_SONG_READY, { bookId, path }));
+            break;
+          }
+          case CommandKind.NAME_AND_SAVE: {
+            // The first save of a new song (songs.new_song, workflow 3 §The first
+            // save; Decision 4): name the placeholder from the title, then the
+            // existing canonical commit-and-push. The title parse and the
+            // collision-suffixed name are derived here (the Worker owns the dir
+            // listing); the rename + canonical commit run under one lock in the
+            // working copy.
+            const { bookId, fromPath, author } = message.payload;
+            const dir = ensureGit().bookDir(bookId);
+            const bytes = await ensureFs().promises.readFile(`${dir}/${fromPath}`);
+            const title = (parseSong(bytes)?.title ?? '').trim();
+            // Collision set: the folder's names minus the placeholder itself, so
+            // a title whose slug equals the placeholder does not gain a suffix
+            // against it.
+            const slash = fromPath.lastIndexOf('/');
+            const folder = slash > 0 ? fromPath.slice(0, slash) : '';
+            const fromName = slash >= 0 ? fromPath.slice(slash + 1) : fromPath;
+            const prefix = folder ? `${folder}/` : '';
+            const names = (await folderNames(bookId, folder)).filter((n) => n !== fromName);
+            const toPath = `${prefix}${deriveSongFilename(title, names)}`;
+            const outcome = await ensureWorkingCopy().nameAndSave({
+              bookId,
+              fromPath,
+              toPath,
+              // The W03 commit message, *Add {title}*. Git history, not a log —
+              // never written to `console` (standing rule).
+              message: `Add ${title || 'untitled'}`,
+              author: authorFrom(author),
+            });
+            if (outcome.refused) {
+              port.postMessage(
+                event(EventKind.SAVE_REFUSED, {
+                  bookId,
+                  path: outcome.refused.path,
+                  reason: outcome.refused.reason,
+                  marker: outcome.refused.marker ?? null,
+                  line: outcome.refused.line ?? null,
+                }),
+              );
+            } else {
+              port.postMessage(
+                event(EventKind.SAVED, {
+                  bookId,
+                  path: outcome.path,
+                  commit: outcome.commit,
+                  pushed: outcome.pushed,
+                }),
+              );
+              // Re-index: the final path is now canonical and committed (no
+              // longer unsaved); the placeholder is gone, so drop it from the
+              // index (storage.index acceptance 5).
+              await ensureIndexHydrated();
+              const changes = { putDocs: [], putLocations: [], deleteLocations: [] };
+              mergeIndexChanges(
+                changes,
+                await reindexOrRemove({ bookId, path: toPath, unsaved: false }),
+              );
+              mergeIndexChanges(
+                changes,
+                await reindexOrRemove({ bookId, path: fromPath, unsaved: false }),
+              );
+              await persistIndexChanges(changes);
+            }
             break;
           }
           default:

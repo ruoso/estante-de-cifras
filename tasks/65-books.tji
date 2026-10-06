@@ -58,7 +58,7 @@ task books "Books" {
   task file_view "The file view" {
     effort 4d
     allocate team
-    depends storage.history, songs.editor
+    depends storage.history, songs.editor, songs.new_song
     note "The tree with statuses as words, only the allowed kinds, rename keeping its kind and updating setlist links, delete, raw editor, save several files, the book's log with line diffs and per-file restore. Workflow 14. Tests: behavior (the tree with statuses as words, rename keeping its kind and updating setlist links, delete, raw editor, save several, the log with line diffs, per-file restore; axe); e2e-web (the file view on the three viewports: a rename, a raw edit saved with another file, a restore from the log; axe)."
   }
 }

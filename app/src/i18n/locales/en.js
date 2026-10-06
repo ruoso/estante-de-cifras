@@ -95,6 +95,24 @@ export default {
     exampleLabel: 'Example Book',
   },
 
+  // Writing a new song (songs.new_song, workflow 3; W03 board). The ways in (the
+  // Create row, "new song in this book"), the which-book bar above the editor,
+  // and the host's own chrome. `{query}` is the search that becomes the title;
+  // `{book}` the book the song goes into.
+  newSong: {
+    create: 'Create “{query}”',
+    createMeta: 'A new song in {book}',
+    inThisBook: 'New song in {book}',
+    inBook: 'In {book}',
+    changeable: 'can change until the first save',
+    changeBook: 'Change book',
+    back: 'Back',
+    unsaved: 'unsaved',
+    untitled: 'Untitled song',
+    notationNote:
+      'The notation comes from your preference, so the song reads the same to everyone.',
+  },
+
   nav: {
     label: 'Sections',
     explore: 'Chords',

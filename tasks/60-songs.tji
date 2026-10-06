@@ -34,8 +34,9 @@ task songs "Songs" {
   task new_song "Writing a new song" {
     effort 2d
     allocate team
-    depends !editor, !search
-    note "From search, the empty shelf, a book, the file view; which book; named once at the first save; My songs created when first written to. Workflow 3. Tests: behavior (which book, the name at first save, My songs created; axe); e2e-web (write a new song from search, the empty shelf, a book and the file view, offline; axe)."
+    complete 100
+    depends !editor, !search, books.shelf, account.first_run
+    note "From search, the empty shelf, a book, the file view; which book; named once at the first save; My songs created when first written to. Workflow 3. Tests: unit (deriveSongFilename); behavior (which book, the name at first save, My songs created; axe); e2e-web (write a new song from search, the empty shelf, a book and the file view, offline; axe). Refinement: tasks/refinements/songs/new_song.md"
   }
   task save_sheet "Save, discard, and the save sheet" {
     effort 2d

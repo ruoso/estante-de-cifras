@@ -32,6 +32,7 @@ import { t } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
+import { canSaveFor } from '../books/book-display.js';
 import {
   recognizeChord,
   scopePayload,
@@ -101,6 +102,38 @@ function ExploreIcon() {
     >
       <rect x="3" y="3" width="18" height="18" rx="2" />
       <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+    </svg>
+  );
+}
+
+// Whether a new song may be started into a book from its section (workflow 3
+// §Which book L28): a shared book only when the user can push to it
+// (`canSaveFor` the editor role), a local book (in `shelf.local`, including *My
+// songs*) always. A book with no shelf entry is treated as local/on-device.
+function canWriteTo(shelf, bookId) {
+  const shared = shelf?.books?.[bookId];
+  if (shared) return canSaveFor('shared', shared) === true;
+  return true;
+}
+
+// The plus on a "create / new song" affordance (W03 Create row, "new song in
+// this book"); decorative, named by its row name or the button's aria-label.
+function CreateIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      style={{ color: 'var(--accent)', flex: 'none' }}
+    >
+      <path d="M12 5v14M5 12h14" />
     </svg>
   );
 }
@@ -190,7 +223,17 @@ function SongRow({ item, bookLabel, instrument, onOpen }) {
 // the song count or, while the book's index is still building, a "still
 // loading" line rather than looking empty (workflow 2 L159-162). A funnel button
 // narrows the search to just this book (the scope — workflow 2 L62).
-function BookSection({ bookId, book, building, bookLabel, instrument, onOpen, onScopeBook }) {
+function BookSection({
+  bookId,
+  book,
+  building,
+  bookLabel,
+  instrument,
+  onOpen,
+  onScopeBook,
+  onWriteSong,
+  canWrite,
+}) {
   const count = book?.count ?? 0;
   const songs = book?.songs ?? [];
   const meta = building
@@ -212,6 +255,18 @@ function BookSection({ bookId, book, building, bookLabel, instrument, onOpen, on
                 </span>
               </Button>
             </Heading>
+            {/* New song in this book (workflow 3 §Ways in L13): only for a book
+                the user can push to (`canSaveFor`); a book they cannot save to
+                is not offered one (workflow 3 §Which book L28). */}
+            {canWrite && (
+              <Button
+                className="scope-btn"
+                aria-label={t('newSong.inThisBook', { book: bookLabel })}
+                onPress={() => onWriteSong({ bookId })}
+              >
+                <CreateIcon />
+              </Button>
+            )}
             <Button
               className="scope-btn"
               aria-label={t('search.scopeToBook', { book: bookLabel })}
@@ -418,9 +473,31 @@ export default function SearchScreen({
                 ))}
               </div>
             ) : (
-              <p className="t-small empty" role="status">
-                {t('search.empty', { query: typedQuery })}
-              </p>
+              <>
+                {/* Nothing matched, so create it — the query becomes the title,
+                    the song goes into My songs (workflow 3 §Ways in L10-11; W03
+                    Create row, "A new song in My songs"). A primary row, like
+                    the explore row above it. */}
+                <div className="list">
+                  <Button
+                    className="row explore"
+                    onPress={() => onWriteSong({ title: typedQuery })}
+                  >
+                    <CreateIcon />
+                    <span className="grow">
+                      <span className="name">
+                        {t('newSong.create', { query: typedQuery })}
+                      </span>
+                      <span className="meta">
+                        {t('newSong.createMeta', { book: t('firstRun.mySongs') })}
+                      </span>
+                    </span>
+                  </Button>
+                </div>
+                <p className="t-small empty" role="status">
+                  {t('search.empty', { query: typedQuery })}
+                </p>
+              </>
             )}
           </section>
         </>
@@ -482,6 +559,8 @@ export default function SearchScreen({
                     instrument={instrument}
                     onOpen={onOpenSong}
                     onScopeBook={(bookId) => setScope({ books: [bookId] })}
+                    onWriteSong={onWriteSong}
+                    canWrite={canWriteTo(shelf, id)}
                   />
                 ))}
               </div>

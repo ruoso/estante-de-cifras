@@ -19,14 +19,22 @@
 // songs.search, books.shelf and books.setlists (which already depend on this
 // task) fill them. The shell is usable with no account and no book (Workflow 1).
 
-import { useState, useSyncExternalStore } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { getAppStore } from '../worker/store.js';
+import { useWorkerEvent } from '../worker/useStore.js';
+import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import SearchScreen from '../songs/SearchScreen.jsx';
+import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
 import { DESTINATIONS, WIDE_QUERY, layoutMode } from './layout-mode.js';
 import './shell.css';
+
+// The device-local commit identity before sign-in (SearchScreen/BooksScreen use
+// the same literal; `authorFrom` in the Worker turns the id into the no-reply
+// address). An account id replaces it once signed in — not an M2 concern.
+const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
 
 // The wide media query, or null where `matchMedia` is absent (jsdom provides
 // none — the behavior test stubs it). A missing query reads as not-wide, so the
@@ -120,7 +128,7 @@ function destinationTab(key, variant) {
 // Decision 1) — while `setlists` stays a labelled slot its own content task will
 // fill. RAC mounts only the selected panel, so exactly one level-1 heading (the
 // screen's own) is present at a time.
-function destinationPanels(store, onNavigate) {
+function destinationPanels(store, onNavigate, onWriteSong) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key}>
       {key === 'search' ? (
@@ -128,8 +136,14 @@ function destinationPanels(store, onNavigate) {
         // screen's add-a-book flow via this navigation callback (account.first_run
         // Decision 1; books.add_by_link fills in the by-link option). Navigation
         // stays view-state here (no router); the other first-run seams are plain
-        // callback props their own tasks wire.
-        <SearchScreen store={store} onAddBook={() => onNavigate('books')} />
+        // callback props their own tasks wire. `onWriteSong` is the new-song
+        // way-in (songs.new_song): the Create row, the empty shelf and a book's
+        // section all raise it, with the started-from book and the query title.
+        <SearchScreen
+          store={store}
+          onAddBook={() => onNavigate('books')}
+          onWriteSong={onWriteSong}
+        />
       ) : key === 'books' ? (
         <BooksScreen store={store} />
       ) : (
@@ -142,6 +156,127 @@ function destinationPanels(store, onNavigate) {
 export default function AppShell({ store = getAppStore() }) {
   const mode = useLayoutMode();
   const [selected, setSelected] = useState(DESTINATIONS[0]);
+
+  // Writing a new song is ephemeral view state, not Worker data and not a store
+  // slice (songs.new_song Decision 5; shell.layout Decision 5 — navigation is
+  // `useState`, no router). `editing` is null unless a new song is open; while
+  // open it carries the song's title, its target book and placeholder path (set
+  // once NEW_SONG_READY lands), and whether it is still a fresh template.
+  const [editing, setEditing] = useState(null);
+  // The live CodeMirror view, so Change book can carry the current text to the
+  // new book's placeholder (Decision 3). A ref, not state — it never renders.
+  const editorRef = useRef(null);
+  // A pending Change-book re-target: the text to carry and the placeholder to
+  // discard, consumed by the next NEW_SONG_READY.
+  const retargetRef = useRef(null);
+
+  // Start a new song from any way in (songs.new_song, workflow 3 §Ways in). The
+  // payload carries the started-from book (else *My songs*), the folder (the
+  // file view's, else the book root), the search query as the title, and the
+  // localised *My songs* label the Worker writes if it must mint the book.
+  const startNewSong = useCallback(
+    (opts = {}) => {
+      setEditing({ songTitle: opts.title ?? '', bookId: null, path: null, isNew: true });
+      store.send(
+        command(CommandKind.NEW_SONG, {
+          targetBookId: opts.bookId ?? null,
+          folder: opts.folder ?? null,
+          mySongsTitle: t('firstRun.mySongs'),
+          author: LOCAL_IDENTITY,
+        }),
+      );
+    },
+    [store],
+  );
+
+  // Change the book before the first save (Decision 3): re-target with shipped
+  // primitives — NEW_SONG for the new book, then WRITE the current text into its
+  // placeholder and DISCARD the old one (uncommitted, so it is deleted). No
+  // bespoke move command; moving a draft costs nothing.
+  const changeBook = useCallback(
+    (targetBookId) => {
+      if (!editing?.bookId || targetBookId === editing.bookId) return;
+      retargetRef.current = {
+        text: editorRef.current?.state?.doc?.toString() ?? '',
+        from: { bookId: editing.bookId, path: editing.path },
+      };
+      store.send(
+        command(CommandKind.NEW_SONG, {
+          targetBookId,
+          folder: null,
+          mySongsTitle: t('firstRun.mySongs'),
+          author: LOCAL_IDENTITY,
+        }),
+      );
+    },
+    [store, editing],
+  );
+
+  // The Worker allocated the target book and placeholder path: mount the editor
+  // on them. A re-target instead carries the text over and discards the old
+  // placeholder, mounting on the existing file (isNew: false).
+  useWorkerEvent(store, EventKind.NEW_SONG_READY, ({ bookId, path }) => {
+    const retarget = retargetRef.current;
+    if (retarget) {
+      retargetRef.current = null;
+      store.send(command(CommandKind.WRITE, { bookId, path, text: retarget.text }));
+      store.send(
+        command(CommandKind.DISCARD, {
+          bookId: retarget.from.bookId,
+          paths: [retarget.from.path],
+        }),
+      );
+      setEditing((prev) => (prev ? { ...prev, bookId, path, isNew: false } : prev));
+    } else {
+      setEditing((prev) => (prev ? { ...prev, bookId, path, isNew: true } : prev));
+    }
+  });
+
+  // The first save landed: the song is now an ordinary one (workflow 3 §The
+  // first save). Close the host and return to where the writer was.
+  useWorkerEvent(store, EventKind.SAVED, ({ bookId }) => {
+    retargetRef.current = null;
+    setEditing((prev) => (prev && prev.bookId === bookId ? null : prev));
+  });
+
+  // Leave the editor (Back): a never-saved draft stays in the working copy,
+  // findable by its badge (workflow 3 §Abandoning it L53-54). Drop any pending
+  // re-target so a later new song does not consume it.
+  const exitEditing = useCallback(() => {
+    retargetRef.current = null;
+    setEditing(null);
+  }, []);
+
+  // The first save: name the placeholder from the title, commit and push
+  // (songs.new_song, Decision 4). The editor's own pre-save gate (voicing /
+  // marker) has already passed when `onSave` fires.
+  const saveNewSong = useCallback(() => {
+    if (!editing?.bookId || !editing?.path) return;
+    store.send(
+      command(CommandKind.NAME_AND_SAVE, {
+        bookId: editing.bookId,
+        fromPath: editing.path,
+        author: LOCAL_IDENTITY,
+      }),
+    );
+  }, [store, editing]);
+
+  // While a new song is open and its book/path are known, the host is a full
+  // screen over the shell (W03 board: a Back affordance on every viewport, the
+  // editor's own text/preview split as the wide layout).
+  if (editing?.bookId && editing?.path) {
+    return (
+      <NewSongHost
+        store={store}
+        editing={editing}
+        mode={mode}
+        onBack={exitEditing}
+        onChangeBook={changeBook}
+        onSave={saveNewSong}
+        editorRef={editorRef}
+      />
+    );
+  }
 
   return (
     <Tabs
@@ -161,7 +296,7 @@ export default function AppShell({ store = getAppStore() }) {
             </TabList>
           </div>
           <main className="pane main">
-            <div className="scroll">{destinationPanels(store, setSelected)}</div>
+            <div className="scroll">{destinationPanels(store, setSelected, startNewSong)}</div>
           </main>
         </div>
       ) : (
@@ -173,7 +308,7 @@ export default function AppShell({ store = getAppStore() }) {
           <TabList className="tabbar" aria-label={t('shell.nav')}>
             {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
           </TabList>
-          <main className="scroll">{destinationPanels(store, setSelected)}</main>
+          <main className="scroll">{destinationPanels(store, setSelected, startNewSong)}</main>
         </div>
       )}
     </Tabs>
