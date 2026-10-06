@@ -25,7 +25,7 @@
 // text, titles, chords or paths (standing rule, logic.js:9-11).
 
 import MiniSearch from 'minisearch';
-import { hashBlob } from 'isomorphic-git';
+import { hashBlob, walk, TREE } from 'isomorphic-git';
 import { fold } from './fold.js';
 import {
   PROGRESSION_FIELD,
@@ -69,6 +69,36 @@ const locationKey = (bookId, path) => `${bookId}${SEP}${path}`;
 // Only song files are indexed (acceptance 1). Setlists and other artifacts are
 // out of scope (Deferred work).
 const SONG_SUFFIX = '.cifra.md';
+
+// Read the committed tree at `HEAD` into a `path -> blob oid` map, over the
+// local git repo at `dir` (storage.index_dirty_reconcile, Decision 2). A single
+// `walk` over `TREE({ ref: 'HEAD' })` reads tree objects only — never blob
+// contents — so reconcile learns every committed oid in one pass and compares
+// each against the working oid it already hashed. The walk is purely local (no
+// fetch, no remote ref — DIRECTION §3.7 "Offline first"). A book with no commit
+// yet (HEAD unresolvable) yields an EMPTY map, so every present file reads as a
+// new, uncommitted draft. Imports `walk`/`TREE` straight from isomorphic-git,
+// mirroring this module's `hashBlob` import and working-copy.js's local-git
+// primitives (Decision 3); `createGitLayer` stays network-only (git.md:301).
+async function readHeadOidsFromGit({ fs, dir }) {
+  try {
+    const entries = await walk({
+      fs,
+      dir,
+      trees: [TREE({ ref: 'HEAD' })],
+      map: async (filepath, [entry]) => {
+        if (!entry || filepath === '.') return undefined;
+        if ((await entry.type()) !== 'blob') return undefined;
+        return [filepath, await entry.oid()];
+      },
+    });
+    return new Map(entries);
+  } catch {
+    // No commit yet (HEAD cannot be resolved): nothing is committed, so the
+    // whole working tree is uncommitted. An empty map says exactly that.
+    return new Map();
+  }
+}
 
 /**
  * Pull the five indexed fields from a parsed `cifra-md` model, plus the artist
@@ -143,13 +173,23 @@ export function extractFields(model, oid) {
  *   fs?: import('./fs.js').FileSystem,
  *   git?: ReturnType<typeof import('./git.js').createGitLayer>,
  *   parse: (bytes: Uint8Array|string) => object,
+ *   readHeadOids?: (bookId: string) => Promise<Map<string, string>>,
  * }} deps `fs`/`git` are used only to read and locate working-tree bytes
  *   (`reconcile`, `reindexPath`); `parse` turns those bytes into a model.
+ *   `readHeadOids` resolves a book's committed `path -> blob oid` map so
+ *   `reconcile` can derive `unsaved` (storage.index_dirty_reconcile); it
+ *   defaults to a local isomorphic-git tree walk and is injectable so the
+ *   dirty-derivation is unit-testable with a stub map (Decision 3).
  */
-export function createSearchIndex({ fs, git, parse } = {}) {
+export function createSearchIndex({ fs, git, parse, readHeadOids } = {}) {
   if (typeof parse !== 'function') {
     throw new Error('createSearchIndex requires a parse function');
   }
+
+  // Resolve a book's committed oids, through the injected reader when given,
+  // else the local-git default over this index's own `fs` and book dir.
+  const headOidsFor =
+    readHeadOids ?? ((bookId) => readHeadOidsFromGit({ fs, dir: git.bookDir(bookId) }));
 
   // The content-addressed parse cache: blob oid -> extracted fields. A text is
   // parsed at most once per distinct oid (DIRECTION §3 L115).
@@ -305,10 +345,19 @@ export function createSearchIndex({ fs, git, parse } = {}) {
   /**
    * Bring a book's locations into line with its working tree (acceptance 1, 6,
    * 7). For each song file, hash the current bytes to a blob oid: an unchanged
-   * oid whose doc is already in the cache is skipped entirely (no parse — the
-   * reopen re-reads nothing that has not changed); a new or changed file is
+   * oid whose doc is already in the cache is skipped from re-parsing (the reopen
+   * re-reads nothing that has not changed); a new or changed file is
    * (re-)indexed. Locations whose file has vanished are dropped. Returns the
    * record changes for logic.js to persist.
+   *
+   * `unsaved` is DERIVED from git on every reconcile, for EVERY present file
+   * (storage.index_dirty_reconcile): a file is unsaved iff its working-copy blob
+   * oid differs from the oid committed at that path in HEAD (or no blob is
+   * committed there at all — a never-committed draft). This is the reload-side
+   * truth of DIRECTION §3.1 L129-131 ("unsaved" = the working-copy-vs-committed
+   * delta): a persisted `unsaved` flag is not trusted across a restart — the one
+   * place it was ever set to true is the live WRITE handler, so a fresh Worker
+   * instance rebuilding through reconcile must re-derive it or lose the badge.
    *
    * @param {string} bookId
    */
@@ -316,15 +365,32 @@ export function createSearchIndex({ fs, git, parse } = {}) {
     const changes = { putDocs: [], putLocations: [], deleteLocations: [] };
     const paths = await songPaths(bookId);
     const present = new Set(paths.map((p) => locationKey(bookId, p)));
+    // One local HEAD tree read per book: the committed `path -> oid` map.
+    const headOids = await headOidsFor(bookId);
 
     for (const path of paths) {
       const key = locationKey(bookId, path);
       const full = `${git.bookDir(bookId)}/${path}`;
       const bytes = await fs.promises.readFile(full);
       const { oid } = await hashBlob({ object: bytes });
+      // Unsaved iff the working blob differs from the committed blob at this
+      // path, OR the path has no blob in HEAD (undefined !== oid is true).
+      const unsaved = headOids.get(path) !== oid;
       const prev = locationByKey.get(key);
-      if (prev && prev.oid === oid && docsByOid.has(oid)) continue;
-      mergeChanges(changes, await indexDocument({ bookId, path, bytes }));
+      if (prev && prev.oid === oid && docsByOid.has(oid)) {
+        // Content-unchanged fast path: the oid is known, so skip the re-parse
+        // (content-addressing, index.md Decision 6). But `unsaved` must still be
+        // recomputed — an unchanged working blob can still differ from HEAD
+        // (a draft whose bytes never changed since the last index but was never
+        // committed). Emit a location put only when the flag actually changed,
+        // keeping slices referentially stable.
+        if (!!prev.unsaved === unsaved) continue;
+        const location = { ...prev, unsaved };
+        locationByKey.set(key, location);
+        changes.putLocations.push(location);
+        continue;
+      }
+      mergeChanges(changes, await indexDocument({ bookId, path, bytes, unsaved }));
     }
 
     // Drop locations for files this book no longer has on disk.

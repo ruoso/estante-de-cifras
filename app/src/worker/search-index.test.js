@@ -7,11 +7,45 @@
 //   - content-addressing → DIRECTION §3 L115 "parsed once per distinct text".
 
 import { describe, it, expect, vi } from 'vitest';
+import { hashBlob } from 'isomorphic-git';
 import { parse } from 'cifra-md';
 import { createSearchIndex, extractFields } from './search-index.js';
 
 const FENCE = '```';
 const song = (lines) => lines.join('\n') + '\n';
+
+// The git blob oid of a song's working bytes — the same hash reconcile computes
+// (search-index.js hashBlob) and the same identity a HEAD tree entry carries, so
+// a stub HEAD map can hold the real oid for a "saved" file.
+const BOOK_DIR = '/books/b';
+const oidOf = async (text) =>
+  (await hashBlob({ object: new TextEncoder().encode(text) })).oid;
+
+// A minimal in-memory working tree (flat, book-dir only) for reconcile's unit
+// test: it needs readdir/stat/readFile over the song files it is given. No git
+// repo is stood up — the committed state is supplied by the stub `readHeadOids`.
+function makeStubFs(fileMap) {
+  const enoent = () => Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+  const nameOf = (abs) => abs.slice(BOOK_DIR.length + 1);
+  return {
+    promises: {
+      async readdir(abs) {
+        if (abs === BOOK_DIR) return Object.keys(fileMap);
+        throw enoent();
+      },
+      async stat(abs) {
+        if (nameOf(abs) in fileMap) return { isDirectory: () => false };
+        throw enoent();
+      },
+      async readFile(abs) {
+        const name = nameOf(abs);
+        if (!(name in fileMap)) throw enoent();
+        return new TextEncoder().encode(fileMap[name]);
+      },
+    },
+  };
+}
+const stubGit = { bookDir: () => BOOK_DIR };
 
 describe('extractFields', () => {
   it('pulls the five fields (title, properties, section names, words, chords) and nothing else', () => {
@@ -181,5 +215,116 @@ describe('createSearchIndex — accent-insensitive and scope', () => {
       scope: { bookId: 'b1', prefix: 'folder/' },
     });
     expect(inFolder.map((r) => r.path)).toEqual(['folder/one.cifra.md']);
+  });
+});
+
+// reconcile derives `unsaved` from the committed HEAD oids
+// (storage.index_dirty_reconcile). Pins the `.tji` note "reconcile with a dirty
+// working tree sets unsaved: true" and DIRECTION §3.1 L129-131 (unsaved =
+// working-copy-vs-committed). All song text is written for this test.
+describe('createSearchIndex — reconcile derives unsaved from HEAD', () => {
+  const unsavedByPath = (index) => {
+    const map = new Map();
+    for (const book of index.browse().books) {
+      for (const s of book.songs) map.set(s.path, s.unsaved);
+    }
+    return map;
+  };
+
+  it('sets unsaved by comparing each working blob against its HEAD oid', async () => {
+    const saved = song(['# Guardada', '## A', FENCE, 'C   G', FENCE]);
+    const dirty = song(['# Alterada', '## A', FENCE, 'Am  F', FENCE]);
+    const fresh = song(['# Novíssima', '## A', FENCE, 'Em', FENCE]);
+    const fileMap = {
+      'saved.cifra.md': saved,
+      'dirty.cifra.md': dirty,
+      'novo.cifra.md': fresh,
+    };
+
+    // HEAD holds: saved's real oid (unchanged), a non-matching oid for dirty
+    // (its working bytes differ from what is committed), and NOTHING for novo
+    // (never committed).
+    const headOids = new Map([
+      ['saved.cifra.md', await oidOf(saved)],
+      ['dirty.cifra.md', 'this-is-not-the-working-oid'],
+    ]);
+
+    const index = createSearchIndex({
+      parse,
+      fs: makeStubFs(fileMap),
+      git: stubGit,
+      readHeadOids: async () => headOids,
+    });
+    const changes = await index.reconcile('b');
+
+    const unsaved = unsavedByPath(index);
+    // working oid === HEAD oid → saved.
+    expect(unsaved.get('saved.cifra.md')).toBe(false);
+    // working oid !== HEAD oid → dirty.
+    expect(unsaved.get('dirty.cifra.md')).toBe(true);
+    // absent from HEAD → never committed → unsaved.
+    expect(unsaved.get('novo.cifra.md')).toBe(true);
+
+    // The derived flag rides the persisted location records logic.js stores.
+    const putByPath = new Map(changes.putLocations.map((l) => [l.path, l.unsaved]));
+    expect(putByPath.get('saved.cifra.md')).toBe(false);
+    expect(putByPath.get('dirty.cifra.md')).toBe(true);
+    expect(putByPath.get('novo.cifra.md')).toBe(true);
+  });
+
+  it('recomputes unsaved on the content-unchanged fast path without re-parsing', async () => {
+    const text = song(['# Rascunho', '## A', FENCE, 'G   D', 'oi', FENCE]);
+    const fileMap = { 'rascunho.cifra.md': text };
+    const spy = vi.fn(parse);
+
+    // First reconcile with an EMPTY HEAD (nothing committed): the file is a new
+    // draft → unsaved: true, and it is parsed once.
+    let headOids = new Map();
+    const index = createSearchIndex({
+      parse: spy,
+      fs: makeStubFs(fileMap),
+      git: stubGit,
+      readHeadOids: async () => headOids,
+    });
+    await index.reconcile('b');
+    expect(unsavedByPath(index).get('rascunho.cifra.md')).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    // The same bytes are now committed: HEAD oid matches the working oid. The
+    // second reconcile hits the content-unchanged fast path — no re-parse — but
+    // still re-derives unsaved, flipping the stale true to false.
+    spy.mockClear();
+    headOids = new Map([['rascunho.cifra.md', await oidOf(text)]]);
+    const changes = await index.reconcile('b');
+
+    expect(spy).not.toHaveBeenCalled();
+    expect(unsavedByPath(index).get('rascunho.cifra.md')).toBe(false);
+    // The flag changed, so a location put is emitted (and only for the change).
+    expect(changes.putLocations).toHaveLength(1);
+    expect(changes.putLocations[0].path).toBe('rascunho.cifra.md');
+    expect(changes.putLocations[0].unsaved).toBe(false);
+    expect(changes.putDocs).toHaveLength(0);
+  });
+
+  it('emits no location put when a content-unchanged file keeps its unsaved flag', async () => {
+    const text = song(['# Estável', '## A', FENCE, 'C', FENCE]);
+    const fileMap = { 'estavel.cifra.md': text };
+    // Committed and matching from the start → unsaved: false on both reconciles.
+    const headOids = new Map([['estavel.cifra.md', await oidOf(text)]]);
+
+    const index = createSearchIndex({
+      parse,
+      fs: makeStubFs(fileMap),
+      git: stubGit,
+      readHeadOids: async () => headOids,
+    });
+    await index.reconcile('b');
+    const changes = await index.reconcile('b');
+
+    // Nothing changed — oid unchanged and unsaved unchanged — so the fast path
+    // emits no put at all (referential stability, index.md convention).
+    expect(changes.putLocations).toHaveLength(0);
+    expect(changes.putDocs).toHaveLength(0);
+    expect(unsavedByPath(index).get('estavel.cifra.md')).toBe(false);
   });
 });

@@ -301,6 +301,27 @@ describe('search index (behavior)', () => {
       );
       expect(first.parseSpy.mock.calls.length).toBeGreaterThan(0);
 
+      // SAVE it (commit): now it is canonical and committed, so its working copy
+      // matches HEAD and it is NOT unsaved (storage.index_dirty_reconcile,
+      // workflow 4 — a save clears unsaved).
+      first.store.send(
+        command(CommandKind.SAVE, {
+          bookId: ctx.bookId,
+          paths: ['estavel.cifra.md'],
+          message: 'keep estavel',
+          author: IDENTITY,
+        }),
+      );
+      await until(() =>
+        expect(first.store.slice('save')[ctx.bookId]?.status).toBe('saved'),
+      );
+      // Poll until the post-save reindex has propagated (the SAVED event lands
+      // before that reindex, so the unsaved=false must be waited for, not the
+      // bare presence of the row).
+      await searchUntil(first.store, 'estavel', (rs) =>
+        rs.some((r) => r.path === 'estavel.cifra.md' && r.unsaved === false),
+      );
+
       // Restart: a fresh Worker logic over the SAME database and filesystem. The
       // index is rebuilt from the persisted records; the unchanged file's blob
       // oid is recognised, so it is not re-parsed (Decision 3).
@@ -315,8 +336,84 @@ describe('search index (behavior)', () => {
       expect(results.find((r) => r.path === 'estavel.cifra.md').title).toBe(
         'Estável',
       );
+      // A saved file's unsaved flag stays false across the restart: reconcile
+      // re-derives it from HEAD and the committed blob matches the working copy
+      // (storage.index_dirty_reconcile, DIRECTION §3.7 L407-409).
+      expect(results.find((r) => r.path === 'estavel.cifra.md').unsaved).toBe(false);
       // The second session re-parsed nothing: the oid was unchanged.
       expect(second.parseSpy).not.toHaveBeenCalled();
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('re-derives unsaved on a restart: a never-committed draft keeps its badge, a saved song does not', async () => {
+    // Pins the `.tji` note "a draft reloaded in a fresh Worker instance retains
+    // the unsaved badge", workflow 4 (a save clears unsaved), and DIRECTION §3.7
+    // L407-409 (the Worker rebuilds the index from its own working tree on load).
+    const ctx = await setup();
+    try {
+      const first = ctx.makeStore();
+      first.store.open();
+      await until(() =>
+        expect(first.store.slice('index')[ctx.bookId]).toBe('ready'),
+      );
+
+      // A song written and SAVED (committed) — no longer unsaved.
+      const savedPath = 'cantiga.cifra.md';
+      first.store.send(
+        command(CommandKind.WRITE, {
+          bookId: ctx.bookId,
+          path: savedPath,
+          text: song(['# Cantiga', '## A', FENCE, 'C   G', 'letra', FENCE]),
+        }),
+      );
+      first.store.send(
+        command(CommandKind.SAVE, {
+          bookId: ctx.bookId,
+          paths: [savedPath],
+          message: 'add cantiga',
+          author: IDENTITY,
+        }),
+      );
+      await until(() =>
+        expect(first.store.slice('save')[ctx.bookId]?.status).toBe('saved'),
+      );
+
+      // A second song written as a draft and NEVER committed. Live, the WRITE
+      // handler marks it unsaved.
+      const draftPath = 'esboco.cifra.md';
+      first.store.send(
+        command(CommandKind.WRITE, {
+          bookId: ctx.bookId,
+          path: draftPath,
+          text: song(['# Esboço', '## A', FENCE, 'Am  Em', FENCE]),
+        }),
+      );
+      await searchUntil(first.store, 'esboco', (rs) =>
+        rs.some((r) => r.path === draftPath && r.unsaved === true),
+      );
+
+      // Restart: a fresh Worker instance = a full page reload. The index is
+      // rebuilt through reconcile, which RE-DERIVES unsaved from git rather than
+      // trusting the persisted flag (the bug this task fixes).
+      const second = ctx.makeStore();
+      second.store.open();
+      await until(() =>
+        expect(second.store.slice('index')[ctx.bookId]).toBe('ready'),
+      );
+
+      // The committed song reads saved; the never-committed draft keeps its
+      // badge, instead of silently flipping to saved on reload.
+      const saved = await searchUntil(second.store, 'cantiga', (rs) =>
+        rs.some((r) => r.path === savedPath),
+      );
+      expect(saved.find((r) => r.path === savedPath).unsaved).toBe(false);
+
+      const draft = await searchUntil(second.store, 'esboco', (rs) =>
+        rs.some((r) => r.path === draftPath),
+      );
+      expect(draft.find((r) => r.path === draftPath).unsaved).toBe(true);
     } finally {
       await ctx.cleanup();
     }

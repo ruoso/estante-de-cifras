@@ -105,8 +105,9 @@ task storage "Storage" {
   task index_dirty_reconcile "Derive unsaved from dirty working tree on reconcile" {
     effort 1d
     allocate team
+    complete 100
     depends !index
-    note "search-index.reconcile() marks every song as saved (unsaved: false) on load; an uncommitted draft loses its badge after a full page reload because the working-tree diff is not checked. Fix: on reconcile, compare each file's working-copy blob hash against HEAD and set unsaved: true where they differ. Source of debt: tasks/refinements/songs/save_sheet.md (songs.save_sheet). Tests: unit (reconcile with a dirty working tree sets unsaved: true); behavior (a draft reloaded in a fresh Worker instance retains the unsaved badge)."
+    note "search-index.reconcile() marks every song as saved (unsaved: false) on load; an uncommitted draft loses its badge after a full page reload because the working-tree diff is not checked. Fix: on reconcile, compare each file's working-copy blob hash against HEAD and set unsaved: true where they differ. Source of debt: tasks/refinements/songs/save_sheet.md (songs.save_sheet). Tests: unit (reconcile with a dirty working tree sets unsaved: true); behavior (a draft reloaded in a fresh Worker instance retains the unsaved badge). Refinement: tasks/refinements/storage/index_dirty_reconcile.md"
   }
   task shelf_flush "Flush the fs superblock after shelf-mutating command handlers" {
     effort 0.5d
