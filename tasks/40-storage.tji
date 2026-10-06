@@ -95,6 +95,12 @@ task storage "Storage" {
     depends !home_book
     note "The Worker reads shelf.json from the home book and emits a SHELF event the reducer folds into a shelf slice (each book's label, link, and per-book status — 'reading', 'N setlists'), mirroring storage.preferences_surface; the search screen and books.shelf both read it for labels and counts. Source of debt: tasks/refinements/songs/search.md (songs.search), Decision 6. Tests: unit (shelf.json → the shelf event payload; an absent book stays absent); behavior (the Worker against a fake IndexedDB and a local git remote surfaces a shelf change, the reducer folds it). Refinement: tasks/refinements/storage/shelf_surface.md"
   }
+  task fs_flush "Flush the fs superblock on save, discard, and book creation" {
+    effort 0.5d
+    allocate team
+    depends !working_copy
+    note "working-copy.save(), working-copy.discard(), and the CREATE_BOOK handler in logic.js still rely on lightning-fs's 500ms superblock debounce without an explicit flush() call. The same latent reload-durability gap that caused editor e2e failures (songs.editor fix 2) exists for save, discard, and book creation — a tab closed immediately after any of these operations may lose the path-to-inode map, causing ENOENT on the next open. Fix: add await fs.flush() after the git commit in working-copy.save(), after the git reset in working-copy.discard(), and after CREATE_BOOK's git.init in logic.js, mirroring the flush already applied to working-copy.write() and example-book.js. Source of debt: tasks/refinements/songs/editor.md (songs.editor). Tests: unit (none — no isolatable pure logic); behavior (save then immediate reload does not ENOENT; discard then immediate reload does not ENOENT; CREATE_BOOK then immediate reload finds the book)."
+  }
   task recents_reconcile "Remove synced recents.json and reconcile home-book-format" {
     effort 0.5d
     allocate team

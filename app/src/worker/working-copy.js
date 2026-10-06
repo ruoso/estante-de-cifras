@@ -83,6 +83,11 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
       const slash = full.lastIndexOf('/');
       if (slash > 0) await mkdirp(full.slice(0, slash));
       await fs.promises.writeFile(full, text);
+      // Force the inode table out now (fs.js Decision 6): the bytes are already
+      // committed, but without the superblock a reload moments after a keystroke
+      // would not FIND them — exactly the loss "written to storage as they type,
+      // so closing the tab loses nothing" (DIRECTION §3 L108-110) forbids.
+      await fs.flush();
     });
   }
 

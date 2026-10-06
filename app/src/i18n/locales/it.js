@@ -420,6 +420,23 @@ export default {
   },
 
   editor: {
+    // L’editor del codice sorgente CodeMirror (songs.editor, flussi 3 e 4).
+    source: {
+      sourceLabel: 'Codice della canzone',
+      viewToggle: 'Cosa mostrare',
+      text: 'Testo',
+      preview: 'Anteprima',
+      previewLabel: 'Anteprima della canzone come verrà letta',
+      addSection: 'Aggiungi sezione',
+      save: 'Salva',
+      undo: 'Annulla',
+      pasteFenced: 'La canzone incollata ora è dentro un recinto, quindi viene letta come musica.',
+      pasteTitleAdded: 'La sua prima riga è diventata il titolo.',
+      notSaved: 'Non salvato.',
+      voicingStop:
+        'La riga {line} è un diteggiatura che non può essere letta, e salvando andrebbe persa. Correggila o eliminala, poi salva di nuovo.',
+      markerStop: 'La riga {line} è un marcatore di conflitto. Risolvilo prima di poter salvare la canzone.',
+    },
     variationInUse: 'Variazione:',
     variationLabel: 'Quale variazione usare',
     variationDefault: 'Predefinito',

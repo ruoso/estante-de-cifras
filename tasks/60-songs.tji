@@ -27,8 +27,9 @@ task songs "Songs" {
   task editor "The source editor" {
     effort 4d
     allocate team
+    complete 100
     depends storage.working_copy
-    note "CodeMirror 6 on the cifra.md text: syntax colour, the template, add section, preview beside or a tap away, pasting a cifra into a fence with undo, a voicing line it cannot read stopping the save. Workflows 3, 4. Tests: unit (syntax colouring, paste into a fence); behavior (CodeMirror with Testing Library: the template, add section, paste with undo, an unreadable voicing line stopping the save; axe); e2e-web (editing a song by keyboard and touch on the three viewports; axe)."
+    note "CodeMirror 6 on the cifra.md text: syntax colour, the template, add section, preview beside or a tap away, pasting a cifra into a fence with undo, a voicing line it cannot read stopping the save. Workflows 3, 4. Tests: unit (syntax colouring, paste into a fence); behavior (CodeMirror with Testing Library: the template, add section, paste with undo, an unreadable voicing line stopping the save; axe); e2e-web (editing a song by keyboard and touch on the three viewports; axe). Refinement: tasks/refinements/songs/editor.md"
   }
   task new_song "Writing a new song" {
     effort 2d

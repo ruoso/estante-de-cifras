@@ -118,6 +118,13 @@ export function createExampleBook({ fs, git, locks } = {}) {
         author: identity,
         committer: identity,
       });
+      // Force the inode table out now (fs.js Decision 6): the opened book is a
+      // permanent local book and must survive a reload straight away, not only
+      // once lightning-fs's debounced superblock save happens to fire. Without
+      // this a reload within that window loses the just-seeded working tree, so
+      // the book's own songs read back ENOENT (offline-first; a local book
+      // lives only on the device).
+      await fs.flush();
       return { bookId: EXAMPLE_BOOK_ID, seeded: true };
     });
   }

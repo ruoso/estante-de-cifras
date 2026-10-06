@@ -15,6 +15,10 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.13",
     "@isomorphic-git/lightning-fs": "^4.10.3",
     "cifra-md": "file:../../cifra.md/js",
     "isomorphic-git": "^1.43.0",

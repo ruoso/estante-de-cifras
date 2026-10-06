@@ -40,6 +40,16 @@ import LightningFS from '@isomorphic-git/lightning-fs';
  *
  * @typedef {Object} FileSystem
  * @property {FsPromises} promises
+ * @property {() => Promise<void>} flush force the backend to persist its
+ *   directory structure (the superblock) NOW rather than on its debounce — the
+ *   durability seam (Decision 6). lightning-fs commits each file's bytes on the
+ *   write, but the inode table that lets a fresh instance FIND those bytes is
+ *   saved on a 500 ms debounce, so a reload (or tab close) inside that window
+ *   loses files written just before it. The working copy ("written to storage
+ *   as they type, so closing the tab loses nothing", DIRECTION §3 L108-111) and
+ *   the example-book open flush after their writes so the bytes survive an
+ *   immediate reload. It is NOT part of the isomorphic-git `fs.promises`
+ *   surface — git never calls it — so it sits beside `promises`, not within it.
  */
 
 // A lightning-fs file backend parameterised by an injected `IDBFactory`
@@ -154,7 +164,12 @@ export function createFileSystem(name, options = {}) {
     promises[method] = (...args) => source[method](...args);
   }
 
-  return { promises };
+  // The durability seam (Decision 6): lightning-fs's own `flush()` runs its
+  // debounced superblock save immediately, so a caller that must not lose a
+  // just-written file to a reload can force the inode table out. Kept off
+  // `promises` — isomorphic-git never calls it — so the git surface stays the
+  // eleven contract methods and nothing more.
+  return { promises, flush: () => source.flush() };
 }
 
 /**

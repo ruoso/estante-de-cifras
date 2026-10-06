@@ -78,6 +78,13 @@ export const CommandKind = Object.freeze({
   // repository), writes its `shelf.local` entry, re-surfaces SHELF, indexes the
   // book, and emits BOOK_CREATED. All local — no account, no network, no push.
   OPEN_EXAMPLE_BOOK: 'open_example_book',
+  // Read a song's working-copy text into the view (songs.editor, Decision 4).
+  // Payload `{ bookId, path }`: the Worker reads the live working-copy bytes
+  // (NOT a committed version — READ_VERSION reads HEAD and would miss unsaved
+  // edits) and replies with a SOURCE event. This is the read-back
+  // storage.working_copy left out (it built WRITE/SAVE/DISCARD and no way to
+  // read the current text back). Local, offline, no commit.
+  OPEN_SOURCE: 'open_source',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -137,6 +144,10 @@ export const EventKind = Object.freeze({
   // the title reaches the view through the shelf slice (standing no-logging /
   // no-labels rule).
   BOOK_CREATED: 'book_created',
+  // A song's working-copy text, in reply to OPEN_SOURCE (songs.editor,
+  // Decision 4): `{ bookId, path, text }`. The editor loads it into its
+  // CodeMirror buffer; the `source` slice keeps it per book and path.
+  SOURCE: 'source',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

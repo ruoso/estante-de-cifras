@@ -840,6 +840,18 @@ export function createWorkerLogic(port, options = {}) {
             await surfaceHomeBookShelf();
             break;
           }
+          case CommandKind.OPEN_SOURCE: {
+            // Read a song's live working-copy text into the editor (songs.editor,
+            // Decision 4). A thin read over the working copy — the read-back
+            // storage.working_copy did not build. A missing file throws ENOENT,
+            // which the surrounding try/catch turns into an ERROR event (not a
+            // throw across the port). No lock: this is a plain read, no write.
+            const { bookId, path } = message.payload;
+            const full = `${ensureGit().bookDir(bookId)}/${path}`;
+            const text = await ensureFs().promises.readFile(full, 'utf8');
+            port.postMessage(event(EventKind.SOURCE, { bookId, path, text }));
+            break;
+          }
           default:
             port.postMessage(
               event(EventKind.ERROR, {

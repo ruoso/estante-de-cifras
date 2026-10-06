@@ -1,0 +1,139 @@
+/* The source editor (songs.editor). All colour is token-keyed under `.est`
+ * (shell.tokens); the editor authors no colours of its own. "The rendered
+ * chart is not monospaced; only the raw source editor is"
+ * (docs/mockups/README.md:24) — so the CodeMirror surface uses --font-code and
+ * the preview (the reading Chart) its own type. The line classes mirror the
+ * static mockup editor classes in theme.css (.editor .md/.ch/.err/.mk), applied
+ * here to CodeMirror's own `.cm-line`. */
+
+.est .est-editor {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+  min-height: 0;
+  height: 100%;
+}
+
+.est .est-editor-bar {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u));
+}
+
+.est .est-editor-bar-spacer {
+  flex: 1;
+}
+
+.est .est-editor-notice {
+  align-items: center;
+}
+
+.est .est-editor-notice-text {
+  flex: 1;
+}
+
+.est .est-editor-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+
+.est .est-editor-body.split {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.est .est-editor-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.est .est-editor-preview {
+  gap: calc(var(--u));
+  overflow: auto;
+}
+
+/* CodeMirror chrome, keyed to the theme tokens. */
+.est .est-cm {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.est .cm-editor {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font: 14px/1.5 var(--font-code);
+}
+
+.est .cm-editor.cm-focused {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.est .cm-scroller {
+  font-family: var(--font-code);
+  line-height: 1.5;
+}
+
+.est .cm-gutters {
+  background: var(--surface-2);
+  color: var(--ink-2);
+  border-right: 1px solid var(--line);
+}
+
+.est .cm-activeLine {
+  background: var(--accent-soft);
+}
+
+.est .cm-activeLineGutter {
+  background: var(--accent-soft);
+}
+
+.est .cm-cursor {
+  border-left-color: var(--ink);
+}
+
+/* Line classes, from the cifra.md classifier (cifra-syntax.js). */
+.est .cm-line.est-md {
+  color: var(--ink-2);
+}
+
+.est .cm-line.est-ch {
+  color: var(--chord);
+  font-weight: 600;
+}
+
+.est .cm-line.est-voicing {
+  color: var(--ink);
+}
+
+.est .cm-line.est-verbatim {
+  color: var(--ink-2);
+}
+
+.est .cm-line.est-err {
+  background: var(--conflict-soft);
+  color: var(--conflict);
+}
+
+.est .cm-line.est-mk {
+  background: var(--unsaved-soft);
+  color: var(--unsaved);
+  font-weight: 600;
+}
+
+/* The Text / Preview toggle reuses `.seg`; RAC's ToggleButton marks the
+ * selected button with [data-selected] rather than the mockup's `.on`. */
+.est .seg button[data-selected] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}

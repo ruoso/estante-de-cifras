@@ -423,6 +423,23 @@ export default {
   },
 
   editor: {
+    // The CodeMirror source editor (songs.editor, workflows 3 & 4).
+    source: {
+      sourceLabel: 'Song source',
+      viewToggle: 'What to show',
+      text: 'Text',
+      preview: 'Preview',
+      previewLabel: 'Preview of the song as it will be read',
+      addSection: 'Add section',
+      save: 'Save',
+      undo: 'Undo',
+      pasteFenced: 'The pasted song is now inside a fence, so it reads as music.',
+      pasteTitleAdded: 'Its first line became the title.',
+      notSaved: 'Not saved.',
+      voicingStop:
+        'Line {line} is a voicing that can’t be read, and saving would drop it. Fix it or delete it, then save again.',
+      markerStop: 'Line {line} is a conflict marker. Resolve it before the song can be saved.',
+    },
     variationInUse: 'Variation:',
     variationLabel: 'Which variation to use',
     variationDefault: 'Default',

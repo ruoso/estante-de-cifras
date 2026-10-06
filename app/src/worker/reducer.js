@@ -86,6 +86,13 @@ export const initialState = {
   // (workflow 2 L17-20, Decision 2). Replaced whole on each RECENTS. Starts
   // empty: nothing opened yet.
   recents: [],
+  // A song's working-copy text for the editor (songs.editor, SOURCE), nested
+  // by `bookId` then `path`: `{ [bookId]: { [path]: { text } } }`. Nested, like
+  // `history`, so a SOURCE for one song leaves every other song's entry at its
+  // exact reference (referentially stable per path — the editor subscribes to
+  // one path and must not re-render when another is loaded). Starts empty: no
+  // song opened in an editor yet.
+  source: {},
 };
 
 // Fold one message into the state. Only event-direction messages change
@@ -314,6 +321,26 @@ export function reduce(state, message) {
       // resets to empty — two independently-changing home-book files move two
       // slices independently (Decision 2).
       return { ...state, shelf: message.payload ?? {} };
+
+    case EventKind.SOURCE: {
+      // A song's working-copy text arrived: set it under the book's path.
+      // Nested like SONG_LOG so only this path's entry moves — every other
+      // song the editor is not showing keeps its reference (Decision 4).
+      const bookId = message.payload?.bookId;
+      const path = message.payload?.path;
+      if (!bookId || !path) return state;
+      const prevBook = state.source[bookId] ?? {};
+      return {
+        ...state,
+        source: {
+          ...state.source,
+          [bookId]: {
+            ...prevBook,
+            [path]: { text: message.payload?.text ?? '' },
+          },
+        },
+      };
+    }
 
     default:
       return state;

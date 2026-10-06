@@ -420,6 +420,23 @@ export default {
   },
 
   editor: {
+    // El editor de código fuente CodeMirror (songs.editor, flujos 3 y 4).
+    source: {
+      sourceLabel: 'Código de la canción',
+      viewToggle: 'Qué mostrar',
+      text: 'Texto',
+      preview: 'Vista previa',
+      previewLabel: 'Vista previa de la canción tal como se leerá',
+      addSection: 'Agregar sección',
+      save: 'Guardar',
+      undo: 'Deshacer',
+      pasteFenced: 'La canción pegada ahora está dentro de una cerca, así que se lee como música.',
+      pasteTitleAdded: 'Su primera línea pasó a ser el título.',
+      notSaved: 'No se guardó.',
+      voicingStop:
+        'La línea {line} es una digitación que no se puede leer, y al guardar se descartaría. Corrígela o bórrala y guarda de nuevo.',
+      markerStop: 'La línea {line} es un marcador de conflicto. Resuélvelo antes de poder guardar la canción.',
+    },
     variationInUse: 'Variación:',
     variationLabel: 'Qué variación usar',
     variationDefault: 'Predeterminado',
