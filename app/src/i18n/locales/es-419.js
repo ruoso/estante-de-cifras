@@ -72,6 +72,61 @@ export default {
     where: '{book} · {folder}/',
   },
 
+  explorer: {
+    title: 'Explorar un acorde',
+    back: 'Volver a la búsqueda',
+    chord: 'Acorde',
+    unreadable: '“{text}” no es un acorde que la app pueda leer.',
+    group: {
+      open: 'Al aire',
+      fret: 'Traste {position}',
+      count: { one: '{count} forma', other: '{count} formas' },
+    },
+    showMore: 'Mostrar {count} más',
+    showFewer: 'Mostrar menos',
+    star: 'Guardar {chord}, {shorthand} como tu forma',
+    unstar: 'Tu forma de {chord}, {shorthand} — quitar',
+    notice: {
+      readAs: 'Leído como {chord} — {reading}.',
+      flip: '¿Leer como {chord}?',
+      about: {
+        sevenPlus:
+          'En la notación brasileña 7+ es la séptima mayor; en la americana y el Real Book es la quinta aumentada.',
+        bareNine:
+          'En la notación brasileña un 9 solo agrega la novena sin séptima; en la americana y el Real Book incluye la séptima menor.',
+        degreeSign:
+          'Un ° solo se lee como la séptima disminuida; la tríada pura es la otra lectura.',
+        sevenFour:
+          'En la notación brasileña 7(4) suspende la tercera; en la americana y el Real Book agrega la cuarta por encima.',
+      },
+    },
+    empty: {
+      title: 'Ninguna forma cumple las reglas',
+      body:
+        '{chord} pide más notas de las que {instrument} puede sonar con tus reglas de ejecución. La búsqueda no relajó las reglas para forzar una.',
+      rules: 'Reglas de ejecución',
+      hint: 'Permite notas omitidas allí, o prueba un acorde más simple.',
+    },
+    enter: {
+      name: 'Ingresar una forma',
+      meta: 'coloca los dedos a mano y guárdala',
+      title: 'Ingresar una forma',
+      help: 'Toca un traste para poner un dedo, tócalo de nuevo para quitarlo. Toca la cejilla para dejar al aire o apagar la cuerda.',
+      nut: 'Dejar al aire o apagar la cuerda {n}',
+      muteString: 'Apagar la cuerda {n}',
+      openString: 'Dejar al aire la cuerda {n}',
+      setFret: 'Cuerda {n}, traste {fret}',
+      readout: 'Lo que suena',
+      muted: 'Cuerda {n}: apagada',
+      openNote: 'Cuerda {n}: al aire, {note}',
+      frettedNote: 'Cuerda {n}: traste {fret}, {note}',
+      foreign: 'fuera del acorde',
+      unplayable: 'Esta forma no puede tocarse tal cual, pero se conserva como se dibujó.',
+      star: 'Guardar esta forma',
+      cancel: 'Cancelar',
+    },
+  },
+
   // El estado inicial de estante vacía en la puerta de entrada de la búsqueda
   // (account.first_run, flujo 1).
   firstRun: {
@@ -306,6 +361,10 @@ export default {
     degreeSign: {
       diminishedSeventh: 'séptima disminuida',
       diminishedTriad: 'tríada disminuida, sin séptima',
+    },
+    sevenFour: {
+      suspendedFourth: 'cuarta suspendida',
+      addedFourth: 'cuarta agregada',
     },
   },
 

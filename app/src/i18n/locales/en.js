@@ -74,6 +74,64 @@ export default {
     where: '{book} · {folder}/',
   },
 
+  // The chord explorer (music.explorer, workflow 16): reached from search's chord
+  // row, every way to play a chord on the instrument in use, ranked and grouped,
+  // each starrable as *your shape*.
+  explorer: {
+    title: 'Explore a chord',
+    back: 'Back to search',
+    chord: 'Chord',
+    unreadable: '“{text}” is not a chord this app can read.',
+    group: {
+      open: 'Open',
+      fret: 'Fret {position}',
+      count: { one: '{count} shape', other: '{count} shapes' },
+    },
+    showMore: 'Show {count} more',
+    showFewer: 'Show fewer',
+    star: 'Star {chord}, {shorthand} as your shape',
+    unstar: 'Your shape for {chord}, {shorthand} — unstar',
+    notice: {
+      readAs: 'Read as {chord} — {reading}.',
+      flip: 'Read as {chord} instead?',
+      about: {
+        sevenPlus:
+          'In Brazilian notation 7+ is the major seventh; in American and Real Book it is a sharp fifth.',
+        bareNine:
+          'In Brazilian notation a bare 9 adds the ninth with no seventh; in American and Real Book it includes the flat seventh.',
+        degreeSign:
+          'A bare ° reads as the diminished seventh; the plain triad is the other reading.',
+        sevenFour:
+          'In Brazilian notation 7(4) suspends the third; in American and Real Book it adds the fourth above it.',
+      },
+    },
+    empty: {
+      title: 'No shape fits the rules',
+      body:
+        '{chord} asks for more notes than {instrument} can sound under your voicing rules. The search did not relax the rules to force one.',
+      rules: 'Voicing rules',
+      hint: 'Allow omitted notes there, or try a simpler chord.',
+    },
+    enter: {
+      name: 'Enter a shape',
+      meta: 'place the fingers by hand, then star it',
+      title: 'Enter a shape',
+      help: 'Tap a fret to place a finger, tap it again to lift it. Tap the nut to open or mute the string.',
+      nut: 'Open or mute string {n}',
+      muteString: 'Mute string {n}',
+      openString: 'Open string {n}',
+      setFret: 'String {n}, fret {fret}',
+      readout: 'What it sounds',
+      muted: 'String {n}: muted',
+      openNote: 'String {n}: open, {note}',
+      frettedNote: 'String {n}: fret {fret}, {note}',
+      foreign: 'not in the chord',
+      unplayable: 'This shape can’t be played as entered, but it is kept as drawn.',
+      star: 'Star this shape',
+      cancel: 'Cancel',
+    },
+  },
+
   // The first-run empty state on the search front door (account.first_run,
   // workflow 1 §Cold / §My songs; mockup W01). The four ways to fill an empty
   // shelf, in workflow-1 order, and the listed-from-the-start My songs entry.
@@ -343,6 +401,10 @@ export default {
     degreeSign: {
       diminishedSeventh: 'diminished 7th',
       diminishedTriad: 'diminished triad, no 7th',
+    },
+    sevenFour: {
+      suspendedFourth: 'suspended 4th',
+      addedFourth: 'added 4th',
     },
   },
 

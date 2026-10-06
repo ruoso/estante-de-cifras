@@ -72,6 +72,61 @@ export default {
     where: '{book} · {folder}/',
   },
 
+  explorer: {
+    title: 'Explorar um acorde',
+    back: 'Voltar à busca',
+    chord: 'Acorde',
+    unreadable: '“{text}” não é um acorde que o app consiga ler.',
+    group: {
+      open: 'Solto',
+      fret: 'Casa {position}',
+      count: { one: '{count} forma', other: '{count} formas' },
+    },
+    showMore: 'Mostrar mais {count}',
+    showFewer: 'Mostrar menos',
+    star: 'Favoritar {chord}, {shorthand} como sua forma',
+    unstar: 'Sua forma de {chord}, {shorthand} — desfavoritar',
+    notice: {
+      readAs: 'Lido como {chord} — {reading}.',
+      flip: 'Ler como {chord}?',
+      about: {
+        sevenPlus:
+          'Na notação brasileira 7+ é a sétima maior; no americano e no Real Book é a quinta aumentada.',
+        bareNine:
+          'Na notação brasileira um 9 sozinho acrescenta a nona sem sétima; no americano e no Real Book inclui a sétima menor.',
+        degreeSign:
+          'Um ° sozinho é lido como a sétima diminuta; a tríade pura é a outra leitura.',
+        sevenFour:
+          'Na notação brasileira 7(4) suspende a terça; no americano e no Real Book acrescenta a quarta acima dela.',
+      },
+    },
+    empty: {
+      title: 'Nenhuma forma cabe nas regras',
+      body:
+        '{chord} pede mais notas do que {instrument} pode soar com suas regras de execução. A busca não afrouxou as regras para forçar uma.',
+      rules: 'Regras de execução',
+      hint: 'Permita notas omitidas lá, ou tente um acorde mais simples.',
+    },
+    enter: {
+      name: 'Inserir uma forma',
+      meta: 'posicione os dedos à mão e favorite',
+      title: 'Inserir uma forma',
+      help: 'Toque uma casa para pôr um dedo, toque de novo para tirar. Toque a pestana para soltar ou abafar a corda.',
+      nut: 'Soltar ou abafar a corda {n}',
+      muteString: 'Abafar a corda {n}',
+      openString: 'Soltar a corda {n}',
+      setFret: 'Corda {n}, casa {fret}',
+      readout: 'O que soa',
+      muted: 'Corda {n}: abafada',
+      openNote: 'Corda {n}: solta, {note}',
+      frettedNote: 'Corda {n}: casa {fret}, {note}',
+      foreign: 'fora do acorde',
+      unplayable: 'Esta forma não pode ser tocada como está, mas é mantida como desenhada.',
+      star: 'Favoritar esta forma',
+      cancel: 'Cancelar',
+    },
+  },
+
   // O estado inicial de estante vazia na porta de entrada da busca
   // (account.first_run, fluxo 1).
   firstRun: {
@@ -306,6 +361,10 @@ export default {
     degreeSign: {
       diminishedSeventh: 'sétima diminuta',
       diminishedTriad: 'tríade diminuta, sem sétima',
+    },
+    sevenFour: {
+      suspendedFourth: 'quarta suspensa',
+      addedFourth: 'quarta acrescentada',
     },
   },
 

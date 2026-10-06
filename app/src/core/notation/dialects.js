@@ -24,6 +24,12 @@
  * diminished triad, and the shape every guitarist knows for "B°" (x2313x) has
  * the A♭ in it. Every dialect defaults to the seventh; the word `dim` written
  * out is the triad.
+ *
+ * `sevenFour` — `C7(4)`. A bare `4` over a major triad that already states a
+ * seventh. Brazilian suspends the third (`C7sus4`); American and Real Book add
+ * the fourth above it (`C7add4`). Only on a major triad — a suspension replaces
+ * a major third, so `Cm7(4)` is an added fourth in every dialect with nothing to
+ * flip, and `sus4`/`add4` spelled out are never ambiguous (spec §5.6).
  */
 export const DIALECTS = {
   brazilian: {
@@ -33,6 +39,7 @@ export const DIALECTS = {
       sevenPlus: 'majorSeventh',
       bareNine: 'add',
       degreeSign: 'diminishedSeventh',
+      sevenFour: 'suspendedFourth',
     },
   },
   american: {
@@ -42,6 +49,7 @@ export const DIALECTS = {
       sevenPlus: 'dominantSharpFive',
       bareNine: 'dominant',
       degreeSign: 'diminishedSeventh',
+      sevenFour: 'addedFourth',
     },
   },
   realbook: {
@@ -51,6 +59,7 @@ export const DIALECTS = {
       sevenPlus: 'dominantSharpFive',
       bareNine: 'dominant',
       degreeSign: 'diminishedSeventh',
+      sevenFour: 'addedFourth',
     },
   },
 };
@@ -82,5 +91,9 @@ export const READING_LABELS = {
   degreeSign: {
     diminishedSeventh: 'diminished 7th',
     diminishedTriad: 'diminished triad, no 7th',
+  },
+  sevenFour: {
+    suspendedFourth: 'suspended 4th',
+    addedFourth: 'added 4th',
   },
 };

@@ -1322,6 +1322,27 @@ export function createWorkerLogic(port, options = {}) {
             await ensureFs().flush();
             break;
           }
+          case CommandKind.SAVE_SHAPE: {
+            // Star one my-shape (music.explorer, workflow 16 L108-133): write the
+            // opaque fret shorthand to the leaf register at
+            // `shapes.json[id][tuning][chord]` (home-book §4.4). The chord key is
+            // the chord as the music core matches it — by chord, not spelling, so
+            // a shape starred for `Cmaj7` serves a song written `C7M`. Starring is
+            // a preference, so it is offline, auto-committed and never pushed
+            // (DIRECTION §3.2); never written into a song.
+            const { id, tuning, chord, shorthand, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'shapes.json',
+              changes: [{ path: [id, tuning, chord], value: shorthand }],
+              author,
+            });
+            await surfaceHomeBookInstruments();
+            await ensureFs().flush();
+            break;
+          }
           case CommandKind.REMOVE_SHAPE: {
             // Remove one my-shape (workflow 15 §Reviewing my shapes): tombstone
             // the leaf register at `shapes.json[id][tuning][chord]` (home-book

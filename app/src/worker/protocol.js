@@ -154,13 +154,18 @@ export const CommandKind = Object.freeze({
   // tombstones the instrument's two registers, every `shapes.json[id]` leaf, and
   // each `songs.json[*].variation[<tuning>]` no remaining instrument still uses,
   // falling back to the standard guitar when the in-use or last one goes.
-  // REMOVE_SHAPE `{ id, tuning, chord, author }` tombstones one my-shape leaf
-  // (home-book §4.4, §5.3). SYNC_HOME re-surfaces INSTRUMENTS alongside the rest.
+  // SAVE_SHAPE `{ id, tuning, chord, shorthand, author }` writes one my-shape leaf
+  // — the opaque fret shorthand (cifra.md §7), keyed by the chord as the music
+  // core matches it (home-book §4.4) — the star in the chord explorer
+  // (music.explorer, workflow 16 L108-133). REMOVE_SHAPE `{ id, tuning, chord,
+  // author }` tombstones one my-shape leaf (home-book §4.4, §5.3). SYNC_HOME
+  // re-surfaces INSTRUMENTS alongside the rest.
   SAVE_INSTRUMENT: 'save_instrument',
   SET_INSTRUMENT_RULES: 'set_instrument_rules',
   USE_INSTRUMENT: 'use_instrument',
   REMOVE_INSTRUMENT: 'remove_instrument',
   REMOVE_SHAPE: 'remove_shape',
+  SAVE_SHAPE: 'save_shape',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;

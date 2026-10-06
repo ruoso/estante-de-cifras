@@ -159,6 +159,45 @@ describe('the ° ambiguity', () => {
   });
 });
 
+describe('the C7(4) ambiguity', () => {
+  // The fourth §5.6 ambiguity (spec §5.6 L248, L261-265; workflow 16 L99-102):
+  // a bare 4 over a major triad that already states a seventh. Brazilian reads
+  // it as a suspended fourth (C7sus4 — the third gives way to the fourth);
+  // American and Real Book add the fourth above the third (C7add4).
+  it('reads C7(4) as a suspended fourth in Brazilian', () => {
+    expect(tones('C7(4)', 'brazilian')).toBe('C F G Bb');
+  });
+
+  it('reads C7(4) as an added fourth in American and Real Book', () => {
+    expect(tones('C7(4)', 'american')).toBe('C E F G Bb');
+    expect(tones('C7(4)', 'realbook')).toBe('C E F G Bb');
+  });
+
+  it('reports the ambiguity rather than choosing silently', () => {
+    const r = parseChord('C7(4)', 'brazilian');
+    expect(r.ambiguities).toHaveLength(1);
+    expect(r.ambiguities[0]).toMatchObject({ kind: 'sevenFour', chosen: 'suspendedFourth' });
+    expect(r.ambiguities[0].alternatives).toEqual(['addedFourth']);
+  });
+
+  it('is an added fourth with nothing to flip on a minor triad', () => {
+    // A suspension replaces a major third; Cm7(4) has none to replace, so it is
+    // an added fourth in every dialect and is not reported (spec §5.6 L261-265).
+    for (const dialect of DIALECT_IDS) {
+      const r = parseChord('Cm7(4)', dialect);
+      expect(r.ambiguities).toHaveLength(0);
+      expect(describeChordTones(r.chord)).toBe('C Eb F G Bb');
+    }
+  });
+
+  it('is unambiguous when sus4 or add4 is spelled out', () => {
+    expect(parseChord('C7sus4').ambiguities).toHaveLength(0);
+    expect(parseChord('C7add4').ambiguities).toHaveLength(0);
+    expect(tones('C7sus4')).toBe('C F G Bb');
+    expect(tones('C7add4')).toBe('C E F G Bb');
+  });
+});
+
 describe('extensions and alterations', () => {
   it.each([
     ['C', 'C E G'],
@@ -323,5 +362,15 @@ describe('reading overrides', () => {
       readings: { sevenPlus: 'dominantSharpFive' },
     });
     expect(describeChordTones(flipped.chord)).toBe('C E G# Bb');
+  });
+
+  it('flips C7(4) from the suspended to the added fourth', () => {
+    expect(tones('C7(4)', 'brazilian')).toBe('C F G Bb');
+    const flipped = parseChord('C7(4)', 'brazilian', {
+      readings: { sevenFour: 'addedFourth' },
+    });
+    expect(describeChordTones(flipped.chord)).toBe('C E F G Bb');
+    expect(flipped.ambiguities[0].chosen).toBe('addedFourth');
+    expect(flipped.ambiguities[0].alternatives).toEqual(['suspendedFourth']);
   });
 });

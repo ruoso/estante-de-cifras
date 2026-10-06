@@ -16,8 +16,15 @@ task music "Music" {
   task explorer "The chord explorer" {
     effort 3d
     allocate team
-    depends design.explorer, shell.diagram, !instruments, foundation.e2e_web
-    note "Workflow 16 built: search's chord row opens it; fingerings ranked, grouped by position; starring a shape as my shape. Tests: unit (ranking and grouping by position); behavior (the explorer with Testing Library and axe, a keyboard path through fingerings, starring); e2e-web (search's chord row opens it, a shape starred as my shape, used offline too; axe)."
+    complete 100
+    depends design.explorer, shell.diagram, !instruments, foundation.e2e_web, songs.search
+    note "Workflow 16 built: search's chord row opens it; fingerings ranked, grouped by position; starring a shape as my shape. Tests: unit (ranking and grouping by position); behavior (the explorer with Testing Library and axe, a keyboard path through fingerings, starring); e2e-web (search's chord row opens it, a shape starred as my shape, used offline too; axe). Refinement: tasks/refinements/music/explorer.md"
+  }
+  task explorer_standard_shapes "Star a shape on the standard-guitar fallback" {
+    effort 1d
+    allocate team
+    depends !explorer, !instruments
+    note "Starring a shape when the in-use instrument is the synthesized standard-guitar fallback (id: null) cannot persist because shapes.json is keyed by instrument id (home-book §4.4) and standardEntry.shapes is always empty. Materialize the standard as a real instrument with a reserved shapes id on first star, so the write path works identically to any named instrument. Source-of-debt: tasks/refinements/music/explorer.md (tech-debt note), home-book-format.md §4.4. Tests: behavior (star a shape on the standard fallback, confirm the leaf persists in shapes.json and is read back by the explorer)."
   }
   task fallback "Where a chord's shape comes from" {
     effort 1d

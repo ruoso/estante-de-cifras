@@ -72,6 +72,61 @@ export default {
     where: '{book} · {folder}/',
   },
 
+  explorer: {
+    title: 'Esplora un accordo',
+    back: 'Torna alla ricerca',
+    chord: 'Accordo',
+    unreadable: '“{text}” non è un accordo che l’app sappia leggere.',
+    group: {
+      open: 'Vuote',
+      fret: 'Tasto {position}',
+      count: { one: '{count} forma', other: '{count} forme' },
+    },
+    showMore: 'Mostra altre {count}',
+    showFewer: 'Mostra meno',
+    star: 'Salva {chord}, {shorthand} come tua forma',
+    unstar: 'La tua forma di {chord}, {shorthand} — rimuovi',
+    notice: {
+      readAs: 'Letto come {chord} — {reading}.',
+      flip: 'Leggere come {chord}?',
+      about: {
+        sevenPlus:
+          'Nella notazione brasiliana 7+ è la settima maggiore; nell’americana e nel Real Book è la quinta aumentata.',
+        bareNine:
+          'Nella notazione brasiliana un 9 da solo aggiunge la nona senza settima; nell’americana e nel Real Book include la settima minore.',
+        degreeSign:
+          'Un ° da solo si legge come la settima diminuita; la triade pura è l’altra lettura.',
+        sevenFour:
+          'Nella notazione brasiliana 7(4) sospende la terza; nell’americana e nel Real Book aggiunge la quarta sopra di essa.',
+      },
+    },
+    empty: {
+      title: 'Nessuna forma rispetta le regole',
+      body:
+        '{chord} chiede più note di quante {instrument} possa farne suonare con le tue regole di esecuzione. La ricerca non ha allentato le regole per forzarne una.',
+      rules: 'Regole di esecuzione',
+      hint: 'Consenti note omesse lì, oppure prova un accordo più semplice.',
+    },
+    enter: {
+      name: 'Inserisci una forma',
+      meta: 'posiziona le dita a mano e salvala',
+      title: 'Inserisci una forma',
+      help: 'Tocca un tasto per mettere un dito, toccalo di nuovo per toglierlo. Tocca il capotasto per lasciare vuota o soffocare la corda.',
+      nut: 'Lascia vuota o soffoca la corda {n}',
+      muteString: 'Soffoca la corda {n}',
+      openString: 'Lascia vuota la corda {n}',
+      setFret: 'Corda {n}, tasto {fret}',
+      readout: 'Ciò che suona',
+      muted: 'Corda {n}: soffocata',
+      openNote: 'Corda {n}: vuota, {note}',
+      frettedNote: 'Corda {n}: tasto {fret}, {note}',
+      foreign: 'fuori dall’accordo',
+      unplayable: 'Questa forma non è suonabile così com’è, ma è conservata come disegnata.',
+      star: 'Salva questa forma',
+      cancel: 'Annulla',
+    },
+  },
+
   // Lo stato iniziale a libreria vuota sulla porta d'ingresso della ricerca
   // (account.first_run, flusso 1).
   firstRun: {
@@ -306,6 +361,10 @@ export default {
     degreeSign: {
       diminishedSeventh: 'settima diminuita',
       diminishedTriad: 'triade diminuita, senza settima',
+    },
+    sevenFour: {
+      suspendedFourth: 'quarta sospesa',
+      addedFourth: 'quarta aggiunta',
     },
   },
 

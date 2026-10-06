@@ -108,10 +108,17 @@ describe('recents (behavior)', () => {
       for (let i = 0; i < total; i += 1) {
         store.send(command(CommandKind.RECORD_RECENT, { bookId: 'book-1', path: `song-${i}.cifra.md` }));
       }
-      await until(() => expect(store.slice('recents').length).toBe(DEFAULT_RECENTS_CAP));
+      // The records are fired without awaiting each; the list first reaches the
+      // cap after song-49 lands, while the last records are still queued. Wait on
+      // the terminal state — most-recent (song-{total-1}) at the front AND the
+      // length capped — so the ordering assertions below see the settled list,
+      // not a mid-stream snapshot.
+      await until(() => {
+        expect(store.slice('recents').length).toBe(DEFAULT_RECENTS_CAP);
+        expect(paths(store)[0]).toBe(`song-${total - 1}.cifra.md`);
+      });
       // Most-recent-first: the last recorded is at the front, and the three
       // oldest fell off the end.
-      expect(paths(store)[0]).toBe(`song-${total - 1}.cifra.md`);
       expect(paths(store)).not.toContain('song-0.cifra.md');
 
       // A restart over the same backing store recovers the recents from `meta`

@@ -401,6 +401,29 @@ export function parseChord(text, dialectId = DEFAULT_DIALECT, options = {}) {
           break;
         }
 
+        // The documented fourth ambiguity: `C7(4)` — a bare 4 over a major triad
+        // that already states a seventh. Brazilian suspends the third (`C7sus4`);
+        // American and Real Book add the fourth above it (`C7add4`). Only on a
+        // major triad, since a suspension replaces a major third: `Cm7(4)` is an
+        // added fourth in every dialect, with nothing to flip (spec §5.6).
+        if (!handled && degree === 4 && quality === 'major' && sawSeventh) {
+          const reading = readings.sevenFour;
+          ambiguities.push({
+            kind: 'sevenFour',
+            text: '7(4)',
+            chosen: reading,
+            alternatives: ['suspendedFourth', 'addedFourth'].filter((r) => r !== reading),
+          });
+          if (reading === 'suspendedFourth') {
+            quality = 'sus4';
+            sawQualityWord = true;
+          } else {
+            exts.set(4, 0);
+          }
+          i = j;
+          break;
+        }
+
         const isPrimary = primaryTop === null && !handled && degree >= 5;
 
         if (isPrimary) {

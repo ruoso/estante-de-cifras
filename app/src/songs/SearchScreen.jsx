@@ -332,6 +332,8 @@ export default function SearchScreen({
   onWriteSong = () => {},
   onAddBook = () => {},
   onSignIn = () => {},
+  query: controlledQuery,
+  onQueryChange,
 }) {
   const searchSlice = useSlice(store, 'search');
   const indexSlice = useSlice(store, 'index');
@@ -347,7 +349,13 @@ export default function SearchScreen({
   const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
   const instrument = preferences?.instrument?.value || t('search.instrument');
 
-  const [query, setQuery] = useState('');
+  // The query is controllable: the chord explorer lifts it so the search box and
+  // the explorer's chord input hold the one symbol, and *back* returns to search
+  // with it still typed (music.explorer; workflow 16 L26-27). Uncontrolled (the
+  // standalone shell mount and the component tests) falls back to local state.
+  const [internalQuery, setInternalQuery] = useState('');
+  const query = controlledQuery ?? internalQuery;
+  const setQuery = onQueryChange ?? setInternalQuery;
   const [scope, setScope] = useState(INITIAL_SCOPE);
   // Save all opens the one save sheet over a book's changed songs (workflow 4
   // §Several songs at once). Ephemeral view state: `{ bookId, paths, bookLabel }`.
@@ -462,7 +470,7 @@ export default function SearchScreen({
             <div className="list">
               <Button
                 className="row explore"
-                onPress={() => onExploreChord(recognized.chord)}
+                onPress={() => onExploreChord(recognized.chord, typedQuery)}
               >
                 <ExploreIcon />
                 <span className="grow">

@@ -1,0 +1,205 @@
+/* The chord explorer (music.explorer, workflow 16; board W16). Layout only — every
+   colour is a theme token (docs/mockups/theme.css), status is a word, never colour
+   alone (standing a11y rule). Most chrome (.appbar, .shapes, .section-label,
+   .notice, .badge, .card, .field, .input, .btn) is the shared theme; this adds the
+   explorer's own composition. */
+
+.explorer-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.explorer-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2) calc(var(--u) * 3);
+  overflow-y: auto;
+}
+
+.explorer-head {
+  display: flex;
+  gap: calc(var(--u) * 2.5);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.explorer-input {
+  flex: none;
+  min-width: 180px;
+}
+
+.explorer-input .input {
+  font: 700 22px var(--font-chart);
+  color: var(--chord);
+}
+
+.explorer-enter {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* The ranked, grouped list (shared with the in-song picker). */
+.fingering-groups {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2.5);
+}
+
+.fg-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+}
+
+.fg-shape {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.fg-shape-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The star carries its state as a pressed button plus the drawing's *your shape*
+   word (never colour alone); the chord colour is the drawn-on-top accent. */
+.explorer-star[data-selected] {
+  color: var(--chord);
+}
+
+.fg-more {
+  align-self: flex-start;
+}
+
+/* On a phone the shapes within a position scroll sideways (workflow 16 L151-155);
+   on tablet and computer they wrap into a grid (the shared .shapes default). */
+.explorer-screen .shapes {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  align-items: flex-start;
+  padding-bottom: 4px;
+}
+
+.explorer-notice {
+  align-items: center;
+}
+
+.explorer-dimmed {
+  opacity: 0.5;
+}
+
+.explorer-unreadable {
+  font-weight: 600;
+}
+
+.explorer-empty {
+  align-items: center;
+  text-align: center;
+  gap: calc(var(--u) * 1.5);
+  max-width: 360px;
+  margin: calc(var(--u) * 3) auto 0;
+}
+
+.notice.warn {
+  background: var(--unsaved-soft);
+  color: var(--ink);
+}
+
+.badge.warn {
+  background: var(--unsaved-soft);
+  color: var(--unsaved);
+}
+
+/* The computer master-detail: search on the side, the explorer beside it. */
+.explorer-split {
+  height: 100%;
+}
+
+.explorer-side {
+  overflow-y: auto;
+}
+
+/* The by-hand shape dialog. */
+.enter-shape {
+  width: min(560px, 92vw);
+}
+
+.enter-shape-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+
+.enter-shape-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.enter-shape-string {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.enter-shape-stringname {
+  width: 1.5em;
+  text-align: center;
+  font-weight: 700;
+}
+
+.enter-shape-fret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  font: 600 14px var(--font-ui);
+}
+
+.enter-shape-fret[data-selected] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.enter-shape-fret[data-focus-visible] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.enter-shape-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.enter-shape-notes {
+  margin: 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.enter-shape-preview {
+  display: flex;
+  justify-content: center;
+  min-height: 1px;
+}

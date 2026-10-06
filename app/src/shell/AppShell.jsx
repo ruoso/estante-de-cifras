@@ -29,6 +29,7 @@ import SearchScreen from '../songs/SearchScreen.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
 import FileView from '../files/FileView.jsx';
+import ChordExplorer from '../music/ChordExplorer.jsx';
 import InstrumentChip from '../instruments/InstrumentChip.jsx';
 import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
 import { DESTINATIONS, WIDE_QUERY, layoutMode } from './layout-mode.js';
@@ -131,7 +132,7 @@ function destinationTab(key, variant) {
 // Decision 1) — while `setlists` stays a labelled slot its own content task will
 // fill. RAC mounts only the selected panel, so exactly one level-1 heading (the
 // screen's own) is present at a time.
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, search) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key}>
       {key === 'search' ? (
@@ -142,10 +143,15 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook) {
         // callback props their own tasks wire. `onWriteSong` is the new-song
         // way-in (songs.new_song): the Create row, the empty shelf and a book's
         // section all raise it, with the started-from book and the query title.
+        // The query is lifted so it survives opening the chord explorer and is
+        // still typed on *back* (music.explorer); the chord row opens the explorer.
         <SearchScreen
           store={store}
           onAddBook={() => onNavigate('books')}
           onWriteSong={onWriteSong}
+          query={search.query}
+          onQueryChange={search.onQueryChange}
+          onExploreChord={search.onExploreChord}
         />
       ) : key === 'books' ? (
         <BooksScreen store={store} onOpenBook={onOpenBook} />
@@ -174,6 +180,13 @@ export default function AppShell({ store = getAppStore() }) {
   // shell chrome present on every destination; pressing it opens the roster
   // overlay. Open-state is ephemeral view state, like the destination selection.
   const [instrumentsOpen, setInstrumentsOpen] = useState(false);
+  // The search query, lifted here (music.explorer): opening the chord explorer
+  // unmounts the search panel, so holding the query in the shell keeps it typed
+  // for *back*. The chord explorer is a full-screen surface over the shell, like
+  // the file view and the new-song host; `exploring` carries the typed symbol or
+  // is null. Ephemeral view state, no router (shell.layout).
+  const [searchQuery, setSearchQuery] = useState('');
+  const [exploring, setExploring] = useState(null);
   // The live CodeMirror view, so Change book can carry the current text to the
   // new book's placeholder (Decision 3). A ref, not state — it never renders.
   const editorRef = useRef(null);
@@ -300,7 +313,26 @@ export default function AppShell({ store = getAppStore() }) {
     );
   }
 
+  // The chord explorer (music.explorer, workflow 16): a full screen over the
+  // shell, reached from search's chord row, carrying the typed symbol. Back
+  // returns to search with the query still typed (it is lifted above).
+  if (exploring) {
+    return (
+      <ChordExplorer
+        store={store}
+        initialText={exploring.text}
+        mode={mode}
+        onBack={() => setExploring(null)}
+      />
+    );
+  }
+
   const openInstruments = () => setInstrumentsOpen(true);
+  const search = {
+    query: searchQuery,
+    onQueryChange: setSearchQuery,
+    onExploreChord: (_chord, typedQuery) => setExploring({ text: typedQuery ?? searchQuery }),
+  };
 
   return (
     <>
@@ -326,7 +358,7 @@ export default function AppShell({ store = getAppStore() }) {
             </div>
             <main className="pane main">
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, setOpenFile)}
+                {destinationPanels(store, setSelected, startNewSong, setOpenFile, search)}
               </div>
             </main>
           </div>
@@ -346,7 +378,7 @@ export default function AppShell({ store = getAppStore() }) {
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className="scroll">
-              {destinationPanels(store, setSelected, startNewSong, setOpenFile)}
+              {destinationPanels(store, setSelected, startNewSong, setOpenFile, search)}
             </main>
           </div>
         )}
