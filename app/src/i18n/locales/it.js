@@ -154,6 +154,8 @@ export default {
     noRoot: 'senza fondamentale',
     voicedAs: 'suona come {chord}',
     toPlay: 'difficoltà {difficulty}',
+    yourShape: 'la tua forma',
+    default: 'predefinita',
   },
 
   library: {

@@ -34,8 +34,9 @@ task shell "Shell" {
   task diagram "The chord diagram" {
     effort 1d
     allocate team
+    complete 100
     depends !tokens, foundation.music_core_import
-    note "Song's shape in ink, my shape in the chord colour, default hollow; the starting fret as a plain number right-aligned beside the first fret. docs/mockups/ChordBox.dc.html. Tests: unit (the starting fret, the marks for the song's shape, my shape and the default); behavior (rendered with an accessible name, axe)."
+    note "Song's shape in ink, my shape in the chord colour, default hollow; the starting fret as a plain number right-aligned beside the first fret. docs/mockups/ChordBox.dc.html. Tests: unit (the starting fret, the marks for the song's shape, my shape and the default); behavior (rendered with an accessible name, axe). Refinement: tasks/refinements/shell/diagram.md"
   }
   task pwa "Installable and offline" {
     effort 2d

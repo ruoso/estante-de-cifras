@@ -1,0 +1,108 @@
+/* The chord diagram's colours (shell.diagram). This maps the carried renderer's
+   `ec-*` classes onto the visual language's theme tokens, so the one SVG string
+   that print and export use is coloured from the same tokens the rest of the
+   app is (app/src/theme/theme.css) — light, the three themes and print run off
+   one set, and the diagram re-themes with no code in it. No colours are
+   authored here; only token references. The structure (grid, markers, fret
+   number, the three-kind marking) never re-themes — only --chord /
+   --default-dot / --ink and the font change (the chart invariant, applied to
+   the diagram). */
+
+.chord-diagram {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-ui);
+}
+
+.chord-diagram__box {
+  display: inline-flex;
+}
+
+.chord-diagram .ec-diagram {
+  display: block;
+}
+
+/* The grid: frets and strings in ink, the nut thicker (chord-box.js 65-78). */
+.chord-diagram .ec-fret,
+.chord-diagram .ec-string {
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+.chord-diagram .ec-nut {
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+
+/* The starting fret, right-aligned beside the first fret when the shape sits up
+   the neck (mockups README line 25). A plain number in the margin ink. */
+.chord-diagram .ec-fretnum {
+  fill: var(--ink-2);
+  font-family: var(--font-chart);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Open (O) and muted (×) strings stay distinct glyphs, not coloured dots, so
+   the distinction survives without colour (chord-box.js 88-100). */
+.chord-diagram .ec-open {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.5;
+}
+.chord-diagram .ec-muted {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.5;
+}
+
+/* Fingered dots and the barre share one fill per kind, always with an ink
+   outline (ChordBox.dc.html line 29: `border: 2px solid var(--ink)`, constant;
+   only the fill varies by kind). The song's own shape is the plain ink fill
+   below; the kind modifiers re-point the fill for the other two. */
+.chord-diagram .ec-dot,
+.chord-diagram .ec-barre {
+  fill: var(--ink);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+/* Finger numbers printed on a dot, legible against whatever that dot is filled
+   with: the surface colour on an ink dot, below, re-pointed per kind. */
+.chord-diagram .ec-finger {
+  fill: var(--surface);
+  font-family: var(--font-chart);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+/* your shape — dots in the chord colour (ChordBox.dc.html line 82). */
+.chord-diagram--yours .ec-dot,
+.chord-diagram--yours .ec-barre {
+  fill: var(--chord);
+}
+.chord-diagram--yours .ec-finger {
+  fill: var(--accent-ink);
+}
+
+/* default — dots drawn hollow: filled with the theme's own surface colour
+   (--default-dot) so the dot reads as a ring against the page in every theme,
+   not fill:none, which would show whatever sits behind it (the "hollow is
+   --default-dot" decision; ChordBox.dc.html line 82). The outline stays ink. */
+.chord-diagram--default .ec-dot,
+.chord-diagram--default .ec-barre {
+  fill: var(--default-dot);
+}
+.chord-diagram--default .ec-finger {
+  fill: var(--ink);
+}
+
+/* The kind word beside the drawing (mockups README line 26; .shape .who in
+   theme.css). */
+.chord-diagram__who {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-2);
+  letter-spacing: 0.02em;
+}
