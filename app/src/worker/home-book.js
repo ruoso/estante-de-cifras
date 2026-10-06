@@ -53,14 +53,13 @@ import { MIGRATIONS, META_STORE, latestVersion, runMigrations } from './migratio
 // The §2.1 settings files, the only files the merger reconciles key by key. The
 // README.md and .gitattributes are the home book's identity files (§2.2),
 // scaffolded with exact bytes, never merged. There are no other files (§8).
-const SETTINGS_FILES = [
+export const SETTINGS_FILES = Object.freeze([
   'preferences.json',
   'shelf.json',
   'instruments.json',
   'shapes.json',
   'songs.json',
-  'recents.json',
-];
+]);
 
 // The EXACT bytes of README.md and .gitattributes (§2.2): UTF-8, LF, one
 // trailing newline. The validator (hook.home_book) checks a push against these

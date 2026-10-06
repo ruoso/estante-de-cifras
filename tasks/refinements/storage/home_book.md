@@ -203,7 +203,7 @@ read or write, and the design decision DIRECTION §6 recorded and
   task is both). The **validator** is the service hook (`hook.home_book`, out of
   scope here).
 - **§2.1 The tracked files** (L76–98): exactly `preferences.json`, `shelf.json`,
-  `instruments.json`, `shapes.json`, `songs.json`, `recents.json`, `README.md`,
+  `instruments.json`, `shapes.json`, `songs.json`, `README.md`,
   `.gitattributes`, all at the root, nothing else. An absent settings file reads
   as `{}`; each file is created lazily; a change rewrites one file so the diff
   is one file.
@@ -214,8 +214,10 @@ read or write, and the design decision DIRECTION §6 recorded and
 - **§2.3 Identifiers** (L130–149): the **device id** — one UUID per
   installation, generated the first time the app runs and kept in "local storage
   the Worker owns (the `meta` object store, outside the home book)," never
-  changing, used only as a **namespace key** in `recents.json` and
-  `shelf.json`'s `local`. Book id and song ref are consumers' keys.
+  changing, used in the home book only as a **namespace key** in `shelf.json`'s
+  `local`; it is also the owner key of the device-local recents the Worker keeps
+  in that `meta` store, outside the home book. Book id and song ref are
+  consumers' keys.
 - **§3 The register envelope** (L150–180): `{ "value": <JSON, or null for a
   tombstone>, "at": "<UTC ISO-8601 ms instant>" }`; `at` matches
   `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$`. "**an object is a register if
@@ -241,11 +243,12 @@ read or write, and the design decision DIRECTION §6 recorded and
   lowercase `\u00XX` and the solidus never escaped, non-ASCII literal UTF-8;
   §6.3 the bytes — UTF-8 no BOM, NFC, LF only, two-space pretty print one
   member/element per line, exactly one trailing LF, `{}` for the empty map.
-- **§7 Per-device state** (L445–463): recents and local-book markers are
-  namespaced by device id so they sync yet never collide and never provide a
-  cross-device "most recently played"; a device writes and reads only its own
-  namespace. The §5 map union handles this for free — each device writes under
-  its own id, so the merge never reconciles two devices' recents into one list.
+- **§7 Per-device state** (L445–463): the home book's per-device state is the
+  local-only-book markers, namespaced by device id so they sync yet never
+  collide; a device writes and reads only its own namespace, and the §5 map
+  union handles this for free. Recents are also per-device but are
+  device-local and **not** a home-book file (§4.6): never written here,
+  committed or merged, so there is no cross-device "most recently played".
 - **§8 Allowed kinds and validation** (L465–493) and **§9 Conformance**
   (L495–512): the validator (`hook.home_book`, deferred — see Acceptance) is the
   service hook's, not this task's; §9 is the writer/merger conformance this

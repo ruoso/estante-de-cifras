@@ -50,8 +50,8 @@ describe('serialize — canonical form (home-book-format.md §6)', () => {
     );
   });
 
-  it('keeps an array (a recents list) in its original order (§6.1)', () => {
-    // A recents list is meaningful newest-first; it must NOT be sorted.
+  it('keeps an array (an ordered opaque value) in its original order (§6.1)', () => {
+    // An ordered opaque value is meaningful in order; it must NOT be sorted.
     const model = { list: { value: ['s-3', 's-1', 's-2'], at: '2026-10-05T14:30:00.000Z' } };
     expect(serialize(model)).toBe(
       [

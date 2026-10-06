@@ -98,7 +98,8 @@ task storage "Storage" {
   task recents_reconcile "Remove synced recents.json and reconcile home-book-format" {
     effort 0.5d
     allocate team
+    complete 100
     depends songs.search
-    note "Remove the now-superseded synced recents.json from the home book's SETTINGS_FILES (app/src/worker/home-book.js:56–63) and reconcile docs/home-book-format.md §4.6/§7 and tasks/refinements/storage/home_book.md §2.1/§7 with device-local recents, resolving the contradiction with DIRECTION §3.2 / workflow 2 L17–20. Source of debt: tasks/refinements/songs/search.md (songs.search). Tests: unit (recents.json no longer in SETTINGS_FILES; the key-by-key home-book merge unaffected; recording a recent commits nothing to the home book)."
+    note "Remove the now-superseded synced recents.json from the home book's SETTINGS_FILES (app/src/worker/home-book.js:56–63) and reconcile docs/home-book-format.md §4.6/§7 and tasks/refinements/storage/home_book.md §2.1/§7 with device-local recents, resolving the contradiction with DIRECTION §3.2 / workflow 2 L17–20. Source of debt: tasks/refinements/songs/search.md (songs.search). Tests: unit (recents.json no longer in SETTINGS_FILES; the key-by-key home-book merge unaffected; recording a recent commits nothing to the home book). Refinement: tasks/refinements/storage/recents_reconcile.md"
   }
 }

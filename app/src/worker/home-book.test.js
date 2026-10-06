@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
-import { createHomeBook } from './home-book.js';
+import { createHomeBook, SETTINGS_FILES } from './home-book.js';
 import { META_STORE, MIGRATIONS, latestVersion } from './migrations.js';
 
 // unit — the §2.3 device id (storage.home_book). Pins home-book-format.md §2.3
@@ -31,6 +31,28 @@ function readMeta(idb, name) {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+describe('SETTINGS_FILES (home-book-format.md §2.1; storage.recents_reconcile)', () => {
+  // unit — the merge whitelist. Pins the retirement of the synced recents.json:
+  // recents are device-local and never a home-book file (workflow 2 L17-20,
+  // DIRECTION §3.2; recents live in the `meta` store — songs.search Decision 2).
+  // The `sync` merge loop iterates this constant, so recents.json's absence here
+  // means it is never iterated, never written, never pushed.
+  it('is exactly the five settings files and does NOT include recents.json', () => {
+    expect([...SETTINGS_FILES]).toEqual([
+      'preferences.json',
+      'shelf.json',
+      'instruments.json',
+      'shapes.json',
+      'songs.json',
+    ]);
+    expect(SETTINGS_FILES).not.toContain('recents.json');
+  });
+
+  it('is frozen against accidental mutation (Decision 4)', () => {
+    expect(Object.isFrozen(SETTINGS_FILES)).toBe(true);
+  });
+});
 
 describe('ensureDeviceId (home-book-format.md §2.3, §7)', () => {
   it('generates a UUID once against a fresh database and returns the same id on a second call', async () => {

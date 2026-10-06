@@ -83,14 +83,13 @@ A home book holds exactly these, all at the root, and nothing else:
   values (§4.3).
 - `shapes.json` — *my shapes*, keyed by instrument, tuning and chord (§4.4).
 - `songs.json` — per song, the transposition and the variation in use (§4.5).
-- `recents.json` — the recently opened songs, per device (§4.6).
 - `README.md` — titling the repository, exactly as the app writes it (§2.2).
 - `.gitattributes` — exactly as the app writes it (§2.2).
 
 There are no folders and no other files. A settings file that is absent is
 read as the empty map `{}`: the app creates each lazily, the first time it has
 something to put in it, and the merger treats a side that lacks a file as
-having an empty one (§5). Each of the six settings files is independent; a
+having an empty one (§5). Each of the five settings files is independent; a
 preference change rewrites only `preferences.json`, so the git history of a
 home book stays legible and a push carries a one-file diff.
 
@@ -131,10 +130,11 @@ rules of §6.3 and checked by the validator against these exact bytes (§8).
 - **Device id.** A writer generates one UUID per installation the first time
   the app runs and keeps it in local storage the Worker owns (the `meta` object
   store, outside the home book), never changing it. It identifies a device and
-  so MUST NOT be a shared register — it appears only as a **namespace key**, in
-  `recents.json` and in `shelf.json`'s local books (§4.6, §4.2, §7). Because a
-  device writes only under its own id, two devices' per-device state syncs
-  without ever colliding.
+  so MUST NOT be a shared register — in the home book it appears only as a
+  **namespace key**, in `shelf.json`'s local books (§4.2, §7); it is also the
+  owner key of the device-local recents the Worker keeps in that `meta` store,
+  outside the home book (§4.6). Because a device writes only under its own id,
+  two devices' per-device home-book state syncs without ever colliding.
 - **Book id.** For a book hosted on the service, the id the service gives the
   repository ([`api/openapi.yaml`](../api/openapi.yaml)); it is stable across
   devices, so every device names a shared book the same way. For a local-only
@@ -145,7 +145,9 @@ rules of §6.3 and checked by the validator against these exact bytes (§8).
   that book, joined by a single `/`: `<book-id>/<path>` — for example
   `b7c1…/Chico Buarque/Construção.cifra.md`. The path is the song's path as
   §2.1 of DIRECTION finds it, NFC-normalised (§6.3). A song ref is the key
-  under which per-song state (§4.5) and recents (§4.6) are held.
+  under which per-song state (§4.5) is held in the home book, and also the key
+  under which the device-local recents list is kept (§4.6) — the latter outside
+  the home book.
 
 ## 3. The register envelope
 
@@ -307,25 +309,18 @@ song ref (§2.3):
 - `variation` — a map keyed by tuning, each a register whose value names the
   variation in use for that tuning. The variation id is opaque.
 
-### 4.6 `recents.json`
+### 4.6 Recents (not a home-book file)
 
-The recently opened songs, kept **per device** (workflow 13): no cross-device
-"most recently played" (§7). A map keyed by device id; each device's entry is a
-single register whose value is the ordered list of song refs, newest first.
-
-```json
-{
-  "<device-id>": {
-    "list": { "value": ["<song-ref>", "<song-ref>", "…"], "at": "…" }
-  }
-}
-```
-
-A device writes only its own entry, replacing the whole list each time it
-changes, with the instant of the change. Because no two devices write the same
-device id, the "later change wins" of §5 never has to choose between two
-devices here — it only ever keeps a device's own latest list. A device reads
-only its own entry (§7).
+The recently opened songs are **device-local and not synced** (workflow 2
+L17-20; DIRECTION §3.2). They are **not** a home-book file: the app keeps them
+in the `meta` store the Worker owns (§2.3), keyed by song ref, newest first,
+outside the home book. They are never written into the home book, never
+committed, never pushed and never merged — a song open would otherwise cost a
+home-book commit per open, which the direction rules out. Recents are also not
+among what comes down to a new device (workflow 13): "recents are kept per
+device, so there is no 'most recently played' to go by", and device-bound state
+stays on the device. A device's recents are disposable; they are lost with a
+lost device, by design (§7).
 
 ## 5. The merge
 
@@ -404,8 +399,8 @@ Canonicalising a home-book file:
   name, ascending, at every depth — including maps keyed by book id, device id,
   instrument, tuning, chord and song ref, and the two keys of a register
   (`at` before `value`);
-- **keeps every array's order** — a recents list (§4.6) and any ordered opaque
-  value are meaningful in order and are not sorted;
+- **keeps every array's order** — an ordered opaque value is meaningful in
+  order and is not sorted;
 - **re-emits numbers and strings** in the forms of §6.2;
 - **normalises all text to NFC** and emits the bytes of §6.3.
 
@@ -444,32 +439,38 @@ An empty map is written `{}` followed by one LF.
 
 ## 7. Per-device state
 
-Two kinds of state belong to a device, not the account: the **recents**
-(§4.6) and the **local-only-book markers** (§4.2). Both are namespaced by
-device id (§2.3), which reconciles three settled behaviours:
+The home book's per-device state is the **local-only-book markers** (§4.2),
+namespaced by device id (§2.3). This reconciles two settled behaviours:
 
-- A device writes and reads only its **own** namespace, so there is never a
-  cross-device "most recently played" to go by (workflow 13) and the recents a
-  user sees are this device's, as workflow 2 has them.
+- A device writes and reads only its **own** namespace, so a local-only book is
+  listed as *only on this iPhone* on the device that holds it (workflow 13
+  L45-50) and never confused with another device's.
 - The namespaces nonetheless **sync**, riding in the home book like every other
-  file, so a lost device's recents and the record of a local-only book it held
-  are not lost with it — they remain under that device's id in the account's
-  home book, where a recovery flow can reach them.
-- Two devices **never collide**: because each writes only under its own id, the
-  §5 merge unions the namespaces and never has to reconcile two devices' recents
-  into one list.
+  file, so the record of a local-only book a device held is not lost with it —
+  it remains under that device's id in the account's home book, where a recovery
+  flow can reach it. Two devices **never collide**: because each writes only
+  under its own id, the §5 merge unions the namespaces (a map union) and never
+  has to reconcile two devices' markers.
+
+**Recents are also per-device, but are not a home-book file** (§4.6). They are
+device-local and not synced (workflow 2 L17-20): never written into the home
+book, so there is no cross-device "most recently played" to go by (workflow 13)
+and nothing to merge. Unlike a local-only-book marker, a device's recents are
+disposable — losing them with a lost device is acceptable and matches the
+direction (workflow 13 L52-55: device-bound state "stays on the device …
+Nothing travels, and nothing pretends to").
 
 A device id is never a shared register and never leaves the namespace-key
 position (§2.3), so per-device state cannot leak into the account-wide settings.
 
 ## 8. Allowed kinds and validation
 
-The home book's allowed kinds are the eight files of §2.1 at the root, and
+The home book's allowed kinds are the seven files of §2.1 at the root, and
 nothing else. This is the whitelist the validator (`hook.home_book`) enforces
 for a home book, in place of the songbook whitelist of workflow 14. A push to a
 home book is refused whole, naming what failed, if it carries:
 
-- any path other than the eight of §2.1, or any folder, symlink, submodule,
+- any path other than the seven of §2.1, or any folder, symlink, submodule,
   non-regular or executable file;
 - a `*.cifra.md` or `*.setlist.md` song or setlist — those belong in a songbook,
   not the home book;
