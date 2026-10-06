@@ -152,6 +152,37 @@ export default {
     },
   },
 
+  history: {
+    title: 'Cronologia',
+    newestFirst: '{book} · prima le più recenti',
+    songInBook: '{title} · {book}',
+    listLabel: 'Versioni di {title}',
+    you: 'tu',
+    unsaved: 'Non salvato, su questo dispositivo',
+    unsavedBadge: 'non salvato',
+    unsavedChanges: 'modifiche non salvate',
+    mergedWithResolution: 'Unito, con la tua risoluzione',
+    backToSong: 'Torna alla canzone',
+    backToHistory: 'Torna alla cronologia',
+    whatChanged: 'Cosa è cambiato rispetto alla versione precedente',
+    whatChangedToNow: 'Cosa è cambiato da questa versione a ora',
+    songAsItWas: 'La canzone com’era',
+    asItWasThen: '{title} com’era allora',
+    compareNow: 'Confronta con ora',
+    compareBefore: 'Confronta con la versione precedente',
+    restore: 'Ripristina questa versione',
+    showText: 'Mostra il testo',
+    lineDiffCaption: 'la differenza per righe di {file} rispetto alla versione precedente',
+    empty: 'Ancora nessuna versione.',
+    restoreTitle: 'Ripristinare la versione del {date}?',
+    restoreBody:
+      '{title} ha modifiche non salvate su questo dispositivo. Il ripristino le sostituisce, e questo andrebbe perso:',
+    restoreCaption:
+      'Viene ripristinata l’intera versione. Resta poi non salvata, e salvarla crea una nuova versione; nulla nella cronologia viene modificato.',
+    keepChanges: 'Mantieni le mie modifiche',
+    loseAndRestore: 'Scartale e ripristina',
+  },
+
   nav: {
     label: 'Sezioni',
     explore: 'Accordi',

@@ -1,0 +1,168 @@
+/* song-history.css — layout for the history surface (songs.history, W06 board).
+   The list, split, pane, appbar, card, editor, toggle, badge and diff
+   scaffolding is the theme's (theme.css); this adds only the glue the three
+   layouts need — the stacked phone screens with a sticky footer, the tablet's
+   single column, the computer's two-pane split — plus the row-as-button reset
+   and the RAC Switch's on-state. Tokens only, never hard-coded colour
+   (DIRECTION / mockups README L26). */
+
+.est-history {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+/* The appbar's title takes the slack so the actions sit at the end (W06). */
+.est-history-appbar .title {
+  flex: 1;
+}
+
+.est-history-body,
+.est-history-detail {
+  gap: calc(var(--u) * 2);
+}
+
+.est-history-list-head,
+.est-history-detail-head,
+.est-history-side-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* A list row rendered as a React Aria Button: strip the UA button chrome so it
+   reads as a `.row`, keep a visible focus ring for the keyboard path. */
+.est-history-row {
+  appearance: none;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.est-history-row:last-child {
+  border-bottom: 0;
+}
+.est-history-row[data-focus-visible] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* The pinned unsaved entry and each row's musical summary (W06: `--unsaved-soft`,
+   the summary in `--ink`). */
+.est-history-unsaved {
+  background: var(--unsaved-soft);
+}
+.est-history-summary {
+  color: var(--ink);
+  white-space: normal;
+}
+
+/* Show the text: the RAC Switch's label, and its on-state on the adopted
+   `.toggle` (RAC marks the element `data-selected`, not `.on`). */
+.est-history-showtext {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  flex-wrap: wrap;
+}
+.est-history-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  cursor: pointer;
+  position: relative;
+}
+/* RAC visually-hides the <input role="switch"> in an absolutely-positioned 1px
+   span, so a pointer — and a role-based click — lands on the decorative
+   `.toggle` or the appbar above it, never the control. Expand that wrapper to
+   cover the whole switch and stretch the now-transparent input over it, so the
+   input itself is the hit target; the visible toggle still paints beneath it
+   (opacity, not display, keeps it shown). */
+.est-history-switch > span:first-child {
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  clip-path: none !important;
+}
+.est-history-switch > span:first-child input {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.est-history-switch-label {
+  font-weight: 600;
+}
+.est-history-switch[data-selected] .toggle {
+  background: var(--accent);
+}
+.est-history-switch[data-selected] .toggle::after {
+  left: 21px;
+}
+.est-history-switch[data-focus-visible] .toggle {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The line diff lives in an `.editor` block; each hunk's lines flow straight
+   into it, with a gap between hunks (W06 `editor`). */
+.est-history-hunk {
+  display: contents;
+}
+.est-history-text .ln.gap {
+  min-height: 0.7em;
+}
+.est-history-nochange {
+  color: var(--ink-2);
+}
+
+/* The computer split: the list beside the version (W06 computer). */
+.est-history-split {
+  flex: 1;
+  min-height: 0;
+}
+.est-history-side-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u));
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2) calc(var(--u));
+}
+.est-history-side-list {
+  padding: 0 calc(var(--u) * 2) calc(var(--u) * 2);
+  overflow: auto;
+  min-height: 0;
+}
+.est-history-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The phone's sticky action footer (W06 phone). */
+.est-history-footer {
+  display: flex;
+  gap: calc(var(--u) * 1.25);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2) calc(var(--u) * 2.75);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.est-history-footer .btn {
+  flex: 1;
+}
+
+/* The restore dialog's "what would be lost" card (W06 restore dialog). */
+.est-history-lost {
+  background: var(--unsaved-soft);
+  border-color: transparent;
+}

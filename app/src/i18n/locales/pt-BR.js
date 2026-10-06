@@ -152,6 +152,37 @@ export default {
     },
   },
 
+  history: {
+    title: 'Histórico',
+    newestFirst: '{book} · mais recentes primeiro',
+    songInBook: '{title} · {book}',
+    listLabel: 'Versões de {title}',
+    you: 'você',
+    unsaved: 'Não salvo, neste dispositivo',
+    unsavedBadge: 'não salvo',
+    unsavedChanges: 'alterações não salvas',
+    mergedWithResolution: 'Mesclado, com a sua resolução',
+    backToSong: 'Voltar à música',
+    backToHistory: 'Voltar ao histórico',
+    whatChanged: 'O que mudou em relação à versão anterior',
+    whatChangedToNow: 'O que mudou desta versão para agora',
+    songAsItWas: 'A música como estava',
+    asItWasThen: '{title} como estava então',
+    compareNow: 'Comparar com agora',
+    compareBefore: 'Comparar com a versão anterior',
+    restore: 'Restaurar esta versão',
+    showText: 'Mostrar o texto',
+    lineDiffCaption: 'a diferença de linhas de {file} em relação à versão anterior',
+    empty: 'Ainda não há versões.',
+    restoreTitle: 'Restaurar a versão de {date}?',
+    restoreBody:
+      '{title} tem alterações não salvas neste dispositivo. Restaurar substitui essas alterações, e isto seria perdido:',
+    restoreCaption:
+      'A versão inteira é restaurada. Ela fica então não salva, e salvá-la cria uma nova versão; nada no histórico é alterado.',
+    keepChanges: 'Manter minhas alterações',
+    loseAndRestore: 'Descartar e restaurar',
+  },
+
   nav: {
     label: 'Seções',
     explore: 'Acordes',

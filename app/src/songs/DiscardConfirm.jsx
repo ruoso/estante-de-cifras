@@ -16,7 +16,7 @@ import { Button, Dialog, Heading, Modal, ModalOverlay } from 'react-aria-compone
 import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
-import { renderChange } from './render-change.js';
+import DiffRows from './DiffRows.jsx';
 import './save-sheet.css';
 
 export default function DiscardConfirm({
@@ -69,19 +69,7 @@ export default function DiscardConfirm({
                 {t('saveSheet.discardTitle', { title: titleHint })}
               </Heading>
               <p className="t-body">{t('saveSheet.discardBody')}</p>
-              {changes.length > 0 && (
-                <div className="diff">
-                  {changes.map((change, i) => {
-                    const { where, what } = renderChange(change, t);
-                    return (
-                      <div className="d" key={`${where}:${what}:${i}`}>
-                        <span className="k">{where}</span>
-                        <span>{what}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <DiffRows changes={changes} />
               <div className="actions">
                 <Button className="btn" onPress={close}>
                   {t('saveSheet.keepEditing')}

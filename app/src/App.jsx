@@ -5,6 +5,7 @@ import LocaleRoot from './i18n/LocaleRoot.jsx';
 import AppShell from './shell/AppShell.jsx';
 import ChartGallery from './chart/gallery/ChartGallery.jsx';
 import EditorDev from './editor/EditorDev.jsx';
+import HistoryDev from './songs/HistoryDev.jsx';
 import UpdateReady from './pwa/UpdateReady.jsx';
 import { getAppStore } from './worker/store.js';
 
@@ -24,6 +25,14 @@ function isChartGallery() {
 // stands up behind `#dev/editor` so its behaviour and e2e run now (Decision 6).
 function isEditorDev() {
   return typeof location !== 'undefined' && location.hash.startsWith('#dev/editor');
+}
+
+// The history surface's dev mount, `#dev/history` — mirroring `#dev/editor`
+// (songs.history Decision 5). Its real entry point is songs.reading's toolbar,
+// a sibling task that is not a dependency; until it wires the `onOpenHistory`
+// seam, history stands up behind this hash so its behaviour and e2e run now.
+function isHistoryDev() {
+  return typeof location !== 'undefined' && location.hash.startsWith('#dev/history');
 }
 
 // The dev mounts (`#dev/chart`, `#dev/editor`) are chosen from the hash. There
@@ -65,6 +74,8 @@ export default function App({ store = getAppStore() }) {
           <ChartGallery />
         ) : isEditorDev() ? (
           <EditorDev store={store} />
+        ) : isHistoryDev() ? (
+          <HistoryDev store={store} />
         ) : (
           <AppShell store={store} />
         )}

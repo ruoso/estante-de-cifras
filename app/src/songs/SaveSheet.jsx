@@ -36,31 +36,13 @@ import {
 import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
-import { renderChange } from './render-change.js';
+import DiffRows from './DiffRows.jsx';
 import { buildSaveNote } from './save-note.js';
 import './save-sheet.css';
 
 // Before sign-in a device's commits carry a local id (DIRECTION §3.2 L164-170);
 // the save sheet supplies the display name (stored, or asked here) on top of it.
 const LOCAL_ID = 'local';
-
-// The localized two-column rows for one preview (mockup W04 `.diff`).
-function DiffRows({ changes }) {
-  if (!changes?.length) return null;
-  return (
-    <div className="diff">
-      {changes.map((change, i) => {
-        const { where, what } = renderChange(change, t);
-        return (
-          <div className="d" key={`${where}:${what}:${i}`}>
-            <span className="k">{where}</span>
-            <span>{what}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 // The editable commit form, mounted only while the sheet is open.
 function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, titleHint }) {

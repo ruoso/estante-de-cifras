@@ -67,7 +67,14 @@ task songs "Songs" {
   task history "History of a song" {
     effort 3d
     allocate team
+    complete 100
     depends storage.history, cifra_js.diff
-    note "The list with unsaved changes first, a version read as it was, compare with now, show the text, restore. Workflow 6. Tests: behavior (unsaved changes first, a version read as it was, compare, show the text, restore; axe); e2e-web (a song's history on the three viewports, offline, a version restored and saved; axe)."
+    note "The list with unsaved changes first, a version read as it was, compare with now, show the text, restore. Workflow 6. Tests: behavior (unsaved changes first, a version read as it was, compare, show the text, restore; axe); e2e-web (a song's history on the three viewports, offline, a version restored and saved; axe). Refinement: tasks/refinements/songs/history.md"
+  }
+  task restore_part "Restore part of a version" {
+    effort 1.5d
+    allocate team
+    depends !history, cifra_js.editing
+    note "Restore a single block of a version into the working copy, not the whole song; chosen from the per-version musical diff. Workflow 6 §Later. Source of debt: tasks/refinements/songs/history.md. Tests: behavior (one block restored, the rest untouched; axe); e2e-web (a block restored and saved on the three viewports; axe)."
   }
 }

@@ -176,6 +176,45 @@ export default {
     },
   },
 
+  // A song's history (songs.history, workflow 6; W06 board). `{book}` is a
+  // book's label, `{title}` a song's title, `{file}` a song's file name, `{date}`
+  // a version's date. The on-screen "what changed" rows reuse the save sheet's
+  // localized renderChange; the per-row summary stays the diff's neutral English
+  // one-liner, like the save note. `you` and `merged, with your resolution` are
+  // words, never colour alone (mockup README L26).
+  history: {
+    title: 'History',
+    newestFirst: '{book} · newest first',
+    songInBook: '{title} · {book}',
+    listLabel: 'Versions of {title}',
+    you: 'you',
+    unsaved: 'Unsaved, on this device',
+    unsavedBadge: 'unsaved',
+    unsavedChanges: 'unsaved changes',
+    mergedWithResolution: 'Merged, with your resolution',
+    backToSong: 'Back to the song',
+    backToHistory: 'Back to history',
+    whatChanged: 'What changed from the version before',
+    whatChangedToNow: 'What changed from this version to now',
+    songAsItWas: 'The song as it was',
+    asItWasThen: '{title} as it was then',
+    compareNow: 'Compare with now',
+    compareBefore: 'Compare with the version before',
+    restore: 'Restore this version',
+    showText: 'Show the text',
+    lineDiffCaption: 'the line diff of {file} against the version before',
+    empty: 'No versions yet.',
+    // Restoring over unsaved changes asks first, showing what would be lost
+    // (workflow 6 §Restoring; W06 restore dialog).
+    restoreTitle: 'Restore the version of {date}?',
+    restoreBody:
+      '{title} has unsaved changes on this device. Restoring replaces them, and this would be lost:',
+    restoreCaption:
+      'The whole version is restored. It is then unsaved, and saving it makes a new version; nothing in the history is changed.',
+    keepChanges: 'Keep my changes',
+    loseAndRestore: 'Lose them and restore',
+  },
+
   nav: {
     label: 'Sections',
     explore: 'Chords',
