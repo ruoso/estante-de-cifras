@@ -66,7 +66,8 @@ task books "Books" {
   task file_view_spec_narrow_comment "Fix stale narrow comment in the file-view e2e spec" {
     effort 0.5d
     allocate team
+    complete 100
     depends !file_view
-    note "e2e/web/tests/file-view.spec.js line ~50 calls the tablet viewport narrow. The tablet is 712px (wide, > 600px threshold); backToTree() no-ops in wide — the comment is inaccurate. Fix the comment for accuracy. Source of debt: books.file_view (tasks/refinements/books/file_view.md, iter-0116). Governing: workflow 14; foundation.e2e_web. Tests: no new tests; the fix is in the e2e spec itself (comment-only change)."
+    note "e2e/web/tests/file-view.spec.js line ~50 calls the tablet viewport narrow. The tablet is 712px (wide, > 600px threshold); backToTree() no-ops in wide — the comment is inaccurate. Fix the comment for accuracy. Source of debt: books.file_view (tasks/refinements/books/file_view.md, iter-0116). Governing: workflow 14; foundation.e2e_web. Tests: no new tests; the fix is in the e2e spec itself (comment-only change). Refinement: tasks/refinements/books/file_view_spec_narrow_comment.md"
   }
 }

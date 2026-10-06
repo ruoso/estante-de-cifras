@@ -50,8 +50,10 @@ async function seedExampleBook(page) {
 const fileRow = (page, name) =>
   page.getByRole('button', { name: new RegExp(`^${name.replace(/\./g, '\\.')}`) });
 
-// On the phone and tablet a file fills the screen; step back to the tree. The
-// computer keeps the tree beside the file and has no such control.
+// Only the phone (412px, narrow < 600px) fills the screen with one pane and
+// offers "Back to files"; step back to the tree there. The tablet (712px) and
+// computer (1280px) are wide and keep the tree beside the file (WIDE_QUERY,
+// app/src/shell/layout-mode.js) — no such control, so the guard below no-ops.
 async function backToTree(page) {
   const back = page.getByRole('button', { name: 'Back to files' });
   if (await back.count()) await back.click();
