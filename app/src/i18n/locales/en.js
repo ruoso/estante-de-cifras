@@ -74,6 +74,27 @@ export default {
     where: '{book} · {folder}/',
   },
 
+  // The first-run empty state on the search front door (account.first_run,
+  // workflow 1 §Cold / §My songs; mockup W01). The four ways to fill an empty
+  // shelf, in workflow-1 order, and the listed-from-the-start My songs entry.
+  // `exampleLabel` is the localised shelf title the example book is seeded with
+  // (Decision 5); the open/meta copy uses W01's phone form (Decision 6).
+  firstRun: {
+    heading: 'Your shelf is empty',
+    body: 'A book is a collection of songs: yours, a teacher’s, your band’s. Search looks through every book on your shelf.',
+    writeSong: 'Write a song',
+    writeSongMeta: 'It goes into My songs',
+    addByLink: 'Add a book by its link',
+    addByLinkMeta: 'From a teacher or a bandmate',
+    signIn: 'Sign in',
+    signInMeta: 'Bring back your shelf from another device',
+    openExample: 'Open the example book',
+    openExampleMeta: 'Songs that come with the app, put on your shelf; remove it any time',
+    mySongs: 'My songs',
+    mySongsMeta: 'No songs yet · your own, on this device',
+    exampleLabel: 'Example Book',
+  },
+
   nav: {
     label: 'Sections',
     explore: 'Chords',

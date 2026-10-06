@@ -39,7 +39,16 @@ import {
   songTitle,
   folderOf,
 } from './search-query.js';
+import FirstRun from './FirstRun.jsx';
+import { showsFirstRun, bookLabelFor as resolveBookLabel } from './first-run.js';
 import './search.css';
+
+// A local book's offline commits carry a device-local identity until an account
+// arrives (DIRECTION §3.2; mirrors BooksScreen's `LOCAL_IDENTITY` — account.sign_in
+// replaces it on the unpushed saves). The view supplies it, and the localised
+// label, with OPEN_EXAMPLE_BOOK, exactly as the Add-a-book flow supplies them
+// with CREATE_BOOK.
+const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
 
 // Results narrow "on every keystroke" (workflow 2 L22), but a SEARCH per
 // keystroke would thrash the Worker; a short debounce coalesces a fast typist's
@@ -248,6 +257,9 @@ export default function SearchScreen({
   store,
   onOpenSong = () => {},
   onExploreChord = () => {},
+  onWriteSong = () => {},
+  onAddBook = () => {},
+  onSignIn = () => {},
 }) {
   const searchSlice = useSlice(store, 'search');
   const indexSlice = useSlice(store, 'index');
@@ -330,9 +342,10 @@ export default function SearchScreen({
 
   // A book's label is the name the user gave it on their shelf, surfaced from the
   // home book's shelf.json (storage.shelf_surface, resolving songs.search
-  // Decision 6); fall back to the opaque `bookId` when no label register is
-  // present or it is a cleared tombstone / empty (home-book-format §4.2, §5.3).
-  const bookLabelFor = (bookId) => shelf?.books?.[bookId]?.label?.value || bookId;
+  // Decision 6): a local book's `title`, then a shared book's `label`, then the
+  // opaque `bookId` when neither is present or it is a cleared tombstone / empty
+  // (account.first_run Decision 5; home-book-format §4.2, §5.3).
+  const bookLabelFor = (bookId) => resolveBookLabel(shelf, bookId);
 
   const recognized = typed ? recognizeChord(query, dialect) : null;
   const results = searchSlice.results;
@@ -411,6 +424,24 @@ export default function SearchScreen({
             )}
           </section>
         </>
+      ) : showsFirstRun(bookIds, recentItems) ? (
+        // The cold door: an empty shelf and no recents (account.first_run,
+        // workflow 1 §Cold). "Open the example book" seeds the bundled book in
+        // the Worker; the other three route to the doors their own tasks own
+        // (Decision 1, acceptance 2-3).
+        <FirstRun
+          onWriteSong={onWriteSong}
+          onAddBook={onAddBook}
+          onSignIn={onSignIn}
+          onOpenExampleBook={() =>
+            store.send(
+              command(CommandKind.OPEN_EXAMPLE_BOOK, {
+                title: t('firstRun.exampleLabel'),
+                author: LOCAL_IDENTITY,
+              }),
+            )
+          }
+        />
       ) : (
         <>
           {recentItems.length > 0 && (

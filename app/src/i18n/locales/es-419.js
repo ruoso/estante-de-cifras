@@ -72,6 +72,24 @@ export default {
     where: '{book} · {folder}/',
   },
 
+  // El estado inicial de estante vacía en la puerta de entrada de la búsqueda
+  // (account.first_run, flujo 1).
+  firstRun: {
+    heading: 'Tu estante está vacía',
+    body: 'Un libro es una colección de canciones: tuyas, de un profesor, de tu banda. La búsqueda recorre todos los libros de tu estante.',
+    writeSong: 'Escribir una canción',
+    writeSongMeta: 'Va a Mis canciones',
+    addByLink: 'Agregar un libro por su enlace',
+    addByLinkMeta: 'De un profesor o de un compañero de banda',
+    signIn: 'Iniciar sesión',
+    signInMeta: 'Trae tu estante desde otro dispositivo',
+    openExample: 'Abrir el libro de ejemplo',
+    openExampleMeta: 'Canciones que vienen con la app, puestas en tu estante; quítalo cuando quieras',
+    mySongs: 'Mis canciones',
+    mySongsMeta: 'Aún no hay canciones · tuyas, en este dispositivo',
+    exampleLabel: 'Libro de ejemplo',
+  },
+
   nav: {
     label: 'Secciones',
     explore: 'Acordes',

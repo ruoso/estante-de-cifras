@@ -70,6 +70,14 @@ export const CommandKind = Object.freeze({
   // repository (workflow 7 L16-18). Both commit locally, never push.
   CREATE_BOOK: 'create_book',
   RENAME_BOOK: 'rename_book',
+  // Open the bundled example book (account.first_run, workflow 1 §Cold).
+  // Payload `{ title, author }`: the localised shelf label (the view knows the
+  // language) and the device-local commit identity. The Worker provisions a
+  // local home book if none exists, seeds the bundled book as a local git
+  // repository under a reserved id (idempotently — a second open reuses the one
+  // repository), writes its `shelf.local` entry, re-surfaces SHELF, indexes the
+  // book, and emits BOOK_CREATED. All local — no account, no network, no push.
+  OPEN_EXAMPLE_BOOK: 'open_example_book',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;

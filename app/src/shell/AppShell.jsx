@@ -120,11 +120,16 @@ function destinationTab(key, variant) {
 // Decision 1) — while `setlists` stays a labelled slot its own content task will
 // fill. RAC mounts only the selected panel, so exactly one level-1 heading (the
 // screen's own) is present at a time.
-function destinationPanels(store) {
+function destinationPanels(store, onNavigate) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key}>
       {key === 'search' ? (
-        <SearchScreen store={store} />
+        // The first-run "add a book by its link" way-in routes to the Books
+        // screen's add-a-book flow via this navigation callback (account.first_run
+        // Decision 1; books.add_by_link fills in the by-link option). Navigation
+        // stays view-state here (no router); the other first-run seams are plain
+        // callback props their own tasks wire.
+        <SearchScreen store={store} onAddBook={() => onNavigate('books')} />
       ) : key === 'books' ? (
         <BooksScreen store={store} />
       ) : (
@@ -156,7 +161,7 @@ export default function AppShell({ store = getAppStore() }) {
             </TabList>
           </div>
           <main className="pane main">
-            <div className="scroll">{destinationPanels(store)}</div>
+            <div className="scroll">{destinationPanels(store, setSelected)}</div>
           </main>
         </div>
       ) : (
@@ -168,7 +173,7 @@ export default function AppShell({ store = getAppStore() }) {
           <TabList className="tabbar" aria-label={t('shell.nav')}>
             {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
           </TabList>
-          <main className="scroll">{destinationPanels(store)}</main>
+          <main className="scroll">{destinationPanels(store, setSelected)}</main>
         </div>
       )}
     </Tabs>

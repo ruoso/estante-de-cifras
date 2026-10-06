@@ -30,7 +30,7 @@ import { authorFrom } from './author.js';
 // driver for songs and setlists (app/example-book/.gitattributes). UTF-8, LF,
 // one trailing newline — the §6.3 text rules. (The home book uses different
 // bytes, `*.json merge=binary`; a songbook holds `*.cifra.md` / `*.setlist.md`.)
-const GITATTRIBUTES_BYTES = `*.cifra.md merge=cifra
+export const GITATTRIBUTES_BYTES = `*.cifra.md merge=cifra
 *.setlist.md merge=cifra
 `;
 

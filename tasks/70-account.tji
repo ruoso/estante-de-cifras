@@ -8,8 +8,9 @@ task account "First run and the account" {
   task first_run "First run" {
     effort 2d
     allocate team
+    complete 100
     depends songs.search, design.example_book, books.shelf
-    note "The empty shelf and its four ways in; the example book shipped with the app; My songs. Workflow 1. Tests: unit (the example book's songs read without diagnostics and are canonical under cifra.md for JavaScript); behavior (the empty shelf's four ways in, My songs; axe); e2e-web (a first visit on the three viewports, the example book opened, offline after a reload; axe)."
+    note "The empty shelf and its four ways in; the example book shipped with the app; My songs. Workflow 1. Tests: unit (the example book's songs read without diagnostics and are canonical under cifra.md for JavaScript); behavior (the empty shelf's four ways in, My songs; axe); e2e-web (a first visit on the three viewports, the example book opened, offline after a reload; axe). Refinement: tasks/refinements/account/first_run.md"
   }
   task sign_in "Signing in" {
     effort 3d

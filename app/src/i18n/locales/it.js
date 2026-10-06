@@ -72,6 +72,24 @@ export default {
     where: '{book} · {folder}/',
   },
 
+  // Lo stato iniziale a libreria vuota sulla porta d'ingresso della ricerca
+  // (account.first_run, flusso 1).
+  firstRun: {
+    heading: 'La tua libreria è vuota',
+    body: 'Un libro è una raccolta di brani: tuoi, di un insegnante, della tua band. La ricerca cerca in tutti i libri della tua libreria.',
+    writeSong: 'Scrivi un brano',
+    writeSongMeta: 'Va in I miei brani',
+    addByLink: 'Aggiungi un libro dal suo link',
+    addByLinkMeta: 'Da un insegnante o da un compagno di band',
+    signIn: 'Accedi',
+    signInMeta: 'Riporta la tua libreria da un altro dispositivo',
+    openExample: 'Apri il libro di esempio',
+    openExampleMeta: 'Brani che arrivano con l’app, messi nella tua libreria; rimuovilo quando vuoi',
+    mySongs: 'I miei brani',
+    mySongsMeta: 'Ancora nessun brano · tuoi, su questo dispositivo',
+    exampleLabel: 'Libro di esempio',
+  },
+
   nav: {
     label: 'Sezioni',
     explore: 'Accordi',

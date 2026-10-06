@@ -28,6 +28,7 @@ import { createWorkingCopy } from './working-copy.js';
 import { createHistory } from './history.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createBooks } from './books.js';
+import { createExampleBook } from './example-book.js';
 import { createSearchIndex } from './search-index.js';
 import { createRecents } from './recents.js';
 import { surfacePreferences } from './preferences.js';
@@ -271,6 +272,7 @@ export function createWorkerLogic(port, options = {}) {
   let history = null;
   let homeBook = null;
   let books = null;
+  let exampleBook = null;
   let searchIndex = null;
   let indexHydration = null;
   let recents = null;
@@ -368,6 +370,20 @@ export function createWorkerLogic(port, options = {}) {
     return books;
   }
 
+  // Compose the example-book seeder once over the SAME fs, git layer and lock
+  // registry as the local-book creator (account.first_run), mirroring
+  // ensureBooks. The Worker owns the data; the view only sends OPEN_EXAMPLE_BOOK.
+  function ensureExampleBook() {
+    if (!exampleBook) {
+      exampleBook = createExampleBook({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+      });
+    }
+    return exampleBook;
+  }
+
   // Compose the search index once over the SAME fs and git layer (Decision 1),
   // mirroring the other ensure* composers. The index owns only the in-memory
   // MiniSearch instance and the extracted records; this module persists them.
@@ -436,14 +452,21 @@ export function createWorkerLogic(port, options = {}) {
     await ensureIndexHydrated();
     const bookIds = await listBookIds(ensureFs(), HOME_BOOK_ID);
     for (const bookId of bookIds) {
-      port.postMessage(
-        event(EventKind.INDEX_STATUS, { bookId, state: 'building' }),
-      );
-      await persistIndexChanges(await ensureSearchIndex().reconcile(bookId));
-      port.postMessage(
-        event(EventKind.INDEX_STATUS, { bookId, state: 'ready' }),
-      );
+      await indexOneBook(bookId);
     }
+  }
+
+  // Build (or reconcile) one book's index, emitting the per-book `building` →
+  // `ready` status around it (workflow 2 L159-162). Reused by the bring-up
+  // sweep and by the example-book open, which indexes just the book it seeded so
+  // its songs are found by search at once (account.first_run acceptance 2).
+  async function indexOneBook(bookId) {
+    await ensureIndexHydrated();
+    port.postMessage(
+      event(EventKind.INDEX_STATUS, { bookId, state: 'building' }),
+    );
+    await persistIndexChanges(await ensureSearchIndex().reconcile(bookId));
+    port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: 'ready' }));
   }
 
   // Read the home book's preferences.json, project it to the flat map of
@@ -750,6 +773,46 @@ export function createWorkerLogic(port, options = {}) {
             });
             await surfaceHomeBookShelf();
             port.postMessage(event(EventKind.BOOK_CREATED, { bookId }));
+            break;
+          }
+          case CommandKind.OPEN_EXAMPLE_BOOK: {
+            // Open the bundled example book (workflow 1 §Cold): provision a local
+            // home book if none exists, seed the bundled book as a local
+            // repository under a reserved id (idempotently), write its
+            // shelf.local entry through the home book, re-surface SHELF, index
+            // the book so its songs are found at once, and announce it. All
+            // local — no fetch, no push (offline-first). The reserved book's lock
+            // and the home book's lock are taken in sequence, never nested
+            // (locks.md Decision 1). `title` is the localised shelf label the
+            // view sends (the view knows the language; Decision 5).
+            const { title, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            const example = ensureExampleBook();
+            await example.seed({ author });
+            const exampleId = example.bookId;
+            const deviceId = await home.ensureDeviceId({ idb, name, version });
+            const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+            // A re-open (the book is still on the shelf) keeps its position; a
+            // fresh open lands it at the end. Rewriting the same register keys
+            // adds no duplicate entry (idempotence, Decision 3).
+            const existing = shelf?.local?.[deviceId]?.[exampleId];
+            const position =
+              typeof existing?.position?.value === 'number'
+                ? existing.position.value
+                : nextShelfPosition(shelf, deviceId);
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'shelf.json',
+              changes: [
+                { path: ['local', deviceId, exampleId, 'title'], value: title },
+                { path: ['local', deviceId, exampleId, 'position'], value: position },
+              ],
+              author,
+            });
+            await surfaceHomeBookShelf();
+            await indexOneBook(exampleId);
+            port.postMessage(event(EventKind.BOOK_CREATED, { bookId: exampleId }));
             break;
           }
           case CommandKind.RENAME_BOOK: {
