@@ -5,7 +5,7 @@
  * diteggiatura, battuta. "Voicing" resta in inglese, come si usa davvero.
  */
 export default {
-  app: { name: 'Explore Chords' },
+  app: { name: 'Estante de Cifras' },
 
   ordinal: { other: '{n}ª' },
 

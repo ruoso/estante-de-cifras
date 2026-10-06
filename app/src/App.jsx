@@ -1,5 +1,6 @@
 import './theme/theme.css';
 import ThemeRoot from './theme/ThemeRoot.jsx';
+import LocaleRoot from './i18n/LocaleRoot.jsx';
 import AppShell from './shell/AppShell.jsx';
 import ChartGallery from './chart/gallery/ChartGallery.jsx';
 import { getAppStore } from './worker/store.js';
@@ -20,6 +21,15 @@ function isChartGallery() {
 // below it holds its navigation location in the view, not the store (navigation
 // is view state, not Worker data — DIRECTION §3.7 lines 407-414). The view is
 // the only layer that knows React.
+//
+// LocaleRoot (shell.i18n) sits inside ThemeRoot, reading the same `preferences`
+// slice: it makes the shell below it speak the chosen (or browser's) language,
+// sets <html lang>, and remounts its subtree when the language changes so every
+// t() re-reads. ThemeRoot's own `.est` root stays put across that remount.
 export default function App({ store = getAppStore() }) {
-  return <ThemeRoot store={store}>{isChartGallery() ? <ChartGallery /> : <AppShell />}</ThemeRoot>;
+  return (
+    <ThemeRoot store={store}>
+      <LocaleRoot store={store}>{isChartGallery() ? <ChartGallery /> : <AppShell />}</LocaleRoot>
+    </ThemeRoot>
+  );
 }

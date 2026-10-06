@@ -5,7 +5,7 @@
  * digitação, cifra. "Voicing" fica em inglês, como se diz na prática.
  */
 export default {
-  app: { name: 'Explore Chords' },
+  app: { name: 'Estante de Cifras' },
 
   ordinal: { other: '{n}ª' },
 

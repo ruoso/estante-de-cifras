@@ -138,7 +138,7 @@ export default function AppShell() {
         <div className="split">
           <div className="pane side">
             <div className="side-head">
-              <span className="t-h1">Estante de Cifras</span>
+              <span className="t-h1">{t('app.name')}</span>
             </div>
             <TabList className="rail" aria-label={t('shell.nav')}>
               {DESTINATIONS.map((key) => destinationTab(key, 'rail'))}

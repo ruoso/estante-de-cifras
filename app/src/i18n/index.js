@@ -1,5 +1,6 @@
 /**
- * Translations (docs/DESIGN.md §2.9).
+ * Translations (DIRECTION §3.7 lines 403, 425-426; Workflow 1 §Language
+ * lines 80-84).
  *
  * Deliberately tiny, like the DOM helper: a lookup by dotted key into one
  * object per language, `{name}` interpolation, and plural forms chosen by
@@ -50,6 +51,18 @@ export function detectLocale(languages = globalThis.navigator?.languages ?? []) 
     if (match) return match.id;
   }
   return DEFAULT_LOCALE;
+}
+
+/**
+ * The language the view should show, from the home-book preference and the
+ * browser: the chosen id when it is one we have, else the browser's by primary
+ * subtag (Workflow 1 §Language lines 80-84). A `null`/absent/invalid
+ * preference — the first-run and "automatic" cases — falls through to the
+ * browser's; an unmatched browser list falls to English inside `detectLocale`.
+ * Pure: `LocaleRoot` is the only React around it (DIRECTION §3.7 lines 415-417).
+ */
+export function resolveLocale(preferenceValue, languages) {
+  return isLocale(preferenceValue) ? preferenceValue : detectLocale(languages);
 }
 
 export function setLocale(id) {

@@ -22,8 +22,9 @@ task shell "Shell" {
   task i18n "Languages" {
     effort 2d
     allocate team
+    complete 100
     depends !layout
-    note "English, Brazilian Portuguese, Latin American Spanish, Italian; the browser's until one is chosen; carried over from Explore Chords. Tests: unit (every catalogue complete in the four languages); behavior (switching language re-renders and sets lang); e2e-web (the browser's language chosen on a first load; axe in each language's layout)."
+    note "English, Brazilian Portuguese, Latin American Spanish, Italian; the browser's until one is chosen; carried over from Explore Chords. Tests: unit (every catalogue complete in the four languages); behavior (switching language re-renders and sets lang); e2e-web (the browser's language chosen on a first load; axe in each language's layout). Refinement: tasks/refinements/shell/i18n.md"
   }
   task chart "The chart" {
     effort 4d

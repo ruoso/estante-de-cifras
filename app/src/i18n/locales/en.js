@@ -5,7 +5,7 @@
  * Plurals are written as `{ one, other }` and chosen by `count`.
  */
 export default {
-  app: { name: 'Explore Chords' },
+  app: { name: 'Estante de Cifras' },
 
   ordinal: { one: '{n}st', two: '{n}nd', few: '{n}rd', other: '{n}th' },
 

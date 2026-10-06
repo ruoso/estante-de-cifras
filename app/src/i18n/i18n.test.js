@@ -10,6 +10,7 @@ import {
   setLocale,
   currentLocale,
   detectLocale,
+  resolveLocale,
   isLocale,
   hasMessage,
 } from './index.js';
@@ -103,7 +104,9 @@ describe('lookup', () => {
     // Nothing is missing today, so simulate: the raw lookup falls through to
     // English when the current language has no value.
     setLocale('es-419');
-    expect(t('app.name')).toBe('Explore Chords');
+    // app.name is the product's proper noun — the same in every catalogue
+    // (shell.i18n reconciled it from the carried-over 'Explore Chords').
+    expect(t('app.name')).toBe('Estante de Cifras');
     expect(tr('nav')).toBeTruthy();
   });
 
@@ -144,6 +147,26 @@ describe('choosing a language', () => {
 
   it('is case-insensitive about tags', () => {
     expect(detectLocale(['PT-br'])).toBe('pt-BR');
+  });
+
+  // resolveLocale is the shell.i18n policy LocaleRoot drives: the chosen
+  // preference when it is a language we have, else the browser's (Workflow 1
+  // §Language lines 80-84). Pins "the browser's language until one is chosen,
+  // then that one."
+  it('resolveLocale prefers a valid chosen id over the browser', () => {
+    expect(resolveLocale('it', ['pt-BR'])).toBe('it');
+    expect(resolveLocale('pt-BR', ['en-US'])).toBe('pt-BR');
+  });
+
+  it('resolveLocale falls to the browser for a null/absent/invalid preference', () => {
+    expect(resolveLocale(null, ['pt-PT', 'en'])).toBe('pt-BR');
+    expect(resolveLocale(undefined, ['es-ES'])).toBe('es-419');
+    expect(resolveLocale('xx', ['it-IT'])).toBe('it');
+  });
+
+  it('resolveLocale falls to English when nothing matches', () => {
+    expect(resolveLocale(null, ['fr', 'de'])).toBe('en');
+    expect(resolveLocale('xx', [])).toBe('en');
   });
 
   it('setLocale ignores an unknown id and reports what it set', () => {

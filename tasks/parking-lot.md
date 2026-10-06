@@ -140,3 +140,8 @@ Append one `###` block per item, newest at the bottom:
 - **Source**: closer for `shell.layout` (tasks/refinements/shell/layout.md), surfaced by refinement §Open questions.
 - **Question**: The mockups draw a per-screen `.appbar` with screen-specific actions (Back, Edit, Transpose, History…). Should a shared `AppBar` primitive be extracted in the shell, or should each content task compose `.appbar` from `theme.css`? Extracting now would require deciding what surface the shell owns vs. what content tasks own; deferring lets the first two or three content tasks reveal the natural split.
 - **Why parked**: interface-consistency judgment call; the content tasks (`songs.search`, `books.shelf`, `books.setlists`) own what fills each screen and are better placed to decide whether a shared primitive is worth extracting once their needs are concrete.
+
+### 2026-10-05 — Language chooser placement: header vs. account screen
+- **Source**: closer for `shell.i18n` (tasks/refinements/shell/i18n.md), surfaced by refinement §Open questions.
+- **Question**: Workflow 1 §Language (lines 82–84) and DIRECTION §Theme say the language is chosen in the header alongside the theme. The WBS instead routes the language+theme control to `account.account_screen` (`tasks/70-account.tji:26-30`). These two placements need reconciliation before `account.account_screen` is drawn, so the chooser control lands in the right place. `shell.i18n` is intentionally placement-agnostic — it applies whatever the `preferences` slice says regardless of where the chooser lives.
+- **Why parked**: product/interface judgment call; resolving it requires a human decision on whether Workflow 1's header placement or the account-screen placement wins, before the chooser control task is scoped.
