@@ -819,6 +819,13 @@ export function createWorkerLogic(port, options = {}) {
             });
             await surfaceHomeBookShelf();
             await indexOneBook(exampleId);
+            // Force the inode table out now (fs.js Decision 6), at the handler
+            // tail (Decision 4): seed's own flush (example-book.js) ran BEFORE
+            // the home.set shelf write above, so one global flush here persists
+            // that shelf entry too — an immediate reload lists the example book
+            // on the shelf, not seeded-but-orphaned off it (workflow 1 §Cold;
+            // DIRECTION §3 L108-110; Decision 2).
+            await ensureFs().flush();
             port.postMessage(event(EventKind.BOOK_CREATED, { bookId: exampleId }));
             break;
           }
@@ -845,6 +852,12 @@ export function createWorkerLogic(port, options = {}) {
               author,
             });
             await surfaceHomeBookShelf();
+            // Force the inode table out now (fs.js Decision 6), at the handler
+            // tail (Decision 4): the only write was home.set's shelf register
+            // change, which does not flush on its own, so an immediate reload
+            // reads the new name — not the old one (workflow 7 L16-18;
+            // DIRECTION §3 L108-110; Decision 2).
+            await ensureFs().flush();
             break;
           }
           case CommandKind.OPEN_SOURCE: {

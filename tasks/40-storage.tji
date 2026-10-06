@@ -105,8 +105,9 @@ task storage "Storage" {
   task shelf_flush "Flush the fs superblock after shelf-mutating command handlers" {
     effort 0.5d
     allocate team
+    complete 100
     depends !fs_flush
-    note "OPEN_EXAMPLE_BOOK, RENAME_BOOK, and other command handlers that persist a home-book shelf write via home.set have no handler-tail await fs.flush(). An immediate reload after any of these can lose the shelf change (the home-book.js writes never flush on their own). Fix: a handler-tail await ensureFs().flush() on each affected handler in logic.js, mirroring the CREATE_BOOK fix from storage.fs_flush. Source of debt: tasks/refinements/storage/fs_flush.md (storage.fs_flush), Deferred-work section. Tests: unit (none — no isolatable pure logic); behavior (open-example then fresh-instance reload keeps the shelf entry; rename then fresh-instance reload keeps the new label)."
+    note "OPEN_EXAMPLE_BOOK, RENAME_BOOK, and other command handlers that persist a home-book shelf write via home.set have no handler-tail await fs.flush(). An immediate reload after any of these can lose the shelf change (the home-book.js writes never flush on their own). Fix: a handler-tail await ensureFs().flush() on each affected handler in logic.js, mirroring the CREATE_BOOK fix from storage.fs_flush. Source of debt: tasks/refinements/storage/fs_flush.md (storage.fs_flush), Deferred-work section. Tests: unit (none — no isolatable pure logic); behavior (open-example then fresh-instance reload keeps the shelf entry; rename then fresh-instance reload keeps the new label). Refinement: tasks/refinements/storage/shelf_flush.md"
   }
   task recents_reconcile "Remove synced recents.json and reconcile home-book-format" {
     effort 0.5d

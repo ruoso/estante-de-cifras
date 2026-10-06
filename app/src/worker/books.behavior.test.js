@@ -246,4 +246,56 @@ describe('the shelf write path (behavior)', () => {
     // Offline throughout: no network call, no push.
     expect(w.fetchCalls).toHaveLength(0);
   });
+
+  // storage.shelf_flush behavior case 2: the RENAME_BOOK handler's tail flush
+  // makes the home-book shelf register change durable against the 500ms
+  // superblock debounce. The only write is home.set's shelf change, which does
+  // not flush on its own; the in-test synchronous turn never elapses the
+  // debounce, so a fresh filesystem instance (the cold open a reloaded tab
+  // performs) only reads the NEW name if the handler forced the global
+  // superblock out — remove the flush and it reads the old name. Reads through a
+  // FRESH createFileSystem, never the live readHomeFile window, which would pass
+  // either way (Decision 4). Both a local book's `title` and a shared book's
+  // `label` survive. Pins workflow 7 L16-18, DIRECTION §3 L108-110.
+  it('RENAME_BOOK then an immediate cold reopen keeps the new label (storage.shelf_flush)', async () => {
+    const w = await makeWorker('rename-flush');
+
+    // A local book to rename, plus a shared-book rename (no repo needed).
+    w.send(command(CommandKind.CREATE_BOOK, { title: 'Exercícios', author: IDENTITY }));
+    let created;
+    await waitFor(() => {
+      created = lastEvent(w.events, EventKind.BOOK_CREATED);
+      expect(created).toBeTruthy();
+    });
+    const { bookId } = created.payload;
+
+    w.send(command(CommandKind.RENAME_BOOK, { bookId, name: 'Quinta', author: IDENTITY }));
+    await waitFor(() => {
+      const ev = lastEvent(w.events, EventKind.SHELF);
+      expect(ev?.payload.local[bookId]?.title?.value).toBe('Quinta');
+    });
+    w.send(command(CommandKind.RENAME_BOOK, { bookId: 'b-shared', name: 'Choros', author: IDENTITY }));
+    await waitFor(() => {
+      const ev = lastEvent(w.events, EventKind.SHELF);
+      expect(ev?.payload.books['b-shared']?.label?.value).toBe('Choros');
+    });
+
+    // A brand-new filesystem instance over the same backing store (idb + name):
+    // the cold open a reloaded tab performs. It loads the superblock freshly from
+    // IndexedDB, so it only sees data the handler-tail flush forced out.
+    const freshFs = createFileSystem(`${w.name}-fs`, { indexedDB: w.idb });
+    const freshGit = createGitLayer({
+      fs: freshFs,
+      http: createGitHttpClient({ fetch: () => Promise.reject(new Error('offline')) }),
+    });
+
+    const homeDir = freshGit.bookDir(HOME_BOOK_ID);
+    const shelf = JSON.parse(
+      await freshFs.promises.readFile(`${homeDir}/shelf.json`, 'utf8'),
+    );
+    // A local book's new name (its `title` register) survives the cold open.
+    expect(shelf.local[w.deviceId][bookId].title.value).toBe('Quinta');
+    // A shared book's new name (its `label` register) survives the cold open.
+    expect(shelf.books['b-shared'].label.value).toBe('Choros');
+  });
 });

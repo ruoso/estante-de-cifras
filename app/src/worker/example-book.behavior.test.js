@@ -94,6 +94,39 @@ describe('opening the example book (behavior)', () => {
     expect(entry.position.value).toBe(0);
   });
 
+  // storage.shelf_flush behavior case 1: the OPEN_EXAMPLE_BOOK handler's tail
+  // flush makes the home-book shelf write durable against the 500ms superblock
+  // debounce. seed's own flush ran BEFORE the shelf write, and the in-test
+  // synchronous turn never elapses the debounce, so a fresh filesystem instance
+  // (the cold open a reloaded tab performs) only lists the example book on the
+  // shelf if the handler forced the global superblock out — remove the flush and
+  // the fresh instance reads a stale/absent shelf entry. Reads through a FRESH
+  // createFileSystem, never the live window, which would pass either way
+  // (Decision 4). Pins workflow 1 §Cold L30-31, home-book-format §4.2,
+  // DIRECTION §3 L108-110.
+  it('OPEN_EXAMPLE_BOOK then an immediate cold reopen keeps the shelf entry (storage.shelf_flush)', async () => {
+    const w = await makeWorker('shelf-flush');
+    open(w);
+    await waitFor(() => expect(lastEvent(w.events, EventKind.BOOK_CREATED)).toBeTruthy());
+
+    // A brand-new filesystem instance over the same backing store (idb + name):
+    // the cold open a reloaded tab performs. It loads the superblock freshly from
+    // IndexedDB, so it only sees data the handler-tail flush forced out.
+    const freshFs = createFileSystem(`${w.name}-fs`, { indexedDB: w.idb });
+    const freshGit = createGitLayer({
+      fs: freshFs,
+      http: createGitHttpClient({ fetch: () => Promise.reject(new Error('offline')) }),
+    });
+
+    const homeDir = freshGit.bookDir(HOME_BOOK_ID);
+    const shelf = JSON.parse(
+      await freshFs.promises.readFile(`${homeDir}/shelf.json`, 'utf8'),
+    );
+    const entry = shelf.local[w.deviceId][EXAMPLE_BOOK_ID];
+    expect(entry.title.value).toBe(LABEL);
+    expect(entry.position.value).toBe(0);
+  });
+
   it('emits SHELF before BOOK_CREATED, with the book under its label (home-book-format §4.2)', async () => {
     const w = await makeWorker('events');
     open(w);
