@@ -18,12 +18,15 @@ test('the app shell loads at the origin and passes WCAG 2.1 AA', async ({
 }) => {
   await page.goto('/');
 
-  // Stable landmarks the served shell renders (app/src/App.jsx): the document
-  // title, the main landmark and its level-1 heading.
+  // Stable landmarks the served shell renders (app/src/App.jsx → AppShell): the
+  // document title, the main landmark and the default destination's level-1
+  // heading. The placeholder screen's "Estante de Cifras" heading gave way to
+  // the navigation shell (shell.layout), which opens on Search on every
+  // viewport; the document title (index.html) is unchanged.
   await expect(page).toHaveTitle(/Estante de Cifras/);
   await expect(page.getByRole('main')).toBeVisible();
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Estante de Cifras' }),
+    page.getByRole('heading', { level: 1, name: 'Search' }),
   ).toBeVisible();
 
   // The clean half of the axe seam: zero WCAG 2.1 AA violations on the shell.

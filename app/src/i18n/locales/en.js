@@ -16,6 +16,13 @@ export default {
     helpLabel: 'Help and what changed',
   },
 
+  shell: {
+    nav: 'Destinations',
+    search: 'Search',
+    books: 'Books',
+    setlists: 'Setlists',
+  },
+
   nav: {
     label: 'Sections',
     explore: 'Chords',

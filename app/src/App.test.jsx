@@ -3,17 +3,18 @@ import { render, screen } from '@testing-library/react';
 import App from './App.jsx';
 import { checkWcag21aa } from './a11y/axe.js';
 
-// behavior — renders the proof component (a React Aria Components element under
-// the resolved visual-language root) with its real collaborators, proving React
-// 19, the React Compiler, React Aria and Testing Library all work together, then
-// asserts the rendered tree is axe-clean at WCAG 2.1 AA via the shared helper.
-// This is the set-up every later UI task reuses (DIRECTION §3.7; the standing
-// accessibility rule).
+// behavior — the app root now mounts the navigation shell (AppShell) inside the
+// resolved visual-language root (ThemeRoot), replacing the earlier placeholder
+// screen. It proves React 19, the React Compiler, React Aria Components, i18n
+// and Testing Library render the shell together, axe-clean at WCAG 2.1 AA. The
+// shell root carries the navigation frame Search/Books/Setlists live inside
+// (DIRECTION §4 lines 430-435; §3.7 lines 404-405). jsdom reports no matchMedia,
+// so the default layout is the phone tab bar.
 describe('App', () => {
   it('mounts under the resolved theme root (default automatic → Estante in light)', () => {
-    // The shell root now carries the resolved theme (DIRECTION §3.7 L404-405),
-    // not a hard-coded `theme-current`. With no chosen theme and jsdom reporting
-    // no dark mode, automatic resolves to Estante at the comfortable density.
+    // The shell root carries the resolved theme (DIRECTION §3.7 L404-405), not a
+    // hard-coded `theme-current`. With no chosen theme and jsdom reporting no
+    // dark mode, automatic resolves to Estante at the comfortable density.
     const { container } = render(<App />);
     expect(container.querySelector('.est')).toHaveClass(
       'est',
@@ -22,17 +23,17 @@ describe('App', () => {
     );
   });
 
-  it('renders a React Aria button with an accessible name and role', () => {
+  it('renders the navigation shell: the three destinations and a main landmark', () => {
     render(<App />);
-    const button = screen.getByRole('button', { name: 'Explorar o acervo' });
-    expect(button).toBeInTheDocument();
+    expect(screen.getByRole('main')).toBeInTheDocument();
+    for (const name of ['Search', 'Books', 'Setlists']) {
+      expect(screen.getByRole('tab', { name })).toBeInTheDocument();
+    }
   });
 
-  it('carries its status as a word, not colour alone', () => {
+  it('opens on the default destination (Search) as its level-1 heading', () => {
     render(<App />);
-    // The status is readable as text (docs/mockups/README.md line 27), not a
-    // bare colour swatch.
-    expect(screen.getByRole('status')).toHaveTextContent('Pronto para começar');
+    expect(screen.getByRole('heading', { level: 1, name: 'Search' })).toBeInTheDocument();
   });
 
   it('is axe-clean at WCAG 2.1 AA', async () => {

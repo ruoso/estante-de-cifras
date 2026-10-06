@@ -1,0 +1,59 @@
+/* App-shell layout plumbing (shell.layout). This is NOT the visual language —
+   no colours, no type, no new tokens; those stay in app/src/theme/theme.css,
+   decided and drawn in the mockups. These rules are only what makes the themed
+   root occupy the window and lay its one child (the `.screen` tab-bar layout or
+   the `.split` sidebar+detail layout) out to fill it — the running-app
+   equivalent of the mockup canvas's fixed `.dev .screen` box that shell.tokens
+   dropped as canvas scaffolding. Spacing is expressed in the existing `--u`
+   token so it tracks density. */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+/* The themed root (ThemeRoot's `.est`) fills the window as a column, so its one
+   child — the RAC `Tabs` wrapper — can take the remaining height. */
+.est {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The single RAC `<Tabs>` wrapper the shell mounts: a column filling `.est`, so
+   the `.screen`/`.split` inside it (both `flex: 1`) fill the viewport. */
+.shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The wide sidebar's wordmark area and the destination rail (a column of
+   `.row`s styled by theme.css; `.row.sel` carries the selected background). */
+.side-head {
+  padding: calc(var(--u) * 2) calc(var(--u) * 2) calc(var(--u) * 1.5);
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  padding: 0 calc(var(--u) * 1.5);
+  overflow: hidden;
+}
+
+/* The phone tab bar renders first in the DOM (so RAC links panels to tabs) but
+   sits at the foot of the screen: the scrolling detail (`order: 0`) is above it,
+   the `.tabbar` (`order: 1`) below. */
+.screen > .scroll {
+  order: 0;
+}
+
+.screen > .tabbar {
+  order: 1;
+}

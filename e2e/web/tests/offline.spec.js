@@ -17,10 +17,13 @@ test('the app shell still renders with the network cut, then works online again'
 }) => {
   await runOffline(page, {
     async whileOffline(offlinePage) {
-      // The precached shell survives the offline reload (navigateFallback).
+      // The precached shell survives the offline reload (navigateFallback): the
+      // main landmark and the default destination's level-1 heading. The
+      // placeholder "Estante de Cifras" heading gave way to the navigation shell
+      // (shell.layout), which opens on Search on every viewport.
       await expect(offlinePage.getByRole('main')).toBeVisible();
       await expect(
-        offlinePage.getByRole('heading', { level: 1, name: 'Estante de Cifras' }),
+        offlinePage.getByRole('heading', { level: 1, name: 'Search' }),
       ).toBeVisible();
     },
   });

@@ -16,6 +16,13 @@ export default {
     helpLabel: 'Aiuto e novità',
   },
 
+  shell: {
+    nav: 'Destinazioni',
+    search: 'Cerca',
+    books: 'Libri',
+    setlists: 'Scalette',
+  },
+
   nav: {
     label: 'Sezioni',
     explore: 'Accordi',

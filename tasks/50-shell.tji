@@ -15,8 +15,9 @@ task shell "Shell" {
   task layout "Navigation and layouts" {
     effort 3d
     allocate team
+    complete 100
     depends !tokens
-    note "Phone tab bar (Search, Books, Setlists), tablet and computer splits; React Aria for every interactive part. Tests: behavior (tab bar and splits with Testing Library; keyboard navigation; axe); e2e-web (Search, Books and Setlists reached on phone, tablet and computer, axe on each)."
+    note "Phone tab bar (Search, Books, Setlists), tablet and computer splits; React Aria for every interactive part. Tests: behavior (tab bar and splits with Testing Library; keyboard navigation; axe); e2e-web (Search, Books and Setlists reached on phone, tablet and computer, axe on each). Refinement: tasks/refinements/shell/layout.md"
   }
   task i18n "Languages" {
     effort 2d
