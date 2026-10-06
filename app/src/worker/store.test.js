@@ -86,14 +86,15 @@ describe('worker store (behavior)', () => {
     store.subscribe(notified);
 
     store.open();
-    // OPEN makes four real state moves — the connection+meta (READY), the home
+    // OPEN makes five real state moves — the connection+meta (READY), the home
     // book's preferences surfaced on bring-up (PREFERENCES, empty here), the
     // home book's shelf surfaced right after (SHELF, empty here;
-    // storage.shelf_surface), and the device-local recents (RECENTS, empty here;
-    // songs.search) — so exactly four notifications, and no more (the reducer
-    // returns the same reference for an event that changes nothing; with no
-    // books on the device the index build emits no status).
-    await vi.waitFor(() => expect(notified).toHaveBeenCalledTimes(4));
+    // storage.shelf_surface), the instrument roster surfaced next (INSTRUMENTS,
+    // the standard guitar here; music.instruments), and the device-local recents
+    // (RECENTS, empty here; songs.search) — so exactly five notifications, and no
+    // more (the reducer returns the same reference for an event that changes
+    // nothing; with no books on the device the index build emits no status).
+    await vi.waitFor(() => expect(notified).toHaveBeenCalledTimes(5));
     expect(store.slice('connection').status).toBe('ready');
   });
 

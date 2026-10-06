@@ -37,7 +37,17 @@ body {
 /* The wide sidebar's wordmark area and the destination rail (a column of
    `.row`s styled by theme.css; `.row.sel` carries the selected background). */
 .side-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
   padding: calc(var(--u) * 2) calc(var(--u) * 2) calc(var(--u) * 1.5);
+}
+
+/* The app name yields its row to the instrument chip (music.instruments mounts
+   it here, the one shared piece of shell chrome). */
+.side-head .t-h1 {
+  flex: 1;
+  min-width: 0;
 }
 
 .rail {

@@ -37,6 +37,8 @@ import { createSearchIndex } from './search-index.js';
 import { createRecents } from './recents.js';
 import { surfacePreferences } from './preferences.js';
 import { surfaceShelf } from './shelf.js';
+import { surfaceInstruments, instrumentRemoval } from './instruments.js';
+import { defaultPresetFor } from '../core/instrument.js';
 import { authorFrom } from './author.js';
 
 // The schema version the database opens at, DERIVED from the migration step
@@ -573,6 +575,26 @@ export function createWorkerLogic(port, options = {}) {
     port.postMessage(event(EventKind.SHELF, surfaceShelf(model, deviceId)));
   }
 
+  // Read the home book's instruments.json, preferences.json (for the in-use
+  // register) and shapes.json, project them to the roster payload, and post the
+  // INSTRUMENTS event — the contract music.instruments defined (reducer replaces
+  // the slice). A read before any home book exists returns `{}` for each
+  // (ENOENT, home-book.js), so the payload is the standard guitar with an empty
+  // roster and a null in-use — never an error, never a crash. The reads are
+  // local, offline-first and lock-free (home-book `read` takes no lock). Logs
+  // nothing (no instrument label, tuning or shape; standing rule).
+  async function surfaceHomeBookInstruments() {
+    const home = ensureHomeBook();
+    const [instruments, preferences, shapes] = await Promise.all([
+      home.read({ bookId: HOME_BOOK_ID, file: 'instruments.json' }),
+      home.read({ bookId: HOME_BOOK_ID, file: 'preferences.json' }),
+      home.read({ bookId: HOME_BOOK_ID, file: 'shapes.json' }),
+    ]);
+    port.postMessage(
+      event(EventKind.INSTRUMENTS, surfaceInstruments({ instruments, preferences, shapes })),
+    );
+  }
+
   // Read the device-local recents and post RECENTS, so the search screen shows
   // "the way back into what you were playing" on bring-up without asking for it
   // (songs.search, workflow 2 L13-14). Device-local, offline, no commit; an
@@ -607,6 +629,11 @@ export function createWorkerLogic(port, options = {}) {
     // The read is local and offline-first, and emits `{ books: {}, local: {} }`
     // when no home book exists yet.
     await surfaceHomeBookShelf();
+    // Surface the instrument roster right after the shelf, so the header chip
+    // shows the in-use instrument (or the standard-guitar default) as soon as
+    // the Worker is up (workflow 15 §The roster; music.instruments). Local and
+    // offline-first; the standard guitar when no home book exists yet.
+    await surfaceHomeBookInstruments();
     // Surface the device-local recents right after preferences, before the
     // (slower) per-book index build, so the pre-typing "Recent" section fills
     // first — it is a plain `meta`-store read, independent of the index.
@@ -901,6 +928,10 @@ export function createWorkerLogic(port, options = {}) {
             // sync changes a register"). One command re-surfaces every
             // home-book-derived slice (Decision 1).
             await surfaceHomeBookShelf();
+            // Re-surface the instruments too, so a definition, rule, in-use or
+            // shape a sync merged reaches the `instruments` slice
+            // (music.instruments; "re-emitted when sync changes a register").
+            await surfaceHomeBookInstruments();
             break;
           }
           case CommandKind.CREATE_BOOK: {
@@ -1149,6 +1180,163 @@ export function createWorkerLogic(port, options = {}) {
               );
               await persistIndexChanges(changes);
             }
+            break;
+          }
+          case CommandKind.SAVE_INSTRUMENT: {
+            // Add or edit an instrument (music.instruments, workflow 15 §Adding).
+            // Edit (id present): rewrite only the `definition` register, leaving
+            // `rules` untouched so a rename and a rule edit merge independently
+            // (home-book §4.3, §5.2). Add (no id): mint an id, write both the
+            // `definition` and the `rules` register (from the chosen preset, or
+            // the catalogue default), and — when this is the first instrument and
+            // the in-use is still the implicit standard guitar — set it in use
+            // (workflow 15 L97-99). Offline, auto-committed, never pushed.
+            const { id, definition, preset, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            if (id) {
+              await home.set({
+                bookId: HOME_BOOK_ID,
+                file: 'instruments.json',
+                changes: [{ path: [id, 'definition'], value: definition }],
+                author,
+              });
+            } else {
+              const newId = globalThis.crypto.randomUUID();
+              const presetId = preset || defaultPresetFor(definition?.catalogId);
+              await home.set({
+                bookId: HOME_BOOK_ID,
+                file: 'instruments.json',
+                changes: [
+                  { path: [newId, 'definition'], value: definition },
+                  { path: [newId, 'rules'], value: { preset: presetId } },
+                ],
+                author,
+              });
+              const prefs = await home.read({ bookId: HOME_BOOK_ID, file: 'preferences.json' });
+              const current = prefs?.instrumentInUse?.value ?? null;
+              if (!current) {
+                await home.set({
+                  bookId: HOME_BOOK_ID,
+                  file: 'preferences.json',
+                  changes: [{ path: ['instrumentInUse'], value: newId }],
+                  author,
+                });
+              }
+            }
+            await surfaceHomeBookInstruments();
+            // Force the inode table out now (fs.js Decision 6), at the handler
+            // tail after the home book's lock has released, so an immediate
+            // reload reads the stored instrument.
+            await ensureFs().flush();
+            break;
+          }
+          case CommandKind.SET_INSTRUMENT_RULES: {
+            // Write an instrument's `rules` register (music.instruments,
+            // workflow 15 §The voicing rules): a named preset `{ preset }` is
+            // rebuilt on load, a Custom `{ preset: 'custom', config }` is kept
+            // exactly (home-book §4.3; the surfacing re-derives the effective
+            // config). Offline, auto-committed, never pushed.
+            const { id, rules, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'instruments.json',
+              changes: [{ path: [id, 'rules'], value: rules }],
+              author,
+            });
+            await surfaceHomeBookInstruments();
+            await ensureFs().flush();
+            break;
+          }
+          case CommandKind.USE_INSTRUMENT: {
+            // Switch the one instrument in use (workflow 15 §The roster): write
+            // the singleton `instrumentInUse` preference, under last-write-wins
+            // (Decision — a singleton register admits one winner). Everything on
+            // screen re-derives off the re-surfaced slice. Offline, auto-committed.
+            const { id, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'preferences.json',
+              changes: [{ path: ['instrumentInUse'], value: id }],
+              author,
+            });
+            await surfaceHomeBookInstruments();
+            await ensureFs().flush();
+            break;
+          }
+          case CommandKind.REMOVE_INSTRUMENT: {
+            // Remove an instrument and what goes with it (workflow 15 §Removing;
+            // home-book §5.3): tombstone its two registers, every `shapes.json[id]`
+            // leaf, and each `songs.json[*].variation[<tuning>]` no remaining
+            // instrument still uses, and fall back to the standard guitar when the
+            // in-use or last one goes. Each file is written under its own lock,
+            // never nested (home-book composition rule). The change-set is the
+            // Worker's own (the format's key paths never cross to the main thread).
+            const { id, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            const [instruments, shapes, songs, preferences] = await Promise.all([
+              home.read({ bookId: HOME_BOOK_ID, file: 'instruments.json' }),
+              home.read({ bookId: HOME_BOOK_ID, file: 'shapes.json' }),
+              home.read({ bookId: HOME_BOOK_ID, file: 'songs.json' }),
+              home.read({ bookId: HOME_BOOK_ID, file: 'preferences.json' }),
+            ]);
+            const changes = instrumentRemoval({ id, instruments, shapes, songs, preferences });
+            if (changes.instruments.length) {
+              await home.set({
+                bookId: HOME_BOOK_ID,
+                file: 'instruments.json',
+                changes: changes.instruments,
+                author,
+              });
+            }
+            if (changes.shapes.length) {
+              await home.set({
+                bookId: HOME_BOOK_ID,
+                file: 'shapes.json',
+                changes: changes.shapes,
+                author,
+              });
+            }
+            if (changes.songs.length) {
+              await home.set({
+                bookId: HOME_BOOK_ID,
+                file: 'songs.json',
+                changes: changes.songs,
+                author,
+              });
+            }
+            if (changes.preferences.length) {
+              await home.set({
+                bookId: HOME_BOOK_ID,
+                file: 'preferences.json',
+                changes: changes.preferences,
+                author,
+              });
+            }
+            await surfaceHomeBookInstruments();
+            await ensureFs().flush();
+            break;
+          }
+          case CommandKind.REMOVE_SHAPE: {
+            // Remove one my-shape (workflow 15 §Reviewing my shapes): tombstone
+            // the leaf register at `shapes.json[id][tuning][chord]` (home-book
+            // §4.4, §5.3). Offline, auto-committed, never pushed.
+            const { id, tuning, chord, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'shapes.json',
+              changes: [{ path: [id, tuning, chord], value: null }],
+              author,
+            });
+            await surfaceHomeBookInstruments();
+            await ensureFs().flush();
             break;
           }
           default:

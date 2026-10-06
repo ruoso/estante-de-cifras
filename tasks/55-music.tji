@@ -9,8 +9,9 @@ task music "Music" {
   task instruments "Instruments and voicing rules" {
     effort 4d
     allocate team
+    complete 100
     depends design.instruments, storage.home_book, shell.layout, foundation.e2e_web
-    note "Workflow 15 built: tunings, instruments in the home book, the header chip, presets and the expert panel. Tests: unit (voicing-rule presets and the expert panel's rules); behavior (the instrument screens with Testing Library and axe, stored in the home book); e2e-web (workflow 15 on the three viewports: a tuning, a second instrument, switching from the header chip; axe)."
+    note "Workflow 15 built: tunings, instruments in the home book, the header chip, presets and the expert panel. Tests: unit (voicing-rule presets and the expert panel's rules); behavior (the instrument screens with Testing Library and axe, stored in the home book); e2e-web (workflow 15 on the three viewports: a tuning, a second instrument, switching from the header chip; axe). Refinement: tasks/refinements/music/instruments.md"
   }
   task explorer "The chord explorer" {
     effort 3d

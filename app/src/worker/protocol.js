@@ -140,6 +140,27 @@ export const CommandKind = Object.freeze({
   MOVE_FILE: 'move_file',
   DELETE_FILE: 'delete_file',
   COMMIT_DIFF: 'commit_diff',
+  // The instrument write path (music.instruments, workflow 15). Each mutation is
+  // a home-book change written through `home-book.set` — one lock, canonical,
+  // auto-committed, no push (DIRECTION §3.2; workflow 16 L119-122) — followed by
+  // an INSTRUMENTS re-surface. SAVE_INSTRUMENT `{ id?, definition, preset?,
+  // author }` adds (no id → mint one, write the `definition` and `rules`
+  // registers, and set it in use when it is the first) or edits a definition
+  // (id → rewrite only its `definition` register). SET_INSTRUMENT_RULES `{ id,
+  // rules, author }` writes the `rules` register — a named preset `{ preset }`
+  // or a frozen `{ preset: 'custom', config }` (home-book §4.3). USE_INSTRUMENT
+  // `{ id, author }` writes the singleton `instrumentInUse` preference (switching;
+  // absent means the standard guitar). REMOVE_INSTRUMENT `{ id, author }`
+  // tombstones the instrument's two registers, every `shapes.json[id]` leaf, and
+  // each `songs.json[*].variation[<tuning>]` no remaining instrument still uses,
+  // falling back to the standard guitar when the in-use or last one goes.
+  // REMOVE_SHAPE `{ id, tuning, chord, author }` tombstones one my-shape leaf
+  // (home-book §4.4, §5.3). SYNC_HOME re-surfaces INSTRUMENTS alongside the rest.
+  SAVE_INSTRUMENT: 'save_instrument',
+  SET_INSTRUMENT_RULES: 'set_instrument_rules',
+  USE_INSTRUMENT: 'use_instrument',
+  REMOVE_INSTRUMENT: 'remove_instrument',
+  REMOVE_SHAPE: 'remove_shape',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -235,6 +256,15 @@ export const EventKind = Object.freeze({
   FILE_MOVED: 'file_moved',
   FILE_DELETED: 'file_deleted',
   COMMIT_DIFF: 'commit_diff',
+  // The instrument surface (music.instruments, workflow 15): the whole roster
+  // projected from the home book's instruments.json, the resolved in-use
+  // instrument (its id, or null for the implicit standard guitar), the standard
+  // guitar fallback, and the per-instrument saved shapes — `{ instruments,
+  // inUseId, standard }`. A whole-slice replace folded by the reducer, re-emitted
+  // on every instrument mutation and on SYNC_HOME. The value shape of
+  // instruments.json/shapes.json is this task's (home-book §1.2, §4.3, §4.4); the
+  // producer that reads the home book and projects it is `instruments.js`.
+  INSTRUMENTS: 'instruments',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

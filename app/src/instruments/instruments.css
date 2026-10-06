@@ -1,0 +1,202 @@
+/* The instrument surface (music.instruments, workflow 15). Layout only — colour,
+   type and the interactive-part looks come from the theme tokens and the shared
+   classes (.chip, .seg, .toggle, .badge, .row, .card, .list, .field, .appbar,
+   .btn, .dialog, .scrim); nothing here hard-codes a colour (mockups README). */
+
+/* The header chip — the one shared piece of shell chrome. In the wide side pane
+   it sits beside the app name; in the narrow top strip it is the only control. */
+.instr-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: calc(var(--u) * 1) calc(var(--u) * 2);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  /* Sits above the scrolling detail (order 0) and the foot tab bar (order 1). */
+  order: -1;
+}
+.instrument-chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The full-screen overlay: a panel filling the phone, a centred card on wide. */
+.instr-modal {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+  overflow: hidden;
+}
+@media (min-width: 600px) {
+  .instr-modal {
+    width: min(760px, 92vw);
+    height: min(680px, 90vh);
+    border: 1px solid var(--line);
+    border-radius: calc(var(--radius) + 6px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  }
+}
+.instr-dialog {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  outline: none;
+}
+.instr-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 2);
+}
+
+/* The add/edit form. */
+.instr-form {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+.field-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.select-trigger {
+  justify-content: space-between;
+}
+.instr-popover {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  min-width: 220px;
+  overflow: auto;
+}
+.instr-popover [role='option'] {
+  padding: calc(var(--u) * 1.25) calc(var(--u) * 1.5);
+  cursor: pointer;
+  outline: none;
+}
+.instr-popover [role='option'][data-focused] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.instr-tuning-preview {
+  color: var(--chord);
+  font-weight: 600;
+}
+.instr-error {
+  color: var(--conflict);
+}
+
+/* An instrument's detail. */
+.instr-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.instr-def {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.75);
+}
+.instr-def-row {
+  display: flex;
+  gap: calc(var(--u) * 1.5);
+}
+.instr-def-row .k {
+  min-width: 110px;
+  color: var(--ink-2);
+}
+.instr-tuning {
+  color: var(--chord);
+  font-weight: 600;
+}
+.instr-rules-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.instr-remove {
+  align-self: flex-start;
+}
+.instr-remove-body {
+  color: var(--ink-2);
+}
+
+/* The voicing-rules panel. */
+.instr-rules {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+.instr-rules-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.instr-reset {
+  margin-left: auto;
+}
+.instr-rules-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* The RAC Switch host carries the themed .toggle track as its only visual. */
+.instr-switch {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+/* A number row: the name grows, the input is a fixed, centred box. */
+.instr-num .instr-num-input {
+  width: 92px;
+  min-height: 36px;
+  text-align: center;
+}
+.instr-num .grow {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* My shapes. */
+.instr-shapes {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+.instr-shapes-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.shapes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+.instr-shape {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}

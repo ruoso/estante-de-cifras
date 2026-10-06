@@ -19,7 +19,7 @@
 // songs.search, books.shelf and books.setlists (which already depend on this
 // task) fill them. The shell is usable with no account and no book (Workflow 1).
 
-import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { getAppStore } from '../worker/store.js';
@@ -29,6 +29,8 @@ import SearchScreen from '../songs/SearchScreen.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
 import FileView from '../files/FileView.jsx';
+import InstrumentChip from '../instruments/InstrumentChip.jsx';
+import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
 import { DESTINATIONS, WIDE_QUERY, layoutMode } from './layout-mode.js';
 import './shell.css';
 
@@ -168,6 +170,10 @@ export default function AppShell({ store = getAppStore() }) {
   // `editing`, a full-screen host over the shell and ephemeral view state (no
   // router); the per-book Files control on the book-management screen sets it.
   const [openFile, setOpenFile] = useState(null);
+  // The instrument surface (music.instruments Decision 1): the header chip is
+  // shell chrome present on every destination; pressing it opens the roster
+  // overlay. Open-state is ephemeral view state, like the destination selection.
+  const [instrumentsOpen, setInstrumentsOpen] = useState(false);
   // The live CodeMirror view, so Change book can carry the current text to the
   // new book's placeholder (Decision 3). A ref, not state — it never renders.
   const editorRef = useRef(null);
@@ -216,6 +222,20 @@ export default function AppShell({ store = getAppStore() }) {
     },
     [store, editing],
   );
+
+  // Bring the Worker up once the shell is on screen (store.js `open()`): it
+  // opens the database, reports READY, and surfaces the home book's
+  // preferences, shelf and instrument roster plus the device recents — the
+  // bring-up that fills the header instrument chip with the in-use (or the
+  // standard-guitar default) instrument as soon as the shell paints, with no
+  // interaction (music.instruments §The roster; the chip is shell chrome, not a
+  // destination). Idempotent in the Worker (`ensureOpen`/`ensureIndexHydrated`
+  // are memoised) and the store is a singleton, so StrictMode's double-invoke
+  // cannot bring up twice; the inert no-op store (jsdom) has `open()` too, so
+  // the behaviour tests that mount the shell post to a dead endpoint and no-op.
+  useEffect(() => {
+    store.open?.();
+  }, [store]);
 
   // The Worker allocated the target book and placeholder path: mount the editor
   // on them. A re-target instead carries the text over and discards the old
@@ -280,43 +300,62 @@ export default function AppShell({ store = getAppStore() }) {
     );
   }
 
+  const openInstruments = () => setInstrumentsOpen(true);
+
   return (
-    <Tabs
-      className="shell"
-      orientation={mode === 'wide' ? 'vertical' : 'horizontal'}
-      selectedKey={selected}
-      onSelectionChange={setSelected}
-    >
-      {mode === 'wide' ? (
-        <div className="split">
-          <div className="pane side">
-            <div className="side-head">
-              <span className="t-h1">{t('app.name')}</span>
+    <>
+      <Tabs
+        className="shell"
+        orientation={mode === 'wide' ? 'vertical' : 'horizontal'}
+        selectedKey={selected}
+        onSelectionChange={setSelected}
+      >
+        {mode === 'wide' ? (
+          <div className="split">
+            <div className="pane side">
+              <div className="side-head">
+                <span className="t-h1">{t('app.name')}</span>
+                {/* The instrument chip, the one shared piece of shell chrome
+                    (music.instruments Decision 1): the computer board draws it in
+                    the side header. */}
+                <InstrumentChip store={store} onOpen={openInstruments} />
+              </div>
+              <TabList className="rail" aria-label={t('shell.nav')}>
+                {DESTINATIONS.map((key) => destinationTab(key, 'rail'))}
+              </TabList>
             </div>
-            <TabList className="rail" aria-label={t('shell.nav')}>
-              {DESTINATIONS.map((key) => destinationTab(key, 'rail'))}
-            </TabList>
+            <main className="pane main">
+              <div className="scroll">
+                {destinationPanels(store, setSelected, startNewSong, setOpenFile)}
+              </div>
+            </main>
           </div>
-          <main className="pane main">
-            <div className="scroll">
-              {destinationPanels(store, setSelected, startNewSong, setOpenFile)}
+        ) : (
+          <div className="screen">
+            {/* The narrow top strip holds only the instrument chip (the board's
+                minimal header on the phone); `order: -1` keeps it above the
+                scrolling detail. */}
+            <div className="instr-top">
+              <InstrumentChip store={store} onOpen={openInstruments} />
             </div>
-          </main>
-        </div>
-      ) : (
-        <div className="screen">
-          {/* The TabList renders before the TabPanels so RAC can register the
-              tab ids the panels reference (react-aria tabs link panel↔tab by a
-              shared base id set when the list mounts); the tab bar is placed
-              back at the foot of the screen with `order` in shell.css. */}
-          <TabList className="tabbar" aria-label={t('shell.nav')}>
-            {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
-          </TabList>
-          <main className="scroll">
-            {destinationPanels(store, setSelected, startNewSong, setOpenFile)}
-          </main>
-        </div>
-      )}
-    </Tabs>
+            {/* The TabList renders before the TabPanels so RAC can register the
+                tab ids the panels reference (react-aria tabs link panel↔tab by a
+                shared base id set when the list mounts); the tab bar is placed
+                back at the foot of the screen with `order` in shell.css. */}
+            <TabList className="tabbar" aria-label={t('shell.nav')}>
+              {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
+            </TabList>
+            <main className="scroll">
+              {destinationPanels(store, setSelected, startNewSong, setOpenFile)}
+            </main>
+          </div>
+        )}
+      </Tabs>
+      <InstrumentsOverlay
+        store={store}
+        isOpen={instrumentsOpen}
+        onClose={() => setInstrumentsOpen(false)}
+      />
+    </>
   );
 }

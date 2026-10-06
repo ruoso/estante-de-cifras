@@ -106,6 +106,14 @@ export const initialState = {
   // one path and must not re-render when another is loaded). Starts empty: no
   // song opened in an editor yet.
   source: {},
+  // The instrument surface (music.instruments, INSTRUMENTS): the whole roster
+  // projected from instruments.json, the resolved in-use id (null for the
+  // implicit standard guitar), the standard-guitar fallback, and each
+  // instrument's saved shapes — `{ instruments, inUseId, standard }`. Replaced
+  // whole on each INSTRUMENTS event (like `preferences`/`shelf`), and left
+  // untouched by every other event, so only the instrument surface re-renders.
+  // Starts empty: the chip shows the standard guitar until OPEN surfaces it.
+  instruments: { instruments: [], inUseId: null, standard: null },
 };
 
 // Fold one message into the state. Only event-direction messages change
@@ -384,6 +392,17 @@ export function reduce(state, message) {
         },
       };
     }
+
+    case EventKind.INSTRUMENTS:
+      // The instrument surface surfaced (or changed): replace the slice with the
+      // reported `{ instruments, inUseId, standard }`, copying the PREFERENCES
+      // fold exactly (whole-slice replace). Only this slice moves; a component
+      // watching another slice keeps its reference ("only what shows it moves").
+      // An absent payload resets to the empty roster.
+      return {
+        ...state,
+        instruments: message.payload ?? { instruments: [], inUseId: null, standard: null },
+      };
 
     default:
       return state;
