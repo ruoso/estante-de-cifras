@@ -143,6 +143,13 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
       }
       const commit = await gitCommit({ fs, dir, message, author, committer: author });
 
+      // Force the inode table out now (fs.js Decision 6), still inside the save's
+      // single lock: the commit the user chose to keep is the durable artifact,
+      // and a reload moments later must not read it back as ENOENT. Runs before
+      // the best-effort push so the commit's durability never waits on the
+      // network (DIRECTION §3 L111-113; workflow 4 §Saving).
+      await fs.flush();
+
       // The commit is durable locally; the push is best-effort. A push that
       // fails (no network, or a ref the server would not fast-forward) does not
       // roll back the commit — the sync engine retries it (Decision 8). The
@@ -177,6 +184,11 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
           await gitCheckout({ fs, dir, ref: 'HEAD', filepaths: [path], force: true });
         }
       }
+      // Force the inode table out now (fs.js Decision 6), still inside the
+      // discard's single lock: the reverted/removed working-tree state must be
+      // durable, not lost to the 500ms debounce if the tab reloads immediately
+      // (workflow 4 §Discarding).
+      await fs.flush();
     });
   }
 

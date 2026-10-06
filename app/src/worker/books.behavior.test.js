@@ -127,6 +127,57 @@ describe('the shelf write path (behavior)', () => {
     expect(w.fetchCalls).toHaveLength(0);
   });
 
+  // storage.fs_flush behavior case 3: the CREATE_BOOK handler's tail flush makes
+  // BOTH the new book's repo and the home-book shelf write durable against the
+  // 500ms superblock debounce. The in-test synchronous turn never elapses the
+  // debounce, so a fresh filesystem instance (the cold open a reloaded tab
+  // performs) only finds the book and its shelf entry if the handler flushed the
+  // global superblock — remove the flush and this ENOENTs / loses the entry.
+  // Proves the handler-tail/global-superblock decision (Decision 2, 3). Pins
+  // workflow 7 §The book-management screen, DIRECTION §3 L105-110,
+  // tasks/40-storage.tji:102.
+  it('CREATE_BOOK then an immediate cold reopen finds the book repo AND its shelf entry (storage.fs_flush)', async () => {
+    const w = await makeWorker('flush');
+
+    w.send(command(CommandKind.CREATE_BOOK, { title: 'Terça à tarde', author: IDENTITY }));
+    let created;
+    await waitFor(() => {
+      created = lastEvent(w.events, EventKind.BOOK_CREATED);
+      expect(created).toBeTruthy();
+    });
+    const { bookId } = created.payload;
+
+    // A brand-new filesystem instance over the same backing store (idb + name):
+    // the cold open a reloaded tab performs. It loads the superblock freshly from
+    // IndexedDB, so it only sees data the handler-tail flush forced out.
+    const freshFs = createFileSystem(`${w.name}-fs`, { indexedDB: w.idb });
+    const freshGit = createGitLayer({
+      fs: freshFs,
+      http: createGitHttpClient({ fetch: () => Promise.reject(new Error('offline')) }),
+    });
+
+    // (1) The new book's repo: README.md = `# {title}\n` and the §2.1
+    // .gitattributes — found, no ENOENT.
+    const bookDir = freshGit.bookDir(bookId);
+    const files = await listFiles({ fs: freshFs, dir: bookDir, ref: 'main' });
+    expect([...files].sort()).toEqual(['.gitattributes', 'README.md']);
+    expect(await freshFs.promises.readFile(`${bookDir}/README.md`, 'utf8')).toBe(
+      '# Terça à tarde\n',
+    );
+    expect(await freshFs.promises.readFile(`${bookDir}/.gitattributes`, 'utf8')).toBe(
+      SONGBOOK_GITATTRIBUTES_BYTES,
+    );
+
+    // (2) The home book's shelf.json lists the book under local.<deviceId>.<bookId>
+    // — the book is not orphaned off the shelf.
+    const homeDir = freshGit.bookDir(HOME_BOOK_ID);
+    const shelf = JSON.parse(
+      await freshFs.promises.readFile(`${homeDir}/shelf.json`, 'utf8'),
+    );
+    expect(shelf.local[w.deviceId][bookId].title.value).toBe('Terça à tarde');
+    expect(shelf.local[w.deviceId][bookId].position.value).toBe(0);
+  });
+
   it('position increments: a second New book gets position 1 (shelf order)', async () => {
     const w = await makeWorker('pos');
 

@@ -772,6 +772,13 @@ export function createWorkerLogic(port, options = {}) {
               author,
             });
             await surfaceHomeBookShelf();
+            // Force the inode table out now (fs.js Decision 6), at the handler
+            // tail after both repos' locks have released in sequence (Decision
+            // 4): one global flush persists BOTH the new book's repo and the
+            // home-book shelf write, so an immediate reload finds the book and
+            // lists it on the shelf — not orphaned off it (DIRECTION §3
+            // L105-110; workflow 7 §The book-management screen; Decision 2, 3).
+            await ensureFs().flush();
             port.postMessage(event(EventKind.BOOK_CREATED, { bookId }));
             break;
           }

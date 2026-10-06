@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { spawn } from 'node:child_process';
-import { resolveRef } from 'isomorphic-git';
+import { resolveRef, readBlob } from 'isomorphic-git';
 import { createFileSystem } from './fs.js';
 import { createGitLayer } from './git.js';
 import { createGitHttpClient } from './git-http.js';
@@ -145,9 +145,35 @@ async function setup(bookId) {
     fs,
     dir,
     bookId,
+    idb,
+    name,
     read: (path) => fs.promises.readFile(`${dir}/${path}`, 'utf8'),
     head: () => resolveRef({ fs, dir, ref: 'main' }),
     status: () => store.slice('save')[bookId]?.status,
+    // The cold open a reloaded tab performs: a brand-new createFileSystem over
+    // the SAME backing store (idb + `${name}-fs`), with a matching git layer and
+    // the book's dir. It loads the superblock freshly from IndexedDB, so it only
+    // finds data a `flush()` already forced out — never the Worker's still-live
+    // in-memory inode table (Decision 5).
+    reopen() {
+      const freshFs = createFileSystem(`${name}-fs`, { indexedDB: idb });
+      const freshGit = createGitLayer({
+        fs: freshFs,
+        http: createGitHttpClient({ fetch: globalThis.fetch }),
+      });
+      const freshDir = freshGit.bookDir(bookId);
+      return {
+        fs: freshFs,
+        git: freshGit,
+        dir: freshDir,
+        read: (path) => freshFs.promises.readFile(`${freshDir}/${path}`, 'utf8'),
+        async show(ref, path) {
+          const oid = await resolveRef({ fs: freshFs, dir: freshDir, ref });
+          const { blob } = await readBlob({ fs: freshFs, dir: freshDir, oid, filepath: path });
+          return new TextDecoder().decode(blob);
+        },
+      };
+    },
     async cleanup() {
       await remote.stop();
     },
@@ -319,6 +345,98 @@ describe('the working copy, save and discard (behavior)', () => {
       let gone = false;
       try {
         await ctx.read('new.cifra.md');
+      } catch {
+        gone = true;
+      }
+      expect(gone).toBe(true);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  // storage.fs_flush behavior case 1: a save's flush makes the commit durable
+  // against the 500ms superblock debounce. The in-test synchronous turn never
+  // elapses the debounce, so a fresh filesystem instance (the cold open a
+  // reloaded tab performs) only finds the saved bytes if `save` flushed the
+  // inode table — remove the flush and this ENOENTs. Pins DIRECTION §3 L111-113,
+  // workflow 4 §Saving, tasks/40-storage.tji:102.
+  it('SAVE then an immediate cold reopen finds the committed and working-copy bytes (storage.fs_flush)', async () => {
+    const ctx = await setup('book-save-flush');
+    try {
+      ctx.store.send(
+        command(CommandKind.WRITE, {
+          bookId: ctx.bookId,
+          path: 'rainy-window.cifra.md',
+          text: TYPED_SONG,
+        }),
+      );
+      ctx.store.send(
+        command(CommandKind.SAVE, {
+          bookId: ctx.bookId,
+          paths: ['rainy-window.cifra.md'],
+          message: 'Add Rainy Window',
+          author: IDENTITY,
+        }),
+      );
+      await until(() => expect(ctx.status()).toBe('saved'));
+
+      // A brand-new filesystem instance over the same backing store — no ENOENT.
+      const fresh = ctx.reopen();
+      expect(await fresh.read('rainy-window.cifra.md')).toBe(CANONICAL_SONG);
+      expect(await fresh.show('HEAD', 'rainy-window.cifra.md')).toBe(CANONICAL_SONG);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  // storage.fs_flush behavior case 2: a discard's flush makes the reverted
+  // working-tree state durable. A fresh instance reads the reverted tracked file
+  // back as its HEAD bytes and sees the discarded never-saved file stay gone,
+  // while its still-tracked siblings are found. Pins workflow 4 §Discarding,
+  // tasks/40-storage.tji:102.
+  it('DISCARD then an immediate cold reopen reads reverted/removed state durably (storage.fs_flush)', async () => {
+    const ctx = await setup('book-discard-flush');
+    try {
+      // Save a song so it is tracked at HEAD.
+      ctx.store.send(
+        command(CommandKind.WRITE, { bookId: ctx.bookId, path: 'song.cifra.md', text: TYPED_SONG }),
+      );
+      ctx.store.send(
+        command(CommandKind.SAVE, {
+          bookId: ctx.bookId,
+          paths: ['song.cifra.md'],
+          message: 'Add a song',
+          author: IDENTITY,
+        }),
+      );
+      await until(() => expect(ctx.status()).toBe('saved'));
+
+      // Edit the saved song and add a brand-new (never-saved) file.
+      const edited = CANONICAL_SONG.replace('The rain taps on the glass', 'A different line');
+      ctx.store.send(
+        command(CommandKind.WRITE, { bookId: ctx.bookId, path: 'song.cifra.md', text: edited }),
+      );
+      ctx.store.send(
+        command(CommandKind.WRITE, { bookId: ctx.bookId, path: 'new.cifra.md', text: TYPED_SONG }),
+      );
+      await settled(ctx.bookId);
+
+      // Discard both.
+      ctx.store.send(
+        command(CommandKind.DISCARD, {
+          bookId: ctx.bookId,
+          paths: ['song.cifra.md', 'new.cifra.md'],
+        }),
+      );
+      await until(() => expect(ctx.status()).toBe('discarded'));
+
+      // A brand-new filesystem instance over the same backing store: the reverted
+      // file reads back as its HEAD bytes and the never-saved file stays gone.
+      const fresh = ctx.reopen();
+      expect(await fresh.read('song.cifra.md')).toBe(CANONICAL_SONG);
+      let gone = false;
+      try {
+        await fresh.read('new.cifra.md');
       } catch {
         gone = true;
       }
