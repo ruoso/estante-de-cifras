@@ -22,6 +22,8 @@
 import { useState, useSyncExternalStore } from 'react';
 import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 import { t } from '../i18n/index.js';
+import { getAppStore } from '../worker/store.js';
+import SearchScreen from '../songs/SearchScreen.jsx';
 import { DESTINATIONS, WIDE_QUERY, layoutMode } from './layout-mode.js';
 import './shell.css';
 
@@ -111,19 +113,25 @@ function destinationTab(key, variant) {
   );
 }
 
-// The destination regions: each a `TabPanel` (role=tabpanel, named by its tab)
-// carrying its heading. A minimal labelled slot — enough to be reached and
-// asserted now; the content tasks fill it. RAC mounts only the selected panel,
-// so exactly one level-1 heading is present at a time.
-function destinationPanels() {
+// The destination regions: each a `TabPanel` (role=tabpanel, named by its tab).
+// The `search` panel now renders the real search screen — the app's primary
+// interface, threaded the store (songs.search, Decision 1) — while `books` and
+// `setlists` stay labelled slots their own content tasks will fill. RAC mounts
+// only the selected panel, so exactly one level-1 heading (the screen's own) is
+// present at a time.
+function destinationPanels(store) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key}>
-      <h1 className="t-h1">{t(`shell.${key}`)}</h1>
+      {key === 'search' ? (
+        <SearchScreen store={store} />
+      ) : (
+        <h1 className="t-h1">{t(`shell.${key}`)}</h1>
+      )}
     </TabPanel>
   ));
 }
 
-export default function AppShell() {
+export default function AppShell({ store = getAppStore() }) {
   const mode = useLayoutMode();
   const [selected, setSelected] = useState(DESTINATIONS[0]);
 
@@ -145,7 +153,7 @@ export default function AppShell() {
             </TabList>
           </div>
           <main className="pane main">
-            <div className="scroll">{destinationPanels()}</div>
+            <div className="scroll">{destinationPanels(store)}</div>
           </main>
         </div>
       ) : (
@@ -157,7 +165,7 @@ export default function AppShell() {
           <TabList className="tabbar" aria-label={t('shell.nav')}>
             {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
           </TabList>
-          <main className="scroll">{destinationPanels()}</main>
+          <main className="scroll">{destinationPanels(store)}</main>
         </div>
       )}
     </Tabs>

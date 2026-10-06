@@ -23,6 +23,27 @@ export default {
     setlists: 'Repertórios',
   },
 
+  search: {
+    label: 'Buscar músicas, palavras e acordes',
+    placeholder: 'Músicas, palavras, acordes…',
+    clearQuery: 'Limpar busca',
+    clearFilter: 'Limpar filtro',
+    scopeToBook: 'Buscar só em {book}',
+    instrument: 'instrumento',
+    explore: 'Explorar {query} no seu {instrument}',
+    exploreMeta: 'todos os jeitos de tocar, do mais fácil ao mais difícil',
+    matching: 'Músicas com “{query}”',
+    recent: 'Recentes',
+    books: 'Livros',
+    empty: 'Nenhuma música corresponde a “{query}”.',
+    songCount: { one: '{count} música', other: '{count} músicas' },
+    stillLoading: 'ainda carregando',
+    voicedFor: 'com posições para {instrument}',
+    unsaved: 'não salvo',
+    conflict: 'conflito',
+    where: '{book} · {folder}/',
+  },
+
   nav: {
     label: 'Seções',
     explore: 'Acordes',

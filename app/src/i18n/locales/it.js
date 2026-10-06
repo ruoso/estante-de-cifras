@@ -23,6 +23,27 @@ export default {
     setlists: 'Scalette',
   },
 
+  search: {
+    label: 'Cerca brani, parole e accordi',
+    placeholder: 'Brani, parole, accordi…',
+    clearQuery: 'Cancella ricerca',
+    clearFilter: 'Rimuovi filtro',
+    scopeToBook: 'Cerca solo in {book}',
+    instrument: 'strumento',
+    explore: 'Esplora {query} sul tuo {instrument}',
+    exploreMeta: 'tutti i modi di suonarlo, dal più facile',
+    matching: 'Brani con “{query}”',
+    recent: 'Recenti',
+    books: 'Libri',
+    empty: 'Nessun brano corrisponde a “{query}”.',
+    songCount: { one: '{count} brano', other: '{count} brani' },
+    stillLoading: 'ancora in caricamento',
+    voicedFor: 'con diteggiature per {instrument}',
+    unsaved: 'non salvato',
+    conflict: 'conflitto',
+    where: '{book} · {folder}/',
+  },
+
   nav: {
     label: 'Sezioni',
     explore: 'Accordi',

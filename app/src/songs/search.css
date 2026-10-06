@@ -1,0 +1,153 @@
+/* The search screen's own layout plumbing (songs.search). The visual language
+   — the pill, rows, badges, section labels — is the decided vocabulary in
+   app/src/theme/theme.css (.search, .list, .row, .badges, .section-label, …);
+   these rules only lay those pieces out, reset the native <button> the RAC
+   rows render as, and add the focus-within and scope-chip behaviour the mockup
+   draws. No colours of their own — every value is a theme token. */
+
+.search-screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  overflow-y: auto;
+}
+
+.search-screen > .t-h1 {
+  flex: none;
+}
+
+/* The pill lights up while anything inside it has focus, the way the mockup's
+   `.search.focus` state is drawn. */
+.search:focus-within {
+  background: var(--surface);
+  border-color: var(--accent);
+}
+
+/* The RAC SearchField sits inside the pill and carries the input + its clear
+   button; it has no box of its own. */
+.search .field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search .field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.search .icon {
+  flex: none;
+  color: var(--ink-2);
+}
+
+/* The scope chip lives inside the box (workflow 2 L64), reusing `.scope`; its
+   dismiss button is a bare glyph in the accent colour. It sits OUTSIDE the
+   SearchField so it is never mistaken for the field's clear button. */
+.search .scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search .scope-x,
+.search .field-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* A section (Recent, Books, Songs matching) stacks its label over its list. */
+.search-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+}
+
+/* The rows are RAC Buttons (and the explore row, and the book disclosure
+   triggers), so reset the native button chrome back to the `.row` look. */
+.search-screen button.row {
+  width: 100%;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+}
+
+.search-screen .empty {
+  margin: 0;
+  padding: 0 2px;
+}
+
+/* The collapsible book sections. */
+.search-books {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+}
+
+.book-head {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+}
+
+.book-head .book-heading {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: inherit;
+}
+
+.book-head .book-trigger {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.book-trigger .caret {
+  flex: none;
+  width: 14px;
+  text-align: center;
+}
+
+.book-head .scope-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.book-panel {
+  padding-top: var(--u);
+}
+
+.explore-icon {
+  flex: none;
+  color: var(--accent);
+}

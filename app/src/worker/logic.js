@@ -28,6 +28,7 @@ import { createWorkingCopy } from './working-copy.js';
 import { createHistory } from './history.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createSearchIndex } from './search-index.js';
+import { createRecents } from './recents.js';
 import { surfacePreferences } from './preferences.js';
 import { authorFrom } from './author.js';
 
@@ -240,6 +241,7 @@ export function createWorkerLogic(port, options = {}) {
   let homeBook = null;
   let searchIndex = null;
   let indexHydration = null;
+  let recents = null;
 
   function ensureOpen() {
     if (!dbPromise) dbPromise = openDatabase(idb, name, version, migrations);
@@ -334,6 +336,14 @@ export function createWorkerLogic(port, options = {}) {
     return searchIndex;
   }
 
+  // The device-local recents store, composed once (songs.search). It owns only
+  // the list move; this module hands it the open `meta` database and relays the
+  // result. No git, no network — recents never touch the home book (Decision 2).
+  function ensureRecents() {
+    if (!recents) recents = createRecents();
+    return recents;
+  }
+
   // Rebuild the in-memory index from its persisted records, once per session
   // (memoised like the database open). Every index operation awaits this first,
   // so a WRITE or SEARCH that arrives before OPEN still sees a hydrated index,
@@ -405,6 +415,17 @@ export function createWorkerLogic(port, options = {}) {
     port.postMessage(event(EventKind.PREFERENCES, surfacePreferences(model)));
   }
 
+  // Read the device-local recents and post RECENTS, so the search screen shows
+  // "the way back into what you were playing" on bring-up without asking for it
+  // (songs.search, workflow 2 L13-14). Device-local, offline, no commit; an
+  // empty list on first run. Logs nothing (a recent is a location, not song
+  // text; standing rule).
+  async function surfaceRecents() {
+    const db = await ensureOpen();
+    const list = await ensureRecents().read(db);
+    port.postMessage(event(EventKind.RECENTS, { recents: list }));
+  }
+
   async function handleOpen() {
     const db = await ensureOpen();
     const meta = await loadOrCreateMeta(db);
@@ -422,6 +443,10 @@ export function createWorkerLogic(port, options = {}) {
     // (workflow 13 L30-37; Decision 4). The read is local and offline-first, and
     // emits `{}` when no home book exists yet.
     await surfaceHomeBookPreferences();
+    // Surface the device-local recents right after preferences, before the
+    // (slower) per-book index build, so the pre-typing "Recent" section fills
+    // first — it is a plain `meta`-store read, independent of the index.
+    await surfaceRecents();
     // Build the song search index for every book on the device, emitting a
     // per-book status as it goes (storage.index, acceptance 1/9). After READY so
     // the shell is up first; the search screen shows "still loading" per book
@@ -583,6 +608,28 @@ export function createWorkerLogic(port, options = {}) {
             port.postMessage(
               event(EventKind.SEARCH_RESULTS, { query, results }),
             );
+            break;
+          }
+          case CommandKind.BROWSE: {
+            // The pre-typing browse: every indexed location grouped by book, a
+            // thin read over `index_locations` (no re-parse — Decision 3). The
+            // in-memory index never crosses the port, only the grouped rows.
+            // `scope` narrows it the same way SEARCH's does.
+            const { scope } = message.payload;
+            await ensureIndexHydrated();
+            const { books } = ensureSearchIndex().browse({ scope });
+            port.postMessage(event(EventKind.BROWSE_RESULTS, { books }));
+            break;
+          }
+          case CommandKind.RECORD_RECENT: {
+            // Record a just-opened song into the device-local recents and emit
+            // the new list. No commit, no push — the home book is untouched
+            // (workflow 2 L17-20, Decision 2). `songs.reading` calls this on
+            // open; the search screen displays the slice.
+            const { bookId, path } = message.payload;
+            const db = await ensureOpen();
+            const list = await ensureRecents().record(db, { bookId, path });
+            port.postMessage(event(EventKind.RECENTS, { recents: list }));
             break;
           }
           case CommandKind.SYNC_HOME: {

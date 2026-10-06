@@ -29,7 +29,7 @@ function isChartGallery() {
 export default function App({ store = getAppStore() }) {
   return (
     <ThemeRoot store={store}>
-      <LocaleRoot store={store}>{isChartGallery() ? <ChartGallery /> : <AppShell />}</LocaleRoot>
+      <LocaleRoot store={store}>{isChartGallery() ? <ChartGallery /> : <AppShell store={store} />}</LocaleRoot>
     </ThemeRoot>
   );
 }

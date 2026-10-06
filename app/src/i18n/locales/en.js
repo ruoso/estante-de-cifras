@@ -23,6 +23,29 @@ export default {
     setlists: 'Setlists',
   },
 
+  // The search screen (songs.search, workflow 2). `{instrument}` falls back to
+  // the generic noun `instrument` when no instrument-in-use is surfaced yet.
+  search: {
+    label: 'Search songs, words and chords',
+    placeholder: 'Songs, words, chords…',
+    clearQuery: 'Clear search',
+    clearFilter: 'Clear filter',
+    scopeToBook: 'Search only in {book}',
+    instrument: 'instrument',
+    explore: 'Explore {query} on your {instrument}',
+    exploreMeta: 'every way to play it, easiest first',
+    matching: 'Songs matching “{query}”',
+    recent: 'Recent',
+    books: 'Books',
+    empty: 'No songs match “{query}”.',
+    songCount: { one: '{count} song', other: '{count} songs' },
+    stillLoading: 'still loading',
+    voicedFor: 'voiced for {instrument}',
+    unsaved: 'unsaved',
+    conflict: 'conflict',
+    where: '{book} · {folder}/',
+  },
+
   nav: {
     label: 'Sections',
     explore: 'Chords',

@@ -88,4 +88,16 @@ task storage "Storage" {
     depends !home_book, shell.tokens
     note "The Worker reads preferences.json from the home book and emits a PREFERENCES event the reducer folds into the preferences slice (the contract defined by shell.tokens), re-emitted when sync changes a register. DIRECTION §3.2, §3.7; home-book-format §4.1. Source of debt: tasks/refinements/shell/tokens.md (shell.tokens). Tests: unit (a preferences.json map → the event payload of {value, at} registers; an absent register stays absent); behavior (the Worker against a fake IndexedDB and a local git remote surfaces a theme change, the reducer folds it, the ThemeRoot re-applies). Refinement: tasks/refinements/storage/preferences_surface.md"
   }
+  task shelf_surface "Surface shelf.json for book labels and status" {
+    effort 1d
+    allocate team
+    depends !home_book
+    note "The Worker reads shelf.json from the home book and emits a SHELF event the reducer folds into a shelf slice (each book's label, link, and per-book status — 'reading', 'N setlists'), mirroring storage.preferences_surface; the search screen and books.shelf both read it for labels and counts. Source of debt: tasks/refinements/songs/search.md (songs.search), Decision 6. Tests: unit (shelf.json → the shelf event payload; an absent book stays absent); behavior (the Worker against a fake IndexedDB and a local git remote surfaces a shelf change, the reducer folds it)."
+  }
+  task recents_reconcile "Remove synced recents.json and reconcile home-book-format" {
+    effort 0.5d
+    allocate team
+    depends songs.search
+    note "Remove the now-superseded synced recents.json from the home book's SETTINGS_FILES (app/src/worker/home-book.js:56–63) and reconcile docs/home-book-format.md §4.6/§7 and tasks/refinements/storage/home_book.md §2.1/§7 with device-local recents, resolving the contradiction with DIRECTION §3.2 / workflow 2 L17–20. Source of debt: tasks/refinements/songs/search.md (songs.search). Tests: unit (recents.json no longer in SETTINGS_FILES; the key-by-key home-book merge unaffected; recording a recent commits nothing to the home book)."
+  }
 }

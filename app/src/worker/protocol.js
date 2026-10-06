@@ -49,6 +49,17 @@ export const CommandKind = Object.freeze({
   // a SEARCH_RESULTS event. `scope` optionally narrows to book ids
   // (`{ books: [...] }`) or a folder prefix within a book (`{ bookId, prefix }`).
   SEARCH: 'search',
+  // The pre-typing browse the search screen lands on (songs.search, workflow 2
+  // L13-16). BROWSE reads every indexed location grouped by book over the
+  // existing `index_locations` data (no re-parse — Decision 3) and replies with
+  // a BROWSE_RESULTS event; `scope` narrows it the same way SEARCH's does.
+  BROWSE: 'browse',
+  // Record a song as recently opened (songs.search, workflow 2 L17-20).
+  // Payload `{ bookId, path }`; the Worker writes a capped, most-recent-first
+  // list into the device-local `meta` store (NOT the synced home book — no
+  // commit) and replies with a RECENTS event. `songs.reading` calls this on
+  // open; the search screen displays it.
+  RECORD_RECENT: 'record_recent',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -75,13 +86,24 @@ export const EventKind = Object.freeze({
   RESTORED: 'restored',
   BOOK_LOG: 'book_log',
   // The search index (storage.index). SEARCH_RESULTS carries a query's ranked
-  // results — `{ query, results: [{ bookId, path, title, artist, score }] }`;
-  // INDEX_STATUS carries a per-book build state — `{ bookId, state }` where
-  // state is 'building' | 'ready' — so the search screen can say a book is
-  // still loading (workflow 2 L159-162). Two kinds, not one, so results and
-  // status update their slices at their own cadence (Decision 4).
+  // results — `{ query, results: [{ bookId, path, title, artist, score,
+  // unsaved, voicedFor?, conflict? }] }`; `unsaved` is wired from the index's
+  // location records now, `voicedFor`/`conflict` are the seam their owning
+  // tasks (music / sync) fill (songs.search Decision 7). INDEX_STATUS carries a
+  // per-book build state — `{ bookId, state }` where state is 'building' |
+  // 'ready' — so the search screen can say a book is still loading (workflow 2
+  // L159-162). Two kinds, not one, so results and status update their slices at
+  // their own cadence (Decision 4).
   SEARCH_RESULTS: 'search_results',
   INDEX_STATUS: 'index_status',
+  // The pre-typing browse (songs.search). BROWSE_RESULTS carries every indexed
+  // location grouped by book — `{ books: [{ bookId, count, songs: [{ path,
+  // title, artist, unsaved }] }] }` — for the "books as sections" listing
+  // (workflow 2 L15-16). RECENTS carries the device-local recents list,
+  // most-recent-first — `{ recents: [{ bookId, path, at }] }` — for the
+  // "Recent" section (workflow 2 L13-20); it is never read from the home book.
+  BROWSE_RESULTS: 'browse_results',
+  RECENTS: 'recents',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

@@ -8,8 +8,9 @@ task songs "Songs" {
   task search "Search" {
     effort 3d
     allocate team
+    complete 100
     depends storage.index
-    note "One box across every book; recents (kept on the device); books as sections; the explorer as a result when the text is a chord; badges; scope that resets each session. Workflow 2. Tests: unit (the query: a chord recognised, scope); behavior (results by book, recents, badges, scope reset, Testing Library and axe); e2e-web (search across books on the three viewports, a chord offering the explorer, search after an offline reload; axe)."
+    note "One box across every book; recents (kept on the device); books as sections; the explorer as a result when the text is a chord; badges; scope that resets each session. Workflow 2. Tests: unit (the query: a chord recognised, scope); behavior (results by book, recents, badges, scope reset, Testing Library and axe); e2e-web (search across books on the three viewports, a chord offering the explorer, search after an offline reload; axe). Refinement: tasks/refinements/songs/search.md"
   }
   task reading "Reading a song" {
     effort 3d

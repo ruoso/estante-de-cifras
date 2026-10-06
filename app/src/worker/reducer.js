@@ -52,9 +52,11 @@ export const initialState = {
   bookLog: {},
   // The last song-search query and its ranked results (storage.index,
   // SEARCH_RESULTS): `{ query, results }`, each result `{ bookId, path, title,
-  // artist, score }`. The whole slice is replaced on each SEARCH_RESULTS and
-  // left untouched by every other event, so only the search screen re-renders.
-  // Starts empty: nothing searched yet.
+  // artist, score, unsaved, voicedFor?, conflict? }`. The whole slice is
+  // replaced on each SEARCH_RESULTS and left untouched by every other event, so
+  // only the search screen re-renders. `unsaved` is wired from the index now;
+  // `voicedFor`/`conflict` are the seam their owning tasks fill (songs.search
+  // Decision 7). Starts empty: nothing searched yet.
   search: { query: null, results: [] },
   // The per-book index build state (storage.index, INDEX_STATUS), keyed by
   // `bookId`: 'building' while a book's songs are being indexed, 'ready' once
@@ -62,6 +64,19 @@ export const initialState = {
   // loading" rather than looking empty (workflow 2 L159-162). A book an event
   // does not touch keeps its reference. Starts empty: no book indexed yet.
   index: {},
+  // The pre-typing browse: every indexed song grouped by book (songs.search,
+  // BROWSE_RESULTS): `{ books: [{ bookId, count, songs: [{ path, title,
+  // artist, unsaved }] }] }`. A separate slice from `search` so the pre-typing
+  // browse and the as-you-type results never clobber each other's reference
+  // (Decision 3); replaced whole on each BROWSE_RESULTS. Starts empty: nothing
+  // browsed yet.
+  browse: { books: [] },
+  // The device-local recents, most-recent-first (songs.search, RECENTS):
+  // `[{ bookId, path, at }]`. Kept in the Worker's `meta` store, never the
+  // home book — what was played on the phone is not synced to the laptop
+  // (workflow 2 L17-20, Decision 2). Replaced whole on each RECENTS. Starts
+  // empty: nothing opened yet.
+  recents: [],
 };
 
 // Fold one message into the state. Only event-direction messages change
@@ -260,6 +275,19 @@ export function reduce(state, message) {
         index: { ...state.index, [bookId]: message.payload?.state ?? null },
       };
     }
+
+    case EventKind.BROWSE_RESULTS:
+      // The pre-typing browse arrived: replace the `browse` slice with every
+      // indexed location grouped by book. Only this slice moves; every other
+      // slice keeps its reference ("only what shows it moves"). A separate slice
+      // from `search`, so browsing and searching never clobber each other.
+      return { ...state, browse: { books: message.payload?.books ?? [] } };
+
+    case EventKind.RECENTS:
+      // The device-local recents arrived (or changed): replace the `recents`
+      // slice with the most-recent-first list. Only this slice moves. An absent
+      // payload resets to empty.
+      return { ...state, recents: message.payload?.recents ?? [] };
 
     case EventKind.PREFERENCES:
       // The home book's preferences surfaced (or changed): replace the slice

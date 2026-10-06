@@ -414,8 +414,59 @@ export function createSearchIndex({ fs, git, parse } = {}) {
     });
   }
 
-  const toRow = (r) => ({ bookId: r.bookId, path: r.path, title: r.title, artist: r.artist });
+  // A result row carries the location's `unsaved` flag (songs.search Decision
+  // 7, acceptance 4): `unsaved` is wired here from the index's own location
+  // record (the working copy's dirty state storage.index already tracks). The
+  // `voicedFor` and `conflict` flags are NOT computed here — they need the
+  // instrument in use and merge state, owned by the music and sync tasks; they
+  // ride the same result as optional fields their owners fill through this seam.
+  const toRow = (r) => ({
+    bookId: r.bookId,
+    path: r.path,
+    title: r.title,
+    artist: r.artist,
+    unsaved: !!locationByKey.get(r.id)?.unsaved,
+  });
   const toRows = (hits) => hits.map((r) => ({ ...toRow(r), score: r.score }));
+
+  /**
+   * Group every indexed location by book for the pre-typing browse
+   * (songs.search, workflow 2 L13-16, Decision 3). A thin read over the records
+   * already in hand — no file is parsed or read — so "books as sections" is a
+   * different query over the data `reconcile`/`reindexPath` already built, not
+   * new storage. Each book carries its song count and its songs (path, title,
+   * artist and the `unsaved` flag). `scope` narrows it exactly as `search`'s
+   * does (a set of books, or a folder prefix within one). Books and the songs
+   * within a book are ordered by `bookId`/`path` so the listing is stable
+   * across calls.
+   *
+   * @param {{ scope?: object }} [opts]
+   * @returns {{ books: Array<{ bookId: string, count: number,
+   *   songs: Array<{ path: string, title: string, artist: string, unsaved: boolean }> }> }}
+   */
+  function browse({ scope } = {}) {
+    const byBook = new Map();
+    for (const location of locationByKey.values()) {
+      if (!matchesScope(location, scope)) continue;
+      const doc = docsByOid.get(location.oid);
+      let book = byBook.get(location.bookId);
+      if (!book) {
+        book = { bookId: location.bookId, count: 0, songs: [] };
+        byBook.set(location.bookId, book);
+      }
+      book.count += 1;
+      book.songs.push({
+        path: location.path,
+        title: doc?.title ?? '',
+        artist: doc?.artist ?? '',
+        unsaved: !!location.unsaved,
+      });
+    }
+    const byString = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+    const books = [...byBook.values()].sort((a, b) => byString(a.bookId, b.bookId));
+    for (const book of books) book.songs.sort((a, b) => byString(a.path, b.path));
+    return { books };
+  }
 
   return {
     hydrate,
@@ -424,5 +475,6 @@ export function createSearchIndex({ fs, git, parse } = {}) {
     removePath,
     reconcile,
     search,
+    browse,
   };
 }

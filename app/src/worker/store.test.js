@@ -86,11 +86,13 @@ describe('worker store (behavior)', () => {
     store.subscribe(notified);
 
     store.open();
-    // OPEN makes two real state moves — the connection+meta (READY) and the
-    // home book's preferences surfaced on bring-up (PREFERENCES, empty here) —
-    // so exactly two notifications, and no more (the reducer returns the same
-    // reference for an event that changes nothing).
-    await vi.waitFor(() => expect(notified).toHaveBeenCalledTimes(2));
+    // OPEN makes three real state moves — the connection+meta (READY), the
+    // home book's preferences surfaced on bring-up (PREFERENCES, empty here),
+    // and the device-local recents surfaced right after (RECENTS, empty here;
+    // songs.search) — so exactly three notifications, and no more (the reducer
+    // returns the same reference for an event that changes nothing; with no
+    // books on the device the index build emits no status).
+    await vi.waitFor(() => expect(notified).toHaveBeenCalledTimes(3));
     expect(store.slice('connection').status).toBe('ready');
   });
 
