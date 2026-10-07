@@ -68,6 +68,21 @@ type Config struct {
 	// rather than signing links with a guessable key. It is a secret and is
 	// never logged.
 	LinkSecret string
+
+	// WebAuthnRPID is the passkey relying-party ID — the effective domain the
+	// passkey is bound to (estantedecifras.app in production, localhost/127.0.0.1
+	// in dev and the e2e stack). Read from ESTANTE_WEBAUTHN_RP_ID; it is required
+	// and config-driven rather than derived from the request Host, which is
+	// spoofable (service.passkeys Decision 5). The RP origins are derived from
+	// PublicBaseURL.
+	WebAuthnRPID string
+
+	// WebAuthnStateSecret is the HMAC key the passkey begin→finish state token is
+	// signed with (service.passkeys Decision 4). Read from
+	// ESTANTE_WEBAUTHN_STATE_SECRET; it is required with no insecure default, a
+	// single-purpose key never shared with LinkSecret. It is a secret and is
+	// never logged.
+	WebAuthnStateSecret string
 }
 
 // Load builds a Config from an environment lookup (os.LookupEnv in
@@ -104,6 +119,24 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		cfg.LinkSecret = raw
 	} else {
 		return Config{}, fmt.Errorf("config: ESTANTE_LINK_SECRET is required (the emailed sign-in link's signing key; no insecure default)")
+	}
+
+	// ESTANTE_WEBAUTHN_RP_ID is required: the passkey relying-party ID is
+	// config-driven, never guessed from the request Host (service.passkeys
+	// Decision 5).
+	if raw, ok := lookup("ESTANTE_WEBAUTHN_RP_ID"); ok && raw != "" {
+		cfg.WebAuthnRPID = raw
+	} else {
+		return Config{}, fmt.Errorf("config: ESTANTE_WEBAUTHN_RP_ID is required (the passkey relying-party ID; config-driven, not derived from Host)")
+	}
+
+	// ESTANTE_WEBAUTHN_STATE_SECRET is required: the passkey state token's
+	// signing key, a single-purpose HMAC key with no insecure default
+	// (service.passkeys Decision 4).
+	if raw, ok := lookup("ESTANTE_WEBAUTHN_STATE_SECRET"); ok && raw != "" {
+		cfg.WebAuthnStateSecret = raw
+	} else {
+		return Config{}, fmt.Errorf("config: ESTANTE_WEBAUTHN_STATE_SECRET is required (the passkey state token's signing key; no insecure default)")
 	}
 
 	if raw, ok := lookup("PORT"); ok && raw != "" {

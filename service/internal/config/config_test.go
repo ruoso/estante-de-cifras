@@ -14,12 +14,18 @@ func envFrom(vars map[string]string) func(string) (string, bool) {
 	}
 }
 
-// withSecret returns a lookup set that always carries the one required var,
-// ESTANTE_LINK_SECRET, plus any extras — so a test exercising another field
-// gets a Config back rather than the missing-secret error. Extras override the
-// default secret if they set it. A nil map means "just the secret".
+// withSecret returns a lookup set that always carries the required vars
+// (ESTANTE_LINK_SECRET and the passkey vars ESTANTE_WEBAUTHN_RP_ID and
+// ESTANTE_WEBAUTHN_STATE_SECRET), plus any extras — so a test exercising
+// another field gets a Config back rather than a missing-required-var error.
+// Extras override the defaults if they set the same key. A nil map means "just
+// the required vars".
 func withSecret(extra map[string]string) map[string]string {
-	out := map[string]string{"ESTANTE_LINK_SECRET": "a-test-link-secret"}
+	out := map[string]string{
+		"ESTANTE_LINK_SECRET":           "a-test-link-secret",
+		"ESTANTE_WEBAUTHN_RP_ID":        "localhost",
+		"ESTANTE_WEBAUTHN_STATE_SECRET": "a-test-state-secret",
+	}
 	for k, v := range extra {
 		out[k] = v
 	}
@@ -133,12 +139,56 @@ func TestLoadReadsSignInVars(t *testing.T) {
 // TestLoadReadsLinkSecret pins that ESTANTE_LINK_SECRET is read into
 // Config.LinkSecret — the HMAC key the emailed sign-in token is signed with.
 func TestLoadReadsLinkSecret(t *testing.T) {
-	cfg, err := Load(envFrom(map[string]string{"ESTANTE_LINK_SECRET": "super-secret"}))
+	cfg, err := Load(envFrom(withSecret(map[string]string{"ESTANTE_LINK_SECRET": "super-secret"})))
 	if err != nil {
 		t.Fatalf("Load: unexpected error: %v", err)
 	}
 	if cfg.LinkSecret != "super-secret" {
 		t.Errorf("LinkSecret = %q, want super-secret", cfg.LinkSecret)
+	}
+}
+
+// TestLoadReadsWebAuthnVars pins the passkey config seam (service.passkeys
+// Decisions 4-5, the ESTANTE_* namespace): the relying-party ID and the state
+// token's signing secret are read verbatim into Config.
+func TestLoadReadsWebAuthnVars(t *testing.T) {
+	cfg, err := Load(envFrom(withSecret(map[string]string{
+		"ESTANTE_WEBAUTHN_RP_ID":        "estantedecifras.app",
+		"ESTANTE_WEBAUTHN_STATE_SECRET": "super-state-secret",
+	})))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.WebAuthnRPID != "estantedecifras.app" {
+		t.Errorf("WebAuthnRPID = %q, want estantedecifras.app", cfg.WebAuthnRPID)
+	}
+	if cfg.WebAuthnStateSecret != "super-state-secret" {
+		t.Errorf("WebAuthnStateSecret = %q, want super-state-secret", cfg.WebAuthnStateSecret)
+	}
+}
+
+// TestLoadRejectsMissingWebAuthnRPID pins the "no guessed RP ID" rule: a
+// missing ESTANTE_WEBAUTHN_RP_ID is a start-up error naming the variable, never
+// derived from the request Host (service.passkeys Decision 5).
+func TestLoadRejectsMissingWebAuthnRPID(t *testing.T) {
+	env := withSecret(nil)
+	delete(env, "ESTANTE_WEBAUTHN_RP_ID")
+	if _, err := Load(envFrom(env)); err == nil {
+		t.Fatal("Load: want error when ESTANTE_WEBAUTHN_RP_ID is unset, got nil")
+	} else if !strings.Contains(err.Error(), "ESTANTE_WEBAUTHN_RP_ID") {
+		t.Errorf("error %q does not name ESTANTE_WEBAUTHN_RP_ID", err)
+	}
+}
+
+// TestLoadRejectsMissingWebAuthnStateSecret pins the "no insecure default" rule
+// for the passkey state secret (service.passkeys Decision 4).
+func TestLoadRejectsMissingWebAuthnStateSecret(t *testing.T) {
+	env := withSecret(nil)
+	delete(env, "ESTANTE_WEBAUTHN_STATE_SECRET")
+	if _, err := Load(envFrom(env)); err == nil {
+		t.Fatal("Load: want error when ESTANTE_WEBAUTHN_STATE_SECRET is unset, got nil")
+	} else if !strings.Contains(err.Error(), "ESTANTE_WEBAUTHN_STATE_SECRET") {
+		t.Errorf("error %q does not name ESTANTE_WEBAUTHN_STATE_SECRET", err)
 	}
 }
 

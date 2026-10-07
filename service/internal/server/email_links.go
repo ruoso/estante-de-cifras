@@ -15,20 +15,23 @@ import (
 
 	"estantedecifras.app/service/internal/emaillink"
 	mailer "estantedecifras.app/service/internal/mail"
+	"estantedecifras.app/service/internal/passkey"
 	"estantedecifras.app/service/internal/session"
 )
 
 // APIDeps carries the collaborators the sign-in API handlers need beyond the
-// mux frame: the Postgres pool they read accounts and write links and sessions
-// against, the Mailer that posts the sign-in link, the HMAC secret the token is
-// signed with, and the public origin the mailed link is built on. Handler
-// registers the sign-in routes only when it is given (nil for the skeleton and
-// the app/health behavior tests, which exercise no /api route).
+// mux frame: the Postgres pool they read accounts and write links, passkeys and
+// sessions against, the Mailer that posts the sign-in link, the HMAC secret the
+// emailed token is signed with, the public origin the mailed link is built on,
+// and the passkey relying party the passkey handlers run WebAuthn through.
+// Handler registers the sign-in routes only when it is given (nil for the
+// skeleton and the app/health behavior tests, which exercise no /api route).
 type APIDeps struct {
 	DB            *pgxpool.Pool
 	Mailer        mailer.Mailer
 	LinkSecret    []byte
 	PublicBaseURL string
+	Passkeys      *passkey.RP
 }
 
 // handleRequestEmailLink implements POST /api/auth/email/request

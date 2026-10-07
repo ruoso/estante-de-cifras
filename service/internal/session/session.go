@@ -11,9 +11,11 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -56,4 +58,42 @@ func Issue(ctx context.Context, db Execer, accountID string, w http.ResponseWrit
 		SameSite: http.SameSiteLaxMode,
 	})
 	return nil
+}
+
+// Resolve is the minimal session-read seam the authenticated routes need: it
+// reads the estante_session cookie, selects the account for a non-revoked
+// sessions row and bumps its last_used_at, all in one atomic statement. An
+// absent, malformed, unknown or revoked session is simply "not signed in"
+// (ok == false, err == nil); err is non-nil only on a genuine infrastructure
+// failure. Revocation is enforced lazily here, at the device's next request
+// (workflow 13): a revoked row matches no WHERE clause and never resolves.
+//
+// Issue writes the session and nothing read it yet; Resolve is the first
+// reader, mirroring how service.email_links introduced Issue before
+// service.sessions, which extends this seam with device listing, last-used
+// display, revocation and signOut (package doc; refinement Decision 9). The
+// account id it returns is server-assigned and never logged.
+func Resolve(ctx context.Context, db Execer, r *http.Request) (accountID string, ok bool, err error) {
+	c, cErr := r.Cookie(CookieName)
+	if cErr != nil || c.Value == "" {
+		return "", false, nil
+	}
+	// The sessions.id column is a uuid; a cookie value that is not a uuid can
+	// never match a row, so it is rejected here rather than sent to Postgres as
+	// a cast error that would masquerade as an infrastructure failure.
+	if _, pErr := uuid.Parse(c.Value); pErr != nil {
+		return "", false, nil
+	}
+
+	err = db.QueryRow(ctx,
+		`UPDATE sessions SET last_used_at = now()
+		 WHERE id = $1 AND revoked_at IS NULL
+		 RETURNING account_id`, c.Value).Scan(&accountID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("session: resolving a session: %w", err)
+	}
+	return accountID, true, nil
 }

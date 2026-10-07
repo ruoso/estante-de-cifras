@@ -12,6 +12,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "cbor2": "^2.4.0",
     "isomorphic-git": "^1.43.0",
     "postgres": "^3.4.9"
   },

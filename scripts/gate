@@ -258,6 +258,13 @@ stack_up() {
   # builds the public link on ESTANTE_E2E_BASE_URL (already exported above), so
   # the e2e test reads a link pointing at the stack it drives.
   export ESTANTE_LINK_SECRET="gate-link-secret-$$-$(date +%s)"
+  # The passkey state token's signing secret (service.passkeys): a per-run,
+  # throwaway HMAC key the service container seals and opens begin→finish state
+  # with. The relying-party ID is the stack's one-origin host, 127.0.0.1, which
+  # the RP origin (derived from ESTANTE_E2E_BASE_URL) also uses, so the software
+  # authenticator's ceremony validates.
+  export ESTANTE_WEBAUTHN_STATE_SECRET="gate-webauthn-state-secret-$$-$(date +%s)"
+  export ESTANTE_WEBAUTHN_RP_ID="127.0.0.1"
   export ESTANTE_COMPOSE_PROJECT="estante-gate-$$-$(date +%s)"
 
   step "estante e2e: building and starting the stack ($ESTANTE_COMPOSE_PROJECT, origin $ESTANTE_E2E_BASE_URL)"

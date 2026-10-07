@@ -1,6 +1,8 @@
-# The image is built from the repository root but needs only app/ and
-# service/ sources; keep the build context small, deterministic and free of
-# host-built artefacts (node_modules and dist are rebuilt inside the image).
+# The image is built from the repository root but needs only app/, service/
+# and api/ sources (service/ replaces estantedecifras.app/api with ../api, so
+# the API contract module meets it in the build); keep the build context small,
+# deterministic and free of host-built artefacts (node_modules and dist are
+# rebuilt inside the image).
 **/node_modules
 **/dist
 **/coverage
@@ -19,7 +21,6 @@ tasks
 report
 orchestrator
 e2e
-api
 scripts
 
 # The build files themselves and docs never belong in the context.

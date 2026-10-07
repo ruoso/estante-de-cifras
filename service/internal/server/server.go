@@ -50,6 +50,17 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 		// (workflow 13; api/openapi.yaml /api/auth/email/*).
 		mux.HandleFunc("POST /api/auth/email/request", handleRequestEmailLink(api))
 		mux.HandleFunc("POST /api/auth/email/redeem", handleRedeemEmailLink(api))
+		// Passkeys: register and sign in with a passkey, and the account's
+		// passkey list (workflow 13; api/openapi.yaml /api/auth/passkey/* and
+		// /api/account/passkeys). Registered only when the relying party is wired.
+		if api.Passkeys != nil {
+			mux.HandleFunc("POST /api/auth/passkey/register/begin", handleRegisterPasskeyBegin(api))
+			mux.HandleFunc("POST /api/auth/passkey/register/finish", handleRegisterPasskeyFinish(api))
+			mux.HandleFunc("POST /api/auth/passkey/authenticate/begin", handleAuthenticatePasskeyBegin(api))
+			mux.HandleFunc("POST /api/auth/passkey/authenticate/finish", handleAuthenticatePasskeyFinish(api))
+			mux.HandleFunc("GET /api/account/passkeys", handleListPasskeys(api))
+			mux.HandleFunc("DELETE /api/account/passkeys/{passkeyId}", handleRemovePasskey(api))
+		}
 	}
 	// The app at /: ServeMux routes everything not matched by a more specific
 	// pattern (GET /healthz and /readyz now; /api/… and /git/… later) to the

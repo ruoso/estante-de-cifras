@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -21,8 +22,21 @@ import (
 	"estantedecifras.app/service/internal/config"
 	"estantedecifras.app/service/internal/db"
 	"estantedecifras.app/service/internal/mail"
+	"estantedecifras.app/service/internal/passkey"
 	"estantedecifras.app/service/internal/server"
 )
+
+// originOf reduces a public base URL to its WebAuthn origin — scheme, host and
+// port, no path — which is the permitted ceremony origin the relying party
+// matches a passkey assertion against (service.passkeys Decision 5). A value
+// that does not parse yields itself, left for passkey.New to reject.
+func originOf(base string) string {
+	u, err := url.Parse(base)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return base
+	}
+	return u.Scheme + "://" + u.Host
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -63,11 +77,24 @@ func run() error {
 	// links and sessions against, the SMTP mailer that posts the sign-in link
 	// (to the dev catcher in compose), the signing secret, and the public
 	// origin the mailed link is built on (service.email_links).
+	// The passkey relying party (service.passkeys): the RP ID is config-driven,
+	// the permitted origin is the public base URL's origin (scheme + host +
+	// port), and the state token is signed with its own single-purpose secret.
+	rp, err := passkey.New(passkey.Config{
+		RPID:        cfg.WebAuthnRPID,
+		RPOrigins:   []string{originOf(cfg.PublicBaseURL)},
+		StateSecret: []byte(cfg.WebAuthnStateSecret),
+	})
+	if err != nil {
+		return err
+	}
+
 	api := &server.APIDeps{
 		DB:            pool,
 		Mailer:        mail.NewSMTP(cfg.SMTPAddr, cfg.MailFrom),
 		LinkSecret:    []byte(cfg.LinkSecret),
 		PublicBaseURL: cfg.PublicBaseURL,
+		Passkeys:      rp,
 	}
 
 	handler, err := server.Handler(logger, cfg.AppRoot, pool, api)

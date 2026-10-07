@@ -15,8 +15,9 @@ task service "The service" {
   task passkeys "Passkeys" {
     effort 3d
     allocate team
+    complete 100
     depends !schema
-    note "go-webauthn: register and sign in, the browser's own cross-device QR flow, several passkeys per account. Workflow 13. Tests: unit (the go-webauthn wiring with a software authenticator); behavior (register, sign in, a second passkey, an unknown credential refused — httptest against Postgres); e2e-api (register and sign in over HTTP against the stack with a software authenticator)."
+    note "go-webauthn: register and sign in, the browser's own cross-device QR flow, several passkeys per account. Workflow 13. Tests: unit (the go-webauthn wiring with a software authenticator); behavior (register, sign in, a second passkey, an unknown credential refused — httptest against Postgres); e2e-api (register and sign in over HTTP against the stack with a software authenticator). Refinement: tasks/refinements/service/passkeys.md"
   }
   task email_links "Emailed sign-in links" {
     effort 2d

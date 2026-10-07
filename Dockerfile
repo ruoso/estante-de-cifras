@@ -48,9 +48,20 @@ WORKDIR /src
 # Copying the module files first keeps the download layer cached when only
 # sources change. go.sum appears with the service's first dependency, pgx
 # (service.schema); go mod download verifies against it.
+#
+# The service module replaces estantedecifras.app/api with ../api (the API
+# contract package, same repo — service.passkeys validates handler payloads
+# against it). From /src that replace target is /api, so the replaced module's
+# go.mod/go.sum must sit there before `go mod download` computes the build list.
 COPY service/go.mod service/go.sum ./
+COPY api/go.mod api/go.sum /api/
 RUN go mod download
 COPY service/ ./
+# The api module's source at the replace target, so the Go toolchain resolves
+# estantedecifras.app/api inside the image exactly as it does from the working
+# tree (the cross-repo named-build-context pattern's same-repo counterpart,
+# DIRECTION §3.6).
+COPY api/ /api/
 # A static binary (CGO off) so the final image needs no C runtime. Only
 # cmd/service is built; cmd/pre-receive has no main.go yet — the hook area adds
 # it to this Dockerfile when it does (foundation.compose decision). The service

@@ -92,6 +92,13 @@ services:
       ESTANTE_MAIL_FROM: ${ESTANTE_MAIL_FROM:-no-reply@estantedecifras.app}
       ESTANTE_PUBLIC_BASE_URL: ${ESTANTE_E2E_BASE_URL:-http://127.0.0.1:8080}
       ESTANTE_LINK_SECRET: ${ESTANTE_LINK_SECRET:-dev-insecure-link-secret}
+      # Passkeys (service.passkeys). The relying-party ID is the effective domain
+      # the passkey binds to; on the compose/e2e stack the one origin is on
+      # 127.0.0.1, so the RP ID is that host and the RP origin is derived from
+      # ESTANTE_PUBLIC_BASE_URL above. The state secret is a dev-only placeholder
+      # here (never a real credential); production injects a real one.
+      ESTANTE_WEBAUTHN_RP_ID: ${ESTANTE_WEBAUTHN_RP_ID:-127.0.0.1}
+      ESTANTE_WEBAUTHN_STATE_SECRET: ${ESTANTE_WEBAUTHN_STATE_SECRET:-dev-insecure-webauthn-state-secret}
     ports:
       # One origin: the published HTTP port serves both the app (at /, once
       # service.serve_app lands) and the API beneath it (ESTANTE_E2E_BASE_URL).
