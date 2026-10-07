@@ -9,7 +9,8 @@ task cifra_go "cifra.md for Go" {
   task module "Module and corpus harness" {
     effort 1d
     allocate team
-    note "cifra.md: go/ module, a test harness over every corpus entry. Tests: unit (go test: the harness finds every corpus entry and fails on a planted mismatch); corpus (every entry enumerated, the checks that need the reader wired as expected failures by name, flipped as they pass)."
+    complete 100
+    note "cifra.md: go/ module, a test harness over every corpus entry. Tests: unit (go test: the harness finds every corpus entry and fails on a planted mismatch); corpus (every entry enumerated, the checks that need the reader wired as expected failures by name, flipped as they pass). Refinement: tasks/refinements/cifra_go/module.md"
   }
   task reader "Reader" {
     effort 8d

@@ -39,8 +39,10 @@ func TestParseRejectsFlippedSignatureByte(t *testing.T) {
 	}
 	token := Mint(id, testSecret)
 
-	// Flip the final character of the signature half; it stays valid base64url
-	// (a different symbol), so this exercises the HMAC check, not the decoder.
+	// Flip the final character of the signature half to a different symbol. When
+	// that changes significant bits the HMAC check rejects it; when it only toggles
+	// the terminal symbol's leftover padding bits the strict decoder rejects it.
+	// Either way a tampered string must not verify.
 	b := []byte(token)
 	last := b[len(b)-1]
 	if last == 'A' {

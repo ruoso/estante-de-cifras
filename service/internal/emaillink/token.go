@@ -27,7 +27,12 @@ const LinkLifetime = 15 * time.Minute
 
 // enc is base64url without padding, so a token is a single URL path segment
 // (no '/', '+' or '=') that drops cleanly into ${PUBLIC_BASE_URL}/sign-in/<token>.
-var enc = base64.RawURLEncoding
+// Decoding is strict: a RawURLEncoding token's final symbol carries leftover
+// padding bits the lenient decoder silently discards, so without Strict two
+// distinct token strings (e.g. a signature ending 'A' vs 'B') decode to the same
+// bytes and both verify — token malleability. Strict rejects any non-canonical
+// encoding, so only the exact minted string is accepted. Encoding is unaffected.
+var enc = base64.RawURLEncoding.Strict()
 
 // NewID returns a fresh, opaque link id: 128 bits of randomness as hex. It is
 // the email_login_links primary key and the value the token signs; it is never
