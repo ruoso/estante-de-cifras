@@ -164,11 +164,12 @@ func handleGitReceivePack(api *APIDeps) http.HandlerFunc {
 
 		store := book.Store{Root: api.BooksRoot}
 		if serveErr := store.Serve(ctx, bookID, book.GitStream{
-			Service:  "receive-pack",
-			Stdin:    body,
-			Stdout:   w,
-			Env:      env,
-			HooksDir: api.hooksDir(),
+			Service:      "receive-pack",
+			Stdin:        body,
+			Stdout:       w,
+			Env:          env,
+			HooksDir:     api.hooksDir(),
+			MaxInputSize: api.receiveMaxInputSize(),
 		}); serveErr != nil {
 			// A deadlined, killed or failed push changes nothing — git's
 			// quarantine left the repository untouched — so size_bytes is not
@@ -370,6 +371,13 @@ func (api *APIDeps) gitMaxBody() int64 {
 		return api.GitMaxBodyBytes
 	}
 	return config.DefaultGitMaxBodyBytes
+}
+
+func (api *APIDeps) receiveMaxInputSize() int64 {
+	if api.ReceiveMaxInputSize > 0 {
+		return api.ReceiveMaxInputSize
+	}
+	return config.DefaultReceiveMaxInputSize
 }
 
 func (api *APIDeps) hooksDir() string {

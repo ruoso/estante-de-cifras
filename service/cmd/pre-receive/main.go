@@ -10,8 +10,9 @@
 //
 // Today it composes the refs-and-history layer (hook.refs), then the
 // object-reachability layer (hook.stowaways), then the "what a book may hold"
-// layer (hook.contents), each run only if the previous accepted; the later hook
-// subtasks each add one more check in internal/hook for main to compose.
+// layer (hook.contents), then the account-and-book byte-cap layer (hook.limits),
+// each run only if the previous accepted; the later hook subtasks each add one
+// more check in internal/hook for main to compose.
 package main
 
 import (
@@ -76,6 +77,23 @@ func run() int {
 		// rather than accept something unverified, naming only the structural
 		// fault (never object contents; no song text in logs).
 		fmt.Fprintf(os.Stderr, "pre-receive: could not verify book contents: %v\n", err)
+		return 1
+	}
+	if len(reasons) > 0 {
+		return refuse(reasons)
+	}
+
+	// The contents layer accepted: the push is a clean fast-forward of
+	// refs/heads/main carrying only allowed, well-formed objects. Last, the
+	// account-and-book byte caps (hook.limits): the push's net byte growth
+	// against the per-book 50 MB cap and the account's remaining quota, read
+	// from the ESTANTE_* environment the service set.
+	reasons, err = hook.Limits(updates, "")
+	if err != nil {
+		// A missing/non-numeric byte figure or a git failure measuring the
+		// growth — refuse rather than accept something unverified, naming only
+		// the structural fault (never object contents; no song text in logs).
+		fmt.Fprintf(os.Stderr, "pre-receive: could not verify push limits: %v\n", err)
 		return 1
 	}
 	if len(reasons) > 0 {

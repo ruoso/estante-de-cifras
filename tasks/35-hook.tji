@@ -35,8 +35,9 @@ task hook "The pre-receive hook" {
   task limits "Limits" {
     effort 1d
     allocate team
+    complete 100
     depends !contents
-    note "50 MB per book, the account's remaining quota from ESTANTE_* in the environment, receive.maxInputSize, receive.fsckObjects. Tests: behavior (the hook installed in a real bare repository, pushed to with the git CLI: a book over 50 MB, a push over the account's remaining quota from ESTANTE_*, receive.maxInputSize, a corrupt object caught by fsck — each refused); e2e-api (a push over the account's quota, set in Postgres, refused by the stack)."
+    note "50 MB per book, the account's remaining quota from ESTANTE_* in the environment, receive.maxInputSize, receive.fsckObjects. Tests: unit (service/internal/hook/limits_test.go: env parsing, net-growth summing, decision function); behavior (the hook installed in a real bare repository, pushed to with the git CLI: a book over 50 MB, a push over the account's remaining quota from ESTANTE_*, receive.maxInputSize, a corrupt object caught by fsck — each refused; service/internal/server/git_test.go: TestReceivePackGuards proves the service sets both -c guards); e2e-api (a push over the account's quota, set in Postgres, refused by the stack). Refinement: tasks/refinements/hook/limits.md"
   }
   task messages "Refusal messages" {
     effort 1d

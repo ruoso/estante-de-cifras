@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -181,6 +182,7 @@ type GitStream struct {
 	Stdout        io.Writer // where git's stdout is streamed as it is produced
 	Env           []string  // extra KEY=VALUE pairs (GIT_PROTOCOL, ESTANTE_*)
 	HooksDir      string    // core.hooksPath, set only for a push; "" runs no hook
+	MaxInputSize  int64     // receive.maxInputSize on a push (bytes); 0 leaves git's default
 }
 
 // Serve spawns git for one stateless-rpc invocation against the book's bare
@@ -197,11 +199,23 @@ func (s Store) Serve(ctx context.Context, id string, st GitStream) error {
 	if err != nil {
 		return err
 	}
-	args := make([]string, 0, 6)
+	args := make([]string, 0, 10)
 	// core.hooksPath points git at the one hooks directory (a push only); when
 	// that directory holds no hook, git simply runs none and accepts the push.
 	if st.HooksDir != "" {
 		args = append(args, "-c", "core.hooksPath="+st.HooksDir)
+	}
+	// Git's own push guards on a receive-pack: fsckObjects refuses a malformed
+	// object during index-pack, and maxInputSize caps the incoming pack — both
+	// enforced by git before the pre-receive hook runs. They ride the spawn, not
+	// each repo's config, so every repository and every push carries them
+	// uniformly, with no drift and no migration of repos created earlier
+	// (hook.limits Decision).
+	if st.Service == "receive-pack" {
+		args = append(args, "-c", "receive.fsckObjects=true")
+		if st.MaxInputSize > 0 {
+			args = append(args, "-c", "receive.maxInputSize="+strconv.FormatInt(st.MaxInputSize, 10))
+		}
 	}
 	args = append(args, st.Service, "--stateless-rpc")
 	if st.AdvertiseRefs {

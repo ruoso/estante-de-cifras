@@ -50,6 +50,16 @@ const DefaultGitDeadline = 10 * time.Minute
 // per-push limit is git's receive.maxInputSize and the hook's, not this cap.
 const DefaultGitMaxBodyBytes int64 = 128 * 1024 * 1024
 
+// DefaultReceiveMaxInputSize caps the bytes of a single push's pack git will
+// index — the receive.maxInputSize guard the service sets on the git
+// receive-pack it spawns when ESTANTE_RECEIVE_MAX_INPUT_SIZE is unset
+// (hook.limits). 64 MB sits above the largest legitimate push (a fresh ~50 MB
+// book packs well under that) and below DefaultGitMaxBodyBytes, so an over-size
+// pack is refused by git during index-pack, before the pre-receive hook runs.
+// It is a coarse denial-of-service guard, unrelated to the hook's semantic
+// 50 MB-per-book cap (hook.limits Decision).
+const DefaultReceiveMaxInputSize int64 = 64 * 1024 * 1024
+
 // Config is the service's configuration. Today it carries the listen port the
 // skeleton needs, the app-root the built PWA is served from, the Postgres DSN
 // the registry lives behind, and the sign-in machinery's vars (the SMTP relay
@@ -96,6 +106,14 @@ type Config struct {
 	// tests can drive a tiny cap. The cap bounds the compressed bytes read from
 	// the socket; a gzip body is decompressed under it.
 	GitMaxBodyBytes int64
+
+	// ReceiveMaxInputSize caps the bytes of a single push's pack git will index
+	// (receive.maxInputSize), set on the git receive-pack the service spawns so
+	// git refuses an over-size pack before the pre-receive hook runs
+	// (hook.limits). It defaults to DefaultReceiveMaxInputSize and is overridable
+	// via ESTANTE_RECEIVE_MAX_INPUT_SIZE (an integer count of bytes) so tests can
+	// drive a tiny cap.
+	ReceiveMaxInputSize int64
 
 	// DatabaseURL is the Postgres DSN the connection pool and the start-up
 	// migrator use (service.schema; DIRECTION §3.6 line 313 names pgx). It is
@@ -148,12 +166,13 @@ type Config struct {
 // default.
 func Load(lookup func(string) (string, bool)) (Config, error) {
 	cfg := Config{
-		Port:            DefaultPort,
-		AppRoot:         DefaultAppRoot,
-		BooksRoot:       DefaultBooksRoot,
-		HooksDir:        DefaultHooksDir,
-		GitDeadline:     DefaultGitDeadline,
-		GitMaxBodyBytes: DefaultGitMaxBodyBytes,
+		Port:                DefaultPort,
+		AppRoot:             DefaultAppRoot,
+		BooksRoot:           DefaultBooksRoot,
+		HooksDir:            DefaultHooksDir,
+		GitDeadline:         DefaultGitDeadline,
+		GitMaxBodyBytes:     DefaultGitMaxBodyBytes,
+		ReceiveMaxInputSize: DefaultReceiveMaxInputSize,
 	}
 
 	if raw, ok := lookup("ESTANTE_APP_ROOT"); ok && raw != "" {
@@ -188,6 +207,17 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 			return Config{}, fmt.Errorf("config: ESTANTE_GIT_MAX_BODY_BYTES %d must be positive", n)
 		}
 		cfg.GitMaxBodyBytes = n
+	}
+
+	if raw, ok := lookup("ESTANTE_RECEIVE_MAX_INPUT_SIZE"); ok && raw != "" {
+		n, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return Config{}, fmt.Errorf("config: ESTANTE_RECEIVE_MAX_INPUT_SIZE %q is not a number: %w", raw, err)
+		}
+		if n <= 0 {
+			return Config{}, fmt.Errorf("config: ESTANTE_RECEIVE_MAX_INPUT_SIZE %d must be positive", n)
+		}
+		cfg.ReceiveMaxInputSize = n
 	}
 
 	if raw, ok := lookup("ESTANTE_DATABASE_URL"); ok {

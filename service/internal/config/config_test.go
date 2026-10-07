@@ -316,15 +316,19 @@ func TestLoadDefaultsGitSettingsWhenUnset(t *testing.T) {
 	if cfg.GitMaxBodyBytes != DefaultGitMaxBodyBytes {
 		t.Errorf("GitMaxBodyBytes = %d, want default %d", cfg.GitMaxBodyBytes, DefaultGitMaxBodyBytes)
 	}
+	if cfg.ReceiveMaxInputSize != DefaultReceiveMaxInputSize {
+		t.Errorf("ReceiveMaxInputSize = %d, want default %d", cfg.ReceiveMaxInputSize, DefaultReceiveMaxInputSize)
+	}
 }
 
 // TestLoadHonoursGitSettings pins that the ESTANTE_* git vars override the
 // defaults, so behavior tests and ops can tune them.
 func TestLoadHonoursGitSettings(t *testing.T) {
 	cfg, err := Load(envFrom(withSecret(map[string]string{
-		"ESTANTE_HOOKS_DIR":          "/custom/hooks",
-		"ESTANTE_GIT_DEADLINE":       "90s",
-		"ESTANTE_GIT_MAX_BODY_BYTES": "1048576",
+		"ESTANTE_HOOKS_DIR":              "/custom/hooks",
+		"ESTANTE_GIT_DEADLINE":           "90s",
+		"ESTANTE_GIT_MAX_BODY_BYTES":     "1048576",
+		"ESTANTE_RECEIVE_MAX_INPUT_SIZE": "524288",
 	})))
 	if err != nil {
 		t.Fatalf("Load: unexpected error: %v", err)
@@ -337,6 +341,9 @@ func TestLoadHonoursGitSettings(t *testing.T) {
 	}
 	if cfg.GitMaxBodyBytes != 1048576 {
 		t.Errorf("GitMaxBodyBytes = %d, want 1048576", cfg.GitMaxBodyBytes)
+	}
+	if cfg.ReceiveMaxInputSize != 524288 {
+		t.Errorf("ReceiveMaxInputSize = %d, want 524288", cfg.ReceiveMaxInputSize)
 	}
 }
 
@@ -351,6 +358,9 @@ func TestLoadRejectsBadGitSettings(t *testing.T) {
 		{"ESTANTE_GIT_MAX_BODY_BYTES", "lots"},
 		{"ESTANTE_GIT_MAX_BODY_BYTES", "0"},
 		{"ESTANTE_GIT_MAX_BODY_BYTES", "-1"},
+		{"ESTANTE_RECEIVE_MAX_INPUT_SIZE", "lots"},
+		{"ESTANTE_RECEIVE_MAX_INPUT_SIZE", "0"},
+		{"ESTANTE_RECEIVE_MAX_INPUT_SIZE", "-1"},
 	}
 	for _, b := range bad {
 		_, err := Load(envFrom(withSecret(map[string]string{b.key: b.val})))

@@ -98,9 +98,10 @@ func run() error {
 		BooksRoot:     cfg.BooksRoot,
 		// Git over HTTP (service.git_http): the hooks directory git is pointed at
 		// on every push, the per-request deadline, and the request-body cap.
-		HooksDir:        cfg.HooksDir,
-		GitDeadline:     cfg.GitDeadline,
-		GitMaxBodyBytes: cfg.GitMaxBodyBytes,
+		HooksDir:            cfg.HooksDir,
+		GitDeadline:         cfg.GitDeadline,
+		GitMaxBodyBytes:     cfg.GitMaxBodyBytes,
+		ReceiveMaxInputSize: cfg.ReceiveMaxInputSize,
 	}
 
 	handler, err := server.Handler(logger, cfg.AppRoot, pool, api)

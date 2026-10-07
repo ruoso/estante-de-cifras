@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -708,6 +709,86 @@ func TestGitPushEnvironmentAndSizeRefresh(t *testing.T) {
 	if got := e.sizeBytes(t, b.ID); got != onDisk {
 		t.Errorf("books.size_bytes = %d, want the on-disk size %d", got, onDisk)
 	}
+}
+
+// TestReceivePackGuards pins that the service spawns git receive-pack with the
+// two git-level push guards it sets via -c: receive.maxInputSize (git refuses an
+// over-size pack before the hook runs) and receive.fsckObjects (git refuses a
+// malformed object). The book's hooks directory is empty here, so only git's own
+// guards act — proving the service sets the flags (the cmd/pre-receive git-config
+// behavior test proves git enforces them). Pins workflow 14 lines 109–110 and
+// DIRECTION §3.6 lines 347–348 ("a size cap before git reads a byte").
+func TestReceivePackGuards(t *testing.T) {
+	t.Run("receive.maxInputSize refuses an over-size pack", func(t *testing.T) {
+		e := newGitEnv(t)
+		e.api.ReceiveMaxInputSize = 512 // tiny: no real pack fits under it
+		_, cookie := e.registerNewAccount(t)
+		b := e.createBook(t, cookie, "Max Input Size")
+
+		work := t.TempDir()
+		url := e.gitURL(b.ID)
+		if out, err := gitc(t, "", cookie, "clone", "-q", url, work); err != nil {
+			t.Fatalf("clone for push: %v\n%s", err, out)
+		}
+		gitIdentity(t, work)
+		// Purpose-written filler large enough that the pack exceeds the cap.
+		var body strings.Builder
+		body.WriteString("# Filler\n\n```cifra\n")
+		for i := 0; i < 2000; i++ {
+			fmt.Fprintf(&body, "[C]linha de preenchimento numero %d pra engordar o pacote\n", i)
+		}
+		body.WriteString("```\n")
+		if err := os.WriteFile(filepath.Join(work, "filler.cifra.md"), []byte(body.String()), 0o644); err != nil {
+			t.Fatalf("write filler: %v", err)
+		}
+		gitRun(t, work, "add", ".")
+		gitRun(t, work, "commit", "-q", "-m", "filler")
+		out, err := gitc(t, work, cookie, "push", "-q", "origin", "HEAD:refs/heads/main")
+		if err == nil {
+			t.Fatalf("an over-size pack should be refused by receive.maxInputSize:\n%s", out)
+		}
+		if !strings.Contains(out, "maximum allowed size") {
+			t.Errorf("git should name the pack-size limit on its own channel; got:\n%s", out)
+		}
+	})
+
+	t.Run("receive.fsckObjects refuses a malformed object", func(t *testing.T) {
+		e := newGitEnv(t)
+		_, cookie := e.registerNewAccount(t)
+		b := e.createBook(t, cookie, "Fsck Objects")
+
+		work := t.TempDir()
+		url := e.gitURL(b.ID)
+		if out, err := gitc(t, "", cookie, "clone", "-q", url, work); err != nil {
+			t.Fatalf("clone for push: %v\n%s", err, out)
+		}
+		gitIdentity(t, work)
+		// A valid commit first, for a real tree the malformed commit references.
+		if err := os.WriteFile(filepath.Join(work, sampleSongName), []byte(sampleSongBody), 0o644); err != nil {
+			t.Fatalf("write song: %v", err)
+		}
+		gitRun(t, work, "add", ".")
+		gitRun(t, work, "commit", "-q", "-m", "base")
+		tree := strings.TrimSpace(mustOutput(t, work, "rev-parse", "HEAD^{tree}"))
+		// A commit object missing its author line — a known fsck violation
+		// (missingAuthor). hash-object --literally stores it despite the fault so
+		// it can be offered; receive.fsckObjects is what rejects it on the server.
+		malformed := "tree " + tree +
+			"\ncommitter Estante Test <t@estante.test> 1700000000 +0000\n\nmalformed: no author line\n"
+		malformedFile := filepath.Join(t.TempDir(), "malformed")
+		if err := os.WriteFile(malformedFile, []byte(malformed), 0o644); err != nil {
+			t.Fatalf("write malformed: %v", err)
+		}
+		bad := strings.TrimSpace(mustOutput(t, work, "hash-object", "-t", "commit", "-w", "--literally", malformedFile))
+		gitRun(t, work, "update-ref", "refs/heads/main", bad)
+		out, err := gitc(t, work, cookie, "push", "-q", "origin", "main:refs/heads/main")
+		if err == nil {
+			t.Fatalf("a malformed object should be refused by receive.fsckObjects:\n%s", out)
+		}
+		if !strings.Contains(out, "missingAuthor") && !strings.Contains(out, "fsck") {
+			t.Errorf("git should name the malformed-object fault on its own channel; got:\n%s", out)
+		}
+	})
 }
 
 // --- small shared helpers --------------------------------------------------

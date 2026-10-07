@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -34,8 +35,21 @@ func buildHook(t *testing.T) string {
 
 // gitEnv is the hardened, host-independent environment every git in this test
 // runs with: no system/global config leaking in (signing, hooks), no terminal
-// prompt, and a fixed author/committer so commits need no host identity.
+// prompt, and a fixed author/committer so commits need no host identity. It also
+// carries the ESTANTE_* byte figures the service sets on every push: once
+// hook.limits landed, the hook reads them and refuses a push that lacks them
+// (fail closed), so a behavior-test push must carry them the way the service
+// always does. The defaults — a zero book size and a generous account quota —
+// keep a structural push (refs/stowaways/contents) accepted; the limits test
+// calls gitEnvLimits directly to drive a specific size or quota.
 func gitEnv() []string {
+	return gitEnvLimits(0, 200*1024*1024)
+}
+
+// gitEnvLimits is gitEnv with explicit ESTANTE_BOOK_BYTES and
+// ESTANTE_ACCOUNT_BYTES_REMAINING, so the limits behavior test drives a book
+// near its cap or an account with little headroom.
+func gitEnvLimits(bookBytes, accountRemaining int64) []string {
 	return append(os.Environ(),
 		"GIT_CONFIG_NOSYSTEM=1",
 		"GIT_TERMINAL_PROMPT=0",
@@ -43,6 +57,8 @@ func gitEnv() []string {
 		"GIT_AUTHOR_EMAIL=hook@estante.test",
 		"GIT_COMMITTER_NAME=Estante Hook Test",
 		"GIT_COMMITTER_EMAIL=hook@estante.test",
+		"ESTANTE_BOOK_BYTES="+strconv.FormatInt(bookBytes, 10),
+		"ESTANTE_ACCOUNT_BYTES_REMAINING="+strconv.FormatInt(accountRemaining, 10),
 	)
 }
 

@@ -21,6 +21,12 @@ import { sampleSong } from './fixtures/songs.js';
 import { HttpClient } from './lib/http.js';
 import { baseUrl } from './lib/env.js';
 import { Authenticator } from './lib/authenticator.js';
+import { connect } from './lib/db.js';
+
+// The per-account storage cap the hook checks a push's growth against — 200 MB,
+// history included (service/internal/server/books.go maxBytesPerAccount;
+// workflow 14 docs/workflows/14-file-view.md:42-43).
+const MAX_BYTES_PER_ACCOUNT = 200 * 1024 * 1024;
 
 // A signed-in client the way a device signs in — the passkey ceremony driving
 // the JS software authenticator (no seeded email, no song text). Mirrors
@@ -301,5 +307,64 @@ describe('hook: stowaways (hook.stowaways)', () => {
     const verifyDir = await tempDir('estante-e2e-stowverify-');
     const verify = await GitCli.cloneHTTP(url, verifyDir, cookie);
     expect(await verify.revParse('HEAD')).toBe(old);
+  });
+});
+
+describe('hook: limits (hook.limits)', () => {
+  // A member pushes to a book whose owning account has almost no quota headroom
+  // left (a second book's recorded size, set in Postgres, consumes nearly all of
+  // the 200 MB account cap), and the push's net byte growth exceeds that
+  // headroom. git runs the push (the account is NOT already over its cap, so the
+  // service's pre-git 413 does not fire — that case is pinned server-side), and
+  // the hook refuses it on the quarantined objects, the reason reaching the
+  // client through git's own channel (a remote: line), inside the 200
+  // receive-pack result. Pins workflow 14 "200 MB per account"
+  // (14-file-view.md:42-43), "The limits" (:111) and DIRECTION §3.6 lines
+  // 342-346 (the hook checks the account's limits from the ESTANTE_* env, no DB).
+  it('refuses a push over the account\'s remaining quota, the reason on git\'s channel', async () => {
+    const client = new HttpClient();
+    await registerNewAccount(client);
+    // A quota-sink book whose recorded size leaves only a tiny positive headroom,
+    // and the book this account actually pushes to (empty, so its own per-book
+    // cap is nowhere near — only the account cap can bite).
+    const sink = await createBook(client, 'Quota Sink');
+    const book = await createBook(client, 'Over Account Quota');
+    const url = gitEndpoint(book);
+    const cookie = client.cookieHeader();
+
+    const headroom = 2000; // bytes left in the account quota, a push easily exceeds
+    const sql = connect();
+    try {
+      await sql`UPDATE books SET size_bytes = ${MAX_BYTES_PER_ACCOUNT - headroom} WHERE id = ${sink.id}`;
+    } finally {
+      await sql.end({ timeout: 5 });
+    }
+
+    // Purpose-written filler whose net growth (blob + tree + commit) exceeds the
+    // headroom (never copyrighted words).
+    let body = '# Filler Song\n\n```cifra\n';
+    for (let i = 0; i < 300; i += 1) {
+      body += `[C]linha de preenchimento numero ${i} pra crescer o livro\n`;
+    }
+    body += '```\n';
+
+    const workDir = await tempDir('estante-e2e-limitwork-');
+    const work = await GitCli.create(workDir);
+    await work.init();
+    await writeFile(join(workDir, 'filler.cifra.md'), body);
+    await work.add('.');
+    await work.commit('Add filler that exceeds the account headroom');
+
+    let error;
+    try {
+      await work.pushHTTP(url, cookie);
+    } catch (e) {
+      error = e;
+    }
+    expect(error, 'the over-quota push should have been refused').toBeDefined();
+    // git relays the hook's stderr to the client prefixed "remote:".
+    const relayed = `${error.stderr ?? ''}${error.stdout ?? ''}${error.message ?? ''}`;
+    expect(relayed).toContain('remote:');
+    expect(relayed).toMatch(/storage limit|account/);
   });
 });

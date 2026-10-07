@@ -48,6 +48,11 @@ type APIDeps struct {
 	// GitMaxBodyBytes caps a git-over-HTTP request body before git reads a byte
 	// (service.git_http). Zero falls back to config.DefaultGitMaxBodyBytes.
 	GitMaxBodyBytes int64
+	// ReceiveMaxInputSize caps the bytes of a single push's pack git will index
+	// (receive.maxInputSize), set on the receive-pack the service spawns so an
+	// over-size pack is refused before the hook runs (hook.limits). Zero falls
+	// back to config.DefaultReceiveMaxInputSize.
+	ReceiveMaxInputSize int64
 }
 
 // handleRequestEmailLink implements POST /api/auth/email/request
