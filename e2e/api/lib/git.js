@@ -102,9 +102,17 @@ export class GitCli {
   }
 
   // Push this working copy's HEAD to `url` over smart HTTP with the session
-  // cookie (service.git_http).
-  async pushHTTP(url, cookie, ref = 'main') {
-    await this.run(...cookieConfig(cookie), 'push', url, `HEAD:refs/heads/${ref}`);
+  // cookie (service.git_http). `force` adds --force so a non-fast-forward
+  // (a rewritten history) is sent to the server rather than refused locally —
+  // the server-side pre-receive hook is what refuses it (hook.refs).
+  async pushHTTP(url, cookie, ref = 'main', { force = false } = {}) {
+    await this.run(
+      ...cookieConfig(cookie),
+      'push',
+      ...(force ? ['--force'] : []),
+      url,
+      `HEAD:refs/heads/${ref}`,
+    );
   }
 
   // Fetch from `url` over smart HTTP with the session cookie, updating the

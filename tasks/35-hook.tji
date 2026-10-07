@@ -9,7 +9,8 @@ task hook "The pre-receive hook" {
   task refs "Refs and history" {
     effort 1d
     allocate team
-    note "Only refs/heads/main, no tags or notes, no deletion, fast-forward only. Tests: behavior (the hook installed in a real bare repository, pushed to with the git CLI: a tag, a note, another branch, a deletion and a non-fast-forward each refused; a fast-forward to main accepted); e2e-api (a non-fast-forward push from the git CLI refused by the stack)."
+    complete 100
+    note "Only refs/heads/main, no tags or notes, no deletion, fast-forward only. Tests: behavior (the hook installed in a real bare repository, pushed to with the git CLI: a tag, a note, another branch, a deletion and a non-fast-forward each refused; a fast-forward to main accepted); e2e-api (a non-fast-forward push from the git CLI refused by the stack). Refinement: tasks/refinements/hook/refs.md"
   }
   task stowaways "No stowaways" {
     effort 2d

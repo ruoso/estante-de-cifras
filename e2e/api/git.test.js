@@ -197,3 +197,48 @@ describe('git over HTTP (service.git_http)', () => {
     await expect(GitCli.cloneHTTP(url, cloneDir, strangerCookie)).rejects.toThrow();
   });
 });
+
+describe('hook: refs (hook.refs)', () => {
+  // The member clones, commits and pushes a fast-forward (accepted), then
+  // force-pushes a rewritten history — the stack's pre-receive hook refuses the
+  // whole push, the reason reaching the client through git's own channel (a
+  // remote: line). Pins workflow 14 "Fast-forward only." (14-file-view.md:96-97)
+  // and DIRECTION §3.6 line 341. Also the first case that proves the hook is
+  // built into and run by the image.
+  it('refuses a non-fast-forward force-push to main, the reason on git\'s channel', async () => {
+    const client = new HttpClient();
+    await registerNewAccount(client);
+    const book = await createBook(client, 'Fast Forward Only');
+    const url = gitEndpoint(book);
+    const cookie = client.cookieHeader();
+
+    // The initial push creates main — accepted (a book comes online).
+    const workDir = await tempDir('estante-e2e-ffwork-');
+    const work = await GitCli.create(workDir);
+    await work.init();
+    await writeFile(join(workDir, sampleSong.filename), sampleSong.content);
+    await work.add('.');
+    await work.commit('Add the tuning song');
+    await work.pushHTTP(url, cookie);
+
+    // A fast-forward: a second commit on top, pushed — accepted.
+    await writeFile(join(workDir, 'segundo.cifra.md'), '# Segundo\n\n```cifra\n[Am]Teste\n```\n');
+    await work.add('.');
+    await work.commit('Add a second song');
+    await work.pushHTTP(url, cookie);
+
+    // Rewrite the tip and force-push: a non-fast-forward the hook refuses whole.
+    await work.run('commit', '--amend', '-m', 'Rewritten tip');
+    let error;
+    try {
+      await work.pushHTTP(url, cookie, 'main', { force: true });
+    } catch (e) {
+      error = e;
+    }
+    expect(error, 'the force-push should have been refused').toBeDefined();
+    // git relays the hook's stderr to the client prefixed "remote:".
+    const relayed = `${error.stderr ?? ''}${error.stdout ?? ''}${error.message ?? ''}`;
+    expect(relayed).toContain('remote:');
+    expect(relayed).toMatch(/non-fast-forward|refs\/heads\/main/);
+  });
+});

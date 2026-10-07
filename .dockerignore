@@ -30,4 +30,4 @@ compose.yaml
 README.md
 app/README.md
 service/README.md
-service/cmd/pre-receive
+service/cmd/pre-receive/README.md

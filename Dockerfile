@@ -62,15 +62,15 @@ COPY service/ ./
 # tree (the cross-repo named-build-context pattern's same-repo counterpart,
 # DIRECTION §3.6).
 COPY api/ /api/
-# A static binary (CGO off) so the final image needs no C runtime. Only
-# cmd/service is built; cmd/pre-receive has no main.go yet — the hook area adds
-# it to this Dockerfile when it does (foundation.compose decision). The service
-# proper imports no cifra.md Go package; when the hook links cifra.md for Go
-# (hook.canonical), it brings that package into this stage with the same
+# Two static binaries (CGO off) so the final image needs no C runtime: the
+# service, and the pre-receive hook git runs on every push (hook.refs). The
+# service proper imports no cifra.md Go package; when the hook links cifra.md
+# for Go (hook.canonical), it brings that package into this stage with the same
 # cross-repo named-build-context pattern the app stage uses above — a
 # `cifra-md-go` context wired in compose.yaml and copied at the module's
 # expected path (DIRECTION §3.6).
 RUN CGO_ENABLED=0 go build -trimpath -o /out/service ./cmd/service
+RUN CGO_ENABLED=0 go build -trimpath -o /out/pre-receive ./cmd/pre-receive
 
 # --- Stage 3: the final image — the binary, git, and the built app -----------
 FROM alpine:3.21
@@ -87,11 +87,11 @@ COPY --from=app /build/app/dist /srv/app
 # /data/books (DIRECTION §3.3); compose mounts a named volume here.
 RUN mkdir -p /data/books
 # The git hooks directory (service.git_http): git is pointed here via
-# core.hooksPath on every push, and the pre-receive hook stream drops its binary
-# here (service/cmd/pre-receive). Until it does, the directory is empty, so git
-# runs no hook and the push is accepted — the config default is this path
+# core.hooksPath on every push, and the pre-receive binary built above sits here
+# so git runs it on every push (hook.refs) — the config default is this path
 # (config.DefaultHooksDir).
 RUN mkdir -p /srv/hooks
+COPY --from=service /out/pre-receive /srv/hooks/pre-receive
 # The binary binds this fixed internal port; the stack publishes a host port
 # and maps it here (service/internal/config.DefaultPort = 8080).
 EXPOSE 8080
