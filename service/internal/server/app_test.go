@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -10,6 +11,14 @@ import (
 	"strings"
 	"testing"
 )
+
+// okPinger is a Pinger that is always reachable — the readiness stub the app
+// and health behavior tests build Handler with, since none of them exercises
+// /readyz (ready_test.go covers it with a real pool). nilPing lets a test pass
+// an explicit "no store" too.
+type okPinger struct{}
+
+func (okPinger) Ping(context.Context) error { return nil }
 
 // testShell is a tiny purpose-written app shell standing in for the built
 // index.html; it carries a marker the SPA-fallback cases assert on. It is the
@@ -52,7 +61,7 @@ func newTestAppRoot(t *testing.T) string {
 func newTestHandler(t *testing.T) http.Handler {
 	t.Helper()
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	h, err := Handler(logger, newTestAppRoot(t))
+	h, err := Handler(logger, newTestAppRoot(t), okPinger{})
 	if err != nil {
 		t.Fatalf("Handler: %v", err)
 	}
@@ -211,7 +220,7 @@ func TestMissingAssetIs404(t *testing.T) {
 func TestFailFastOnMissingBundle(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	empty := t.TempDir()
-	if _, err := Handler(logger, empty); err == nil {
+	if _, err := Handler(logger, empty, okPinger{}); err == nil {
 		t.Fatal("Handler against an app-root with no index.html: want error, got nil")
 	}
 }

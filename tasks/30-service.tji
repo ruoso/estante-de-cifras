@@ -9,7 +9,8 @@ task service "The service" {
   task schema "Postgres schema and migrations" {
     effort 2d
     allocate team
-    note "Accounts, sessions, passkeys, devices, books, members and roles, invitations with expiry and uses, quotas. pgx; versioned migrations. Tests: behavior (every migration applied from empty to the latest against Postgres from compose; the constraints later tasks rely on — one membership per person per book, invitation uses never below zero)."
+    complete 100
+    note "Accounts, sessions, passkeys, devices, books, members and roles, invitations with expiry and uses, quotas. pgx; versioned migrations. Tests: behavior (every migration applied from empty to the latest against Postgres from compose; the constraints later tasks rely on — one membership per person per book, invitation uses never below zero). Refinement: tasks/refinements/service/schema.md"
   }
   task passkeys "Passkeys" {
     effort 3d

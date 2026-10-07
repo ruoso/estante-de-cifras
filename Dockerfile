@@ -38,9 +38,10 @@ RUN npm run build
 # --- Stage 2: build the Go service binary, CGO-free --------------------------
 FROM golang:1.25-alpine AS service
 WORKDIR /src
-# The module is stdlib-only today (no go.sum); copying go.mod first keeps the
-# download layer cached when only sources change.
-COPY service/go.mod ./
+# Copying the module files first keeps the download layer cached when only
+# sources change. go.sum appears with the service's first dependency, pgx
+# (service.schema); go mod download verifies against it.
+COPY service/go.mod service/go.sum ./
 RUN go mod download
 COPY service/ ./
 # A static binary (CGO off) so the final image needs no C runtime. Only

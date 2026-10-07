@@ -22,9 +22,9 @@ const DefaultPort = 8080
 const DefaultAppRoot = "/srv/app"
 
 // Config is the service's configuration. Today it carries the listen port the
-// skeleton needs and the app-root the built PWA is served from; later service
-// tasks extend it (the Postgres DSN in service.schema, the volume path in
-// service.books, the email provider and session secrets in sign-in).
+// skeleton needs, the app-root the built PWA is served from and the Postgres
+// DSN the registry lives behind; later service tasks extend it (the volume
+// path in service.books, the email provider and session secrets in sign-in).
 type Config struct {
 	// Port is the TCP port the HTTP server binds. Railway injects PORT and
 	// expects the process to bind it (DIRECTION §3.3), so the service deploys
@@ -37,6 +37,14 @@ type Config struct {
 	// it at app/dist. ESTANTE_* is the service's own namespace for future vars
 	// (the bind port stays plain PORT, which Railway injects).
 	AppRoot string
+
+	// DatabaseURL is the Postgres DSN the connection pool and the start-up
+	// migrator use (service.schema; DIRECTION §3.6 line 313 names pgx). It is
+	// read from ESTANTE_DATABASE_URL and has no default — there is no sensible
+	// stand-in for a database connection, and compose and scripts/gate always
+	// provide it — so an empty value is left for the pool to reject at start-up,
+	// never guessed. It carries a password and is never logged.
+	DatabaseURL string
 }
 
 // Load builds a Config from an environment lookup (os.LookupEnv in
@@ -48,6 +56,10 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 
 	if raw, ok := lookup("ESTANTE_APP_ROOT"); ok && raw != "" {
 		cfg.AppRoot = raw
+	}
+
+	if raw, ok := lookup("ESTANTE_DATABASE_URL"); ok {
+		cfg.DatabaseURL = raw
 	}
 
 	if raw, ok := lookup("PORT"); ok && raw != "" {

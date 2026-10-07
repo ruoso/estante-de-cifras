@@ -66,6 +66,35 @@ func TestLoadTreatsEmptyAppRootAsUnset(t *testing.T) {
 	}
 }
 
+// TestLoadReadsDatabaseURL pins that ESTANTE_DATABASE_URL is read into
+// Config.DatabaseURL verbatim (the DSN config seam, config.go:24-27; the pgx
+// Postgres client, DIRECTION §3.6 line 313). The value is carried, never
+// parsed or defaulted here — the pool rejects a bad DSN at start-up.
+func TestLoadReadsDatabaseURL(t *testing.T) {
+	const dsn = "postgres://estante:estante@127.0.0.1:5432/estante?sslmode=disable"
+	cfg, err := Load(envFrom(map[string]string{"ESTANTE_DATABASE_URL": dsn}))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.DatabaseURL != dsn {
+		t.Errorf("DatabaseURL = %q, want %q", cfg.DatabaseURL, dsn)
+	}
+}
+
+// TestLoadDefaultsDatabaseURLEmptyWhenUnset pins that an unset
+// ESTANTE_DATABASE_URL leaves DatabaseURL empty — there is no sensible default
+// for a database connection, and compose/scripts/gate always provide it — so an
+// empty value is left for the pool to reject, handled like the other vars.
+func TestLoadDefaultsDatabaseURLEmptyWhenUnset(t *testing.T) {
+	cfg, err := Load(envFrom(nil))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.DatabaseURL != "" {
+		t.Errorf("DatabaseURL = %q, want empty when unset", cfg.DatabaseURL)
+	}
+}
+
 // TestLoadHonoursPort pins that an explicit PORT overrides the default.
 func TestLoadHonoursPort(t *testing.T) {
 	cfg, err := Load(envFrom(map[string]string{"PORT": "3000"}))

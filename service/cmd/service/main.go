@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"estantedecifras.app/service/internal/config"
+	"estantedecifras.app/service/internal/db"
 	"estantedecifras.app/service/internal/server"
 )
 
@@ -39,7 +40,25 @@ func run() error {
 		return err
 	}
 
-	handler, err := server.Handler(logger, cfg.AppRoot)
+	// The registry's Postgres pool, opened and migrated before the server
+	// accepts traffic. On a single instance (DIRECTION §3.4) start-up migration
+	// is race-free; a migration error is fatal (the skeleton's fail-fast rule),
+	// so the service never serves against a half-built schema. A start-up
+	// timeout keeps a down or wedged database from hanging boot forever.
+	pool, err := db.Open(context.Background(), cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	migrateCtx, cancelMigrate := context.WithTimeout(context.Background(), 30*time.Second)
+	err = db.Migrate(migrateCtx, pool)
+	cancelMigrate()
+	if err != nil {
+		return err
+	}
+
+	handler, err := server.Handler(logger, cfg.AppRoot, pool)
 	if err != nil {
 		return err
 	}

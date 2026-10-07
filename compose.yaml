@@ -72,6 +72,12 @@ services:
         condition: service_healthy
       mail:
         condition: service_healthy
+    environment:
+      # The registry's DSN (service.schema). On the compose network Postgres is
+      # reachable at the service name on its internal 5432, not the published
+      # host port; the binary opens a pgxpool from this and runs its start-up
+      # migration against it. ESTANTE_* is the service's own namespace.
+      ESTANTE_DATABASE_URL: postgres://${ESTANTE_PG_USER:-estante}:${ESTANTE_PG_PASSWORD:-estante}@postgres:5432/${ESTANTE_PG_DB:-estante}?sslmode=disable
     ports:
       # One origin: the published HTTP port serves both the app (at /, once
       # service.serve_app lands) and the API beneath it (ESTANTE_E2E_BASE_URL).

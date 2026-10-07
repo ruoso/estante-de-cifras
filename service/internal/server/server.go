@@ -6,21 +6,31 @@
 package server
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"os"
 )
 
+// Pinger reports whether the service's backing store is reachable. The pgxpool
+// the service opens (internal/db) satisfies it, so the server package stays
+// free of a direct Postgres dependency — it knows only that readiness is "can
+// we reach the store" (DIRECTION §3.6, the component boundary).
+type Pinger interface {
+	Ping(ctx context.Context) error
+}
+
 // Handler builds the service's HTTP handler: a standard-library ServeMux
 // (method-and-path patterns, no third-party router — DIRECTION §3.6) serving
-// the built PWA at / with the health check beside it, beneath two origin-wide
-// middlewares — X-Robots-Tag: noindex on every response, then request logging.
-// The app is read from appRoot on disk (service.serve_app); Handler fails fast
-// if that directory has no index.html. Later service.* tasks register their
-// /api and /git routes on a mux assembled the same way — ServeMux's
-// longest-prefix match lets those win over the app's / while every response
-// still inherits the noindex policy.
-func Handler(logger *slog.Logger, appRoot string) (http.Handler, error) {
+// the built PWA at / with the liveness and readiness checks beside it, beneath
+// two origin-wide middlewares — X-Robots-Tag: noindex on every response, then
+// request logging. The app is read from appRoot on disk (service.serve_app);
+// Handler fails fast if that directory has no index.html. ready is pinged by
+// GET /readyz; it is the Postgres pool in production. Later service.* tasks
+// register their /api and /git routes on a mux assembled the same way —
+// ServeMux's longest-prefix match lets those win over the app's / while every
+// response still inherits the noindex policy.
+func Handler(logger *slog.Logger, appRoot string, ready Pinger) (http.Handler, error) {
 	app, err := newAppHandler(os.DirFS(appRoot))
 	if err != nil {
 		return nil, err
@@ -28,9 +38,11 @@ func Handler(logger *slog.Logger, appRoot string) (http.Handler, error) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", handleHealthz)
+	mux.HandleFunc("GET /readyz", handleReadyz(ready))
 	// The app at /: ServeMux routes everything not matched by a more specific
-	// pattern (GET /healthz now; /api/… and /git/… later) to the PWA, which
-	// serves a real asset or falls back to the shell for a client-side route.
+	// pattern (GET /healthz and /readyz now; /api/… and /git/… later) to the
+	// PWA, which serves a real asset or falls back to the shell for a
+	// client-side route.
 	mux.Handle("/", app)
 
 	return LogRequests(logger, NoIndex(mux)), nil
