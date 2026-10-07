@@ -366,6 +366,10 @@ export default function SearchScreen({
 
   // SEARCH on each keystroke, debounced; the engine returns nothing for an empty
   // query, so the pre-typing browse is shown instead when the box is empty.
+  // Re-sent as books finish indexing (the `index` slice moves), like BROWSE
+  // below: a query typed while a book is still building would otherwise sit on
+  // an empty result and never refresh when the book becomes searchable (the
+  // reading e2e opens a song straight after a reload, before its index settles).
   useEffect(() => {
     if (!typedQuery) return undefined;
     const id = setTimeout(() => {
@@ -377,7 +381,7 @@ export default function SearchScreen({
       );
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [typedQuery, scope, store]);
+  }, [typedQuery, scope, store, indexSlice]);
 
   // BROWSE for the pre-typing listing; re-sent as books finish indexing (the
   // `index` slice moves) and whenever the scope changes, so counts and songs

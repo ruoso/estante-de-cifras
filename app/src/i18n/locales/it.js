@@ -436,6 +436,44 @@ export default {
 
   chart: { label: 'Spartito' },
 
+  reading: {
+    back: 'Indietro',
+    byline: '{artist} · {book}',
+    keyOf: 'Tonalità di {key}',
+    shapes: 'Forme',
+    shapesInKey: 'Forme in {key}',
+    shapesCaption: 'Vuota: la forma predefinita dell’app. Piena a colori: la tua forma per quell’accordo.',
+    transposedCaptionKey:
+      'Le forme proprie della canzone sono per {key}, quindi gli accordi trasposti usano le tue forme e poi quelle predefinite.',
+    transposedCaption:
+      'Una canzone trasposta non ha forme scelte, quindi ogni accordo usa la tua forma e poi quella predefinita.',
+    unvoiced: 'Nessuna forma suonabile per {list}.',
+    variationLabel: 'Variazione',
+    variationDefault: 'Predefinita',
+    transpose: 'Trasponi',
+    transposeTitle: 'Trasponi la vista',
+    down: 'Un semitono più in basso',
+    up: 'Un semitono più in alto',
+    writtenKey: 'Tonalità scritta',
+    transposedToKey: 'Trasposta in {key} ({offset})',
+    transposedBy: 'Trasposta ({offset})',
+    backToKey: 'Torna a {key}',
+    backToWritten: 'Torna alla tonalità scritta',
+    arrangingOff: 'L’arrangiamento è disattivato mentre è trasposta',
+    noVoicings:
+      'Nessuno ha ancora scelto forme per {instrument} in questa canzone. Queste sono le forme più facili per ogni accordo.',
+    arrangeFor: 'Arrangia per {instrument}',
+    arrange: 'Arrangia',
+    edit: 'Modifica',
+    history: 'Cronologia',
+    addToSetlist: 'Aggiungi alla scaletta',
+    print: 'Stampa',
+    share: 'Condividi',
+    more: 'Altro',
+    fullScreen: 'Schermo intero',
+    exitFullScreen: 'Esci da schermo intero',
+  },
+
   library: {
     title: 'Forme salvate',
     empty:

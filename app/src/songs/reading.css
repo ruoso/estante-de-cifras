@@ -1,0 +1,162 @@
+/* The reading view (songs.reading, board W02). Layout only — every colour comes
+   from the theme tokens through the shared classes (.appbar, .chip, .notice,
+   .card, .shapes, .btn), so the reading view re-themes with no code in it (the
+   chart/diagram invariant). The print stylesheet hides the chrome and leads with
+   the sheet (the chart, then the shapes), which print alike from the same
+   renderer that drew them on screen (workflow 2 L85, L100). */
+
+.reading-screen,
+.reading-split {
+  flex: 1;
+  min-height: 0;
+}
+
+.reading-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+  padding: calc(var(--u) * 2);
+}
+
+/* The meta line: byline, the instrument chip, the key chip, the transpose
+   control and the variation picker, wrapping on a narrow screen. */
+.reading-meta {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.25);
+  flex-wrap: wrap;
+}
+.reading-byline {
+  min-width: 0;
+}
+
+/* The transpose status row (W02 L181-186): the chip, the reset, and the
+   right-aligned "arranging is off" note. */
+.reading-status {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  flex-wrap: wrap;
+}
+.reading-arranging-off {
+  margin-left: auto;
+}
+
+/* The sheet — the chart, then the shapes — the one thing print keeps. */
+.reading-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+.reading-shapes {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+}
+
+/* The wide master-detail: search beside the song (the computer board). */
+.reading-split .pane.side {
+  overflow: hidden;
+}
+.reading-split .pane.main .reading-scroll {
+  padding: calc(var(--u) * 2) calc(var(--u) * 3);
+}
+.reading-split .reading-sheet {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: calc(var(--u) * 4);
+}
+/* Chart beside the fixed-width shapes on a wide pane; when the pane is too
+   narrow for both (the tablet's master-detail, where the 340px search side
+   leaves little room) the shapes wrap below and the chart keeps the full line
+   rather than flex-shrinking to zero width (which reads as hidden). */
+.reading-split .reading-sheet .chart {
+  flex: 1;
+  min-width: 0;
+}
+.reading-split .reading-shapes {
+  width: 300px;
+  flex: none;
+}
+
+/* The narrow bottom action bar (Arrange · Edit · Full screen). */
+.reading-actionbar {
+  display: flex;
+  gap: calc(var(--u) * 1.25);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2) calc(var(--u) * 2.75);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.reading-actionbar .btn.grow {
+  flex: 1;
+}
+
+/* The transpose popover stepper. */
+.reading-transpose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+  padding: calc(var(--u) * 1.5);
+  min-width: 220px;
+}
+.reading-transpose-row {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+}
+.reading-transpose-now {
+  flex: 1;
+  text-align: center;
+  font: 600 15px var(--font-ui);
+}
+.reading-variation {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Full screen: the sheet alone, chrome gone, with a keyboard-reachable way out. */
+.reading-fullscreen {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.reading-fullscreen-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: calc(var(--u) * 3);
+}
+.reading-exit-full {
+  position: absolute;
+  top: calc(var(--u) * 1.5);
+  right: calc(var(--u) * 1.5);
+  z-index: 1;
+}
+
+/* Print: the chrome goes, the sheet leads. The chart and shapes print in the
+   same proportional face and the same diagram renderer that drew them on screen,
+   so a shape prints alike (workflow 2 L85, L100). The search side pane never
+   prints. */
+@media print {
+  .reading-chrome,
+  .reading-actionbar,
+  .reading-meta,
+  .reading-status,
+  .reading-variation,
+  .reading-exit-full,
+  .reading-split .pane.side {
+    display: none !important;
+  }
+  .reading-scroll,
+  .reading-fullscreen-scroll {
+    overflow: visible;
+    padding: 0;
+  }
+  .reading-split .reading-sheet {
+    flex-direction: column;
+  }
+}

@@ -85,6 +85,21 @@ export const CommandKind = Object.freeze({
   // storage.working_copy left out (it built WRITE/SAVE/DISCARD and no way to
   // read the current text back). Local, offline, no commit.
   OPEN_SOURCE: 'open_source',
+  // The reading view's state reads and writes (songs.reading, workflow 2). Reading
+  // state is the user's, not the song's — kept in the home book's songs.json
+  // (DIRECTION §3.2, home-book-format §4.5), never in the song. OPEN_SONG
+  // `{ bookId, path }` reads the per-song `{ transposition, variations }`
+  // projection and replies with a SONG event (the read path the `song` slice
+  // re-surfaces after a write); a local, offline read, no commit. SET_TRANSPOSITION
+  // `{ bookId, path, semitones }` writes the signed `transposition` register and
+  // re-surfaces SONG; SET_VARIATION `{ bookId, path, tuning, variation }` writes
+  // the per-tuning `variation` register and re-surfaces SONG. Both go through
+  // `home-book.set` — one lock, canonical, auto-committed, never pushed (a
+  // preference, like the instrument writes); the paired OPEN_SOURCE carries the
+  // text the view parses. No song text crosses on any of the three.
+  OPEN_SONG: 'open_song',
+  SET_TRANSPOSITION: 'set_transposition',
+  SET_VARIATION: 'set_variation',
   // Start a new song (songs.new_song, workflow 3). NEW_SONG `{ targetBookId?,
   // folder?, mySongsTitle?, author }` ensures the target book exists — for *My
   // songs* (when no `targetBookId`), idempotently under the reserved
@@ -229,6 +244,15 @@ export const EventKind = Object.freeze({
   // Decision 4): `{ bookId, path, text }`. The editor loads it into its
   // CodeMirror buffer; the `source` slice keeps it per book and path.
   SOURCE: 'source',
+  // A song's reading state, in reply to OPEN_SONG and re-surfaced after
+  // SET_TRANSPOSITION / SET_VARIATION (songs.reading, Decision 2): `{ bookId,
+  // path, transposition, variations }`. `transposition` is the signed semitone
+  // offset (`0` the written key); `variations` is the per-tuning map
+  // `{ [tuning]: label }` of the variations in use (home-book-format §4.5). The
+  // `song` slice keeps it per book and path, like `source`, so each open song's
+  // reading state re-surfaces on its own without disturbing another's. It carries
+  // no song text (standing no-logging rule).
+  SONG: 'song',
   // The per-file save preview, in reply to PREVIEW_SAVE (songs.save_sheet,
   // Decision 2): `{ bookId, previews: [{ path, title, changes, summary, isNew }] }`.
   // `changes` is the diff's ordered record list and `summary` its neutral-English

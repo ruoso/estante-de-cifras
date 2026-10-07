@@ -8,14 +8,28 @@
 // songs.json holds, per song ref (§2.3 `<book-id>/<path>`), the reading state
 // that is the user's and not the song's: how far the song is transposed
 // (`transposition`) and which variation is in use per tuning (`variation`,
-// §4.5). This task owns only the transposition half — the reader of the stored
-// offset and the builder of the change that writes it. The variation half, the
-// `SET_TRANSPOSITION` Worker command that calls these, and the reading control
-// that dispatches it are songs.reading's (the refinement's boundary): this seam
-// is pinned at unit level here and exercised end-to-end there, mirroring
-// music.fallback shipping the `ignoreSongVoicings` seam ahead of its consumer.
+// §4.5). music.transpose shipped the transposition half — the reader of the
+// stored offset and the builder of the change that writes it — ahead of its
+// consumer. songs.reading adds the variation half beside it (`variationOf` /
+// `variationChange`, keyed by tuning), and the `SET_TRANSPOSITION` /
+// `SET_VARIATION` Worker commands and the reading control that dispatch them;
+// both halves are pinned at unit level here and exercised end-to-end there.
 
 import { isRegister } from './home-book-merge.js';
+
+/**
+ * The §2.3 song ref the reading state is keyed by: `<book-id>/<path>`, with the
+ * path NFC-normalised so the key matches whatever the canonical writer stores
+ * (home-book-canonical NFC-normalises member names on write). The book id is an
+ * opaque id and is left as given.
+ *
+ * @param {string} bookId the book's opaque id
+ * @param {string} path the song's in-book path
+ * @returns {string} the §2.3 ref
+ */
+export function songRefOf(bookId, path) {
+  return `${bookId}/${String(path).normalize('NFC')}`;
+}
 
 /**
  * The semitone offset a song is read at (home-book-format §4.5): the stored
@@ -51,4 +65,69 @@ export function transpositionOf(songsModel, songRef) {
  */
 export function transpositionChange(songRef, semitones) {
   return { path: [songRef, 'transposition'], value: semitones };
+}
+
+/**
+ * The variation in use for a song on one tuning (home-book-format §4.5
+ * L315-316): the stored string from `songs.json[<songRef>].variation[<tuning>]`,
+ * or `''` when the register is absent, malformed, a non-string, or a tombstone
+ * — `''` is the default variation (cifra.md's plain `Voicings` heading), so "no
+ * record" and "the default" are the same reading. The per-tuning map keeps one
+ * choice per tuning, as §4.5 defines it, so a guitar and a cavaquinho remember
+ * their variations independently.
+ *
+ * @param {object} songsModel the parsed songs.json (an absent file is `{}`)
+ * @param {string} songRef the §2.3 song ref the state is keyed by
+ * @param {string} tuning the §6.3 tuning identity the choice is keyed by
+ * @returns {string} the variation label, `''` for the default
+ */
+export function variationOf(songsModel, songRef, tuning) {
+  const entry = songsModel?.[songRef];
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return '';
+  const variations = entry.variation;
+  if (!variations || typeof variations !== 'object' || Array.isArray(variations)) return '';
+  const reg = variations[tuning];
+  if (!isRegister(reg) || typeof reg.value !== 'string') return '';
+  return reg.value;
+}
+
+/**
+ * The home-book change that records the variation in use for a song on one
+ * tuning (home-book-format §4.5), for `home-book.set` to write to songs.json
+ * under the §2.3 song ref's per-tuning `variation` map. Like
+ * `transpositionChange`, this seam only names the key path and the value;
+ * `home-book.set` wraps it in the `{ value, at }` register envelope and commits
+ * automatically. A later read returns `variation` through `variationOf`.
+ *
+ * @param {string} songRef the §2.3 song ref
+ * @param {string} tuning the §6.3 tuning identity the choice is keyed by
+ * @param {string} variation the variation label to remember (`''` the default)
+ * @returns {{ path: string[], value: string }}
+ */
+export function variationChange(songRef, tuning, variation) {
+  return { path: [songRef, 'variation', tuning], value: variation };
+}
+
+/**
+ * The whole per-tuning variation map for a song (home-book-format §4.5), as the
+ * `OPEN_SONG` → `SONG` surface carries it to the view: a plain
+ * `{ [tuning]: label }` of the live choices, tombstones and malformed or
+ * non-string registers dropped. The view reads the entry for the tuning in use;
+ * a tuning with no entry reads as the default (`''`), exactly as `variationOf`.
+ *
+ * @param {object} songsModel the parsed songs.json (an absent file is `{}`)
+ * @param {string} songRef the §2.3 song ref
+ * @returns {Record<string, string>} tuning identity → variation label
+ */
+export function variationsOf(songsModel, songRef) {
+  const entry = songsModel?.[songRef];
+  const variations =
+    entry && typeof entry === 'object' && !Array.isArray(entry) ? entry.variation : null;
+  if (!variations || typeof variations !== 'object' || Array.isArray(variations)) return {};
+  const out = {};
+  for (const tuning of Object.keys(variations)) {
+    const reg = variations[tuning];
+    if (isRegister(reg) && typeof reg.value === 'string') out[tuning] = reg.value;
+  }
+  return out;
 }

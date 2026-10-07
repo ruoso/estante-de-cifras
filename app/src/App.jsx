@@ -6,6 +6,7 @@ import AppShell from './shell/AppShell.jsx';
 import ChartGallery from './chart/gallery/ChartGallery.jsx';
 import EditorDev from './editor/EditorDev.jsx';
 import HistoryDev from './songs/HistoryDev.jsx';
+import ReadingDev from './songs/ReadingDev.jsx';
 import FilesDev from './files/FilesDev.jsx';
 import UpdateReady from './pwa/UpdateReady.jsx';
 import { getAppStore } from './worker/store.js';
@@ -34,6 +35,14 @@ function isEditorDev() {
 // seam, history stands up behind this hash so its behaviour and e2e run now.
 function isHistoryDev() {
   return typeof location !== 'undefined' && location.hash.startsWith('#dev/history');
+}
+
+// The reading view's dev mount, `#dev/reading` — mirroring `#dev/history`
+// (songs.reading Decision 5). Its real entry point is a search result tapped in
+// AppShell (wired in this task); the dev mount stands the surface up at
+// `#dev/reading?book=…&path=…` so its behaviour and e2e run on every viewport.
+function isReadingDev() {
+  return typeof location !== 'undefined' && location.hash.startsWith('#dev/reading');
 }
 
 // The file view's dev mount, `#dev/files` — mirroring `#dev/history`
@@ -85,6 +94,8 @@ export default function App({ store = getAppStore() }) {
           <EditorDev store={store} />
         ) : isHistoryDev() ? (
           <HistoryDev store={store} />
+        ) : isReadingDev() ? (
+          <ReadingDev store={store} />
         ) : isFilesDev() ? (
           <FilesDev store={store} />
         ) : (

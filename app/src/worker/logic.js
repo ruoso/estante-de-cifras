@@ -44,6 +44,13 @@ import {
   STANDARD_INSTRUMENT_ID,
 } from './instruments.js';
 import { defaultPresetFor } from '../core/instrument.js';
+import {
+  transpositionOf,
+  transpositionChange,
+  variationsOf,
+  variationChange,
+  songRefOf,
+} from './songs.js';
 import { authorFrom } from './author.js';
 
 // The schema version the database opens at, DERIVED from the migration step
@@ -600,6 +607,27 @@ export function createWorkerLogic(port, options = {}) {
     );
   }
 
+  // SONG event — a song's reading state projected from the home book's
+  // songs.json (songs.reading, Decision 2): the signed transposition offset and
+  // the per-tuning variations-in-use map, keyed by the §2.3 ref. A read before
+  // any home book exists returns `{}` (ENOENT, home-book.js), so an unopened or
+  // never-transposed song surfaces `{ transposition: 0, variations: {} }` — the
+  // written key with no variation chosen, never an error. Local, offline,
+  // lock-free. Carries a song ref and the small state only — no song text
+  // (standing rule). Re-used on OPEN_SONG and after each reading-state write.
+  async function surfaceHomeBookSong(bookId, path) {
+    const songs = await ensureHomeBook().read({ bookId: HOME_BOOK_ID, file: 'songs.json' });
+    const ref = songRefOf(bookId, path);
+    port.postMessage(
+      event(EventKind.SONG, {
+        bookId,
+        path,
+        transposition: transpositionOf(songs, ref),
+        variations: variationsOf(songs, ref),
+      }),
+    );
+  }
+
   // Read the device-local recents and post RECENTS, so the search screen shows
   // "the way back into what you were playing" on bring-up without asking for it
   // (songs.search, workflow 2 L13-14). Device-local, offline, no commit; an
@@ -1063,6 +1091,54 @@ export function createWorkerLogic(port, options = {}) {
             const full = `${ensureGit().bookDir(bookId)}/${path}`;
             const text = await ensureFs().promises.readFile(full, 'utf8');
             port.postMessage(event(EventKind.SOURCE, { bookId, path, text }));
+            break;
+          }
+          case CommandKind.OPEN_SONG: {
+            // Surface a song's reading state (songs.reading, Decision 2): the
+            // stored transposition offset and the per-tuning variations in use,
+            // projected from the home book's songs.json. A plain read, no lock,
+            // no commit; the paired OPEN_SOURCE carries the text the view parses.
+            const { bookId, path } = message.payload;
+            await surfaceHomeBookSong(bookId, path);
+            break;
+          }
+          case CommandKind.SET_TRANSPOSITION: {
+            // Remember how far a song is transposed (songs.reading, workflow 2
+            // L135-138; music.transpose's deferred command). Personal state in
+            // the home book, not the song (DIRECTION §3.2): write the signed
+            // `transposition` register through `home-book.set` — one lock,
+            // canonical, auto-committed, never pushed — then re-surface SONG. A
+            // local home book is provisioned if none exists. No song text.
+            const { bookId, path, semitones } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author: message.payload.author });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'songs.json',
+              changes: [transpositionChange(songRefOf(bookId, path), semitones)],
+              author: message.payload.author,
+            });
+            await surfaceHomeBookSong(bookId, path);
+            await ensureFs().flush();
+            break;
+          }
+          case CommandKind.SET_VARIATION: {
+            // Remember which variation is in use for a song on one tuning
+            // (songs.reading, workflow 2 L73-74; home-book-format §4.5). Personal
+            // state in the home book, keyed per tuning: write the `variation`
+            // register through `home-book.set` (auto-committed, never pushed),
+            // then re-surface SONG. A local home book is provisioned if absent.
+            const { bookId, path, tuning, variation } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author: message.payload.author });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'songs.json',
+              changes: [variationChange(songRefOf(bookId, path), tuning, variation)],
+              author: message.payload.author,
+            });
+            await surfaceHomeBookSong(bookId, path);
+            await ensureFs().flush();
             break;
           }
           case CommandKind.NEW_SONG: {

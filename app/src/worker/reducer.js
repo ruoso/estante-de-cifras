@@ -106,6 +106,14 @@ export const initialState = {
   // one path and must not re-render when another is loaded). Starts empty: no
   // song opened in an editor yet.
   source: {},
+  // A song's reading state for the reading view (songs.reading, SONG), nested
+  // by `bookId` then `path`: `{ [bookId]: { [path]: { transposition, variations } } }`.
+  // `transposition` is the signed semitone offset; `variations` the per-tuning
+  // `{ [tuning]: label }` map (home-book-format §4.5). Nested like `source`, so a
+  // SONG for one song leaves every other song's entry at its exact reference
+  // (the reading view subscribes to one path and must not re-render when another
+  // opens). Starts empty: no song opened to read yet.
+  song: {},
   // The instrument surface (music.instruments, INSTRUMENTS): the whole roster
   // projected from instruments.json, the resolved in-use id (null for the
   // implicit standard guitar), the standard-guitar fallback, and each
@@ -388,6 +396,30 @@ export function reduce(state, message) {
           [bookId]: {
             ...prevBook,
             [path]: { text: message.payload?.text ?? '' },
+          },
+        },
+      };
+    }
+
+    case EventKind.SONG: {
+      // A song's reading state arrived (OPEN_SONG reply, or a re-surface after a
+      // SET_TRANSPOSITION / SET_VARIATION write): set it under the book's path.
+      // Nested like SOURCE so only this path's entry moves — every other song the
+      // reading view is not showing keeps its reference (Decision 2).
+      const bookId = message.payload?.bookId;
+      const path = message.payload?.path;
+      if (!bookId || !path) return state;
+      const prevBook = state.song[bookId] ?? {};
+      return {
+        ...state,
+        song: {
+          ...state.song,
+          [bookId]: {
+            ...prevBook,
+            [path]: {
+              transposition: message.payload?.transposition ?? 0,
+              variations: message.payload?.variations ?? {},
+            },
           },
         },
       };

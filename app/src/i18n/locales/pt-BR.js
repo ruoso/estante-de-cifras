@@ -436,6 +436,44 @@ export default {
 
   chart: { label: 'Cifra' },
 
+  reading: {
+    back: 'Voltar',
+    byline: '{artist} · {book}',
+    keyOf: 'Tom de {key}',
+    shapes: 'Formas',
+    shapesInKey: 'Formas em {key}',
+    shapesCaption: 'Vazado: a forma padrão do app. Preenchido em cor: a sua forma para esse acorde.',
+    transposedCaptionKey:
+      'As formas da própria música são para {key}, então acordes transpostos usam as suas formas e, depois, as padrão.',
+    transposedCaption:
+      'Uma música transposta não tem formas escolhidas, então cada acorde usa a sua forma e, depois, a padrão.',
+    unvoiced: 'Nenhuma forma tocável para {list}.',
+    variationLabel: 'Variação',
+    variationDefault: 'Padrão',
+    transpose: 'Transpor',
+    transposeTitle: 'Transpor a visualização',
+    down: 'Um semitom abaixo',
+    up: 'Um semitom acima',
+    writtenKey: 'Tom escrito',
+    transposedToKey: 'Transposta para {key} ({offset})',
+    transposedBy: 'Transposta ({offset})',
+    backToKey: 'Voltar para {key}',
+    backToWritten: 'Voltar ao tom escrito',
+    arrangingOff: 'Arranjo desativado enquanto transposta',
+    noVoicings:
+      'Ninguém escolheu formas para {instrument} nesta música ainda. Estas são as formas mais fáceis para cada acorde.',
+    arrangeFor: 'Arranjar para {instrument}',
+    arrange: 'Arranjar',
+    edit: 'Editar',
+    history: 'Histórico',
+    addToSetlist: 'Adicionar ao repertório',
+    print: 'Imprimir',
+    share: 'Compartilhar',
+    more: 'Mais',
+    fullScreen: 'Tela cheia',
+    exitFullScreen: 'Sair da tela cheia',
+  },
+
   library: {
     title: 'Desenhos salvos',
     empty:

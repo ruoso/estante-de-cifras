@@ -15,8 +15,9 @@ task songs "Songs" {
   task reading "Reading a song" {
     effort 3d
     allocate team
+    complete 100
     depends music.fallback, music.transpose
-    note "The chart and the shapes, variation picker, full screen, print, add to setlist, share; updated in place by sync. Workflows 2, 8. Tests: behavior (variation picker, full screen, print styles, add to setlist, share; Testing Library and axe); e2e-web (open and read a song on the three viewports, transpose and reopen, updated in place by a sync from the stack; offline: after a reload with the network cut, the song, its shapes and the explorer; axe)."
+    note "The chart and the shapes, variation picker, full screen, print, add to setlist, share; updated in place by sync. Workflows 2, 8. Tests: behavior (variation picker, full screen, print styles, add to setlist, share; Testing Library and axe); e2e-web (open and read a song on the three viewports, transpose and reopen, updated in place by a sync from the stack; offline: after a reload with the network cut, the song, its shapes and the explorer; axe). Refinement: tasks/refinements/songs/reading.md"
   }
   task first_song "Playing on guitar — change?" {
     effort 0.5d

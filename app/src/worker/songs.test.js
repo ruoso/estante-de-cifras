@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { transpositionOf, transpositionChange } from './songs.js';
+import {
+  transpositionOf,
+  transpositionChange,
+  variationOf,
+  variationChange,
+  variationsOf,
+  songRefOf,
+} from './songs.js';
 
 // home-book-format §4.5 (songs.json, the `transposition` register) and §2.3 (the
 // song ref key `<book-id>/<path>`). Pins the note's "remembered per song in the
@@ -73,5 +80,93 @@ describe('transpositionOf — the stored offset, or the written key', () => {
     const model = apply({}, transpositionChange(REF, 3));
     expect(transpositionOf(model, REF)).toBe(3);
     expect(transpositionOf(model, OTHER)).toBe(0);
+  });
+});
+
+// The §6.3 tuning identity the per-tuning variation map is keyed by (the
+// space-joined open-string MIDI numbers). Two tunings, so the independence of
+// one tuning's choice from another's is pinned.
+const GUITAR = '40 45 50 55 59 64';
+const CAVACO = '55 62 69 74';
+
+describe('variationChange — the home-book change that remembers the variation in use', () => {
+  it('names the §4.5 per-tuning key path and the label value', () => {
+    expect(variationChange(REF, GUITAR, 'Up the neck')).toEqual({
+      path: [REF, 'variation', GUITAR],
+      value: 'Up the neck',
+    });
+    expect(variationChange(REF, CAVACO, '')).toEqual({
+      path: [REF, 'variation', CAVACO],
+      value: '',
+    });
+  });
+
+  it('round-trips through the register envelope back to variationOf (§4.5 L315-316)', () => {
+    const model = apply({}, variationChange(REF, GUITAR, 'Barre'));
+    expect(model[REF].variation[GUITAR]).toEqual(reg('Barre'));
+    expect(variationOf(model, REF, GUITAR)).toBe('Barre');
+  });
+
+  it('keeps each tuning independent in the per-tuning map', () => {
+    let model = apply({}, variationChange(REF, GUITAR, 'Barre'));
+    model = apply(model, variationChange(REF, CAVACO, 'Up the neck'));
+    expect(variationOf(model, REF, GUITAR)).toBe('Barre');
+    expect(variationOf(model, REF, CAVACO)).toBe('Up the neck');
+  });
+});
+
+describe('variationOf — the variation in use for a tuning, or the default', () => {
+  it('reads back a stored label', () => {
+    const model = { [REF]: { variation: { [GUITAR]: reg('Up the neck') } } };
+    expect(variationOf(model, REF, GUITAR)).toBe('Up the neck');
+  });
+
+  it("an absent register, song, or tuning reads as the default ('')", () => {
+    expect(variationOf({}, REF, GUITAR)).toBe('');
+    expect(variationOf({ [REF]: {} }, REF, GUITAR)).toBe('');
+    expect(variationOf({ [REF]: { variation: {} } }, REF, GUITAR)).toBe('');
+    expect(variationOf({ [REF]: { variation: { [CAVACO]: reg('Barre') } } }, REF, GUITAR)).toBe('');
+    expect(variationOf(undefined, REF, GUITAR)).toBe('');
+  });
+
+  it("a tombstone or a non-string value reads as the default ('')", () => {
+    expect(variationOf({ [REF]: { variation: { [GUITAR]: reg(null) } } }, REF, GUITAR)).toBe('');
+    expect(variationOf({ [REF]: { variation: { [GUITAR]: reg(2) } } }, REF, GUITAR)).toBe('');
+    // A malformed register (missing `at`) is not a register and is ignored.
+    expect(variationOf({ [REF]: { variation: { [GUITAR]: { value: 'x' } } } }, REF, GUITAR)).toBe('');
+    // A `variation` that is not a map is ignored.
+    expect(variationOf({ [REF]: { variation: 'oops' } }, REF, GUITAR)).toBe('');
+  });
+
+  it('a different song ref is independent', () => {
+    const model = apply({}, variationChange(REF, GUITAR, 'Barre'));
+    expect(variationOf(model, REF, GUITAR)).toBe('Barre');
+    expect(variationOf(model, OTHER, GUITAR)).toBe('');
+  });
+});
+
+describe('variationsOf — the whole per-tuning map the SONG surface carries', () => {
+  it('projects the live string registers to a plain map', () => {
+    let model = apply({}, variationChange(REF, GUITAR, 'Barre'));
+    model = apply(model, variationChange(REF, CAVACO, 'Up the neck'));
+    expect(variationsOf(model, REF)).toEqual({ [GUITAR]: 'Barre', [CAVACO]: 'Up the neck' });
+  });
+
+  it('is empty for an absent song or an absent map, and drops tombstones/non-strings', () => {
+    expect(variationsOf({}, REF)).toEqual({});
+    expect(variationsOf({ [REF]: {} }, REF)).toEqual({});
+    const model = {
+      [REF]: { variation: { [GUITAR]: reg('Barre'), [CAVACO]: reg(null), '1 2': reg(3) } },
+    };
+    expect(variationsOf(model, REF)).toEqual({ [GUITAR]: 'Barre' });
+  });
+});
+
+describe('songRefOf — the §2.3 ref the reading state is keyed by', () => {
+  it('joins the book id and the NFC-normalised path', () => {
+    expect(songRefOf('b7c1', 'Chico/Construção.cifra.md')).toBe('b7c1/Chico/Construção.cifra.md');
+    // A decomposed path (NFD) normalises to the same key the canonical writer stores.
+    const nfd = 'Chico/Construção.cifra.md'; // c + combining cedilla
+    expect(songRefOf('b7c1', nfd)).toBe(songRefOf('b7c1', 'Chico/Construção.cifra.md'));
   });
 });

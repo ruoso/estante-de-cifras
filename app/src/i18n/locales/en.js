@@ -476,6 +476,54 @@ export default {
 
   chart: { label: 'Chart' },
 
+  // The reading view (songs.reading, workflow 2; board W02): the chart, the
+  // shapes, the variation picker, the transpose control, full screen, and the
+  // responsive app bar. `{key}` is a key name (a musical token, never
+  // translated), `{offset}` a signed semitone count, `{instrument}` the
+  // instrument in use, `{artist}`/`{book}` the song's artist and its book,
+  // `{list}` a comma-joined chord list.
+  reading: {
+    back: 'Back',
+    byline: '{artist} · {book}',
+    keyOf: 'Key of {key}',
+    shapes: 'Shapes',
+    shapesInKey: 'Shapes in {key}',
+    shapesCaption: "Hollow: the app's default. Filled in colour: your shape for that chord.",
+    transposedCaptionKey:
+      "The song's own shapes are for {key}, so transposed chords use your shapes, then the defaults.",
+    transposedCaption:
+      'A transposed song has no chosen shapes, so each chord uses your shape, then the default.',
+    unvoiced: 'No playable shape for {list}.',
+    // The variation picker (workflow 2 L73-74).
+    variationLabel: 'Variation',
+    variationDefault: 'Default',
+    // The transpose control and its status (workflow 2 L135-146; W02 L181-186).
+    transpose: 'Transpose',
+    transposeTitle: 'Transpose the view',
+    down: 'Down a semitone',
+    up: 'Up a semitone',
+    writtenKey: 'Written key',
+    transposedToKey: 'Transposed to {key} ({offset})',
+    transposedBy: 'Transposed ({offset})',
+    backToKey: 'Back to {key}',
+    backToWritten: 'Back to the written key',
+    arrangingOff: 'Arranging is off while transposed',
+    // The no-voicings notice and the arrange seam (workflow 2 L75-77).
+    noVoicings:
+      'Nobody has chosen shapes for {instrument} in this song yet. These are the easiest shapes for each chord.',
+    arrangeFor: 'Arrange for {instrument}',
+    // The app bar and action bar.
+    arrange: 'Arrange',
+    edit: 'Edit',
+    history: 'History',
+    addToSetlist: 'Add to setlist',
+    print: 'Print',
+    share: 'Share',
+    more: 'More',
+    fullScreen: 'Full screen',
+    exitFullScreen: 'Exit full screen',
+  },
+
   library: {
     title: 'Saved shapes',
     empty: 'Nothing saved for {label} yet. Star a shape on the chords screen to keep it here.',

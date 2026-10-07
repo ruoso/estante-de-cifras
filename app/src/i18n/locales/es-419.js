@@ -436,6 +436,44 @@ export default {
 
   chart: { label: 'Cifrado' },
 
+  reading: {
+    back: 'Atrás',
+    byline: '{artist} · {book}',
+    keyOf: 'Tono de {key}',
+    shapes: 'Formas',
+    shapesInKey: 'Formas en {key}',
+    shapesCaption: 'Hueca: la forma predeterminada del app. Rellena en color: tu forma para ese acorde.',
+    transposedCaptionKey:
+      'Las formas propias de la canción son para {key}, así que los acordes transpuestos usan tus formas y, luego, las predeterminadas.',
+    transposedCaption:
+      'Una canción transpuesta no tiene formas elegidas, así que cada acorde usa tu forma y, luego, la predeterminada.',
+    unvoiced: 'Ninguna forma tocable para {list}.',
+    variationLabel: 'Variación',
+    variationDefault: 'Predeterminada',
+    transpose: 'Transponer',
+    transposeTitle: 'Transponer la vista',
+    down: 'Un semitono abajo',
+    up: 'Un semitono arriba',
+    writtenKey: 'Tono escrito',
+    transposedToKey: 'Transpuesta a {key} ({offset})',
+    transposedBy: 'Transpuesta ({offset})',
+    backToKey: 'Volver a {key}',
+    backToWritten: 'Volver al tono escrito',
+    arrangingOff: 'Arreglar está desactivado mientras está transpuesta',
+    noVoicings:
+      'Nadie ha elegido formas para {instrument} en esta canción todavía. Estas son las formas más fáciles para cada acorde.',
+    arrangeFor: 'Arreglar para {instrument}',
+    arrange: 'Arreglar',
+    edit: 'Editar',
+    history: 'Historial',
+    addToSetlist: 'Agregar al repertorio',
+    print: 'Imprimir',
+    share: 'Compartir',
+    more: 'Más',
+    fullScreen: 'Pantalla completa',
+    exitFullScreen: 'Salir de pantalla completa',
+  },
+
   library: {
     title: 'Formas guardadas',
     empty:

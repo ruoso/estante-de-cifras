@@ -26,6 +26,7 @@ import { getAppStore } from '../worker/store.js';
 import { useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import SearchScreen from '../songs/SearchScreen.jsx';
+import SongReading from '../songs/SongReading.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
 import FileView from '../files/FileView.jsx';
@@ -132,7 +133,7 @@ function destinationTab(key, variant) {
 // Decision 1) — while `setlists` stays a labelled slot its own content task will
 // fill. RAC mounts only the selected panel, so exactly one level-1 heading (the
 // screen's own) is present at a time.
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, search) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, search) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key}>
       {key === 'search' ? (
@@ -149,6 +150,7 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, search) {
           store={store}
           onAddBook={() => onNavigate('books')}
           onWriteSong={onWriteSong}
+          onOpenSong={onOpenSong}
           query={search.query}
           onQueryChange={search.onQueryChange}
           onExploreChord={search.onExploreChord}
@@ -187,6 +189,11 @@ export default function AppShell({ store = getAppStore() }) {
   // is null. Ephemeral view state, no router (shell.layout).
   const [searchQuery, setSearchQuery] = useState('');
   const [exploring, setExploring] = useState(null);
+  // The open song, set from a tapped search result (songs.reading Decision 5):
+  // `{ bookId, path }` or null. Like the editor host and the file view, it is a
+  // full-screen surface over the shell (narrow) / the master-detail (wide), and
+  // ephemeral view state — no router, no store slice (shell.layout Decision).
+  const [openSong, setOpenSong] = useState(null);
   // The live CodeMirror view, so Change book can carry the current text to the
   // new book's placeholder (Decision 3). A ref, not state — it never renders.
   const editorRef = useRef(null);
@@ -313,6 +320,27 @@ export default function AppShell({ store = getAppStore() }) {
     );
   }
 
+  // A song is open to be read (songs.reading): a full screen over the shell on
+  // the phone (Back returns to search), the computer's master-detail on tablet
+  // and computer (search in `.pane.side`, the reading view in `.pane.main` —
+  // SongReading draws the split itself, sharing the open-song seam so a result
+  // in the side pane switches songs). The toolbar's edit / history / arrange /
+  // add-to-setlist / share are affordance seams their owning tasks wire
+  // (songs.editor, songs.history, songs.arrange, books.setlists, books.share);
+  // this task renders them and raises the callbacks (Decision 6).
+  if (openSong) {
+    return (
+      <SongReading
+        store={store}
+        bookId={openSong.bookId}
+        path={openSong.path}
+        mode={mode}
+        onBack={() => setOpenSong(null)}
+        onOpenSong={setOpenSong}
+      />
+    );
+  }
+
   // The chord explorer (music.explorer, workflow 16): a full screen over the
   // shell, reached from search's chord row, carrying the typed symbol. Back
   // returns to search with the query still typed (it is lifted above).
@@ -358,7 +386,7 @@ export default function AppShell({ store = getAppStore() }) {
             </div>
             <main className="pane main">
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, setOpenFile, search)}
+                {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, search)}
               </div>
             </main>
           </div>
@@ -378,7 +406,7 @@ export default function AppShell({ store = getAppStore() }) {
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className="scroll">
-              {destinationPanels(store, setSelected, startNewSong, setOpenFile, search)}
+              {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, search)}
             </main>
           </div>
         )}

@@ -47,4 +47,10 @@ task sync "Sync" {
     depends !engine
     note "The original's new saves counted; bring them in through the preview; the original going away. Workflow 11. Tests: behavior (the original's new saves counted, brought in through the preview, the original gone — against local remotes); e2e-api (fork on the stack, push to the original, the fork's device counts and brings in the new save)."
   }
+  task read_in_place "A song open while sync changes it" {
+    effort 1.5d
+    allocate team
+    depends songs.reading, !states
+    note "When a sync brings a new version of the open song, it updates in place keeping the place on the page, with a notice — updated by {name}: see what changed — that opens its history. Read full screen, the update waits until the reader leaves. Source of debt: tasks/refinements/songs/reading.md (songs.reading). Workflow 8 §A song open while it changes (L50-54). Tests: behavior (the in-place update keeps the place, the notice opens history, full screen defers until exit; axe); e2e-web (a song open while a sync from the stack brings a new version updates in place on the three viewports, full screen defers; axe)."
+  }
 }
