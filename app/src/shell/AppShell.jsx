@@ -27,6 +27,7 @@ import { useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import SearchScreen from '../songs/SearchScreen.jsx';
 import SongReading from '../songs/SongReading.jsx';
+import SongArrange from '../songs/SongArrange.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
 import FileView from '../files/FileView.jsx';
@@ -194,6 +195,12 @@ export default function AppShell({ store = getAppStore() }) {
   // full-screen surface over the shell (narrow) / the master-detail (wide), and
   // ephemeral view state — no router, no store slice (shell.layout Decision).
   const [openSong, setOpenSong] = useState(null);
+  // The arrange surface, raised from the reading view's `onArrange` seam
+  // (songs.arrange Decision 1): `{ bookId, path }` or null. A full-screen surface
+  // mounted over the open song — **Done** clears it and returns to reading with
+  // the working copy's unsaved edit intact. Ephemeral view state, no router, like
+  // `openSong` itself.
+  const [arranging, setArranging] = useState(null);
   // The live CodeMirror view, so Change book can carry the current text to the
   // new book's placeholder (Decision 3). A ref, not state — it never renders.
   const editorRef = useRef(null);
@@ -320,6 +327,23 @@ export default function AppShell({ store = getAppStore() }) {
     );
   }
 
+  // Arranging a song (songs.arrange): the mode entered from the reading view's
+  // `onArrange` seam, a full screen over the open song. **Done** returns to
+  // reading (the working copy's unsaved edit stays). Checked before `openSong`
+  // so it sits over the reading view that raised it; *Run the wizard* raises the
+  // songs.wizard_ui seam (Decision 9), which this task leaves to that task.
+  if (arranging) {
+    return (
+      <SongArrange
+        store={store}
+        bookId={arranging.bookId}
+        path={arranging.path}
+        mode={mode}
+        onBack={() => setArranging(null)}
+      />
+    );
+  }
+
   // A song is open to be read (songs.reading): a full screen over the shell on
   // the phone (Back returns to search), the computer's master-detail on tablet
   // and computer (search in `.pane.side`, the reading view in `.pane.main` —
@@ -327,7 +351,8 @@ export default function AppShell({ store = getAppStore() }) {
   // in the side pane switches songs). The toolbar's edit / history / arrange /
   // add-to-setlist / share are affordance seams their owning tasks wire
   // (songs.editor, songs.history, songs.arrange, books.setlists, books.share);
-  // this task renders them and raises the callbacks (Decision 6).
+  // this task renders them and raises the callbacks (Decision 6). Arrange is now
+  // wired: `onArrange` opens the arrange surface above.
   if (openSong) {
     return (
       <SongReading
@@ -337,6 +362,7 @@ export default function AppShell({ store = getAppStore() }) {
         mode={mode}
         onBack={() => setOpenSong(null)}
         onOpenSong={setOpenSong}
+        onArrange={setArranging}
       />
     );
   }

@@ -49,21 +49,50 @@ function chordText(item) {
 const endsTight = (text) => /\S$/.test(text);
 const startsTight = (text) => /^\S/.test(text);
 
+// The per-chord pressable token carried alongside each rendered chord, for the
+// arrange surface's opt-in interactive seam (Chart's `onChordPress`, Workflow 5
+// Decision 3). It is `null` for everything but a voiced chord: only a `chord`
+// item with a §2.4 voicing `key` is a thing to tap (a no-chord, beat, repeat or
+// unknown token is not). The `address` is the cifra.md occurrence path
+// { section, part, line, measure, item } — `measure` the raw index into
+// `line.measures`, `item` the raw index into `measure.items` — so it indexes the
+// same item as `cifra-md`'s §8.5 `itemAt` / `song-analysis.analyseSong`. The
+// field is additive: the non-interactive reading chart never reads it, so its
+// render is unchanged.
+function tokenFor(item, address, measure, item_) {
+  if (item.type !== 'chord' || item.key == null) return null;
+  return {
+    symbol: item.symbol,
+    key: item.key,
+    address: { section: address.section, part: address.part, line: address.line, measure, item: item_ },
+  };
+}
+
 // A sung line → a row of segments built from the measure-making items in column
 // order. Segments are grouped per measure so the hyphen never bridges across a
 // bar rule (a word does not continue over a bar between measures); within a
-// measure, a segment's `hyphen` is set when it splits a word with the next.
+// measure, a segment's `hyphen` is set when it splits a word with the next. Each
+// segment also carries its pressable `token` (null for a non-chord), used only
+// by the interactive arrange chart.
 function sungRow(line, address) {
   const segments = [];
-  for (const measure of line.measures) {
-    const items = measure.items.filter((item) => SEGMENT_TYPES.has(item.type));
-    items.forEach((item, i) => {
+  line.measures.forEach((measure, measureIndex) => {
+    const items = [];
+    measure.items.forEach((item, itemIndex) => {
+      if (SEGMENT_TYPES.has(item.type)) items.push({ item, itemIndex });
+    });
+    items.forEach(({ item, itemIndex }, i) => {
       const words = item.words ?? '';
       const next = items[i + 1];
-      const hyphen = next != null && endsTight(words) && startsTight(next.words ?? '');
-      segments.push({ chord: chordText(item), words, hyphen });
+      const hyphen = next != null && endsTight(words) && startsTight(next.item.words ?? '');
+      segments.push({
+        chord: chordText(item),
+        words,
+        hyphen,
+        token: tokenFor(item, address, measureIndex, itemIndex),
+      });
     });
-  }
+  });
   return { type: 'sung', segments, address };
 }
 
@@ -76,14 +105,38 @@ function measureCell(measure) {
     .join(' ');
 }
 
+// One chord-only measure → its renderable cells with their pressable tokens, in
+// column order (the structured parallel of `measureCell`, for the interactive
+// arrange chart). Each cell is `{ text, token }`; `token` is null for a
+// non-chord glyph.
+function measureTokens(measure, address, measureIndex) {
+  const cells = [];
+  measure.items.forEach((item, itemIndex) => {
+    if (!SEGMENT_TYPES.has(item.type)) return;
+    cells.push({ text: chordText(item), token: tokenFor(item, address, measureIndex, itemIndex) });
+  });
+  return cells;
+}
+
 // A chord-only (chart) line → a run row when it carries no bar lines (§2.1,
 // `run === true`), else a bars row of one cell per measure, drawn between bar
-// rules by the adopted CSS. Chart lines carry no words (§4.4).
+// rules by the adopted CSS. Chart lines carry no words (§4.4). The non-
+// interactive `text`/`measures` strings are unchanged; `tokens`/`cells` are the
+// additive structured form the interactive arrange chart reads.
 function chartRow(line, address) {
   if (line.run) {
-    return { type: 'run', text: line.measures.map(measureCell).join(' '), address };
+    const tokens = [];
+    line.measures.forEach((measure, measureIndex) => {
+      for (const cell of measureTokens(measure, address, measureIndex)) tokens.push(cell);
+    });
+    return { type: 'run', text: line.measures.map(measureCell).join(' '), tokens, address };
   }
-  return { type: 'bars', measures: line.measures.map(measureCell), address };
+  return {
+    type: 'bars',
+    measures: line.measures.map(measureCell),
+    cells: line.measures.map((measure, measureIndex) => measureTokens(measure, address, measureIndex)),
+    address,
+  };
 }
 
 function rowForLine(line, address) {

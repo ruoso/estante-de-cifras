@@ -57,8 +57,9 @@ task songs "Songs" {
   task arrange "Arrange mode and the picker" {
     effort 4d
     allocate team
+    complete 100
     depends !reading, cifra_js.editing, music.explorer
-    note "Tappable chords, every Cm or only here, choose these for every unchosen chord, enter a shape by hand, variations. Workflow 5. Tests: behavior (tappable chords, every Cm or only here, a shape by hand; a keyboard path through the picker; axe); e2e-web (arrange a song for guitar on the three viewports, keyboard only on the computer, a new variation; axe)."
+    note "Tappable chords, every Cm or only here, choose these for every unchosen chord, enter a shape by hand, variations. Workflow 5. Tests: behavior (tappable chords, every Cm or only here, a shape by hand; a keyboard path through the picker; axe); e2e-web (arrange a song for guitar on the three viewports, keyboard only on the computer, a new variation; axe). Refinement: tasks/refinements/songs/arrange.md"
   }
   task wizard_ui "The wizard in a song" {
     effort 1d

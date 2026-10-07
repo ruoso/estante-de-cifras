@@ -59,8 +59,9 @@ function readoutLabel(chord, openMidi, value, index, stringCount) {
 }
 
 // The grid + read-out + preview, mounted fresh each time the dialog opens so its
-// entered state starts empty.
-function ShapeBuilder({ instrument, chord, chordSymbol, dialect, onStar, close }) {
+// entered state starts empty. The primary action is configurable (Decision 6):
+// the explorer passes its star, arrange passes "Choose this shape".
+function ShapeBuilder({ instrument, chord, dialect, primary, close }) {
   const stringCount = instrument.strings.length;
   const opens = openMidis(instrument);
   const [frets, setFrets] = useState(() => Array.from({ length: stringCount }, () => 'x'));
@@ -145,34 +146,45 @@ function ShapeBuilder({ instrument, chord, chordSymbol, dialect, onStar, close }
         <Button
           className="btn primary"
           isDisabled={!fingering}
-          aria-label={t('explorer.star', {
-            chord: chordSymbol,
-            shorthand: fingering ? fingering.shorthand : '',
-          })}
+          aria-label={primary.ariaLabel(fingering)}
           onPress={() => {
             if (!fingering) return;
-            onStar(fingering);
+            primary.onChoose(fingering);
             close();
           }}
         >
-          <StarIcon />
-          <span>{t('explorer.enter.star')}</span>
+          {primary.icon}
+          <span>{primary.label}</span>
         </Button>
       </div>
     </div>
   );
 }
 
-export default function EnterShape({ instrument, chord, chordSymbol, dialect, onStar }) {
+export default function EnterShape({ instrument, chord, chordSymbol, dialect, onStar, primary }) {
   // No chord to place notes against, or no instrument — nothing to enter.
   const ready = Boolean(instrument && chord);
+  // The default primary action is the explorer's star, built from `onStar`
+  // (music.explorer); a consumer (arrange) passes its own `primary` to write the
+  // shape elsewhere (Decision 6). Each `primary` carries the button copy, its
+  // per-fingering accessible name, the trigger-row copy, and the dialog title.
+  const action = primary ?? {
+    label: t('explorer.enter.star'),
+    icon: <StarIcon />,
+    ariaLabel: (fingering) =>
+      t('explorer.star', { chord: chordSymbol, shorthand: fingering ? fingering.shorthand : '' }),
+    onChoose: (fingering) => onStar(fingering),
+    triggerName: t('explorer.enter.name'),
+    triggerMeta: t('explorer.enter.meta'),
+    title: t('explorer.enter.title'),
+  };
   return (
     <DialogTrigger>
       <Button className="row explore enter-shape-trigger" isDisabled={!ready}>
         <PlusIcon />
         <span className="grow">
-          <span className="name">{t('explorer.enter.name')}</span>
-          <span className="meta">{t('explorer.enter.meta')}</span>
+          <span className="name">{action.triggerName}</span>
+          {action.triggerMeta ? <span className="meta">{action.triggerMeta}</span> : null}
         </span>
       </Button>
       <ModalOverlay className="scrim center" isDismissable>
@@ -181,15 +193,14 @@ export default function EnterShape({ instrument, chord, chordSymbol, dialect, on
             {({ close }) => (
               <>
                 <Heading slot="title" className="t-h2">
-                  {t('explorer.enter.title')}
+                  {action.title}
                 </Heading>
                 {ready ? (
                   <ShapeBuilder
                     instrument={instrument}
                     chord={chord}
-                    chordSymbol={chordSymbol}
                     dialect={dialect}
-                    onStar={onStar}
+                    primary={action}
                     close={close}
                   />
                 ) : null}

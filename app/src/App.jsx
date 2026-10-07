@@ -7,6 +7,7 @@ import ChartGallery from './chart/gallery/ChartGallery.jsx';
 import EditorDev from './editor/EditorDev.jsx';
 import HistoryDev from './songs/HistoryDev.jsx';
 import ReadingDev from './songs/ReadingDev.jsx';
+import ArrangeDev from './songs/ArrangeDev.jsx';
 import FilesDev from './files/FilesDev.jsx';
 import UpdateReady from './pwa/UpdateReady.jsx';
 import { getAppStore } from './worker/store.js';
@@ -43,6 +44,14 @@ function isHistoryDev() {
 // `#dev/reading?book=…&path=…` so its behaviour and e2e run on every viewport.
 function isReadingDev() {
   return typeof location !== 'undefined' && location.hash.startsWith('#dev/reading');
+}
+
+// The arrange surface's dev mount, `#dev/arrange` — mirroring `#dev/reading`
+// (songs.arrange Decision 1). Its real entry is the reading view's `onArrange`
+// seam (wired here in AppShell); the dev mount stands the surface up at
+// `#dev/arrange?book=…&path=…` so its behavior and e2e run on every viewport.
+function isArrangeDev() {
+  return typeof location !== 'undefined' && location.hash.startsWith('#dev/arrange');
 }
 
 // The file view's dev mount, `#dev/files` — mirroring `#dev/history`
@@ -96,6 +105,8 @@ export default function App({ store = getAppStore() }) {
           <HistoryDev store={store} />
         ) : isReadingDev() ? (
           <ReadingDev store={store} />
+        ) : isArrangeDev() ? (
+          <ArrangeDev store={store} />
         ) : isFilesDev() ? (
           <FilesDev store={store} />
         ) : (

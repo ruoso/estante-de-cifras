@@ -55,8 +55,13 @@ describe('chartRows — sung lines', () => {
     );
     const sung = rows.find((r) => r.type === 'sung');
     expect(sung.segments).toEqual([
-      { chord: '', words: 'Te', hyphen: true },
-      { chord: 'G', words: 'sting', hyphen: false },
+      { chord: '', words: 'Te', hyphen: true, token: null },
+      {
+        chord: 'G',
+        words: 'sting',
+        hyphen: false,
+        token: { symbol: 'G', key: 'G', address: { section: 0, part: 0, line: 0, measure: 0, item: 1 } },
+      },
     ]);
     expect(sung.address).toEqual({ section: 0, part: 0, line: 0 });
   });
@@ -116,8 +121,18 @@ describe('chartRows — sung lines', () => {
     const sung = rows.find((r) => r.type === 'sung');
     // The last segment of the first measure carries no hyphen onto the next.
     expect(sung.segments).toEqual([
-      { chord: 'C', words: 'some', hyphen: false },
-      { chord: 'G', words: 'more', hyphen: false },
+      {
+        chord: 'C',
+        words: 'some',
+        hyphen: false,
+        token: { symbol: 'C', key: 'C', address: { section: 0, part: 0, line: 0, measure: 0, item: 0 } },
+      },
+      {
+        chord: 'G',
+        words: 'more',
+        hyphen: false,
+        token: { symbol: 'G', key: 'G', address: { section: 0, part: 0, line: 0, measure: 1, item: 0 } },
+      },
     ]);
   });
 
@@ -145,9 +160,11 @@ describe('chartRows — sung lines', () => {
       ]),
     );
     const sung = rows.find((r) => r.type === 'sung');
+    // A no-chord and an unknown token are not pressable (only a voiced chord is):
+    // their token is null.
     expect(sung.segments).toEqual([
-      { chord: 'N.C.', words: 'hush ', hyphen: false },
-      { chord: '>x', words: 'then', hyphen: false },
+      { chord: 'N.C.', words: 'hush ', hyphen: false, token: null },
+      { chord: '>x', words: 'then', hyphen: false, token: null },
     ]);
   });
 
@@ -177,9 +194,17 @@ describe('chartRows — sung lines', () => {
       ]),
     );
     const sung = rows.find((r) => r.type === 'sung');
+    // The dropped structural tokens do not shift the chord's raw item index: Cm
+    // is item 3 (after the nochord, count and mark), the index cifra-md's §8.5
+    // `itemAt` uses.
     expect(sung.segments).toEqual([
-      { chord: 'N.C.', words: 'la ', hyphen: false },
-      { chord: 'Cm', words: 'la', hyphen: false },
+      { chord: 'N.C.', words: 'la ', hyphen: false, token: null },
+      {
+        chord: 'Cm',
+        words: 'la',
+        hyphen: false,
+        token: { symbol: 'Cm', key: 'Cm', address: { section: 0, part: 0, line: 0, measure: 0, item: 3 } },
+      },
     ]);
   });
 });
@@ -208,6 +233,34 @@ describe('chartRows — chord-only lines', () => {
     expect(bars.address).toEqual({ section: 0, part: 0, line: 0 });
   });
 
+  it('carries each chord-only cell its pressable token with the §8.5 occurrence (arrange seam, Decision 3)', () => {
+    const rows = chartRows(
+      model([
+        section('Chart', [
+          music([
+            {
+              kind: 'chart',
+              closeBar: '|',
+              measures: [
+                { bar: null, items: [chord('C'), chord('Am')] },
+                { bar: '|', items: [chord('F')] },
+              ],
+            },
+          ]),
+        ]),
+      ]),
+    );
+    const bars = rows.find((r) => r.type === 'bars');
+    // One cell array per measure; each voiced chord carries its raw item index.
+    expect(bars.cells).toEqual([
+      [
+        { text: 'C', token: { symbol: 'C', key: 'C', address: { section: 0, part: 0, line: 0, measure: 0, item: 0 } } },
+        { text: 'Am', token: { symbol: 'Am', key: 'Am', address: { section: 0, part: 0, line: 0, measure: 0, item: 1 } } },
+      ],
+      [{ text: 'F', token: { symbol: 'F', key: 'F', address: { section: 0, part: 0, line: 0, measure: 1, item: 0 } } }],
+    ]);
+  });
+
   it('yields a run row for a chord line with no bar lines', () => {
     const rows = chartRows(
       model([
@@ -225,6 +278,9 @@ describe('chartRows — chord-only lines', () => {
     );
     const run = rows.find((r) => r.type === 'run');
     expect(run).toMatchObject({ type: 'run', text: 'G D Em C' });
+    // The run also carries pressable tokens in column order (the arrange seam).
+    expect(run.tokens.map((c) => c.text)).toEqual(['G', 'D', 'Em', 'C']);
+    expect(run.tokens[2].token.address).toEqual({ section: 0, part: 0, line: 0, measure: 0, item: 2 });
   });
 
   it('renders N.C. as a chord-only cell (spec §2.6)', () => {

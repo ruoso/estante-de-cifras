@@ -529,6 +529,50 @@ export default {
     exitFullScreen: 'Exit full screen',
   },
 
+  // The arrange surface (songs.arrange, workflow 5; board W05): the mode entered
+  // from reading that turns the chords into things to tap. `{instrument}` is the
+  // instrument in use, `{chord}` a chord symbol (a musical token, never
+  // translated), `{shorthand}` its spoken fret string, `{name}` a variation name.
+  arrange: {
+    back: 'Back',
+    done: 'Done',
+    modeChip: 'Arranging · {instrument}',
+    modeHint: 'Tap a chord to choose its shape',
+    chordButton: 'Choose a shape for {chord}',
+    shapes: 'Shapes',
+    shapesCaption:
+      'Chosen shapes show in ink. A chord you have not chosen shows your shape or the app’s default, each marked.',
+    chooseEveryUnchosen: 'Choose these for every unchosen chord',
+    runWizard: 'Run the wizard',
+    variations: 'Variations',
+    // The picker (W05 L89-112).
+    pickerLabel: 'Shapes for {chord}',
+    scopeLabel: 'Which chords this changes',
+    everyChord: 'Every {chord}',
+    onlyHere: 'Only here',
+    onlyHereWarning:
+      'Only here marks this bar in the chart, for everyone who plays the song. On their instruments it shows the default until someone chooses.',
+    choose: 'Choose',
+    chooseShape: 'Choose this shape',
+    chooseShapeLabel: 'Choose {chord}, {shorthand}',
+    enterShape: 'Enter a shape',
+    enterShapeTitle: 'Enter a shape for {chord}',
+    noShapes: 'No playable shape for {chord} on {instrument}.',
+    // The variation selector and the add-a-variation dialog (W05 L75-85, 200-224).
+    variationLabel: 'Variation',
+    variationDefault: 'Default',
+    newVariation: '+ New variation',
+    selectorCaption: 'The selector shows only when {instrument} has more than one variation in this song.',
+    addVariationTitle: 'Add a variation',
+    variationName: 'Name for this variation',
+    variationPlaceholder: 'Up the neck',
+    variationCopy: 'Start from the shapes in “{name}”',
+    variationNeedsName: 'Give the variation a name.',
+    variationTaken: 'There is already a variation called “{name}” for this instrument.',
+    addVariationCancel: 'Cancel',
+    addVariationConfirm: 'Add',
+  },
+
   library: {
     title: 'Saved shapes',
     empty: 'Nothing saved for {label} yet. Star a shape on the chords screen to keep it here.',

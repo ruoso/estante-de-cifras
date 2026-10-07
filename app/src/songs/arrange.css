@@ -1,0 +1,164 @@
+/* The arrange surface (songs.arrange, board W05). Layout only — every colour
+   comes from the theme tokens through the shared classes (.appbar, .chip.accent,
+   .seg, .scrim/.sheet/.grip, .notice.unsaved, .row.explore, .shapes, .btn), so
+   the surface re-themes with no code in it (the chart/diagram invariant). */
+
+.arrange-screen {
+  flex: 1;
+  min-height: 0;
+}
+
+.arrange-scroll {
+  overflow-y: auto;
+  gap: calc(var(--u) * 2);
+}
+
+.arrange-hint {
+  margin: 0;
+}
+
+/* The variation selector row above the shapes (shown only with >1 variation). */
+.arrange-variation-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  flex-wrap: wrap;
+}
+
+/* Chart, then the shapes strip. On a wide pane they sit side by side (the
+   computer board); on a phone they stack. */
+.arrange-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+.arrange-wide .arrange-body {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: calc(var(--u) * 4);
+}
+.arrange-wide .arrange-body .chart {
+  flex: 1;
+  min-width: 0;
+}
+.arrange-wide .arrange-shapes {
+  width: 300px;
+  flex: none;
+}
+
+.arrange-shapes {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+}
+
+/* The bottom action bar (Run the wizard · Variations). */
+.arrange-actionbar {
+  display: flex;
+  gap: calc(var(--u) * 1.25);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2) calc(var(--u) * 2.75);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.arrange-actionbar .btn.grow {
+  flex: 1;
+}
+
+/* A chord in the chart turned into a press target (the interactive seam). It
+   reads as the chord text it replaces — the chord colour and weight come from
+   the chart's own .c/.m rules — with the tappable accent background and a clear
+   focus ring. */
+.chart .chord-tap {
+  font: inherit;
+  color: inherit;
+  background: var(--accent-soft);
+  border: 0;
+  margin: 0;
+  padding: 0 3px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.chart .chord-tap:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The picker — a bottom sheet (narrow) or a centred panel (wide). The sheet's
+   surface, radius, grip and padding come from the shared .sheet/.grip. */
+.arrange-picker {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+  outline: none;
+}
+/* The picker lists every candidate shape for the chord — often more than fits
+   the screen. Cap the sheet to the viewport and let it scroll, or the candidate
+   Choose buttons fall below the fold and can't be reached (the phone bottom sheet
+   and the wide centred panel alike; the scrim fills the screen, so 100% is the
+   viewport). This mirrors the instrument modal's capped-and-scroll pattern.
+   `.sheet` is content-box, so border-box makes the cap include its padding. */
+.arrange-sheet {
+  box-sizing: border-box;
+  max-height: calc(100% - var(--u) * 4);
+  overflow-y: auto;
+}
+.scrim.center .arrange-sheet {
+  border-radius: 22px;
+  max-width: 460px;
+  width: calc(100% - 48px);
+}
+.arrange-picker-head {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--u) * 1.25);
+}
+.arrange-scope {
+  align-self: stretch;
+  display: flex;
+}
+.arrange-scope button {
+  flex: 1;
+}
+.arrange-onlyhere {
+  align-items: flex-start;
+}
+.arrange-warn-icon {
+  color: var(--unsaved);
+  flex: none;
+  margin-top: 1px;
+}
+
+/* The per-candidate choose target FingeringGroups renders in its action slot. */
+.arrange-choose {
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+/* The add-a-variation dialog. */
+.arrange-addvar-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+  outline: none;
+}
+.arrange-field-error {
+  color: var(--conflict);
+  font-weight: 600;
+}
+.arrange-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.arrange-copy-box {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+}
+.arrange-copy[data-selected] .arrange-copy-box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
