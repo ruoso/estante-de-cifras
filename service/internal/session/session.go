@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -38,26 +39,77 @@ type Execer interface {
 // enforced lazily at the device's next request (workflow 13), which
 // service.sessions adds — the row is never deleted to sign out.
 //
+// Issue takes the request so it can store a best-effort device label derived
+// from the User-Agent (service.sessions Decision 4) — the one place a session
+// is born, and the only place the agent is in hand. An unrecognised or absent
+// agent leaves device NULL ("when known", api/openapi.yaml:959).
+//
 // Issue writes only the cookie header (not yet flushed), so a caller may still
 // choose its response status afterward. The cookie's value is a server-assigned
 // identifier, never logged.
-func Issue(ctx context.Context, db Execer, accountID string, w http.ResponseWriter) error {
+func Issue(ctx context.Context, db Execer, accountID string, r *http.Request, w http.ResponseWriter) error {
+	var device *string
+	if label := describeDevice(r.UserAgent()); label != "" {
+		device = &label
+	}
+
 	var id string
 	if err := db.QueryRow(ctx,
-		`INSERT INTO sessions (account_id) VALUES ($1) RETURNING id`,
-		accountID).Scan(&id); err != nil {
+		`INSERT INTO sessions (account_id, device) VALUES ($1, $2) RETURNING id`,
+		accountID, device).Scan(&id); err != nil {
 		return fmt.Errorf("session: inserting a session row: %w", err)
 	}
 
+	writeCookie(w, id, 0, time.Time{})
+	return nil
+}
+
+// Revoke marks a session revoked (lazy sign-out, workflow 13; refinement
+// Decisions 2, 7, 8): it sets revoked_at on the row only when it belongs to
+// accountID and is not already revoked, so a wrong account, an unknown or
+// already-revoked id affects no row. It reports whether a row was revoked, so
+// revokeSession can answer 404 for anything not the account's live session; the
+// row is never deleted. session.Resolve then refuses the revoked row at the
+// device's next request — no active logout push.
+func Revoke(ctx context.Context, db Execer, sessionID, accountID string) (revoked bool, err error) {
+	var id string
+	err = db.QueryRow(ctx,
+		`UPDATE sessions SET revoked_at = now()
+		 WHERE id = $1 AND account_id = $2 AND revoked_at IS NULL
+		 RETURNING id`, sessionID, accountID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("session: revoking a session: %w", err)
+	}
+	return true, nil
+}
+
+// ClearCookie expires the estante_session cookie on w: an empty value with a
+// past expiry, carrying the same HttpOnly/Secure/SameSite=Lax/Path=/ as Issue
+// set, so the browser drops it (signOut, refinement acceptance #1). It does not
+// itself revoke the row — the caller pairs it with Revoke, so a lingering,
+// copied or cached cookie no longer resolves either (Decision 2).
+func ClearCookie(w http.ResponseWriter) {
+	writeCookie(w, "", -1, time.Unix(0, 0))
+}
+
+// writeCookie sets the estante_session cookie with the fixed attributes Issue
+// and ClearCookie share, so they can never drift apart. maxAge/expires are 0
+// and the zero time for a session cookie (Issue), and -1 / the epoch to expire
+// it (ClearCookie).
+func writeCookie(w http.ResponseWriter, value string, maxAge int, expires time.Time) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     CookieName,
-		Value:    id,
+		Value:    value,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
+		MaxAge:   maxAge,
+		Expires:  expires,
 	})
-	return nil
 }
 
 // Resolve is the minimal session-read seam the authenticated routes need: it

@@ -50,6 +50,14 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 		// (workflow 13; api/openapi.yaml /api/auth/email/*).
 		mux.HandleFunc("POST /api/auth/email/request", handleRequestEmailLink(api))
 		mux.HandleFunc("POST /api/auth/email/redeem", handleRedeemEmailLink(api))
+		// The account-screen session management: sign out of this device, list
+		// the signed-in devices, and sign one out from another (workflow 13;
+		// api/openapi.yaml /api/auth/signout and /api/account/sessions). These
+		// need only the pool and the session seam, not the passkey relying
+		// party, so they are routed whenever the API is wired.
+		mux.HandleFunc("POST /api/auth/signout", handleSignOut(api))
+		mux.HandleFunc("GET /api/account/sessions", handleListSessions(api))
+		mux.HandleFunc("DELETE /api/account/sessions/{sessionId}", handleRevokeSession(api))
 		// Passkeys: register and sign in with a passkey, and the account's
 		// passkey list (workflow 13; api/openapi.yaml /api/auth/passkey/* and
 		// /api/account/passkeys). Registered only when the relying party is wired.

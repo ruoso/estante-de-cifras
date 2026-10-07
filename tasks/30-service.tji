@@ -29,8 +29,9 @@ task service "The service" {
   task sessions "Sessions and devices" {
     effort 2d
     allocate team
+    complete 100
     depends !passkeys
-    note "HttpOnly session cookie on the one origin; signed-in devices with last use; sign out any of them. Workflow 13. Tests: behavior (the cookie HttpOnly, Secure, SameSite; devices with last use; signing out another device ends its session); e2e-api (a session carried across calls; a signed-out device refused)."
+    note "HttpOnly session cookie on the one origin; signed-in devices with last use; sign out any of them. Workflow 13. Tests: behavior (the cookie HttpOnly, Secure, SameSite; devices with last use; signing out another device ends its session); e2e-api (a session carried across calls; a signed-out device refused). Refinement: tasks/refinements/service/sessions.md"
   }
   task books "Books: create, list, delete, fork" {
     effort 3d

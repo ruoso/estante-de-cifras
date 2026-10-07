@@ -187,7 +187,7 @@ func handleRegisterPasskeyFinish(api *APIDeps) http.HandlerFunc {
 
 		// First-run account creation: the account, its first passkey and the
 		// session are written together, so a failed step leaves nothing behind.
-		if err := api.createAccountWithPasskey(ctx, accountID, row, w); err != nil {
+		if err := api.createAccountWithPasskey(ctx, accountID, row, r, w); err != nil {
 			if errors.Is(err, errDuplicateCredential) {
 				writeError(w, http.StatusBadRequest, "bad_request", "That passkey is already registered.")
 				return
@@ -291,7 +291,7 @@ func handleAuthenticatePasskeyFinish(api *APIDeps) http.HandlerFunc {
 			return
 		}
 
-		if err := session.Issue(ctx, api.DB, resolvedAccountID, w); err != nil {
+		if err := session.Issue(ctx, api.DB, resolvedAccountID, r, w); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal", "Could not start a session.")
 			return
 		}
@@ -489,7 +489,7 @@ var errDuplicateCredential = errors.New("duplicate credential")
 // step leaves nothing behind (refinement Decision 7). The account id is the one
 // minted at begin and carried in the state, so the WebAuthn user handle always
 // matches the stored account.
-func (api *APIDeps) createAccountWithPasskey(ctx context.Context, accountID string, row passkey.Row, w http.ResponseWriter) error {
+func (api *APIDeps) createAccountWithPasskey(ctx context.Context, accountID string, row passkey.Row, r *http.Request, w http.ResponseWriter) error {
 	tx, err := api.DB.Begin(ctx)
 	if err != nil {
 		return err
@@ -505,7 +505,7 @@ func (api *APIDeps) createAccountWithPasskey(ctx context.Context, accountID stri
 		}
 		return err
 	}
-	if err := session.Issue(ctx, tx, accountID, w); err != nil {
+	if err := session.Issue(ctx, tx, accountID, r, w); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

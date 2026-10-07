@@ -152,7 +152,7 @@ func handleRedeemEmailLink(api *APIDeps) http.HandlerFunc {
 			return
 		}
 
-		if err := session.Issue(r.Context(), api.DB, accountID, w); err != nil {
+		if err := session.Issue(r.Context(), api.DB, accountID, r, w); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal", "Could not start a session.")
 			return
 		}
