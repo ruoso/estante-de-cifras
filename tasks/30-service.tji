@@ -43,8 +43,9 @@ task service "The service" {
   task git_http "Git over HTTP" {
     effort 4d
     allocate team
+    complete 100
     depends !books
-    note "git upload-pack / receive-pack --stateless-rpc framed by the service: service header, Git-Protocol to GIT_PROTOCOL, gzip bodies, size cap, deadline, kill on disconnect, refusals before git starts, ESTANTE_* environment for the hook. DIRECTION §3.6 Git over HTTP. Tests: unit (the service header as a pkt-line, Git-Protocol to GIT_PROTOCOL, the gzip reader, the ESTANTE_* environment); behavior (httptest with real git: clone, fetch and push; a gzip body; a protocol v2 fetch; a client disconnecting mid-push kills git and leaves no lock; the size cap and the deadline; no access, over quota and a deleted book refused before git starts); e2e-api (the git CLI and isomorphic-git clone, fetch and push against the stack; a protocol v2 fetch from the CLI; a non-member refused)."
+    note "git upload-pack / receive-pack --stateless-rpc framed by the service: service header, Git-Protocol to GIT_PROTOCOL, gzip bodies, size cap, deadline, kill on disconnect, refusals before git starts, ESTANTE_* environment for the hook. DIRECTION §3.6 Git over HTTP. Tests: unit (the service header as a pkt-line, Git-Protocol to GIT_PROTOCOL, the gzip reader, the ESTANTE_* environment); behavior (httptest with real git: clone, fetch and push; a gzip body; a protocol v2 fetch; a client disconnecting mid-push kills git and leaves no lock; the size cap and the deadline; no access, over quota and a deleted book refused before git starts); e2e-api (the git CLI and isomorphic-git clone, fetch and push against the stack; a protocol v2 fetch from the CLI; a non-member refused). Refinement: tasks/refinements/service/git_http.md"
   }
   task change_check "The shelf change check" {
     effort 1d

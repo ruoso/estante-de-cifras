@@ -96,6 +96,11 @@ func run() error {
 		PublicBaseURL: cfg.PublicBaseURL,
 		Passkeys:      rp,
 		BooksRoot:     cfg.BooksRoot,
+		// Git over HTTP (service.git_http): the hooks directory git is pointed at
+		// on every push, the per-request deadline, and the request-body cap.
+		HooksDir:        cfg.HooksDir,
+		GitDeadline:     cfg.GitDeadline,
+		GitMaxBodyBytes: cfg.GitMaxBodyBytes,
 	}
 
 	handler, err := server.Handler(logger, cfg.AppRoot, pool, api)

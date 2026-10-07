@@ -67,6 +67,16 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 		mux.HandleFunc("POST /api/books", handleCreateBook(api))
 		mux.HandleFunc("DELETE /api/books/{bookId}", handleDeleteBook(api))
 		mux.HandleFunc("POST /api/books/{bookId}/fork", handleForkBook(api))
+		// Git over HTTP: the service speaks git's smart HTTP protocol itself for
+		// the three routes under /git/{bookId} — the ref advertisement and the two
+		// stateless-rpc commands (workflow 14; api/openapi.yaml /git/{bookId}/…).
+		// They authenticate the session and the membership and refuse before git
+		// starts, then stream to and from git (service.git_http). Explicit
+		// patterns win over the "/" SPA catch-all; an unmatched /git path still
+		// 404s via app.go's reserved namespace.
+		mux.HandleFunc("GET /git/{bookId}/info/refs", handleGitInfoRefs(api))
+		mux.HandleFunc("POST /git/{bookId}/git-upload-pack", handleGitUploadPack(api))
+		mux.HandleFunc("POST /git/{bookId}/git-receive-pack", handleGitReceivePack(api))
 		// Passkeys: register and sign in with a passkey, and the account's
 		// passkey list (workflow 13; api/openapi.yaml /api/auth/passkey/* and
 		// /api/account/passkeys). Registered only when the relying party is wired.

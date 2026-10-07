@@ -7,6 +7,7 @@ package config
 import (
 	"fmt"
 	"strconv"
+	"time"
 )
 
 // DefaultPort is the TCP port bound when PORT is unset. The compose stack and
@@ -27,6 +28,27 @@ const DefaultAppRoot = "/srv/app"
 // mount point and compose mounts the books volume, so the deployed image needs
 // no path configuration (service.books).
 const DefaultBooksRoot = "/data/books"
+
+// DefaultHooksDir is the one directory git is pointed at (core.hooksPath) for
+// every push when ESTANTE_HOOKS_DIR is unset (service.git_http Decision). The
+// hook stream drops its pre-receive binary here (service/cmd/pre-receive);
+// until it does — and in tests — the directory holds no hook, so git runs none
+// and the push is accepted. One directory, applied uniformly to every repo
+// (existing, forked, future), updated with the image, with no per-repo state.
+const DefaultHooksDir = "/srv/hooks"
+
+// DefaultGitDeadline bounds a single git-over-HTTP invocation when
+// ESTANTE_GIT_DEADLINE is unset (service.git_http Constraint 7). It is generous
+// — a full-book clone or push over a slow link — because the request's own
+// cancellation (a client disconnect) is the common stop, and offline-first
+// means a deadlined push is simply retried at the next sync.
+const DefaultGitDeadline = 10 * time.Minute
+
+// DefaultGitMaxBodyBytes caps a git-over-HTTP request body when
+// ESTANTE_GIT_MAX_BODY_BYTES is unset (service.git_http Constraint 6). It is
+// well above the 50 MB per-book limit plus protocol overhead; the fine-grained
+// per-push limit is git's receive.maxInputSize and the hook's, not this cap.
+const DefaultGitMaxBodyBytes int64 = 128 * 1024 * 1024
 
 // Config is the service's configuration. Today it carries the listen port the
 // skeleton needs, the app-root the built PWA is served from, the Postgres DSN
@@ -54,6 +76,26 @@ type Config struct {
 	// so behavior tests can point it at a throwaway directory. It is a path, not
 	// a secret, and comes from config rather than any request.
 	BooksRoot string
+
+	// HooksDir is the directory git is pointed at via core.hooksPath on every
+	// push (service.git_http). It defaults to DefaultHooksDir and is overridable
+	// via ESTANTE_HOOKS_DIR so behavior tests can drop a recording hook in a
+	// throwaway directory. It is a path, not a secret, and comes from config.
+	HooksDir string
+
+	// GitDeadline bounds a single git-over-HTTP invocation (service.git_http).
+	// It defaults to DefaultGitDeadline and is overridable via
+	// ESTANTE_GIT_DEADLINE (a Go duration, e.g. "10m") so tests can drive a
+	// deliberately tiny deadline. A request that outlives it is killed; the bare
+	// repository is left intact (git's quarantine and ref-lock model).
+	GitDeadline time.Duration
+
+	// GitMaxBodyBytes caps a git-over-HTTP request body before git reads a byte
+	// (service.git_http). It defaults to DefaultGitMaxBodyBytes and is
+	// overridable via ESTANTE_GIT_MAX_BODY_BYTES (an integer count of bytes) so
+	// tests can drive a tiny cap. The cap bounds the compressed bytes read from
+	// the socket; a gzip body is decompressed under it.
+	GitMaxBodyBytes int64
 
 	// DatabaseURL is the Postgres DSN the connection pool and the start-up
 	// migrator use (service.schema; DIRECTION §3.6 line 313 names pgx). It is
@@ -105,7 +147,14 @@ type Config struct {
 // start-up error with a clear message, never a silent fallback to the
 // default.
 func Load(lookup func(string) (string, bool)) (Config, error) {
-	cfg := Config{Port: DefaultPort, AppRoot: DefaultAppRoot, BooksRoot: DefaultBooksRoot}
+	cfg := Config{
+		Port:            DefaultPort,
+		AppRoot:         DefaultAppRoot,
+		BooksRoot:       DefaultBooksRoot,
+		HooksDir:        DefaultHooksDir,
+		GitDeadline:     DefaultGitDeadline,
+		GitMaxBodyBytes: DefaultGitMaxBodyBytes,
+	}
 
 	if raw, ok := lookup("ESTANTE_APP_ROOT"); ok && raw != "" {
 		cfg.AppRoot = raw
@@ -113,6 +162,32 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 
 	if raw, ok := lookup("ESTANTE_BOOKS_ROOT"); ok && raw != "" {
 		cfg.BooksRoot = raw
+	}
+
+	if raw, ok := lookup("ESTANTE_HOOKS_DIR"); ok && raw != "" {
+		cfg.HooksDir = raw
+	}
+
+	if raw, ok := lookup("ESTANTE_GIT_DEADLINE"); ok && raw != "" {
+		d, err := time.ParseDuration(raw)
+		if err != nil {
+			return Config{}, fmt.Errorf("config: ESTANTE_GIT_DEADLINE %q is not a duration: %w", raw, err)
+		}
+		if d <= 0 {
+			return Config{}, fmt.Errorf("config: ESTANTE_GIT_DEADLINE %s must be positive", d)
+		}
+		cfg.GitDeadline = d
+	}
+
+	if raw, ok := lookup("ESTANTE_GIT_MAX_BODY_BYTES"); ok && raw != "" {
+		n, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return Config{}, fmt.Errorf("config: ESTANTE_GIT_MAX_BODY_BYTES %q is not a number: %w", raw, err)
+		}
+		if n <= 0 {
+			return Config{}, fmt.Errorf("config: ESTANTE_GIT_MAX_BODY_BYTES %d must be positive", n)
+		}
+		cfg.GitMaxBodyBytes = n
 	}
 
 	if raw, ok := lookup("ESTANTE_DATABASE_URL"); ok {

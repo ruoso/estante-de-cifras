@@ -19,10 +19,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -134,6 +138,111 @@ func titleFromREADME(data []byte) string {
 		}
 	}
 	return PlaceholderTitle
+}
+
+// GitStream describes one git smart-HTTP stateless-rpc invocation against a
+// book's bare repository (service.git_http): which service to run
+// ("upload-pack" or "receive-pack"), whether it only advertises refs (the
+// info/refs GET), the request body piped to git's stdin and the writer git's
+// stdout is streamed to, plus the extra process environment and hooks path the
+// service layers on — GIT_PROTOCOL for protocol v2, and core.hooksPath and the
+// ESTANTE_* push environment on a receive-pack. The handler in internal/server
+// owns the HTTP framing and the service header; Serve owns only spawning git
+// and streaming to and from it, beside the buffered runGit.
+type GitStream struct {
+	Service       string    // "upload-pack" or "receive-pack"
+	AdvertiseRefs bool      // the info/refs GET: add --advertise-refs, no stdin
+	Stdin         io.Reader // the request body; nil for an advertisement
+	Stdout        io.Writer // where git's stdout is streamed as it is produced
+	Env           []string  // extra KEY=VALUE pairs (GIT_PROTOCOL, ESTANTE_*)
+	HooksDir      string    // core.hooksPath, set only for a push; "" runs no hook
+}
+
+// Serve spawns git for one stateless-rpc invocation against the book's bare
+// repository and streams to and from it, never buffering stdout (a large fetch
+// result or advertisement must not be held whole in memory — service.git_http
+// Constraint 10). git runs in its own process group so a cancel of ctx (the
+// per-request deadline or a client disconnect) kills git and any child with it,
+// leaving no process behind and — git's quarantine and ref-lock model — the
+// bare repository intact. stderr is folded into the returned error, never
+// streamed or logged as content (no song text in logs). The hardened
+// environment runGit uses (GIT_CONFIG_NOSYSTEM, GIT_TERMINAL_PROMPT=0) is kept.
+func (s Store) Serve(ctx context.Context, id string, st GitStream) error {
+	path, err := repoPath(s.Root, id)
+	if err != nil {
+		return err
+	}
+	args := make([]string, 0, 6)
+	// core.hooksPath points git at the one hooks directory (a push only); when
+	// that directory holds no hook, git simply runs none and accepts the push.
+	if st.HooksDir != "" {
+		args = append(args, "-c", "core.hooksPath="+st.HooksDir)
+	}
+	args = append(args, st.Service, "--stateless-rpc")
+	if st.AdvertiseRefs {
+		args = append(args, "--advertise-refs")
+	}
+	args = append(args, path)
+
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_TERMINAL_PROMPT=0")
+	cmd.Env = append(cmd.Env, st.Env...)
+	cmd.Stdin = st.Stdin
+	cmd.Stdout = st.Stdout
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	// A new process group (Setpgid) so the kill below reaches git and any child
+	// it spawned, not just the leader — no child outlives the request.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		// Signal the whole group (negative pid); the group id is the leader's pid
+		// because of Setpgid.
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
+	// Bound the wait after a cancel so a wedged stdout copy cannot hold the
+	// request open indefinitely.
+	cmd.WaitDelay = 2 * time.Second
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("git %s: %w: %s", st.Service, err, strings.TrimSpace(stderr.String()))
+	}
+	return nil
+}
+
+// Size is the book's full on-disk footprint — the sum of the regular-file bytes
+// under its bare repository, history included (workflow 14 line 41) — the value
+// the push path writes to books.size_bytes so the account quota stays live
+// (service.git_http Decision). A missing repository is size 0, not an error
+// (a just-deleted book counts against no quota). It is the directory walk the
+// Decision chose over git count-objects, which misses the full footprint.
+func (s Store) Size(id string) (int64, error) {
+	path, err := repoPath(s.Root, id)
+	if err != nil {
+		return 0, err
+	}
+	var total int64
+	walkErr := filepath.WalkDir(path, func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+		if d.Type().IsRegular() {
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			total += info.Size()
+		}
+		return nil
+	})
+	if walkErr != nil {
+		return 0, walkErr
+	}
+	return total, nil
 }
 
 // runGit execs the host git binary with an argument array (never a shell) and a

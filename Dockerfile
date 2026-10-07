@@ -86,6 +86,12 @@ COPY --from=app /build/app/dist /srv/app
 # The book volume's mount point: one bare repository per book under
 # /data/books (DIRECTION §3.3); compose mounts a named volume here.
 RUN mkdir -p /data/books
+# The git hooks directory (service.git_http): git is pointed here via
+# core.hooksPath on every push, and the pre-receive hook stream drops its binary
+# here (service/cmd/pre-receive). Until it does, the directory is empty, so git
+# runs no hook and the push is accepted — the config default is this path
+# (config.DefaultHooksDir).
+RUN mkdir -p /srv/hooks
 # The binary binds this fixed internal port; the stack publishes a host port
 # and maps it here (service/internal/config.DefaultPort = 8080).
 EXPOSE 8080

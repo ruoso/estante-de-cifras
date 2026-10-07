@@ -36,6 +36,18 @@ type APIDeps struct {
 	// under; the book handlers derive each repository's path from it and the
 	// book id (service.books; DIRECTION §3.3).
 	BooksRoot string
+	// HooksDir is the directory git is pointed at via core.hooksPath on every
+	// push, so the pre-receive hook (once the hook stream lands) runs from one
+	// place for every repo (service.git_http). Empty falls back to
+	// config.DefaultHooksDir.
+	HooksDir string
+	// GitDeadline bounds a single git-over-HTTP invocation; a request that
+	// outlives it is killed and the repository left intact (service.git_http).
+	// Zero falls back to config.DefaultGitDeadline.
+	GitDeadline time.Duration
+	// GitMaxBodyBytes caps a git-over-HTTP request body before git reads a byte
+	// (service.git_http). Zero falls back to config.DefaultGitMaxBodyBytes.
+	GitMaxBodyBytes int64
 }
 
 // handleRequestEmailLink implements POST /api/auth/email/request

@@ -297,3 +297,69 @@ func TestLoadRejectsOutOfRangePort(t *testing.T) {
 		t.Fatal("Load: want error for port 0, got nil")
 	}
 }
+
+// TestLoadDefaultsGitSettingsWhenUnset pins the git-over-HTTP defaults
+// (service.git_http): the hooks directory, the per-request deadline and the
+// request-body cap when their ESTANTE_* vars are unset, so the deployed image
+// needs no git configuration.
+func TestLoadDefaultsGitSettingsWhenUnset(t *testing.T) {
+	cfg, err := Load(envFrom(withSecret(nil)))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.HooksDir != DefaultHooksDir {
+		t.Errorf("HooksDir = %q, want default %q", cfg.HooksDir, DefaultHooksDir)
+	}
+	if cfg.GitDeadline != DefaultGitDeadline {
+		t.Errorf("GitDeadline = %s, want default %s", cfg.GitDeadline, DefaultGitDeadline)
+	}
+	if cfg.GitMaxBodyBytes != DefaultGitMaxBodyBytes {
+		t.Errorf("GitMaxBodyBytes = %d, want default %d", cfg.GitMaxBodyBytes, DefaultGitMaxBodyBytes)
+	}
+}
+
+// TestLoadHonoursGitSettings pins that the ESTANTE_* git vars override the
+// defaults, so behavior tests and ops can tune them.
+func TestLoadHonoursGitSettings(t *testing.T) {
+	cfg, err := Load(envFrom(withSecret(map[string]string{
+		"ESTANTE_HOOKS_DIR":          "/custom/hooks",
+		"ESTANTE_GIT_DEADLINE":       "90s",
+		"ESTANTE_GIT_MAX_BODY_BYTES": "1048576",
+	})))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.HooksDir != "/custom/hooks" {
+		t.Errorf("HooksDir = %q, want /custom/hooks", cfg.HooksDir)
+	}
+	if cfg.GitDeadline.String() != "1m30s" {
+		t.Errorf("GitDeadline = %s, want 1m30s", cfg.GitDeadline)
+	}
+	if cfg.GitMaxBodyBytes != 1048576 {
+		t.Errorf("GitMaxBodyBytes = %d, want 1048576", cfg.GitMaxBodyBytes)
+	}
+}
+
+// TestLoadRejectsBadGitSettings pins the fail-fast rule for the git vars: an
+// unparseable or non-positive duration or byte count names the variable rather
+// than falling back silently.
+func TestLoadRejectsBadGitSettings(t *testing.T) {
+	bad := []struct{ key, val string }{
+		{"ESTANTE_GIT_DEADLINE", "soon"},
+		{"ESTANTE_GIT_DEADLINE", "0s"},
+		{"ESTANTE_GIT_DEADLINE", "-5s"},
+		{"ESTANTE_GIT_MAX_BODY_BYTES", "lots"},
+		{"ESTANTE_GIT_MAX_BODY_BYTES", "0"},
+		{"ESTANTE_GIT_MAX_BODY_BYTES", "-1"},
+	}
+	for _, b := range bad {
+		_, err := Load(envFrom(withSecret(map[string]string{b.key: b.val})))
+		if err == nil {
+			t.Errorf("Load(%s=%q): want error, got nil", b.key, b.val)
+			continue
+		}
+		if !strings.Contains(err.Error(), b.key) {
+			t.Errorf("error %q does not name %s", err, b.key)
+		}
+	}
+}

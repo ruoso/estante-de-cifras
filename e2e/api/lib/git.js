@@ -85,6 +85,43 @@ export class GitCli {
     await repo.configIdentity();
     return repo;
   }
+
+  // Clone `url` into `dest` over smart HTTP, carrying the session cookie as an
+  // HTTP header via `-c http.extraHeader` (the device's own path to an
+  // authenticated clone — service.git_http). `cookie` is the HttpClient's
+  // cookieHeader() string (`estante_session=…`). `protocolVersion`, when set,
+  // drives `-c protocol.version=<n>` so protocol v2 can be exercised. Returns a
+  // GitCli on the clone with a local identity set for follow-up commits.
+  static async cloneHTTP(url, dest, cookie, { protocolVersion } = {}) {
+    const cfg = cookieConfig(cookie);
+    if (protocolVersion != null) cfg.push('-c', `protocol.version=${protocolVersion}`);
+    await runGit(tmpdir(), [...cfg, 'clone', url, dest]);
+    const repo = new GitCli(dest);
+    await repo.configIdentity();
+    return repo;
+  }
+
+  // Push this working copy's HEAD to `url` over smart HTTP with the session
+  // cookie (service.git_http).
+  async pushHTTP(url, cookie, ref = 'main') {
+    await this.run(...cookieConfig(cookie), 'push', url, `HEAD:refs/heads/${ref}`);
+  }
+
+  // Fetch from `url` over smart HTTP with the session cookie, updating the
+  // remote-tracking refs (service.git_http). `protocolVersion`, when set, drives
+  // protocol v2.
+  async fetchHTTP(url, cookie, { protocolVersion } = {}) {
+    const cfg = cookieConfig(cookie);
+    if (protocolVersion != null) cfg.push('-c', `protocol.version=${protocolVersion}`);
+    await this.run(...cfg, 'fetch', url, '+refs/heads/*:refs/remotes/origin/*');
+  }
+}
+
+// cookieConfig turns a cookie header string into the `-c http.extraHeader` args
+// the git CLI sends on every smart-HTTP request (never a shell string — an
+// argument array, so the cookie is never interpolated into a command line).
+function cookieConfig(cookie) {
+  return cookie ? ['-c', `http.extraHeader=Cookie: ${cookie}`] : [];
 }
 
 export class IsoGit {

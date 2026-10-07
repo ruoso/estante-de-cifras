@@ -431,6 +431,46 @@ func ownedUsage(ctx context.Context, q querier, accountID string) (count int, su
 	return count, sum, err
 }
 
+// bookAccess is the caller's standing on a live book, read in one query for the
+// git gate (service.git_http Decision): the book's owner, the caller's role
+// ("owner" from books.owner_id, else "editor"/"reader" from memberships), and
+// the book's current recorded size. It is produced only when the caller is the
+// owner or a member of a live, non-deleted, not-taken-down book.
+type bookAccess struct {
+	ownerID   string
+	role      string
+	sizeBytes int64
+}
+
+// resolveBookAccess reads the caller's role on a live book in one query,
+// mirroring the listBooks CASE (owner from owner_id, else the membership role),
+// guarded by deleted_at IS NULL and taken_down_reason IS NULL. found is false
+// when there is no such live book or the caller is neither its owner nor a
+// member — the three answered alike by the caller as 404, never confirming a
+// private or removed book to a stranger (service.git_http Decision; contract
+// NotFound; DIRECTION §3.3). It is the single source of the ESTANTE_ROLE the
+// hook needs, read in the same round-trip.
+func resolveBookAccess(ctx context.Context, q querier, bookID, accountID string) (bookAccess, bool, error) {
+	var a bookAccess
+	err := q.QueryRow(ctx, `
+		SELECT b.owner_id, b.size_bytes,
+		       CASE WHEN b.owner_id = $2 THEN 'owner' ELSE m.role::text END AS role
+		FROM books b
+		LEFT JOIN memberships m ON m.book_id = b.id AND m.account_id = $2
+		WHERE b.id = $1
+		  AND b.deleted_at IS NULL
+		  AND b.taken_down_reason IS NULL
+		  AND (b.owner_id = $2 OR m.account_id = $2)`,
+		bookID, accountID).Scan(&a.ownerID, &a.sizeBytes, &a.role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return bookAccess{}, false, nil
+	}
+	if err != nil {
+		return bookAccess{}, false, err
+	}
+	return a, true, nil
+}
+
 // isMember reports whether the account has a membership row on the book (editor
 // or reader). The owner is never a membership row (schema), so a caller who is
 // the owner is handled by the owner check before this is reached.
