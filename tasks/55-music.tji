@@ -37,8 +37,9 @@ task music "Music" {
   task transpose "Transposing for reading" {
     effort 2d
     allocate team
+    complete 100
     depends !fallback, shell.chart
-    note "View only, never the song; no chosen shapes while transposed; spelling by the key property or fewest accidentals; remembered per song in the home book. Workflow 2. Tests: unit (spelling by the key property or fewest accidentals; no chosen shapes while transposed; remembered per song); behavior (a transposed chart rendered, the song untouched). The reading journey is songs.reading's."
+    note "View only, never the song; no chosen shapes while transposed; spelling by the key property or fewest accidentals; remembered per song in the home book. Workflow 2. Tests: unit (spelling by the key property or fewest accidentals; no chosen shapes while transposed; remembered per song); behavior (a transposed chart rendered, the song untouched). The reading journey is songs.reading's. Refinement: tasks/refinements/music/transpose.md"
   }
   task wizard "The voicing wizard" {
     effort 2d

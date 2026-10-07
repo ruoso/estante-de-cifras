@@ -178,6 +178,11 @@ Append one `###` block per item, newest at the bottom:
 - **Question**: Restoring a non-song or no-change file (e.g. README.md, .gitattributes) from the book history and then saving appeared to leave the save sheet open in the browser even though the Worker emits SAVED. The fixer could not confirm this as a defect (it was out of scope for the restore-a-song test) and did not reproduce it in a throwaway harness. Is there a real UI bug in the non-song restore+save path, and which task (books.file_view? songs.save_sheet?) owns the fix if so?
 - **Why parked**: couldn't confirm as defect; "worth a closer look" is a revisit, not an implementable deliverable. Needs a human to reproduce and triage.
 
+### 2026-10-06 — Capo feature: product/workflow decision needed before WBS leaf
+- **Source**: closer for `music.transpose` (see estante-de-cifras log), surfaced by refinement §Deferred work; workflow 2 L127-129 marks it "Later."
+- **Question**: The capo feature builds directly on `music.transpose` (the engine and the per-song memory seam are ready), but needs a product decision first: which shapes a capo reuses (the open-position shapes, or the shapes at the capoed position?), and how it is shown to the reader (a separate "Capo 2" label vs. displayed alongside transposition?). Once those decisions are made, a concrete WBS leaf can be scoped and wired to a milestone.
+- **Why parked**: product/workflow scope decision; the governing documents mark capo "Later" (workflow 2 L127-129) and do not specify shapes or display. Not yet an agent-implementable deliverable.
+
 ### 2026-10-06 — Extend the save gate to warn when a hand-typed section after a hand-typed rule would be dropped
 
 - **Source**: closer for `songs.editor_section_after_voicings` (see estante-de-cifras log), surfaced by refinement §Deferred.
