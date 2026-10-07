@@ -1,0 +1,268 @@
+/* The voicing wizard surface (songs.wizard_ui, board W05, the computer drawing).
+   Layout only — every colour comes from the theme tokens through the shared
+   classes (.appbar, .chip.accent, .card.pad, .check/.check.on, .field/.input,
+   .btn, .shapes), so the surface re-themes with no code in it. On a wide pane
+   the controls sit in a side column and the plan's shapes in the main column
+   (the mockup's side-pane-beside-the-plan); on a phone they stack. */
+
+.wizard-screen {
+  flex: 1;
+  min-height: 0;
+}
+
+.wizard-scroll {
+  overflow-y: auto;
+  padding: calc(var(--u) * 2);
+}
+
+.wizard-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2.5);
+}
+.wizard-wide .wizard-body {
+  display: grid;
+  grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+  gap: calc(var(--u) * 4);
+  align-items: start;
+}
+
+.wizard-controls {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  min-width: 0;
+}
+.wizard-preview-col {
+  min-width: 0;
+}
+
+.wizard-head {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.75);
+}
+.wizard-head .t-h1 {
+  margin: 0;
+}
+.wizard-eyebrow {
+  color: var(--accent);
+}
+
+/* The policy list — a focusable group of option cards. */
+.wizard-policies {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}
+.wizard-policy.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* A policy card's choose target: a reset button laid out as a row with its
+   round check mark and the name + text. */
+.wizard-policy-choose {
+  display: flex;
+  gap: calc(var(--u) * 1.5);
+  align-items: flex-start;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+.wizard-policy-choose:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.wizard-policy-text,
+.wizard-option-text,
+.wizard-choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* The round check marks the option rows carry (the mockup draws them circular);
+   .check/.check.on supply the colour and the tick. */
+.wizard-policy-choose .check,
+.wizard-option-radio .check,
+.wizard-choice-radio .check {
+  border-radius: 50%;
+  margin-top: 2px;
+}
+.wizard-option-radio[data-selected] .check,
+.wizard-choice-radio[data-selected] .check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* How it works — a disclosure of the planner's steps and its citations. */
+.wizard-how-heading {
+  margin: 0;
+}
+.wizard-how-trigger {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.wizard-how-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.wizard-how-panel {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1);
+  margin-top: calc(var(--u) * 1);
+}
+.wizard-how-title {
+  margin: 0;
+  font-weight: 600;
+}
+.wizard-how-steps {
+  margin: 0;
+  padding-left: calc(var(--u) * 2.5);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+}
+.wizard-sources {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+}
+.wizard-sources-label {
+  margin: 0;
+  font-weight: 600;
+}
+.wizard-source-list {
+  margin: 0;
+  padding-left: calc(var(--u) * 2.5);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+}
+
+/* The choro's stylistic question: a radiogroup of relations. */
+.wizard-option {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1);
+  margin-top: calc(var(--u) * 0.5);
+  padding-top: calc(var(--u) * 1.25);
+  border-top: 1px solid var(--line);
+}
+.wizard-option-label {
+  font-weight: 600;
+}
+.wizard-option-radio {
+  display: flex;
+  gap: calc(var(--u) * 1.25);
+  align-items: flex-start;
+  cursor: pointer;
+}
+.wizard-option-radio:focus-visible,
+.wizard-choice-radio:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* React Aria renders each radio's real <input> inside a visually-hidden <span>
+   (RAC's Radio passes elementType: "span" to VisuallyHidden, as the first child)
+   that clips it to a 1px box, so a pointer aimed at the accessible radio lands on
+   the label — or its check mark — behind it: a user tap still works via RAC's
+   press handling, but an automated by-role click is swallowed ("intercepts
+   pointer events"). Lift that wrapper and its input to cover the whole row so the
+   radio is hit where it is seen; opacity keeps it invisible while the check mark
+   and text show through. Mirrors .enter-shape-fret in music.css. The :first-child
+   selector targets only the input's wrapper, never the .check / text spans beside
+   it. !important beats VisuallyHidden's inline styles. */
+.wizard-option-radio,
+.wizard-choice-radio {
+  position: relative;
+}
+.wizard-option-radio > span:first-child,
+.wizard-choice-radio > span:first-child {
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  clip-path: none !important;
+}
+.wizard-option-radio > span:first-child input,
+.wizard-choice-radio > span:first-child input {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* The preview: the shapes the song will carry, its summary and what it missed. */
+.wizard-preview {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}
+.wizard-summary,
+.wizard-missing,
+.wizard-preview-hint {
+  margin: 0;
+}
+.wizard-missing {
+  color: var(--ink-2);
+}
+
+/* Into a new variation / over this one. */
+.wizard-choice {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}
+.wizard-choice-card.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.wizard-choice-radio {
+  display: flex;
+  gap: calc(var(--u) * 1.5);
+  align-items: flex-start;
+}
+.wizard-field-error {
+  color: var(--conflict);
+  font-weight: 600;
+}
+.wizard-editnote {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+/* The bottom action bar (Back · Write the plan), like arrange's. */
+.wizard-actionbar {
+  display: flex;
+  gap: calc(var(--u) * 1.25);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2) calc(var(--u) * 2.75);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.wizard-actionbar .btn.grow {
+  flex: 1;
+}

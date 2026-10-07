@@ -959,6 +959,21 @@ export default {
     apply: 'Usar estes desenhos',
     back: '← Outras formas',
     cancel: 'Cancelar',
+    preview: 'Ver o plano',
+    policyLabel: 'Escolha uma abordagem',
+    previewTitle: 'Os desenhos que ele escolheria',
+    planReady: 'O plano está pronto',
+    planReadyPrompt:
+      '{variation} já tem desenhos escolhidos nesta música. Pôr o plano ao lado deles, ou por cima deles?',
+    choiceLabel: 'Onde pôr o plano',
+    newVariation: 'Em uma nova variação',
+    newVariationHint: '{variation} fica como está',
+    over: 'Por cima de {variation}',
+    overHint: 'Substitui o que está escolhido ali',
+    defaultName: 'Novos desenhos',
+    editNote:
+      'De qualquer forma é uma edição na cópia de trabalho: a folha de salvamento mostra o que ele escolheu, e descartar desfaz.',
+    write: 'Escrever o plano',
   },
 
   shape: {

@@ -28,6 +28,7 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import SearchScreen from '../songs/SearchScreen.jsx';
 import SongReading from '../songs/SongReading.jsx';
 import SongArrange from '../songs/SongArrange.jsx';
+import SongWizard from '../songs/SongWizard.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
 import FileView from '../files/FileView.jsx';
@@ -201,6 +202,14 @@ export default function AppShell({ store = getAppStore() }) {
   // the working copy's unsaved edit intact. Ephemeral view state, no router, like
   // `openSong` itself.
   const [arranging, setArranging] = useState(null);
+  // The voicing wizard, raised from arrange's `onRunWizard` seam
+  // (songs.wizard_ui Decision 1): `{ bookId, path }` or null. It is a surface
+  // mounted over arrange; closing it (Back, or after Write the plan) returns to
+  // arrange, which re-mounts and re-reads the working copy (WRITE is silent), so
+  // a new variation shows. `wizardReturn` holds whether to send focus back to
+  // arrange's Run-the-wizard button on that re-mount (its node is replaced).
+  const [wizard, setWizard] = useState(null);
+  const [wizardReturn, setWizardReturn] = useState(false);
   // The live CodeMirror view, so Change book can carry the current text to the
   // new book's placeholder (Decision 3). A ref, not state — it never renders.
   const editorRef = useRef(null);
@@ -327,11 +336,31 @@ export default function AppShell({ store = getAppStore() }) {
     );
   }
 
+  // The voicing wizard (songs.wizard_ui): the action behind arrange's **Run the
+  // wizard** affordance, a surface mounted over arrange. Checked before
+  // `arranging` so it sits over it; **Back** / **Write the plan** close it and
+  // flag arrange to send focus back to its Run-the-wizard button as it re-mounts.
+  if (wizard) {
+    return (
+      <SongWizard
+        store={store}
+        bookId={wizard.bookId}
+        path={wizard.path}
+        mode={mode}
+        onBack={() => {
+          setWizard(null);
+          setWizardReturn(true);
+        }}
+      />
+    );
+  }
+
   // Arranging a song (songs.arrange): the mode entered from the reading view's
   // `onArrange` seam, a full screen over the open song. **Done** returns to
   // reading (the working copy's unsaved edit stays). Checked before `openSong`
-  // so it sits over the reading view that raised it; *Run the wizard* raises the
-  // songs.wizard_ui seam (Decision 9), which this task leaves to that task.
+  // so it sits over the reading view that raised it. *Run the wizard* opens the
+  // wizard surface above (songs.wizard_ui); on its close arrange re-mounts and
+  // `autoFocusWizard` returns focus to the button that opened it.
   if (arranging) {
     return (
       <SongArrange
@@ -340,6 +369,9 @@ export default function AppShell({ store = getAppStore() }) {
         path={arranging.path}
         mode={mode}
         onBack={() => setArranging(null)}
+        onRunWizard={(args) => setWizard(args)}
+        autoFocusWizard={wizardReturn}
+        onWizardFocusReturned={() => setWizardReturn(false)}
       />
     );
   }

@@ -1011,6 +1011,21 @@ export default {
     apply: 'Use these shapes',
     back: '← Other ways',
     cancel: 'Cancel',
+    preview: 'See the plan',
+    policyLabel: 'Choose a policy',
+    previewTitle: 'The shapes it would choose',
+    planReady: 'The plan is ready',
+    planReadyPrompt:
+      '{variation} already has shapes chosen in this song. Put the plan beside them, or over them?',
+    choiceLabel: 'Where to put the plan',
+    newVariation: 'Into a new variation',
+    newVariationHint: '{variation} stays as it is',
+    over: 'Over {variation}',
+    overHint: 'Replaces what is chosen there',
+    defaultName: 'New voicings',
+    editNote:
+      'Either way it is an edit in the working copy: the save sheet shows what it chose, and discard undoes it.',
+    write: 'Write the plan',
   },
 
   shape: {

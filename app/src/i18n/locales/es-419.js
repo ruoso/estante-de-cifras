@@ -959,6 +959,21 @@ export default {
     apply: 'Usar estas formas',
     back: '← Otras maneras',
     cancel: 'Cancelar',
+    preview: 'Ver el plan',
+    policyLabel: 'Elegí un enfoque',
+    previewTitle: 'Las formas que elegiría',
+    planReady: 'El plan está listo',
+    planReadyPrompt:
+      '{variation} ya tiene formas elegidas en esta canción. ¿Poner el plan al lado de ellas, o encima de ellas?',
+    choiceLabel: 'Dónde poner el plan',
+    newVariation: 'En una variación nueva',
+    newVariationHint: '{variation} queda como está',
+    over: 'Encima de {variation}',
+    overHint: 'Reemplaza lo que está elegido ahí',
+    defaultName: 'Formas nuevas',
+    editNote:
+      'De cualquier modo es una edición en la copia de trabajo: la hoja de guardado muestra lo que eligió, y descartar lo deshace.',
+    write: 'Escribir el plan',
   },
 
   shape: {

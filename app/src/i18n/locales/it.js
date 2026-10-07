@@ -961,6 +961,21 @@ export default {
     apply: 'Usa queste forme',
     back: '← Altri modi',
     cancel: 'Annulla',
+    preview: 'Vedi il piano',
+    policyLabel: 'Scegli un approccio',
+    previewTitle: 'Le forme che sceglierebbe',
+    planReady: 'Il piano è pronto',
+    planReadyPrompt:
+      '{variation} ha già forme scelte in questo brano. Mettere il piano accanto a esse, o sopra di esse?',
+    choiceLabel: 'Dove mettere il piano',
+    newVariation: 'In una nuova variazione',
+    newVariationHint: '{variation} resta com’è',
+    over: 'Sopra {variation}',
+    overHint: 'Sostituisce ciò che è scelto lì',
+    defaultName: 'Nuove forme',
+    editNote:
+      'In entrambi i casi è una modifica nella copia di lavoro: il foglio di salvataggio mostra cosa ha scelto, e annullare la disfa.',
+    write: 'Scrivi il piano',
   },
 
   shape: {

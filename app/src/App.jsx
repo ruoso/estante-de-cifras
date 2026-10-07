@@ -8,6 +8,7 @@ import EditorDev from './editor/EditorDev.jsx';
 import HistoryDev from './songs/HistoryDev.jsx';
 import ReadingDev from './songs/ReadingDev.jsx';
 import ArrangeDev from './songs/ArrangeDev.jsx';
+import WizardDev from './songs/WizardDev.jsx';
 import FilesDev from './files/FilesDev.jsx';
 import UpdateReady from './pwa/UpdateReady.jsx';
 import { getAppStore } from './worker/store.js';
@@ -52,6 +53,14 @@ function isReadingDev() {
 // `#dev/arrange?book=…&path=…` so its behavior and e2e run on every viewport.
 function isArrangeDev() {
   return typeof location !== 'undefined' && location.hash.startsWith('#dev/arrange');
+}
+
+// The wizard surface's dev mount, `#dev/wizard` — mirroring `#dev/arrange`
+// (songs.wizard_ui Decision 1). Its real entry is arrange's `onRunWizard` seam
+// (wired here in AppShell); the dev mount stands the surface up at
+// `#dev/wizard?book=…&path=…` so its behavior and e2e run on every viewport.
+function isWizardDev() {
+  return typeof location !== 'undefined' && location.hash.startsWith('#dev/wizard');
 }
 
 // The file view's dev mount, `#dev/files` — mirroring `#dev/history`
@@ -107,6 +116,8 @@ export default function App({ store = getAppStore() }) {
           <ReadingDev store={store} />
         ) : isArrangeDev() ? (
           <ArrangeDev store={store} />
+        ) : isWizardDev() ? (
+          <WizardDev store={store} />
         ) : isFilesDev() ? (
           <FilesDev store={store} />
         ) : (

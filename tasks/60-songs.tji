@@ -64,8 +64,9 @@ task songs "Songs" {
   task wizard_ui "The wizard in a song" {
     effort 1d
     allocate team
+    complete 100
     depends !arrange, music.wizard
-    note "Into a new variation first, over this one second. Workflow 5. Tests: behavior (into a new variation first, over this one second; axe); e2e-web (the wizard run in a song and its variation read back; axe)."
+    note "Into a new variation first, over this one second. Workflow 5. Tests: behavior (into a new variation first, over this one second; axe); e2e-web (the wizard run in a song and its variation read back; axe). Refinement: tasks/refinements/songs/wizard_ui.md"
   }
   task history "History of a song" {
     effort 3d

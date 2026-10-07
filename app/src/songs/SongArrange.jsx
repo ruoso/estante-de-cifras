@@ -20,7 +20,7 @@
 // home book); a shape chosen into the song is shared content (WRITE, the book
 // working copy) — the two writes land in different stores by design (§3.2).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Button,
   Checkbox,
@@ -89,7 +89,21 @@ export default function SongArrange({
   mode = 'narrow',
   onBack = () => {},
   onRunWizard = () => {},
+  autoFocusWizard = false,
+  onWizardFocusReturned = () => {},
 }) {
+  // When arrange re-mounts on the wizard's close (its destination lives over this
+  // surface, which unmounts while the wizard is up — songs.wizard_ui), send focus
+  // back to the Run-the-wizard button that opened it, a fresh node after the
+  // re-mount. One-shot on mount; the shell clears the flag once honoured.
+  const wizardButtonRef = useRef(null);
+  useEffect(() => {
+    if (autoFocusWizard && wizardButtonRef.current) {
+      wizardButtonRef.current.focus();
+      onWizardFocusReturned();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Bring the song in on mount (idempotent — reading already opened it): the text
   // to parse (OPEN_SOURCE) and the reading state for the variation in use
   // (OPEN_SONG). The Worker owns both; the view only asks.
@@ -379,7 +393,7 @@ export default function SongArrange({
       </div>
 
       <div className="arrange-actionbar arrange-chrome">
-        <Button className="btn grow" onPress={() => onRunWizard({ bookId, path })}>
+        <Button ref={wizardButtonRef} className="btn grow" onPress={() => onRunWizard({ bookId, path })}>
           {t('arrange.runWizard')}
         </Button>
         <Button className="btn grow" onPress={() => setAddVarOpen(true)}>
