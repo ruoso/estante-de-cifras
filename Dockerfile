@@ -12,6 +12,13 @@
 # clear of musl optional-dependency pitfalls; this stage is discarded, so its
 # size does not reach the final image.
 FROM node:24.20.0-slim AS app
+# This stage uses the cross-repo named-build-context pattern (DIRECTION §3.6,
+# "Both repositories meet in the image build"): the cifra.md format packages
+# live in the sibling cifra.md checkout, outside this build context, so each is
+# brought in as a named build context (compose.yaml wires it to the checkout)
+# and copied here at the path its dependency expects, letting the language's own
+# toolchain resolve it inside Docker without vendoring or cross-language copying.
+#
 # The build tree lives two levels deep (/build/app) on purpose: the app is the
 # first consumer of the cifra.md for JavaScript package (storage.working_copy),
 # carried in package.json as a sibling-repo file: dependency,
@@ -46,7 +53,12 @@ RUN go mod download
 COPY service/ ./
 # A static binary (CGO off) so the final image needs no C runtime. Only
 # cmd/service is built; cmd/pre-receive has no main.go yet — the hook area adds
-# it to this Dockerfile when it does (foundation.compose decision).
+# it to this Dockerfile when it does (foundation.compose decision). The service
+# proper imports no cifra.md Go package; when the hook links cifra.md for Go
+# (hook.canonical), it brings that package into this stage with the same
+# cross-repo named-build-context pattern the app stage uses above — a
+# `cifra-md-go` context wired in compose.yaml and copied at the module's
+# expected path (DIRECTION §3.6).
 RUN CGO_ENABLED=0 go build -trimpath -o /out/service ./cmd/service
 
 # --- Stage 3: the final image — the binary, git, and the built app -----------

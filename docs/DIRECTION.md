@@ -383,6 +383,16 @@ estante-de-cifras/            cifra.md/
   compose.yaml
 ```
 
+**Both repositories meet in the image build.** The app bundles cifra.md for
+JavaScript, and the hook links cifra.md for Go; both packages live in the
+sibling cifra.md checkout, outside this repository's build context. The Docker
+build brings each in as a *named build context* — `cifra-md` for the
+JavaScript package, `cifra-md-go` for the Go one — wired in `compose.yaml` to
+the checkout and copied by the `Dockerfile` at the path the dependency expects,
+so `npm ci` and vite, and later `go build`, resolve the sibling package inside
+Docker without vendoring it or copying code between the two repositories
+(implementations agree because they are checked, not shared).
+
 **Locally, everything runs as in production**: `compose.yaml` brings up
 Postgres, the service's image with git, the hook and the built app, and a
 local mail catcher in place of the email provider, and the end-to-end tests

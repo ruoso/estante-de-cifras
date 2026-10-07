@@ -79,7 +79,8 @@ task foundation "Foundation" {
   task cifra_md_in_image "Package cifra.md/js and cifra.md/go into the service image" {
     effort 1d
     allocate team
+    complete 100
     depends !compose
-    note "Formalize and document the cross-repo build-context approach introduced by storage.working_copy (tasks/refinements/storage/working_copy.md): the `cifra-md` named build context in compose.yaml + WORKDIR /build/app in Dockerfile lets `npm ci` and vite resolve the sibling-repo JS package inside Docker. Extend the same pattern symmetrically for cifra.md/go when the Go service stage begins importing the Go format package (hook and service tasks in m3_service). Source: storage.working_copy fixer (Dockerfile, compose.yaml). Tests: none of its own — proven by the stack building and the e2e-api smoke tests passing."
+    note "Formalize and document the cross-repo build-context approach introduced by storage.working_copy (tasks/refinements/storage/working_copy.md): the `cifra-md` named build context in compose.yaml + WORKDIR /build/app in Dockerfile lets `npm ci` and vite resolve the sibling-repo JS package inside Docker. Extend the same pattern symmetrically for cifra.md/go when the Go service stage begins importing the Go format package (hook and service tasks in m3_service). Source: storage.working_copy fixer (Dockerfile, compose.yaml). Tests: none of its own — proven by the stack building and the e2e-api smoke tests passing. Refinement: tasks/refinements/foundation/cifra_md_in_image.md"
   }
 }

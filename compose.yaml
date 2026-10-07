@@ -59,11 +59,15 @@ services:
       context: .
       dockerfile: Dockerfile
       additional_contexts:
-        # The app bundles the cifra.md for JavaScript package, which lives in
-        # the sibling cifra.md checkout — outside this build context. Expose it
-        # as a named context the Dockerfile's app stage copies in at the file:
-        # dependency's target. Defaults to ../cifra.md beside this repo (the
-        # scripts/gate default); ESTANTE_CIFRA_MD_DIR overrides the checkout.
+        # The cross-repo named-build-context pattern (DIRECTION §3.6, "Both
+        # repositories meet in the image build"): the app bundles the cifra.md
+        # for JavaScript package, which lives in the sibling cifra.md checkout —
+        # outside this build context. Expose it as a named context the
+        # Dockerfile's app stage copies in at the file: dependency's target.
+        # Defaults to ../cifra.md beside this repo (the scripts/gate default);
+        # ESTANTE_CIFRA_MD_DIR overrides the checkout. The hook adds a symmetric
+        # `cifra-md-go` context here for cifra.md for Go when it links it
+        # (hook.canonical).
         cifra-md: ${ESTANTE_CIFRA_MD_DIR:-../cifra.md}/js
     depends_on:
       # The one binary comes up only once its backing services are healthy, so
