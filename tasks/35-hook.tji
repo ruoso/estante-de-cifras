@@ -22,8 +22,9 @@ task hook "The pre-receive hook" {
   task contents "What a book may hold" {
     effort 2d
     allocate team
+    complete 100
     depends !stowaways
-    note "Every blob reachable from a new commit: path against the allowed kinds (*.cifra.md, *.setlist.md, README.md, .gitattributes as the app writes it), regular files only, UTF-8, 256 KB; trees and commits of reasonable size. Tests: unit (path and kind rules, UTF-8, sizes); behavior (the hook installed in a real bare repository, pushed to with the git CLI: each disallowed path, a symlink, a non-UTF-8 file, a file over 256 KB refused; .gitattributes as the app writes it accepted)."
+    note "Every blob reachable from a new commit: path against the allowed kinds (*.cifra.md, *.setlist.md, README.md, .gitattributes as the app writes it), regular files only, UTF-8, 256 KB; trees and commits of reasonable size. Tests: unit (path and kind rules, UTF-8, sizes); behavior (the hook installed in a real bare repository, pushed to with the git CLI: each disallowed path, a symlink, a non-UTF-8 file, a file over 256 KB refused; .gitattributes as the app writes it accepted). Refinement: tasks/refinements/hook/contents.md"
   }
   task canonical "Canonical form" {
     effort 2d

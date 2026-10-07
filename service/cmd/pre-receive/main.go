@@ -8,8 +8,9 @@
 // refuse it whole; refused objects never leave quarantine (workflow 14). The
 // hook keeps no database connection of its own (DIRECTION §3.6).
 //
-// Today it composes the refs-and-history layer (hook.refs) and, once that
-// accepts, the object-reachability layer (hook.stowaways); the later hook
+// Today it composes the refs-and-history layer (hook.refs), then the
+// object-reachability layer (hook.stowaways), then the "what a book may hold"
+// layer (hook.contents), each run only if the previous accepted; the later hook
 // subtasks each add one more check in internal/hook for main to compose.
 package main
 
@@ -59,6 +60,22 @@ func run() int {
 		// than accept something unverified, naming only the structural fault
 		// (never object contents; no song text in logs).
 		fmt.Fprintf(os.Stderr, "pre-receive: could not verify pushed objects: %v\n", err)
+		return 1
+	}
+	if len(reasons) > 0 {
+		return refuse(reasons)
+	}
+
+	// The stowaways layer accepted: the objects reachable from the new head are
+	// exactly what the push holds, so run the "what a book may hold" layer
+	// (hook.contents) over every blob those new commits reach — path, mode,
+	// UTF-8, size, the .gitattributes bytes, and the tree/commit size guard.
+	reasons, err = hook.Contents(updates, "")
+	if err != nil {
+		// A git failure while walking or reading the pushed objects — refuse
+		// rather than accept something unverified, naming only the structural
+		// fault (never object contents; no song text in logs).
+		fmt.Fprintf(os.Stderr, "pre-receive: could not verify book contents: %v\n", err)
 		return 1
 	}
 	if len(reasons) > 0 {
