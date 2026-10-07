@@ -37,7 +37,12 @@ import { createSearchIndex } from './search-index.js';
 import { createRecents } from './recents.js';
 import { surfacePreferences } from './preferences.js';
 import { surfaceShelf } from './shelf.js';
-import { surfaceInstruments, instrumentRemoval } from './instruments.js';
+import {
+  surfaceInstruments,
+  instrumentRemoval,
+  standardMaterialization,
+  STANDARD_INSTRUMENT_ID,
+} from './instruments.js';
 import { defaultPresetFor } from '../core/instrument.js';
 import { authorFrom } from './author.js';
 
@@ -1333,6 +1338,38 @@ export function createWorkerLogic(port, options = {}) {
             const { id, tuning, chord, shorthand, author } = message.payload;
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
+            // Materialize the standard guitar on its first star (home-book §2.1
+            // lazy write; workflow 15 L74; music.explorer_standard_shapes): when
+            // the in-use instrument is the synthesized fallback (the reserved id,
+            // nothing stored yet), write its definition + rules and set it in use
+            // before the shape leaf below — so the generic shape-write path
+            // round-trips for the fallback exactly as for any named instrument.
+            // Mirrors the SAVE_INSTRUMENT add branch; idempotent (a later star
+            // finds a live entry and adds only its leaf). Each register file under
+            // its own lock, auto-committed, never pushed.
+            if (id === STANDARD_INSTRUMENT_ID) {
+              const [instruments, preferences] = await Promise.all([
+                home.read({ bookId: HOME_BOOK_ID, file: 'instruments.json' }),
+                home.read({ bookId: HOME_BOOK_ID, file: 'preferences.json' }),
+              ]);
+              const materialize = standardMaterialization({ instruments, preferences });
+              if (materialize.instruments.length) {
+                await home.set({
+                  bookId: HOME_BOOK_ID,
+                  file: 'instruments.json',
+                  changes: materialize.instruments,
+                  author,
+                });
+              }
+              if (materialize.preferences.length) {
+                await home.set({
+                  bookId: HOME_BOOK_ID,
+                  file: 'preferences.json',
+                  changes: materialize.preferences,
+                  author,
+                });
+              }
+            }
             await home.set({
               bookId: HOME_BOOK_ID,
               file: 'shapes.json',

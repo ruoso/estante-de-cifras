@@ -7,7 +7,13 @@
 import { describe, it, expect } from 'vitest';
 import { instrumentInstance } from '../core/instrument.js';
 import { withOverrides, PRESETS } from '../core/heuristics.js';
-import { surfaceInstruments, resolveRules, instrumentRemoval } from './instruments.js';
+import {
+  surfaceInstruments,
+  resolveRules,
+  instrumentRemoval,
+  standardMaterialization,
+  STANDARD_INSTRUMENT_ID,
+} from './instruments.js';
 
 const AT = '2026-10-06T12:00:00.000Z';
 const reg = (value) => ({ value, at: AT });
@@ -37,8 +43,10 @@ describe('surfaceInstruments (projection)', () => {
     };
     const out = surfaceInstruments(model);
     expect(out.instruments.map((e) => e.id).sort()).toEqual(['g1', 'u1']);
-    // absent instrumentInUse → the standard guitar (null id), the §6 identity.
+    // absent instrumentInUse → the standard guitar (the reserved id, not null —
+    // music.explorer_standard_shapes), the §6 identity.
     expect(out.inUseId).toBeNull();
+    expect(out.standard.id).toBe(STANDARD_INSTRUMENT_ID);
     expect(out.standard.catalogId).toBe('6guitar');
     expect(out.standard.tuning).toBe('E2 A2 D3 G3 B3 E4');
     // the roster carries the preset, string count and bass register the view needs
@@ -79,6 +87,84 @@ describe('surfaceInstruments (projection)', () => {
     expect(out.instruments[0].shapes).toEqual([
       { tuning: GUITAR_TUNING, chord: 'Em', shorthand: '022000' },
     ]);
+  });
+});
+
+describe('the standard guitar — reserved id and materialization (music.explorer_standard_shapes)', () => {
+  // Pins the .tji "materialize the standard as a real instrument with a reserved
+  // shapes id"; home-book §4.3 (opaque id), §2.1 (the lazy write); workflow 15
+  // L71-74. All fixtures written for this test (no-song-text rule).
+
+  it('carries a stable, non-null, non-UUID reserved id on the synthesized standard', () => {
+    // The reserved id must be a fixed constant (so two offline devices converge
+    // on one standard — Decision), never null (the "null" key bug) and outside
+    // the UUID space crypto.randomUUID() emits.
+    expect(typeof STANDARD_INSTRUMENT_ID).toBe('string');
+    expect(STANDARD_INSTRUMENT_ID.length).toBeGreaterThan(0);
+    expect(STANDARD_INSTRUMENT_ID).not.toBeNull();
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    expect(UUID_RE.test(STANDARD_INSTRUMENT_ID)).toBe(false);
+    // The synthesized fallback carries it, so the explorer's star keys on it.
+    expect(surfaceInstruments({}).standard.id).toBe(STANDARD_INSTRUMENT_ID);
+  });
+
+  it('emits the reserved-id definition and rules registers a hand-added Guitar · Standard writes', () => {
+    const changes = standardMaterialization({ instruments: {}, preferences: {} });
+    expect(changes.instruments).toEqual([
+      {
+        path: [STANDARD_INSTRUMENT_ID, 'definition'],
+        value: { catalogId: '6guitar', label: null, tuning: GUITAR_TUNING, fretCount: 22 },
+      },
+      { path: [STANDARD_INSTRUMENT_ID, 'rules'], value: { preset: 'strumming' } },
+    ]);
+    // In use was absent → set to the reserved id (mirroring SAVE_INSTRUMENT add).
+    expect(changes.preferences).toEqual([
+      { path: ['instrumentInUse'], value: STANDARD_INSTRUMENT_ID },
+    ]);
+  });
+
+  it('leaves the in-use preference alone when one is already set', () => {
+    const changes = standardMaterialization({
+      instruments: {},
+      preferences: { instrumentInUse: reg('g1') },
+    });
+    expect(changes.instruments).toHaveLength(2);
+    expect(changes.preferences).toEqual([]);
+  });
+
+  it('is idempotent — a live reserved entry yields no change-set (a second star re-uses it)', () => {
+    const live = {
+      instruments: {
+        [STANDARD_INSTRUMENT_ID]: {
+          definition: reg({ catalogId: '6guitar', label: null, tuning: GUITAR_TUNING, fretCount: 22 }),
+          rules: reg({ preset: 'strumming' }),
+        },
+      },
+      preferences: { instrumentInUse: reg(STANDARD_INSTRUMENT_ID) },
+    };
+    expect(standardMaterialization(live)).toEqual({ instruments: [], preferences: [] });
+  });
+
+  it('stops synthesizing the standard once the reserved entry is materialized, keeps it otherwise', () => {
+    // No reserved entry → the synthesized fallback is emitted.
+    expect(surfaceInstruments({ instruments: {} }).standard).not.toBeNull();
+    // A live reserved entry → it is in the roster with live shapes, and the
+    // synthesized fallback is no longer emitted (one in-use entry, not two).
+    const out = surfaceInstruments({
+      instruments: {
+        [STANDARD_INSTRUMENT_ID]: {
+          definition: reg({ catalogId: '6guitar', label: null, tuning: GUITAR_TUNING, fretCount: 22 }),
+          rules: reg({ preset: 'strumming' }),
+        },
+      },
+      preferences: { instrumentInUse: reg(STANDARD_INSTRUMENT_ID) },
+      shapes: { [STANDARD_INSTRUMENT_ID]: { [GUITAR_TUNING]: { A: reg('x02220') } } },
+    });
+    expect(out.standard).toBeNull();
+    const entry = out.instruments.find((e) => e.id === STANDARD_INSTRUMENT_ID);
+    expect(entry).toBeTruthy();
+    expect(out.inUseId).toBe(STANDARD_INSTRUMENT_ID);
+    expect(entry.shapes).toEqual([{ tuning: GUITAR_TUNING, chord: 'A', shorthand: 'x02220' }]);
   });
 });
 

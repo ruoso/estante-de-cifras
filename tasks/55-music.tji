@@ -23,8 +23,9 @@ task music "Music" {
   task explorer_standard_shapes "Star a shape on the standard-guitar fallback" {
     effort 1d
     allocate team
+    complete 100
     depends !explorer, !instruments
-    note "Starring a shape when the in-use instrument is the synthesized standard-guitar fallback (id: null) cannot persist because shapes.json is keyed by instrument id (home-book §4.4) and standardEntry.shapes is always empty. Materialize the standard as a real instrument with a reserved shapes id on first star, so the write path works identically to any named instrument. Source-of-debt: tasks/refinements/music/explorer.md (tech-debt note), home-book-format.md §4.4. Tests: behavior (star a shape on the standard fallback, confirm the leaf persists in shapes.json and is read back by the explorer)."
+    note "Starring a shape when the in-use instrument is the synthesized standard-guitar fallback (id: null) cannot persist because shapes.json is keyed by instrument id (home-book §4.4) and standardEntry.shapes is always empty. Materialize the standard as a real instrument with a reserved shapes id on first star, so the write path works identically to any named instrument. Source-of-debt: tasks/refinements/music/explorer.md (tech-debt note), home-book-format.md §4.4. Tests: behavior (star a shape on the standard fallback, confirm the leaf persists in shapes.json and is read back by the explorer). Refinement: tasks/refinements/music/explorer_standard_shapes.md"
   }
   task fallback "Where a chord's shape comes from" {
     effort 1d

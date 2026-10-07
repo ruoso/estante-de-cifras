@@ -37,6 +37,15 @@ const STANDARD_TUNING = 'E2 A2 D3 G3 B3 E4';
 const STANDARD_CATALOG = '6guitar';
 const STANDARD_FRETS = 22;
 
+// The reserved instrument id the synthesized standard guitar carries and
+// materializes under on its first star (music.explorer_standard_shapes; home-book
+// §4.3 — the id is opaque to the format). A fixed constant, deliberately NOT a
+// `crypto.randomUUID()`: two offline devices that each star on the fallback must
+// write the *same* key so the home book's key-by-key merge (§5) converges on one
+// standard guitar, not two. It must not be `null` (the present bug — it
+// stringifies to the fragile `"null"` key) and must be outside the UUID space.
+export const STANDARD_INSTRUMENT_ID = 'standard';
+
 /**
  * The effective voicing config and preset label-id for an instrument, from its
  * stored `rules` value (home-book §4.3). A named preset is rebuilt with
@@ -137,8 +146,13 @@ function buildEntry(id, node, shapesModel) {
   };
 }
 
-// The synthesised standard-guitar roster entry (id null), for the chip and the
-// search when no in-use register points at a real instrument.
+// The synthesised standard-guitar roster entry (the reserved id), for the chip
+// and the search when no in-use register points at a real instrument. It carries
+// the reserved id — not null — so the explorer's star keys the shape write on a
+// stable id and the SAVE_SHAPE arm can materialize it as a real instrument on the
+// first star (music.explorer_standard_shapes; home-book §4.4). Its `shapes` is
+// empty: once materialized it is surfaced by `buildEntry` with live shapes like
+// any other instrument, and this synthesized entry is no longer emitted.
 function standardEntry() {
   const instrument = instrumentInstance({
     catalogId: STANDARD_CATALOG,
@@ -147,7 +161,7 @@ function standardEntry() {
   });
   const { presetId, config } = resolveRules(instrument, null);
   return {
-    id: null,
+    id: STANDARD_INSTRUMENT_ID,
     catalogId: STANDARD_CATALOG,
     label: null,
     tuning: STANDARD_TUNING,
@@ -165,10 +179,11 @@ function standardEntry() {
  * Project the home book's instrument state to the INSTRUMENTS payload: the
  * roster (well-formed, non-tombstoned entries), the resolved in-use id (null for
  * the standard guitar — absent, or pointing at an instrument that is gone), and
- * the standard-guitar fallback entry.
+ * the synthesized standard-guitar fallback entry (null once the standard has been
+ * materialized under the reserved id, so the roster entry is the single standard).
  *
  * @param {{ instruments?: object, preferences?: object, shapes?: object }} models
- * @returns {{ instruments: object[], inUseId: string|null, standard: object }}
+ * @returns {{ instruments: object[], inUseId: string|null, standard: object|null }}
  */
 export function surfaceInstruments({ instruments = {}, preferences = {}, shapes = {} } = {}) {
   const roster = [];
@@ -182,7 +197,16 @@ export function surfaceInstruments({ instruments = {}, preferences = {}, shapes 
   let inUseId =
     isRegister(inUseReg) && typeof inUseReg.value === 'string' ? inUseReg.value : null;
   if (inUseId && !roster.some((e) => e.id === inUseId)) inUseId = null;
-  return { instruments: roster, inUseId, standard: standardEntry() };
+  // Once the standard guitar has been materialized under the reserved id (its
+  // first star), the roster entry carries its live shapes — so stop synthesizing
+  // the fallback, leaving that one entry as the single in-use standard rather
+  // than two entries sharing the reserved id (music.explorer_standard_shapes).
+  const materializedStandard = roster.some((e) => e.id === STANDARD_INSTRUMENT_ID);
+  return {
+    instruments: roster,
+    inUseId,
+    standard: materializedStandard ? null : standardEntry(),
+  };
 }
 
 // The tunings a remaining (not-removed, not-tombstoned) instrument still uses —
@@ -258,4 +282,50 @@ export function instrumentRemoval({
     songs: songChanges,
     preferences: preferenceChanges,
   };
+}
+
+/**
+ * The register change-sets that materialize the synthesized standard guitar as a
+ * real `instruments.json` entry under the reserved id (home-book §2.1 lazy write;
+ * workflow 15 L74; music.explorer_standard_shapes), the first time a shape is
+ * starred while the fallback is in use. Mirrors `instrumentRemoval`: pure, no
+ * I/O, grouped by file so the Worker writes each under its own lock. It writes
+ * the canonical `definition` + `rules` registers a hand-added *Guitar · Standard*
+ * writes (AddInstrumentForm L129, `defaultPresetFor('6guitar')`) and sets
+ * `instrumentInUse` to the reserved id when none is set (mirroring the
+ * SAVE_INSTRUMENT add branch). `label` is null, so it renders through the same
+ * catalogue·tuning derivation the synthesized fallback already used — no new
+ * copy. Idempotent: once the reserved entry is already live it returns empty
+ * change-sets, so a second star adds only its shape leaf, never re-materializing.
+ *
+ * @param {{ instruments?: object, preferences?: object }} opts
+ * @returns {{ instruments: object[], preferences: object[] }}
+ */
+export function standardMaterialization({ instruments = {}, preferences = {} } = {}) {
+  const existing = instruments?.[STANDARD_INSTRUMENT_ID]?.definition;
+  const alreadyLive = isRegister(existing) && existing.value && typeof existing.value === 'object';
+  if (alreadyLive) return { instruments: [], preferences: [] };
+
+  const definition = {
+    catalogId: STANDARD_CATALOG,
+    label: null,
+    tuning: STANDARD_TUNING,
+    fretCount: STANDARD_FRETS,
+  };
+  const instrumentChanges = [
+    { path: [STANDARD_INSTRUMENT_ID, 'definition'], value: definition },
+    {
+      path: [STANDARD_INSTRUMENT_ID, 'rules'],
+      value: { preset: defaultPresetFor(STANDARD_CATALOG) },
+    },
+  ];
+
+  const inUseReg = preferences?.instrumentInUse;
+  const inUse =
+    isRegister(inUseReg) && typeof inUseReg.value === 'string' ? inUseReg.value : null;
+  const preferenceChanges = inUse
+    ? []
+    : [{ path: ['instrumentInUse'], value: STANDARD_INSTRUMENT_ID }];
+
+  return { instruments: instrumentChanges, preferences: preferenceChanges };
 }
