@@ -15,8 +15,9 @@ task hook "The pre-receive hook" {
   task stowaways "No stowaways" {
     effort 2d
     allocate team
+    complete 100
     depends !refs
-    note "List every object in quarantine and compare with rev-list --objects from the new head, excluding what the repository already had; one object more refuses the push. Tests: behavior (the hook installed in a real bare repository, pushed to with the git CLI: a pack carrying an object unreachable from the new head refused; a push reusing objects the repository already had accepted); e2e-api (a crafted pack with a stowaway pushed to the stack and refused)."
+    note "List every object in quarantine and compare with rev-list --objects from the new head, excluding what the repository already had; one object more refuses the push. Tests: unit (service/internal/hook/stowaways_test.go: rev-list parsing, cat-file parsing, three-set StowawayReason determination); behavior (the hook installed in a real bare repository, pushed to with the git CLI: a pack carrying an object unreachable from the new head refused; a push reusing objects the repository already had accepted); e2e-api (a crafted pack with a stowaway pushed to the stack and refused). Refinement: tasks/refinements/hook/stowaways.md"
   }
   task contents "What a book may hold" {
     effort 2d

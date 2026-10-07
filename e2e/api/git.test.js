@@ -16,7 +16,7 @@ import { afterEach, describe, it, expect } from 'vitest';
 import { writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { GitCli, IsoGit, makeTempDir } from './lib/git.js';
+import { GitCli, IsoGit, makeTempDir, buildCraftedReceivePack, demuxReceivePack } from './lib/git.js';
 import { sampleSong } from './fixtures/songs.js';
 import { HttpClient } from './lib/http.js';
 import { baseUrl } from './lib/env.js';
@@ -240,5 +240,66 @@ describe('hook: refs (hook.refs)', () => {
     const relayed = `${error.stderr ?? ''}${error.stdout ?? ''}${error.message ?? ''}`;
     expect(relayed).toContain('remote:');
     expect(relayed).toMatch(/non-fast-forward|refs\/heads\/main/);
+  });
+});
+
+describe('hook: stowaways (hook.stowaways)', () => {
+  // A member pushes an initial main (accepted), then a crafted pack carrying an
+  // object unreachable from the new head is POSTed straight to the book's
+  // git-receive-pack endpoint — the misbehaving client a well-behaved `git push`
+  // cannot produce (pack-objects only ever sends reachable objects). The stack
+  // refuses the whole push, the reason reaching the client on git's own channel
+  // (the side-band-relayed hook stderr) and the ref reported ng in the
+  // report-status, inside a 200 result body — not an HTTP error. Pins workflow
+  // 14 "No stowaways" (14-file-view.md:98-101) and DIRECTION §3.6 line 341, and
+  // proves the stowaway check is built into and run by the image.
+  it('refuses a crafted pack carrying an object unreachable from the new head', async () => {
+    const client = new HttpClient();
+    await registerNewAccount(client);
+    const book = await createBook(client, 'No Stowaways');
+    const url = gitEndpoint(book);
+    const cookie = client.cookieHeader();
+
+    // The initial push creates main — accepted (a book comes online).
+    const workDir = await tempDir('estante-e2e-stowwork-');
+    const work = await GitCli.create(workDir);
+    await work.init();
+    await writeFile(join(workDir, sampleSong.filename), sampleSong.content);
+    await work.add('.');
+    await work.commit('Add the tuning song');
+    await work.pushHTTP(url, cookie);
+    const old = await work.revParse('HEAD');
+
+    // A legitimate fast-forward commit on top …
+    await writeFile(join(workDir, 'segundo.cifra.md'), '# Segundo\n\n```cifra\n[Am]Linha legitima\n```\n');
+    await work.add('.');
+    await work.commit('Add a second song');
+    const newHead = await work.revParse('HEAD');
+
+    // … and a purpose-written object no commit refers to — the stowaway.
+    await writeFile(join(workDir, 'stowaway.txt'), 'an object riding along that no commit refers to\n');
+    const stowaway = await work.hashObject('stowaway.txt');
+
+    // Build the crafted pack (introduced objects + the stowaway) and POST the
+    // framed receive-pack request with the session cookie.
+    const request = await buildCraftedReceivePack(workDir, { old, newHead, extra: [stowaway] });
+    const resp = await client.fetch(`/git/${book.id}/git-receive-pack`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-git-receive-pack-request' },
+      body: request,
+    });
+    // A content refusal rides inside the 200 result body, not an HTTP error.
+    expect(resp.status).toBe(200);
+    const body = Buffer.from(await resp.arrayBuffer());
+    const { status, progress } = demuxReceivePack(body);
+    // The ref is reported declined on git's channel …
+    expect(status).toContain('ng refs/heads/main');
+    // … and the hook's reason is relayed on the side-band (git's own channel).
+    expect(progress).toMatch(/stowaway|unreachable/);
+
+    // Proof nothing migrated: a fresh clone still sees only the initial commit.
+    const verifyDir = await tempDir('estante-e2e-stowverify-');
+    const verify = await GitCli.cloneHTTP(url, verifyDir, cookie);
+    expect(await verify.revParse('HEAD')).toBe(old);
   });
 });

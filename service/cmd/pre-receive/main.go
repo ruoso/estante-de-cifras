@@ -8,7 +8,8 @@
 // refuse it whole; refused objects never leave quarantine (workflow 14). The
 // hook keeps no database connection of its own (DIRECTION §3.6).
 //
-// Today it carries only the refs-and-history layer (hook.refs); the later hook
+// Today it composes the refs-and-history layer (hook.refs) and, once that
+// accepts, the object-reachability layer (hook.stowaways); the later hook
 // subtasks each add one more check in internal/hook for main to compose.
 package main
 
@@ -41,10 +42,36 @@ func run() int {
 		return 1
 	}
 	if len(reasons) > 0 {
-		for _, reason := range reasons {
-			fmt.Fprintln(os.Stderr, "pre-receive: "+reason)
-		}
+		return refuse(reasons)
+	}
+
+	// The refs layer accepted: there is a single valid new refs/heads/main head
+	// to reach from, so run the object-reachability layer (hook.stowaways) on
+	// the quarantine. git marks the quarantine with GIT_QUARANTINE_PATH and also
+	// points GIT_OBJECT_DIRECTORY at it; fall back to the latter.
+	quarantine := os.Getenv("GIT_QUARANTINE_PATH")
+	if quarantine == "" {
+		quarantine = os.Getenv("GIT_OBJECT_DIRECTORY")
+	}
+	reasons, err = hook.Stowaways(updates, "", quarantine)
+	if err != nil {
+		// A git failure while enumerating or reaching objects — refuse rather
+		// than accept something unverified, naming only the structural fault
+		// (never object contents; no song text in logs).
+		fmt.Fprintf(os.Stderr, "pre-receive: could not verify pushed objects: %v\n", err)
 		return 1
 	}
+	if len(reasons) > 0 {
+		return refuse(reasons)
+	}
 	return 0
+}
+
+// refuse writes each refusal reason to stderr (git relays it to the client
+// prefixed "remote:") and returns the non-zero exit that refuses the whole push.
+func refuse(reasons []string) int {
+	for _, reason := range reasons {
+		fmt.Fprintln(os.Stderr, "pre-receive: "+reason)
+	}
+	return 1
 }
