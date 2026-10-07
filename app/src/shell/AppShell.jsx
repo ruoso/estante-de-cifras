@@ -31,6 +31,7 @@ import SongArrange from '../songs/SongArrange.jsx';
 import SongWizard from '../songs/SongWizard.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
+import SignIn from '../account/SignIn.jsx';
 import FileView from '../files/FileView.jsx';
 import ChordExplorer from '../music/ChordExplorer.jsx';
 import InstrumentChip from '../instruments/InstrumentChip.jsx';
@@ -135,7 +136,7 @@ function destinationTab(key, variant) {
 // Decision 1) — while `setlists` stays a labelled slot its own content task will
 // fill. RAC mounts only the selected panel, so exactly one level-1 heading (the
 // screen's own) is present at a time.
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, search) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, search) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key}>
       {key === 'search' ? (
@@ -153,6 +154,7 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
           onAddBook={() => onNavigate('books')}
           onWriteSong={onWriteSong}
           onOpenSong={onOpenSong}
+          onSignIn={onSignIn}
           query={search.query}
           onQueryChange={search.onQueryChange}
           onExploreChord={search.onExploreChord}
@@ -166,9 +168,26 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
   ));
 }
 
-export default function AppShell({ store = getAppStore() }) {
+export default function AppShell({ store = getAppStore(), redeemToken = null }) {
   const mode = useLayoutMode();
   const [selected, setSelected] = useState(DESTINATIONS[0]);
+
+  // The sign-in surface (account.sign_in): a full-screen surface over the shell,
+  // like `openSong`/`openFile`. It is opened by the empty shelf's "Sign in" row
+  // (the `onSignIn` seam account.first_run wired) in create intent — the cold
+  // device's primary account-creation path, "An account is a passkey" (workflow
+  // 7; the e2e journey makes an account here) — or, when the app booted at
+  // `/sign-in/<token>` (App.jsx), straight into redeem mode. The returning-device
+  // authenticate path and its "I have an account: sign in" entry are
+  // books.add_by_link's, which opens this same surface in sign-in intent.
+  // `null` is closed; otherwise `{ intent, token }`. Closing (cancel, or after a
+  // successful `onSignedIn`) returns to where it was opened from. The account
+  // itself is handed to `onSignedIn`; filling the shelf and switching the commit
+  // author from the device-local id are account.new_device's, not this surface's
+  // (Decision 6), so here a sign-in simply closes the surface.
+  const [signIn, setSignIn] = useState(
+    redeemToken ? { intent: 'signIn', token: redeemToken } : null,
+  );
 
   // Writing a new song is ephemeral view state, not Worker data and not a store
   // slice (songs.new_song Decision 5; shell.layout Decision 5 — navigation is
@@ -312,6 +331,22 @@ export default function AppShell({ store = getAppStore() }) {
     setEditing(null);
   }, []);
 
+  // The sign-in surface is a full screen over the shell (account.sign_in
+  // Decision 3), checked first so a `/sign-in/<token>` boot shows it even with
+  // no shelf yet behind it. `onSignedIn` hands the account out (the shelf fill
+  // and the author switch are account.new_device's — Decision 6); here it just
+  // closes. Cancel closes the same way.
+  if (signIn) {
+    return (
+      <SignIn
+        intent={signIn.intent}
+        redeemToken={signIn.token ?? null}
+        onSignedIn={() => setSignIn(null)}
+        onClose={() => setSignIn(null)}
+      />
+    );
+  }
+
   // The file view is a full screen over the shell (books.file_view Decision 7),
   // exactly as the new-song editor host is; Back returns to the shell.
   if (openFile) {
@@ -444,7 +479,7 @@ export default function AppShell({ store = getAppStore() }) {
             </div>
             <main className="pane main">
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, search)}
+                {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, () => setSignIn({ intent: 'create' }), search)}
               </div>
             </main>
           </div>
@@ -464,7 +499,7 @@ export default function AppShell({ store = getAppStore() }) {
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className="scroll">
-              {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, search)}
+              {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, () => setSignIn({ intent: 'create' }), search)}
             </main>
           </div>
         )}

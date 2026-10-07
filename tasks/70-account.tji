@@ -15,8 +15,9 @@ task account "First run and the account" {
   task sign_in "Signing in" {
     effort 3d
     allocate team
+    complete 100
     depends service.passkeys, service.email_links, service.sessions
-    note "A passkey, the browser's cross-device flow, the emailed link; offering a passkey on a new device. Workflows 7, 13. Tests: behavior (passkey, cross-device and emailed-link screens; axe); e2e-web (on the stack: a passkey with a virtual authenticator, an emailed link read from the mail catcher, a passkey offered on a new device; axe)."
+    note "A passkey, the browser's cross-device flow, the emailed link; offering a passkey on a new device. Workflows 7, 13. Tests: behavior (passkey, cross-device and emailed-link screens; axe); e2e-web (on the stack: a passkey with a virtual authenticator, an emailed link read from the mail catcher, a passkey offered on a new device; axe). Refinement: tasks/refinements/account/sign_in.md"
   }
   task new_device "A new device" {
     effort 3d

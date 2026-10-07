@@ -11,6 +11,7 @@ import ArrangeDev from './songs/ArrangeDev.jsx';
 import WizardDev from './songs/WizardDev.jsx';
 import FilesDev from './files/FilesDev.jsx';
 import UpdateReady from './pwa/UpdateReady.jsx';
+import { signInToken } from './account/sign-in-route.js';
 import { getAppStore } from './worker/store.js';
 
 // The chart's dev gallery is reachable only at `#dev/chart` — absent from the
@@ -89,6 +90,14 @@ function useHashRoute() {
   }, []);
 }
 
+// The emailed sign-in link boots the app at `/sign-in/<token>` — a path, not a
+// hash (account.sign_in Decision 4; the service mails a path). Read it once at
+// boot, beside the `#dev/*` hash mounts; AppShell opens the sign-in surface in
+// redeem mode when a token is present. Pure parse in `signInToken`.
+function bootRedeemToken() {
+  return typeof location === 'undefined' ? null : signInToken(location.pathname);
+}
+
 // The app root: the resolved visual-language root (ThemeRoot, shell.tokens)
 // wrapping the navigation shell (AppShell, shell.layout) — the frame Search,
 // Books and Setlists are drawn inside (DIRECTION §4 lines 430-435; §3.7 lines
@@ -103,6 +112,18 @@ function useHashRoute() {
 // t() re-reads. ThemeRoot's own `.est` root stays put across that remount.
 export default function App({ store = getAppStore() }) {
   useHashRoute();
+
+  // Capture the redeem token once at mount and clean the URL to `/` with
+  // history.replaceState, so the single-use token does not linger in history or
+  // a share (Decision 4). The surface runs the redeem; AppShell receives the
+  // token and opens the surface in redeem mode.
+  const [redeemToken] = useState(bootRedeemToken);
+  useEffect(() => {
+    if (redeemToken && typeof history !== 'undefined') {
+      history.replaceState(null, '', '/');
+    }
+  }, [redeemToken]);
+
   return (
     <ThemeRoot store={store}>
       <LocaleRoot store={store}>
@@ -121,7 +142,7 @@ export default function App({ store = getAppStore() }) {
         ) : isFilesDev() ? (
           <FilesDev store={store} />
         ) : (
-          <AppShell store={store} />
+          <AppShell store={store} redeemToken={redeemToken} />
         )}
         {/* The PWA update notice (shell.pwa) sits over the shell, inside the
             token root and the locale boundary so it is themed and translated; it

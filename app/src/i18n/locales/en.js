@@ -153,6 +153,44 @@ export default {
     exampleLabel: 'Example Book',
   },
 
+  // The sign-in surface (account.sign_in, workflows 7 & 13; mockup W13). The
+  // method screen's copy is W13's; the email, check-your-email and offer-a-
+  // passkey steps and the worded errors realise the same wording (Decision 7).
+  // Every status is a word, never colour alone; no error ever names the address.
+  signIn: {
+    brand: 'Estante',
+    close: 'Close',
+    // The method screen (W13 §Signing in).
+    heading: 'Sign in',
+    body: 'Bring your books, instruments and preferences to this phone.',
+    usePasskey: 'Use a passkey',
+    emailLink: 'Email me a link',
+    note: 'No passkey here? The link signs you in on this phone, and recovers your account if every device with a passkey is lost.',
+    // The emailed-link request step.
+    emailHeading: 'Email me a link',
+    emailBody: 'We’ll send a sign-in link to your email. Open it on this device to sign in.',
+    emailLabel: 'Your email',
+    emailSend: 'Send the link',
+    usePasskeyInstead: 'Use a passkey instead',
+    // After requesting a link — never says whether the address has an account.
+    checkHeading: 'Check your email',
+    checkBody: 'If that address has an account, a sign-in link is on its way. Open it on this device to sign in.',
+    checkBack: 'Back to sign in',
+    // Redeeming an emailed link at boot.
+    redeeming: 'Signing you in…',
+    working: 'Working…',
+    // Offering to add a passkey to this device (workflow 13 lines 23-24).
+    offerHeading: 'Make signing in quicker',
+    offerBody: 'Add a passkey to this device, so next time is one tap.',
+    offerAdd: 'Add a passkey',
+    offerSkip: 'Not now',
+    // Worded errors and retries.
+    errorPasskey: 'That passkey didn’t work — try again or use an emailed link.',
+    errorExpired: 'This link has expired or has already been used — request a new one.',
+    errorOffline: 'Couldn’t reach Estante. Check your connection and try again.',
+    requestNewLink: 'Request a new link',
+  },
+
   // Writing a new song (songs.new_song, workflow 3; W03 board). The ways in (the
   // Create row, "new song in this book"), the which-book bar above the editor,
   // and the host's own chrome. `{query}` is the search that becomes the title;

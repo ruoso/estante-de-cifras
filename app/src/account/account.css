@@ -1,0 +1,61 @@
+/* The sign-in surface (account.sign_in; board W13 §Signing in). Layout only —
+   every colour is a theme token (docs/mockups/theme.css), status is a word,
+   never colour alone (standing a11y rule). The shared theme supplies .screen,
+   .appbar, .btn, .field, .input, .notice, .t-* ; this adds the surface's own
+   single-column composition, centred on every viewport. */
+
+.account-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.account-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: calc(var(--u) * 4) calc(var(--u) * 2) calc(var(--u) * 3);
+}
+
+/* The centred column — a phone-width measure the tablet and computer keep, so
+   the ceremony reads the same on every viewport (W13 draws it as a phone). */
+.account-card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}
+
+.account-heading {
+  margin-top: calc(var(--u) * 1.5);
+}
+
+.account-sub {
+  color: var(--ink-2);
+  margin: 0;
+}
+
+.account-note {
+  color: var(--ink-2);
+  margin: 0;
+}
+
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}
+
+.account-error {
+  font-weight: 600;
+}
+
+.account-busy {
+  color: var(--ink-2);
+  margin: 0;
+}

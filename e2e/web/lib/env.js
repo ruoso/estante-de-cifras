@@ -23,5 +23,31 @@ function required(name) {
   return value.replace(/\/+$/, '');
 }
 
+// WebAuthn ceremonies run against the page's own origin, and a real browser
+// rejects an IP-literal origin outright: navigator.credentials.create() throws
+// SecurityError "This is an invalid domain." on http://127.0.0.1 for every
+// rp.id (and omitted), succeeding only on a named host such as `localhost`.
+// scripts/gate publishes the stack on loopback and exports its origin as
+// http://127.0.0.1:<port>; normalize that host to the equivalent `localhost`
+// name so this harness drives the passkey ceremony against a WebAuthn-valid
+// origin. `localhost` resolves to the same published loopback bind, so only the
+// host name changes — the compose stack serves its one origin on `localhost`
+// too (ESTANTE_PUBLIC_BASE_URL, ESTANTE_WEBAUTHN_RP_ID), so the browser origin,
+// the service's RP ID + RP origin and the mailed link all agree.
+function browserOrigin(value) {
+  const url = new URL(value);
+  if (url.hostname === '127.0.0.1') url.hostname = 'localhost';
+  return url.origin;
+}
+
 // The one origin (app + API). Playwright's use.baseURL resolves against this.
-export const baseUrl = required('ESTANTE_E2E_BASE_URL');
+export const baseUrl = browserOrigin(required('ESTANTE_E2E_BASE_URL'));
+
+// The mail catcher's HTTP API (Mailpit), read lazily: `playwright.config.js`
+// imports `baseUrl` from here, so a throwing top-level read would break even the
+// specs that never touch mail. The first `account` sign-in journey calls this;
+// scripts/gate exports ESTANTE_E2E_MAIL_URL alongside the base URL (gate line
+// 254). Trailing slash dropped so the reader can join paths cleanly.
+export function mailUrl() {
+  return required('ESTANTE_E2E_MAIL_URL');
+}

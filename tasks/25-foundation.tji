@@ -76,6 +76,12 @@ task foundation "Foundation" {
     depends !e2e_api, !app_sw_register, service.serve_app
     note "e2e/web/: Playwright against the compose stack (the app served by the service on its one origin), run by scripts/gate with an explicit `--workers`; three projects — phone, tablet and computer viewports — so every test runs on all three; an axe fixture that checks WCAG 2.1 AA on every screen a test visits and fails on any violation; an offline mode (network cut after load, reload, network back); two-device helpers (two browser contexts, two accounts). DIRECTION §3.6, §3.7. Tests: e2e-web (the harness's own: the app loads at the origin on all three viewports; the axe fixture passes a clean page and fails a fixture page with a planted violation; offline mode cuts and restores the network). Refinement: tasks/refinements/foundation/e2e_web.md"
   }
+  task gate_localhost_origin "Clean up the e2e-stack localhost origin" {
+    effort 0.5d
+    allocate team
+    depends account.sign_in
+    note "Move `ESTANTE_E2E_BASE_URL` and `ESTANTE_WEBAUTHN_RP_ID` in `scripts/gate` from `127.0.0.1` to `localhost`, and drop the host-normalisation workarounds added in `compose.yaml` and `e2e/web/lib/env.js`/`e2e/api/lib/env.js` by account.sign_in. Source-of-debt: account.sign_in (tasks/refinements/account/sign_in.md); real Chromium rejects WebAuthn on an IP-literal origin so the fix landed as normalisation in downstream files, leaving a two-source-of-truth with the gate. DIRECTION §3.3 (one origin). Tests: no new tests — the existing e2e-web (account-sign-in.spec.js, all three viewports) and e2e-api suites are the verification after the cleanup."
+  }
   task cifra_md_in_image "Package cifra.md/js and cifra.md/go into the service image" {
     effort 1d
     allocate team
