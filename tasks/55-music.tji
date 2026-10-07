@@ -30,8 +30,9 @@ task music "Music" {
   task fallback "Where a chord's shape comes from" {
     effort 1d
     allocate team
+    complete 100
     depends !instruments, cifra_js.reader
-    note "The song's choice, then my shape, then the app's default; each marked for what it is. Workflow 2. Tests: unit (the song's choice, then my shape, then the default, each marked for what it is)."
+    note "The song's choice, then my shape, then the app's default; each marked for what it is. Workflow 2. Tests: unit (the song's choice, then my shape, then the default, each marked for what it is). Refinement: tasks/refinements/music/fallback.md"
   }
   task transpose "Transposing for reading" {
     effort 2d
