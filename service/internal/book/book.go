@@ -109,6 +109,31 @@ func (s Store) ReadTitle(ctx context.Context, id string) (string, bool) {
 	return titleFromREADME(out), true
 }
 
+// ResolveHead resolves the book's main branch to its commit SHA — the single
+// ref read the change check is sized on (DIRECTION §3.3/§3.4: "a ref read for
+// the change check"; service.change_check Constraint 2). It runs one
+// `git rev-parse --verify refs/heads/main` over the same hardened runGit seam
+// as ReadTitle — argument arrays, GIT_CONFIG_NOSYSTEM, never a shell — and walks
+// no history and reads no object. ok is false, with a nil error, when the book
+// has no refs/heads/main yet (an empty book whose first commit has not landed)
+// or the repository is otherwise unreadable; the sha is then empty. A non-nil
+// error is reserved for an id that is not a canonical UUID (a path that could
+// escape the volume root), which the caller resolves from the registry before
+// ever reaching here.
+func (s Store) ResolveHead(ctx context.Context, id string) (string, bool, error) {
+	path, err := repoPath(s.Root, id)
+	if err != nil {
+		return "", false, err
+	}
+	out, err := runGit(ctx, "--git-dir", path, "rev-parse", "--verify", "refs/heads/main")
+	if err != nil {
+		// No refs/heads/main yet (an empty book) or an unreadable repository:
+		// nothing to report, not an error — the book simply has no head.
+		return "", false, nil
+	}
+	return strings.TrimSpace(string(out)), true, nil
+}
+
 // Remove deletes the book's bare repository from the volume. A missing
 // directory is not an error (delete is idempotent; deleted_at is the
 // authoritative gate — service.books Decision).

@@ -50,8 +50,9 @@ task service "The service" {
   task change_check "The shelf change check" {
     effort 1d
     allocate team
+    complete 100
     depends !git_http
-    note "One request for a whole shelf, each book with the head the device has, answered with the books that moved; one ref read per book. Workflow 8. Tests: behavior (a shelf with moved and unmoved books answered with one ref read each; a book the user lost access to); e2e-api (a push from one client, then the change check from another sees that book move and no other)."
+    note "One request for a whole shelf, each book with the head the device has, answered with the books that moved; one ref read per book. Workflow 8. Tests: behavior (a shelf with moved and unmoved books answered with one ref read each; a book the user lost access to); e2e-api (a push from one client, then the change check from another sees that book move and no other). Refinement: tasks/refinements/service/change_check.md"
   }
   task sharing "Members and invitations" {
     effort 3d

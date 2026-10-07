@@ -67,6 +67,13 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 		mux.HandleFunc("POST /api/books", handleCreateBook(api))
 		mux.HandleFunc("DELETE /api/books/{bookId}", handleDeleteBook(api))
 		mux.HandleFunc("POST /api/books/{bookId}/fork", handleForkBook(api))
+		// The shelf change check: one batched request carrying each shelf book's
+		// id and the head the device has, answered with only the books that moved
+		// or the caller can no longer access (workflow 8; DIRECTION §3.3;
+		// api/openapi.yaml /api/shelf/change-check). It reads one ref per
+		// accessible book and changes no state, so it needs only the pool and the
+		// books volume (service.change_check).
+		mux.HandleFunc("POST /api/shelf/change-check", handleChangeCheck(api))
 		// Sharing: a book's members and invitations (workflow 10; api/openapi.yaml
 		// /api/books/{bookId}/members[/{userId}], /invitations[/{invitationId}]
 		// and /api/invitations/{token}/accept). These move registry rows and
