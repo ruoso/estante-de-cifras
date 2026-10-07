@@ -84,29 +84,25 @@ services:
       ESTANTE_DATABASE_URL: postgres://${ESTANTE_PG_USER:-estante}:${ESTANTE_PG_PASSWORD:-estante}@postgres:5432/${ESTANTE_PG_DB:-estante}?sslmode=disable
       # The emailed sign-in link (service.email_links). The mailer hands the
       # link to Mailpit over SMTP on the compose network (mail:1025, unpublished);
-      # the mailed link is built on the public origin. The stack's one origin is
-      # `localhost` (not the loopback IP): a real browser rejects WebAuthn on an
-      # IP-literal origin outright — navigator.credentials.create() throws
-      # SecurityError "This is an invalid domain." on http://127.0.0.1 for every
-      # rp.id — so the e2e-web browser must drive the passkey ceremony against
-      # `localhost`, and the mailed link it opens must land there too. `localhost`
-      # resolves to the same published loopback bind, so the port (the gate's
-      # per-run ESTANTE_HTTP_PORT, else 8080 by hand) is all that varies. The
+      # the mailed link is built on the public origin, which is the stack's one
+      # origin — scripts/gate authors it (ESTANTE_E2E_BASE_URL) and this reads it,
+      # defaulting to http://localhost:<port> for a bare `docker compose up`. The
       # signing secret is a dev-only placeholder here (never a real credential);
       # production injects a real ESTANTE_LINK_SECRET.
       ESTANTE_SMTP_ADDR: mail:1025
       ESTANTE_MAIL_FROM: ${ESTANTE_MAIL_FROM:-no-reply@estantedecifras.app}
-      ESTANTE_PUBLIC_BASE_URL: http://localhost:${ESTANTE_HTTP_PORT:-8080}
+      ESTANTE_PUBLIC_BASE_URL: ${ESTANTE_E2E_BASE_URL:-http://localhost:${ESTANTE_HTTP_PORT:-8080}}
       ESTANTE_LINK_SECRET: ${ESTANTE_LINK_SECRET:-dev-insecure-link-secret}
       # Passkeys (service.passkeys). The relying-party ID is the effective domain
-      # the passkey binds to; on the compose/e2e stack the one origin is
-      # `localhost` (see ESTANTE_PUBLIC_BASE_URL above — browsers reject an IP RP
-      # ID), so the RP ID is `localhost` and the RP origin is derived from the
-      # public base URL. The e2e-api harness drives a software authenticator that
-      # echoes this RP ID and stamps the same origin, so it validates too. The
-      # state secret is a dev-only placeholder here (never a real credential);
-      # production injects a real one.
-      ESTANTE_WEBAUTHN_RP_ID: localhost
+      # the passkey binds to; it is the stack's one-origin host, authored once by
+      # scripts/gate (ESTANTE_WEBAUTHN_RP_ID) and read here, defaulting to
+      # `localhost` for a bare `docker compose up`. It must be a named host, not
+      # an IP literal — a real browser rejects WebAuthn on an IP-literal origin.
+      # The e2e-api harness drives a software authenticator that echoes this RP ID
+      # and stamps the same origin, so it validates too. The state secret is a
+      # dev-only placeholder here (never a real credential); production injects a
+      # real one.
+      ESTANTE_WEBAUTHN_RP_ID: ${ESTANTE_WEBAUTHN_RP_ID:-localhost}
       ESTANTE_WEBAUTHN_STATE_SECRET: ${ESTANTE_WEBAUTHN_STATE_SECRET:-dev-insecure-webauthn-state-secret}
     ports:
       # One origin: the published HTTP port serves both the app (at /, once

@@ -250,7 +250,7 @@ stack_up() {
   ESTANTE_PG_PORT="$(free_port)"
   ESTANTE_MAIL_PORT="$(free_port)"
   export ESTANTE_PG_USER=estante ESTANTE_PG_PASSWORD=estante ESTANTE_PG_DB=estante
-  export ESTANTE_E2E_BASE_URL="http://127.0.0.1:$ESTANTE_HTTP_PORT"
+  export ESTANTE_E2E_BASE_URL="http://localhost:$ESTANTE_HTTP_PORT"
   export ESTANTE_E2E_MAIL_URL="http://127.0.0.1:$ESTANTE_MAIL_PORT"
   export ESTANTE_TEST_DATABASE_URL="postgres://$ESTANTE_PG_USER:$ESTANTE_PG_PASSWORD@127.0.0.1:$ESTANTE_PG_PORT/$ESTANTE_PG_DB?sslmode=disable"
   # The emailed sign-in link's signing secret (service.email_links): a per-run,
@@ -260,11 +260,15 @@ stack_up() {
   export ESTANTE_LINK_SECRET="gate-link-secret-$$-$(date +%s)"
   # The passkey state token's signing secret (service.passkeys): a per-run,
   # throwaway HMAC key the service container seals and opens begin→finish state
-  # with. The relying-party ID is the stack's one-origin host, 127.0.0.1, which
+  # with. The relying-party ID is the stack's one-origin host, `localhost`, which
   # the RP origin (derived from ESTANTE_E2E_BASE_URL) also uses, so the software
-  # authenticator's ceremony validates.
+  # authenticator's ceremony validates. The host must be a named one, not an IP
+  # literal: a real browser throws SecurityError "This is an invalid domain." on
+  # navigator.credentials.create() against an http://127.0.0.1 origin for every
+  # rp.id. This is the one place the stack's origin host is authored — compose
+  # and both lib/env.js read it from here.
   export ESTANTE_WEBAUTHN_STATE_SECRET="gate-webauthn-state-secret-$$-$(date +%s)"
-  export ESTANTE_WEBAUTHN_RP_ID="127.0.0.1"
+  export ESTANTE_WEBAUTHN_RP_ID="localhost"
   export ESTANTE_COMPOSE_PROJECT="estante-gate-$$-$(date +%s)"
 
   step "estante e2e: building and starting the stack ($ESTANTE_COMPOSE_PROJECT, origin $ESTANTE_E2E_BASE_URL)"
