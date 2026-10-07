@@ -56,8 +56,9 @@ task service "The service" {
   task sharing "Members and invitations" {
     effort 3d
     allocate team
+    complete 100
     depends !books
-    note "Invitations with role, expiry, limit on uses, who joined; accept; withdraw; members' roles; remove; at most fifty people per book, a full book refusing joins and telling the owner; who sees whom. Workflow 10. Tests: unit (role, expiry and use rules); behavior (invite, accept, withdraw, change a role, remove; the fiftieth person joins, the fifty-first is refused and the owner told; who sees whom); e2e-api (an invitation accepted by a second account, which can then clone and, as editor, push; a full book refusing a join)."
+    note "Invitations with role, expiry, limit on uses, who joined; accept; withdraw; members' roles; remove; at most fifty people per book, a full book refusing joins and telling the owner; who sees whom. Workflow 10. Tests: unit (role, expiry and use rules); behavior (invite, accept, withdraw, change a role, remove; the fiftieth person joins, the fifty-first is refused and the owner told; who sees whom); e2e-api (an invitation accepted by a second account, which can then clone and, as editor, push; a full book refusing a join). Refinement: tasks/refinements/service/sharing.md"
   }
   task serve_app "Serve the app" {
     effort 1d

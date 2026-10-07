@@ -67,6 +67,19 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 		mux.HandleFunc("POST /api/books", handleCreateBook(api))
 		mux.HandleFunc("DELETE /api/books/{bookId}", handleDeleteBook(api))
 		mux.HandleFunc("POST /api/books/{bookId}/fork", handleForkBook(api))
+		// Sharing: a book's members and invitations (workflow 10; api/openapi.yaml
+		// /api/books/{bookId}/members[/{userId}], /invitations[/{invitationId}]
+		// and /api/invitations/{token}/accept). These move registry rows and
+		// compose the shareable link; they need only the pool and the books
+		// volume (for the accepted book's README title), so they are routed
+		// whenever the API is wired (service.sharing).
+		mux.HandleFunc("GET /api/books/{bookId}/members", handleListMembers(api))
+		mux.HandleFunc("PATCH /api/books/{bookId}/members/{userId}", handleChangeMemberRole(api))
+		mux.HandleFunc("DELETE /api/books/{bookId}/members/{userId}", handleRemoveMember(api))
+		mux.HandleFunc("GET /api/books/{bookId}/invitations", handleListInvitations(api))
+		mux.HandleFunc("POST /api/books/{bookId}/invitations", handleCreateInvitation(api))
+		mux.HandleFunc("DELETE /api/books/{bookId}/invitations/{invitationId}", handleWithdrawInvitation(api))
+		mux.HandleFunc("POST /api/invitations/{token}/accept", handleAcceptInvitation(api))
 		// Git over HTTP: the service speaks git's smart HTTP protocol itself for
 		// the three routes under /git/{bookId} — the ref advertisement and the two
 		// stateless-rpc commands (workflow 14; api/openapi.yaml /git/{bookId}/…).

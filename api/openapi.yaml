@@ -1217,6 +1217,10 @@ components:
           minimum: 0
         withdrawn:
           type: boolean
+        createdAt:
+          type: string
+          format: date-time
+          description: When the invitation was created (workflow 10).
 
     InvitationList:
       type: object

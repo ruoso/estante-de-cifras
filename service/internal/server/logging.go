@@ -3,6 +3,7 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -47,11 +48,31 @@ func LogRequests(logger *slog.Logger, h http.Handler) http.Handler {
 
 		logger.LogAttrs(r.Context(), slog.LevelInfo, "request",
 			slog.String("method", r.Method),
-			// r.URL.Path only — never RawQuery, which can carry a token or an
-			// email address.
-			slog.String("path", r.URL.Path),
+			// The path only — never RawQuery, which can carry a token or an email
+			// address — with the invitation accept route's secret token redacted
+			// (it is carried in the path, api/openapi.yaml
+			// /api/invitations/{token}/accept, and must never be logged —
+			// service.sharing Constraints; DIRECTION §3.3).
+			slog.String("path", redactInvitationToken(r.URL.Path)),
 			slog.Int("status", rec.status),
 			slog.Duration("duration", time.Since(start)),
 		)
 	})
+}
+
+// redactInvitationToken replaces the secret token segment of the invitation
+// accept route (/api/invitations/{token}/accept) with a placeholder, so the raw
+// token — the invitation's capability — never reaches a log line. Any other
+// path is returned unchanged.
+func redactInvitationToken(path string) string {
+	const prefix = "/api/invitations/"
+	const suffix = "/accept"
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return path
+	}
+	mid := path[len(prefix) : len(path)-len(suffix)]
+	if mid == "" || strings.Contains(mid, "/") {
+		return path // not the single-segment {token} shape
+	}
+	return prefix + "{token}" + suffix
 }
