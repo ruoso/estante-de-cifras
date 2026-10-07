@@ -58,6 +58,15 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 		mux.HandleFunc("POST /api/auth/signout", handleSignOut(api))
 		mux.HandleFunc("GET /api/account/sessions", handleListSessions(api))
 		mux.HandleFunc("DELETE /api/account/sessions/{sessionId}", handleRevokeSession(api))
+		// Books: create, list, delete and fork a book — a registry row plus a
+		// bare repository on the volume (workflows 7, 11; api/openapi.yaml
+		// /api/books and /api/books/{bookId}[/fork]). These need only the pool and
+		// the books volume, so they are routed whenever the API is wired
+		// (service.books).
+		mux.HandleFunc("GET /api/books", handleListBooks(api))
+		mux.HandleFunc("POST /api/books", handleCreateBook(api))
+		mux.HandleFunc("DELETE /api/books/{bookId}", handleDeleteBook(api))
+		mux.HandleFunc("POST /api/books/{bookId}/fork", handleForkBook(api))
 		// Passkeys: register and sign in with a passkey, and the account's
 		// passkey list (workflow 13; api/openapi.yaml /api/auth/passkey/* and
 		// /api/account/passkeys). Registered only when the relying party is wired.

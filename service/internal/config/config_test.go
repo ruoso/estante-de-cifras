@@ -84,6 +84,46 @@ func TestLoadTreatsEmptyAppRootAsUnset(t *testing.T) {
 	}
 }
 
+// TestLoadDefaultsBooksRootWhenUnset pins that the books-volume root defaults
+// to DefaultBooksRoot (the image's /data/books, where the Dockerfile makes the
+// mount point and compose mounts the volume) when ESTANTE_BOOKS_ROOT is unset —
+// so the deployed image needs no path configuration (service.books; DIRECTION
+// §3.3).
+func TestLoadDefaultsBooksRootWhenUnset(t *testing.T) {
+	cfg, err := Load(envFrom(withSecret(nil)))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.BooksRoot != DefaultBooksRoot {
+		t.Errorf("BooksRoot = %q, want default %q", cfg.BooksRoot, DefaultBooksRoot)
+	}
+}
+
+// TestLoadHonoursBooksRoot pins that an explicit ESTANTE_BOOKS_ROOT overrides
+// the default, so a behavior test can point the volume at a throwaway directory.
+func TestLoadHonoursBooksRoot(t *testing.T) {
+	cfg, err := Load(envFrom(withSecret(map[string]string{"ESTANTE_BOOKS_ROOT": "/tmp/books-vol"})))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.BooksRoot != "/tmp/books-vol" {
+		t.Errorf("BooksRoot = %q, want /tmp/books-vol", cfg.BooksRoot)
+	}
+}
+
+// TestLoadTreatsEmptyBooksRootAsUnset pins that an empty-but-present
+// ESTANTE_BOOKS_ROOT falls back to the default rather than rooting the volume
+// at an empty path.
+func TestLoadTreatsEmptyBooksRootAsUnset(t *testing.T) {
+	cfg, err := Load(envFrom(withSecret(map[string]string{"ESTANTE_BOOKS_ROOT": ""})))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.BooksRoot != DefaultBooksRoot {
+		t.Errorf("BooksRoot = %q, want default %q", cfg.BooksRoot, DefaultBooksRoot)
+	}
+}
+
 // TestLoadReadsDatabaseURL pins that ESTANTE_DATABASE_URL is read into
 // Config.DatabaseURL verbatim (the DSN config seam, config.go:24-27; the pgx
 // Postgres client, DIRECTION §3.6 line 313). The value is carried, never

@@ -21,6 +21,13 @@ const DefaultPort = 8080
 // needs no app-path configuration (service.serve_app).
 const DefaultAppRoot = "/srv/app"
 
+// DefaultBooksRoot is the volume directory the per-book bare repositories live
+// under when ESTANTE_BOOKS_ROOT is unset (DIRECTION §3.3: one bare repository
+// per book at /data/books/<id>.git). It is where the Dockerfile creates the
+// mount point and compose mounts the books volume, so the deployed image needs
+// no path configuration (service.books).
+const DefaultBooksRoot = "/data/books"
+
 // Config is the service's configuration. Today it carries the listen port the
 // skeleton needs, the app-root the built PWA is served from, the Postgres DSN
 // the registry lives behind, and the sign-in machinery's vars (the SMTP relay
@@ -39,6 +46,14 @@ type Config struct {
 	// it at app/dist. ESTANTE_* is the service's own namespace for future vars
 	// (the bind port stays plain PORT, which Railway injects).
 	AppRoot string
+
+	// BooksRoot is the volume directory the per-book bare repositories live
+	// under (service.books; DIRECTION §3.3). It defaults to DefaultBooksRoot
+	// (the image's /data/books, where the Dockerfile makes the mount point and
+	// compose mounts the books volume) and is overridable via ESTANTE_BOOKS_ROOT
+	// so behavior tests can point it at a throwaway directory. It is a path, not
+	// a secret, and comes from config rather than any request.
+	BooksRoot string
 
 	// DatabaseURL is the Postgres DSN the connection pool and the start-up
 	// migrator use (service.schema; DIRECTION §3.6 line 313 names pgx). It is
@@ -90,10 +105,14 @@ type Config struct {
 // start-up error with a clear message, never a silent fallback to the
 // default.
 func Load(lookup func(string) (string, bool)) (Config, error) {
-	cfg := Config{Port: DefaultPort, AppRoot: DefaultAppRoot}
+	cfg := Config{Port: DefaultPort, AppRoot: DefaultAppRoot, BooksRoot: DefaultBooksRoot}
 
 	if raw, ok := lookup("ESTANTE_APP_ROOT"); ok && raw != "" {
 		cfg.AppRoot = raw
+	}
+
+	if raw, ok := lookup("ESTANTE_BOOKS_ROOT"); ok && raw != "" {
+		cfg.BooksRoot = raw
 	}
 
 	if raw, ok := lookup("ESTANTE_DATABASE_URL"); ok {

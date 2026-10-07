@@ -32,6 +32,10 @@ type APIDeps struct {
 	LinkSecret    []byte
 	PublicBaseURL string
 	Passkeys      *passkey.RP
+	// BooksRoot is the volume directory the per-book bare repositories live
+	// under; the book handlers derive each repository's path from it and the
+	// book id (service.books; DIRECTION §3.3).
+	BooksRoot string
 }
 
 // handleRequestEmailLink implements POST /api/auth/email/request

@@ -36,8 +36,9 @@ task service "The service" {
   task books "Books: create, list, delete, fork" {
     effort 3d
     allocate team
+    complete 100
     depends !sessions
-    note "Bare repositories on the volume at /data/books/<id>.git, random ids, owner-only delete (type the name), fork as a copy on the volume, per-account limits (100 books, 200 MB). Workflows 7, 11, 14. Tests: behavior (create, list, delete with the typed name by the owner only, fork as a copy — httptest against Postgres and real git on a temporary volume; the 100-book and 200 MB limits refused); e2e-api (create, list, fork and delete against the stack; a non-owner's delete and an over-quota create refused)."
+    note "Bare repositories on the volume at /data/books/<id>.git, random ids, owner-only delete (type the name), fork as a copy on the volume, per-account limits (100 books, 200 MB). Workflows 7, 11, 14. Tests: behavior (create, list, delete with the typed name by the owner only, fork as a copy — httptest against Postgres and real git on a temporary volume; the 100-book and 200 MB limits refused); e2e-api (create, list, fork and delete against the stack; a non-owner's delete and an over-quota create refused). Refinement: tasks/refinements/service/books.md"
   }
   task git_http "Git over HTTP" {
     effort 4d

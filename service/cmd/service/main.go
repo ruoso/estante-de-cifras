@@ -95,6 +95,7 @@ func run() error {
 		LinkSecret:    []byte(cfg.LinkSecret),
 		PublicBaseURL: cfg.PublicBaseURL,
 		Passkeys:      rp,
+		BooksRoot:     cfg.BooksRoot,
 	}
 
 	handler, err := server.Handler(logger, cfg.AppRoot, pool, api)
