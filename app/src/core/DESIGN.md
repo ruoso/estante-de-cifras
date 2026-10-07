@@ -21,6 +21,17 @@ is the other half of that record.
   (`src/core/voicing-plan/`), which is **deferred to the `music` stream**
   (`music.wizard`): it takes a *parsed song* as input, so it comes over with
   cifra.md for JavaScript (the rewritten parser), not with this import.
+  One deviation lands with it: the text-level batch writer
+  `setVoicingsForOccurrences(text, …) -> text` described under "One shape per
+  bar, reconciled afterwards" below does **not** carry over. In the app that
+  reconciliation — footnote-slot allocation, the refusal to merge slots another
+  tuning or variation depends on, the renumber-and-prune pass — is cifra.md for
+  JavaScript's job: §8.5.4 `chooseShapes(doc, plan, tuning, variation)`
+  (model→model) followed by `write` (canonical), with §8.5.5 `addVariation`
+  creating the new variation. `music.wizard` is the first caller of those
+  operations. The planner half (the `Planner`/`PlanRequest`/`PlanResult`
+  contract, `planVoicings`, candidates and shape metrics) carries over
+  unchanged. See `tasks/refinements/music/wizard.md`.
 - **§2.11 Entering a shape by hand** — the shape picker and the saved-shape
   round-trip. The parser-free pieces it relies on (the search, the renderer,
   `defaultVoicing`) are carried now; the document-adapters that write a saved
@@ -337,6 +348,16 @@ symbol's occurrences by shape and let the distinct shapes become slots in
 first-appearance order, the first taking the bare form. The one rule that
 survives untouched is the refusal to merge slots another instrument's block
 depends on: collapsing those would silently destroy that arrangement.
+
+> **In the app, this writer is cifra.md's, not reimplemented** (`music.wizard`).
+> The reasoning above is why the batch exists; it does *not* come over as
+> `setVoicingsForOccurrences`. cifra.md for JavaScript's §8.5.4
+> `chooseShapes(doc, plan, tuning, variation)` is the one-pass reconciler
+> (model→model: slot allocation, the cross-tuning/variation merge refusal, the
+> renumber-and-prune that falls out of `write`), §8.5.5 `addVariation` creates
+> the new variation, and the planner's `shapes` Map is mapped onto a §8.5.4
+> `plan` by `voicing-plan/apply.js`. The format side is corpus-tested in
+> `cifra_js.editing`; the app agrees with it by the corpus, never by shared code.
 
 **A planner that gives one chord several shapes is doing its job.** Deciding per
 occurrence means a policy can legitimately want a different grip for the `F`

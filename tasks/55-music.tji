@@ -44,7 +44,8 @@ task music "Music" {
   task wizard "The voicing wizard" {
     effort 2d
     allocate team
+    complete 100
     depends !fallback, cifra_js.editing
-    note "Explore Chords' planners; the plan into a new variation first. Workflow 5. Tests: unit (Explore Chords' planners' tests carried over; the plan written into a new variation, canonical)."
+    note "Explore Chords' planners; the plan into a new variation first. Workflow 5. Tests: unit (Explore Chords' planners' tests carried over; the plan written into a new variation, canonical). Refinement: tasks/refinements/music/wizard.md"
   }
 }
