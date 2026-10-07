@@ -21,8 +21,9 @@ task service "The service" {
   task email_links "Emailed sign-in links" {
     effort 2d
     allocate team
+    complete 100
     depends !schema
-    note "Signed, short-lived, single-use links through the email provider; the fallback and account recovery. Workflow 13. Tests: unit (signing, expiry, single use); behavior (request and redeem through httptest; an expired and a reused link refused); e2e-api (request a link, read it from the mail catcher, redeem it into a session — workflow 13)."
+    note "Signed, short-lived, single-use links through the email provider; the fallback and account recovery. Workflow 13. Tests: unit (signing, expiry, single use); behavior (request and redeem through httptest; an expired and a reused link refused); e2e-api (request a link, read it from the mail catcher, redeem it into a session — workflow 13). Refinement: tasks/refinements/service/email_links.md"
   }
   task sessions "Sessions and devices" {
     effort 2d

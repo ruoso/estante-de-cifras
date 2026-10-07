@@ -61,7 +61,7 @@ func newTestAppRoot(t *testing.T) string {
 func newTestHandler(t *testing.T) http.Handler {
 	t.Helper()
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	h, err := Handler(logger, newTestAppRoot(t), okPinger{})
+	h, err := Handler(logger, newTestAppRoot(t), okPinger{}, nil)
 	if err != nil {
 		t.Fatalf("Handler: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestMissingAssetIs404(t *testing.T) {
 func TestFailFastOnMissingBundle(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	empty := t.TempDir()
-	if _, err := Handler(logger, empty, okPinger{}); err == nil {
+	if _, err := Handler(logger, empty, okPinger{}, nil); err == nil {
 		t.Fatal("Handler against an app-root with no index.html: want error, got nil")
 	}
 }

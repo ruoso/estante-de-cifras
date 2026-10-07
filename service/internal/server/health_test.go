@@ -20,7 +20,7 @@ func TestHealthzThroughRealHandler(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, nil))
 
-	h, err := Handler(logger, newTestAppRoot(t), okPinger{})
+	h, err := Handler(logger, newTestAppRoot(t), okPinger{}, nil)
 	if err != nil {
 		t.Fatalf("Handler: %v", err)
 	}

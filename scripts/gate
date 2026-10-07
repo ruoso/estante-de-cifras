@@ -253,6 +253,11 @@ stack_up() {
   export ESTANTE_E2E_BASE_URL="http://127.0.0.1:$ESTANTE_HTTP_PORT"
   export ESTANTE_E2E_MAIL_URL="http://127.0.0.1:$ESTANTE_MAIL_PORT"
   export ESTANTE_TEST_DATABASE_URL="postgres://$ESTANTE_PG_USER:$ESTANTE_PG_PASSWORD@127.0.0.1:$ESTANTE_PG_PORT/$ESTANTE_PG_DB?sslmode=disable"
+  # The emailed sign-in link's signing secret (service.email_links): a per-run,
+  # throwaway value the service container reads to HMAC-sign link tokens. compose
+  # builds the public link on ESTANTE_E2E_BASE_URL (already exported above), so
+  # the e2e test reads a link pointing at the stack it drives.
+  export ESTANTE_LINK_SECRET="gate-link-secret-$$-$(date +%s)"
   export ESTANTE_COMPOSE_PROJECT="estante-gate-$$-$(date +%s)"
 
   step "estante e2e: building and starting the stack ($ESTANTE_COMPOSE_PROJECT, origin $ESTANTE_E2E_BASE_URL)"

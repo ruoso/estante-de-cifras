@@ -30,7 +30,13 @@ type Pinger interface {
 // register their /api and /git routes on a mux assembled the same way —
 // ServeMux's longest-prefix match lets those win over the app's / while every
 // response still inherits the noindex policy.
-func Handler(logger *slog.Logger, appRoot string, ready Pinger) (http.Handler, error) {
+//
+// api carries the collaborators the sign-in endpoints need (the pool, the
+// Mailer, the signing secret, the public origin). It is nil for the skeleton
+// and the app/health behavior tests, which exercise no /api route; when it is
+// given, Handler registers the emailed sign-in link endpoints
+// (service.email_links).
+func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (http.Handler, error) {
 	app, err := newAppHandler(os.DirFS(appRoot))
 	if err != nil {
 		return nil, err
@@ -39,6 +45,12 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger) (http.Handler, e
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", handleHealthz)
 	mux.HandleFunc("GET /readyz", handleReadyz(ready))
+	if api != nil {
+		// The emailed sign-in link: request one, redeem it into a session
+		// (workflow 13; api/openapi.yaml /api/auth/email/*).
+		mux.HandleFunc("POST /api/auth/email/request", handleRequestEmailLink(api))
+		mux.HandleFunc("POST /api/auth/email/redeem", handleRedeemEmailLink(api))
+	}
 	// The app at /: ServeMux routes everything not matched by a more specific
 	// pattern (GET /healthz and /readyz now; /api/… and /git/… later) to the
 	// PWA, which serves a real asset or falls back to the shell for a

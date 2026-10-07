@@ -20,6 +20,7 @@ import (
 
 	"estantedecifras.app/service/internal/config"
 	"estantedecifras.app/service/internal/db"
+	"estantedecifras.app/service/internal/mail"
 	"estantedecifras.app/service/internal/server"
 )
 
@@ -58,7 +59,18 @@ func run() error {
 		return err
 	}
 
-	handler, err := server.Handler(logger, cfg.AppRoot, pool)
+	// The sign-in API's collaborators: the pool it reads accounts and writes
+	// links and sessions against, the SMTP mailer that posts the sign-in link
+	// (to the dev catcher in compose), the signing secret, and the public
+	// origin the mailed link is built on (service.email_links).
+	api := &server.APIDeps{
+		DB:            pool,
+		Mailer:        mail.NewSMTP(cfg.SMTPAddr, cfg.MailFrom),
+		LinkSecret:    []byte(cfg.LinkSecret),
+		PublicBaseURL: cfg.PublicBaseURL,
+	}
+
+	handler, err := server.Handler(logger, cfg.AppRoot, pool, api)
 	if err != nil {
 		return err
 	}

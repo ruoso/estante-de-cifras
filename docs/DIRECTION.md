@@ -311,7 +311,8 @@ there is no runtime to rely on. The app merges with the JavaScript one; both
 are held to the same corpus.
 
 **Inside the service**, nothing unusual: `net/http`; `pgx` for Postgres;
-`go-webauthn` for passkeys; the email provider's HTTP API. One binary, with
+`go-webauthn` for passkeys; `net/smtp` to hand the sign-in mail to the email
+provider (a local catcher stands in for it in development). One binary, with
 git beside it in the image.
 
 #### Git over HTTP

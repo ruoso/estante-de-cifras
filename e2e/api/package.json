@@ -12,7 +12,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "isomorphic-git": "^1.43.0"
+    "isomorphic-git": "^1.43.0",
+    "postgres": "^3.4.9"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

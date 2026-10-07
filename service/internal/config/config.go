@@ -22,9 +22,11 @@ const DefaultPort = 8080
 const DefaultAppRoot = "/srv/app"
 
 // Config is the service's configuration. Today it carries the listen port the
-// skeleton needs, the app-root the built PWA is served from and the Postgres
-// DSN the registry lives behind; later service tasks extend it (the volume
-// path in service.books, the email provider and session secrets in sign-in).
+// skeleton needs, the app-root the built PWA is served from, the Postgres DSN
+// the registry lives behind, and the sign-in machinery's vars (the SMTP relay
+// and sender, the public origin, and the link-signing secret —
+// service.email_links); later service tasks extend it (the volume path in
+// service.books).
 type Config struct {
 	// Port is the TCP port the HTTP server binds. Railway injects PORT and
 	// expects the process to bind it (DIRECTION §3.3), so the service deploys
@@ -45,6 +47,27 @@ type Config struct {
 	// provide it — so an empty value is left for the pool to reject at start-up,
 	// never guessed. It carries a password and is never logged.
 	DatabaseURL string
+
+	// SMTPAddr is the host:port of the SMTP relay the sign-in link is handed to
+	// (DIRECTION §3.6 lines 313–315). Read from ESTANTE_SMTP_ADDR; in
+	// development and the e2e stack it is the Mailpit catcher (mail:1025).
+	SMTPAddr string
+
+	// MailFrom is the sender the sign-in mail is sent as. Read from
+	// ESTANTE_MAIL_FROM.
+	MailFrom string
+
+	// PublicBaseURL is the origin the mailed link is built on —
+	// ${PublicBaseURL}/sign-in/<token>, the address a user taps (workflow 13).
+	// Read from ESTANTE_PUBLIC_BASE_URL.
+	PublicBaseURL string
+
+	// LinkSecret is the HMAC key the emailed sign-in token is signed with
+	// (service.email_links Decisions). Read from ESTANTE_LINK_SECRET; it is
+	// required — there is no insecure default, so a missing value fails start-up
+	// rather than signing links with a guessable key. It is a secret and is
+	// never logged.
+	LinkSecret string
 }
 
 // Load builds a Config from an environment lookup (os.LookupEnv in
@@ -60,6 +83,27 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 
 	if raw, ok := lookup("ESTANTE_DATABASE_URL"); ok {
 		cfg.DatabaseURL = raw
+	}
+
+	if raw, ok := lookup("ESTANTE_SMTP_ADDR"); ok {
+		cfg.SMTPAddr = raw
+	}
+
+	if raw, ok := lookup("ESTANTE_MAIL_FROM"); ok {
+		cfg.MailFrom = raw
+	}
+
+	if raw, ok := lookup("ESTANTE_PUBLIC_BASE_URL"); ok {
+		cfg.PublicBaseURL = raw
+	}
+
+	// ESTANTE_LINK_SECRET is required: a missing or empty value is a start-up
+	// error, never a guessable default, so links are always signed with a real
+	// key (service.email_links Decisions; the ESTANTE_* namespace).
+	if raw, ok := lookup("ESTANTE_LINK_SECRET"); ok && raw != "" {
+		cfg.LinkSecret = raw
+	} else {
+		return Config{}, fmt.Errorf("config: ESTANTE_LINK_SECRET is required (the emailed sign-in link's signing key; no insecure default)")
 	}
 
 	if raw, ok := lookup("PORT"); ok && raw != "" {

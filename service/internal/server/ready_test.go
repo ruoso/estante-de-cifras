@@ -26,7 +26,7 @@ func (failPinger) Ping(context.Context) error { return errors.New("store unreach
 func handlerWith(t *testing.T, ready Pinger) http.Handler {
 	t.Helper()
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	h, err := Handler(logger, newTestAppRoot(t), ready)
+	h, err := Handler(logger, newTestAppRoot(t), ready, nil)
 	if err != nil {
 		t.Fatalf("Handler: %v", err)
 	}
