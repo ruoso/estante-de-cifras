@@ -512,6 +512,11 @@ export default {
     noVoicings:
       'Nobody has chosen shapes for {instrument} in this song yet. These are the easiest shapes for each chord.',
     arrangeFor: 'Arrange for {instrument}',
+    // The first-open instrument prompt, asked once (workflow 1 §The instrument;
+    // W01 L104-108; songs.first_song). The copy is fixed to "guitar".
+    instrumentPrompt: 'Playing on guitar — change?',
+    instrumentPromptChange: 'Change instrument',
+    instrumentPromptDismiss: 'Keep guitar and dismiss',
     // The app bar and action bar.
     arrange: 'Arrange',
     edit: 'Edit',

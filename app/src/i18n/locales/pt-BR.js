@@ -463,6 +463,11 @@ export default {
     noVoicings:
       'Ninguém escolheu formas para {instrument} nesta música ainda. Estas são as formas mais fáceis para cada acorde.',
     arrangeFor: 'Arranjar para {instrument}',
+    // A pergunta única na primeira abertura (workflow 1 §The instrument;
+    // W01 L104-108; songs.first_song). O texto é fixo em "violão".
+    instrumentPrompt: 'Tocando no violão — mudar?',
+    instrumentPromptChange: 'Mudar instrumento',
+    instrumentPromptDismiss: 'Manter o violão e dispensar',
     arrange: 'Arranjar',
     edit: 'Editar',
     history: 'Histórico',

@@ -463,6 +463,11 @@ export default {
     noVoicings:
       'Nadie ha elegido formas para {instrument} en esta canción todavía. Estas son las formas más fáciles para cada acorde.',
     arrangeFor: 'Arreglar para {instrument}',
+    // La pregunta única en la primera apertura (workflow 1 §The instrument;
+    // W01 L104-108; songs.first_song). El texto es fijo en "guitarra".
+    instrumentPrompt: 'Tocando en guitarra — ¿cambiar?',
+    instrumentPromptChange: 'Cambiar instrumento',
+    instrumentPromptDismiss: 'Conservar la guitarra y descartar',
     arrange: 'Arreglar',
     edit: 'Editar',
     history: 'Historial',

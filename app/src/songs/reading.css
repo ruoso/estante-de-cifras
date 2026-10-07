@@ -42,6 +42,15 @@
   margin-left: auto;
 }
 
+/* The first-open instrument prompt (W01 L104-108): the question takes the line,
+   the Change and dismiss controls sit at the end. An inline notice, not a modal. */
+.reading-instrument-prompt {
+  align-items: center;
+}
+.reading-instrument-prompt > span {
+  flex: 1;
+}
+
 /* The sheet — the chart, then the shapes — the one thing print keeps. */
 .reading-sheet {
   display: flex;
@@ -147,6 +156,7 @@
   .reading-meta,
   .reading-status,
   .reading-variation,
+  .reading-instrument-prompt,
   .reading-exit-full,
   .reading-split .pane.side {
     display: none !important;

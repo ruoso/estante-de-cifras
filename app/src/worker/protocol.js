@@ -140,6 +140,16 @@ export const CommandKind = Object.freeze({
   // then re-surfaces PREFERENCES so the slice carries it and the first save is
   // the only one that asks. Offline, auto-committed, never pushed (a preference).
   SET_IDENTITY_NAME: 'set_identity_name',
+  // Record that the first-open "Playing on guitar — change?" prompt was answered
+  // (songs.first_song, workflow 1 §The instrument). MARK_INSTRUMENT_PROMPT_SEEN
+  // `{ author }`: the Worker provisions a local home book if none exists and
+  // writes the `instrumentPromptSeen` register into preferences.json
+  // (home-book-format §4.1), then re-surfaces PREFERENCES so the slice carries it
+  // and the reading view never asks again — on this device or, after sync, the
+  // next. Offline, auto-committed, never pushed (a preference, like
+  // SET_IDENTITY_NAME and USE_INSTRUMENT). It carries only the device commit
+  // identity and the boolean — no song text, no path.
+  MARK_INSTRUMENT_PROMPT_SEEN: 'mark_instrument_prompt_seen',
   // The file view's reads and file operations (books.file_view, workflow 14).
   // BOOK_TREE `{ bookId }` walks the working tree and replies with a TREE event
   // (every allowed file with its working-copy status). MOVE_FILE `{ bookId,

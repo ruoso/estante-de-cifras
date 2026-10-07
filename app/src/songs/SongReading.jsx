@@ -98,6 +98,16 @@ function BackIcon() {
   );
 }
 
+// The ✕ on the first-open instrument prompt's dismiss control (W01 L107;
+// aria-hidden — the button's "Keep guitar and dismiss" label is its name).
+function DismissIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
 export default function SongReading({
   store,
   bookId,
@@ -373,6 +383,38 @@ export default function SongReading({
     </MenuTrigger>
   );
 
+  // The first-open instrument prompt (workflow 1 §The instrument; W01 L104-108;
+  // songs.first_song): the one-time inline notice offered the first time a song
+  // shows its shapes on the implicit standard guitar. Shown iff no instrument has
+  // been put in use (`instrumentInUse` absent — the copy is fixed to "guitar", so
+  // a user who already chose has nothing to ask) AND the prompt has not been
+  // answered (`instrumentPromptSeen` absent). Purely slice-driven off the home
+  // book's preferences — no new store slice, no local "dismissed" useState
+  // (Constraints; Decisions 2, 3). Both controls answer it (the Worker writes the
+  // flag, the re-surfaced slice hides the notice); *Change instrument* also opens
+  // the existing roster. An inline notice in the scroll body, never a modal — it
+  // must not aria-hide the chrome or chart (Decision 4; project memory).
+  const showInstrumentPrompt = !preferences?.instrumentInUse && !preferences?.instrumentPromptSeen;
+  const markInstrumentPromptSeen = () =>
+    store.send(command(CommandKind.MARK_INSTRUMENT_PROMPT_SEEN, { author: LOCAL_IDENTITY }));
+  const instrumentPrompt = showInstrumentPrompt ? (
+    <div className="notice accent reading-instrument-prompt">
+      <span>{t('reading.instrumentPrompt')}</span>
+      <Button
+        className="btn"
+        onPress={() => {
+          markInstrumentPromptSeen();
+          setInstrumentsOpen(true);
+        }}
+      >
+        {t('reading.instrumentPromptChange')}
+      </Button>
+      <Button className="btn icon" aria-label={t('reading.instrumentPromptDismiss')} onPress={markInstrumentPromptSeen}>
+        <DismissIcon />
+      </Button>
+    </div>
+  ) : null;
+
   const metaRow = (
     <div className="reading-meta">
       <span className="t-small reading-byline">
@@ -421,6 +463,7 @@ export default function SongReading({
               )}
             </div>
             <div className="scroll reading-scroll">
+              {instrumentPrompt}
               {metaRow}
               {statusRow}
               {noVoicings ? (
@@ -460,6 +503,7 @@ export default function SongReading({
           )}
         </div>
         <div className="scroll reading-scroll">
+          {instrumentPrompt}
           {metaRow}
           {statusRow}
           {noVoicings ? (

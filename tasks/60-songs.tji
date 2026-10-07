@@ -22,8 +22,9 @@ task songs "Songs" {
   task first_song "Playing on guitar — change?" {
     effort 0.5d
     allocate team
+    complete 100
     depends !reading, music.instruments
-    note "The one-time prompt the first time a song is opened. Workflow 1. Tests: behavior (the prompt once, axe); e2e-web (the first song opened asks, the second does not)."
+    note "The one-time prompt the first time a song is opened. Workflow 1. Tests: behavior (the prompt once, axe); e2e-web (the first song opened asks, the second does not). Refinement: tasks/refinements/songs/first_song.md"
   }
   task editor "The source editor" {
     effort 4d

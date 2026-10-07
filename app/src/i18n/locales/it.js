@@ -463,6 +463,11 @@ export default {
     noVoicings:
       'Nessuno ha ancora scelto forme per {instrument} in questa canzone. Queste sono le forme più facili per ogni accordo.',
     arrangeFor: 'Arrangia per {instrument}',
+    // La domanda una tantum alla prima apertura (workflow 1 §The instrument;
+    // W01 L104-108; songs.first_song). Il testo è fisso su "chitarra".
+    instrumentPrompt: 'Suoni con la chitarra — cambiare?',
+    instrumentPromptChange: 'Cambia strumento',
+    instrumentPromptDismiss: 'Mantieni la chitarra e chiudi',
     arrange: 'Arrangia',
     edit: 'Modifica',
     history: 'Cronologia',

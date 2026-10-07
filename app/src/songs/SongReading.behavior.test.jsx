@@ -85,22 +85,36 @@ function ukeEntry() {
 const BOOK = 'local-example-book';
 const PATH = 'tarde-clara.cifra.md';
 
+// A preferences.json register as the PREFERENCES surface carries it (a flat map
+// of `{ value, at }`, home-book-format §4.1).
+const register = (value) => ({ value, at: '2026-01-01T00:00:00.000Z' });
+
 // A loopback store whose stub Worker serves the seeded slices and answers the
-// reading commands. Records every command for the dispatch assertions.
-function makeStore({ text, entry, transposition = 0, variations = {} }) {
+// reading commands. Records every command for the dispatch assertions. The home
+// book's preferences default to "this instrument is in use" (the usual reading
+// state — `instrumentInUse` present suppresses the first-open prompt); the
+// first_song tests pass their own `preferences` to exercise the fresh-install
+// gate, and MARK_INSTRUMENT_PROMPT_SEEN re-surfaces PREFERENCES with the flag set,
+// as the Worker's handler does.
+function makeStore({ text, entry, transposition = 0, variations = {}, preferences }) {
   const commands = [];
   const state = { transposition, variations: { ...variations } };
+  const prefs = { ...(preferences ?? { instrumentInUse: register(entry.id) }) };
   const endpoint = createLoopbackEndpoint((port) => ({
     handle(message) {
       commands.push(message);
       const p = message.payload ?? {};
       switch (message.kind) {
         case CommandKind.OPEN:
-          port.postMessage(event(EventKind.PREFERENCES, {}));
+          port.postMessage(event(EventKind.PREFERENCES, { ...prefs }));
           port.postMessage(event(EventKind.SHELF, {}));
           port.postMessage(
             event(EventKind.INSTRUMENTS, { instruments: [entry], inUseId: entry.id, standard: entry }),
           );
+          break;
+        case CommandKind.MARK_INSTRUMENT_PROMPT_SEEN:
+          prefs.instrumentPromptSeen = register(true);
+          port.postMessage(event(EventKind.PREFERENCES, { ...prefs }));
           break;
         case CommandKind.OPEN_SOURCE:
           port.postMessage(event(EventKind.SOURCE, { bookId: p.bookId, path: p.path, text }));
@@ -313,6 +327,95 @@ describe('SongReading — full screen, print, add to setlist, share', () => {
     await click(screen.getByRole('button', { name: 'More' }));
     await click(await screen.findByRole('menuitem', { name: 'Share' }));
     expect(onShare).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
+  });
+});
+
+describe('SongReading — the first-open instrument prompt (songs.first_song, workflow 1 §The instrument)', () => {
+  const PATH2 = 'segunda-musica.cifra.md';
+  const promptText = /Playing on guitar/;
+
+  it('shows the prompt on the first open, with Change and dismiss, axe clean (W01 L104-108)', async () => {
+    // Fresh install: neither instrumentInUse nor instrumentPromptSeen is set.
+    const { store } = makeStore({ text: song({}), entry: guitarEntry(), preferences: {} });
+    await openAndWait(store);
+
+    expect(screen.getByText(promptText)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Change instrument' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Keep guitar and dismiss' })).toBeInTheDocument();
+
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('dismiss keeps guitar, sends MARK_INSTRUMENT_PROMPT_SEEN, and never asks again', async () => {
+    const { store, commands } = makeStore({ text: song({}), entry: guitarEntry(), preferences: {} });
+    await openAndWait(store);
+
+    await click(screen.getByRole('button', { name: 'Keep guitar and dismiss' }));
+    expect(lastCommand(commands, CommandKind.MARK_INSTRUMENT_PROMPT_SEEN)).toBeTruthy();
+    // After the PREFERENCES re-surface with the flag set, the notice is gone.
+    await waitFor(() => expect(screen.queryByText(promptText)).not.toBeInTheDocument());
+
+    // A freshly opened second song (same home book) shows no notice.
+    render(
+      <ThemeRoot store={store}>
+        <SongReading store={store} bookId={BOOK} path={PATH2} mode="narrow" />
+      </ThemeRoot>,
+    );
+    await waitFor(() =>
+      expect(screen.getAllByRole('group', { name: 'Tarde Clara' }).length).toBeGreaterThan(0),
+    );
+    expect(screen.queryByText(promptText)).not.toBeInTheDocument();
+  });
+
+  it('Change instrument opens the roster overlay and marks the prompt seen', async () => {
+    const { store, commands } = makeStore({ text: song({}), entry: guitarEntry(), preferences: {} });
+    await openAndWait(store);
+
+    await click(screen.getByRole('button', { name: 'Change instrument' }));
+    expect(lastCommand(commands, CommandKind.MARK_INSTRUMENT_PROMPT_SEEN)).toBeTruthy();
+    // The existing instruments overlay is now open (instrumentsOpen true).
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Instruments' })).toBeInTheDocument();
+  });
+
+  it('never shows the prompt when a non-default instrument is in use (AC 4)', async () => {
+    const { store } = makeStore({
+      text: song({}),
+      entry: guitarEntry(),
+      preferences: { instrumentInUse: register('g1') },
+    });
+    await openAndWait(store);
+    expect(screen.queryByText(promptText)).not.toBeInTheDocument();
+  });
+
+  it('never shows the prompt once it has been seen', async () => {
+    const { store } = makeStore({
+      text: song({}),
+      entry: guitarEntry(),
+      preferences: { instrumentPromptSeen: register(true) },
+    });
+    await openAndWait(store);
+    expect(screen.queryByText(promptText)).not.toBeInTheDocument();
+  });
+
+  it('exposes dismiss and change as keyboard-reachable, keyboard-operable buttons (§3.7)', async () => {
+    const { store, commands } = makeStore({ text: song({}), entry: guitarEntry(), preferences: {} });
+    await openAndWait(store);
+
+    const dismiss = screen.getByRole('button', { name: 'Keep guitar and dismiss' });
+    const change = screen.getByRole('button', { name: 'Change instrument' });
+    // Both are focusable (reachable by Tab).
+    act(() => change.focus());
+    expect(change).toHaveFocus();
+    act(() => dismiss.focus());
+    expect(dismiss).toHaveFocus();
+    // And operable by keyboard: Enter on dismiss sends the command (RAC Button
+    // usePress fires the press on key-up).
+    await act(async () => {
+      fireEvent.keyDown(dismiss, { key: 'Enter' });
+      fireEvent.keyUp(dismiss, { key: 'Enter' });
+    });
+    expect(lastCommand(commands, CommandKind.MARK_INSTRUMENT_PROMPT_SEEN)).toBeTruthy();
   });
 });
 

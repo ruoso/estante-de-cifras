@@ -786,6 +786,31 @@ export function createWorkerLogic(port, options = {}) {
             await ensureFs().flush();
             break;
           }
+          case CommandKind.MARK_INSTRUMENT_PROMPT_SEEN: {
+            // Record that the first-open instrument prompt was answered, asked
+            // once (songs.first_song, workflow 1 §The instrument): provision a
+            // local home book if none exists, write the `instrumentPromptSeen`
+            // register into preferences.json, and re-surface PREFERENCES so the
+            // slice carries it and the reading view stops asking. Offline,
+            // auto-committed, never pushed (a preference, like SET_IDENTITY_NAME
+            // and USE_INSTRUMENT). The payload carries only the commit identity
+            // and the boolean — no song text, no path (standing rule).
+            const { author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'preferences.json',
+              changes: [{ path: ['instrumentPromptSeen'], value: true }],
+              author,
+            });
+            await surfaceHomeBookPreferences();
+            // Flush the inode table at the handler tail (fs.js Decision 6): the
+            // only write was home.set's register change, so an immediate reload
+            // reads the stored flag — and the prompt never returns.
+            await ensureFs().flush();
+            break;
+          }
           case CommandKind.DISCARD: {
             const { bookId, paths } = message.payload;
             await ensureWorkingCopy().discard({ bookId, paths });
