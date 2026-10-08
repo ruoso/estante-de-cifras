@@ -9,6 +9,14 @@
 .reading-split {
   flex: 1;
   min-height: 0;
+  /* Cap the reading surface at the viewport. The themed root (.est) is
+     min-height:100dvh — indefinite — so a flex:1 child left uncapped grows to
+     the song's height and the whole page scrolls, carrying the app bar and the
+     bottom action bar away with it. max-height makes this surface a real
+     bounded scroll frame: the chrome stays put and the sheet scrolls inside
+     .reading-scroll, which the in-place anchor restore (Decision 4) depends on
+     to hold the reader's place across a merge. */
+  max-height: 100dvh;
 }
 
 .reading-scroll {
@@ -16,6 +24,13 @@
   flex-direction: column;
   gap: calc(var(--u) * 1.5);
   padding: calc(var(--u) * 2);
+  /* The shared .scroll base is overflow:hidden (a layout wrapper); the reading
+     body is the scroll port itself, so a tall song scrolls here (the chrome
+     above and below staying put) rather than scrolling the page — and the
+     in-place anchor restore (Decision 4) adjusts this element's scrollTop, which
+     only moves a real scroll port. Every other screen's scroll class opts in the
+     same way; this needs the viewport cap on .reading-screen / .reading-split. */
+  overflow-y: auto;
 }
 
 /* The meta line: byline, the instrument chip, the key chip, the transpose
@@ -49,6 +64,13 @@
 }
 .reading-instrument-prompt > span {
   flex: 1;
+}
+
+/* The merge-landed notice (sync.read_in_place; W08 L65): the message takes the
+   line, "See what changed" and the dismiss sit at the end. An inline notice in
+   the scroll body, never a modal — it must not interrupt a performance. */
+.reading-update-notice {
+  align-items: center;
 }
 
 /* The sheet — the chart, then the shapes — the one thing print keeps. */
@@ -157,6 +179,7 @@
   .reading-status,
   .reading-variation,
   .reading-instrument-prompt,
+  .reading-update-notice,
   .reading-exit-full,
   .reading-split .pane.side {
     display: none !important;

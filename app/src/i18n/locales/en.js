@@ -605,6 +605,13 @@ export default {
     more: 'More',
     fullScreen: 'Full screen',
     exitFullScreen: 'Exit full screen',
+    // A background sync brought a new version while the song was open
+    // (sync.read_in_place, workflow 8 §"A song open while it changes"; W08). The
+    // non-modal notice names who changed it and opens the song's history.
+    // `{name}` is the incoming author's display name.
+    updatedBy: 'Updated by {name}',
+    seeWhatChanged: 'See what changed',
+    updateDismiss: 'Dismiss update notice',
   },
 
   // The arrange surface (songs.arrange, workflow 5; board W05): the mode entered

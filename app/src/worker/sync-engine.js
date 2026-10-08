@@ -41,6 +41,8 @@ import {
   checkout,
   getConfig,
   log as gitLog,
+  walk,
+  TREE,
 } from 'isomorphic-git';
 import { authorFrom } from './author.js';
 import { HOME_BOOK_ID } from './home-book.js';
@@ -63,6 +65,15 @@ export class SyncConflictError extends Error {
 function instant(nowMs) {
   return new Date(nowMs).toISOString();
 }
+
+// Songs are `*.cifra.md` (working-copy.js:42; the reading view opens only these);
+// the merge-landed fact names changed songs, not setlists/README/.gitattributes.
+const SONG_SUFFIX = '.cifra.md';
+
+// The canonical empty-tree oid, the base a first-ever merge (no pre-merge local
+// head) is diffed against so every song in the merged head reads as changed —
+// the same constant history.js uses for a parentless commit.
+const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
 // A push error that means someone else pushed first (a lost race): retry
 // (workflow 8 L59-62). isomorphic-git signals it pre-flight as PushRejectedError
@@ -89,9 +100,11 @@ function isMergeConflict(err) {
  * Build the sync engine. Required collaborators: `fs`/`git`/`locks` (the shared
  * Worker primitives), `changeCheck` (change-check-client), `mergeDriver` (the
  * cifra merge driver), `homeBook` (its own sync), `resolveAuthor` (the device
- * commit identity) and `emit` (posts a per-book SYNC fact). `surfaceHome`
- * re-surfaces the home-book-derived slices after a home sync (the SYNC_HOME
- * path). The per-book git ops (`fetchBook`/`pushBook`/`mergeBook`/`localAhead`/
+ * commit identity) and `emit` (posts a per-book SYNC fact). `emitMerged` posts
+ * the per-file MERGED fact a clean songbook merge announces to an open reading
+ * view (sync.read_in_place); absent, the engine computes and emits nothing.
+ * `surfaceHome` re-surfaces the home-book-derived slices after a home sync (the
+ * SYNC_HOME path). The per-book git ops (`fetchBook`/`pushBook`/`mergeBook`/`localAhead`/
  * `treeDirty`/`listBooks`/`syncHome`) default to real implementations and are
  * injectable for tests. `now` is injected for a pinned timestamp; `maxRetries`
  * is the lost-race retry budget (three — workflow 8 L59-62).
@@ -108,6 +121,7 @@ export function createSyncEngine(deps = {}) {
     homeBook,
     resolveAuthor,
     emit,
+    emitMerged = null,
     surfaceHome = null,
   } = deps;
   const now = deps.now ?? Date.now;
@@ -227,10 +241,96 @@ export function createSyncEngine(deps = {}) {
     // index read the merged bytes. Safe: the engine merges only a clean tree (the
     // dirty-tree guard defers otherwise), so force overwrites nothing unsaved.
     await checkout({ fs, dir, ref: 'main', force: true });
-    return { merged: !!result.mergeCommit, fastForward: !!result.fastForward };
+    // `before`/`after` let the caller announce the landed merge per changed song
+    // (sync.read_in_place, acceptance 1): the pre-merge local head and the new
+    // merged head (the merge commit, or theirs on a fast-forward).
+    return {
+      merged: !!result.mergeCommit,
+      fastForward: !!result.fastForward,
+      before: local,
+      after: result.oid,
+    };
   }
 
   const mergeBook = deps.mergeBook ?? defaultMergeBook;
+
+  // The `*.cifra.md` songs whose bytes differ between two commits' trees — a
+  // tree walk comparing blob oids, mirroring history.js's `changedFiles`
+  // (recurse into directories, report blobs). A song absent in `after` (a
+  // deletion) has no incoming version to show in place, so it is skipped.
+  async function changedSongPaths(dir, before, after) {
+    const base = before ?? EMPTY_TREE;
+    const rows = await walk({
+      fs,
+      dir,
+      trees: [TREE({ ref: after }), TREE({ ref: base })],
+      map: async (filepath, [current, previous]) => {
+        if (filepath === '.') return undefined;
+        const [currentType, previousType] = await Promise.all([
+          current && current.type(),
+          previous && previous.type(),
+        ]);
+        if (currentType === 'tree' || previousType === 'tree') return undefined; // recurse
+        if (!filepath.endsWith(SONG_SUFFIX)) return undefined;
+        if (!current) return undefined; // deleted incoming: nothing to re-surface
+        const [newOid, oldOid] = await Promise.all([
+          current.oid(),
+          previous ? previous.oid() : null,
+        ]);
+        return newOid === oldOid ? undefined : filepath;
+      },
+    });
+    return rows.filter(Boolean);
+  }
+
+  // Who made the change the reader is about to see, for one changed song: the
+  // newest NON-merge commit touching the path reachable from the merged head but
+  // NOT from the pre-merge local head (Decision 5) — the incoming save. The merge
+  // commit itself is skipped: it touches the path (the cifra-merged blob differs
+  // from either side) but the engine authored it under the device identity, so
+  // its author is "Me", not the person who made the change (Decision 5 rejects
+  // it). Returns the incoming commit's author display name and oid, or null.
+  async function incomingCommitFor(dir, filepath, before, after) {
+    let entries;
+    try {
+      entries = await gitLog({ fs, dir, ref: after, filepath });
+    } catch {
+      return null;
+    }
+    for (const entry of entries) {
+      if ((entry.commit.parent?.length ?? 0) >= 2) continue; // the merge commit
+      const oid = entry.oid;
+      const reachableFromBefore =
+        !!before &&
+        (oid === before ||
+          (await isDescendent({ fs, dir, oid: before, ancestor: oid, depth: -1 })));
+      if (reachableFromBefore) continue;
+      return { commit: oid, author: entry.commit.author.name };
+    }
+    return null;
+  }
+
+  // Announce a clean, landed merge to the open reading view, per changed song
+  // (sync.read_in_place, acceptance 1; DIRECTION §3.7 L423-424). Songbooks only
+  // (the caller is `syncSongbook`); never when the merge changed nothing. A tree
+  // read fault never breaks the pass (offline-first) — it simply emits nothing.
+  async function announceMerge(bookId, before, after) {
+    if (!emitMerged || !after || before === after) return;
+    const dir = bookDir(bookId);
+    let paths;
+    try {
+      paths = await changedSongPaths(dir, before, after);
+    } catch {
+      return;
+    }
+    const changed = [];
+    for (const path of paths) {
+      const incoming = await incomingCommitFor(dir, path, before, after);
+      if (incoming) changed.push({ path, author: incoming.author, commit: incoming.commit });
+    }
+    if (changed.length) emitMerged({ bookId, changed });
+  }
+
   const countAhead = deps.countAhead ?? defaultCountAhead;
   const syncHome =
     deps.syncHome ?? ((author) => homeBook.sync({ bookId: homeBookId, author }));
@@ -313,8 +413,9 @@ export function createSyncEngine(deps = {}) {
           return;
         }
         if (!(await treeDirty(bookId))) {
+          let result;
           try {
-            await mergeBook(bookId, author);
+            result = await mergeBook(bookId, author);
           } catch (err) {
             if (isMergeConflict(err)) {
               emitFact(bookId, 'needs_you');
@@ -322,6 +423,8 @@ export function createSyncEngine(deps = {}) {
             }
             throw err;
           }
+          // The re-merge after a lost race can also bring in a changed song.
+          await announceMerge(bookId, result?.before, result?.after);
         } else {
           deferred = true; // still dirty on a retry: the merge stays deferred
         }
@@ -386,8 +489,9 @@ export function createSyncEngine(deps = {}) {
           if (await treeDirty(bookId)) {
             deferred = true;
           } else {
+            let result;
             try {
-              await mergeBook(bookId, author);
+              result = await mergeBook(bookId, author);
             } catch (err) {
               if (isMergeConflict(err)) {
                 emitFact(bookId, 'needs_you');
@@ -395,6 +499,10 @@ export function createSyncEngine(deps = {}) {
               }
               throw err;
             }
+            // A clean merge landed (commit or fast-forward): tell an open reading
+            // view which songs moved (sync.read_in_place). Deferred merges do not
+            // reach here (the dirty-tree guard above returns `deferred`).
+            await announceMerge(bookId, result?.before, result?.after);
           }
         }
       }

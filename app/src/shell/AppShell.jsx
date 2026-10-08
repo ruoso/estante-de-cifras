@@ -27,6 +27,7 @@ import { useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import SearchScreen from '../songs/SearchScreen.jsx';
 import SongReading from '../songs/SongReading.jsx';
+import SongHistory from '../songs/SongHistory.jsx';
 import SongArrange from '../songs/SongArrange.jsx';
 import SongWizard from '../songs/SongWizard.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
@@ -215,6 +216,13 @@ export default function AppShell({ store = getAppStore(), redeemToken = null }) 
   // full-screen surface over the shell (narrow) / the master-detail (wide), and
   // ephemeral view state — no router, no store slice (shell.layout Decision).
   const [openSong, setOpenSong] = useState(null);
+  // The song-history surface (songs.history), raised from the reading view's
+  // `onOpenHistory` seam — the "see what changed" merge notice (sync.read_in_place)
+  // and the existing History button both open it: `{ bookId, path, commit? }` or
+  // null. A full-screen surface mounted over the open song; `onBack` returns to
+  // reading. Ephemeral view state, no router, like `openSong` itself. This closes
+  // the seam songs.reading left for its toolbar (Decision 6).
+  const [history, setHistory] = useState(null);
   // The arrange surface, raised from the reading view's `onArrange` seam
   // (songs.arrange Decision 1): `{ bookId, path }` or null. A full-screen surface
   // mounted over the open song — **Done** clears it and returns to reading with
@@ -415,11 +423,28 @@ export default function AppShell({ store = getAppStore(), redeemToken = null }) 
   // the phone (Back returns to search), the computer's master-detail on tablet
   // and computer (search in `.pane.side`, the reading view in `.pane.main` —
   // SongReading draws the split itself, sharing the open-song seam so a result
-  // in the side pane switches songs). The toolbar's edit / history / arrange /
-  // add-to-setlist / share are affordance seams their owning tasks wire
-  // (songs.editor, songs.history, songs.arrange, books.setlists, books.share);
-  // this task renders them and raises the callbacks (Decision 6). Arrange is now
-  // wired: `onArrange` opens the arrange surface above.
+  // in the side pane switches songs). The toolbar's edit / add-to-setlist / share
+  // are affordance seams their owning tasks wire (songs.editor, books.setlists,
+  // books.share); this task renders them and raises the callbacks (Decision 6).
+  // Arrange is wired (`onArrange` opens the arrange surface above); history is now
+  // wired too — `onOpenHistory` opens SongHistory, closing the seam songs.reading
+  // left (sync.read_in_place Decision 6), so both the merge notice and the
+  // History button land on history in-app.
+  // A song's history is a full screen over the reading view (songs.history),
+  // checked before `openSong` so it sits over the song that opened it. Back
+  // returns to reading. Both the merge notice (sync.read_in_place) and the
+  // reading toolbar's History button reach it through `onOpenHistory`.
+  if (history) {
+    return (
+      <SongHistory
+        store={store}
+        bookId={history.bookId}
+        path={history.path}
+        onBack={() => setHistory(null)}
+      />
+    );
+  }
+
   if (openSong) {
     return (
       <SongReading
@@ -430,6 +455,7 @@ export default function AppShell({ store = getAppStore(), redeemToken = null }) 
         onBack={() => setOpenSong(null)}
         onOpenSong={setOpenSong}
         onArrange={setArranging}
+        onOpenHistory={setHistory}
       />
     );
   }

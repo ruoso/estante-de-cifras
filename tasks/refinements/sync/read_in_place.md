@@ -386,4 +386,15 @@ helpers, with the session the device signed in with).
 
 ## Status
 
-_pending implementation_
+**Done** — 2026-10-08.
+
+- `app/src/worker/sync-engine.js` — on the clean path after `defaultMergeBook`, computes per-file diff between pre-merge local head and merged head, reads incoming author via `metaOf`, emits transient `EventKind.MERGED` `{ bookId, changed: [{ path, author, commit }] }` per changed songbook file; fast-forward and merge-commit both covered; nothing emitted when diff is empty or merge is deferred by dirty-tree guard.
+- `app/src/worker/protocol.js` — new `EventKind.MERGED` constant on the open `kind` channel, transient-event pattern (no slice).
+- `app/src/worker/logic.js` — threads `bookId` into the engine so the emitted fact carries it.
+- `app/src/songs/SongReading.jsx` — `useWorkerEvent(store, EventKind.MERGED, …)` reacts to the fact: when not full screen, re-issues `OPEN_SOURCE`, captures scroll anchor before swap, restores it in a `useLayoutEffect` after re-layout; when full screen, holds `pendingUpdate` `{ author, commit }`; applying on `setFullScreen(false)` exit; inline notice `role="status"` *updated by {name}: see what changed* with RAC `Button` calling `onOpenHistory({ bookId, path, commit })`; notice dismissible; `useLayoutEffect` keyed on `[text, update]` so the notice height is included in the compensation.
+- `app/src/songs/reading.css` — `.reading-screen, .reading-split { max-height: 100dvh }` and `.reading-scroll { overflow-y: auto }` so the scroll container is a real bounded scroll port (the fix that makes `scrollTop` restoration work on phone).
+- `app/src/shell/AppShell.jsx` — wires `onOpenHistory` into `<SongReading>`, mounting `<SongHistory>` for `{ bookId, path }` with `onBack` returning to reading; closes the seam `songs.reading` left at `AppShell.jsx:418-422`.
+- `app/src/i18n/locales/{en,es-419,it,pt-BR}.js` — `readInPlaceUpdatedBy` / `readInPlaceUpdatedBySeeWhatChanged` copy for the notice.
+- `app/src/songs/SongReading.behavior.test.jsx` — extended: in-place update keeps place + notice + history-open (AC 2-3, 5); full-screen defer collapses to most-recent (AC 4); different-song MERGED leaves view untouched; axe clean on notice and full-screen states.
+- `app/src/worker/sync-engine.behavior.test.js` — extended: clean-merge and fast-forward emit MERGED naming path and incoming author (AC 1); unchanged merge and dirty-tree-deferred merge emit nothing (AC 1 boundary).
+- `e2e/web/tests/read-in-place.spec.js` — new, 9 cases on phone/tablet/computer: in-place update + notice + history (AC 2-3, 5; W08); full-screen defer + apply on exit (AC 4; W08 L120/L155/L159); toolbar history button (AC 5); axe on all states.

@@ -22,7 +22,7 @@
 // portal into the `.est` root through ThemeRoot's UNSAFE_PortalProvider
 // (shell.portal_provider), so RAC menus and popovers are themed and labelled.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -39,8 +39,8 @@ import {
 } from 'react-aria-components';
 import { parse } from 'cifra-md';
 import { t } from '../i18n/index.js';
-import { useSlice } from '../worker/useStore.js';
-import { command, CommandKind } from '../worker/protocol.js';
+import { useSlice, useWorkerEvent } from '../worker/useStore.js';
+import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import InstrumentChip, { inUseEntry } from '../instruments/InstrumentChip.jsx';
 import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
 import { instrumentInstance, openMidis } from '../core/instrument.js';
@@ -135,6 +135,77 @@ export default function SongReading({
   const [fullScreen, setFullScreen] = useState(false);
   const [instrumentsOpen, setInstrumentsOpen] = useState(false);
 
+  // A background sync landed a new version of this song (sync.read_in_place,
+  // workflow 8 §"A song open while it changes"; W08). `update` is the shown
+  // notice — `{ author, commit }` — or null; `pending` holds a merge that
+  // arrived while full screen, applied on leaving it (the full-screen defer is a
+  // main-thread view gate, never a Worker slice — Decision 3). Two merges while
+  // full screen collapse to the most recent (acceptance 4).
+  const [update, setUpdate] = useState(null);
+  const [pending, setPending] = useState(null);
+  // The live scroll container and a captured scroll anchor, so the reader keeps
+  // their place when the chart re-renders on the merged version (Decision 4). A
+  // ref, not state: it never renders and must survive the swap.
+  const scrollRef = useRef(null);
+  const anchorRef = useRef(null);
+
+  // Capture the musical place before the text swaps: the first chart line still
+  // at or below the viewport top, and its offset within the scroll viewport
+  // (Decision 4). jsdom has no layout, so the anchor does not resolve there and
+  // the plain `scrollTop` fallback is what the behavior test pins; the visual
+  // guarantee is e2e-web.
+  const captureAnchor = () => {
+    const scroll = scrollRef.current;
+    if (!scroll) {
+      anchorRef.current = null;
+      return;
+    }
+    const viewportTop = scroll.getBoundingClientRect().top;
+    const lines = scroll.querySelector('.chart')?.children ?? [];
+    let index = null;
+    let offset = 0;
+    for (let i = 0; i < lines.length; i += 1) {
+      const rect = lines[i].getBoundingClientRect();
+      if (rect.bottom > viewportTop) {
+        index = i;
+        offset = rect.top - viewportTop;
+        break;
+      }
+    }
+    anchorRef.current = { scrollTop: scroll.scrollTop, index, offset };
+  };
+
+  // Pull the merged text for this open path and surface the notice. OPEN_SOURCE
+  // is demand-driven (Decision 2): the fresh bytes flow through the `source`
+  // slice, the chart re-parses and re-renders, and the layout effect below
+  // restores the place after it lays out.
+  const applyUpdate = (next) => {
+    captureAnchor();
+    store.send(command(CommandKind.OPEN_SOURCE, { bookId, path }));
+    setUpdate(next);
+    setPending(null);
+  };
+
+  // A merge landed (the transient MERGED fact, like RESTORED / FILE_MOVED). React
+  // only when it names THIS open song; full screen defers (Decision 3). The
+  // handler is held in a ref by useWorkerEvent, so it reads the current
+  // `fullScreen` / `bookId` / `path` without re-subscribing.
+  useWorkerEvent(store, EventKind.MERGED, ({ bookId: changedBook, changed }) => {
+    if (changedBook !== bookId) return;
+    const hit = changed?.find((c) => c.path === path);
+    if (!hit) return;
+    const next = { author: hit.author, commit: hit.commit };
+    if (fullScreen) setPending(next);
+    else applyUpdate(next);
+  });
+
+  // Leaving full screen applies any merge that waited (acceptance 4; W08 L159):
+  // the update shows in place and the notice appears, now the performance is over.
+  const leaveFullScreen = () => {
+    setFullScreen(false);
+    if (pending) applyUpdate(pending);
+  };
+
   const sourceSlice = useSlice(store, 'source');
   const songSlice = useSlice(store, 'song');
   const instrumentsSlice = useSlice(store, 'instruments');
@@ -142,6 +213,33 @@ export default function SongReading({
   const shelf = useSlice(store, 'shelf');
 
   const text = sourceSlice?.[bookId]?.[path]?.text ?? '';
+
+  // Restore the captured place once the merged chart has laid out (Decision 4).
+  // Keyed on the swapped text AND the notice: the re-issued OPEN_SOURCE's merged
+  // bytes and the `update` notice commit in either order, and the notice sits
+  // above the chart (it pushes it down), so the restore must run in the render
+  // where the notice is present or it under-corrects by the notice's height. So
+  // re-anchor on both, and release the captured place only once the notice has
+  // laid out — an early text-only render re-anchors (a no-op while the notice is
+  // still absent) but keeps the anchor, so the following notice render corrects
+  // for real. Anchors to the same chart line when it resolves; falls back to
+  // scrollTop (what the behavior test pins in layout-free jsdom).
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const lines = scroll.querySelector('.chart')?.children;
+    if (anchor.index != null && lines && lines[anchor.index]) {
+      const viewportTop = scroll.getBoundingClientRect().top;
+      const rect = lines[anchor.index].getBoundingClientRect();
+      scroll.scrollTop += rect.top - viewportTop - anchor.offset;
+    } else {
+      scroll.scrollTop = anchor.scrollTop;
+    }
+    if (update) anchorRef.current = null;
+  }, [text, update]);
+
   const reading = songSlice?.[bookId]?.[path] ?? { transposition: 0, variations: {} };
   const offset = reading.transposition ?? 0;
   const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
@@ -350,10 +448,10 @@ export default function SongReading({
   if (fullScreen) {
     return (
       <div className="reading-fullscreen">
-        <Button className="btn reading-exit-full" onPress={() => setFullScreen(false)}>
+        <Button className="btn reading-exit-full" onPress={leaveFullScreen}>
           {t('reading.exitFullScreen')}
         </Button>
-        <div className="scroll reading-fullscreen-scroll">{sheet}</div>
+        <div className="scroll reading-fullscreen-scroll" ref={scrollRef}>{sheet}</div>
       </div>
     );
   }
@@ -415,6 +513,31 @@ export default function SongReading({
     </div>
   ) : null;
 
+  // The merge-landed notice (sync.read_in_place; workflow 8 L51-52; W08 L65,
+  // L177): *updated by {name}: see what changed*, opening the song's history. A
+  // non-modal inline notice in the scroll body with role="status" — it announces
+  // without moving focus and never aria-hides the chart (UpdateReady.jsx; project
+  // memory "RAC modal aria-hides shell chrome"). Dismissible; state carried by
+  // the words, never colour alone (mockups README L26).
+  const updateNotice = update ? (
+    <div className="notice accent reading-update-notice" role="status">
+      <span className="grow">{t('reading.updatedBy', { name: update.author })}</span>
+      <Button
+        className="act btn quiet"
+        onPress={() => onOpenHistory({ bookId, path, commit: update.commit })}
+      >
+        {t('reading.seeWhatChanged')}
+      </Button>
+      <Button
+        className="btn icon"
+        aria-label={t('reading.updateDismiss')}
+        onPress={() => setUpdate(null)}
+      >
+        <DismissIcon />
+      </Button>
+    </div>
+  ) : null;
+
   const metaRow = (
     <div className="reading-meta">
       <span className="t-small reading-byline">
@@ -462,8 +585,9 @@ export default function SongReading({
                 </>,
               )}
             </div>
-            <div className="scroll reading-scroll">
+            <div className="scroll reading-scroll" ref={scrollRef}>
               {instrumentPrompt}
+              {updateNotice}
               {metaRow}
               {statusRow}
               {noVoicings ? (
@@ -502,8 +626,9 @@ export default function SongReading({
             </>,
           )}
         </div>
-        <div className="scroll reading-scroll">
+        <div className="scroll reading-scroll" ref={scrollRef}>
           {instrumentPrompt}
+          {updateNotice}
           {metaRow}
           {statusRow}
           {noVoicings ? (

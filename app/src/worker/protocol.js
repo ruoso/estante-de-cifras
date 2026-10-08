@@ -369,6 +369,23 @@ export const EventKind = Object.freeze({
   // for the "N saves waiting" word; `lastInStep` is the instant the book was
   // last in step. A book an event does not touch keeps its slice reference.
   SYNC: 'sync',
+  // A clean merge landed on a songbook, per changed song file
+  // (sync.read_in_place, workflow 8 §"A song open while it changes"; DIRECTION
+  // §3.7 L423-424, which anticipates "a merge landing" as its own message):
+  // `{ bookId, changed: [{ path, author, commit }] }`. Each `path` is a
+  // `*.cifra.md` whose bytes moved between the pre-merge local head and the merged
+  // head; `author` is the incoming commit's display name (the person the reader
+  // is about to see — *updated by Ana* — not the device's own merge identity,
+  // Decision 5); `commit` is that commit's oid (the "see what changed" history
+  // link's target). A TRANSIENT event, like RESTORED / FILE_MOVED: it adds no
+  // reducer slice — the open reading view observes it with `useWorkerEvent` and
+  // re-issues OPEN_SOURCE for its own open path, so the merged text flows through
+  // the `source` slice on demand (Decisions 1, 2). Emitted only for songbooks
+  // (the home book re-surfaces through PREFERENCES / SHELF / INSTRUMENTS) and
+  // never when the merge changed nothing or was deferred by the dirty-tree guard
+  // (that is sync.unsaved's signal). It carries path, author name and commit oid
+  // only — never song text (standing rule).
+  MERGED: 'merged',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

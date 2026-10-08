@@ -546,6 +546,12 @@ export default {
     more: 'Altro',
     fullScreen: 'Schermo intero',
     exitFullScreen: 'Esci da schermo intero',
+    // Una sincronizzazione in background ha portato una nuova versione con il
+    // brano aperto (sync.read_in_place, flusso 8; W08). `{name}` è chi l'ha
+    // cambiato.
+    updatedBy: 'Aggiornato da {name}',
+    seeWhatChanged: 'Vedi cosa è cambiato',
+    updateDismiss: 'Chiudi avviso di aggiornamento',
   },
 
   arrange: {

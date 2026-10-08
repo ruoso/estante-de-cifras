@@ -546,6 +546,11 @@ export default {
     more: 'Más',
     fullScreen: 'Pantalla completa',
     exitFullScreen: 'Salir de pantalla completa',
+    // Una sincronización en segundo plano trajo una versión nueva con la canción
+    // abierta (sync.read_in_place, flujo 8; W08). `{name}` es quien la cambió.
+    updatedBy: 'Actualizado por {name}',
+    seeWhatChanged: 'Ver qué cambió',
+    updateDismiss: 'Descartar aviso de actualización',
   },
 
   arrange: {

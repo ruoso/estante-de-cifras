@@ -539,6 +539,10 @@ export function createWorkerLogic(port, options = {}) {
         resolveAuthor: resolveSyncAuthor,
         surfaceHome: surfaceHomeBook,
         emit: (payload) => port.postMessage(event(EventKind.SYNC, payload)),
+        // A clean merge landed: tell the open reading view which songs moved and
+        // who moved them (sync.read_in_place; DIRECTION §3.7 L423-424 "a merge
+        // landing is a message"). A transient per-file fact the view reacts to.
+        emitMerged: (payload) => port.postMessage(event(EventKind.MERGED, payload)),
       });
     }
     return syncEngine;

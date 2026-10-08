@@ -100,7 +100,17 @@ function makeStore({ text, entry, transposition = 0, variations = {}, preference
   const commands = [];
   const state = { transposition, variations: { ...variations } };
   const prefs = { ...(preferences ?? { instrumentInUse: register(entry.id) }) };
-  const endpoint = createLoopbackEndpoint((port) => ({
+  // The working-copy text the stub serves on OPEN_SOURCE. Mutable so a test can
+  // land a merged version (sync.read_in_place): the view re-issues OPEN_SOURCE
+  // and the stub answers with the new bytes, as the real Worker does after a
+  // clean merge rewrites the working copy.
+  let currentText = text;
+  // Captured so a test can push a transient MERGED fact down the Worker→main
+  // channel, the way the sync engine's emitMerged does.
+  let workerPort;
+  const endpoint = createLoopbackEndpoint((port) => {
+    workerPort = port;
+    return {
     handle(message) {
       commands.push(message);
       const p = message.payload ?? {};
@@ -117,7 +127,7 @@ function makeStore({ text, entry, transposition = 0, variations = {}, preference
           port.postMessage(event(EventKind.PREFERENCES, { ...prefs }));
           break;
         case CommandKind.OPEN_SOURCE:
-          port.postMessage(event(EventKind.SOURCE, { bookId: p.bookId, path: p.path, text }));
+          port.postMessage(event(EventKind.SOURCE, { bookId: p.bookId, path: p.path, text: currentText }));
           break;
         case CommandKind.OPEN_SONG:
           port.postMessage(
@@ -142,8 +152,19 @@ function makeStore({ text, entry, transposition = 0, variations = {}, preference
           break;
       }
     },
-  }));
-  return { store: createStore(endpoint), commands };
+    };
+  });
+  return {
+    store: createStore(endpoint),
+    commands,
+    // Land a merged version of the song, then announce it on the open `kind`
+    // channel (what the engine's emitMerged does). Callers set the new bytes
+    // first so the view's re-issued OPEN_SOURCE reads them.
+    setSource: (next) => {
+      currentText = next;
+    },
+    emitMerged: (payload) => workerPort.postMessage(event(EventKind.MERGED, payload)),
+  };
 }
 
 function renderReading(store, props = {}) {
@@ -416,6 +437,106 @@ describe('SongReading — the first-open instrument prompt (songs.first_song, wo
       fireEvent.keyUp(dismiss, { key: 'Enter' });
     });
     expect(lastCommand(commands, CommandKind.MARK_INSTRUMENT_PROMPT_SEEN)).toBeTruthy();
+  });
+});
+
+describe('SongReading — a merge landing while open (sync.read_in_place, workflow 8 §"A song open while it changes")', () => {
+  // Two versions of the same song (same title, so the chart group keeps its
+  // name): the merged version changes the chart so the swap is observable.
+  const V1 = song({ props: ['key: G'], chart: 'G  C' });
+  const V2 = song({ props: ['key: G'], chart: 'A  D' });
+  const chartText = () => within(screen.getByRole('group', { name: 'Tarde Clara' }));
+
+  it('updates in place, keeps the place, shows the notice and opens history at the commit (workflow 8 L51-52; W08 L65/L177)', async () => {
+    const onOpenHistory = vi.fn();
+    const { store, commands, setSource, emitMerged } = makeStore({ text: V1, entry: guitarEntry() });
+    const { container } = await openAndWait(store, { onOpenHistory });
+
+    // The reader is scrolled down the page; the place is captured before the swap
+    // and restored after re-layout. jsdom has no layout, so this pins the
+    // scrollTop fallback (Decision 4); the visual guarantee is e2e-web.
+    const scroll = container.querySelector('.reading-scroll');
+    scroll.scrollTop = 120;
+
+    const before = commands.filter((c) => c.kind === CommandKind.OPEN_SOURCE).length;
+    setSource(V2);
+    await act(async () => {
+      emitMerged({ bookId: BOOK, changed: [{ path: PATH, author: 'Ana', commit: 'c0ffee' }] });
+    });
+
+    // The view re-issued OPEN_SOURCE for its open path and the chart shows the
+    // merged version; the old chord is gone.
+    await waitFor(() => expect(chartText().getByText('A D')).toBeInTheDocument());
+    expect(commands.filter((c) => c.kind === CommandKind.OPEN_SOURCE).length).toBe(before + 1);
+    expect(screen.queryByText('G C')).not.toBeInTheDocument();
+
+    // The place is kept (scrollTop restored across the swap).
+    expect(scroll.scrollTop).toBe(120);
+
+    // The notice: role="status", naming Ana, not aria-hiding the chart.
+    const notice = screen.getByRole('status');
+    expect(within(notice).getByText('Updated by Ana')).toBeInTheDocument();
+    expect(chartText().getByText('A D')).toBeInTheDocument();
+
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+    // "See what changed" opens history for the song at the incoming commit.
+    await click(within(notice).getByRole('button', { name: 'See what changed' }));
+    expect(onOpenHistory).toHaveBeenCalledWith({ bookId: BOOK, path: PATH, commit: 'c0ffee' });
+
+    // It is dismissible (and never stole focus — a plain Button press).
+    await click(within(notice).getByRole('button', { name: 'Dismiss update notice' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('defers in full screen and applies on leaving it, collapsing to the most recent (workflow 8 L53-54; W08 L120/L155/L159; §3.7 L438-440)', async () => {
+    const onOpenHistory = vi.fn();
+    const { store, commands, setSource, emitMerged } = makeStore({ text: V1, entry: guitarEntry() });
+    await openAndWait(store, { onOpenHistory });
+
+    await click(screen.getByRole('button', { name: 'Full screen' }));
+    await screen.findByRole('button', { name: 'Exit full screen' });
+
+    const before = commands.filter((c) => c.kind === CommandKind.OPEN_SOURCE).length;
+    setSource(V2);
+    await act(async () => {
+      emitMerged({ bookId: BOOK, changed: [{ path: PATH, author: 'Ana', commit: 'c0ffee' }] });
+      // A second merge while full screen collapses to the most recent pending
+      // update (acceptance 4).
+      emitMerged({ bookId: BOOK, changed: [{ path: PATH, author: 'Bruno', commit: 'beef' }] });
+    });
+
+    // The update waits: no notice, no text swap, no re-request while full screen.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(chartText().getByText('G C')).toBeInTheDocument();
+    expect(commands.filter((c) => c.kind === CommandKind.OPEN_SOURCE).length).toBe(before);
+
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations(); // the waiting full-screen state
+
+    // Leaving full screen applies the deferred update and shows the notice, for
+    // the most recent pending merge.
+    await click(screen.getByRole('button', { name: 'Exit full screen' }));
+    await waitFor(() => expect(chartText().getByText('A D')).toBeInTheDocument());
+    const notice = screen.getByRole('status');
+    expect(within(notice).getByText('Updated by Bruno')).toBeInTheDocument();
+    await click(within(notice).getByRole('button', { name: 'See what changed' }));
+    expect(onOpenHistory).toHaveBeenCalledWith({ bookId: BOOK, path: PATH, commit: 'beef' });
+  });
+
+  it('ignores a MERGED event for a different song or book', async () => {
+    const { store, commands, setSource, emitMerged } = makeStore({ text: V1, entry: guitarEntry() });
+    await openAndWait(store);
+
+    const before = commands.filter((c) => c.kind === CommandKind.OPEN_SOURCE).length;
+    setSource(V2); // would surface if the view wrongly applied it
+    await act(async () => {
+      emitMerged({ bookId: BOOK, changed: [{ path: 'outra-musica.cifra.md', author: 'Ana', commit: 'x' }] });
+      emitMerged({ bookId: 'other-book', changed: [{ path: PATH, author: 'Ana', commit: 'y' }] });
+    });
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(chartText().getByText('G C')).toBeInTheDocument();
+    expect(commands.filter((c) => c.kind === CommandKind.OPEN_SOURCE).length).toBe(before);
   });
 });
 

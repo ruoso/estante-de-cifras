@@ -128,6 +128,7 @@ async function makeDeviceB(remote, bookId = BOOK) {
 // force a race, and supply `surfaceHome`.
 function engineFor(device, { changed = [], mergeDriver, overrides = {} } = {}) {
   const facts = [];
+  const merges = [];
   const changeCheck = {
     check: async () =>
       new Map(changed.map((c) => [c.bookId, { bookId: c.bookId, status: 'changed', head: c.head }])),
@@ -142,10 +143,11 @@ function engineFor(device, { changed = [], mergeDriver, overrides = {} } = {}) {
     resolveAuthor: async () => SYNC_IDENTITY,
     surfaceHome: overrides.surfaceHome,
     emit: (payload) => facts.push(payload),
+    emitMerged: (payload) => merges.push(payload),
     now: () => Date.UTC(2026, 9, 7, 12, 0, 0),
     ...overrides.engine,
   });
-  return { engine, facts };
+  return { engine, facts, merges };
 }
 
 const lastPhase = (facts, bookId = BOOK) =>
@@ -377,6 +379,95 @@ describe('sync engine over a real remote (behavior)', () => {
       // The home-book-derived slices re-surface after the sync (the SYNC_HOME path).
       expect(surfaceHome).toHaveBeenCalledTimes(1);
       expect(lastPhase(facts, 'home')).toBe('in_step');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('announces a landed clean merge, naming the changed song and the INCOMING author (sync.read_in_place AC 1; workflow 8 L51; Decision 5)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const b = await makeDeviceB(remote);
+      const theirHead = await advanceRemote(remote, { [SONG]: VERSE_EDIT }, 'edit the verse');
+      await b.commitLocal(SONG, CHORUS_EDIT, 'edit the chorus');
+
+      const { engine, merges } = engineFor(b, { changed: [{ bookId: BOOK, head: theirHead }] });
+      await engine.pass();
+
+      expect(merges).toHaveLength(1);
+      expect(merges[0].bookId).toBe(BOOK);
+      const changed = merges[0].changed;
+      expect(changed).toHaveLength(1);
+      // "Who made the change" is the other device (its verse-edit commit), not the
+      // device's own merge identity ("Device B"); the commit is the incoming oid
+      // the history link targets (Decision 5).
+      expect(changed[0]).toMatchObject({ path: SONG, author: 'Other Device', commit: theirHead });
+      // The fact carries metadata only — never song text (standing rule).
+      expect(Object.keys(changed[0]).sort()).toEqual(['author', 'commit', 'path']);
+      expect(JSON.stringify(merges)).not.toMatch(/verse|chorus/i);
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('announces a fast-forward merge too (no local commits — the incoming version arrives straight) (AC 1; workflow 8 L42-45)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const b = await makeDeviceB(remote);
+      // B has no local commit; the remote edits the verse → a fast-forward.
+      const theirHead = await advanceRemote(remote, { [SONG]: VERSE_EDIT }, 'edit the verse');
+
+      const { engine, merges } = engineFor(b, { changed: [{ bookId: BOOK, head: theirHead }] });
+      await engine.pass();
+
+      // The working copy fast-forwarded to theirs, and the merge was announced.
+      expect(await b.head()).toBe(theirHead);
+      expect(merges).toHaveLength(1);
+      expect(merges[0].changed).toEqual([{ path: SONG, author: 'Other Device', commit: theirHead }]);
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('emits no MERGED fact when a clean merge brings no song change (AC 1 negative)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const b = await makeDeviceB(remote);
+      // The remote changes only a non-song file; B has a local song commit → a
+      // clean two-parent merge that moves no `*.cifra.md`.
+      const theirHead = await advanceRemote(remote, { 'README.md': '# A book\n' }, 'add a readme');
+      await b.commitLocal(SONG, CHORUS_EDIT, 'edit the chorus');
+
+      const { engine, merges } = engineFor(b, { changed: [{ bookId: BOOK, head: theirHead }] });
+      await engine.pass();
+
+      // A real merge landed (two parents) but no song moved → no MERGED fact.
+      const { commit } = await readCommit({ fs: b.fs, dir: b.dir, oid: await b.head() });
+      expect(commit.parent).toHaveLength(2);
+      expect(merges).toHaveLength(0);
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('emits no MERGED fact when the incoming merge is deferred over an unsaved edit (the boundary to sync.unsaved)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const b = await makeDeviceB(remote);
+      const theirHead = await advanceRemote(remote, { [SONG]: VERSE_EDIT }, 'edit the verse');
+      const UNSAVED = BASE_SONG.replace('Second chorus line', 'an unsaved chorus in progress');
+      await b.fs.promises.writeFile(`${b.dir}/${SONG}`, UNSAVED); // dirty tree, no commit
+
+      const { engine, merges } = engineFor(b, { changed: [{ bookId: BOOK, head: theirHead }] });
+      await engine.pass();
+
+      // The merge was deferred by the dirty-tree guard — its signal is
+      // sync.unsaved's, not a MERGED fact (acceptance 1; Decision 3).
+      expect(merges).toHaveLength(0);
     } finally {
       await remote.stop();
     }
