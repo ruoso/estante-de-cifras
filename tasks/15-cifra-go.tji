@@ -36,8 +36,9 @@ task cifra_go "cifra.md for Go" {
   task versions "Two canonical-form versions side by side" {
     effort 1d
     allocate team
-    depends !writer
-    note "The hook accepts the current and the previous form for a while; the module exposes both. DIRECTION §3.6 Versions, workflow 14. Tests: unit (a text canonical only under the previous form passes the previous check and fails the current one, and the reverse; the module reports which form a text is in)."
+    complete 100
+    depends !writer, !setlists
+    note "The hook accepts the current and the previous form for a while; the module exposes both. DIRECTION §3.6 Versions, workflow 14. Tests: unit (a text canonical only under the previous form passes the previous check and fails the current one, and the reverse; the module reports which form a text is in). Refinement: tasks/refinements/cifra_go/versions.md"
   }
   task merge "Merge, and git-merge-cifra" {
     effort 8d
