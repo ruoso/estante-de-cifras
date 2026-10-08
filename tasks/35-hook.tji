@@ -29,8 +29,9 @@ task hook "The pre-receive hook" {
   task canonical "Canonical form" {
     effort 2d
     allocate team
+    complete 100
     depends !contents, cifra_go.writer, cifra_go.setlists, cifra_go.versions
-    note "Every song and setlist in a new commit canonical under the current or the previous form; README.md held to the text rules; marker lines refused. Tests: unit (the check over songs, setlists and README.md); behavior (the hook installed in a real bare repository, pushed to with the git CLI: a non-canonical song refused, a song in the previous form accepted, a marked file refused, README.md held to the text rules); e2e-api (isomorphic-git pushing a non-canonical song refused by the stack)."
+    note "Every song and setlist in a new commit canonical under the current or the previous form; README.md held to the text rules; marker lines refused. Tests: unit (the check over songs, setlists and README.md); behavior (the hook installed in a real bare repository, pushed to with the git CLI: a non-canonical song refused, a song in the previous form accepted, a marked file refused, README.md held to the text rules); e2e-api (isomorphic-git pushing a non-canonical song refused by the stack). Refinement: tasks/refinements/hook/canonical.md"
   }
   task limits "Limits" {
     effort 1d

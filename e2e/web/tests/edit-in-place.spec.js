@@ -63,11 +63,12 @@ const SONG_V1 = [
   '```',
   'and gulls begin to call',
   '```',
-  '',
 ];
 // The incoming version appends a bridge in its own section (its author becomes the
 // notice's *Updated by {name}*). "lighthouse" is the token the merged swap surfaces.
-const BRIDGE = ['', '## Bridge', '```', 'a lighthouse sweeps the bay', '```', ''];
+// Leading '' makes the one canonical blank line before the heading; no trailing ''
+// (a trailing blank line is non-canonical, which the pre-receive hook refuses).
+const BRIDGE = ['', '## Bridge', '```', 'a lighthouse sweeps the bay', '```'];
 const INCOMING_AUTHOR = 'Ana Luiza';
 
 // ---- device (browser) helpers — the account + hosted-book setup, copied from

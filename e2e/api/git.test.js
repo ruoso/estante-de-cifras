@@ -139,7 +139,7 @@ describe('git over HTTP (service.git_http)', () => {
     await iso.clone({ url, cookie });
     expect(await iso.readFileAtHead(sampleSong.filename)).toBe(sampleSong.content);
 
-    await writeFile(join(isoDir, 'segundo.cifra.md'), '# Segundo\n\n```cifra\n[Am]Teste\n```\n');
+    await writeFile(join(isoDir, 'segundo.cifra.md'), '# Segundo\n\n```\n[Am] Teste\n```\n');
     await iso.add('segundo.cifra.md');
     await iso.commit('Add a second song');
     await iso.push({ url, cookie });
@@ -228,7 +228,7 @@ describe('hook: refs (hook.refs)', () => {
     await work.pushHTTP(url, cookie);
 
     // A fast-forward: a second commit on top, pushed — accepted.
-    await writeFile(join(workDir, 'segundo.cifra.md'), '# Segundo\n\n```cifra\n[Am]Teste\n```\n');
+    await writeFile(join(workDir, 'segundo.cifra.md'), '# Segundo\n\n```\n[Am] Teste\n```\n');
     await work.add('.');
     await work.commit('Add a second song');
     await work.pushHTTP(url, cookie);
@@ -310,6 +310,61 @@ describe('hook: stowaways (hook.stowaways)', () => {
   });
 });
 
+describe('hook: canonical (hook.canonical)', () => {
+  // The app's own git client (isomorphic-git) pushes a commit adding a song that
+  // parses but is not in canonical form (a ```cifra info-string fence and a
+  // chord with no space — the canonical writer normalises both). The stack's
+  // pre-receive hook, built with cifra.md for Go, refuses the whole push: the
+  // ref is reported declined on git's report-status (band 1), and the hook's
+  // "not in canonical form" reason reaches the app's client on git's own
+  // side-band channel (band 2) — proving a content-level canonical refusal
+  // reaches the device over HTTP, and that the hook (with cifra.md for Go) is
+  // actually built into and run by the image. Pins workflow 14 §"Canonical form"
+  // (14-file-view.md:51-53, 89-92) and DIRECTION §3.6 line 341.
+  it('refuses a non-canonical song push, the reason on git\'s channel', async () => {
+    const client = new HttpClient();
+    await registerNewAccount(client);
+    const book = await createBook(client, 'Canonical Form');
+    const url = gitEndpoint(book);
+    const cookie = client.cookieHeader();
+
+    // A device brings the book online with a canonical first commit.
+    const workDir = await tempDir('estante-e2e-canonwork-');
+    const work = await GitCli.create(workDir);
+    await work.init();
+    await writeFile(join(workDir, sampleSong.filename), sampleSong.content);
+    await work.add('.');
+    await work.commit('Add the tuning song');
+    await work.pushHTTP(url, cookie);
+
+    // The app's own client (isomorphic-git) clones, then commits a song that
+    // parses but is not canonical (a ```cifra info-string fence and a chord with
+    // no space) — purpose-written filler, never copyrighted words. It is valid
+    // UTF-8 at an allowed path within the cap, so the refs/stowaways/contents
+    // layers accept it and only the canonical-form layer can refuse it.
+    const isoDir = await tempDir('estante-e2e-canoniso-');
+    const iso = await IsoGit.create(isoDir);
+    await iso.clone({ url, cookie });
+    await writeFile(join(isoDir, 'nao-canonica.cifra.md'), '# Nao Canonica\n\n```cifra\n[C]Uma linha nao canonica\n```\n');
+    await iso.add('nao-canonica.cifra.md');
+    await iso.commit('Add a non-canonical song');
+
+    const messages = [];
+    let error;
+    try {
+      await iso.push({ url, cookie, onMessage: (line) => messages.push(line.toString()) });
+    } catch (e) {
+      error = e;
+    }
+    expect(error, 'the non-canonical push should have been refused').toBeDefined();
+    // Band 1 (the report-status): the ref is declined, inside a 200 result body.
+    expect(error.data?.result?.refs?.['refs/heads/main']?.ok).toBe(false);
+    // Band 2 (the side-band): the hook's canonical reason reaches the app's own
+    // client on git's own channel.
+    expect(messages.join('')).toMatch(/not in canonical form/);
+  });
+});
+
 describe('hook: limits (hook.limits)', () => {
   // A member pushes to a book whose owning account has almost no quota headroom
   // left (a second book's recorded size, set in Postgres, consumes nearly all of
@@ -341,12 +396,14 @@ describe('hook: limits (hook.limits)', () => {
     }
 
     // Purpose-written filler whose net growth (blob + tree + commit) exceeds the
-    // headroom (never copyrighted words).
-    let body = '# Filler Song\n\n```cifra\n';
+    // headroom (never copyrighted words). Written in canonical form — the hook's
+    // canonical-form check (hook.canonical) runs before the limits check, so a
+    // non-canonical push would be refused for that first, not for the quota.
+    const fillerLines = [];
     for (let i = 0; i < 300; i += 1) {
-      body += `[C]linha de preenchimento numero ${i} pra crescer o livro\n`;
+      fillerLines.push('[C] linha de preenchimento numero ' + i + ' pra crescer o livro');
     }
-    body += '```\n';
+    const body = '# Filler Song\n\n```\n' + fillerLines.join('\n\n') + '\n```\n';
 
     const workDir = await tempDir('estante-e2e-limitwork-');
     const work = await GitCli.create(workDir);

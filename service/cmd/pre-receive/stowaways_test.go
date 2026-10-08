@@ -34,7 +34,7 @@ func TestPreReceiveStowaways(t *testing.T) {
 		// A thin pack whose base objects (the first song's blob and the root
 		// tree's unchanged entries) the repo already holds: the quarantine
 		// carries only the introduced objects, all reachable from the new head.
-		writeSong(t, work, "segundo.cifra.md", "# Segundo\n\n```cifra\n[Am]Mais uma linha\n```\n")
+		writeSong(t, work, "segundo.cifra.md", "# Segundo\n\n```\n[Am] Mais uma linha\n```\n")
 		mustGit(t, work, "add", ".")
 		mustGit(t, work, "commit", "-m", "Add a second song")
 		if out, err := git(t, work, "push", "origin", "main"); err != nil {

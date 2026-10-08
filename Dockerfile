@@ -55,6 +55,14 @@ WORKDIR /src
 # go.mod/go.sum must sit there before `go mod download` computes the build list.
 COPY service/go.mod service/go.sum ./
 COPY api/go.mod api/go.sum /api/
+# cifra.md for Go, replaced by ../../cifra.md/go (from /src that target is
+# /cifra.md/go): the hook links it to check canonical form (hook.canonical). Its
+# go.mod/go.sum must sit at the replace target before `go mod download` computes
+# the build list, like the api module above. Brought in from the `cifra-md-go`
+# named build context (compose.yaml wires it to the sibling checkout), the Go
+# counterpart of the app stage's `cifra-md` context (DIRECTION §3.6, "Both
+# repositories meet in the image build").
+COPY --from=cifra-md-go go.mod go.sum /cifra.md/go/
 RUN go mod download
 COPY service/ ./
 # The api module's source at the replace target, so the Go toolchain resolves
@@ -62,13 +70,17 @@ COPY service/ ./
 # tree (the cross-repo named-build-context pattern's same-repo counterpart,
 # DIRECTION §3.6).
 COPY api/ /api/
+# The cifra.md for Go source at its replace target, so `go build ./cmd/pre-receive`
+# links the hook's canonical-form check inside the image exactly as from the
+# working tree.
+COPY --from=cifra-md-go . /cifra.md/go/
 # Two static binaries (CGO off) so the final image needs no C runtime: the
 # service, and the pre-receive hook git runs on every push (hook.refs). The
-# service proper imports no cifra.md Go package; when the hook links cifra.md
-# for Go (hook.canonical), it brings that package into this stage with the same
-# cross-repo named-build-context pattern the app stage uses above — a
-# `cifra-md-go` context wired in compose.yaml and copied at the module's
-# expected path (DIRECTION §3.6).
+# service proper imports no cifra.md Go package; the hook links cifra.md for Go
+# to check canonical form (hook.canonical), brought into this stage above with
+# the same cross-repo named-build-context pattern the app stage uses — the
+# `cifra-md-go` context wired in compose.yaml, copied at the module's replace
+# target (DIRECTION §3.6).
 RUN CGO_ENABLED=0 go build -trimpath -o /out/service ./cmd/service
 RUN CGO_ENABLED=0 go build -trimpath -o /out/pre-receive ./cmd/pre-receive
 

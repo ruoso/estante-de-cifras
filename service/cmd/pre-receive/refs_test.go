@@ -98,7 +98,7 @@ func newBook(t *testing.T, hooksDir string, pushMain bool) (bare, work string) {
 	mustGit(t, bare, "config", "core.hooksPath", hooksDir)
 
 	mustGit(t, root, "init", "-b", "main", work)
-	writeSong(t, work, "a-cancao-de-afinacao.cifra.md", "# A Cancao de Afinacao\n\n```cifra\n[C]Uma linha pra testar\n```\n")
+	writeSong(t, work, "a-cancao-de-afinacao.cifra.md", "# A Cancao de Afinacao\n\n```\n[C] Uma linha pra testar\n```\n")
 	mustGit(t, work, "add", ".")
 	mustGit(t, work, "commit", "-m", "Add the tuning song")
 	mustGit(t, work, "remote", "add", "origin", bare)
@@ -129,7 +129,7 @@ func TestPreReceiveRefs(t *testing.T) {
 
 	t.Run("a fast-forward update to main is accepted", func(t *testing.T) {
 		_, work := newBook(t, hooksDir, true)
-		writeSong(t, work, "segundo.cifra.md", "# Segundo\n\n```cifra\n[Am]Outra linha\n```\n")
+		writeSong(t, work, "segundo.cifra.md", "# Segundo\n\n```\n[Am] Outra linha\n```\n")
 		mustGit(t, work, "add", ".")
 		mustGit(t, work, "commit", "-m", "Add a second song")
 		if out, err := git(t, work, "push", "origin", "main"); err != nil {

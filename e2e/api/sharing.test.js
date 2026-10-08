@@ -117,7 +117,7 @@ describe('sharing (workflow 10)', () => {
     const editorDir = await tempDir('estante-e2e-share-editor-');
     const editorWork = await GitCli.cloneHTTP(url, editorDir, editor.cookieHeader());
     expect(await readFile(join(editorDir, sampleSong.filename), 'utf8')).toBe(sampleSong.content);
-    await writeFile(join(editorDir, 'segundo.cifra.md'), '# Segundo\n\n```cifra\n[Am]Teste\n```\n');
+    await writeFile(join(editorDir, 'segundo.cifra.md'), '# Segundo\n\n```\n[Am] Teste\n```\n');
     await editorWork.add('.');
     await editorWork.commit('Add a second song as editor');
     await editorWork.pushHTTP(url, editor.cookieHeader());

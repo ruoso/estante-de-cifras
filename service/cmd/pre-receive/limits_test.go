@@ -46,7 +46,7 @@ func pushLimits(t *testing.T, work string, bookBytes, accountRemaining int64) (s
 // book's main in work (never copyrighted words), leaving it ready to push.
 func commitSecondSong(t *testing.T, work string) {
 	t.Helper()
-	writeSong(t, work, "segundo.cifra.md", "# Segundo\n\n```cifra\n[Am]Uma segunda linha pra crescer o livro\n```\n")
+	writeSong(t, work, "segundo.cifra.md", "# Segundo\n\n```\n[Am] Uma segunda linha pra crescer o livro\n```\n")
 	mustGit(t, work, "add", ".")
 	mustGit(t, work, "commit", "-m", "Add a second song")
 }

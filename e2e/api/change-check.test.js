@@ -110,7 +110,7 @@ describe('shelf change check (workflow 8)', () => {
     const untouchedHead = await cloneHead(untouchedUrl, 'estante-e2e-cc-buntouched-');
 
     // A pushes a second commit to the first book only.
-    await writeFile(join(movedWork.cwd, 'segundo.cifra.md'), '# Segundo\n\n```cifra\n[Am]Teste\n```\n');
+    await writeFile(join(movedWork.cwd, 'segundo.cifra.md'), '# Segundo\n\n```\n[Am] Teste\n```\n');
     await movedWork.add('.');
     await movedWork.commit('Add a second song');
     await movedWork.pushHTTP(movedUrl, aCookie);

@@ -50,9 +50,10 @@ size, since it cannot be by content without hurting real songs.
 
 **The app canonicalizes every song and setlist when saving, and the service
 refuses any commit holding one that is not canonical.** A file is canonical
-when writing it back from what was read changes nothing. The same library —
-the cifra.md JS library — decides it in the app and on the service, so the
-two cannot disagree about what canonical is.
+when writing it back from what was read changes nothing. The app decides it
+with cifra.md for JavaScript and the service decides it with cifra.md for Go
+(DIRECTION §3.6); the two cannot disagree about what canonical is, because
+every implementation is held to the shared corpus byte for byte.
 
 **The canonical form must have no ambiguity.** Every document has exactly
 one canonical form, canonicalizing is idempotent, and nothing in it is left

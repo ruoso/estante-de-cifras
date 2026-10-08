@@ -69,6 +69,11 @@ services:
         # `cifra-md-go` context here for cifra.md for Go when it links it
         # (hook.canonical).
         cifra-md: ${ESTANTE_CIFRA_MD_DIR:-../cifra.md}/js
+        # The symmetric context for cifra.md for Go: the pre-receive hook links
+        # it to decide whether a pushed song or setlist is canonical
+        # (hook.canonical). The Dockerfile's service stage copies it at the
+        # module's replace target so `go build ./cmd/pre-receive` resolves it.
+        cifra-md-go: ${ESTANTE_CIFRA_MD_DIR:-../cifra.md}/go
     depends_on:
       # The one binary comes up only once its backing services are healthy, so
       # the whole stack is ready together under `up --wait`.

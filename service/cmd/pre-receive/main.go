@@ -10,9 +10,10 @@
 //
 // Today it composes the refs-and-history layer (hook.refs), then the
 // object-reachability layer (hook.stowaways), then the "what a book may hold"
-// layer (hook.contents), then the account-and-book byte-cap layer (hook.limits),
-// each run only if the previous accepted; the later hook subtasks each add one
-// more check in internal/hook for main to compose.
+// layer (hook.contents), then the canonical-form layer (hook.canonical), then
+// the account-and-book byte-cap layer (hook.limits), each run only if the
+// previous accepted; the later hook subtasks each add one more check in
+// internal/hook for main to compose.
 package main
 
 import (
@@ -83,11 +84,28 @@ func run() int {
 		return refuse(reasons)
 	}
 
-	// The contents layer accepted: the push is a clean fast-forward of
-	// refs/heads/main carrying only allowed, well-formed objects. Last, the
-	// account-and-book byte caps (hook.limits): the push's net byte growth
-	// against the per-book 50 MB cap and the account's remaining quota, read
-	// from the ESTANTE_* environment the service set.
+	// The contents layer accepted: every blob reachable from the new head is a
+	// UTF-8 regular file at an allowed path within the cap. Now the canonical-form
+	// layer (hook.canonical): every song and setlist those new commits reach is
+	// canonical under an accepted form, and the root README obeys the text rules —
+	// decided by cifra.md for Go, no song text in logs.
+	reasons, err = hook.Canonical(updates, "")
+	if err != nil {
+		// A git failure reading the pushed blobs — refuse rather than accept
+		// something unverified, naming only the structural fault (never object
+		// contents; no song text in logs).
+		fmt.Fprintf(os.Stderr, "pre-receive: could not verify canonical form: %v\n", err)
+		return 1
+	}
+	if len(reasons) > 0 {
+		return refuse(reasons)
+	}
+
+	// The canonical layer accepted: the push is a clean fast-forward of
+	// refs/heads/main carrying only allowed, well-formed, canonical objects.
+	// Last, the account-and-book byte caps (hook.limits): the push's net byte
+	// growth against the per-book 50 MB cap and the account's remaining quota,
+	// read from the ESTANTE_* environment the service set.
 	reasons, err = hook.Limits(updates, "")
 	if err != nil {
 		// A missing/non-numeric byte figure or a git failure measuring the

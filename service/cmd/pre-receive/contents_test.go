@@ -51,8 +51,8 @@ func TestPreReceiveContents(t *testing.T) {
 		// nested folder — each a 100644 UTF-8 blob under the cap.
 		writeAt(t, work, ".gitattributes", []byte(appGitattributes))
 		writeAt(t, work, "README.md", []byte("# A Test Songbook\n"))
-		writeAt(t, work, "raiz.cifra.md", []byte("# Na Raiz\n\n```cifra\n[C]Uma linha\n```\n"))
-		writeAt(t, work, "shows/abertura.setlist.md", []byte("# Abertura\n\n- raiz.cifra.md\n"))
+		writeAt(t, work, "raiz.cifra.md", []byte("# Na Raiz\n\n```\n[C] Uma linha\n```\n"))
+		writeAt(t, work, "shows/abertura.setlist.md", []byte("# Abertura\n- raiz.cifra.md\n"))
 		mustGit(t, work, "add", ".")
 		mustGit(t, work, "commit", "-m", "Scaffold the songbook")
 		if out, err := git(t, work, "push", "origin", "main"); err != nil {

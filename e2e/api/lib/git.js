@@ -202,8 +202,13 @@ export class IsoGit {
     return git.fetch({ fs: this.fs, http: this.http, dir: this.dir, url, headers: cookieHeaders(cookie) });
   }
 
-  push({ url, cookie, ref = 'main' } = {}) {
-    return git.push({ fs: this.fs, http: this.http, dir: this.dir, url, ref, headers: cookieHeaders(cookie) });
+  // onMessage, when given, receives each git side-band band-2 line the server
+  // relays — where a server-side hook's refusal reason rides (the app's client
+  // seeing the hook's words, service.git_http). A pre-receive refusal makes
+  // git.push throw GitPushError, whose .data.result.refs[ref] reports the ref
+  // declined (band 1, the report-status).
+  push({ url, cookie, ref = 'main', onMessage } = {}) {
+    return git.push({ fs: this.fs, http: this.http, dir: this.dir, url, ref, headers: cookieHeaders(cookie), onMessage });
   }
 }
 
