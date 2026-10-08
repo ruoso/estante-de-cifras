@@ -22,8 +22,9 @@ task cifra_go "cifra.md for Go" {
   task writer "Canonical writer and check" {
     effort 4d
     allocate team
+    complete 100
     depends !reader
-    note "cifra.md: §8 serializer, invariants, `is canonical` as the hook needs it, marker lines. Tests: unit (the invariants; `is canonical` true and false on corpus texts and their non-canonical inputs; marker lines refused); corpus (canonical text byte for byte, every entry)."
+    note "cifra.md: §8 serializer, invariants, `is canonical` as the hook needs it, marker lines. Tests: unit (the invariants; `is canonical` true and false on corpus texts and their non-canonical inputs; marker lines refused); corpus (canonical text byte for byte, every entry). Refinement: tasks/refinements/cifra_go/writer.md"
   }
   task setlists "Setlists" {
     effort 2d
