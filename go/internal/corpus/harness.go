@@ -6,14 +6,14 @@
 // bytes that Python generates and that every implementation is held to
 // (DIRECTION §3.6); it imports neither the reference nor the JS package.
 //
-// This landing builds the reading checks (1–4 and 6) and a forward merge check
-// for every entry, and drives each against an expected-failures ledger: a
-// ledgered check must fail, an unledgered check must pass, and every check is
-// run either way, so nothing is skipped and both a premature pass and a
-// regression fail the gate. The text-layer (/tl) and per-chord (/chords)
-// reading checks fall to cifra_go.reader, and the symmetry/canonicality/
-// resolution/permutation merge checks to cifra_go.merge; they extend this
-// harness and prune the ledger as they land.
+// This harness builds the reading checks (/tl, 1–4, 6 and /chords) and a forward
+// merge check for every entry, and drives each against an expected-failures
+// ledger: a ledgered check must fail, an unledgered check must pass, and every
+// check is run either way, so nothing is skipped and both a premature pass and a
+// regression fail the gate. The text-layer (/tl) and per-chord (/chords) reading
+// checks are born passing (outside the ledger), added by cifra_go.reader. The
+// symmetry/canonicality/resolution/permutation merge checks fall to
+// cifra_go.merge; it extends this harness and prunes the ledger as it lands.
 package corpus
 
 import (
@@ -41,6 +41,11 @@ type Impl interface {
 	CanonicalSetlist(model cifra.Model) (cifra.Model, error)
 	Merge(base, ours, theirs []byte, setlist bool) (cifra.Outcome, error)
 	MergeOutputs(outcome cifra.Outcome, setlist bool) (map[string][]byte, error)
+	// The text layer and the chord parser, for the born-passing /tl and /chords
+	// reading checks (cifra_go.reader).
+	Prepare(src []byte) ([]string, error)
+	ParseChord(symbol, dialect string) (chord cifra.Model, ambiguities []any, errors []string)
+	Dialects() map[string]map[string]string
 }
 
 // ReadingEntry is a song or setlist reading entry: a directory under corpus/
@@ -131,16 +136,25 @@ func Dump(model any) []byte {
 	return append(cifra.Encode(model), '\n')
 }
 
-// ReadingChecks returns the reading checks for an entry: 1–4 and 6 (the text-
-// layer and chord checks are cifra_go.reader's). For a setlist it uses the
-// setlist reader and writer; for a song the song reader and writer.
+// ReadingChecks returns the reading checks for an entry: /tl, 1–4, 6 and
+// /chords. For a setlist it uses the setlist reader and writer; for a song the
+// song reader and writer.
 //
-//  1. Parse(input) serialised == input.parsed.json
-//  2. Write(model of input.parsed.json) == canonical
-//  3. Parse(canonical) serialised == parsed.json
-//  4. Write(model of parsed.json) == canonical
-//  6. Canonical(model of input.parsed.json) == model of parsed.json, each
-//     without diagnostics and sungAt
+//	/tl. The canonical text is a fixed point of prepare (§1.3): its prepared
+//	     lines rejoined by LF, with one trailing LF iff non-empty, equal the
+//	     canonical bytes. Born passing (outside the ledger): §8 makes canonical
+//	     form text-layer-clean.
+//	  1. Parse(input) serialised == input.parsed.json
+//	  2. Write(model of input.parsed.json) == canonical
+//	  3. Parse(canonical) serialised == parsed.json
+//	  4. Write(model of parsed.json) == canonical
+//	  6. Canonical(model of input.parsed.json) == model of parsed.json, each
+//	     without diagnostics and sungAt
+//	/chords. For every stored type:"chord" item, re-deriving its model from its
+//	     written symbol under the document's dialect gives the stored chord
+//	     (+ambiguities, omitted when empty). Born passing (outside the ledger),
+//	     and added only for an entry whose model holds chords. Mirrors
+//	     js/test/corpus/harness.js.
 func ReadingChecks(entry ReadingEntry, impl Impl) []Check {
 	parse, write, canonical := impl.Parse, impl.Write, impl.Canonical
 	ext := ".cifra.md"
@@ -160,7 +174,22 @@ func ReadingChecks(entry ReadingEntry, impl Impl) []Check {
 	inputText := "input" + ext
 	canonicalText := "canonical" + ext
 
-	return []Check{
+	checks := []Check{
+		{ID: id("tl"), Run: func() error {
+			canonical, err := bytesOf(canonicalText)
+			if err != nil {
+				return err
+			}
+			lines, err := impl.Prepare(canonical)
+			if err != nil {
+				return err
+			}
+			var rejoined []byte
+			if len(lines) > 0 {
+				rejoined = []byte(strings.Join(lines, "\n") + "\n")
+			}
+			return compareBytes(rejoined, canonical, id("tl"))
+		}},
 		{ID: id("1"), Run: func() error {
 			src, err := bytesOf(inputText)
 			if err != nil {
@@ -225,6 +254,113 @@ func ReadingChecks(entry ReadingEntry, impl Impl) []Check {
 			)
 		}},
 	}
+
+	// /chords, for every entry whose stored model holds chords. Reading
+	// parsed.json here mirrors the JS harness; a missing file is a real
+	// mismatch the numbered checks already report, so skip /chords silently.
+	if stored, err := modelOf("parsed.json"); err == nil {
+		chordItems := collectChordItems(stored, nil)
+		if len(chordItems) > 0 {
+			checks = append(checks, Check{ID: id("chords"), Run: func() error {
+				dialect := resolveDialect(stored, impl.Dialects())
+				for _, item := range chordItems {
+					symbol, _ := item.Get("symbol")
+					sym, _ := symbol.(string)
+					chord, ambs, _ := impl.ParseChord(sym, dialect)
+					produced := cifra.NewObject()
+					if chord == nil {
+						produced.Set("chord", nil)
+					} else {
+						produced.Set("chord", chord)
+					}
+					if len(ambs) > 0 {
+						produced.Set("ambiguities", ambs)
+					}
+					expected := cifra.NewObject()
+					ch, _ := item.Get("chord")
+					expected.Set("chord", ch)
+					if item.Has("ambiguities") {
+						amb, _ := item.Get("ambiguities")
+						expected.Set("ambiguities", amb)
+					}
+					if err := compareBytes(Dump(produced), Dump(expected), id("chords")+" ["+sym+"]"); err != nil {
+						return err
+					}
+				}
+				return nil
+			}})
+		}
+	}
+
+	return checks
+}
+
+// collectChordItems returns every type:"chord" item anywhere in a model, in
+// document order — a recursive walk, as the JS harness does, so it finds chords
+// wherever the model carries them. The chord sub-object has no "type", so it is
+// never mistaken for an item.
+func collectChordItems(node any, out []*cifra.Object) []*cifra.Object {
+	switch v := node.(type) {
+	case []any:
+		for _, el := range v {
+			out = collectChordItems(el, out)
+		}
+	case *cifra.Object:
+		if t, ok := v.Get("type"); ok {
+			if ts, _ := t.(string); ts == "chord" {
+				if s, ok := v.Get("symbol"); ok {
+					if _, isStr := s.(string); isStr {
+						out = append(out, v)
+					}
+				}
+			}
+		}
+		for _, k := range v.Keys() {
+			val, _ := v.Get(k)
+			out = collectChordItems(val, out)
+		}
+	}
+	return out
+}
+
+// resolveDialect is the dialect a document's `notation` property resolves to
+// (§1.4.3): the value compared case-insensitively, one of the three dialect ids
+// or `brazilian` by default and on any other value. Mirrors js harness's
+// resolveDialect; the reader owns the bad-notation diagnostic.
+func resolveDialect(model cifra.Model, dialects map[string]map[string]string) string {
+	value := ""
+	hasValue := false
+	if props, ok := model.Get("properties"); ok {
+		if arr, ok := props.([]any); ok {
+			for _, pEl := range arr {
+				po, ok := pEl.(*cifra.Object)
+				if !ok {
+					continue
+				}
+				k, ok := po.Get("key")
+				if !ok {
+					continue
+				}
+				if ks, ok := k.(string); ok && strings.ToLower(ks) == "notation" {
+					if val, ok := po.Get("value"); ok {
+						if vs, ok := val.(string); ok {
+							value, hasValue = vs, true
+						} else {
+							hasValue = false
+						}
+					}
+				}
+			}
+		}
+	}
+	if !hasValue {
+		return "brazilian"
+	}
+	lower := strings.ToLower(value)
+	if _, ok := dialects[lower]; ok {
+		return lower
+	}
+	return "brazilian"
 }
 
 // mergeOutputNames are the four files a merge entry may store as its outcome,

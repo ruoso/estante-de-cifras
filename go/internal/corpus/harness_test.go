@@ -39,6 +39,11 @@ func (noImpl) Merge(_, _, _ []byte, _ bool) (cifra.Outcome, error) {
 func (noImpl) MergeOutputs(cifra.Outcome, bool) (map[string][]byte, error) {
 	return nil, errNotUsed
 }
+func (noImpl) Prepare([]byte) ([]string, error) { return nil, errNotUsed }
+func (noImpl) ParseChord(string, string) (cifra.Model, []any, []string) {
+	return nil, nil, []string{"not used"}
+}
+func (noImpl) Dialects() map[string]map[string]string { return cifra.DIALECTS }
 
 // --- helpers --------------------------------------------------------------
 
@@ -183,6 +188,10 @@ func (f readingFake) Parse(src []byte) (cifra.Model, error) {
 }
 func (f readingFake) Write(cifra.Model) ([]byte, error)          { return f.canonicalText, nil }
 func (f readingFake) Canonical(cifra.Model) (cifra.Model, error) { return f.canonicalModel, nil }
+
+// The /tl check exercises the real text layer against the entry's canonical
+// bytes, so the fake forwards to it (the planted canonical text is clean).
+func (readingFake) Prepare(src []byte) ([]string, error) { return cifra.Prepare(src) }
 
 func plantReadingEntry(t *testing.T) (ReadingEntry, readingFake) {
 	t.Helper()

@@ -65,6 +65,29 @@ func prepare(data []byte) ([]string, error) {
 	return lines, nil
 }
 
+// Prepare is the exported text layer (§1.3) for the corpus harness's /tl check,
+// mirroring the reference's prepare and the JS twin's impl.prepare: the prepared
+// lines of a document, or NotUTF8Error for non-UTF-8 input. The reader uses the
+// unexported prepare directly.
+func Prepare(data []byte) ([]string, error) {
+	return prepare(data)
+}
+
+// markers are git's conflict markers (§11.12.3).
+var markers = [4]string{"<<<<<<<", "=======", ">>>>>>>", "|||||||"}
+
+// isMarkerLine reports a line of git's conflict markers: one of the four, alone
+// or followed by a space and anything (§11.12.3). `line` is a prepared line
+// (§1.3). Mirrors the reference's is_marker_line.
+func isMarkerLine(line string) bool {
+	for _, m := range markers {
+		if line == m || strings.HasPrefix(line, m+" ") {
+			return true
+		}
+	}
+	return false
+}
+
 // firstInvalidUTF8 reports the byte offset of the first ill-formed UTF-8
 // sequence, for the error's detail.
 func firstInvalidUTF8(data []byte) int {

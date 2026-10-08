@@ -18,9 +18,18 @@ type Outcome struct {
 }
 
 // Parse reads a song's text (bytes, which need not yet be known-good UTF-8 —
-// the text layer validates that) into a model. Stub; owned by cifra_go.reader.
+// the text layer validates that) into a model (spec §1 to §7). The only error it
+// returns is non-UTF-8 input (NotUTF8Error); everything else unparseable is a
+// diagnostic inside the model, never a Go error (§9.2). Implemented in parse.go
+// and its sibling layers (chord.go, pitch.go, tuning.go, frets.go, layout.go);
+// owned by cifra_go.reader.
 func Parse(src []byte) (Model, error) {
-	return nil, ErrNotImplemented
+	lines, err := prepare(src)
+	if err != nil {
+		return nil, err
+	}
+	p := &songParser{lines: lines}
+	return p.run(), nil
 }
 
 // Write serialises a song model to its canonical text (spec §8). It refuses a

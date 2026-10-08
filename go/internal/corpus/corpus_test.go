@@ -38,6 +38,11 @@ func (pkgImpl) Merge(base, ours, theirs []byte, setlist bool) (cifra.Outcome, er
 func (pkgImpl) MergeOutputs(o cifra.Outcome, setlist bool) (map[string][]byte, error) {
 	return cifra.MergeOutputs(o, setlist)
 }
+func (pkgImpl) Prepare(src []byte) ([]string, error) { return cifra.Prepare(src) }
+func (pkgImpl) ParseChord(symbol, dialect string) (cifra.Model, []any, []string) {
+	return cifra.ParseChord(symbol, dialect)
+}
+func (pkgImpl) Dialects() map[string]map[string]string { return cifra.DIALECTS }
 
 func loadLedger(t *testing.T) []string {
 	t.Helper()
