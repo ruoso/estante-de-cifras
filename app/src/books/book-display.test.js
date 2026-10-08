@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  titleFor,
-  whereFor,
-  canSaveFor,
-  syncStateFor,
-  orderedBooks,
-} from './book-display.js';
+import { titleFor, whereFor, canSaveFor, orderedBooks } from './book-display.js';
 
 // unit — the pure display/ordering helper for the book-management screen
 // (books.shelf, the added level: a genuine pure module). Pins workflow 7 L16-21
@@ -50,24 +44,10 @@ describe('book-display: whereFor / canSaveFor (where it lives / can save — wor
   });
 });
 
-describe('book-display: syncStateFor (render-when-present seam — workflow 7 L21/L47)', () => {
-  it('returns null when the book is in step (no sync register)', () => {
-    expect(syncStateFor({ title: reg('X') })).toBe(null);
-  });
-
-  it('carries the W08 state and badge class when present', () => {
-    expect(syncStateFor({ sync: reg({ state: 'syncing' }) })).toEqual({ state: 'syncing', cls: '' });
-    expect(syncStateFor({ sync: reg({ state: 'unsaved', count: 2 }) })).toEqual({
-      state: 'unsaved',
-      cls: 'unsaved',
-      count: 2,
-    });
-    expect(syncStateFor({ sync: reg({ state: 'conflict' }) })).toEqual({
-      state: 'conflict',
-      cls: 'conflict dot',
-    });
-  });
-});
+// The sync badge no longer reads the `shelf` slice: the placeholder `syncStateFor`
+// (over a `book.sync.value` register `shelf_surface` never populated) is retired
+// and the live derivation lives in `sync-display.js`, unit-tested in
+// sync-display.test.js against the engine's real `sync` facts (sync.states).
 
 describe('book-display: orderedBooks (shelf order — home-book-format §4.2 `position`)', () => {
   it('orders shared and local books ascending by position', () => {

@@ -62,29 +62,12 @@ export function canSaveFor(kind, book) {
   return null;
 }
 
-/**
- * A book's sync state, as a render-when-present seam (Decision 5): the live
- * source is sync.states / books.online, so this reads an optional `sync`
- * register and returns `null` when the book is in step (no badge, workflow 7
- * L21/L47). When present it returns the W08 word key and the `.badge` class the
- * view carries (a word, never colour alone):
- *   - `syncing`  → no badge class
- *   - `unsaved`  → `.badge.unsaved`, with a `count`
- *   - `conflict` → `.badge.conflict.dot`
- *
- * @param {Object} book one book's register map
- * @returns {{ state: string, cls: string, count?: number } | null}
- */
-export function syncStateFor(book) {
-  const value = book?.sync?.value;
-  if (!value || typeof value !== 'object') return null;
-  if (value.state === 'syncing') return { state: 'syncing', cls: '' };
-  if (value.state === 'unsaved') {
-    return { state: 'unsaved', cls: 'unsaved', count: value.count ?? 0 };
-  }
-  if (value.state === 'conflict') return { state: 'conflict', cls: 'conflict dot' };
-  return null;
-}
+// A book's sync state is no longer read from the `shelf` slice: it was a
+// placeholder over a `book.sync.value` register `shelf_surface` never populated.
+// The live source is the engine's `sync` reducer slice, derived to a word by
+// `sync-display.js` (sync.states), which the Books screen renders directly. The
+// retired `syncStateFor` lived here (books.shelf Decision 5); its render-when-
+// present contract is now `syncDisplayFor`.
 
 // Compare two book ids for a stable, deterministic order (ties on position).
 function byId(a, b) {

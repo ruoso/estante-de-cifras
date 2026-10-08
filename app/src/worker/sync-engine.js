@@ -268,8 +268,25 @@ export function createSyncEngine(deps = {}) {
 
   const listBooks = deps.listBooks ?? defaultListBooks;
 
+  // The instant each book was last reported `in_step`, held in memory only — no
+  // status table (engine.md L378-381; Constraints). `offline` and `saves_waiting`
+  // carry it as `lastInStep` so the shelf can say "offline since …" (sync.states,
+  // workflow 8 L32); it is null until the book reaches `in_step` this session, so
+  // a cold open while offline reads plain *offline* and the next reachable pass
+  // restores the time (sync.states Decision "lastInStep completed in the Worker").
+  const lastInStep = new Map();
+
   function emitFact(bookId, phase, extra = {}) {
-    emit({ bookId, phase, at: instant(now()), ...extra });
+    const at = instant(now());
+    if (phase === 'in_step') lastInStep.set(bookId, at);
+    const fact = { bookId, phase, at, ...extra };
+    if (
+      (phase === 'offline' || phase === 'saves_waiting') &&
+      fact.lastInStep === undefined
+    ) {
+      fact.lastInStep = lastInStep.get(bookId) ?? null;
+    }
+    emit(fact);
   }
 
   // Push local-ahead work, retrying a lost race fetch→merge→push up to

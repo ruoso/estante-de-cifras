@@ -49,6 +49,11 @@ export default {
       other: '{count} saves waiting to go up',
     },
     needsYou: 'needs you',
+    offline: 'offline since {time}',
+    offlineUnknown: 'offline',
+    noLongerShared: 'no longer shared with you',
+    syncNow: 'Sync now',
+    notInStep: 'Some books are not in step',
   },
 
   // The search screen (songs.search, workflow 2). `{instrument}` falls back to

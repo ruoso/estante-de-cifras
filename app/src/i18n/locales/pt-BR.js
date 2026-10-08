@@ -49,6 +49,11 @@ export default {
       other: '{count} alterações aguardando para subir',
     },
     needsYou: 'precisa de você',
+    offline: 'offline desde {time}',
+    offlineUnknown: 'offline',
+    noLongerShared: 'não compartilhado mais com você',
+    syncNow: 'Sincronizar agora',
+    notInStep: 'Alguns livros não estão em dia',
   },
 
   search: {

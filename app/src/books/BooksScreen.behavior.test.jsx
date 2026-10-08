@@ -95,28 +95,80 @@ describe('BooksScreen (behavior)', () => {
     expect(screen.getByText('b-tombstoned')).toBeInTheDocument();
   });
 
-  it('sync state shows only when not in step: a labelled badge when seeded, none when in step (workflow 7 L21/L47; mockups README L26)', () => {
-    const { store, emit } = makeStore();
-    const { container } = renderScreen(store);
-
+  // The shelf of three local books the sync tests seed; the `sync` facts are
+  // injected per book as SYNC events (the real reducer slice sync.states reads),
+  // not as a shelf register (the retired placeholder). HH:MM below is built from
+  // local wall-clock so "offline since 09:40" holds in any CI timezone.
+  const lastInStepAt = (h, m) => new Date(2026, 9, 7, h, m, 0).toISOString();
+  const seedShelf = (emit) =>
     emit(
       event(EventKind.SHELF, {
         books: {},
         local: {
           'l-steady': { title: reg('Em dia'), position: reg(0) },
-          'l-unsaved': { title: reg('Atrasado'), position: reg(1), sync: reg({ state: 'unsaved', count: 2 }) },
-          'l-conflict': { title: reg('Em conflito'), position: reg(2), sync: reg({ state: 'conflict' }) },
+          'l-unsaved': { title: reg('Atrasado'), position: reg(1) },
+          'l-offline': { title: reg('Sem rede'), position: reg(2) },
         },
       }),
     );
 
-    // A seeded sync state is a word; an in-step book carries no badge.
+  it('each sync state renders its word, queried by text not colour; an in-step book shows no badge (workflow 8 L28-34; README L26)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderScreen(store);
+
+    seedShelf(emit);
+    // l-steady gets an in_step fact (nothing on the row); the other two a word.
+    emit(event(EventKind.SYNC, { bookId: 'l-steady', phase: 'in_step', at: AT }));
+    emit(event(EventKind.SYNC, { bookId: 'l-unsaved', phase: 'saves_waiting', savesWaiting: 2, at: AT }));
+    emit(
+      event(EventKind.SYNC, {
+        bookId: 'l-offline',
+        phase: 'offline',
+        lastInStep: lastInStepAt(9, 40),
+        at: AT,
+      }),
+    );
+
     expect(screen.getByText('2 saves waiting to go up')).toBeInTheDocument();
-    expect(screen.getByText('needs you')).toBeInTheDocument();
+    expect(screen.getByText('offline since 09:40')).toBeInTheDocument();
+    // The in-step book carries no badge — its absence is "in step" (mockup L48).
     const steady = [...container.querySelectorAll('.book-row')].find(
       (r) => r.querySelector('.name')?.textContent === 'Em dia',
     );
     expect(steady.querySelector('.badge')).toBeNull();
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('the header quiet mark is present when any book is out of step and absent when all are in step (workflow 8 L36-37)', () => {
+    const { store, emit } = makeStore();
+    renderScreen(store);
+    seedShelf(emit);
+
+    // All in step: no mark anywhere.
+    emit(event(EventKind.SYNC, { bookId: 'l-steady', phase: 'in_step', at: AT }));
+    expect(screen.queryByRole('img', { name: 'Some books are not in step' })).toBeNull();
+
+    // One book goes out of step: the one quiet mark appears.
+    emit(event(EventKind.SYNC, { bookId: 'l-offline', phase: 'offline', lastInStep: null, at: AT }));
+    expect(screen.getByRole('img', { name: 'Some books are not in step' })).toBeInTheDocument();
+  });
+
+  it('Sync now is reachable by keyboard and sends SYNC { reason: "sync-now" }, returning at once (workflow 8 L37)', () => {
+    const { store, sent, emit } = makeStore();
+    renderScreen(store);
+    seedShelf(emit);
+
+    const syncNow = screen.getByRole('button', { name: 'Sync now' });
+    act(() => syncNow.focus());
+    expect(syncNow).toHaveFocus();
+    act(() => {
+      fireEvent.keyDown(syncNow, { key: 'Enter' });
+      fireEvent.keyUp(syncNow, { key: 'Enter' });
+    });
+
+    const cmd = lastCommand(sent, CommandKind.SYNC);
+    expect(cmd.payload.reason).toBe('sync-now');
   });
 
   it('the Add a book sheet opens by keyboard and by pointer (workflow 7 L25)', () => {

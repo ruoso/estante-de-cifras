@@ -49,6 +49,11 @@ export default {
       other: '{count} salvataggi in attesa di caricamento',
     },
     needsYou: 'richiede attenzione',
+    offline: 'offline da {time}',
+    offlineUnknown: 'offline',
+    noLongerShared: 'non più condiviso con te',
+    syncNow: 'Sincronizza ora',
+    notInStep: 'Alcuni libri non sono allineati',
   },
 
   search: {

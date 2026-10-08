@@ -21,8 +21,15 @@ task sync "Sync" {
   task states "States on the shelf" {
     effort 1d
     allocate team
+    complete 100
     depends !engine, foundation.e2e_web
-    note "Syncing, saves waiting, offline since, needs you, no longer shared with you; the one quiet mark; sync now. Workflow 8. Tests: unit (deriving each state); behavior (the shelf's marks rendered with Testing Library and axe, each carried by a word); e2e-web (offline then back on the stack: offline since, saves waiting, then synced; sync now)."
+    note "Syncing, saves waiting, offline since, needs you, no longer shared with you; the one quiet mark; sync now. Workflow 8. Tests: unit (deriving each state); behavior (the shelf's marks rendered with Testing Library and axe, each carried by a word); e2e-web (offline then back on the stack: offline since, saves waiting, then synced; sync now). Refinement: tasks/refinements/sync/states.md"
+  }
+  task states_e2e_hosted "Hosted-book sync state e2e journey" {
+    effort 1d
+    allocate team
+    depends !states, books.add_by_link
+    note "Drive a hosted book offline→online on the compose stack and assert offline since …, N saves waiting, header mark, then cleared after sync; axe on each state on all three viewports. Blocked on the in-app clone seam (books.add_by_link). Source of debt: tasks/refinements/sync/states.md (sync.states). Tests: e2e-web (hosted book offline→online state transitions, axe on phone/tablet/computer)."
   }
   task conflicts "Conflicts" {
     effort 4d

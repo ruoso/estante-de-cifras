@@ -20,8 +20,19 @@
   gap: calc(var(--u) * 1.5);
 }
 
-.books-head .add-book {
+.books-head .add-book,
+.books-head .sync-now {
   flex: none;
+}
+
+/* The one quiet mark beside the title when any book is out of step (W08 board
+   line 32; workflow 8 L36-37). Non-interactive, a muted-ink glyph labelled by
+   its parent; the word on each row carries the meaning, this is only the sign
+   that one exists. */
+.books-head .sync-mark {
+  flex: none;
+  display: inline-flex;
+  color: var(--ink-2);
 }
 
 /* A book row is the open control plus the rename control; the list draws the

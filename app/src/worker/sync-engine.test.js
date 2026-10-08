@@ -39,6 +39,7 @@ function makeEngine(overrides = {}) {
     countAhead: overrides.countAhead ?? (async () => 1),
     syncHome: overrides.syncHome,
     surfaceHome: overrides.surfaceHome,
+    now: overrides.now,
   });
   return { engine, facts };
 }
@@ -149,6 +150,64 @@ describe('sync engine routing (unit)', () => {
     expect(surfaceHome).toHaveBeenCalledTimes(1);
     expect(mergeBook).not.toHaveBeenCalled(); // never the cifra-aware merge
     expect(lastPhase(facts, 'home')).toBe('in_step');
+  });
+
+  it('carries lastInStep on offline / saves_waiting facts; null until in step this session', async () => {
+    // Pins engine.md L378-381 / workflow 8 L32: the Worker remembers when a book
+    // was last in step (held in memory, no status table) and attaches it as
+    // `lastInStep` so the shelf can say "offline since …" (sync.states fills the
+    // fact the engine reserved). Before any in-step this session it is null.
+    let nowMs = Date.parse('2026-10-07T09:40:00.000Z');
+    const changeCheck = { check: vi.fn(async () => new Map()) }; // nothing moved
+    let ahead = false; // no local-ahead work yet
+    const pushBook = vi.fn(async () => {
+      throw new TypeError('Failed to fetch'); // a thrown fetch — offline, not a race
+    });
+    const { engine, facts } = makeEngine({
+      changeCheck,
+      localAhead: async () => ahead,
+      pushBook,
+      countAhead: async () => 1,
+      now: () => nowMs,
+    });
+
+    // Pass 1: reachable, nothing moved or waiting → in step at 09:40.
+    await engine.pass();
+    expect(lastPhase(facts)).toBe('in_step');
+
+    // Pass 2: the change check cannot reach the service → offline at 10:15, and
+    // the fact carries the 09:40 in-step instant.
+    nowMs = Date.parse('2026-10-07T10:15:00.000Z');
+    changeCheck.check.mockImplementationOnce(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    await engine.pass();
+    const offline = [...facts].reverse().find((f) => f.bookId === 'book1');
+    expect(offline.phase).toBe('offline');
+    expect(offline.lastInStep).toBe('2026-10-07T09:40:00.000Z');
+
+    // Pass 3: a local save is now waiting but the push can't reach the service →
+    // saves_waiting, still carrying the last in-step instant.
+    ahead = true;
+    await engine.pass();
+    const waiting = [...facts].reverse().find((f) => f.bookId === 'book1');
+    expect(waiting.phase).toBe('saves_waiting');
+    expect(waiting.lastInStep).toBe('2026-10-07T09:40:00.000Z');
+  });
+
+  it('a book never in step this session reports plain offline (lastInStep null)', async () => {
+    const changeCheck = {
+      check: vi.fn(async () => {
+        throw new TypeError('Failed to fetch'); // offline from the first pass
+      }),
+    };
+    const { engine, facts } = makeEngine({ changeCheck, localAhead: async () => false });
+
+    await engine.pass();
+
+    const offline = [...facts].reverse().find((f) => f.bookId === 'book1');
+    expect(offline.phase).toBe('offline');
+    expect(offline.lastInStep).toBeNull();
   });
 
   it('pushes a local-ahead book even when the change check reports it unchanged (offline-save retry)', async () => {

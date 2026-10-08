@@ -37,13 +37,8 @@ import {
 import { t } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
-import {
-  titleFor,
-  whereFor,
-  canSaveFor,
-  syncStateFor,
-  orderedBooks,
-} from './book-display.js';
+import { titleFor, whereFor, canSaveFor, orderedBooks } from './book-display.js';
+import { syncDisplayFor, anyOutOfStep } from '../sync-display.js';
 import './books.css';
 
 // Before sign-in there is no account; a local book's commits carry a device-local
@@ -95,20 +90,40 @@ function PencilIcon() {
   );
 }
 
-// The sync-state badge, shown only when the slice carries a sync state for the
-// book — the absence of the slot is "in step with Estante" (workflow 7 L21/L47).
-// Each state is a word (never colour alone, mockups README L26); the W08 words.
-function SyncBadge({ book }) {
-  const sync = syncStateFor(book);
-  if (!sync) return null;
-  let word;
-  if (sync.state === 'unsaved') word = t('books.savesWaiting', { count: sync.count });
-  else if (sync.state === 'conflict') word = t('books.needsYou');
-  else word = t('books.syncing');
+// The sync-state badge, shown only when the engine's `sync` fact for the book is
+// not *in step* — the absence of the badge is "in step with Estante" (workflow 8
+// L28; mockup L48). The word (never colour alone, mockups README L26) and its
+// class come from the one sync-word authority, `syncDisplayFor` (sync.states);
+// this view never derives the word itself.
+function SyncBadge({ entry }) {
+  const atom = syncDisplayFor(entry, { t });
+  if (!atom) return null;
   return (
     <span className="badges">
-      <span className={`badge ${sync.cls}`.trim()}>{word}</span>
+      <span className={`badge ${atom.cls}`.trim()}>{atom.word}</span>
     </span>
+  );
+}
+
+// The sync glyph (GUIDE L106), decorative inside its labelled parent (the header
+// quiet mark) — hidden from the accessibility tree, the mark's aria-label names
+// it.
+function SyncGlyph() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M20 11a8 8 0 0 0-14-5l-2 2M4 4v4h4M4 13a8 8 0 0 0 14 5l2-2M20 20v-4h-4" />
+    </svg>
   );
 }
 
@@ -116,7 +131,7 @@ function SyncBadge({ book }) {
 // task's seam, `onOpen`) and a rename control beside it. The row carries the
 // title, the `{where} · {role}` meta line, and the sync badge when present; it
 // reads `.sel` when it is the selected book (W07 desktop master-detail).
-function BookRow({ id, book, kind, selected, onOpen, onFiles, onRename, rowRef }) {
+function BookRow({ id, book, kind, syncEntry, selected, onOpen, onFiles, onRename, rowRef }) {
   const title = titleFor(book, id);
   const where = t(`books.${whereFor(kind)}`);
   const canSave = canSaveFor(kind, book);
@@ -129,7 +144,7 @@ function BookRow({ id, book, kind, selected, onOpen, onFiles, onRename, rowRef }
         <span className="grow">
           <span className="name">{title}</span>
           <span className="meta">{meta}</span>
-          <SyncBadge book={book} />
+          <SyncBadge entry={syncEntry} />
         </span>
         <span className="caret t-small" aria-hidden="true">
           ▸
@@ -278,7 +293,12 @@ function AddBookSheet({ onCreate }) {
 
 export default function BooksScreen({ store, onOpenBook = () => {} }) {
   const shelf = useSlice(store, 'shelf');
+  const sync = useSlice(store, 'sync');
   const ordered = useMemo(() => orderedBooks(shelf), [shelf]);
+
+  // The header's one quiet mark: present when any shelf book is out of step
+  // (the home book excluded), nothing when all are in step (workflow 8 L36-37).
+  const outOfStep = anyOutOfStep(sync);
 
   // Selection is ephemeral (Decision 7): it highlights the open book (`.sel`),
   // the seam the per-book detail (books.online) will read.
@@ -315,10 +335,26 @@ export default function BooksScreen({ store, onOpenBook = () => {} }) {
     store.send(command(CommandKind.RENAME_BOOK, { bookId, name, author: LOCAL_IDENTITY }));
   };
 
+  // *Sync now* (workflow 8 L37): fire one pass and return at once — the Worker's
+  // scheduler coalesces it; nothing blocks on the network (DIRECTION §1). It
+  // reuses the engine's SYNC command with a `sync-now` reason (engine.md
+  // L340-343), the same path the automatic foreground/online triggers use.
+  const syncNow = () => {
+    store.send(command(CommandKind.SYNC, { reason: 'sync-now' }));
+  };
+
   return (
     <div className="books-screen">
       <div className="books-head">
         <h1 className="t-h1 grow">{t('shell.books')}</h1>
+        {outOfStep ? (
+          <span className="sync-mark" role="img" aria-label={t('books.notInStep')}>
+            <SyncGlyph />
+          </span>
+        ) : null}
+        <Button className="btn sync-now" onPress={syncNow}>
+          {t('books.syncNow')}
+        </Button>
         <AddBookSheet onCreate={createBook} />
       </div>
 
@@ -330,6 +366,7 @@ export default function BooksScreen({ store, onOpenBook = () => {} }) {
               id={id}
               book={book}
               kind={kind}
+              syncEntry={sync[id]}
               selected={selected === id}
               onOpen={(bookId) => setSelected(bookId)}
               onFiles={(bookId) => {
