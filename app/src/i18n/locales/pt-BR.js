@@ -801,6 +801,13 @@ export default {
         'A linha {line} é um dedilhado que não pode ser lido, e salvar iria descartá-lo. Corrija ou apague a linha e salve de novo.',
       markerStop: 'A linha {line} é um marcador de conflito. Resolva-o antes de poder salvar a música.',
     },
+    // Uma sincronização em segundo plano mesclou uma nova versão sob as edições
+    // não salvas do editor aberto (songs.edit_in_place, workflow 8; W08). O aviso
+    // não modal diz de quem veio e abre o histórico da música. `{name}` é o nome
+    // de quem fez a alteração. Reutiliza o texto da leitura (reading.updatedBy).
+    updatedBy: 'Atualizado por {name}',
+    seeWhatChanged: 'Ver o que mudou',
+    updateDismiss: 'Dispensar aviso de atualização',
     variationInUse: 'Variação:',
     variationLabel: 'Qual variação usar',
     variationDefault: 'Padrão',

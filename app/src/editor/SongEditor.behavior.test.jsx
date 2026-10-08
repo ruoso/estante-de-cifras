@@ -7,12 +7,12 @@
 // songs.
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import { render, screen, within, fireEvent, act, waitFor } from '@testing-library/react';
 import { undo } from '@codemirror/commands';
 import { write, parse } from 'cifra-md';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { createStore } from '../worker/store.js';
-import { event, EventKind } from '../worker/protocol.js';
+import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { t } from '../i18n/index.js';
 import { template } from './template.js';
 import SongEditor from './SongEditor.jsx';
@@ -260,5 +260,131 @@ describe('SongEditor', () => {
     const previewTab = screen.getByRole('radio', { name: t('editor.source.preview') });
     act(() => fireEvent.click(previewTab));
     expect(container.querySelector('.chart')).not.toBeNull();
+  });
+
+  // songs.edit_in_place — a sync merges a new version under the open editor's
+  // unsaved edits (sync.unsaved emits the transient MERGED fact). The editor is
+  // the one React layer over the live buffer, so the swap + notice live here and
+  // every host inherits them. Pins workflow 8 §"A song open while it changes"
+  // L55-56 and the MERGED payload (protocol.js:372-392).
+  const V1 = ['# Tide', '', '## Verse', '```', 'C  G  Am  F', '```', ''].join('\n');
+  const BRIDGE = ['## Bridge', '```', 'Dm  G', '```', ''].join('\n');
+
+  it('swaps to the merged working text keeping the caret, shows the Updated-by notice, and opens history', async () => {
+    const { store, emit } = makeStore();
+    const onOpenHistory = vi.fn();
+    const editorRef = { current: null };
+    const { container } = render(
+      <SongEditor
+        store={store}
+        bookId={BOOK}
+        path={PATH}
+        layoutMode="wide"
+        editorRef={editorRef}
+        onSave={() => {}}
+        onOpenHistory={onOpenHistory}
+      />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: V1 }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(V1));
+
+    // The caret sits early in the prefix the merge leaves untouched.
+    const caret = V1.indexOf('Verse');
+    act(() => editorRef.current.dispatch({ selection: { anchor: caret } }));
+
+    // The incoming author appends a bridge; the prefix (and the caret) is untouched.
+    const MERGED = V1 + BRIDGE;
+    emit(event(EventKind.MERGED, { bookId: BOOK, changed: [{ path: PATH, author: 'Ana Luiza', commit: 'abc123' }] }));
+    // The merged bytes are served on the re-issued OPEN_SOURCE (demand-driven, D2).
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: MERGED }));
+
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(MERGED));
+    // The caret kept its place through the swap (Decision 3).
+    expect(editorRef.current.state.selection.main.head).toBe(caret);
+
+    const notice = screen.getByRole('status');
+    expect(notice).toHaveTextContent(t('editor.updatedBy', { name: 'Ana Luiza' }));
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // "See what changed" opens the song's history at the incoming commit.
+    act(() => fireEvent.click(within(notice).getByRole('button', { name: t('editor.seeWhatChanged') })));
+    expect(onOpenHistory).toHaveBeenCalledWith({ bookId: BOOK, path: PATH, commit: 'abc123' });
+
+    // The notice is dismissible.
+    act(() => fireEvent.click(screen.getByRole('button', { name: t('editor.updateDismiss') })));
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('cancels the pending pre-merge write so nothing clobbers the merge on disk', async () => {
+    const { store, sent, emit } = makeStore();
+    const editorRef = { current: null };
+    const { unmount } = render(
+      <SongEditor store={store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} onSave={() => {}} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: V1 }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(V1));
+
+    // The user types; a debounced WRITE holding the pre-merge buffer is now pending.
+    const EDITED = V1.replace('C  G  Am  F', 'C  G  Am  F  Dm');
+    act(() =>
+      editorRef.current.dispatch({ changes: { from: 0, to: editorRef.current.state.doc.length, insert: EDITED } }),
+    );
+
+    // A merge lands (the merge already folded the flushed edit in as `ours`). The
+    // editor cancels the in-flight pre-merge WRITE and adopts the merged bytes.
+    const MERGED = EDITED + BRIDGE;
+    emit(event(EventKind.MERGED, { bookId: BOOK, changed: [{ path: PATH, author: 'Ana', commit: 'c1' }] }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: MERGED }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(MERGED));
+
+    // Unmount flushes whatever write is pending. It must be the merged text — the
+    // stale pre-merge write was cancelled, so it never reaches the working copy.
+    unmount();
+    const writes = sent.filter((m) => m.kind === CommandKind.WRITE);
+    expect(writes.some((m) => m.payload.text === EDITED)).toBe(false);
+    expect(writes[writes.length - 1].payload.text).toBe(MERGED);
+  });
+
+  it('shows a conflicting merge’s marked text and the save gate blocks saving it', async () => {
+    // The workflow-9 boundary (sync.conflicts is out of scope): a conflicting
+    // re-merge writes the `marked` text; the editor adopts it and the existing
+    // pre-save gate blocks Save (workflow 4 §Normalising L47-56, editor.md D3).
+    const { store, emit } = makeStore();
+    const onSave = vi.fn();
+    const editorRef = { current: null };
+    render(
+      <SongEditor store={store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} onSave={onSave} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: V1 }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(V1));
+
+    const MARKED = ['# Tide', '```', '<<<<<<< ours', 'C', '=======', 'Am', '>>>>>>> theirs', '```', ''].join('\n');
+    emit(event(EventKind.MERGED, { bookId: BOOK, changed: [{ path: PATH, author: 'Ana', commit: 'c1' }] }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: MARKED }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(MARKED));
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: t('editor.source.save') })));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(t('editor.source.notSaved'));
+  });
+
+  it('ignores a MERGED naming another song or book — the open buffer is untouched', async () => {
+    const { store, sent, emit } = makeStore();
+    const editorRef = { current: null };
+    render(
+      <SongEditor store={store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} onSave={() => {}} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: V1 }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(V1));
+
+    const openSourceBefore = sent.filter((m) => m.kind === CommandKind.OPEN_SOURCE).length;
+    // A different path in the same book, then this path in a different book.
+    emit(event(EventKind.MERGED, { bookId: BOOK, changed: [{ path: 'other.cifra.md', author: 'Ana', commit: 'c1' }] }));
+    emit(event(EventKind.MERGED, { bookId: 'other-book', changed: [{ path: PATH, author: 'Ana', commit: 'c1' }] }));
+
+    expect(editorRef.current.state.doc.toString()).toBe(V1);
+    expect(screen.queryByRole('status')).toBeNull();
+    // No merge re-read was issued for a fact that is not ours.
+    expect(sent.filter((m) => m.kind === CommandKind.OPEN_SOURCE).length).toBe(openSourceBefore);
   });
 });

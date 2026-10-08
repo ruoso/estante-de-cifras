@@ -84,7 +84,8 @@ task songs "Songs" {
   task edit_in_place "An editor open while sync merges under it" {
     effort 1.5d
     allocate team
+    complete 100
     depends !editor, sync.unsaved, books.online
-    note "When a sync merges a new version under an open editor's unsaved changes, the editor updates to the merged working text — keeping the edit position — and shows a notice naming what came in (workflow 8 §A song open while it changes L55-56), the editor-view mirror of sync.read_in_place's reading-view update. Source of debt: tasks/refinements/sync/unsaved.md (sync.unsaved). Tests: behavior (the editor shows the merged working text and a notice naming the author, keeping the edit position; Testing Library and axe); e2e-web (a song open in the editor with unsaved changes while a sync from the stack merges a new version under it — put a local book online via books.online, a second device pushing as the same user — on phone, tablet and computer; axe)."
+    note "When a sync merges a new version under an open editor's unsaved changes, the editor updates to the merged working text — keeping the edit position — and shows a notice naming what came in (workflow 8 §A song open while it changes L55-56), the editor-view mirror of sync.read_in_place's reading-view update. Source of debt: tasks/refinements/sync/unsaved.md (sync.unsaved). Tests: behavior (the editor shows the merged working text and a notice naming the author, keeping the edit position; Testing Library and axe); e2e-web (a song open in the editor with unsaved changes while a sync from the stack merges a new version under it — put a local book online via books.online, a second device pushing as the same user — on phone, tablet and computer; axe). Refinement: tasks/refinements/songs/edit_in_place.md"
   }
 }

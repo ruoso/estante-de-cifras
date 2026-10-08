@@ -17,6 +17,7 @@ export default function RawEditorHost({
   mode,
   editorRef,
   onSave,
+  onOpenHistory,
   onRename,
   onDelete,
 }) {
@@ -51,6 +52,7 @@ export default function RawEditorHost({
         layoutMode={mode}
         editorRef={editorRef}
         onSave={onSave}
+        onOpenHistory={onOpenHistory}
       />
     </div>
   );

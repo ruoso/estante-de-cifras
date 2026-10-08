@@ -48,6 +48,7 @@ export default function NewSongHost({
   mode,
   onBack,
   onChangeBook,
+  onOpenHistory,
   editorRef,
 }) {
   const { bookId, path, isNew, songTitle } = editing;
@@ -80,6 +81,7 @@ export default function NewSongHost({
         title={songTitle}
         layoutMode={mode}
         onSave={() => setSaveOpen(true)}
+        onOpenHistory={onOpenHistory}
         editorRef={editorRef}
       />
       <p className="t-small new-song-note">{t('newSong.notationNote')}</p>

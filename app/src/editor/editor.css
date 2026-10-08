@@ -32,6 +32,13 @@
   flex: 1;
 }
 
+/* The merge-landed notice (songs.edit_in_place; workflow 8 L55-56): the message
+ * takes the line, "See what changed" and the dismiss sit at the end — the
+ * editor-view mirror of .reading-update-notice. */
+.est .est-editor-update-notice {
+  align-items: center;
+}
+
 .est .est-editor-body {
   flex: 1;
   min-height: 0;

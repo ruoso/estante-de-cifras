@@ -802,6 +802,14 @@ export default {
         'La riga {line} è un diteggiatura che non può essere letta, e salvando andrebbe persa. Correggila o eliminala, poi salva di nuovo.',
       markerStop: 'La riga {line} è un marcatore di conflitto. Risolvilo prima di poter salvare la canzone.',
     },
+    // Una sincronizzazione in background ha unito una nuova versione sotto le
+    // modifiche non salvate dell'editor aperto (songs.edit_in_place, workflow 8;
+    // W08). L'avviso non modale indica da chi proviene e apre la cronologia della
+    // canzone. `{name}` è il nome di chi ha fatto la modifica. Riusa il testo
+    // della lettura (reading.updatedBy).
+    updatedBy: 'Aggiornato da {name}',
+    seeWhatChanged: 'Vedi cosa è cambiato',
+    updateDismiss: 'Chiudi avviso di aggiornamento',
     variationInUse: 'Variazione:',
     variationLabel: 'Quale variazione usare',
     variationDefault: 'Predefinito',

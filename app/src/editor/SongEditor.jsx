@@ -26,8 +26,8 @@ import {
 import { defaultKeymap, history, historyKeymap, undo } from '@codemirror/commands';
 import { parse, DEFAULT_DIALECT } from 'cifra-md';
 
-import { useSlice } from '../worker/useStore.js';
-import { command, CommandKind } from '../worker/protocol.js';
+import { useSlice, useWorkerEvent } from '../worker/useStore.js';
+import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { useLayoutMode } from '../shell/AppShell.jsx';
 import { t } from '../i18n/index.js';
 import Chart from '../chart/Chart.jsx';
@@ -47,6 +47,34 @@ const WRITE_DEBOUNCE_MS = 400;
 // a conflict marker (never canonical — spec §8.1/§11.12.3). Everything else the
 // format is happy to normalise.
 const SAVE_BLOCKERS = new Set(['bad-voicing', 'marker-line']);
+
+// The ✕ on the merge notice's dismiss control (mirrors SongReading's; aria-hidden
+// — the button's "Dismiss update notice" label is its accessible name).
+function DismissIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
+// The minimal single change turning `oldStr` into `newStr`: the span between the
+// common prefix and the common suffix. Dispatched as a CodeMirror change so the
+// editor maps the caret/selection through it — the caret keeps its place
+// relative to surrounding text, clamped where its own line was rewritten
+// (Decision 3). Not a three-way merge: the Worker already merged (Decision 4).
+function minimalChange(oldStr, newStr) {
+  let from = 0;
+  const min = Math.min(oldStr.length, newStr.length);
+  while (from < min && oldStr[from] === newStr[from]) from += 1;
+  let oldEnd = oldStr.length;
+  let newEnd = newStr.length;
+  while (oldEnd > from && newEnd > from && oldStr[oldEnd - 1] === newStr[newEnd - 1]) {
+    oldEnd -= 1;
+    newEnd -= 1;
+  }
+  return { from, to: oldEnd, insert: newStr.slice(from, newEnd) };
+}
 
 // Build the per-line decoration set from the classifier. A `text` (plain) line
 // gets no decoration (default colour); every other class maps to an
@@ -71,6 +99,7 @@ export default function SongEditor({
   isNew = false,
   title = '',
   onSave,
+  onOpenHistory = () => {},
   layoutMode,
   editorRef,
 }) {
@@ -91,6 +120,12 @@ export default function SongEditor({
   const [showPreview, setShowPreview] = useState(false);
   const [saveError, setSaveError] = useState(null); // { line, code } | null
   const [pasteNotice, setPasteNotice] = useState(null); // { titled } | null
+  // A background sync merged a new version under the unsaved buffer (sync.unsaved
+  // → the transient MERGED fact; workflow 8 L55-56). The shown notice —
+  // `{ author, commit }` — or null; `mergePending` flags the one re-issued
+  // OPEN_SOURCE whose bytes the swap effect adopts past the loadedKey guard.
+  const [update, setUpdate] = useState(null);
+  const mergePending = useRef(false);
 
   // The initial document: a template for a new song, else the working-copy text
   // once OPEN_SOURCE has returned it.
@@ -243,6 +278,42 @@ export default function SongEditor({
     store.send(command(CommandKind.OPEN_SOURCE, { bookId, path }));
   }, [store, isNew, bookId, path]);
 
+  // A merge landed under the open buffer (the transient MERGED fact, like
+  // RESTORED / FILE_MOVED). React only when it names THIS open song. The Worker
+  // owns the merge — the view adopts the result, never re-merges (Decision 4):
+  // re-issue OPEN_SOURCE to pull the merged bytes (Decision 2, demand-driven as
+  // the reading-view mirror does) and surface the notice. Cancel any in-flight
+  // debounced WRITE first — it still holds the pre-merge buffer, which the merge
+  // already folded in as `ours`, so letting it land would clobber the incoming
+  // side on disk (Decision 4). A new-song editor has no file to merge into.
+  useWorkerEvent(store, EventKind.MERGED, ({ bookId: changedBook, changed }) => {
+    if (isNew || changedBook !== bookId) return;
+    const hit = changed?.find((c) => c.path === path);
+    if (!hit) return;
+    if (writeTimer.current) {
+      clearTimeout(writeTimer.current);
+      writeTimer.current = null;
+      pendingWrite.current = null;
+    }
+    mergePending.current = true;
+    store.send(command(CommandKind.OPEN_SOURCE, { bookId, path }));
+    setUpdate({ author: hit.author, commit: hit.commit });
+  });
+
+  // Adopt the merged working text past the loadedKey guard — the one deliberate
+  // reload (Decision 2). Dispatch it as the minimal change from the current
+  // buffer so CodeMirror maps the caret/selection through it (Decision 3); the
+  // update listener mirrors the new text into React and re-schedules the WRITE.
+  useEffect(() => {
+    if (!mergePending.current) return;
+    const view = viewRef.current;
+    if (!view || sourceText == null) return;
+    mergePending.current = false;
+    const current = view.state.doc.toString();
+    if (sourceText === current) return;
+    view.dispatch({ changes: minimalChange(current, sourceText) });
+  }, [sourceText]);
+
   const parsed = useMemo(() => parse(text, dialect), [text, dialect]);
   const blockers = useMemo(
     () => parsed.diagnostics.filter((d) => SAVE_BLOCKERS.has(d.code)),
@@ -336,6 +407,27 @@ export default function SongEditor({
           </span>
           <Button className="btn" onPress={undoPaste}>
             {t('editor.source.undo')}
+          </Button>
+        </div>
+      )}
+
+      {update && (
+        <div className="notice accent est-editor-notice est-editor-update-notice" role="status">
+          <span className="est-editor-notice-text">
+            {t('editor.updatedBy', { name: update.author })}
+          </span>
+          <Button
+            className="btn"
+            onPress={() => onOpenHistory({ bookId, path, commit: update.commit })}
+          >
+            {t('editor.seeWhatChanged')}
+          </Button>
+          <Button
+            className="btn icon"
+            aria-label={t('editor.updateDismiss')}
+            onPress={() => setUpdate(null)}
+          >
+            <DismissIcon />
           </Button>
         </div>
       )}

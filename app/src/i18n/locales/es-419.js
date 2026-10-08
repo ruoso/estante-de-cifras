@@ -801,6 +801,14 @@ export default {
         'La línea {line} es una digitación que no se puede leer, y al guardar se descartaría. Corrígela o bórrala y guarda de nuevo.',
       markerStop: 'La línea {line} es un marcador de conflicto. Resuélvelo antes de poder guardar la canción.',
     },
+    // Una sincronización en segundo plano fusionó una nueva versión bajo las
+    // ediciones sin guardar del editor abierto (songs.edit_in_place, workflow 8;
+    // W08). El aviso no modal dice de quién vino y abre el historial de la
+    // canción. `{name}` es el nombre de quien hizo el cambio. Reutiliza el texto
+    // de la lectura (reading.updatedBy).
+    updatedBy: 'Actualizado por {name}',
+    seeWhatChanged: 'Ver qué cambió',
+    updateDismiss: 'Descartar aviso de actualización',
     variationInUse: 'Variación:',
     variationLabel: 'Qué variación usar',
     variationDefault: 'Predeterminado',

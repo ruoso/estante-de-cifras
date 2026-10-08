@@ -355,11 +355,28 @@ export default function AppShell({ store = getAppStore(), redeemToken = null }) 
     );
   }
 
+  // A song's history is a full screen over whatever opened it (songs.history),
+  // checked before the editor hosts and the reading view so it sits over the
+  // surface that raised it — Back returns there (the reading view, the file-view
+  // raw editor, or the new-song host). Both the reading view's merge notice and
+  // History button (sync.read_in_place) and the editor's merge notice
+  // (songs.edit_in_place) reach it through `onOpenHistory`.
+  if (history) {
+    return (
+      <SongHistory
+        store={store}
+        bookId={history.bookId}
+        path={history.path}
+        onBack={() => setHistory(null)}
+      />
+    );
+  }
+
   // The file view is a full screen over the shell (books.file_view Decision 7),
   // exactly as the new-song editor host is; Back returns to the shell.
   if (openFile) {
     return (
-      <FileView store={store} bookId={openFile} mode={mode} onBack={() => setOpenFile(null)} />
+      <FileView store={store} bookId={openFile} mode={mode} onBack={() => setOpenFile(null)} onOpenHistory={setHistory} />
     );
   }
 
@@ -374,6 +391,7 @@ export default function AppShell({ store = getAppStore(), redeemToken = null }) 
         mode={mode}
         onBack={exitEditing}
         onChangeBook={changeBook}
+        onOpenHistory={setHistory}
         editorRef={editorRef}
       />
     );
@@ -426,25 +444,9 @@ export default function AppShell({ store = getAppStore(), redeemToken = null }) 
   // in the side pane switches songs). The toolbar's edit / add-to-setlist / share
   // are affordance seams their owning tasks wire (songs.editor, books.setlists,
   // books.share); this task renders them and raises the callbacks (Decision 6).
-  // Arrange is wired (`onArrange` opens the arrange surface above); history is now
-  // wired too — `onOpenHistory` opens SongHistory, closing the seam songs.reading
-  // left (sync.read_in_place Decision 6), so both the merge notice and the
-  // History button land on history in-app.
-  // A song's history is a full screen over the reading view (songs.history),
-  // checked before `openSong` so it sits over the song that opened it. Back
-  // returns to reading. Both the merge notice (sync.read_in_place) and the
-  // reading toolbar's History button reach it through `onOpenHistory`.
-  if (history) {
-    return (
-      <SongHistory
-        store={store}
-        bookId={history.bookId}
-        path={history.path}
-        onBack={() => setHistory(null)}
-      />
-    );
-  }
-
+  // Arrange is wired (`onArrange` opens the arrange surface above); history is
+  // wired too — `onOpenHistory` opens SongHistory (checked above), so both the
+  // merge notice and the History button land on history in-app.
   if (openSong) {
     return (
       <SongReading

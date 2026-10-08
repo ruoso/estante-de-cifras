@@ -33,7 +33,7 @@ import './file-view.css';
 // address).
 const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
 
-export default function FileView({ store, bookId, mode, onBack = () => {} }) {
+export default function FileView({ store, bookId, mode, onBack = () => {}, onOpenHistory = () => {} }) {
   const treeSlice = useSlice(store, 'tree');
   const shelf = useSlice(store, 'shelf');
   const entries = useMemo(() => treeSlice?.[bookId]?.entries ?? [], [treeSlice, bookId]);
@@ -194,6 +194,7 @@ export default function FileView({ store, bookId, mode, onBack = () => {} }) {
       mode={mode}
       editorRef={editorRef}
       onSave={onEditorSave}
+      onOpenHistory={onOpenHistory}
       onRename={() => setRename({ path: selected.path, kind: selected.kind })}
       onDelete={() =>
         selected.isNew

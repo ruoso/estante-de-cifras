@@ -866,6 +866,14 @@ export default {
         'Line {line} is a voicing that can’t be read, and saving would drop it. Fix it or delete it, then save again.',
       markerStop: 'Line {line} is a conflict marker. Resolve it before the song can be saved.',
     },
+    // A background sync merged a new version in under the open editor's unsaved
+    // edits (songs.edit_in_place, workflow 8 §"A song open while it changes";
+    // W08). The non-modal notice names who it came from and opens the song's
+    // history. `{name}` is the incoming author's display name. Reuses the
+    // reading view's wording (reading.updatedBy) — the same event, same model.
+    updatedBy: 'Updated by {name}',
+    seeWhatChanged: 'See what changed',
+    updateDismiss: 'Dismiss update notice',
     variationInUse: 'Variation:',
     variationLabel: 'Which variation to use',
     variationDefault: 'Default',
