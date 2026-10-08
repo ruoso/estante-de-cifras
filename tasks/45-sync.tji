@@ -28,19 +28,19 @@ task sync "Sync" {
   task states_e2e_hosted "Hosted-book sync state e2e journey" {
     effort 1d
     allocate team
-    depends !states, books.add_by_link
-    note "Drive a hosted book offline→online on the compose stack and assert offline since …, N saves waiting, header mark, then cleared after sync; axe on each state on all three viewports. Blocked on the in-app clone seam (books.add_by_link). Source of debt: tasks/refinements/sync/states.md (sync.states). Tests: e2e-web (hosted book offline→online state transitions, axe on phone/tablet/computer)."
+    depends !states, books.online
+    note "A correction owed by sync.states, which landed without its hosted-book e2e journey — not new work. Put a local book online (books.online), take the device offline and back on the compose stack, and assert offline since …, N saves waiting, the header mark, then cleared after sync; axe on each state on all three viewports. Needs only books.online: one device's own book, no invitation. Source of debt: tasks/refinements/sync/states.md (sync.states). Tests: e2e-web (hosted book offline→online state transitions, axe on phone/tablet/computer)."
   }
   task conflicts "Conflicts" {
     effort 4d
     allocate team
-    depends !engine, foundation.e2e_web
+    depends !engine, foundation.e2e_web, books.add_by_link
     note "The book paused while a merge waits; the conflict model shown in musical terms; keep mine, take theirs, edit with markers; deleted against edited; abandon the merge. Workflow 9. Tests: unit (the conflict model in musical terms); behavior (the conflict screens with Testing Library and axe; keyboard paths through keep mine, take theirs, edit with markers, abandon); e2e-web (two devices — two browser contexts on the stack — edit the same bar, the conflict settled each way on phone, tablet and computer, axe on every conflict screen)."
   }
   task lost_access "Losing access" {
     effort 1d
     allocate team
-    depends !engine, service.sharing, foundation.e2e_web
+    depends !engine, service.sharing, foundation.e2e_web, books.add_by_link
     note "Refused for not being a member: no longer shared with you, readable, never synced; unsaved saves kept, fork or download offered. Workflow 8. Tests: behavior (a refusal for not being a member marks the book, keeps unsaved saves, stops syncing); e2e-web (the owner removes a member on the stack; the member's device shows no longer shared with you, the song still readable, fork and download offered; axe)."
   }
   task upload "Upload a zip" {
@@ -52,13 +52,13 @@ task sync "Sync" {
   task fork_follow "Following an original" {
     effort 2d
     allocate team
-    depends !engine
+    depends !engine, service.books
     note "The original's new saves counted; bring them in through the preview; the original going away. Workflow 11. Tests: behavior (the original's new saves counted, brought in through the preview, the original gone — against local remotes); e2e-api (fork on the stack, push to the original, the fork's device counts and brings in the new save)."
   }
   task read_in_place "A song open while sync changes it" {
     effort 1.5d
     allocate team
-    depends songs.reading, !states
-    note "When a sync brings a new version of the open song, it updates in place keeping the place on the page, with a notice — updated by {name}: see what changed — that opens its history. Read full screen, the update waits until the reader leaves. Source of debt: tasks/refinements/songs/reading.md (songs.reading). Workflow 8 §A song open while it changes (L50-54). Tests: behavior (the in-place update keeps the place, the notice opens history, full screen defers until exit; axe); e2e-web (a song open while a sync from the stack brings a new version updates in place on the three viewports, full screen defers; axe)."
+    depends songs.reading, !states, books.online
+    note "Unfinished work for this task is on the branch wip/sync-read-in-place (in-place update, notice, full-screen defer, unit and behavior tests passing): restore it into the working tree first (git cherry-pick --no-commit wip/sync-read-in-place), then write the missing e2e-web scenarios. Its e2e needs a hosted book on the device's shelf: put a local book online (books.online), and play the second device with the git CLI pushing to it as the same user. When a sync brings a new version of the open song, it updates in place keeping the place on the page, with a notice — updated by {name}: see what changed — that opens its history. Read full screen, the update waits until the reader leaves. Source of debt: tasks/refinements/songs/reading.md (songs.reading). Workflow 8 §A song open while it changes (L50-54). Tests: behavior (the in-place update keeps the place, the notice opens history, full screen defers until exit; axe); e2e-web (a song open while a sync from the stack brings a new version updates in place on the three viewports, full screen defers; axe)."
   }
 }

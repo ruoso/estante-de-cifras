@@ -29,13 +29,13 @@ task milestones "Milestones" {
 
   task m3_service "M3: Estante online" {
     milestone
-    depends milestones.m2_local, hook.messages, hook.home_book, account.sign_in, books.online, sync.states, sync.unsaved, sync.lost_access, sync.read_in_place, launch.deploy, launch.email, foundation.cifra_md_in_image, foundation.gate_localhost_origin
+    depends milestones.m2_local, hook.messages, hook.home_book, account.sign_in, books.online, sync.states, sync.states_e2e_hosted, sync.read_in_place, sync.unsaved, launch.deploy, launch.email, foundation.cifra_md_in_image, foundation.gate_localhost_origin
     note "Sign in, put a book online, every push checked, sync across one person's devices — running at estantedecifras.app."
   }
 
   task m4_together "M4: Together" {
     milestone
-    depends milestones.m3_service, books.add_by_link, books.share, books.fork, sync.conflicts, sync.states_e2e_hosted, service.admin
+    depends milestones.m3_service, books.add_by_link, books.share, books.fork, sync.conflicts, sync.lost_access, service.admin
     note "Invitations, fifty per book, forks following their original, merges and conflicts between people."
   }
 

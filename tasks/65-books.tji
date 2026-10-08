@@ -28,7 +28,7 @@ task books "Books" {
   task share "Sharing" {
     effort 3d
     allocate team
-    depends !online, service.sharing
+    depends !online, service.sharing, !add_by_link
     note "People 37 of 50, invitations with role, expiry and uses, who joined, withdraw, remove, a full book; share from a song; the member's view. Workflow 10. Tests: behavior (people n of 50, invitations with role, expiry and uses, who joined, withdraw, remove, a full book, the member's view; axe); e2e-web (the two-device journey on the stack: the owner invites, a second person joins in another browser context, both edit and sync to a clean merge; withdraw and remove; axe)."
   }
   task fork "Make it my own" {

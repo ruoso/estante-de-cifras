@@ -226,6 +226,43 @@ Rules:
   before any task that needs them (the WBS wires the dependency); write e2e
   tests in them, never a parallel harness.
 
+### Check that every named test can be driven — before anything else
+
+A test needs more than its harness: it needs everything that puts the world
+in the state the scenario starts from. For each test you are about to name,
+write down what drives it and check that each of those already exists (its
+task is `complete 100`) or is in this task's `depends`. Typical
+prerequisites:
+
+- a **hosted book** on a device's shelf → `books.online` (a device puts its
+  own book online);
+- **another person** in the book, or the same book on a **second device** of
+  the same account → `books.add_by_link` (an invitation, or *mine on
+  Estante*); people and invitations at all → `service.sharing`;
+- a **signed-in** device → `account.sign_in`; a **second device** of one
+  account → `account.new_device`;
+- a **push the hook checks** → the hook tasks for what it checks;
+- the screen the journey starts from → the task that builds that screen.
+
+A "second device" that only pushes can often be the git CLI or
+isomorphic-git from the harness, acting as the same user — prefer that to a
+dependency on a whole UI flow, when the scenario allows it.
+
+If a prerequisite is missing, **do not write the refinement as if it were
+there, and do not drop or defer the test.** Instead:
+
+1. add the prerequisite's id to the task's `depends` in its `.tji` (only ids
+   that exist in the WBS — check with `scripts/unblocked.py` or the `.tji`
+   files; never invent one), and move the task to a later milestone in
+   `tasks/99-milestones.tji` if its new dependency lands there;
+2. run `tj3 --silent --no-reports project.tjp` to check the WBS still
+   parses;
+3. return `NOT READY: <task_id> — needs <id>, <id> to drive <which tests>`
+   instead of the usual summary, having written no refinement.
+
+The orchestrator then picks other work, and comes back when the dependency
+has landed.
+
 ## Tech-debt registration
 
 When you defer something to a future task, **name the future task crisply**
@@ -277,7 +314,8 @@ re-examination as a WBS task.
 
 ## Return contract
 
-When done, your final assistant message must be a short summary
+When done, your final assistant message must be either the `NOT READY:`
+line of "Check that every named test can be driven", or a short summary
 (≤ 5 lines):
 
 - Refinement path written, and the repository the work lands in.

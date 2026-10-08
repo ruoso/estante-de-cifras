@@ -274,6 +274,27 @@ What this means for you:
 - A second refusal on the same task (the implementer cannot write the named
   tests — a missing seam, a harness that does not exist) is a stop:
   `{"stop": "human-intervention-needed: <task_id> cannot land its tests: <why>"}`.
+  Name in it the WBS task ids that would unblock the tests — **only ids that
+  exist in the WBS** (from `scripts/unblocked.py` or the `.tji` files),
+  never an invented one; if no existing task provides what is missing, say
+  so plainly.
+- **A test that cannot be driven yet is caught before the code is written.**
+  The refinement writer checks that everything each named test needs — a
+  hosted book on the shelf (`books.online`), another person or a second
+  device in the book (`books.add_by_link`), a signed-in device — exists or
+  is a dependency; if not, it adds the dependency in the `.tji` and returns
+  `NOT READY: <task_id> — needs …`. On that return, do not dispatch the
+  implementer: the task is no longer ready, so pick another task from a
+  fresh `scripts/unblocked.py`.
+- **When picking, read the candidate's `Tests:` clause** and skip a task
+  whose tests plainly need something no completed task provides yet, even if
+  `scripts/unblocked.py` lists it (the WBS dependency may be missing):
+  dispatch its refinement writer, which will add the dependency and return
+  `NOT READY`, or pick something else.
+- **Unfinished work parked on a branch.** A task's note or refinement may
+  say its first attempt is kept on a branch (`wip/<task>`). When you
+  dispatch that task, put in `additional_context` that the implementer must
+  restore it first (`git cherry-pick --no-commit <branch>`) and build on it.
 
 ## JSON envelope contract
 
