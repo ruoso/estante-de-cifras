@@ -32,16 +32,31 @@ func Parse(src []byte) (Model, error) {
 	return p.run(), nil
 }
 
-// Write serialises a song model to its canonical text (spec §8). It refuses a
-// marked text. Stub; owned by cifra_go.writer.
+// Write serialises a song model to its canonical text (spec §8), as
+// serialize(canonical(model)). It refuses a model whose text would hold a line
+// of git's conflict markers, returning a *MarkedTextError naming the first such
+// line (§8.1). Implemented in write.go and layout.go; owned by cifra_go.writer.
 func Write(model Model) ([]byte, error) {
-	return nil, ErrNotImplemented
+	return writeModel(model)
 }
 
 // Canonical returns the model of the canonical form of a song model (spec §8.2,
-// §8.3, §4.5). Stub; owned by cifra_go.writer.
+// §8.3, §4.5): it drops what the canonical form does not keep, applies the
+// footnote invariants I1 → I3 → I2, re-lays-out every sung line whose markers
+// changed width, and re-derives bar numbers and repeat groups, leaving `sungAt`
+// and `diagnostics` as they were. Implemented in write.go; owned by
+// cifra_go.writer.
 func Canonical(model Model) (Model, error) {
-	return nil, ErrNotImplemented
+	return canonicalModel(model), nil
+}
+
+// IsCanonical reports whether a document's bytes are in canonical form (spec
+// §9.1): a non-UTF-8 text is not a document (false), a text holding a marker
+// line is never canonical (false), otherwise it is canonical when Write(Parse)
+// gives it back byte for byte. The hook uses it to decide a push. Implemented in
+// write.go; owned by cifra_go.writer.
+func IsCanonical(text []byte) bool {
+	return isCanonical(text)
 }
 
 // ParseSetlist, WriteSetlist and CanonicalSetlist are implemented in

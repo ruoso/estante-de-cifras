@@ -601,3 +601,117 @@ func divideLine(line *Object, laid []rune, mask []bool) {
 		m0.Set("items", append([]any{leadItem}, arr...))
 	}
 }
+
+// --- printing lines (§8.4.4, §8.4.5) -----------------------------------------
+//
+// The §8 printers reserved for cifra_go.writer: they turn a line of the model
+// back into text, standing on the same token model (tok, lineTokens, tokenText)
+// and misread check the reader's converge uses, so a document and its canonical
+// form give the same lines. A faithful port of the reference's layout.py
+// (chart_line_text, chord_text, lyric_text, sung_text).
+
+// chartLineText is a non-sung chord line: its tokens joined by single spaces,
+// with the leading `,` guard when a reader would misread it (§8.4.4).
+func chartLineText(line *Object, dialect string) string {
+	toks := lineTokens(line, false)
+	parts := make([]string, len(toks))
+	for i, t := range toks {
+		parts[i] = tokenText(t)
+	}
+	text := strings.Join(parts, " ")
+	if misread(text, dialect) {
+		// A chord line whose first word would make it a heading, an annotation
+		// or words is written after a `,`, which a reader drops.
+		text = ", " + text
+	}
+	return text
+}
+
+// lyricText is the words line of a sung line, printed from the model: each
+// item's words at its column, a gap inside the words filled with `_`, the gap
+// before words that begin the line with spaces (§8.4.5). A forced line is
+// printed here with a space for its marker.
+func lyricText(line *Object) string {
+	var items []*Object
+	for _, mEl := range objArray(line, "measures") {
+		for _, itEl := range objArray(mEl.(*Object), "items") {
+			items = append(items, itEl.(*Object))
+		}
+	}
+	lead := ""
+	for _, it := range items {
+		if objString(it, "type") == "lead" {
+			lead = objString(it, "words")
+			break
+		}
+	}
+	var attached []*Object
+	for _, it := range items {
+		if objString(it, "type") != "lead" && substantive(it) && it.Has("column") {
+			attached = append(attached, it)
+		}
+	}
+	sort.SliceStable(attached, func(i, j int) bool {
+		a, _ := oint(attached[i], "column")
+		b, _ := oint(attached[j], "column")
+		return a < b
+	})
+	text := []rune(lead)
+	for _, it := range attached {
+		w := objString(it, "words")
+		col, _ := oint(it, "column")
+		if w != "" && len(text) < col {
+			pad := ' '
+			if strings.Trim(string(text), " ") != "" {
+				pad = padRune
+			}
+			for len(text) < col {
+				text = append(text, pad)
+			}
+		}
+		text = append(text, []rune(w)...)
+	}
+	return string(text)
+}
+
+// chordText is the chord line of a sung line, printed from the model: every
+// token at its column; one with none (the closing bar line) one space after the
+// token before it. A line that would be misread gets the `,` guard at column 0,
+// which the layout has left free (§8.4.5).
+func chordText(line *Object, dialect string) string {
+	toks := lineTokens(line, true)
+	end := 0
+	for k, t := range toks {
+		want, ok := desired(t)
+		switch {
+		case ok && (k == 0 || want >= end):
+			t.at = want
+		case k == 0:
+			t.at = 0
+		default:
+			t.at = end + 1
+		}
+		end = t.at + len([]rune(tokenText(t)))
+	}
+	text := render(toks)
+	if misread(text, dialect) {
+		rs := []rune(text)
+		if len(rs) >= 2 && rs[0] == ' ' && rs[1] == ' ' {
+			text = "," + string(rs[1:])
+		} else {
+			text = ", " + text
+		}
+	}
+	return text
+}
+
+// sungText is the two lines of a sung line: the chord line and the words line,
+// the latter with its `>` marker when the line is forced (§8.4.5).
+func sungText(line *Object, dialect string) []string {
+	lyric := lyricText(line)
+	if obool(line, "forced") {
+		rs := []rune(lyric)
+		lyric = ">" + string(rs[1:])
+	}
+	return []string{chordText(line, dialect), lyric}
+}
