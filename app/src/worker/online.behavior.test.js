@@ -8,7 +8,7 @@
 // fake-indexeddb + installWebLocks + createFileSystem, the worker-behavior
 // harness (books.behavior.test.js / sync-engine.behavior.test.js). Book names
 // and song text are written for the test (no-song-text rule).
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { waitFor } from '@testing-library/react';
 import { spawn } from 'node:child_process';
@@ -16,6 +16,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { getConfig, resolveRef } from 'isomorphic-git';
+import { parse as realParse } from 'cifra-md';
 
 import { createFileSystem } from './fs.js';
 import { createGitLayer } from './git.js';
@@ -23,6 +24,7 @@ import { createGitHttpClient } from './git-http.js';
 import { createBookLocks } from './locks.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createWorkerLogic } from './logic.js';
+import { reduce, initialState } from './reducer.js';
 import { command, CommandKind, EventKind } from './protocol.js';
 import { readZip } from './book-zip.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
@@ -31,6 +33,8 @@ import { startGitHttpRemote } from '../test/git-http-remote.js';
 
 const IDENTITY = { id: 'u_tester', name: 'A Tester' };
 const rand = () => Math.random().toString(36).slice(2);
+const FENCE = '```';
+const song = (lines) => lines.join('\n') + '\n';
 
 // Run a host command, resolving stdout (used to drive the `git` CLI against the
 // real remote and an unpacked download).
@@ -98,16 +102,57 @@ async function makeWorker(remote, serviceId) {
   const deviceId = await createHomeBook({ fs, git, locks }).ensureDeviceId({ idb, name });
   const { impl: fetchImpl, apiCalls } = routingFetch(remote, serviceId);
   const events = [];
+  // A parse spy proves content-addressing survives the put-online rename: the
+  // relocated serviceId tree is re-indexed without re-parsing a carried-over
+  // song (books.online_reindex Decision 2). Wrapping the real cifra-md parse
+  // keeps the Worker's behavior identical.
+  const parseSpy = vi.fn(realParse);
   const endpoint = createLoopbackEndpoint((port) =>
-    createWorkerLogic(port, { indexedDB: idb, name, fetch: fetchImpl }),
+    createWorkerLogic(port, { indexedDB: idb, name, fetch: fetchImpl, parse: parseSpy }),
   );
   endpoint.onmessage = (ev) => events.push(ev.data);
   const send = (cmd) => endpoint.postMessage(cmd);
   const readHome = (file) => fs.promises.readFile(`${git.bookDir(HOME_BOOK_ID)}/${file}`, 'utf8');
-  return { idb, name, fs, git, locks, deviceId, events, send, apiCalls, readHome };
+  return { idb, name, fs, git, locks, deviceId, events, send, apiCalls, readHome, parseSpy };
 }
 
 const lastEvent = (events, kind) => [...events].reverse().find((e) => e.kind === kind);
+
+// Fold the collected port events through the real reducer to read a slice the
+// main-thread store would hold (the online worker drives raw events, not a
+// store). Used to read the `index` build-status slice after a handler.
+const foldState = (events) => events.reduce(reduce, initialState);
+
+const latestResults = (events, query) =>
+  [...events].reverse().find((e) => e.kind === EventKind.SEARCH_RESULTS && e.payload.query === query)
+    ?.payload.results ?? null;
+
+// Send one SEARCH after a handler has settled (we have already awaited its
+// terminal event, so no concurrent write can race) and return its reply's rows.
+// The index never crosses the port; only the ranked rows do.
+async function searchOnce(w, query) {
+  const mark = w.events.length;
+  w.send(command(CommandKind.SEARCH, { query }));
+  let results;
+  await waitFor(() => {
+    const hit = w.events
+      .slice(mark)
+      .find((e) => e.kind === EventKind.SEARCH_RESULTS && e.payload.query === query);
+    expect(hit).toBeTruthy();
+    results = hit.payload.results;
+  });
+  return results;
+}
+
+// Poll SEARCH until the latest reply satisfies the predicate (for the seed step,
+// where the index-updating WRITE emits no event to await — the same re-send
+// pattern search-index.behavior.test uses).
+async function searchUntil(w, query, predicate) {
+  await waitFor(() => {
+    w.send(command(CommandKind.SEARCH, { query }));
+    expect(predicate(latestResults(w.events, query) ?? [])).toBe(true);
+  });
+}
 
 async function createLocalBook(w, title) {
   w.send(command(CommandKind.CREATE_BOOK, { title, author: IDENTITY }));
@@ -335,6 +380,125 @@ describe('online (workflow 7 L46-63, L128-137)', () => {
       });
       const shelf = JSON.parse(await w.readHome('shelf.json'));
       expect(shelf.books[serviceId].label.value).toBeNull();
+    } finally {
+      await remote.stop();
+    }
+  });
+});
+
+// Reindex on put-online / remove / delete (books.online_reindex). The Worker
+// owns the search index (DIRECTION §3.7); these journeys re-key or drop a book's
+// on-disk directory, and the index must follow within the live session. Song
+// text is written for the test (no-song-text rule).
+describe('reindex on put-online / remove / delete (books.online_reindex)', () => {
+  const SONG_PATH = 'cancao.cifra.md';
+  const SONG_TERM = 'mergulho'; // a distinctive title word to search for
+  const SONG = song(['# Mergulho Fundo', '- artist: Trio de Teste', '## A', FENCE, 'C   G', 'oi', FENCE]);
+
+  // Create a local book, bring the Worker up (building its index), then WRITE a
+  // purpose-written song into it. After this the book has a live `ready` index
+  // entry and the song is findable by SEARCH. Returns the local book id.
+  async function seedIndexedLocalBook(w) {
+    const localId = await createLocalBook(w, 'Para publicar');
+    w.send(command(CommandKind.OPEN));
+    await waitFor(() => {
+      expect(foldState(w.events).index[localId]).toBe('ready');
+    });
+    w.send(command(CommandKind.WRITE, { bookId: localId, path: SONG_PATH, text: SONG }));
+    await searchUntil(w, SONG_TERM, (rs) =>
+      rs.some((r) => r.bookId === localId && r.path === SONG_PATH),
+    );
+    return localId;
+  }
+
+  it('put-online re-indexes under the service id, not the local id, with no re-parse', async () => {
+    const remote = await startGitHttpRemote({ seed: false });
+    const serviceId = `srv-${rand()}`;
+    try {
+      const w = await makeWorker(remote, serviceId);
+      const localId = await seedIndexedLocalBook(w);
+
+      // Content-addressing: record the parse count before the rename.
+      const parsesBefore = w.parseSpy.mock.calls.length;
+      expect(parsesBefore).toBeGreaterThan(0); // the seed song was parsed once
+
+      const { bookId } = await putOnline(w, localId);
+      expect(bookId).toBe(serviceId);
+
+      // SEARCH now finds the song under the serviceId and NOT under the localId
+      // (the note's "put-online then search finds the book by serviceId, not
+      // localId"). The reindex ran before BOOK_ONLINE, so this is immediate.
+      const results = await searchOnce(w, SONG_TERM);
+      expect(results.some((r) => r.bookId === serviceId && r.path === SONG_PATH)).toBe(true);
+      expect(results.some((r) => r.bookId === localId)).toBe(false);
+
+      // The docs carried over by oid: the relocated tree was re-indexed with no
+      // new parse (books.online_reindex Decision 2, DIRECTION §3 content-addressing).
+      expect(w.parseSpy.mock.calls.length).toBe(parsesBefore);
+
+      // The stale index build-status entry for localId is nulled; the serviceId
+      // carries the live `ready` entry (Decision 4).
+      const index = foldState(w.events).index;
+      expect(index[localId] ?? null).toBeNull();
+      expect(index[serviceId]).toBe('ready');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('remove drops the book’s index entries', async () => {
+    const remote = await startGitHttpRemote({ seed: false });
+    const serviceId = `srv-${rand()}`;
+    try {
+      const w = await makeWorker(remote, serviceId);
+      const localId = await seedIndexedLocalBook(w);
+      const { bookId } = await putOnline(w, localId);
+
+      // Re-confirm the song is findable under the service id before removal.
+      let results = await searchOnce(w, SONG_TERM);
+      expect(results.some((r) => r.bookId === bookId)).toBe(true);
+
+      w.send(command(CommandKind.REMOVE_BOOK, { bookId, author: IDENTITY }));
+      await waitFor(() => {
+        expect(lastEvent(w.events, EventKind.BOOK_REMOVED)?.payload.bookId).toBe(bookId);
+      });
+
+      // SEARCH after remove returns no result for that book (the note's "remove
+      // then search finds no entries for that book"), and its index slice entry
+      // is not live.
+      results = await searchOnce(w, SONG_TERM);
+      expect(results.some((r) => r.bookId === bookId)).toBe(false);
+      expect(foldState(w.events).index[bookId] ?? null).toBeNull();
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('delete drops the book’s index entries', async () => {
+    const remote = await startGitHttpRemote({ seed: false });
+    const serviceId = `srv-${rand()}`;
+    try {
+      const w = await makeWorker(remote, serviceId);
+      const localId = await seedIndexedLocalBook(w);
+      const { bookId } = await putOnline(w, localId);
+
+      let results = await searchOnce(w, SONG_TERM);
+      expect(results.some((r) => r.bookId === bookId)).toBe(true);
+
+      w.send(command(CommandKind.DELETE_BOOK, { bookId, author: IDENTITY }));
+      await waitFor(() => {
+        expect(lastEvent(w.events, EventKind.BOOK_REMOVED)?.payload.bookId).toBe(bookId);
+      });
+      // The delete endpoint was called for this book.
+      expect(
+        w.apiCalls.some((c) => c.url === `/api/books/${bookId}` && c.method === 'DELETE'),
+      ).toBe(true);
+
+      // SEARCH after delete returns no result for that book, and its index slice
+      // entry is not live.
+      results = await searchOnce(w, SONG_TERM);
+      expect(results.some((r) => r.bookId === bookId)).toBe(false);
+      expect(foldState(w.events).index[bookId] ?? null).toBeNull();
     } finally {
       await remote.stop();
     }

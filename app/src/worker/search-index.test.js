@@ -186,6 +186,67 @@ describe('createSearchIndex — content-addressing', () => {
   });
 });
 
+// removeBook drops every location for one book at book scope, straight from the
+// in-memory map (books.online_reindex acceptance 1, Decision 1). Pins the
+// location-keying model of storage.index (Decision 3) and the
+// drop-locations-not-docs constraint (books.online_reindex Decision 2). All song
+// text is written for this test.
+describe('createSearchIndex — removeBook', () => {
+  const SEP = '\0';
+
+  it('discards every location for the book and returns them all, leaving other books and the doc cache intact', async () => {
+    const spy = vi.fn(parse);
+    const index = createSearchIndex({ parse: spy });
+
+    // A shared song text, indexed in BOTH books (same bytes → one blob oid →
+    // one parse, one shared doc record — content-addressing).
+    const shared = song(['# Partilhada', '## A', FENCE, 'C   G', 'oi', FENCE]);
+    await index.indexDocument({ bookId: 'local-x', path: 'one.cifra.md', bytes: shared });
+    await index.indexDocument({ bookId: 'local-x', path: 'folder/two.cifra.md', bytes: shared });
+    // A second book keeps its own location (also backed by the shared doc).
+    await index.indexDocument({ bookId: 'book-keep', path: 'three.cifra.md', bytes: shared });
+    expect(spy).toHaveBeenCalledTimes(1); // one distinct text → one parse
+
+    // Both of local-x's songs are findable before the drop.
+    expect(index.search({ query: 'partilhada' }).map((r) => r.bookId).sort()).toEqual(
+      ['book-keep', 'local-x', 'local-x'],
+    );
+
+    const changes = index.removeBook('local-x');
+
+    // Every local-x location is returned in deleteLocations, keyed <bookId>\0<path>;
+    // no docs or location puts are emitted (a pure drop).
+    expect(changes.putDocs).toEqual([]);
+    expect(changes.putLocations).toEqual([]);
+    expect(new Set(changes.deleteLocations)).toEqual(
+      new Set([`local-x${SEP}one.cifra.md`, `local-x${SEP}folder/two.cifra.md`]),
+    );
+
+    // local-x is gone from the index; book-keep's location survives untouched.
+    const after = index.search({ query: 'partilhada' });
+    expect(after.map((r) => r.bookId)).toEqual(['book-keep']);
+    expect(after.map((r) => r.path)).toEqual(['three.cifra.md']);
+
+    // The content-addressed doc cache is intact: re-indexing the same bytes
+    // (a new location) reuses the cached doc — no re-parse (Decision 2).
+    spy.mockClear();
+    const reAdd = await index.indexDocument({
+      bookId: 'local-x',
+      path: 'one.cifra.md',
+      bytes: shared,
+    });
+    expect(spy).not.toHaveBeenCalled();
+    expect(reAdd.putDocs).toEqual([]); // doc already cached, only a location put
+    expect(reAdd.putLocations).toHaveLength(1);
+  });
+
+  it('is a no-op for a book with no locations', () => {
+    const index = createSearchIndex({ parse });
+    const changes = index.removeBook('never-indexed');
+    expect(changes).toEqual({ putDocs: [], putLocations: [], deleteLocations: [] });
+  });
+});
+
 describe('createSearchIndex — accent-insensitive and scope', () => {
   const index = createSearchIndex({ parse });
 

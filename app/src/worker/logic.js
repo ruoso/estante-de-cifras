@@ -1303,6 +1303,19 @@ export function createWorkerLogic(port, options = {}) {
               author,
             });
             await surfaceHomeBookShelf();
+            // Keep the search index in step with the re-keyed directory
+            // (books.online_reindex acceptance 2): drop the stale `localId`
+            // locations (their files were relocated and removed) and index the
+            // relocated `serviceId` tree. Because docs are oid-keyed and the
+            // relocated files carry the same oids, `indexOneBook` re-parses
+            // nothing (Decision 2, 3). The stale per-book build-status entry for
+            // `localId` is nulled through the existing INDEX_STATUS event
+            // (Decision 4). All of this precedes the BOOK_ONLINE emit so the
+            // view's next read already finds the book by its service id.
+            await ensureIndexHydrated();
+            await persistIndexChanges(ensureSearchIndex().removeBook(localId));
+            port.postMessage(event(EventKind.INDEX_STATUS, { bookId: localId, state: null }));
+            await indexOneBook(serviceId);
             // Flush at the handler tail after both locks released (Decision 4):
             // one global flush persists the relocated repo and the shelf
             // migration, so an immediate reload finds the hosted book.
@@ -1351,6 +1364,14 @@ export function createWorkerLogic(port, options = {}) {
                 ];
             await home.set({ bookId: HOME_BOOK_ID, file: 'shelf.json', changes, author });
             await surfaceHomeBookShelf();
+            // The clone is gone; drop the book's index entries so a SEARCH in
+            // this session no longer surfaces a book the device no longer holds
+            // (books.online_reindex acceptance 3), and null its stale
+            // build-status entry (Decision 4) — both before the BOOK_REMOVED
+            // emit, so the view's next read is already consistent.
+            await ensureIndexHydrated();
+            await persistIndexChanges(ensureSearchIndex().removeBook(bookId));
+            port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: null }));
             await ensureFs().flush();
             port.postMessage(event(EventKind.BOOK_REMOVED, { bookId }));
             break;
@@ -1378,6 +1399,12 @@ export function createWorkerLogic(port, options = {}) {
               author,
             });
             await surfaceHomeBookShelf();
+            // The clone is gone; drop the book's index entries (same as remove —
+            // books.online_reindex acceptance 4) and null its build-status entry
+            // (Decision 4), before the BOOK_REMOVED emit.
+            await ensureIndexHydrated();
+            await persistIndexChanges(ensureSearchIndex().removeBook(bookId));
+            port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: null }));
             await ensureFs().flush();
             port.postMessage(event(EventKind.BOOK_REMOVED, { bookId }));
             break;

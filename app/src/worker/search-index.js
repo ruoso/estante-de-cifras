@@ -310,6 +310,28 @@ export function createSearchIndex({ fs, git, parse, readHeadOids } = {}) {
     return { putDocs: [], putLocations: [], deleteLocations: [key] };
   }
 
+  // Drop EVERY location for a book (books.online_reindex acceptance 1): the
+  // book-scoped sibling of `removePath`, for when a book is re-keyed to its
+  // service id (put-online) or its clone is removed/deleted. It discards from
+  // `mini` and deletes from `locationByKey` every location whose `bookId`
+  // matches — straight from the in-memory map, with NO disk walk — so it is
+  // order-independent of the directory already being gone (Decision 1). The
+  // content-addressed doc cache is left intact, exactly as `removePath` does: a
+  // doc may still back another book's location, and on put-online the relocated
+  // `serviceId` files reuse the same oids, so dropping docs would be both a
+  // content-addressing violation and wasted re-parsing (Decision 2). Other
+  // books' locations are untouched.
+  function removeBook(bookId) {
+    const deleteLocations = [];
+    for (const location of [...locationByKey.values()]) {
+      if (location.bookId !== bookId) continue;
+      if (mini.has(location.key)) mini.discard(location.key);
+      locationByKey.delete(location.key);
+      deleteLocations.push(location.key);
+    }
+    return { putDocs: [], putLocations: [], deleteLocations };
+  }
+
   // Walk a book's working tree for song files, relative to its book dir.
   async function songPaths(bookId) {
     const dir = git.bookDir(bookId);
@@ -539,6 +561,7 @@ export function createSearchIndex({ fs, git, parse, readHeadOids } = {}) {
     indexDocument,
     reindexPath,
     removePath,
+    removeBook,
     reconcile,
     search,
     browse,

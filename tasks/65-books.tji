@@ -23,8 +23,9 @@ task books "Books" {
   task online_reindex "Reindex on put-online and on remove/delete" {
     effort 1d
     allocate team
+    complete 100
     depends !online
-    note "When put-online adopts the service id, drop the localId docs/locations from the search index and re-index the serviceId dir; drop stale index entries for a removed or deleted book. App work, Worker only. Source of debt: tasks/refinements/books/online.md (books.online). Governing: DIRECTION §3.7; storage.index. Tests: behavior (put-online then search finds the book by serviceId, not localId; remove then search finds no entries for that book)."
+    note "When put-online adopts the service id, drop the localId docs/locations from the search index and re-index the serviceId dir; drop stale index entries for a removed or deleted book. App work, Worker only. Source of debt: tasks/refinements/books/online.md (books.online). Governing: DIRECTION §3.7; storage.index. Tests: behavior (put-online then search finds the book by serviceId, not localId; remove then search finds no entries for that book). Refinement: tasks/refinements/books/online_reindex.md"
   }
   task add_by_link "Add by invitation and mine on Estante" {
     effort 2d
