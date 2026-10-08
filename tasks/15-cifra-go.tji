@@ -27,8 +27,9 @@ task cifra_go "cifra.md for Go" {
   task setlists "Setlists" {
     effort 2d
     allocate team
+    complete 100
     depends !module, format.setlist_corpus
-    note "cifra.md: chapter 10 reader and canonical writer. Tests: unit (chapter 10 reader and writer); corpus (the setlist entries)."
+    note "cifra.md: chapter 10 reader and canonical writer. Tests: unit (chapter 10 reader and writer); corpus (the setlist entries). Refinement: tasks/refinements/cifra_go/setlists.md"
   }
   task versions "Two canonical-form versions side by side" {
     effort 1d
