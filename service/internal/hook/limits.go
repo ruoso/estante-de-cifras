@@ -25,6 +25,13 @@ const (
 	envAccountRemaining = "ESTANTE_ACCOUNT_BYTES_REMAINING"
 )
 
+// envUser is the pushing account's id, which the service sets on the
+// receive-pack it spawns (server.pushEnv ESTANTE_USER = the account id). The
+// account-quota refusal names it, because the exceeded quota is the user's own
+// (DIRECTION §3.6 L346 "names the user in its messages"; hook.messages
+// Decision — only that one fault names the user, relayed only to the pusher).
+const envUser = "ESTANTE_USER"
+
 // Limits is the account-and-book byte-cap layer the binary composes after
 // Contents accepts: for the one accepted, non-deletion refs/heads/main update it
 // sums the sizes of the objects the push introduces (the net byte growth) and
@@ -62,7 +69,12 @@ func Limits(updates []RefUpdate, repoDir string) (reasons []string, err error) {
 		return nil, err
 	}
 
-	return decideLimits(bookBytes, accountRemaining, netGrowth(infos)), nil
+	// The pushing account's id, which the account-quota refusal names (DIRECTION
+	// §3.6 L346). Read with a plain lookup — a missing id is not fail-closed
+	// here: the byte figures are the verified contract, the id is only named in
+	// the one message, and the service always sets it (server.pushEnv).
+	user, _ := os.LookupEnv(envUser)
+	return decideLimits(bookBytes, accountRemaining, netGrowth(infos), user), nil
 }
 
 // netGrowth sums the byte sizes of the introduced objects: the push's net byte
@@ -82,19 +94,22 @@ func netGrowth(infos []objectInfo) int64 {
 // inflated content sizes, so bookBytes+growth over-estimates the true packed
 // footprint and the cap errs toward refusing a borderline push — the correct
 // bias for an abuse guard on a 50 MB-of-text limit (hook.limits Decision); a
-// push is never wrongly accepted. The reason names the limit and the figures,
-// never any file content (no song text in logs).
-func decideLimits(bookBytes, accountRemaining, growth int64) []string {
+// push is never wrongly accepted. Each reason names the limit and the figures,
+// never any file content (no song text in logs); the account-quota reason also
+// names the pushing user, the one fault that is the user's own (hook.messages
+// Decision; DIRECTION §3.6 L346). Both route through refusal for the shared
+// grammar.
+func decideLimits(bookBytes, accountRemaining, growth int64, user string) []string {
 	var reasons []string
 	if bookBytes+growth > maxBookBytes {
-		reasons = append(reasons, fmt.Sprintf(
-			"refs/heads/main: this push would take the book to %d bytes, over the %d-byte per-book limit (50 MB, history included); refused",
-			bookBytes+growth, maxBookBytes))
+		reasons = append(reasons, refusal(MainRef, fmt.Sprintf(
+			"this push would take the book to %d bytes, over the %d-byte per-book limit (50 MB, history included)",
+			bookBytes+growth, maxBookBytes)))
 	}
 	if growth > accountRemaining {
-		reasons = append(reasons, fmt.Sprintf(
-			"refs/heads/main: this push adds %d bytes, over the %d bytes the account has left of its storage limit; refused",
-			growth, accountRemaining))
+		reasons = append(reasons, refusal(MainRef, fmt.Sprintf(
+			"this push by %s adds %d bytes, over the %d bytes the account has left of its storage limit",
+			user, growth, accountRemaining)))
 	}
 	return reasons
 }

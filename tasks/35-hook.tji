@@ -43,8 +43,9 @@ task hook "The pre-receive hook" {
   task messages "Refusal messages" {
     effort 1d
     allocate team
+    complete 100
     depends !canonical, !limits
-    note "Each refusal names what failed, through git's own channel, readable by isomorphic-git and the app. Tests: unit (one message per refusal, naming what failed); e2e-api (the whole refusal matrix against the stack, each message read as the git CLI and isomorphic-git present it)."
+    note "Each refusal names what failed, through git's own channel, readable by isomorphic-git and the app. Tests: unit (one message per refusal, naming what failed); e2e-api (the whole refusal matrix against the stack, each message read as the git CLI and isomorphic-git present it). Refinement: tasks/refinements/hook/messages.md"
   }
   task home_book "Validate a home-book push" {
     effort 2d

@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"estantedecifras.app/service/internal/hook"
@@ -30,8 +31,10 @@ func main() {
 func run() int {
 	updates, err := hook.ParseUpdates(os.Stdin)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "pre-receive: %v\n", err)
-		return 1
+		// Unparseable stdin — fail closed, naming only the aspect. The raw parse
+		// error is never relayed to the client (it could carry a ref id and is of
+		// no use to the pusher; hook.messages Decision).
+		return refuse([]string{hook.FailClosed("the pushed ref updates")})
 	}
 
 	// Ancestry is read with git in the hook's own working directory, which git
@@ -39,10 +42,10 @@ func run() int {
 	reasons, err := hook.Refs(updates, "")
 	if err != nil {
 		// A git failure during a check (not a plain refusal) — refuse the push
-		// rather than accept something unverified, naming only the structural
-		// fault (never object contents; no song text in logs).
-		fmt.Fprintf(os.Stderr, "pre-receive: could not verify push history: %v\n", err)
-		return 1
+		// rather than accept something unverified, naming only the aspect and
+		// never the raw git error (no path or object id in the client channel;
+		// hook.messages Decision).
+		return refuse([]string{hook.FailClosed("push history")})
 	}
 	if len(reasons) > 0 {
 		return refuse(reasons)
@@ -58,11 +61,9 @@ func run() int {
 	}
 	reasons, err = hook.Stowaways(updates, "", quarantine)
 	if err != nil {
-		// A git failure while enumerating or reaching objects — refuse rather
-		// than accept something unverified, naming only the structural fault
-		// (never object contents; no song text in logs).
-		fmt.Fprintf(os.Stderr, "pre-receive: could not verify pushed objects: %v\n", err)
-		return 1
+		// A git failure while enumerating or reaching objects — fail closed,
+		// naming only the aspect (no raw git error in the client channel).
+		return refuse([]string{hook.FailClosed("pushed objects")})
 	}
 	if len(reasons) > 0 {
 		return refuse(reasons)
@@ -74,11 +75,9 @@ func run() int {
 	// UTF-8, size, the .gitattributes bytes, and the tree/commit size guard.
 	reasons, err = hook.Contents(updates, "")
 	if err != nil {
-		// A git failure while walking or reading the pushed objects — refuse
-		// rather than accept something unverified, naming only the structural
-		// fault (never object contents; no song text in logs).
-		fmt.Fprintf(os.Stderr, "pre-receive: could not verify book contents: %v\n", err)
-		return 1
+		// A git failure while walking or reading the pushed objects — fail closed,
+		// naming only the aspect (no raw git error in the client channel).
+		return refuse([]string{hook.FailClosed("book contents")})
 	}
 	if len(reasons) > 0 {
 		return refuse(reasons)
@@ -91,11 +90,9 @@ func run() int {
 	// decided by cifra.md for Go, no song text in logs.
 	reasons, err = hook.Canonical(updates, "")
 	if err != nil {
-		// A git failure reading the pushed blobs — refuse rather than accept
-		// something unverified, naming only the structural fault (never object
-		// contents; no song text in logs).
-		fmt.Fprintf(os.Stderr, "pre-receive: could not verify canonical form: %v\n", err)
-		return 1
+		// A git failure reading the pushed blobs — fail closed, naming only the
+		// aspect (no raw git error in the client channel).
+		return refuse([]string{hook.FailClosed("canonical form")})
 	}
 	if len(reasons) > 0 {
 		return refuse(reasons)
@@ -109,10 +106,9 @@ func run() int {
 	reasons, err = hook.Limits(updates, "")
 	if err != nil {
 		// A missing/non-numeric byte figure or a git failure measuring the
-		// growth — refuse rather than accept something unverified, naming only
-		// the structural fault (never object contents; no song text in logs).
-		fmt.Fprintf(os.Stderr, "pre-receive: could not verify push limits: %v\n", err)
-		return 1
+		// growth — fail closed, naming only the aspect (no raw git error in the
+		// client channel).
+		return refuse([]string{hook.FailClosed("push limits")})
 	}
 	if len(reasons) > 0 {
 		return refuse(reasons)
@@ -122,9 +118,19 @@ func run() int {
 
 // refuse writes each refusal reason to stderr (git relays it to the client
 // prefixed "remote:") and returns the non-zero exit that refuses the whole push.
+// It is the single emission point: every refusal — the five checks' faults and
+// the fail-closed cases — goes out through here, one "pre-receive: "-prefixed,
+// LF-terminated line per reason (hook.messages).
 func refuse(reasons []string) int {
+	return refuseTo(os.Stderr, reasons)
+}
+
+// refuseTo is refuse with the sink injected, so the emission contract (one
+// prefixed LF-terminated line per reason, the non-zero exit) is unit-testable
+// without capturing os.Stderr.
+func refuseTo(w io.Writer, reasons []string) int {
 	for _, reason := range reasons {
-		fmt.Fprintln(os.Stderr, "pre-receive: "+reason)
+		fmt.Fprintln(w, "pre-receive: "+reason)
 	}
 	return 1
 }

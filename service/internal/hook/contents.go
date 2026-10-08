@@ -327,21 +327,15 @@ func Contents(updates []RefUpdate, repoDir string) (reasons []string, err error)
 				sha2path[e.SHA] = e.Path
 			}
 			if !modeAllowed(e.Mode) {
-				reasons = append(reasons, fmt.Sprintf(
-					"refs/heads/main: %s is %s (only regular files are allowed — no symlinks, submodules, or executables); refused",
-					e.Path, modeDescription(e.Mode)))
+				reasons = append(reasons, reasonBadMode(e.Path, modeDescription(e.Mode)))
 				continue
 			}
 			if classifyPath(e.Path) == kindDisallowed {
-				reasons = append(reasons, fmt.Sprintf(
-					"refs/heads/main: %s is not an allowed path for a songbook (only *.cifra.md / *.setlist.md in any folder, a root README.md, and a root .gitattributes); refused",
-					e.Path))
+				reasons = append(reasons, reasonDisallowedPath(e.Path))
 				continue
 			}
 			if _, tooLong := overLongComponent(e.Path); tooLong {
-				reasons = append(reasons, fmt.Sprintf(
-					"refs/heads/main: %s has a path component longer than %d bytes; refused",
-					e.Path, maxNameBytes))
+				reasons = append(reasons, reasonOverLongComponent(e.Path))
 				continue
 			}
 			if classifyPath(e.Path) == kindGitattributes {
@@ -366,13 +360,9 @@ func Contents(updates []RefUpdate, repoDir string) (reasons []string, err error)
 		if !withinSizeLimit(o.Type, o.Size) {
 			switch o.Type {
 			case "blob":
-				reasons = append(reasons, fmt.Sprintf(
-					"refs/heads/main: %s is %d bytes, over the %d-byte (256 KB) per-file limit; refused",
-					blobLabel(o.SHA, sha2path), o.Size, maxBlobBytes))
+				reasons = append(reasons, reasonOverSizeBlob(blobLabel(o.SHA, sha2path), o.Size))
 			default:
-				reasons = append(reasons, fmt.Sprintf(
-					"refs/heads/main: a %s object is %d bytes, over its reasonable-size limit; refused",
-					o.Type, o.Size))
+				reasons = append(reasons, reasonOverSizeObject(o.Type, o.Size))
 			}
 		}
 	}
@@ -387,8 +377,7 @@ func Contents(updates []RefUpdate, repoDir string) (reasons []string, err error)
 			return nil, err
 		}
 		if !validUTF8(content) {
-			reasons = append(reasons, fmt.Sprintf(
-				"refs/heads/main: %s is not valid UTF-8 text; refused", blobLabel(sha, sha2path)))
+			reasons = append(reasons, reasonNonUTF8(blobLabel(sha, sha2path)))
 		}
 	}
 	for _, e := range gitattrEntries {
@@ -399,8 +388,7 @@ func Contents(updates []RefUpdate, repoDir string) (reasons []string, err error)
 		// Name only the path — never the mismatching bytes (no song text or file
 		// content in logs).
 		if !gitattributesMatch(content) {
-			reasons = append(reasons, fmt.Sprintf(
-				"refs/heads/main: %s does not hold exactly the songbook .gitattributes the app writes; refused", e.Path))
+			reasons = append(reasons, reasonWrongGitattributes(e.Path))
 		}
 	}
 
@@ -417,6 +405,60 @@ func blobLabel(sha string, sha2path map[string]string) string {
 		return path
 	}
 	return sha
+}
+
+// The contents layer's refusal formatters, lifted out of the walk so the unit
+// catalogue (messages_test.go) can enumerate every contents message
+// deterministically (hook.messages). Each routes through refusal for the shared
+// "<subject>: <fault>; refused" grammar; none carries blob bytes — only the
+// pusher's path or the blob's SHA (blobLabel), its mode, and byte figures.
+
+// reasonBadMode: a tree entry that is not a regular file (symlink, submodule,
+// executable).
+func reasonBadMode(path, modeDesc string) string {
+	return refusal(MainRef, fmt.Sprintf(
+		"%s is %s (only regular files are allowed — no symlinks, submodules, or executables)",
+		path, modeDesc))
+}
+
+// reasonDisallowedPath: a path that is not an allowed songbook path.
+func reasonDisallowedPath(path string) string {
+	return refusal(MainRef, fmt.Sprintf(
+		"%s is not an allowed path for a songbook (only *.cifra.md / *.setlist.md in any folder, a root README.md, and a root .gitattributes)",
+		path))
+}
+
+// reasonOverLongComponent: a path with a component past maxNameBytes.
+func reasonOverLongComponent(path string) string {
+	return refusal(MainRef, fmt.Sprintf(
+		"%s has a path component longer than %d bytes", path, maxNameBytes))
+}
+
+// reasonOverSizeBlob: a blob over the 256 KB per-file cap. label is the path or,
+// if unknown, the blob SHA (blobLabel).
+func reasonOverSizeBlob(label string, size int64) string {
+	return refusal(MainRef, fmt.Sprintf(
+		"%s is %d bytes, over the %d-byte (256 KB) per-file limit", label, size, maxBlobBytes))
+}
+
+// reasonOverSizeObject: a carrier object (tree or commit) over its
+// reasonable-size guard rail.
+func reasonOverSizeObject(objType string, size int64) string {
+	return refusal(MainRef, fmt.Sprintf(
+		"a %s object is %d bytes, over its reasonable-size limit", objType, size))
+}
+
+// reasonNonUTF8: a blob that is not valid UTF-8 text. label is the path or blob
+// SHA (blobLabel) — never the bytes.
+func reasonNonUTF8(label string) string {
+	return refusal(MainRef, fmt.Sprintf("%s is not valid UTF-8 text", label))
+}
+
+// reasonWrongGitattributes: a root .gitattributes whose bytes are not exactly
+// what the app writes. Names only the path, never the mismatching bytes.
+func reasonWrongGitattributes(path string) string {
+	return refusal(MainRef, fmt.Sprintf(
+		"%s does not hold exactly the songbook .gitattributes the app writes", path))
 }
 
 // dedupe returns xs with adjacent duplicates removed (xs must be sorted).

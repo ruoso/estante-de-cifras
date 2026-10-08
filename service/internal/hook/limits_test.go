@@ -78,34 +78,36 @@ func TestNetGrowth(t *testing.T) {
 // (50 MB per book) and L42–43 (the per-account quota).
 func TestDecideLimits(t *testing.T) {
 	const remaining = int64(10 * 1024 * 1024) // generous account headroom
+	const user = "acc-decide"                 // the pushing user, named by the account-quota reason
 
 	// Within both caps → accept.
-	if reasons := decideLimits(0, remaining, 1024); len(reasons) != 0 {
+	if reasons := decideLimits(0, remaining, 1024, user); len(reasons) != 0 {
 		t.Errorf("a push within both caps should accept; got %v", reasons)
 	}
 
 	// Exactly at each cap → accept (the cap is the greatest allowed value).
-	if reasons := decideLimits(maxBookBytes-1024, remaining, 1024); len(reasons) != 0 {
+	if reasons := decideLimits(maxBookBytes-1024, remaining, 1024, user); len(reasons) != 0 {
 		t.Errorf("a push to exactly the per-book cap should accept; got %v", reasons)
 	}
-	if reasons := decideLimits(0, remaining, remaining); len(reasons) != 0 {
+	if reasons := decideLimits(0, remaining, remaining, user); len(reasons) != 0 {
 		t.Errorf("a push to exactly the account's remaining quota should accept; got %v", reasons)
 	}
 
 	// One byte over the per-book cap → refuse, naming the book limit.
-	bookOver := decideLimits(maxBookBytes-1024, remaining, 1025)
+	bookOver := decideLimits(maxBookBytes-1024, remaining, 1025, user)
 	if len(bookOver) != 1 || !strings.Contains(bookOver[0], "per-book limit") {
 		t.Errorf("one byte over the per-book cap should refuse naming the book limit; got %v", bookOver)
 	}
 
-	// One byte over the account's remaining quota → refuse, naming the account.
-	acctOver := decideLimits(0, remaining, remaining+1)
-	if len(acctOver) != 1 || !strings.Contains(acctOver[0], "account") {
-		t.Errorf("one byte over the account quota should refuse naming the account; got %v", acctOver)
+	// One byte over the account's remaining quota → refuse, naming the account
+	// and the pushing user (DIRECTION §3.6 L346).
+	acctOver := decideLimits(0, remaining, remaining+1, user)
+	if len(acctOver) != 1 || !strings.Contains(acctOver[0], "account") || !strings.Contains(acctOver[0], user) {
+		t.Errorf("one byte over the account quota should refuse naming the account and the user; got %v", acctOver)
 	}
 
 	// Over both caps → both reasons.
-	both := decideLimits(maxBookBytes, 0, 1)
+	both := decideLimits(maxBookBytes, 0, 1, user)
 	if len(both) != 2 {
 		t.Errorf("a push over both caps should return both reasons; got %v", both)
 	}

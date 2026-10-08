@@ -206,9 +206,12 @@ export class IsoGit {
   // relays — where a server-side hook's refusal reason rides (the app's client
   // seeing the hook's words, service.git_http). A pre-receive refusal makes
   // git.push throw GitPushError, whose .data.result.refs[ref] reports the ref
-  // declined (band 1, the report-status).
-  push({ url, cookie, ref = 'main', onMessage } = {}) {
-    return git.push({ fs: this.fs, http: this.http, dir: this.dir, url, ref, headers: cookieHeaders(cookie), onMessage });
+  // declined (band 1, the report-status). `force` (default off) sends a
+  // non-fast-forward update to the server rather than refusing it locally — so
+  // the server-side pre-receive hook is what refuses it (hook.refs), mirroring
+  // GitCli.pushHTTP's force.
+  push({ url, cookie, ref = 'main', onMessage, force = false } = {}) {
+    return git.push({ fs: this.fs, http: this.http, dir: this.dir, url, ref, force, headers: cookieHeaders(cookie), onMessage });
   }
 }
 

@@ -43,7 +43,6 @@ package hook
 
 import (
 	"bytes"
-	"fmt"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -94,7 +93,9 @@ func hasMarkerLine(content []byte) bool {
 // line's text, or the mismatching README bytes (no song text in logs; DIRECTION
 // §3.3).
 func canonicalReason(path, detail string) string {
-	return fmt.Sprintf("refs/heads/main: %s %s; refused", path, detail)
+	// The fault is the pusher's path and the structural detail; refusal frames
+	// the shared "<subject>: <fault>; refused" grammar (hook.messages).
+	return refusal(MainRef, path+" "+detail)
 }
 
 // blobReason returns the refusal reason for one classified blob, or "" when it

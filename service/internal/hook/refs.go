@@ -65,11 +65,13 @@ func ParseUpdates(r io.Reader) ([]RefUpdate, error) {
 // one part that reads git.
 func CheckStructure(u RefUpdate) (reason string, needsAncestry bool) {
 	if u.Ref != MainRef {
-		// Any other branch, any refs/tags/*, any refs/notes/*, anything else.
-		return fmt.Sprintf("%s: only refs/heads/main may be updated — no other branch, tag, or note", u.Ref), false
+		// Any other branch, any refs/tags/*, any refs/notes/*, anything else. The
+		// offending ref is what failed, so it is the subject (hook.messages: the
+		// ref-name rule names the offending ref).
+		return refusal(u.Ref, "only refs/heads/main may be updated — no other branch, tag, or note"), false
 	}
 	if u.New == ZeroSHA {
-		return "refs/heads/main: deleting the branch is not allowed", false
+		return refusal(MainRef, "deleting the branch is not allowed"), false
 	}
 	if u.Old == ZeroSHA {
 		// The initial push that creates main — how a book comes online. No
@@ -127,7 +129,7 @@ func Refs(updates []RefUpdate, repoDir string) (reasons []string, err error) {
 			return nil, err
 		}
 		if !ancestor {
-			reasons = append(reasons, "refs/heads/main: non-fast-forward update (history rewrite) is not allowed")
+			reasons = append(reasons, refusal(MainRef, "non-fast-forward update (history rewrite) is not allowed"))
 		}
 	}
 	return reasons, nil
