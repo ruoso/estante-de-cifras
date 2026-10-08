@@ -35,23 +35,8 @@ func Canonical(model Model) (Model, error) {
 	return nil, ErrNotImplemented
 }
 
-// ParseSetlist reads a setlist's text into a model (spec §10.6). Stub; owned by
-// cifra_go.setlists.
-func ParseSetlist(src []byte) (Model, error) {
-	return nil, ErrNotImplemented
-}
-
-// WriteSetlist serialises a setlist model to its canonical text (spec §10.9).
-// Stub; owned by cifra_go.setlists.
-func WriteSetlist(model Model) ([]byte, error) {
-	return nil, ErrNotImplemented
-}
-
-// CanonicalSetlist returns the model of the canonical form of a setlist model.
-// Stub; owned by cifra_go.setlists.
-func CanonicalSetlist(model Model) (Model, error) {
-	return nil, ErrNotImplemented
-}
+// ParseSetlist, WriteSetlist and CanonicalSetlist are implemented in
+// setlist.go (spec §10), owned by cifra_go.setlists.
 
 // Merge merges three inputs of a song or a setlist (spec §11); a nil input is
 // an absent side. Stub; owned by cifra_go.merge.
