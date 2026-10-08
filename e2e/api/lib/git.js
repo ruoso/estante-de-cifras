@@ -162,6 +162,14 @@ export class IsoGit {
     return this;
   }
 
+  // Configure a named remote the way `clone` does — writing `remote.<name>.url`
+  // and the `+refs/heads/*:refs/remotes/<name>/*` fetch refspec — so a device
+  // that seeded a book with init+push (rather than cloning it) can still fetch:
+  // fetch needs that refspec to know where to land the remote-tracking ref.
+  addRemote(remote, url) {
+    return git.addRemote({ fs: this.fs, dir: this.dir, remote, url });
+  }
+
   async add(filepath) {
     await git.add({ fs: this.fs, dir: this.dir, filepath });
   }

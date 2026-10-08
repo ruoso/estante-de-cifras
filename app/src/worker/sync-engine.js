@@ -1,0 +1,458 @@
+// sync-engine.js — the device-side sync engine (sync.engine). The self-driving
+// loop that keeps the shelf in step with the service: on each pass it asks the
+// service which books moved (one change-check request), fetches only those,
+// merges incoming saves with the device's by the cifra-aware rules, makes the
+// hidden two-parent merge commit and pushes it without asking, and — when the
+// push loses a race — fetches, merges and pushes again, up to three times
+// (workflow 8; DIRECTION §3.1, §3.3). It pushes saves made offline the moment a
+// push can go through. The home book rides the same loop but through its own
+// key-by-key JSON merge (home-book.js). Everything runs inside the Worker, under
+// one Web Lock per book (DIRECTION §3.7; locks.js).
+//
+// This module is the CLEAN path and the loop that drives it. The branches each
+// have their own leaf and `depends !engine`: merging under unsaved edits
+// (sync.unsaved), the shelf states and *sync now* (sync.states), the conflict
+// screens (sync.conflicts), losing access (sync.lost_access), a song open while
+// it changes (sync.read_in_place). The engine emits the facts those render and
+// halts cleanly where they take over.
+//
+// COMPOSITION (locks.md Decision 1): a songbook's fetch→merge→push, including
+// its retries, runs inside ONE `withLock(bookId, …)` so a WRITE/SAVE and a sync
+// never interleave on the same book. The home book's sync takes its own lock
+// inside `home-book.js`, so the engine calls it OUTSIDE any lock (Web Locks are
+// non-reentrant).
+//
+// OFFLINE-FIRST (DIRECTION §1 L29-31; working-copy.js:171-180): a failed change
+// check, fetch or push never rolls back a commit and never surfaces an error to
+// the user. The book keeps its unpushed work and the engine retries next pass.
+//
+// The per-book git operations are injectable (the defaults compose the git
+// transport, isomorphic-git's local ops and the cifra merge driver) so the
+// retry policy is unit-testable with fakes and the behavior level drives the
+// real ones. No new dependency, no new IndexedDB store: sync status is held in
+// memory and emitted (Constraints). Logs nothing — no song text, no book id, no
+// head (standing rule). Framework-free, Worker-only ESM, no React.
+
+import {
+  merge as igMerge,
+  resolveRef,
+  isDescendent,
+  statusMatrix,
+  checkout,
+  getConfig,
+  log as gitLog,
+} from 'isomorphic-git';
+import { authorFrom } from './author.js';
+import { HOME_BOOK_ID } from './home-book.js';
+
+// A merge that does not merge cleanly (a cifra-aware conflict, or isomorphic-git
+// refusing an unsupported merge). The engine halts the book and emits
+// `needs_you`; sync.conflicts recomputes the Outcome when the user engages
+// (Decision 3). It is never surfaced to `console`.
+export class SyncConflictError extends Error {
+  constructor(bookId) {
+    super('sync: merge conflict');
+    this.name = 'SyncConflictError';
+    this.conflict = true;
+    this.bookId = bookId;
+  }
+}
+
+// A wall-clock reading as a §3 instant (UTC ISO-8601, literal `Z`), matching
+// home-book.js's `instant`.
+function instant(nowMs) {
+  return new Date(nowMs).toISOString();
+}
+
+// A push error that means someone else pushed first (a lost race): retry
+// (workflow 8 L59-62). isomorphic-git signals it pre-flight as PushRejectedError
+// or from the server's report-status as GitPushError. Anything else — a thrown
+// `fetch` (offline), a surprise — is NOT a race: the engine stops and leaves the
+// work waiting.
+function isLostRace(err) {
+  return err?.code === 'PushRejectedError' || err?.code === 'GitPushError';
+}
+
+// A merge that could not be auto-resolved. isomorphic-git throws
+// MergeConflictError for an unresolved file and MergeNotSupportedError for a
+// shape it cannot merge (e.g. criss-cross history); both halt the book here.
+function isMergeConflict(err) {
+  return (
+    err instanceof SyncConflictError ||
+    err?.conflict === true ||
+    err?.code === 'MergeConflictError' ||
+    err?.code === 'MergeNotSupportedError'
+  );
+}
+
+/**
+ * Build the sync engine. Required collaborators: `fs`/`git`/`locks` (the shared
+ * Worker primitives), `changeCheck` (change-check-client), `mergeDriver` (the
+ * cifra merge driver), `homeBook` (its own sync), `resolveAuthor` (the device
+ * commit identity) and `emit` (posts a per-book SYNC fact). `surfaceHome`
+ * re-surfaces the home-book-derived slices after a home sync (the SYNC_HOME
+ * path). The per-book git ops (`fetchBook`/`pushBook`/`mergeBook`/`localAhead`/
+ * `treeDirty`/`listBooks`/`syncHome`) default to real implementations and are
+ * injectable for tests. `now` is injected for a pinned timestamp; `maxRetries`
+ * is the lost-race retry budget (three — workflow 8 L59-62).
+ *
+ * @returns {{ pass: () => Promise<void> }}
+ */
+export function createSyncEngine(deps = {}) {
+  const {
+    fs,
+    git,
+    locks,
+    changeCheck,
+    mergeDriver,
+    homeBook,
+    resolveAuthor,
+    emit,
+    surfaceHome = null,
+  } = deps;
+  const now = deps.now ?? Date.now;
+  const homeBookId = deps.homeBookId ?? HOME_BOOK_ID;
+  const maxRetries = deps.maxRetries ?? 3;
+
+  const bookDir = (bookId) => git.bookDir(bookId);
+
+  async function headOf(bookId) {
+    try {
+      return await resolveRef({ fs, dir: bookDir(bookId), ref: 'main' });
+    } catch {
+      return null; // no commit yet (an empty book)
+    }
+  }
+
+  async function originHeadOf(bookId) {
+    try {
+      return await resolveRef({ fs, dir: bookDir(bookId), ref: 'refs/remotes/origin/main' });
+    } catch {
+      return null; // never fetched/pushed yet
+    }
+  }
+
+  // Local `main` has commits the origin does not (the offline-save retry needs
+  // this, with no network — a local ref comparison, Decision 4). True when there
+  // is nothing tracked yet but there are local commits, so a first push is
+  // attempted; false when the trees are equal or the local branch is behind.
+  async function defaultLocalAhead(bookId) {
+    const dir = bookDir(bookId);
+    const local = await headOf(bookId);
+    if (!local) return false;
+    const origin = await originHeadOf(bookId);
+    if (!origin) return true;
+    if (origin === local) return false;
+    return isDescendent({ fs, dir, oid: local, ancestor: origin, depth: -1 });
+  }
+
+  // How many local commits are not yet on the origin — the "N saves waiting"
+  // count the shelf shows (workflow 8 L31). A best-effort first-parent-ish walk
+  // bounded to a sane depth; the exact derivation is sync.states'.
+  async function defaultCountAhead(bookId) {
+    const dir = bookDir(bookId);
+    const origin = await originHeadOf(bookId);
+    let entries;
+    try {
+      entries = await gitLog({ fs, dir, ref: 'main', depth: 64 });
+    } catch {
+      return 0;
+    }
+    let n = 0;
+    for (const entry of entries) {
+      if (entry.oid === origin) break;
+      n += 1;
+    }
+    return n;
+  }
+
+  // The working tree carries changes HEAD does not (an in-progress edit). The
+  // dirty-tree guard defers the incoming merge over it (acceptance 8; Decision
+  // "Dirty-tree guard"). statusMatrix rows are [filepath, HEAD, WORKDIR, STAGE];
+  // a clean file is [1,1,1] (committed, present, unmodified) or absent [0,0,0].
+  async function defaultTreeDirty(bookId) {
+    const dir = bookDir(bookId);
+    const rows = await statusMatrix({ fs, dir });
+    return rows.some(
+      ([, head, workdir, stage]) =>
+        !(head === 1 && workdir === 1 && stage === 1) && !(head === 0 && workdir === 0),
+    );
+  }
+
+  // Fetch the origin into the book's remote-tracking ref. The url is not passed:
+  // the clone wrote `remote.origin.url` into the config and fetch reads it.
+  const fetchBook = deps.fetchBook ?? ((bookId) => git.fetch({ dir: bookDir(bookId) }));
+  // Send local `main` to the origin, fast-forward only (git.js never forces).
+  const pushBook = deps.pushBook ?? ((bookId) => git.push({ dir: bookDir(bookId) }));
+  const localAhead = deps.localAhead ?? defaultLocalAhead;
+  const treeDirty = deps.treeDirty ?? defaultTreeDirty;
+
+  // Merge the fetched origin into local `main` by the cifra-aware rules, make
+  // the hidden two-parent merge commit (or fast-forward), and bring the working
+  // copy to the merged head (workflow 8 L42-45; DIRECTION §3.1). Delegates per
+  // file to cifra.md `merge` through the merge driver; `abortOnConflict` leaves
+  // HEAD at ours on a conflict, which surfaces as SyncConflictError.
+  async function defaultMergeBook(bookId, author) {
+    const dir = bookDir(bookId);
+    const local = await headOf(bookId);
+    const origin = await originHeadOf(bookId);
+    // Nothing fetched, or we already contain the origin: no merge to make.
+    if (!origin || origin === local) return { merged: false };
+    if (local && (await isDescendent({ fs, dir, oid: local, ancestor: origin, depth: -1 }))) {
+      return { merged: false };
+    }
+    const identity = authorFrom(author, now());
+    let result;
+    try {
+      result = await igMerge({
+        fs,
+        dir,
+        ours: 'main',
+        theirs: 'refs/remotes/origin/main',
+        author: identity,
+        committer: identity,
+        abortOnConflict: true,
+        mergeDriver,
+        // Content-free: history does not list the merge (workflow 6), and the
+        // message never names a song (standing rule).
+        message: 'Merge',
+        fastForward: true,
+      });
+    } catch (err) {
+      if (isMergeConflict(err)) throw new SyncConflictError(bookId);
+      throw err;
+    }
+    // isomorphic-git updates `main` and the index but not the working tree on the
+    // clean path; bring the working copy to the new head so the editor and the
+    // index read the merged bytes. Safe: the engine merges only a clean tree (the
+    // dirty-tree guard defers otherwise), so force overwrites nothing unsaved.
+    await checkout({ fs, dir, ref: 'main', force: true });
+    return { merged: !!result.mergeCommit, fastForward: !!result.fastForward };
+  }
+
+  const mergeBook = deps.mergeBook ?? defaultMergeBook;
+  const countAhead = deps.countAhead ?? defaultCountAhead;
+  const syncHome =
+    deps.syncHome ?? ((author) => homeBook.sync({ bookId: homeBookId, author }));
+
+  // Every hosted book on the device with its local head (null when empty). A
+  // local-only book (no `remote.origin.url`) is never synced — offline-first, no
+  // book without an account (Constraints). The home book is flagged so the pass
+  // routes it to its own merge.
+  async function defaultListBooks() {
+    let ids;
+    try {
+      ids = await fs.promises.readdir('/books');
+    } catch (err) {
+      if (err?.code === 'ENOENT') return [];
+      throw err;
+    }
+    const out = [];
+    for (const bookId of ids) {
+      let url = null;
+      try {
+        url = await getConfig({ fs, dir: bookDir(bookId), path: 'remote.origin.url' });
+      } catch {
+        url = null;
+      }
+      if (!url) continue;
+      out.push({
+        bookId,
+        head: await headOf(bookId),
+        hosted: true,
+        home: bookId === homeBookId,
+      });
+    }
+    return out;
+  }
+
+  const listBooks = deps.listBooks ?? defaultListBooks;
+
+  function emitFact(bookId, phase, extra = {}) {
+    emit({ bookId, phase, at: instant(now()), ...extra });
+  }
+
+  // Push local-ahead work, retrying a lost race fetch→merge→push up to
+  // `maxRetries` times, then leaving the book `syncing` for the next pass
+  // (acceptance 4; workflow 8 L59-62; DIRECTION §3.3:203). Runs inside the book
+  // lock the caller holds. A conflict surfacing on a retry halts the book.
+  async function pushWithRetry(bookId, author, deferred) {
+    // A book whose incoming merge was deferred (the dirty-tree guard) is never
+    // "in step" even once its committed work goes up — an unmerged change still
+    // waits on the edit (sync.unsaved). It reads as `syncing` until a later pass
+    // can merge (acceptance 8).
+    const settle = () =>
+      deferred
+        ? emitFact(bookId, 'syncing', { savesWaiting: 0 })
+        : emitFact(bookId, 'in_step');
+
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      if (attempt > 0) {
+        // A lost race: bring in the winner and merge again before pushing.
+        try {
+          await fetchBook(bookId);
+        } catch {
+          emitFact(bookId, 'saves_waiting', { savesWaiting: await countAhead(bookId) });
+          return;
+        }
+        if (!(await treeDirty(bookId))) {
+          try {
+            await mergeBook(bookId, author);
+          } catch (err) {
+            if (isMergeConflict(err)) {
+              emitFact(bookId, 'needs_you');
+              return;
+            }
+            throw err;
+          }
+        } else {
+          deferred = true; // still dirty on a retry: the merge stays deferred
+        }
+      }
+      if (!(await localAhead(bookId))) {
+        // Nothing (more) to push — a fast-forward merge left us level, or there
+        // was no local-ahead work.
+        settle();
+        return;
+      }
+      try {
+        await pushBook(bookId);
+        settle();
+        return;
+      } catch (err) {
+        if (isLostRace(err)) continue;
+        // Offline, or the service unreachable: the local commits wait (workflow
+        // 8 L31). The commit is kept; next pass retries.
+        emitFact(bookId, 'saves_waiting', { savesWaiting: await countAhead(bookId) });
+        return;
+      }
+    }
+    // The race outlasted the retries: leave it syncing for the next pass.
+    emitFact(bookId, 'syncing', { savesWaiting: await countAhead(bookId) });
+  }
+
+  async function syncSongbook(book, news, reachable) {
+    const { bookId } = book;
+    const change = news?.get(bookId);
+    if (change?.status === 'gone') {
+      // Losing access: the book stops syncing (workflow 8 L65-69); the fork /
+      // download offer is sync.lost_access.
+      emitFact(bookId, 'gone');
+      return;
+    }
+    const changed = change?.status === 'changed';
+    const ahead = await localAhead(bookId);
+    if (!changed && !ahead) {
+      // Nothing moved and nothing waiting. If we reached the service it is in
+      // step; if we did not, it is simply offline this pass.
+      emitFact(bookId, reachable ? 'in_step' : 'offline');
+      return;
+    }
+
+    emitFact(bookId, 'syncing');
+    const author = await resolveAuthor();
+
+    await locks.withLock(bookId, async () => {
+      let deferred = false;
+      if (changed) {
+        let fetched = false;
+        try {
+          await fetchBook(bookId);
+          fetched = true;
+        } catch {
+          fetched = false; // offline; fall through to the best-effort push
+        }
+        if (fetched) {
+          // The dirty-tree guard: never check a merged tree over an unsaved edit
+          // (acceptance 8; DIRECTION §3.1). The committed work still pushes
+          // below; the base/theirs/working-text merge is sync.unsaved.
+          if (await treeDirty(bookId)) {
+            deferred = true;
+          } else {
+            try {
+              await mergeBook(bookId, author);
+            } catch (err) {
+              if (isMergeConflict(err)) {
+                emitFact(bookId, 'needs_you');
+                return;
+              }
+              throw err;
+            }
+          }
+        }
+      }
+      await pushWithRetry(bookId, author, deferred);
+    });
+  }
+
+  async function syncHomeBook(book, news, reachable) {
+    const { bookId } = book;
+    const change = news?.get(bookId);
+    if (change?.status === 'gone') {
+      emitFact(bookId, 'gone');
+      return;
+    }
+    const changed = change?.status === 'changed';
+    const ahead = await localAhead(bookId);
+    // Gate the home sync: run it only when it moved or has local-ahead work, so
+    // a pass makes no redundant home fetch when nothing is pending (Decision 4).
+    if (!changed && !ahead) {
+      emitFact(bookId, reachable ? 'in_step' : 'offline');
+      return;
+    }
+    emitFact(bookId, 'syncing');
+    const author = await resolveAuthor();
+    // home-book.js `sync` runs fetch → key-by-key JSON merge → commit → push
+    // under its own lock, offline-tolerant; the home book never reaches a
+    // conflict (workflow 8 L72-76; DIRECTION §3.2).
+    const { pushed } = await syncHome(author);
+    // Re-surface the home-book-derived slices after its own merge (the SYNC_HOME
+    // path re-emits PREFERENCES / SHELF / INSTRUMENTS).
+    if (surfaceHome) await surfaceHome();
+    if (pushed || !(await localAhead(bookId))) {
+      emitFact(bookId, 'in_step');
+    } else {
+      emitFact(bookId, 'saves_waiting', { savesWaiting: await countAhead(bookId) });
+    }
+  }
+
+  /**
+   * Run one sync pass: one change-check for every hosted book, then per book —
+   * the home book to its own merge, a songbook to the cifra-aware fetch→merge→
+   * push. A book's failure never stops the pass or surfaces to the user.
+   */
+  async function pass() {
+    let books;
+    try {
+      books = await listBooks();
+    } catch {
+      return; // cannot even enumerate (a storage fault); nothing to do this pass
+    }
+    if (!books.length) return;
+
+    // One change-check for the whole shelf (workflow 8 L21-24). Offline-first: a
+    // failure is "no news" — the engine still pushes local-ahead books, which
+    // needs no network answer (Decision 4).
+    let news = null;
+    try {
+      news = await changeCheck.check(
+        books.map(({ bookId, head }) => ({ bookId, head })),
+      );
+    } catch {
+      news = null;
+    }
+    const reachable = news !== null;
+
+    for (const book of books) {
+      try {
+        if (book.home) await syncHomeBook(book, news, reachable);
+        else await syncSongbook(book, news, reachable);
+      } catch {
+        // Offline-first: one book's failure is swallowed; its work is kept and
+        // the next pass retries. Never logged, never surfaced.
+      }
+    }
+  }
+
+  return { pass };
+}

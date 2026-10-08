@@ -122,6 +122,15 @@ export const initialState = {
   // untouched by every other event, so only the instrument surface re-renders.
   // Starts empty: the chip shows the standard guitar until OPEN surfaces it.
   instruments: { instruments: [], inUseId: null, standard: null },
+  // The per-book sync state (sync.engine, SYNC), keyed by `bookId`: `{ phase,
+  // savesWaiting, lastInStep, at }`. `phase` is carried as a word (never colour
+  // alone) — 'syncing' | 'in_step' | 'saves_waiting' | 'offline' | 'needs_you' |
+  // 'gone' (workflow 8 §What the shelf says). The engine is the single source of
+  // sync truth; the shelf (sync.states) renders this slice. A book an event does
+  // not touch keeps its exact entry reference, so a view watching one book does
+  // not re-render on another's pass ("only what shows it moves"). Starts empty:
+  // nothing synced yet.
+  sync: {},
 };
 
 // Fold one message into the state. Only event-direction messages change
@@ -435,6 +444,28 @@ export function reduce(state, message) {
         ...state,
         instruments: message.payload ?? { instruments: [], inUseId: null, standard: null },
       };
+
+    case EventKind.SYNC: {
+      // A book's sync state moved (sync.engine): set it under the book's key.
+      // Only this book's entry moves; the rest of `sync` keeps its references,
+      // so a view watching one book does not re-render on another's pass. The
+      // engine carries the whole fact each time (whole-entry replace), so a
+      // field it omits resets rather than lingering from a previous phase.
+      const bookId = message.payload?.bookId;
+      if (!bookId) return state;
+      return {
+        ...state,
+        sync: {
+          ...state.sync,
+          [bookId]: {
+            phase: message.payload?.phase ?? null,
+            savesWaiting: message.payload?.savesWaiting ?? 0,
+            lastInStep: message.payload?.lastInStep ?? null,
+            at: message.payload?.at ?? null,
+          },
+        },
+      };
+    }
 
     default:
       return state;

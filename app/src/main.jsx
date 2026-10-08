@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App.jsx';
 import { updateStore } from './pwa/update-state.js';
+import { getAppStore } from './worker/store.js';
+import { createSyncTriggers } from './sync-triggers.js';
 
 // Register the generated service worker as a load-time side effect. VitePWA
 // runs with `injectRegister: null` (app/vite.config.js), so nothing registers
@@ -24,6 +26,14 @@ const updateSW = registerSW({
     updateStore.onNeedRefresh(updateSW);
   },
 });
+
+// Forward the two DOM-only sync triggers (foreground, network back) to the
+// Worker's scheduler through the one app store (sync.engine). Wired at the entry
+// — the production-only line the jsdom tests never reach (like the real Worker
+// in store.js) — so the singleton store the view also uses carries them. The
+// Worker sees the other three triggers (open, after-save, the five-minute timer)
+// itself.
+createSyncTriggers(getAppStore());
 
 // The view is the only layer that knows React (DIRECTION §3.7): the entry
 // mounts the app and nothing more.

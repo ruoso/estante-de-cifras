@@ -29,6 +29,10 @@ import { createSavePreview } from './save-preview.js';
 import { createHistory } from './history.js';
 import { createBookTree } from './book-tree.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
+import { createChangeCheckClient } from './change-check-client.js';
+import { createCifraMergeDriver } from './cifra-merge-driver.js';
+import { createSyncEngine } from './sync-engine.js';
+import { createSyncScheduler } from './sync-scheduler.js';
 import { createBooks } from './books.js';
 import { createExampleBook } from './example-book.js';
 import { createMySongs, MY_SONGS_ID } from './my-songs.js';
@@ -263,8 +267,11 @@ function mergeIndexChanges(into, from) {
 // today, when only one real step exists; `options.navigator` injects the object
 // `navigator.storage.persist()` is asked through AND the one the per-book Web
 // Locks are taken on (defaults to the global one); `options.fetch` injects the
-// `fetch` the git HTTP client rides (defaults to the global one), the seam
-// storage.git's behavior test uses. The version opened at is derived from
+// `fetch` the git HTTP client AND the change-check client ride (defaults to the
+// global one), the seam storage.git's and sync.engine's behavior tests use;
+// `options.setInterval`/`options.clearInterval` inject the sync scheduler's
+// five-minute timer (defaults to the globals) so a test drives the heartbeat
+// with a fake clock. The version opened at is derived from
 // whichever list is in effect. Returns `{ handle }`: the adapter (real or
 // loopback) feeds each incoming command to `handle`.
 export function createWorkerLogic(port, options = {}) {
@@ -297,6 +304,9 @@ export function createWorkerLogic(port, options = {}) {
   let searchIndex = null;
   let indexHydration = null;
   let recents = null;
+  let changeCheck = null;
+  let syncEngine = null;
+  let syncScheduler = null;
 
   function ensureOpen() {
     if (!dbPromise) dbPromise = openDatabase(idb, name, version, migrations);
@@ -472,6 +482,66 @@ export function createWorkerLogic(port, options = {}) {
     return recents;
   }
 
+  // The change-check HTTP client, composed once over the injected `fetch`
+  // (sync.engine) — the sibling of the git HTTP client, the Worker's second
+  // non-git network consumer. `options.fetch` is the same seam storage.git's
+  // behavior test drives.
+  function ensureChangeCheck() {
+    if (!changeCheck) changeCheck = createChangeCheckClient({ fetch: options.fetch });
+    return changeCheck;
+  }
+
+  // Compose the sync engine once over the SAME fs, git layer and lock registry
+  // as the working copy and the home book (sync.engine), plus the change-check
+  // client, the cifra merge driver and the home book. It emits per-book SYNC
+  // facts through the port and re-surfaces the home-book-derived slices after a
+  // home sync (the SYNC_HOME path). The commit identity is the device's
+  // (`resolveSyncAuthor`).
+  function ensureSyncEngine() {
+    if (!syncEngine) {
+      syncEngine = createSyncEngine({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+        changeCheck: ensureChangeCheck(),
+        mergeDriver: createCifraMergeDriver(),
+        homeBook: ensureHomeBook(),
+        resolveAuthor: resolveSyncAuthor,
+        surfaceHome: surfaceHomeBook,
+        emit: (payload) => port.postMessage(event(EventKind.SYNC, payload)),
+      });
+    }
+    return syncEngine;
+  }
+
+  // Compose the scheduler once (sync.engine): it coalesces the five triggers
+  // into non-overlapping passes and runs the five-minute heartbeat. The timer
+  // functions are injectable (`options.setInterval`/`options.clearInterval`,
+  // defaulting to the globals) so a test drives the heartbeat with a fake clock.
+  function ensureSyncScheduler() {
+    if (!syncScheduler) {
+      syncScheduler = createSyncScheduler({
+        run: () => ensureSyncEngine().pass(),
+        setInterval: options.setInterval,
+        clearInterval: options.clearInterval,
+      });
+    }
+    return syncScheduler;
+  }
+
+  // The device commit identity the sync engine authors merge commits and home
+  // syncs with (sync.engine): the §2.3 device id as the address id, and the
+  // display name the home book keeps (authorName register, home-book-format
+  // §4.1), falling back to a neutral word before the user gives one. Read
+  // locally, offline-first; it never surfaces the name to a log (standing rule).
+  async function resolveSyncAuthor() {
+    const home = ensureHomeBook();
+    const deviceId = await home.ensureDeviceId({ idb, name, version });
+    const prefs = await home.read({ bookId: HOME_BOOK_ID, file: 'preferences.json' });
+    const displayName = prefs?.authorName?.value ?? 'Me';
+    return { id: deviceId, name: displayName };
+  }
+
   // Rebuild the in-memory index from its persisted records, once per session
   // (memoised like the database open). Every index operation awaits this first,
   // so a WRITE or SEARCH that arrives before OPEN still sees a hydrated index,
@@ -607,6 +677,18 @@ export function createWorkerLogic(port, options = {}) {
     );
   }
 
+  // Re-surface every home-book-derived slice after a home-book sync (the
+  // SYNC_HOME path): preferences, the shelf and the instrument roster, in the
+  // same order OPEN surfaces them. The sync engine calls this after routing the
+  // home book to home-book.js `sync`, so a register the merge changed reaches
+  // its slice (storage.preferences_surface / shelf_surface / music.instruments;
+  // "re-emitted when sync changes a register").
+  async function surfaceHomeBook() {
+    await surfaceHomeBookPreferences();
+    await surfaceHomeBookShelf();
+    await surfaceHomeBookInstruments();
+  }
+
   // SONG event — a song's reading state projected from the home book's
   // songs.json (songs.reading, Decision 2): the signed transposition offset and
   // the per-tuning variations-in-use map, keyed by the §2.3 ref. A read before
@@ -676,6 +758,12 @@ export function createWorkerLogic(port, options = {}) {
     // the shell is up first; the search screen shows "still loading" per book
     // until its `ready` arrives.
     await buildIndexes();
+    // Start the sync engine's five-minute heartbeat and run a first pass now
+    // (workflow 8 §When it runs — on app open). Fire-and-forget: nothing the
+    // user does waits on sync (DIRECTION §1), so the pass runs after OPEN
+    // returns and the scheduler coalesces it with any trigger that follows.
+    ensureSyncScheduler().start();
+    ensureSyncScheduler().trigger();
   }
 
   return {
@@ -748,6 +836,11 @@ export function createWorkerLogic(port, options = {}) {
                 );
               }
               await persistIndexChanges(changes);
+              // After a save, run a sync pass so the push the save left
+              // best-effort (working-copy.js Decision 8) goes up as soon as a
+              // push can — the after-save trigger (workflow 8 L18). Coalesced
+              // and fire-and-forget: the save's reply already went out.
+              ensureSyncScheduler().trigger();
             }
             break;
           }
@@ -966,6 +1059,18 @@ export function createWorkerLogic(port, options = {}) {
             const db = await ensureOpen();
             const list = await ensureRecents().record(db, { bookId, path });
             port.postMessage(event(EventKind.RECENTS, { recents: list }));
+            break;
+          }
+          case CommandKind.SYNC: {
+            // Run a sync pass (workflow 8 §When it runs). The payload carries a
+            // `reason` for observability only; the action is identical. The
+            // Worker's scheduler coalesces this with the open / after-save /
+            // five-minute triggers into non-overlapping passes, so a flood of
+            // SYNC commands (a foreground flap, *sync now* mashed) collapses.
+            // Fire-and-forget: nothing the user does waits on sync (DIRECTION
+            // §1), so no event or reply rides this command — the engine emits
+            // per-book SYNC facts as the pass moves.
+            ensureSyncScheduler().trigger();
             break;
           }
           case CommandKind.SYNC_HOME: {

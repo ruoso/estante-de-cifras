@@ -35,6 +35,16 @@ export const CommandKind = Object.freeze({
   // register a sync changed reaches the slice. The sync engine drives this on
   // its schedule; it is the testable trigger for the re-emit.
   SYNC_HOME: 'sync_home',
+  // Run one sync pass (sync.engine, workflow 8 §When it runs). Payload
+  // `{ reason }` names why it fired — 'open' | 'foreground' | 'online' |
+  // 'after-save' | 'timer' | 'sync-now' — carried for observability only; the
+  // action is identical (Decision 2). The Worker's scheduler coalesces the five
+  // triggers into non-overlapping passes, so a flood of SYNC commands collapses.
+  // The two DOM-only triggers (foreground, network back) arrive as SYNC commands
+  // from the thin main-thread adapter (sync-triggers.js); open, after-save and
+  // the five-minute timer fire inside the Worker. *Sync now* (sync.states)
+  // reuses this command.
+  SYNC: 'sync',
   // The history reads (storage.history), each a local, offline read under the
   // book lock: SONG_LOG a song's versions (rename-followed, merges hidden unless
   // resolved), READ_VERSION a version's exact bytes, RESTORE_VERSION a version
@@ -304,6 +314,20 @@ export const EventKind = Object.freeze({
   // instruments.json/shapes.json is this task's (home-book §1.2, §4.3, §4.4); the
   // producer that reads the home book and projects it is `instruments.js`.
   INSTRUMENTS: 'instruments',
+  // A per-book sync fact (sync.engine, workflow 8 §What the shelf says): the
+  // single source of sync truth is the Worker, which emits a book's state as it
+  // moves through a pass; the shelf renders it (sync.states) — the engine ships
+  // facts, not presentation (Decision 5). `{ bookId, phase, savesWaiting?,
+  // lastInStep?, at }` where `phase` is a word (never colour alone): 'syncing'
+  // (a pass is in flight, or a lost race outlasted its retries), 'in_step'
+  // (nothing to do, or the push landed), 'saves_waiting' (local commits could
+  // not go up — offline or the service unreachable), 'offline' (the change
+  // check / fetch could not reach the service), 'needs_you' (a merge conflict —
+  // the book halts for sync.conflicts) or 'gone' (the caller is no longer a
+  // member — sync.lost_access). `savesWaiting` counts the local-ahead commits
+  // for the "N saves waiting" word; `lastInStep` is the instant the book was
+  // last in step. A book an event does not touch keeps its slice reference.
+  SYNC: 'sync',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any
