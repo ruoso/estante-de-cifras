@@ -723,6 +723,38 @@ func WriteSetlist(model Model) ([]byte, error) {
 	return []byte(strings.Join(joined, "\n\n") + "\n"), nil
 }
 
+// isCanonicalSetlist answers §9.1 for a setlist, mirroring isCanonical (the
+// song predicate in write.go): a non-UTF-8 text is not a document, a text
+// holding a marker line is never canonical, otherwise it is canonical when
+// WriteSetlist(ParseSetlist(text)) gives it back byte for byte.
+func isCanonicalSetlist(text []byte) bool {
+	lines, err := prepare(text)
+	if err != nil {
+		return false
+	}
+	for _, ln := range lines {
+		if isMarkerLine(ln) {
+			return false
+		}
+	}
+	model, err := ParseSetlist(text)
+	if err != nil {
+		return false
+	}
+	out, err := WriteSetlist(model)
+	if err != nil {
+		return false
+	}
+	return string(out) == string(text)
+}
+
+// IsCanonicalSetlist reports whether a setlist document's bytes are in canonical
+// form (§9.1), the setlist counterpart of the song IsCanonical. The hook uses
+// it, through the form layer (versions.go), to decide a push.
+func IsCanonicalSetlist(text []byte) bool {
+	return isCanonicalSetlist(text)
+}
+
 // CanonicalSetlist returns the model of the canonical form of a setlist model
 // (spec §10.9), defined as read-after-write so there is no second code path to
 // keep in step with the writer: write the model to canonical text and read it
