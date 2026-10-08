@@ -29,6 +29,7 @@ import {
   clone as gitClone,
   fetch as gitFetch,
   push as gitPush,
+  addRemote as gitAddRemote,
 } from 'isomorphic-git';
 
 /**
@@ -40,6 +41,7 @@ import {
  *   clone: (opts: { dir: string, url: string, onProgress?: Function }) => Promise<any>,
  *   fetch: (opts: { dir: string, url: string, onProgress?: Function }) => Promise<any>,
  *   push: (opts: { dir: string, url: string, onProgress?: Function }) => Promise<any>,
+ *   setRemote: (opts: { dir: string, url: string }) => Promise<void>,
  *   bookDir: (bookId: string) => string,
  * }}
  */
@@ -104,5 +106,20 @@ export function createGitLayer({ fs, http } = {}) {
     return gitPush({ ...fixed, dir, url, onProgress });
   }
 
-  return { init, clone, fetch, push, bookDir };
+  /**
+   * Point a device-only book at the one origin: write `remote.origin.url` (and
+   * the `origin` fetch refspec) so `fetch`/`push` — which read the url from
+   * config, not from a per-call argument — reach the service. This is the
+   * device-side half of "put online" (books.online, workflow 7 L46-52): the
+   * service creates the empty bare repo, the app sets this remote and pushes the
+   * first commit. `force` is set so re-pointing a remote (an idempotent retry)
+   * does not throw on an already-present `origin`. No network: it only writes
+   * config.
+   * @param {{ dir: string, url: string }} opts
+   */
+  function setRemote({ dir, url }) {
+    return gitAddRemote({ fs, dir, remote: 'origin', url, force: true });
+  }
+
+  return { init, clone, fetch, push, setRemote, bookDir };
 }

@@ -54,6 +54,41 @@ export default {
     noLongerShared: 'ya no se comparte contigo',
     syncNow: 'Sincronizar ahora',
     notInStep: 'Algunos libros no están al día',
+    // El detalle de cada libro (books.online, workflow 7 L46-63, L128-137; W07).
+    detailBack: 'Volver a los libros',
+    pickBook: 'Elige un libro para ver sus detalles.',
+    private: 'privado',
+    youOwn: 'Es tuyo',
+    youCanSave: 'Puedes guardar',
+    readOnly: 'Solo lectura',
+    putOnline: 'Poner en línea',
+    putOnlineBody:
+      'Solo en este dispositivo. Ponerlo en línea crea el libro en Estante, privado: solo tú puedes abrirlo, hasta que invites a otras personas, como máximo 50.',
+    putOnlineQuota: 'Tu cuenta está llena. Quita un libro o libera espacio y vuelve a intentarlo.',
+    putOnlineSignedOut: 'Inicia sesión para poner un libro en línea.',
+    putOnlineOffline: 'Estás sin conexión. Conéctate y ponlo en línea.',
+    putOnlineError: 'No se pudo poner en línea. Vuelve a intentarlo.',
+    download: 'Descargar',
+    downloadBody:
+      'Un zip del repositorio tal como está en este dispositivo: todo el historial y los cambios sin guardar como archivos modificados. Cualquier herramienta git lo abre.',
+    remove: 'Quitar de mi estante',
+    removeBody: 'Borra solo la copia de este dispositivo. El libro sigue en Estante.',
+    removeTitle: '¿Quitar “{name}” de este dispositivo?',
+    removeLoss: {
+      one: 'Este dispositivo tiene {count} cambio aún no enviado a Estante; quitar esta copia lo pierde. El libro sigue en Estante.',
+      other:
+        'Este dispositivo tiene {count} cambios aún no enviados a Estante; quitar esta copia los pierde. El libro sigue en Estante.',
+    },
+    removeGone:
+      'Este libro solo está en este dispositivo. Quitarlo lo borra para siempre — no hay copia en Estante. Descárgalo primero para conservar una copia.',
+    removeConfirm: 'Quitar de mi estante',
+    delete: 'Eliminar el libro',
+    deleteBody: 'Lo elimina de Estante, para todos. Solo su dueño puede.',
+    deleteTitle: '¿Eliminar {name} de Estante?',
+    deleteModalBody:
+      'Esto elimina el libro, con todo su historial, para todos los que lo comparten. No se puede deshacer.',
+    deleteField: 'Escribe el nombre del libro para confirmar',
+    deleteConfirm: 'Eliminar el libro',
   },
 
   search: {

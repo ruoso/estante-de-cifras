@@ -69,6 +69,22 @@ export function canSaveFor(kind, book) {
 // retired `syncStateFor` lived here (books.shelf Decision 5); its render-when-
 // present contract is now `syncDisplayFor`.
 
+// Whether a book's register map should still show a row. A book put online or
+// removed from the shelf has every one of its registers TOMBSTONED (an explicit
+// `null`, §5.3) by books.online, so it must not show: a migrated local book
+// would otherwise ghost beside its new hosted entry, and a removed book would
+// linger. The signal is "has registers, and every one is a tombstone/empty" —
+// a book with no registers yet (`{}`, a shared book surfaced before its label)
+// is NOT removed and keeps its row, and a label-less book with a live
+// `position` keeps its row. So the discriminator is a tombstone, never a merely
+// absent register.
+function isVisible(book) {
+  if (!book || typeof book !== 'object') return true;
+  const keys = Object.keys(book);
+  if (keys.length === 0) return true;
+  return keys.some((key) => registerValue(book[key]) !== undefined);
+}
+
 // Compare two book ids for a stable, deterministic order (ties on position).
 function byId(a, b) {
   if (a === b) return 0;
@@ -89,8 +105,12 @@ export function orderedBooks(shelf) {
   const entries = [];
   const books = shelf?.books ?? {};
   const local = shelf?.local ?? {};
-  for (const id of Object.keys(books)) entries.push({ id, book: books[id], kind: 'shared' });
-  for (const id of Object.keys(local)) entries.push({ id, book: local[id], kind: 'local' });
+  for (const id of Object.keys(books)) {
+    if (isVisible(books[id])) entries.push({ id, book: books[id], kind: 'shared' });
+  }
+  for (const id of Object.keys(local)) {
+    if (isVisible(local[id])) entries.push({ id, book: local[id], kind: 'local' });
+  }
   entries.sort((a, b) => {
     const pa = a.book?.position?.value;
     const pb = b.book?.position?.value;

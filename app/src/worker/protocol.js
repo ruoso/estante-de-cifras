@@ -80,6 +80,27 @@ export const CommandKind = Object.freeze({
   // repository (workflow 7 L16-18). Both commit locally, never push.
   CREATE_BOOK: 'create_book',
   RENAME_BOOK: 'rename_book',
+  // The four acts of the per-book detail (books.online, workflow 7 L46-63,
+  // L128-137), each going through the Worker because git and IndexedDB live
+  // there (DIRECTION §3.7). PUT_ONLINE `{ bookId, author }` creates the book on
+  // Estante (POST /api/books), adopts the service id as the on-device id
+  // (Decision 3), sets the git remote, pushes the first commit, and migrates the
+  // shelf register from `shelf.local` to `shelf.books`; it emits BOOK_ONLINE on
+  // success or BOOK_ONLINE_REFUSED (quota / signed-out / offline) when the
+  // service create fails — nothing is written on the device in that case
+  // (Decision 4). `bookId` is the current on-device id (the local id).
+  // DOWNLOAD_BOOK `{ bookId }` zips the repository as it is on the device
+  // (`.git` + working tree, unsaved included, remote stripped) and replies with
+  // BOOK_DOWNLOAD carrying the Blob; all local. REMOVE_BOOK `{ bookId, author }`
+  // deletes this device's clone and tombstones the shelf register, leaving the
+  // service book untouched; all local. DELETE_BOOK `{ bookId, author }` (owner
+  // only) deletes the book from Estante for everyone (DELETE /api/books/{id}),
+  // then removes the local clone and tombstones the shelf register. REMOVE_BOOK
+  // and DELETE_BOOK both reply with BOOK_REMOVED so the view closes the detail.
+  PUT_ONLINE: 'put_online',
+  DOWNLOAD_BOOK: 'download_book',
+  REMOVE_BOOK: 'remove_book',
+  DELETE_BOOK: 'delete_book',
   // Open the bundled example book (account.first_run, workflow 1 §Cold).
   // Payload `{ title, author }`: the localised shelf label (the view knows the
   // language) and the device-local commit identity. The Worker provisions a
@@ -260,6 +281,26 @@ export const EventKind = Object.freeze({
   // the title reaches the view through the shelf slice (standing no-logging /
   // no-labels rule).
   BOOK_CREATED: 'book_created',
+  // The per-book detail's act outcomes (books.online, workflow 7). BOOK_ONLINE
+  // `{ previousBookId, bookId }` reports a successful put-online: the book's
+  // on-device id changed from `previousBookId` (the local id) to `bookId` (the
+  // adopted service id, Decision 3), so the open detail re-selects the book and
+  // the SHELF re-surface that rides alongside shows it *On Estante · private*.
+  // BOOK_ONLINE_REFUSED `{ bookId, reason }` reports a failed put-online, the
+  // service create having been refused — `reason` is a word the view turns into
+  // copy (never colour alone): 'quota' (413), 'signed_out' (401), 'offline' (no
+  // network) or 'error'; nothing was written on the device (Decision 4).
+  // BOOK_DOWNLOAD `{ bookId, bytes }` carries the zip as a `Uint8Array` (bytes
+  // cross the Worker boundary cleanly) the main thread wraps in a Blob and saves
+  // as a file. BOOK_REMOVED `{ bookId }` reports that a remove or delete
+  // finished (the local clone is gone and the shelf register tombstoned), so the
+  // view closes the detail; the SHELF re-surface drops the row. These are
+  // transient command replies (like SAVED / NEW_SONG_READY), folded into
+  // ephemeral view state, not reducer slices.
+  BOOK_ONLINE: 'book_online',
+  BOOK_ONLINE_REFUSED: 'book_online_refused',
+  BOOK_DOWNLOAD: 'book_download',
+  BOOK_REMOVED: 'book_removed',
   // A song's working-copy text, in reply to OPEN_SOURCE (songs.editor,
   // Decision 4): `{ bookId, path, text }`. The editor loads it into its
   // CodeMirror buffer; the `source` slice keeps it per book and path.

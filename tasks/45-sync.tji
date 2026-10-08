@@ -46,7 +46,7 @@ task sync "Sync" {
   task upload "Upload a zip" {
     effort 4d
     allocate team
-    depends !engine, storage.download
+    depends !engine, books.online
     note "Read as a remote to pull from; the preview; edits never committed as a commit; no history; unrelated history; marked files left out; committed markers offer the latest version without history; history rewritten to canonical. Workflow 7. Tests: unit (reading a zip as a remote); behavior (each workflow-7 case against a local repository: no history, unrelated history, marked files left out, committed markers, history rewritten to canonical; edits never committed as a commit)."
   }
   task fork_follow "Following an original" {

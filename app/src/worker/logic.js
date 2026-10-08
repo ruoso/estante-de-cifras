@@ -30,6 +30,8 @@ import { createHistory } from './history.js';
 import { createBookTree } from './book-tree.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createChangeCheckClient } from './change-check-client.js';
+import { createBooksClient } from './books-client.js';
+import { createOnline } from './online.js';
 import { createCifraMergeDriver } from './cifra-merge-driver.js';
 import { createSyncEngine } from './sync-engine.js';
 import { createSyncScheduler } from './sync-scheduler.js';
@@ -305,6 +307,8 @@ export function createWorkerLogic(port, options = {}) {
   let indexHydration = null;
   let recents = null;
   let changeCheck = null;
+  let booksClient = null;
+  let online = null;
   let syncEngine = null;
   let syncScheduler = null;
 
@@ -489,6 +493,32 @@ export function createWorkerLogic(port, options = {}) {
   function ensureChangeCheck() {
     if (!changeCheck) changeCheck = createChangeCheckClient({ fetch: options.fetch });
     return changeCheck;
+  }
+
+  // The `/api/books` HTTP client, composed once over the injected `fetch`
+  // (books.online) — the app's first consumer of the service's book endpoints,
+  // a sibling of the change-check and git HTTP clients. The same `options.fetch`
+  // seam the other two ride, so a behavior test drives create/delete.
+  function ensureBooksClient() {
+    if (!booksClient) booksClient = createBooksClient({ fetch: options.fetch });
+    return booksClient;
+  }
+
+  // Compose the put-online / download / remove / delete mechanics once over the
+  // SAME fs, git layer and lock registry as the working copy and the home book
+  // (books.online), plus the `/api/books` client. The Worker owns git and
+  // IndexedDB; the view only sends PUT_ONLINE / DOWNLOAD_BOOK / REMOVE_BOOK /
+  // DELETE_BOOK and reacts to the reply (DIRECTION §3.7).
+  function ensureOnline() {
+    if (!online) {
+      online = createOnline({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+        booksClient: ensureBooksClient(),
+      });
+    }
+    return online;
   }
 
   // Compose the sync engine once over the SAME fs, git layer and lock registry
@@ -1209,6 +1239,143 @@ export function createWorkerLogic(port, options = {}) {
             // reads the new name — not the old one (workflow 7 L16-18;
             // DIRECTION §3 L108-110; Decision 2).
             await ensureFs().flush();
+            break;
+          }
+          case CommandKind.PUT_ONLINE: {
+            // Put a device-only book online (workflow 7 L46-52): create it on
+            // Estante (private), adopt the service id as the on-device id
+            // (Decision 3), set the remote, push the first commit, and migrate
+            // the shelf register from `shelf.local` to `shelf.books`. The
+            // service create is first; a dropped network after it does not lose
+            // the book (the sync engine retries the push — Decision 4). `bookId`
+            // is the current on-device id (the local id).
+            const { bookId: localId, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            const deviceId = await home.ensureDeviceId({ idb, name, version });
+            const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+            const localEntry = shelf?.local?.[deviceId]?.[localId];
+            // The former title becomes the hosted book's label; its place in the
+            // order is kept (a new position if it had none).
+            const title = localEntry?.title?.value ?? localId;
+            const position =
+              typeof localEntry?.position?.value === 'number'
+                ? localEntry.position.value
+                : nextShelfPosition(shelf, deviceId);
+            let result;
+            try {
+              result = await ensureOnline().putOnline({ localId, title });
+            } catch (err) {
+              // The service create was refused: nothing was written on the
+              // device (Decision 4). Word the reason for the view — a quota
+              // (413), a missing session (401), offline (no status) or other.
+              const reason =
+                err?.status === 413
+                  ? 'quota'
+                  : err?.status === 401
+                    ? 'signed_out'
+                    : err?.status
+                      ? 'error'
+                      : 'offline';
+              port.postMessage(event(EventKind.BOOK_ONLINE_REFUSED, { bookId: localId, reason }));
+              break;
+            }
+            const serviceId = result.bookId;
+            // Migrate the shelf register (Decision 3): tombstone the local entry
+            // (so its row drops, §5.3) and write the hosted entry — label = the
+            // former title, link = the clone URL (home-book-format §4.2),
+            // position kept, role owner.
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'shelf.json',
+              changes: [
+                { path: ['local', deviceId, localId, 'title'], value: null },
+                { path: ['local', deviceId, localId, 'position'], value: null },
+                { path: ['books', serviceId, 'label'], value: title },
+                { path: ['books', serviceId, 'link'], value: result.gitUrl },
+                { path: ['books', serviceId, 'position'], value: position },
+                { path: ['books', serviceId, 'role'], value: 'owner' },
+              ],
+              author,
+            });
+            await surfaceHomeBookShelf();
+            // Flush at the handler tail after both locks released (Decision 4):
+            // one global flush persists the relocated repo and the shelf
+            // migration, so an immediate reload finds the hosted book.
+            await ensureFs().flush();
+            port.postMessage(
+              event(EventKind.BOOK_ONLINE, { previousBookId: localId, bookId: serviceId }),
+            );
+            // A first-push that could not complete inline retries next pass
+            // (offline-save retry, Decision 4). Coalesced and fire-and-forget.
+            ensureSyncScheduler().trigger();
+            break;
+          }
+          case CommandKind.DOWNLOAD_BOOK: {
+            // Zip the repository as it is on the device (workflow 7 L55-63) and
+            // hand the Blob to the main thread, which saves it as a file. All
+            // local — no account, no network. The Blob carries no song text to a
+            // log (standing rule); it is the user's own repository.
+            const { bookId } = message.payload;
+            const { bytes } = await ensureOnline().download({ bookId });
+            port.postMessage(event(EventKind.BOOK_DOWNLOAD, { bookId, bytes }));
+            break;
+          }
+          case CommandKind.REMOVE_BOOK: {
+            // Remove this device's clone only (workflow 7 L128-135): delete the
+            // local repository and tombstone the shelf register so the row drops
+            // (§5.3). The service book (if any) is untouched — all local. A local
+            // book's `title`/`position` registers are tombstoned; a hosted book's
+            // `label`/`link`/`position`/`role`.
+            const { bookId, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            const deviceId = await home.ensureDeviceId({ idb, name, version });
+            const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+            const isLocal = Boolean(shelf?.local?.[deviceId]?.[bookId]);
+            await ensureOnline().remove({ bookId });
+            const changes = isLocal
+              ? [
+                  { path: ['local', deviceId, bookId, 'title'], value: null },
+                  { path: ['local', deviceId, bookId, 'position'], value: null },
+                ]
+              : [
+                  { path: ['books', bookId, 'label'], value: null },
+                  { path: ['books', bookId, 'link'], value: null },
+                  { path: ['books', bookId, 'position'], value: null },
+                  { path: ['books', bookId, 'role'], value: null },
+                ];
+            await home.set({ bookId: HOME_BOOK_ID, file: 'shelf.json', changes, author });
+            await surfaceHomeBookShelf();
+            await ensureFs().flush();
+            port.postMessage(event(EventKind.BOOK_REMOVED, { bookId }));
+            break;
+          }
+          case CommandKind.DELETE_BOOK: {
+            // Delete the book from Estante for everyone (owner only, workflow 7
+            // L136-137): DELETE /api/books/{id} first — a non-owner is refused by
+            // the service (403/404) and this throws before any local change (the
+            // ERROR event the catch posts) — then remove the local clone and
+            // tombstone the shelf register (a hosted book: label/link/position/
+            // role). The typed-name guard is the app's (service.books decision).
+            const { bookId, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            await ensureOnline().deleteBook({ bookId });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'shelf.json',
+              changes: [
+                { path: ['books', bookId, 'label'], value: null },
+                { path: ['books', bookId, 'link'], value: null },
+                { path: ['books', bookId, 'position'], value: null },
+                { path: ['books', bookId, 'role'], value: null },
+              ],
+              author,
+            });
+            await surfaceHomeBookShelf();
+            await ensureFs().flush();
+            port.postMessage(event(EventKind.BOOK_REMOVED, { bookId }));
             break;
           }
           case CommandKind.OPEN_SOURCE: {

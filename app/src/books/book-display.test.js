@@ -93,4 +93,21 @@ describe('book-display: orderedBooks (shelf order — home-book-format §4.2 `po
     expect(orderedBooks({})).toEqual([]);
     expect(orderedBooks({ books: {}, local: {} })).toEqual([]);
   });
+
+  it('drops a fully-tombstoned entry — a book put online or removed (books.online; §5.3)', () => {
+    // A removed local book (title + position tombstoned) and a book that was put
+    // online (its local entry tombstoned, a new hosted entry written) must not
+    // ghost; a truly empty entry and a label-less-but-positioned book stay.
+    const shelf = {
+      books: {
+        'srv-1': { label: reg('Now hosted'), position: reg(2), role: reg('owner') },
+        'b-empty': {},
+      },
+      local: {
+        'l-live': { title: reg('Still here'), position: reg(0) },
+        'l-gone': { title: reg(null), position: reg(null) },
+      },
+    };
+    expect(orderedBooks(shelf).map((e) => e.id)).toEqual(['l-live', 'srv-1', 'b-empty']);
+  });
 });

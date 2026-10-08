@@ -73,6 +73,22 @@ function seedBareRepo(root) {
   return bare;
 }
 
+// Create an EMPTY bare repository on `main` under `root` — no seeded commit,
+// the shape the service creates when a book is put online (books.online,
+// service.books: "the service creates only an empty bare repo; the app pushes
+// the first commit"). A put-online test pushes an unrelated-history first commit
+// here, which only a commit-less remote accepts as a fast-forward. Returns the
+// bare repo's on-disk path.
+function emptyBareRepo(root) {
+  const env = gitEnv(root);
+  const bare = path.join(root, 'repo.git');
+  execFileSync('git', ['init', '-q', '--bare', '-b', 'main', bare], { env });
+  execFileSync('git', ['-C', bare, 'config', 'http.receivepack', 'true'], {
+    env,
+  });
+  return bare;
+}
+
 // Serve one request through git-http-backend as a CGI process. We buffer the
 // CGI output (small for a test repo), split its headers from its body, and
 // relay them onto the HTTP response.
@@ -146,11 +162,14 @@ function serveRequest(req, res, projectRoot) {
 
 // Start the remote. Resolves to a handle with the clone `url`, the on-disk
 // paths, and an async `stop()` that closes the server and removes the temp
-// tree. `mountPath` is the path segment the repo is served at (default
-// `/repo.git`), matching the on-disk bare repo name.
-export async function startGitHttpRemote() {
+// tree. The repo is served at `/repo.git`, matching the on-disk bare repo name.
+// `options.seed` (default true) seeds one commit on `main`, the shape clone /
+// fetch / merge tests want; pass `{ seed: false }` for an EMPTY remote the way
+// the service creates a book, so a put-online test can push its first commit
+// (books.online).
+export async function startGitHttpRemote({ seed = true } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'estante-git-remote-'));
-  const bare = seedBareRepo(root);
+  const bare = seed ? seedBareRepo(root) : emptyBareRepo(root);
 
   const server = http.createServer((req, res) => serveRequest(req, res, root));
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

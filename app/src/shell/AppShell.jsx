@@ -136,7 +136,7 @@ function destinationTab(key, variant) {
 // Decision 1) — while `setlists` stays a labelled slot its own content task will
 // fill. RAC mounts only the selected panel, so exactly one level-1 heading (the
 // screen's own) is present at a time.
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, search) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, search, mode) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key}>
       {key === 'search' ? (
@@ -160,7 +160,7 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
           onExploreChord={search.onExploreChord}
         />
       ) : key === 'books' ? (
-        <BooksScreen store={store} onOpenBook={onOpenBook} />
+        <BooksScreen store={store} onOpenBook={onOpenBook} mode={mode} />
       ) : (
         <h1 className="t-h1">{t(`shell.${key}`)}</h1>
       )}
@@ -479,7 +479,7 @@ export default function AppShell({ store = getAppStore(), redeemToken = null }) 
             </div>
             <main className="pane main">
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, () => setSignIn({ intent: 'create' }), search)}
+                {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, () => setSignIn({ intent: 'create' }), search, mode)}
               </div>
             </main>
           </div>
@@ -499,7 +499,7 @@ export default function AppShell({ store = getAppStore(), redeemToken = null }) 
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className="scroll">
-              {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, () => setSignIn({ intent: 'create' }), search)}
+              {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, () => setSignIn({ intent: 'create' }), search, mode)}
             </main>
           </div>
         )}

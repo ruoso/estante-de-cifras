@@ -1,0 +1,45 @@
+/* book-detail.css — layout for the per-book detail (books.online, W07 board).
+   The visual vocabulary (.appbar, .scroll, .card, .chip, .btn, .field,
+   .actions, .scrim, .dialog) lives in theme.css; this file only lays those
+   pieces out and fills the pane. No colours of its own beyond theme tokens
+   (DIRECTION §3.7; mockups GUIDE.md). */
+
+/* The detail fills its pane (the wide `.pane.main`, or the narrow full screen):
+   a fixed app bar over a scrolling body of chips and act cards. */
+.book-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+/* The status chips row — words, never colour alone (W07 board line 205-209). */
+.book-detail .chips {
+  display: flex;
+  gap: calc(var(--u) * 1);
+  flex-wrap: wrap;
+}
+
+/* A put-online failure message — a quota, a missing session, offline. The word
+   carries the meaning; the tint is only a second signal (mockups README L26). */
+.book-detail .detail-error {
+  color: var(--conflict);
+}
+
+/* The book-management screen's wide master-detail: the shelf list on the side,
+   the selected book's detail in the main pane (Decision 2; W07 desktop frame).
+   The side pane scrolls its own list. */
+.books-split {
+  flex: 1;
+  min-height: 0;
+}
+
+.books-split > .pane.side > .scroll {
+  gap: calc(var(--u) * 2);
+}
+
+/* The main pane's empty hint before a book is picked. */
+.books-split .pane.main .detail-empty {
+  margin: auto;
+  color: var(--ink-2);
+}

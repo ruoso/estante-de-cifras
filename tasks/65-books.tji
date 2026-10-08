@@ -16,8 +16,15 @@ task books "Books" {
   task online "Put online, remove, delete" {
     effort 2d
     allocate team
+    complete 100
     depends !shelf, service.books, sync.engine
-    note "Put online private; remove from my shelf with what would be lost; delete the book (owner, type the name); download. Workflow 7. Tests: behavior (the confirmations: what would be lost, typing the name; axe); e2e-web (on the stack: put a book online, remove it from the shelf, delete it as owner, download it; axe)."
+    note "Put online private; remove from my shelf with what would be lost; delete the book (owner, type the name); download. Workflow 7. Tests: behavior (the confirmations: what would be lost, typing the name; axe); e2e-web (on the stack: put a book online, remove it from the shelf, delete it as owner, download it; axe). Refinement: tasks/refinements/books/online.md"
+  }
+  task online_reindex "Reindex on put-online and on remove/delete" {
+    effort 1d
+    allocate team
+    depends !online
+    note "When put-online adopts the service id, drop the localId docs/locations from the search index and re-index the serviceId dir; drop stale index entries for a removed or deleted book. App work, Worker only. Source of debt: tasks/refinements/books/online.md (books.online). Governing: DIRECTION §3.7; storage.index. Tests: behavior (put-online then search finds the book by serviceId, not localId; remove then search finds no entries for that book)."
   }
   task add_by_link "Add by invitation and mine on Estante" {
     effort 2d

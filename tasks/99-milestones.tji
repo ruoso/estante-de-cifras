@@ -29,7 +29,7 @@ task milestones "Milestones" {
 
   task m3_service "M3: Estante online" {
     milestone
-    depends milestones.m2_local, hook.messages, hook.home_book, account.sign_in, books.online, sync.states, sync.states_e2e_hosted, sync.read_in_place, sync.unsaved, launch.deploy, launch.email, foundation.cifra_md_in_image, foundation.gate_localhost_origin
+    depends milestones.m2_local, hook.messages, hook.home_book, account.sign_in, books.online, books.online_reindex, sync.states, sync.states_e2e_hosted, sync.read_in_place, sync.unsaved, launch.deploy, launch.email, foundation.cifra_md_in_image, foundation.gate_localhost_origin
     note "Sign in, put a book online, every push checked, sync across one person's devices — running at estantedecifras.app."
   }
 
@@ -41,7 +41,7 @@ task milestones "Milestones" {
 
   task m5_complete "M5: The first pass, complete" {
     milestone
-    depends milestones.m4_together, books.setlists, books.play, books.upload_ui, storage.download, account.new_device, account.sign_out, account.leaving, shell.a11y_chart, service.rate_limits, songs.restore_part
+    depends milestones.m4_together, books.setlists, books.play, books.upload_ui, account.new_device, account.sign_out, account.leaving, shell.a11y_chart, service.rate_limits, songs.restore_part
     note "Setlists and playing through, upload and download, a new device, leaving, and a sung line read aloud as decided."
   }
 

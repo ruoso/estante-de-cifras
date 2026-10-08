@@ -54,6 +54,41 @@ export default {
     noLongerShared: 'no longer shared with you',
     syncNow: 'Sync now',
     notInStep: 'Some books are not in step',
+    // The per-book detail (books.online, workflow 7 L46-63, L128-137; W07 board).
+    detailBack: 'Back to books',
+    pickBook: 'Pick a book to see its details.',
+    private: 'private',
+    youOwn: 'You own it',
+    youCanSave: 'You can save',
+    readOnly: 'Read only',
+    putOnline: 'Put online',
+    putOnlineBody:
+      'Only on this device. Putting it online creates it on Estante, private: only you can open it, until you invite people to it, at most 50.',
+    putOnlineQuota: 'Your account is full. Remove a book or free space, then try again.',
+    putOnlineSignedOut: 'Sign in to put a book online.',
+    putOnlineOffline: 'You’re offline. Connect, then put it online.',
+    putOnlineError: 'Couldn’t put it online. Try again.',
+    download: 'Download',
+    downloadBody:
+      'A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.',
+    remove: 'Remove from my shelf',
+    removeBody: 'Deletes this device’s copy only. The book stays on Estante.',
+    removeTitle: 'Remove “{name}” from this device?',
+    removeLoss: {
+      one: 'This device has {count} save not yet on Estante; removing this copy loses it. The book stays on Estante.',
+      other:
+        'This device has {count} saves not yet on Estante; removing this copy loses them. The book stays on Estante.',
+    },
+    removeGone:
+      'This book is only on this device. Removing it deletes it for good — there is no copy on Estante. Download it first to keep a copy.',
+    removeConfirm: 'Remove from my shelf',
+    delete: 'Delete the book',
+    deleteBody: 'Deletes it from Estante, for everyone. Only its owner can.',
+    deleteTitle: 'Delete {name} from Estante?',
+    deleteModalBody:
+      'This deletes the book, with its whole history, for everyone who shares it. It cannot be undone.',
+    deleteField: 'Type the book’s name to confirm',
+    deleteConfirm: 'Delete the book',
   },
 
   // The search screen (songs.search, workflow 2). `{instrument}` falls back to

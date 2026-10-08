@@ -22,7 +22,7 @@
 // RAC overlays portal into the `.est` token root app-wide via the
 // UNSAFE_PortalProvider in ThemeRoot (shell.portal_provider) — no per-screen
 // portal container is threaded through here any more.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Button,
   Dialog,
@@ -37,8 +37,10 @@ import {
 import { t } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
+import { BOOKS_WIDE_QUERY } from '../shell/layout-mode.js';
 import { titleFor, whereFor, canSaveFor, orderedBooks } from './book-display.js';
 import { syncDisplayFor, anyOutOfStep } from '../sync-display.js';
+import BookDetail from './BookDetail.jsx';
 import './books.css';
 
 // Before sign-in there is no account; a local book's commits carry a device-local
@@ -47,6 +49,34 @@ import './books.css';
 // the user signs in. Until then a stable local id authors the offline commit — a
 // local book never pushes, so it reaches no one.
 const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
+
+// Whether the shelf has room for its OWN side-by-side master-detail
+// (books.online Decision 2). This is a SECOND sidebar nested inside the shell's
+// wide main pane, so it needs a wider budget than the shell split — see
+// `BOOKS_WIDE_QUERY` (layout-mode.js) for the nested-rail math. The same
+// `matchMedia`/`useSyncExternalStore` seam the shell and ThemeRoot use; a missing
+// `matchMedia` (jsdom) reads as not-wide, so a behavior render defaults to the
+// narrow detail-over-list.
+function booksWideQuery() {
+  return typeof globalThis.matchMedia === 'function'
+    ? globalThis.matchMedia(BOOKS_WIDE_QUERY)
+    : null;
+}
+
+function subscribeBooksWide(onChange) {
+  const query = booksWideQuery();
+  if (!query?.addEventListener) return () => {};
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+function readBooksWide() {
+  return booksWideQuery()?.matches ?? false;
+}
+
+function useBooksWide() {
+  return useSyncExternalStore(subscribeBooksWide, readBooksWide, readBooksWide);
+}
 
 // The "+" on the Add-a-book trigger (W07 line 32); decorative, named by the
 // button's text.
@@ -291,18 +321,30 @@ function AddBookSheet({ onCreate }) {
   );
 }
 
-export default function BooksScreen({ store, onOpenBook = () => {} }) {
+export default function BooksScreen({ store, onOpenBook = () => {}, mode = 'narrow' }) {
   const shelf = useSlice(store, 'shelf');
   const sync = useSlice(store, 'sync');
   const ordered = useMemo(() => orderedBooks(shelf), [shelf]);
+
+  // The shelf's own layout: side-by-side only when the shell is wide AND there
+  // is room for a second nested sidebar (the computer, not the 712px tablet —
+  // see `useBooksWide`/`BOOKS_WIDE_QUERY`). Below that the shelf uses the same
+  // full-pane detail-over-list the phone does, so the detail and its acts get the
+  // whole pane rather than a squeezed-to-nothing column (books.online Decision 2).
+  const booksWide = useBooksWide();
+  const splitMode = mode === 'wide' && booksWide ? 'wide' : 'narrow';
 
   // The header's one quiet mark: present when any shelf book is out of step
   // (the home book excluded), nothing when all are in step (workflow 8 L36-37).
   const outOfStep = anyOutOfStep(sync);
 
   // Selection is ephemeral (Decision 7): it highlights the open book (`.sel`),
-  // the seam the per-book detail (books.online) will read.
+  // and a new book takes it to move focus (acceptance 6). The per-book detail
+  // is a SEPARATE ephemeral state (`openDetail`), so a freshly created book is
+  // highlighted and focused without its detail springing open (books.online,
+  // Decision 2): the detail opens only when a row is pressed.
   const [selected, setSelected] = useState(null);
+  const [openDetail, setOpenDetail] = useState(null);
 
   // A new book's row takes focus once it appears on the shelf (acceptance 6).
   // The create re-surfaces SHELF, growing `ordered`; when a create is pending
@@ -343,8 +385,31 @@ export default function BooksScreen({ store, onOpenBook = () => {} }) {
     store.send(command(CommandKind.SYNC, { reason: 'sync-now' }));
   };
 
-  return (
-    <div className="books-screen">
+  // Pressing a row opens its detail (and highlights it); the Files button opens
+  // the file view, as before.
+  const openBookDetail = (bookId) => {
+    setSelected(bookId);
+    setOpenDetail(bookId);
+  };
+
+  const detailKind = ordered.find((e) => e.id === openDetail)?.kind;
+  const detail =
+    openDetail != null ? (
+      <BookDetail
+        store={store}
+        bookId={openDetail}
+        kind={detailKind}
+        mode={splitMode}
+        onBack={() => setOpenDetail(null)}
+        onReselect={(id) => {
+          setSelected(id);
+          setOpenDetail(id);
+        }}
+      />
+    ) : null;
+
+  const listView = (
+    <>
       <div className="books-head">
         <h1 className="t-h1 grow">{t('shell.books')}</h1>
         {outOfStep ? (
@@ -368,7 +433,7 @@ export default function BooksScreen({ store, onOpenBook = () => {} }) {
               kind={kind}
               syncEntry={sync[id]}
               selected={selected === id}
-              onOpen={(bookId) => setSelected(bookId)}
+              onOpen={openBookDetail}
               onFiles={(bookId) => {
                 setSelected(bookId);
                 onOpenBook(bookId);
@@ -386,6 +451,32 @@ export default function BooksScreen({ store, onOpenBook = () => {} }) {
           {t('books.empty')}
         </p>
       )}
-    </div>
+    </>
   );
+
+  // Wide (computer): the shelf list on the side, the selected book's detail in
+  // the main pane (Decision 2; W07 desktop frame). Narrow (phone and tablet — the
+  // tablet has no room for a second nested sidebar, see `splitMode`): the list,
+  // with a book's detail as a full-pane view over it, a back affordance in its
+  // app bar returning to the list.
+  if (splitMode === 'wide') {
+    return (
+      <div className="books-screen">
+        <div className="split books-split">
+          <div className="pane side">
+            <div className="scroll">{listView}</div>
+          </div>
+          <div className="pane main">
+            {detail ?? (
+              <p className="t-small detail-empty" role="status">
+                {t('books.pickBook')}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <div className="books-screen">{detail ?? listView}</div>;
 }

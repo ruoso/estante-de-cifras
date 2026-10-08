@@ -68,12 +68,6 @@ task storage "Storage" {
     depends !working_copy
     note "A song's log following renames, merges hidden unless resolved, versions read as they were, restore into the working copy; the book's whole log for the file view. Workflows 6, 14. Tests: behavior (a song's log following a rename, merges hidden unless resolved, a version read as it was, restore into the working copy, the book's whole log — against a repository built in the test). Refinement: tasks/refinements/storage/history.md"
   }
-  task download "Download a book" {
-    effort 1d
-    allocate team
-    depends !working_copy
-    note "Zip of the repository as it is on the device, working tree and unsaved changes included, remote removed; Explore Chords' zip writer. Workflow 7. Tests: behavior (the zip of a book with unsaved changes holds the working tree and its .git with no remote; unpacked, the git CLI shows the same log and the unsaved changes)."
-  }
   task migrations "On-device versions" {
     effort 1d
     allocate team
