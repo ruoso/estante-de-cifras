@@ -15,8 +15,9 @@ task cifra_go "cifra.md for Go" {
   task reader "Reader" {
     effort 8d
     allocate team
+    complete 100
     depends !module
-    note "cifra.md: text layer, chord symbols, chart, sung lines with layout convergence, tunings, voicings. Tests: unit (text layer, chord symbols, chart, sung lines with convergence, tunings, voicings, diagnostics); corpus (input to model for every entry)."
+    note "cifra.md: text layer, chord symbols, chart, sung lines with layout convergence, tunings, voicings. Tests: unit (text layer, chord symbols, chart, sung lines with convergence, tunings, voicings, diagnostics); corpus (input to model for every entry). Refinement: tasks/refinements/cifra_go/reader.md"
   }
   task writer "Canonical writer and check" {
     effort 4d
