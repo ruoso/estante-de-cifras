@@ -141,11 +141,12 @@ func TestGitRequestBodyGzip(t *testing.T) {
 // the hook inherits, in order. Pins DIRECTION §3.6 lines 342–346; the task note;
 // cmd/pre-receive/README.md:5-6; Decision "the names are fixed here".
 func TestPushEnv(t *testing.T) {
-	got := pushEnv("acc-1", "book-2", roleOwner, 1000, 50)
+	got := pushEnv("acc-1", "book-2", roleOwner, "songbook", 1000, 50)
 	want := []string{
 		"ESTANTE_USER=acc-1",
 		"ESTANTE_BOOK=book-2",
 		"ESTANTE_ROLE=owner",
+		"ESTANTE_BOOK_KIND=songbook",
 		"ESTANTE_ACCOUNT_BYTES_REMAINING=1000",
 		"ESTANTE_BOOK_BYTES=50",
 	}
@@ -252,6 +253,16 @@ func (e *gitEnv) softDelete(t *testing.T, bookID string) {
 	t.Helper()
 	if _, err := e.pool.Exec(context.Background(), `UPDATE books SET deleted_at = now() WHERE id = $1`, bookID); err != nil {
 		t.Fatalf("soft delete: %v", err)
+	}
+}
+
+// setKind sets a book's repository kind directly in Postgres (as setSize sets
+// size_bytes), so a test can make a book a home book without a provisioning flow
+// — the column this task adds (0003_book_kind.sql).
+func (e *gitEnv) setKind(t *testing.T, bookID, kind string) {
+	t.Helper()
+	if _, err := e.pool.Exec(context.Background(), `UPDATE books SET kind = $2 WHERE id = $1`, bookID, kind); err != nil {
+		t.Fatalf("set kind: %v", err)
 	}
 }
 
@@ -686,6 +697,7 @@ func TestGitPushEnvironmentAndSizeRefresh(t *testing.T) {
 		"ESTANTE_USER=" + ownerID,
 		"ESTANTE_BOOK=" + b.ID,
 		"ESTANTE_ROLE=owner",
+		"ESTANTE_BOOK_KIND=songbook",
 	} {
 		if !strings.Contains(env, want) {
 			t.Errorf("hook environment missing %q; got:\n%s", want, env)
@@ -709,6 +721,101 @@ func TestGitPushEnvironmentAndSizeRefresh(t *testing.T) {
 	if got := e.sizeBytes(t, b.ID); got != onDisk {
 		t.Errorf("books.size_bytes = %d, want the on-disk size %d", got, onDisk)
 	}
+}
+
+// canonicalHomePrefs is a canonical §6 preferences.json (object members sorted,
+// two-space indent, one trailing LF) — the body a home book brings online.
+const canonicalHomePrefs = "{\n" +
+	"  \"theme\": {\n" +
+	"    \"at\": \"2026-10-05T14:30:00.000Z\",\n" +
+	"    \"value\": \"palco\"\n" +
+	"  }\n" +
+	"}\n"
+
+// installRealHook builds the real pre-receive binary (hook.home_book and all the
+// other layers, with cifra.md for Go) into the env's hooks directory, so a push
+// is validated by the shipped hook rather than git's bare guards. git finds it
+// via core.hooksPath (api.HooksDir).
+func installRealHook(t *testing.T, hooksDir string) {
+	t.Helper()
+	bin := filepath.Join(hooksDir, "pre-receive")
+	cmd := exec.Command("go", "build", "-o", bin, "estantedecifras.app/service/cmd/pre-receive")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("go build pre-receive: %v\n%s", err, out)
+	}
+}
+
+// TestReceivePackKindForwarding pins the service→hook kind forwarding: the
+// service reads a book's kind and sets ESTANTE_BOOK_KIND on receive-pack, so the
+// real hook validates a home book as settings and a songbook as songs. A
+// kind='home' book accepts a canonical home-book push and refuses a song; a
+// kind='songbook' book refuses a settings *.json. Pins docs/home-book-format.md
+// §8 lines 496-500 (the TestReceivePackGuards model, now with the real hook).
+func TestReceivePackKindForwarding(t *testing.T) {
+	t.Run("a home book accepts canonical settings and refuses a song", func(t *testing.T) {
+		e := newGitEnv(t)
+		installRealHook(t, e.hooksDir)
+		_, cookie := e.registerNewAccount(t)
+		b := e.createBook(t, cookie, "Home Book")
+		e.setKind(t, b.ID, "home")
+
+		work := t.TempDir()
+		url := e.gitURL(b.ID)
+		if out, err := gitc(t, "", cookie, "clone", "-q", url, work); err != nil {
+			t.Fatalf("clone for push: %v\n%s", err, out)
+		}
+		gitIdentity(t, work)
+
+		// A canonical home-book push is accepted.
+		if err := os.WriteFile(filepath.Join(work, "preferences.json"), []byte(canonicalHomePrefs), 0o644); err != nil {
+			t.Fatalf("write preferences.json: %v", err)
+		}
+		gitRun(t, work, "add", ".")
+		gitRun(t, work, "commit", "-q", "-m", "home online")
+		if out, err := gitc(t, work, cookie, "push", "-q", "origin", "HEAD:refs/heads/main"); err != nil {
+			t.Fatalf("a canonical home-book push should be accepted: %v\n%s", err, out)
+		}
+
+		// A song pushed to the same home book is refused, the reason on git's channel.
+		if err := os.WriteFile(filepath.Join(work, "cancao.cifra.md"), []byte(sampleSongBody), 0o644); err != nil {
+			t.Fatalf("write song: %v", err)
+		}
+		gitRun(t, work, "add", ".")
+		gitRun(t, work, "commit", "-q", "-m", "a song in the home book")
+		out, err := gitc(t, work, cookie, "push", "-q", "origin", "HEAD:refs/heads/main")
+		if err == nil {
+			t.Fatalf("a song pushed to a home book should be refused:\n%s", out)
+		}
+		if !strings.Contains(out, "remote:") || !strings.Contains(out, "song or setlist") {
+			t.Errorf("the hook's reason should reach the client on git's channel; got:\n%s", out)
+		}
+	})
+
+	t.Run("a songbook refuses a settings file", func(t *testing.T) {
+		e := newGitEnv(t)
+		installRealHook(t, e.hooksDir)
+		_, cookie := e.registerNewAccount(t)
+		b := e.createBook(t, cookie, "Songbook") // kind defaults to 'songbook'
+
+		work := t.TempDir()
+		url := e.gitURL(b.ID)
+		if out, err := gitc(t, "", cookie, "clone", "-q", url, work); err != nil {
+			t.Fatalf("clone for push: %v\n%s", err, out)
+		}
+		gitIdentity(t, work)
+		if err := os.WriteFile(filepath.Join(work, "preferences.json"), []byte(canonicalHomePrefs), 0o644); err != nil {
+			t.Fatalf("write preferences.json: %v", err)
+		}
+		gitRun(t, work, "add", ".")
+		gitRun(t, work, "commit", "-q", "-m", "settings in a songbook")
+		out, err := gitc(t, work, cookie, "push", "-q", "origin", "HEAD:refs/heads/main")
+		if err == nil {
+			t.Fatalf("a settings file pushed to a songbook should be refused:\n%s", out)
+		}
+		if !strings.Contains(out, "remote:") || !strings.Contains(out, "not an allowed path for a songbook") {
+			t.Errorf("the songbook path should refuse a settings file; got:\n%s", out)
+		}
+	})
 }
 
 // TestReceivePackGuards pins that the service spawns git receive-pack with the

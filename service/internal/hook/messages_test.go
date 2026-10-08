@@ -30,9 +30,10 @@ import (
 // and a README's title bytes. Each is fed through a producer below; the
 // catalogue asserts none reaches the emitted message.
 const (
-	songSecret   = "SegredoDoVersoCantadoAqui"
-	markerSecret = "nossa-versao-SEGREDO-do-merge"
-	readmeSecret = "TituloSecretoDoReadme"
+	songSecret     = "SegredoDoVersoCantadoAqui"
+	markerSecret   = "nossa-versao-SEGREDO-do-merge"
+	readmeSecret   = "TituloSecretoDoReadme"
+	settingsSecret = "SegredoDoValorDeConfiguracao"
 )
 
 // splitRefusal checks the shared grammar — got is "<subject>: <fault>; refused"
@@ -73,6 +74,11 @@ func TestRefusalCatalogue(t *testing.T) {
 
 	// A path component past the 255-byte limit.
 	longComponent := "pasta/" + strings.Repeat("a", maxNameBytes+1) + ".cifra.md"
+
+	// A non-canonical home-book settings file (value before at) carrying the
+	// secret as a setting's value: the home-book validator refuses it "not in
+	// canonical form" without echoing the value.
+	nonCanonicalSettings := []byte("{\n  \"theme\": {\n    \"value\": \"" + settingsSecret + "\",\n    \"at\": \"2026-10-05T14:30:00.000Z\"\n  }\n}\n")
 
 	cases := []struct {
 		name     string
@@ -231,10 +237,54 @@ func TestRefusalCatalogue(t *testing.T) {
 			subject:  MainRef,
 			wantSubs: []string{"account", "storage limit", "acc-quota-7"},
 		},
+
+		// --- home book (hook.home_book) ---
+		{
+			name:     "home: song or setlist belongs in a songbook",
+			got:      reasonSongInHomeBook("cancao.cifra.md"),
+			subject:  MainRef,
+			wantSubs: []string{"cancao.cifra.md", "song or setlist"},
+		},
+		{
+			name:     "home: path not in the §2.1 whitelist",
+			got:      reasonDisallowedHomePath("notas.txt"),
+			subject:  MainRef,
+			wantSubs: []string{"notas.txt", "not an allowed path for a home book"},
+		},
+		{
+			name:     "home: settings file not in canonical form",
+			got:      settingsReason("preferences.json", nonCanonicalSettings),
+			subject:  MainRef,
+			wantSubs: []string{"preferences.json", "not in canonical form"},
+		},
+		{
+			name:     "home: settings file breaks the envelope",
+			got:      settingsReason("songs.json", []byte("{\n  \"theme\": \"palco\"\n}\n")),
+			subject:  MainRef,
+			wantSubs: []string{"songs.json", "neither a register nor a map"},
+		},
+		{
+			name:     "home: register with a malformed timestamp",
+			got:      settingsReason("songs.json", []byte("{\n  \"theme\": {\n    \"at\": \"nope\",\n    \"value\": \"palco\"\n  }\n}\n")),
+			subject:  MainRef,
+			wantSubs: []string{"songs.json", "malformed timestamp"},
+		},
+		{
+			name:     "home: wrong README.md bytes",
+			got:      homeBlobReason(homeReadme, "README.md", []byte("# Not it\n")),
+			subject:  MainRef,
+			wantSubs: []string{"README.md", "does not hold exactly"},
+		},
+		{
+			name:     "home: wrong .gitattributes bytes",
+			got:      homeBlobReason(homeGitattributes, ".gitattributes", []byte("* text=auto\n")),
+			subject:  MainRef,
+			wantSubs: []string{".gitattributes", "does not hold exactly"},
+		},
 	}
 
 	// Every secret fed through a producer above must stay out of every message.
-	secrets := []string{songSecret, markerSecret, readmeSecret}
+	secrets := []string{songSecret, markerSecret, readmeSecret, settingsSecret}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

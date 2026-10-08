@@ -9,11 +9,14 @@
 // hook keeps no database connection of its own (DIRECTION §3.6).
 //
 // Today it composes the refs-and-history layer (hook.refs), then the
-// object-reachability layer (hook.stowaways), then the "what a book may hold"
-// layer (hook.contents), then the canonical-form layer (hook.canonical), then
+// object-reachability layer (hook.stowaways), then — branching on the book's
+// kind (ESTANTE_BOOK_KIND, forwarded by the service) — either the songbook's
+// "what a book may hold" and canonical-form layers (hook.contents,
+// hook.canonical) or the home book's settings validator (hook.home_book), then
 // the account-and-book byte-cap layer (hook.limits), each run only if the
-// previous accepted; the later hook subtasks each add one more check in
-// internal/hook for main to compose.
+// previous accepted; the shared guards (refs, stowaways, limits) run for either
+// kind. The later hook subtasks each add one more check in internal/hook for
+// main to compose.
 package main
 
 import (
@@ -70,32 +73,53 @@ func run() int {
 	}
 
 	// The stowaways layer accepted: the objects reachable from the new head are
-	// exactly what the push holds, so run the "what a book may hold" layer
-	// (hook.contents) over every blob those new commits reach — path, mode,
-	// UTF-8, size, the .gitattributes bytes, and the tree/commit size guard.
-	reasons, err = hook.Contents(updates, "")
-	if err != nil {
-		// A git failure while walking or reading the pushed objects — fail closed,
-		// naming only the aspect (no raw git error in the client channel).
-		return refuse([]string{hook.FailClosed("book contents")})
-	}
-	if len(reasons) > 0 {
-		return refuse(reasons)
-	}
+	// exactly what the push holds. Now the middle layers that decide "what a book
+	// may hold" and "canonical form" — the one place the hook branches on the
+	// book's kind, which the service forwarded as ESTANTE_BOOK_KIND (never guessed
+	// from the repo's contents; hook.home_book Decision). A home book is a
+	// settings repository, so its JSON files are validated as settings
+	// (hook.home_book §8) in place of the songbook contents/canonical checks; an
+	// absent or unrecognised kind stays on the stricter songbook path (fail
+	// closed). The shared guards (refs, stowaways, limits) ran and will run
+	// unconditionally for either kind.
+	if hook.IsHomeBook(os.LookupEnv) {
+		reasons, err = hook.HomeBook(updates, "")
+		if err != nil {
+			// A git failure while walking or reading the pushed objects — fail
+			// closed, naming only the aspect (no raw git error in the client channel).
+			return refuse([]string{hook.FailClosed("home-book contents")})
+		}
+		if len(reasons) > 0 {
+			return refuse(reasons)
+		}
+	} else {
+		// The "what a book may hold" layer (hook.contents) over every blob those new
+		// commits reach — path, mode, UTF-8, size, the .gitattributes bytes, and the
+		// tree/commit size guard.
+		reasons, err = hook.Contents(updates, "")
+		if err != nil {
+			// A git failure while walking or reading the pushed objects — fail closed,
+			// naming only the aspect (no raw git error in the client channel).
+			return refuse([]string{hook.FailClosed("book contents")})
+		}
+		if len(reasons) > 0 {
+			return refuse(reasons)
+		}
 
-	// The contents layer accepted: every blob reachable from the new head is a
-	// UTF-8 regular file at an allowed path within the cap. Now the canonical-form
-	// layer (hook.canonical): every song and setlist those new commits reach is
-	// canonical under an accepted form, and the root README obeys the text rules —
-	// decided by cifra.md for Go, no song text in logs.
-	reasons, err = hook.Canonical(updates, "")
-	if err != nil {
-		// A git failure reading the pushed blobs — fail closed, naming only the
-		// aspect (no raw git error in the client channel).
-		return refuse([]string{hook.FailClosed("canonical form")})
-	}
-	if len(reasons) > 0 {
-		return refuse(reasons)
+		// The contents layer accepted: every blob reachable from the new head is a
+		// UTF-8 regular file at an allowed path within the cap. Now the
+		// canonical-form layer (hook.canonical): every song and setlist those new
+		// commits reach is canonical under an accepted form, and the root README
+		// obeys the text rules — decided by cifra.md for Go, no song text in logs.
+		reasons, err = hook.Canonical(updates, "")
+		if err != nil {
+			// A git failure reading the pushed blobs — fail closed, naming only the
+			// aspect (no raw git error in the client channel).
+			return refuse([]string{hook.FailClosed("canonical form")})
+		}
+		if len(reasons) > 0 {
+			return refuse(reasons)
+		}
 	}
 
 	// The canonical layer accepted: the push is a clean fast-forward of

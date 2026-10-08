@@ -153,7 +153,7 @@ func handleGitReceivePack(api *APIDeps) http.HandlerFunc {
 			return
 		}
 
-		env := pushEnv(accountID, bookID, access.role, remaining, access.sizeBytes)
+		env := pushEnv(accountID, bookID, access.role, access.kind, remaining, access.sizeBytes)
 		env = append(env, gitProtocolEnv(r)...)
 
 		ctx, cancel := context.WithTimeout(r.Context(), api.gitDeadline())
@@ -345,12 +345,17 @@ func gitProtocolEnv(r *http.Request) []string {
 // Decision — the names are the git_http↔hook contract). The quota is the
 // owner's, accountBytesRemaining already floored at 0; bookBytes is the book's
 // current recorded size, so the hook can compute a push's net growth against the
-// remaining account quota and the per-book cap.
-func pushEnv(accountID, bookID, role string, accountBytesRemaining, bookBytes int64) []string {
+// remaining account quota and the per-book cap. kind is the book's repository
+// kind ('songbook' or 'home') the hook dispatches on: a home book is validated
+// as settings in place of the songbook contents/canonical checks, and the hook
+// takes the kind from this env rather than guessing it from the repo's contents
+// (hook.home_book; docs/home-book-format.md §8 lines 496-500).
+func pushEnv(accountID, bookID, role, kind string, accountBytesRemaining, bookBytes int64) []string {
 	return []string{
 		"ESTANTE_USER=" + accountID,
 		"ESTANTE_BOOK=" + bookID,
 		"ESTANTE_ROLE=" + role,
+		"ESTANTE_BOOK_KIND=" + kind,
 		"ESTANTE_ACCOUNT_BYTES_REMAINING=" + strconv.FormatInt(accountBytesRemaining, 10),
 		"ESTANTE_BOOK_BYTES=" + strconv.FormatInt(bookBytes, 10),
 	}

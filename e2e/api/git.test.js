@@ -425,3 +425,84 @@ describe('hook: limits (hook.limits)', () => {
     expect(relayed).toMatch(/storage limit|account/);
   });
 });
+
+describe('hook: home book (hook.home_book)', () => {
+  // The exact §2.2 bytes and a canonical §6 preferences.json a home book holds.
+  const homeReadme =
+    '# Home book\n' +
+    '\n' +
+    'This repository holds one person\'s Estante de Cifras settings. Its files are\n' +
+    'JSON that merge key by key, the later change winning; it is written and merged\n' +
+    'by the app, not edited by hand. The format is docs/home-book-format.md in the\n' +
+    'estante-de-cifras repository.\n';
+  const homeGitattributes = '* text=auto eol=lf\n*.json merge=binary\n';
+  const canonicalPreferences =
+    '{\n' +
+    '  "theme": {\n' +
+    '    "at": "2026-10-05T14:30:00.000Z",\n' +
+    '    "value": "palco"\n' +
+    '  }\n' +
+    '}\n';
+
+  // A book the registry marks as a home book (kind='home', set directly in
+  // Postgres as the limits test sets size_bytes — no provisioning flow needed)
+  // moves over the same git-over-HTTP, but the stack's pre-receive hook validates
+  // it as settings: a canonical home-book push (the §2.1 files, canonical JSON,
+  // the exact §2.2 README/.gitattributes) is accepted, and a *.cifra.md pushed to
+  // it is refused whole — the reason reaching the app's own client (isomorphic-git)
+  // on git's own channel (band 1 declines the ref, band 2 names the path). Pins
+  // docs/home-book-format.md §8 end-to-end through the real stack, the kind
+  // forwarded via ESTANTE_BOOK_KIND (§8 lines 496-500).
+  it('accepts a canonical home book and refuses a song, the reason on git\'s channel', async () => {
+    const client = new HttpClient();
+    await registerNewAccount(client);
+    const book = await createBook(client, 'Home Book');
+    const url = gitEndpoint(book);
+    const cookie = client.cookieHeader();
+
+    // The registry marks this book a home book before any push, so the service
+    // forwards ESTANTE_BOOK_KIND=home and the hook validates it as settings.
+    const sql = connect();
+    try {
+      await sql`UPDATE books SET kind = 'home' WHERE id = ${book.id}`;
+    } finally {
+      await sql.end({ timeout: 5 });
+    }
+
+    // A device brings the home book online with a canonical first commit: the
+    // exact §2.2 README/.gitattributes and a canonical preferences.json.
+    const workDir = await tempDir('estante-e2e-homework-');
+    const work = await GitCli.create(workDir);
+    await work.init();
+    await writeFile(join(workDir, 'README.md'), homeReadme);
+    await writeFile(join(workDir, '.gitattributes'), homeGitattributes);
+    await writeFile(join(workDir, 'preferences.json'), canonicalPreferences);
+    await work.add('.');
+    await work.commit('Bring the home book online');
+    await work.pushHTTP(url, cookie); // accepted: a valid home book
+
+    // The app's own client (isomorphic-git) clones and commits a song — which
+    // belongs in a songbook, not the home book. It is valid UTF-8 at a path the
+    // songbook rules would allow, so only the home-book validator can refuse it.
+    const isoDir = await tempDir('estante-e2e-homeiso-');
+    const iso = await IsoGit.create(isoDir);
+    await iso.clone({ url, cookie });
+    await writeFile(join(isoDir, 'cancao.cifra.md'), '# Cancao\n\n```\n[C] Uma linha\n```\n');
+    await iso.add('cancao.cifra.md');
+    await iso.commit('A song in the home book');
+
+    const messages = [];
+    let error;
+    try {
+      await iso.push({ url, cookie, onMessage: (line) => messages.push(line.toString()) });
+    } catch (e) {
+      error = e;
+    }
+    expect(error, 'a song pushed to a home book should be refused').toBeDefined();
+    // Band 1 (the report-status): the ref is declined, inside a 200 result body.
+    expect(error.data?.result?.refs?.['refs/heads/main']?.ok).toBe(false);
+    // Band 2 (the side-band): the hook names the offending path on git's channel.
+    expect(messages.join('')).toMatch(/cancao\.cifra\.md/);
+    expect(messages.join('')).toMatch(/song or setlist/);
+  });
+});

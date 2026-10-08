@@ -440,6 +440,11 @@ type bookAccess struct {
 	ownerID   string
 	role      string
 	sizeBytes int64
+	// kind is the book's repository kind ('songbook' or 'home'), which the push
+	// path forwards to the pre-receive hook as ESTANTE_BOOK_KIND so it validates
+	// a home book as settings rather than as a songbook (hook.home_book; the hook
+	// never guesses the kind from a repo's contents, docs/home-book-format.md §8).
+	kind string
 }
 
 // resolveBookAccess reads the caller's role on a live book in one query,
@@ -453,7 +458,7 @@ type bookAccess struct {
 func resolveBookAccess(ctx context.Context, q querier, bookID, accountID string) (bookAccess, bool, error) {
 	var a bookAccess
 	err := q.QueryRow(ctx, `
-		SELECT b.owner_id, b.size_bytes,
+		SELECT b.owner_id, b.size_bytes, b.kind,
 		       CASE WHEN b.owner_id = $2 THEN 'owner' ELSE m.role::text END AS role
 		FROM books b
 		LEFT JOIN memberships m ON m.book_id = b.id AND m.account_id = $2
@@ -461,7 +466,7 @@ func resolveBookAccess(ctx context.Context, q querier, bookID, accountID string)
 		  AND b.deleted_at IS NULL
 		  AND b.taken_down_reason IS NULL
 		  AND (b.owner_id = $2 OR m.account_id = $2)`,
-		bookID, accountID).Scan(&a.ownerID, &a.sizeBytes, &a.role)
+		bookID, accountID).Scan(&a.ownerID, &a.sizeBytes, &a.kind, &a.role)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return bookAccess{}, false, nil
 	}
