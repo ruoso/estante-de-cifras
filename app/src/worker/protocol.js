@@ -382,9 +382,13 @@ export const EventKind = Object.freeze({
   // re-issues OPEN_SOURCE for its own open path, so the merged text flows through
   // the `source` slice on demand (Decisions 1, 2). Emitted only for songbooks
   // (the home book re-surfaces through PREFERENCES / SHELF / INSTRUMENTS) and
-  // never when the merge changed nothing or was deferred by the dirty-tree guard
-  // (that is sync.unsaved's signal). It carries path, author name and commit oid
-  // only — never song text (standing rule).
+  // never when the merge changed nothing. A song whose unsaved working text was
+  // re-merged under the incoming version (sync.unsaved: no longer deferred, now
+  // merged under the edit) is named here the same way — it is the fact the
+  // deferred editor view (songs.edit_in_place) consumes to show the merged
+  // working text and say what came in (workflow 8 §"A song open while it
+  // changes"). It carries path, author name and commit oid only — never song
+  // text (standing rule).
   MERGED: 'merged',
 });
 

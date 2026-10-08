@@ -15,8 +15,9 @@ task sync "Sync" {
   task unsaved "Merging under unsaved changes" {
     effort 2d
     allocate team
+    complete 100
     depends !engine
-    note "Base, theirs and the working text merged; the edits stay unsaved on top. DIRECTION §3.1, workflow 4. Tests: behavior (base, theirs and the working text merged against a local remote; the edits still unsaved on top; a merge that conflicts with unsaved text — DIRECTION §3.1, workflow 4)."
+    note "Base, theirs and the working text merged; the edits stay unsaved on top. DIRECTION §3.1, workflow 4. Tests: behavior (base, theirs and the working text merged against a local remote; the edits still unsaved on top; a merge that conflicts with unsaved text — DIRECTION §3.1, workflow 4). Refinement: tasks/refinements/sync/unsaved.md"
   }
   task states "States on the shelf" {
     effort 1d

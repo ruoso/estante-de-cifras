@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createSyncEngine, SyncConflictError } from './sync-engine.js';
+import { reapplyWorkingText } from './cifra-merge-driver.js';
 
 // unit — the sync engine's retry policy and routing (sync.engine), with injected
 // change-check/fetch/merge/push fakes (the .tji note's unit clause). A push
@@ -226,5 +227,78 @@ describe('sync engine routing (unit)', () => {
     expect(fetchBook).not.toHaveBeenCalled(); // unchanged → no fetch (Decision 4)
     expect(pushBook).toHaveBeenCalledTimes(1);
     expect(lastPhase(facts)).toBe('in_step');
+  });
+});
+
+// unit — the re-apply helper that rebases an unsaved edit onto the merged
+// committed content (sync.unsaved; the .tji's optional unit clause). Pure: real
+// cifra.md `merge` over crafted strings, asserting the Outcome → { text,
+// conflict, marked } mapping for the three kinds (result / conflicts / deleted).
+// All songs are written for this test (no-song-text rule).
+describe('reapplyWorkingText — Outcome mapping (unit)', () => {
+  const BASE = `# Re-apply Test
+
+## Verse
+First verse line
+Second verse line
+
+## Chorus
+First chorus line
+Second chorus line
+`;
+  const OURS = BASE.replace('Second chorus line', 'Second chorus line, edited here');
+  const THEIRS = BASE.replace('First verse line', 'First verse line, edited elsewhere');
+
+  it('maps a clean merge (kind:result) to the canonical merged text, no conflict (AC 2)', () => {
+    const { text, conflict, marked, deleted } = reapplyWorkingText({
+      base: BASE,
+      ours: OURS,
+      theirs: THEIRS,
+    });
+    expect(conflict).toBe(false);
+    expect(marked).toBe(false);
+    expect(deleted).toBe(false);
+    expect(text).toContain('Second chorus line, edited here');
+    expect(text).toContain('First verse line, edited elsewhere');
+  });
+
+  it('maps an in-file conflict (kind:conflicts with marked) to the marked text, ours labelled ours (AC 4)', () => {
+    const oursSameLine = BASE.replace('First verse line', 'First verse line mine');
+    const theirsSameLine = BASE.replace('First verse line', 'First verse line theirs');
+    const { text, conflict, marked, deleted } = reapplyWorkingText({
+      base: BASE,
+      ours: oursSameLine,
+      theirs: theirsSameLine,
+    });
+    expect(conflict).toBe(true);
+    expect(marked).toBe(true);
+    expect(deleted).toBe(false);
+    expect(text).toContain('<<<<<<< ours');
+    expect(text).toContain('First verse line mine');
+    expect(text).toContain('>>>>>>> theirs');
+  });
+
+  it('maps a file-level conflict with no marked text (theirs deleted, ours edited) to ours, flagged conflict', () => {
+    const { text, conflict, marked, deleted } = reapplyWorkingText({
+      base: BASE,
+      ours: OURS,
+      theirs: null,
+    });
+    expect(conflict).toBe(true);
+    expect(marked).toBe(false);
+    expect(deleted).toBe(false);
+    expect(text).toBe(OURS); // the user's working text, kept verbatim
+  });
+
+  it('maps a deletion (kind:deleted) to a null text flagged deleted', () => {
+    const { text, conflict, marked, deleted } = reapplyWorkingText({
+      base: BASE,
+      ours: null,
+      theirs: null,
+    });
+    expect(deleted).toBe(true);
+    expect(text).toBeNull();
+    expect(conflict).toBe(false);
+    expect(marked).toBe(false);
   });
 });

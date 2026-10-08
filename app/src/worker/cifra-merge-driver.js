@@ -63,3 +63,56 @@ export function createCifraMergeDriver(options = {}) {
     return { cleanMerge: false, mergedText: ours };
   };
 }
+
+/**
+ * Re-apply an unsaved working-copy edit onto the merged committed content, the
+ * base/theirs/working-text merge DIRECTION §3.1 describes (sync.unsaved). This
+ * is the engine's SECOND, per-file use of cifra.md `merge`, run directly —
+ * outside isomorphic-git's tree walk, which only ever sees committed blobs — so
+ * the uncommitted edit can be rebased onto the pushed merge without ever being
+ * committed. `base` is the pre-merge HEAD blob (the version the edit was made
+ * from, `H0`), `ours` is the captured working text (`W`), `theirs` is the
+ * merged committed content now checked out (`M`); labelling the user's text as
+ * *ours* makes any conflict markers read `<<<<<<< ours` / `>>>>>>> theirs` from
+ * the editor's point of view (Constraints). Each input is a UTF-8 string, raw
+ * bytes, or `null` (absent), exactly as cifra.md `merge` accepts.
+ *
+ * Maps the `Outcome` to `{ text, conflict, marked, deleted }`:
+ *   - `kind: 'result'` → the canonical merged text, no conflict.
+ *   - `kind: 'conflicts'` with a `marked` text (a §8/§11 in-file conflict) →
+ *     that conflict-marked text, flagged `conflict`/`marked`. Being marked it
+ *     is never canonical and must never be saved or pushed (standing rule;
+ *     sync.conflicts owns resolution).
+ *   - `kind: 'conflicts'` with no `marked` text (a file-level conflict, e.g.
+ *     one side deleted) → keep the user's working text, flagged `conflict`.
+ *   - `kind: 'deleted'` → the file is gone (`text: null`, `deleted: true`).
+ *
+ * Pure: one call to cifra.md `merge` and a mapping. No git, no fs, no logging
+ * (no song text; standing rule). `merge` is injectable for tests.
+ *
+ * @param {{ base: string|Uint8Array|null, ours: string|Uint8Array|null,
+ *   theirs: string|Uint8Array|null, setlist?: boolean }} inputs
+ * @param {typeof cifraMerge} [merge]
+ * @returns {{ text: string|null, conflict: boolean, marked: boolean, deleted: boolean }}
+ */
+export function reapplyWorkingText({ base, ours, theirs, setlist = false }, merge = cifraMerge) {
+  const outcome = merge(base, ours, theirs, { setlist });
+  if (outcome.kind === 'result') {
+    return { text: outcome.result, conflict: false, marked: false, deleted: false };
+  }
+  if (outcome.kind === 'deleted') {
+    return { text: null, conflict: false, marked: false, deleted: true };
+  }
+  // A conflict: write the conflict-marked text when there is one, else keep the
+  // user's working text verbatim (a file-level conflict carries no single
+  // marked text). Either way the file stays unsaved and, being a conflict,
+  // never canonical — never saved or pushed.
+  const marked = outcome.marked !== null;
+  const asString = (t) => (t == null ? null : typeof t === 'string' ? t : new TextDecoder().decode(t));
+  return {
+    text: marked ? outcome.marked : asString(ours),
+    conflict: true,
+    marked,
+    deleted: false,
+  };
+}

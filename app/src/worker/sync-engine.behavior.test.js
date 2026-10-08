@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { add, commit, readCommit, resolveRef } from 'isomorphic-git';
+import { add, commit, readBlob, readCommit, resolveRef } from 'isomorphic-git';
 import { createFileSystem } from './fs.js';
 import { createGitLayer } from './git.js';
 import { createGitHttpClient } from './git-http.js';
@@ -25,6 +25,13 @@ import { installWebLocks } from '../test/web-locks.js';
 
 const BOOK = 'book1';
 const SONG = 'song.cifra.md';
+// A second song the device commits a change to, so its local head diverges from
+// the origin and the committed merge is a genuine two-parent merge commit (not a
+// fast-forward) that must be pushed — the merge-under-unsaved cases assert that.
+const SONG2 = 'other.cifra.md';
+// A third song the device edits but no one else touches — the dirty file with no
+// incoming change, which must be preserved byte-for-byte (sync.unsaved AC 3).
+const UNTOUCHED = 'untouched.cifra.md';
 
 // A base song with two clearly separate sections, so an edit to one and an edit
 // to the other merge cleanly by the cifra-aware rules (§11 chart merge).
@@ -41,6 +48,17 @@ Second chorus line
 // One device edits the verse; another edits the chorus. Non-touching → clean.
 const VERSE_EDIT = BASE_SONG.replace('First verse line', 'First verse line from the remote');
 const CHORUS_EDIT = BASE_SONG.replace('Second chorus line', 'Second chorus line from the device');
+// Both sides edit the SAME line differently → a cifra-aware conflict (§11 chart
+// merge): `cifraMerge` returns `kind:'conflicts'` with a `<<<<<<< ours` /
+// `>>>>>>> theirs` marked text, ours the device's working edit.
+const VERSE_EDIT_REMOTE = BASE_SONG.replace('First verse line', 'First verse line from the remote');
+const VERSE_EDIT_DEVICE = BASE_SONG.replace('First verse line', 'First verse line from the device');
+// A deliberately NON-canonical working edit (trailing spaces, extra blank lines)
+// to a song no one else touches: the engine must restore it byte-for-byte, never
+// re-canonicalise it (AC 3). If it wrongly ran the re-apply merge over an
+// unchanged file, cifra.md would canonicalise these bytes away.
+const UNTOUCHED_UNSAVED =
+  BASE_SONG.replace('Second chorus line', 'Second chorus line in progress   ') + '\n\n';
 
 const AUTHOR = { name: 'Device B', email: 'b@example.invalid', timestamp: 1577836800, timezoneOffset: 0 };
 const SYNC_IDENTITY = { id: 'device-b', name: 'Device B' };
@@ -114,6 +132,13 @@ async function makeDeviceB(remote, bookId = BOOK) {
     dir,
     read: (file) => fs.promises.readFile(`${dir}/${file}`, 'utf8'),
     head: () => resolveRef({ fs, dir, ref: 'main' }),
+    // The committed bytes of a file at the current HEAD — what `reconcile`
+    // compares the working copy against to derive `unsaved` (search-index.js:400).
+    async headBlob(file) {
+      const oid = await resolveRef({ fs, dir, ref: 'main' });
+      const { blob } = await readBlob({ fs, dir, oid, filepath: file });
+      return new TextDecoder().decode(blob);
+    },
     // Commit a working-copy change locally (an already-saved edit).
     async commitLocal(file, content, message) {
       await fs.promises.writeFile(`${dir}/${file}`, content);
@@ -268,7 +293,7 @@ describe('sync engine over a real remote (behavior)', () => {
     }
   });
 
-  it('pushes committed work while deferring the incoming merge over an unsaved edit, leaving it intact', async () => {
+  it('pushes committed work with an unsaved edit present and nothing incoming, leaving the edit intact', async () => {
     const remote = await startGitHttpRemote();
     try {
       await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
@@ -304,29 +329,149 @@ describe('sync engine over a real remote (behavior)', () => {
     }
   });
 
-  it('defers the incoming merge over an unsaved edit when the book moved (edit intact, HEAD unmoved)', async () => {
+  // sync.unsaved — merging under unsaved changes (supersedes the dirty-tree
+  // guard sync.engine shipped). DIRECTION §3.1 L129-131; workflow 8 L40-47,
+  // L55-56; workflow 4 L17-21, L54-56.
+  it('merges base, theirs and the working text: pushes the committed merge and folds the unsaved edit under it (AC 2; DIRECTION §3.1; workflow 8 L40-47)', async () => {
     const remote = await startGitHttpRemote();
     try {
-      await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      // Seed the song the remote will edit, plus a second song the device
+      // commits a change to so the committed merge is a genuine two-parent merge.
+      await advanceRemote(remote, { [SONG]: BASE_SONG, [SONG2]: BASE_SONG }, 'seed the songs');
       const b = await makeDeviceB(remote);
-      const headBefore = await b.head();
 
-      // The remote moves (another device edits the verse), and the device has an
-      // UNSAVED edit on the same song (no commit of its own).
+      // Device: a committed change to the OTHER song (so local diverges from the
+      // origin), and an UNSAVED edit to the chorus of the song the remote moves.
+      await b.commitLocal(SONG2, CHORUS_EDIT, 'edit the other song');
+      await b.fs.promises.writeFile(`${b.dir}/${SONG}`, CHORUS_EDIT); // dirty, no commit
+      // Another device saves a change to a DIFFERENT part of the same song.
       const theirHead = await advanceRemote(remote, { [SONG]: VERSE_EDIT }, 'edit the verse');
-      const UNSAVED = BASE_SONG.replace('Second chorus line', 'an unsaved chorus in progress');
-      await b.fs.promises.writeFile(`${b.dir}/${SONG}`, UNSAVED);
 
       const { engine, facts } = engineFor(b, { changed: [{ bookId: BOOK, head: theirHead }] });
       await engine.pass();
 
-      // The origin was fetched, but the merge was deferred: HEAD did not move to
-      // a merge commit and the unsaved edit is intact (the merge is sync.unsaved).
-      expect(await resolveRef({ fs: b.fs, dir: b.dir, ref: 'refs/remotes/origin/main' })).toBe(theirHead);
-      expect(await b.head()).toBe(headBefore);
-      expect(await b.read(SONG)).toContain('an unsaved chorus in progress');
-      expect(await b.read(SONG)).not.toContain('First verse line from the remote');
-      expect(lastPhase(facts)).toBe('syncing'); // not in step — a merge still waits
+      // HEAD advanced to a two-parent merge commit, and the remote received it.
+      const mergeOid = await b.head();
+      const { commit: mergeCommit } = await readCommit({ fs: b.fs, dir: b.dir, oid: mergeOid });
+      expect(mergeCommit.parent).toHaveLength(2);
+      expect(await remoteHead(remote.repoDir)).toBe(mergeOid);
+
+      // The working file holds the incoming verse change WITH the device's chorus
+      // edit applied on top — the base/theirs/working-text merge.
+      const working = await b.read(SONG);
+      expect(working).toContain('First verse line from the remote');
+      expect(working).toContain('Second chorus line from the device');
+
+      // The edit stays unsaved: the working text differs from the committed HEAD
+      // blob, which is exactly what `reconcile` reads as `unsaved` (search-index
+      // :400) — the incoming verse edit alone, without the uncommitted chorus.
+      const committed = await b.headBlob(SONG);
+      expect(committed).toContain('First verse line from the remote');
+      expect(committed).not.toContain('Second chorus line from the device');
+      expect(working).not.toBe(committed);
+
+      // The committed merge pushed only the committed side — the unsaved chorus
+      // edit never reached the remote.
+      const remoteSong = await run('git', ['--git-dir', remote.repoDir, 'show', `main:${SONG}`]);
+      expect(remoteSong).not.toContain('Second chorus line from the device');
+      expect(lastPhase(facts)).toBe('in_step');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('keeps the edits unsaved on top, and leaves a dirty file with no incoming change byte-for-byte (AC 2, AC 3; workflow 4 L17-21)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(
+        remote,
+        { [SONG]: BASE_SONG, [UNTOUCHED]: BASE_SONG },
+        'seed the songs',
+      );
+      const b = await makeDeviceB(remote);
+
+      // Two unsaved edits: one to the song the remote moves, one to a song no one
+      // else touches (the latter deliberately non-canonical).
+      await b.fs.promises.writeFile(`${b.dir}/${SONG}`, CHORUS_EDIT);
+      await b.fs.promises.writeFile(`${b.dir}/${UNTOUCHED}`, UNTOUCHED_UNSAVED);
+      const theirHead = await advanceRemote(remote, { [SONG]: VERSE_EDIT }, 'edit the verse');
+
+      const { engine } = engineFor(b, { changed: [{ bookId: BOOK, head: theirHead }] });
+      await engine.pass();
+
+      // The merged song survives on top of the incoming change and reads unsaved.
+      const working = await b.read(SONG);
+      expect(working).toContain('First verse line from the remote');
+      expect(working).toContain('Second chorus line from the device');
+      expect(working).not.toBe(await b.headBlob(SONG));
+
+      // The file with no incoming change is preserved byte-for-byte — the
+      // re-apply's one-side path returns the working text verbatim, never
+      // re-canonicalising it (AC 3).
+      expect(await b.read(UNTOUCHED)).toBe(UNTOUCHED_UNSAVED);
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('writes a marked working file when the unsaved edit conflicts with the incoming change, pushing only the clean committed merge (AC 4; workflow 4 L54-56; workflow 8 L47)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [SONG]: BASE_SONG, [SONG2]: BASE_SONG }, 'seed the songs');
+      const b = await makeDeviceB(remote);
+
+      // A committed change to the OTHER song (a real merge commit to push), and an
+      // UNSAVED edit to the SAME verse line the remote edits — so `cifraMerge`
+      // conflicts on the re-apply.
+      await b.commitLocal(SONG2, CHORUS_EDIT, 'edit the other song');
+      await b.fs.promises.writeFile(`${b.dir}/${SONG}`, VERSE_EDIT_DEVICE); // dirty, no commit
+      const theirHead = await advanceRemote(remote, { [SONG]: VERSE_EDIT_REMOTE }, 'edit the verse');
+
+      const { engine, facts } = engineFor(b, { changed: [{ bookId: BOOK, head: theirHead }] });
+      await engine.pass();
+
+      // The working file is the conflict-marked text: ours is the device's edit,
+      // theirs the incoming one (sync.unsaved labels the user's text as ours).
+      const working = await b.read(SONG);
+      expect(working).toContain('<<<<<<< ours');
+      expect(working).toContain('First verse line from the device');
+      expect(working).toContain('=======');
+      expect(working).toContain('First verse line from the remote');
+      expect(working).toContain('>>>>>>> theirs');
+
+      // The committed merge still pushed cleanly, and nothing marked reached the
+      // remote — the markers live only in the uncommitted working tree.
+      const mergeOid = await b.head();
+      expect(await remoteHead(remote.repoDir)).toBe(mergeOid);
+      const remoteSong = await run('git', ['--git-dir', remote.repoDir, 'show', `main:${SONG}`]);
+      expect(remoteSong).not.toContain('<<<<<<<');
+      expect(remoteSong).toContain('First verse line from the remote');
+      expect(lastPhase(facts)).toBe('in_step');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('emits the read-in-place fact naming the incoming author for a song re-merged under an unsaved edit (AC 5; workflow 8 L55-56)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const b = await makeDeviceB(remote);
+
+      // An unsaved chorus edit; the remote edits the verse of the same song.
+      await b.fs.promises.writeFile(`${b.dir}/${SONG}`, CHORUS_EDIT);
+      const theirHead = await advanceRemote(remote, { [SONG]: VERSE_EDIT }, 'edit the verse');
+
+      const { engine, merges } = engineFor(b, { changed: [{ bookId: BOOK, head: theirHead }] });
+      await engine.pass();
+
+      // The same { bookId, path, author } fact sync.read_in_place emits — the
+      // editor view (deferred) shows the merged working text and says what came in.
+      expect(merges).toHaveLength(1);
+      expect(merges[0].bookId).toBe(BOOK);
+      expect(merges[0].changed).toEqual([{ path: SONG, author: 'Other Device', commit: theirHead }]);
+      // Metadata only — never song text (standing rule).
+      expect(JSON.stringify(merges)).not.toMatch(/verse|chorus/i);
     } finally {
       await remote.stop();
     }
@@ -453,23 +598,4 @@ describe('sync engine over a real remote (behavior)', () => {
     }
   });
 
-  it('emits no MERGED fact when the incoming merge is deferred over an unsaved edit (the boundary to sync.unsaved)', async () => {
-    const remote = await startGitHttpRemote();
-    try {
-      await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
-      const b = await makeDeviceB(remote);
-      const theirHead = await advanceRemote(remote, { [SONG]: VERSE_EDIT }, 'edit the verse');
-      const UNSAVED = BASE_SONG.replace('Second chorus line', 'an unsaved chorus in progress');
-      await b.fs.promises.writeFile(`${b.dir}/${SONG}`, UNSAVED); // dirty tree, no commit
-
-      const { engine, merges } = engineFor(b, { changed: [{ bookId: BOOK, head: theirHead }] });
-      await engine.pass();
-
-      // The merge was deferred by the dirty-tree guard — its signal is
-      // sync.unsaved's, not a MERGED fact (acceptance 1; Decision 3).
-      expect(merges).toHaveLength(0);
-    } finally {
-      await remote.stop();
-    }
-  });
 });
