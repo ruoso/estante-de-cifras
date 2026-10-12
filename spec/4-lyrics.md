@@ -354,6 +354,46 @@ A sung document has no bar numbers (§2.8). It may still contain chord lines
 with bar lines in them, such as an intro, and those are measures as in §2;
 they are simply not numbered.
 
+## 4.8 Rendering in a proportional face
+
+The layout of §4.5 keeps every chord over its syllable by column, and
+canonical form writes the sung line in a monospaced block so that the
+columns line up (§0.5). A renderer that sets the words in a **proportional**
+face cannot use columns, since a proportional glyph is not one column wide.
+It SHOULD instead draw the sung line as **segments**.
+
+A **segment** is the words one attached item takes, by the division of §4.4:
+the attached items in column order, each taking the words from its column up
+to the next item's column, and the **lead** (§4.4), where there is one, the
+words before the first attached item. A proportional renderer SHOULD draw
+the sung line as these segments in column order, each with its chord — or
+its mark (§2.2) — stacked over the start of its words. The lead is a segment
+with no chord; an attached item at or past the end of the words (§4.4) is a
+chord with an empty segment.
+
+Where the division between one segment and the next falls **inside a
+word** — the condition §4.5.2 writes `_` padding for rather than a space:
+the last character of the earlier segment's words and the first of the
+later's are both neither a space nor `_`, which is exactly where canonical
+form writes `_` padding — the renderer SHOULD bridge the two segments with a
+**centred hyphen**, so the two pieces read as the one word split under its
+chords, as sheet music joins syllables under successive notes. A chord over
+the `h` of *When*, written `W_hen` (§4.4), draws as `W`–`hen`: *When* split,
+not the two words *W* and *hen*.
+
+Where the division falls at a **word boundary** — the §4.5.2 "spaces
+otherwise" case — the renderer SHOULD set ordinary inter-word space and no
+hyphen. The `_` padding of the monospaced layout has no counterpart in
+proportional type beyond the hyphen this subsection defines; the segment an
+item takes keeps the leading and trailing spaces §4.4 gives it, and trimming
+them is a display decision (§4.4).
+
+This subsection is advice to a renderer and binds no conformance profile
+(§9). The profiles are about reading a document to its model and writing
+canonical form; the model a reader produces and the bytes a writer emits are
+the same whether or not a renderer follows §4.8, and a monospaced renderer
+that keeps every chord over its column is conformant without a hyphen.
+
 ## Open questions
 
 - Nothing at present. A chord line with bar lines may be sung: the words
