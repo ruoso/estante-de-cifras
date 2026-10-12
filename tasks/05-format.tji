@@ -47,8 +47,9 @@ task format "The format" {
   task conflicts_schema "JSON Schema for conflicts.json" {
     effort 1d
     allocate team
+    complete 100
     depends !merge
-    note "cifra.md: §11.12.5 is normative until a schema exists (chapter 11 open questions). Tests: unit (pytest: every conflicts.json in corpus/merge/ validates, and a malformed one is rejected); corpus (the merge-corpus check validates against it)."
+    note "cifra.md: §11.12.5 is normative until a schema exists (chapter 11 open questions). Tests: unit (pytest: every conflicts.json in corpus/merge/ validates, and a malformed one is rejected); corpus (the merge-corpus check validates against it). Refinement: tasks/refinements/format/conflicts_schema.md"
   }
   task render_hyphen "Proportional rendering in §4" {
     effort 0.5d
