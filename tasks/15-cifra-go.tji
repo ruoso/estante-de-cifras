@@ -49,7 +49,8 @@ task cifra_go "cifra.md for Go" {
   task conformance "Conformance" {
     effort 2d
     allocate team
+    complete 100
     depends !writer, !setlists
-    note "cifra.md: every canonical-corpus entry passes byte for byte. Tests: corpus (every canonical-corpus entry passing byte for byte, no expected failure left)."
+    note "cifra.md: every canonical-corpus entry passes byte for byte. Tests: corpus (TestCanonicalCorpusHasNoExpectedFailure — reading-entry ids must not appear in the ledger; TestCorpusConformance — every reading check passes byte for byte; TestLedgerNamesNoCheckThatDoesNotExist — merge ids stay honest). Refinement: tasks/refinements/cifra_go/conformance.md"
   }
 }
