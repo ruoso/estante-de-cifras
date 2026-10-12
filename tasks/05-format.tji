@@ -54,8 +54,9 @@ task format "The format" {
   task render_hyphen "Proportional rendering in §4" {
     effort 0.5d
     allocate team
+    complete 100
     depends !sung_layout
-    note "cifra.md: a SHOULD for proportional renderers — segments, and a centred hyphen where a chord opens room inside a word. docs/mockups/README.md. Tests: none — specification prose (a SHOULD for proportional renderers); the app's renderer pins it in shell.chart's tests."
+    note "cifra.md: a SHOULD for proportional renderers — segments, and a centred hyphen where a chord opens room inside a word. docs/mockups/README.md. Tests: none — specification prose (a SHOULD for proportional renderers); the app's renderer pins it in shell.chart's tests. Refinement: tasks/refinements/format/render_hyphen.md"
   }
   task cross_check "Cross-implementation comparison in CI" {
     effort 2d
