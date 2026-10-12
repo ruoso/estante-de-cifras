@@ -133,5 +133,6 @@ implementation claiming any profile SHOULD pass every entry, in both
 directions, as `corpus/README.md` describes. The merge corpus in
 `corpus/merge/` holds, per entry, the three inputs of a merge and its
 outcome, for songs and for setlists; a merger SHOULD pass every entry, as
-§11.16 describes. The corpus has no entries for reading setlists yet (§10,
-*Open questions*).
+§11.16 describes. The reading corpus includes setlist entries (§10), which
+an implementation claiming the setlist-reader or setlist-writer profile
+reads and writes in both directions as `corpus/README.md` describes.
