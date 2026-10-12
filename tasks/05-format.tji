@@ -41,8 +41,9 @@ task format "The format" {
   task setlist_schema "JSON Schema for the setlist model" {
     effort 1d
     allocate team
+    complete 100
     depends !setlists
-    note "cifra.md: the setlist model is described only in prose (§10.6); the corpus's parsed JSON needs a schema as songs have. Tests: unit (pytest: every setlist model in the corpus validates against the schema, and a malformed one is rejected); corpus (the corpus check validates setlist models against it)."
+    note "cifra.md: the setlist model is described only in prose (§10.6); the corpus's parsed JSON needs a schema as songs have. Tests: unit (pytest: every setlist model in the corpus validates against the schema, and a malformed one is rejected); corpus (the corpus check validates setlist models against it). Refinement: tasks/refinements/format/setlist_schema.md"
   }
   task conflicts_schema "JSON Schema for conflicts.json" {
     effort 1d
