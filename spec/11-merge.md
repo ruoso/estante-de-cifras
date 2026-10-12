@@ -2451,4 +2451,5 @@ Deferred to a later version:
   honoured them would write a marked text the corpus does not hold; the
   driver's labels are fixed for now (§11.14).
 - **A JSON Schema** for `conflicts.json`, as there is for the document
-  model. Until it exists, §11.12 is the normative description.
+  model, is now `schema/conflicts.schema.json`, a formalisation of
+  §11.12.5; §11.12 remains the normative description.

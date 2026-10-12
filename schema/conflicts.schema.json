@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ruoso/cifra.md/schema/conflicts.schema.json",
+  "title": "cifra.md merge conflicts",
+  "description": "The conflicts of a merge whose outcome has them, as JSON (spec §11.12.5): one member, `conflicts`, an array with one object per conflict, in the order of their regions in the marked text, a `file` conflict first. Each conflict's members, and which `kind` carries which, are §11.12.5's member table (songs §11.12.1, setlists §11.13). The order of members within a conflict is a serialisation rule (§11.12.5), not validated here; the array order and the sole-conflict rule are the array's own constraints.",
+  "type": "object",
+  "required": ["conflicts"],
+  "additionalProperties": false,
+  "properties": {
+    "conflicts": {
+      "type": "array",
+      "description": "One object per conflict, in region order, a `file` conflict first (§11.12.5).",
+      "items": { "$ref": "#/$defs/Conflict" },
+      "if": {
+        "contains": {
+          "type": "object",
+          "required": ["kind"],
+          "properties": { "kind": { "enum": ["file", "unresolved"] } }
+        }
+      },
+      "then": {
+        "maxItems": 1,
+        "description": "A `file` conflict and an `unresolved` conflict are each the only conflict of their merge (§11.12.5)."
+      }
+    }
+  },
+  "$defs": {
+    "Kind": {
+      "description": "What is in conflict: the song kinds (§11.12.1) and the setlist kinds (§11.13).",
+      "enum": [
+        "file", "unresolved", "title", "property", "reading", "heading",
+        "chart", "sections", "voicing", "variation", "block", "block-notes",
+        "item", "text", "entry", "notes"
+      ]
+    },
+    "Side": {
+      "description": "One side of the merge: `\"ours\"` or `\"theirs\"` (§11.12.5, `deleted` and `changed`).",
+      "enum": ["ours", "theirs"]
+    },
+    "Unreadable": {
+      "description": "The sides that are not UTF-8, in the order base, ours, theirs (§11.12.5, `file`).",
+      "type": "array",
+      "items": { "enum": ["base", "ours", "theirs"] }
+    },
+    "Line": {
+      "description": "The 1-based line, in the marked text, of the conflict's region's `<<<<<<< ours` line (§11.12.5).",
+      "type": "integer",
+      "minimum": 1
+    },
+    "Occurrence": {
+      "description": "Which of the items (or the notes block's item) with one reference, present only when more than 1 (§11.13).",
+      "type": "integer",
+      "minimum": 2
+    },
+    "Scalar": {
+      "description": "A side's value as a string: a value, a heading line, a voicing, a block or an item (§11.12.5).",
+      "type": "string"
+    },
+    "Run": {
+      "description": "A side's value as a run: an array of strings, one per unit, section or line; an empty run is `[]` (§11.12.5).",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "LineNumber": {
+      "description": "An `unresolved` side: the 1-based line, after the text layer (§1.3), of that input's first marker line (§11.12.5).",
+      "type": "integer",
+      "minimum": 1
+    },
+    "Conflict": {
+      "description": "One conflict. The `kind` selects the branch: each branch pins the members that `kind` carries and forbids the rest (§11.12.5). The sides base/ours/theirs are optional on every kind that has them, since a side on which the thing is absent carries none (§11.12.5, a deleted-against-changed conflict).",
+      "type": "object",
+      "required": ["kind"],
+      "oneOf": [
+        { "$ref": "#/$defs/FileConflict" },
+        { "$ref": "#/$defs/UnresolvedConflict" },
+        { "$ref": "#/$defs/TitleConflict" },
+        { "$ref": "#/$defs/PropertyConflict" },
+        { "$ref": "#/$defs/ReadingConflict" },
+        { "$ref": "#/$defs/HeadingConflict" },
+        { "$ref": "#/$defs/ChartConflict" },
+        { "$ref": "#/$defs/SectionsConflict" },
+        { "$ref": "#/$defs/VoicingConflict" },
+        { "$ref": "#/$defs/VariationConflict" },
+        { "$ref": "#/$defs/BlockConflict" },
+        { "$ref": "#/$defs/BlockNotesConflict" },
+        { "$ref": "#/$defs/ItemConflict" },
+        { "$ref": "#/$defs/TextConflict" },
+        { "$ref": "#/$defs/EntryConflict" },
+        { "$ref": "#/$defs/NotesConflict" }
+      ]
+    },
+    "FileConflict": {
+      "description": "The whole file: deleted on one side and changed on the other, or not UTF-8 (§11.12.1). No region, so no `line` and no sides.",
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "file" },
+        "deleted": { "$ref": "#/$defs/Side", "description": "Which side deleted it, for a deleted-against-changed file (§11.12.5)." },
+        "unreadable": { "$ref": "#/$defs/Unreadable", "description": "The sides that are not UTF-8 (§11.12.5)." }
+      }
+    },
+    "UnresolvedConflict": {
+      "description": "The whole file: an input that holds a marker line (§11.4). No region, so no `line`; one to three numbered sides (§11.12.5).",
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "unresolved" },
+        "base": { "$ref": "#/$defs/LineNumber" },
+        "ours": { "$ref": "#/$defs/LineNumber" },
+        "theirs": { "$ref": "#/$defs/LineNumber" }
+      }
+    },
+    "TitleConflict": {
+      "description": "The title (§11.12.1).",
+      "type": "object",
+      "required": ["kind", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "title" },
+        "line": { "$ref": "#/$defs/Line" },
+        "base": { "$ref": "#/$defs/Scalar" },
+        "ours": { "$ref": "#/$defs/Scalar" },
+        "theirs": { "$ref": "#/$defs/Scalar" }
+      }
+    },
+    "PropertyConflict": {
+      "description": "One property: two values, or deleted against changed (§11.12.1). Carries `key`.",
+      "type": "object",
+      "required": ["kind", "line", "key"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "property" },
+        "line": { "$ref": "#/$defs/Line" },
+        "key": { "type": "string", "description": "The property's key (§11.12.5)." },
+        "base": { "$ref": "#/$defs/Scalar" },
+        "ours": { "$ref": "#/$defs/Scalar" },
+        "theirs": { "$ref": "#/$defs/Scalar" }
+      }
+    },
+    "ReadingConflict": {
+      "description": "`notation` or `words` changed by one side under music the other wrote (§11.7.2). Carries `key` and `changed`, and `symbols` for a `notation` reading.",
+      "type": "object",
+      "required": ["kind", "line", "key", "changed"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "reading" },
+        "line": { "$ref": "#/$defs/Line" },
+        "key": { "type": "string", "description": "The property's key, `notation` or `words` (§11.12.5)." },
+        "changed": { "$ref": "#/$defs/Side", "description": "The side that changed the property (§11.12.5)." },
+        "symbols": { "$ref": "#/$defs/Run", "description": "The symbols that read differently, for a `notation` reading (§11.12.5)." },
+        "base": { "$ref": "#/$defs/Scalar" },
+        "ours": { "$ref": "#/$defs/Scalar" },
+        "theirs": { "$ref": "#/$defs/Scalar" }
+      }
+    },
+    "HeadingConflict": {
+      "description": "A section's heading (§11.8.3).",
+      "type": "object",
+      "required": ["kind", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "heading" },
+        "line": { "$ref": "#/$defs/Line" },
+        "base": { "$ref": "#/$defs/Scalar" },
+        "ours": { "$ref": "#/$defs/Scalar" },
+        "theirs": { "$ref": "#/$defs/Scalar" }
+      }
+    },
+    "ChartConflict": {
+      "description": "A stretch of lines in one section (§11.12.1): the runs of units, as their texts.",
+      "type": "object",
+      "required": ["kind", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "chart" },
+        "line": { "$ref": "#/$defs/Line" },
+        "base": { "$ref": "#/$defs/Run" },
+        "ours": { "$ref": "#/$defs/Run" },
+        "theirs": { "$ref": "#/$defs/Run" }
+      }
+    },
+    "SectionsConflict": {
+      "description": "A stretch of sections (§11.8.2), or a section written whole (§11.12.2): the runs of sections, as their texts.",
+      "type": "object",
+      "required": ["kind", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "sections" },
+        "line": { "$ref": "#/$defs/Line" },
+        "base": { "$ref": "#/$defs/Run" },
+        "ours": { "$ref": "#/$defs/Run" },
+        "theirs": { "$ref": "#/$defs/Run" }
+      }
+    },
+    "VoicingConflict": {
+      "description": "One variant in one block (§11.12.1). Carries `tuning`, `variation` and `key`.",
+      "type": "object",
+      "required": ["kind", "line", "tuning", "variation", "key"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "voicing" },
+        "line": { "$ref": "#/$defs/Line" },
+        "tuning": { "type": "string", "description": "The tuning as the marked text writes it (§11.12.5)." },
+        "variation": { "type": "string", "description": "The variation's name in the result, `\"\"` for the default (§11.12.5)." },
+        "key": { "type": "string", "description": "The variant's key as the marked text writes it (§11.12.5)." },
+        "base": { "$ref": "#/$defs/Scalar" },
+        "ours": { "$ref": "#/$defs/Scalar" },
+        "theirs": { "$ref": "#/$defs/Scalar" }
+      }
+    },
+    "VariationConflict": {
+      "description": "A block renamed differently by both sides (§11.12.1): the names. Carries `tuning`.",
+      "type": "object",
+      "required": ["kind", "line", "tuning"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "variation" },
+        "line": { "$ref": "#/$defs/Line" },
+        "tuning": { "type": "string", "description": "The tuning as the marked text writes it (§11.12.5)." },
+        "base": { "$ref": "#/$defs/Scalar" },
+        "ours": { "$ref": "#/$defs/Scalar" },
+        "theirs": { "$ref": "#/$defs/Scalar" }
+      }
+    },
+    "BlockConflict": {
+      "description": "A block deleted by one side and changed by the other (§11.12.1): the blocks, as their texts. Carries `tuning` and `variation`.",
+      "type": "object",
+      "required": ["kind", "line", "tuning", "variation"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "block" },
+        "line": { "$ref": "#/$defs/Line" },
+        "tuning": { "type": "string", "description": "The tuning as the marked text writes it (§11.12.5)." },
+        "variation": { "type": "string", "description": "The variation's name in the result, `\"\"` for the default (§11.12.5)." },
+        "base": { "$ref": "#/$defs/Scalar" },
+        "ours": { "$ref": "#/$defs/Scalar" },
+        "theirs": { "$ref": "#/$defs/Scalar" }
+      }
+    },
+    "BlockNotesConflict": {
+      "description": "A stretch of a block's notes (§11.12.1): the runs of lines. Carries `tuning` and `variation`.",
+      "type": "object",
+      "required": ["kind", "line", "tuning", "variation"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "block-notes" },
+        "line": { "$ref": "#/$defs/Line" },
+        "tuning": { "type": "string", "description": "The tuning as the marked text writes it (§11.12.5)." },
+        "variation": { "type": "string", "description": "The variation's name in the result, `\"\"` for the default (§11.12.5)." },
+        "base": { "$ref": "#/$defs/Run" },
+        "ours": { "$ref": "#/$defs/Run" },
+        "theirs": { "$ref": "#/$defs/Run" }
+      }
+    },
+    "ItemConflict": {
+      "description": "A setlist item deleted by one side and changed by the other (§11.13). Carries `item` and `occurrence` when more than 1.",
+      "type": "object",
+      "required": ["kind", "line", "item"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "item" },
+        "line": { "$ref": "#/$defs/Line" },
+        "item": { "type": "string", "description": "The item's reference: its path as written, or its content (§11.13)." },
+        "occurrence": { "$ref": "#/$defs/Occurrence" },
+        "base": { "$ref": "#/$defs/Scalar" },
+        "ours": { "$ref": "#/$defs/Scalar" },
+        "theirs": { "$ref": "#/$defs/Scalar" }
+      }
+    },
+    "TextConflict": {
+      "description": "A setlist item's link text (§11.13). Carries `item` and `occurrence` when more than 1.",
+      "type": "object",
+      "required": ["kind", "line", "item"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "text" },
+        "line": { "$ref": "#/$defs/Line" },
+        "item": { "type": "string", "description": "The item's reference: its path as written, or its content (§11.13)." },
+        "occurrence": { "$ref": "#/$defs/Occurrence" },
+        "base": { "$ref": "#/$defs/Scalar" },
+        "ours": { "$ref": "#/$defs/Scalar" },
+        "theirs": { "$ref": "#/$defs/Scalar" }
+      }
+    },
+    "EntryConflict": {
+      "description": "One entry of a setlist item (§11.13). Carries `item`, `key` and `occurrence` when more than 1.",
+      "type": "object",
+      "required": ["kind", "line", "item", "key"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "entry" },
+        "line": { "$ref": "#/$defs/Line" },
+        "item": { "type": "string", "description": "The item's reference: its path as written, or its content (§11.13)." },
+        "occurrence": { "$ref": "#/$defs/Occurrence" },
+        "key": { "type": "string", "description": "The entry's key (§11.13)." },
+        "base": { "$ref": "#/$defs/Scalar" },
+        "ours": { "$ref": "#/$defs/Scalar" },
+        "theirs": { "$ref": "#/$defs/Scalar" }
+      }
+    },
+    "NotesConflict": {
+      "description": "A setlist notes block (§11.13). Carries `after`, the reference of the item it follows (with `occurrence` when more than 1), and no `after` when it is first.",
+      "type": "object",
+      "required": ["kind", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "notes" },
+        "line": { "$ref": "#/$defs/Line" },
+        "after": { "type": "string", "description": "The reference of the item the block follows; omitted when it is first (§11.13)." },
+        "occurrence": { "$ref": "#/$defs/Occurrence" },
+        "base": { "$ref": "#/$defs/Scalar" },
+        "ours": { "$ref": "#/$defs/Scalar" },
+        "theirs": { "$ref": "#/$defs/Scalar" }
+      }
+    }
+  }
+}

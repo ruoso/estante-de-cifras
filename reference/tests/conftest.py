@@ -9,11 +9,17 @@ sys.path.insert(0, str(ROOT / "reference"))  # for tools.corpus
 EXAMPLES = sorted((ROOT / "examples").glob("*.cifra.md"))
 CASES = sorted((ROOT / "tests" / "cases").glob("*.json"))
 SCHEMA = json.loads((ROOT / "schema" / "cifra.schema.json").read_text())
+CONFLICTS_SCHEMA = json.loads((ROOT / "schema" / "conflicts.schema.json").read_text())
 
 
 @pytest.fixture(scope="session")
 def schema():
     return SCHEMA
+
+
+@pytest.fixture(scope="session")
+def conflicts_schema():
+    return CONFLICTS_SCHEMA
 
 
 def chart(text: str) -> str:

@@ -136,6 +136,10 @@ An implementation validates its merge by checking, for every entry:
 4. Resolving every region of the marked text by ours, and every one by
    theirs (spec §11.12.4), gives a text with no marker line, whose
    canonical form is a fixed point.
+5. Any `conflicts.json` is valid against
+   [`schema/conflicts.schema.json`](../schema/conflicts.schema.json), the
+   formalisation of spec §11.12.5 (as a reading entry's models are valid
+   against `schema/cifra.schema.json`, the reading check 5 above).
 
 and, generated from the files rather than stored: merging *b*, *x*, *x*,
 *b*, *b*, *x* and *b*, *x*, *b* gives the canonical text of *x*, for each

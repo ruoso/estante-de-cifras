@@ -4,6 +4,7 @@ files."""
 
 import json
 
+import jsonschema
 import pytest
 
 from cifra_md.merge import canonical_song, merge
@@ -11,6 +12,8 @@ from cifra_md.setlist import canonicalise_setlist
 from cifra_md.text import marker_lines
 from merge_props import mirror_conflict, mirror_text, normal, resolve
 from tools.corpus import extension, merge_entries, merge_inputs, merge_outputs
+
+from conftest import CONFLICTS_SCHEMA
 
 ENTRIES = merge_entries()
 
@@ -102,3 +105,17 @@ def test_conflicts_json_is_written_as_the_corpus_writes_json(entry):
     if path.exists():
         text = path.read_text()
         assert text == json.dumps(json.loads(text), indent=2, ensure_ascii=False) + "\n"
+
+
+@pytest.mark.parametrize("entry", ENTRIES, ids=ids())
+def test_conflicts_json_validates_against_the_schema(entry):
+    # Every conflicts.json in corpus/merge/ is a second opinion on §11.12.5:
+    # it validates against schema/conflicts.schema.json (the published
+    # formalisation that closes chapter 11's open question). This pins the
+    # member table against the real merge output — chart/sections/block-notes
+    # runs (including an empty []), scalar-side kinds, file (deleted/unreadable),
+    # unresolved (integer sides, no line), the two-conflict entry (63) and
+    # occurrence > 1 (68).
+    path = entry / "conflicts.json"
+    if path.exists():
+        jsonschema.validate(json.loads(path.read_text()), CONFLICTS_SCHEMA)
