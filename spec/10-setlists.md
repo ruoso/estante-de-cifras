@@ -682,5 +682,7 @@ Deferred to a later version:
 - Whether a reader on a case-insensitive file system should find
   `Garota.cifra.md` for a path `garota.cifra.md`. Today names compare
   exactly, as git compares them.
-- A JSON Schema for the model of §10.6. Until the schema exists, the
-  prose model above is the normative one.
+- ~~A JSON Schema for the model of §10.6.~~ `schema/setlist.schema.json`
+  formalizes the §10.6 model (closed by `format.setlist_schema`). §10.6
+  remains the normative prose; the schema is the published formalization
+  the corpus and other implementations check against.

@@ -18,10 +18,10 @@ A **setlist** reading entry (spec §10) is the same four files with
 beside them, read by the setlist reader (§10.6) and written by its canonical
 writer (§10.9) instead of the song reader and writer. An entry is discovered
 by the extension of its input: `input.cifra.md` is a song, `input.setlist.md`
-a setlist. The setlist entries are below, after the song entries. They pin
-checks 1 to 4 and the sixth, model-level check; the fifth, schema, check is
-not run over a setlist model, because §10.6 has no JSON Schema yet (spec §10
-*Open questions*).
+a setlist. The setlist entries are below, after the song entries. They pin checks 1
+to 6: the fifth, schema, check validates every setlist model against
+`schema/setlist.schema.json`, the formalization of §10.6 written by
+`format.setlist_schema`.
 
 A reader lays out every sung line as canonical form writes it (spec
 §4.5), so the two JSON files agree on every sung line's columns and words

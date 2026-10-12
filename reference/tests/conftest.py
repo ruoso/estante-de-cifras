@@ -10,6 +10,7 @@ EXAMPLES = sorted((ROOT / "examples").glob("*.cifra.md"))
 CASES = sorted((ROOT / "tests" / "cases").glob("*.json"))
 SCHEMA = json.loads((ROOT / "schema" / "cifra.schema.json").read_text())
 CONFLICTS_SCHEMA = json.loads((ROOT / "schema" / "conflicts.schema.json").read_text())
+SETLIST_SCHEMA = json.loads((ROOT / "schema" / "setlist.schema.json").read_text())
 
 
 @pytest.fixture(scope="session")
@@ -20,6 +21,11 @@ def schema():
 @pytest.fixture(scope="session")
 def conflicts_schema():
     return CONFLICTS_SCHEMA
+
+
+@pytest.fixture(scope="session")
+def setlist_schema():
+    return SETLIST_SCHEMA
 
 
 def chart(text: str) -> str:
