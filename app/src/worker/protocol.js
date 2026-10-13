@@ -101,6 +101,16 @@ export const CommandKind = Object.freeze({
   DOWNLOAD_BOOK: 'download_book',
   REMOVE_BOOK: 'remove_book',
   DELETE_BOOK: 'delete_book',
+  // Make a book the user's own copy (books.fork, workflow 11). FORK_BOOK
+  // `{ bookId, author }` is dispatched by the "Make this book your own" offer —
+  // one of fork's ways in: a book the user lost access to (sync.lost_access,
+  // workflow 8 L65-69), one that stopped following its original, or one they
+  // cannot push to. sync.lost_access ships the offer (the losing-access surface);
+  // `books.fork` owns the handler (the service repo-copy, the Worker module, the
+  // shelf "from X's book") and the end-to-end *make it my own after losing
+  // access* journey. Named here so the offer has a command to dispatch; until
+  // `books.fork` lands the handler, the Worker has nothing wired to it.
+  FORK_BOOK: 'fork_book',
   // Join a shared book from its invitation (books.add_by_link, workflow 1
   // §Invited, workflow 7 §By link). ADD_BY_LINK `{ token, author }` accepts the
   // invitation (POST /api/invitations/{token}/accept) and, on a 200 Book, clones

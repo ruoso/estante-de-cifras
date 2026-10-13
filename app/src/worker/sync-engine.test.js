@@ -130,6 +130,59 @@ describe('sync engine routing (unit)', () => {
     expect(lastPhase(facts)).toBe('gone');
   });
 
+  it('marks a book gone on a 404 push refusal, keeps its commits, and stops — a 403 does not (sync.lost_access AC1; workflow 8 L66-69)', async () => {
+    // An isomorphic-git HTTP error, the shape access-refused.js reads: the status
+    // rides under `err.data.statusCode` (index.js HttpError).
+    const httpError = (statusCode) => {
+      const err = new Error(`HTTP Error: ${statusCode}`);
+      err.code = err.name = 'HttpError';
+      err.data = { statusCode, statusMessage: 'x' };
+      return err;
+    };
+
+    // A book with unpushed commits and nothing incoming: the engine pushes, and
+    // the service refuses 404 (no longer a member). The book goes `gone`; it is
+    // not re-fetched, not re-merged, and the push is not retried (a 404 is not a
+    // lost race), so the local commits stand.
+    const quietCheck = { check: async () => new Map() }; // nothing moved
+    const fetchBook = vi.fn(async () => {});
+    const mergeBook = vi.fn(async () => ({ merged: false }));
+    const push404 = vi.fn(async () => {
+      throw httpError(404);
+    });
+    const gone = makeEngine({
+      changeCheck: quietCheck,
+      fetchBook,
+      mergeBook,
+      pushBook: push404,
+      localAhead: async () => true,
+    });
+
+    await gone.engine.pass();
+
+    expect(push404).toHaveBeenCalledTimes(1); // no retry for a 404
+    expect(fetchBook).not.toHaveBeenCalled(); // nothing incoming, no re-fetch
+    expect(mergeBook).not.toHaveBeenCalled();
+    expect(lastPhase(gone.facts)).toBe('gone');
+
+    // A 403 (an editor lowered to reader — still a member) is NOT lost access:
+    // the book stays on `saves_waiting`, its push retried next pass.
+    const push403 = vi.fn(async () => {
+      throw httpError(403);
+    });
+    const reader = makeEngine({
+      changeCheck: quietCheck,
+      pushBook: push403,
+      localAhead: async () => true,
+      countAhead: async () => 1,
+    });
+
+    await reader.engine.pass();
+
+    expect(push403).toHaveBeenCalledTimes(1);
+    expect(lastPhase(reader.facts)).toBe('saves_waiting');
+  });
+
   it('routes the home book to its own sync (never the cifra-aware merge) and re-surfaces', async () => {
     const syncHome = vi.fn(async () => ({ commit: 'm', pushed: true }));
     const surfaceHome = vi.fn(async () => {});

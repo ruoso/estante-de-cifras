@@ -49,6 +49,14 @@ const hostedShelf = (id = 'srv-1') =>
     local: {},
   });
 
+// A hosted book the caller joined as an editor (the losing-access case: still on
+// the shelf with its last-known role, but the engine has marked it `gone`).
+const memberShelf = (id = 'srv-2') =>
+  event(EventKind.SHELF, {
+    books: { [id]: { label: reg('Choros da Ana'), position: reg(1), role: reg('editor') } },
+    local: {},
+  });
+
 describe('BookDetail (workflow 7; W07 board)', () => {
   it('a device-only book shows Put online, Download and Remove — not Delete (L46-52)', async () => {
     const { store, emit } = makeStore();
@@ -131,6 +139,53 @@ describe('BookDetail (workflow 7; W07 board)', () => {
     // A hosted book's remove offers no Download — the book stays on Estante.
     expect(within(dialog).queryByRole('button', { name: 'Download' })).toBeNull();
     expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+  });
+
+  it('a gone book shows the no-longer-shared notice and offers Download and Make this book your own (sync.lost_access AC2-4; workflow 8 L66-69; W11 board)', async () => {
+    const { store, sent, emit } = makeStore();
+    const { container } = renderDetail(store, { bookId: 'srv-2', kind: 'shared' });
+    emit(memberShelf());
+    // The engine marked the book gone (the live `sync` slice the shelf badge
+    // reads too — no new store).
+    emit(event(EventKind.SYNC, { bookId: 'srv-2', phase: 'gone', at: AT }));
+
+    // The notice names the state in a word, in a live region (never colour alone;
+    // Constraint 5, mockups/README.md:26).
+    expect(screen.getByText('No longer shared with you')).toBeInTheDocument();
+    const body = screen.getByText(/no longer shared with you, so it will not sync again/);
+    expect(body).toHaveAttribute('role', 'status');
+    // The notice says the copy, history and songs are all here (readable as is).
+    expect(body).toHaveTextContent(/your copy, its history and its songs are all here/);
+
+    // Both escape offers are present and labelled (acceptance 4).
+    const download = screen.getByRole('button', { name: 'Download' });
+    const fork = screen.getByRole('button', { name: 'Make this book your own' });
+    expect(download).toBeInTheDocument();
+    expect(fork).toBeInTheDocument();
+
+    // Keyboard-reachable: focus and activate the fork offer. It dispatches the
+    // fork entry (the handler is books.fork's — this task ships the control).
+    fork.focus();
+    expect(fork).toHaveFocus();
+    act(() => fireEvent.click(fork));
+    expect(lastCommand(sent, CommandKind.FORK_BOOK).payload.bookId).toBe('srv-2');
+
+    // Download stays wired to the existing zip (functional, acceptance 4).
+    act(() => fireEvent.click(download));
+    expect(lastCommand(sent, CommandKind.DOWNLOAD_BOOK).payload.bookId).toBe('srv-2');
+
+    // axe clean at WCAG 2.1 AA on the gone detail.
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('a book not gone shows no losing-access notice (the notice is scoped to the gone phase)', async () => {
+    const { store, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-1', kind: 'shared' });
+    emit(hostedShelf());
+    emit(event(EventKind.SYNC, { bookId: 'srv-1', phase: 'in_step', at: AT }));
+
+    expect(screen.queryByText('No longer shared with you')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Make this book your own' })).toBeNull();
   });
 
   it('Remove warns a device-only book is gone for good and offers Download first (L128-135)', async () => {

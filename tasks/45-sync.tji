@@ -48,8 +48,9 @@ task sync "Sync" {
   task lost_access "Losing access" {
     effort 1d
     allocate team
+    complete 100
     depends !engine, service.sharing, foundation.e2e_web, books.add_by_link
-    note "Refused for not being a member: no longer shared with you, readable, never synced; unsaved saves kept, fork or download offered. Workflow 8. Tests: behavior (a refusal for not being a member marks the book, keeps unsaved saves, stops syncing); e2e-web (the owner removes a member on the stack; the member's device shows no longer shared with you, the song still readable, fork and download offered; axe)."
+    note "Refused for not being a member: no longer shared with you, readable, never synced; unsaved saves kept, fork or download offered. Workflow 8. Tests: behavior (a refusal for not being a member marks the book, keeps unsaved saves, stops syncing); e2e-web (the owner removes a member on the stack; the member's device shows no longer shared with you, the song still readable, fork and download offered; axe). Refinement: tasks/refinements/sync/lost_access.md"
   }
   task upload "Upload a zip" {
     effort 4d

@@ -82,6 +82,9 @@ export default {
     putOnlineSignedOut: 'Inicia sesión para poner un libro en línea.',
     putOnlineOffline: 'Estás sin conexión. Conéctate y ponlo en línea.',
     putOnlineError: 'No se pudo poner en línea. Vuelve a intentarlo.',
+    lostAccessTitle: 'Ya no se comparte contigo',
+    lostAccessBody:
+      'Este libro ya no se comparte contigo, así que no volverá a sincronizarse. No se pierde nada: tu copia, su historial y sus canciones están todos aquí para leer, y los guardados que aún no están en Estante quedan en este dispositivo. Descárgalo, o hazlo tuyo para seguir guardando.',
     download: 'Descargar',
     downloadBody:
       'Un zip del repositorio tal como está en este dispositivo: todo el historial y los cambios sin guardar como archivos modificados. Cualquier herramienta git lo abre.',

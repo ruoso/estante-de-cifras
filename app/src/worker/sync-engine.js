@@ -48,6 +48,7 @@ import {
 import { authorFrom } from './author.js';
 import { reapplyWorkingText } from './cifra-merge-driver.js';
 import { HOME_BOOK_ID } from './home-book.js';
+import { isAccessRefused } from './access-refused.js';
 
 // A merge that does not merge cleanly (a cifra-aware conflict, or isomorphic-git
 // refusing an unsupported merge). The engine halts the book and emits
@@ -501,7 +502,14 @@ export function createSyncEngine(deps = {}) {
         // A lost race: bring in the winner and merge again before pushing.
         try {
           await fetchBook(bookId);
-        } catch {
+        } catch (err) {
+          // A definite 404 means the device lost access mid-retry: halt the book
+          // the same way the change-check `gone` does, keeping the unpushed work
+          // (sync.lost_access; workflow 8 L65-69).
+          if (isAccessRefused(err)) {
+            emitFact(bookId, 'gone');
+            return;
+          }
           emitFact(bookId, 'saves_waiting', { savesWaiting: await countAhead(bookId) });
           return;
         }
@@ -534,6 +542,15 @@ export function createSyncEngine(deps = {}) {
         return;
       } catch (err) {
         if (isLostRace(err)) continue;
+        // A definite 404 means the service refused the push because the device is
+        // no longer a member (git.go:208,217): lost access. Mark the book `gone`
+        // and stop — the unpushed commit is kept, nothing is rolled back
+        // (sync.lost_access; workflow 8 L65-69; Constraints 2-3). A 403 (a reader,
+        // still a member) is NOT lost access — it falls through to `saves_waiting`.
+        if (isAccessRefused(err)) {
+          emitFact(bookId, 'gone');
+          return;
+        }
         // Offline, or the service unreachable: the local commits wait (workflow
         // 8 L31). The commit is kept; next pass retries.
         emitFact(bookId, 'saves_waiting', { savesWaiting: await countAhead(bookId) });
@@ -583,7 +600,15 @@ export function createSyncEngine(deps = {}) {
         try {
           await fetchBook(bookId);
           fetched = true;
-        } catch {
+        } catch (err) {
+          // A definite 404 on the fetch is lost access (git.go:208,217): halt the
+          // book `gone` like the change-check does, keeping its work untouched
+          // (sync.lost_access; workflow 8 L65-69). Any other fetch error is
+          // offline — fall through to the best-effort push, retried next pass.
+          if (isAccessRefused(err)) {
+            emitFact(bookId, 'gone');
+            return;
+          }
           fetched = false; // offline; fall through to the best-effort push
         }
         if (fetched) {

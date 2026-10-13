@@ -86,6 +86,12 @@ export default {
     putOnlineSignedOut: 'Sign in to put a book online.',
     putOnlineOffline: 'You’re offline. Connect, then put it online.',
     putOnlineError: 'Couldn’t put it online. Try again.',
+    // The losing-access notice on a `gone` book (sync.lost_access, workflow 8
+    // §Losing access; the W11 board surface, minus the "stops following"
+    // language). The state is the word, never colour alone.
+    lostAccessTitle: 'No longer shared with you',
+    lostAccessBody:
+      'This book is no longer shared with you, so it will not sync again. Nothing is lost: your copy, its history and its songs are all here to read, and any saves not yet on Estante are kept on this device. Download it, or make it your own to keep saving.',
     download: 'Download',
     downloadBody:
       'A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.',

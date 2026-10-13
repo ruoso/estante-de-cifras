@@ -7,6 +7,12 @@
 // full-screen detail over the list on a phone (Decision 2). This component is
 // the detail pane only — the chips, the act cards and their confirmations.
 //
+// When the book's live `sync` phase is `gone` — the device is no longer a member
+// (sync.lost_access, workflow 8 §Losing access) — it also shows a *no longer
+// shared with you* notice: the book is readable as it is and never syncs again,
+// and it offers the download and "Make this book your own" (the fork offer;
+// books.fork owns the action) so nothing unpushed is stranded.
+//
 // The Worker owns git, the working copy and the network (DIRECTION §3.7): this
 // view only sends commands (PUT_ONLINE / DOWNLOAD_BOOK / REMOVE_BOOK /
 // DELETE_BOOK) and reacts to their replies. It reads the `shelf` and `sync`
@@ -223,6 +229,11 @@ export default function BookDetail({
   const isOwner = isLocal || role === 'owner';
   const canSave = canSaveFor(bookKind, book);
   const savesWaiting = sync?.[bookId]?.savesWaiting ?? 0;
+  // The book's live sync phase (the same `sync` slice the shelf badge reads —
+  // no new store, Decision "No new durable state"). `gone` means the device is
+  // no longer a member: the book is readable as it is and never synced again
+  // (sync.lost_access; workflow 8 L65-69).
+  const isGone = sync?.[bookId]?.phase === 'gone';
 
   // A successful put-online changed the book's on-device id (Decision 3): move
   // the open detail to the adopted service id so it keeps showing the book.
@@ -251,6 +262,11 @@ export default function BookDetail({
     store.send(command(CommandKind.PUT_ONLINE, { bookId, author: LOCAL_IDENTITY }));
   };
   const download = () => store.send(command(CommandKind.DOWNLOAD_BOOK, { bookId }));
+  // The fork offer dispatches the fork entry; `books.fork` owns the handler and
+  // the completed journey (Decision "The fork offer is this task's; the fork
+  // action is books.fork's"). This task ships the control, present and reachable.
+  const makeYourOwn = () =>
+    store.send(command(CommandKind.FORK_BOOK, { bookId, author: LOCAL_IDENTITY }));
   const remove = () =>
     store.send(command(CommandKind.REMOVE_BOOK, { bookId, author: LOCAL_IDENTITY }));
   const deleteBook = () =>
@@ -305,6 +321,23 @@ export default function BookDetail({
             <Button className="btn" style={{ alignSelf: 'flex-start' }} onPress={putOnline}>
               <OnlineIcon />
               {t('books.putOnline')}
+            </Button>
+          </div>
+        ) : null}
+
+        {isGone ? (
+          <div className="card pad">
+            <span className="t-h2">{t('books.lostAccessTitle')}</span>
+            {/* The state is carried by a word, in a live region, never colour
+                alone (Constraint 5; mockups/README.md:26) — the same role the
+                detail's other status copy uses (the put-online error above). */}
+            <p className="t-small" role="status">
+              {t('books.lostAccessBody')}
+            </p>
+            {/* Make it my own: present and reachable here; the fork machinery and
+                the completed journey are books.fork's (W11 board surface). */}
+            <Button className="btn" style={{ alignSelf: 'flex-start' }} onPress={makeYourOwn}>
+              {t('saveSheet.makeYourOwn')}
             </Button>
           </div>
         ) : null}

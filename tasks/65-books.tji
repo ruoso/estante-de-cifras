@@ -44,7 +44,7 @@ task books "Books" {
   task fork "Make it my own" {
     effort 2d
     allocate team
-    depends !online, sync.fork_follow, service.books
+    depends !online, sync.fork_follow, sync.lost_access, service.books
     note "Offered by saving where one cannot, losing access, or deliberately; replaces the original on the shelf; from Ana's Choros beneath it. Workflow 11. Tests: behavior (the three ways in, replacing the original on the shelf, from the original beneath; axe); e2e-web (make it my own after losing access and deliberately, then a new save of the original counted; axe)."
   }
   task upload_ui "Upload preview" {
