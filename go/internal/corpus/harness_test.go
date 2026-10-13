@@ -39,7 +39,8 @@ func (noImpl) Merge(_, _, _ []byte, _ bool) (cifra.Outcome, error) {
 func (noImpl) MergeOutputs(cifra.Outcome, bool) (map[string][]byte, error) {
 	return nil, errNotUsed
 }
-func (noImpl) Prepare([]byte) ([]string, error) { return nil, errNotUsed }
+func (noImpl) ResolveMarked([]byte, string) ([]byte, error) { return nil, errNotUsed }
+func (noImpl) Prepare([]byte) ([]string, error)             { return nil, errNotUsed }
 func (noImpl) ParseChord(string, string) (cifra.Model, []any, []string) {
 	return nil, nil, []string{"not used"}
 }
@@ -264,11 +265,15 @@ type forwardFake struct {
 	files map[string][]byte
 }
 
+// forwardFake drives only the forward (/1) check: Merge is a no-op and
+// MergeOutputs returns the planted file map, so /1 compares those bytes to the
+// entry's stored files. The /2–/perm checks are built but not run by these
+// tests (findCheck selects "merge/synthetic/1").
 func (f forwardFake) Merge(_, _, _ []byte, _ bool) (cifra.Outcome, error) {
-	return cifra.Outcome{Payload: f.files}, nil
+	return cifra.Outcome{}, nil
 }
-func (f forwardFake) MergeOutputs(o cifra.Outcome, _ bool) (map[string][]byte, error) {
-	return o.Payload.(map[string][]byte), nil
+func (f forwardFake) MergeOutputs(_ cifra.Outcome, _ bool) (map[string][]byte, error) {
+	return f.files, nil
 }
 
 func plantMergeEntry(t *testing.T, stored map[string][]byte) MergeEntry {

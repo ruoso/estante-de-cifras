@@ -1,22 +1,5 @@
 package cifra
 
-import "errors"
-
-// ErrNotImplemented is returned by every corpus-facing operation until the
-// task that owns it fills it in. The corpus harness runs each operation on
-// every corpus entry; while an operation is a stub, its checks are named in the
-// harness's expected-failures ledger, so the suite is green and the whole
-// corpus surface is still executed.
-var ErrNotImplemented = errors.New("cifra: not implemented")
-
-// Outcome is the result of a merge. Its shape belongs to cifra_go.merge; for
-// now it is a minimal placeholder the harness threads from Merge to
-// MergeOutputs. Payload carries whatever the merge produced between those two
-// calls; cifra_go.merge replaces it with the real fields.
-type Outcome struct {
-	Payload any
-}
-
 // Parse reads a song's text (bytes, which need not yet be known-good UTF-8 —
 // the text layer validates that) into a model (spec §1 to §7). The only error it
 // returns is non-UTF-8 input (NotUTF8Error); everything else unparseable is a
@@ -61,16 +44,7 @@ func IsCanonical(text []byte) bool {
 
 // ParseSetlist, WriteSetlist and CanonicalSetlist are implemented in
 // setlist.go (spec §10), owned by cifra_go.setlists.
-
-// Merge merges three inputs of a song or a setlist (spec §11); a nil input is
-// an absent side. Stub; owned by cifra_go.merge.
-func Merge(base, ours, theirs []byte, setlist bool) (Outcome, error) {
-	return Outcome{}, ErrNotImplemented
-}
-
-// MergeOutputs turns a merge Outcome into the files a merge entry stores
-// (result, result.deleted, conflicts.json, marked), keyed by file name. Stub;
-// owned by cifra_go.merge.
-func MergeOutputs(outcome Outcome, setlist bool) (map[string][]byte, error) {
-	return nil, ErrNotImplemented
-}
+//
+// Outcome, Merge, MergeOutputs, ConflictsJSON, ResolveMarked and MarkerLines are
+// implemented in merge.go and setlist_merge.go (spec §11), owned by
+// cifra_go.merge.

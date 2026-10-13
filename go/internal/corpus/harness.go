@@ -18,12 +18,14 @@ package corpus
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	cifra "github.com/ruoso/cifra.md/go"
 )
@@ -41,6 +43,7 @@ type Impl interface {
 	CanonicalSetlist(model cifra.Model) (cifra.Model, error)
 	Merge(base, ours, theirs []byte, setlist bool) (cifra.Outcome, error)
 	MergeOutputs(outcome cifra.Outcome, setlist bool) (map[string][]byte, error)
+	ResolveMarked(marked []byte, side string) ([]byte, error)
 	// The text layer and the chord parser, for the born-passing /tl and /chords
 	// reading checks (cifra_go.reader).
 	Prepare(src []byte) ([]string, error)
@@ -370,47 +373,306 @@ func mergeOutputNames(ext string) []string {
 	return []string{"result" + ext, "result.deleted", "conflicts.json", "marked" + ext}
 }
 
-// MergeChecks returns the forward merge check for an entry (the fuller
-// symmetry, canonicality, resolution and permutation checks are
-// cifra_go.merge's): merging base, ours and theirs gives exactly the entry's
-// stored output files, byte for byte, and no other.
+// MergeChecks returns the full §11.16 merge battery for an entry
+// (corpus/README.md lines 126–149): the forward check (1), the reverse/symmetry
+// check (2, unless `asymmetric`), the result-canonical check (3), the resolution
+// fixed-point check (4) and the generated unchanged-side permutations (perm).
+// Mirrored on js/test/corpus/harness.js.
 func MergeChecks(entry MergeEntry, impl Impl) []Check {
 	ext := mergeExtension(entry.Dir)
 	setlist := ext == ".setlist.md"
 	id := func(n string) string { return "merge/" + entry.Name + "/" + n }
+	run3 := func(base, ours, theirs []byte) (cifra.Outcome, error) {
+		return impl.Merge(base, ours, theirs, setlist)
+	}
+	canon := func(text []byte) []byte {
+		if setlist {
+			m, err := impl.ParseSetlist(text)
+			if err != nil {
+				return nil
+			}
+			out, _ := impl.WriteSetlist(m)
+			return out
+		}
+		m, err := impl.Parse(text)
+		if err != nil {
+			return nil
+		}
+		out, _ := impl.Write(m)
+		return out
+	}
 
-	return []Check{
-		{ID: id("1"), Run: func() error {
+	var checks []Check
+
+	checks = append(checks, Check{ID: id("1"), Run: func() error {
+		inputs := mergeInputs(entry.Dir, ext)
+		outcome, err := run3(inputs[0], inputs[1], inputs[2])
+		if err != nil {
+			return err
+		}
+		produced, err := impl.MergeOutputs(outcome, setlist)
+		if err != nil {
+			return err
+		}
+		for name, data := range produced {
+			path := filepath.Join(entry.Dir, name)
+			stored, err := os.ReadFile(path)
+			if err != nil {
+				return fmt.Errorf("%s: merge produced %s, which the entry does not have", id("1"), name)
+			}
+			if err := compareBytes(data, stored, id("1")+" ["+name+"]"); err != nil {
+				return err
+			}
+		}
+		for _, name := range mergeOutputNames(ext) {
+			if _, ok := produced[name]; ok {
+				continue
+			}
+			if fileExists(filepath.Join(entry.Dir, name)) {
+				return fmt.Errorf("%s: the entry has %s, which the merge did not produce", id("1"), name)
+			}
+		}
+		return nil
+	}})
+
+	// 2. Exchanging the sides mirrors the outcome (§11.16): the same result or
+	//    deletion, or the conflicts and marked text with ours/theirs exchanged.
+	//    An entry flagged `asymmetric` skips this (§11.9.5).
+	if !fileExists(filepath.Join(entry.Dir, "asymmetric")) {
+		checks = append(checks, Check{ID: id("2"), Run: func() error {
 			inputs := mergeInputs(entry.Dir, ext)
-			outcome, err := impl.Merge(inputs[0], inputs[1], inputs[2], setlist)
+			r, err := run3(inputs[0], inputs[1], inputs[2])
 			if err != nil {
 				return err
 			}
-			produced, err := impl.MergeOutputs(outcome, setlist)
+			r2, err := run3(inputs[0], inputs[2], inputs[1])
 			if err != nil {
 				return err
 			}
-			for name, data := range produced {
-				path := filepath.Join(entry.Dir, name)
-				stored, err := os.ReadFile(path)
-				if err != nil {
-					return fmt.Errorf("%s: merge produced %s, which the entry does not have", id("1"), name)
-				}
-				if err := compareBytes(data, stored, id("1")+" ["+name+"]"); err != nil {
-					return err
-				}
+			if r.Kind() != r2.Kind() {
+				return fmt.Errorf("%s: kind %s, expected %s", id("2"), r2.Kind(), r.Kind())
 			}
-			for _, name := range mergeOutputNames(ext) {
-				if _, ok := produced[name]; ok {
-					continue
+			if r.Kind() == "result" {
+				return compareBytes([]byte(*r2.Result), []byte(*r.Result), id("2")+" result")
+			}
+			if r.Kind() == "conflicts" {
+				var got, want []string
+				for _, c := range r2.Conflicts {
+					got = append(got, normalConflict(c))
 				}
-				if fileExists(filepath.Join(entry.Dir, name)) {
-					return fmt.Errorf("%s: the entry has %s, which the merge did not produce", id("1"), name)
+				for _, c := range r.Conflicts {
+					want = append(want, normalConflict(mirrorConflict(c)))
+				}
+				if strings.Join(got, "\x00") != strings.Join(want, "\x00") {
+					return fmt.Errorf("%s: conflicts are not the mirror\n  got:  %v\n  want: %v", id("2"), got, want)
+				}
+				var wantMarked *string
+				if r.Marked != nil {
+					s := mirrorText(*r.Marked)
+					wantMarked = &s
+				}
+				if !eqMarked(r2.Marked, wantMarked) {
+					return fmt.Errorf("%s: marked text is not the mirror", id("2"))
 				}
 			}
 			return nil
-		}},
+		}})
 	}
+
+	// 3. The result is canonical (§11.16): canonicalising it is itself.
+	if fileExists(filepath.Join(entry.Dir, "result"+ext)) {
+		checks = append(checks, Check{ID: id("3"), Run: func() error {
+			text, err := os.ReadFile(filepath.Join(entry.Dir, "result"+ext))
+			if err != nil {
+				return err
+			}
+			return compareBytes(canon(text), text, id("3"))
+		}})
+	}
+
+	// 4. Resolving every region of the marked text by ours, and by theirs
+	//    (§11.12.4), gives a marker-free text whose canonical form is a fixed
+	//    point (§11.16).
+	if fileExists(filepath.Join(entry.Dir, "marked"+ext)) {
+		checks = append(checks, Check{ID: id("4"), Run: func() error {
+			marked, err := os.ReadFile(filepath.Join(entry.Dir, "marked"+ext))
+			if err != nil {
+				return err
+			}
+			for _, side := range []string{"ours", "theirs"} {
+				resolved, err := impl.ResolveMarked(marked, side)
+				if err != nil {
+					return err
+				}
+				if len(cifra.MarkerLines(resolved)) != 0 {
+					return fmt.Errorf("%s: resolving by %s left a marker line", id("4"), side)
+				}
+				text := canon(resolved)
+				if err := compareBytes(canon(text), text, id("4")+" "+side); err != nil {
+					return err
+				}
+			}
+			return nil
+		}})
+	}
+
+	// perm. The generated unchanged-side checks (§11.16, §11.3): for each
+	//       readable, marker-free input taken as b and x, merge(b,x,x),
+	//       merge(b,b,x) and merge(b,x,b) give the canonical text of x.
+	checks = append(checks, Check{ID: id("perm"), Run: func() error {
+		var inputs [][]byte
+		for _, data := range mergeInputs(entry.Dir, ext) {
+			if data == nil || !utf8.Valid(data) {
+				continue
+			}
+			if len(cifra.MarkerLines(data)) > 0 {
+				continue
+			}
+			inputs = append(inputs, data)
+		}
+		for _, b := range inputs {
+			for _, x := range inputs {
+				want := canon(x)
+				for _, trip := range [][3][]byte{{b, x, x}, {b, b, x}, {b, x, b}} {
+					r, err := run3(trip[0], trip[1], trip[2])
+					if err != nil {
+						return err
+					}
+					var got []byte
+					if r.Result != nil {
+						got = []byte(*r.Result)
+					} else {
+						got = []byte("")
+					}
+					if err := compareBytes(got, want, id("perm")); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		return nil
+	}})
+
+	return checks
+}
+
+// --- the symmetry transforms (merge_props.py / js harness mirror helpers) -----
+
+func conflictJSONMap(c map[string]any) map[string]any {
+	out := map[string]any{}
+	for _, k := range mergeMembers {
+		if v, ok := c[k]; ok && v != nil {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+var mergeMembers = []string{
+	"kind", "line", "deleted", "unreadable", "item", "occurrence", "after",
+	"tuning", "variation", "key", "changed", "symbols", "base", "ours", "theirs",
+}
+
+// normalConflict is a conflict's §11.12.5 JSON with members in sorted order, as
+// one comparable string (json.Marshal sorts map keys).
+func normalConflict(c map[string]any) string {
+	raw, _ := json.Marshal(conflictJSONMap(c))
+	return string(raw)
+}
+
+// mirrorConflict is a conflict with ours/theirs exchanged (merge_props.py
+// mirror_conflict).
+func mirrorConflict(c map[string]any) map[string]any {
+	cj := conflictJSONMap(c)
+	swap := map[string]string{"ours": "theirs", "theirs": "ours"}
+	out := map[string]any{}
+	for k, v0 := range cj {
+		k2 := k
+		if s, ok := swap[k]; ok {
+			k2 = s
+		}
+		v := v0
+		if k == "changed" || k == "deleted" {
+			v = swap[v0.(string)]
+		}
+		if k == "unreadable" {
+			var kept []any
+			orig := toStringSet(v0)
+			for _, x := range []string{"base", "ours", "theirs"} {
+				sx := x
+				if s, ok := swap[x]; ok {
+					sx = s
+				}
+				if orig[sx] {
+					kept = append(kept, x)
+				}
+			}
+			v = kept
+		}
+		out[k2] = v
+	}
+	return out
+}
+
+func toStringSet(v any) map[string]bool {
+	out := map[string]bool{}
+	if arr, ok := v.([]any); ok {
+		for _, x := range arr {
+			if s, ok := x.(string); ok {
+				out[s] = true
+			}
+		}
+	}
+	return out
+}
+
+func markedRegions(marked string) []any {
+	var out []any
+	lines := strings.Split(marked, "\n")
+	indexOf := func(target string, from int) int {
+		for i := from; i < len(lines); i++ {
+			if lines[i] == target {
+				return i
+			}
+		}
+		return -1
+	}
+	k := 0
+	for k < len(lines) {
+		if lines[k] == "<<<<<<< ours" {
+			m := indexOf("=======", k)
+			e := indexOf(">>>>>>> theirs", m)
+			out = append(out, [2][]string{append([]string{}, lines[k+1:m]...), append([]string{}, lines[m+1:e]...)})
+			k = e + 1
+		} else {
+			out = append(out, lines[k])
+			k++
+		}
+	}
+	return out
+}
+
+func mirrorText(marked string) string {
+	var out []string
+	for _, el := range markedRegions(marked) {
+		if reg, ok := el.([2][]string); ok {
+			out = append(out, "<<<<<<< ours")
+			out = append(out, reg[1]...)
+			out = append(out, "=======")
+			out = append(out, reg[0]...)
+			out = append(out, ">>>>>>> theirs")
+		} else {
+			out = append(out, el.(string))
+		}
+	}
+	return strings.Join(out, "\n")
+}
+
+func eqMarked(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
 }
 
 // StaleLedgerIds returns the ledger ids that name no discovered check, forcing

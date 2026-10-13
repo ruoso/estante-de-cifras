@@ -39,6 +39,9 @@ func (pkgImpl) Merge(base, ours, theirs []byte, setlist bool) (cifra.Outcome, er
 func (pkgImpl) MergeOutputs(o cifra.Outcome, setlist bool) (map[string][]byte, error) {
 	return cifra.MergeOutputs(o, setlist)
 }
+func (pkgImpl) ResolveMarked(marked []byte, side string) ([]byte, error) {
+	return cifra.ResolveMarked(marked, side)
+}
 func (pkgImpl) Prepare(src []byte) ([]string, error) { return cifra.Prepare(src) }
 func (pkgImpl) ParseChord(symbol, dialect string) (cifra.Model, []any, []string) {
 	return cifra.ParseChord(symbol, dialect)
