@@ -131,6 +131,14 @@ export const initialState = {
   // not re-render on another's pass ("only what shows it moves"). Starts empty:
   // nothing synced yet.
   sync: {},
+  // The "mine on Estante" list for the Add-a-book sheet (books.add_by_link,
+  // MINE): `{ status, books }` where `status` is a word (never colour alone) —
+  // 'idle' (not asked yet), 'ready' (with `books: [{ id, label, gitUrl, role }]`,
+  // the account's off-shelf books), 'signed_out' (a 401 — the sheet shows "Sign
+  // in to see them") or 'error'. Replaced whole on each MINE event (like
+  // `shelf`), left untouched by every other event. Starts idle: nothing listed
+  // until the sheet opens and sends LIST_MINE.
+  mine: { status: 'idle', books: [] },
 };
 
 // Fold one message into the state. Only event-direction messages change
@@ -466,6 +474,19 @@ export function reduce(state, message) {
         },
       };
     }
+
+    case EventKind.MINE:
+      // The "mine on Estante" list arrived (books.add_by_link): replace the slice
+      // whole with the reported `{ status, books }`, like SHELF. Only this slice
+      // moves; the Add-a-book sheet re-renders, nothing else. An absent payload
+      // resets to idle.
+      return {
+        ...state,
+        mine: {
+          status: message.payload?.status ?? 'idle',
+          books: message.payload?.books ?? [],
+        },
+      };
 
     default:
       return state;

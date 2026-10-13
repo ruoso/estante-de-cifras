@@ -33,6 +33,20 @@ export default {
     namePlaceholder: 'Ponle un nombre al libro',
     newBookHelp: 'Un nombre y un libro vacío. No se necesita cuenta.',
     create: 'Libro nuevo',
+    byLink: 'Por enlace',
+    byLinkMeta: 'Pega un enlace a un libro en Estante.',
+    byLinkLabel: 'Enlace del libro',
+    byLinkPlaceholder: 'https://…/i/…',
+    byLinkOpen: 'Abrir',
+    byLinkInvalid: 'Eso no es un enlace de libro.',
+    mineOnEstante: 'Míos en Estante',
+    mineMeta: 'Tus libros que aún no están en este estante.',
+    mineSignedOut: 'Inicia sesión para verlos.',
+    mineSignIn: 'Iniciar sesión',
+    mineAdd: 'Agregar',
+    mineAddLabel: 'Agregar {name}',
+    mineEmpty: 'Todos tus libros ya están en este estante.',
+    mineError: 'No pudimos conectar con Estante. Inténtalo de nuevo.',
     cancel: 'Cancelar',
     save: 'Guardar',
     onDevice: 'En este dispositivo',
@@ -185,6 +199,33 @@ export default {
     exampleLabel: 'Libro de ejemplo',
   },
 
+  // La puerta de la invitación a un libro compartido (books.add_by_link, flujo 1
+  // §Invitado; mockup W01). Genérica antes de iniciar sesión — no nombra el libro.
+  invited: {
+    brand: 'Estante',
+    close: 'Cerrar',
+    working: 'Abriendo…',
+    workingHeading: 'Abriendo la invitación',
+    promptHeading: 'Te invitaron a un libro en Estante',
+    promptBody:
+      'Para abrirlo, inicia sesión o crea una cuenta primero: ningún libro se puede leer sin una.',
+    passkeyTitle: 'Una cuenta es una llave de acceso',
+    passkeyBody: 'Sin contraseña que elegir. Tu teléfono la crea, en segundos.',
+    makeAccount: 'Crear una cuenta',
+    signIn: 'Ya tengo cuenta: iniciar sesión',
+    promptFooter: 'Entonces el libro va a tu estante y se abre en sus canciones.',
+    deadTitle: 'Este enlace no abre un libro',
+    deadBody:
+      'La invitación pudo expirar o ser retirada, o esta cuenta no está en el libro. Pide una nueva a quien te la envió.',
+    addByLink: 'Agregar un libro por su enlace',
+    fullTitle: 'Este libro está lleno',
+    fullBody:
+      'Alcanzó su límite de personas, así que la invitación no puede admitir a nadie más. Pide al dueño del libro que haga espacio y abre el enlace de nuevo.',
+    errorTitle: 'No pudimos abrir este enlace',
+    errorBody:
+      'Algo salió mal al conectar con Estante. Revisa tu conexión y abre el enlace de nuevo.',
+    ok: 'OK',
+  },
   // La pantalla de inicio de sesión (account.sign_in, flujos 7 y 13; mockup W13).
   signIn: {
     brand: 'Estante',

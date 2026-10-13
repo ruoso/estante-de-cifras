@@ -59,3 +59,18 @@
   color: var(--ink-2);
   margin: 0;
 }
+
+/* The invited door's "An account is a passkey" card head (books.add_by_link;
+   W01 L76-78): the key glyph beside its title, on one row. The card itself is
+   the shared .card.pad. */
+.invited-passkey-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.25);
+  color: var(--accent);
+}
+
+.invited-passkey-title {
+  font-weight: 600;
+  color: var(--ink);
+}

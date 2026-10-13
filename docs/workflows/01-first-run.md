@@ -47,6 +47,14 @@ seconds — since no book can be read without one. Then the book is cloned,
 as the reader or editor the invitation makes them, and the first screen is
 its song list, or the song the invitation was made from.
 
+Until the account exists, the invited screen names neither the book nor its
+owner — only that it is an invitation to a book on Estante. The service tells
+whoever holds a link nothing about a book — alive, dead or full — without a
+session, and a link cannot be told apart from a dead one until it is accepted;
+so the book's name and the role it grants appear only once the person has
+signed in and the invitation is accepted, on the shelf and the book it opens
+on.
+
 The user is on someone else's book until they choose to be more (workflow
 11, fork).
 

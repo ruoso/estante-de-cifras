@@ -33,6 +33,20 @@ export default {
     namePlaceholder: 'Dai un nome al libro',
     newBookHelp: 'Un nome e un libro vuoto. Senza account.',
     create: 'Nuovo libro',
+    byLink: 'Tramite link',
+    byLinkMeta: 'Incolla un link a un libro su Estante.',
+    byLinkLabel: 'Link del libro',
+    byLinkPlaceholder: 'https://…/i/…',
+    byLinkOpen: 'Apri',
+    byLinkInvalid: 'Questo non è un link a un libro.',
+    mineOnEstante: 'I miei su Estante',
+    mineMeta: 'I tuoi libri non ancora su questo scaffale.',
+    mineSignedOut: 'Accedi per vederli.',
+    mineSignIn: 'Accedi',
+    mineAdd: 'Aggiungi',
+    mineAddLabel: 'Aggiungi {name}',
+    mineEmpty: 'Tutti i tuoi libri sono già su questo scaffale.',
+    mineError: 'Non è stato possibile raggiungere Estante. Riprova.',
     cancel: 'Annulla',
     save: 'Salva',
     onDevice: 'Su questo dispositivo',
@@ -185,6 +199,33 @@ export default {
     exampleLabel: 'Libro di esempio',
   },
 
+  // La porta dell’invito a un libro condiviso (books.add_by_link, flusso 1
+  // §Invitato; mockup W01). Generica prima dell’accesso — non nomina il libro.
+  invited: {
+    brand: 'Estante',
+    close: 'Chiudi',
+    working: 'Apertura…',
+    workingHeading: 'Apertura dell’invito',
+    promptHeading: 'Sei stato invitato a un libro su Estante',
+    promptBody:
+      'Per aprirlo, accedi o crea prima un account — nessun libro si può leggere senza.',
+    passkeyTitle: 'Un account è una passkey',
+    passkeyBody: 'Nessuna password da scegliere. Il tuo telefono la crea, in pochi secondi.',
+    makeAccount: 'Crea un account',
+    signIn: 'Ho già un account: accedi',
+    promptFooter: 'Poi il libro va sul tuo scaffale e si apre sulle sue canzoni.',
+    deadTitle: 'Questo link non apre un libro',
+    deadBody:
+      'L’invito potrebbe essere scaduto o ritirato, o questo account non è nel libro. Chiedi a chi te l’ha mandato di inviartene uno nuovo.',
+    addByLink: 'Aggiungi un libro dal suo link',
+    fullTitle: 'Questo libro è pieno',
+    fullBody:
+      'Ha raggiunto il limite di persone, quindi l’invito non può far entrare nessun altro. Chiedi al proprietario del libro di fare spazio e riapri il link.',
+    errorTitle: 'Non è stato possibile aprire questo link',
+    errorBody:
+      'Qualcosa è andato storto nel raggiungere Estante. Controlla la connessione e riapri il link.',
+    ok: 'OK',
+  },
   // La schermata di accesso (account.sign_in, flussi 7 e 13; mockup W13).
   signIn: {
     brand: 'Estante',

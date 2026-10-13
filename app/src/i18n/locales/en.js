@@ -33,6 +33,24 @@ export default {
     namePlaceholder: 'Name this book',
     newBookHelp: 'A name, and an empty book. No account needed.',
     create: 'New book',
+    // Add-a-book: By link (books.add_by_link; W07 L83-86) — paste a book's
+    // invitation link to open it.
+    byLink: 'By link',
+    byLinkMeta: 'Paste a link to a book on Estante.',
+    byLinkLabel: 'Book link',
+    byLinkPlaceholder: 'https://…/i/…',
+    byLinkOpen: 'Open',
+    byLinkInvalid: 'That is not a book link.',
+    // Add-a-book: Mine on Estante (books.add_by_link; W07 L87-95) — the account's
+    // books not on this shelf yet.
+    mineOnEstante: 'Mine on Estante',
+    mineMeta: 'Your books that are not on this shelf yet.',
+    mineSignedOut: 'Sign in to see them.',
+    mineSignIn: 'Sign in',
+    mineAdd: 'Add',
+    mineAddLabel: 'Add {name}',
+    mineEmpty: 'All your books are already on this shelf.',
+    mineError: 'We couldn’t reach Estante. Try again.',
     cancel: 'Cancel',
     save: 'Save',
     onDevice: 'On this device',
@@ -193,6 +211,36 @@ export default {
     exampleLabel: 'Example Book',
   },
 
+  // The invited door into a shared book (books.add_by_link, workflow 1 §Invited;
+  // mockup W01). Generic before sign-in — it names only "a book on Estante",
+  // never the title or owner (Decision 1, the design delta), since a dead link
+  // must tell its holder nothing. The dead/full copy is W01's; a status is always
+  // a word, never colour alone.
+  invited: {
+    brand: 'Estante',
+    close: 'Close',
+    working: 'Opening…',
+    workingHeading: 'Opening the invitation',
+    promptHeading: 'You’re invited to a book on Estante',
+    promptBody:
+      'To open it, sign in, or make an account first — no book can be read without one.',
+    passkeyTitle: 'An account is a passkey',
+    passkeyBody: 'No password to choose. Your phone makes it, and it takes seconds.',
+    makeAccount: 'Make an account',
+    signIn: 'I have an account: sign in',
+    promptFooter: 'Then the book goes on your shelf, and opens on its songs.',
+    deadTitle: 'This link doesn’t open a book',
+    deadBody:
+      'The invitation may have expired or been withdrawn, or this account isn’t in the book. Ask whoever sent it to you for a new one.',
+    addByLink: 'Add a book by its link',
+    fullTitle: 'This book is full',
+    fullBody:
+      'It has reached its limit of people, so the invitation can’t let anyone else in. Ask the book’s owner to make room, then open the link again.',
+    errorTitle: 'We couldn’t open this link',
+    errorBody:
+      'Something went wrong reaching Estante. Check your connection, then open the link again.',
+    ok: 'OK',
+  },
   // The sign-in surface (account.sign_in, workflows 7 & 13; mockup W13). The
   // method screen's copy is W13's; the email, check-your-email and offer-a-
   // passkey steps and the worded errors realise the same wording (Decision 7).

@@ -34,3 +34,24 @@ export async function seedAccount(email) {
     await sql.end({ timeout: 5 });
   }
 }
+
+// Fill a book to its fifty-person cap so the next accept is refused `book_full`
+// (books.add_by_link; workflow 10 §At most fifty — the service enforces the
+// count). Mirrors e2e/api/sharing.test.js's fixture: insert `count` emailless
+// accounts and a reader membership for each. The book's owner is already a
+// member, so `count = 49` reaches fifty; the test passes 50 to be safely full.
+export async function fillBookToCapacity(bookId, count = 50) {
+  const sql = postgres(required('ESTANTE_TEST_DATABASE_URL'), { max: 1, onnotice: () => {} });
+  try {
+    await sql`
+      WITH a AS (
+        INSERT INTO accounts (email)
+        SELECT NULL::text FROM generate_series(1, ${count})
+        RETURNING id
+      )
+      INSERT INTO memberships (book_id, account_id, role)
+      SELECT ${bookId}, id, 'reader' FROM a`;
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
+}

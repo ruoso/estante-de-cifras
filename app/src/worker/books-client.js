@@ -38,6 +38,7 @@ const BOOKS_PATH = '/api/books';
  *   create: (req: { title: string }) => Promise<Book>,
  *   list: () => Promise<Book[]>,
  *   remove: (bookId: string) => Promise<void>,
+ *   accept: (token: string) => Promise<Book>,
  * }}
  * @typedef {{ id: string, title: string, role: 'owner'|'editor'|'reader',
  *   visibility: 'private', gitUrl: string,
@@ -74,6 +75,45 @@ export function createBooksClient(options = {}) {
   }
 
   /**
+   * Accept an invitation and join its book (POST /api/invitations/{token}/accept
+   * → 200 Book). The joiner becomes a reader or editor as the invitation makes
+   * them — the role is the invitation's, not chosen (books.add_by_link). Returns
+   * the `Book` ({ id, title, role, visibility, gitUrl }). A refusal surfaces as a
+   * typed error carrying only `.status` and, for a 409, the machine-readable
+   * `.code` ∈ { invitation_withdrawn, invitation_expired, invitation_exhausted,
+   * book_full } — never a title, id or owner (a dead link reveals nothing,
+   * workflow 1 §Invited). A `401` (no session) rides on `.status` for the
+   * account-first gate; a `404` (unknown token or non-member — conflated so a
+   * private book is never confirmed) carries `.status` alone. The token passes
+   * through opaque, path-encoded, never logged (standing rule). Accept is the
+   * only way to learn a book's title and role (no peek endpoint) and is
+   * side-effecting, so the caller attempts it once per real join.
+   */
+  async function accept(token) {
+    const response = await fetchImpl(
+      `/api/invitations/${encodeURIComponent(token)}/accept`,
+      { method: 'POST', credentials: 'include' },
+    );
+    if (!response.ok) {
+      const err = new Error(`invitations: ${response.status}`);
+      err.status = response.status;
+      if (response.status === 409) {
+        // The Conflict body carries only `{ code, message }` (openapi.yaml L791-833),
+        // never book content; read the code to word the refusal. A missing/
+        // unparseable body leaves `.code` undefined, read as a generic dead link.
+        try {
+          const body = await response.json();
+          if (body && typeof body.code === 'string') err.code = body.code;
+        } catch {
+          // No parseable body — the status alone words the refusal.
+        }
+      }
+      throw err;
+    }
+    return response.json();
+  }
+
+  /**
    * List the account's books (GET /api/books → 200 { books }). Returns the
    * array; a `401` surfaces as a typed error.
    */
@@ -100,5 +140,5 @@ export function createBooksClient(options = {}) {
     if (!response.ok) throw refuse(response);
   }
 
-  return { create, list, remove };
+  return { create, list, remove, accept };
 }

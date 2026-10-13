@@ -33,6 +33,20 @@ export default {
     namePlaceholder: 'Dê um nome ao livro',
     newBookHelp: 'Um nome, e um livro vazio. Sem precisar de conta.',
     create: 'Novo livro',
+    byLink: 'Por link',
+    byLinkMeta: 'Cole um link de um livro na Estante.',
+    byLinkLabel: 'Link do livro',
+    byLinkPlaceholder: 'https://…/i/…',
+    byLinkOpen: 'Abrir',
+    byLinkInvalid: 'Isso não é um link de livro.',
+    mineOnEstante: 'Meus na Estante',
+    mineMeta: 'Seus livros que ainda não estão nesta estante.',
+    mineSignedOut: 'Entre para vê-los.',
+    mineSignIn: 'Entrar',
+    mineAdd: 'Adicionar',
+    mineAddLabel: 'Adicionar {name}',
+    mineEmpty: 'Todos os seus livros já estão nesta estante.',
+    mineError: 'Não foi possível conectar à Estante. Tente de novo.',
     cancel: 'Cancelar',
     save: 'Salvar',
     onDevice: 'Neste dispositivo',
@@ -185,6 +199,33 @@ export default {
     exampleLabel: 'Livro de exemplo',
   },
 
+  // A porta do convite para um livro compartilhado (books.add_by_link, fluxo 1
+  // §Convidado; mockup W01). Genérica antes de entrar — não nomeia o livro.
+  invited: {
+    brand: 'Estante',
+    close: 'Fechar',
+    working: 'Abrindo…',
+    workingHeading: 'Abrindo o convite',
+    promptHeading: 'Você foi convidado para um livro na Estante',
+    promptBody:
+      'Para abri-lo, entre ou crie uma conta primeiro — nenhum livro pode ser lido sem uma.',
+    passkeyTitle: 'Uma conta é uma chave de acesso',
+    passkeyBody: 'Sem senha para escolher. Seu telefone a cria, em segundos.',
+    makeAccount: 'Criar uma conta',
+    signIn: 'Já tenho conta: entrar',
+    promptFooter: 'Então o livro vai para a sua estante e abre nas suas músicas.',
+    deadTitle: 'Este link não abre um livro',
+    deadBody:
+      'O convite pode ter expirado ou sido retirado, ou esta conta não está no livro. Peça um novo a quem o enviou.',
+    addByLink: 'Adicionar um livro pelo link',
+    fullTitle: 'Este livro está cheio',
+    fullBody:
+      'Ele atingiu o limite de pessoas, então o convite não pode admitir mais ninguém. Peça ao dono do livro para abrir espaço e abra o link de novo.',
+    errorTitle: 'Não foi possível abrir este link',
+    errorBody:
+      'Algo deu errado ao conectar à Estante. Verifique sua conexão e abra o link de novo.',
+    ok: 'OK',
+  },
   // A tela de entrada (account.sign_in, fluxos 7 e 13; mockup W13).
   signIn: {
     brand: 'Estante',

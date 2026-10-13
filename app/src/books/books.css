@@ -120,3 +120,23 @@
 .books-screen .empty {
   color: var(--ink-2);
 }
+
+/* The Add-a-book sheet's further ways in (books.add_by_link; W07 L83-98): By
+   link and Mine on Estante, each a titled block separated from the New-book form
+   by a hairline. Layout only — colours are theme tokens. */
+.add-section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+  padding-top: calc(var(--u) * 1.75);
+  border-top: 1px solid var(--line);
+}
+
+.add-section .mine-note {
+  color: var(--ink-2);
+  margin: 0;
+}
+
+.mine-row {
+  align-items: center;
+}

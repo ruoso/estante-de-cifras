@@ -33,6 +33,7 @@ import SongWizard from '../songs/SongWizard.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
 import SignIn from '../account/SignIn.jsx';
+import InvitedScreen from '../account/InvitedScreen.jsx';
 import FileView from '../files/FileView.jsx';
 import ChordExplorer from '../music/ChordExplorer.jsx';
 import InstrumentChip from '../instruments/InstrumentChip.jsx';
@@ -137,7 +138,7 @@ function destinationTab(key, variant) {
 // Decision 1) — while `setlists` stays a labelled slot its own content task will
 // fill. RAC mounts only the selected panel, so exactly one level-1 heading (the
 // screen's own) is present at a time.
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, search, mode) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, search, mode) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key}>
       {key === 'search' ? (
@@ -161,7 +162,17 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
           onExploreChord={search.onExploreChord}
         />
       ) : key === 'books' ? (
-        <BooksScreen store={store} onOpenBook={onOpenBook} mode={mode} />
+        // The Add-a-book sheet's "By link" (paste a link → the invited flow) and
+        // "Mine on Estante" (sign in to see them) seams are books.add_by_link's,
+        // wired here: `onByLink` starts the invited flow, `onSignIn` opens the
+        // passkey surface.
+        <BooksScreen
+          store={store}
+          onOpenBook={onOpenBook}
+          onByLink={onByLink}
+          onSignIn={onSignIn}
+          mode={mode}
+        />
       ) : (
         <h1 className="t-h1">{t(`shell.${key}`)}</h1>
       )}
@@ -169,9 +180,20 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
   ));
 }
 
-export default function AppShell({ store = getAppStore(), redeemToken = null }) {
+export default function AppShell({ store = getAppStore(), redeemToken = null, inviteToken = null }) {
   const mode = useLayoutMode();
   const [selected, setSelected] = useState(DESTINATIONS[0]);
+
+  // The invited flow (books.add_by_link, workflow 1 §Invited): a full-screen
+  // surface over the shell, opened when the app booted on an invitation link
+  // (`/i/<token>`, App.jsx) or the person pasted one into the Add-a-book sheet.
+  // `null` is closed; otherwise `{ phase, reason?, token }` where phase is
+  // 'working' (accepting/cloning), 'prompt' (needs an account) or 'refused' (a
+  // dead/full link, with the worded `reason`). The Worker drives it: ADD_BY_LINK
+  // attempts accept, and NEED_ACCOUNT / BOOK_CLONED / BOOK_REFUSED move this
+  // state (Decision 2). `token` is carried so the accept can be re-sent after
+  // sign-in (accept is idempotent on repeat — no double join).
+  const [invited, setInvited] = useState(inviteToken ? { phase: 'working', token: inviteToken } : null);
 
   // The sign-in surface (account.sign_in): a full-screen surface over the shell,
   // like `openSong`/`openFile`. It is opened by the empty shelf's "Sign in" row
@@ -300,6 +322,54 @@ export default function AppShell({ store = getAppStore(), redeemToken = null }) 
     store.open?.();
   }, [store]);
 
+  // Start the invited flow for a token: show the working surface and send
+  // ADD_BY_LINK. The Worker attempts the accept and replies NEED_ACCOUNT (no
+  // session yet), BOOK_CLONED (joined) or BOOK_REFUSED (dead/full link). Reused
+  // by the boot route, the "paste a link" affordance and the post-sign-in retry.
+  const openByLink = useCallback(
+    (token) => {
+      setInvited({ phase: 'working', token });
+      store.send(command(CommandKind.ADD_BY_LINK, { token, author: LOCAL_IDENTITY }));
+    },
+    [store],
+  );
+
+  // Boot the invited flow once when the app opened on `/i/<token>` (App.jsx
+  // captured and cleaned it). A signed-in device clones straight away; a
+  // signed-out one is asked for an account first — both through the one ADD_BY_LINK
+  // (Decision 2). Guarded so it fires exactly once for the captured token.
+  const inviteBooted = useRef(false);
+  useEffect(() => {
+    if (!inviteToken || inviteBooted.current) return;
+    inviteBooted.current = true;
+    openByLink(inviteToken);
+  }, [inviteToken, openByLink]);
+
+  // The account-first gate: the accept answered 401, so show the generic invited
+  // screen (names nothing about the book) with the account-first prompt. The
+  // token to retry is kept in the ref.
+  useWorkerEvent(store, EventKind.NEED_ACCOUNT, ({ token }) => {
+    setInvited((prev) => ({ phase: 'prompt', token: token ?? prev?.token ?? null }));
+  });
+
+  // The book was cloned and recorded on the shelf. Only the invited flow lands on
+  // it (a "mine on Estante" add leaves `invited` null and simply lets the book
+  // appear on the shelf via the SHELF re-surface). Land on the Books destination,
+  // where the just-cloned book now shows *On Estante* with its role and its songs
+  // are reachable (workflow 1 §Invited "the first screen is its song list"; the
+  // reader's deep-link into a specific song is books.share's, scoped out here).
+  useWorkerEvent(store, EventKind.BOOK_CLONED, () => {
+    if (!invited) return;
+    setInvited(null);
+    setSelected('books');
+  });
+
+  // A dead or full link: surface the worded refusal (it names nothing about the
+  // book, workflow 1 §Invited L53-58).
+  useWorkerEvent(store, EventKind.BOOK_REFUSED, ({ reason }) => {
+    setInvited((prev) => ({ phase: 'refused', reason: reason ?? 'dead', token: prev?.token ?? null }));
+  });
+
   // The Worker allocated the target book and placeholder path: mount the editor
   // on them. A re-target instead carries the text over and discards the old
   // placeholder, mounting on the existing file (isNew: false).
@@ -349,8 +419,37 @@ export default function AppShell({ store = getAppStore(), redeemToken = null }) 
       <SignIn
         intent={signIn.intent}
         redeemToken={signIn.token ?? null}
-        onSignedIn={() => setSignIn(null)}
+        onSignedIn={() => {
+          // Opened from the invited flow: re-send the accept now that there is a
+          // session (idempotent on repeat — no double join), showing the working
+          // surface again while it clones.
+          const token = invited?.token;
+          setSignIn(null);
+          if (signIn.forInvite && token) {
+            openByLink(token);
+          }
+        }}
         onClose={() => setSignIn(null)}
+      />
+    );
+  }
+
+  // The invited door (books.add_by_link, workflow 1 §Invited): checked after
+  // SignIn so pressing "Make an account" / "I have an account: sign in" opens the
+  // passkey surface over it and returns here, and before the shell so it shows
+  // even with no shelf behind it.
+  if (invited) {
+    return (
+      <InvitedScreen
+        phase={invited.phase}
+        reason={invited.reason}
+        onMakeAccount={() => setSignIn({ intent: 'create', forInvite: true })}
+        onSignIn={() => setSignIn({ intent: 'signIn', forInvite: true })}
+        onAddByLink={() => {
+          setInvited(null);
+          setSelected('books');
+        }}
+        onClose={() => setInvited(null)}
       />
     );
   }
@@ -507,7 +606,7 @@ export default function AppShell({ store = getAppStore(), redeemToken = null }) 
             </div>
             <main className="pane main">
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, () => setSignIn({ intent: 'create' }), search, mode)}
+                {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, search, mode)}
               </div>
             </main>
           </div>
@@ -527,7 +626,7 @@ export default function AppShell({ store = getAppStore(), redeemToken = null }) 
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className="scroll">
-              {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, () => setSignIn({ intent: 'create' }), search, mode)}
+              {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, search, mode)}
             </main>
           </div>
         )}

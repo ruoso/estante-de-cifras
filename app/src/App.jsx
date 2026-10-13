@@ -12,6 +12,7 @@ import WizardDev from './songs/WizardDev.jsx';
 import FilesDev from './files/FilesDev.jsx';
 import UpdateReady from './pwa/UpdateReady.jsx';
 import { signInToken } from './account/sign-in-route.js';
+import { invitationToken } from './account/invitation-route.js';
 import { getAppStore } from './worker/store.js';
 
 // The chart's dev gallery is reachable only at `#dev/chart` — absent from the
@@ -98,6 +99,15 @@ function bootRedeemToken() {
   return typeof location === 'undefined' ? null : signInToken(location.pathname);
 }
 
+// An invitation boots the app at `/i/<token>` — a path, not a hash
+// (books.add_by_link, workflow 1 §Invited; the service mails/links a path). Read
+// it once at boot, beside the redeem token; AppShell opens the invited flow (try
+// accept → account-first prompt → clone) when a token is present. Pure parse in
+// `invitationToken`.
+function bootInvitationToken() {
+  return typeof location === 'undefined' ? null : invitationToken(location.pathname);
+}
+
 // The app root: the resolved visual-language root (ThemeRoot, shell.tokens)
 // wrapping the navigation shell (AppShell, shell.layout) — the frame Search,
 // Books and Setlists are drawn inside (DIRECTION §4 lines 430-435; §3.7 lines
@@ -118,11 +128,15 @@ export default function App({ store = getAppStore() }) {
   // a share (Decision 4). The surface runs the redeem; AppShell receives the
   // token and opens the surface in redeem mode.
   const [redeemToken] = useState(bootRedeemToken);
+  // The invitation token, captured once at mount and the URL cleaned to `/` the
+  // same way — so the single-use-ish link does not linger in history or a share,
+  // and a reload does not re-run the invited flow. AppShell runs the flow.
+  const [inviteToken] = useState(bootInvitationToken);
   useEffect(() => {
-    if (redeemToken && typeof history !== 'undefined') {
+    if ((redeemToken || inviteToken) && typeof history !== 'undefined') {
       history.replaceState(null, '', '/');
     }
-  }, [redeemToken]);
+  }, [redeemToken, inviteToken]);
 
   return (
     <ThemeRoot store={store}>
@@ -142,7 +156,7 @@ export default function App({ store = getAppStore() }) {
         ) : isFilesDev() ? (
           <FilesDev store={store} />
         ) : (
-          <AppShell store={store} redeemToken={redeemToken} />
+          <AppShell store={store} redeemToken={redeemToken} inviteToken={inviteToken} />
         )}
         {/* The PWA update notice (shell.pwa) sits over the shell, inside the
             token root and the locale boundary so it is themed and translated; it

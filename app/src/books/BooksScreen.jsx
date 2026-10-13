@@ -37,6 +37,7 @@ import {
 import { t } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
+import { tokenFromLink } from '../account/invitation-route.js';
 import { BOOKS_WIDE_QUERY } from '../shell/layout-mode.js';
 import { titleFor, whereFor, canSaveFor, orderedBooks } from './book-display.js';
 import { syncDisplayFor, anyOutOfStep } from '../sync-display.js';
@@ -245,17 +246,89 @@ function RenameDialog({ bookId, currentName, onRename }) {
   );
 }
 
+// The "mine on Estante" sub-section of the Add-a-book sheet (books.add_by_link,
+// workflow 7 §Add-a-book L28-29; W07 L87-95): the account's books not yet on this
+// device's shelf, computed by the Worker as the `listBooks`-minus-shelf diff and
+// carried in the `mine` slice. Signed out, it says so in a word and offers the
+// passkey surface; signed in, it lists each off-shelf book with an Add that
+// clones it (ADD_MINE). A status carried by a word, never colour alone.
+function MineList({ mine, onAddMine, onSignIn }) {
+  const status = mine?.status ?? 'idle';
+  if (status === 'signed_out') {
+    return (
+      <>
+        <p className="t-small mine-note" role="status">
+          {t('books.mineSignedOut')}
+        </p>
+        <Button className="btn" onPress={onSignIn}>
+          {t('books.mineSignIn')}
+        </Button>
+      </>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <p className="notice warn" role="status">
+        {t('books.mineError')}
+      </p>
+    );
+  }
+  if (status === 'ready') {
+    const books = mine.books ?? [];
+    if (!books.length) {
+      return (
+        <p className="t-small mine-note" role="status">
+          {t('books.mineEmpty')}
+        </p>
+      );
+    }
+    return (
+      <div className="list">
+        {books.map((book) => {
+          const label = book.label || book.id;
+          return (
+            <div className="row mine-row" key={book.id}>
+              <span className="grow">
+                <span className="name">{label}</span>
+              </span>
+              <Button
+                className="btn"
+                aria-label={t('books.mineAddLabel', { name: label })}
+                onPress={() => onAddMine(book)}
+              >
+                {t('books.mineAdd')}
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+  return null; // idle: the list has not loaded yet
+}
+
 // The *Add a book* affordance: the header "+" trigger and the bottom sheet it
-// opens (W07 board). In M2 the sheet carries the New-book flow only; By link /
-// Mine on Estante / Upload are added by their own tasks (Decision 6). New book
-// takes a name and creates an empty local repository with no account (workflow 7
-// L25); on submit it sends CREATE_BOOK and closes.
-function AddBookSheet({ onCreate }) {
+// opens (W07 board). The sheet carries the four ways in (workflow 7 L13-33): New
+// book (a local repository, no account — workflow 7 L25), By link (paste a book's
+// invitation link → the invited flow, books.add_by_link), Mine on Estante (the
+// account's off-shelf books), and Upload (books.upload_ui, not this task). On
+// open it asks the Worker for the "mine" list (LIST_MINE); New book sends
+// CREATE_BOOK, By link starts the invited flow with the pasted token, and each
+// Mine row sends ADD_MINE.
+function AddBookSheet({ onCreate, onByLink, onSignIn, onAddMine, onListMine, mine }) {
   const [name, setName] = useState('');
+  const [link, setLink] = useState('');
+  const [linkError, setLinkError] = useState(false);
   return (
     <DialogTrigger
       onOpenChange={(open) => {
-        if (!open) setName('');
+        if (open) {
+          onListMine();
+        } else {
+          setName('');
+          setLink('');
+          setLinkError(false);
+        }
       }}
     >
       <Button className="btn primary add-book">
@@ -312,6 +385,73 @@ function AddBookSheet({ onCreate }) {
                     </Button>
                   </div>
                 </form>
+
+                <section className="add-section" aria-labelledby="add-bylink-h">
+                  <h3 className="t-h3" id="add-bylink-h">
+                    {t('books.byLink')}
+                  </h3>
+                  <p className="t-small mine-note">{t('books.byLinkMeta')}</p>
+                  <form
+                    className="book-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const token = tokenFromLink(link);
+                      if (!token) {
+                        setLinkError(true);
+                        return;
+                      }
+                      onByLink(token);
+                      close();
+                    }}
+                  >
+                    <TextField
+                      className="field"
+                      value={link}
+                      onChange={(value) => {
+                        setLink(value);
+                        setLinkError(false);
+                      }}
+                    >
+                      <Label>{t('books.byLinkLabel')}</Label>
+                      <Input
+                        className="input"
+                        inputMode="url"
+                        autoCapitalize="off"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        placeholder={t('books.byLinkPlaceholder')}
+                      />
+                    </TextField>
+                    {linkError ? (
+                      <p className="notice warn" role="alert">
+                        {t('books.byLinkInvalid')}
+                      </p>
+                    ) : null}
+                    <div className="actions">
+                      <Button type="submit" className="btn primary">
+                        {t('books.byLinkOpen')}
+                      </Button>
+                    </div>
+                  </form>
+                </section>
+
+                <section className="add-section" aria-labelledby="add-mine-h">
+                  <h3 className="t-h3" id="add-mine-h">
+                    {t('books.mineOnEstante')}
+                  </h3>
+                  <p className="t-small mine-note">{t('books.mineMeta')}</p>
+                  <MineList
+                    mine={mine}
+                    onAddMine={(book) => {
+                      onAddMine(book);
+                      close();
+                    }}
+                    onSignIn={() => {
+                      onSignIn();
+                      close();
+                    }}
+                  />
+                </section>
               </>
             )}
           </Dialog>
@@ -321,9 +461,16 @@ function AddBookSheet({ onCreate }) {
   );
 }
 
-export default function BooksScreen({ store, onOpenBook = () => {}, mode = 'narrow' }) {
+export default function BooksScreen({
+  store,
+  onOpenBook = () => {},
+  onByLink = () => {},
+  onSignIn = () => {},
+  mode = 'narrow',
+}) {
   const shelf = useSlice(store, 'shelf');
   const sync = useSlice(store, 'sync');
+  const mine = useSlice(store, 'mine');
   const ordered = useMemo(() => orderedBooks(shelf), [shelf]);
 
   // The shelf's own layout: side-by-side only when the shell is wide AND there
@@ -377,6 +524,27 @@ export default function BooksScreen({ store, onOpenBook = () => {}, mode = 'narr
     store.send(command(CommandKind.RENAME_BOOK, { bookId, name, author: LOCAL_IDENTITY }));
   };
 
+  // Ask the Worker for the account's off-shelf books when the sheet opens
+  // (books.add_by_link, "mine on Estante"): GET /api/books minus this device's
+  // shelf, replied as a MINE event the `mine` slice folds (Decision 5).
+  const listMine = () => {
+    store.send(command(CommandKind.LIST_MINE, {}));
+  };
+
+  // Add a book the account already has onto this device (ADD_MINE): clone it with
+  // no accept — membership is a given. The id/url/role came with the MINE list.
+  const addMine = (book) => {
+    store.send(
+      command(CommandKind.ADD_MINE, {
+        bookId: book.id,
+        gitUrl: book.gitUrl,
+        label: book.label,
+        role: book.role,
+        author: LOCAL_IDENTITY,
+      }),
+    );
+  };
+
   // *Sync now* (workflow 8 L37): fire one pass and return at once — the Worker's
   // scheduler coalesces it; nothing blocks on the network (DIRECTION §1). It
   // reuses the engine's SYNC command with a `sync-now` reason (engine.md
@@ -420,7 +588,14 @@ export default function BooksScreen({ store, onOpenBook = () => {}, mode = 'narr
         <Button className="btn sync-now" onPress={syncNow}>
           {t('books.syncNow')}
         </Button>
-        <AddBookSheet onCreate={createBook} />
+        <AddBookSheet
+          onCreate={createBook}
+          onByLink={onByLink}
+          onSignIn={onSignIn}
+          onAddMine={addMine}
+          onListMine={listMine}
+          mine={mine}
+        />
       </div>
 
       {ordered.length ? (

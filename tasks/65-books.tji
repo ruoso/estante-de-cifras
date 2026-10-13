@@ -30,8 +30,9 @@ task books "Books" {
   task add_by_link "Add by invitation and mine on Estante" {
     effort 2d
     allocate team
+    complete 100
     depends !online, service.sharing
-    note "An invitation always asks for an account first, then clones as reader or editor; a dead or full link telling nothing about whose book; the user's books not yet on this shelf. Workflows 1, 7. Tests: behavior (the account-first prompt, a dead or full link that says nothing of whose book; axe); e2e-web (a second account opens an invitation from the stack, signs in, clones as reader and as editor; a withdrawn and a full link; axe)."
+    note "An invitation always asks for an account first, then clones as reader or editor; a dead or full link telling nothing about whose book; the user's books not yet on this shelf. Workflows 1, 7. Tests: behavior (the account-first prompt, a dead or full link that says nothing of whose book; axe); e2e-web (a second account opens an invitation from the stack, signs in, clones as reader and as editor; a withdrawn and a full link; axe). Refinement: tasks/refinements/books/add_by_link.md"
   }
   task share "Sharing" {
     effort 3d

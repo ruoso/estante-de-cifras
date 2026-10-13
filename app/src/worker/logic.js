@@ -32,6 +32,8 @@ import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createChangeCheckClient } from './change-check-client.js';
 import { createBooksClient } from './books-client.js';
 import { createOnline } from './online.js';
+import { createAddByLink } from './add-by-link.js';
+import { booksNotOnShelf } from '../books/mine-on-estante.js';
 import { createCifraMergeDriver } from './cifra-merge-driver.js';
 import { createSyncEngine } from './sync-engine.js';
 import { createSyncScheduler } from './sync-scheduler.js';
@@ -253,6 +255,18 @@ function nextShelfPosition(model, deviceId) {
   return max + 1;
 }
 
+// Word a failed invitation accept for the view (books.add_by_link), never naming
+// the book — a dead link reveals nothing (workflow 1 §Invited L53-58). A 409
+// `book_full` → 'full' ("This book is full"); any other 409 (invitation
+// withdrawn/expired/exhausted) or a 404 (unknown token or non-member, conflated
+// so a private book is never confirmed, openapi.yaml L782-790) → 'dead' ("This
+// link doesn't open a book"); anything else (offline, a 5xx) → 'error'.
+function refusedReason(err) {
+  if (err?.status === 409) return err?.code === 'book_full' ? 'full' : 'dead';
+  if (err?.status === 404) return 'dead';
+  return 'error';
+}
+
 // Fold one index change-set into an accumulator (SAVE/DISCARD touch many paths).
 function mergeIndexChanges(into, from) {
   into.putDocs.push(...from.putDocs);
@@ -309,6 +323,7 @@ export function createWorkerLogic(port, options = {}) {
   let changeCheck = null;
   let booksClient = null;
   let online = null;
+  let addByLink = null;
   let syncEngine = null;
   let syncScheduler = null;
 
@@ -521,6 +536,17 @@ export function createWorkerLogic(port, options = {}) {
     return online;
   }
 
+  // Compose the clone-a-hosted-book mechanic once over the SAME git layer and
+  // lock registry (books.add_by_link), the sibling of ensureOnline. The Worker
+  // owns git; the view only sends ADD_BY_LINK / ADD_MINE and reacts to the reply
+  // (DIRECTION §3.7). The accept/list HTTP calls stay on the books client.
+  function ensureAddByLink() {
+    if (!addByLink) {
+      addByLink = createAddByLink({ git: ensureGit(), locks: ensureLocks() });
+    }
+    return addByLink;
+  }
+
   // Compose the sync engine once over the SAME fs, git layer and lock registry
   // as the working copy and the home book (sync.engine), plus the change-check
   // client, the cifra merge driver and the home book. It emits per-book SYNC
@@ -689,6 +715,59 @@ export function createWorkerLogic(port, options = {}) {
     });
     const deviceId = await ensureHomeBook().ensureDeviceId({ idb, name, version });
     port.postMessage(event(EventKind.SHELF, surfaceShelf(model, deviceId)));
+  }
+
+  // Clone a hosted book onto this device and record it on the shelf
+  // (books.add_by_link, workflow 1 §Invited, workflow 7): the shared tail of
+  // ADD_BY_LINK (after a 200 accept) and ADD_MINE (already a member). The clone
+  // lands FIRST (add-by-link.js); only then is the shelf register written — the
+  // book's title as the `label`, the clone URL as the `link`, its place in the
+  // order (kept if the book already had a row, else appended), and the GRANTED
+  // `role` (reader/editor — the joiner never chooses, Decision) — so a failed or
+  // cancelled clone leaves no half-book (Decision 4). The book is indexed before
+  // BOOK_CLONED emits, so the live session's search finds it at once (the
+  // online_reindex obligation, books.online). One global flush at the tail
+  // persists the relocated repo and the shelf write together, so an immediate
+  // reload lists the cloned book. Writes `role: owner` never happens here — only
+  // put-online owns a book; this path writes reader/editor.
+  async function cloneOntoShelf({ serviceId, gitUrl, title, role, author }) {
+    // Clone only if the book is not already on the device — re-opening the same
+    // link (accept is idempotent and would 200 again) must not clone twice into a
+    // non-empty directory. A present `.git` is the "already cloned" signal; the
+    // shelf register below is rewritten either way (idempotent).
+    let alreadyCloned = true;
+    try {
+      await ensureFs().promises.stat(`${ensureGit().bookDir(serviceId)}/.git`);
+    } catch {
+      alreadyCloned = false;
+    }
+    if (!alreadyCloned) {
+      await ensureAddByLink().cloneHosted({ id: serviceId, gitUrl });
+    }
+    const home = ensureHomeBook();
+    await home.ensureLocal({ author });
+    const deviceId = await home.ensureDeviceId({ idb, name, version });
+    const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+    const existing = shelf?.books?.[serviceId];
+    const position =
+      typeof existing?.position?.value === 'number'
+        ? existing.position.value
+        : nextShelfPosition(shelf, deviceId);
+    await home.set({
+      bookId: HOME_BOOK_ID,
+      file: 'shelf.json',
+      changes: [
+        { path: ['books', serviceId, 'label'], value: title },
+        { path: ['books', serviceId, 'link'], value: gitUrl },
+        { path: ['books', serviceId, 'position'], value: position },
+        { path: ['books', serviceId, 'role'], value: role },
+      ],
+      author,
+    });
+    await surfaceHomeBookShelf();
+    await indexOneBook(serviceId);
+    await ensureFs().flush();
+    port.postMessage(event(EventKind.BOOK_CLONED, { bookId: serviceId }));
   }
 
   // Read the home book's instruments.json, preferences.json (for the in-use
@@ -1407,6 +1486,84 @@ export function createWorkerLogic(port, options = {}) {
             port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: null }));
             await ensureFs().flush();
             port.postMessage(event(EventKind.BOOK_REMOVED, { bookId }));
+            break;
+          }
+          case CommandKind.ADD_BY_LINK: {
+            // Join a shared book from its invitation (books.add_by_link, workflow
+            // 1 §Invited). Always attempt the accept first (Decision 2): a 401 has
+            // no side effect, so trying-first is the account-first gate — it emits
+            // NEED_ACCOUNT (no clone, no shelf write), and the main thread shows
+            // the generic invited screen + SignIn and re-sends this command on
+            // sign-in (accept is idempotent on repeat — no double join). A 200
+            // Book clones and records it with the GRANTED role; a 409/404 emits a
+            // worded BOOK_REFUSED and leaves the shelf untouched (a dead/full link
+            // reveals nothing about the book, workflow 1 §Invited L53-58).
+            const { token, author } = message.payload;
+            let book;
+            try {
+              book = await ensureBooksClient().accept(token);
+            } catch (err) {
+              if (err?.status === 401) {
+                port.postMessage(event(EventKind.NEED_ACCOUNT, { token }));
+              } else {
+                port.postMessage(event(EventKind.BOOK_REFUSED, { reason: refusedReason(err) }));
+              }
+              break;
+            }
+            await cloneOntoShelf({
+              serviceId: book.id,
+              gitUrl: book.gitUrl,
+              title: book.title,
+              role: book.role,
+              author,
+            });
+            // A freshly cloned book syncs on the engine's next pass (offline-save
+            // retry shape); coalesced and fire-and-forget.
+            ensureSyncScheduler().trigger();
+            break;
+          }
+          case CommandKind.ADD_MINE: {
+            // Add a book the account is ALREADY a member of onto this device
+            // ("mine on Estante", workflow 7 §Add-a-book; Decision 5). No accept —
+            // membership is a given — so the same clone-and-record tail runs
+            // directly over the id/url/role the LIST_MINE reply already carried.
+            const { bookId, gitUrl, label, role, author } = message.payload;
+            await cloneOntoShelf({
+              serviceId: bookId,
+              gitUrl,
+              title: label,
+              role,
+              author,
+            });
+            ensureSyncScheduler().trigger();
+            break;
+          }
+          case CommandKind.LIST_MINE: {
+            // List the account's books not yet on this device's shelf (workflow 7
+            // §Add-a-book "Mine on Estante"; Decision 5): GET /api/books minus the
+            // local shelf, a client-side diff over the device's own knowledge (the
+            // service has no per-device state). A 401 (no session) replies
+            // signed_out so the sheet shows "Sign in to see them"; any other
+            // failure replies error. Reads nothing that lands on the device.
+            let listed;
+            try {
+              listed = await ensureBooksClient().list();
+            } catch (err) {
+              const status = err?.status === 401 ? 'signed_out' : 'error';
+              port.postMessage(event(EventKind.MINE, { status, books: [] }));
+              break;
+            }
+            const deviceId = await ensureHomeBook().ensureDeviceId({ idb, name, version });
+            const shelf = await ensureHomeBook().read({
+              bookId: HOME_BOOK_ID,
+              file: 'shelf.json',
+            });
+            port.postMessage(
+              event(EventKind.MINE, {
+                status: 'ready',
+                books: booksNotOnShelf(listed, shelf, deviceId),
+              }),
+            );
             break;
           }
           case CommandKind.OPEN_SOURCE: {
