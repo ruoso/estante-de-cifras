@@ -77,6 +77,16 @@ function renderSheet(props, store) {
 const withName = (emit) => emit(event(EventKind.PREFERENCES, { authorName: { value: 'Marina', at: AT } }));
 
 describe('save sheet — what changed and the note (§Saving)', () => {
+  it('refuses a save in a book with an in-progress merge with settle-the-conflicts-first (sync.conflicts; workflow 9 L42-43)', async () => {
+    const { store, emit } = makeStore();
+    renderSheet({ paths: ['tarde-clara.cifra.md'] }, store);
+    withName(emit);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
+    // The Worker's merge-in-progress refusal surfaces, distinct from a marker line.
+    emit(event(EventKind.SAVE_REFUSED, { bookId: BOOK, reason: 'merge_in_progress' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Settle the conflicts in this book first');
+  });
+
   it('shows the musical summary as localized rows and prefills the editable note', async () => {
     const { store, emit } = makeStore();
     renderSheet({ paths: ['tarde-clara.cifra.md'] }, store);

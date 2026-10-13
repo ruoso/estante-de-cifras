@@ -68,7 +68,7 @@ function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, title
     if (payload?.bookId === bookId) onClose();
   });
   useWorkerEvent(store, EventKind.SAVE_REFUSED, (payload) => {
-    if (payload?.bookId === bookId) setRefused({ line: payload?.line ?? null });
+    if (payload?.bookId === bookId) setRefused({ line: payload?.line ?? null, reason: payload?.reason ?? null });
   });
 
   const previews = useMemo(
@@ -169,7 +169,9 @@ function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, title
 
       {refused && (
         <p className="notice conflict est-save-refused" role="alert">
-          {t('saveSheet.refused', { line: refused.line ?? '?' })}
+          {refused.reason === 'merge_in_progress'
+            ? t('saveSheet.refusedMerge')
+            : t('saveSheet.refused', { line: refused.line ?? '?' })}
         </p>
       )}
 

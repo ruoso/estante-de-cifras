@@ -1,0 +1,57 @@
+/* book-conflicts.css — layout for the book-level paused panel (sync.conflicts,
+   workflow 9; W09 computer). The screen/appbar/scroll, notice, card, list, badge
+   and btn scaffolding is the theme's (theme.css); this adds only the panel's own
+   two-column layout. Tokens only, never hard-coded colour (mockups README L26). */
+
+.est-bookconf-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 2.5) calc(var(--u) * 3.5);
+}
+
+.est-bookconf-needsyou {
+  align-items: flex-start;
+}
+
+/* Two columns on a wide screen; stacked on a phone (W09 computer vs phone). */
+.est-bookconf-cols {
+  display: flex;
+  gap: calc(var(--u) * 3);
+  align-items: flex-start;
+}
+.est-bookconf-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}
+.est-bookconf-side {
+  width: calc(var(--u) * 38);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.75);
+}
+
+@media (max-width: 720px) {
+  .est-bookconf-cols {
+    flex-direction: column;
+  }
+  .est-bookconf-side {
+    width: 100%;
+  }
+}
+
+.est-bookconf-row {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+}
+
+.est-bookconf-deleted-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.25);
+}

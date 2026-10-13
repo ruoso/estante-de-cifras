@@ -241,6 +241,31 @@ export const CommandKind = Object.freeze({
   REMOVE_INSTRUMENT: 'remove_instrument',
   REMOVE_SHAPE: 'remove_shape',
   SAVE_SHAPE: 'save_shape',
+  // Conflict resolution (sync.conflicts, workflow 9): a book the engine left
+  // reading *needs you* is paused with an in-progress merge the user settles one
+  // piece at a time. All four run in the Worker under the book lock; none waits
+  // on anything but the final push. OPEN_CONFLICTS `{ bookId }` engages the book:
+  // it recomputes the byte-deterministic merge, materialises it in the working
+  // copy (every clean-merged file lands; each conflicted song stays at *ours*),
+  // and emits a CONFLICTS event with the recomputed per-book model. Idempotent —
+  // re-opening recomputes and re-emits. RESOLVE_CONFLICT `{ bookId, path, choice,
+  // text?, author }` settles one file: `choice` is 'mine' / 'theirs' (resolve the
+  // whole file's marked text by that side, §11.12.4), 'edit' (`text` is the
+  // user's edited text — refused if it still holds a marker line, §11.12.3),
+  // 'keep' / 'delete' (a deleted-vs-edited `file` conflict — keep the edited song
+  // or delete it, workflow 9 §Settling one). It re-emits CONFLICTS; when the last
+  // conflict in the book is settled it commits the two-parent merge and pushes.
+  // COMMIT_MERGE `{ bookId, author }` forces the settle-and-push when every file
+  // is already resolved (the book-level *everything settled* path); normally
+  // RESOLVE_CONFLICT does it. ABANDON_MERGE `{ bookId }` resets the book to
+  // exactly before the sync (working copy back to *ours*, the in-progress merge
+  // and the retained incoming ref dropped) and clears *needs you* (workflow 9
+  // §Leaving one). A SAVE in a book with an in-progress merge is refused outright
+  // with *settle the conflicts first* (SAVE_REFUSED reason 'merge_in_progress').
+  OPEN_CONFLICTS: 'open_conflicts',
+  RESOLVE_CONFLICT: 'resolve_conflict',
+  COMMIT_MERGE: 'commit_merge',
+  ABANDON_MERGE: 'abandon_merge',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -432,6 +457,26 @@ export const EventKind = Object.freeze({
   // changes"). It carries path, author name and commit oid only — never song
   // text (standing rule).
   MERGED: 'merged',
+  // The recomputed in-progress-merge model for one paused book (sync.conflicts,
+  // workflow 9): emitted on OPEN_CONFLICTS and after every RESOLVE_CONFLICT, and
+  // cleared (payload with no conflicts) when the merge is committed or abandoned.
+  // `{ bookId, inProgress, songs, deleted, incoming, savesHeld }`:
+  //   - `inProgress` is false once the book is settled/abandoned (the panel and
+  //     the save guard read this to stand down);
+  //   - `songs` is one entry per song still in conflict, in book order:
+  //     `{ path, title, count, author, marked, items, markedLines }` — the
+  //     per-song model from conflict-model.js (`items` the regions in musical
+  //     terms, `markedLines` the ours lines the reading view marks);
+  //   - `deleted` is one entry per deleted-vs-edited song: `{ path, title,
+  //     author, deleted }` (which side deleted it);
+  //   - `incoming` is the clean-merged files that came in with the merge, for the
+  //     *came in … already here* list: `{ path, title, author, summary }`;
+  //   - `savesHeld` are the book's unsaved songs whose save is held until the
+  //     merge settles (the *saving in this book* card): `{ path, title }`.
+  // It carries titles, authors, chord/bar texts and marker lines, never whole
+  // song text beyond the conflicted regions the screens must draw; no logging
+  // (standing rule). A per-book reducer slice (`conflicts`), folded by bookId.
+  CONFLICTS: 'conflicts',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

@@ -33,6 +33,8 @@ import SongWizard from '../songs/SongWizard.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
 import SharingScreen from '../books/SharingScreen.jsx';
+import BookConflicts from '../books/BookConflicts.jsx';
+import SongConflict from '../songs/SongConflict.jsx';
 import { orderedBooks, titleFor } from '../books/book-display.js';
 import SignIn from '../account/SignIn.jsx';
 import InvitedScreen from '../account/InvitedScreen.jsx';
@@ -191,6 +193,7 @@ export default function AppShell({
 }) {
   const mode = useLayoutMode();
   const shelf = useSlice(store, 'shelf');
+  const sync = useSlice(store, 'sync');
   const [selected, setSelected] = useState(DESTINATIONS[0]);
 
   // The invited flow (books.add_by_link, workflow 1 §Invited): a full-screen
@@ -273,6 +276,13 @@ export default function AppShell({
   // arrange's Run-the-wizard button on that re-mount (its node is replaced).
   const [wizard, setWizard] = useState(null);
   const [wizardReturn, setWizardReturn] = useState(false);
+  // The conflict surfaces (sync.conflicts, workflow 9): `conflictsBook` is the
+  // bookId whose paused merge panel is open; `songConflict` is `{ bookId, path }`
+  // for the per-song resolver mounted over it. Opening a book the engine left
+  // *needs you* engages the merge (OPEN_CONFLICTS materialises it) and shows the
+  // panel. Ephemeral view state, no router, like the other surfaces.
+  const [conflictsBook, setConflictsBook] = useState(null);
+  const [songConflict, setSongConflict] = useState(null);
   // The live CodeMirror view, so Change book can carry the current text to the
   // new book's placeholder (Decision 3). A ref, not state — it never renders.
   const editorRef = useRef(null);
@@ -485,6 +495,49 @@ export default function AppShell({
     );
   }
 
+  // Opening a book (shell.layout): its Files view, unless the sync engine left it
+  // reading *needs you* (sync.conflicts) — then engage the merge (OPEN_CONFLICTS
+  // recomputes and materialises it) and show the paused panel instead (workflow
+  // 9 §Meeting one). A book already being settled keeps its panel.
+  const openBook = (bookId) => {
+    if (conflictsBook === bookId || sync?.[bookId]?.phase === 'needs_you') {
+      if (conflictsBook !== bookId) store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
+      setConflictsBook(bookId);
+    } else {
+      setOpenFile(bookId);
+    }
+  };
+
+  // The per-song conflict resolver (sync.conflicts, workflow 9 §Settling one): a
+  // full screen over the paused panel, raised by its *Settle*. Checked first so
+  // it sits over the panel; Back returns to it.
+  if (songConflict) {
+    return (
+      <SongConflict
+        store={store}
+        bookId={songConflict.bookId}
+        path={songConflict.path}
+        onClose={() => setSongConflict(null)}
+      />
+    );
+  }
+
+  // The book-level paused panel (sync.conflicts, workflow 9 §The rest): a full
+  // screen over the shell for a book with an in-progress merge. *Settle* opens the
+  // per-song resolver above; Back returns to the shell.
+  if (conflictsBook) {
+    const entry = orderedBooks(shelf).find((e) => e.id === conflictsBook);
+    return (
+      <BookConflicts
+        store={store}
+        bookId={conflictsBook}
+        title={titleFor(entry?.book ?? {}, conflictsBook)}
+        onSettle={(path) => setSongConflict({ bookId: conflictsBook, path })}
+        onClose={() => setConflictsBook(null)}
+      />
+    );
+  }
+
   // A song's history is a full screen over whatever opened it (songs.history),
   // checked before the editor hosts and the reading view so it sits over the
   // surface that raised it — Back returns there (the reading view, the file-view
@@ -656,7 +709,7 @@ export default function AppShell({
             </div>
             <main className="pane main">
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, search, mode)}
+                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, search, mode)}
               </div>
             </main>
           </div>
@@ -676,7 +729,7 @@ export default function AppShell({
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className="scroll">
-              {destinationPanels(store, setSelected, startNewSong, setOpenFile, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, search, mode)}
+              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, search, mode)}
             </main>
           </div>
         )}

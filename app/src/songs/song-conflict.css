@@ -1,0 +1,105 @@
+/* song-conflict.css — layout for the per-song conflict resolver (sync.conflicts,
+   workflow 9; W09 phone/tablet). The screen/appbar/scroll, card, chart, notice,
+   badge, btn and field scaffolding is the theme's (theme.css); this adds only the
+   resolver's own layout. Tokens only, never hard-coded colour (mockups README
+   L26). The only monospaced surface is the raw *edit* text (README L24). */
+
+.est-conflict-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 2) calc(var(--u) * 2.5);
+}
+
+/* The stepper: Conflict k of n with Previous / Next (W09 phone). */
+.est-conflict-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+}
+.est-conflict-step {
+  flex: 1;
+}
+
+.est-conflict-head {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+}
+
+/* The two versions side by side, each in a card, named yours / the author's. */
+.est-conflict-sides {
+  display: flex;
+  gap: calc(var(--u) * 1.5);
+  align-items: flex-start;
+}
+.est-conflict-side {
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: calc(var(--u) * 1.25);
+}
+.est-conflict-side .t-h3 {
+  align-self: flex-start;
+}
+.est-conflict-value {
+  color: var(--ink);
+  margin: 0;
+  text-align: center;
+}
+.est-conflict-absent {
+  color: var(--ink-2);
+  font-style: italic;
+  margin: 0;
+}
+
+.est-conflict-hint {
+  color: var(--ink-2);
+  margin: 0;
+}
+
+.est-conflict-notice .t-small {
+  color: var(--ink);
+}
+
+.est-conflict-preview {
+  --chart-size: 13px;
+}
+
+/* Settled so far (W09 phone): the resolutions chosen this session. */
+.est-conflict-settledlist {
+  margin: 0;
+  padding-left: calc(var(--u) * 2);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+}
+
+/* The raw edit surface: the only monospaced view here (README L24). */
+.est-conflict-editfield {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+}
+.est-conflict-editor {
+  min-height: calc(var(--u) * 24);
+  line-height: 1.5;
+  resize: vertical;
+  font: 400 15px/1.5 var(--font-mono, monospace);
+  white-space: pre;
+  overflow-x: auto;
+}
+.est-conflict-refused {
+  margin: 0;
+}
+.est-conflict-legend {
+  margin: 0;
+  padding-left: calc(var(--u) * 2);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+}
+.est-conflict-legend .t-mono {
+  display: inline-block;
+  min-width: calc(var(--u) * 10);
+}

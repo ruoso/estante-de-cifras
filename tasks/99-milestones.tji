@@ -35,7 +35,7 @@ task milestones "Milestones" {
 
   task m4_together "M4: Together" {
     milestone
-    depends milestones.m3_service, books.add_by_link, books.share, books.fork, sync.conflicts, sync.lost_access, service.admin
+    depends milestones.m3_service, books.add_by_link, books.share, books.fork, sync.conflicts, sync.keep_both, sync.lost_access, service.admin
     note "Invitations, fifty per book, forks following their original, merges and conflicts between people."
   }
 

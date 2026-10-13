@@ -95,6 +95,26 @@ export function createCifraMergeDriver(options = {}) {
  * @param {typeof cifraMerge} [merge]
  * @returns {{ text: string|null, conflict: boolean, marked: boolean, deleted: boolean }}
  */
+/**
+ * Recompute the merge `Outcome` for one file, directly — the per-file call
+ * `sync.conflicts` makes on engage to rebuild the byte-deterministic merge the
+ * engine persisted nothing of (Decision 1; cifra_js.merge). `base`/`ours`/
+ * `theirs` are the file's blobs (UTF-8 strings, raw bytes, or `null` when the
+ * file is absent on that side), exactly as cifra.md `merge` accepts. Returns the
+ * full `Outcome` (`{ result, deleted, conflicts, marked, kind }`, §11.12) so the
+ * caller can write a clean `result`, drop a `deleted`, or materialise a
+ * `conflicts` outcome's `marked` text and present its `conflicts`. Pure: one call
+ * to cifra.md `merge`, no git, no fs, no logging (no song text; standing rule).
+ *
+ * @param {{ base: string|Uint8Array|null, ours: string|Uint8Array|null,
+ *   theirs: string|Uint8Array|null, setlist?: boolean }} inputs
+ * @param {typeof cifraMerge} [merge]
+ * @returns {object}  the cifra.md merge `Outcome`
+ */
+export function recomputeMerge({ base, ours, theirs, setlist = false }, merge = cifraMerge) {
+  return merge(base, ours, theirs, { setlist });
+}
+
 export function reapplyWorkingText({ base, ours, theirs, setlist = false }, merge = cifraMerge) {
   const outcome = merge(base, ours, theirs, { setlist });
   if (outcome.kind === 'result') {

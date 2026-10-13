@@ -131,6 +131,11 @@ export function createSyncEngine(deps = {}) {
     emit,
     emitMerged = null,
     surfaceHome = null,
+    // A predicate: does this book have an in-progress merge the user is settling
+    // (sync.conflicts)? When it does, the engine skips the book — it stays *needs
+    // you* and takes nothing new until it is settled or abandoned (workflow 9
+    // L38-45; Decision 4). Defaults to "never", so the clean engine is unchanged.
+    hasInProgressMerge = () => false,
   } = deps;
   const now = deps.now ?? Date.now;
   const homeBookId = deps.homeBookId ?? HOME_BOOK_ID;
@@ -541,6 +546,13 @@ export function createSyncEngine(deps = {}) {
 
   async function syncSongbook(book, news, reachable) {
     const { bookId } = book;
+    if (hasInProgressMerge(bookId)) {
+      // The user has engaged this book's merge (sync.conflicts): it is paused and
+      // takes nothing new until settled or abandoned. Keep it reading *needs you*
+      // and do no fetch/merge/push this pass (Decision 4).
+      emitFact(bookId, 'needs_you');
+      return;
+    }
     const change = news?.get(bookId);
     if (change?.status === 'gone') {
       // Losing access: the book stops syncing (workflow 8 L65-69); the fork /

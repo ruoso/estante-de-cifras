@@ -418,6 +418,11 @@ export default {
     // The Worker's backstop refusal surfaced (a marked/unreadable file); the
     // editor's gate catches it first, so this is rare (Constraints).
     refused: 'Not saved. Line {line} could not be read. Fix it in the editor, then save again.',
+    // A book with an in-progress merge holds every save until the conflicts are
+    // settled (sync.conflicts; workflow 9 L42-43) — distinct from the marker-line
+    // refusal above.
+    refusedMerge:
+      'Not saved. Settle the conflicts in this book first — a save now would be folded into the merge.',
     // Discard — the one destructive action, which always asks (§Discarding).
     discardTitle: 'Discard changes to {title}?',
     discardBody: 'The song goes back to how it was last saved. This would be lost:',
@@ -492,6 +497,100 @@ export default {
       'The whole version is restored. It is then unsaved, and saving it makes a new version; nothing in the history is changed.',
     keepChanges: 'Keep my changes',
     loseAndRestore: 'Lose them and restore',
+  },
+
+  // The per-song conflict resolver (sync.conflicts, workflow 9 §Settling one;
+  // W09 phone). `{title}` a song's title, `{author}` the incoming author (who
+  // labels *theirs* — the mockup's *Ana's*), `{n}`/`{total}` the stepper,
+  // `{section}`/`{chord}`/`{tuning}`/`{variation}`/`{key}` musical tokens that
+  // pass through as data (never translated). Statuses carry a word, never colour
+  // alone (mockup README L26).
+  songConflict: {
+    back: 'Back',
+    stepOf: 'Conflict {n} of {total}',
+    prev: 'Previous conflict',
+    next: 'Next conflict',
+    yours: 'Yours',
+    theirs: '{author}’s',
+    theirsFallback: 'Theirs',
+    // Headings and sublines per kind.
+    chartTitle: '{section}',
+    chartTitleFallback: 'A bar you both changed',
+    chartBody: 'You and {author} both changed this.',
+    chartBodyFallback: 'You both changed this.',
+    voicingTitle: 'The shape for {chord}',
+    voicingBody: '{tuning} · {variation}. You and {author} each chose a different shape.',
+    voicingBodyFallback: '{tuning} · {variation}. You each chose a different shape.',
+    mainVariation: 'main variation',
+    propertyTitle: 'The {key}',
+    propertyBody: 'You and {author} both changed it.',
+    propertyBodyFallback: 'You both changed it.',
+    titleTitle: 'The title',
+    titleBody: 'You and {author} both named it differently.',
+    titleBodyFallback: 'You both named it differently.',
+    genericTitle: 'A change you both made',
+    genericBody: 'You and {author} both changed this.',
+    genericBodyFallback: 'You both changed this.',
+    absent: '(removed)',
+    keepMine: 'Keep mine',
+    takeTheirs: 'Take theirs',
+    edit: 'Edit',
+    readsAsYours:
+      'Until you settle it, {title} reads as your version, with the places in conflict marked.',
+    keepBothHint:
+      'To keep both shapes, choose Edit and put {author}’s in a variation of its own.',
+    previewLabel: '{title}, your version',
+    settledSoFar: 'Settled so far',
+    settledMine: 'Kept yours',
+    settledTheirs: 'Took {author}’s',
+    settledEdit: 'Edited the text',
+    allSettled: 'Every conflict in {title} is settled.',
+    // The *edit* affordance: the song's marked text, raw, with git's markers
+    // (workflow 9 §Settling one; W09 tablet). The only monospaced surface here
+    // (mockup README L24). Save refuses while a marker line remains, pointing at
+    // it (§11.12.3; workflow 4 L54-56).
+    editTitle: 'Edit the text of {title}',
+    editHelp: 'Keep the lines you want, from either side or both, and delete the three marker lines.',
+    editTextLabel: 'The song’s text, with the conflict markers',
+    editSave: 'Save',
+    editCancel: 'Cancel',
+    editRefused:
+      'Not saved. Line {line} is still a conflict marker. Remove every marker line once you have chosen what stays, then save again.',
+    markersTitle: 'Reading the markers',
+    markerStart: 'your version starts',
+    markerMid: 'yours ends, {author}’s starts',
+    markerEnd: '{author}’s version ends',
+  },
+
+  // The book-level paused panel (sync.conflicts, workflow 9 §Meeting one / §The
+  // rest / §Leaving one; W09 computer). `{count}` a song count, `{title}` a
+  // song's title, `{author}` the incoming author. The merge is book-wide: nothing
+  // new comes in until it is settled (workflow 9 L38-45).
+  bookConflicts: {
+    needsYou: { one: '{count} song needs you.', other: '{count} songs need you.' },
+    needsYouBody:
+      'The latest incoming saves and yours changed the same places. Everything else is already here, and you can read and edit as usual; this book takes nothing new from sync until these are settled.',
+    inConflict: 'In conflict',
+    conflictsCount: { one: '{count} conflict', other: '{count} conflicts' },
+    conflictBadge: 'conflict',
+    settle: 'Settle',
+    settleSong: 'Settle {title}',
+    deletedBody: '{author} deleted this song. You had edited it.',
+    keepSong: 'Keep the song, with the edits',
+    deleteSong: 'Delete it',
+    cameIn: 'Came in, already here',
+    addedBy: 'added by {author}',
+    changedBy: 'updated by {author}',
+    savingTitle: 'Saving in this book',
+    savingBody: {
+      one: 'Settle the song first. A save made now would be folded into the merge.',
+      other: 'Settle the {count} songs first. A save made now would be folded into the merge.',
+    },
+    savingSafe: 'Your unsaved edits are safe as they are until then.',
+    notNowTitle: 'Not now',
+    notNowBody:
+      'The conflicts can wait as long as you like. Abandoning puts the book back as it was before this sync; the incoming saves wait to be merged at the next one.',
+    abandon: 'Abandon the merge',
   },
 
   // The file view (books.file_view, workflow 14): the book as git sees it — the

@@ -554,9 +554,17 @@ export default function BooksScreen({
   };
 
   // Pressing a row opens its detail (and highlights it); the Files button opens
-  // the file view, as before.
+  // the file view, as before. The one exception: a book the engine left *needs
+  // you* engages its in-progress merge instead (sync.conflicts, workflow 9
+  // §Meeting one) — opening a paused book shows the conflict panel, not its
+  // detail. That branch lives in the shell's `onOpenBook`, so route the press
+  // there when the live sync phase says the book needs the user.
   const openBookDetail = (bookId) => {
     setSelected(bookId);
+    if (sync[bookId]?.phase === 'needs_you') {
+      onOpenBook(bookId);
+      return;
+    }
     setOpenDetail(bookId);
   };
 

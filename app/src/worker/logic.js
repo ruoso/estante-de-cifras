@@ -37,6 +37,7 @@ import { booksNotOnShelf } from '../books/mine-on-estante.js';
 import { createCifraMergeDriver } from './cifra-merge-driver.js';
 import { createSyncEngine } from './sync-engine.js';
 import { createSyncScheduler } from './sync-scheduler.js';
+import { createConflicts } from './conflicts.js';
 import { createBooks } from './books.js';
 import { createExampleBook } from './example-book.js';
 import { createMySongs, MY_SONGS_ID } from './my-songs.js';
@@ -326,6 +327,7 @@ export function createWorkerLogic(port, options = {}) {
   let addByLink = null;
   let syncEngine = null;
   let syncScheduler = null;
+  let conflicts = null;
 
   function ensureOpen() {
     if (!dbPromise) dbPromise = openDatabase(idb, name, version, migrations);
@@ -564,6 +566,11 @@ export function createWorkerLogic(port, options = {}) {
         homeBook: ensureHomeBook(),
         resolveAuthor: resolveSyncAuthor,
         surfaceHome: surfaceHomeBook,
+        // A book the user has engaged (sync.conflicts) has an in-progress merge
+        // in the working copy: the engine skips it — it stays *needs you* and
+        // takes nothing new from sync until it is settled or abandoned (workflow
+        // 9 L38-45; Decision 4), rather than re-fetching and re-aborting it.
+        hasInProgressMerge: (bookId) => ensureConflicts().hasInProgressMerge(bookId),
         emit: (payload) => port.postMessage(event(EventKind.SYNC, payload)),
         // A clean merge landed: tell the open reading view which songs moved and
         // who moved them (sync.read_in_place; DIRECTION §3.7 L423-424 "a merge
@@ -572,6 +579,28 @@ export function createWorkerLogic(port, options = {}) {
       });
     }
     return syncEngine;
+  }
+
+  // Compose the conflict session once over the SAME fs, git layer and lock
+  // registry as the engine (sync.conflicts). It recomputes and materialises an
+  // in-progress merge on engage, applies the resolutions, commits the two-parent
+  // merge and pushes, and abandons — all under the book lock. It emits CONFLICTS
+  // (the recomputed per-book model) and reuses SAVE_REFUSED for a marker-line
+  // refusal; `requestSync` lets the engine re-emit the SYNC fact once the book is
+  // settled or abandoned.
+  function ensureConflicts() {
+    if (!conflicts) {
+      conflicts = createConflicts({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+        resolveAuthor: resolveSyncAuthor,
+        emit: (payload) => port.postMessage(event(EventKind.CONFLICTS, payload)),
+        emitRefused: (payload) => port.postMessage(event(EventKind.SAVE_REFUSED, payload)),
+        requestSync: () => ensureSyncScheduler().trigger(),
+      });
+    }
+    return conflicts;
   }
 
   // Compose the scheduler once (sync.engine): it coalesces the five triggers
@@ -909,6 +938,16 @@ export function createWorkerLogic(port, options = {}) {
             // Canonicalise, commit one file or several, then push — the author
             // formed from the command's identity (id -> no-reply address).
             const { bookId, paths, message: note, author } = message.payload;
+            // A book with an in-progress merge is paused (sync.conflicts): a save
+            // made mid-merge would be folded into it, so refuse it outright with
+            // *settle the conflicts first* — distinct from the marker-line refusal
+            // (workflow 9 L42-43; Decision 4).
+            if (ensureConflicts().hasInProgressMerge(bookId)) {
+              port.postMessage(
+                event(EventKind.SAVE_REFUSED, { bookId, path: paths?.[0] ?? null, reason: 'merge_in_progress' }),
+              );
+              break;
+            }
             const outcome = await ensureWorkingCopy().save({
               bookId,
               paths,
@@ -1208,6 +1247,32 @@ export function createWorkerLogic(port, options = {}) {
             // shape a sync merged reaches the `instruments` slice
             // (music.instruments; "re-emitted when sync changes a register").
             await surfaceHomeBookInstruments();
+            break;
+          }
+          case CommandKind.OPEN_CONFLICTS: {
+            // Engage a book the engine left *needs you* (sync.conflicts): recompute
+            // the byte-deterministic merge and materialise it in the working copy,
+            // then emit the per-book CONFLICTS model (workflow 9 §Meeting one).
+            await ensureConflicts().open(message.payload.bookId);
+            break;
+          }
+          case CommandKind.RESOLVE_CONFLICT: {
+            // Settle one file by one side / by the edited text / by keeping or
+            // deleting a song (workflow 9 §Settling one). Re-emits CONFLICTS; when
+            // the last file is settled it commits the two-parent merge and pushes.
+            await ensureConflicts().resolve(message.payload);
+            break;
+          }
+          case CommandKind.COMMIT_MERGE: {
+            // Commit the two-parent merge and push once every file is settled (the
+            // book-level *everything settled* path; workflow 9 §When every).
+            await ensureConflicts().commitMerge(message.payload);
+            break;
+          }
+          case CommandKind.ABANDON_MERGE: {
+            // Put the book back as it was before the sync, the incoming changes
+            // waiting for the next one (workflow 9 §Leaving one).
+            await ensureConflicts().abandon(message.payload.bookId);
             break;
           }
           case CommandKind.CREATE_BOOK: {

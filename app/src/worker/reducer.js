@@ -139,6 +139,14 @@ export const initialState = {
   // `shelf`), left untouched by every other event. Starts idle: nothing listed
   // until the sheet opens and sends LIST_MINE.
   mine: { status: 'idle', books: [] },
+  // The per-book in-progress-merge model (sync.conflicts, CONFLICTS), keyed by
+  // `bookId`: `{ inProgress, songs, deleted, incoming, savesHeld }` recomputed
+  // in the Worker on engage and after each resolution (workflow 9). Held in
+  // memory only — no new IndexedDB store (engine.md's rejected conflict store);
+  // a reload re-engages and recomputes. A book with no in-progress merge has no
+  // entry (the panel and the save guard stand down). A book an event does not
+  // touch keeps its entry reference. Starts empty: nothing paused yet.
+  conflicts: {},
 };
 
 // Fold one message into the state. Only event-direction messages change
@@ -470,6 +478,35 @@ export function reduce(state, message) {
             savesWaiting: message.payload?.savesWaiting ?? 0,
             lastInStep: message.payload?.lastInStep ?? null,
             at: message.payload?.at ?? null,
+          },
+        },
+      };
+    }
+
+    case EventKind.CONFLICTS: {
+      // A book's in-progress-merge model arrived (sync.conflicts): set it under
+      // the book's key, like SYNC. A payload with `inProgress: false` means the
+      // merge was committed or abandoned — drop the entry so the panel and the
+      // save guard stand down. Only this book's entry moves; the rest keep their
+      // references.
+      const bookId = message.payload?.bookId;
+      if (!bookId) return state;
+      if (message.payload?.inProgress === false) {
+        if (!(bookId in state.conflicts)) return state;
+        const next = { ...state.conflicts };
+        delete next[bookId];
+        return { ...state, conflicts: next };
+      }
+      return {
+        ...state,
+        conflicts: {
+          ...state.conflicts,
+          [bookId]: {
+            inProgress: true,
+            songs: message.payload?.songs ?? [],
+            deleted: message.payload?.deleted ?? [],
+            incoming: message.payload?.incoming ?? [],
+            savesHeld: message.payload?.savesHeld ?? [],
           },
         },
       };
