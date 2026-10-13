@@ -20,7 +20,7 @@
 // task) fill them. The shell is usable with no account and no book (Workflow 1).
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
+import { Button, Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { getAppStore } from '../worker/store.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
@@ -38,6 +38,7 @@ import SongConflict from '../songs/SongConflict.jsx';
 import { orderedBooks, titleFor } from '../books/book-display.js';
 import SignIn from '../account/SignIn.jsx';
 import InvitedScreen from '../account/InvitedScreen.jsx';
+import AccountScreen from '../account/AccountScreen.jsx';
 import FileView from '../files/FileView.jsx';
 import ChordExplorer from '../music/ChordExplorer.jsx';
 import InstrumentChip from '../instruments/InstrumentChip.jsx';
@@ -91,6 +92,33 @@ const ICONS = {
   books: <path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z" />,
   setlists: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
 };
+
+// The header account affordance (account.account_screen acceptance 1; DIRECTION
+// §6 line 545; mockup Theme-picker — "reached from the header"). Shell chrome
+// present on every destination, signed in or not; pressing it opens the account
+// surface. An icon button with an accessible name that says what it does — the
+// person glyph is decorative.
+function AccountButton({ onOpen }) {
+  return (
+    <Button className="btn icon account-open" aria-label={t('account.open')} onPress={onOpen}>
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+      </svg>
+    </Button>
+  );
+}
 
 function DestinationIcon({ name }) {
   return (
@@ -223,6 +251,15 @@ export default function AppShell({
   const [signIn, setSignIn] = useState(
     redeemToken ? { intent: 'signIn', token: redeemToken } : null,
   );
+
+  // The account screen (account.account_screen, workflow 13 §The account screen):
+  // a full-screen surface over the shell, opened from the header account
+  // affordance (present signed-in or not — DIRECTION §6 line 545), like
+  // `signIn`/`openSong`. `false` is closed. It reads "signed in" afresh each open
+  // from a 200/401 probe (Decision 3), writes theme/language through the Worker,
+  // and its not-signed-in card opens the SignIn surface above it; closing returns
+  // to where it was opened from (the selected destination is held in `selected`).
+  const [account, setAccount] = useState(false);
 
   // Writing a new song is ephemeral view state, not Worker data and not a store
   // slice (songs.new_song Decision 5; shell.layout Decision 5 — navigation is
@@ -475,6 +512,21 @@ export default function AppShell({
     );
   }
 
+  // The account screen (account.account_screen): a full screen over the shell,
+  // checked after SignIn so the not-signed-in card's "Use a passkey" / "Email me
+  // a link" open the SignIn surface above it and return here on close (the
+  // account surface stays open behind it). `onSignOut` is the current-device
+  // seam account.sign_out fills (Decision 4) — a no-op here.
+  if (account) {
+    return (
+      <AccountScreen
+        store={store}
+        onClose={() => setAccount(false)}
+        onSignIn={() => setSignIn({ intent: 'signIn' })}
+      />
+    );
+  }
+
   // The invited door (books.add_by_link, workflow 1 §Invited): checked after
   // SignIn so pressing "Make an account" / "I have an account: sign in" opens the
   // passkey surface over it and returns here, and before the shell so it shows
@@ -700,8 +752,10 @@ export default function AppShell({
                 <span className="t-h1">{t('app.name')}</span>
                 {/* The instrument chip, the one shared piece of shell chrome
                     (music.instruments Decision 1): the computer board draws it in
-                    the side header. */}
+                    the side header. The account affordance sits beside it
+                    (account.account_screen). */}
                 <InstrumentChip store={store} onOpen={openInstruments} />
+                <AccountButton onOpen={() => setAccount(true)} />
               </div>
               <TabList className="rail" aria-label={t('shell.nav')}>
                 {DESTINATIONS.map((key) => destinationTab(key, 'rail'))}
@@ -720,6 +774,7 @@ export default function AppShell({
                 scrolling detail. */}
             <div className="instr-top">
               <InstrumentChip store={store} onOpen={openInstruments} />
+              <AccountButton onOpen={() => setAccount(true)} />
             </div>
             {/* The TabList renders before the TabPanels so RAC can register the
                 tab ids the panels reference (react-aria tabs link panel↔tab by a

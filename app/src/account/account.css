@@ -74,3 +74,158 @@
   font-weight: 600;
   color: var(--ink);
 }
+
+/* The account screen (account.account_screen; board Theme-picker). A measured
+   single column that reads the same on every viewport (the surface pattern the
+   sign-in ceremony set), a little wider than the ceremony to hold the rosters. */
+.account-screen-card {
+  max-width: 560px;
+  gap: calc(var(--u) * 1.75);
+}
+
+/* A plain sub-heading inside Preferences ("Theme", "Language"): the theme's
+   .t-h3 is an all-caps section label; these name a field, so they read as ink
+   body weight (mockup: color ink, no transform). */
+.account-subhead {
+  color: var(--ink);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 15px;
+}
+
+.account-section {
+  margin-top: calc(var(--u) * 0.5);
+}
+
+/* A picker row (a RAC Radio) and a roster row sit on one line with a 12px gap;
+   the shared .row/.check/.badge do the rest. */
+.account-list .account-row {
+  gap: calc(var(--u) * 1.5);
+  cursor: pointer;
+}
+
+.account-list .account-row .check {
+  border-radius: 50%;
+}
+
+/* React Aria renders each picker Radio's real <input> inside a visually-hidden
+   <span> (RAC's Radio passes elementType: "span" to VisuallyHidden, as the
+   first child) that clips it to a 1px box, so a pointer aimed at the accessible
+   radio lands on the check/label behind it: a user tap still works via RAC's
+   press handling, but an automated by-role click is swallowed ("intercepts
+   pointer events"). Lift that wrapper and its input to cover the whole row so
+   the radio is hit where it is seen; opacity keeps it invisible while the check
+   and labels show through. Mirrors .enter-shape-fret (music.css) and
+   .est-sharing-seg-opt (sharing.css). Scoped to label.account-row so the plain
+   <div> roster rows (devices, passkeys) keep their layout. !important beats
+   VisuallyHidden's inline styles. */
+label.account-row {
+  position: relative;
+}
+
+label.account-row > span:first-child {
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  clip-path: none !important;
+}
+
+label.account-row > span:first-child input {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* The theme preview swatch: a token-scoped box showing a chord-coloured "G" in
+   the theme it previews; Automatic shows a split estante/palco box. Decorative. */
+.account-swatch {
+  width: 52px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--chord);
+  font-size: 16px;
+}
+
+.account-swatch-split {
+  padding: 0;
+}
+
+.account-swatch-half {
+  flex: 1;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--chord);
+  font-weight: 700;
+  font-size: 13px;
+  height: 100%;
+}
+
+.account-note {
+  color: var(--ink-2);
+}
+
+/* The not-signed-in card's buttons stack under its copy (the shared .card.pad
+   gives the column). */
+.account-signin-card {
+  margin-top: calc(var(--u) * 0.5);
+  gap: calc(var(--u) * 1.25);
+}
+
+/* The signed-in identity row: an avatar bubble beside the name and status. */
+.account-identity {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+}
+
+.account-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.account-identity-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.account-add-passkey {
+  margin-top: calc(var(--u) * 0.5);
+}
+
+/* The header account affordance keeps a little air from the instrument chip it
+   sits beside (the narrow strip right-aligns both with no gap of its own). */
+.account-open {
+  margin-left: calc(var(--u) * 1);
+}
+
+/* A worded error with its retry on one row; the notice carries the word. */
+.account-error-row {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1);
+  align-items: flex-start;
+}

@@ -212,6 +212,19 @@ export const CommandKind = Object.freeze({
   // then re-surfaces PREFERENCES so the slice carries it and the first save is
   // the only one that asks. Offline, auto-committed, never pushed (a preference).
   SET_IDENTITY_NAME: 'set_identity_name',
+  // Persist the chosen theme and language to the home book (account.account_screen,
+  // design.theme_picker; workflow 13 §Preferences; home-book-format §4.1). Each is
+  // the SET_IDENTITY_NAME template: provision a local home book, write the
+  // `{ value, at }` register into preferences.json, re-surface PREFERENCES so
+  // ThemeRoot/LocaleRoot re-apply off the slice, and flush. SET_THEME `{ theme,
+  // author }` — `theme` is one of CHOSEN_THEMES (resolve.js); `automatic` clears
+  // the register to a tombstone (Decision 3) so a new device follows its own
+  // light/dark mode, never a literal `"automatic"`. SET_LANGUAGE `{ language,
+  // author }` — `language` is one of LOCALE_IDS (i18n). Each validates its value
+  // at the boundary and rejects an invalid one (no write). Offline, auto-committed,
+  // never pushed (a preference); the value is never logged (standing rule).
+  SET_THEME: 'set_theme',
+  SET_LANGUAGE: 'set_language',
   // Record that the first-open "Playing on guitar — change?" prompt was answered
   // (songs.first_song, workflow 1 §The instrument). MARK_INSTRUMENT_PROMPT_SEEN
   // `{ author }`: the Worker provisions a local home book if none exists and

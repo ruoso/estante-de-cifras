@@ -21,7 +21,7 @@ export class AuthError extends Error {
   constructor(kind, status) {
     super(kind);
     this.name = 'AuthError';
-    this.kind = kind; // 'unauthorized' | 'network'
+    this.kind = kind; // 'unauthorized' | 'network' | 'not_found'
     this.status = status ?? null;
   }
 }
@@ -57,6 +57,40 @@ async function optionsOf(response) {
   if (response.ok) return response.json();
   throw new AuthError('network', response.status);
 }
+
+// A same-origin GET (the account-management reads: sessions, passkeys). A thrown
+// fetch (offline, DNS, blocked) becomes a `network` AuthError carrying nothing.
+async function getJson(fetchImpl, path) {
+  let response;
+  try {
+    response = await fetchImpl(path, { method: 'GET', credentials: 'same-origin' });
+  } catch {
+    throw new AuthError('network');
+  }
+  if (response.ok) return response.json();
+  if (response.status === 401) throw new AuthError('unauthorized', response.status);
+  throw new AuthError('network', response.status);
+}
+
+// A same-origin DELETE (revoke a session, remove a passkey): 204 → ok; 401 →
+// unauthorized; 404 → not_found (already gone — the caller reconciles the row
+// away); anything else → network. A thrown fetch is a `network` error.
+async function del(fetchImpl, path) {
+  let response;
+  try {
+    response = await fetchImpl(path, { method: 'DELETE', credentials: 'same-origin' });
+  } catch {
+    throw new AuthError('network');
+  }
+  if (response.ok) return undefined;
+  if (response.status === 401) throw new AuthError('unauthorized', response.status);
+  if (response.status === 404) throw new AuthError('not_found', response.status);
+  throw new AuthError('network', response.status);
+}
+
+// Percent-encode one opaque, server-assigned path segment (a session or passkey
+// id): opaque so encoding is always safe.
+const seg = (value) => encodeURIComponent(String(value));
 
 // Build a client bound to a fetch implementation. The behavior level injects a
 // loopback double; the app and e2e use the browser's `fetch` (bound lazily so
@@ -98,6 +132,30 @@ export function createAuthClient({ fetch: injected } = {}) {
     },
     async redeemEmailLink(token) {
       return accountOf(await postJson(fetchImpl, '/api/auth/email/redeem', { token }));
+    },
+
+    // --- session management (account/sessions) ------------------------------
+    // The account screen's signed-in-devices roster (workflow 13 §Signed-in
+    // devices; api/openapi.yaml listSessions/revokeSession). listSessions is also
+    // how the screen learns it is signed in at all — 200 under a session, 401
+    // without one (Constraints: the session is a cookie the app never reads).
+    // revokeSession signs out ANOTHER device; a 404 means it was already gone.
+    async listSessions() {
+      return getJson(fetchImpl, '/api/account/sessions');
+    },
+    async revokeSession(sessionId) {
+      return del(fetchImpl, `/api/account/sessions/${seg(sessionId)}`);
+    },
+
+    // --- passkey management (account/passkeys) ------------------------------
+    // The account screen's passkeys roster (workflow 13 §Passkeys;
+    // api/openapi.yaml listPasskeys/removePasskey). "Add a passkey to this device"
+    // reuses registerBegin/registerFinish above (the authed register path).
+    async listPasskeys() {
+      return getJson(fetchImpl, '/api/account/passkeys');
+    },
+    async removePasskey(passkeyId) {
+      return del(fetchImpl, `/api/account/passkeys/${seg(passkeyId)}`);
     },
   };
 }

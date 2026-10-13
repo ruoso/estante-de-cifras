@@ -385,6 +385,74 @@ export default {
     requestNewLink: 'Request a new link',
   },
 
+  // The account screen (account.account_screen, workflow 13 §The account screen;
+  // design.theme_picker; mockup Theme-picker). Three regions: Preferences (theme
+  // + language, present and writable signed in or not), Signed-in devices and
+  // Passkeys (additive, when signed in). The chosen option is marked by the word
+  // "Selected", never colour alone; every status and error is a word. `{device}`
+  // is a device description, `{name}` a passkey's label, `{time}`/`{date}` a
+  // localized instant.
+  account: {
+    open: 'Account',
+    title: 'Account',
+    back: 'Back',
+    // Preferences.
+    preferences: 'Preferences',
+    theme: 'Theme',
+    language: 'Language',
+    themeAutomatic: 'Automatic',
+    themeAutomaticMeta: 'Follows this device',
+    themeEstante: 'Estante',
+    themeEstanteMeta: 'Neutral, ink-blue chords',
+    themeCaderno: 'Caderno',
+    themeCadernoMeta: 'Paper, red-pen chords, serif',
+    themePalco: 'Palco',
+    themePalcoMeta: 'Dark stage, amber, read far',
+    selected: 'Selected',
+    themeNote:
+      'Automatic follows this device: light → Estante, dark → Palco. Choosing a named theme replaces it. Your choice follows you to every device; automatic re-reads each device’s own light or dark mode.',
+    languageNote: 'Uses your browser’s language until you choose one.',
+    // Not signed in.
+    notSignedIn: 'Not signed in',
+    notSignedInBody:
+      'These preferences are saved on this device now. Sign in to keep your books and carry theme and language to your other devices.',
+    usePasskey: 'Use a passkey',
+    emailLink: 'Email me a link',
+    // Signed in.
+    signedIn: 'Signed in',
+    signedInStatus: 'Signed in on this device',
+    loading: 'Loading…',
+    retry: 'Try again',
+    // Signed-in devices.
+    devices: 'Signed-in devices',
+    thisDevice: 'This device',
+    unknownDevice: 'A signed-in device',
+    inUseNow: '{device} · in use now',
+    lastUsed: 'last used {time}',
+    signOut: 'Sign out',
+    signOutLabel: 'Sign {device} out',
+    signOutThis: 'Sign out of this device',
+    signOutTitle: 'Sign {device} out?',
+    signOutBody:
+      'It stops working on that device the next time it reaches Estante. Nothing on it is removed.',
+    signOutConfirm: 'Sign out',
+    cancel: 'Cancel',
+    // Passkeys.
+    passkeys: 'Passkeys',
+    passkeyUnnamed: 'Passkey',
+    passkeyAdded: 'Added {date}',
+    addPasskey: 'Add a passkey to this device',
+    removePasskey: 'Remove',
+    removePasskeyLabel: 'Remove {name}',
+    removePasskeyTitle: 'Remove {name}?',
+    removePasskeyBody:
+      'This passkey will no longer sign you in. Your other passkeys still work; you can add another any time.',
+    removePasskeyConfirm: 'Remove',
+    // Worded errors.
+    errNetwork: 'You’re offline, or Estante is unreachable. Connect and try again.',
+    errGeneric: 'Something went wrong. Try again.',
+  },
+
   // Writing a new song (songs.new_song, workflow 3; W03 board). The ways in (the
   // Create row, "new song in this book"), the which-book bar above the editor,
   // and the host's own chrome. `{query}` is the search that becomes the title;

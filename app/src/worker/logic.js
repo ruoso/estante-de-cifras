@@ -61,6 +61,8 @@ import {
   songRefOf,
 } from './songs.js';
 import { authorFrom } from './author.js';
+import { CHOSEN_THEMES } from '../theme/resolve.js';
+import { LOCALE_IDS } from '../i18n/index.js';
 
 // The schema version the database opens at, DERIVED from the migration step
 // list (single source of truth — migrations.js Decision 1): bumping the schema
@@ -1028,6 +1030,56 @@ export function createWorkerLogic(port, options = {}) {
             // tail after the home book's lock has released: the only write was
             // home.set's register change, which does not flush on its own, so an
             // immediate reload reads the stored name — and never asks twice.
+            await ensureFs().flush();
+            break;
+          }
+          case CommandKind.SET_THEME: {
+            // Persist the chosen theme to the home book (account.account_screen,
+            // design.theme_picker; workflow 13 §Preferences; home-book-format
+            // §4.1). Validate against CHOSEN_THEMES at the boundary (Decision 2):
+            // an unknown value is rejected (no write). `automatic` clears the
+            // register to a tombstone (value null — home-book §5.3, Decision 3) so
+            // a new device follows its own light/dark mode, never a literal
+            // "automatic"; a named theme writes its value. Then re-surface
+            // PREFERENCES so ThemeRoot re-applies, and flush so an immediate reload
+            // reads it. Offline, auto-committed, never pushed. No value logged.
+            const { theme, author } = message.payload;
+            if (!CHOSEN_THEMES.includes(theme)) {
+              throw new Error('invalid theme');
+            }
+            const value = theme === 'automatic' ? null : theme;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'preferences.json',
+              changes: [{ path: ['theme'], value }],
+              author,
+            });
+            await surfaceHomeBookPreferences();
+            await ensureFs().flush();
+            break;
+          }
+          case CommandKind.SET_LANGUAGE: {
+            // Persist the chosen language to the home book (account.account_screen,
+            // design.theme_picker; workflow 13 §Preferences; home-book-format
+            // §4.1). Validate against LOCALE_IDS at the boundary (Decision 2): an
+            // unknown value is rejected (no write). Write the `language` register,
+            // re-surface PREFERENCES so LocaleRoot re-applies, and flush. Offline,
+            // auto-committed, never pushed. No value logged.
+            const { language, author } = message.payload;
+            if (!LOCALE_IDS.includes(language)) {
+              throw new Error('invalid language');
+            }
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'preferences.json',
+              changes: [{ path: ['language'], value: language }],
+              author,
+            });
+            await surfaceHomeBookPreferences();
             await ensureFs().flush();
             break;
           }
