@@ -43,8 +43,9 @@ task cifra_go "cifra.md for Go" {
   task merge "Merge, and git-merge-cifra" {
     effort 8d
     allocate team
+    complete 100
     depends !writer, !setlists, format.merge
-    note "cifra.md: chapter 11, and the git merge driver as one static binary (§11.14). Not needed by the hook; for a clone on a computer. Tests: unit (chapter 11 section by section); corpus (every corpus/merge/ entry); behavior (git-merge-cifra configured as a merge driver in a throwaway repository, merging two branches through the git CLI, clean and conflicted)."
+    note "cifra.md: chapter 11, and the git merge driver as one static binary (§11.14). Not needed by the hook; for a clone on a computer. Tests: unit (chapter 11 section by section); corpus (every corpus/merge/ entry); behavior (git-merge-cifra configured as a merge driver in a throwaway repository, merging two branches through the git CLI, clean and conflicted). Refinement: tasks/refinements/cifra_go/merge.md"
   }
   task conformance "Conformance" {
     effort 2d
