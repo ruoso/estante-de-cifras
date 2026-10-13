@@ -616,7 +616,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/GitForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '413':
@@ -650,6 +650,8 @@ paths:
                 $ref: '#/components/schemas/GitPayload'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/GitForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '413':
@@ -689,7 +691,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/GitForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '413':
@@ -775,6 +777,19 @@ components:
       description: >-
         Signed in and a member, but the role is insufficient (a reader pushing,
         or a non-owner acting as owner).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    GitForbidden:
+      description: >-
+        On a git route, one of two refusals, both before git is spawned. A push
+        by a reader (insufficient role). Or — for the book's owner or a member —
+        a book taken down for a copyright notice (workflow 10): `code:
+        taken_down`, the reason in the message, returned alike on an advertise
+        (info/refs), a fetch (upload-pack) and a push (receive-pack). A stranger
+        is told only `404` (NotFound), never that the book exists (DIRECTION
+        §3.6 lines 338-341).
       content:
         application/json:
           schema:

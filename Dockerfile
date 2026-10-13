@@ -83,6 +83,10 @@ COPY --from=cifra-md-go . /cifra.md/go/
 # target (DIRECTION §3.6).
 RUN CGO_ENABLED=0 go build -trimpath -o /out/service ./cmd/service
 RUN CGO_ENABLED=0 go build -trimpath -o /out/pre-receive ./cmd/pre-receive
+# The operator's copyright-notice tool (service.admin / workflow 10), shipped
+# beside the service so the operator can run it inside the production container
+# with the service's own environment. It is a CLI, not an endpoint.
+RUN CGO_ENABLED=0 go build -trimpath -o /out/estante-admin ./cmd/estante-admin
 
 # --- Stage 3: the final image — the binary, git, and the built app -----------
 FROM alpine:3.21
@@ -92,6 +96,9 @@ FROM alpine:3.21
 # extra tooling.
 RUN apk add --no-cache git ca-certificates
 COPY --from=service /out/service /usr/local/bin/service
+# The operator runs this inside the running container (service.admin); it reads
+# the service's own ESTANTE_* environment and moves registry rows, never git.
+COPY --from=service /out/estante-admin /usr/local/bin/estante-admin
 # The built PWA, bundled now; serving it at / stays a pure Go change
 # (service.serve_app), which reads it from here.
 COPY --from=app /build/app/dist /srv/app

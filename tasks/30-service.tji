@@ -70,8 +70,9 @@ task service "The service" {
   task admin "Admin actions for a notice" {
     effort 1d
     allocate team
+    complete 100
     depends !sharing
-    note "Withdraw a book's invitations, remove its members, or take it down, with the owner told why. Workflow 10. Tests: behavior (each action against Postgres and git, the owner's notice recorded); e2e-api (a taken-down book refuses clone and push with its reason; withdrawn invitations no longer accepted)."
+    note "Withdraw a book's invitations, remove its members, or take it down, with the owner told why. Workflow 10. Tests: behavior (each action against Postgres and git, the owner's notice recorded); e2e-api (a taken-down book refuses clone and push with its reason; withdrawn invitations no longer accepted). Refinement: tasks/refinements/service/admin.md"
   }
   task rate_limits "Rate limits" {
     effort 1d

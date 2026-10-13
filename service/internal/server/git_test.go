@@ -18,6 +18,7 @@ import (
 	"time"
 
 	apicontract "estantedecifras.app/api"
+	"estantedecifras.app/service/internal/admin"
 	"estantedecifras.app/service/internal/book"
 	"estantedecifras.app/service/internal/passkey"
 	"estantedecifras.app/service/internal/session"
@@ -665,6 +666,89 @@ func TestGitPreGitRefusals(t *testing.T) {
 	}
 	if err := e.contract.Validate("gitReceivePack", apicontract.Response, "413", qBody); err != nil {
 		t.Errorf("413 body does not conform: %v", err)
+	}
+}
+
+// TestTakenDownGitRefusal pins the one branch service.admin adds to the git gate:
+// after admin.TakeDown records its notice, a taken-down book's owner and members
+// are refused 403 taken_down carrying the reason — on info/refs (clone and push
+// advertisements) and the git-receive-pack POST alike — while a non-member keeps
+// the undifferentiated 404 that never confirms a private book to a stranger. Pins
+// the task note ("each action against Postgres and git, the owner's notice
+// recorded"); workflow 10 lines 103-106; DIRECTION §3.6 lines 338-341; the
+// contract git routes + the taken_down response.
+func TestTakenDownGitRefusal(t *testing.T) {
+	e := newGitEnv(t)
+	ownerID, ownerCookie := e.registerNewAccount(t)
+	_ = ownerID
+	b := e.createBook(t, ownerCookie, "Taken Down Book")
+
+	memberID, memberCookie := e.registerNewAccount(t)
+	e.insertMembership(t, b.ID, memberID, roleEditor)
+
+	const reason = "Copyright notice: takedown request 2026-10."
+	if err := admin.TakeDown(context.Background(), e.pool, b.ID, reason); err != nil {
+		t.Fatalf("admin.TakeDown: %v", err)
+	}
+	// The notice is recorded (the record behind "the owner is told why").
+	var notices int
+	if err := e.pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM book_notices WHERE book_id = $1 AND action = 'take_down'`, b.ID).Scan(&notices); err != nil {
+		t.Fatalf("count notices: %v", err)
+	}
+	if notices != 1 {
+		t.Fatalf("book_notices rows = %d, want 1", notices)
+	}
+
+	// An insider (owner or member) is refused 403 taken_down carrying the reason,
+	// on every git route: the upload-pack advertisement (clone/fetch), the
+	// receive-pack advertisement (push), and the receive-pack POST (push).
+	insiderCases := []struct {
+		op, method, path string
+		hdr              map[string]string
+	}{
+		{"gitInfoRefs", http.MethodGet, "/git/" + b.ID + "/info/refs?service=git-upload-pack", nil},
+		{"gitInfoRefs", http.MethodGet, "/git/" + b.ID + "/info/refs?service=git-receive-pack", nil},
+		{"gitReceivePack", http.MethodPost, "/git/" + b.ID + "/git-receive-pack", map[string]string{"Content-Type": "application/x-git-receive-pack-request"}},
+		{"gitUploadPack", http.MethodPost, "/git/" + b.ID + "/git-upload-pack", map[string]string{"Content-Type": "application/x-git-upload-pack-request"}},
+	}
+	for _, who := range []struct{ name, cookie string }{{"owner", ownerCookie}, {"member", memberCookie}} {
+		for _, c := range insiderCases {
+			resp, body := e.gitReq(t, c.method, c.path, who.cookie, c.hdr, []byte{})
+			if resp.StatusCode != http.StatusForbidden {
+				t.Errorf("%s %s %s: status %d, want 403; body=%q", who.name, c.method, c.path, resp.StatusCode, body)
+				continue
+			}
+			if err := e.contract.Validate(c.op, apicontract.Response, "403", body); err != nil {
+				t.Errorf("%s %s 403 body does not conform: %v", who.name, c.path, err)
+			}
+			var er errorBody
+			if err := json.Unmarshal(body, &er); err != nil {
+				t.Errorf("%s %s: decode body: %v", who.name, c.path, err)
+				continue
+			}
+			if er.Code != "taken_down" {
+				t.Errorf("%s %s: code = %q, want taken_down", who.name, c.path, er.Code)
+			}
+			if !strings.Contains(er.Message, reason) {
+				t.Errorf("%s %s: message %q does not carry the reason %q", who.name, c.path, er.Message, reason)
+			}
+		}
+	}
+
+	// A stranger (non-member) still gets the undifferentiated 404 — never the
+	// reason, never a confirmation the book exists.
+	_, strangerCookie := e.registerNewAccount(t)
+	sResp, sBody := e.gitReq(t, http.MethodGet, "/git/"+b.ID+"/info/refs?service=git-upload-pack", strangerCookie, nil, nil)
+	if sResp.StatusCode != http.StatusNotFound {
+		t.Errorf("stranger: status %d, want 404", sResp.StatusCode)
+	}
+	if err := e.contract.Validate("gitInfoRefs", apicontract.Response, "404", sBody); err != nil {
+		t.Errorf("stranger 404 body does not conform: %v", err)
+	}
+	var sErr errorBody
+	if err := json.Unmarshal(sBody, &sErr); err == nil && strings.Contains(sErr.Message, reason) {
+		t.Errorf("stranger body leaked the take-down reason: %q", sErr.Message)
 	}
 }
 

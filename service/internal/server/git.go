@@ -3,6 +3,7 @@ package server
 import (
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"estantedecifras.app/service/internal/book"
 	"estantedecifras.app/service/internal/config"
@@ -214,10 +217,52 @@ func gitAuthorize(w http.ResponseWriter, r *http.Request, api *APIDeps, bookID s
 		return "", bookAccess{}, false
 	}
 	if !found {
+		// resolveBookAccess refuses a taken-down book alike with a non-member and a
+		// deleted book (all found=false), so a stranger learns nothing. But a book
+		// taken down for a copyright notice (workflow 10) owes its owner and members
+		// the reason: if the book exists, is taken down, and the caller is its owner
+		// or a member, refuse 403 taken_down carrying the reason — for info/refs,
+		// upload-pack and receive-pack alike, so clone, fetch and push all carry it.
+		// Otherwise the undifferentiated 404 stands for a stranger, a removed member
+		// or a deleted book (DIRECTION §3.6 lines 338-341; the never-confirm ladder).
+		if reason, insider, rerr := takenDownReasonForInsider(ctx, api.DB, bookID, accountID); rerr != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not serve the repository.")
+			return "", bookAccess{}, false
+		} else if insider {
+			writeError(w, http.StatusForbidden, "taken_down", "This book has been taken down: "+reason)
+			return "", bookAccess{}, false
+		}
 		writeError(w, http.StatusNotFound, "not_found", "No such book.")
 		return "", bookAccess{}, false
 	}
 	return accountID, access, true
+}
+
+// takenDownReasonForInsider returns the take-down reason, and insider=true, only
+// when the book exists, is not deleted, has taken_down_reason set, and the caller
+// is its owner or holds a membership row — the people a copyright notice must
+// reach (refinement Constraints: "the reason is shown only to insiders").
+// Membership is not filtered by taken_down_reason, since take-down does not remove
+// memberships. For anyone else it returns insider=false, so the caller keeps the
+// undifferentiated 404 that never confirms a private book to a stranger.
+func takenDownReasonForInsider(ctx context.Context, q querier, bookID, accountID string) (string, bool, error) {
+	var reason string
+	err := q.QueryRow(ctx, `
+		SELECT b.taken_down_reason
+		FROM books b
+		LEFT JOIN memberships m ON m.book_id = b.id AND m.account_id = $2
+		WHERE b.id = $1
+		  AND b.deleted_at IS NULL
+		  AND b.taken_down_reason IS NOT NULL
+		  AND (b.owner_id = $2 OR m.account_id = $2)`,
+		bookID, accountID).Scan(&reason)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return reason, true, nil
 }
 
 // authorizePush is the extra gate a push request passes beyond membership: a

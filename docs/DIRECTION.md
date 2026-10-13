@@ -282,6 +282,7 @@ spend its effort working around.
 | **cifra.md for JavaScript** | JavaScript | the cifra.md repository, `js/` | Reads and canonicalizes songs and setlists, merges, diffs in musical terms. The app's. |
 | **The service** | Go | this repository, `service/` | Sign-in, the registry, sharing, the change check, and git over HTTP. |
 | **The hook** | Go | this repository, `service/cmd/pre-receive` | Checks every push (workflow 14). |
+| **The admin tool** | Go | this repository, `service/cmd/estante-admin` | Handles a copyright notice: withdraw a book's invitations, remove its members, or take it down (workflow 10), with the reason recorded. An operator command, not an endpoint. |
 | **cifra.md for Go** | Go | the cifra.md repository, `go/` | Reads and canonicalizes songs and setlists. The hook's; also a git merge driver for computers. |
 | **The reference** | Python | the cifra.md repository, `reference/` | The specification's second opinion. |
 
@@ -337,8 +338,11 @@ stay git's own. What the service gains by doing the framing:
 
 - **Authentication and refusals are all its own, before git starts.** A
   request with no access, a book over quota, a book deleted: refused by the
-  service with a clear message, git never spawned. What the hook refuses
-  still reaches the client through git's own channel.
+  service with a clear message, git never spawned. A book taken down for a
+  copyright notice (workflow 10) is refused the same way, its reason returned
+  to the book's owner and members, a stranger told only that there is no such
+  book. What the hook refuses still reaches the client through git's own
+  channel.
 - **The hook knows who is pushing.** It inherits the environment of the
   `git receive-pack` that runs it, so the service sets `ESTANTE_USER`,
   `ESTANTE_BOOK`, `ESTANTE_ROLE` and what the account has left of its

@@ -105,6 +105,15 @@ The service can withdraw a book's invitations, remove its members, or take
 the book down altogether, by an admin action, and the owner is told why. This
 is a process written down in the terms, not a feature of the app.
 
+The action is an operator command run on the server, not an endpoint on the
+public origin. Each action records the reason it was taken, durably, against
+the book — the record behind *the owner is told why*. When a book is taken
+down its repository stays in place, but it is unreachable: its owner and
+members are refused git with that reason (a stranger, as always, learns
+nothing), and the book shows as gone on every shelf (workflow 8). Surfacing
+that reason inside the app is a later addition over the record the service
+keeps.
+
 ## Later
 
 - **Approving each person** before they join through an invitation.

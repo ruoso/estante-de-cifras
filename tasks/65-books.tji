@@ -80,4 +80,10 @@ task books "Books" {
     depends !file_view
     note "e2e/web/tests/file-view.spec.js line ~50 calls the tablet viewport narrow. The tablet is 712px (wide, > 600px threshold); backToTree() no-ops in wide — the comment is inaccurate. Fix the comment for accuracy. Source of debt: books.file_view (tasks/refinements/books/file_view.md, iter-0116). Governing: workflow 14; foundation.e2e_web. Tests: no new tests; the fix is in the e2e spec itself (comment-only change). Refinement: tasks/refinements/books/file_view_spec_narrow_comment.md"
   }
+  task notice_surface "Show the take-down reason in BookDetail" {
+    effort 2d
+    allocate team
+    depends sync.lost_access, service.admin
+    note "Sync engine maps the git `403 taken_down` to a distinct halted state carrying the reason; BookDetail.jsx renders the operator's reason (role=status notice) beside the existing Download card. Source of debt: tasks/refinements/service/admin.md (service.admin). Governing: workflow 10 §A copyright notice; DIRECTION §3.6. Tests: behavior (BookDetail renders the taken-down notice with the reason, axe clean; sync engine `403 taken_down` classification in access-refused.js); e2e-web (a taken-down book shows its reason on phone, tablet and computer; axe)."
+  }
 }
