@@ -434,6 +434,20 @@ if [[ $want_cifra -eq 1 ]]; then
     else
       skip "cifra.md go: go/go.mod does not exist yet"
     fi
+
+    # The random-document cross-check (DIRECTION §3.6): on top of the corpus,
+    # the same seeded documents run through the Python, JavaScript and Go
+    # implementations and their bytes are compared. Guarded on all three being
+    # present (it drives node and go), at the tool's fixed default seed and
+    # count so the run is deterministic and reproducible.
+    if [[ -x "$CIFRA_MD_DIR/reference/.venv/bin/python" \
+          && -f "$CIFRA_MD_DIR/js/package.json" \
+          && -f "$CIFRA_MD_DIR/go/go.mod" ]]; then
+      step "cifra.md cross-check: tools.crosscheck (python, js, go)"
+      (cd "$CIFRA_MD_DIR/reference"; .venv/bin/python -m tools.crosscheck)
+    else
+      skip "cifra.md cross-check: needs the reference venv, js/ and go/ all present"
+    fi
   fi
 fi
 

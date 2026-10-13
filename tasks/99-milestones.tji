@@ -47,6 +47,7 @@ task milestones "Milestones" {
 
   task m6_format_go "M6: The format in Go, everywhere" {
     milestone
+    complete 100
     depends cifra_go.conformance, cifra_go.merge, format.cross_check, format.conflicts_schema, format.setlist_schema, format.render_hyphen
     note "The second implementation complete with git-merge-cifra, and three implementations compared in CI."
   }

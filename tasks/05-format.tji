@@ -62,7 +62,8 @@ task format "The format" {
   task cross_check "Cross-implementation comparison in CI" {
     effort 2d
     allocate team
+    complete 100
     depends !setlist_corpus, cifra_js.conformance, cifra_go.conformance
-    note "cifra.md: CI runs the same random documents through Python, JavaScript and Go and compares bytes; disagreements are settled in the spec. DIRECTION §3.6. Tests: unit (the comparison tool's own tests: identical outputs pass, a planted one-byte disagreement is reported with the document that caused it); corpus (CI runs it over generated documents through all three implementations)."
+    note "cifra.md: CI runs the same random documents through Python, JavaScript and Go and compares bytes; disagreements are settled in the spec. DIRECTION §3.6. Tests: unit (the comparison tool's own tests: identical outputs pass, a planted one-byte disagreement is reported with the document that caused it); corpus (CI runs it over generated documents through all three implementations). Refinement: tasks/refinements/format/cross_check.md"
   }
 }
