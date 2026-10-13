@@ -13,6 +13,7 @@ import FilesDev from './files/FilesDev.jsx';
 import UpdateReady from './pwa/UpdateReady.jsx';
 import { signInToken } from './account/sign-in-route.js';
 import { invitationToken } from './account/invitation-route.js';
+import { bookSongRoute, songAnchorFromHash } from './books/book-route.js';
 import { getAppStore } from './worker/store.js';
 
 // The chart's dev gallery is reachable only at `#dev/chart` — absent from the
@@ -108,6 +109,23 @@ function bootInvitationToken() {
   return typeof location === 'undefined' ? null : invitationToken(location.pathname);
 }
 
+// A song's plain address boots the app at `/b/<bookId>/<path>` — a member's deep
+// link into a book they already hold (books.share, workflow 10 L95-96; Decision
+// 2). Read once at boot, beside the invitation token; AppShell seeds the open
+// song. Pure parse in `bookSongRoute`.
+function bootBookSong() {
+  return typeof location === 'undefined' ? null : bookSongRoute(location.pathname);
+}
+
+// An invitation link may carry the shared song as a client-only `#<path>`
+// fragment (books.share Decision 2). It is meaningful only alongside an
+// invitation link, and the URL is cleaned at boot (dropping the fragment), so it
+// is captured here once; AppShell opens that song on BOOK_CLONED.
+function bootInviteSongAnchor() {
+  if (typeof location === 'undefined') return null;
+  return invitationToken(location.pathname) ? songAnchorFromHash(location.hash) : null;
+}
+
 // The app root: the resolved visual-language root (ThemeRoot, shell.tokens)
 // wrapping the navigation shell (AppShell, shell.layout) — the frame Search,
 // Books and Setlists are drawn inside (DIRECTION §4 lines 430-435; §3.7 lines
@@ -132,11 +150,15 @@ export default function App({ store = getAppStore() }) {
   // same way — so the single-use-ish link does not linger in history or a share,
   // and a reload does not re-run the invited flow. AppShell runs the flow.
   const [inviteToken] = useState(bootInvitationToken);
+  // A member's `/b/<bookId>/<path>` deep link and an invitation's `#<path>` song
+  // fragment, each captured once and the URL cleaned to `/` the same way.
+  const [bookSong] = useState(bootBookSong);
+  const [inviteSongAnchor] = useState(bootInviteSongAnchor);
   useEffect(() => {
-    if ((redeemToken || inviteToken) && typeof history !== 'undefined') {
+    if ((redeemToken || inviteToken || bookSong) && typeof history !== 'undefined') {
       history.replaceState(null, '', '/');
     }
-  }, [redeemToken, inviteToken]);
+  }, [redeemToken, inviteToken, bookSong]);
 
   return (
     <ThemeRoot store={store}>
@@ -156,7 +178,13 @@ export default function App({ store = getAppStore() }) {
         ) : isFilesDev() ? (
           <FilesDev store={store} />
         ) : (
-          <AppShell store={store} redeemToken={redeemToken} inviteToken={inviteToken} />
+          <AppShell
+            store={store}
+            redeemToken={redeemToken}
+            inviteToken={inviteToken}
+            bookSong={bookSong}
+            inviteSongAnchor={inviteSongAnchor}
+          />
         )}
         {/* The PWA update notice (shell.pwa) sits over the shell, inside the
             token root and the locale boundary so it is themed and translated; it

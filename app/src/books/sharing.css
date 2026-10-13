@@ -1,0 +1,229 @@
+/* SharingScreen layout (books.share; board W10). Reuses the visual-language
+ * tokens and the shared .sheet/.scrim/.card/.list/.row/.badge/.chip/.bar/.notice
+ * anatomy from the theme; these rules are only the arrangement this surface adds.
+ * Colour is never the sole carrier of state — every role and state is a word. */
+
+.est-sharing {
+  max-height: 86%;
+  box-sizing: border-box;
+}
+
+.est-sharing .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.est-sharing-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.est-sharing-scroll {
+  overflow-y: auto;
+  padding: 0;
+  gap: calc(var(--u) * 1.75);
+}
+
+.est-sharing-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.75);
+}
+
+.est-sharing-people {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.est-sharing-people-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.est-sharing-count {
+  font-weight: 700;
+}
+
+.est-sharing-member {
+  gap: 8px;
+}
+
+.est-sharing-member .badge {
+  flex: none;
+}
+
+.est-sharing-role,
+.est-sharing-remove {
+  min-height: 36px;
+  flex: none;
+}
+
+.est-sharing-invites {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+}
+
+.est-sharing-invite {
+  gap: 6px;
+}
+
+.est-sharing-invite-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.est-sharing-form {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.75);
+}
+
+.est-sharing-seg,
+.est-sharing-expiry {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.est-sharing-seg {
+  flex-direction: row;
+}
+
+.est-sharing-seg-opt,
+.est-sharing-expiry-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: 600 14px var(--font-ui);
+  cursor: pointer;
+}
+
+.est-sharing-seg-opt {
+  flex: 1;
+  justify-content: center;
+}
+
+.est-sharing-seg-opt[data-selected],
+.est-sharing-expiry-opt[data-selected] {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.est-sharing-seg-opt[data-focus-visible],
+.est-sharing-expiry-opt[data-focus-visible] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* React Aria renders each radio's real <input> inside a visually-hidden <span>
+   (RAC's Radio passes elementType: "span" to VisuallyHidden, as the first child)
+   that clips it to a 1px box, so a pointer aimed at the accessible radio lands on
+   the label behind it: a user tap still works via RAC's press handling, but an
+   automated by-role click is swallowed ("intercepts pointer events"). Lift that
+   wrapper and its input to cover the whole option so the radio is hit where it is
+   seen; opacity keeps it invisible while the text shows through. Mirrors
+   .wizard-option-radio in wizard.css and .enter-shape-fret in music.css. The
+   :first-child selector targets only the input's wrapper. !important beats
+   VisuallyHidden's inline styles. */
+.est-sharing-seg-opt > span:first-child,
+.est-sharing-expiry-opt > span:first-child {
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  clip-path: none !important;
+}
+
+.est-sharing-seg-opt > span:first-child input,
+.est-sharing-expiry-opt > span:first-child input {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.est-sharing-limit {
+  gap: 8px;
+}
+
+.est-sharing-limit .react-aria-Switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: 600 16px var(--font-ui);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.est-sharing-switch-track {
+  width: 46px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--line);
+  position: relative;
+  flex: none;
+  transition: background 0.15s;
+}
+
+.est-sharing-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface);
+  transition: left 0.15s;
+}
+
+.react-aria-Switch[data-selected] .est-sharing-switch-track {
+  background: var(--accent);
+}
+
+.react-aria-Switch[data-selected] .est-sharing-switch-thumb {
+  left: 21px;
+}
+
+.est-sharing-number {
+  display: flex;
+}
+
+.est-sharing-created {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}
+
+.est-sharing-linkrow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.est-sharing-linkrow .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.est-sharing-song {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

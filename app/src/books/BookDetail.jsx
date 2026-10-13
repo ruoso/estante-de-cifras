@@ -34,6 +34,7 @@ import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { titleFor, canSaveFor, orderedBooks } from './book-display.js';
+import SharingScreen from './SharingScreen.jsx';
 import './book-detail.css';
 
 // The device commit identity for a shelf-touching command, the same literal the
@@ -211,6 +212,7 @@ export default function BookDetail({
   const shelf = useSlice(store, 'shelf');
   const sync = useSlice(store, 'sync');
   const [failure, setFailure] = useState(null);
+  const [sharing, setSharing] = useState(false);
 
   const entry = orderedBooks(shelf).find((e) => e.id === bookId);
   const book = entry?.book ?? {};
@@ -330,12 +332,35 @@ export default function BookDetail({
 
         {isOwner && !isLocal ? (
           <div className="card pad">
+            <span className="t-h2">{t('books.share')}</span>
+            <p className="t-small">{t('books.shareBody')}</p>
+            <Button
+              className="btn"
+              style={{ alignSelf: 'flex-start' }}
+              onPress={() => setSharing(true)}
+            >
+              {t('books.share')}
+            </Button>
+          </div>
+        ) : null}
+
+        {isOwner && !isLocal ? (
+          <div className="card pad">
             <span className="t-h2">{t('books.delete')}</span>
             <p className="t-small">{t('books.deleteBody')}</p>
             <DeleteDialog title={title} onDelete={deleteBook} />
           </div>
         ) : null}
       </div>
+
+      {sharing ? (
+        <SharingScreen
+          bookId={bookId}
+          title={title}
+          role={role}
+          onClose={() => setSharing(false)}
+        />
+      ) : null}
     </div>
   );
 }

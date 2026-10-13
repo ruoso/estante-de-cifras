@@ -23,7 +23,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { getAppStore } from '../worker/store.js';
-import { useWorkerEvent } from '../worker/useStore.js';
+import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import SearchScreen from '../songs/SearchScreen.jsx';
 import SongReading from '../songs/SongReading.jsx';
@@ -32,6 +32,8 @@ import SongArrange from '../songs/SongArrange.jsx';
 import SongWizard from '../songs/SongWizard.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
+import SharingScreen from '../books/SharingScreen.jsx';
+import { orderedBooks, titleFor } from '../books/book-display.js';
 import SignIn from '../account/SignIn.jsx';
 import InvitedScreen from '../account/InvitedScreen.jsx';
 import FileView from '../files/FileView.jsx';
@@ -180,8 +182,15 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
   ));
 }
 
-export default function AppShell({ store = getAppStore(), redeemToken = null, inviteToken = null }) {
+export default function AppShell({
+  store = getAppStore(),
+  redeemToken = null,
+  inviteToken = null,
+  bookSong = null,
+  inviteSongAnchor = null,
+}) {
   const mode = useLayoutMode();
+  const shelf = useSlice(store, 'shelf');
   const [selected, setSelected] = useState(DESTINATIONS[0]);
 
   // The invited flow (books.add_by_link, workflow 1 §Invited): a full-screen
@@ -238,6 +247,11 @@ export default function AppShell({ store = getAppStore(), redeemToken = null, in
   // full-screen surface over the shell (narrow) / the master-detail (wide), and
   // ephemeral view state — no router, no store slice (shell.layout Decision).
   const [openSong, setOpenSong] = useState(null);
+  // The sharing surface over the open song (books.share): `{ bookId, path }` or
+  // null, set by the reading toolbar's Share (the owner invites to this song, a
+  // member copies its address). A RAC Modal portaled into `.est`, so it sits over
+  // the reading view without replacing it. Ephemeral view state, no router.
+  const [sharing, setSharing] = useState(null);
   // The song-history surface (songs.history), raised from the reading view's
   // `onOpenHistory` seam — the "see what changed" merge notice (sync.read_in_place)
   // and the existing History button both open it: `{ bookId, path, commit? }` or
@@ -345,6 +359,18 @@ export default function AppShell({ store = getAppStore(), redeemToken = null, in
     openByLink(inviteToken);
   }, [inviteToken, openByLink]);
 
+  // Boot a member's `/b/<bookId>/<path>` deep link once: open that song in the
+  // book the account already holds (books.share, workflow 10 L95-96). The
+  // open-song-by-(bookId, path) seam self-resolves the text (SongReading), so no
+  // index lookup is needed. Guarded so it fires exactly once for the captured
+  // address.
+  const bookSongBooted = useRef(false);
+  useEffect(() => {
+    if (!bookSong || bookSongBooted.current) return;
+    bookSongBooted.current = true;
+    setOpenSong({ bookId: bookSong.bookId, path: bookSong.path });
+  }, [bookSong]);
+
   // The account-first gate: the accept answered 401, so show the generic invited
   // screen (names nothing about the book) with the account-first prompt. The
   // token to retry is kept in the ref.
@@ -358,10 +384,15 @@ export default function AppShell({ store = getAppStore(), redeemToken = null, in
   // where the just-cloned book now shows *On Estante* with its role and its songs
   // are reachable (workflow 1 §Invited "the first screen is its song list"; the
   // reader's deep-link into a specific song is books.share's, scoped out here).
-  useWorkerEvent(store, EventKind.BOOK_CLONED, () => {
+  useWorkerEvent(store, EventKind.BOOK_CLONED, ({ bookId }) => {
     if (!invited) return;
     setInvited(null);
     setSelected('books');
+    // A song-share invitation carried the song path as a client-only `#<path>`
+    // fragment (books.share Decision 2): open it in the freshly cloned book.
+    if (inviteSongAnchor && bookId) {
+      setOpenSong({ bookId, path: inviteSongAnchor });
+    }
   });
 
   // A dead or full link: surface the worded refusal (it names nothing about the
@@ -547,17 +578,36 @@ export default function AppShell({ store = getAppStore(), redeemToken = null, in
   // wired too — `onOpenHistory` opens SongHistory (checked above), so both the
   // merge notice and the History button land on history in-app.
   if (openSong) {
+    // The share surface hangs over the reading view (books.share Decision 4): the
+    // book's role/title come from the shelf, so the owner sees the invite form and
+    // a member only the song's address. A RAC Modal portaled into `.est`, a
+    // sibling of the reading view so it overlays rather than replaces it.
+    const shareEntry = sharing
+      ? orderedBooks(shelf).find((e) => e.id === sharing.bookId)
+      : null;
     return (
-      <SongReading
-        store={store}
-        bookId={openSong.bookId}
-        path={openSong.path}
-        mode={mode}
-        onBack={() => setOpenSong(null)}
-        onOpenSong={setOpenSong}
-        onArrange={setArranging}
-        onOpenHistory={setHistory}
-      />
+      <>
+        <SongReading
+          store={store}
+          bookId={openSong.bookId}
+          path={openSong.path}
+          mode={mode}
+          onBack={() => setOpenSong(null)}
+          onOpenSong={setOpenSong}
+          onArrange={setArranging}
+          onOpenHistory={setHistory}
+          onShare={setSharing}
+        />
+        {sharing ? (
+          <SharingScreen
+            bookId={sharing.bookId}
+            title={titleFor(shareEntry?.book ?? {}, sharing.bookId)}
+            role={shareEntry?.book?.role?.value ?? null}
+            songPath={sharing.path}
+            onClose={() => setSharing(null)}
+          />
+        ) : null}
+      </>
     );
   }
 
