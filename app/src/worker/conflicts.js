@@ -133,6 +133,7 @@ function basename(path) {
  *   emit: (payload: object) => void,          // CONFLICTS
  *   emitRefused: (payload: object) => void,    // SAVE_REFUSED
  *   requestSync?: () => void,                  // let the engine re-emit the SYNC fact
+ *   incomingRef?: (bookId: string, dir: string) => string | Promise<string>,
  *   now?: () => number,
  * }} deps
  */
@@ -141,6 +142,13 @@ export function createConflicts(deps) {
   const requestSync = deps.requestSync ?? (() => {});
   const now = deps.now ?? (() => Date.now());
   const dirOf = (bookId) => git.bookDir(bookId);
+  // The ref holding *theirs* — what the merge brought in. A racing sync retains
+  // `refs/remotes/origin/main` (the default); an upload merge retains
+  // `refs/upload/<uploadId>` (sync.upload Decision 3), so the same session, model,
+  // screens and abandon/commit gate resolve either without a parallel path. The
+  // resolver is injected (logic.js prefers an on-disk upload ref over origin/main),
+  // so conflicts.js names no upload convention of its own.
+  const resolveIncomingRef = deps.incomingRef ?? (() => THEIRS);
 
   // bookId -> in-progress merge session (in memory only; a reload re-engages).
   const sessions = new Map();
@@ -169,9 +177,9 @@ export function createConflicts(deps) {
 
   // The display name of whoever last changed `filepath` on theirs — the person
   // the user is settling against (*Ana's*). Never the device's own identity.
-  async function incomingAuthor(dir, filepath) {
+  async function incomingAuthor(dir, ref, filepath) {
     try {
-      const entries = await gitLog({ fs, dir, ref: THEIRS, filepath, depth: 1 });
+      const entries = await gitLog({ fs, dir, ref, filepath, depth: 1 });
       return entries?.[0]?.commit?.author?.name ?? null;
     } catch {
       return null;
@@ -268,8 +276,9 @@ export function createConflicts(deps) {
   async function open(bookId) {
     return locks.withLock(bookId, async () => {
       const dir = dirOf(bookId);
+      const incomingRef = await resolveIncomingRef(bookId, dir);
       const oursOid = await oidAt(dir, OURS);
-      const theirsOid = await oidAt(dir, THEIRS);
+      const theirsOid = await oidAt(dir, incomingRef);
       if (!oursOid || !theirsOid || oursOid === theirsOid) {
         // Nothing retained to merge — not (or no longer) a conflict.
         sessions.delete(bookId);
@@ -301,7 +310,7 @@ export function createConflicts(deps) {
             incoming.push({
               path,
               title: titleOf(path, outcome.result),
-              author: await incomingAuthor(dir, path),
+              author: await incomingAuthor(dir, incomingRef, path),
               summary: o === b && b === null ? 'added' : 'changed',
             });
           }
@@ -318,7 +327,7 @@ export function createConflicts(deps) {
         // on one side, edited on the other, or unreadable) has no region.
         const first = outcome.conflicts[0];
         const isFile = first.kind === 'file' || first.kind === 'unresolved';
-        const author = await incomingAuthor(dir, path);
+        const author = await incomingAuthor(dir, incomingRef, path);
         const text = ours != null ? new TextDecoder().decode(ours) : theirs != null ? new TextDecoder().decode(theirs) : null;
         files.set(path, {
           setlist,
@@ -335,7 +344,7 @@ export function createConflicts(deps) {
         });
       }
 
-      sessions.set(bookId, { dir, oursOid, theirsOid, baseOid, files, incoming });
+      sessions.set(bookId, { dir, oursOid, theirsOid, baseOid, files, incoming, incomingRef });
       await surface(bookId);
     });
   }
@@ -427,6 +436,17 @@ export function createConflicts(deps) {
       committer: identity,
       parent: [session.oursOid, session.theirsOid],
     });
+    // A sync keeps `refs/remotes/origin/main` as its tracking ref; an upload's
+    // `refs/upload/<id>` is a temporary ref whose job is done once the merge is
+    // committed (sync.upload Decision 3), so drop it. The merge commit's second
+    // parent already keeps its objects reachable.
+    if (session.incomingRef && session.incomingRef !== THEIRS) {
+      try {
+        await deleteRef({ fs, dir, ref: session.incomingRef });
+      } catch {
+        // already gone
+      }
+    }
     await fs.flush?.();
     sessions.delete(bookId);
     emit({ bookId, inProgress: false });
@@ -558,16 +578,20 @@ export function createConflicts(deps) {
   async function abandon(bookId) {
     return locks.withLock(bookId, async () => {
       const dir = dirOf(bookId);
-      // Back to exactly before the sync: working copy and index to *ours*, the
-      // retained incoming ref dropped so the next sync re-fetches and re-attempts
-      // (workflow 9 L77-78).
+      // Back to exactly before the sync/upload: working copy and index to *ours*,
+      // the retained incoming ref dropped. For a sync that is origin/main, so the
+      // next sync re-fetches and re-attempts (workflow 9 L77-78); for an upload it
+      // is `refs/upload/<id>`, dropping the retained zip ref (sync.upload Decision
+      // 3). A live session knows which; else re-resolve it from disk.
+      const session = sessions.get(bookId);
+      const incomingRef = session?.incomingRef ?? (await resolveIncomingRef(bookId, dir));
       try {
         await checkout({ fs, dir, ref: OURS, force: true });
       } catch {
         // nothing to restore
       }
       try {
-        await deleteRef({ fs, dir, ref: THEIRS });
+        await deleteRef({ fs, dir, ref: incomingRef });
       } catch {
         // already gone
       }

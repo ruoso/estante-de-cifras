@@ -138,6 +138,87 @@ export async function countCommitsAhead({ fs, dir }) {
   return n;
 }
 
+// Capture every unsaved mergeable file's working text `W` and its pre-merge
+// HEAD blob `H0` (the version the edit was made from), BEFORE a committed merge
+// checks out over the working tree (sync.unsaved; DIRECTION §3.1). Only
+// songs/setlists — the files the cifra merge driver handles — are captured;
+// other dirty files are left to isomorphic-git's own checkout. `W`/`H0` are
+// null for a file absent on that side (a never-committed working file, or a
+// working deletion). Standalone over `{ fs, dir, headOid }` so both the sync
+// engine and an upload merge (sync.upload) reuse the one three-way, never a
+// second copy. No song text is logged (standing rule).
+export async function captureDirtyWork({ fs, dir, headOid }) {
+  const rows = await statusMatrix({ fs, dir });
+  const captured = [];
+  for (const [filepath, head, workdir, stage] of rows) {
+    const clean = (head === 1 && workdir === 1 && stage === 1) || (head === 0 && workdir === 0);
+    if (clean || !isMergeable(filepath)) continue;
+    let working = null;
+    try {
+      working = await fs.promises.readFile(`${dir}/${filepath}`, 'utf8');
+    } catch {
+      working = null; // the edit deleted the file from the working tree
+    }
+    let base = null;
+    if (headOid) {
+      try {
+        const { blob } = await readBlob({ fs, dir, oid: headOid, filepath });
+        base = new TextDecoder().decode(blob);
+      } catch {
+        base = null; // a never-committed file has no pre-merge HEAD blob
+      }
+    }
+    captured.push({ path: filepath, working, base });
+  }
+  return captured;
+}
+
+// Re-apply the captured edits onto the merged committed content now checked out
+// to the working tree (sync.unsaved, acceptance 2-4). Per file, `theirs` is the
+// merged content `M` the checkout left; a file the merge did not touch
+// (`M === H0`) is restored byte-for-byte from `W` — the edit is preserved
+// verbatim, never re-canonicalised. A file the merge did touch is rebased by
+// `cifraMerge(H0, W, M)`: a clean merge writes the result, a conflict writes the
+// marked text (unsaved, never canonical — never pushed). All writes are
+// uncommitted: HEAD stays the pushed merge commit, so the index derives the song
+// still *unsaved*. Standalone over `{ fs, dir, captured }`, the twin of
+// `captureDirtyWork` both the engine and sync.upload reuse.
+export async function reapplyDirtyWork({ fs, dir, captured }) {
+  for (const { path: filepath, working, base } of captured) {
+    let theirs = null;
+    try {
+      theirs = await fs.promises.readFile(`${dir}/${filepath}`, 'utf8');
+    } catch {
+      theirs = null; // the incoming merge deleted the file
+    }
+    if (theirs === base) {
+      // No incoming change to this file: the checkout clobbered the edit with
+      // the (unchanged) committed content; restore the working text verbatim.
+      if (working === null) {
+        try {
+          await fs.promises.unlink(`${dir}/${filepath}`);
+        } catch {
+          /* already gone */
+        }
+      } else {
+        await fs.promises.writeFile(`${dir}/${filepath}`, working);
+      }
+      continue;
+    }
+    const setlist = filepath.endsWith(SETLIST_SUFFIX);
+    const { text, deleted } = reapplyWorkingText({ base, ours: working, theirs, setlist });
+    if (deleted || text === null) {
+      try {
+        await fs.promises.unlink(`${dir}/${filepath}`);
+      } catch {
+        /* already gone */
+      }
+    } else {
+      await fs.promises.writeFile(`${dir}/${filepath}`, text);
+    }
+  }
+}
+
 /**
  * Build the sync engine. Required collaborators: `fs`/`git`/`locks` (the shared
  * Worker primitives), `changeCheck` (change-check-client), `mergeDriver` (the
@@ -221,86 +302,6 @@ export function createSyncEngine(deps = {}) {
       ([, head, workdir, stage]) =>
         !(head === 1 && workdir === 1 && stage === 1) && !(head === 0 && workdir === 0),
     );
-  }
-
-  // Capture every unsaved mergeable file's working text `W` and its pre-merge
-  // HEAD blob `H0` (the version the edit was made from), BEFORE the committed
-  // merge checks out over the working tree (sync.unsaved; DIRECTION §3.1). Only
-  // songs/setlists — the files the cifra merge driver handles — are captured;
-  // other dirty files are left to isomorphic-git's own checkout. `W`/`H0` are
-  // null for a file absent on that side (a never-committed working file, or a
-  // working deletion). No song text is logged (standing rule).
-  async function captureDirtyWork(bookId, headOid) {
-    const dir = bookDir(bookId);
-    const rows = await statusMatrix({ fs, dir });
-    const captured = [];
-    for (const [filepath, head, workdir, stage] of rows) {
-      const clean = (head === 1 && workdir === 1 && stage === 1) || (head === 0 && workdir === 0);
-      if (clean || !isMergeable(filepath)) continue;
-      let working = null;
-      try {
-        working = await fs.promises.readFile(`${dir}/${filepath}`, 'utf8');
-      } catch {
-        working = null; // the edit deleted the file from the working tree
-      }
-      let base = null;
-      if (headOid) {
-        try {
-          const { blob } = await readBlob({ fs, dir, oid: headOid, filepath });
-          base = new TextDecoder().decode(blob);
-        } catch {
-          base = null; // a never-committed file has no pre-merge HEAD blob
-        }
-      }
-      captured.push({ path: filepath, working, base });
-    }
-    return captured;
-  }
-
-  // Re-apply the captured edits onto the merged committed content now checked
-  // out to the working tree (sync.unsaved, acceptance 2-4). Per file, `theirs`
-  // is the merged content `M` the checkout left; a file the merge did not touch
-  // (`M === H0`) is restored byte-for-byte from `W` — the edit is preserved
-  // verbatim, never re-canonicalised (acceptance 3). A file the merge did touch
-  // is rebased by `cifraMerge(H0, W, M)`: a clean merge writes the result, a
-  // conflict writes the marked text (unsaved, never canonical — never pushed;
-  // acceptance 4). All writes are uncommitted: HEAD stays the pushed merge
-  // commit, so the index derives the song still *unsaved*.
-  async function reapplyDirtyWork(bookId, captured) {
-    const dir = bookDir(bookId);
-    for (const { path: filepath, working, base } of captured) {
-      let theirs = null;
-      try {
-        theirs = await fs.promises.readFile(`${dir}/${filepath}`, 'utf8');
-      } catch {
-        theirs = null; // the incoming merge deleted the file
-      }
-      if (theirs === base) {
-        // No incoming change to this file: the checkout clobbered the edit with
-        // the (unchanged) committed content; restore the working text verbatim.
-        if (working === null) {
-          try {
-            await fs.promises.unlink(`${dir}/${filepath}`);
-          } catch {
-            /* already gone */
-          }
-        } else {
-          await fs.promises.writeFile(`${dir}/${filepath}`, working);
-        }
-        continue;
-      }
-      const setlist = filepath.endsWith(SETLIST_SUFFIX);
-      const { text, deleted } = reapplyWorkingText({ base, ours: working, theirs, setlist });
-      if (deleted || text === null) {
-        try {
-          await fs.promises.unlink(`${dir}/${filepath}`);
-        } catch {
-          /* already gone */
-        }
-      } else {
-        await fs.promises.writeFile(`${dir}/${filepath}`, text);
-      }
-    }
   }
 
   // Fetch the origin into the book's remote-tracking ref. The url is not passed:
@@ -685,7 +686,9 @@ export function createSyncEngine(deps = {}) {
           // Only a dirty tree needs the capture (the injectable guard the engine
           // shipped); a clean book takes the plain committed-merge path.
           const dirty = await treeDirty(bookId);
-          const captured = dirty ? await captureDirtyWork(bookId, await headOf(bookId)) : [];
+          const captured = dirty
+            ? await captureDirtyWork({ fs, dir: bookDir(bookId), headOid: await headOf(bookId) })
+            : [];
           let result;
           try {
             result = await mergeBook(bookId, author);
@@ -702,7 +705,7 @@ export function createSyncEngine(deps = {}) {
           // the merge actually landed — otherwise the working tree is untouched
           // and the edits already stand (acceptance 2-4).
           if (captured.length && result?.after && result.after !== result.before) {
-            await reapplyDirtyWork(bookId, captured);
+            await reapplyDirtyWork({ fs, dir: bookDir(bookId), captured });
           }
           // A merge landed (commit or fast-forward): name the songs that moved
           // for an open reading/editor view — the same fact for a re-merged

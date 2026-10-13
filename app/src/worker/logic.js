@@ -39,6 +39,7 @@ import { createSyncEngine, countCommitsAhead, resolveOriginHead } from './sync-e
 import { keepAsLocalChanges, removeChanges } from './sign-out.js';
 import { createSyncScheduler } from './sync-scheduler.js';
 import { createConflicts } from './conflicts.js';
+import { createUpload } from './upload.js';
 import { createBooks } from './books.js';
 import { createExampleBook } from './example-book.js';
 import { createMySongs, MY_SONGS_ID } from './my-songs.js';
@@ -331,6 +332,7 @@ export function createWorkerLogic(port, options = {}) {
   let syncEngine = null;
   let syncScheduler = null;
   let conflicts = null;
+  let upload = null;
 
   function ensureOpen() {
     if (!dbPromise) dbPromise = openDatabase(idb, name, version, migrations);
@@ -601,9 +603,33 @@ export function createWorkerLogic(port, options = {}) {
         emit: (payload) => port.postMessage(event(EventKind.CONFLICTS, payload)),
         emitRefused: (payload) => port.postMessage(event(EventKind.SAVE_REFUSED, payload)),
         requestSync: () => ensureSyncScheduler().trigger(),
+        // An upload merge that collided retained a `refs/upload/<id>` ref in the
+        // book; prefer it over origin/main so the SAME session settles an upload
+        // collision as a racing sync (sync.upload Decision 3). upload.js owns the
+        // ref convention; conflicts.js just asks for the incoming ref.
+        incomingRef: (bookId, dir) => ensureUpload().incomingRefFor(bookId, dir),
       });
     }
     return conflicts;
+  }
+
+  // Compose the upload engine once over the SAME fs, git layer and lock registry
+  // as the working copy (sync.upload), plus the cifra merge driver it merges
+  // through. The Worker owns git and IndexedDB; the view (books.upload_ui) only
+  // sends PREVIEW_UPLOAD / IMPORT_UPLOAD / CANCEL_UPLOAD and renders the reply.
+  // The authored commits take the uploading user's identity (resolveSyncAuthor,
+  // the home-book author name — Decision 7).
+  function ensureUpload() {
+    if (!upload) {
+      upload = createUpload({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+        mergeDriver: createCifraMergeDriver(),
+        resolveAuthor: resolveSyncAuthor,
+      });
+    }
+    return upload;
   }
 
   // Compose the scheduler once (sync.engine): it coalesces the five triggers
@@ -1344,6 +1370,75 @@ export function createWorkerLogic(port, options = {}) {
             // Put the book back as it was before the sync, the incoming changes
             // waiting for the next one (workflow 9 §Leaving one).
             await ensureConflicts().abandon(message.payload.bookId);
+            break;
+          }
+          case CommandKind.PREVIEW_UPLOAD: {
+            // Read a zip as a remote and preview what importing / merging it would
+            // do, song by song, WITHOUT writing to the target (sync.upload,
+            // workflow 7 §The preview). A non-zip buffer, a CRC failure or a
+            // zip-slip entry name throws and is surfaced by the outer catch as an
+            // ERROR event — never a crash. The preview carries titles and musical
+            // summaries, never whole song text (standing rule).
+            const { target, bytes } = message.payload;
+            const model = await ensureUpload().preview({ target, bytes });
+            port.postMessage(event(EventKind.UPLOAD_PREVIEW, model));
+            break;
+          }
+          case CommandKind.IMPORT_UPLOAD: {
+            // Land a previewed upload on confirm (workflow 7 §Ends one of two
+            // ways). The upload engine reads the scratch repo named by `uploadId`
+            // and lands it; this handler maps the result to the existing events
+            // and (for a new book) writes the shelf register as CREATE_BOOK does.
+            const { uploadId, choice, target, perFile, author } = message.payload;
+            const result = await ensureUpload().import_({ uploadId, choice, target, perFile });
+            if (result.kind === 'new_book') {
+              // A fresh local book: write its `shelf.local` entry (title from the
+              // imported README), re-surface SHELF, index it and announce it —
+              // the CREATE_BOOK / OPEN_EXAMPLE_BOOK tail.
+              const home = ensureHomeBook();
+              await home.ensureLocal({ author });
+              const deviceId = await home.ensureDeviceId({ idb, name, version });
+              const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+              const position = nextShelfPosition(shelf, deviceId);
+              await home.set({
+                bookId: HOME_BOOK_ID,
+                file: 'shelf.json',
+                changes: [
+                  { path: ['local', deviceId, result.bookId, 'title'], value: result.title },
+                  { path: ['local', deviceId, result.bookId, 'position'], value: position },
+                ],
+                author,
+              });
+              await surfaceHomeBookShelf();
+              await indexOneBook(result.bookId);
+              await ensureFs().flush();
+              port.postMessage(event(EventKind.BOOK_CREATED, { bookId: result.bookId }));
+              break;
+            }
+            // A merge / replace into an existing book: re-index its working tree
+            // (the landed songs), emit a SYNC fact so the shelf reflects the new
+            // state, and — when it collided — leave it `needs_you` for the conflict
+            // session (sync.upload Decision 3). A clean landing was pushed inline
+            // best-effort; a trigger retries an offline push at the next pass.
+            await ensureIndexHydrated();
+            await indexOneBook(result.bookId);
+            const at = new Date().toISOString();
+            if (result.kind === 'needs_you') {
+              port.postMessage(event(EventKind.SYNC, { bookId: result.bookId, phase: 'needs_you', at }));
+            } else {
+              const phase = result.pushed ? 'in_step' : 'saves_waiting';
+              const extra = result.pushed
+                ? {}
+                : { savesWaiting: await countCommitsAhead({ fs: ensureFs(), dir: ensureGit().bookDir(result.bookId) }) };
+              port.postMessage(event(EventKind.SYNC, { bookId: result.bookId, phase, at, ...extra }));
+              ensureSyncScheduler().trigger();
+            }
+            break;
+          }
+          case CommandKind.CANCEL_UPLOAD: {
+            // Discard a previewed upload: remove the scratch repo (workflow 7
+            // §The preview, "nothing is written until it is confirmed"). All local.
+            await ensureUpload().cancel({ uploadId: message.payload.uploadId });
             break;
           }
           case CommandKind.CREATE_BOOK: {

@@ -329,6 +329,32 @@ export const CommandKind = Object.freeze({
   RESOLVE_CONFLICT: 'resolve_conflict',
   COMMIT_MERGE: 'commit_merge',
   ABANDON_MERGE: 'abandon_merge',
+  // Uploading a book from a zip (sync.upload, workflow 7 §Uploading a book).
+  // The Worker reads the zip as a git remote to pull from; the view (books.upload_ui)
+  // picks the zip, renders the preview and sends the confirm. PREVIEW_UPLOAD
+  // `{ target, bytes }` — `bytes` is the zip as an ArrayBuffer/Uint8Array (read
+  // from the File on the main thread, crossing by structured clone as DOWNLOAD's
+  // bytes cross the other way), `target` is `{ kind: 'new' }` (import as a new
+  // book) or `{ kind: 'existing', bookId }` (merge / replace into a book the user
+  // can save to). The Worker materialises a scratch repo under `/uploads/<id>`,
+  // reads the uploader's uncommitted edits as one synthetic *changes from the
+  // upload* commit, and classifies song by song WITHOUT writing to the target,
+  // replying with UPLOAD_PREVIEW. A non-zip buffer, a CRC failure or a zip-slip
+  // entry name is refused (ERROR, never a crash). IMPORT_UPLOAD `{ uploadId,
+  // choice, perFile?, title?, author }` lands it on confirm — `choice` is
+  // 'new_book' (the zip's history becomes a fresh local book's, or a folder/no
+  // -history zip's one canonical first commit), 'latest_without_history' (the
+  // escape hatch for history that holds conflict markers — the latest clean tree
+  // as one first commit), 'merge' (the cifra-aware merge into the existing book,
+  // the zip's ref as theirs) or 'replace' (a no-history zip into an existing book:
+  // `perFile` names the matching files to replace, non-matching added, one ordinary
+  // commit). A new book replies BOOK_CREATED; a clean merge/replace commits, pushes
+  // and emits a SYNC fact; a colliding merge leaves the book `needs_you` (SYNC) for
+  // the existing conflict session. CANCEL_UPLOAD `{ uploadId }` removes the scratch
+  // repo. Nothing in the zip is executed; only repository paths are read.
+  PREVIEW_UPLOAD: 'preview_upload',
+  IMPORT_UPLOAD: 'import_upload',
+  CANCEL_UPLOAD: 'cancel_upload',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -561,6 +587,23 @@ export const EventKind = Object.freeze({
   // song text beyond the conflicted regions the screens must draw; no logging
   // (standing rule). A per-book reducer slice (`conflicts`), folded by bookId.
   CONFLICTS: 'conflicts',
+  // The upload preview, in reply to PREVIEW_UPLOAD (sync.upload, workflow 7
+  // §The preview): what the upload would do, song by song, before anything is
+  // written. `{ uploadId, target, branch, hasHistory, sharedHistory,
+  // historyMarkers?, previews: [{ path, title, status, changes?, summary?,
+  // line? }] }` — `uploadId` names the materialised scratch repo so IMPORT /
+  // CANCEL act on it without re-reading the zip (Decision 8); `branch` is the
+  // zip's checked-out branch (null for a no-history zip); `hasHistory` /
+  // `sharedHistory` drive the new-book / merge / replace copy; `historyMarkers`
+  // (`{ commit, path, line, latestClean }`) is present only when the zip's history
+  // holds a conflict marker line, offering the latest-without-history escape hatch.
+  // Each preview's `status` is a word: 'added', 'changed' (with the diff `summary`
+  // and `changes`), 'conflict', 'replace' (no-history replace-with-the-uploaded
+  // -version, with its diff) or 'unresolved' (a marked working-tree file left out,
+  // `line` the 1-based first marker line). It carries titles and musical summaries,
+  // never whole song text (standing rule). The target book is not mutated. The
+  // `uploadPreview` ephemeral view state the books.upload_ui screen renders.
+  UPLOAD_PREVIEW: 'upload_preview',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any
