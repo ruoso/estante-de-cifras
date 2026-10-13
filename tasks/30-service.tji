@@ -77,7 +77,8 @@ task service "The service" {
   task rate_limits "Rate limits" {
     effort 1d
     allocate team
+    complete 100
     depends !sessions
-    note "Sign-in attempts, emailed links, book creation, invitations accepted. Tests: unit (the limiter's windows); behavior (each limit trips at its threshold through httptest and recovers); e2e-api (repeated sign-in attempts limited against the stack)."
+    note "Sign-in attempts, emailed links, book creation, invitations accepted. Tests: unit (the limiter's windows); behavior (each limit trips at its threshold through httptest and recovers); e2e-api (repeated sign-in attempts limited against the stack). Refinement: tasks/refinements/service/rate_limits.md"
   }
 }

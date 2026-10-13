@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"estantedecifras.app/service/internal/book"
+	"estantedecifras.app/service/internal/ratelimit"
 	"estantedecifras.app/service/internal/session"
 )
 
@@ -429,6 +430,13 @@ func handleAcceptInvitation(api *APIDeps) http.HandlerFunc {
 		}
 		if !signedIn {
 			writeUnauthorized(w)
+			return
+		}
+
+		// Invitation acceptance is rate-limited per account, keyed on the account
+		// id the session yielded — never the path token, which stays out of logs
+		// (service.rate_limits Constraint 6; redactInvitationToken).
+		if !rateAllow(w, api.Limiter, ratelimit.InviteAccept, accountID) {
 			return
 		}
 

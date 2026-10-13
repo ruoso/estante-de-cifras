@@ -23,6 +23,7 @@ import (
 	"estantedecifras.app/service/internal/db"
 	"estantedecifras.app/service/internal/mail"
 	"estantedecifras.app/service/internal/passkey"
+	"estantedecifras.app/service/internal/ratelimit"
 	"estantedecifras.app/service/internal/server"
 )
 
@@ -102,6 +103,11 @@ func run() error {
 		GitDeadline:         cfg.GitDeadline,
 		GitMaxBodyBytes:     cfg.GitMaxBodyBytes,
 		ReceiveMaxInputSize: cfg.ReceiveMaxInputSize,
+		// Rate limiting (service.rate_limits): an in-memory limiter built once
+		// with the default thresholds, and the trusted-proxy count that tells it
+		// the real client IP behind Railway's edge.
+		Limiter:        ratelimit.NewDefault(time.Now),
+		TrustedProxies: cfg.TrustedProxies,
 	}
 
 	handler, err := server.Handler(logger, cfg.AppRoot, pool, api)

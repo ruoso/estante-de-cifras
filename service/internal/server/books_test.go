@@ -41,6 +41,14 @@ type booksEnv struct {
 
 func newBooksEnv(t *testing.T) *booksEnv {
 	t.Helper()
+	return newBooksEnvWith(t, nil)
+}
+
+// newBooksEnvWith builds a books env, applying tweak to the APIDeps before the
+// handler is wired. newBooksEnv passes nil; the rate-limit behavior tests pass a
+// tweak that sets a tiny-window Limiter and TrustedProxies.
+func newBooksEnvWith(t *testing.T, tweak func(*APIDeps)) *booksEnv {
+	t.Helper()
 	pool := migratedServerSchema(t)
 
 	rp, err := passkey.New(passkey.Config{
@@ -60,6 +68,9 @@ func newBooksEnv(t *testing.T) *booksEnv {
 	var logBuf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&logBuf, nil))
 	api := &APIDeps{DB: pool, Passkeys: rp, PublicBaseURL: testPkOrigin, BooksRoot: booksRoot}
+	if tweak != nil {
+		tweak(api)
+	}
 	h, err := Handler(logger, newTestAppRoot(t), pool, api)
 	if err != nil {
 		t.Fatalf("Handler: %v", err)

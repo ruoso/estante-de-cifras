@@ -60,6 +60,12 @@ const DefaultGitMaxBodyBytes int64 = 128 * 1024 * 1024
 // 50 MB-per-book cap (hook.limits Decision).
 const DefaultReceiveMaxInputSize int64 = 64 * 1024 * 1024
 
+// DefaultTrustedProxies is how many proxy hops sit in front of the service when
+// ESTANTE_TRUSTED_PROXIES is unset (service.rate_limits Constraint 3). Zero
+// means take the client IP straight from RemoteAddr, which is correct under
+// compose and the e2e stack (no proxy). Production behind Railway's edge sets 1.
+const DefaultTrustedProxies = 0
+
 // Config is the service's configuration. Today it carries the listen port the
 // skeleton needs, the app-root the built PWA is served from, the Postgres DSN
 // the registry lives behind, and the sign-in machinery's vars (the SMTP relay
@@ -158,6 +164,15 @@ type Config struct {
 	// single-purpose key never shared with LinkSecret. It is a secret and is
 	// never logged.
 	WebAuthnStateSecret string
+
+	// TrustedProxies is how many proxy hops sit in front of the service, so the
+	// rate limiter keys on the real client IP and not the edge (service.rate_limits
+	// Constraint 3). It defaults to DefaultTrustedProxies (0) and is set via
+	// ESTANTE_TRUSTED_PROXIES (a non-negative integer); production behind Railway
+	// sets 1. It is the only rate-limit value that is env config, because only it
+	// affects correctness per environment — the thresholds are compile-time consts
+	// in internal/ratelimit. It is a path-shaping count, not a secret.
+	TrustedProxies int
 }
 
 // Load builds a Config from an environment lookup (os.LookupEnv in
@@ -173,6 +188,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		GitDeadline:         DefaultGitDeadline,
 		GitMaxBodyBytes:     DefaultGitMaxBodyBytes,
 		ReceiveMaxInputSize: DefaultReceiveMaxInputSize,
+		TrustedProxies:      DefaultTrustedProxies,
 	}
 
 	if raw, ok := lookup("ESTANTE_APP_ROOT"); ok && raw != "" {
@@ -261,6 +277,17 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		cfg.WebAuthnStateSecret = raw
 	} else {
 		return Config{}, fmt.Errorf("config: ESTANTE_WEBAUTHN_STATE_SECRET is required (the passkey state token's signing key; no insecure default)")
+	}
+
+	if raw, ok := lookup("ESTANTE_TRUSTED_PROXIES"); ok && raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil {
+			return Config{}, fmt.Errorf("config: ESTANTE_TRUSTED_PROXIES %q is not a number: %w", raw, err)
+		}
+		if n < 0 {
+			return Config{}, fmt.Errorf("config: ESTANTE_TRUSTED_PROXIES %d must not be negative", n)
+		}
+		cfg.TrustedProxies = n
 	}
 
 	if raw, ok := lookup("PORT"); ok && raw != "" {

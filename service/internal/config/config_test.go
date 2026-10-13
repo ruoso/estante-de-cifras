@@ -373,3 +373,52 @@ func TestLoadRejectsBadGitSettings(t *testing.T) {
 		}
 	}
 }
+
+// TestLoadDefaultsTrustedProxiesWhenUnset pins the rate-limit proxy default
+// (service.rate_limits Constraint 3): unset means 0, so the client IP comes
+// straight from RemoteAddr under compose and the e2e stack (no proxy). An empty
+// value is treated as unset.
+func TestLoadDefaultsTrustedProxiesWhenUnset(t *testing.T) {
+	cfg, err := Load(envFrom(withSecret(nil)))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.TrustedProxies != DefaultTrustedProxies {
+		t.Errorf("TrustedProxies = %d, want default %d", cfg.TrustedProxies, DefaultTrustedProxies)
+	}
+
+	cfg, err = Load(envFrom(withSecret(map[string]string{"ESTANTE_TRUSTED_PROXIES": ""})))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.TrustedProxies != DefaultTrustedProxies {
+		t.Errorf("empty TrustedProxies = %d, want default %d", cfg.TrustedProxies, DefaultTrustedProxies)
+	}
+}
+
+// TestLoadHonoursTrustedProxies pins that ESTANTE_TRUSTED_PROXIES is parsed, so
+// production behind Railway's edge can set 1.
+func TestLoadHonoursTrustedProxies(t *testing.T) {
+	cfg, err := Load(envFrom(withSecret(map[string]string{"ESTANTE_TRUSTED_PROXIES": "1"})))
+	if err != nil {
+		t.Fatalf("Load: unexpected error: %v", err)
+	}
+	if cfg.TrustedProxies != 1 {
+		t.Errorf("TrustedProxies = %d, want 1", cfg.TrustedProxies)
+	}
+}
+
+// TestLoadRejectsBadTrustedProxies pins the fail-fast rule: a non-numeric or
+// negative hop count names the variable rather than falling back silently.
+func TestLoadRejectsBadTrustedProxies(t *testing.T) {
+	for _, val := range []string{"two", "-1"} {
+		_, err := Load(envFrom(withSecret(map[string]string{"ESTANTE_TRUSTED_PROXIES": val})))
+		if err == nil {
+			t.Errorf("Load(ESTANTE_TRUSTED_PROXIES=%q): want error, got nil", val)
+			continue
+		}
+		if !strings.Contains(err.Error(), "ESTANTE_TRUSTED_PROXIES") {
+			t.Errorf("error %q does not name ESTANTE_TRUSTED_PROXIES", err)
+		}
+	}
+}

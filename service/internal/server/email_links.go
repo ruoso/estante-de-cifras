@@ -16,6 +16,7 @@ import (
 	"estantedecifras.app/service/internal/emaillink"
 	mailer "estantedecifras.app/service/internal/mail"
 	"estantedecifras.app/service/internal/passkey"
+	"estantedecifras.app/service/internal/ratelimit"
 	"estantedecifras.app/service/internal/session"
 )
 
@@ -53,6 +54,15 @@ type APIDeps struct {
 	// over-size pack is refused before the hook runs (hook.limits). Zero falls
 	// back to config.DefaultReceiveMaxInputSize.
 	ReceiveMaxInputSize int64
+	// Limiter is the in-memory request-rate limiter the abuse-prone handlers
+	// consult inline (service.rate_limits; DIRECTION §3.3). A nil Limiter
+	// disables limiting entirely — the skeleton and the behavior tests that wire
+	// no limiter are unaffected.
+	Limiter *ratelimit.Limiter
+	// TrustedProxies is how many proxy hops sit in front of the service, so the
+	// IP a limit keys on is the real client and not the edge (service.rate_limits
+	// Constraint 3; ESTANTE_TRUSTED_PROXIES). Zero means use RemoteAddr directly.
+	TrustedProxies int
 }
 
 // handleRequestEmailLink implements POST /api/auth/email/request
@@ -79,6 +89,17 @@ func handleRequestEmailLink(api *APIDeps) http.HandlerFunc {
 			return
 		}
 		email := strings.ToLower(addr.Address)
+
+		// Rate-limit per address and per client IP (service.rate_limits), after
+		// the address is parsed so it can key on it. The 429 is returned before
+		// any account lookup, so it is as account-oblivious as the 202 and never
+		// enumerates accounts (Constraint 5).
+		if !rateAllowAll(w, api.Limiter,
+			ratelimit.Key{Rule: ratelimit.EmailLinkAddr, Key: email},
+			ratelimit.Key{Rule: ratelimit.EmailLinkIP, Key: clientIP(r, api.TrustedProxies)},
+		) {
+			return
+		}
 
 		// Everything below the 202 is best-effort for an account that exists;
 		// the caller sees the same 202 either way. A genuine infrastructure
@@ -140,17 +161,30 @@ func (api *APIDeps) mintAndSend(ctx context.Context, email string) error {
 // 401; no address or token reaches a log.
 func handleRedeemEmailLink(api *APIDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Sign-in attempts are rate-limited per client IP, failures only. The
+		// check runs first, before any token work (service.rate_limits
+		// Constraint 5); a failed redeem below records against it, a successful
+		// one never does (Decision 3).
+		ip := clientIP(r, api.TrustedProxies)
+		if !rateCheck(w, api.Limiter, ratelimit.SignIn, ip) {
+			return
+		}
+		fail := func() {
+			rateRecordFailure(api.Limiter, ratelimit.SignIn, ip)
+			writeUnauthorized(w)
+		}
+
 		var body struct {
 			Token string `json:"token"`
 		}
 		if err := decodeStrict(r, &body); err != nil || body.Token == "" {
-			writeUnauthorized(w)
+			fail()
 			return
 		}
 
 		id, ok := emaillink.Parse(body.Token, api.LinkSecret)
 		if !ok {
-			writeUnauthorized(w)
+			fail()
 			return
 		}
 
@@ -165,7 +199,7 @@ func handleRedeemEmailLink(api *APIDeps) http.HandlerFunc {
 			 WHERE id = $1 AND consumed_at IS NULL AND expires_at > now()
 			 RETURNING account_id`, id).Scan(&accountID)
 		if errors.Is(err, pgx.ErrNoRows) {
-			writeUnauthorized(w)
+			fail()
 			return
 		}
 		if err != nil {

@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"estantedecifras.app/service/internal/passkey"
+	"estantedecifras.app/service/internal/ratelimit"
 	"estantedecifras.app/service/internal/session"
 )
 
@@ -237,21 +238,34 @@ func handleAuthenticatePasskeyBegin(api *APIDeps) http.HandlerFunc {
 // 401 with no session set.
 func handleAuthenticatePasskeyFinish(api *APIDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Sign-in attempts are rate-limited per client IP, failures only. The
+		// check runs first, before any WebAuthn work (service.rate_limits
+		// Constraint 5); each 401 below records against it, a successful sign-in
+		// never does (Decision 3).
+		ip := clientIP(r, api.TrustedProxies)
+		if !rateCheck(w, api.Limiter, ratelimit.SignIn, ip) {
+			return
+		}
+		fail := func() {
+			rateRecordFailure(api.Limiter, ratelimit.SignIn, ip)
+			writeUnauthorized(w)
+		}
+
 		var body passkeyFinishBody
 		if err := decodeStrict(r, &body); err != nil || body.State == "" || len(body.Credential) == 0 {
-			writeUnauthorized(w)
+			fail()
 			return
 		}
 
 		sessionData, err := api.Passkeys.Open(body.State, time.Now())
 		if err != nil {
-			writeUnauthorized(w)
+			fail()
 			return
 		}
 
 		parsed, err := protocol.ParseCredentialRequestResponseBytes(body.Credential)
 		if err != nil {
-			writeUnauthorized(w)
+			fail()
 			return
 		}
 
@@ -277,7 +291,7 @@ func handleAuthenticatePasskeyFinish(api *APIDeps) http.HandlerFunc {
 
 		credential, err := api.Passkeys.WebAuthn().ValidateDiscoverableLogin(handler, *sessionData, parsed)
 		if err != nil || resolvedAccountID == "" {
-			writeUnauthorized(w)
+			fail()
 			return
 		}
 

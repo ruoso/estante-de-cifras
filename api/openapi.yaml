@@ -160,6 +160,8 @@ paths:
                 $ref: '#/components/schemas/Account'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
 
   /api/auth/email/request:
     post:
@@ -183,6 +185,8 @@ paths:
           description: Accepted; if the address has an account, a link is on its way.
         '400':
           $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/RateLimited'
 
   /api/auth/email/redeem:
     post:
@@ -207,6 +211,8 @@ paths:
                 $ref: '#/components/schemas/Account'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
 
   /api/auth/signout:
     post:
@@ -353,6 +359,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '413':
           $ref: '#/components/responses/TooLarge'
+        '429':
+          $ref: '#/components/responses/RateLimited'
 
   /api/books/{bookId}:
     delete:
@@ -394,6 +402,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '413':
           $ref: '#/components/responses/TooLarge'
+        '429':
+          $ref: '#/components/responses/RateLimited'
 
   # ---------------------------------------------------------------------------
   # The change check (workflow 08, DIRECTION §3.3)
@@ -598,6 +608,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
 
   # ---------------------------------------------------------------------------
   # Git over HTTP (DIRECTION §3.6 "Git over HTTP"; workflow 14)
@@ -844,6 +856,23 @@ components:
         The request is over a size or quota limit, refused before git starts
         (256 KB per file, 50 MB per book, 100 books and 200 MB per account —
         workflow 14).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimited:
+      description: >-
+        The caller made this abuse-prone request too fast, so the service
+        refused the excess with no other effect (DIRECTION §3.3). `code:
+        rate_limited`. The `Retry-After` header gives whole seconds until the
+        window rolls and the request may be retried.
+      headers:
+        Retry-After:
+          description: Whole seconds until the rate-limit window rolls.
+          required: true
+          schema:
+            type: integer
+            minimum: 0
       content:
         application/json:
           schema:

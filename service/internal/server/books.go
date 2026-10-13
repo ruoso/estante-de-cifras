@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"estantedecifras.app/service/internal/book"
+	"estantedecifras.app/service/internal/ratelimit"
 	"estantedecifras.app/service/internal/session"
 )
 
@@ -83,6 +84,13 @@ func handleCreateBook(api *APIDeps) http.HandlerFunc {
 		}
 		if !ok {
 			writeUnauthorized(w)
+			return
+		}
+
+		// Book creation is rate-limited per account, right after the session
+		// yields the account id (service.rate_limits; workflow 14 §Limits). This
+		// velocity guard layers on top of the absolute 100-book cap below.
+		if !rateAllow(w, api.Limiter, ratelimit.BookCreate, accountID) {
 			return
 		}
 
@@ -314,6 +322,13 @@ func handleForkBook(api *APIDeps) http.HandlerFunc {
 		}
 		if !ok {
 			writeUnauthorized(w)
+			return
+		}
+
+		// A fork creates a book just as create does (workflow 14 "forks
+		// included"), so it draws on the same per-account book-creation limit
+		// rather than being an unthrottled way to spin up books (Decision 6).
+		if !rateAllow(w, api.Limiter, ratelimit.BookCreate, accountID) {
 			return
 		}
 

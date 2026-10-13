@@ -197,6 +197,16 @@ public lyrics site because a link was posted somewhere.
   own, checks every push against what a book may hold, its canonical form, and
   the limits per book and per account (workflow 14).
 
+**Abuse-prone requests are rate-limited.** A few requests invite abuse —
+sign-in attempts, the emailed sign-in link (it sends mail), creating a book
+(workflow 14) and accepting an invitation — so the service caps how fast each
+may be made, refusing the excess with a *try again shortly* and no other
+effect. Where a request carries a session the cap is per account; before
+sign-in it is per client IP, and for the emailed link also per address, so one
+mailbox cannot be flooded. The caps are generous enough that no real use meets
+them. The one instance (§3.4) keeps the counts in memory, which is all a single
+process with small traffic needs.
+
 **The git server is git.** Every part of the protocol works — deltas,
 negotiation, shallow fetches — so isomorphic-git in the browser and, later,
 git on a computer both talk to it with nothing written for either. Two pushes
