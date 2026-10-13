@@ -51,6 +51,44 @@ A line the device edits before it is deleted away
 `;
 const DEVICE_DEL_EDIT = BASE_DEL.replace('edits before', 'has edited before');
 
+// A song with a voicings block both sides reshape differently → a `voicing`
+// conflict (§11.12.1; corpus/merge/12-two-shapes-one-chord). The chart uses Cm
+// and G7, so each has a chart occurrence the keep-both plan can place a shape at.
+const VSONG = 'baiao.cifra.md';
+const BASE_VOICING = `# Baião de teste
+- language: en
+
+## Parte
+\`\`\`
+Cm | F7 | Cm | G7
+\`\`\`
+
+---
+
+## Voicings: E2 A2 D3 G3 B3 E4
+- Cm: x35543
+- F7: 131211
+- G7: 320001
+`;
+const DEVICE_VOICING = BASE_VOICING.replace('- Cm: x35543', '- Cm: x3554x');
+const REMOTE_VOICING = BASE_VOICING.replace('- Cm: x35543', '- Cm: 8-10-10-8-8-8');
+// Two voicing conflicts in one song/tuning (Cm and G7), to test accumulation.
+const DEVICE_TWO_V = DEVICE_VOICING.replace('- G7: 320001', '- G7: 3x0001');
+const REMOTE_TWO_V = REMOTE_VOICING.replace('- G7: 320001', '- G7: 353433');
+
+// A plain chart-line conflict, for keep-both-for-a-song (the whole-song split).
+const SSONG = 'roda.cifra.md';
+const BASE_SR = `# Roda
+- language: en
+
+## Parte
+\`\`\`
+C | G | Am | F
+\`\`\`
+`;
+const DEVICE_SR = BASE_SR.replace('C | G | Am | F', 'C | G | Am | Dm');
+const REMOTE_SR = BASE_SR.replace('C | G | Am | F', 'C | G | Am | E7');
+
 const AUTHOR = { name: 'Ana', email: 'ana@example.invalid', timestamp: 1577836800, timezoneOffset: 0 };
 const SYNC_IDENTITY = { id: 'device-b', name: 'Beto' };
 const FIXED_NOW = () => Date.UTC(2026, 9, 7, 12, 0, 0);
@@ -167,6 +205,35 @@ async function engage(remote, { withDeleted = false, withClean = false } = {}) {
     now: FIXED_NOW,
   });
   return { b, session, conflicts, refused, facts, theirHead };
+}
+
+// Engage over a device whose local + remote colliding commits are already made
+// (the caller controls the fixture, unlike `engage` which hardcodes line edits):
+// run the engine to its halt, then build the conflict session over the same
+// fs/git/locks. Mirrors the inline setup the two-region case uses.
+async function engageInline(b, theirHead) {
+  const facts = [];
+  const engine = createSyncEngine({
+    fs: b.fs, git: b.git, locks: b.locks,
+    changeCheck: { check: async () => new Map([[BOOK, { bookId: BOOK, status: 'changed', head: theirHead }]]) },
+    mergeDriver: createCifraMergeDriver(),
+    resolveAuthor: async () => SYNC_IDENTITY,
+    emit: (p) => facts.push(p),
+    now: FIXED_NOW,
+  });
+  await engine.pass();
+
+  const conflicts = [];
+  const refused = [];
+  const session = createConflicts({
+    fs: b.fs, git: b.git, locks: b.locks,
+    resolveAuthor: async () => SYNC_IDENTITY,
+    emit: (p) => conflicts.push(p),
+    emitRefused: (p) => refused.push(p),
+    requestSync: () => {},
+    now: FIXED_NOW,
+  });
+  return { session, conflicts, refused, facts };
 }
 
 let restoreLocks;
@@ -399,6 +466,130 @@ describe('conflict merge session over a real remote (behavior)', () => {
       await expect(resolveRef({ fs: b.fs, dir: b.dir, ref: 'refs/remotes/origin/main' })).rejects.toThrow();
       expect(session.hasInProgressMerge(BOOK)).toBe(false);
       expect(conflicts.at(-1)).toMatchObject({ bookId: BOOK, inProgress: false });
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('keep both a voicing: ours stays in its block, theirs lands in a variation named for the author, committed and pushed (workflow 9 §Later; spec §7.3)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [VSONG]: BASE_VOICING }, 'seed');
+      const b = await makeDeviceB(remote);
+      await b.commitLocal({ [VSONG]: DEVICE_VOICING }, 'my shape');
+      const theirHead = await advanceRemote(remote, { [VSONG]: REMOTE_VOICING }, "Ana's shape");
+
+      const { session, conflicts } = await engageInline(b, theirHead);
+      await session.open(BOOK);
+      expect(conflicts.at(-1).songs[0].items[0].kind).toBe('voicing');
+      expect(conflicts.at(-1).songs[0].author).toBe('Ana');
+
+      await session.resolve({ bookId: BOOK, path: VSONG, choice: 'keep_both', index: 0, author: 'Ana' });
+
+      // Settled → the two-parent merge is committed and pushed.
+      expect(session.hasInProgressMerge(BOOK)).toBe(false);
+      const headOid = await b.head();
+      const { commit: merge } = await readCommit({ fs: b.fs, dir: b.dir, oid: headOid });
+      expect(merge.parent).toHaveLength(2);
+      expect(await remoteHead(remote.repoDir)).toBe(headOid);
+
+      const saved = await b.read(VSONG);
+      expect(saved).not.toContain('<<<<<<<'); // canonical
+      expect(saved).toContain('- Cm: x3554x'); // ours stays in the in-use block
+      // Theirs's shape is in a variation named for the incoming author.
+      expect(saved).toContain('## Ana: E2 A2 D3 G3 B3 E4');
+      expect(saved).toContain('8-10-10-8-8-8');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('keep both voicings accumulate: two voicing conflicts in one song/tuning build a single author-named variation (Decision 2)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [VSONG]: BASE_VOICING }, 'seed');
+      const b = await makeDeviceB(remote);
+      await b.commitLocal({ [VSONG]: DEVICE_TWO_V }, 'my two shapes');
+      const theirHead = await advanceRemote(remote, { [VSONG]: REMOTE_TWO_V }, "Ana's two shapes");
+
+      const { session, conflicts } = await engageInline(b, theirHead);
+      await session.open(BOOK);
+      expect(conflicts.at(-1).songs[0].count).toBe(2);
+
+      // Keep both on each voicing — the stepper settles index 0 each time.
+      await session.resolve({ bookId: BOOK, path: VSONG, choice: 'keep_both', index: 0, author: 'Ana' });
+      expect(session.hasInProgressMerge(BOOK)).toBe(true);
+      await session.resolve({ bookId: BOOK, path: VSONG, choice: 'keep_both', index: 0, author: 'Ana' });
+      expect(session.hasInProgressMerge(BOOK)).toBe(false);
+
+      const saved = await b.read(VSONG);
+      expect(saved).not.toContain('<<<<<<<');
+      // One variation named for Ana, holding BOTH of theirs's shapes.
+      expect(saved.match(/^## Ana: /gm)).toHaveLength(1);
+      expect(saved).toContain('8-10-10-8-8-8'); // theirs's Cm
+      expect(saved).toContain('353433'); // theirs's G7
+      // ours's shapes stay in the in-use block.
+      expect(saved).toContain('- Cm: x3554x');
+      expect(saved).toContain('- G7: 3x0001');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('keep both a song: ours stays at its path, theirs is written beside it as <name>-ana.cifra.md, both committed and pushed (workflow 9 §Later; spec §8.1)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [SSONG]: BASE_SR }, 'seed');
+      const b = await makeDeviceB(remote);
+      await b.commitLocal({ [SSONG]: DEVICE_SR }, 'my bar');
+      const theirHead = await advanceRemote(remote, { [SSONG]: REMOTE_SR }, "Ana's bar");
+
+      const { session } = await engageInline(b, theirHead);
+      await session.open(BOOK);
+
+      await session.resolve({ bookId: BOOK, path: SSONG, choice: 'keep_both_song', author: 'Ana' });
+
+      expect(session.hasInProgressMerge(BOOK)).toBe(false);
+      const headOid = await b.head();
+      const { commit: merge } = await readCommit({ fs: b.fs, dir: b.dir, oid: headOid });
+      expect(merge.parent).toHaveLength(2);
+      expect(await remoteHead(remote.repoDir)).toBe(headOid);
+
+      // ours kept at its path.
+      const ours = await b.read(SSONG);
+      expect(ours).toContain('Dm');
+      expect(ours).not.toContain('<<<<<<<');
+      // theirs's canonical version beside it, named for the writer.
+      const sibling = 'roda-ana.cifra.md';
+      expect(await b.exists(sibling)).toBe(true);
+      const theirs = await b.read(sibling);
+      expect(theirs).toContain('E7');
+      expect(theirs).not.toContain('<<<<<<<');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('keep-both stays canonical: the produced texts hold no marker line, so settle does not refuse (§8.1 / §11.12.3)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [VSONG]: BASE_VOICING }, 'seed');
+      const b = await makeDeviceB(remote);
+      await b.commitLocal({ [VSONG]: DEVICE_VOICING }, 'my shape');
+      const theirHead = await advanceRemote(remote, { [VSONG]: REMOTE_VOICING }, "Ana's shape");
+
+      const { session, refused } = await engageInline(b, theirHead);
+      await session.open(BOOK);
+      await session.resolve({ bookId: BOOK, path: VSONG, choice: 'keep_both', index: 0, author: 'Ana' });
+
+      // No marker refusal fired, and the merge settled (a marker line would have
+      // held it in progress with a SAVE_REFUSED instead of committing).
+      expect(refused).toHaveLength(0);
+      expect(session.hasInProgressMerge(BOOK)).toBe(false);
+      const saved = await b.read(VSONG);
+      for (const marker of ['<<<<<<<', '=======', '>>>>>>>']) {
+        expect(saved.split('\n').some((l) => l.startsWith(marker))).toBe(false);
+      }
     } finally {
       await remote.stop();
     }

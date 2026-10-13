@@ -58,6 +58,10 @@ named for who wrote each: *yours* and *Ana's*. For each:
   git expects, and editing covers every case the other two do not, keeping
   both included. *Save* refuses while a marker line remains, and points at
   it.
+- **keep both** — offered on a *voicing* conflict: the other person's shape
+  goes into a new variation named for them (*Ana's*), so neither arrangement
+  is lost (workflow 5); yours stays in use. Choosing it again for another
+  chord adds to the same variation.
 
 **Deleted on one side, edited on the other** is offered as *keep the song,
 with the edits* or *delete it*, keeping first, since a deletion is the easier
@@ -65,6 +69,11 @@ one to make again.
 
 **A file that is not a song** is settled in the file view (workflow 14), with
 *keep mine*, *take theirs*, or editing its text with the markers in it.
+
+**Keep both, for a song** splits a song rather than settling it conflict by
+conflict: yours stays as it is, and the other person's version is written
+beside it as `<name>-ana.cifra.md`, for when two people have really made two
+songs. Both are canonical.
 
 When every conflict in the book is settled, the merge is committed, listed in
 history as *merged, with your resolution* (workflow 6), and pushed.
@@ -76,12 +85,3 @@ nothing new from sync meanwhile; the user's other books are unaffected.
 
 *Abandon the merge* puts the book back as it was before the sync, with the
 incoming changes still waiting, to be merged at the next sync.
-
-## Later
-
-- **Keep both, for a voicing**: theirs goes into a new variation named for
-  them (*Ana's*), so neither arrangement is lost (workflow 5).
-- **Keep both, for a song**: theirs is written beside it as
-  `<name>-ana.cifra.md`, for when two people have really made two songs.
-
-Both can be done by hand with *edit* in the meantime.

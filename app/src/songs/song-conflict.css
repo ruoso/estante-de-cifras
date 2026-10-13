@@ -53,7 +53,12 @@
   margin: 0;
 }
 
-.est-conflict-hint {
+/* Keep both, for a whole song (W09): the split-into-two-songs option, set
+   apart from the per-conflict actions above it. */
+.est-conflict-keepboth-song {
+  gap: calc(var(--u) * 0.75);
+}
+.est-conflict-keepboth-song .t-small {
   color: var(--ink-2);
   margin: 0;
 }

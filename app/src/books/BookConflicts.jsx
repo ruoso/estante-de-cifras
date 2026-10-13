@@ -38,6 +38,7 @@ export default function BookConflicts({ store, bookId, title, onSettle, onClose 
 
   const keepDeleted = (path) => store.send(command(CommandKind.RESOLVE_CONFLICT, { bookId, path, choice: 'keep' }));
   const deleteDeleted = (path) => store.send(command(CommandKind.RESOLVE_CONFLICT, { bookId, path, choice: 'delete' }));
+  const keepBothSong = (path) => store.send(command(CommandKind.RESOLVE_CONFLICT, { bookId, path, choice: 'keep_both_song' }));
   const abandon = () => store.send(command(CommandKind.ABANDON_MERGE, { bookId }));
 
   return (
@@ -74,6 +75,9 @@ export default function BookConflicts({ store, bookId, title, onSettle, onClose 
                       <span className="badge conflict dot">{t('bookConflicts.conflictsCount', { count: s.count })}</span>
                       <Button className="btn quiet" aria-label={t('bookConflicts.settleSong', { title: s.title })} onPress={() => onSettle?.(s.path)}>
                         {t('bookConflicts.settle')}
+                      </Button>
+                      <Button className="btn quiet" aria-label={t('bookConflicts.keepBothSongFor', { title: s.title })} onPress={() => keepBothSong(s.path)}>
+                        {t('bookConflicts.keepBothSong')}
                       </Button>
                     </li>
                   ))}

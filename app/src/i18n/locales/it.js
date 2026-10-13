@@ -564,11 +564,16 @@ export default {
     absent: '(rimosso)',
     keepMine: 'Tieni il mio',
     takeTheirs: 'Tieni il loro',
+    keepBoth: 'Tieni entrambi',
     edit: 'Modifica',
     readsAsYours:
       'Finché non lo risolvi, {title} appare nella tua versione, con i punti in conflitto segnati.',
-    keepBothHint:
-      'Per tenere entrambe le forme, scegli Modifica e metti quella di {author} in una variazione a sé.',
+    keepBothSongTitle: 'Due canzoni?',
+    keepBothSongBody:
+      'Tieni la tua così com’è e salva la versione di {author} accanto, come una canzone a sé, per quando avete davvero fatto due canzoni.',
+    keepBothSongBodyFallback:
+      'Tieni la tua così com’è e salva la versione arrivata accanto, come una canzone a sé, per quando due persone hanno davvero fatto due canzoni.',
+    keepBothSong: 'Tieni entrambe, come due canzoni',
     previewLabel: '{title}, la tua versione',
     spoken: {
       chartLine: 'conflitto nella riga dello spartito',
@@ -577,6 +582,7 @@ export default {
     settledSoFar: 'Risolto finora',
     settledMine: 'Tenuto il tuo',
     settledTheirs: 'Tenuto quello di {author}',
+    settledKeepBoth: 'Tenuti entrambi — quello di {author} in una variazione',
     settledEdit: 'Testo modificato',
     allSettled: 'Tutti i conflitti di {title} sono risolti.',
     editTitle: 'Modifica il testo di {title}',
@@ -602,6 +608,8 @@ export default {
     conflictBadge: 'conflitto',
     settle: 'Risolvi',
     settleSong: 'Risolvi {title}',
+    keepBothSong: 'Tieni entrambe',
+    keepBothSongFor: 'Tieni entrambe le versioni di {title} come due canzoni',
     deletedBody: '{author} ha eliminato questa canzone. Tu l’avevi modificata.',
     keepSong: 'Tieni la canzone, con le modifiche',
     deleteSong: 'Eliminala',

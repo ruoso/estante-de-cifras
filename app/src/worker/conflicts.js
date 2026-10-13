@@ -24,11 +24,15 @@ import {
   resolveRef, findMergeBase, readBlob, walk, TREE, checkout,
   add as gitAdd, remove as gitRemove, commit as gitCommit, deleteRef, log as gitLog,
 } from 'isomorphic-git';
-import { parse, resolveMarked } from 'cifra-md';
+import { parse, write, resolveMarked } from 'cifra-md';
 import { authorFrom } from './author.js';
 import { recomputeMerge } from './cifra-merge-driver.js';
 import { canonicaliseFile } from './canonicalise.js';
-import { songConflictModel, disputedChartLines } from './conflict-model.js';
+import { songConflictModel, disputedChartLines, voicingKeepBothOp } from './conflict-model.js';
+import { analyseSong } from '../core/song-analysis.js';
+import { planIntoNewVariation, applyPlan } from '../core/voicing-plan/apply.js';
+import { parseShorthand } from '../core/fretstring.js';
+import { siblingFilename } from '../songs/song-filename.js';
 
 // git's empty tree — the base when ours and theirs share no common ancestor
 // (both added the file), so a side's absence reads as "not there in base".
@@ -68,6 +72,40 @@ function resolveRegionByOrdinal(marked, ordinal, side) {
     }
   }
   return out.join('\n');
+}
+
+// Write each pending voicing keep-both into a canonical song (sync.keep_both
+// Decision 2; §8.5.4/§8.5.5): the incoming author's shape lands in a variation
+// named for them, copied from the in-use block so the arrangement is complete.
+// ours's shape is already in its block (the conflict region was resolved to
+// ours before this runs). A second keep-both for the same author accumulates
+// into that one variation rather than making another. One parse, the §8 writer
+// the single authority; returns the new canonical text (throws only if the
+// writer refuses, which the caller turns into a refusal).
+function applyVoicingKeepBoth(canonicalText, ops) {
+  let model = parse(canonicalText);
+  for (const op of ops) {
+    const frets = parseShorthand(op.shorthand);
+    if (!frets) continue; // theirs's shape unreadable — nothing to keep
+    // Re-read each pass: an earlier op may have renumbered the chart (§8.3 I3).
+    const reading = analyseSong(model);
+    const entry = reading.line.find((e) => e.ref.key === op.key);
+    if (!entry) continue; // the key is no longer in the chart (should not happen)
+    const planResult = { shapes: new Map([[entry.at, { frets }]]), reading };
+    try {
+      model = planIntoNewVariation(model, planResult, {
+        tuning: op.tuning,
+        name: op.name,
+        copyFrom: op.copyFrom,
+      });
+    } catch (err) {
+      // The author's variation already exists (a second keep-both into it):
+      // add theirs's shape to the same variation (Decision 2, "accumulate").
+      if (!/already exists/.test(String(err?.message ?? err))) throw err;
+      model = applyPlan(model, planResult, { tuning: op.tuning, variation: op.name });
+    }
+  }
+  return write(model);
 }
 
 // The display title of a song/setlist from its text, or the file's basename
@@ -182,6 +220,48 @@ export function createConflicts(deps) {
     } catch {
       // not in the index
     }
+  }
+
+  // The file names already in a book folder (for sibling-name collisions).
+  async function folderListing(dir, folder) {
+    const abs = folder ? `${dir}/${folder.replace(/\/$/, '')}` : dir;
+    try {
+      return await fs.promises.readdir(abs);
+    } catch {
+      return [];
+    }
+  }
+
+  // Stage a resolved song's canonical text, applying any pending voicing
+  // keep-both first (sync.keep_both). Returns true when staged, false on a
+  // writer refusal (already emitted). Sets `f.resolved` on success.
+  async function stageResolved(bookId, f, path, dir, canonicalText) {
+    let text = canonicalText;
+    if (f.keepBoth?.length) {
+      try {
+        text = applyVoicingKeepBoth(canonicalText, f.keepBoth);
+      } catch (err) {
+        emitRefused({ bookId, path, line: null, reason: 'unreadable', message: String(err?.message ?? err) });
+        emit(buildPayload(bookId));
+        return false;
+      }
+    }
+    await writeWorking(dir, path, text);
+    f.resolved = true;
+    return true;
+  }
+
+  // Canonicalise a region conflict's marked text (refusing a marker line,
+  // §11.12.3) and stage it. The single finalise path once a song's last region
+  // is settled.
+  async function stageFromMarked(bookId, f, path, dir) {
+    const res = canonicaliseFile(path, f.marked);
+    if (!res.ok) {
+      emitRefused({ bookId, path, line: res.line ?? null, reason: res.reason });
+      emit(buildPayload(bookId));
+      return false;
+    }
+    return stageResolved(bookId, f, path, dir, res.text);
   }
 
   // Recompute + materialise. One lock, the whole engage.
@@ -371,7 +451,9 @@ export function createConflicts(deps) {
       if (f.kind === 'file') {
         // Deleted on one side, edited on the other (§11.12.4): keep the edited
         // song (keeping first, workflow 9 L62-64) or delete it. The edited side's
-        // canonical text is the outcome's `kept`.
+        // canonical text is the outcome's `kept`. A deleted-vs-edited file has no
+        // second body to keep beside, so keep-both-song is not offered on it
+        // (sync.keep_both Decision 3).
         if (choice === 'delete') {
           await removeWorking(dir, path);
           f.resolved = true;
@@ -384,9 +466,36 @@ export function createConflicts(deps) {
         return;
       }
 
+      // Keep both, for a whole song (workflow 9 §Keep both, for a song;
+      // sync.keep_both Decision 3): rather than settling conflict by conflict,
+      // ours stays at its path (every remaining region resolved to ours) and
+      // theirs's incoming version is written beside it as <name>-<author>.cifra.md.
+      // Region conflicts only. Both canonical; both land in the one merge commit.
+      if (choice === 'keep_both_song') {
+        const oursRes = canonicaliseFile(path, resolveMarked(f.marked, 'ours'));
+        if (!oursRes.ok) {
+          emitRefused({ bookId, path, line: oursRes.line ?? null, reason: oursRes.reason });
+          emit(buildPayload(bookId));
+          return;
+        }
+        const theirsBlob = await blobAt(dir, session.theirsOid, path);
+        const theirsRes = theirsBlob != null ? canonicaliseFile(path, theirsBlob) : null;
+        const folder = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
+        const existing = await folderListing(dir, folder);
+        const siblingPath = folder + siblingFilename(basename(path), f.author, existing);
+        await writeWorking(dir, path, oursRes.text);
+        if (theirsRes?.ok) await writeWorking(dir, siblingPath, theirsRes.text);
+        f.items = [];
+        f.resolved = true;
+        await surface(bookId);
+        return;
+      }
+
       // A region conflict (§11.12.4). *edit* resolves the whole file from the
       // user's text; *keep mine* / *take theirs* resolve one region (the `index`
-      // the stepper is on) or, with no index, every remaining region at once.
+      // the stepper is on) or, with no index, every remaining region at once;
+      // *keep both* (voicing only) keeps ours in its block and records theirs's
+      // shape to land in a variation named for the author when the file settles.
       if (choice === 'edit') {
         const res = canonicaliseFile(path, text ?? '');
         if (!res.ok) {
@@ -396,9 +505,23 @@ export function createConflicts(deps) {
           emit(buildPayload(bookId));
           return;
         }
-        await writeWorking(dir, path, res.text);
         f.items = [];
-        f.resolved = true;
+        if (!(await stageResolved(bookId, f, path, dir, res.text))) return;
+        await surface(bookId);
+        return;
+      }
+
+      if (choice === 'keep_both') {
+        // Keep both shapes of a voicing conflict (workflow 9 §Settling one; §7.3):
+        // ours's shape stays in its block (resolve this region to ours), and
+        // theirs's shape is recorded to land in a variation named for the author.
+        // The variation is written once the file's last region settles, so the
+        // whole song is parsed and written canonical a single time.
+        const op = voicingKeepBothOp(index === null ? null : f.items[index], f.author);
+        f.marked = resolveRegionByOrdinal(f.marked, index, 'ours');
+        f.items.splice(index, 1);
+        if (op) (f.keepBoth ??= []).push(op);
+        if (f.items.length === 0 && !(await stageFromMarked(bookId, f, path, dir))) return;
         await surface(bookId);
         return;
       }
@@ -414,16 +537,7 @@ export function createConflicts(deps) {
         f.marked = resolveRegionByOrdinal(f.marked, index, side);
         f.items.splice(index, 1);
       }
-      if (f.items.length === 0) {
-        const res = canonicaliseFile(path, f.marked);
-        if (!res.ok) {
-          emitRefused({ bookId, path, line: res.line ?? null, reason: res.reason });
-          emit(buildPayload(bookId));
-          return;
-        }
-        await writeWorking(dir, path, res.text);
-        f.resolved = true;
-      }
+      if (f.items.length === 0 && !(await stageFromMarked(bookId, f, path, dir))) return;
       await surface(bookId);
     });
   }

@@ -651,11 +651,17 @@ export default {
     absent: '(removed)',
     keepMine: 'Keep mine',
     takeTheirs: 'Take theirs',
+    keepBoth: 'Keep both',
     edit: 'Edit',
     readsAsYours:
       'Until you settle it, {title} reads as your version, with the places in conflict marked.',
-    keepBothHint:
-      'To keep both shapes, choose Edit and put {author}’s in a variation of its own.',
+    // Keep both, for a whole song: yours stays, theirs becomes its own song.
+    keepBothSongTitle: 'Two songs?',
+    keepBothSongBody:
+      'Keep yours as it is and save {author}’s version beside it, as its own song, for when you have really made two songs.',
+    keepBothSongBodyFallback:
+      'Keep yours as it is and save the incoming version beside it, as its own song, for when two people have really made two songs.',
+    keepBothSong: 'Keep both, as two songs',
     previewLabel: '{title}, your version',
     // The §7 musical-terms phrase a screen reader announces at a conflicted
     // place in the reading preview (docs/screen-reader.md §7.1; workflow 9
@@ -667,6 +673,7 @@ export default {
     settledSoFar: 'Settled so far',
     settledMine: 'Kept yours',
     settledTheirs: 'Took {author}’s',
+    settledKeepBoth: 'Kept both — {author}’s in a variation',
     settledEdit: 'Edited the text',
     allSettled: 'Every conflict in {title} is settled.',
     // The *edit* affordance: the song's marked text, raw, with git's markers
@@ -699,6 +706,8 @@ export default {
     conflictBadge: 'conflict',
     settle: 'Settle',
     settleSong: 'Settle {title}',
+    keepBothSong: 'Keep both',
+    keepBothSongFor: 'Keep both versions of {title} as two songs',
     deletedBody: '{author} deleted this song. You had edited it.',
     keepSong: 'Keep the song, with the edits',
     deleteSong: 'Delete it',

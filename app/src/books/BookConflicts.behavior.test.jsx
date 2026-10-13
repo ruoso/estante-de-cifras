@@ -90,6 +90,22 @@ describe('BookConflicts (behavior)', () => {
     expect(lastCommand(sent, CommandKind.RESOLVE_CONFLICT).payload).toMatchObject({ path: 'brejeiro.cifra.md', choice: 'delete' });
   });
 
+  it('the in-conflict row mirrors Keep both (as two songs), firing keep_both_song by keyboard; axe clean (workflow 9 §Keep both, for a song)', async () => {
+    const { store, sent, emit } = makeStore();
+    emit(event(EventKind.CONFLICTS, PAYLOAD));
+    const { container } = renderPanel(store);
+
+    const btn = screen.getByRole('button', { name: 'Keep both versions of Carinhoso as two songs' });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    act(() => {
+      fireEvent.keyDown(btn, { key: 'Enter' });
+      fireEvent.keyUp(btn, { key: 'Enter' });
+    });
+    expect(lastCommand(sent, CommandKind.RESOLVE_CONFLICT).payload).toMatchObject({
+      bookId: BOOK, path: 'carinhoso.cifra.md', choice: 'keep_both_song',
+    });
+  });
+
   it('abandon the merge is reachable by keyboard and sends ABANDON_MERGE', async () => {
     const { store, sent, emit } = makeStore();
     emit(event(EventKind.CONFLICTS, PAYLOAD));

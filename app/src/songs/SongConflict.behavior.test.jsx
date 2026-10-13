@@ -139,6 +139,51 @@ describe('SongConflict (behavior)', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Line 3 is still a conflict marker');
   });
 
+  it('offers Keep both only on a voicing step, not on a chart step, and the old hint is gone (workflow 9 §Settling one as amended)', async () => {
+    const { store, emit } = makeStore();
+    seed(emit);
+    const { container } = renderScreen(store);
+
+    // Step 1 is the chart conflict: no per-conflict Keep both, no textual hint.
+    expect(screen.queryByRole('button', { name: 'Keep both' })).toBeNull();
+    expect(screen.queryByText(/choose Edit and put/i)).toBeNull();
+
+    // Step 2 is the voicing: Keep both appears, replacing the hint.
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Next conflict' })));
+    expect(screen.getByText('The shape for G7')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Keep both' })).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('keep both on a voicing is reachable by keyboard and fires the keep_both choice for that step', async () => {
+    const { store, sent, emit } = makeStore();
+    seed(emit);
+    renderScreen(store);
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Next conflict' })));
+    const btn = screen.getByRole('button', { name: 'Keep both' });
+    act(() => {
+      fireEvent.keyDown(btn, { key: 'Enter' });
+      fireEvent.keyUp(btn, { key: 'Enter' });
+    });
+    expect(lastCommand(sent, CommandKind.RESOLVE_CONFLICT).payload).toMatchObject({
+      bookId: BOOK, path: PATH, choice: 'keep_both', index: 1, author: 'Ana',
+    });
+  });
+
+  it('the whole-song Keep both fires the keep_both_song choice, and axe is clean (workflow 9 §Keep both, for a song)', async () => {
+    const { store, sent, emit } = makeStore();
+    seed(emit);
+    const { container } = renderScreen(store);
+
+    const btn = screen.getByRole('button', { name: 'Keep both, as two songs' });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    act(() => fireEvent.click(btn));
+    expect(lastCommand(sent, CommandKind.RESOLVE_CONFLICT).payload).toMatchObject({
+      bookId: BOOK, path: PATH, choice: 'keep_both_song', author: 'Ana',
+    });
+  });
+
   it('closes when its song leaves the model (settled, or the book abandoned)', async () => {
     const { store, emit } = makeStore();
     seed(emit);

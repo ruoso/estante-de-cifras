@@ -42,8 +42,9 @@ task sync "Sync" {
   task keep_both "Keep-both conflict resolution" {
     effort 2d
     allocate team
+    complete 100
     depends !conflicts
-    note "Keep-both resolution: theirs into a new variation for a voicing, a <name>-other.cifra.md sibling for a song; workflow 9 §Later. Source of debt: tasks/refinements/sync/conflicts.md (sync.conflicts). Tests: behavior (each keep-both against a local remote; axe); e2e-web (keep both a voicing on the three viewports; axe)."
+    note "Keep-both resolution: theirs into a new variation for a voicing, a <name>-other.cifra.md sibling for a song; workflow 9 §Later. Source of debt: tasks/refinements/sync/conflicts.md (sync.conflicts). Tests: behavior (each keep-both against a local remote; axe); e2e-web (keep both a voicing on the three viewports; axe). Refinement: tasks/refinements/sync/keep_both.md"
   }
   task lost_access "Losing access" {
     effort 1d

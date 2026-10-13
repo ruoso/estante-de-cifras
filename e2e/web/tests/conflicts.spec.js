@@ -217,8 +217,8 @@ async function openResolver(page) {
   expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the paused book panel
   await page.getByRole('button', { name: new RegExp(`^Settle ${escapeRegExp(SONG_TITLE)}`) }).click();
   await expect(page.getByText(/Conflict \d+ of \d+/)).toBeVisible();
-  await expect(page.getByText('Yours')).toBeVisible();
-  await expect(page.getByText('Ana’s')).toBeVisible();
+  await expect(page.getByText('Yours', { exact: true })).toBeVisible();
+  await expect(page.getByText('Ana’s', { exact: true })).toBeVisible();
   expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the per-song resolver
 }
 
@@ -284,4 +284,126 @@ test('abandon puts the book back as it was before the sync', async ({ page }) =>
   // The panel closes back to the shell; the book is no longer paused (the
   // incoming change waits to be merged at the next sync — workflow 9 L77-78).
   await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible({ timeout: 30000 });
+});
+
+// --- keep both, for a voicing (workflow 9 §Settling one, the keep-both option;
+// sync.keep_both) — a song that carries a voicings block, both sides reshaping
+// the same chord. Its own song fixture (written for the purpose). ---
+
+const VSONG_TITLE = 'Toada da Ana';
+const VSONG_FILE = 'toada-da-ana.cifra.md';
+const V_TUNING = 'E2 A2 D3 G3 B3 E4';
+const V_BASE = 'x35543'; // the seeded Cm shape
+const V_OWNER = 'x3554x'; // the owner reshapes it their way
+const V_ANA = '8-10-10-8-8-8'; // the second writer reshapes it hers
+const voicingSong = (cm) =>
+  [`# ${VSONG_TITLE}`, '- language: en', '', '## Parte', '```', 'Cm | F7 | Cm | G7', '```',
+    '', '---', '', `## Voicings: ${V_TUNING}`, `- Cm: ${cm}`, '- F7: 131211', '- G7: 320001'].join('\n');
+
+async function seedVoicingSong(gitUrl, cookie) {
+  const dir = makeDir();
+  await runGit(tmpdir(), [...cookieArgs(cookie), 'clone', gitUrl, dir]);
+  await configIdentity(dir, 'Beto', 'beto@users.estantedecifras.app');
+  writeFileSync(join(dir, VSONG_FILE), `${voicingSong(V_BASE)}\n`);
+  await runGit(dir, ['add', VSONG_FILE]);
+  await runGit(dir, ['commit', '-m', 'Seed a voicing song']);
+  await runGit(dir, [...cookieArgs(cookie), 'push', gitUrl, 'HEAD:refs/heads/main']);
+}
+
+async function anaReshapesVoicing(gitUrl, cookie) {
+  const dir = makeDir();
+  await runGit(tmpdir(), [...cookieArgs(cookie), 'clone', gitUrl, dir]);
+  await configIdentity(dir, INCOMING_AUTHOR, 'ana@users.estantedecifras.app');
+  writeFileSync(join(dir, VSONG_FILE), `${voicingSong(V_ANA)}\n`);
+  await runGit(dir, ['add', VSONG_FILE]);
+  await runGit(dir, ['commit', '-m', 'Reshape the chord']);
+  await runGit(dir, [...cookieArgs(cookie), 'push', gitUrl, 'HEAD:refs/heads/main']);
+}
+
+async function ownerReshapesVoicing(page, bookId) {
+  await page.goto(`/#dev/editor?book=${encodeURIComponent(bookId)}&path=${encodeURIComponent(VSONG_FILE)}`);
+  await expect(page.locator('.cm-content')).toBeVisible();
+  const line = page.locator('.cm-content .cm-line').filter({ hasText: `- Cm: ${V_BASE}` }).first();
+  await line.click();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Shift+End');
+  await page.keyboard.insertText(`- Cm: ${V_OWNER}`);
+  await page.waitForTimeout(800);
+  await page.getByRole('button', { name: 'Save' }).click();
+  const sheet = page.getByRole('dialog');
+  await expect(sheet).toBeVisible();
+  const nameField = sheet.getByRole('textbox', { name: /Your name/ });
+  if (await nameField.count()) await nameField.fill('Beto');
+  await sheet.getByRole('button', { name: 'Save' }).click();
+  await expect(sheet).toBeHidden();
+}
+
+async function remoteVoicingSong(gitUrl, cookie) {
+  const dir = makeDir();
+  await runGit(tmpdir(), [...cookieArgs(cookie), 'clone', gitUrl, dir]);
+  return readFileSync(join(dir, VSONG_FILE), 'utf8');
+}
+
+async function reachNeedsYouVoicing(page) {
+  await enableVirtualAuthenticator(page);
+  await signInWithPasskey(page);
+  await makeLocalBook(page, BOOK);
+  await putBookOnline(page, BOOK);
+  const book = await bookFromApi(page, BOOK);
+  const bookId = book.id;
+  const gitUrl = new URL(book.gitUrl, `${baseUrl}/`).toString();
+  const cookie = await sessionCookieHeader(page);
+
+  await seedVoicingSong(gitUrl, cookie);
+  await reloadAndSync(page); // pull the seeded song
+  await anaReshapesVoicing(gitUrl, cookie); // the remote is ahead, same chord
+  await ownerReshapesVoicing(page, bookId); // a colliding local commit
+  await reloadAndSync(page); // sync second → the merge cannot settle alone
+
+  await page.getByRole('tab', { name: 'Books' }).click();
+  await expect(page.getByText('needs you').first()).toBeVisible({ timeout: 30000 });
+  await page.getByRole('button', { name: rowFor(BOOK) }).click();
+  await expect(page.getByText(/songs? need you|song needs you/i)).toBeVisible();
+  await expect(page.getByText('In conflict')).toBeVisible();
+  return { bookId, gitUrl, cookie };
+}
+
+test('keep both a voicing: the owner keeps their shape and Ana’s lands in a variation named for her, pushed and fetched back (workflow 9 §Later)', async ({ page }) => {
+  test.setTimeout(240000);
+  const { bookId, gitUrl, cookie } = await reachNeedsYouVoicing(page);
+
+  // Open the resolver; axe on the paused panel and the per-song resolver.
+  expect(await analyzeWcag21aa(page)).toEqual([]);
+  await page.getByRole('button', { name: new RegExp(`^Settle ${escapeRegExp(VSONG_TITLE)}`) }).click();
+  await expect(page.getByText('The shape for Cm')).toBeVisible();
+  await expect(page.getByText('Yours', { exact: true })).toBeVisible();
+  await expect(page.getByText('Ana’s', { exact: true })).toBeVisible();
+  expect(await analyzeWcag21aa(page)).toEqual([]);
+
+  // Keep both: ours stays in use, Ana's goes into a variation named for her.
+  await page.getByRole('button', { name: 'Keep both', exact: true }).click();
+
+  // The resolved two-parent merge is pushed: a fresh clone keeps the owner's Cm
+  // in the default block and carries Ana's shape in a variation named for her.
+  await expect.poll(async () => remoteVoicingSong(gitUrl, cookie), { timeout: 90000 }).toContain(`## Ana: ${V_TUNING}`);
+  const resolved = await remoteVoicingSong(gitUrl, cookie);
+  expect(resolved).toContain(`- Cm: ${V_OWNER}`); // the owner's shape, still in use
+  expect(resolved).toContain(V_ANA); // Ana's shape, kept
+  expect(resolved).not.toContain('<<<<<<<'); // canonical, no markers
+
+  // The book no longer *needs you*.
+  await reloadAndSync(page);
+  await page.getByRole('tab', { name: 'Books' }).click();
+  await expect(page.getByRole('button', { name: rowFor(BOOK) })).toBeVisible();
+  await expect(page.getByText('needs you')).toHaveCount(0);
+
+  // The reading view offers the variation named for Ana in its picker (the
+  // picker — a Select — appears once the song has two variations), and axe is
+  // clean on the resolved song.
+  await page.goto(`/#dev/reading?book=${encodeURIComponent(bookId)}&path=${encodeURIComponent(VSONG_FILE)}`);
+  const variationPicker = page.getByRole('button', { name: /Variation/ });
+  await expect(variationPicker).toBeVisible({ timeout: 30000 });
+  expect(await analyzeWcag21aa(page)).toEqual([]);
+  await variationPicker.click();
+  await expect(page.getByRole('option', { name: 'Ana' })).toBeVisible();
 });

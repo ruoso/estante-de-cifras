@@ -564,11 +564,16 @@ export default {
     absent: '(eliminado)',
     keepMine: 'Quedarme con el mío',
     takeTheirs: 'Quedarme con el suyo',
+    keepBoth: 'Quedarme con ambos',
     edit: 'Editar',
     readsAsYours:
       'Hasta que lo resuelvas, {title} se muestra en tu versión, con los lugares en conflicto marcados.',
-    keepBothHint:
-      'Para conservar ambas formas, elige Editar y pon la de {author} en una variación propia.',
+    keepBothSongTitle: '¿Dos canciones?',
+    keepBothSongBody:
+      'Conserva la tuya tal como está y guarda la versión de {author} al lado, como su propia canción, para cuando de verdad hicieron dos canciones.',
+    keepBothSongBodyFallback:
+      'Conserva la tuya tal como está y guarda la versión que llegó al lado, como su propia canción, para cuando dos personas de verdad hicieron dos canciones.',
+    keepBothSong: 'Quedarme con ambas, como dos canciones',
     previewLabel: '{title}, tu versión',
     spoken: {
       chartLine: 'conflicto en la línea del cifrado',
@@ -577,6 +582,7 @@ export default {
     settledSoFar: 'Resuelto hasta ahora',
     settledMine: 'Quedó el tuyo',
     settledTheirs: 'Quedó el de {author}',
+    settledKeepBoth: 'Quedaron ambos — el de {author} en una variación',
     settledEdit: 'Texto editado',
     allSettled: 'Todos los conflictos de {title} están resueltos.',
     editTitle: 'Editar el texto de {title}',
@@ -602,6 +608,8 @@ export default {
     conflictBadge: 'conflicto',
     settle: 'Resolver',
     settleSong: 'Resolver {title}',
+    keepBothSong: 'Quedarme con ambas',
+    keepBothSongFor: 'Quedarme con ambas versiones de {title} como dos canciones',
     deletedBody: '{author} eliminó esta canción. Tú la habías editado.',
     keepSong: 'Conservar la canción, con los cambios',
     deleteSong: 'Eliminarla',

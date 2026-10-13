@@ -5,7 +5,7 @@
 // `-2`/`-3`. Fixtures are the titles the workflow and the W03 board name.
 
 import { describe, it, expect } from 'vitest';
-import { deriveSongFilename, slugify } from './song-filename.js';
+import { deriveSongFilename, slugify, siblingFilename } from './song-filename.js';
 
 describe('deriveSongFilename', () => {
   it('folds accents and lower-cases the title (workflow 3 §Its file name L43-45)', () => {
@@ -59,5 +59,36 @@ describe('slugify', () => {
   it('returns the bare slug, no extension', () => {
     expect(slugify('Coração Vagabundo')).toBe('coracao-vagabundo');
     expect(slugify('')).toBe('');
+  });
+});
+
+// Unit — siblingFilename, the *keep both, for a song* sibling name
+// (sync.keep_both Decision 4; workflow 9 §Keep both, for a song). Named for the
+// other writer: <stem>-<slug of author>.cifra.md, collision-suffixed like
+// deriveSongFilename.
+describe('siblingFilename', () => {
+  it('names the sibling for the incoming writer (workflow 9 §Later / W09: <name>-ana.cifra.md)', () => {
+    expect(siblingFilename('roda-de-rua', 'Ana')).toBe('roda-de-rua-ana.cifra.md');
+    // The author name is folded to ASCII like any slug.
+    expect(siblingFilename('coracao', 'João')).toBe('coracao-joao.cifra.md');
+  });
+
+  it('falls back to the -other placeholder when no author is known (WBS task text)', () => {
+    expect(siblingFilename('roda-de-rua', null)).toBe('roda-de-rua-other.cifra.md');
+    expect(siblingFilename('roda-de-rua', '')).toBe('roda-de-rua-other.cifra.md');
+    expect(siblingFilename('roda-de-rua', '—')).toBe('roda-de-rua-other.cifra.md');
+  });
+
+  it('gains -2, -3 against names already in the folder (array or Set)', () => {
+    expect(siblingFilename('roda-de-rua', 'Ana', ['roda-de-rua-ana.cifra.md'])).toBe(
+      'roda-de-rua-ana-2.cifra.md',
+    );
+    expect(
+      siblingFilename(
+        'roda-de-rua',
+        'Ana',
+        new Set(['roda-de-rua-ana.cifra.md', 'roda-de-rua-ana-2.cifra.md']),
+      ),
+    ).toBe('roda-de-rua-ana-3.cifra.md');
   });
 });

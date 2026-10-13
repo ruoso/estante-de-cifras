@@ -300,7 +300,11 @@ export const CommandKind = Object.freeze({
   // whole file's marked text by that side, §11.12.4), 'edit' (`text` is the
   // user's edited text — refused if it still holds a marker line, §11.12.3),
   // 'keep' / 'delete' (a deleted-vs-edited `file` conflict — keep the edited song
-  // or delete it, workflow 9 §Settling one). It re-emits CONFLICTS; when the last
+  // or delete it, workflow 9 §Settling one), 'keep_both' (a voicing conflict —
+  // keep ours in its block and write theirs into a variation named for the
+  // author, sync.keep_both) or 'keep_both_song' (a region-conflicted song —
+  // keep ours and write theirs's version beside it as <name>-<author>.cifra.md).
+  // It re-emits CONFLICTS; when the last
   // conflict in the book is settled it commits the two-parent merge and pushes.
   // COMMIT_MERGE `{ bookId, author }` forces the settle-and-push when every file
   // is already resolved (the book-level *everything settled* path); normally

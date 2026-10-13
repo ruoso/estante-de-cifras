@@ -215,6 +215,13 @@ export default function SongConflict({ store, bookId, path, onClose }) {
     logSettled(`${describe(item, author).title} · ${author ? t('songConflict.settledTheirs', { author }) : t('songConflict.theirsFallback')}`);
     store.send(command(CommandKind.RESOLVE_CONFLICT, { bookId, path, choice: 'theirs', index: effStep }));
   };
+  const keepBoth = () => {
+    logSettled(`${describe(item, author).title} · ${t('songConflict.settledKeepBoth', { author })}`);
+    store.send(command(CommandKind.RESOLVE_CONFLICT, { bookId, path, choice: 'keep_both', index: effStep, author }));
+  };
+  const keepBothSong = () => {
+    store.send(command(CommandKind.RESOLVE_CONFLICT, { bookId, path, choice: 'keep_both_song', author }));
+  };
   const openEdit = () => {
     setRefused(null);
     setEditing({ text: song.marked ?? '' });
@@ -309,15 +316,26 @@ export default function SongConflict({ store, bookId, path, onClose }) {
         <div className="actions est-conflict-actions">
           <Button className="btn" onPress={keepMine}>{t('songConflict.keepMine')}</Button>
           <Button className="btn" onPress={takeTheirs}>{t('songConflict.takeTheirs')}</Button>
+          {item?.kind === 'voicing' && author && (
+            <Button className="btn" onPress={keepBoth}>{t('songConflict.keepBoth')}</Button>
+          )}
           <Button className="btn" onPress={openEdit}>{t('songConflict.edit')}</Button>
         </div>
 
-        {item?.kind === 'voicing' && author && (
-          <p className="t-small est-conflict-hint">{t('songConflict.keepBothHint', { author })}</p>
-        )}
-
         <div className="notice est-conflict-notice">
           <span className="t-small">{t('songConflict.readsAsYours', { title: song.title })}</span>
+        </div>
+
+        <div className="card pad est-conflict-keepboth-song">
+          <span className="t-h3">{t('songConflict.keepBothSongTitle')}</span>
+          <p className="t-small">
+            {author
+              ? t('songConflict.keepBothSongBody', { author })
+              : t('songConflict.keepBothSongBodyFallback')}
+          </p>
+          <div className="actions">
+            <Button className="btn" onPress={keepBothSong}>{t('songConflict.keepBothSong')}</Button>
+          </div>
         </div>
 
         {previewModel && (

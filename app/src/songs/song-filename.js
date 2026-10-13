@@ -27,6 +27,12 @@ const SONG_SUFFIX = '.cifra.md';
 // title that folds to nothing (only punctuation/accents) falls back to.
 const PLACEHOLDER_SLUG = 'untitled';
 
+// The slug a *keep both* sibling falls back to when the incoming writer has no
+// known name (the WBS placeholder `<name>-other.cifra.md`; sync.keep_both
+// Decision 4). The normative name is the writer's (e.g. `-ana`); this only
+// stands in when none is known.
+const OTHER_SLUG = 'other';
+
 // Combining marks (U+0300–U+036F): the accents NFD splits a letter into, dropped
 // so an accented letter folds to its ASCII base (é → e, ç → c after NFD).
 const COMBINING_MARKS = /[̀-ͯ]/g;
@@ -66,6 +72,34 @@ export function slugify(title) {
 export function deriveSongFilename(title, existing = []) {
   const taken = existing instanceof Set ? existing : new Set(existing);
   const slug = slugify(title) || PLACEHOLDER_SLUG;
+  const base = `${slug}${SONG_SUFFIX}`;
+  if (!taken.has(base)) return base;
+  for (let n = 2; ; n += 1) {
+    const candidate = `${slug}-${n}${SONG_SUFFIX}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
+/**
+ * The file name a *keep both, for a song* resolution writes beside a kept song,
+ * named for the other writer: `<stem>-<slug of author>.cifra.md` (workflow 9
+ * §Keep both, for a song; sync.keep_both Decision 4). So *Roda de rua* kept by
+ * the user, with Ana's diverging version beside it, becomes
+ * `roda-de-rua-ana.cifra.md`. An author who folds to nothing (none known)
+ * falls back to the `-other` placeholder (the WBS task text's generic name).
+ *
+ * Collision-suffixed `-2`, `-3`, … against `existing` exactly like
+ * `deriveSongFilename`, so a second keep-both for the same pair never
+ * overwrites the first.
+ *
+ * @param {string} stem  the kept song's file stem (its name without `.cifra.md`)
+ * @param {string|null} [author]  the incoming writer's display name
+ * @param {Iterable<string>} [existing]  file names already in the same folder
+ * @returns {string} e.g. `roda-de-rua-ana.cifra.md`
+ */
+export function siblingFilename(stem, author, existing = []) {
+  const taken = existing instanceof Set ? existing : new Set(existing);
+  const slug = `${stem}-${slugify(author) || OTHER_SLUG}`;
   const base = `${slug}${SONG_SUFFIX}`;
   if (!taken.has(base)) return base;
   for (let n = 2; ; n += 1) {

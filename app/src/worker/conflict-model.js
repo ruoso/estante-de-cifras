@@ -87,6 +87,41 @@ export function songConflictModel(outcome, opts = {}) {
 }
 
 /**
+ * The keep-both descriptor for a `voicing` conflict (sync.keep_both Decision 2):
+ * what the Worker needs to write the incoming author's shape into a variation
+ * named for them, copied from the in-use block. Pure — it reads the raw merge
+ * `voicing` conflict (§11.12.1) as data and parses nothing (the Worker applies
+ * it through the §8.5 editing ops and the §8 writer).
+ *
+ * Returns null for any non-voicing conflict, a voicing with no `theirs` side
+ * (nothing of theirs to keep), or a missing author (the variation is named for
+ * the other writer, so it needs one — the resolver only offers keep-both when
+ * the incoming author is known).
+ *
+ * @param {{ kind: string, tuning?: string, variation?: string, key?: string,
+ *   theirs?: string }} conflict  a raw merge conflict; for a voicing, `theirs`
+ *   is the fret shorthand §8.4.6 writes (optionally with a ` (fingers)` suffix)
+ * @param {string|null} author  the incoming writer's display name
+ * @returns {{ tuning: string, copyFrom: string, key: string, shorthand: string,
+ *   name: string }|null}
+ */
+export function voicingKeepBothOp(conflict, author) {
+  if (!conflict || conflict.kind !== 'voicing') return null;
+  if (conflict.theirs == null || !author) return null;
+  return {
+    tuning: conflict.tuning,
+    // The in-use block the new variation copies, so the arrangement is complete
+    // rather than a one-chord fragment (§7.3 variations do not inherit).
+    copyFrom: conflict.variation ?? '',
+    key: conflict.key,
+    // The frets are the part before any ` (fingers)` suffix; keep-both carries
+    // the shape, and the fingering is optional (§7.5.1).
+    shorthand: String(conflict.theirs).split(/\s/)[0],
+    name: author,
+  };
+}
+
+/**
  * The lines of ours a conflicted song's reading view marks (`mark-conf`): the
  * ours side of every chart/sections/block-notes region (§11.12.1). Each is a
  * canonical chart line as the merge wrote it, which is how ours's reading chart

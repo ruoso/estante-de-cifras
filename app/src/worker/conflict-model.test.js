@@ -7,7 +7,7 @@
 // author for theirs).
 
 import { describe, it, expect } from 'vitest';
-import { songConflictModel, disputedChartLines } from './conflict-model.js';
+import { songConflictModel, disputedChartLines, voicingKeepBothOp } from './conflict-model.js';
 
 describe('songConflictModel', () => {
   it('maps a chart conflict to each side as its run of bar lines (§11.12.1)', () => {
@@ -137,5 +137,42 @@ describe('disputedChartLines', () => {
 
   it('is empty for a whole-file conflict (no region)', () => {
     expect(disputedChartLines({ kind: 'conflicts', conflicts: [{ kind: 'file', deleted: 'ours' }] })).toEqual([]);
+  });
+});
+
+// Unit — voicingKeepBothOp, the keep-both descriptor for a voicing conflict
+// (sync.keep_both Decision 2): what the Worker needs to write theirs's shape
+// into a variation named for the author, copied from the in-use block.
+describe('voicingKeepBothOp', () => {
+  const voicing = {
+    kind: 'voicing',
+    line: 2,
+    tuning: 'E2 A2 D3 G3 B3 E4',
+    variation: '',
+    key: 'Cm[2]',
+    base: '8-10-10-8-8-8',
+    ours: 'x35543',
+    theirs: '7-10-10-8-8-8',
+  };
+
+  it('carries the tuning, in-use variation to copy, key and theirs shorthand (§7.3/§8.4.6)', () => {
+    expect(voicingKeepBothOp(voicing, 'Ana')).toEqual({
+      tuning: 'E2 A2 D3 G3 B3 E4',
+      copyFrom: '', // the default variation the conflict lives in
+      key: 'Cm[2]',
+      shorthand: '7-10-10-8-8-8',
+      name: 'Ana',
+    });
+  });
+
+  it('drops a ` (fingers)` suffix, keeping only the frets (the shape, not its fingering)', () => {
+    const withFingers = { ...voicing, theirs: 'x32010 (- 3 2 - 1 -)' };
+    expect(voicingKeepBothOp(withFingers, 'Ana').shorthand).toBe('x32010');
+  });
+
+  it('returns null for a non-voicing conflict, a voicing with no theirs, or no author', () => {
+    expect(voicingKeepBothOp({ kind: 'chart', ours: ['C | G'], theirs: ['C | Am'] }, 'Ana')).toBeNull();
+    expect(voicingKeepBothOp({ ...voicing, theirs: undefined }, 'Ana')).toBeNull();
+    expect(voicingKeepBothOp(voicing, null)).toBeNull();
   });
 });
