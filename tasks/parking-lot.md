@@ -245,7 +245,17 @@ Append one `###` block per item, newest at the bottom:
 - **Question**: Beyond what automatic already gives (a dark-mode device shows Palco), a performer at a gig might want a one-tap header shortcut to Palco without opening the account screen. Should Estante add a fast in-header Palco switch in addition to the single Preferences control on the account screen?
 - **Why parked**: product judgment call; the picker ships as the one account-screen surface. Whether a header shortcut is worth the extra control complexity is a deliberate product decision, not a design task.
 
-### 2026-10-13 — Republish the mockup canvas after Theme-picker, Screen-reader, and W09 boards
-- **Source**: closer for `design.theme_picker` (tasks/refinements/design/theme_picker.md); updated by closer for `design.screen_reader`; updated by closer for `sync.keep_both`.
-- **Question**: `docs/mockups/Theme-picker.dc.html`, `docs/mockups/Screen-reader.dc.html`, and `docs/mockups/W09-conflicts.dc.html` are written/updated and registered in `canvas.json`, but the published canvas needs to be updated to include the new boards and the W09 change (hint region → Keep both action). Implementers cannot render or publish the board.
-- **Why parked**: work only a person can do — requires publishing access to the external canvas host. (See also the earlier 2026-10-05 entry for W15; all four boards can be published in one pass.)
+### 2026-10-13 — Republish the mockup canvas after Theme-picker, Screen-reader, W09, and W17 boards
+- **Source**: closer for `design.theme_picker` (tasks/refinements/design/theme_picker.md); updated by closer for `design.screen_reader`; updated by closer for `sync.keep_both`; updated by closer for `design.leaving`.
+- **Question**: `docs/mockups/Theme-picker.dc.html`, `docs/mockups/Screen-reader.dc.html`, `docs/mockups/W09-conflicts.dc.html`, and `docs/mockups/W17-leaving.dc.html` are written/updated and registered in `canvas.json`, but the published canvas needs to be updated to include the new boards and the W09 change (hint region → Keep both action). Implementers cannot render or publish the board.
+- **Why parked**: work only a person can do — requires publishing access to the external canvas host. (See also the earlier 2026-10-05 entry for W15; all five boards can be published in one pass.)
+
+### 2026-10-13 — Handing ownership of a book to a successor on leaving
+- **Source**: closer for `design.leaving` (tasks/refinements/design/leaving.md), surfaced by implementer's return summary and workflow 10 §Later (line 120).
+- **Question**: When an account owner leaves, their shared books are currently deleted for everyone (the first-pass policy). Workflow 10 §Later defers *handing ownership* — letting a departing owner pass a shared book (a band book, a class book) to a successor so it outlives them. Should leaving be where handing ownership finally lands, and if so, who may be designated successor and how is the transfer authorised?
+- **Why parked**: product judgment call; workflow 10 §Later explicitly defers this. Deciding yes requires the handing-ownership feature (new service endpoint, new app surface in workflow 10) and a UI in the leaving flow to choose a successor — a deliberate design decision before it can be a WBS leaf.
+
+### 2026-10-13 — Leave one shared book without deleting the account
+- **Source**: closer for `design.leaving` (tasks/refinements/design/leaving.md), surfaced by implementer's return summary and refinement §Open questions.
+- **Question**: A member may want to drop a single membership (stop following a shared book) without deleting their account. There is no self-remove endpoint today: removing the book from the shelf keeps the membership, and *Mine on Estante* re-offers it. Should a *Leave this book* verb be added — and if so, does it belong to a new `books.leave` task or to an existing sharing/books task?
+- **Why parked**: separate small design decision not part of workflow 17; requires deciding the self-remove surface (where it lives in the book-management screen, what the confirmation says) before it is a concrete WBS leaf.

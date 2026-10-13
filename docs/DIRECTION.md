@@ -363,7 +363,8 @@ Written down as a contract, `api/`, and both sides tested against it:
 
 - **Signing in**: registering a passkey and signing in with one; requesting
   and redeeming an emailed link; signing out; the signed-in devices and the
-  passkeys, listed and removed (workflow 13).
+  passkeys, listed and removed (workflow 13); and deleting the account
+  altogether, with the cascade over the books it owns (workflow 17).
 - **Books**: the user's own, listed; creating one, empty and private;
   deleting one (owner only); forking one (workflows 7, 11).
 - **The change check**: one request for a whole shelf, each book with the
@@ -530,8 +531,16 @@ workflows do not yet cover, and work that comes before building:
   ([workflows/16-chord-explorer.md](workflows/16-chord-explorer.md)). Workflow 2
   made it a search result; workflow 16 is what it shows — fingerings ranked and
   grouped by position, viewing by notation, starring a shape as *my shape*.
-- **Leaving**: deleting an account and taking one's data out, and what
-  happens to books others are members of.
+- **Leaving**, decided and drawn: workflow 17
+  ([workflows/17-leaving.md](workflows/17-leaving.md),
+  [mockups/W17-leaving.dc.html](mockups/W17-leaving.dc.html)) — taking one's data
+  out as the per-book downloads the device already holds, then a type-the-name
+  delete that removes the account, its sessions and its passkeys. A book whose
+  owner leaves is deleted for everyone (members see *no longer shared with you*,
+  the local copy kept and unpushed saves with it, a fork or download offered,
+  workflows 8, 10, 11); a book the leaver only belongs to is untouched but for
+  their own membership. The delete is the one action that waits for a connection;
+  taking the data out does not.
 - **How a screen reader reads a chart**, decided and drawn:
   [screen-reader.md](screen-reader.md) and
   [mockups/Screen-reader.dc.html](mockups/Screen-reader.dc.html) — the order
@@ -553,7 +562,7 @@ Worked through one at a time, in [workflows/](workflows/), each to the point
 where its screens and its edge cases are known, and each drawn on a phone, a
 tablet and a computer in [mockups/](mockups/), with the visual language they
 share. The first fourteen were decided together; the design-gap workflows of
-§6 join them as each is drawn — workflows 15 and 16 here. Roughly in the
+§6 join them as each is drawn — workflows 15, 16 and 17 here. Roughly in the
 order a user meets them:
 
 1. **First run** — what a new user sees, and how they reach a song.
@@ -578,6 +587,8 @@ order a user meets them:
     voicing rules with presets and the expert panel.
 16. **The chord explorer** — fingerings ranked and grouped by position,
     viewing by notation, starring a shape as *my shape*.
+17. **Leaving** — taking your data out, deleting the account, and what becomes
+    of the books others are members of.
 
 ## 8. Later
 

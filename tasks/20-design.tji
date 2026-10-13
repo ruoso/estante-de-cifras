@@ -21,7 +21,8 @@ task design "Design gaps" {
   task leaving "Workflow 17: leaving" {
     effort 1d
     allocate team
-    note "Deleting an account and taking one's data out; what happens to books others are members of. DIRECTION §6. Tests: none — design deliverable (the workflow document and its board)."
+    complete 100
+    note "Deleting an account and taking one's data out; what happens to books others are members of. DIRECTION §6. Tests: none — design deliverable (the workflow document and its board). Refinement: tasks/refinements/design/leaving.md"
   }
   task screen_reader "How a screen reader reads a sung line" {
     effort 1d
