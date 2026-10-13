@@ -68,6 +68,27 @@ function tokenFor(item, address, measure, item_) {
   };
 }
 
+// The per-slot `voice` descriptor the screen-reader reading consumes
+// (`reading.js`, shell.a11y_chart): what to announce where the chart draws a
+// glyph. A `chord` carries its parsed model (`item.chord`, the §3 spoken name's
+// input) and its §2.4 footnote index; a `nochord` is announced "no chord"; a
+// `lead` is a word-run alone; a beat/repeat/unknown carries its glyph text, as
+// there is no §3 spoken form for it. It is additive — the non-reading render
+// never looks at it (the refinement's "the view assembles the renderer's
+// labels" seam; screen-reader.md §8).
+function voiceFor(item) {
+  switch (item.type) {
+    case 'chord':
+      return { type: 'chord', chord: item.chord ?? null, footnote: item.index ?? 1 };
+    case 'nochord':
+      return { type: 'nochord' };
+    case 'lead':
+      return { type: 'lead' };
+    default:
+      return { type: item.type, text: chordText(item) };
+  }
+}
+
 // A sung line → a row of segments built from the measure-making items in column
 // order. Segments are grouped per measure so the hyphen never bridges across a
 // bar rule (a word does not continue over a bar between measures); within a
@@ -90,6 +111,7 @@ function sungRow(line, address) {
         words,
         hyphen,
         token: tokenFor(item, address, measureIndex, itemIndex),
+        voice: voiceFor(item),
       });
     });
   });
@@ -113,7 +135,7 @@ function measureTokens(measure, address, measureIndex) {
   const cells = [];
   measure.items.forEach((item, itemIndex) => {
     if (!SEGMENT_TYPES.has(item.type)) return;
-    cells.push({ text: chordText(item), token: tokenFor(item, address, measureIndex, itemIndex) });
+    cells.push({ text: chordText(item), token: tokenFor(item, address, measureIndex, itemIndex), voice: voiceFor(item) });
   });
   return cells;
 }
@@ -135,6 +157,14 @@ function chartRow(line, address) {
     type: 'bars',
     measures: line.measures.map(measureCell),
     cells: line.measures.map((measure, measureIndex) => measureTokens(measure, address, measureIndex)),
+    // The running bar number and whether an anchor is stated on each measure
+    // (cifra.md §2.8, set by the reader's `numberBars` on chart lines): the
+    // screen-reader reading leads a stated measure with "bar N:" (§5), and a
+    // sung line is never numbered. Absent on a sung song, so default to unstated.
+    numbers: line.measures.map((measure) => ({
+      number: measure.number ?? null,
+      stated: measure.stated ?? false,
+    })),
     address,
   };
 }

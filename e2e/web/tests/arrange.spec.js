@@ -51,7 +51,9 @@ async function enterArrange(page, narrow) {
   await expect(page.getByText(/Arranging ·/)).toBeVisible();
 }
 
-const firstChord = (page) => page.getByRole('button', { name: /^Choose a shape for/ }).first();
+// A chord in the chart is a button whose accessible name is the §3 spoken chord
+// name now (shell.a11y_chart), so locate it structurally inside the chart group.
+const firstChord = (page) => page.locator('.chart').getByRole('button').first();
 const picker = (page) => page.getByRole('dialog');
 // The candidate / enter-shape choose targets are labelled "Choose <chord>, …".
 const candidate = (scope) => scope.getByRole('button', { name: /^Choose \S+,/ }).first();
@@ -158,7 +160,7 @@ test('chooses a shape offline; the edit persists to the working copy', async ({ 
       await candidate(offlinePage.getByRole('dialog')).click();
       await expect(offlinePage.getByRole('dialog')).toBeHidden();
       // The chord is still tappable — the edit went to the working copy on-device.
-      await expect(offlinePage.getByRole('button', { name: /^Choose a shape for/ }).first()).toBeVisible();
+      await expect(offlinePage.locator('.chart').getByRole('button').first()).toBeVisible();
     },
   });
 });

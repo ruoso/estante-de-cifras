@@ -563,6 +563,13 @@ export default {
     keepBothHint:
       'To keep both shapes, choose Edit and put {author}’s in a variation of its own.',
     previewLabel: '{title}, your version',
+    // The §7 musical-terms phrase a screen reader announces at a conflicted
+    // place in the reading preview (docs/screen-reader.md §7.1; workflow 9
+    // lines 13-23): what conflicts, so the region never rides on colour alone.
+    spoken: {
+      chartLine: 'conflict in the chart line',
+      line: 'conflict in this line',
+    },
     settledSoFar: 'Settled so far',
     settledMine: 'Kept yours',
     settledTheirs: 'Took {author}’s',
@@ -817,7 +824,45 @@ export default {
     default: 'default',
   },
 
-  chart: { label: 'Chart' },
+  chart: {
+    label: 'Chart',
+    // Screen-reader structural phrases (shell.a11y_chart; docs/screen-reader.md
+    // §5, §7). `bar` leads a stated numbered measure (§5, cifra.md §2.8);
+    // `noChord` reads a no-chord mark (§5, cifra.md §2.6); the region words
+    // bound a conflict (§7.1) or a shown default (§7.3) by a word, never colour.
+    spoken: {
+      noChord: 'no chord',
+      bar: 'bar {n}:',
+      needsYou: 'needs you',
+      conflict: 'a conflict',
+      endOfConflict: 'end of conflict',
+      default: 'default',
+      endOfDefaults: 'end of defaults',
+    },
+  },
+
+  // The spoken chord name (shell.a11y_chart; docs/screen-reader.md §3): a chord
+  // announced by its name in words, never its glyph, in the app language. The
+  // interval numbers name a chord's degrees (`7` → "seven").
+  chord: {
+    spoken: {
+      doubleFlat: 'double flat',
+      flat: 'flat',
+      sharp: 'sharp',
+      doubleSharp: 'double sharp',
+      minor: 'minor',
+      major: 'major',
+      diminished: 'diminished',
+      augmented: 'augmented',
+      suspendedTwo: 'suspended two',
+      suspendedFour: 'suspended four',
+      fifth: 'five',
+      over: 'over',
+      add: 'add',
+      footnote: 'footnote',
+      interval: { 2: 'two', 4: 'four', 5: 'five', 6: 'six', 7: 'seven', 9: 'nine', 11: 'eleven', 13: 'thirteen' },
+    },
+  },
 
   // The reading view (songs.reading, workflow 2; board W02): the chart, the
   // shapes, the variation picker, the transpose control, full screen, and the

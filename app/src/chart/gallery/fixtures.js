@@ -9,6 +9,18 @@
 // written for the purpose, never anyone's copyrighted words (the standing "no
 // song text" rule — these are the gallery's own fixture lines).
 
+// A chord's canonical model in the reader's shape (the `chord` on a §2.4 chord
+// item: root, quality, extensions, slash bass), hand-written so the gallery
+// still pulls in no `cifra-md`. It is what the screen-reader reading speaks by
+// name (shell.a11y_chart; docs/screen-reader.md §3), so the e2e-web spec can
+// read "E minor" and "F sharp minor" from the accessibility tree.
+const c = (letter, accidental, quality) => ({
+  root: { letter, accidental },
+  quality,
+  extensions: [],
+  bass: null,
+});
+
 // A short sung-and-charted song: a verse of two sung lines (the first splits a
 // word so the centred hyphen shows), a stanza break and a words-only line, then
 // a chord section with a bar-lined line and a run.
@@ -41,7 +53,7 @@ export const demoSong = {
                   bar: null,
                   items: [
                     { type: 'lead', column: 0, words: 'Te' },
-                    { type: 'chord', symbol: 'G', index: 1, key: 'G', chord: null, column: 2, words: 'sting' },
+                    { type: 'chord', symbol: 'G', index: 1, key: 'G', chord: c('G', 0, 'major'), column: 2, words: 'sting' },
                   ],
                 },
               ],
@@ -55,9 +67,9 @@ export const demoSong = {
                 {
                   bar: null,
                   items: [
-                    { type: 'chord', symbol: 'G', index: 1, key: 'G', chord: null, column: 0, words: 'cats ' },
-                    { type: 'chord', symbol: 'D', index: 1, key: 'D', chord: null, column: 5, words: 'and ' },
-                    { type: 'chord', symbol: 'Em', index: 1, key: 'Em', chord: null, column: 9, words: 'dogs' },
+                    { type: 'chord', symbol: 'G', index: 1, key: 'G', chord: c('G', 0, 'major'), column: 0, words: 'cats ' },
+                    { type: 'chord', symbol: 'D', index: 1, key: 'D', chord: c('D', 0, 'major'), column: 5, words: 'and ' },
+                    { type: 'chord', symbol: 'Em', index: 1, key: 'Em', chord: c('E', 0, 'minor'), column: 9, words: 'dogs' },
                   ],
                 },
               ],
@@ -81,10 +93,10 @@ export const demoSong = {
               kind: 'chart',
               closeBar: '|',
               measures: [
-                { bar: null, items: [{ type: 'chord', symbol: 'C', index: 1, key: 'C', chord: null }] },
-                { bar: '|', items: [{ type: 'chord', symbol: 'G', index: 1, key: 'G', chord: null }] },
-                { bar: '|', items: [{ type: 'chord', symbol: 'Am', index: 1, key: 'Am', chord: null }] },
-                { bar: '|', items: [{ type: 'chord', symbol: 'F', index: 1, key: 'F', chord: null }] },
+                { bar: null, items: [{ type: 'chord', symbol: 'C', index: 1, key: 'C', chord: c('C', 0, 'major') }] },
+                { bar: '|', items: [{ type: 'chord', symbol: 'G', index: 1, key: 'G', chord: c('G', 0, 'major') }] },
+                { bar: '|', items: [{ type: 'chord', symbol: 'Am', index: 1, key: 'Am', chord: c('A', 0, 'minor') }] },
+                { bar: '|', items: [{ type: 'chord', symbol: 'F', index: 1, key: 'F', chord: c('F', 0, 'major') }] },
               ],
             },
             {
@@ -95,9 +107,9 @@ export const demoSong = {
                 {
                   bar: null,
                   items: [
-                    { type: 'chord', symbol: 'Am', index: 1, key: 'Am', chord: null },
-                    { type: 'chord', symbol: 'E', index: 1, key: 'E', chord: null },
-                    { type: 'chord', symbol: 'F#m', index: 1, key: 'F#m', chord: null },
+                    { type: 'chord', symbol: 'Am', index: 1, key: 'Am', chord: c('A', 0, 'minor') },
+                    { type: 'chord', symbol: 'E', index: 1, key: 'E', chord: c('E', 0, 'major') },
+                    { type: 'chord', symbol: 'F#m', index: 1, key: 'F#m', chord: c('F', 1, 'minor') },
                   ],
                 },
               ],

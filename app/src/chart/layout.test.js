@@ -55,12 +55,13 @@ describe('chartRows — sung lines', () => {
     );
     const sung = rows.find((r) => r.type === 'sung');
     expect(sung.segments).toEqual([
-      { chord: '', words: 'Te', hyphen: true, token: null },
+      { chord: '', words: 'Te', hyphen: true, token: null, voice: { type: 'lead' } },
       {
         chord: 'G',
         words: 'sting',
         hyphen: false,
         token: { symbol: 'G', key: 'G', address: { section: 0, part: 0, line: 0, measure: 0, item: 1 } },
+        voice: { type: 'chord', chord: null, footnote: 1 },
       },
     ]);
     expect(sung.address).toEqual({ section: 0, part: 0, line: 0 });
@@ -126,12 +127,14 @@ describe('chartRows — sung lines', () => {
         words: 'some',
         hyphen: false,
         token: { symbol: 'C', key: 'C', address: { section: 0, part: 0, line: 0, measure: 0, item: 0 } },
+        voice: { type: 'chord', chord: null, footnote: 1 },
       },
       {
         chord: 'G',
         words: 'more',
         hyphen: false,
         token: { symbol: 'G', key: 'G', address: { section: 0, part: 0, line: 0, measure: 1, item: 0 } },
+        voice: { type: 'chord', chord: null, footnote: 1 },
       },
     ]);
   });
@@ -163,8 +166,8 @@ describe('chartRows — sung lines', () => {
     // A no-chord and an unknown token are not pressable (only a voiced chord is):
     // their token is null.
     expect(sung.segments).toEqual([
-      { chord: 'N.C.', words: 'hush ', hyphen: false, token: null },
-      { chord: '>x', words: 'then', hyphen: false, token: null },
+      { chord: 'N.C.', words: 'hush ', hyphen: false, token: null, voice: { type: 'nochord' } },
+      { chord: '>x', words: 'then', hyphen: false, token: null, voice: { type: 'unknown', text: '>x' } },
     ]);
   });
 
@@ -198,12 +201,13 @@ describe('chartRows — sung lines', () => {
     // is item 3 (after the nochord, count and mark), the index cifra-md's §8.5
     // `itemAt` uses.
     expect(sung.segments).toEqual([
-      { chord: 'N.C.', words: 'la ', hyphen: false, token: null },
+      { chord: 'N.C.', words: 'la ', hyphen: false, token: null, voice: { type: 'nochord' } },
       {
         chord: 'Cm',
         words: 'la',
         hyphen: false,
         token: { symbol: 'Cm', key: 'Cm', address: { section: 0, part: 0, line: 0, measure: 0, item: 3 } },
+        voice: { type: 'chord', chord: null, footnote: 1 },
       },
     ]);
   });
@@ -254,10 +258,10 @@ describe('chartRows — chord-only lines', () => {
     // One cell array per measure; each voiced chord carries its raw item index.
     expect(bars.cells).toEqual([
       [
-        { text: 'C', token: { symbol: 'C', key: 'C', address: { section: 0, part: 0, line: 0, measure: 0, item: 0 } } },
-        { text: 'Am', token: { symbol: 'Am', key: 'Am', address: { section: 0, part: 0, line: 0, measure: 0, item: 1 } } },
+        { text: 'C', token: { symbol: 'C', key: 'C', address: { section: 0, part: 0, line: 0, measure: 0, item: 0 } }, voice: { type: 'chord', chord: null, footnote: 1 } },
+        { text: 'Am', token: { symbol: 'Am', key: 'Am', address: { section: 0, part: 0, line: 0, measure: 0, item: 1 } }, voice: { type: 'chord', chord: null, footnote: 1 } },
       ],
-      [{ text: 'F', token: { symbol: 'F', key: 'F', address: { section: 0, part: 0, line: 0, measure: 1, item: 0 } } }],
+      [{ text: 'F', token: { symbol: 'F', key: 'F', address: { section: 0, part: 0, line: 0, measure: 1, item: 0 } }, voice: { type: 'chord', chord: null, footnote: 1 } }],
     ]);
   });
 

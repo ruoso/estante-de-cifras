@@ -491,6 +491,10 @@ export default {
     keepBothHint:
       'Para conservar ambas formas, elige Editar y pon la de {author} en una variación propia.',
     previewLabel: '{title}, tu versión',
+    spoken: {
+      chartLine: 'conflicto en la línea del cifrado',
+      line: 'conflicto en esta línea',
+    },
     settledSoFar: 'Resuelto hasta ahora',
     settledMine: 'Quedó el tuyo',
     settledTheirs: 'Quedó el de {author}',
@@ -733,7 +737,38 @@ export default {
     default: 'predeterminada',
   },
 
-  chart: { label: 'Cifrado' },
+  chart: {
+    label: 'Cifrado',
+    spoken: {
+      noChord: 'sin acorde',
+      bar: 'compás {n}:',
+      needsYou: 'te necesita',
+      conflict: 'un conflicto',
+      endOfConflict: 'fin del conflicto',
+      default: 'predeterminado',
+      endOfDefaults: 'fin de los predeterminados',
+    },
+  },
+
+  chord: {
+    spoken: {
+      doubleFlat: 'doble bemol',
+      flat: 'bemol',
+      sharp: 'sostenido',
+      doubleSharp: 'doble sostenido',
+      minor: 'menor',
+      major: 'mayor',
+      diminished: 'disminuido',
+      augmented: 'aumentado',
+      suspendedTwo: 'con segunda suspendida',
+      suspendedFour: 'con cuarta suspendida',
+      fifth: 'quinta',
+      over: 'sobre',
+      add: 'con',
+      footnote: 'nota al pie',
+      interval: { 2: 'segunda', 4: 'cuarta', 5: 'quinta', 6: 'sexta', 7: 'séptima', 9: 'novena', 11: 'oncena', 13: 'trecena' },
+    },
+  },
 
   reading: {
     back: 'Atrás',

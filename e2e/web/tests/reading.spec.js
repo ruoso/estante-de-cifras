@@ -69,7 +69,13 @@ test('opens and reads a song; the chart and the shapes render', async ({ page, c
   // The chart (proportional) and the shapes section both render.
   await expect(page.locator('.reading-sheet .chart')).toBeVisible();
   await expect(page.locator('.reading-shapes')).toBeVisible();
-  await expect(page.locator('.chord-diagram').first()).toBeVisible();
+  const diagram = page.locator('.chord-diagram').first();
+  await expect(diagram).toBeVisible();
+  // §6 (shell.a11y_chart; docs/screen-reader.md §6) — a chord diagram reads as
+  // its describeFingering sentence: the chord box is an img whose accessible
+  // name describes the shape (its shorthand of fret numbers / x), the role word
+  // read beside it in document order.
+  await expect(diagram.getByRole('img')).toHaveAccessibleName(/[0-9x]{3,}/);
 
   // On the computer/tablet, search sits beside the song (master-detail); on the
   // phone the reading view is a full screen with no search box.

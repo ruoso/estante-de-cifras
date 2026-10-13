@@ -491,6 +491,10 @@ export default {
     keepBothHint:
       'Para manter as duas formas, escolha Editar e ponha a de {author} em uma variação própria.',
     previewLabel: '{title}, sua versão',
+    spoken: {
+      chartLine: 'conflito na linha da cifra',
+      line: 'conflito nesta linha',
+    },
     settledSoFar: 'Resolvido até agora',
     settledMine: 'Ficou com o seu',
     settledTheirs: 'Ficou com o de {author}',
@@ -733,7 +737,38 @@ export default {
     default: 'padrão',
   },
 
-  chart: { label: 'Cifra' },
+  chart: {
+    label: 'Cifra',
+    spoken: {
+      noChord: 'sem acorde',
+      bar: 'compasso {n}:',
+      needsYou: 'precisa de você',
+      conflict: 'um conflito',
+      endOfConflict: 'fim do conflito',
+      default: 'padrão',
+      endOfDefaults: 'fim dos padrões',
+    },
+  },
+
+  chord: {
+    spoken: {
+      doubleFlat: 'dobrado bemol',
+      flat: 'bemol',
+      sharp: 'sustenido',
+      doubleSharp: 'dobrado sustenido',
+      minor: 'menor',
+      major: 'maior',
+      diminished: 'diminuto',
+      augmented: 'aumentado',
+      suspendedTwo: 'com segunda suspensa',
+      suspendedFour: 'com quarta suspensa',
+      fifth: 'quinta',
+      over: 'sobre',
+      add: 'com',
+      footnote: 'nota de rodapé',
+      interval: { 2: 'segunda', 4: 'quarta', 5: 'quinta', 6: 'sexta', 7: 'sétima', 9: 'nona', 11: 'décima primeira', 13: 'décima terceira' },
+    },
+  },
 
   reading: {
     back: 'Voltar',

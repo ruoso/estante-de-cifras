@@ -224,6 +224,30 @@
 .chart .words { color: var(--ink); padding: 2px 0; }
 .chart .gap { height: 0.7em; }
 .sec-name { font: 700 13px var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); margin: 12px 0 4px; }
+/* A screen-reader region (shell.a11y_chart): the bounded conflict/default group
+   generates no box, so it never changes the chart's layout — the `|` rule, the
+   marking background and the flow stay exactly as the sighted chart draws them
+   — while keeping its role and accessible name in the accessibility tree (§7,
+   §8). The marking background stays on the inner row, as it did before. */
+.chart .region { display: contents; }
+
+/* The visually-hidden text layer (shell.a11y_chart): spoken chord names, bar
+   numbers and region boundary words are present for a screen reader but take no
+   space on screen (docs/screen-reader.md §8). The standard clip pattern; it
+   never catches focus (no interactive content lives in it). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .mark-def { outline: 1.5px dashed var(--ink-2); outline-offset: 3px; border-radius: 4px; }
 .mark-conf { background: var(--conflict-soft); border-radius: 4px; }
 .mark-tap .c { background: var(--accent-soft); border-radius: 4px; padding-left: 3px; margin-left: -3px; }

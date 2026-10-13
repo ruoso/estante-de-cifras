@@ -71,17 +71,23 @@ function rowText(row) {
   return null;
 }
 
-// The set of line addresses a conflicted song's reading view marks: the rows of
-// ours whose text is one of the disputed lines (workflow 9 §Meeting one).
+// The line addresses a conflicted song's reading view marks → the §7
+// musical-terms phrase for each: the rows of ours whose text is one of the
+// disputed lines (workflow 9 §Meeting one), keyed `section:part:line`, with the
+// phrase a screen reader announces at entry — a chart line vs. another line
+// (docs/screen-reader.md §7.1; workflow 9 lines 13-23).
 function markedAddresses(model, markedLines) {
   const want = new Set(markedLines ?? []);
-  const keys = new Set();
+  const keys = new Map();
   if (!model || want.size === 0) return keys;
   for (const row of chartRows(model)) {
     const text = rowText(row);
     if (text != null && want.has(text) && row.address) {
       const { section, part, line } = row.address;
-      keys.add(`${section}:${part}:${line}`);
+      const phrase = row.type === 'bars' || row.type === 'run'
+        ? t('songConflict.spoken.chartLine')
+        : t('songConflict.spoken.line');
+      keys.set(`${section}:${part}:${line}`, phrase);
     }
   }
   return keys;
@@ -189,7 +195,12 @@ export default function SongConflict({ store, bookId, path, onClose }) {
   // (The React compiler memoises these; they are cheap one-snippet parses.)
   const previewModel = song?.marked ? snippetModel(resolveMarked(song.marked, 'ours').split('\n')) : null;
   const markedKeys = markedAddresses(previewModel, song?.markedLines);
-  const markOf = (a) => (markedKeys.has(`${a.section}:${a.part}:${a.line}`) ? 'conf' : null);
+  // The chart marks a conflicted line and, for a screen reader, names what
+  // conflicts in musical terms (§7.1) — the phrase Chart bounds the region with.
+  const markOf = (a) => {
+    const key = `${a.section}:${a.part}:${a.line}`;
+    return markedKeys.has(key) ? { mark: 'conf', phrase: markedKeys.get(key) } : null;
+  };
 
   if (!song) return null;
   const item = song.items[effStep] ?? null;

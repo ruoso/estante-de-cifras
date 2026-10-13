@@ -21,7 +21,16 @@ export default function ChartGallery() {
       {GALLERY_STATES.map((state) => (
         <section key={state.id} style={{ display: 'flex', flexDirection: 'column', gap: 'calc(var(--u))' }}>
           <h2 className="t-h3">{state.label}</h2>
-          <Chart model={demoSong} markOf={state.markOf} label={`${demoSong.title} — ${state.label}`} />
+          {/* Arrange makes every voiced chord a keyboard-reachable React Aria
+              Button whose accessible name is the §3 spoken chord name, so the
+              e2e-web spec can drive the chart by keyboard with no book or
+              account (shell.a11y_chart; the dev-gallery drive needs neither). */}
+          <Chart
+            model={demoSong}
+            markOf={state.markOf}
+            onChordPress={state.id === 'arrange' ? () => {} : undefined}
+            label={`${demoSong.title} — ${state.label}`}
+          />
         </section>
       ))}
     </main>

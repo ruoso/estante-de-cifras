@@ -48,6 +48,7 @@ import { instrumentInstance, openMidis } from '../core/instrument.js';
 import { resolveSongVoicings } from '../core/voicings.js';
 import { songVariations } from '../core/song-variations.js';
 import { parseChord } from '../core/notation/parse.js';
+import { speakChord } from '../render/chord-speech.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
 import { searchFingerings } from '../core/search.js';
 import Chart from '../chart/Chart.jsx';
@@ -316,7 +317,13 @@ export default function SongArrange({
       }
     : null;
 
-  const chordLabel = (token) => t('arrange.chordButton', { chord: token.symbol });
+  // A tappable chord's accessible name is its §3 spoken name (shell.a11y_chart;
+  // docs/screen-reader.md §3), so a keyboard user hears "E minor", not the glyph
+  // spelled out. Routed through the same `speakChord` the reading chart uses.
+  const chordLabel = (token) => {
+    const parsed = parseChord(token.symbol, dialect).chord;
+    return parsed ? speakChord(parsed, { notation: dialect, t }) : token.symbol;
+  };
 
   const variationSelector =
     variations.length > 1 ? (

@@ -56,6 +56,15 @@ const song = ({ title = 'Tarde Clara', props = [], chart = 'G  C | Am  D', voici
     ...(voicings.length ? ['', '---', '', ...voicings] : []),
   ].join('\n') + '\n';
 
+// The glyph layer of the chart's first chord line: the visible chord glyphs
+// (the `.g` spans) of the first measure or run, joined with a space. The chord
+// name now sits beside each glyph in a visually-hidden node for a screen reader
+// (shell.a11y_chart), so the drawn text reads from the glyph layer.
+function chartFirstLineGlyphs() {
+  const line = screen.getByRole('group', { name: 'Tarde Clara' }).querySelector('.barline .m, .runline');
+  return Array.from(line.querySelectorAll('.g')).map((g) => g.textContent).join(' ');
+}
+
 // A standard guitar roster entry, as the INSTRUMENTS surface carries it.
 function guitarEntry(shapes = []) {
   const inst = instrumentInstance({ catalogId: '6guitar', strings: GUITAR_TUNING, fretCount: 22 });
@@ -204,8 +213,7 @@ describe('SongReading — the chart and the shapes (workflow 2 L69-77, L88-108)'
     await openAndWait(store);
 
     // The chart drew the chords (a chart line shows its measures as cells).
-    const chart = screen.getByRole('group', { name: 'Tarde Clara' });
-    expect(within(chart).getByText('G C')).toBeInTheDocument();
+    expect(chartFirstLineGlyphs()).toBe('G C');
 
     // The shapes section: G and C are the song's (no kind word); Am is yours;
     // D is the default — the non-song ones carry a word, never colour alone.
@@ -445,7 +453,6 @@ describe('SongReading — a merge landing while open (sync.read_in_place, workfl
   // name): the merged version changes the chart so the swap is observable.
   const V1 = song({ props: ['key: G'], chart: 'G  C' });
   const V2 = song({ props: ['key: G'], chart: 'A  D' });
-  const chartText = () => within(screen.getByRole('group', { name: 'Tarde Clara' }));
 
   it('updates in place, keeps the place, shows the notice and opens history at the commit (workflow 8 L51-52; W08 L65/L177)', async () => {
     const onOpenHistory = vi.fn();
@@ -466,7 +473,7 @@ describe('SongReading — a merge landing while open (sync.read_in_place, workfl
 
     // The view re-issued OPEN_SOURCE for its open path and the chart shows the
     // merged version; the old chord is gone.
-    await waitFor(() => expect(chartText().getByText('A D')).toBeInTheDocument());
+    await waitFor(() => expect(chartFirstLineGlyphs()).toBe('A D'));
     expect(commands.filter((c) => c.kind === CommandKind.OPEN_SOURCE).length).toBe(before + 1);
     expect(screen.queryByText('G C')).not.toBeInTheDocument();
 
@@ -476,7 +483,7 @@ describe('SongReading — a merge landing while open (sync.read_in_place, workfl
     // The notice: role="status", naming Ana, not aria-hiding the chart.
     const notice = screen.getByRole('status');
     expect(within(notice).getByText('Updated by Ana')).toBeInTheDocument();
-    expect(chartText().getByText('A D')).toBeInTheDocument();
+    expect(chartFirstLineGlyphs()).toBe('A D');
 
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
 
@@ -508,7 +515,7 @@ describe('SongReading — a merge landing while open (sync.read_in_place, workfl
 
     // The update waits: no notice, no text swap, no re-request while full screen.
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    expect(chartText().getByText('G C')).toBeInTheDocument();
+    expect(chartFirstLineGlyphs()).toBe('G C');
     expect(commands.filter((c) => c.kind === CommandKind.OPEN_SOURCE).length).toBe(before);
 
     expect(await checkWcag21aa(document.body)).toHaveNoViolations(); // the waiting full-screen state
@@ -516,7 +523,7 @@ describe('SongReading — a merge landing while open (sync.read_in_place, workfl
     // Leaving full screen applies the deferred update and shows the notice, for
     // the most recent pending merge.
     await click(screen.getByRole('button', { name: 'Exit full screen' }));
-    await waitFor(() => expect(chartText().getByText('A D')).toBeInTheDocument());
+    await waitFor(() => expect(chartFirstLineGlyphs()).toBe('A D'));
     const notice = screen.getByRole('status');
     expect(within(notice).getByText('Updated by Bruno')).toBeInTheDocument();
     await click(within(notice).getByRole('button', { name: 'See what changed' }));
@@ -535,7 +542,7 @@ describe('SongReading — a merge landing while open (sync.read_in_place, workfl
     });
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
-    expect(chartText().getByText('G C')).toBeInTheDocument();
+    expect(chartFirstLineGlyphs()).toBe('G C');
     expect(commands.filter((c) => c.kind === CommandKind.OPEN_SOURCE).length).toBe(before);
   });
 });

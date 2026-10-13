@@ -491,6 +491,10 @@ export default {
     keepBothHint:
       'Per tenere entrambe le forme, scegli Modifica e metti quella di {author} in una variazione a sé.',
     previewLabel: '{title}, la tua versione',
+    spoken: {
+      chartLine: 'conflitto nella riga dello spartito',
+      line: 'conflitto in questa riga',
+    },
     settledSoFar: 'Risolto finora',
     settledMine: 'Tenuto il tuo',
     settledTheirs: 'Tenuto quello di {author}',
@@ -733,7 +737,38 @@ export default {
     default: 'predefinita',
   },
 
-  chart: { label: 'Spartito' },
+  chart: {
+    label: 'Spartito',
+    spoken: {
+      noChord: 'nessun accordo',
+      bar: 'battuta {n}:',
+      needsYou: 'serve te',
+      conflict: 'un conflitto',
+      endOfConflict: 'fine del conflitto',
+      default: 'predefinito',
+      endOfDefaults: 'fine dei predefiniti',
+    },
+  },
+
+  chord: {
+    spoken: {
+      doubleFlat: 'doppio bemolle',
+      flat: 'bemolle',
+      sharp: 'diesis',
+      doubleSharp: 'doppio diesis',
+      minor: 'minore',
+      major: 'maggiore',
+      diminished: 'diminuito',
+      augmented: 'aumentato',
+      suspendedTwo: 'con seconda sospesa',
+      suspendedFour: 'con quarta sospesa',
+      fifth: 'quinta',
+      over: 'su',
+      add: 'con',
+      footnote: 'nota a piè di pagina',
+      interval: { 2: 'seconda', 4: 'quarta', 5: 'quinta', 6: 'sesta', 7: 'settima', 9: 'nona', 11: 'undicesima', 13: 'tredicesima' },
+    },
+  },
 
   reading: {
     back: 'Indietro',

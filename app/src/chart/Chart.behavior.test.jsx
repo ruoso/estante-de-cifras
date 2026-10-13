@@ -89,10 +89,16 @@ describe('Chart (behavior)', () => {
   it('draws a chord-only line as measures between bar rules', () => {
     const { container } = renderChart(<Chart model={parse(SONG)} />);
     const barline = container.querySelector('.chart .barline');
-    const cells = Array.from(barline.querySelectorAll('.m')).map((el) => el.textContent);
+    // Each measure is a listitem; the visible glyph is the `.g` span (the chord
+    // name sits beside it in a visually-hidden node for a screen reader,
+    // shell.a11y_chart), so the drawn text reads from the glyph layer.
+    const cells = Array.from(barline.querySelectorAll('.m')).map((el) =>
+      Array.from(el.querySelectorAll('.g')).map((g) => g.textContent).join(' '),
+    );
     expect(cells).toEqual(['C', 'G', 'Am', 'F']);
     // and a run line for the chords with no bars.
-    expect(container.querySelector('.chart .runline').textContent).toBe('Am E F#m');
+    const run = container.querySelector('.chart .runline');
+    expect(Array.from(run.querySelectorAll('.g')).map((g) => g.textContent).join(' ')).toBe('Am E F#m');
   });
 
   it('paints the marking class markOf returns on each line (W02 def, W05 tap, W09 conf)', () => {

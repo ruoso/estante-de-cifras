@@ -144,9 +144,9 @@ describe('SongArrange — tappable chords and the strip', () => {
 
     // Every chord in the chart is a focusable button inside the chart group.
     const chart = screen.getByRole('group', { name: 'Tarde Clara' });
-    expect(within(chart).getByRole('button', { name: 'Choose a shape for G' })).toBeInTheDocument();
-    expect(within(chart).getByRole('button', { name: 'Choose a shape for C' })).toBeInTheDocument();
-    expect(within(chart).getByRole('button', { name: 'Choose a shape for Em' })).toBeInTheDocument();
+    expect(within(chart).getByRole('button', { name: 'G' })).toBeInTheDocument();
+    expect(within(chart).getByRole('button', { name: 'C' })).toBeInTheDocument();
+    expect(within(chart).getByRole('button', { name: 'E minor' })).toBeInTheDocument();
 
     // The Shapes strip carries the kind words (a word, never colour alone): C is
     // yours, Em is a default; G is the song's own (no word).
@@ -163,7 +163,7 @@ describe('SongArrange — the picker', () => {
     const { store, commands } = makeStore({ text: song({}), entry: guitarEntry() });
     const { container } = await openArrange(store);
 
-    await click(screen.getAllByRole('button', { name: 'Choose a shape for Cm' })[0]);
+    await click(screen.getAllByRole('button', { name: 'C minor' })[0]);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
     // The scope defaults to Every Cm; choose the first candidate shape.
     await click(screen.getAllByRole('button', { name: /^Choose Cm,/ })[0]);
@@ -186,7 +186,7 @@ describe('SongArrange — the picker', () => {
     });
     await openArrange(store);
 
-    await click(screen.getAllByRole('button', { name: 'Choose a shape for Cm' })[0]);
+    await click(screen.getAllByRole('button', { name: 'C minor' })[0]);
     // Selecting Only here reveals the shared-chart warning before any shape is chosen.
     await click(screen.getByRole('button', { name: 'Only here' }));
     expect(screen.getByText(/marks this bar in the chart/)).toBeInTheDocument();
@@ -210,7 +210,7 @@ describe('SongArrange — the picker', () => {
     const { store, commands } = makeStore({ text: song({}), entry: guitarEntry() });
     const { container } = await openArrange(store);
 
-    await click(screen.getAllByRole('button', { name: 'Choose a shape for Cm' })[0]);
+    await click(screen.getAllByRole('button', { name: 'C minor' })[0]);
     await click(screen.getByRole('button', { name: 'Enter a shape' }));
 
     const dialog = screen.getByRole('dialog', { name: 'Enter a shape for Cm' });
@@ -228,7 +228,7 @@ describe('SongArrange — the picker', () => {
     const { store, commands } = makeStore({ text: song({}), entry: guitarEntry() });
     await openArrange(store);
 
-    const chord = screen.getAllByRole('button', { name: 'Choose a shape for Cm' })[0];
+    const chord = screen.getAllByRole('button', { name: 'C minor' })[0];
     chord.focus();
     expect(chord).toHaveFocus();
     await pressKey(chord, 'Enter');
@@ -245,7 +245,7 @@ describe('SongArrange — the picker', () => {
     expect(lastCommand(commands, CommandKind.WRITE)).toBeTruthy();
     // On close RAC returns focus to the chord that opened the picker.
     await waitFor(() =>
-      expect(document.activeElement?.getAttribute('aria-label')).toBe('Choose a shape for Cm'),
+      expect(document.activeElement?.getAttribute('aria-label')).toBe('C minor'),
     );
   });
 });

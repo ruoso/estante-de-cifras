@@ -50,8 +50,9 @@ task shell "Shell" {
   task a11y_chart "A sung line for a screen reader" {
     effort 1d
     allocate team
+    complete 100
     depends !chart, design.screen_reader
-    note "The decided reading order, implemented and checked. Tests: unit (the reading-order text of a sung line, a chart, a diagram and a conflict); behavior (accessible names as design.screen_reader decided, Testing Library and axe); e2e-web (a chart read through the accessibility tree and by keyboard on the three viewports)."
+    note "The decided reading order, implemented and checked. Tests: unit (the reading-order text of a sung line, a chart, a diagram and a conflict); behavior (accessible names as design.screen_reader decided, Testing Library and axe); e2e-web (a chart read through the accessibility tree and by keyboard on the three viewports). Refinement: tasks/refinements/shell/a11y_chart.md"
   }
   task portal_provider "Portal-scope provider at ThemeRoot" {
     effort 0.5d
