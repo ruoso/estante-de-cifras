@@ -599,3 +599,50 @@ describe('A full keyboard path (acceptance; standing a11y rule)', () => {
     expect(palco).toHaveFocus();
   });
 });
+
+describe('Leaving Estante region (account.leaving; workflow 17 §Where leaving lives)', () => {
+  const sharingDouble = { listMembers: async () => ({ members: [], count: 0, limit: 50 }) };
+
+  function signedInClient() {
+    return makeAuthClient({
+      'GET /api/account/sessions': () => ({
+        body: { sessions: [{ id: 's1', current: true, lastUsedAt: '2026-10-12T10:00:00.000Z', device: 'Chrome on Linux' }] },
+      }),
+      'GET /api/account/passkeys': () => ({ body: { passkeys: [] } }),
+    });
+  }
+
+  it('renders at the foot of the signed-in screen, below Passkeys, with the two affordances in order, axe clean', async () => {
+    const { client } = signedInClient();
+    const { container } = renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+
+    // Present only when signed in: its heading and copy.
+    expect(await screen.findByText('Leaving Estante')).toBeInTheDocument();
+    expect(
+      screen.getByText('Take a copy of everything you hold here, then end your account if you want to.'),
+    ).toBeInTheDocument();
+
+    // Two affordances, data-out before the danger delete (the deliberate order).
+    const takeData = screen.getByRole('button', { name: 'Take your data out' });
+    const deleteAcct = screen.getByRole('button', { name: 'Delete my account' });
+    expect(takeData).toBeInTheDocument();
+    expect(deleteAcct).toBeInTheDocument();
+    expect(takeData.compareDocumentPosition(deleteAcct) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // Below Passkeys (the Passkeys head precedes the Leaving head in the document).
+    const passkeysHead = screen.getByText('Passkeys');
+    const leavingHead = screen.getByText('Leaving Estante');
+    expect(passkeysHead.compareDocumentPosition(leavingHead) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('is absent from the not-signed-in card (there is no account to leave)', async () => {
+    const { client } = signedOut();
+    renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+
+    await screen.findByText('Not signed in');
+    expect(screen.queryByText('Leaving Estante')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete my account' })).toBeNull();
+  });
+});

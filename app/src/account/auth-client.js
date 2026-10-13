@@ -21,7 +21,7 @@ export class AuthError extends Error {
   constructor(kind, status) {
     super(kind);
     this.name = 'AuthError';
-    this.kind = kind; // 'unauthorized' | 'network' | 'not_found'
+    this.kind = kind; // 'unauthorized' | 'network' | 'not_found' | 'mismatch'
     this.status = status ?? null;
   }
 }
@@ -168,6 +168,33 @@ export function createAuthClient({ fetch: injected } = {}) {
     },
     async removePasskey(passkeyId) {
       return del(fetchImpl, `/api/account/passkeys/${seg(passkeyId)}`);
+    },
+
+    // --- deleting the account (account.leaving, workflow 17) ----------------
+    // DELETE /api/account with the typed confirmation in the body
+    // (`{ confirm: <email> }`, api/openapi.yaml deleteAccount). The server
+    // compares it to the account's own email and never echoes the address
+    // (Decision 4; the EmailLinkRequest precedent). This is the one call in the
+    // app that waits for a connection (workflow 17 §Offline), so a thrown fetch
+    // surfaces as `network` and the Worker device teardown runs only on the 204.
+    // 204 → done; 400 → `mismatch` (the typed address was wrong — the dialog
+    // stays open and words it, never showing the real one); 401 → unauthorized.
+    async deleteAccount(confirmEmail) {
+      let response;
+      try {
+        response = await fetchImpl('/api/account', {
+          method: 'DELETE',
+          headers: JSON_HEADERS,
+          credentials: 'same-origin',
+          body: JSON.stringify({ confirm: confirmEmail }),
+        });
+      } catch {
+        throw new AuthError('network');
+      }
+      if (response.ok) return undefined;
+      if (response.status === 400) throw new AuthError('mismatch', response.status);
+      if (response.status === 401) throw new AuthError('unauthorized', response.status);
+      throw new AuthError('network', response.status);
     },
   };
 }

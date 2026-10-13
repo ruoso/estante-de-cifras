@@ -125,6 +125,18 @@ export const CommandKind = Object.freeze({
   // idempotently; it replies with SIGNED_OUT. All local; no network (Decision 4).
   SURVEY_SIGN_OUT: 'survey_sign_out',
   SIGN_OUT: 'sign_out',
+  // Deleting the account on this device (account.leaving, workflow 17 §cascade
+  // device-teardown). LEAVE_ESTANTE `{}` is dispatched by the main thread
+  // ONLY after a 204 from DELETE /api/account — the account is already gone
+  // server-side, so this is a local sweep, the inverse ordering of SIGN_OUT
+  // (Decision 3): it runs the same remove-branch teardown SIGN_OUT's `mode:'remove'`
+  // does — drop every clone (the account's shared books, this device's local
+  // books, and the home book), tombstone their shelf registers, drop their index
+  // entries — with no POST /api/auth/signout to follow (the session is already
+  // revoked). It replies with LEFT_ESTANTE, after which the surface returns to its
+  // first-run, not-signed-in state. The SURVEY_SIGN_OUT read is reused unchanged to
+  // count the per-book warnings the delete dialog shows.
+  LEAVE_ESTANTE: 'leave_estante',
   // Make a book the user's own copy (books.fork, workflow 11). FORK_BOOK
   // `{ bookId, author }` is dispatched by the "Make this book your own" offer —
   // one of fork's ways in: a book the user lost access to (sync.lost_access,
@@ -408,6 +420,12 @@ export const EventKind = Object.freeze({
   // state. Transient command replies, like BOOK_REMOVED (Decision 2).
   SIGN_OUT_SURVEY: 'sign_out_survey',
   SIGNED_OUT: 'signed_out',
+  // Leaving reply (account.leaving, workflow 17 §cascade device-teardown).
+  // LEFT_ESTANTE `{}` reports the local sweep after a DELETE /api/account 204 is
+  // done — the account's books and the home book dropped, their shelf registers
+  // tombstoned and index entries cleared — so the surface returns to its first-run,
+  // not-signed-in state. A transient command reply, like SIGNED_OUT.
+  LEFT_ESTANTE: 'left_estante',
   // Joining a shared book (books.add_by_link, workflow 1 §Invited, workflow 7).
   // BOOK_CLONED `{ bookId }` reports that an ADD_BY_LINK / ADD_MINE cloned the
   // book, wrote its shelf register (with the granted role) and indexed it; the

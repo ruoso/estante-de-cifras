@@ -46,8 +46,10 @@ import { THEMES } from '../theme/resolve.js';
 import { orderedBooks } from '../books/book-display.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
+import { createSharingClient } from '../books/sharing-client.js';
 import { createAuthClient, AuthError } from './auth-client.js';
 import SignOutDialog from './SignOutDialog.jsx';
+import LeaveDialogs from './LeaveDialogs.jsx';
 import { createCredential, isCancellation } from './webauthn-json.js';
 import './account.css';
 
@@ -60,6 +62,11 @@ const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
 // The real client, bound to the browser's fetch; the behavior level injects a
 // loopback double instead (like SignIn / SharingScreen).
 const DEFAULT_CLIENT = createAuthClient();
+
+// The sharing client for the Leaving region's who-loses-access counts
+// (listMembers). Bound to the browser's fetch; the behavior level injects a
+// loopback double.
+const DEFAULT_SHARING_CLIENT = createSharingClient();
 
 // The four theme choices, in mockup order: Automatic (the absent register) then
 // the three drawn themes. `id` is what SET_THEME carries (CHOSEN_THEMES).
@@ -264,6 +271,7 @@ export default function AccountScreen({
   // is called once it is done, for AppShell to close the account surface. A
   // no-op by default (the dialog still tears down).
   onSignOut = () => {},
+  sharingClient = DEFAULT_SHARING_CLIENT,
 }) {
   const preferences = useSlice(store, 'preferences');
   // The shelf tells us locally whether this device holds an account's books
@@ -587,6 +595,12 @@ export default function AccountScreen({
         {actionError ? <ErrorNotice message={errorCopy(actionError)} onRetry={() => setActionError(null)} /> : null}
         {devicesRegion}
         {passkeysRegion}
+        <LeaveDialogs
+          store={store}
+          authClient={authClient}
+          sharingClient={sharingClient}
+          onLeft={onSignOut}
+        />
       </>
     );
   }

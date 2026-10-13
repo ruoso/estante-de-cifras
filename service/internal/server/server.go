@@ -56,6 +56,7 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 		// need only the pool and the session seam, not the passkey relying
 		// party, so they are routed whenever the API is wired.
 		mux.HandleFunc("POST /api/auth/signout", handleSignOut(api))
+		mux.HandleFunc("DELETE /api/account", handleDeleteAccount(api))
 		mux.HandleFunc("GET /api/account/sessions", handleListSessions(api))
 		mux.HandleFunc("DELETE /api/account/sessions/{sessionId}", handleRevokeSession(api))
 		// Books: create, list, delete and fork a book — a registry row plus a

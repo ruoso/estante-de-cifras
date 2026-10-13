@@ -1549,6 +1549,15 @@ export function createWorkerLogic(port, options = {}) {
             // local — no account, no network. The Blob carries no song text to a
             // log (standing rule); it is the user's own repository.
             const { bookId } = message.payload;
+            // The home book is provisioned lazily — it only reaches the device on
+            // the first preference write (ensureLocal). Taking your data out must
+            // still yield its zip even before any preference was set (workflow 17
+            // §Taking your data out, account.leaving), so provision a fresh local
+            // home book first when it is absent. Offline, no account: ensureLocal
+            // is a no-op once a committed home book exists.
+            if (bookId === HOME_BOOK_ID) {
+              await ensureHomeBook().ensureLocal({ author: await resolveSyncAuthor() });
+            }
             const { bytes } = await ensureOnline().download({ bookId });
             port.postMessage(event(EventKind.BOOK_DOWNLOAD, { bookId, bytes }));
             break;
@@ -1747,6 +1756,57 @@ export function createWorkerLogic(port, options = {}) {
             // the shelf re-surface and index clears follow and no longer race it.
             port.postMessage(event(EventKind.SIGNED_OUT, { mode: keep ? 'keep' : 'remove' }));
             await surfaceHomeBookShelf();
+            for (const id of removedIds) {
+              port.postMessage(event(EventKind.INDEX_STATUS, { bookId: id, state: null }));
+            }
+            break;
+          }
+          case CommandKind.LEAVE_ESTANTE: {
+            // Delete the account on this device (account.leaving, workflow 17
+            // §cascade device-teardown). Dispatched by the main thread ONLY after
+            // DELETE /api/account returned 204 (Decision 3) — the account is
+            // already gone server-side, so this is a local sweep, the inverse
+            // ordering of SIGN_OUT. It runs the same remove-branch teardown
+            // SIGN_OUT's `mode:'remove'` does — drop every clone (the account's
+            // shared books and this device's local books) and its index entries —
+            // extended to the HOME book itself, which sign-out keeps but leaving
+            // removes (workflow 17 §Deleting: "removed from this device"), so the
+            // device returns to its first-run, not-signed-in state. There is no
+            // shelf tombstone to write (the home book, which holds the shelf, is
+            // being deleted) and no POST /api/auth/signout to follow (the session
+            // is already revoked). The home book is re-provisioned empty on the
+            // next write (home-book.js), which is exactly first-run.
+            const home = ensureHomeBook();
+            const deviceId = await home.ensureDeviceId({ idb, name, version });
+            const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+            const online = ensureOnline();
+            const shared = shelf?.books ?? {};
+            const sharedIds = Object.keys(shared).filter((id) => shared[id]?.label?.value != null);
+            const localShelf = shelf?.local?.[deviceId] ?? {};
+            const localIds = Object.keys(localShelf).filter(
+              (id) => localShelf[id]?.title?.value != null,
+            );
+            await ensureIndexHydrated();
+            const index = ensureSearchIndex();
+            const removedIds = [];
+            for (const id of [...sharedIds, ...localIds]) {
+              await online.remove({ bookId: id });
+              await persistIndexChanges(index.removeBook(id));
+              removedIds.push(id);
+            }
+            // The home book last: deleting its whole clone supersedes the
+            // remote-strip sign-out does (Decision 7), and leaves nothing to
+            // tombstone.
+            await online.remove({ bookId: HOME_BOOK_ID });
+            await ensureFs().flush();
+            // LEFT_ESTANTE first, THEN the re-surface — the same mounted-listener
+            // ordering SIGN_OUT relies on: the emptied shelf unmounts the account
+            // screen's Leaving region (and the dialog listening for this reply), so
+            // the event must reach a live listener before the slices empty
+            // (account.sign_out Decision 4). surfaceHomeBook re-reads the now-absent
+            // home book and emits empty/default preferences, shelf and instruments.
+            port.postMessage(event(EventKind.LEFT_ESTANTE, {}));
+            await surfaceHomeBook();
             for (const id of removedIds) {
               port.postMessage(event(EventKind.INDEX_STATUS, { bookId: id, state: null }));
             }

@@ -474,6 +474,42 @@ export default {
     removePasskeyBody:
       'This passkey will no longer sign you in. Your other passkeys still work; you can add another any time.',
     removePasskeyConfirm: 'Remove',
+    // Leaving Estante (account.leaving, workflow 17; mockup W17-leaving.dc.html).
+    leaving: 'Leaving Estante',
+    leavingBody: 'Take a copy of everything you hold here, then end your account if you want to.',
+    leaveTakeData: 'Take your data out',
+    leaveDelete: 'Delete my account',
+    // Take your data out — local, offline, one zip per book.
+    leaveTakeTitle: 'Take your data out',
+    leaveOffline: 'Offline',
+    leaveOfflineNote:
+      'Your books are on this device, so downloads work here. Deleting your account needs a connection.',
+    leaveDataBody:
+      'Each book is saved as it is on this device — the full history and your unsaved changes — just as Download does on any book.',
+    leaveDownloadAll: 'Download everything',
+    leaveDownload: 'Download',
+    leaveDownloadLabel: 'Download {title}',
+    leaveHomeBook: 'Your home book',
+    leaveClose: 'Done',
+    // Delete my account — terminal, type-the-email confirm.
+    leaveTitle: 'Delete your account?',
+    leaveWhen: 'When you delete your account:',
+    leaveWillAccount: 'Your account, every session and every passkey are removed.',
+    leaveWillBooks: 'The books you own are deleted for everyone who shares them.',
+    leaveWillAccess: 'Your access to books other people own ends.',
+    leaveWillDevice: 'Your books and home book are removed from this device.',
+    leaveOwnHead: 'Books you own — deleted for everyone:',
+    leaveSharedWith: {
+      one: '{title} · shared with {count} person — they will lose access',
+      other: '{title} · shared with {count} people — they will lose access',
+    },
+    leaveOnlyYou: '{title} · only you — deleted',
+    leaveLocalHead: 'Only on this device — take it first:',
+    leaveTakeFirst: 'Take your data out first',
+    leaveConfirmLabel: 'Type your email address to confirm:',
+    leaveMismatch: 'That is not the email on this account. Check it and try again.',
+    leaveNeedsConnection: 'Needs a connection — available once you are back online.',
+    leaveCannotUndo: 'This cannot be undone.',
     // Worded errors.
     errNetwork: 'You’re offline, or Estante is unreachable. Connect and try again.',
     errGeneric: 'Something went wrong. Try again.',

@@ -306,3 +306,44 @@ label.signout-card > span:first-child input {
   gap: calc(var(--u) * 1);
   align-items: flex-start;
 }
+
+/* Leaving Estante (account.leaving, workflow 17). The region is a card set apart
+   by a conflict-toned border — danger is carried by the word "Leaving Estante"
+   and "Delete my account", never colour alone. */
+.account-leave-card {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+  margin-top: calc(var(--u) * 1);
+  padding: calc(var(--u) * 2);
+  border: 1px solid var(--conflict);
+  border-radius: var(--radius);
+}
+
+.account-leave-head {
+  margin-top: 0;
+  color: var(--conflict);
+}
+
+.account-leave-body {
+  color: var(--ink-2);
+}
+
+/* The two delete-dialog warning lists and the offline notice stack their lines. */
+.account-leave-notice,
+.account-leave-offline {
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+}
+
+.account-leave-lead {
+  color: var(--ink-2);
+}
+
+.account-leave-will {
+  margin: 0;
+  padding-left: calc(var(--u) * 2.5);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.75);
+}

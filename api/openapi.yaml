@@ -219,6 +219,33 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/account:
+    delete:
+      operationId: deleteAccount
+      tags: [Sign-in]
+      summary: Delete the account everywhere, with its cascade (workflow 17).
+      description: >-
+        Terminal and confirmed by the account's own email in the body. The server
+        compares `confirm` to the account's email and never echoes it (the
+        EmailLinkRequest precedent; workflow 17 Decision 4). On success the cascade
+        removes the account, its sessions and passkeys, drops its memberships and
+        withdraws its invitations, and soft-deletes and removes the bare
+        repositories of the books it owns — so a book whose owner leaves is deleted
+        for everyone (DIRECTION §3.6). The session cookie is cleared.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteAccountRequest'
+      responses:
+        '204':
+          description: Deleted; the session cookie is cleared.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/account/sessions:
     get:
       operationId: listSessions
@@ -948,6 +975,19 @@ components:
           type: string
           format: email
           description: Kept to this request body; never echoed in an error (workflow 13).
+
+    DeleteAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [confirm]
+      properties:
+        confirm:
+          type: string
+          format: email
+          description: >-
+            The account's own email, typed to confirm deletion (workflow 17). Kept
+            to this request body; compared server-side and never echoed in an error
+            (the EmailLinkRequest precedent; workflow 17 Decision 4).
 
     EmailLinkRedeemRequest:
       type: object
