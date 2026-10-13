@@ -85,6 +85,7 @@ export default {
     lostAccessTitle: 'Não é mais compartilhado com você',
     lostAccessBody:
       'Este livro não é mais compartilhado com você, então não será mais sincronizado. Nada se perde: sua cópia, o histórico e as músicas estão todos aqui para ler, e as gravações que ainda não foram para a Estante ficam neste dispositivo. Baixe-o, ou torne-o seu para continuar salvando.',
+    takenDownTitle: 'Este livro foi retirado',
     download: 'Baixar',
     downloadBody:
       'Um zip do repositório como está neste dispositivo: todo o histórico e as alterações não salvas como arquivos modificados. Qualquer ferramenta git abre.',

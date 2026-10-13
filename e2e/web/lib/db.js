@@ -35,6 +35,23 @@ export async function seedAccount(email) {
   }
 }
 
+// Take a book down for a copyright notice, recording the operator's reason
+// (books.notice_surface; workflow 10 §A copyright notice). This is the effect the
+// `estante-admin take-down` command commits — no endpoint provides it — seeded
+// here through the db seam, mirroring e2e/api/admin.test.js:119-125. After this,
+// the service refuses the book's owner and members git with `403 taken_down`
+// carrying the reason (service/internal/server/git.go:232), while the
+// change-check still answers `gone`; the device's sync engine probes git to
+// recover the reason and the book's detail surfaces it.
+export async function takeDownBook(bookId, reason) {
+  const sql = postgres(required('ESTANTE_TEST_DATABASE_URL'), { max: 1, onnotice: () => {} });
+  try {
+    await sql`UPDATE books SET taken_down_reason = ${reason} WHERE id = ${bookId}::uuid`;
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
+}
+
 // Fill a book to its fifty-person cap so the next accept is refused `book_full`
 // (books.add_by_link; workflow 10 §At most fifty — the service enforces the
 // count). Mirrors e2e/api/sharing.test.js's fixture: insert `count` emailless

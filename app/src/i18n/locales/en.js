@@ -92,6 +92,11 @@ export default {
     lostAccessTitle: 'No longer shared with you',
     lostAccessBody:
       'This book is no longer shared with you, so it will not sync again. Nothing is lost: your copy, its history and its songs are all here to read, and any saves not yet on Estante are kept on this device. Download it, or make it your own to keep saving.',
+    // The take-down notice on a `taken_down` book (books.notice_surface, workflow
+    // 10 §A copyright notice). The card title is localized; its body is the
+    // operator's reason, rendered verbatim (the service frames it and it is
+    // inherently unlocalizable — Decision 4), so there is no body key.
+    takenDownTitle: 'This book has been taken down',
     download: 'Download',
     downloadBody:
       'A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.',

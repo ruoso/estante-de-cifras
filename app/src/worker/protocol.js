@@ -441,10 +441,13 @@ export const EventKind = Object.freeze({
   // (nothing to do, or the push landed), 'saves_waiting' (local commits could
   // not go up — offline or the service unreachable), 'offline' (the change
   // check / fetch could not reach the service), 'needs_you' (a merge conflict —
-  // the book halts for sync.conflicts) or 'gone' (the caller is no longer a
-  // member — sync.lost_access). `savesWaiting` counts the local-ahead commits
-  // for the "N saves waiting" word; `lastInStep` is the instant the book was
-  // last in step. A book an event does not touch keeps its slice reference.
+  // the book halts for sync.conflicts), 'gone' (the caller is no longer a
+  // member — sync.lost_access) or 'taken_down' (the service removed the book for
+  // a copyright notice; still a member — books.notice_surface, carrying the
+  // operator's reason as `reason`). `savesWaiting` counts the local-ahead commits
+  // for the "N saves waiting" word; `lastInStep` is the instant the book was last
+  // in step; `reason` is the take-down message on a `taken_down` fact. A book an
+  // event does not touch keeps its slice reference.
   SYNC: 'sync',
   // A clean merge landed on a songbook, per changed song file
   // (sync.read_in_place, workflow 8 §"A song open while it changes"; DIRECTION

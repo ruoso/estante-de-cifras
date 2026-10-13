@@ -234,6 +234,14 @@ export default function BookDetail({
   // no longer a member: the book is readable as it is and never synced again
   // (sync.lost_access; workflow 8 L65-69).
   const isGone = sync?.[bookId]?.phase === 'gone';
+  // The service took the book down for a copyright notice (books.notice_surface):
+  // a distinct halt from `gone` — the device is still a member, but the book is
+  // unreachable, and the Worker recovered the operator's reason from the git
+  // refusal. The notice shows that reason; the book stays readable and
+  // downloadable (workflow 10 §A copyright notice; DIRECTION §3.6). A book is
+  // either `gone` or `taken_down`, never both.
+  const isTakenDown = sync?.[bookId]?.phase === 'taken_down';
+  const takenDownReason = sync?.[bookId]?.reason ?? null;
 
   // A successful put-online changed the book's on-device id (Decision 3): move
   // the open detail to the adopted service id so it keeps showing the book.
@@ -339,6 +347,22 @@ export default function BookDetail({
             <Button className="btn" style={{ alignSelf: 'flex-start' }} onPress={makeYourOwn}>
               {t('saveSheet.makeYourOwn')}
             </Button>
+          </div>
+        ) : null}
+
+        {isTakenDown ? (
+          <div className="card pad">
+            <span className="t-h2">{t('books.takenDownTitle')}</span>
+            {/* The operator's reason, verbatim (Decision 4 — the service frames it
+                and it is inherently unlocalizable), in a live region so the state
+                is carried by a word, never colour alone (Constraint 5;
+                mockups/README.md:26) — the same role the lost-access and
+                put-online status copy uses. No fork offer: forking a book taken
+                down for a copyright notice would re-publish the content under
+                notice (Decision 3). Download stays available below. */}
+            <p className="t-small" role="status">
+              {takenDownReason}
+            </p>
           </div>
         ) : null}
 

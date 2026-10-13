@@ -48,7 +48,7 @@ import {
 import { authorFrom } from './author.js';
 import { reapplyWorkingText } from './cifra-merge-driver.js';
 import { HOME_BOOK_ID } from './home-book.js';
-import { isAccessRefused } from './access-refused.js';
+import { isAccessRefused, takenDownReason } from './access-refused.js';
 
 // A merge that does not merge cleanly (a cifra-aware conflict, or isomorphic-git
 // refusing an unsupported merge). The engine halts the book and emits
@@ -503,6 +503,16 @@ export function createSyncEngine(deps = {}) {
         try {
           await fetchBook(bookId);
         } catch (err) {
+          // A `403 taken_down` means the service removed the book for a copyright
+          // notice mid-retry (books.notice_surface): halt it `taken_down` carrying
+          // the reason. Checked BEFORE isAccessRefused — a taken-down book is still
+          // a member, a distinct halt from lost access (workflow 10 §A copyright
+          // notice; Decision 2). The unpushed work is kept, as on the `gone` path.
+          const reason = takenDownReason(err);
+          if (reason !== null) {
+            emitFact(bookId, 'taken_down', { reason });
+            return;
+          }
           // A definite 404 means the device lost access mid-retry: halt the book
           // the same way the change-check `gone` does, keeping the unpushed work
           // (sync.lost_access; workflow 8 L65-69).
@@ -542,6 +552,17 @@ export function createSyncEngine(deps = {}) {
         return;
       } catch (err) {
         if (isLostRace(err)) continue;
+        // A `403 taken_down` means the service removed the book for a copyright
+        // notice (books.notice_surface): halt it `taken_down` with the reason,
+        // keeping the unpushed commit. Checked BEFORE isAccessRefused (a 404) and
+        // BEFORE the reader-push fall-through — a reader's plain 403 carries no
+        // taken-down body, so `takenDownReason` is null and it still lands on
+        // `saves_waiting` (workflow 10 §A copyright notice; Decision 2).
+        const reason = takenDownReason(err);
+        if (reason !== null) {
+          emitFact(bookId, 'taken_down', { reason });
+          return;
+        }
         // A definite 404 means the service refused the push because the device is
         // no longer a member (git.go:208,217): lost access. Mark the book `gone`
         // and stop — the unpushed commit is kept, nothing is rolled back
@@ -572,6 +593,26 @@ export function createSyncEngine(deps = {}) {
     }
     const change = news?.get(bookId);
     if (change?.status === 'gone') {
+      // The change-check answers `gone` with no reason for BOTH a book the device
+      // was removed from AND a book the service took down for a copyright notice:
+      // `accessibleBooks` excludes a taken-down book alongside non-members
+      // (service/internal/server/shelf.go:189-199), and the reason is book-scoped,
+      // carried only on the git refusal (service.admin). This branch short-circuits
+      // before any git request, so a taken-down book with no local changes would
+      // never meet the 403 and its reason would never surface. So probe git once to
+      // disambiguate (books.notice_surface Decision 1): a `403 taken_down` yields a
+      // reason → halt `taken_down` with it; a 404 (or any other outcome) is plain
+      // lost access → `gone`. Either way the working copy and any unpushed work are
+      // kept, exactly as the `gone` path does (Constraint 7).
+      try {
+        await fetchBook(bookId);
+      } catch (err) {
+        const reason = takenDownReason(err);
+        if (reason !== null) {
+          emitFact(bookId, 'taken_down', { reason });
+          return;
+        }
+      }
       // Losing access: the book stops syncing (workflow 8 L65-69); the fork /
       // download offer is sync.lost_access.
       emitFact(bookId, 'gone');
@@ -601,6 +642,15 @@ export function createSyncEngine(deps = {}) {
           await fetchBook(bookId);
           fetched = true;
         } catch (err) {
+          // A `403 taken_down` on the fetch is the service removing the book for a
+          // copyright notice mid-pass (books.notice_surface): halt it `taken_down`
+          // with the reason, work untouched. Checked BEFORE isAccessRefused — a
+          // distinct halt from lost access (workflow 10 §A copyright notice).
+          const reason = takenDownReason(err);
+          if (reason !== null) {
+            emitFact(bookId, 'taken_down', { reason });
+            return;
+          }
           // A definite 404 on the fetch is lost access (git.go:208,217): halt the
           // book `gone` like the change-check does, keeping its work untouched
           // (sync.lost_access; workflow 8 L65-69). Any other fetch error is

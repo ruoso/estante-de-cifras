@@ -123,9 +123,11 @@ export const initialState = {
   // Starts empty: the chip shows the standard guitar until OPEN surfaces it.
   instruments: { instruments: [], inUseId: null, standard: null },
   // The per-book sync state (sync.engine, SYNC), keyed by `bookId`: `{ phase,
-  // savesWaiting, lastInStep, at }`. `phase` is carried as a word (never colour
-  // alone) — 'syncing' | 'in_step' | 'saves_waiting' | 'offline' | 'needs_you' |
-  // 'gone' (workflow 8 §What the shelf says). The engine is the single source of
+  // savesWaiting, lastInStep, reason, at }`. `phase` is carried as a word (never
+  // colour alone) — 'syncing' | 'in_step' | 'saves_waiting' | 'offline' |
+  // 'needs_you' | 'gone' | 'taken_down' (workflow 8 §What the shelf says;
+  // 'taken_down' is books.notice_surface, carrying the operator's copyright-notice
+  // `reason`). The engine is the single source of
   // sync truth; the shelf (sync.states) renders this slice. A book an event does
   // not touch keeps its exact entry reference, so a view watching one book does
   // not re-render on another's pass ("only what shows it moves"). Starts empty:
@@ -477,6 +479,10 @@ export function reduce(state, message) {
             phase: message.payload?.phase ?? null,
             savesWaiting: message.payload?.savesWaiting ?? 0,
             lastInStep: message.payload?.lastInStep ?? null,
+            // The operator's take-down reason, set only on a `taken_down` fact
+            // (books.notice_surface). The whole-entry replace resets it to null
+            // on any other phase, so a book that leaves `taken_down` drops it.
+            reason: message.payload?.reason ?? null,
             at: message.payload?.at ?? null,
           },
         },

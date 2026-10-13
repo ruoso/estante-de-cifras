@@ -7,7 +7,11 @@
 // (service/internal/server/git.go:208,217,231): a request from someone who is no
 // longer a member — or for a book that does not exist — is refused 404, while a
 // reader who tries to push is refused 403 (still a member). This module reads an
-// isomorphic-git HTTP error and says whether it is the 404 lost-access refusal.
+// isomorphic-git HTTP error and says whether it is the 404 lost-access refusal,
+// and — a sibling classifier, `takenDownReason` (books.notice_surface) — whether
+// it is instead the service's `403 taken_down` refusal, returning the operator's
+// copyright-notice reason. The two never overlap: 404 is lost access, the
+// taken-down 403 is a distinct halt that still means the caller is a member.
 //
 // Only a 404 is lost access. A 403 (a reader push — still a member), a missing
 // response (offline — a thrown `fetch` carries no HTTP status) and any 5xx (the
@@ -34,4 +38,40 @@
  */
 export function isAccessRefused(err) {
   return err?.data?.statusCode === 404;
+}
+
+/**
+ * The operator's take-down reason, when this error is the service's
+ * `403 taken_down` refusal (books.notice_surface; service.admin) — otherwise
+ * `null`. A take-down is a *distinct* halt from lost access: the caller is still
+ * a member, but the service removed the book for a copyright notice (workflow 10
+ * §A copyright notice; DIRECTION §3.6), refusing its owner and members git with
+ * `403` whose JSON body is `{ code: 'taken_down', message: 'This book has been
+ * taken down: <reason>' }` (service/internal/server/git.go:232). A stranger gets
+ * a plain 404 and learns nothing, so the reason is book-scoped and authenticated
+ * — it rides only on the git refusal, never the change-check.
+ *
+ * isomorphic-git's `HttpError` carries the stringified response body under
+ * `err.data.response` (isomorphic-git 1.x). This reads that body's `code`/
+ * `message` — a status line, never song text, logged nowhere (standing rule). It
+ * returns `null` for anything that is not the take-down 403: a reader-push 403
+ * with no/other body, a 404 (that is `isAccessRefused`'s lost access), a 5xx, a
+ * missing response (offline — a thrown `fetch` carries no body), a malformed
+ * body, or `null`/`undefined`. So the two classifiers never overlap.
+ *
+ * @param {unknown} err
+ * @returns {string|null}
+ */
+export function takenDownReason(err) {
+  if (err?.data?.statusCode !== 403) return null;
+  const { response } = err.data;
+  if (typeof response !== 'string') return null;
+  let body;
+  try {
+    body = JSON.parse(response);
+  } catch {
+    return null;
+  }
+  if (body?.code !== 'taken_down') return null;
+  return typeof body.message === 'string' ? body.message : null;
 }

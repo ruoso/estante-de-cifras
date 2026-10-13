@@ -83,7 +83,8 @@ task books "Books" {
   task notice_surface "Show the take-down reason in BookDetail" {
     effort 2d
     allocate team
+    complete 100
     depends sync.lost_access, service.admin
-    note "Sync engine maps the git `403 taken_down` to a distinct halted state carrying the reason; BookDetail.jsx renders the operator's reason (role=status notice) beside the existing Download card. Source of debt: tasks/refinements/service/admin.md (service.admin). Governing: workflow 10 §A copyright notice; DIRECTION §3.6. Tests: behavior (BookDetail renders the taken-down notice with the reason, axe clean; sync engine `403 taken_down` classification in access-refused.js); e2e-web (a taken-down book shows its reason on phone, tablet and computer; axe)."
+    note "Sync engine maps the git `403 taken_down` to a distinct halted state carrying the reason; BookDetail.jsx renders the operator's reason (role=status notice) beside the existing Download card. Source of debt: tasks/refinements/service/admin.md (service.admin). Governing: workflow 10 §A copyright notice; DIRECTION §3.6. Tests: behavior (BookDetail renders the taken-down notice with the reason, axe clean; sync engine `403 taken_down` classification in access-refused.js); e2e-web (a taken-down book shows its reason on phone, tablet and computer; axe). Refinement: tasks/refinements/books/notice_surface.md"
   }
 }

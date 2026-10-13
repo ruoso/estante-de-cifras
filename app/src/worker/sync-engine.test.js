@@ -119,13 +119,17 @@ describe('sync engine routing (unit)', () => {
     const changeCheck = {
       check: async () => new Map([['book1', { bookId: 'book1', status: 'gone' }]]),
     };
+    // The engine now probes git once on the change-check `gone` branch to
+    // disambiguate a take-down from plain lost access (books.notice_surface
+    // Decision 1). Here the probe succeeds (no `403 taken_down`), so the book is
+    // plain gone — the probe neither pushes nor changes the phase.
     const fetchBook = vi.fn(async () => {});
     const pushBook = vi.fn(async () => {});
     const { engine, facts } = makeEngine({ changeCheck, fetchBook, pushBook });
 
     await engine.pass();
 
-    expect(fetchBook).not.toHaveBeenCalled();
+    expect(fetchBook).toHaveBeenCalledTimes(1); // the take-down probe (Decision 1)
     expect(pushBook).not.toHaveBeenCalled();
     expect(lastPhase(facts)).toBe('gone');
   });
@@ -181,6 +185,125 @@ describe('sync engine routing (unit)', () => {
 
     expect(push403).toHaveBeenCalledTimes(1);
     expect(lastPhase(reader.facts)).toBe('saves_waiting');
+  });
+
+  // books.notice_surface — the service took a book down for a copyright notice.
+  // The change-check answers `gone` with no reason (shelf.go:189-199), so on that
+  // branch the engine does one git probe to disambiguate a `taken_down` 403
+  // (carrying the reason) from plain lost access (a 404). At the three direct git
+  // catch sites, a `taken_down` 403 mid-pass is classified before lost access.
+  // The error shape is access-refused.js's: `err.data.statusCode` and the
+  // stringified body under `err.data.response` (git.go:232; respond.go:12-30).
+  const TAKEN_DOWN_REASON = 'This book has been taken down: Copyright notice filed by the rights holder.';
+  const httpError = (statusCode, response) => {
+    const err = new Error(`HTTP Error: ${statusCode}`);
+    err.code = err.name = 'HttpError';
+    err.data = { statusCode, statusMessage: 'x' };
+    if (response !== undefined) err.data.response = response;
+    return err;
+  };
+  const takenDown403 = () =>
+    httpError(403, JSON.stringify({ code: 'taken_down', message: TAKEN_DOWN_REASON }));
+  const lastFact = (facts, bookId = 'book1') =>
+    [...facts].reverse().find((f) => f.bookId === bookId);
+
+  describe('take-down (books.notice_surface; workflow 10 §A copyright notice)', () => {
+    it('a gone change-check whose probe fetch throws taken_down is emitted taken_down with the reason, its work kept', async () => {
+      const changeCheck = {
+        check: async () => new Map([['book1', { bookId: 'book1', status: 'gone' }]]),
+      };
+      // The change-check short-circuits `gone`; the engine probes git once and the
+      // probe is refused `403 taken_down` (shelf.go:189-199 answered gone with no
+      // reason — the reason rides only on the git refusal, Decision 1).
+      const fetchBook = vi.fn(async () => {
+        throw takenDown403();
+      });
+      const pushBook = vi.fn(async () => {});
+      const { engine, facts } = makeEngine({ changeCheck, fetchBook, pushBook });
+
+      await engine.pass();
+
+      expect(fetchBook).toHaveBeenCalledTimes(1); // one probe to recover the reason
+      expect(pushBook).not.toHaveBeenCalled(); // no push against a taken-down book
+      const fact = lastFact(facts);
+      expect(fact.phase).toBe('taken_down');
+      expect(fact.reason).toBe(TAKEN_DOWN_REASON);
+    });
+
+    it('a gone change-check whose probe fetch throws a 404 stays plain gone (lost access, no reason)', async () => {
+      const changeCheck = {
+        check: async () => new Map([['book1', { bookId: 'book1', status: 'gone' }]]),
+      };
+      const fetchBook = vi.fn(async () => {
+        throw httpError(404);
+      });
+      const { engine, facts } = makeEngine({ changeCheck, fetchBook });
+
+      await engine.pass();
+
+      expect(fetchBook).toHaveBeenCalledTimes(1);
+      const fact = lastFact(facts);
+      expect(fact.phase).toBe('gone');
+      expect(fact.reason ?? null).toBeNull();
+    });
+
+    it('a push refused taken_down mid-pass is emitted taken_down with the reason; a reader-push 403 still falls through to saves_waiting', async () => {
+      const quietCheck = { check: async () => new Map() }; // nothing incoming
+      const pushTakenDown = vi.fn(async () => {
+        throw takenDown403();
+      });
+      const takenDown = makeEngine({
+        changeCheck: quietCheck,
+        pushBook: pushTakenDown,
+        localAhead: async () => true,
+      });
+
+      await takenDown.engine.pass();
+
+      expect(pushTakenDown).toHaveBeenCalledTimes(1); // not retried (not a lost race)
+      const fact = lastFact(takenDown.facts);
+      expect(fact.phase).toBe('taken_down');
+      expect(fact.reason).toBe(TAKEN_DOWN_REASON);
+
+      // A reader-push 403 carries no taken-down body: still a member, not taken
+      // down — the book stays saves_waiting, retried next pass (the two do not
+      // overlap).
+      const pushReader = vi.fn(async () => {
+        throw httpError(403);
+      });
+      const reader = makeEngine({
+        changeCheck: quietCheck,
+        pushBook: pushReader,
+        localAhead: async () => true,
+        countAhead: async () => 1,
+      });
+
+      await reader.engine.pass();
+
+      expect(lastFact(reader.facts).phase).toBe('saves_waiting');
+    });
+
+    it('a fetch refused taken_down on an incoming-change pass is emitted taken_down with the reason', async () => {
+      const changeCheck = {
+        check: async () => new Map([['book1', { bookId: 'book1', status: 'changed' }]]),
+      };
+      const fetchTakenDown = vi.fn(async () => {
+        throw takenDown403();
+      });
+      const pushBook = vi.fn(async () => {});
+      const { engine, facts } = makeEngine({
+        changeCheck,
+        fetchBook: fetchTakenDown,
+        pushBook,
+      });
+
+      await engine.pass();
+
+      expect(pushBook).not.toHaveBeenCalled(); // halted before the best-effort push
+      const fact = lastFact(facts);
+      expect(fact.phase).toBe('taken_down');
+      expect(fact.reason).toBe(TAKEN_DOWN_REASON);
+    });
   });
 
   it('routes the home book to its own sync (never the cifra-aware merge) and re-surfaces', async () => {

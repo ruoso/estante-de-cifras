@@ -188,6 +188,52 @@ describe('BookDetail (workflow 7; W07 board)', () => {
     expect(screen.queryByRole('button', { name: 'Make this book your own' })).toBeNull();
   });
 
+  it('a taken-down book shows the operator reason in a live region beside Download, no gone card and no fork (books.notice_surface; workflow 10 §A copyright notice; DIRECTION §3.6)', async () => {
+    const { store, sent, emit } = makeStore();
+    // The reason is written for this test — the service frames it; it is never a
+    // real notice (no-song-text / no-copyrighted-words rule).
+    const REASON =
+      'This book has been taken down: a copyright notice was filed by the rights holder.';
+    const { container } = renderDetail(store, { bookId: 'srv-2', kind: 'shared' });
+    emit(memberShelf());
+    // The engine recovered the take-down reason from the git refusal and emitted
+    // the distinct `taken_down` phase carrying it (the live `sync` slice).
+    emit(event(EventKind.SYNC, { bookId: 'srv-2', phase: 'taken_down', reason: REASON, at: AT }));
+
+    // The localized title frames the notice; the reason is rendered verbatim in a
+    // live region (state carried by a word, never colour alone — Constraint 5,
+    // mockups/README.md:26).
+    expect(screen.getByText('This book has been taken down')).toBeInTheDocument();
+    const body = screen.getByText(REASON);
+    expect(body).toHaveAttribute('role', 'status');
+
+    // It is NOT the lost-access card: no "no longer shared with you" copy, and no
+    // fork offer (a copyright take-down is not a make-it-your-own case — Decision 3).
+    expect(screen.queryByText('No longer shared with you')).toBeNull();
+    expect(
+      screen.queryByText(/no longer shared with you, so it will not sync again/),
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Make this book your own' })).toBeNull();
+
+    // Download stays reachable — the book is still readable and exportable
+    // (acceptance 5; the universal card).
+    const download = screen.getByRole('button', { name: 'Download' });
+    act(() => fireEvent.click(download));
+    expect(lastCommand(sent, CommandKind.DOWNLOAD_BOOK).payload.bookId).toBe('srv-2');
+
+    // axe clean at WCAG 2.1 AA on the taken-down detail.
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('a book not taken down shows no take-down notice (the notice is scoped to the taken_down phase)', async () => {
+    const { store, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-1', kind: 'shared' });
+    emit(hostedShelf());
+    emit(event(EventKind.SYNC, { bookId: 'srv-1', phase: 'in_step', at: AT }));
+
+    expect(screen.queryByText('This book has been taken down')).toBeNull();
+  });
+
   it('Remove warns a device-only book is gone for good and offers Download first (L128-135)', async () => {
     const { store, sent, emit } = makeStore();
     renderDetail(store, { bookId: 'local-1', kind: 'local' });

@@ -72,6 +72,18 @@ describe('syncDisplayFor — deriving each state (workflow 8 L28-34)', () => {
       dot: true,
     });
   });
+
+  it('taken_down → the same gone shelf word/badge (workflow 10 L113: "gone on every shelf"; books.notice_surface)', () => {
+    // A book the service took down for a copyright notice reads exactly like gone
+    // on the shelf — only BookDetail distinguishes it and shows the reason.
+    const atom = syncDisplayFor({ phase: 'taken_down', reason: 'a purpose-written notice' }, { t });
+    expect(atom).toMatchObject({
+      kind: 'taken_down',
+      word: 'no longer shared with you',
+      cls: 'conflict dot',
+      dot: true,
+    });
+  });
 });
 
 describe('anyOutOfStep — the header quiet mark (workflow 8 L36-37)', () => {
@@ -84,6 +96,8 @@ describe('anyOutOfStep — the header quiet mark (workflow 8 L36-37)', () => {
     expect(anyOutOfStep({ 'b-1': { phase: 'in_step' }, 'b-2': { phase: 'offline' } })).toBe(true);
     expect(anyOutOfStep({ 'b-1': { phase: 'needs_you' } })).toBe(true);
     expect(anyOutOfStep({ 'b-1': { phase: 'saves_waiting', savesWaiting: 1 } })).toBe(true);
+    // A taken-down book counts as out of step too (books.notice_surface).
+    expect(anyOutOfStep({ 'b-1': { phase: 'taken_down' } })).toBe(true);
   });
 
   it('excludes the home book — personal state is not a shelf book (Constraints "Songbooks only")', () => {

@@ -25,7 +25,16 @@ const HOME_BOOK_ID = 'home';
 // A book is "out of step" when its phase is anything but in step (and present):
 // the five states workflow 8 shows (L28-34). `in_step` and an absent/unknown
 // phase render nothing.
-const OUT_OF_STEP = new Set(['syncing', 'saves_waiting', 'offline', 'needs_you', 'gone']);
+// `taken_down` reads as gone on every shelf (workflow 10 L113: "shows as gone on
+// every shelf") — only BookDetail distinguishes it (books.notice_surface).
+const OUT_OF_STEP = new Set([
+  'syncing',
+  'saves_waiting',
+  'offline',
+  'needs_you',
+  'gone',
+  'taken_down',
+]);
 
 // The last-in-step instant (an ISO §3 instant) as the HH:MM a person reads
 // ("offline since 09:40", mockup L241). Local wall-clock — the user's own time,
@@ -57,6 +66,7 @@ function timeOf(iso) {
  *   offline       → "offline since {time}" / "offline" (.badge)
  *   needs_you     → "needs you"                    (.badge.conflict.dot)
  *   gone          → "no longer shared with you"    (.badge.conflict.dot)
+ *   taken_down    → "no longer shared with you"    (.badge.conflict.dot, same as gone)
  *
  * @param {{ phase?: string, savesWaiting?: number, lastInStep?: string|null }|null|undefined} entry
  * @param {{ t: (key: string, params?: object) => string, now?: () => number }} options
@@ -90,6 +100,16 @@ export function syncDisplayFor(entry, options = {}) {
       return { kind: 'needs_you', word: t('books.needsYou'), cls: 'conflict dot', dot: true };
     case 'gone':
       return { kind: 'gone', word: t('books.noLongerShared'), cls: 'conflict dot', dot: true };
+    case 'taken_down':
+      // A book the service took down for a copyright notice reads the same word
+      // and badge as gone on every shelf (workflow 10 L113; books.notice_surface
+      // Decision; the reason surfaces only on BookDetail, not here).
+      return {
+        kind: 'taken_down',
+        word: t('books.noLongerShared'),
+        cls: 'conflict dot',
+        dot: true,
+      };
     // in_step, an absent entry, and any unknown phase: nothing on the shelf.
     default:
       return null;
