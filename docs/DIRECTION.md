@@ -532,8 +532,14 @@ workflows do not yet cover, and work that comes before building:
   grouped by position, viewing by notation, starring a shape as *my shape*.
 - **Leaving**: deleting an account and taking one's data out, and what
   happens to books others are members of.
-- **How a screen reader reads a sung line**: an order for chords and words
-  read aloud, decided rather than left to the markup.
+- **How a screen reader reads a chart**, decided and drawn:
+  [screen-reader.md](screen-reader.md) and
+  [mockups/Screen-reader.dc.html](mockups/Screen-reader.dc.html) — the order
+  chords and words are read aloud, decided rather than left to the markup: a
+  sung line interleaved chord-before-word-run, a chart line as its measures, a
+  diagram by its fingering and whose shape it is, a conflict bounded by a word.
+  No new workflow: a cross-cutting reading-order rule for every chart-bearing
+  screen, not a journey; `shell.a11y_chart` implements and checks it.
 - **The theme picker**, decided (workflow 1) and drawn:
   [mockups/Theme-picker.dc.html](mockups/Theme-picker.dc.html) — a Preferences
   section of the account screen (workflow 13), reached from the header and

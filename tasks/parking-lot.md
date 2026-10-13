@@ -245,7 +245,7 @@ Append one `###` block per item, newest at the bottom:
 - **Question**: Beyond what automatic already gives (a dark-mode device shows Palco), a performer at a gig might want a one-tap header shortcut to Palco without opening the account screen. Should Estante add a fast in-header Palco switch in addition to the single Preferences control on the account screen?
 - **Why parked**: product judgment call; the picker ships as the one account-screen surface. Whether a header shortcut is worth the extra control complexity is a deliberate product decision, not a design task.
 
-### 2026-10-13 — Republish the mockup canvas after Theme-picker board
-- **Source**: closer for `design.theme_picker` (tasks/refinements/design/theme_picker.md).
-- **Question**: `docs/mockups/Theme-picker.dc.html` is written and registered in `canvas.json`, but the published canvas needs to be updated to include it. The implementer cannot render or publish the board.
-- **Why parked**: work only a person can do — requires publishing access to the external canvas host. (See also the earlier 2026-10-05 entry for W15; both boards can be published in one pass.)
+### 2026-10-13 — Republish the mockup canvas after Theme-picker and Screen-reader boards
+- **Source**: closer for `design.theme_picker` (tasks/refinements/design/theme_picker.md); updated by closer for `design.screen_reader`.
+- **Question**: `docs/mockups/Theme-picker.dc.html` and `docs/mockups/Screen-reader.dc.html` are written and registered in `canvas.json`, but the published canvas needs to be updated to include them. Implementers cannot render or publish the board.
+- **Why parked**: work only a person can do — requires publishing access to the external canvas host. (See also the earlier 2026-10-05 entry for W15; all three boards can be published in one pass.)

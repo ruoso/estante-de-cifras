@@ -142,6 +142,13 @@
    "w": 3208,
    "h": 1500,
    "title": "The theme picker"
+  },
+  "Screen-reader.dc.html": {
+   "x": 0,
+   "y": 29960,
+   "w": 3208,
+   "h": 1500,
+   "title": "How a screen reader reads a chart"
   }
  },
  "order": [
@@ -163,7 +170,8 @@
   "W14-file-view.dc.html",
   "W16-chord-explorer.dc.html",
   "W15-set-up-an-instrument.dc.html",
-  "Theme-picker.dc.html"
+  "Theme-picker.dc.html",
+  "Screen-reader.dc.html"
  ],
  "notes": {
   "workflows": {

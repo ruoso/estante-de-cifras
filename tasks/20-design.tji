@@ -26,7 +26,8 @@ task design "Design gaps" {
   task screen_reader "How a screen reader reads a sung line" {
     effort 1d
     allocate team
-    note "A decided order for chords and words read aloud, and how a chart, a diagram and a conflict are announced. DIRECTION §6. Tests: none — design deliverable (the decided reading order, in a document and on the board); shell.a11y_chart's tests pin it."
+    complete 100
+    note "A decided order for chords and words read aloud, and how a chart, a diagram and a conflict are announced. DIRECTION §6. Tests: none — design deliverable (the decided reading order, in a document and on the board); shell.a11y_chart's tests pin it. Refinement: tasks/refinements/design/screen_reader.md"
   }
   task theme_picker "Draw the theme picker" {
     effort 0.5d

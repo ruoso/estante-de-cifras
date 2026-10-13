@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>How a screen reader reads a chart</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Accessibility · docs/screen-reader.md</div>
+    <h1 class="board-title">How a screen reader reads a chart</h1>
+    <p class="board-sub">The order a chart is read aloud is decided, not left to the markup. A sung line interleaves chord then the words it sits over; a chart line is its measures in order; a diagram is its fingering and whose shape it is; a conflict is bounded by a word. Each device draws a real reading-view chart beside the exact text a screen reader announces — a chord by name, padding and the centred hyphen silent, the bar glyph and the git markers never spoken.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · a sung line, then a chart line — each beside its reading</div>
+      <div class="dev-pair">
+
+        <!-- Phone 1: a sung line -->
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Tarde Clara</span>
+            </div>
+            <div class="scroll" style="gap: 14px">
+              <div class="t-h3">A sung line</div>
+              <div class="chart">
+                <sc-for list="{{sungChart}}" as="l" hint-placeholder-count="4">
+                  <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                </sc-for>
+              </div>
+              <div class="card pad" style="gap: 10px">
+                <div class="t-h3">As a screen reader reads it</div>
+                <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px">
+                  <sc-for list="{{sungReading}}" as="r" hint-placeholder-count="6">
+                    <li style="display: flex; gap: 10px; align-items: baseline">
+                      <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); min-width: 64px; flex: none; text-align: right">{{r.tag}}</span>
+                      <sc-if value="{{r.isChord}}" hint-placeholder-val="{{ true }}"><span style="font-family: var(--font-chart); font-weight: 700; font-size: 16px; color: var(--chord)">{{r.text}}</span></sc-if>
+                      <sc-if value="{{r.isLyric}}" hint-placeholder-val="{{ false }}"><span style="font-size: 16px; color: var(--ink)">“{{r.text}}”</span></sc-if>
+                      <sc-if value="{{r.isName}}" hint-placeholder-val="{{ false }}"><span style="font-size: 15px; color: var(--ink); line-height: 1.4">{{r.text}}</span></sc-if>
+                      <sc-if value="{{r.isNote}}" hint-placeholder-val="{{ false }}"><span style="font-size: 14px; color: var(--ink-2); font-style: italic">{{r.text}}</span></sc-if>
+                    </li>
+                  </sc-for>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phone 2: a chart line -->
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Tarde Clara</span>
+            </div>
+            <div class="scroll" style="gap: 14px">
+              <div class="t-h3">A chart line</div>
+              <div class="chart">
+                <sc-for list="{{barChart}}" as="l" hint-placeholder-count="4">
+                  <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ false }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ true }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                  <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                  <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                </sc-for>
+              </div>
+              <div class="card pad" style="gap: 10px">
+                <div class="t-h3">As a screen reader reads it</div>
+                <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px">
+                  <sc-for list="{{barReading}}" as="r" hint-placeholder-count="6">
+                    <li style="display: flex; gap: 10px; align-items: baseline">
+                      <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); min-width: 64px; flex: none; text-align: right">{{r.tag}}</span>
+                      <sc-if value="{{r.isChord}}" hint-placeholder-val="{{ true }}"><span style="font-family: var(--font-chart); font-weight: 700; font-size: 16px; color: var(--chord)">{{r.text}}</span></sc-if>
+                      <sc-if value="{{r.isLyric}}" hint-placeholder-val="{{ false }}"><span style="font-size: 16px; color: var(--ink)">“{{r.text}}”</span></sc-if>
+                      <sc-if value="{{r.isName}}" hint-placeholder-val="{{ false }}"><span style="font-size: 15px; color: var(--ink); line-height: 1.4">{{r.text}}</span></sc-if>
+                      <sc-if value="{{r.isNote}}" hint-placeholder-val="{{ false }}"><span style="font-size: 14px; color: var(--ink-2); font-style: italic">{{r.text}}</span></sc-if>
+                    </li>
+                  </sc-for>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet: a chord diagram -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · a chord diagram, read by its fingering and whose shape it is</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Tarde Clara</span>
+            <span class="chip accent">Guitar · E A D G B E</span>
+          </div>
+          <div class="scroll" style="padding: 24px 28px; gap: 20px">
+            <div class="t-h3">Shapes · each diagram is one accessible name</div>
+            <div style="display: flex; gap: 32px; align-items: flex-start">
+              <div class="shapes" style="flex: none">
+                <dc-import name="ChordBox" chord="A" frets="x02220" kind="yours" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                <dc-import name="ChordBox" chord="E" frets="022100" kind="default" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                <dc-import name="ChordBox" chord="G" frets="320003" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+              </div>
+              <div class="card pad" style="gap: 12px; flex: 1; min-width: 0">
+                <div class="t-h3">As a screen reader reads each</div>
+                <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px">
+                  <sc-for list="{{diagramReading}}" as="r" hint-placeholder-count="6">
+                    <li style="display: flex; gap: 12px; align-items: baseline">
+                      <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); min-width: 92px; flex: none; text-align: right">{{r.tag}}</span>
+                      <sc-if value="{{r.isChord}}" hint-placeholder-val="{{ false }}"><span style="font-family: var(--font-chart); font-weight: 700; font-size: 16px; color: var(--chord)">{{r.text}}</span></sc-if>
+                      <sc-if value="{{r.isLyric}}" hint-placeholder-val="{{ false }}"><span style="font-size: 16px; color: var(--ink)">“{{r.text}}”</span></sc-if>
+                      <sc-if value="{{r.isName}}" hint-placeholder-val="{{ true }}"><span style="font-size: 16px; color: var(--ink); line-height: 1.45">{{r.text}}</span></sc-if>
+                      <sc-if value="{{r.isNote}}" hint-placeholder-val="{{ false }}"><span style="font-size: 14px; color: var(--ink-2); font-style: italic">{{r.text}}</span></sc-if>
+                    </li>
+                  </sc-for>
+                </ol>
+              </div>
+            </div>
+            <p class="t-small">The fingering sentence is the music core's <b>describeFingering</b>, decided in workflow 16. Whose shape it is — <b>your shape</b>, <b>default</b>, or the song's own (unmarked, in ink) — is said in a word, never by the fill colour alone. The difficulty word belongs to the explorer's ranked candidates, not the chosen shape, so it is left off here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Computer: a conflict -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · a conflicted line bounded by a word — and the raw markers that stay in the editor</div>
+      <div class="dev desktop">
+        <div class="screen">
+          <div class="appbar" style="padding: 14px 24px">
+            <span class="title">Carinhoso</span>
+            <span class="badge conflict dot">needs you</span>
+            <span class="t-small" style="margin-left: auto">Reading your version, with the conflicted places marked</span>
+          </div>
+          <div class="scroll" style="padding: 24px 32px; gap: 20px">
+            <div style="display: flex; gap: 40px; align-items: flex-start">
+              <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+                <div class="t-h3">The reading view — your own version</div>
+                <div class="chart" style="--chart-size: 20px">
+                  <sc-for list="{{conflictChart}}" as="l" hint-placeholder-count="4">
+                    <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ false }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                    <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ true }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                    <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                  </sc-for>
+                </div>
+                <p class="t-small">The third line is in conflict (<b>mark-conf</b>). It is announced in musical terms and by a word — not by the soft background alone.</p>
+              </div>
+              <div class="card pad" style="gap: 10px; width: 420px; flex: none">
+                <div class="t-h3">As a screen reader reads it</div>
+                <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+                  <sc-for list="{{conflictReading}}" as="r" hint-placeholder-count="6">
+                    <li style="display: flex; gap: 12px; align-items: baseline">
+                      <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); min-width: 86px; flex: none; text-align: right">{{r.tag}}</span>
+                      <sc-if value="{{r.isChord}}" hint-placeholder-val="{{ true }}"><span style="font-family: var(--font-chart); font-weight: 700; font-size: 16px; color: var(--chord)">{{r.text}}</span></sc-if>
+                      <sc-if value="{{r.isLyric}}" hint-placeholder-val="{{ false }}"><span style="font-size: 16px; color: var(--ink)">“{{r.text}}”</span></sc-if>
+                      <sc-if value="{{r.isName}}" hint-placeholder-val="{{ false }}"><span style="font-size: 16px; color: var(--ink); line-height: 1.45">{{r.text}}</span></sc-if>
+                      <sc-if value="{{r.isNote}}" hint-placeholder-val="{{ false }}"><span style="font-size: 15px; color: var(--ink-2); font-style: italic">{{r.text}}</span></sc-if>
+                    </li>
+                  </sc-for>
+                </ol>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <div class="t-h3">The same conflict in the source editor — read verbatim, never in the chart</div>
+              <div class="editor">
+                <sc-for list="{{editorLines}}" as="ln" hint-placeholder-count="6">
+                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                </sc-for>
+              </div>
+              <p class="t-small">The <span class="t-mono">&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span>, <span class="t-mono">=======</span> and <span class="t-mono">&gt;&gt;&gt;&gt;&gt;&gt;&gt;</span> markers are plain text here (CodeMirror 6), so a screen reader reads them as written. They never appear in the rendered reading chart, where the conflict is announced in musical terms instead.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const segsOf = (chords, words) => {
+      const toks = []; const re = /\S+/g; let m;
+      while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
+      if (!toks.length) return [{ c: '', w: words }];
+      const segs = [];
+      if (toks[0].at > 0) segs.push({ c: '', w: words.slice(0, toks[0].at).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') });
+      toks.forEach((t, i) => {
+        const end = i + 1 < toks.length ? toks[i + 1].at : Math.max(words.length, t.at);
+        segs.push({ c: t.c, w: words.slice(t.at, end).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') || ' ' });
+      });
+      return segs.map((sg, i) => ({ c: sg.c, w: sg.w, j: i + 1 < segs.length && /\S$/.test(sg.w) && /^\S/.test(segs[i + 1].w) }));
+    };
+    const L = {
+      sec: (t) => ({ isSec: true, text: t }),
+      sung: (c, w, cls) => ({ isSung: true, segs: segsOf(c, w), cls: cls || '' }),
+      bars: (t, cls) => ({ isBars: true, ms: t.split('|').map((x) => x.trim()).filter((x) => x).map((x) => ({ cs: x })), cls: cls || '' }),
+      run: (t, cls) => ({ isRun: true, text: t, cls: cls || '' }),
+      words: (t) => ({ isWords: true, text: t }),
+      gap: () => ({ isGap: true }),
+    };
+    const chord = (tag, text) => ({ tag, text, isChord: true });
+    const lyric = (text) => ({ tag: 'lyric', text, isLyric: true });
+    const name = (tag, text) => ({ tag, text, isName: true });
+    const note = (text) => ({ tag: '', text, isNote: true });
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+
+      sungChart: [
+        L.sec('Primeira Parte'),
+        L.sung('G      D        Em', 'Quando eu te vi passar'),
+        L.sung('G        C', 'o amanhecer'),
+      ],
+      sungReading: [
+        chord('chord', 'G'), lyric('Quando'),
+        chord('chord', 'D'), lyric('eu te vi'),
+        chord('chord', 'E minor'), lyric('passar'),
+        note('— next line —'),
+        chord('chord', 'G'), lyric('o amanhec'),
+        chord('chord', 'C'), lyric('er'),
+        note('the centred hyphen is drawn, never spoken'),
+      ],
+
+      barChart: [
+        L.sec('Refrão'),
+        L.bars('G | D | Em | C'),
+        L.gap(),
+        L.bars('N.C. | C | G7'),
+      ],
+      barReading: [
+        note('ordered group of 4 measures'),
+        chord('measure', 'G'), chord('measure', 'D'),
+        chord('measure', 'E minor'), chord('measure', 'C'),
+        note('the | bar line is never spoken'),
+        { tag: 'measure', text: 'no chord', isNote: true },
+        chord('measure', 'C'), chord('measure', 'G7'),
+        note('a numbered bar leads with “bar 5”'),
+      ],
+
+      diagramReading: [
+        name('A · yours', 'A major, x02220, open position, fingers 2-1-3, root on the 5th string, your shape'),
+        name('E · default', 'E major, 022100, open position, fingers 2-3-1, root on the 6th string, default'),
+        name('G · song', 'G major, 320003, open position, fingers 2-1-3, root on the 6th string'),
+        note('difficulty word omitted — this is the chosen shape, not a ranked candidate'),
+      ],
+
+      conflictChart: [
+        L.sec('Primeira parte'),
+        L.bars('F | F | C7 | C7'),
+        L.bars('G7 | C7 | F | F', 'mark-conf'),
+        L.bars('B♭ | B♭m | F | D7'),
+      ],
+      conflictReading: [
+        note('needs you — conflict in the chart line'),
+        chord('measure', 'G7'), chord('measure', 'C7'),
+        chord('measure', 'F'), chord('measure', 'F'),
+        note('end of conflict'),
+        note('then your own version carries on'),
+      ],
+      editorLines: [
+        { cls: 'ch', text: 'F | F | C7 | C7' },
+        { cls: 'mk', text: '<<<<<<< yours' },
+        { cls: 'ch', text: 'G7 | C7 | F | F' },
+        { cls: 'mk', text: '=======' },
+        { cls: 'ch', text: 'D♭7 | C7 | F | F' },
+        { cls: 'mk', text: ">>>>>>> Ana" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
