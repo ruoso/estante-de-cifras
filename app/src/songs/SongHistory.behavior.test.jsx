@@ -15,6 +15,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
+import { parse, write } from 'cifra-md';
 import { createFileSystem } from '../worker/fs.js';
 import { createGitLayer } from '../worker/git.js';
 import { createGitHttpClient } from '../worker/git-http.js';
@@ -35,6 +36,27 @@ const YOU_EMAIL = 'local@users.estantedecifras.app';
 const V1 = ['# Rua do Porto', '', '## Primeira Parte', '```', 'C', 'desci a rua', '```', ''].join('\n');
 const V2 = ['# Rua do Porto', '', '## Primeira Parte', '```', 'C7', 'desci a rua', '```', ''].join('\n');
 const DIRTY = ['# Rua do Porto', '', '## Primeira Parte', '```', 'Am', 'desci a rua', '```', ''].join('\n');
+
+// Two-section songs for block restore (songs.restore_part): Primeira Parte is
+// shared across the versions; only Refrão differs (G → G7), so restoring the
+// Refrão block leaves Primeira Parte untouched.
+const B_V1 = ['# Rua do Porto', '', '## Primeira Parte', '```', 'C', 'desci a rua', '```', '', '## Refrão', '```', 'G', 'e cantei', '```', ''].join('\n');
+const B_V2 = ['# Rua do Porto', '', '## Primeira Parte', '```', 'C', 'desci a rua', '```', '', '## Refrão', '```', 'G7', 'e cantei', '```', ''].join('\n');
+// An unsaved edit to Primeira Parte only (Refrão left at HEAD's G7): restoring the
+// Refrão block must not ask (that block is clean), restoring Primeira Parte must.
+const B_DIRTY = ['# Rua do Porto', '', '## Primeira Parte', '```', 'Am', 'desci a rua', '```', '', '## Refrão', '```', 'G7', 'e cantei', '```', ''].join('\n');
+// The working copy after restoring the Refrão block over B_DIRTY: Primeira Parte's
+// unsaved Am is intact, Refrão is back to V1's G.
+const B_DIRTY_REFRAO_RESTORED = ['# Rua do Porto', '', '## Primeira Parte', '```', 'Am', 'desci a rua', '```', '', '## Refrão', '```', 'G', 'e cantei', '```', ''].join('\n');
+
+// A song with a voicing block the chart never plays (D5 on a second instrument):
+// V1 carries it, V2 dropped it. Restoring that block brings nothing back — §8.3 I1
+// prunes it (behaviour 4).
+const VC_V1 = ['# Rua do Porto', '', '## Parte', '```', '| C | G |', '```', '', '---', '', '## Voicings: G4 C4 E4 A4', '- C: 0003', '- G: 0232', '', '## Voicings: D4 G4 B4 E4', '- D5: 0000', ''].join('\n');
+const VC_V2 = ['# Rua do Porto', '', '## Parte', '```', '| C | G |', '```', '', '---', '', '## Voicings: G4 C4 E4 A4', '- C: 0003', '- G: 0232', ''].join('\n');
+
+// A version too old to read in blocks: a title-only early placeholder (behaviour 5).
+const OLD_V1 = '# Rua do Porto\n';
 
 // jsdom has no matchMedia; a stub drives the layout. matches:false is the phone
 // (the surface's default), the one all the content assertions need; one axe test
@@ -157,6 +179,20 @@ async function seedTwoVersions(ctx) {
     await g('commit', '-qm', 'First version', '--author=Ana <ana@example.invalid>');
     oids.c1 = await rev();
     w(SONG, V2);
+    await g('add', '.');
+    await g('commit', '-qm', 'Darker turn', `--author=Me <${YOU_EMAIL}>`);
+    oids.c2 = await rev();
+  });
+}
+
+// A linear two-version history with arbitrary bytes: v1 by Ana, v2 as *you*.
+async function seedPair(ctx, v1, v2) {
+  return ctx.seed(async ({ g, w, rev, oids }) => {
+    w(SONG, v1);
+    await g('add', '.');
+    await g('commit', '-qm', 'First version', '--author=Ana <ana@example.invalid>');
+    oids.c1 = await rev();
+    w(SONG, v2);
     await g('add', '.');
     await g('commit', '-qm', 'Darker turn', `--author=Me <${YOU_EMAIL}>`);
     oids.c2 = await rev();
@@ -363,6 +399,134 @@ describe('SongHistory', () => {
       expect(await screen.findByText('Merged, with your resolution')).toBeInTheDocument();
       // ...and the ordinary joined merge never appears.
       expect(screen.queryByText('ordinary joined merge')).toBeNull();
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  // ---- Restoring part of a version (songs.restore_part, workflow 6 §Restoring).
+
+  it('offers *Restore this block* per differing block on compare-with-now, and restores only that block (behaviours 1,2)', async () => {
+    const ctx = await setup(BOOK);
+    try {
+      await seedPair(ctx, B_V1, B_V2);
+      const onRestored = vi.fn();
+      const { container } = renderHistory(ctx.store, { onRestored });
+
+      fireEvent.click(await screen.findByRole('button', { name: /First version/ }));
+      await screen.findByRole('group', { name: 'The song as it was' });
+      fireEvent.click(screen.getByRole('button', { name: 'Compare with now' }));
+
+      // Only Refrão differs (G → G7); Primeira Parte is identical, so it is not
+      // offered. One *Restore this block*, scoped to Refrão.
+      const buttons = await screen.findAllByRole('button', { name: /Restore this block/ });
+      expect(buttons).toHaveLength(1);
+      expect(screen.getByRole('button', { name: 'Restore this block: Refrão' })).toBeInTheDocument();
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+      // Clean working copy, so no confirm: the block restores and hands off to save.
+      fireEvent.click(buttons[0]);
+      await until(() => expect(onRestored).toHaveBeenCalled());
+      // Only Refrão changed; the whole song is V1's canonical form (they differ
+      // only in Refrão).
+      await until(async () => expect(await ctx.read(SONG)).toBe(write(parse(B_V1))));
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('a block with no unsaved changes restores without asking, leaving another block’s edit intact (behaviours 2,3)', async () => {
+    const ctx = await setup(BOOK);
+    try {
+      await seedPair(ctx, B_V1, B_V2);
+      // Unsaved edit to Primeira Parte only; Refrão stays at HEAD's G7.
+      ctx.store.send(command(CommandKind.WRITE, { bookId: BOOK, path: SONG, text: B_DIRTY }));
+      await ctx.settled();
+      const onRestored = vi.fn();
+      renderHistory(ctx.store, { onRestored });
+
+      await screen.findByText('Unsaved, on this device');
+      fireEvent.click(screen.getByRole('button', { name: /First version/ }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Compare with now' }));
+
+      // Refrão has no unsaved changes, so restoring it does not ask.
+      fireEvent.click(await screen.findByRole('button', { name: 'Restore this block: Refrão' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      await until(() => expect(onRestored).toHaveBeenCalled());
+      // Refrão is back to G; Primeira Parte's unsaved Am is untouched.
+      await until(async () => expect(await ctx.read(SONG)).toBe(write(parse(B_DIRTY_REFRAO_RESTORED))));
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('a block with unsaved changes asks first, block-scoped; cancelling leaves the copy; axe (behaviour 3)', async () => {
+    const ctx = await setup(BOOK);
+    try {
+      await seedPair(ctx, B_V1, B_V2);
+      ctx.store.send(command(CommandKind.WRITE, { bookId: BOOK, path: SONG, text: B_DIRTY }));
+      await ctx.settled();
+      const onRestored = vi.fn();
+      renderHistory(ctx.store, { onRestored });
+
+      await screen.findByText('Unsaved, on this device');
+      fireEvent.click(screen.getByRole('button', { name: /First version/ }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Compare with now' }));
+
+      // Primeira Parte holds the unsaved Am, so restoring it asks first.
+      fireEvent.click(await screen.findByRole('button', { name: 'Restore this block: Primeira Parte' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('Restore Primeira Parte?')).toBeInTheDocument();
+      expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Keep my changes' }));
+      await until(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(onRestored).not.toHaveBeenCalled();
+      expect(await ctx.read(SONG)).toBe(B_DIRTY);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('a block that brings nothing back says so and does not open the save sheet (behaviour 4)', async () => {
+    const ctx = await setup(BOOK);
+    try {
+      await seedPair(ctx, VC_V1, VC_V2);
+      const onRestored = vi.fn();
+      renderHistory(ctx.store, { onRestored });
+
+      fireEvent.click(await screen.findByRole('button', { name: /First version/ }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Compare with now' }));
+
+      // The D4 G4 B4 E4 block's chord (D5) is never played, so restoring it prunes
+      // to nothing: a word-carried notice, and the save sheet never opens.
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Restore this block: Voicings for D4 G4 B4 E4' }),
+      );
+      await screen.findByText('Restoring this block brings nothing back.');
+      expect(onRestored).not.toHaveBeenCalled();
+      expect(await ctx.read(SONG)).toBe(write(parse(VC_V2)));
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('a version too old to read in blocks offers only the whole-version restore, with a note (behaviour 5)', async () => {
+    const ctx = await setup(BOOK);
+    try {
+      await seedPair(ctx, OLD_V1, B_V2);
+      const { container } = renderHistory(ctx.store);
+
+      fireEvent.click(await screen.findByRole('button', { name: /First version/ }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Compare with now' }));
+
+      expect(
+        await screen.findByText(/too old to restore block by block/),
+      ).toBeInTheDocument();
+      // No per-block affordance; the whole-version restore is still offered.
+      expect(screen.queryByRole('button', { name: /Restore this block/ })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Restore this version' })).toBeInTheDocument();
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
     } finally {
       await ctx.cleanup();
     }

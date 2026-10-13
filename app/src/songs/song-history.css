@@ -166,3 +166,30 @@
   background: var(--unsaved-soft);
   border-color: transparent;
 }
+
+/* A word-carried notice under the diff: nothing to bring back, or a version too
+   old to read in blocks (songs.restore_part, behaviours 4 and 5). */
+.est-history-note {
+  margin-top: calc(var(--u) * 1.25);
+  color: var(--ink-soft);
+}
+
+/* Per-block restore (songs.restore_part): each restorable block the version
+   differs in carries its diff rows and a *Restore this block* affordance beside
+   them (W06 diff rows and button tokens — no new visual language). */
+.est-restore-block {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--u) * 1.25);
+  padding: calc(var(--u)) 0;
+}
+.est-restore-block + .est-restore-block {
+  border-top: 1px solid var(--line);
+}
+.est-restore-block .est-restore-rows {
+  flex: 1;
+  min-width: 0;
+}
+.est-restore-block .est-restore-btn {
+  flex: 0 0 auto;
+}

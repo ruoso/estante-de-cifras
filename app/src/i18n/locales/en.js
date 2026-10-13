@@ -508,6 +508,18 @@ export default {
       'The whole version is restored. It is then unsaved, and saving it makes a new version; nothing in the history is changed.',
     keepChanges: 'Keep my changes',
     loseAndRestore: 'Lose them and restore',
+    // Restoring one block of a version (songs.restore_part, workflow 6 §Restoring).
+    restoreBlock: 'Restore this block',
+    restoreBlockNamed: 'Restore this block: {block}',
+    voicingBlock: 'Voicings for {tuning}',
+    restorePartTitle: 'Restore {block}?',
+    restorePartBody:
+      '{block} has unsaved changes on this device. Restoring this block replaces them, and this would be lost:',
+    restorePartCaption:
+      'Only this block is restored; the rest of the song is left as it is. It is then unsaved, and saving makes a new version; nothing in the history is changed.',
+    nothingToRestore: 'Restoring this block brings nothing back.',
+    noBlockRestore:
+      'This version is too old to restore block by block. You can still restore the whole version.',
   },
 
   // The per-song conflict resolver (sync.conflicts, workflow 9 §Settling one;

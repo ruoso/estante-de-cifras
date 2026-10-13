@@ -443,6 +443,17 @@ export default {
       'A versão inteira é restaurada. Ela fica então não salva, e salvá-la cria uma nova versão; nada no histórico é alterado.',
     keepChanges: 'Manter minhas alterações',
     loseAndRestore: 'Descartar e restaurar',
+    restoreBlock: 'Restaurar este bloco',
+    restoreBlockNamed: 'Restaurar este bloco: {block}',
+    voicingBlock: 'Posições para {tuning}',
+    restorePartTitle: 'Restaurar {block}?',
+    restorePartBody:
+      '{block} tem alterações não salvas neste dispositivo. Restaurar este bloco substitui essas alterações, e isto seria perdido:',
+    restorePartCaption:
+      'Só este bloco é restaurado; o resto da música fica como está. Ele fica então não salvo, e salvar cria uma nova versão; nada no histórico é alterado.',
+    nothingToRestore: 'Restaurar este bloco não traz nada de volta.',
+    noBlockRestore:
+      'Esta versão é antiga demais para restaurar bloco a bloco. Você ainda pode restaurar a versão inteira.',
   },
 
   // O resolvedor de conflitos por música (sync.conflicts, workflow 9).

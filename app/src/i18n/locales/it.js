@@ -443,6 +443,17 @@ export default {
       'Viene ripristinata l’intera versione. Resta poi non salvata, e salvarla crea una nuova versione; nulla nella cronologia viene modificato.',
     keepChanges: 'Mantieni le mie modifiche',
     loseAndRestore: 'Scartale e ripristina',
+    restoreBlock: 'Ripristina questo blocco',
+    restoreBlockNamed: 'Ripristina questo blocco: {block}',
+    voicingBlock: 'Posizioni per {tuning}',
+    restorePartTitle: 'Ripristinare {block}?',
+    restorePartBody:
+      '{block} ha modifiche non salvate su questo dispositivo. Ripristinare questo blocco le sostituisce, e questo andrebbe perso:',
+    restorePartCaption:
+      'Viene ripristinato solo questo blocco; il resto della canzone resta com’è. Resta poi non salvato, e salvare crea una nuova versione; nulla nella cronologia viene modificato.',
+    nothingToRestore: 'Ripristinare questo blocco non recupera nulla.',
+    noBlockRestore:
+      'Questa versione è troppo vecchia per ripristinarla blocco per blocco. Puoi comunque ripristinare l’intera versione.',
   },
 
   // Il risolutore di conflitti per canzone (sync.conflicts, workflow 9).

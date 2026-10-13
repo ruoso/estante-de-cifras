@@ -1119,6 +1119,24 @@ export function createWorkerLogic(port, options = {}) {
             port.postMessage(event(EventKind.RESTORED, { bookId, path }));
             break;
           }
+          case CommandKind.RESTORE_PART: {
+            // Restore ONE block of a version into the working copy, uncommitted
+            // (songs.restore_part, workflow 6 §Restoring): splice `block` of the
+            // historical model into the current working model, write it canonical.
+            // RESTORED carries `restored` so the UI opens the save sheet only when
+            // a block landed; `false` means the restore brought nothing back
+            // (behaviour 4). The save is what commits (history.md Decision 4).
+            const { bookId, path, commit, fromPath, block } = message.payload;
+            const { restored } = await ensureHistory().restorePart({
+              bookId,
+              path,
+              commit,
+              fromPath,
+              block,
+            });
+            port.postMessage(event(EventKind.RESTORED, { bookId, path, restored }));
+            break;
+          }
           case CommandKind.BOOK_LOG: {
             // The book's whole log for the file view (workflow 14 L161-173): every
             // commit, newest first, merges marked, each with the files it touched.

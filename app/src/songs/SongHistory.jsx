@@ -33,6 +33,7 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import Chart from '../chart/Chart.jsx';
 import DiffRows from './DiffRows.jsx';
 import RestoreConfirm from './RestoreConfirm.jsx';
+import { restorableBlocks, sameBlockRef, blockLabelText } from './restorable-blocks.js';
 import { buildHistoryView, beforeTextOf, LOCAL_NO_REPLY } from './history-view.js';
 import { lineDiff } from './line-diff.js';
 import { useLayoutMode } from '../shell/AppShell.jsx';
@@ -169,12 +170,38 @@ export function LineDiffView({ hunks, caption }) {
 // The version detail body: what changed, the chart as it was, and the optional
 // line diff. Shared by all three layouts; the surrounding chrome (appbar vs
 // sticky footer) differs by layout.
-function VersionDetail({ model, shownChanges, cardTitle, hunks, caption, showText, onShowText }) {
+function VersionDetail({
+  model,
+  shownChanges,
+  cardTitle,
+  hunks,
+  caption,
+  showText,
+  onShowText,
+  restorable,
+  onRestoreBlock,
+  versionUnparseable,
+  noopNotice,
+}) {
   return (
     <>
       <div className="card pad est-history-card">
         <div className="t-h3">{cardTitle}</div>
-        <DiffRows changes={shownChanges} />
+        {restorable ? (
+          <DiffRows blocks={restorable} onRestoreBlock={onRestoreBlock} />
+        ) : (
+          <DiffRows changes={shownChanges} />
+        )}
+        {versionUnparseable ? (
+          <p className="t-small est-history-note" role="status">
+            {t('history.noBlockRestore')}
+          </p>
+        ) : null}
+        {noopNotice ? (
+          <p className="t-small est-history-note" role="status">
+            {t('history.nothingToRestore')}
+          </p>
+        ) : null}
       </div>
 
       <div className="est-history-showtext">
@@ -254,7 +281,11 @@ export default function SongHistory({
   const [selected, setSelected] = useState(null);
   const [comparingNow, setComparingNow] = useState(false);
   const [showText, setShowText] = useState(false);
+  // The restore confirm's target: either the whole version (`{ kind: 'version',
+  // row }`) or one block (`{ kind: 'part', block, lostChanges }`).
   const [restoreFor, setRestoreFor] = useState(null);
+  // A block restore that brought nothing back (behaviour 4): a word-carried notice.
+  const [noopNotice, setNoopNotice] = useState(false);
 
   // The computer keeps a version open beside the list; the phone and tablet show
   // the list until one is chosen.
@@ -292,9 +323,16 @@ export default function SongHistory({
   }, [store, bookId, entries, bookHistory]);
 
   // The restore landed in the working copy: hand off to the save sheet so the
-  // restored copy is saved as a new version (workflow 6 L59-62).
+  // restored copy is saved as a new version (workflow 6 L59-62). A block restore
+  // that brought nothing back (`restored === false`) does NOT open the save sheet;
+  // it shows a word-carried notice instead (behaviour 4).
   useWorkerEvent(store, EventKind.RESTORED, (payload) => {
-    if (payload?.bookId === bookId && payload?.path === path) onRestored({ bookId, path });
+    if (payload?.bookId !== bookId || payload?.path !== path) return;
+    if (payload.restored === false) {
+      setNoopNotice(true);
+      return;
+    }
+    onRestored({ bookId, path });
   });
 
   // A save in this book landed (the restored copy saved as a new version, or an
@@ -312,15 +350,21 @@ export default function SongHistory({
     setSelected(null);
     setComparingNow(false);
     setShowText(false);
+    setNoopNotice(false);
   });
 
-  // Opening a different version resets its two detail toggles.
+  // Opening a different version resets its two detail toggles and any notice.
   const openVersion = (commit) => {
     setSelected(commit);
     setComparingNow(false);
     setShowText(false);
+    setNoopNotice(false);
   };
   const backToList = () => setSelected(null);
+  const toggleCompare = () => {
+    setComparingNow((v) => !v);
+    setNoopNotice(false);
+  };
 
   const sendRestore = (row) => {
     // `path` is the song's CURRENT path (restore writes there); `fromPath` is the
@@ -330,20 +374,70 @@ export default function SongHistory({
     );
   };
   const onRestoreClick = (row) => {
-    if (preview?.changes?.length) setRestoreFor(row);
+    if (preview?.changes?.length) setRestoreFor({ kind: 'version', row });
     else sendRestore(row);
+  };
+
+  // Restore one block of the open version into the working copy (songs.restore_part).
+  // `fromPath` is the entry's historical path; `block.ref` the ref the view minted.
+  const sendRestorePart = (block) => {
+    if (!openRow) return;
+    setNoopNotice(false);
+    store.send(
+      command(CommandKind.RESTORE_PART, {
+        bookId,
+        path,
+        commit: openRow.commit,
+        fromPath: openRow.path,
+        block: block.ref,
+      }),
+    );
+  };
+  const onRestoreBlock = (block) => {
+    // Does this block hold unsaved changes (its working content differs from the
+    // last saved version)? Group the HEAD-vs-working preview the same way and look
+    // for the matching block; if it has changes, ask first — showing what would be
+    // lost in that block — otherwise proceed (behaviour 3).
+    const lost = restorableBlocks(preview?.changes ?? []).find((b) =>
+      sameBlockRef(b.ref, block.ref),
+    );
+    if (lost) setRestoreFor({ kind: 'part', block, lostChanges: lost.changes });
+    else sendRestorePart(block);
   };
 
   // The detail's "what changed": the version before by default, or the working
   // copy when comparing with now (acceptance 5), re-diffed in the view.
   const thisText = openRow ? versions[openRow.commit] : null;
-  const model = useMemo(() => (thisText != null ? parse(thisText) : null), [thisText]);
+  const model = useMemo(() => {
+    if (thisText == null) return null;
+    try {
+      return parse(thisText);
+    } catch {
+      return null; // a version too old to read (not a valid UTF-8 document)
+    }
+  }, [thisText]);
+  // A version reads in blocks when it has sections or voicing blocks of its own; a
+  // version too old to read (an early placeholder, a title-only or empty blob)
+  // offers only the whole-version restore (behaviour 5).
+  const versionReadable = !!model && ((model.sections?.length ?? 0) > 0 || (model.blocks?.length ?? 0) > 0);
+  // The compare-with-now diff, re-diffed in the view.
   const compareChanges = useMemo(() => {
     if (!comparingNow || thisText == null || workingText == null) return [];
-    return diff(parse(thisText), parse(workingText)).changes;
+    try {
+      return diff(parse(thisText), parse(workingText)).changes;
+    } catch {
+      return [];
+    }
   }, [comparingNow, thisText, workingText]);
+  const versionUnparseable = comparingNow && !versionReadable;
   const shownChanges = comparingNow ? compareChanges : openRow?.changes ?? [];
   const cardTitle = comparingNow ? t('history.whatChangedToNow') : t('history.whatChanged');
+  // The blocks the version differs in, each with a *Restore this block* affordance
+  // (behaviour 1) — only in compare-with-now mode, and only when the version reads.
+  const restorable = useMemo(
+    () => (comparingNow && versionReadable ? restorableBlocks(compareChanges) : null),
+    [comparingNow, versionReadable, compareChanges],
+  );
 
   // The line diff for *show the text*: this version against the one before.
   const openIndex = useMemo(
@@ -357,19 +451,24 @@ export default function SongHistory({
   );
   const fileCaption = t('history.lineDiffCaption', { file: path });
 
+  const confirmRestore = () => {
+    if (!restoreFor) return;
+    if (restoreFor.kind === 'part') sendRestorePart(restoreFor.block);
+    else sendRestore(restoreFor.row);
+    setRestoreFor(null);
+  };
   const restoreDialog = (
     <RestoreConfirm
       store={store}
       isOpen={restoreFor != null}
       onClose={() => setRestoreFor(null)}
-      onConfirm={() => {
-        if (restoreFor) sendRestore(restoreFor);
-        setRestoreFor(null);
-      }}
+      onConfirm={confirmRestore}
       bookId={bookId}
       paths={[path]}
       titleHint={displayTitle}
-      dateLabel={restoreFor?.whenDate ?? ''}
+      dateLabel={restoreFor?.kind === 'version' ? restoreFor.row.whenDate ?? '' : ''}
+      changes={restoreFor?.kind === 'part' ? restoreFor.lostChanges : null}
+      blockLabel={restoreFor?.kind === 'part' ? blockLabelText(restoreFor.block, t) : ''}
     />
   );
 
@@ -382,13 +481,17 @@ export default function SongHistory({
       caption={fileCaption}
       showText={showText}
       onShowText={setShowText}
+      restorable={restorable}
+      onRestoreBlock={onRestoreBlock}
+      versionUnparseable={versionUnparseable}
+      noopNotice={noopNotice}
     />
   ) : null;
 
   const compareLabel = comparingNow ? t('history.compareBefore') : t('history.compareNow');
   const actionButtons = openRow ? (
     <>
-      <Button className="btn" onPress={() => setComparingNow((v) => !v)}>
+      <Button className="btn" onPress={toggleCompare}>
         {compareLabel}
       </Button>
       <Button className="btn primary" onPress={() => onRestoreClick(openRow)}>

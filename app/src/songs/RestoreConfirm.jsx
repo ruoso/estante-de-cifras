@@ -31,18 +31,32 @@ export default function RestoreConfirm({
   paths,
   titleHint = '',
   dateLabel = '',
+  changes: changesProp = null,
+  blockLabel = '',
 }) {
   const savePreview = useSlice(store, 'savePreview');
   const previews = savePreview?.[bookId]?.previews ?? [];
 
-  // Ask for the preview when the dialog opens, so "what would be lost" is the
-  // same HEAD-vs-working summary the save sheet and the discard confirm show.
-  useEffect(() => {
-    if (!isOpen || !paths?.length) return;
-    store.send(command(CommandKind.PREVIEW_SAVE, { bookId, paths }));
-  }, [isOpen, bookId, paths, store]);
+  // A block restore (songs.restore_part) shows what would be lost IN THAT BLOCK —
+  // the view hands it in; a whole-version restore reads the HEAD-vs-working preview
+  // slice, the same summary the save sheet and the discard confirm show.
+  const isPart = changesProp != null;
 
-  const changes = previews[0]?.changes ?? [];
+  // Ask for the preview when the whole-version dialog opens (the part dialog is
+  // given its scoped changes directly, so it needs no re-read).
+  useEffect(() => {
+    if (!isOpen || isPart || !paths?.length) return;
+    store.send(command(CommandKind.PREVIEW_SAVE, { bookId, paths }));
+  }, [isOpen, isPart, bookId, paths, store]);
+
+  const changes = isPart ? changesProp : previews[0]?.changes ?? [];
+  const title = isPart
+    ? t('history.restorePartTitle', { block: blockLabel })
+    : t('history.restoreTitle', { date: dateLabel });
+  const body = isPart
+    ? t('history.restorePartBody', { title: titleHint, block: blockLabel })
+    : t('history.restoreBody', { title: titleHint });
+  const caption = isPart ? t('history.restorePartCaption') : t('history.restoreCaption');
 
   const confirm = (close) => {
     onConfirm();
@@ -63,13 +77,13 @@ export default function RestoreConfirm({
           {({ close }) => (
             <>
               <Heading slot="title" className="t-h2">
-                {t('history.restoreTitle', { date: dateLabel })}
+                {title}
               </Heading>
-              <p className="t-body">{t('history.restoreBody', { title: titleHint })}</p>
+              <p className="t-body">{body}</p>
               <div className="card pad est-history-lost">
                 <DiffRows changes={changes} />
               </div>
-              <p className="t-small">{t('history.restoreCaption')}</p>
+              <p className="t-small">{caption}</p>
               <div className="actions">
                 <Button className="btn" onPress={close}>
                   {t('history.keepChanges')}

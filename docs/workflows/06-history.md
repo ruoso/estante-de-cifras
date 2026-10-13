@@ -57,8 +57,17 @@ version (workflow 4). History is never rewritten.
 When the working copy already holds unsaved changes, restoring would replace
 them, so it asks first and shows what would be lost, as discard does.
 
-A whole version is restored, not part of one; the save sheet then shows
-exactly what that changes from the current one.
+A whole version brings back the whole song. **Restoring a part** brings back
+one block instead — a section or a voicing block — chosen from the version's
+musical diff, which already knows the song in blocks. *Restore this block*
+sits on each block the version has that differs from what is on screen now
+(*compare with now*); it writes that one block into the working copy and
+leaves the rest untouched, to be saved as a new version. It asks first, and
+shows what would be lost in that block, when the block holds unsaved changes.
+A block whose chords are no longer in the song brings nothing back, and says
+so rather than doing nothing; a version too old to read in blocks offers only
+the whole-version restore. The save sheet then shows exactly what the restore
+changes from the current song.
 
 ## Deleted songs
 
@@ -66,9 +75,3 @@ Deleting happens only in the file view (DIRECTION §4), and a deleted song is
 not in search, so it has no history to open from a song. It is recovered
 from the file view instead, which shows deleted files in a book's history and
 can bring one back into the working copy (workflow 14).
-
-## Later
-
-**Restoring part of a version.** *Bring back the ukulele voicings from last
-week* is a real need: one block, not the whole song. The semantic diff
-already knows the song in blocks, so this is a matter of offering it.

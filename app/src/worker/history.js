@@ -46,6 +46,7 @@ import {
   walk,
   TREE,
 } from 'isomorphic-git';
+import { restoreBlock } from './restore-block.js';
 
 // Short hashes are all of git's machinery that shows (workflow 14 L172-173): a
 // seven-character prefix, git's own default abbreviation.
@@ -124,6 +125,7 @@ export function filterSongLog(rawEntries) {
  *   songLog: (opts: { bookId: string, path: string }) => Promise<{ entries: object[] }>,
  *   readVersion: (opts: { bookId: string, path: string, commit: string }) => Promise<{ text: string }>,
  *   restoreVersion: (opts: { bookId: string, path: string, commit: string, fromPath?: string }) => Promise<{ restored: true }>,
+ *   restorePart: (opts: { bookId: string, path: string, commit: string, fromPath?: string, block: object }) => Promise<{ restored: boolean }>,
  *   bookLog: (opts: { bookId: string }) => Promise<{ commits: object[] }>,
  *   commitDiff: (opts: { bookId: string, commit: string }) =>
  *     Promise<{ files: { path: string, status: string, before: string, after: string }[] }>,
@@ -337,6 +339,40 @@ export function createHistory({ fs, git, locks } = {}) {
   }
 
   /**
+   * Restore ONE block of a version into the working copy (songs.restore_part,
+   * workflow 6 §Restoring). Mirrors `restoreVersion` byte-for-byte except for the
+   * splice: it reads the historical blob (`fromPath` at `commit`) AND the current
+   * working copy, splices `block` of the version's model into the working model and
+   * writes the result canonical (`restoreBlock`), all inside ONE lock — never
+   * through `workingCopy.write` (the non-reentrant lock would deadlock). Writes the
+   * song's CURRENT `path` uncommitted; does not commit, canonicalise elsewhere or
+   * push — the subsequent save is what commits. When the splice brings nothing back
+   * (a no-op, or a voicing block §8.3 I1 prunes to nothing) it writes nothing and
+   * returns `{ restored: false }`, so the UI says so rather than opening an empty
+   * save sheet (behaviour 4).
+   */
+  function restorePart({ bookId, path, commit, fromPath, block }) {
+    return locks.withLock(bookId, async () => {
+      const dir = git.bookDir(bookId);
+      const full = at(dir, path);
+      const { blob } = await readBlob({
+        fs,
+        dir,
+        oid: commit,
+        filepath: fromPath ?? path,
+      });
+      const versionText = decoder.decode(blob);
+      const workingText = decoder.decode(await fs.promises.readFile(full));
+      const result = restoreBlock(workingText, versionText, block);
+      if (result.empty) return { restored: false };
+      const slash = full.lastIndexOf('/');
+      if (slash > 0) await mkdirp(full.slice(0, slash));
+      await fs.promises.writeFile(full, result.text);
+      return { restored: true };
+    });
+  }
+
+  /**
    * The book's whole log — git's own view for the file view (workflow 14
    * L161-173). Every commit, newest first, merges included and marked
    * (`isMerge`), each with its short hash, author, date, message, parents and the
@@ -395,5 +431,5 @@ export function createHistory({ fs, git, locks } = {}) {
     });
   }
 
-  return { songLog, readVersion, restoreVersion, bookLog, commitDiff };
+  return { songLog, readVersion, restoreVersion, restorePart, bookLog, commitDiff };
 }

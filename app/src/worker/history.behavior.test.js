@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import nodePath from 'node:path';
 import { resolveRef, statusMatrix } from 'isomorphic-git';
+import { parse, write } from 'cifra-md';
 import { createFileSystem } from './fs.js';
 import { createGitLayer } from './git.js';
 import { createGitHttpClient } from './git-http.js';
@@ -331,6 +332,65 @@ describe("the Worker's history reads (behavior)", () => {
       // …HEAD did not move (history is never rewritten; restore does not commit)…
       expect(await ctx.head()).toBe(before);
       // …and the change is uncommitted in the working tree (WORKDIR differs from HEAD).
+      const [row] = await ctx.status(current);
+      expect(row[1]).toBe(1); // present at HEAD
+      expect(row[2]).toBe(2); // working tree differs from HEAD
+      expect(row[3]).toBe(1); // not staged
+      // The pre-rename name was not resurrected.
+      let gone = false;
+      try {
+        await ctx.read(previous);
+      } catch {
+        gone = true;
+      }
+      expect(gone).toBe(true);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('restores ONE block of a version into the working copy, uncommitted, rename-correct, nothing elsewhere (songs.restore_part, workflow 6 §Restoring)', async () => {
+    const ctx = await setup('book-restore-part');
+    try {
+      // Two-section songs; only Refrão differs between the pre-rename version and
+      // head (G → G7). Purpose-written words.
+      const PV1 = ['# Harbour Light', '', '## Verse', '```', '| C | G |', '```', '', '## Refrain', '```', '| G | C |', '```', ''].join('\n');
+      const PHEAD = ['# Harbour Light', '', '## Verse', '```', '| C | G |', '```', '', '## Refrain', '```', '| G7 | C |', '```', ''].join('\n');
+      const previous = 'harbour.cifra.md';
+      const current = 'harbour-light.cifra.md';
+      const oids = await ctx.seed(async ({ g, w, rev, oids }) => {
+        w(previous, PV1);
+        await g('add', '.');
+        await g('commit', '-qm', 'Add Harbour Light');
+        oids.c1 = await rev();
+        await g('mv', previous, current);
+        w(current, PHEAD);
+        await g('add', '.');
+        await g('commit', '-qm', 'Rename and darken the refrain');
+        oids.head = await rev();
+      });
+
+      const before = await ctx.head();
+      // Restore the Refrain block of the pre-rename version (c1, path `previous`)
+      // into the song's CURRENT name.
+      ctx.store.send(
+        command(CommandKind.RESTORE_PART, {
+          bookId: ctx.bookId,
+          path: current,
+          commit: oids.c1,
+          fromPath: previous,
+          block: { kind: 'section', name: 'Refrain', fromName: 'Refrain' },
+        }),
+      );
+      await until(() => expect(ctx.songSlice(current)?.restored).toBe(1));
+
+      // Only the Refrain came back (G7 → G); the Verse is byte-identical. Since the
+      // two versions differ only in the Refrain, the whole song is c1's canonical.
+      expect(await ctx.read(current)).toBe(write(parse(PV1)));
+      // HEAD did not move; the restore neither commits nor pushes.
+      expect(await ctx.head()).toBe(before);
+      expect((await ctx.bare('rev-parse', 'main')).trim()).toBe(oids.head);
+      // The change is uncommitted in the working tree.
       const [row] = await ctx.status(current);
       expect(row[1]).toBe(1); // present at HEAD
       expect(row[2]).toBe(2); // working tree differs from HEAD

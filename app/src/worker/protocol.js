@@ -53,6 +53,18 @@ export const CommandKind = Object.freeze({
   SONG_LOG: 'song_log',
   READ_VERSION: 'read_version',
   RESTORE_VERSION: 'restore_version',
+  // Restore ONE block of a version into the working copy (songs.restore_part,
+  // workflow 6 §Restoring). Payload `{ bookId, path, commit, fromPath, block }`:
+  // like RESTORE_VERSION but `block` is the ref the view minted from the
+  // compare-with-now diff — `{ kind: 'section', name, fromName }` or
+  // `{ kind: 'voicing', tuning, variation }`. The Worker re-parses the historical
+  // blob (`fromPath@commit`) and the current working copy, splices that one block
+  // into the working model, writes it canonical at the song's CURRENT path
+  // uncommitted (one lock, no commit/push), and emits RESTORED carrying a
+  // `restored` flag — `true` when a block landed, `false` when the restore brings
+  // nothing back (a no-op, or a voicing block pruned to nothing). The existing
+  // host opens the save sheet only when `restored` is not false.
+  RESTORE_PART: 'restore_part',
   BOOK_LOG: 'book_log',
   // Song search across every loaded book (storage.index, workflow 2). Payload
   // `{ query, scope? }`; the Worker queries its in-memory index and replies with
@@ -303,8 +315,11 @@ export const EventKind = Object.freeze({
   SHELF: 'shelf',
   // The history outcomes (storage.history): SONG_LOG carries a song's filtered
   // version list, VERSION a version's exact bytes, BOOK_LOG the book's whole log,
-  // and RESTORED `{ bookId, path }` so the UI can open the save sheet on the song
-  // just restored into the working copy.
+  // and RESTORED `{ bookId, path, restored? }` so the UI can open the save sheet on
+  // the song just restored into the working copy. A whole-version RESTORE_VERSION
+  // omits `restored`; a block RESTORE_PART (songs.restore_part) sets it — `false`
+  // when the restore brings nothing back, so the UI shows a word-carried notice
+  // instead of opening an empty save sheet.
   SONG_LOG: 'song_log',
   VERSION: 'version',
   RESTORED: 'restored',

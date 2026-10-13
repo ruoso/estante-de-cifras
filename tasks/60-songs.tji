@@ -78,8 +78,9 @@ task songs "Songs" {
   task restore_part "Restore part of a version" {
     effort 1.5d
     allocate team
+    complete 100
     depends !history, cifra_js.editing
-    note "Restore a single block of a version into the working copy, not the whole song; chosen from the per-version musical diff. Workflow 6 §Later. Source of debt: tasks/refinements/songs/history.md. Tests: behavior (one block restored, the rest untouched; axe); e2e-web (a block restored and saved on the three viewports; axe)."
+    note "Restore a single block of a version into the working copy, not the whole song; chosen from the per-version musical diff. Workflow 6 §Later. Source of debt: tasks/refinements/songs/history.md. Tests: behavior (one block restored, the rest untouched; axe); e2e-web (a block restored and saved on the three viewports; axe). Refinement: tasks/refinements/songs/restore_part.md"
   }
   task edit_in_place "An editor open while sync merges under it" {
     effort 1.5d
