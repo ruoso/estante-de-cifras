@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The theme picker</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 1 · Workflow 13</div>
+    <h1 class="board-title">The theme picker</h1>
+    <p class="board-sub">Theme and language live together in a Preferences section of the account screen, reached from the header and present before you sign in. Four theme choices — Automatic, Estante, Caderno, Palco — each named in words with a live preview, the chosen one marked by a word, never colour alone. The columns are drawn in the theme each would apply.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · before signing in (Estante), then signed in with Palco chosen</div>
+      <div class="dev-pair">
+
+        <!-- Phone 1: not signed in, board theme (Estante), Automatic selected -->
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Account</span>
+            </div>
+            <div class="scroll" style="gap: 14px">
+              <div class="t-h3">Preferences</div>
+              <div class="t-h3" style="color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 15px">Theme</div>
+              <div class="list" role="radiogroup" aria-label="Theme">
+                <a class="row sel" href="#" style="gap: 12px">
+                  <span class="check on" style="border-radius: 50%"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>
+                  <span style="width: 52px; height: 40px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); display: flex; flex: none"><span class="est theme-estante" style="flex: 1; background: var(--bg); display: flex; align-items: center; justify-content: center"><span style="color: var(--chord); font-weight: 700; font-size: 13px">G</span></span><span class="est theme-palco" style="flex: 1; background: var(--bg); display: flex; align-items: center; justify-content: center"><span style="color: var(--chord); font-weight: 700; font-size: 13px">G</span></span></span>
+                  <span class="grow"><span class="name">Automatic</span><span class="meta">Follows this device</span></span>
+                  <span class="badge ok">Selected</span>
+                </a>
+                <a class="row" href="#" style="gap: 12px">
+                  <span class="check" style="border-radius: 50%"></span>
+                  <span class="est theme-estante" style="width: 52px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; flex: none"><span style="font-family: var(--font-display); font-weight: 700; color: var(--chord); font-size: 16px">G</span></span>
+                  <span class="grow"><span class="name">Estante</span><span class="meta">Neutral, ink-blue chords</span></span>
+                </a>
+                <a class="row" href="#" style="gap: 12px">
+                  <span class="check" style="border-radius: 50%"></span>
+                  <span class="est theme-caderno" style="width: 52px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; flex: none"><span style="font-family: var(--font-display); font-weight: 700; color: var(--chord); font-size: 16px">G</span></span>
+                  <span class="grow"><span class="name">Caderno</span><span class="meta">Paper, red-pen chords, serif</span></span>
+                </a>
+                <a class="row" href="#" style="gap: 12px">
+                  <span class="check" style="border-radius: 50%"></span>
+                  <span class="est theme-palco" style="width: 52px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; flex: none"><span style="font-family: var(--font-display); font-weight: 700; color: var(--chord); font-size: 16px">G</span></span>
+                  <span class="grow"><span class="name">Palco</span><span class="meta">Dark stage, amber, read far</span></span>
+                </a>
+              </div>
+              <p class="t-small"><b>Automatic</b> follows this device: light → Estante, dark → Palco. Choosing a named theme replaces it. Your choice follows you to every device; automatic re-reads each device's own light or dark mode.</p>
+              <div class="t-h3" style="color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 15px; margin-top: 4px">Language</div>
+              <div class="list" role="radiogroup" aria-label="Language">
+                <sc-for list="{{languages}}" as="lang" hint-placeholder-count="4">
+                  <a class="row {{lang.rowcls}}" href="#" style="gap: 12px">
+                    <span class="check {{lang.cls}}" style="border-radius: 50%"><sc-if value="{{lang.sel}}" hint-placeholder-val="{{ true }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></sc-if></span>
+                    <span class="grow"><span class="name">{{lang.name}}</span></span>
+                    <sc-if value="{{lang.sel}}" hint-placeholder-val="{{ false }}"><span class="badge ok">Selected</span></sc-if>
+                  </a>
+                </sc-for>
+              </div>
+              <p class="t-small">Uses your browser's language until you choose one.</p>
+              <div class="card pad" style="margin-top: 4px; gap: 10px">
+                <span class="t-h2">Not signed in</span>
+                <span class="t-small">These preferences are saved on this device now. Sign in to keep your books and carry theme and language to your other devices.</span>
+                <button class="btn primary block"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Use a passkey</button>
+                <button class="btn block">Email me a link</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phone 2: signed in, Palco theme, Palco selected -->
+        <div class="dev phone est theme-palco">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Account</span>
+            </div>
+            <div class="scroll" style="gap: 14px">
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span style="width: 40px; height: 40px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></span>
+                <span style="display: flex; flex-direction: column"><span class="t-h2">Rafael Lima</span><span class="t-small">rafael@example.com</span></span>
+              </div>
+              <div class="t-h3">Preferences</div>
+              <div class="t-h3" style="color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 15px">Theme</div>
+              <div class="list" role="radiogroup" aria-label="Theme">
+                <a class="row" href="#" style="gap: 12px">
+                  <span class="check" style="border-radius: 50%"></span>
+                  <span style="width: 52px; height: 40px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); display: flex; flex: none"><span class="est theme-estante" style="flex: 1; background: var(--bg); display: flex; align-items: center; justify-content: center"><span style="color: var(--chord); font-weight: 700; font-size: 13px">G</span></span><span class="est theme-palco" style="flex: 1; background: var(--bg); display: flex; align-items: center; justify-content: center"><span style="color: var(--chord); font-weight: 700; font-size: 13px">G</span></span></span>
+                  <span class="grow"><span class="name">Automatic</span><span class="meta">Follows this device</span></span>
+                </a>
+                <a class="row" href="#" style="gap: 12px">
+                  <span class="check" style="border-radius: 50%"></span>
+                  <span class="est theme-estante" style="width: 52px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; flex: none"><span style="font-family: var(--font-display); font-weight: 700; color: var(--chord); font-size: 16px">G</span></span>
+                  <span class="grow"><span class="name">Estante</span><span class="meta">Neutral, ink-blue chords</span></span>
+                </a>
+                <a class="row" href="#" style="gap: 12px">
+                  <span class="check" style="border-radius: 50%"></span>
+                  <span class="est theme-caderno" style="width: 52px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; flex: none"><span style="font-family: var(--font-display); font-weight: 700; color: var(--chord); font-size: 16px">G</span></span>
+                  <span class="grow"><span class="name">Caderno</span><span class="meta">Paper, red-pen chords, serif</span></span>
+                </a>
+                <a class="row sel" href="#" style="gap: 12px">
+                  <span class="check on" style="border-radius: 50%"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>
+                  <span class="est theme-palco" style="width: 52px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; flex: none"><span style="font-family: var(--font-display); font-weight: 700; color: var(--chord); font-size: 16px">G</span></span>
+                  <span class="grow"><span class="name">Palco</span><span class="meta">Dark stage, amber, read far</span></span>
+                  <span class="badge ok">Selected</span>
+                </a>
+              </div>
+              <p class="t-small">Palco is chosen, so this device stays dark whatever its light or dark mode. The choice is kept in your home book and reaches every device.</p>
+              <div class="t-h3" style="margin-top: 4px">Signed-in devices</div>
+              <div class="list">
+                <div class="row"><span class="grow"><span class="name">This phone</span><span class="meta">Chrome on Android · in use now</span></span><button class="btn">Sign out</button></div>
+                <div class="row"><span class="grow"><span class="name">Computer</span><span class="meta">Edge · last used 10 minutes ago</span></span><button class="btn">Sign out</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet: signed in, Caderno theme, Caderno selected -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · signed in with Caderno chosen — Preferences beside devices and passkeys</div>
+      <div class="dev tablet est theme-caderno">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Account</span>
+          </div>
+          <div class="scroll" style="padding: 24px 28px; gap: 20px">
+            <div style="display: flex; align-items: center; gap: 14px">
+              <span style="width: 48px; height: 48px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></span>
+              <span style="display: flex; flex-direction: column"><span class="t-h1">Rafael Lima</span><span class="t-small">rafael@example.com</span></span>
+              <button class="btn" style="margin-left: auto">Sign out of this tablet</button>
+            </div>
+            <div style="display: flex; gap: 28px; align-items: flex-start">
+              <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+                <div class="t-h3">Preferences · Theme</div>
+                <div class="list" role="radiogroup" aria-label="Theme">
+                  <a class="row" href="#" style="gap: 14px">
+                    <span class="check" style="border-radius: 50%"></span>
+                    <span style="width: 60px; height: 44px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); display: flex; flex: none"><span class="est theme-estante" style="flex: 1; background: var(--bg); display: flex; align-items: center; justify-content: center"><span style="color: var(--chord); font-weight: 700; font-size: 15px">G</span></span><span class="est theme-palco" style="flex: 1; background: var(--bg); display: flex; align-items: center; justify-content: center"><span style="color: var(--chord); font-weight: 700; font-size: 15px">G</span></span></span>
+                    <span class="grow"><span class="name">Automatic</span><span class="meta">Follows this device · light → Estante, dark → Palco</span></span>
+                  </a>
+                  <a class="row" href="#" style="gap: 14px">
+                    <span class="check" style="border-radius: 50%"></span>
+                    <span class="est theme-estante" style="width: 60px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; flex: none"><span style="font-family: var(--font-display); font-weight: 700; color: var(--chord); font-size: 18px">G</span></span>
+                    <span class="grow"><span class="name">Estante</span><span class="meta">Neutral, ink-blue chords</span></span>
+                  </a>
+                  <a class="row sel" href="#" style="gap: 14px">
+                    <span class="check on" style="border-radius: 50%"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>
+                    <span class="est theme-caderno" style="width: 60px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; flex: none"><span style="font-family: var(--font-display); font-weight: 700; color: var(--chord); font-size: 18px">G</span></span>
+                    <span class="grow"><span class="name">Caderno</span><span class="meta">Paper, red-pen chords, serif titles</span></span>
+                    <span class="badge ok">Selected</span>
+                  </a>
+                  <a class="row" href="#" style="gap: 14px">
+                    <span class="check" style="border-radius: 50%"></span>
+                    <span class="est theme-palco" style="width: 60px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; flex: none"><span style="font-family: var(--font-display); font-weight: 700; color: var(--chord); font-size: 18px">G</span></span>
+                    <span class="grow"><span class="name">Palco</span><span class="meta">Dark stage, amber, built to read far</span></span>
+                  </a>
+                </div>
+                <p class="t-small">Caderno is chosen, replacing automatic. The choice is kept in your home book and follows you to a new device.</p>
+                <div class="t-h3" style="margin-top: 4px">Language</div>
+                <div class="list" role="radiogroup" aria-label="Language">
+                  <sc-for list="{{languages}}" as="lang" hint-placeholder-count="4">
+                    <a class="row {{lang.rowcls}}" href="#" style="gap: 14px">
+                      <span class="check {{lang.cls}}" style="border-radius: 50%"><sc-if value="{{lang.sel}}" hint-placeholder-val="{{ true }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></sc-if></span>
+                      <span class="grow"><span class="name">{{lang.name}}</span></span>
+                      <sc-if value="{{lang.sel}}" hint-placeholder-val="{{ false }}"><span class="badge ok">Selected</span></sc-if>
+                    </a>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="width: 300px; flex: none; display: flex; flex-direction: column; gap: 14px">
+                <div class="t-h3">Signed-in devices</div>
+                <div class="list">
+                  <sc-for list="{{devices}}" as="d" hint-placeholder-count="4">
+                    <div class="row"><span class="grow"><span class="name">{{d.name}}</span><span class="meta">{{d.meta}}</span></span><button class="btn">Sign out</button></div>
+                  </sc-for>
+                </div>
+                <div class="t-h3" style="margin-top: 4px">Passkeys</div>
+                <div class="list">
+                  <sc-for list="{{passkeys}}" as="k" hint-placeholder-count="3">
+                    <div class="row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg><span class="grow"><span class="name">{{k.name}}</span><span class="meta">{{k.meta}}</span></span><button class="btn quiet">Remove</button></div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop: signed in, board theme (Estante), Automatic selected, W13 continuity -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · the W13 Account surface, with Preferences above devices and passkeys</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side" style="width: 300px">
+            <div style="padding: 22px 20px; display: flex; flex-direction: column; gap: 14px">
+              <span class="t-h1">Account</span>
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span style="width: 44px; height: 44px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></span>
+                <span style="display: flex; flex-direction: column"><span class="t-h2">Rafael Lima</span><span class="t-small">rafael@example.com</span></span>
+              </div>
+              <button class="btn block">Sign out of this computer</button>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="scroll" style="padding: 24px 32px; gap: 16px">
+              <div class="t-h3">Preferences</div>
+              <div style="display: flex; gap: 28px; align-items: flex-start">
+                <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+                  <div class="t-h3" style="color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 15px">Theme</div>
+                  <div class="list" role="radiogroup" aria-label="Theme">
+                    <a class="row sel" href="#" style="gap: 14px">
+                      <span class="check on" style="border-radius: 50%"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>
+                      <span style="width: 60px; height: 44px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); display: flex; flex: none"><span class="est theme-estante" style="flex: 1; background: var(--bg); display: flex; align-items: center; justify-content: center"><span style="color: var(--chord); font-weight: 700; font-size: 15px">G</span></span><span class="est theme-palco" style="flex: 1; background: var(--bg); display: flex; align-items: center; justify-content: center"><span style="color: var(--chord); font-weight: 700; font-size: 15px">G</span></span></span>
+                      <span class="grow"><span class="name">Automatic</span><span class="meta">Follows this device · light → Estante, dark → Palco</span></span>
+                      <span class="badge ok">Selected</span>
+                    </a>
+                    <a class="row" href="#" style="gap: 14px">
+                      <span class="check" style="border-radius: 50%"></span>
+                      <span class="est theme-estante" style="width: 60px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; flex: none"><span style="font-family: var(--font-display); font-weight: 700; color: var(--chord); font-size: 18px">G</span></span>
+                      <span class="grow"><span class="name">Estante</span><span class="meta">Neutral, ink-blue chords</span></span>
+                    </a>
+                    <a class="row" href="#" style="gap: 14px">
+                      <span class="check" style="border-radius: 50%"></span>
+                      <span class="est theme-caderno" style="width: 60px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; flex: none"><span style="font-family: var(--font-display); font-weight: 700; color: var(--chord); font-size: 18px">G</span></span>
+                      <span class="grow"><span class="name">Caderno</span><span class="meta">Paper, red-pen chords, serif titles</span></span>
+                    </a>
+                    <a class="row" href="#" style="gap: 14px">
+                      <span class="check" style="border-radius: 50%"></span>
+                      <span class="est theme-palco" style="width: 60px; height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); display: flex; align-items: center; justify-content: center; flex: none"><span style="font-family: var(--font-display); font-weight: 700; color: var(--chord); font-size: 18px">G</span></span>
+                      <span class="grow"><span class="name">Palco</span><span class="meta">Dark stage, amber, built to read far</span></span>
+                    </a>
+                  </div>
+                  <p class="t-small"><b>Automatic</b> follows this device: light → Estante, dark → Palco. A dark-mode phone at a gig shows Palco while this computer shows Estante. Choosing a named theme replaces automatic on every device.</p>
+                </div>
+                <div style="width: 320px; flex: none; display: flex; flex-direction: column; gap: 10px">
+                  <div class="t-h3" style="color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 15px">Language</div>
+                  <div class="list" role="radiogroup" aria-label="Language">
+                    <sc-for list="{{languages}}" as="lang" hint-placeholder-count="4">
+                      <a class="row {{lang.rowcls}}" href="#" style="gap: 14px">
+                        <span class="check {{lang.cls}}" style="border-radius: 50%"><sc-if value="{{lang.sel}}" hint-placeholder-val="{{ true }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></sc-if></span>
+                        <span class="grow"><span class="name">{{lang.name}}</span></span>
+                        <sc-if value="{{lang.sel}}" hint-placeholder-val="{{ false }}"><span class="badge ok">Selected</span></sc-if>
+                      </a>
+                    </sc-for>
+                  </div>
+                  <p class="t-small">Uses your browser's language until you choose one. The choice is kept in your home book.</p>
+                </div>
+              </div>
+              <div class="t-h3" style="margin-top: 8px">Signed-in devices</div>
+              <div class="list">
+                <sc-for list="{{devices}}" as="d" hint-placeholder-count="4">
+                  <div class="row"><span class="grow"><span class="name">{{d.name}}</span><span class="meta">{{d.meta}}</span></span><button class="btn">Sign out</button></div>
+                </sc-for>
+              </div>
+              <div class="t-h3" style="margin-top: 8px">Passkeys</div>
+              <div class="list">
+                <sc-for list="{{passkeys}}" as="k" hint-placeholder-count="3">
+                  <div class="row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg><span class="grow"><span class="name">{{k.name}}</span><span class="meta">{{k.meta}}</span></span><button class="btn quiet">Remove</button></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      languages: [
+        { name: 'English', sel: true, cls: 'on', rowcls: 'sel' },
+        { name: 'Português do Brasil', sel: false, cls: '', rowcls: '' },
+        { name: 'Español (Latinoamérica)', sel: false, cls: '', rowcls: '' },
+        { name: 'Italiano', sel: false, cls: '', rowcls: '' },
+      ],
+      devices: [
+        { name: 'This computer', meta: 'Edge on Windows · in use now' },
+        { name: 'Phone', meta: 'Chrome on Android · last used 10 minutes ago' },
+        { name: 'iPad', meta: 'Safari · last used yesterday' },
+        { name: 'iPhone', meta: 'Safari · last used 3 weeks ago' },
+      ],
+      passkeys: [
+        { name: 'iCloud Keychain', meta: 'iPhone and iPad · added 12 March' },
+        { name: 'Google Password Manager', meta: 'Phone · added today' },
+        { name: 'Windows Hello', meta: 'This computer · added today' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

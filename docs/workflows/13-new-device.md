@@ -67,6 +67,13 @@ It has its own home book, and perhaps a local *My songs* with songs in it.
 
 ## The account screen
 
+- **Preferences** — **theme** and **language** (workflow 1), drawn in
+  [the mockups](../mockups/Theme-picker.dc.html). Present and writable whether
+  or not the user is signed in, since preferences live in the local home book
+  from the first minute; the signed-in sections below are additive. Theme
+  offers Automatic (the default, following the device's light or dark mode),
+  Estante, Caderno and Palco, the chosen one marked by a word, never colour
+  alone.
 - **Signed-in devices**, each with when it was last used, and **sign out**
   for any of them. A lost phone is signed out from the laptop, and its
   session stops working at its next request.

@@ -534,7 +534,12 @@ workflows do not yet cover, and work that comes before building:
   happens to books others are members of.
 - **How a screen reader reads a sung line**: an order for chords and words
   read aloud, decided rather than left to the markup.
-- **The theme picker**, decided (workflow 1) but not drawn.
+- **The theme picker**, decided (workflow 1) and drawn:
+  [mockups/Theme-picker.dc.html](mockups/Theme-picker.dc.html) — a Preferences
+  section of the account screen (workflow 13), reached from the header and
+  present before sign-in, holding the four theme choices (Automatic, Estante,
+  Caderno, Palco) beside the language. No new workflow: the decision is
+  workflow 1's; this closes the gap by drawing it and placing it.
 
 ## 7. Workflows
 

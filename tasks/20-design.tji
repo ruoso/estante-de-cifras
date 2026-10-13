@@ -31,7 +31,8 @@ task design "Design gaps" {
   task theme_picker "Draw the theme picker" {
     effort 0.5d
     allocate team
-    note "Decided in workflow 1 (automatic: Estante in light mode, Palco in dark); drawn on the account screen. Tests: none — design deliverable (the workflow document and its board)."
+    complete 100
+    note "Decided in workflow 1 (automatic: Estante in light mode, Palco in dark); drawn on the account screen. Tests: none — design deliverable (the workflow document and its board). Refinement: tasks/refinements/design/theme_picker.md"
   }
   task home_book_format "The home book's format" {
     effort 1d

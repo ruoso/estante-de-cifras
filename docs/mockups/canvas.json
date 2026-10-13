@@ -135,6 +135,13 @@
    "w": 3208,
    "h": 1500,
    "title": "15. Setting up an instrument"
+  },
+  "Theme-picker.dc.html": {
+   "x": 0,
+   "y": 28340,
+   "w": 3208,
+   "h": 1500,
+   "title": "The theme picker"
   }
  },
  "order": [
@@ -155,7 +162,8 @@
   "W13-new-device.dc.html",
   "W14-file-view.dc.html",
   "W16-chord-explorer.dc.html",
-  "W15-set-up-an-instrument.dc.html"
+  "W15-set-up-an-instrument.dc.html",
+  "Theme-picker.dc.html"
  ],
  "notes": {
   "workflows": {

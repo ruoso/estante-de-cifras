@@ -87,17 +87,21 @@ when the account already has a home book from another device is workflow
 
 ## Language
 
-As Explore Chords did: the browser's language until one is chosen in the
-header, then that one. The choice is a preference, so it lives in the home
-book and follows the user to a new device.
+As Explore Chords did: the browser's language until one is chosen, then that
+one. It is chosen in the **Preferences** section of the account screen,
+reached from the header's account affordance and present before sign-in. The
+choice is a preference, so it lives in the home book and follows the user to a
+new device.
 
 ## Theme
 
 The app comes in three themes, drawn in [the mockups](../mockups/):
 **Estante** (neutral, ink-blue chords), **Caderno** (paper, chords in red
 pen, serif titles) and **Palco** (a dark stage, amber chords, a typeface
-made to be read from a music stand). The user chooses one, from the same
-place as the language.
+made to be read from a music stand). The user chooses one from the same place
+as the language — the **Preferences** section of the account screen (drawn in
+[the mockups](../mockups/Theme-picker.dc.html)), reached from the header and
+present before sign-in.
 
 Until they do, the theme is **automatic**: Estante while the device is in
 light mode, Palco while it is in dark mode, following the device as it

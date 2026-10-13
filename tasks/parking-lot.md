@@ -239,3 +239,13 @@ Append one `###` block per item, newest at the bottom:
 - **Source**: closer for `books.notice_surface` (see estante-de-cifras log), surfaced by refinement §Open questions (Decision 4).
 - **Question**: The service returns the operator's reason as `"This book has been taken down: <reason>"` — the frame sentence is in English. For a user in a non-English locale the frame sentence is untranslated (the reason text itself cannot be localized). Fully localizing the frame would require adding a structured `reason` field to the `GitForbidden` contract (a `service/` + `api/openapi.yaml` change) so the app can build its own frame. The decision is whether the rare-event wart (an English frame sentence in a non-English UI) is worth the cross-repo change.
 - **Why parked**: product/l10n scope decision; the behavior is correct per Decision 4 of `books.notice_surface`. Only a person can weigh the wart against the cross-repo `service.admin`-level change needed to fix it.
+
+### 2026-10-13 — Fast in-header jump to Palco for a gig
+- **Source**: closer for `design.theme_picker` (tasks/refinements/design/theme_picker.md), surfaced by implementer's return summary and refinement §Open questions.
+- **Question**: Beyond what automatic already gives (a dark-mode device shows Palco), a performer at a gig might want a one-tap header shortcut to Palco without opening the account screen. Should Estante add a fast in-header Palco switch in addition to the single Preferences control on the account screen?
+- **Why parked**: product judgment call; the picker ships as the one account-screen surface. Whether a header shortcut is worth the extra control complexity is a deliberate product decision, not a design task.
+
+### 2026-10-13 — Republish the mockup canvas after Theme-picker board
+- **Source**: closer for `design.theme_picker` (tasks/refinements/design/theme_picker.md).
+- **Question**: `docs/mockups/Theme-picker.dc.html` is written and registered in `canvas.json`, but the published canvas needs to be updated to include it. The implementer cannot render or publish the board.
+- **Why parked**: work only a person can do — requires publishing access to the external canvas host. (See also the earlier 2026-10-05 entry for W15; both boards can be published in one pass.)
