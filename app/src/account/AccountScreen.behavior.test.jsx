@@ -20,12 +20,19 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
+import { add, commit } from 'isomorphic-git';
+
 import { checkWcag21aa } from '../a11y/axe.js';
 import { setLocale } from '../i18n/index.js';
 import { createStore } from '../worker/store.js';
 import { createWorkerLogic } from '../worker/logic.js';
+import { command, CommandKind, EventKind } from '../worker/protocol.js';
+import { createFileSystem } from '../worker/fs.js';
+import { createGitLayer } from '../worker/git.js';
+import { createGitHttpClient } from '../worker/git-http.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { installWebLocks } from '../test/web-locks.js';
+import { startGitHttpRemote } from '../test/git-http-remote.js';
 import { createAuthClient } from './auth-client.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import LocaleRoot from '../i18n/LocaleRoot.jsx';
@@ -136,16 +143,25 @@ function renderAccount(store, { client, ...props } = {}) {
 }
 
 let restoreLocks;
+let openRemotes;
 beforeEach(() => {
   restoreLocks = installWebLocks();
   installMatchMedia();
   setLocale('en');
+  openRemotes = [];
 });
-afterEach(() => {
+afterEach(async () => {
   restoreLocks();
   delete globalThis.matchMedia;
   uninstallWebAuthn();
   setLocale('en');
+  for (const r of openRemotes) {
+    try {
+      await r.stop();
+    } catch {
+      // A remote a test already stopped (to pin an unpushed commit) — fine.
+    }
+  }
 });
 
 // A signed-out double: listSessions 401. The signed-in regions are replaced by
@@ -264,13 +280,23 @@ describe('Signed-in devices (workflow 13 L77-79; acceptance 5)', () => {
     await waitFor(() => expect(screen.queryByText('Edge on Windows')).toBeNull());
   });
 
-  it('the current device’s sign-out invokes the onSignOut seam, not a revoke', async () => {
+  it('the current device’s sign-out opens the remove/keep dialog, not a revoke (account.sign_out)', async () => {
+    // The current-device control is account.sign_out's subject: it opens the
+    // sign-out dialog (the remove/keep choice), never a per-device revoke DELETE.
     const { client, calls } = signedInClient();
     let signedOutHere = 0;
     renderAccount(bareStore(), { client, onSignOut: () => (signedOutHere += 1) });
 
     fireEvent.click(await screen.findByRole('button', { name: 'Sign out of this device' }));
-    expect(signedOutHere).toBe(1);
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Sign out of this device?')).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('radio', { name: /Remove this account’s books/ }),
+    ).toBeChecked();
+    expect(within(dialog).getByRole('radio', { name: /Keep them here/ })).toBeInTheDocument();
+    // Opening the dialog is not itself a sign-out: the seam fires only on confirm,
+    // and no session DELETE (that is another device's revoke) is ever sent.
+    expect(signedOutHere).toBe(0);
     expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
   });
 });
@@ -340,6 +366,219 @@ describe('Errors are worded and retryable (acceptance 7)', () => {
     failing = false;
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(screen.getByText('iCloud Keychain')).toBeInTheDocument());
+  });
+});
+
+describe('Signing out of this device (account.sign_out; workflow 13 §Signing out)', () => {
+  const AUTHOR = { id: 'u_tester', name: 'A Tester' };
+  const FENCE = '```';
+  const songText = (lines) => lines.join('\n') + '\n';
+
+  // A worker-backed store over fake-indexeddb + web-locks + loopback git remotes
+  // (each put-online book gets its own empty bare remote, the shape the service
+  // creates). Captures raw events for the seeding steps that reply with a
+  // transient event rather than a slice (BOOK_CREATED / BOOK_ONLINE).
+  function workerStoreOnline() {
+    const idb = new IDBFactory();
+    const name = `acct-online-${rand()}`;
+    const remoteByService = new Map();
+    const fetchImpl = async (url, init = {}) => {
+      if (typeof url === 'string' && url.startsWith('http')) return globalThis.fetch(url, init);
+      if (url === '/api/books' && init.method === 'POST') {
+        const { title } = JSON.parse(init.body);
+        const remote = await startGitHttpRemote({ seed: false });
+        openRemotes.push(remote);
+        const serviceId = `srv-${rand()}`;
+        remoteByService.set(serviceId, remote);
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({
+            id: serviceId,
+            title,
+            role: 'owner',
+            visibility: 'private',
+            gitUrl: remote.url,
+            original: null,
+          }),
+        };
+      }
+      if (url === '/api/shelf/change-check') {
+        return { ok: true, status: 200, json: async () => ({ books: [] }) };
+      }
+      return { ok: false, status: 404, json: async () => null };
+    };
+    const fs = createFileSystem(`${name}-fs`, { indexedDB: idb });
+    const git = createGitLayer({ fs, http: createGitHttpClient({ fetch: globalThis.fetch }) });
+    const endpoint = createLoopbackEndpoint((port) =>
+      createWorkerLogic(port, { indexedDB: idb, name, fetch: fetchImpl }),
+    );
+    const store = createStore(endpoint);
+    const events = [];
+    store.subscribeEvents((m) => events.push(m));
+    return { store, events, remoteByService, fs, git };
+  }
+
+  async function createBook(ctx, title) {
+    const mark = ctx.events.length;
+    ctx.store.send(command(CommandKind.CREATE_BOOK, { title, author: AUTHOR }));
+    let created;
+    await waitFor(() => {
+      created = ctx.events.slice(mark).find((e) => e.kind === EventKind.BOOK_CREATED);
+      expect(created).toBeTruthy();
+    });
+    return created.payload.bookId;
+  }
+
+  async function putOnline(ctx, localId) {
+    ctx.store.send(command(CommandKind.PUT_ONLINE, { bookId: localId, author: AUTHOR }));
+    let online;
+    await waitFor(() => {
+      online = ctx.events.find(
+        (e) => e.kind === EventKind.BOOK_ONLINE && e.payload.previousBookId === localId,
+      );
+      expect(online).toBeTruthy();
+    });
+    return online.payload.bookId;
+  }
+
+  // A hosted book carrying BOTH kinds of local-only work: one unsaved working
+  // song, and one local commit not yet pushed (its remote is stopped right after
+  // put-online so no sync pass can push it). Returns the service id.
+  async function hostedBookWithLocalWork(ctx, title, term) {
+    const localId = await createBook(ctx, title);
+    ctx.store.send(command(CommandKind.OPEN));
+    await waitFor(() => expect(ctx.store.slice('index')?.[localId]).toBe('ready'));
+    const path = `${term}.cifra.md`;
+    ctx.store.send(
+      command(CommandKind.WRITE, {
+        bookId: localId,
+        path,
+        text: songText([`# ${term}`, '- artist: Trio de Teste', '## A', FENCE, 'C   G', 'ai', FENCE]),
+      }),
+    );
+    await waitFor(() => {
+      ctx.store.send(command(CommandKind.SEARCH, { query: term }));
+      const hit = (ctx.store.slice('search')?.results ?? []).some((r) => r.bookId === localId);
+      expect(hit).toBe(true);
+    });
+    const serviceId = await putOnline(ctx, localId);
+    await ctx.remoteByService.get(serviceId).stop();
+    const dir = ctx.git.bookDir(serviceId);
+    await ctx.fs.promises.writeFile(`${dir}/nova.cifra.md`, songText(['# Nova', '## A', FENCE, 'C', FENCE]));
+    await add({ fs: ctx.fs, dir, filepath: 'nova.cifra.md' });
+    await commit({ fs: ctx.fs, dir, message: 'Gravação local', author: { name: 'A Tester', email: 'u@users.invalid' } });
+    return serviceId;
+  }
+
+  function signedInClient(over = {}) {
+    return makeAuthClient({
+      'GET /api/account/sessions': () => ({
+        body: {
+          sessions: [{ id: 's1', current: true, lastUsedAt: '2026-10-12T10:00:00.000Z', device: 'Chrome on Linux' }],
+        },
+      }),
+      'GET /api/account/passkeys': () => ({ body: { passkeys: [] } }),
+      'POST /api/auth/signout': () => ({ status: 204 }),
+      ...over,
+    });
+  }
+
+  const openDialog = async () => {
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign out of this device' }));
+    return screen.findByRole('dialog');
+  };
+
+  const shelfVisible = (store) => {
+    const shelf = store.slice('shelf') ?? {};
+    const live = (map) => Object.entries(map ?? {}).filter(([, b]) => (b?.label?.value ?? b?.title?.value) != null);
+    return { shared: live(shelf.books), local: live(shelf.local) };
+  };
+
+  it('surveys this device and shows the per-book counts and the download guard, axe clean', async () => {
+    const ctx = workerStoreOnline();
+    await hostedBookWithLocalWork(ctx, 'Banda do Bairro', 'bairro');
+    await createBook(ctx, 'Só aqui'); // a purely-local book → the download guard
+
+    const { client } = signedInClient();
+    const { container } = renderAccount(ctx.store, { client });
+    const dialog = await openDialog();
+
+    expect(within(dialog).getByText('Sign out of this device?')).toBeInTheDocument();
+    await within(dialog).findByText(/unsaved changes in 1 song/);
+    expect(within(dialog).getByText(/1 save not yet pushed/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/is only on this device/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /Download Só aqui/ })).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('Remove tears the account’s books off the shelf, then POSTs signout', async () => {
+    const ctx = workerStoreOnline();
+    const shared = await hostedBookWithLocalWork(ctx, 'Banda do Bairro', 'bairro');
+    await createBook(ctx, 'Só aqui');
+
+    const { client, calls } = signedInClient();
+    let returned = 0;
+    renderAccount(ctx.store, { client, onSignOut: () => (returned += 1) });
+    const dialog = await openDialog();
+    await within(dialog).findByText(/unsaved changes in 1 song/);
+
+    // Remove is the default; its confirm names the action.
+    expect(within(dialog).getByRole('radio', { name: /Remove this account’s books/ })).toBeChecked();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sign out and remove' }));
+
+    // The teardown empties the shelf of both the shared and the local book…
+    await waitFor(() => {
+      const { shared: s, local: l } = shelfVisible(ctx.store);
+      expect(s).toHaveLength(0);
+      expect(l).toHaveLength(0);
+    });
+    // …then the session is cleared and the surface returns to not-signed-in.
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.path === '/api/auth/signout')).toBe(true));
+    await waitFor(() => expect(returned).toBe(1));
+    expect(ctx.store.slice('shelf').books[shared].label.value).toBeNull();
+  });
+
+  it('Keep turns the account’s books into local books, then POSTs signout', async () => {
+    const ctx = workerStoreOnline();
+    const shared = await hostedBookWithLocalWork(ctx, 'Banda do Bairro', 'bairro');
+
+    const { client, calls } = signedInClient();
+    let returned = 0;
+    renderAccount(ctx.store, { client, onSignOut: () => (returned += 1) });
+    const dialog = await openDialog();
+    await within(dialog).findByText(/unsaved changes in 1 song/);
+
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Keep them here/ }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sign out and keep' }));
+
+    // The shared book stays on the shelf, now as a local book.
+    await waitFor(() => {
+      const shelf = ctx.store.slice('shelf');
+      expect(shelf.books[shared].label.value).toBeNull();
+      expect(shelf.local[shared].title.value).toBe('Banda do Bairro');
+    });
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.path === '/api/auth/signout')).toBe(true));
+    await waitFor(() => expect(returned).toBe(1));
+  });
+
+  it('Cancel closes the dialog and changes nothing', async () => {
+    const ctx = workerStoreOnline();
+    const shared = await hostedBookWithLocalWork(ctx, 'Banda do Bairro', 'bairro');
+
+    const { client, calls } = signedInClient();
+    let returned = 0;
+    renderAccount(ctx.store, { client, onSignOut: () => (returned += 1) });
+    const dialog = await openDialog();
+    await within(dialog).findByText(/unsaved changes in 1 song/);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    expect(returned).toBe(0);
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/api/auth/signout')).toBe(false);
+    // The book is still on the shelf as a hosted book — nothing was torn down.
+    expect(ctx.store.slice('shelf').books[shared].label.value).toBe('Banda do Bairro');
   });
 });
 

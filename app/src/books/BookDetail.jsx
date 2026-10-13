@@ -40,6 +40,7 @@ import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { titleFor, canSaveFor, orderedBooks } from './book-display.js';
+import { saveZip } from './download-zip.js';
 import SharingScreen from './SharingScreen.jsx';
 import './book-detail.css';
 
@@ -47,35 +48,6 @@ import './book-detail.css';
 // shelf and the shell use (BooksScreen.jsx:49). The Worker's `authorFrom` turns
 // the id into a no-reply address.
 const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
-// A filename-safe slug for the downloaded zip — ASCII letters, digits and
-// dashes, from the book's title; a title that reduces to nothing falls back to
-// a neutral word (never a book id or song text in the name).
-function slugFor(title) {
-  const slug = String(title ?? '')
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase();
-  return slug || 'book';
-}
-
-// Save a zip the Worker produced as a file (workflow 7 L63: "the browser saves
-// the file"). Guarded so a test environment without `URL.createObjectURL` does
-// not throw — the download is exercised end to end in e2e-web.
-function saveZip(title, bytes) {
-  if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') return;
-  const blob = new Blob([bytes], { type: 'application/zip' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${slugFor(title)}.zip`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
 
 function DownloadIcon() {
   return (

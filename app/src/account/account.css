@@ -216,6 +216,83 @@ label.account-row > span:first-child input {
   margin-top: calc(var(--u) * 0.5);
 }
 
+/* The sign-out dialog (account.sign_out; mockup W13-new-device.dc.html:174-197).
+   The two choice cards stack; each is a RAC Radio laid out like the mockup's
+   .card.pad with a round check and two lines of text. The chosen card takes the
+   accent border (the radio's aria-checked carries it to a screen reader, so the
+   border is not the only cue). */
+.signout-choice {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+}
+
+.signout-card {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: calc(var(--u) * 1.5);
+  cursor: pointer;
+  border-width: 2px;
+}
+
+.signout-card[data-selected] {
+  border-color: var(--accent);
+}
+
+.signout-check {
+  border-radius: 50%;
+}
+
+.signout-choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.25);
+}
+
+.signout-choice-text .account-subhead {
+  font-weight: 600;
+}
+
+.signout-notice {
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+}
+
+/* The download-guard notice keeps its Download act on the row with the sentence
+   (the shared .notice .act floats it right); only the "not yet on Estante" list
+   stacks. */
+.signout-notice:not(.unsaved) {
+  flex-direction: row;
+  align-items: center;
+}
+
+/* RAC renders each Radio's real <input> inside a visually-hidden <span> first
+   child, clipped to 1px, so a by-role click lands on the card behind it ("intercepts
+   pointer events") unless the wrapper is lifted to cover the card. Same fix as
+   label.account-row above, scoped to the sign-out cards. */
+label.signout-card {
+  position: relative;
+}
+
+label.signout-card > span:first-child {
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  clip-path: none !important;
+}
+
+label.signout-card > span:first-child input {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 /* The header account affordance keeps a little air from the instrument chip it
    sits beside (the narrow strip right-aligns both with no gap of its own). */
 .account-open {

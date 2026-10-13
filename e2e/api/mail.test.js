@@ -6,9 +6,9 @@
  * §3.3 lines 175–177) is tested through, and the .tji note's "the mail
  * catcher's API answers". No service component sends mail yet (sign-in is
  * downstream), so a purpose-written message is injected through Mailpit's send
- * API; the helper then finds it by recipient, extracts its link and clears the
- * mailbox — the exact path workflow 13's tests reuse. A unique recipient per
- * test keeps the ≤4-worker run collision-free.
+ * API; the helper then finds it by recipient, extracts its link and clears that
+ * message — the exact path workflow 13's tests reuse. A unique recipient per
+ * test, and an id-scoped clear, keep the ≤4-worker run collision-free.
  */
 import { describe, it, expect } from 'vitest';
 
@@ -36,7 +36,7 @@ describe('mail catcher', () => {
     const recipient = `signin-${uniqueId()}@estante.test`;
     const link = `https://estante.test/sign-in/${uniqueId()}`;
 
-    await sendMessage({
+    const { ID } = await sendMessage({
       from: 'no-reply@estante.test',
       to: recipient,
       subject: 'Your sign-in link',
@@ -49,7 +49,9 @@ describe('mail catcher', () => {
     const found = extractLink(message, /https:\/\/estante\.test\/sign-in\/\S+/);
     expect(found).toBe(link);
 
-    await clearMailbox();
+    // Clear only this test's own message — a bare clear-all would wipe mail
+    // other parallel workers are mid-read on (the shared catcher).
+    await clearMailbox([ID]);
     expect(await latestMessageTo(recipient)).toBeNull();
   });
 });

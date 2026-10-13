@@ -105,6 +105,39 @@ function isMergeConflict(err) {
   );
 }
 
+// The origin-tracking head of a book's `main`, or null when it was never
+// fetched/pushed (an empty or purely-local book). Standalone so account.sign_out's
+// survey can reuse it to tell whether a book's content is on Estante without
+// building a whole sync engine (Decision 2). `dir` is `git.bookDir(bookId)`.
+export async function resolveOriginHead({ fs, dir }) {
+  try {
+    return await resolveRef({ fs, dir, ref: 'refs/remotes/origin/main' });
+  } catch {
+    return null; // never fetched/pushed yet
+  }
+}
+
+// How many local commits are not yet on the origin — the "N saves waiting" count
+// (workflow 8 L31). A best-effort first-parent-ish walk bounded to a sane depth.
+// Standalone and injected as the sync engine's default below, and reused by
+// account.sign_out's survey (the saves-not-pushed count). `dir` is
+// `git.bookDir(bookId)`.
+export async function countCommitsAhead({ fs, dir }) {
+  const origin = await resolveOriginHead({ fs, dir });
+  let entries;
+  try {
+    entries = await gitLog({ fs, dir, ref: 'main', depth: 64 });
+  } catch {
+    return 0;
+  }
+  let n = 0;
+  for (const entry of entries) {
+    if (entry.oid === origin) break;
+    n += 1;
+  }
+  return n;
+}
+
 /**
  * Build the sync engine. Required collaborators: `fs`/`git`/`locks` (the shared
  * Worker primitives), `changeCheck` (change-check-client), `mergeDriver` (the
@@ -152,12 +185,8 @@ export function createSyncEngine(deps = {}) {
     }
   }
 
-  async function originHeadOf(bookId) {
-    try {
-      return await resolveRef({ fs, dir: bookDir(bookId), ref: 'refs/remotes/origin/main' });
-    } catch {
-      return null; // never fetched/pushed yet
-    }
+  function originHeadOf(bookId) {
+    return resolveOriginHead({ fs, dir: bookDir(bookId) });
   }
 
   // Local `main` has commits the origin does not (the offline-save retry needs
@@ -177,21 +206,8 @@ export function createSyncEngine(deps = {}) {
   // How many local commits are not yet on the origin — the "N saves waiting"
   // count the shelf shows (workflow 8 L31). A best-effort first-parent-ish walk
   // bounded to a sane depth; the exact derivation is sync.states'.
-  async function defaultCountAhead(bookId) {
-    const dir = bookDir(bookId);
-    const origin = await originHeadOf(bookId);
-    let entries;
-    try {
-      entries = await gitLog({ fs, dir, ref: 'main', depth: 64 });
-    } catch {
-      return 0;
-    }
-    let n = 0;
-    for (const entry of entries) {
-      if (entry.oid === origin) break;
-      n += 1;
-    }
-    return n;
+  function defaultCountAhead(bookId) {
+    return countCommitsAhead({ fs, dir: bookDir(bookId) });
   }
 
   // The working tree carries changes HEAD does not (an in-progress edit). The

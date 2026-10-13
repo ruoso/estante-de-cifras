@@ -429,6 +429,8 @@ export default {
     unknownDevice: 'A signed-in device',
     inUseNow: '{device} · in use now',
     lastUsed: 'last used {time}',
+    offlineManage:
+      'You’re offline. You can still sign out of this device; your other devices and passkeys can’t be managed until you reconnect.',
     signOut: 'Sign out',
     signOutLabel: 'Sign {device} out',
     signOutThis: 'Sign out of this device',
@@ -437,6 +439,30 @@ export default {
       'It stops working on that device the next time it reaches Estante. Nothing on it is removed.',
     signOutConfirm: 'Sign out',
     cancel: 'Cancel',
+    // Signing out of THIS device (account.sign_out; workflow 13 §Signing out;
+    // mockup W13-new-device.dc.html:174-197).
+    signOutThisTitle: 'Sign out of this device?',
+    signOutChoice: 'What to do with this account’s books on this device',
+    signOutRemove: 'Remove this account’s books from this device',
+    signOutRemoveMeta: 'For a borrowed or shared device.',
+    signOutKeep: 'Keep them here',
+    signOutKeepMeta: 'As local books, no longer synced.',
+    signOutNotYet: 'Not yet on Estante:',
+    signOutUnsavedSongs: {
+      one: '{title} · unsaved changes in {count} song',
+      other: '{title} · unsaved changes in {count} songs',
+    },
+    signOutUnpushed: {
+      one: '{title} · {count} save not yet pushed',
+      other: '{title} · {count} saves not yet pushed',
+    },
+    signOutOnlyHere: '{title} is only on this device. Download it before it is removed.',
+    signOutDownload: 'Download',
+    signOutDownloadLabel: 'Download {title}',
+    signOutConfirmRemove: 'Sign out and remove',
+    signOutConfirmKeep: 'Sign out and keep',
+    signOutLeftOffline:
+      'Signed out on this device. Estante will clear the session when this device next reaches it.',
     // Passkeys.
     passkeys: 'Passkeys',
     passkeyUnnamed: 'Passkey',

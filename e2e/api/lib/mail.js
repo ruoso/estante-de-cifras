@@ -64,9 +64,18 @@ export function extractLink(message, pattern = /https?:\/\/\S+/) {
   return match ? match[0] : null;
 }
 
-// Empty the mailbox.
-export async function clearMailbox() {
-  await mailFetch('/api/v1/messages', { method: 'DELETE' });
+// Delete messages. With `ids`, deletes only those — the shared catcher is used
+// by tests running in parallel (≤4 workers), so a bare delete-all would erase
+// another test's in-flight mail between its list and its by-id fetch (a 404
+// race in getMessage). Callers that own specific messages pass their ids; a
+// bare call still empties the whole mailbox for any single-owner use.
+export async function clearMailbox(ids) {
+  const options = { method: 'DELETE' };
+  if (ids && ids.length) {
+    options.headers = { 'content-type': 'application/json' };
+    options.body = JSON.stringify({ IDs: ids });
+  }
+  await mailFetch('/api/v1/messages', options);
 }
 
 // Inject a message through Mailpit's send API (returns { ID }).

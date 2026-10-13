@@ -43,9 +43,11 @@ import {
 
 import { t, currentLocale, resolveLocale, LOCALES } from '../i18n/index.js';
 import { THEMES } from '../theme/resolve.js';
+import { orderedBooks } from '../books/book-display.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import { createAuthClient, AuthError } from './auth-client.js';
+import SignOutDialog from './SignOutDialog.jsx';
 import { createCredential, isCancellation } from './webauthn-json.js';
 import './account.css';
 
@@ -256,11 +258,22 @@ export default function AccountScreen({
   // The not-signed-in card's ways in (open the SignIn surface); `method` is
   // 'passkey' | 'email' for the caller to route. AppShell opens SignIn either way.
   onSignIn = () => {},
-  // The current-device sign-out seam account.sign_out fills (the remove/keep-books
-  // prompt + POST /api/auth/signout). A no-op here (Decision 4).
+  // Return the surface to the not-signed-in state after the current-device
+  // sign-out has torn down locally and cleared the session (account.sign_out).
+  // The SignOutDialog owns the remove/keep-books prompt and the teardown; this
+  // is called once it is done, for AppShell to close the account surface. A
+  // no-op by default (the dialog still tears down).
   onSignOut = () => {},
 }) {
   const preferences = useSlice(store, 'preferences');
+  // The shelf tells us locally whether this device holds an account's books
+  // (shared books only appear under a session). That is the one signed-in signal
+  // available with no network — the probe below can only re-derive "signed in"
+  // from a live response, so when it fails offline the current-device sign-out
+  // (a local, offline-first teardown — Constraint 3) must stay reachable as long
+  // as there is an account's book here to leave.
+  const shelf = useSlice(store, 'shelf');
+  const hasAccountBooks = orderedBooks(shelf).some((entry) => entry.kind === 'shared');
 
   // The chosen theme is the register's value when it is a drawn theme, else
   // Automatic (the absent/tombstone register — Decision 3). The chosen language
@@ -279,6 +292,7 @@ export default function AccountScreen({
   // 'loading' | 'in' | 'out' | 'error' — "signed in" read afresh from a 200 vs
   // 401 each time the screen opens (Constraints; Decision 3).
   const [auth, setAuth] = useState('loading');
+  const [probeError, setProbeError] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [passkeys, setPasskeys] = useState([]);
   const [passkeysError, setPasskeysError] = useState(null);
@@ -311,12 +325,14 @@ export default function AccountScreen({
       const { sessions: list } = await client.listSessions();
       setSessions(list ?? []);
       setActionError(null);
+      setProbeError(null);
       setAuth('in');
       await loadPasskeys();
     } catch (error) {
       if (error instanceof AuthError && error.kind === 'unauthorized') {
         setAuth('out');
       } else {
+        setProbeError(error);
         setAuth('error');
       }
     }
@@ -461,9 +477,7 @@ export default function AccountScreen({
                 </span>
               </span>
               {session.current ? (
-                <Button className="btn" onPress={() => onSignOut()}>
-                  {t('account.signOutThis')}
-                </Button>
+                <SignOutDialog store={store} authClient={authClient} onSignedOut={onSignOut} />
               ) : (
                 <ConfirmDialog
                   trigger={
@@ -525,6 +539,31 @@ export default function AccountScreen({
     </>
   );
 
+  // The current device's sign-out alone, reachable offline (Constraint 3): the
+  // roster and passkeys need a live response, but leaving an account on this
+  // device is a local teardown that must not wait on the network. Shown when the
+  // probe failed for want of a connection and this device still holds an
+  // account's book to leave; a worded status says what offline withholds.
+  const offlineSignedOutRegion = (
+    <>
+      {identityRow}
+      <p className="t-small account-note" role="status">
+        {t('account.offlineManage')}
+      </p>
+      <div className="t-h3 account-section">{t('account.devices')}</div>
+      <div className="list account-list">
+        <div className="row account-row">
+          <span className="grow">
+            <span className="name">{t('account.thisDevice')}</span>
+          </span>
+          <SignOutDialog store={store} authClient={authClient} onSignedOut={onSignOut} />
+        </div>
+      </div>
+    </>
+  );
+
+  const probeWasOffline = probeError instanceof AuthError && probeError.kind === 'network';
+
   let signedInRegions = null;
   if (auth === 'loading') {
     signedInRegions = (
@@ -533,7 +572,12 @@ export default function AccountScreen({
       </p>
     );
   } else if (auth === 'error') {
-    signedInRegions = <ErrorNotice message={errorCopy(actionError)} onRetry={probe} />;
+    signedInRegions =
+      probeWasOffline && hasAccountBooks ? (
+        offlineSignedOutRegion
+      ) : (
+        <ErrorNotice message={errorCopy(probeError ?? actionError)} onRetry={probe} />
+      );
   } else if (auth === 'out') {
     signedInRegions = notSignedInCard;
   } else {

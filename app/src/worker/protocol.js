@@ -113,6 +113,18 @@ export const CommandKind = Object.freeze({
   DOWNLOAD_BOOK: 'download_book',
   REMOVE_BOOK: 'remove_book',
   DELETE_BOOK: 'delete_book',
+  // Leaving the account on this device (account.sign_out, workflow 13 §Signing
+  // out). SURVEY_SIGN_OUT `{}` counts this device's local-only work — unsaved
+  // changes and saves not yet pushed per book — and flags the books only on this
+  // device, replying with SIGN_OUT_SURVEY; a read, no teardown. SIGN_OUT
+  // `{ mode, author }` performs the teardown: `mode:'remove'` drops every clone
+  // (the account's shared books and this device's local books) and tombstones
+  // their shelf registers; `mode:'keep'` migrates each shared book into the local
+  // shelf map and strips its git remote (the inverse of PUT_ONLINE), leaving the
+  // already-local books. Either way the home book stays and its remote is stripped
+  // idempotently; it replies with SIGNED_OUT. All local; no network (Decision 4).
+  SURVEY_SIGN_OUT: 'survey_sign_out',
+  SIGN_OUT: 'sign_out',
   // Make a book the user's own copy (books.fork, workflow 11). FORK_BOOK
   // `{ bookId, author }` is dispatched by the "Make this book your own" offer —
   // one of fork's ways in: a book the user lost access to (sync.lost_access,
@@ -383,6 +395,15 @@ export const EventKind = Object.freeze({
   BOOK_ONLINE_REFUSED: 'book_online_refused',
   BOOK_DOWNLOAD: 'book_download',
   BOOK_REMOVED: 'book_removed',
+  // Sign-out replies (account.sign_out). SIGN_OUT_SURVEY `{ books }` carries one
+  // record per shelf book — `{ id, title, kind, role, savesWaiting, unsavedSongs,
+  // onEstante }` — for the dialog to warn about local-only work and offer a
+  // download before a book only on this device is removed. SIGNED_OUT `{ mode }`
+  // reports the local teardown is done (clones gone / migrated, shelf re-surfaced);
+  // the main thread then POSTs /api/auth/signout and returns to the not-signed-in
+  // state. Transient command replies, like BOOK_REMOVED (Decision 2).
+  SIGN_OUT_SURVEY: 'sign_out_survey',
+  SIGNED_OUT: 'signed_out',
   // Joining a shared book (books.add_by_link, workflow 1 §Invited, workflow 7).
   // BOOK_CLONED `{ bookId }` reports that an ADD_BY_LINK / ADD_MINE cloned the
   // book, wrote its shelf register (with the granted role) and indexed it; the

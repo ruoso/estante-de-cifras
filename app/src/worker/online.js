@@ -247,5 +247,31 @@ export function createOnline({ fs, git, locks, booksClient } = {}) {
     await locks.withLock(bookId, () => removeTree(git.bookDir(bookId)));
   }
 
-  return { putOnline, download, remove, deleteBook };
+  /**
+   * Strip the `[remote "origin"]` section from a book's on-device `.git/config`,
+   * leaving its repository, working copy and history in place (account.sign_out
+   * keep-as-local, Decision 3; the home-book-remote strip, Constraint 9). Unlike
+   * `download`, which strips only the zipped copy, this rewrites the on-device
+   * config so the now-local book no longer tracks the service and a later SYNC is
+   * a no-op with no origin. Idempotent: a missing config or a config with no
+   * origin remote leaves the bytes unchanged. Under the book's lock. No network.
+   *
+   * @param {{ bookId: string }} opts
+   */
+  function detach({ bookId }) {
+    return locks.withLock(bookId, async () => {
+      const configPath = `${git.bookDir(bookId)}/.git/config`;
+      let text;
+      try {
+        text = await fs.promises.readFile(configPath, 'utf8');
+      } catch (err) {
+        if (err?.code === 'ENOENT') return; // no repo/config here — nothing to detach
+        throw err;
+      }
+      const stripped = stripRemoteFromConfig(text);
+      if (stripped !== text) await fs.promises.writeFile(configPath, stripped);
+    });
+  }
+
+  return { putOnline, download, remove, deleteBook, detach };
 }

@@ -146,6 +146,18 @@ export function createAuthClient({ fetch: injected } = {}) {
     async revokeSession(sessionId) {
       return del(fetchImpl, `/api/account/sessions/${seg(sessionId)}`);
     },
+    // Sign out of THIS device (account.sign_out; api/openapi.yaml signOut, line
+    // 211). Clears the session cookie server-side; the app never reads or clears
+    // the cookie itself (sign_in Decision: the session is the service's). 204 on
+    // success, 401 when there is no session — the device is already account-free
+    // either way, so the caller tears down locally first and treats both as done
+    // (the teardown must not wait on the network, Decision 4).
+    async signOut() {
+      const response = await postJson(fetchImpl, '/api/auth/signout', {});
+      if (response.ok) return undefined;
+      if (response.status === 401) throw new AuthError('unauthorized', response.status);
+      throw new AuthError('network', response.status);
+    },
 
     // --- passkey management (account/passkeys) ------------------------------
     // The account screen's passkeys roster (workflow 13 §Passkeys;

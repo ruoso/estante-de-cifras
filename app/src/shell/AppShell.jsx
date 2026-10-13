@@ -515,14 +515,17 @@ export default function AppShell({
   // The account screen (account.account_screen): a full screen over the shell,
   // checked after SignIn so the not-signed-in card's "Use a passkey" / "Email me
   // a link" open the SignIn surface above it and return here on close (the
-  // account surface stays open behind it). `onSignOut` is the current-device
-  // seam account.sign_out fills (Decision 4) — a no-op here.
+  // account surface stays open behind it). `onSignOut` returns the surface to the
+  // not-signed-in state once account.sign_out's dialog has torn the account down
+  // on this device: close the account screen onto the shelf (which the Worker has
+  // already emptied, in remove mode, or left as local books, in keep mode).
   if (account) {
     return (
       <AccountScreen
         store={store}
         onClose={() => setAccount(false)}
         onSignIn={() => setSignIn({ intent: 'signIn' })}
+        onSignOut={() => setAccount(false)}
       />
     );
   }

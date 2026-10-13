@@ -35,8 +35,9 @@ task account "First run and the account" {
   task sign_out "Signing out" {
     effort 1d
     allocate team
+    complete 100
     depends !account_screen
-    note "Remove this account's books (default) or keep them as local books, with unsaved changes and unpushed saves counted. Workflow 13. Tests: behavior (the choice with unsaved changes and unpushed saves counted; axe); e2e-web (sign out removing the books, and keeping them as local books; axe)."
+    note "Remove this account's books (default) or keep them as local books, with unsaved changes and unpushed saves counted. Workflow 13. Tests: behavior (the choice with unsaved changes and unpushed saves counted; axe); e2e-web (sign out removing the books, and keeping them as local books; axe). Refinement: tasks/refinements/account/sign_out.md"
   }
   task leaving "Leaving" {
     effort 2d

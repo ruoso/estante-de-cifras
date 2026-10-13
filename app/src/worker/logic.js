@@ -35,7 +35,8 @@ import { createOnline } from './online.js';
 import { createAddByLink } from './add-by-link.js';
 import { booksNotOnShelf } from '../books/mine-on-estante.js';
 import { createCifraMergeDriver } from './cifra-merge-driver.js';
-import { createSyncEngine } from './sync-engine.js';
+import { createSyncEngine, countCommitsAhead, resolveOriginHead } from './sync-engine.js';
+import { keepAsLocalChanges, removeChanges } from './sign-out.js';
 import { createSyncScheduler } from './sync-scheduler.js';
 import { createConflicts } from './conflicts.js';
 import { createBooks } from './books.js';
@@ -1621,6 +1622,134 @@ export function createWorkerLogic(port, options = {}) {
             port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: null }));
             await ensureFs().flush();
             port.postMessage(event(EventKind.BOOK_REMOVED, { bookId }));
+            break;
+          }
+          case CommandKind.SURVEY_SIGN_OUT: {
+            // Count this device's local-only work for the sign-out dialog's two
+            // notices (account.sign_out; workflow 13 §Signing out; mockup
+            // W13-new-device.dc.html:187-192). A read, no teardown: unsaved-song
+            // counts come from the live index, saves-not-pushed from
+            // countCommitsAhead, "on Estante" from the origin-tracking head
+            // (Decision 2). A local book's content is never on Estante, so it
+            // carries no saves-waiting count — the download guard covers it whole.
+            const home = ensureHomeBook();
+            const deviceId = await home.ensureDeviceId({ idb, name, version });
+            const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+            await ensureIndexHydrated();
+            const surveyFs = ensureFs();
+            const surveyGit = ensureGit();
+            const surveyIndex = ensureSearchIndex();
+            const unsavedSongsIn = (id) => {
+              const [first] = surveyIndex.browse({ scope: { bookId: id } }).books;
+              return (first?.songs ?? []).filter((s) => s.unsaved).length;
+            };
+            const books = [];
+            const shared = shelf?.books ?? {};
+            for (const id of Object.keys(shared)) {
+              const title = shared[id]?.label?.value;
+              if (title == null) continue; // tombstoned register — not on the shelf
+              const dir = surveyGit.bookDir(id);
+              books.push({
+                id,
+                title,
+                kind: 'shared',
+                role: shared[id]?.role?.value ?? null,
+                savesWaiting: await countCommitsAhead({ fs: surveyFs, dir }),
+                unsavedSongs: unsavedSongsIn(id),
+                onEstante: (await resolveOriginHead({ fs: surveyFs, dir })) != null,
+              });
+            }
+            const localShelf = shelf?.local?.[deviceId] ?? {};
+            for (const id of Object.keys(localShelf)) {
+              const title = localShelf[id]?.title?.value;
+              if (title == null) continue;
+              books.push({
+                id,
+                title,
+                kind: 'local',
+                role: null,
+                savesWaiting: 0,
+                unsavedSongs: unsavedSongsIn(id),
+                onEstante: false,
+              });
+            }
+            port.postMessage(event(EventKind.SIGN_OUT_SURVEY, { books }));
+            break;
+          }
+          case CommandKind.SIGN_OUT: {
+            // Leave the account on this device (workflow 13 §Signing out).
+            // `remove` drops every clone — the account's shared books and this
+            // device's local books — and tombstones their shelf registers
+            // (Decision 1); `keep` turns each shared book into a local book (the
+            // inverse of PUT_ONLINE's shelf migration, Decision 3) and strips its
+            // git remote, leaving the already-local books. Either way the home
+            // book stays (its preferences keep working signed out, Constraint 9)
+            // and its remote is stripped idempotently. All local, no network —
+            // POST /api/auth/signout is the main thread's, after this (Decision 4).
+            const { mode, author } = message.payload;
+            const keep = mode === 'keep';
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            const deviceId = await home.ensureDeviceId({ idb, name, version });
+            const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+            const online = ensureOnline();
+            const shared = shelf?.books ?? {};
+            const sharedIds = Object.keys(shared).filter((id) => shared[id]?.label?.value != null);
+            const localShelf = shelf?.local?.[deviceId] ?? {};
+            const localIds = Object.keys(localShelf).filter(
+              (id) => localShelf[id]?.title?.value != null,
+            );
+            await ensureIndexHydrated();
+            const index = ensureSearchIndex();
+            const changes = [];
+            const removedIds = [];
+            if (keep) {
+              // Each shared book becomes a local book: strip its remote, migrate
+              // its register. The clone, working copy and history stay in place, so
+              // the index entries stay valid (the id does not change).
+              for (const id of sharedIds) {
+                await online.detach({ bookId: id });
+                changes.push(
+                  ...keepAsLocalChanges({
+                    bookId: id,
+                    deviceId,
+                    label: shared[id]?.label?.value ?? null,
+                    position: shared[id]?.position?.value ?? null,
+                  }),
+                );
+              }
+              // Already-local books are left untouched.
+            } else {
+              for (const id of [...sharedIds, ...localIds]) {
+                const kind = sharedIds.includes(id) ? 'shared' : 'local';
+                await online.remove({ bookId: id });
+                changes.push(...removeChanges({ bookId: id, deviceId, kind }));
+                await persistIndexChanges(index.removeBook(id));
+                removedIds.push(id);
+              }
+            }
+            if (changes.length) {
+              await home.set({ bookId: HOME_BOOK_ID, file: 'shelf.json', changes, author });
+            }
+            // The home book stays; strip its remote idempotently so no signed-out
+            // device keeps tracking and a later new_device attach has a clean slate
+            // (Constraint 9 — a no-op today, since nothing attaches it yet).
+            await online.detach({ bookId: HOME_BOOK_ID });
+            await ensureFs().flush();
+            // SIGNED_OUT first, THEN the shelf re-surface: in remove mode the
+            // emptied shelf unmounts the account screen's offline sign-out region
+            // (its `hasAccountBooks` gate flips false — AccountScreen.jsx), and with
+            // it the dialog that listens for SIGNED_OUT. Posted after the shelf
+            // slice, that event would reach a torn-down listener and the surface
+            // would never return to not-signed-in (account.sign_out, Decision 4;
+            // the offline Remove e2e). Posted first — while the shelf is still full
+            // and the dialog still mounted — it is delivered to a live listener;
+            // the shelf re-surface and index clears follow and no longer race it.
+            port.postMessage(event(EventKind.SIGNED_OUT, { mode: keep ? 'keep' : 'remove' }));
+            await surfaceHomeBookShelf();
+            for (const id of removedIds) {
+              port.postMessage(event(EventKind.INDEX_STATUS, { bookId: id, state: null }));
+            }
             break;
           }
           case CommandKind.ADD_BY_LINK: {
