@@ -330,6 +330,10 @@ describe('conflict merge session over a real remote (behavior)', () => {
       const saved = await b.read(SONG);
       expect(saved).toContain('First line, my way');
       expect(saved).not.toContain("Ana's way");
+      const headOid = await b.head();
+      const { commit: merge } = await readCommit({ fs: b.fs, dir: b.dir, oid: headOid });
+      expect(merge.parent).toHaveLength(2);
+      expect(await remoteHead(remote.repoDir)).toBe(headOid); // pushed
     } finally {
       await remote.stop();
     }
@@ -373,11 +377,16 @@ describe('conflict merge session over a real remote (behavior)', () => {
       const payload = conflicts.at(-1);
       expect(payload.deleted.map((d) => d.path)).toContain(DEL);
       expect(payload.deleted.find((d) => d.path === DEL).deleted).toBe('theirs');
+      // The person who deleted it labels the choice (*Ana deleted this song*),
+      // not the neutral "Theirs" fallback: the path is absent at theirs' tip, so
+      // the author comes from the commit that removed it.
+      expect(payload.deleted.find((d) => d.path === DEL).author).toBe('Ana');
 
       await session.resolve({ bookId: BOOK, path: DEL, choice: 'keep' });
       await session.resolve({ bookId: BOOK, path: SONG, choice: 'mine' });
       expect(await b.exists(DEL)).toBe(true);
       expect(await b.read(DEL)).toContain('has edited before');
+      expect(await remoteHead(remote.repoDir)).toBe(await b.head()); // the kept song is pushed
     } finally {
       await remote.stop();
     }

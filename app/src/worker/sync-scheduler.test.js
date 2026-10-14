@@ -124,4 +124,29 @@ describe('sync scheduler (unit)', () => {
     await settle();
     expect(run).toHaveBeenCalledTimes(2);
   });
+
+  it('retries an unreachable pass with saves waiting on a capped backoff, and stops once a pass reaches the service', async () => {
+    const outcomes = [{ retry: true }, { retry: true }, { retry: true }, { retry: true }, { retry: false }];
+    const run = vi.fn(() => Promise.resolve(outcomes.shift()));
+    const timeouts = [];
+    const scheduler = createSyncScheduler({
+      run,
+      retryFirstMs: 5,
+      retryMaxMs: 15,
+      setInterval: () => ({ unref() {} }),
+      clearInterval: () => {},
+      setTimeout: (fn, ms) => timeouts.push({ fn, ms }),
+      clearTimeout: () => {},
+    });
+
+    scheduler.trigger();
+    await settle();
+    for (let i = 0; i < 4; i += 1) {
+      timeouts[i].fn();
+      await settle();
+    }
+    expect(run).toHaveBeenCalledTimes(5);
+    // 5 → 10 → 15 (capped) → 15; the reachable fifth pass arms nothing more.
+    expect(timeouts.map((t) => t.ms)).toEqual([5, 10, 15, 15]);
+  });
 });

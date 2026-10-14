@@ -487,9 +487,16 @@ export function createSyncEngine(deps = {}) {
   // restores the time (sync.states Decision "lastInStep completed in the Worker").
   const lastInStep = new Map();
 
+  // Set when the current pass leaves a book `saves_waiting` (work that could not
+  // go up). With an unreachable change-check it makes the pass ask the scheduler
+  // for a retry soon, so waiting saves go up once the network is back even when
+  // no `online` event ever reaches the page (a cold open made offline).
+  let passLeftWaiting = false;
+
   function emitFact(bookId, phase, extra = {}) {
     const at = instant(now());
     if (phase === 'in_step') lastInStep.set(bookId, at);
+    if (phase === 'saves_waiting') passLeftWaiting = true;
     const fact = { bookId, phase, at, ...extra };
     if (
       (phase === 'offline' || phase === 'saves_waiting') &&
@@ -753,15 +760,20 @@ export function createSyncEngine(deps = {}) {
    * Run one sync pass: one change-check for every hosted book, then per book —
    * the home book to its own merge, a songbook to the cifra-aware fetch→merge→
    * push. A book's failure never stops the pass or surfaces to the user.
+   *
+   * Resolves `{ retry }`: true when the service could not be reached and a book
+   * was left with saves waiting — the scheduler then retries on a short backoff
+   * rather than waiting for an `online` event or the five-minute heartbeat.
    */
   async function pass() {
     let books;
     try {
       books = await listBooks();
     } catch {
-      return; // cannot even enumerate (a storage fault); nothing to do this pass
+      return { retry: false }; // cannot even enumerate (a storage fault)
     }
-    if (!books.length) return;
+    if (!books.length) return { retry: false };
+    passLeftWaiting = false;
 
     // One change-check for the whole shelf (workflow 8 L21-24). Offline-first: a
     // failure is "no news" — the engine still pushes local-ahead books, which
@@ -785,6 +797,7 @@ export function createSyncEngine(deps = {}) {
         // the next pass retries. Never logged, never surfaced.
       }
     }
+    return { retry: !reachable && passLeftWaiting };
   }
 
   return { pass };

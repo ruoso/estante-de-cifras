@@ -12,6 +12,7 @@ import { createBookLocks } from './locks.js';
 import { createHomeBook } from './home-book.js';
 import { createCifraMergeDriver } from './cifra-merge-driver.js';
 import { createSyncEngine } from './sync-engine.js';
+import { createSyncScheduler } from './sync-scheduler.js';
 import { startGitHttpRemote } from '../test/git-http-remote.js';
 import { installWebLocks } from '../test/web-locks.js';
 
@@ -117,11 +118,11 @@ async function advanceRemote(remote, files, message) {
 
 // Device B: a fresh fake IndexedDB + fs + git transport + lock registry, with
 // the book cloned from the shared remote.
-async function makeDeviceB(remote, bookId = BOOK) {
+async function makeDeviceB(remote, bookId = BOOK, { fetch: fetchImpl = globalThis.fetch } = {}) {
   const idb = new IDBFactory();
   const name = `sync-b-${Math.random().toString(36).slice(2)}`;
   const fs = createFileSystem(`${name}-fs`, { indexedDB: idb });
-  const git = createGitLayer({ fs, http: createGitHttpClient({ fetch: globalThis.fetch }) });
+  const git = createGitLayer({ fs, http: createGitHttpClient({ fetch: fetchImpl }) });
   const locks = createBookLocks({ navigator });
   const dir = git.bookDir(bookId);
   await git.clone({ dir, url: remote.url });
@@ -593,6 +594,100 @@ describe('sync engine over a real remote (behavior)', () => {
       const { commit } = await readCommit({ fs: b.fs, dir: b.dir, oid: await b.head() });
       expect(commit.parent).toHaveLength(2);
       expect(merges).toHaveLength(0);
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('pushes saves left waiting by an offline cold open once the network is back, with no online event (sync.states; workflow 8 L31)', async () => {
+    // An offline cold open: the open pass cannot reach the service and leaves
+    // the book with saves waiting. The DOM `online` event may never fire after a
+    // page is loaded with no network (Chromium can report navigator.onLine true
+    // on such a page, so there is no offline→online edge) — so nothing but the
+    // five-minute heartbeat used to ask again. The scheduler now retries an
+    // unreachable pass with saves waiting on a short backoff.
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const net = { offline: false };
+      const netFetch = (...args) =>
+        net.offline ? Promise.reject(new TypeError('Failed to fetch')) : globalThis.fetch(...args);
+      const b = await makeDeviceB(remote, BOOK, { fetch: netFetch });
+      net.offline = true;
+      await b.commitLocal(SONG, CHORUS_EDIT, 'first offline save');
+      await b.commitLocal(SONG, CHORUS_EDIT.replace('First chorus', 'First chorus, again'), 'second offline save');
+
+      const facts = [];
+      const engine = createSyncEngine({
+        fs: b.fs,
+        git: b.git,
+        locks: b.locks,
+        changeCheck: {
+          check: async () => {
+            if (net.offline) throw new TypeError('Failed to fetch');
+            return new Map();
+          },
+        },
+        mergeDriver: createCifraMergeDriver(),
+        resolveAuthor: async () => SYNC_IDENTITY,
+        emit: (payload) => facts.push(payload),
+        now: () => Date.UTC(2026, 9, 7, 12, 0, 0),
+      });
+      // A hand-driven clock: the heartbeat and the retry are recorded, never
+      // fired by wall time.
+      const timeouts = [];
+      const passes = [];
+      const scheduler = createSyncScheduler({
+        run: () => {
+          const p = engine.pass();
+          passes.push(p);
+          return p;
+        },
+        setInterval: () => 1,
+        clearInterval: () => {},
+        setTimeout: (fn, ms) => {
+          timeouts.push({ fn, ms, cleared: false });
+          return timeouts.length;
+        },
+        clearTimeout: (id) => {
+          if (timeouts[id - 1]) timeouts[id - 1].cleared = true;
+        },
+      });
+      const settle = async () => {
+        for (let i = 0; i < passes.length; i += 1) await passes[i];
+        await new Promise((r) => setTimeout(r, 0));
+      };
+      const live = () => timeouts.filter((t) => !t.cleared);
+
+      // The open pass, offline: two saves waiting.
+      scheduler.start();
+      scheduler.trigger();
+      await settle();
+      expect(facts.at(-1)).toMatchObject({ bookId: BOOK, phase: 'saves_waiting', savesWaiting: 2 });
+      expect(await remoteHead(remote.repoDir)).not.toBe(await b.head());
+
+      // A retry is armed though no trigger came; still offline, it fails and
+      // backs off.
+      expect(live()).toHaveLength(1);
+      const first = live()[0];
+      first.cleared = true;
+      first.fn();
+      await settle();
+      expect(facts.at(-1)?.phase).toBe('saves_waiting');
+      expect(live()).toHaveLength(1);
+      expect(live()[0].ms).toBeGreaterThan(first.ms);
+
+      // The network returns — no `online` event, no Sync now. The armed retry
+      // pushes both saves and the book reads in step; no further retry is armed.
+      net.offline = false;
+      const next = live()[0];
+      next.cleared = true;
+      next.fn();
+      await settle();
+      expect(facts.at(-1)).toMatchObject({ bookId: BOOK, phase: 'in_step' });
+      expect(await remoteHead(remote.repoDir)).toBe(await b.head());
+      expect(live()).toHaveLength(0);
+      scheduler.stop();
     } finally {
       await remote.stop();
     }

@@ -177,13 +177,37 @@ export function createConflicts(deps) {
 
   // The display name of whoever last changed `filepath` on theirs — the person
   // the user is settling against (*Ana's*). Never the device's own identity.
+  // When theirs DELETED the file, a path-filtered log has nothing to follow (the
+  // path is absent at the tip, so isomorphic-git throws) — walk theirs' history
+  // instead for the newest commit whose tree lacks the file while its first
+  // parent still has it: the deletion, and whoever made it.
   async function incomingAuthor(dir, ref, filepath) {
     try {
       const entries = await gitLog({ fs, dir, ref, filepath, depth: 1 });
-      return entries?.[0]?.commit?.author?.name ?? null;
+      const name = entries?.[0]?.commit?.author?.name;
+      if (name) return name;
+    } catch {
+      // absent at theirs' tip — a deletion; fall through to find who deleted it
+    }
+    return deletionAuthor(dir, ref, filepath);
+  }
+
+  async function deletionAuthor(dir, ref, filepath) {
+    let entries;
+    try {
+      entries = await gitLog({ fs, dir, ref, depth: 64 });
     } catch {
       return null;
     }
+    for (const entry of entries) {
+      const parent = entry.commit.parent?.[0];
+      if (!parent) continue;
+      const here = await blobAt(dir, entry.oid, filepath);
+      if (here != null) continue;
+      const before = await blobAt(dir, parent, filepath);
+      if (before != null) return entry.commit.author?.name ?? null;
+    }
+    return null;
   }
 
   // Every file that differs across base / ours / theirs (a path all three share

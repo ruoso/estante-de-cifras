@@ -295,8 +295,9 @@ function mergeIndexChanges(into, from) {
 // `fetch` the git HTTP client AND the change-check client ride (defaults to the
 // global one), the seam storage.git's and sync.engine's behavior tests use;
 // `options.setInterval`/`options.clearInterval` inject the sync scheduler's
-// five-minute timer (defaults to the globals) so a test drives the heartbeat
-// with a fake clock. The version opened at is derived from
+// five-minute timer, and `options.setTimeout`/`options.clearTimeout` its
+// waiting-saves retry (defaults to the globals), so a test drives both with a
+// fake clock. The version opened at is derived from
 // whichever list is in effect. Returns `{ handle }`: the adapter (real or
 // loopback) feeds each incoming command to `handle`.
 export function createWorkerLogic(port, options = {}) {
@@ -650,6 +651,8 @@ export function createWorkerLogic(port, options = {}) {
         run: () => ensureSyncEngine().pass(),
         setInterval: options.setInterval,
         clearInterval: options.clearInterval,
+        setTimeout: options.setTimeout,
+        clearTimeout: options.clearTimeout,
       });
     }
     return syncScheduler;
