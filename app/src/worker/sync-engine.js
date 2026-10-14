@@ -245,6 +245,10 @@ export function createSyncEngine(deps = {}) {
     resolveAuthor,
     emit,
     emitMerged = null,
+    // Called with a book's id whenever a merge moved its head (songs added,
+    // changed or deleted under it), so the caller can re-index it: a song that
+    // arrives by sync is found by search at once, not on the next app open.
+    onHeadMoved = null,
     surfaceHome = null,
     // A predicate: does this book have an in-progress merge the user is settling
     // (sync.conflicts)? When it does, the engine skips the book — it stays *needs
@@ -426,7 +430,15 @@ export function createSyncEngine(deps = {}) {
   // (the caller is `syncSongbook`); never when the merge changed nothing. A tree
   // read fault never breaks the pass (offline-first) — it simply emits nothing.
   async function announceMerge(bookId, before, after) {
-    if (!emitMerged || !after || before === after) return;
+    if (!after || before === after) return;
+    if (onHeadMoved) {
+      try {
+        await onHeadMoved(bookId);
+      } catch {
+        // Re-indexing is best effort; a fault never breaks the pass.
+      }
+    }
+    if (!emitMerged) return;
     const dir = bookDir(bookId);
     let paths;
     try {

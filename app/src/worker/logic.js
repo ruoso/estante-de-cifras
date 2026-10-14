@@ -590,6 +590,9 @@ export function createWorkerLogic(port, options = {}) {
         // who moved them (sync.read_in_place; DIRECTION §3.7 L423-424 "a merge
         // landing is a message"). A transient per-file fact the view reacts to.
         emitMerged: (payload) => port.postMessage(event(EventKind.MERGED, payload)),
+        // A merge moved a book's head: re-index it, so what sync brought in is
+        // found by search now (workflow 8: a change on another device is there).
+        onHeadMoved: (bookId) => indexOneBook(bookId),
       });
     }
     return syncEngine;

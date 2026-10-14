@@ -577,6 +577,29 @@ describe('sync engine over a real remote (behavior)', () => {
     }
   });
 
+  it('asks for a re-index whenever a merge moves the head, song change or not (search finds what sync brought in)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const b = await makeDeviceB(remote);
+      const theirHead = await advanceRemote(remote, { 'README.md': '# A book\n' }, 'add a readme');
+      const moved = [];
+      const { engine, merges } = engineFor(b, {
+        changed: [{ bookId: BOOK, head: theirHead }],
+        overrides: { engine: { onHeadMoved: async (bookId) => moved.push(bookId) } },
+      });
+      await engine.pass();
+      expect(moved).toEqual([BOOK]);
+      expect(merges).toHaveLength(0);
+
+      // A pass that brings nothing new does not ask again.
+      await engine.pass();
+      expect(moved).toEqual([BOOK]);
+    } finally {
+      await remote.stop();
+    }
+  });
+
   it('emits no MERGED fact when a clean merge brings no song change (AC 1 negative)', async () => {
     const remote = await startGitHttpRemote();
     try {
