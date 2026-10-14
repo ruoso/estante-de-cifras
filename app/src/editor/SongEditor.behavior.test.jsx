@@ -65,6 +65,21 @@ describe('SongEditor', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
+  it('opens on its own OPEN_SOURCE reply, not text an earlier open left in the slice (a discard after reopening)', () => {
+    const { store, sent, emit } = makeStore();
+    // An earlier open of the song read the edited text into the slice.
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: '# Tide\n\n## Intro\n```\nG | C | Em\n```\n' }));
+    const editorRef = { current: null };
+    render(<SongEditor store={store} bookId={BOOK} path={PATH} editorRef={editorRef} onSave={() => {}} />);
+    // The stale entry is not adopted; this mount asks the Worker.
+    expect(editorRef.current.state.doc.toString()).toBe('');
+    expect(sent.filter((c) => c.kind === CommandKind.OPEN_SOURCE)).toHaveLength(1);
+    // The Worker answers with the reverted working copy, which is what shows.
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: '# Tide\n\n## Intro\n```\nG | C\n```\n' }));
+    expect(editorRef.current.state.doc.toString()).toContain('G | C\n');
+    expect(editorRef.current.state.doc.toString()).not.toContain('Em');
+  });
+
   it('adds a section and puts the cursor on the empty line inside its fence, by keyboard', () => {
     const { store, emit } = makeStore();
     emit(event(EventKind.PREFERENCES, { notation: { value: 'brazilian', at: 1 } }));

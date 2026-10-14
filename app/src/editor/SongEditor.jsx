@@ -137,8 +137,13 @@ export default function SongEditor({
   const mergePending = useRef(false);
 
   // The initial document: a template for a new song, else the working-copy text
-  // once OPEN_SOURCE has returned it.
-  const sourceText = sourceSlice?.[bookId]?.[path]?.text;
+  // once THIS mount's OPEN_SOURCE has returned it. The slice may still hold an
+  // entry from an earlier open of the same song — stale once the working copy
+  // moved since (a discard, or edits made after that open) — so the entry
+  // present at mount is ignored; every SOURCE reply lands as a new entry object.
+  const staleSourceEntry = useRef(sourceSlice?.[bookId]?.[path]);
+  const sourceEntry = sourceSlice?.[bookId]?.[path];
+  const sourceText = sourceEntry && sourceEntry !== staleSourceEntry.current ? sourceEntry.text : undefined;
   // A new song's template carries the title the host started it with (the
   // search query, the file-view/book-section empty title) — songs.new_song
   // wires the `title` the template seam already accepts (editor.md Decision 9;
