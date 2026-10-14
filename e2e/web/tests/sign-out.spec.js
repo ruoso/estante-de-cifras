@@ -12,19 +12,23 @@
 //     empties the account's books from the shelf;
 //   - Keep: the hosted book becomes a local book on the shelf, no longer synced,
 //     and the server session is cleared (the cookie drops).
-// Book and song names are written for this test (no-song-text rule).
+// The songs are opened through the real navigation (search → song → Edit) and
+// the shell is reached by Back in the same session, never a reload: the index's
+// `unsaved` flag is live-only. Book and song names are written for this test
+// (no-song-text rule).
 
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-
+import { mockup } from '../lib/mockup.js';
 import { test, expect } from '../lib/axe.js';
-import { waitForServiceWorker } from '../lib/offline.js';
-import { baseUrl } from '../lib/env.js';
-
-const execFileAsync = promisify(execFile);
+import {
+  hostedBook,
+  makeLocalBook,
+  waitUntilSearchable,
+  openFileInFiles,
+  gotoTab,
+  hasSessionCookie,
+} from '../lib/journeys.js';
+import { confirmSaveSheet, leaveFiles } from '../lib/journeys-files.js';
+import { GitDevice } from '../lib/git-device.js';
 
 const HOSTED = 'Banda do Bairro';
 const LOCAL = 'Rascunhos';
@@ -33,123 +37,13 @@ const SONG = ['# Roda de rua', '- language: en', '', '## Parte', '```', 'C | G |
 
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const rowFor = (title) => new RegExp('^' + escapeRegExp(title));
-const editorHash = (bookId, path) =>
-  `#dev/editor?book=${encodeURIComponent(bookId)}&path=${encodeURIComponent(path)}`;
 
-// --- account + book helpers (inline, as the harness does) ---
-
-async function enableVirtualAuthenticator(page) {
-  const client = await page.context().newCDPSession(page);
-  await client.send('WebAuthn.enable');
-  await client.send('WebAuthn.addVirtualAuthenticator', {
-    options: {
-      protocol: 'ctap2',
-      transport: 'internal',
-      hasResidentKey: true,
-      hasUserVerification: true,
-      isUserVerified: true,
-      automaticPresenceSimulation: true,
-    },
-  });
-}
-
-async function hasSessionCookie(page) {
-  const cookies = await page.context().cookies();
-  return cookies.some((c) => c.name === 'estante_session' && c.value);
-}
-
-async function signInWithPasskey(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.getByRole('button', { name: /Sign in/ }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  await page.getByRole('button', { name: 'Use a passkey' }).click();
-  await expect.poll(() => hasSessionCookie(page)).toBe(true);
-}
-
-async function makeLocalBook(page, name) {
-  await page.getByRole('tab', { name: 'Books' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible();
-  await page.getByRole('button', { name: 'Add a book' }).click();
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  await sheet.getByRole('textbox', { name: 'Book name' }).fill(name);
-  await sheet.getByRole('button', { name: 'New book' }).click();
-  await expect(page.getByRole('button', { name: rowFor(name) })).toBeVisible();
-}
-
-async function putBookOnline(page, name) {
-  await page.getByRole('button', { name: rowFor(name) }).click();
-  await page.getByRole('button', { name: 'Put online' }).click();
-  await expect(page.getByText('On Estante · private')).toBeVisible();
-}
-
+// Leave the file view and open the shell's Account screen (in the same
+// session — a reload would reconcile every song as saved).
 async function openAccount(page) {
+  await leaveFiles(page);
   await page.getByRole('button', { name: 'Account' }).click();
   await expect(page.getByRole('radiogroup', { name: 'Theme' })).toBeVisible();
-}
-
-// --- node git (seed a song into the hosted book over the owner's session) ---
-
-const tmpDirs = [];
-function makeDir() {
-  const dir = mkdtempSync(join(tmpdir(), 'estante-e2e-signout-'));
-  tmpDirs.push(dir);
-  return dir;
-}
-test.afterEach(() => {
-  for (const dir of tmpDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
-});
-
-function runGit(cwd, args) {
-  return execFileAsync('git', args, {
-    cwd,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1' },
-  });
-}
-const cookieArgs = (cookie) => ['-c', `http.extraHeader=Cookie: ${cookie}`];
-
-async function sessionCookieHeader(page) {
-  const cookies = await page.context().cookies();
-  const c = cookies.find((x) => x.name === 'estante_session');
-  if (!c) throw new Error('no estante_session cookie on the device context');
-  return `estante_session=${c.value}`;
-}
-
-async function bookFromApi(page, title) {
-  const resp = await page.request.get('/api/books');
-  expect(resp.ok()).toBeTruthy();
-  const { books } = await resp.json();
-  const book = books.find((b) => b.title === title);
-  if (!book) throw new Error(`book ${title} not found for the account`);
-  return book;
-}
-
-async function seedSong(gitUrl, cookie) {
-  const dir = makeDir();
-  await runGit(tmpdir(), [...cookieArgs(cookie), 'clone', gitUrl, dir]);
-  await runGit(dir, ['config', 'user.name', 'Beto']);
-  await runGit(dir, ['config', 'user.email', 'beto@users.estantedecifras.app']);
-  await runGit(dir, ['config', 'commit.gpgsign', 'false']);
-  writeFileSync(join(dir, SONG_FILE), `${SONG}\n`);
-  await runGit(dir, ['add', SONG_FILE]);
-  await runGit(dir, ['commit', '-m', 'Seed a song']);
-  await runGit(dir, [...cookieArgs(cookie), 'push', gitUrl, 'HEAD:refs/heads/main']);
-}
-
-async function reloadAndSync(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.waitForTimeout(1500);
-}
-
-// Switch the dev editor mount by changing the hash in the SAME document (no
-// reload), so the Worker session and its live "unsaved" flags survive (a full
-// reload reconciles every song as saved). The app re-renders on hashchange.
-async function hashTo(page, hash) {
-  await page.evaluate((h) => {
-    window.location.hash = h;
-  }, hash);
 }
 
 // Add a new section to the open song — a clean, canonicalisable change. Inserted
@@ -163,51 +57,42 @@ async function editSong(page, mark) {
   await page.waitForTimeout(800);
 }
 
-async function saveOpenSong(page) {
-  await page.getByRole('button', { name: 'Save' }).click();
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  const nameField = sheet.getByRole('textbox', { name: /Your name/ });
-  if (await nameField.count()) await nameField.fill('Marina');
-  await sheet.getByRole('button', { name: 'Save' }).click();
-  await expect(sheet).toBeHidden();
-}
-
-// Sign in, host a book with one seeded song, and keep a second purely-local book.
-// Returns the hosted book's id.
+// Sign in, host a book, seed one song into it from a second device (the git CLI
+// over the owner's session), and keep a second, purely-local book.
 async function hostAndSeed(page) {
-  await enableVirtualAuthenticator(page);
-  await signInWithPasskey(page);
-  await makeLocalBook(page, HOSTED);
-  await putBookOnline(page, HOSTED);
-  const book = await bookFromApi(page, HOSTED);
-  const gitUrl = new URL(book.gitUrl, `${baseUrl}/`).toString();
-  await seedSong(gitUrl, await sessionCookieHeader(page));
-  await reloadAndSync(page); // pull the seeded song into the working copy
+  const { url, cookie } = await hostedBook(page, HOSTED);
+  const device = new GitDevice({ url, cookie, name: 'Beto', email: 'beto@users.estantedecifras.app' });
+  try {
+    await device.pushFiles({ [SONG_FILE]: `${SONG}\n` }, 'Seed a song');
+  } finally {
+    device.cleanup();
+  }
+  await waitUntilSearchable(page, 'Roda', 'Roda de rua'); // pull the seeded song in
+  await page.getByRole('searchbox').fill('');
   await makeLocalBook(page, LOCAL); // a book only on this device (the download guard)
-  return book.id;
 }
 
 test('Remove counts this device’s local-only work and empties the account’s books; axe-clean', async ({
   page,
   checkA11y,
 }) => {
-  const bookId = await hostAndSeed(page);
+  await hostAndSeed(page);
 
   // Everything from here is offline: the local teardown must not wait on the
   // network, and an offline save stays unpushed so the dialog can count it.
   await page.context().setOffline(true);
 
   // One save made offline (a commit not yet pushed), then a further unsaved edit.
-  await hashTo(page, editorHash(bookId, SONG_FILE));
-  await expect(page.locator('.cm-content')).toBeVisible();
+  // (The wide layouts' reading view has no way back to the shell, so the song
+  // is edited through Books → Files, whose Back returns to the Books screen.)
+  await openFileInFiles(page, HOSTED, SONG_FILE);
   await editSong(page, 'Ponte');
-  await saveOpenSong(page);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await confirmSaveSheet(page, 'Marina');
   await editSong(page, 'Refrao');
   await expect(page.locator('.cm-content')).toContainText('Refrao');
 
   // Back to the shell in the same session (the unsaved flag survives) → account.
-  await hashTo(page, '');
   await openAccount(page);
   await checkA11y(); // the account screen
 
@@ -221,14 +106,14 @@ test('Remove counts this device’s local-only work and empties the account’s 
   await expect(dialog.getByText(new RegExp(`${LOCAL} is only on this device`))).toBeVisible();
   await expect(dialog.getByRole('button', { name: `Download ${LOCAL}` })).toBeVisible();
   await checkA11y(); // the dialog state
+  await mockup(page, 'W13-new-device', 4); // the account screen and signing out (computer)
 
   // Remove is the default; confirm.
   await expect(dialog.getByRole('radio', { name: /Remove this account’s books/ })).toBeChecked();
   await dialog.getByRole('button', { name: 'Sign out and remove' }).click();
 
   // The account's books are gone from the shelf.
-  await page.getByRole('tab', { name: 'Books' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible();
+  await gotoTab(page, 'Books');
   await expect(page.getByRole('button', { name: rowFor(HOSTED) })).toHaveCount(0);
   await expect(page.getByRole('button', { name: rowFor(LOCAL) })).toHaveCount(0);
 });
@@ -237,16 +122,14 @@ test('Keep turns the account’s books into local books and clears the session; 
   page,
   checkA11y,
 }) => {
-  const bookId = await hostAndSeed(page);
+  await hostAndSeed(page);
 
   // One unsaved edit so the dialog has something to warn about (online — Keep
   // removes nothing and needs no offline teardown).
-  await hashTo(page, editorHash(bookId, SONG_FILE));
-  await expect(page.locator('.cm-content')).toBeVisible();
+  await openFileInFiles(page, HOSTED, SONG_FILE);
   await editSong(page, 'Ponte');
   await expect(page.locator('.cm-content')).toContainText('Ponte');
 
-  await hashTo(page, '');
   await openAccount(page);
 
   await page.getByRole('button', { name: 'Sign out of this device' }).click();
@@ -263,8 +146,7 @@ test('Keep turns the account’s books into local books and clears the session; 
 
   // …and the hosted book remains on the shelf, now as a local book (no longer
   // "On Estante").
-  await page.getByRole('tab', { name: 'Books' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible();
+  await gotoTab(page, 'Books');
   await expect(page.getByRole('button', { name: rowFor(HOSTED) })).toBeVisible();
   await page.getByRole('button', { name: rowFor(HOSTED) }).click();
   await expect(page.getByText('On Estante · private')).toHaveCount(0);

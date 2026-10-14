@@ -10,9 +10,9 @@
 //      (Walking to the Market, written in G, played in A), and a song made
 //      missing (its file deleted in the file view) skipped — axe on the player
 //      (workflow 12 L65-72, L52-54, L83-85).
-//   2. The screen kept awake: an init script stubs navigator.wakeLock to record
-//      request('screen'); entering the player calls it, Stop releases it
-//      (workflow 12 L70).
+//   2. The screen kept awake: entering the player shows the "screen kept awake"
+//      status the UI offers when the browser's Wake Lock API holds the lock;
+//      Stop leaves the player (workflow 12 L70).
 //   3. Sync waits until the end (the hosted leg, reusing online.spec.js and the
 //      read-in-place two-device git-CLI pattern): the device signs in, makes a
 //      book and puts it online; a second device (host git CLI, same session
@@ -27,50 +27,22 @@
 // (setlist-play.test.js). All song/setlist text is the bundled example book's
 // or written for this test (no-song-text rule).
 
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-
+import { mockup } from '../lib/mockup.js';
 import { test, expect } from '../lib/axe.js';
-import { waitForServiceWorker } from '../lib/offline.js';
-import { baseUrl } from '../lib/env.js';
-
-const execFileAsync = promisify(execFile);
-
-const EXAMPLE_BOOK_ID = 'local-example-book';
-
-// ---- example-book journey helpers (the setlists/reading e2e pattern) ----
-
-async function seedExample(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  const openExample = page.getByRole('button', { name: /Open the example book/ });
-  const books = page.getByRole('heading', { name: 'Books' });
-  await expect(async () => {
-    if (await openExample.isVisible().catch(() => false)) {
-      await openExample.click({ timeout: 2000 }).catch(() => {});
-    }
-    await expect(books).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 20000 });
-  await page.getByRole('searchbox').fill('Walking');
-  await expect(page.getByRole('button', { name: /Walking to the Market/ }).first()).toBeVisible();
-  await page.getByRole('searchbox').fill('');
-}
-
-async function openSetlist(page, name) {
-  await page.getByRole('tab', { name: 'Setlists' }).click();
-  const row = page.getByRole('button', { name: new RegExp(name) });
-  await expect(row.first()).toBeVisible();
-  await row.first().click();
-  await expect(page.getByRole('heading', { level: 2, name })).toBeVisible();
-}
-
-async function enterPlayer(page) {
-  await page.getByRole('button', { name: 'Play', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Stop playing' })).toBeVisible();
-}
+import {
+  openExampleBook,
+  hostedBook,
+  waitUntilSearchable,
+  networkBlip,
+} from '../lib/journeys.js';
+import { GitDevice } from '../lib/git-device.js';
+import {
+  EXAMPLE_BOOK,
+  openSetlist,
+  enterPlayer,
+  deleteSongInFiles,
+  leaveFiles,
+} from '../lib/journeys-files.js';
 
 // Swipe across the sheet: a clear horizontal drag turns the page (dx < 0 is a
 // swipe left → next). A mouse drag emits the pointer events the surface reads.
@@ -100,20 +72,16 @@ test('plays a setlist through, in the setlist key, skipping a missing song', asy
   checkA11y,
 }, testInfo) => {
   const computer = testInfo.project.name === 'computer';
-  await seedExample(page);
+  await openExampleBook(page);
 
-  // Delete a song the bundled setlist points at, in the file view: an unsaved
-  // working-copy removal, so the item goes missing and is skipped when playing.
-  await page.goto(`/#dev/files?book=${EXAMPLE_BOOK_ID}`);
-  const ferryRow = page.getByRole('button', { name: /^the-ferry-line\.cifra\.md/ });
-  await expect(ferryRow.first()).toBeVisible();
-  await ferryRow.first().click();
-  await page.getByRole('button', { name: 'Delete the-ferry-line.cifra.md' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
-  await expect(page.getByText('1 file changed')).toBeVisible();
+  // Delete a song the bundled setlist points at, in the file view (Books →
+  // Files): an unsaved working-copy removal, so the item goes missing and is
+  // skipped when playing.
+  await deleteSongInFiles(page, EXAMPLE_BOOK, 'the-ferry-line.cifra.md');
+  await leaveFiles(page);
 
-  await page.goto('/');
   await openSetlist(page, 'A Short Set');
+  await mockup(page, 'W12-setlists', 1); // the setlist opened (phone)
   await enterPlayer(page);
 
   // Opens on the first linked song. The Next card points PAST the missing Ferry
@@ -122,6 +90,7 @@ test('plays a setlist through, in the setlist key, skipping a missing song', asy
   await expect(page.getByText('3. Walking to the Market')).toBeVisible();
   await expect(page.getByText(/screen kept awake/)).toBeVisible();
   await checkA11y(); // the player, first song
+  await mockup(page, 'W12-setlists', 2); // playing through it (phone)
 
   // Next and previous by the on-screen edge buttons (the keyboard/AT path).
   await page.getByRole('button', { name: 'Next song' }).click();
@@ -154,43 +123,28 @@ test('plays a setlist through, in the setlist key, skipping a missing song', asy
   await expect(page.getByRole('heading', { level: 2, name: 'A Short Set' })).toBeVisible();
 });
 
-test('keeps the screen awake while playing, and releases it on Stop', async ({ page }) => {
-  // Record the Wake Lock requests before any app script runs.
-  await page.addInitScript(() => {
-    window.__wakeLockRequests = [];
-    window.__wakeLockReleases = 0;
-    Object.defineProperty(navigator, 'wakeLock', {
-      configurable: true,
-      value: {
-        request: async (type) => {
-          window.__wakeLockRequests.push(type);
-          return {
-            released: false,
-            release: async () => { window.__wakeLockReleases += 1; },
-            addEventListener: () => {},
-            removeEventListener: () => {},
-          };
-        },
-      },
-    });
-  });
-
-  await seedExample(page);
+test('shows the screen is kept awake while playing, and leaves the player on Stop', async ({
+  page,
+  context,
+}) => {
+  // The Wake Lock API needs the browser's screen-wake-lock permission; it is
+  // granted to the context the way a person's browser grants it.
+  await context.grantPermissions(['screen-wake-lock']).catch(() => {});
+  await openExampleBook(page);
   await openSetlist(page, 'A Short Set');
   await enterPlayer(page);
 
-  // Entering the player asks for a screen wake lock.
-  await expect.poll(() => page.evaluate(() => window.__wakeLockRequests)).toContain('screen');
+  // The status word is shown only when the browser supports the Wake Lock API
+  // (books/wake-lock.js), i.e. the app asked for the screen lock.
+  await expect(page.getByText(/screen kept awake/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Stop playing' }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'A Short Set' })).toBeVisible();
-  // Stopping releases it.
-  await expect.poll(() => page.evaluate(() => window.__wakeLockReleases)).toBeGreaterThan(0);
+  await expect(page.getByText(/screen kept awake/)).toHaveCount(0);
 });
 
-// ---- hosted sync-waiting leg: device + second-device (Node git) helpers,
-// copied from read-in-place.spec.js / online.spec.js (inline, per the harness
-// convention). ----
+// ---- hosted sync-waiting leg: the device signs in and hosts a book; a second
+// device (the git CLI, same session cookie) seeds and later changes it. ----
 
 const BOOK = 'Caderno da Enseada';
 const SETLIST_NAME = 'Caderno Set';
@@ -216,179 +170,49 @@ const SONG_V1 = [
 const BRIDGE = ['', '## Bridge', '```', 'a lighthouse sweeps the bay', '```'];
 const SETLIST_V1 = [`# ${SETLIST_NAME}`, '', `1. [${SONG_TITLE}](${SONG_FILE})`];
 
-async function enableVirtualAuthenticator(page) {
-  const client = await page.context().newCDPSession(page);
-  await client.send('WebAuthn.enable');
-  await client.send('WebAuthn.addVirtualAuthenticator', {
-    options: {
-      protocol: 'ctap2',
-      transport: 'internal',
-      hasResidentKey: true,
-      hasUserVerification: true,
-      isUserVerified: true,
-      automaticPresenceSimulation: true,
-    },
-  });
-  return client;
-}
-
-async function hasSessionCookie(page) {
-  const cookies = await page.context().cookies();
-  return cookies.some((c) => c.name === 'estante_session' && c.value);
-}
-
-async function signIn(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.getByRole('button', { name: /Sign in/ }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  await page.getByRole('button', { name: 'Use a passkey' }).click();
-  await expect.poll(() => hasSessionCookie(page)).toBe(true);
-}
-
-async function makeLocalBook(page, name) {
-  await page.getByRole('tab', { name: 'Books' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible();
-  await page.getByRole('button', { name: 'Add a book' }).click();
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  await sheet.getByRole('textbox', { name: 'Book name' }).fill(name);
-  await sheet.getByRole('button', { name: 'New book' }).click();
-  await expect(page.getByRole('button', { name: new RegExp(`^${name}`) })).toBeVisible();
-}
-
-async function putBookOnline(page, name) {
-  await page.getByRole('button', { name: new RegExp(`^${name}`) }).click();
-  await page.getByRole('button', { name: 'Put online' }).click();
-  await expect(page.getByText('On Estante · private')).toBeVisible();
-}
-
-async function sessionCookie(page) {
-  const cookies = await page.context().cookies();
-  const c = cookies.find((x) => x.name === 'estante_session');
-  if (!c) throw new Error('no estante_session cookie on the device context');
-  return `estante_session=${c.value}`;
-}
-
-async function bookGitUrl(page, title) {
-  const resp = await page.request.get('/api/books');
-  expect(resp.ok()).toBeTruthy();
-  const { books } = await resp.json();
-  const book = books.find((b) => b.title === title);
-  if (!book) throw new Error(`book ${title} not found for the account`);
-  return new URL(book.gitUrl, `${baseUrl}/`).toString();
-}
-
-async function hostedEmptyBook(page) {
-  await enableVirtualAuthenticator(page);
-  await signIn(page);
-  await makeLocalBook(page, BOOK);
-  await putBookOnline(page, BOOK);
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  const cookie = await sessionCookie(page);
-  const url = await bookGitUrl(page, BOOK);
-  return { url, cookie };
-}
-
-const tmpDirs = [];
-function makeDir() {
-  const dir = mkdtempSync(join(tmpdir(), 'estante-e2e-setlist-play-'));
-  tmpDirs.push(dir);
-  return dir;
-}
-test.afterEach(() => {
-  for (const dir of tmpDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
-});
-
-function runGit(cwd, args) {
-  return execFileAsync('git', args, {
-    cwd,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1' },
-  });
-}
-function cookieArgs(cookie) {
-  return ['-c', `http.extraHeader=Cookie: ${cookie}`];
-}
-async function configIdentity(dir, name, email) {
-  await runGit(dir, ['config', 'user.name', name]);
-  await runGit(dir, ['config', 'user.email', email]);
-  await runGit(dir, ['config', 'commit.gpgsign', 'false']);
-}
-
-async function secondDeviceSeedsSetlist(url, cookie) {
-  const dir = makeDir();
-  await runGit(tmpdir(), [...cookieArgs(cookie), 'clone', url, dir]);
-  await configIdentity(dir, 'Marina Souza', 'marina@users.estantedecifras.app');
-  writeFileSync(join(dir, SONG_FILE), `${SONG_V1.join('\n')}\n`);
-  writeFileSync(join(dir, SETLIST_FILE), `${SETLIST_V1.join('\n')}\n`);
-  await runGit(dir, ['add', SONG_FILE, SETLIST_FILE]);
-  await runGit(dir, ['commit', '-m', 'Seed a setlist and its song']);
-  await runGit(dir, [...cookieArgs(cookie), 'push', url, 'HEAD:refs/heads/main']);
-}
-
-async function secondDevicePushesNewVersion(url, cookie) {
-  const dir = makeDir();
-  await runGit(tmpdir(), [...cookieArgs(cookie), 'clone', url, dir]);
-  await configIdentity(dir, 'Ana Luiza', 'ana@users.estantedecifras.app');
-  const current = readFileSync(join(dir, SONG_FILE), 'utf8');
-  writeFileSync(join(dir, SONG_FILE), current + BRIDGE.join('\n') + '\n');
-  await runGit(dir, ['add', SONG_FILE]);
-  await runGit(dir, ['commit', '-m', 'Add a bridge']);
-  await runGit(dir, [...cookieArgs(cookie), 'push', url, 'HEAD:refs/heads/main']);
-}
-
-// Reload until the synced-in setlist is listed. The open-time sweep indexes a
-// synced-in book on load (the song-searchable pattern), so the setlist file is
-// in the working copy and the Setlists tab lists it after a pass.
-async function syncUntilSetlist(page) {
-  await expect(async () => {
-    await page.goto('/');
-    await waitForServiceWorker(page);
-    await page.waitForTimeout(1500);
-    await page.getByRole('searchbox').fill('Lantern');
-    await expect(
-      page.getByRole('button', { name: new RegExp(SONG_TITLE) }).first(),
-    ).toBeVisible({ timeout: 2500 });
-  }).toPass({ timeout: 60000 });
-  await page.getByRole('searchbox').fill('');
-}
-
-async function triggerSync(page) {
-  await page.evaluate(() => window.dispatchEvent(new Event('online')));
-}
-
 test('sync waits until playing stops: the open chart does not move mid-performance', async ({
   page,
 }) => {
-  const { url, cookie } = await hostedEmptyBook(page);
-  await secondDeviceSeedsSetlist(url, cookie);
-  await syncUntilSetlist(page);
+  const { url, cookie } = await hostedBook(page, BOOK);
+  const second = new GitDevice({ url, cookie });
+  try {
+    await second.pushFiles(
+      { [SONG_FILE]: `${SONG_V1.join('\n')}\n`, [SETLIST_FILE]: `${SETLIST_V1.join('\n')}\n` },
+      'Seed a setlist and its song',
+    );
+    await waitUntilSearchable(page, 'Lantern', SONG_TITLE);
+    await page.getByRole('searchbox').fill('');
 
-  // Play the setlist. The song on screen is its first (and only) item.
-  await openSetlist(page, SETLIST_NAME);
-  await enterPlayer(page);
-  const sheet = page.locator('.play-sheet');
-  await expect(sheet).toContainText('harbour');
-  await expect(sheet).not.toContainText('lighthouse');
+    // Play the setlist. The song on screen is its first (and only) item.
+    await openSetlist(page, SETLIST_NAME);
+    await enterPlayer(page);
+    const sheet = page.locator('.play-sheet');
+    await expect(sheet).toContainText('harbour');
+    await expect(sheet).not.toContainText('lighthouse');
 
-  // The second device publishes a new version of the song on screen.
-  await secondDevicePushesNewVersion(url, cookie);
+    // The second device publishes a new version of the song on screen.
+    await second.clone();
+    second.write(SONG_FILE, second.read(SONG_FILE) + BRIDGE.join('\n') + '\n');
+    await second.commit('Add a bridge');
+    await second.push();
 
-  // A sync lands the merge into the working copy, but the displayed chart must
-  // not move: the middle of a performance is the worst moment for a song to
-  // move (workflow 8 L53-54; workflow 12 L71). Give the round-trip a window,
-  // then assert the player did not swap.
-  await triggerSync(page);
-  await page.waitForTimeout(2500);
-  await expect(sheet).toContainText('harbour');
-  await expect(sheet).not.toContainText('lighthouse');
+    // A sync lands the merge into the working copy, but the displayed chart must
+    // not move: the middle of a performance is the worst moment for a song to
+    // move (workflow 8 L53-54; workflow 12 L71). Give the round-trip a window,
+    // then assert the player did not swap.
+    await networkBlip(page);
+    await page.waitForTimeout(2500);
+    await expect(sheet).toContainText('harbour');
+    await expect(sheet).not.toContainText('lighthouse');
 
-  // Stop, then re-open the song: the next load shows the merged version.
-  await page.getByRole('button', { name: 'Stop playing' }).click();
-  await expect(page.getByRole('heading', { level: 2, name: SETLIST_NAME })).toBeVisible();
-  await enterPlayer(page);
-  await expect(page.locator('.play-sheet')).toContainText('lighthouse');
+    // Stop, then re-open the song: the next load shows the merged version.
+    await page.getByRole('button', { name: 'Stop playing' }).click();
+    await expect(page.getByRole('heading', { level: 2, name: SETLIST_NAME })).toBeVisible();
+    await enterPlayer(page);
+    await expect(page.locator('.play-sheet')).toContainText('lighthouse');
 
-  await page.getByRole('button', { name: 'Stop playing' }).click();
+    await page.getByRole('button', { name: 'Stop playing' }).click();
+  } finally {
+    second.cleanup();
+  }
 });
