@@ -830,6 +830,7 @@ export default function AppShell({
         initialText={exploring.text}
         mode={mode}
         onBack={() => setExploring(null)}
+        onTextChange={setSearchQuery}
       />
     );
   }

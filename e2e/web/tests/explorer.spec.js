@@ -116,9 +116,11 @@ test('the explorer’s chord input can be edited: the shapes re-derive, an ambig
   await input.fill('Zzz');
   await expect(page.getByText(/is not a chord this app can read/)).toBeVisible();
 
-  // Back returns to search with the symbol that was typed there to open it.
+  // The input and the search box hold one symbol (workflow 16 L24-26): Back
+  // returns to search with what the input holds now.
+  await input.fill('Am');
   await page.getByRole('button', { name: 'Back to search' }).click();
-  await expect(page.getByRole('searchbox')).toHaveValue('A');
+  await expect(page.getByRole('searchbox')).toHaveValue('Am');
 });
 
 test('a shape entered by hand and starred is "your shape" in the reading view, and removing it takes it away (workflow 16 §Entering a shape; workflow 15 §My shapes)', async ({

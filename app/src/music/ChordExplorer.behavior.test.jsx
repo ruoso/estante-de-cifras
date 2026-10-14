@@ -98,10 +98,10 @@ function instrumentSeed(id, { catalogId, tuning, fretCount }) {
   };
 }
 
-const renderExplorer = (store, initialText) =>
+const renderExplorer = (store, initialText, props = {}) =>
   render(
     <ThemeRoot store={store}>
-      <ChordExplorer store={store} initialText={initialText} mode="narrow" onBack={() => {}} />
+      <ChordExplorer store={store} initialText={initialText} mode="narrow" onBack={() => {}} {...props} />
     </ThemeRoot>,
   );
 
@@ -215,12 +215,16 @@ describe('the chord explorer (behavior)', () => {
     try {
       await seedRemote(remote, instrumentSeed('g1', { catalogId: '6guitar', tuning: GUITAR_TUNING, fretCount: 22 }));
       const { store } = await makeSeededWorker(remote, 'rederive');
-      renderExplorer(store, 'A');
+      const typed = [];
+      renderExplorer(store, 'A', { onTextChange: (v) => typed.push(v) });
       act(() => store.open());
       await screen.findAllByRole('button', { name: /Star A,/ }, SLOW);
 
       const input = screen.getByRole('textbox', { name: 'Chord' });
       act(() => fireEvent.change(input, { target: { value: 'Am' } }));
+
+      // The edit is reported up: search holds the same symbol (workflow 16 L24-26).
+      expect(typed.at(-1)).toBe('Am');
 
       // The shapes are now Am's, not A's.
       await screen.findAllByRole('button', { name: /Star Am,/ }, SLOW);

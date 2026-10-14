@@ -37,7 +37,15 @@ import './music.css';
 // The device-local commit identity before sign-in, as every other write path uses.
 const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
 
-export default function ChordExplorer({ store, initialText = '', mode = 'narrow', onBack = () => {} }) {
+export default function ChordExplorer({
+  store,
+  initialText = '',
+  mode = 'narrow',
+  onBack = () => {},
+  // The input and the search box hold one symbol (workflow 16 L24-26): each
+  // edit is reported up so *back* returns to search with it still typed.
+  onTextChange = () => {},
+}) {
   const slice = useSlice(store, 'instruments');
   const entry = inUseEntry(slice);
   const preferences = useSlice(store, 'preferences');
@@ -57,6 +65,7 @@ export default function ChordExplorer({ store, initialText = '', mode = 'narrow'
 
   const changeText = (value) => {
     setText(value);
+    onTextChange(value);
     setOverrides({});
     const next = value.trim();
     if (next && parseChord(next, dialect).chord) setLastValidText(next);
