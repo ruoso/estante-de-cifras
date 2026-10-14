@@ -61,4 +61,34 @@ task shell "Shell" {
     depends !layout, books.shelf
     note "React Aria Components portals overlays to document.body by default, outside ThemeRoot's .est element where all design tokens live. Add react-aria as a direct dependency and wrap ThemeRoot with UNSTABLE_PortalProvider so every future overlay inherits the token scope without per-screen UNSTABLE_portalContainer workarounds. Discovered in books.shelf fixer-2 (tasks/refinements/books/shelf.md). Tests: behavior (a RAC overlay rendered through the portal inherits design tokens, axe); e2e-web (the rename dialog and any sheet on the three viewports shows correct tokens and passes axe). Refinement: tasks/refinements/shell/portal_provider.md"
   }
+  task routing "The URL follows where you are" {
+    effort 2d
+    allocate team
+    depends !layout, books.add_by_link
+    note "Sync the active destination and deep screens (a book, a song, a setlist) to the URL so browser and Android back work and a place can be bookmarked or reloaded; book invitation links (books.add_by_link) keep working through it. Opening a URL for something not on this device lands on a clear not-here state, never a crash. Source: tasks/parking-lot.md 2026-10-14 (Shell URL / deep-link routing). Tests: unit (URL ↔ location both ways); behavior (navigating updates the URL, back returns, a deep URL opens its screen; axe); e2e-web (a song opened, reloaded and still open; back from a song to its book on the three viewports; axe)."
+  }
+  task fonts "Self-host the designed typefaces" {
+    effort 1d
+    allocate team
+    depends !tokens, !pwa
+    note "Commit woff2 subsets of Figtree, Fraunces, Source Sans 3, JetBrains Mono, IBM Plex Mono and Atkinson Hyperlegible (+ Mono) with each family's license file beside it (SIL OFL 1.1; confirm each — Atkinson Hyperlegible's original release has its own Braille Institute license — and stop if any forbids redistribution); @font-face in theme.css with the current system stacks as fallbacks and font-display: swap; the PWA precache extended so the fonts work offline. Source: tasks/parking-lot.md 2026-10-14 (Font licensing). Tests: behavior (the theme resolves each family to its @font-face); e2e-web (fonts load from the origin and, offline after a reload, from the precache; axe)."
+  }
+  task display_preferences "Density and chord-diagram display" {
+    effort 2d
+    allocate team
+    depends !tokens, !diagram, design.display_preferences, storage.preferences_surface, account.account_screen
+    note "As design.display_preferences decides: density and the diagram's left-handed mirror and horizontal neck as home-book preferences, chosen on the account screen, applied by ThemeRoot (density class) and ChordBox (mirror, orientation) in the explorer and the picker. Source: tasks/parking-lot.md 2026-10-14. Tests: unit (ChordBox geometry mirrored and rotated; preference defaults); behavior (choosing each re-renders; axe in each density and orientation); e2e-web (a preference chosen, kept across a reload, on the three viewports; axe)."
+  }
+  task full_height "Full-screen surfaces scroll inside, not the page" {
+    effort 1d
+    allocate team
+    depends !layout
+    note "The themed root .est has min-height: 100dvh (app/src/shell/shell.css:23), an indefinite height, so the height: 100% / flex: 1; min-height: 0 chains beneath it resolve to auto and inner scrollers grow with their content — the page scrolls instead. A phone-viewport probe found it on the shell's search, books and setlists tabs, the account screen, arrange, the wizard, song history, the file view (tree, history, open file), the new-song editor, the chord explorer and the upload preview; only reading and the setlist view cap themselves (reading.css:19, setlist.css:23). Cap at the shell (height or max-height 100dvh), give the surfaces that rely on the theme's bare .scroll (overflow: hidden, theme.css:130 — file-view tree and history, song history) an overflow-y: auto scroller, and re-check the tab screens and the upload preview. Source: tasks/parking-lot.md 2026-10-14 (Shell .est min-height). Tests: e2e-web (on each listed surface a long content scrolls its own container and the document does not overflow, on the three viewports; axe)."
+  }
+  task dev_mount_open "Every app mount brings the Worker up" {
+    effort 0.5d
+    allocate team
+    depends !layout
+    note "The Worker's OPEN command — which surfaces preferences, theme and instruments — is sent only from AppShell's mount effect (app/src/shell/AppShell.jsx:403-405). A cold boot or reload straight into a #dev/* mount (App.jsx ~176-192) never mounts AppShell, so preferences stay empty and, e.g., the save sheet asks 'Your name' again although authorName is durably in the home book. Users always boot through AppShell; this bites e2e tests that reload a dev mount. Move the open effect up into App (ensureOpen is memoised, the store a singleton). Source: tasks/parking-lot.md 2026-10-14 (SET_IDENTITY_NAME author-name durability). Tests: behavior (App mounting a dev route sends OPEN once); e2e-web (name set, a dev-mount editor reloaded, Save does not ask for the name)."
+  }
 }

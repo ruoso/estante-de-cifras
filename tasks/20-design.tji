@@ -48,4 +48,24 @@ task design "Design gaps" {
     complete 100
     note "Songs written for the purpose (no one else's words), voiced for guitar, cavaquinho and ukulele, showing sections, words, variations and a setlist. Ships with the app. Workflow 1. Tests: none in code — each song and the setlist checked canonical with the cifra.md reference before it lands; account.first_run's tests pin them in the app. Refinement: tasks/refinements/design/example_book.md"
   }
+  task display_preferences "Density and chord-diagram display preferences" {
+    effort 1d
+    allocate team
+    note "Decide and draw two new user-chosen, synced preferences on the account screen's Preferences section beside theme and language: density (the theme.css densities, today locked at comfortable) and the chord diagram's display — left-handed mirror and vertical/horizontal neck, as Explore Chords offered — applied in the explorer and the in-song picker. Add the home-book registers to docs/home-book-format.md §4.1 and the decision to workflow 1 (density) and workflow 16 (diagram). Source: tasks/parking-lot.md 2026-10-14 (Density; Left-handed / horizontal-neck). Tests: none — design deliverable (the workflow and home-book-format edits and the Theme-picker board updated)."
+  }
+  task recovery_email "Setting a recovery email; deleting a passkey-only account" {
+    effort 1d
+    allocate team
+    note "Decide and draw where a signed-in person sets, verifies (by an emailed link) and changes the recovery email that service.email_links mails — nothing writes accounts.email today, so a passkey-only account has no recovery path. And how a passkey-only account (no email) confirms deletion: a passkey re-authentication in place of the typed email (workflow 17). Workflows 13, 17. Source: tasks/parking-lot.md 2026-10-14 (Where accounts.email is first written; Passkey-only account cannot confirm deletion). Tests: none — design deliverable (workflow 13 and 17 edits and the boards)."
+  }
+  task leave_book "Leaving one shared book" {
+    effort 0.5d
+    allocate team
+    note "Decide and draw a Leave this book verb for a member who wants to drop one membership without deleting their account: where it sits in book management, its confirmation (unsaved changes and unpushed saves counted, as Remove does), and that Mine on Estante no longer offers the book afterwards. An owner cannot leave (handing ownership stays workflow 10 Later). Workflow 10. Source: tasks/parking-lot.md 2026-10-14 (Leave one shared book). Tests: none — design deliverable (workflow 10 edit and the board)."
+  }
+  task w07_remove_board "Draw the Remove loss-warning cases on W07" {
+    effort 0.5d
+    allocate team
+    note "docs/mockups/W07-add-a-book.dc.html draws only the hosted-in-step Remove one-liner; add the two normative confirmations of workflow 7 L128-135 — unsaved/unpushed loss warning, and the device-only 'gone for good, download first' case — as already implemented by books.online. Publishing the canvas stays a human step (tasks/parking-lot.md, Republish the mockup canvas). Source: tasks/parking-lot.md 2026-10-14 (W07 board under-illustrates the Remove flow). Tests: none — design deliverable (the board)."
+  }
 }

@@ -45,7 +45,7 @@ task books "Books" {
     effort 2d
     allocate team
     depends !online, sync.fork_follow, sync.lost_access, service.books
-    note "Offered by saving where one cannot, losing access, or deliberately; replaces the original on the shelf; from Ana's Choros beneath it. Workflow 11. Tests: behavior (the three ways in, replacing the original on the shelf, from the original beneath; axe); e2e-web (make it my own after losing access and deliberately, then a new save of the original counted; axe)."
+    note "Offered by saving where one cannot, losing access, or deliberately; replaces the original on the shelf; from Ana's Choros beneath it. Workflow 11. Tests: behavior (the three ways in, replacing the original on the shelf, from the original beneath; axe); e2e-web (make it my own after losing access and deliberately, then a new save of the original counted; axe). Open question the refinement must answer (tasks/parking-lot.md 2026-10-14, Editor lowered to reader with unpushed saves): an editor lowered to reader with saves not yet pushed gets a 403 on every push and the engine keeps the book on saves_waiting, retrying forever; workflow 10 L83-85 says they are told those saves can no longer go and offered a fork or the download. Decide whether that is this task's saving-where-one-cannot entry or a distinct engine change detecting the permanent 403."
   }
   task upload_ui "Upload preview" {
     effort 2d
@@ -96,5 +96,11 @@ task books "Books" {
     complete 100
     depends sync.lost_access, service.admin
     note "Sync engine maps the git `403 taken_down` to a distinct halted state carrying the reason; BookDetail.jsx renders the operator's reason (role=status notice) beside the existing Download card. Source of debt: tasks/refinements/service/admin.md (service.admin). Governing: workflow 10 §A copyright notice; DIRECTION §3.6. Tests: behavior (BookDetail renders the taken-down notice with the reason, axe clean; sync engine `403 taken_down` classification in access-refused.js); e2e-web (a taken-down book shows its reason on phone, tablet and computer; axe). Refinement: tasks/refinements/books/notice_surface.md"
+  }
+  task leave "Leave this book" {
+    effort 1d
+    allocate team
+    depends !online, service.leave_book, design.leave_book
+    note "As design.leave_book decides: the Leave verb in book management for a member, its confirmation with unsaved changes and unpushed saves counted, then the book removed from this device and Mine on Estante no longer offering it. Source: tasks/parking-lot.md 2026-10-14. Tests: behavior (the verb shown to members and not owners; the confirmation; axe); e2e-web (a member leaves on the stack and the book is gone from the shelf and from Mine on Estante; axe)."
   }
 }

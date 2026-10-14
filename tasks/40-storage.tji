@@ -87,7 +87,7 @@ task storage "Storage" {
     allocate team
     complete 100
     depends !home_book
-    note "The Worker reads shelf.json from the home book and emits a SHELF event the reducer folds into a shelf slice (each book's label, link, and per-book status — 'reading', 'N setlists'), mirroring storage.preferences_surface; the search screen and books.shelf both read it for labels and counts. Source of debt: tasks/refinements/songs/search.md (songs.search), Decision 6. Tests: unit (shelf.json → the shelf event payload; an absent book stays absent); behavior (the Worker against a fake IndexedDB and a local git remote surfaces a shelf change, the reducer folds it). Refinement: tasks/refinements/storage/shelf_surface.md"
+    note "The Worker reads shelf.json from the home book and emits a SHELF event the reducer folds into a shelf slice (each book's label and link; the per-book status — 'reading', 'N setlists' — is not in shelf.json (home-book-format §4.2) but composed by consumers from index/derived state, refinement Decision 3), mirroring storage.preferences_surface; the search screen and books.shelf both read it for labels and counts. Source of debt: tasks/refinements/songs/search.md (songs.search), Decision 6. Tests: unit (shelf.json → the shelf event payload; an absent book stays absent); behavior (the Worker against a fake IndexedDB and a local git remote surfaces a shelf change, the reducer folds it). Refinement: tasks/refinements/storage/shelf_surface.md"
   }
   task fs_flush "Flush the fs superblock on save, discard, and book creation" {
     effort 0.5d

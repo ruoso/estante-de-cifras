@@ -89,4 +89,16 @@ task songs "Songs" {
     depends !editor, sync.unsaved, books.online
     note "When a sync merges a new version under an open editor's unsaved changes, the editor updates to the merged working text — keeping the edit position — and shows a notice naming what came in (workflow 8 §A song open while it changes L55-56), the editor-view mirror of sync.read_in_place's reading-view update. Source of debt: tasks/refinements/sync/unsaved.md (sync.unsaved). Tests: behavior (the editor shows the merged working text and a notice naming the author, keeping the edit position; Testing Library and axe); e2e-web (a song open in the editor with unsaved changes while a sync from the stack merges a new version under it — put a local book online via books.online, a second device pushing as the same user — on phone, tablet and computer; axe). Refinement: tasks/refinements/songs/edit_in_place.md"
   }
+  task save_gate_dropped_section "Block a save that would drop a section after the rule" {
+    effort 0.5d
+    allocate team
+    depends !save_sheet, !editor_section_after_voicings
+    note "A hand-typed `---` above a section, or a `## Section` typed below the voicings rule, is reported by the reader (bad-block-heading; spec/7-voicings.md §7.2) but canonicalise drops it silently on save. Add the diagnostic(s) for content below the rule that the writer drops to SAVE_BLOCKERS (app/src/editor/SongEditor.jsx), so the save sheet blocks with the reader's message (move the rule below it) instead of losing the lines. Source: tasks/parking-lot.md 2026-10-14 (Extend the save gate). Tests: unit (which diagnostics block); behavior (a section typed after the rule blocks the save with the message; moving the rule unblocks and the save round-trips it; axe)."
+  }
+  task save_empty_message "A save with no musical summary commits instead of hanging" {
+    effort 0.5d
+    allocate team
+    depends !save_sheet, books.file_view
+    note "Saving a non-song file (README.md, .gitattributes), an unchanged song, or a song whose note the user cleared sends an empty message — the note is prefilled from the musical diff summary (app/src/songs/save-note.js:20), which is empty there — and isomorphic-git's commit throws (app/src/worker/working-copy.js:168, :236 nameAndSave). The Worker answers a generic ERROR the save sheet does not listen for, so the sheet stays open with no feedback. Reproduced on all three viewports by a raw edit of README.md in the file view and by restoring README.md from history. Fix: a non-empty default message in the Worker save path (e.g. naming the paths), and the save sheet surfaces a command failure instead of staying silently open. Source: tasks/parking-lot.md 2026-10-14 (Non-song/no-change file restore+save). Tests: unit (the default message); behavior (a blank note commits; a failed save shows its error; axe); e2e-web (README.md edited in the file view and saved, the sheet closes, on the three viewports; axe)."
+  }
 }

@@ -46,4 +46,10 @@ task account "First run and the account" {
     depends design.leaving, !account_screen, service.books, books.share
     note "Workflow 17 built: deleting the account, taking the data out. Tests: unit (leave.test.js pure predicates; account_test.go Go package); behavior (the steps workflow 17 decides; axe); e2e-api (deleting an account against the stack: its books and sessions gone, books others are members of handled as decided); e2e-web (taking the data out, then deleting the account; axe). Refinement: tasks/refinements/account/leaving.md"
   }
+  task recovery_email "Recovery email; deleting a passkey-only account" {
+    effort 2d
+    allocate team
+    depends !account_screen, !leaving, service.recovery_email, design.recovery_email
+    note "As design.recovery_email decides: set, verify and change the recovery email on the account screen; Leaving confirms a passkey-only account's deletion with a passkey instead of the typed email. Source: tasks/parking-lot.md 2026-10-14. Tests: behavior (the email set and pending verification; the passkey confirm when there is no email; axe); e2e-web (an email set and verified via the mail catcher; a passkey-only account deleted with a virtual authenticator; axe)."
+  }
 }
