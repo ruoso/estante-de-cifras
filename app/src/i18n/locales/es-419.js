@@ -309,6 +309,24 @@ export default {
     create: 'Crear',
   },
 
+  play: {
+    stop: 'Dejar de tocar',
+    previous: 'Canción anterior',
+    next: 'Canción siguiente',
+    position: '{i} de {n}',
+    positionAwake: '{i} de {n} · pantalla siempre encendida',
+    inKey: 'En {key}',
+    setlistKey: 'Tono del repertorio {key} · escrita en {songKey}',
+    setlistKeyNote: 'Tono del repertorio {key}',
+    nextHeading: 'Siguiente',
+    nextItem: '{number}. {title}',
+    note: 'Nota: {note}',
+    hint: 'Desliza, toca un borde o usa un pedal',
+    announce: '{title}, {i} de {n}',
+    announceNext: 'Siguiente: {title}',
+    empty: 'Este repertorio todavía no tiene canciones para tocar.',
+  },
+
   explorer: {
     title: 'Explorar un acorde',
     back: 'Volver a la búsqueda',

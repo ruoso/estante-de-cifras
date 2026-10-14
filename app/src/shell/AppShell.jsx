@@ -34,6 +34,7 @@ import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
 import SetlistsScreen from '../books/SetlistsScreen.jsx';
 import SetlistView from '../books/SetlistView.jsx';
+import SetlistPlay from '../books/SetlistPlay.jsx';
 import AddToSetlist from '../books/AddToSetlist.jsx';
 import SharingScreen from '../books/SharingScreen.jsx';
 import BookConflicts from '../books/BookConflicts.jsx';
@@ -334,6 +335,11 @@ export default function AppShell({
   // portaled into `.est` over whatever surface raised it. Ephemeral, no router.
   const [openSetlist, setOpenSetlist] = useState(null);
   const [addingToSetlist, setAddingToSetlist] = useState(null);
+  // The setlist player (books.play, workflow 12 §Playing through): the setlist
+  // being played `{ bookId, path }`, a chrome-free full-screen surface over the
+  // opened setlist, raised from SetlistView's `onPlay` seam. Stop clears it and
+  // the setlist is still behind. Ephemeral, no router.
+  const [playingSetlist, setPlayingSetlist] = useState(null);
   // The live CodeMirror view, so Change book can carry the current text to the
   // new book's placeholder (Decision 3). A ref, not state — it never renders.
   const editorRef = useRef(null);
@@ -741,9 +747,24 @@ export default function AppShell({
     );
   }
 
+  // The setlist player (books.play, workflow 12 §Playing through): a chrome-free
+  // full-screen performance surface over the opened setlist. Stop returns to the
+  // setlist (still behind it).
+  if (playingSetlist) {
+    return (
+      <SetlistPlay
+        store={store}
+        bookId={playingSetlist.bookId}
+        path={playingSetlist.path}
+        mode={mode}
+        onStop={() => setPlayingSetlist(null)}
+      />
+    );
+  }
+
   // The opened setlist (books.setlists, workflow 12): a full-screen surface over
-  // the shell / master-detail, like the open song. Play is a seam books.play
-  // wires (Decision 1); Back returns to the Setlists destination.
+  // the shell / master-detail, like the open song. Play (books.play) enters the
+  // player above; Back returns to the Setlists destination.
   if (openSetlist) {
     return (
       <SetlistView
@@ -753,6 +774,7 @@ export default function AppShell({
         mode={mode}
         author={LOCAL_IDENTITY}
         onBack={() => setOpenSetlist(null)}
+        onPlay={({ bookId, path }) => setPlayingSetlist({ bookId, path })}
       />
     );
   }

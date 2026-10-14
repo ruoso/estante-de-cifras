@@ -1,0 +1,72 @@
+/* The setlist player (books.play, workflow 12; board W12 phone "playing
+   through"). A chrome-free full-screen surface — an app bar with Stop, title,
+   position and the key chip; the chart over a scroll body with the Next card;
+   a centred hint; and the absolutely-positioned edge buttons the board draws
+   down the left and right sides. Tokens only, so every theme carries. */
+
+.play-fullscreen {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.play-fullscreen:focus {
+  outline: none;
+}
+
+.play-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--u);
+  padding: calc(var(--u) * 1.75) calc(var(--u) * 1.75) calc(var(--u) * 1.25) var(--u);
+  border-bottom: 1px solid var(--line);
+}
+.play-bar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 2px;
+}
+.play-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.play-sheet {
+  overflow: auto;
+  padding: calc(var(--u) * 1.75) calc(var(--u) * 4.25);
+  gap: calc(var(--u) * 1.25);
+}
+.play-next {
+  margin-top: calc(var(--u) * 0.75);
+  gap: calc(var(--u) * 0.5);
+}
+
+.play-hint {
+  text-align: center;
+  padding: var(--u) calc(var(--u) * 2) calc(var(--u) * 2.5);
+  color: var(--ink-2);
+}
+
+/* The edge buttons: tall, quiet hit targets pinned to the screen's sides, the
+   keyboard/AT path for next/previous (swipe and edge-tap sit over the same
+   actions). */
+.play-edge {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 120px;
+  color: var(--ink-2);
+}
+.play-edge-prev {
+  left: 0;
+}
+.play-edge-next {
+  right: 0;
+}

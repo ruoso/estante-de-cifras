@@ -309,6 +309,24 @@ export default {
     create: 'Criar',
   },
 
+  play: {
+    stop: 'Parar de tocar',
+    previous: 'Música anterior',
+    next: 'Próxima música',
+    position: '{i} de {n}',
+    positionAwake: '{i} de {n} · tela sempre ligada',
+    inKey: 'Em {key}',
+    setlistKey: 'Tom do repertório {key} · escrita em {songKey}',
+    setlistKeyNote: 'Tom do repertório {key}',
+    nextHeading: 'Próxima',
+    nextItem: '{number}. {title}',
+    note: 'Observação: {note}',
+    hint: 'Deslize, toque numa borda ou use um pedal',
+    announce: '{title}, {i} de {n}',
+    announceNext: 'Próxima: {title}',
+    empty: 'Este repertório ainda não tem músicas para tocar.',
+  },
+
   explorer: {
     title: 'Explorar um acorde',
     back: 'Voltar à busca',

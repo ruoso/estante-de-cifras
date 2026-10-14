@@ -309,6 +309,24 @@ export default {
     create: 'Crea',
   },
 
+  play: {
+    stop: 'Interrompi',
+    previous: 'Brano precedente',
+    next: 'Brano successivo',
+    position: '{i} di {n}',
+    positionAwake: '{i} di {n} · schermo sempre acceso',
+    inKey: 'In {key}',
+    setlistKey: 'Tonalità della scaletta {key} · scritto in {songKey}',
+    setlistKeyNote: 'Tonalità della scaletta {key}',
+    nextHeading: 'Prossimo',
+    nextItem: '{number}. {title}',
+    note: 'Nota: {note}',
+    hint: 'Scorri, tocca un bordo o usa un pedale',
+    announce: '{title}, {i} di {n}',
+    announceNext: 'Prossimo: {title}',
+    empty: 'Questa scaletta non ha ancora brani da suonare.',
+  },
+
   explorer: {
     title: 'Esplora un accordo',
     back: 'Torna alla ricerca',

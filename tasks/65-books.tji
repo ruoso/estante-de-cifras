@@ -70,8 +70,9 @@ task books "Books" {
   task play "Playing through" {
     effort 2d
     allocate team
+    complete 100
     depends !setlists, music.transpose
-    note "Full screen in the setlist's key, swipe, edge tap or pedal keys, screen kept awake, next song's title, sync waiting. Workflow 12. Tests: behavior (swipe, edge tap and pedal keys; the setlist's key; the next title; axe); e2e-web (play a setlist through on the three viewports, the screen kept awake asked for, sync waiting until the end; axe)."
+    note "Full screen in the setlist's key, swipe, edge tap or pedal keys, screen kept awake, next song's title, sync waiting. Workflow 12. Tests: behavior (swipe, edge tap and pedal keys; the setlist's key; the next title; axe); e2e-web (play a setlist through on the three viewports, the screen kept awake asked for, sync waiting until the end; axe). Refinement: tasks/refinements/books/play.md"
   }
   task file_view "The file view" {
     effort 4d

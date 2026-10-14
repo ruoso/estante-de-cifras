@@ -341,6 +341,26 @@ export default {
     create: 'Create',
   },
 
+  // The setlist player (books.play, workflow 12 §Playing through, §The key;
+  // board W12): the chrome-free full-screen performance surface.
+  play: {
+    stop: 'Stop playing',
+    previous: 'Previous song',
+    next: 'Next song',
+    position: '{i} of {n}',
+    positionAwake: '{i} of {n} · screen kept awake',
+    inKey: 'In {key}',
+    setlistKey: 'Setlist key {key} · written in {songKey}',
+    setlistKeyNote: 'Setlist key {key}',
+    nextHeading: 'Next',
+    nextItem: '{number}. {title}',
+    note: 'Note: {note}',
+    hint: 'Swipe, tap an edge, or use a pedal',
+    announce: '{title}, {i} of {n}',
+    announceNext: 'Next: {title}',
+    empty: 'This setlist has no songs to play yet.',
+  },
+
   // The chord explorer (music.explorer, workflow 16): reached from search's chord
   // row, every way to play a chord on the instrument in use, ranked and grouped,
   // each starrable as *your shape*.
