@@ -102,3 +102,27 @@ Append one `###` block per item, newest at the bottom:
 - **Question**: When an account owner leaves, their shared books are currently deleted for everyone (the first-pass policy). Workflow 10 §Later defers *handing ownership* — letting a departing owner pass a shared book (a band book, a class book) to a successor so it outlives them. Should leaving be where handing ownership finally lands, and if so, who may be designated successor and how is the transfer authorised?
 - **Why parked**: product judgment call; workflow 10 §Later explicitly defers this. Deciding yes requires the handing-ownership feature (new service endpoint, new app surface in workflow 10) and a UI in the leaving flow to choose a successor — a deliberate design decision before it can be a WBS leaf.
 - **Updated** (2026-10-14, triage): kept parked; still workflow 10 §Later. Leaving one book (design.leave_book, books.leave) is scoped to members, so an owner still cannot leave a book short of deleting it.
+
+### 2026-10-14 — Second pass of the UI audit: fix wrong-moment mockup annotations, cover the missing frames, re-run
+- **Source**: the pairwise UI audit (e2e `mockup()` screenshots vs boards rendered by `audit/render-mockups.mjs`; findings turned into WBS leaves citing "UI audit 2026-10-14" and "UI pairwise audit 2026-10-14").
+- **Question**: The audit left work that is test-only, so it is not a WBS task (the orchestrator never picks test-only work): (1) e2e specs that call `mockup()` at a moment that is not what the frame draws, so their pair could not be compared; (2) frames no spec reaches yet; then (3) re-run the pairwise comparison once the M5 UI leaves land, to confirm they closed the gaps and catch regressions. How to run it: `ESTANTE_E2E_MOCKUPS=$PWD/audit/out/app` with the e2e-web suite against a stack, `node audit/render-mockups.mjs` for the boards, then compare `audit/out/{mockups,app}/<theme>/<Board>--<n>-<kind>.png` pairwise (the manifest names spec and test per screenshot).
+- **Wrong-moment annotations** (move the `mockup()` call, or add the step that reaches the state):
+  - Theme-picker--2-phone, Theme-picker--3-tablet: Captions say Palco (phone) or Caderno (tablet) is chosen while signed in; the app capture shows Automatic selected and no signed-in devices.
+  - W13-new-device--4-desktop: The desktop frame is captured at the bottom of the account screen (offline notice), not the sign-out dialog its caption describes.
+  - W13-new-device--1-phone, W13-new-device--2-phone, W13-new-device--3-tablet: No app capture for W13 frames 1-3 (new phone sign-in, shelf filling; tablet merge or keep both), so not compared.
+  - W02-find-and-play--3-tablet: Tablet frame captured a guitar song in My Drop D, not the cavaquinho state
+  - Screen-reader--2-phone: Chart-line frame is the same Gallery Tune reading view as the sung-line frame
+  - W04-edit-and-save--1-phone: Phone editor shows no unsaved indicator and no 'Kept on this device' strip
+  - W15-set-up-an-instrument--3-tablet: Voicing rules capture shows Strumming, not the Custom state the caption describes
+  - W14-file-view--2-phone: Estante capture shows a new untitled song where the Palco capture of the same frame shows the edited tarde-clara song
+  - W07-add-a-book--3-tablet: Upload frame captured the import preview, not the merge preview
+  - W10-share--1-phone: Share frame captured before any invitation exists
+  - W10-share--5-desktop: No app frame shows the full-book owner state
+  - W10-share--6-desktop: Member's read-only Sharing view not captured; app shows link result
+  - W08-sync--5-desktop: Frame 5 is captured in normal reading, not full screen, and shows the search rail, not the shelf
+  - W08-sync--1-phone: Shelf frame shows one book in one state, not the mix of sync states the board shows
+  - W09-conflicts--3-tablet: Frame captioned 'Save refusing' shows the editor before any refusal
+  - W17-leaving--2-phone: Offline capture shows the account screen with Delete enabled, not the data-out screen
+  - W17-leaving--4-desktop: Delete-account confirm frame shows the account screen with no dialog
+- **Frames no spec reaches yet**: Screen-reader #3 (a chord diagram read aloud) and #4 (a conflicted line), W16-chord-explorer #2 (no shape fits); W11-fork #1-4 and W13-new-device #1-3 wait on `books.fork` / `sync.fork_follow` and `service.home_book` / `account.new_device`.
+- **Why parked**: a human-initiated audit pass, not an implementable leaf; test-only by nature. Best done after the M5 UI leaves from both audits land.
