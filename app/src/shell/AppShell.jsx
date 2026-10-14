@@ -178,7 +178,7 @@ function destinationTab(key, variant) {
 // screen's own) is present at a time.
 function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode) {
   return DESTINATIONS.map((key) => (
-    <TabPanel key={key} id={key}>
+    <TabPanel key={key} id={key} className="shell-panel">
       {key === 'search' ? (
         // The first-run "add a book by its link" way-in routes to the Books
         // screen's add-a-book flow via this navigation callback (account.first_run

@@ -17,17 +17,71 @@ body {
   margin: 0;
 }
 
-/* The themed root (ThemeRoot's `.est`) fills the window as a column, so its one
-   child — the RAC `Tabs` wrapper — can take the remaining height. */
+/* The themed root (ThemeRoot's `.est`) is exactly the window, as a column, so
+   its one child — the RAC `Tabs` wrapper, or a full-screen surface — takes the
+   remaining height (shell.full_height). The height is definite (not
+   min-height): only then do the `height: 100%` / `flex: 1; min-height: 0`
+   chains beneath it resolve to the window rather than to their content, so a
+   long list or song scrolls inside its surface's own scroller while the app
+   bar, the instrument chip and the phone tab bar stay put, and the page itself
+   never scrolls. `dvh` follows the phone's collapsing URL bar. Not
+   `overflow: hidden`: the frame bounds its content, it does not clip it. This
+   is the running-app equivalent of the mockups' fixed `.dev` device box. */
 .est {
-  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+
+/* Every theme `.scroll` body scrolls vertically in the running app. The theme's
+   `.scroll` is `overflow: hidden` because the boards are static drawings
+   clipped by a device frame; here a scroll body that cannot scroll would put
+   the end of the content out of reach under the definite frame above (song
+   history, the file view, the upload preview, the book detail, the conflict
+   screens, sign-in). Only the y axis moves — horizontal fit stays the
+   theme's. */
+.est .scroll {
+  overflow-y: auto;
+}
+
+/* A scroller is the containing block of what it scrolls. The visually-hidden
+   text layer (spoken chord names, RAC's hidden radio inputs) is absolutely
+   positioned; with no positioned ancestor its box would be placed against the
+   page at its spot deep in a long list or song, and stretch the document past
+   the frame — the page would scroll again. Positioning the scroller keeps those
+   boxes inside it. Kept at a class's specificity, so a surface may still
+   position its own scroll body. Surface scrollers that are not a `.scroll`
+   (search results, the Books and Setlists screens, the editor preview) do the
+   same in their own stylesheets. */
+:where(.est) .scroll {
+  position: relative;
+}
+
+/* What a scroll body holds keeps its own height and overflows the body, rather
+   than shrinking to fit it: the theme's `.list` is `overflow: hidden` (its
+   rounded corners), which lets a flex item shrink below its content — under the
+   definite frame a long list would be clipped inside the scroller instead of
+   scrolling it. Zero specificity, so a child that fills the body on purpose
+   (`flex: 1; min-height: 0`, like the tab panels) still does. The surface
+   scrollers that are not a `.scroll` do the same in their own stylesheets. */
+:where(.est .scroll) > * {
+  flex-shrink: 0;
 }
 
 /* The single RAC `<Tabs>` wrapper the shell mounts: a column filling `.est`, so
    the `.screen`/`.split` inside it (both `flex: 1`) fill the viewport. */
 .shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The destination tab panels (RAC `TabPanel`) join the flex chain, so the tab
+   screen inside one (search, books, setlists) is bounded by the frame and
+   scrolls itself — rather than the shell's `main.scroll` around it scrolling,
+   or the page — and the phone tab bar stays in view. */
+.shell-panel {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -66,4 +120,16 @@ body {
 
 .screen > .tabbar {
   order: 1;
+}
+
+/* Print releases the frame: the window-height cap and the scroll bodies are a
+   screen affair, so the reading view prints the whole song in flow rather than
+   the slice that fits the window (workflow 2 L85, L100). */
+@media print {
+  .est {
+    height: auto;
+  }
+  .est .scroll {
+    overflow: visible;
+  }
 }

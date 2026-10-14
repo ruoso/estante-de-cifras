@@ -6,11 +6,19 @@
    a theme token (DIRECTION §3.7; mockups GUIDE.md). */
 
 .books-screen {
+  position: relative;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: calc(var(--u) * 2);
   min-height: 0;
   overflow-y: auto;
+}
+
+/* Its items keep their height and overflow it (a theme `.list` would otherwise
+   shrink and clip; see shell.css). */
+:where(.books-screen) > * {
+  flex-shrink: 0;
 }
 
 /* The heading and the Add-a-book trigger share one row (W07 board line 30-33). */

@@ -451,7 +451,19 @@ export default function SongReading({
         <Button className="btn reading-exit-full" onPress={leaveFullScreen}>
           {t('reading.exitFullScreen')}
         </Button>
-        <div className="scroll reading-fullscreen-scroll" ref={scrollRef}>{sheet}</div>
+        {/* The sheet scrolls under the frame (shell.full_height) and holds no
+            control, so it takes focus itself: a named region the keyboard can
+            reach and scroll (axe scrollable-region-focusable). */}
+        <div
+          className="scroll reading-fullscreen-scroll"
+          ref={scrollRef}
+          role="region"
+          aria-label={baseModel?.title ?? path}
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+          tabIndex={0}
+        >
+          {sheet}
+        </div>
       </div>
     );
   }

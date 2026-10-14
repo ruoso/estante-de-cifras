@@ -533,151 +533,155 @@ export default function SearchScreen({
         </SearchField>
       </Group>
 
-      {typed ? (
-        <>
-          {recognized && (
-            <div className="list">
-              <Button
-                className="row explore"
-                onPress={() => onExploreChord(recognized.chord, typedQuery)}
-              >
-                <ExploreIcon />
-                <span className="grow">
-                  <span className="name">
-                    {t('search.explore', { query: typedQuery, instrument })}
-                  </span>
-                  <span className="meta">{t('search.exploreMeta')}</span>
-                </span>
-              </Button>
-            </div>
-          )}
-          <section className="search-section" aria-labelledby="search-matching">
-            <div className="section-label">
-              <h2 className="t-h3" id="search-matching">
-                {t('search.matching', { query: typedQuery })}
-              </h2>
-            </div>
-            {results.length ? (
+      {/* The results scroll under the heading and the search pill, which stay
+          in view (shell.full_height). */}
+      <div className="search-results">
+        {typed ? (
+          <>
+            {recognized && (
               <div className="list">
-                {results.map((r) =>
-                  r.kind === 'setlist' ? (
-                    <SetlistRow
-                      key={keyOf(r.bookId, r.path)}
-                      item={r}
-                      bookLabel={bookLabelFor(r.bookId)}
-                      onOpen={onOpenSetlist}
-                    />
-                  ) : (
+                <Button
+                  className="row explore"
+                  onPress={() => onExploreChord(recognized.chord, typedQuery)}
+                >
+                  <ExploreIcon />
+                  <span className="grow">
+                    <span className="name">
+                      {t('search.explore', { query: typedQuery, instrument })}
+                    </span>
+                    <span className="meta">{t('search.exploreMeta')}</span>
+                  </span>
+                </Button>
+              </div>
+            )}
+            <section className="search-section" aria-labelledby="search-matching">
+              <div className="section-label">
+                <h2 className="t-h3" id="search-matching">
+                  {t('search.matching', { query: typedQuery })}
+                </h2>
+              </div>
+              {results.length ? (
+                <div className="list">
+                  {results.map((r) =>
+                    r.kind === 'setlist' ? (
+                      <SetlistRow
+                        key={keyOf(r.bookId, r.path)}
+                        item={r}
+                        bookLabel={bookLabelFor(r.bookId)}
+                        onOpen={onOpenSetlist}
+                      />
+                    ) : (
+                      <SongRow
+                        key={keyOf(r.bookId, r.path)}
+                        item={r}
+                        bookLabel={bookLabelFor(r.bookId)}
+                        instrument={instrument}
+                        onOpen={onOpenSong}
+                        onAddToSetlist={onAddToSetlist}
+                      />
+                    ),
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* Nothing matched, so create it — the query becomes the title,
+                      the song goes into My songs (workflow 3 §Ways in L10-11; W03
+                      Create row, "A new song in My songs"). A primary row, like
+                      the explore row above it. */}
+                  <div className="list">
+                    <Button
+                      className="row explore"
+                      onPress={() => onWriteSong({ title: typedQuery })}
+                    >
+                      <CreateIcon />
+                      <span className="grow">
+                        <span className="name">
+                          {t('newSong.create', { query: typedQuery })}
+                        </span>
+                        <span className="meta">
+                          {t('newSong.createMeta', { book: t('firstRun.mySongs') })}
+                        </span>
+                      </span>
+                    </Button>
+                  </div>
+                  <p className="t-small empty" role="status">
+                    {t('search.empty', { query: typedQuery })}
+                  </p>
+                </>
+              )}
+            </section>
+          </>
+        ) : showsFirstRun(bookIds, recentItems) ? (
+          // The cold door: an empty shelf and no recents (account.first_run,
+          // workflow 1 §Cold). "Open the example book" seeds the bundled book in
+          // the Worker; the other three route to the doors their own tasks own
+          // (Decision 1, acceptance 2-3).
+          <FirstRun
+            onWriteSong={onWriteSong}
+            onAddBook={onAddBook}
+            onSignIn={onSignIn}
+            onOpenExampleBook={() =>
+              store.send(
+                command(CommandKind.OPEN_EXAMPLE_BOOK, {
+                  title: t('firstRun.exampleLabel'),
+                  author: LOCAL_IDENTITY,
+                }),
+              )
+            }
+          />
+        ) : (
+          <>
+            {recentItems.length > 0 && (
+              <section className="search-section" aria-labelledby="search-recent">
+                <div className="section-label">
+                  <h2 className="t-h3" id="search-recent">
+                    {t('search.recent')}
+                  </h2>
+                </div>
+                <div className="list">
+                  {recentItems.map((item, i) => (
                     <SongRow
-                      key={keyOf(r.bookId, r.path)}
-                      item={r}
-                      bookLabel={bookLabelFor(r.bookId)}
+                      key={`recent-${keyOf(item.bookId, item.path)}-${i}`}
+                      item={item}
+                      bookLabel={bookLabelFor(item.bookId)}
                       instrument={instrument}
                       onOpen={onOpenSong}
                       onAddToSetlist={onAddToSetlist}
                     />
-                  ),
-                )}
-              </div>
-            ) : (
-              <>
-                {/* Nothing matched, so create it — the query becomes the title,
-                    the song goes into My songs (workflow 3 §Ways in L10-11; W03
-                    Create row, "A new song in My songs"). A primary row, like
-                    the explore row above it. */}
-                <div className="list">
-                  <Button
-                    className="row explore"
-                    onPress={() => onWriteSong({ title: typedQuery })}
-                  >
-                    <CreateIcon />
-                    <span className="grow">
-                      <span className="name">
-                        {t('newSong.create', { query: typedQuery })}
-                      </span>
-                      <span className="meta">
-                        {t('newSong.createMeta', { book: t('firstRun.mySongs') })}
-                      </span>
-                    </span>
-                  </Button>
+                  ))}
                 </div>
-                <p className="t-small empty" role="status">
-                  {t('search.empty', { query: typedQuery })}
-                </p>
-              </>
+              </section>
             )}
-          </section>
-        </>
-      ) : showsFirstRun(bookIds, recentItems) ? (
-        // The cold door: an empty shelf and no recents (account.first_run,
-        // workflow 1 §Cold). "Open the example book" seeds the bundled book in
-        // the Worker; the other three route to the doors their own tasks own
-        // (Decision 1, acceptance 2-3).
-        <FirstRun
-          onWriteSong={onWriteSong}
-          onAddBook={onAddBook}
-          onSignIn={onSignIn}
-          onOpenExampleBook={() =>
-            store.send(
-              command(CommandKind.OPEN_EXAMPLE_BOOK, {
-                title: t('firstRun.exampleLabel'),
-                author: LOCAL_IDENTITY,
-              }),
-            )
-          }
-        />
-      ) : (
-        <>
-          {recentItems.length > 0 && (
-            <section className="search-section" aria-labelledby="search-recent">
-              <div className="section-label">
-                <h2 className="t-h3" id="search-recent">
-                  {t('search.recent')}
-                </h2>
-              </div>
-              <div className="list">
-                {recentItems.map((item, i) => (
-                  <SongRow
-                    key={`recent-${keyOf(item.bookId, item.path)}-${i}`}
-                    item={item}
-                    bookLabel={bookLabelFor(item.bookId)}
-                    instrument={instrument}
-                    onOpen={onOpenSong}
-                    onAddToSetlist={onAddToSetlist}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-          {bookIds.length > 0 && (
-            <section className="search-section" aria-labelledby="search-books">
-              <div className="section-label">
-                <h2 className="t-h3" id="search-books">
-                  {t('search.books')}
-                </h2>
-              </div>
-              <div className="search-books">
-                {bookIds.map((id) => (
-                  <BookSection
-                    key={id}
-                    bookId={id}
-                    book={bookById.get(id)}
-                    building={indexSlice[id] === 'building'}
-                    bookLabel={bookLabelFor(id)}
-                    instrument={instrument}
-                    onOpen={onOpenSong}
-                    onScopeBook={(bookId) => setScope({ books: [bookId] })}
-                    onWriteSong={onWriteSong}
-                    onSaveAll={setSaveAll}
-                    canWrite={canWriteTo(shelf, id)}
-                    onAddToSetlist={onAddToSetlist}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-        </>
-      )}
+            {bookIds.length > 0 && (
+              <section className="search-section" aria-labelledby="search-books">
+                <div className="section-label">
+                  <h2 className="t-h3" id="search-books">
+                    {t('search.books')}
+                  </h2>
+                </div>
+                <div className="search-books">
+                  {bookIds.map((id) => (
+                    <BookSection
+                      key={id}
+                      bookId={id}
+                      book={bookById.get(id)}
+                      building={indexSlice[id] === 'building'}
+                      bookLabel={bookLabelFor(id)}
+                      instrument={instrument}
+                      onOpen={onOpenSong}
+                      onScopeBook={(bookId) => setScope({ books: [bookId] })}
+                      onWriteSong={onWriteSong}
+                      onSaveAll={setSaveAll}
+                      canWrite={canWriteTo(shelf, id)}
+                      onAddToSetlist={onAddToSetlist}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+      </div>
 
       {/* The one save sheet for *save all* (workflow 4 §Several songs at once):
           one commit over every changed song in the book. */}

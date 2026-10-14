@@ -19,7 +19,11 @@
   overflow-y: auto;
 }
 
+/* The chord input and the by-hand way-in stay above the scrolling results
+   (workflow 16 L154-156): the head does not shrink, the results scroll under it. */
 .explorer-head {
+  flex: none;
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2) 0;
   display: flex;
   gap: calc(var(--u) * 2.5);
   align-items: flex-end;

@@ -8,15 +8,11 @@
 .reading-screen,
 .reading-split {
   flex: 1;
+  /* Bounded by the shell's definite frame (.est is height:100dvh, shell.css),
+     so this surface does not grow to the song's height: the chrome stays put
+     and the sheet scrolls inside .reading-scroll, which the in-place anchor
+     restore (Decision 4) depends on to hold the reader's place across a merge. */
   min-height: 0;
-  /* Cap the reading surface at the viewport. The themed root (.est) is
-     min-height:100dvh — indefinite — so a flex:1 child left uncapped grows to
-     the song's height and the whole page scrolls, carrying the app bar and the
-     bottom action bar away with it. max-height makes this surface a real
-     bounded scroll frame: the chrome stays put and the sheet scrolls inside
-     .reading-scroll, which the in-place anchor restore (Decision 4) depends on
-     to hold the reader's place across a merge. */
-  max-height: 100dvh;
 }
 
 .reading-scroll {
@@ -28,8 +24,8 @@
      body is the scroll port itself, so a tall song scrolls here (the chrome
      above and below staying put) rather than scrolling the page — and the
      in-place anchor restore (Decision 4) adjusts this element's scrollTop, which
-     only moves a real scroll port. Every other screen's scroll class opts in the
-     same way; this needs the viewport cap on .reading-screen / .reading-split. */
+     only moves a real scroll port. The shell's `.est .scroll` rule opts every
+     scroll body in the same way; the bound comes from the shell's frame. */
   overflow-y: auto;
 }
 

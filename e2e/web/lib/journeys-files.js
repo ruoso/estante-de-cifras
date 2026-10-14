@@ -9,6 +9,20 @@ export const EXAMPLE_BOOK = 'Example Book';
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// ---- uploading a book (workflow 7) ---------------------------------------------
+
+// From the Books destination: pick a zip through the Add-a-book Upload way-in;
+// the full-screen preview opens. `checkA11y`, when given, runs on the picker.
+export async function uploadZip(page, zipPath, checkA11y) {
+  await page.getByRole('button', { name: 'Add a book' }).click();
+  const sheet = page.getByRole('dialog');
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByText('A zip of a book, with or without its history.')).toBeVisible();
+  if (checkA11y) await checkA11y(); // the picker
+  await sheet.locator('input[type="file"]').setInputFiles(zipPath);
+  await expect(page.getByRole('radiogroup', { name: 'What to do with the upload' })).toBeVisible();
+}
+
 // A tree file row: its accessible name starts with the file name (a status
 // word may follow). Anchored so it is not the open editor's "Rename <name>" /
 // "Delete <name>" buttons, which stay mounted beside the tree on wide layouts.

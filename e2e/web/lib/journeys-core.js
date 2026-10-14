@@ -127,6 +127,19 @@ export async function closeInstruments(page) {
   await expect(chip(page)).toBeVisible();
 }
 
+// ---- the voicing wizard (workflow 5) ------------------------------------------
+
+// From arrange: Run the wizard, choose a policy and preview it (the plan's
+// Write the plan button shows).
+export async function toPreview(page, name = 'The smoothest path') {
+  await page.getByRole('button', { name: 'Run the wizard' }).click();
+  const policy = page.getByRole('button', { name });
+  await expect(policy).toBeVisible();
+  await policy.click();
+  await page.getByRole('button', { name: 'See the plan' }).click();
+  await expect(page.getByRole('button', { name: 'Write the plan' })).toBeVisible();
+}
+
 // ---- the chord explorer (workflow 16) ---------------------------------------------
 
 // From search, type a chord and open the explorer through its row.

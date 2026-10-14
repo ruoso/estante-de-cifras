@@ -150,8 +150,12 @@
 }
 
 /* The phone's sticky action footer (W06 phone). */
+/* The two actions wrap onto two rows when a phone cannot fit both labels side
+   by side: a footer wider than the window would widen the phone's layout
+   viewport, and the frame with it (shell.full_height). */
 .est-history-footer {
   display: flex;
+  flex-wrap: wrap;
   gap: calc(var(--u) * 1.25);
   padding: calc(var(--u) * 1.5) calc(var(--u) * 2) calc(var(--u) * 2.75);
   border-top: 1px solid var(--line);

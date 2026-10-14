@@ -9,18 +9,27 @@
   flex-direction: column;
   gap: calc(var(--u) * 2);
   padding: calc(var(--u) * 2);
+  position: relative;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+}
+
+/* Its items keep their height and overflow it (a theme `.list` would otherwise
+   shrink and clip; see shell.css). */
+:where(.setlists-screen) > * {
+  flex-shrink: 0;
 }
 .setlists-empty {
   max-width: 48ch;
 }
 
-/* The open/read view and the editor — a bounded full-screen scroll frame like
-   the reading view, so the app bar stays put while the body scrolls. */
+/* The open/read view and the editor — a full-screen scroll frame bounded by the
+   shell's definite frame (.est is height:100dvh, shell.css), so the app bar
+   stays put while the body scrolls. */
 .setlist-screen {
   flex: 1;
   min-height: 0;
-  max-height: 100dvh;
   display: flex;
   flex-direction: column;
 }

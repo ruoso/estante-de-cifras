@@ -8,6 +8,7 @@ import {
   unchosenWords,
   addEmptyVariation,
   saveArrangementThroughSheet,
+  toPreview,
 } from '../lib/journeys-core.js';
 
 const openSong = (page) => openSongFromSearch(page, SONG.search, SONG.title);
@@ -24,19 +25,7 @@ const openSong = (page) => openSongFromSearch(page, SONG.search, SONG.title);
 // computer are the wide side-by-side. Pins workflow 5 L64-72; the .tji e2e
 // clause; offline-first.
 
-const runWizard = (page) => page.getByRole('button', { name: 'Run the wizard' });
-const policy = (page, name) => page.getByRole('button', { name });
-const seePlan = (page) => page.getByRole('button', { name: 'See the plan' });
 const writePlan = (page) => page.getByRole('button', { name: 'Write the plan' });
-
-// Choose a policy and preview it.
-async function toPreview(page, name = 'The smoothest path') {
-  await runWizard(page).click();
-  await expect(policy(page, name)).toBeVisible();
-  await policy(page, name).click();
-  await seePlan(page).click();
-  await expect(writePlan(page)).toBeVisible();
-}
 
 test('runs the wizard into a new variation; the variation reads back in arrange', async ({ page, checkA11y }) => {
   await openExampleBook(page);

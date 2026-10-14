@@ -240,7 +240,14 @@ export default function SongEditor({
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         syntaxField,
-        EditorView.contentAttributes.of({ 'aria-label': t('editor.source.sourceLabel') }),
+        // tabindex 0 states what the contenteditable already is — in the tab
+        // order — so axe sees the scrolling editor holds focusable content
+        // (scrollable-region-focusable; shell.full_height bounds the editor, so
+        // it scrolls).
+        EditorView.contentAttributes.of({
+          'aria-label': t('editor.source.sourceLabel'),
+          tabindex: '0',
+        }),
         EditorView.updateListener.of((update) => {
           if (!update.docChanged) return;
           // The initial on-disk load is not an edit to persist (ExternalLoad):
@@ -480,7 +487,17 @@ export default function SongEditor({
           <div ref={containerRef} className="est-cm" />
         </div>
         {showPreviewPane && (
-          <div className="est-editor-pane est-editor-preview">
+          // The preview scrolls on its own under the frame (shell.full_height)
+          // and holds no control, so it takes focus itself — a named region
+          // the keyboard can reach and scroll (axe scrollable-region-focusable),
+          // the scroll-region case jsx-a11y's rule documents as legitimate.
+          <div
+            className="est-editor-pane est-editor-preview"
+            role="region"
+            aria-label={t('editor.source.preview')}
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+            tabIndex={0}
+          >
             <div className="t-h3">{t('editor.source.preview')}</div>
             <Chart model={parsed} label={t('editor.source.previewLabel')} />
           </div>

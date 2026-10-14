@@ -2,7 +2,7 @@
 // Built on lib/journeys.js; real-UI only.
 
 import { expect } from '@playwright/test';
-import { openSongFromSearch } from './journeys.js';
+import { openExampleBook, openSongFromSearch, openSongInEditor, saveThroughSheet } from './journeys.js';
 
 // Add a new section before the song's FIRST section heading — a clean,
 // canonicalisable change ("section added"). `mark` names it. Uses insertText
@@ -88,4 +88,19 @@ export async function openHistory(page) {
     await page.getByRole('menuitem', { name: 'History', exact: true }).click();
   }
   await expect(page.locator('.est-history-row').first()).toBeVisible();
+}
+
+// Saves give the example song a history over its bundled first version: one
+// save per mark (a section added and saved with the note `Add a <mark>`), two
+// by default. Leaves the app on the reading view of the song.
+export async function buildHistory(page, marks = ['Coda', 'Bridge']) {
+  const title = 'Morning on the Porch';
+  await openExampleBook(page);
+  await openSongInEditor(page, 'Morning', title);
+  for (const [i, mark] of marks.entries()) {
+    if (i > 0) await editAgain(page);
+    await addSection(page, mark);
+    await saveThroughSheet(page, { note: `Add a ${mark}` });
+  }
+  await expect(page.getByRole('group', { name: title }).first()).toBeVisible();
 }

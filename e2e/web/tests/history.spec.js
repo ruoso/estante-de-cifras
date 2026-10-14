@@ -14,28 +14,19 @@ import { test, expect } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
 import { runOffline } from '../lib/offline.js';
 import {
-  openExampleBook,
-  openSongInEditor,
   openSongFromSearch,
-  saveThroughSheet,
   startApp,
 } from '../lib/journeys.js';
-import { addSection, editAgain, openFirstVersion, confirmSheet, openHistory as historyFromReading } from '../lib/journeys-edit.js';
+import {
+  addSection,
+  buildHistory,
+  editAgain,
+  openFirstVersion,
+  confirmSheet,
+  openHistory as historyFromReading,
+} from '../lib/journeys-edit.js';
 
 const SONG_TITLE = 'Morning on the Porch';
-
-// Two saves give the song a short history over its bundled first version.
-// Leaves the app on the reading view of the song.
-async function buildHistory(page) {
-  await openExampleBook(page);
-  await openSongInEditor(page, 'Morning', SONG_TITLE);
-  await addSection(page, 'Coda');
-  await saveThroughSheet(page, { note: 'Add a Coda' });
-  await editAgain(page);
-  await addSection(page, 'Bridge');
-  await saveThroughSheet(page, { note: 'Add a Bridge' });
-  await expect(page.getByRole('group', { name: SONG_TITLE }).first()).toBeVisible();
-}
 
 test('a song’s history: list, read a version, compare with now, show the text; axe-clean', async ({
   page,

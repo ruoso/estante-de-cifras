@@ -63,6 +63,9 @@
 .est .est-editor-preview {
   gap: calc(var(--u));
   overflow: auto;
+  /* The containing block of the chart's visually-hidden text, so it scrolls
+     with the preview instead of stretching the page (shell.full_height). */
+  position: relative;
 }
 
 /* CodeMirror chrome, keyed to the theme tokens. */

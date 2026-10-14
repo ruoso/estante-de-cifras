@@ -217,8 +217,15 @@ export default function SetlistPlay({
         ) : null}
       </div>
 
+      {/* The sheet scrolls under the frame (shell.full_height) and holds no
+          control, so it takes focus itself: a named region the keyboard can
+          reach and scroll (axe scrollable-region-focusable). */}
       <div
         className="scroll play-sheet"
+        role="region"
+        aria-label={title || positionText}
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        tabIndex={0}
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
       >

@@ -158,6 +158,11 @@ describe('SongArrange — tappable chords and the strip', () => {
   });
 });
 
+// The picker renders a fretboard diagram per candidate, and axe walks all of
+// them: deterministic work (no waiting) that runs past Vitest's 5 s default
+// when the full suite loads the machine, as the other axe-over-diagram tests do.
+const AXE_OVER_PICKER = 20000;
+
 describe('SongArrange — the picker', () => {
   it('Every Cm writes a key-level entry for every Cm, no footnote; axe clean over the open picker', async () => {
     const { store, commands } = makeStore({ text: song({}), entry: guitarEntry() });
@@ -174,7 +179,7 @@ describe('SongArrange — the picker', () => {
     expect(block.voicings.some((v) => v.symbol === 'Cm')).toBe(true);
     // Every Cm shares the one choice: no footnote marker was written.
     expect(write.payload.text).not.toMatch(/Cm\[\d\]/);
-  });
+  }, AXE_OVER_PICKER);
 
   it('Only here warns before acting, then marks one occurrence with its own footnote (§8.5.1, §2.4)', async () => {
     // Cm is already chosen at the key, up the neck; playing one occurrence
@@ -222,7 +227,7 @@ describe('SongArrange — the picker', () => {
     // The shape is still choosable (a shape can be right and unusual).
     await click(within(dialog).getByRole('button', { name: /^Choose Cm,/ }));
     expect(lastCommand(commands, CommandKind.WRITE)).toBeTruthy();
-  });
+  }, AXE_OVER_PICKER);
 
   it('a keyboard path opens the picker, works the segment and a candidate, and returns focus to the chord', async () => {
     const { store, commands } = makeStore({ text: song({}), entry: guitarEntry() });

@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { test, expect } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
 import { startApp, gotoTab, openFiles } from '../lib/journeys.js';
+import { uploadZip } from '../lib/journeys-files.js';
 
 // e2e-web — the upload preview surface against the compose stack, on the three
 // viewports (the phone/tablet/computer projects auto-run every spec). The whole
@@ -24,17 +25,6 @@ const TITLE = 'Banda do Bairro';
 async function openBooks(page) {
   await startApp(page);
   await gotoTab(page, 'Books');
-}
-
-// Pick a zip through the Add-a-book Upload way-in; the full-screen preview opens.
-async function uploadZip(page, zipPath, checkA11y) {
-  await page.getByRole('button', { name: 'Add a book' }).click();
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  await expect(sheet.getByText('A zip of a book, with or without its history.')).toBeVisible();
-  if (checkA11y) await checkA11y(); // the picker
-  await sheet.locator('input[type="file"]').setInputFiles(zipPath);
-  await expect(page.getByRole('radiogroup', { name: 'What to do with the upload' })).toBeVisible();
 }
 
 test('a zip uploaded as a new book appears on the shelf (workflow 7 §Ends one of two ways)', async ({

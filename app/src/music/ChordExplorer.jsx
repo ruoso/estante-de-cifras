@@ -226,8 +226,11 @@ export default function ChordExplorer({
     results = <FingeringGroups groups={groups} context={context} renderAction={starAction} />;
   }
 
+  // The chord input sits above the scrolling results, so it stays reachable
+  // while they scroll (workflow 16 §Scrolling and moving through it); the chip
+  // is in the app bar above both.
   const detail = (
-    <div className="scroll explorer-scroll">
+    <>
       <div className="explorer-head">
         <TextField className="field explorer-input" value={text} onChange={changeText}>
           <Label className="t-h3">{t('explorer.chord')}</Label>
@@ -243,9 +246,11 @@ export default function ChordExplorer({
           />
         </div>
       </div>
-      {notice}
-      {results}
-    </div>
+      <div className="scroll explorer-scroll">
+        {notice}
+        {results}
+      </div>
+    </>
   );
 
   const appbar = (
