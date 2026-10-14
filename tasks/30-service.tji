@@ -93,4 +93,10 @@ task service "The service" {
     depends !sharing, design.leave_book
     note "A self-remove endpoint: a member (reader or editor) ends their own membership; the owner cannot. Its effect matches the owner's remove (no clone or push afterwards; not listed in Mine on Estante). api/openapi.yaml extended first. Source: tasks/parking-lot.md 2026-10-14. Tests: behavior (a member leaves; the owner refused; a non-member 404); e2e-api (a second account joins by invitation, leaves, and can no longer clone)."
   }
+  task home_book "The account's home book on the service" {
+    effort 1d
+    allocate team
+    depends !books, !git_http, hook.home_book
+    note "Nothing creates an account's home book today: books.kind allows 'home' (migration 0003) and the hook validates a home-book push (hook.home_book), but no endpoint provisions a kind='home' repository or tells a device where it lives, so the app's home-book sync (home-book.js sync, fetching origin) has no remote. Provision exactly one home book per account (idempotently, on first request) and expose it — e.g. its id and git URL on the session or a GET endpoint — so a signed-in device attaches origin and pushes, and a new device clones it first (workflow 13). Never listed among songbooks, never shareable, deleted with the account. api/openapi.yaml extended first. Docs: docs/home-book-format.md, DIRECTION §3.2. Source: tasks/parking-lot.md 2026-10-14 triage (account.new_device blocked). Tests: behavior (provisioned once, idempotent; kind home; absent from the songbook list; not shareable; another account refused); e2e-api (a signed-in client gets its home book, pushes settings through the hook, a second session clones the same bytes)."
+  }
 }

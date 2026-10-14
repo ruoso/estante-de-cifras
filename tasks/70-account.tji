@@ -22,8 +22,8 @@ task account "First run and the account" {
   task new_device "A new device" {
     effort 3d
     allocate team
-    depends !sign_in, storage.home_book, sync.engine, books.online
-    note "The home book first, the shelf filling, only on your iPhone, a device used before signing in (merge or keep both My songs). Workflow 13. Tests: behavior (the home book first, the shelf filling, only on your iPhone; axe); e2e-web (a second browser context signs in to the same account on the stack and fills its shelf; a device used before signing in merges or keeps both My songs; axe)."
+    depends !sign_in, storage.home_book, sync.engine, books.online, service.home_book
+    note "Attach the home book to its service remote (service.home_book) on sign-in, pushing what this device has. The home book first, the shelf filling, only on your iPhone, a device used before signing in (merge or keep both My songs). Workflow 13. Tests: behavior (the home book first, the shelf filling, only on your iPhone; axe); e2e-web (a second browser context signs in to the same account on the stack and fills its shelf; a device used before signing in merges or keeps both My songs; axe)."
   }
   task account_screen "The account screen" {
     effort 2d
