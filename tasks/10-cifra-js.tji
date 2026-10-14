@@ -1,4 +1,4 @@
-# 10 — cifra.md for JavaScript (cifra.md repository, js/)
+# 10 — cifra.md for JavaScript (cifra.md/js/)
 #
 # The app's implementation of the format, held to the corpus byte for byte.
 # Framework-free: the view is the only layer that knows React.

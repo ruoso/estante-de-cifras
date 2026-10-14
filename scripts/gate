@@ -6,14 +6,15 @@
 # driver.py), people run it before committing, and CI — once the
 # `foundation.ci` task lands — runs it too, rather than a list of its own.
 #
-# It verifies BOTH repositories the project works in:
+# It verifies both parts of the repository:
 #
-#   - this one, estante-de-cifras: the WBS (tj3 and scripts/unblocked.py), the
-#     app (`app/`), the service (`service/`), and the end-to-end levels
-#     against the compose stack (`e2e/api/`, `e2e/web/`);
-#   - the sibling cifra.md repository, where tasks whose .tji note starts with
-#     "cifra.md:" land: the Python reference's tests, the corpus check, and the
-#     JavaScript (`js/`) and Go (`go/`) implementations.
+#   - estante-de-cifras: the WBS (tj3 and scripts/unblocked.py), the app
+#     (`app/`), the service (`service/`), and the end-to-end levels against
+#     the compose stack (`e2e/api/`, `e2e/web/`);
+#   - cifra.md (`cifra.md/`, a git subtree published to github.com/ruoso/
+#     cifra.md), where tasks whose .tji note starts with "cifra.md:" land: the
+#     Python reference's tests, the corpus check, and the JavaScript (`js/`)
+#     and Go (`go/`) implementations.
 #
 # Each check runs when what it checks exists and is skipped, saying so, when it
 # does not yet: nothing is built in estante-de-cifras at first, and the first
@@ -48,8 +49,6 @@
 #
 # Usage: scripts/gate [estante|cifra.md]...   (default: both)
 # Environment:
-#   ESTANTE_CIFRA_MD_DIR  the cifra.md checkout (default: ../cifra.md beside
-#                         this repository; relative paths resolve from here)
 #   ESTANTE_E2E_WORKERS   end-to-end workers (default: nproc, at most 4)
 #
 # Parallelism is always bounded: Go is given `-p $(nproc)`, Vitest in e2e/api
@@ -66,14 +65,7 @@ if ! [[ "$E2E_WORKERS" =~ ^[1-9][0-9]*$ ]]; then
   echo "gate: ESTANTE_E2E_WORKERS must be a positive integer, got '$E2E_WORKERS'" >&2
   exit 2
 fi
-CIFRA_MD_DIR="${ESTANTE_CIFRA_MD_DIR:-../cifra.md}"
-case "$CIFRA_MD_DIR" in
-  /*) ;;
-  *) CIFRA_MD_DIR="$ROOT/$CIFRA_MD_DIR" ;;
-esac
-if [[ -d "$CIFRA_MD_DIR" ]]; then
-  CIFRA_MD_DIR="$(cd "$CIFRA_MD_DIR" && pwd)"
-fi
+CIFRA_MD_DIR="$ROOT/cifra.md"
 
 want_estante=1
 want_cifra=1
@@ -315,14 +307,14 @@ if [[ $want_estante -eq 1 ]]; then
   # (design.example_book). It must only ever hold canonical cifra.md text, so
   # every file is checked canonical and diagnostic-free with the cifra.md
   # reference — the same reference this gate's cifra.md section runs. The step
-  # is guarded by the book existing and by a cifra.md checkout being present;
+  # is guarded by the book existing and by the cifra.md/ subtree being present;
   # check-example-book builds the reference venv itself if it is not there yet.
   if [[ -d app/example-book ]]; then
     if [[ -f "$CIFRA_MD_DIR/reference/pyproject.toml" ]]; then
       step "estante example-book: cifra.md reference check (canonical + no diagnostics)"
       scripts/check-example-book
     else
-      skip "estante example-book: no cifra.md reference at $CIFRA_MD_DIR (set ESTANTE_CIFRA_MD_DIR)"
+      skip "estante example-book: no cifra.md reference at $CIFRA_MD_DIR"
     fi
   else
     skip "estante example-book: app/example-book/ does not exist yet"
@@ -400,8 +392,8 @@ fi
 # ---------------------------------------------------------------------------
 
 if [[ $want_cifra -eq 1 ]]; then
-  if [[ ! -d "$CIFRA_MD_DIR/.git" ]]; then
-    skip "cifra.md: no checkout at $CIFRA_MD_DIR (set ESTANTE_CIFRA_MD_DIR)"
+  if [[ ! -d "$CIFRA_MD_DIR" ]]; then
+    skip "cifra.md: no cifra.md/ subtree at $CIFRA_MD_DIR"
   else
     echo
     echo "gate: cifra.md ($CIFRA_MD_DIR)"

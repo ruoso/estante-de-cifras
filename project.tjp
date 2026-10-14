@@ -9,8 +9,8 @@
 #
 # Conventions: one include per work stream, numbered so listings sort in
 # rough build order; numeric gaps allow inserting streams later. Leaf task
-# notes reference the governing document. Work in the cifra.md repository
-# (the format's specification and its implementations) is planned here too,
+# notes reference the governing document. Work on the format (the cifra.md/
+# subtree: its specification and its implementations) is planned here too,
 # since the app depends on it; its notes say "cifra.md:".
 #
 # Tests are never a separate stream: every leaf lands with the tests for what

@@ -11,7 +11,7 @@ It is written in the register of the cifra.md specification: numbered
 sections, RFC 2119 conformance language, a canonical-form section and an
 open-questions close. It is not a cifra.md format — the home book's files are
 the app's personal-state format, owned here, not songs — and nothing in the
-cifra.md repository defines or reads them.
+cifra.md format (`cifra.md/`) defines or reads them.
 
 ## 1. Scope and conformance
 

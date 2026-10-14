@@ -11,6 +11,11 @@ versions of it, and sync when there is a network — it works without one.
 Successor to [Explore Chords](https://github.com/ruoso/explore-chords), whose
 music engine it carries over.
 
+The cifra.md format — its specification, corpus, Python reference and the
+JavaScript and Go implementations — lives in this repository under
+`cifra.md/`, a git subtree published to github.com/ruoso/cifra.md with
+`git subtree push --prefix=cifra.md`.
+
 ## Status
 
 Design. Nothing is built yet. [docs/DIRECTION.md](docs/DIRECTION.md) records

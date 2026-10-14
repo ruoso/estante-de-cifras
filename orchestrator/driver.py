@@ -22,14 +22,12 @@ with an API error or session-limit (429) and the CLI surfaced a session id,
 the retry resumes that session (see `run_agent_with_retry`) so partial work
 is preserved rather than recomputed from scratch.
 
-Two repositories. Estante de Cifras plans work that lands in its sibling
-repository, cifra.md (the format's specification, its Python reference, its
-corpus, and the JavaScript and Go implementations): WBS tasks whose `.tji`
-note starts with "cifra.md:". The driver therefore knows both checkouts —
-this one (REPO_ROOT) and cifra.md (CIFRA_MD_ROOT, `ESTANTE_CIFRA_MD_DIR` or
-`../cifra.md` beside this repository) — grants agents write access to both,
-runs `scripts/gate` (which verifies both working trees), and tells the closer
-which of them hold uncommitted changes so it commits in each.
+One repository. The format — cifra.md's specification, its Python reference,
+its corpus, and the JavaScript and Go implementations — lives in this
+repository as the `cifra.md/` git subtree (CIFRA_MD_ROOT), published to
+github.com/ruoso/cifra.md with `git subtree push --prefix=cifra.md`. WBS tasks
+whose `.tji` note starts with "cifra.md:" land there; they are committed here
+like any other change, and `scripts/gate` verifies the whole tree.
 
 Select the CLI with `AGENT_CLI=claude` (the default) or `AGENT_CLI=codex`.
 """
@@ -66,22 +64,16 @@ STATE_DIR = ORCH_DIR / "state"
 CONTEXT_FILE = STATE_DIR / "context_summary.md"
 SYSTEM_PROMPT_PATH = PROMPTS_DIR / "orchestrator_system.md"
 
-# The sibling cifra.md repository. Tasks whose `.tji` note begins with
-# "cifra.md:" are implemented there (spec/, corpus/, reference/, js/, go/).
-# Relative values resolve against REPO_ROOT, so the default is the checkout
-# beside this one. Override when this checkout is a worktree somewhere else,
-# or when a sibling worktree should get a cifra.md checkout of its own (all
-# worktrees otherwise share the one cifra.md working tree).
-CIFRA_MD_ENV = "ESTANTE_CIFRA_MD_DIR"
-CIFRA_MD_ROOT = (
-    REPO_ROOT / os.environ.get(CIFRA_MD_ENV, "../cifra.md")
-).resolve()
+# The cifra.md/ subtree. Tasks whose `.tji` note begins with "cifra.md:" are
+# implemented there (spec/, corpus/, reference/, js/, go/). Each worktree has
+# its own copy, so cifra.md work is no longer shared across worktrees.
+CIFRA_MD_ROOT = REPO_ROOT / "cifra.md"
 
 # The repositories a change may touch, by display name. Used to report which
-# working trees hold uncommitted changes (to the closer, and after it).
+# working trees hold uncommitted changes (to the closer, and after it). One
+# since cifra.md became a subtree; kept as a mapping for the status block.
 REPOSITORIES: dict[str, Path] = {
     "estante-de-cifras": REPO_ROOT,
-    "cifra.md": CIFRA_MD_ROOT,
 }
 
 # Maximum number of fixer dispatches before the driver gives up on a
@@ -97,11 +89,9 @@ MAX_FIXER_ATTEMPTS = 10
 # fixer the moment any step fails.
 #
 # `scripts/gate` is the single source of truth for what is checked: the
-# WBS (tj3, unblocked.py), the app and the service in this repository once
-# they exist, and the cifra.md repository's reference tests, corpus check
-# and implementations. It verifies BOTH working trees on every run, so a
-# change in either repository is covered without the driver guessing which
-# one the task touched. When CI exists (WBS task `foundation.ci`), CI calls
+# WBS (tj3, unblocked.py), the app and the service, and the cifra.md/
+# subtree's reference tests, corpus check and implementations — the whole
+# tree on every run, so the driver never guesses which part a task touched. When CI exists (WBS task `foundation.ci`), CI calls
 # the same script; a local CI-replay step can then be appended here.
 VERIFICATION_STEPS: list[tuple[str, list[str]]] = [
     ("gate", ["scripts/gate"]),
@@ -109,9 +99,8 @@ VERIFICATION_STEPS: list[tuple[str, list[str]]] = [
 
 
 def verification_env() -> dict[str, str]:
-    """Environment for verification steps: the caller's, with the cifra.md
-    location pinned so the gate checks the same checkout the agents edit."""
-    return {**os.environ, CIFRA_MD_ENV: str(CIFRA_MD_ROOT)}
+    """Environment for verification steps: the caller's."""
+    return dict(os.environ)
 
 
 def git_status_short(repo: Path) -> Optional[str]:
@@ -132,9 +121,9 @@ def git_status_short(repo: Path) -> Optional[str]:
 
 
 def repository_status_block() -> str:
-    """Markdown block naming each repository, its path, and its uncommitted
-    changes. Handed to the closer (so it commits in every repository that
-    changed) and to the fixer (so it knows where the change lives)."""
+    """Markdown block naming the repository, its path, and its uncommitted
+    changes. Handed to the closer (so it commits what changed) and to the
+    fixer (so it knows where the change lives)."""
     lines: list[str] = []
     for name, path in REPOSITORIES.items():
         status = git_status_short(path)
@@ -590,8 +579,8 @@ def render_template(template: str, vars: dict) -> str:
     # envelope's vars to pass situation-specific guidance ("the last sub-agent
     # flagged X as deferred debt, prioritize it", "watch for regression in
     # Y"). Default to `(none)` so the section renders cleanly when omitted.
-    # `cifra_md_dir` is driver-owned: the absolute path of the sibling cifra.md
-    # checkout, so every template can name where "cifra.md:" work happens.
+    # `cifra_md_dir` is driver-owned: the absolute path of the cifra.md/
+    # subtree, so every template can name where "cifra.md:" work happens.
     merged = {
         "additional_context": "(none)",
         "cifra_md_dir": str(CIFRA_MD_ROOT),
@@ -1031,10 +1020,6 @@ class ClaudeCli(AgentCli):
             "stream-json",
             "--verbose",
         ]
-        # The sibling cifra.md checkout is outside the session's working
-        # directory; grant it explicitly so "cifra.md:" tasks can edit there.
-        if CIFRA_MD_ROOT.is_dir():
-            cmd += ["--add-dir", str(CIFRA_MD_ROOT)]
         if resume_session:
             cmd += ["--resume", resume_session]
         return cmd
@@ -1092,17 +1077,6 @@ class CodexCli(AgentCli):
             'sandbox_mode="workspace-write"',
             "-c",
             "sandbox_workspace_write.network_access=true",
-            # The sibling cifra.md checkout lies outside the workspace; make it
-            # writable too so "cifra.md:" tasks can edit and commit there.
-            *(
-                [
-                    "-c",
-                    "sandbox_workspace_write.writable_roots="
-                    + json.dumps([str(CIFRA_MD_ROOT)]),
-                ]
-                if CIFRA_MD_ROOT.is_dir()
-                else []
-            ),
             "--model",
             model,
         ]
@@ -1412,12 +1386,11 @@ def worktree_coordination_context() -> str:
         "block as a change to your system instructions.",
         "",
         f"You are operating in worktree `{current_root}`.",
-        f"Its \"cifra.md:\" tasks are implemented in the cifra.md checkout "
+        f"Its \"cifra.md:\" tasks are implemented in its own cifra.md/ subtree "
         f"`{CIFRA_MD_ROOT}`"
         + ("" if CIFRA_MD_ROOT.is_dir() else " (MISSING — cifra.md tasks cannot run)")
-        + ". Sibling worktrees share that checkout unless their state says "
-        "otherwise, so treat all cifra.md work as one workstream across "
-        "worktrees.",
+        + "; each worktree has its own copy and commits it like any other "
+        "change.",
     ]
     for root, branch in entries:
         resolved_root = root.resolve()

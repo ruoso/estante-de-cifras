@@ -17,24 +17,13 @@
 # parse` for reader diagnostics. It also guards the "a well-formed songbook,
 # and nothing else" rule (DIRECTION §2.1): the directory holds only
 # `*.cifra.md`, `*.setlist.md`, a `README.md` and a `.gitattributes`.
-#
-# Environment:
-#   ESTANTE_CIFRA_MD_DIR  the cifra.md checkout (default: ../cifra.md beside
-#                         this repository; relative paths resolve from here)
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 ROOT="$PWD"
 BOOK="$ROOT/app/example-book"
 
-CIFRA_MD_DIR="${ESTANTE_CIFRA_MD_DIR:-../cifra.md}"
-case "$CIFRA_MD_DIR" in
-  /*) ;;
-  *) CIFRA_MD_DIR="$ROOT/$CIFRA_MD_DIR" ;;
-esac
-if [[ -d "$CIFRA_MD_DIR" ]]; then
-  CIFRA_MD_DIR="$(cd "$CIFRA_MD_DIR" && pwd)"
-fi
+CIFRA_MD_DIR="$ROOT/cifra.md"
 REF="$CIFRA_MD_DIR/reference"
 
 if [[ ! -d "$BOOK" ]]; then
@@ -42,7 +31,7 @@ if [[ ! -d "$BOOK" ]]; then
   exit 1
 fi
 if [[ ! -f "$REF/pyproject.toml" ]]; then
-  echo "check-example-book: no cifra.md reference at $REF (set ESTANTE_CIFRA_MD_DIR)" >&2
+  echo "check-example-book: no cifra.md reference at $REF " >&2
   exit 1
 fi
 

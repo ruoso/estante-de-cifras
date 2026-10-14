@@ -3,7 +3,8 @@
 # The service's production image: one Go binary, git beside it, and the built
 # PWA, in a single small Linux image served on one origin (DIRECTION §3.6,
 # "One binary, with git beside it in the image"). Built from the repository
-# root so the context spans both app/ (the PWA) and service/ (the binary);
+# root so the context spans app/ (the PWA), service/ (the binary) and the
+# cifra.md/ subtree both of them build against;
 # compose.yaml builds this image and scripts/gate builds it from the working
 # tree.
 
@@ -12,29 +13,14 @@
 # clear of musl optional-dependency pitfalls; this stage is discarded, so its
 # size does not reach the final image.
 FROM node:24.20.0-slim AS app
-# This stage uses the cross-repo named-build-context pattern (DIRECTION §3.6,
-# "Both repositories meet in the image build"): the cifra.md format packages
-# live in the sibling cifra.md checkout, outside this build context, so each is
-# brought in as a named build context (compose.yaml wires it to the checkout)
-# and copied here at the path its dependency expects, letting the language's own
-# toolchain resolve it inside Docker without vendoring or cross-language copying.
-#
-# The build tree lives two levels deep (/build/app) on purpose: the app is the
-# first consumer of the cifra.md for JavaScript package (storage.working_copy),
-# carried in package.json as a sibling-repo file: dependency,
-# "cifra-md": "file:../../cifra.md/js". npm records that literal two-segment
-# path in package-lock.json, and `npm ci` only accepts the lockfile when that
-# path round-trips from the project root — which needs the root at least two
-# directories deep (from /build/app, ../../cifra.md/js resolves to
-# /cifra.md/js; from a top-level /app it would clamp at / and npm would reject
-# the lockfile as invalid).
+# The app depends on cifra.md for JavaScript as "cifra-md": "file:../cifra.md/js"
+# (the cifra.md/ subtree beside app/). The build tree mirrors the repository —
+# /build/app and /build/cifra.md/js — so that path resolves as it does in the
+# working tree and `npm ci` accepts the lockfile. Only the package's
+# package.json and src are copied, never its node_modules.
 WORKDIR /build/app
-# Bring the package's source in from the `cifra-md` named build context
-# (compose.yaml wires it to the sibling checkout) at exactly the file: target —
-# only package.json and src, never its node_modules — so `npm ci` can link it
-# and `npm run build` (vite) can bundle it.
-COPY --from=cifra-md package.json /cifra.md/js/package.json
-COPY --from=cifra-md src /cifra.md/js/src
+COPY cifra.md/js/package.json /build/cifra.md/js/package.json
+COPY cifra.md/js/src /build/cifra.md/js/src
 # Install from the lockfile first, for a cached layer only the lockfile busts;
 # then build the static bundle into /build/app/dist (vite build, base '/').
 COPY app/package.json app/package-lock.json ./
@@ -55,32 +41,26 @@ WORKDIR /src
 # go.mod/go.sum must sit there before `go mod download` computes the build list.
 COPY service/go.mod service/go.sum ./
 COPY api/go.mod api/go.sum /api/
-# cifra.md for Go, replaced by ../../cifra.md/go (from /src that target is
-# /cifra.md/go): the hook links it to check canonical form (hook.canonical). Its
-# go.mod/go.sum must sit at the replace target before `go mod download` computes
-# the build list, like the api module above. Brought in from the `cifra-md-go`
-# named build context (compose.yaml wires it to the sibling checkout), the Go
-# counterpart of the app stage's `cifra-md` context (DIRECTION §3.6, "Both
-# repositories meet in the image build").
-COPY --from=cifra-md-go go.mod go.sum /cifra.md/go/
+# cifra.md for Go, replaced by ../cifra.md/go (the subtree; from /src that
+# target is /cifra.md/go): the hook links it to check canonical form
+# (hook.canonical). Its go.mod/go.sum must sit at the replace target before
+# `go mod download` computes the build list, like the api module above.
+COPY cifra.md/go/go.mod cifra.md/go/go.sum /cifra.md/go/
 RUN go mod download
 COPY service/ ./
 # The api module's source at the replace target, so the Go toolchain resolves
 # estantedecifras.app/api inside the image exactly as it does from the working
-# tree (the cross-repo named-build-context pattern's same-repo counterpart,
-# DIRECTION §3.6).
+# tree.
 COPY api/ /api/
 # The cifra.md for Go source at its replace target, so `go build ./cmd/pre-receive`
 # links the hook's canonical-form check inside the image exactly as from the
 # working tree.
-COPY --from=cifra-md-go . /cifra.md/go/
+COPY cifra.md/go/ /cifra.md/go/
 # Two static binaries (CGO off) so the final image needs no C runtime: the
 # service, and the pre-receive hook git runs on every push (hook.refs). The
 # service proper imports no cifra.md Go package; the hook links cifra.md for Go
-# to check canonical form (hook.canonical), brought into this stage above with
-# the same cross-repo named-build-context pattern the app stage uses — the
-# `cifra-md-go` context wired in compose.yaml, copied at the module's replace
-# target (DIRECTION §3.6).
+# to check canonical form (hook.canonical), copied into this stage above at the
+# module's replace target.
 RUN CGO_ENABLED=0 go build -trimpath -o /out/service ./cmd/service
 RUN CGO_ENABLED=0 go build -trimpath -o /out/pre-receive ./cmd/pre-receive
 # The operator's copyright-notice tool (service.admin / workflow 10), shipped

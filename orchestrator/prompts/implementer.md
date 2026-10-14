@@ -7,13 +7,13 @@ You are a fresh top-level agent session. You have full tool access. You do
 NOT see prior conversation context — everything you need is in this prompt
 or on disk.
 
-Your working directory is the **estante-de-cifras** repository. The sibling
-**cifra.md** repository is checked out at **`$cifra_md_dir`**, and you have
-write access to it. The refinement says which repository the task lands in
-(a task whose `.tji` note starts with `cifra.md:` lands in cifra.md): make
-the change there, in its own conventions — its spec, its reference, its
-corpus, its `js/` or `go/`. Never copy cifra.md code into this repository or
-the other way round.
+Your working directory is the **estante-de-cifras** repository. The format,
+**cifra.md**, lives in it as the `cifra.md/` subtree. The refinement says
+where the task lands (a task whose `.tji` note starts with `cifra.md:` lands
+under `cifra.md/`): make the change there, in its own conventions — its
+spec, its reference, its corpus, its `js/` or `go/`. Never copy code from
+`cifra.md/` into the rest of the tree (the app, the service) or the other
+way round.
 
 **Use Explore sub-agents for multi-file reads** rather than `Read`-ing each
 file individually. Explore is right for surveying related tests, scanning
@@ -25,14 +25,14 @@ Read the refinement in full first, and the document sections it cites.
 ## Verification is the driver's job, not yours
 
 The orchestrator driver runs the canonical verification the moment you
-return: `scripts/gate`, which checks **both repositories** — here, the WBS
+return: `scripts/gate`, which checks **the whole tree** — the WBS
 (`tj3`, `scripts/unblocked.py`), the app (`app/`: install, lint, unit and
 behavior tests, build), the service (`service/`: `go vet`, `go test` with its
 behavior tests against the stack's Postgres at `ESTANTE_TEST_DATABASE_URL`,
 build) and, once compose.yaml and an e2e harness exist, the end-to-end
 levels — it brings the compose stack up once (built from the working tree,
 isolated, on free ports), runs `e2e/api/` (e2e-api) then `e2e/web/`
-(Playwright, e2e-web), and tears it down; in cifra.md, the reference's test suite, the corpus check
+(Playwright, e2e-web), and tears it down; under `cifra.md/`, the reference's test suite, the corpus check
 (`python -m tools.corpus --check`), and `js/` (npm lint/test/build) and
 `go/` (vet, test, build) once each exists. If the gate fails, the driver
 dispatches a `fixer` sub-agent against the failing log; you do not see that
@@ -51,12 +51,12 @@ gate does (its header lists the variables compose.yaml and the tests read)
 and tear it down afterwards.
 
 If the task creates something the gate will start checking (the first
-`app/package.json`, `service/go.mod`, `$cifra_md_dir/js/package.json`,
-`$cifra_md_dir/go/go.mod`), make sure its `lint`, `test` and `build` scripts
+`app/package.json`, `service/go.mod`, `cifra.md/js/package.json`,
+`cifra.md/go/go.mod`), make sure its `lint`, `test` and `build` scripts
 (or the Go module's packages) run non-interactively and pass: from then on
 the gate runs them on every task. Commit a lockfile with any new npm
-package, and make sure `node_modules/` is ignored in that repository
-(cifra.md has no root `.gitignore` yet).
+package (the root `.gitignore` already ignores `node_modules/` throughout
+the tree, `cifra.md/` included).
 
 The gate **excuses** what is not set up yet, and says so with a
 `gate: SKIP` line: a directory that does not exist, an npm script that is
@@ -132,8 +132,9 @@ $additional_context
   the refinement names is written here, at its level, and runs in the gate.
 - DO NOT touch any `.tji` file or the refinement's `## Status` section —
   that's the closer's job.
-- DO NOT commit, in either repository — the closer does that too.
-- DO NOT open PRs. DO NOT run `git push`.
+- DO NOT commit — the closer does that too.
+- DO NOT open PRs. DO NOT run `git push`, `git subtree push` or
+  `git subtree split`.
 
 ## Design tasks
 
@@ -220,17 +221,16 @@ named follow-up tasks (with stable ids) get registered into the WBS.
 - `tasks/refinements/README.md` — refinement shape + task-completion ritual.
 - `docs/DIRECTION.md`, `docs/workflows/`, `docs/mockups/` — the design
   (normative).
-- `$cifra_md_dir/spec/`, `$cifra_md_dir/corpus/README.md` — the format and
+- `cifra.md/spec/`, `cifra.md/corpus/README.md` — the format and
   how an implementation validates itself.
-- `scripts/gate` — what the driver will run against both trees.
+- `scripts/gate` — what the driver will run against the whole tree.
 
 ## Return contract
 
 When done, your final assistant message must be a short summary
 (≤ 8 lines):
 
-- Files created / edited (paths only), grouped by repository
-  (estante-de-cifras / cifra.md).
+- Files created / edited (paths only, relative to the repository root).
 - Tests written, by level, with file names: unit / behavior / e2e-api /
   e2e-web / corpus entries (`none` only for a design task).
 - Any test the refinement names that you could not write — which should
@@ -241,6 +241,6 @@ When done, your final assistant message must be a short summary
 
 The driver pastes this verbatim into the closer's prompt (via
 `$$implementer_summary`). The closer uses it for the Status block and the
-commit bodies, so be precise. The verification chain's pass/fail status is
+commit body, so be precise. The verification chain's pass/fail status is
 attached separately by the driver — you do not need to summarize test
 counts.

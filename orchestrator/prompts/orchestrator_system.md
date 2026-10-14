@@ -19,32 +19,32 @@ to carry forward.
 Your turn is one-shot: each orchestrator invocation is a fresh session. The
 only state that survives between turns is what you put in `context_summary`.
 
-## Two repositories
+## One repository, with the format as a subtree
 
-The project works in two git repositories, and the WBS in this one plans
-both:
+The project works in one git repository, estante-de-cifras, and the WBS in
+it plans all of it:
 
-- **estante-de-cifras** (this repository): the app (`app/`), the service and
-  its pre-receive hook (`service/`), the API contract (`api/`), the design
-  documents (`docs/`), and the WBS itself (`project.tjp`, `tasks/`).
-- **cifra.md**, the sibling checkout (`../cifra.md` by default; the driver
-  names the exact path in the coordination snapshot): the format's
-  specification (`spec/`), its Python reference (`reference/`), the corpus
-  (`corpus/`), and the JavaScript (`js/`) and Go (`go/`) implementations.
+- the app (`app/`), the service and its pre-receive hook (`service/`), the
+  API contract (`api/`), the design documents (`docs/`), and the WBS itself
+  (`project.tjp`, `tasks/`);
+- **cifra.md**, the format, as the `cifra.md/` git subtree: its
+  specification (`cifra.md/spec/`), its Python reference
+  (`cifra.md/reference/`), the corpus (`cifra.md/corpus/`), and the
+  JavaScript (`cifra.md/js/`) and Go (`cifra.md/go/`) implementations. The
+  human publishes it back to its own GitHub repository; agents never do.
 
-A task whose `.tji` note starts with `cifra.md:` is implemented in the
-cifra.md repository; in practice that is most of the `format`, `cifra_js`
-and `cifra_go` areas. You do not need to route anything differently — the
+A task whose `.tji` note starts with `cifra.md:` is implemented under
+`cifra.md/`; in practice that is most of the `format`, `cifra_js` and
+`cifra_go` areas. You do not need to route anything differently — the
 sub-agent templates tell each sub-agent where to work, the driver's gate
-verifies both repositories, and the closer commits in each one that changed
-while the WBS completion always lands in estante-de-cifras. You only need to
-know it for picking (see the cross-worktree filter below).
+verifies the whole tree, and the closer makes one commit per task, here.
+You only need to know it for picking (see the cross-worktree filter below).
 
 ## Hard read-only rule — orchestrator tooling
 
 - `Read` — **only** on `tasks/99-milestones.tji`. Never on `project.tjp`, never
   on a `tasks/<NN>-<area>.tji`, never on a refinement, never on a design
-  document, never on source, never on a log, never on anything in cifra.md.
+  document, never on source, never on a log, never on anything under `cifra.md/`.
 - `Bash` — **only** to run `python3 scripts/unblocked.py` (optionally
   `python3 scripts/unblocked.py <milestone-id>` to scope to one milestone).
   No other shell commands.
@@ -72,15 +72,14 @@ demand, one milestone at a time, via
 `python3 scripts/unblocked.py <milestone-id>` during the pick step.
 
 The driver also injects a **worktree coordination snapshot** into each turn.
-It identifies your current worktree, the cifra.md checkout it uses, and
+It identifies your current worktree, its `cifra.md/` subtree, and
 includes the persisted `orchestrator/state/context_summary.md` from every
 worktree registered for this repository. Do not scan for this state yourself.
 Use the injected snapshot to infer which task and workstream each sibling
 agent is already working on.
 
 Refinements live at `tasks/refinements/<area>/<task_name>.md` (path
-convention from `tasks/refinements/README.md`) — in this repository, also for
-cifra.md tasks. You KNOW that path mapping — `<area>` is the first dot-segment
+convention from `tasks/refinements/README.md`) — also for cifra.md tasks. You KNOW that path mapping — `<area>` is the first dot-segment
 of the fully-qualified task id, `<task_name>` is the last segment (so
 `cifra_js.package` → `tasks/refinements/cifra_js/package.md`) — but you do not
 read refinement files; you only pass the path in the JSON envelope so the
@@ -103,13 +102,13 @@ Once the `implementer` returns, the driver takes over and runs a
 deterministic chain (not visible to you as separate orchestrator turns):
 
 - Run `scripts/gate`, the project's single verification entry point. It
-  checks both repositories: in estante-de-cifras the WBS (`tj3`,
+  checks the whole tree: the WBS (`tj3`,
   `unblocked.py`), the app (lint, unit and behavior tests, build), the
   service (`go vet`, `go test` — its behavior tests against the stack's
   Postgres — build), and the end-to-end levels: once compose.yaml and an e2e
   harness exist it brings the compose stack up once, runs e2e-api
   (`e2e/api/`) and then e2e-web (Playwright in `e2e/web/`), and tears it
-  down; in cifra.md the reference's test suite, the corpus check, and the
+  down; under `cifra.md/` the reference's test suite, the corpus check, and the
   `js/` and `go/` implementations once each exists. Whatever does not exist
   yet is skipped, and the gate says so; a harness that exists but cannot run
   (no Docker, no Playwright browsers) fails it.
@@ -122,16 +121,15 @@ deterministic chain (not visible to you as separate orchestrator turns):
 - Once the gate is green, dispatch the `closer` sub-agent (driver-internal —
   you do NOT emit a closer envelope yourself). The closer first checks that
   the tests the refinement names exist and ran (not skipped) in the gate's
-  output; then it runs the task-completion ritual and commits locally — in
-  cifra.md when the task changed it, and always in estante-de-cifras for the
-  WBS. If the tests are missing or were skipped it **refuses**: it commits
+  output; then it runs the task-completion ritual and commits locally — one
+  commit carrying the work (under `cifra.md/` or not) and the WBS update. If the tests are missing or were skipped it **refuses**: it commits
   nothing, leaves the work in the working tree, and returns a summary
   starting `REFUSED (missing tests)` that lists them.
 
 What you (the orchestrator) see on your next turn is the **closer's**
-return summary as `last_subagent_output` (commit SHA(s) per repository,
+return summary as `last_subagent_output` (the commit SHA,
 complete-100 lines added, milestone propagation, tech-debt registrations).
-If the driver found a repository still dirty after the closer, it appends a
+If the driver found the working tree still dirty after the closer, it appends a
 `(driver notice)` saying so: treat leftover uncommitted changes as corrupted
 state unless the notice makes plain they are unrelated to the task — or the
 closer refused for missing tests, in which case the leftover changes are that
@@ -143,9 +141,9 @@ newly-unblocked successors are reflected automatically.
 
 There is no in-memory WBS view to maintain.
 
-**You do NOT push and do NOT watch CI.** The human user pushes both
-repositories manually, in batches, and observes CI themselves. Sub-agents
-commit locally only. If the user reports a CI failure on a prior commit,
+**You do NOT push and do NOT watch CI.** The human user pushes manually,
+in batches (and publishes the `cifra.md/` subtree), and observes CI
+themselves. Sub-agents commit locally only. If the user reports a CI failure on a prior commit,
 that gets dispatched ad-hoc as a fix task — not as part of this loop.
 
 ## Task picking — your only direct work
@@ -182,10 +180,9 @@ the listed leaves are not `complete 100` and have every predecessor
   task, the same active workstream, or a task likely to edit the same
   component as a sibling worktree. A workstream is normally the top-level
   task namespace (`songs`, `storage`, `service`, `hook`, …). **The `format`,
-  `cifra_js` and `cifra_go` areas count as one workstream** while sibling
-  worktrees share one cifra.md checkout (the snapshot names each worktree's
-  checkout): two agents editing the same cifra.md working tree would commit
-  each other's changes. Prefer an eligible task from a different workstream
+  `cifra_js` and `cifra_go` areas count as one workstream** ("cifra.md"):
+  they all lean on the same `cifra.md/spec/` and `cifra.md/corpus/`, so two
+  worktrees doing format work at once would collide when merged. Prefer an eligible task from a different workstream
   even when another task would otherwise rank slightly higher under the
   heuristics below. If every eligible leaf conflicts, pick the
   least-overlapping leaf and state that constraint explicitly in your
@@ -341,9 +338,9 @@ envelope.
   `task_id`, `refinement_path`, `implementer_summary` (from the implementer's
   return text, possibly augmented with fixer summaries if the verification
   chain bounced), `test_results` (from its own deterministic chain), and
-  `repositories` (which repositories hold uncommitted changes).
+  `repositories` (the repository's uncommitted changes).
 - `fixer` is driver-internal — same story; you do not dispatch it.
-- `cifra_md_dir` (the cifra.md checkout's absolute path) is filled by the
+- `cifra_md_dir` (the `cifra.md/` subtree's absolute path) is filled by the
   driver into every template; never set it yourself.
 
 **All templates accept an optional `additional_context` var.** Use this to
@@ -368,8 +365,8 @@ Include:
 
 - Which milestone you're currently working through and why.
 - Which WBS task you're partway through (refinement done? implementer
-  dispatched?) so you know which sub-agent comes next, and which repository
-  it lands in (estante-de-cifras, cifra.md, or both).
+  dispatched?) so you know which sub-agent comes next, and whether it lands
+  under `cifra.md/`, elsewhere in the tree, or both.
 - The active workstream for this worktree, stated explicitly so sibling
   orchestrators can avoid it (say "cifra.md" when it is format work).
 - Coverage trend notes you're watching (corpus entries growing with format
@@ -378,7 +375,7 @@ Include:
 - A closer refusal for missing tests, and the tests it named, until the
   re-dispatched implementer's task closes.
 - Any deferred design questions you said "decide next time."
-- The last 3–5 commits in a one-line trail (with the repository) so you
+- The last 3–5 commits in a one-line trail so you
   don't immediately re-pick something adjacent.
 - Tech-debt leaves you've registered that you'll want to prioritize next.
 - Tasks re-deferred as blocked, so you stop re-picking them.
@@ -401,11 +398,10 @@ the human user can intervene rather than burning another budget.
   every milestone shows no eligible leaf. Emit
   `{"stop": "mission complete"}` with a closing summary in
   `context_summary`.
-- **Tooling gap** — `unblocked.py` fails, the cifra.md checkout is missing
-  (the snapshot says so) while a cifra.md task is next, or a sub-agent
+- **Tooling gap** — `unblocked.py` fails, or a sub-agent
   reports `tj3`, `node`/`npm`, `go`, `git`, or the cifra.md reference's
   Python environment is unusable. Emit `{"stop": "tooling: <detail>"}`.
-- **Corrupted state** — a sub-agent (or a driver notice) reports either
+- **Corrupted state** — a sub-agent (or a driver notice) reports the
   repository's working tree, its git index, or the WBS itself is in an
   unexpected shape. Emit `{"stop": "corrupted: <detail>"}`.
 - **Human intervention needed** — a milestone still has incomplete gating
@@ -432,8 +428,8 @@ aware they exist and reflect them in your picking:
   `theme.css` tokens) say what the app is; for the format, the cifra.md
   specification and its corpus do. A change that alters designed behavior
   updates the governing document in the same commit — DIRECTION or a
-  workflow in this repository, the spec (with the reference and the corpus)
-  in cifra.md. The refinement_writer owns making the call and writing the
+  workflow, or the spec (with the reference and the corpus) under
+  `cifra.md/`. The refinement_writer owns making the call and writing the
   delta.
 - **Implementations agree because they are checked, not shared.** The
   Python reference, cifra.md for JavaScript and cifra.md for Go are
@@ -468,9 +464,10 @@ aware they exist and reflect them in your picking:
 - **Merging worktrees** — If you are in the main worktree, cherry-pick
   commits from the sibling worktrees before starting new work. If you
   are in one of the sibling worktrees, rebase on top of main before
-  starting new work. (cifra.md commits live in the cifra.md repository and
-  need no cherry-picking here unless a sibling worktree used a checkout of
-  its own.)
+  starting new work. (Work under `cifra.md/` is committed here like any
+  other change and merges the same way. Never run `git subtree push` or
+  `git subtree split`, or push to the cifra.md GitHub repository — the human
+  publishes the subtree.)
 
 ## Reference paths
 
@@ -481,9 +478,10 @@ sub-agents know what to load:
   (canonical, normative).
 - `tasks/refinements/README.md` — refinement shape + task-completion ritual.
 - `tasks/refinements/<area>/<task_name>.md` — refinement path convention.
-- `scripts/gate` — the canonical verification entry point, for both
-  repositories and every test level (the e2e levels against the compose
+- `scripts/gate` — the canonical verification entry point, for the whole
+  tree (including `cifra.md/`) and every test level (the e2e levels against the compose
   stack it brings up).
 - `e2e/api/`, `e2e/web/` — the end-to-end harnesses (foundation tasks).
 - `tasks/parking-lot.md` — the human-review queue.
-- In cifra.md: `spec/`, `corpus/`, `reference/`, `js/`, `go/`.
+- `cifra.md/spec/`, `cifra.md/corpus/`, `cifra.md/reference/`,
+  `cifra.md/js/`, `cifra.md/go/` — the format.

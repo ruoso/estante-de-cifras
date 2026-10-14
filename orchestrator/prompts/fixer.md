@@ -6,10 +6,11 @@ failing step for **`$task_id`**.
 
 The implementer has already landed changes against the refinement at
 **`$refinement_path`**. The driver then ran the verification chain —
-`scripts/gate`, which checks both repositories the project works in and
-stops at the first failure:
+`scripts/gate`, which checks the whole tree in two sections and stops at
+the first failure:
 
-- **estante-de-cifras** (your working directory): `tj3` on the WBS,
+- **estante** (everything outside `cifra.md/`; your working directory is
+  the repository root): `tj3` on the WBS,
   `scripts/unblocked.py`, then the app (`app/`: npm install if needed, lint,
   unit and behavior tests, build); then, once compose.yaml and an e2e
   harness exist, the compose stack brought up once (preflight for Docker
@@ -18,16 +19,15 @@ stops at the first failure:
   stack's Postgres — build) when it exists; then e2e-api (`e2e/api/`) and
   e2e-web (Playwright in `e2e/web/`, phone, tablet and computer, axe); the
   stack is always torn down;
-- **cifra.md** (checked out at **`$cifra_md_dir`**, and writable): the
-  reference's `pytest`, the corpus check (`python -m tools.corpus --check`),
+- **cifra.md** (the `cifra.md/` subtree): the reference's `pytest`, the corpus check (`python -m tools.corpus --check`),
   then `js/` (npm lint, test, build) and `go/` (vet, test, build) when each
   exists.
 
 Your job is to diagnose that failure and make a fix so the next driver-run
 of the chain passes. Every section of the gate's output starts with a
-`gate: <repository> <check>` line, so the last such line before the error
-says which repository and which check failed — fix it **in that
-repository**.
+`gate: <section> <check>` line (`estante …` or `cifra.md …`), so the last
+such line before the error says which part of the tree and which check
+failed — fix it **there**.
 
 You are a fresh top-level agent session. You have full tool access. You do
 NOT see prior conversation context — everything you need is in this prompt
@@ -110,7 +110,7 @@ commit otherwise.
 - A **corpus failure** (a reading or merge entry whose files disagree with
   an implementation) means the implementation disagrees with the
   specification's agreed bytes. Fix the implementation. Regenerate corpus
-  files (`python -m tools.corpus --write` in `$cifra_md_dir/reference/`)
+  files (`python -m tools.corpus --write` in `cifra.md/reference/`)
   ONLY when the refinement scopes the spec or reference change that
   justifies new bytes — and read every regenerated file before keeping it.
   Never make one implementation pass by copying another's code: they agree
@@ -134,9 +134,8 @@ commit otherwise.
 
 ## Hard rules
 
-- **DO NOT commit**, in either repository. The closer does that after
-  verification passes.
-- **DO NOT run `git push`.**
+- **DO NOT commit.** The closer does that after verification passes.
+- **DO NOT run `git push`, `git subtree push` or `git subtree split`.**
 - **DO NOT touch any `.tji` file.** Task state is the closer's job.
 - **DO NOT touch the refinement's `## Status` section.** Closer territory.
 - **DO NOT delete, skip or weaken tests** to make them pass (see §Fix
@@ -145,7 +144,7 @@ commit otherwise.
   test-runner configuration, what the e2e harnesses check — their
   viewports, the axe fixture's WCAG 2.1 AA rules, offline mode — and
   compose.yaml's healthchecks,
-  `$cifra_md_dir/reference/tools/corpus.py`) — fix the code, not the bar.
+  `cifra.md/reference/tools/corpus.py`) — fix the code, not the bar.
 - **No song text, commit messages or secrets in logs**, and no one else's
   copyrighted words in fixtures — the project's rules hold for fixes too.
 - Any build or test you run with a parallelism flag gets an explicit bound
@@ -155,7 +154,7 @@ commit otherwise.
 
 You can run a narrow sanity check on your fix (one test file, one Go
 package, the corpus check, or `scripts/gate cifra.md` / `scripts/gate
-estante` for the one repository that failed). But you do NOT need to re-run
+estante` for the one section that failed). But you do NOT need to re-run
 the full gate — the driver will do that automatically as soon as you
 return.
 
@@ -164,7 +163,7 @@ return.
 When done, your final assistant message must be a short summary
 (≤ 6 lines):
 
-- Files edited (paths only), with their repository.
+- Files edited (paths only, relative to the repository root).
 - Root cause: one-liner.
 - Fix: one-liner.
 - Local sanity-check status (re-ran the failing test/check? still green?

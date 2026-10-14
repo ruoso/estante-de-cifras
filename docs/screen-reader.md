@@ -12,7 +12,7 @@ It is written in the register of the cifra.md specification and of
 [`docs/home-book-format.md`](home-book-format.md): numbered sections, RFC 2119
 conformance language, worked examples with the literal string a reader hears.
 
-It is **not** a cifra.md format and changes nothing in the cifra.md repository.
+It is **not** a cifra.md format and changes nothing in the cifra.md specification (`cifra.md/`).
 The specification defines the document model and the canonical text only, and
 it is silent on assistive technology; the reading order is an app concern and
 lives on this side of the two repositories (DIRECTION §3.6–3.7: the app and the

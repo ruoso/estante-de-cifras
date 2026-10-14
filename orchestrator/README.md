@@ -25,49 +25,48 @@ that the driver owns:
    failure it dispatches the `fixer` sub-agent against the failing log and
    loops (cap: `MAX_FIXER_ATTEMPTS`). Once green, the driver dispatches the
    `closer` sub-agent with the pass-block as `$test_results` and the state
-   of both working trees as `$repositories`. The closer's return is what
-   feeds back into the next orchestrator turn; if either repository still
+   of the working tree as `$repositories`. The closer's return is what
+   feeds back into the next orchestrator turn; if the working tree still
    holds uncommitted changes after it, the driver appends a
    `(driver notice)` saying so.
 
 All invocations stream JSON so the driver prints live event summaries as
 they arrive. Full event streams are tee'd to `logs/iter-NNNN-<phase>.log`.
 
-## Two repositories
+## One repository, with the format as a subtree
 
-The WBS here plans work in two repositories:
+The WBS here plans all the work, in this one repository:
 
-- **estante-de-cifras** (this one): the app (`app/`), the service and hook
-  (`service/`), the API contract (`api/`), the design documents (`docs/`),
-  and the WBS (`project.tjp`, `tasks/`).
-- **cifra.md**: the format's specification, its Python reference, the
-  corpus, and the JavaScript (`js/`) and Go (`go/`) implementations. Tasks
-  whose `.tji` note starts with `cifra.md:` are implemented there.
+- the app (`app/`), the service and hook (`service/`), the API contract
+  (`api/`), the design documents (`docs/`), and the WBS (`project.tjp`,
+  `tasks/`);
+- **cifra.md**, the format, as the `cifra.md/` git subtree: its
+  specification (`cifra.md/spec/`), its Python reference
+  (`cifra.md/reference/`), the corpus (`cifra.md/corpus/`), and the
+  JavaScript (`cifra.md/js/`) and Go (`cifra.md/go/`) implementations.
+  Tasks whose `.tji` note starts with `cifra.md:` are implemented there.
 
-The driver finds cifra.md at `$ESTANTE_CIFRA_MD_DIR`, or `../cifra.md`
-beside this repository by default (a relative value resolves against this
-repository's root). End to end:
+This repository is the source of truth for cifra.md; the human publishes
+the subtree back to github.com/ruoso/cifra.md with
+`git subtree push --prefix=cifra.md`. Agents never run `git subtree push`
+or `split`, and never push there. End to end:
 
-- **Access.** Agents run with this repository as their working directory;
-  the driver grants them the cifra.md checkout too (`claude --add-dir`, or
-  Codex's `sandbox_workspace_write.writable_roots`), and fills its absolute
-  path into every template as `$cifra_md_dir`.
+- **Access.** Agents run with this repository as their working directory,
+  so `cifra.md/` is simply part of it; the driver also fills the subtree's
+  absolute path into every template as `$cifra_md_dir`.
 - **Refinements** for cifra.md tasks live here, like every other
-  (`tasks/refinements/<area>/<task>.md`), and say which repository the work
-  lands in.
-- **Verification.** `scripts/gate` checks both working trees on every run,
-  so whichever repository a task touched is covered. The driver passes
-  `ESTANTE_CIFRA_MD_DIR` to it, so it checks the same checkout the agents
-  edited.
-- **Commits.** The closer commits the work in cifra.md first when it
-  changed, then the completion here — the refinement's Status block (citing
-  the cifra.md commit), `complete 100`, milestone propagation, tech debt,
-  the parking lot — together with any files this repository's part of the
-  task changed. The driver checks both working trees afterwards.
-- **Worktrees.** Sibling worktrees of this repository share one cifra.md
-  checkout unless each sets `ESTANTE_CIFRA_MD_DIR` to its own, so the
-  orchestrator treats all cifra.md work (`format`, `cifra_js`, `cifra_go`)
-  as one workstream across worktrees.
+  (`tasks/refinements/<area>/<task>.md`), and say whether the work lands
+  under `cifra.md/`.
+- **Verification.** `scripts/gate` checks the whole tree on every run,
+  `cifra.md/` included, so whatever a task touched is covered.
+- **Commits.** The closer makes one commit per task: the work (under
+  `cifra.md/` or not) together with the completion — the refinement's
+  Status block, `complete 100`, milestone propagation, tech debt, the
+  parking lot. The driver checks the working tree afterwards.
+- **Worktrees.** Each worktree has its own copy of `cifra.md/`, committed
+  like any other change. The orchestrator still treats all cifra.md work
+  (`format`, `cifra_js`, `cifra_go`) as one workstream across worktrees,
+  since it all leans on the same spec and corpus.
 
 ## scripts/gate
 
@@ -97,8 +96,8 @@ skips, saying so, what does not yet:
   (creating `reference/.venv` if missing); `js/` and `go/` likewise when
   they exist.
 
-`scripts/gate estante` or `scripts/gate cifra.md` checks one repository,
-for a narrow check by hand; the driver always runs both. Parallelism is
+`scripts/gate estante` or `scripts/gate cifra.md` checks one part of the
+tree, for a narrow check by hand; the driver always runs both. Parallelism is
 always bounded (`go … -p $(nproc)`, explicit e2e worker counts).
 
 Tests land with their task — the WBS has no test stream. The refinement
@@ -143,12 +142,6 @@ The default CLI is Claude Code. Use Codex CLI with:
 
 ```
 AGENT_CLI=codex python3 driver.py
-```
-
-With cifra.md somewhere other than beside this repository:
-
-```
-ESTANTE_CIFRA_MD_DIR=/path/to/cifra.md python3 driver.py
 ```
 
 ### Replaying a step
@@ -223,7 +216,7 @@ driver.
 
 Before every orchestrator turn, the driver also injects persisted
 `orchestrator/state/context_summary.md` snapshots from all registered git
-worktrees, and the cifra.md checkout this worktree uses. The orchestrator
+worktrees, and the `cifra.md/` subtree path this worktree uses. The orchestrator
 uses those snapshots to avoid assigning sibling worktrees overlapping tasks
 or workstreams.
 
@@ -236,7 +229,7 @@ want to experiment.
 ## Prompts layout
 
 - `prompts/orchestrator_system.md` — orchestrator system prompt (mission,
-  the two repositories, read-only rule, pick heuristics, tests landing with
+  the `cifra.md/` subtree, read-only rule, pick heuristics, tests landing with
   their task, JSON envelope contract). Not rendered: it has no variables.
 - `prompts/refinement_writer.md` — refinement-writer sub-agent brief.
   Vars: `$task_id`, `$refinement_path`.
@@ -260,19 +253,18 @@ Cross-cutting policies (the design documents as constitution, the corpus as
 what implementations agree on, the project's standing rules — canonical
 form, accessibility, no song text in logs, offline first, no book without
 an account — the test levels and tests landing with their task, tech-debt
-registration, test-output handling, the two repositories, and "what
+registration, test-output handling, the `cifra.md/` subtree, and "what
 sub-agents must NOT do") are embedded into each
 template that needs them, since sub-agents are fresh sessions with no shared
 state.
 
 ## Permissions
 
-For Claude, the driver passes no permission flags to `claude -p` beyond
-`--add-dir` for the cifra.md checkout. Whatever `~/.claude/settings.json`
+For Claude, the driver passes no permission flags to `claude -p`. Whatever `~/.claude/settings.json`
 provides as the default is what the sub-agents get. If headless runs block
 on tool prompts, add e.g. `--permission-mode acceptEdits` in
 `ClaudeCli.command()`.
 
 For Codex, the adapter runs `codex -a never exec` with
-`sandbox_mode="workspace-write"`, network access, and the cifra.md checkout
-as an extra writable root.
+`sandbox_mode="workspace-write"` and network access; the working directory
+(the repository root, `cifra.md/` included) is the writable workspace.

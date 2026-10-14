@@ -289,12 +289,12 @@ spend its effort working around.
 | Component | Written in | Lives in | Does |
 |---|---|---|---|
 | **The app** | JavaScript, React, a PWA | this repository, `app/` | Everything the user sees (§3.7). Git through isomorphic-git in a Web Worker; the music core from Explore Chords. |
-| **cifra.md for JavaScript** | JavaScript | the cifra.md repository, `js/` | Reads and canonicalizes songs and setlists, merges, diffs in musical terms. The app's. |
+| **cifra.md for JavaScript** | JavaScript | this repository, `cifra.md/js/` | Reads and canonicalizes songs and setlists, merges, diffs in musical terms. The app's. |
 | **The service** | Go | this repository, `service/` | Sign-in, the registry, sharing, the change check, and git over HTTP. |
 | **The hook** | Go | this repository, `service/cmd/pre-receive` | Checks every push (workflow 14). |
 | **The admin tool** | Go | this repository, `service/cmd/estante-admin` | Handles a copyright notice: withdraw a book's invitations, remove its members, or take it down (workflow 10), with the reason recorded. An operator command, not an endpoint. |
-| **cifra.md for Go** | Go | the cifra.md repository, `go/` | Reads and canonicalizes songs and setlists. The hook's; also a git merge driver for computers. |
-| **The reference** | Python | the cifra.md repository, `reference/` | The specification's second opinion. |
+| **cifra.md for Go** | Go | this repository, `cifra.md/go/` | Reads and canonicalizes songs and setlists. The hook's; also a git merge driver for computers. |
+| **The reference** | Python | this repository, `cifra.md/reference/` | The specification's second opinion. |
 
 **The app and the service share no code**, only the HTTP API and the format.
 The API calls are cleanly separate from the interface, and the service never
@@ -305,7 +305,7 @@ ones, which the Go implementation does in the hook.
 shared.** That is what the specification is for. The corpus holds, for every
 entry, the input, its model, the canonical text and the canonical model, and
 each implementation must reproduce all four byte for byte, in both
-directions. On top of the corpus, cifra.md's CI runs the same random
+directions. On top of the corpus, the gate runs the same random
 documents through the Python, JavaScript and Go implementations and
 compares the bytes. A disagreement is a bug in one of them or a gap in the
 specification, and is settled in the specification.
@@ -386,36 +386,41 @@ Written down as a contract, `api/`, and both sides tested against it:
   Reads for every member; pushes for editors and the owner, and every push
   through the hook.
 
-#### Repositories
+#### The repository
 
 ```
-estante-de-cifras/            cifra.md/
-  app/        the PWA           spec/       the specification
-  service/    Go                corpus/     the agreed bytes
-    cmd/service                 reference/  Python
-    cmd/pre-receive             js/         for the app
-  api/        the contract      go/         for the hook, and git-merge-cifra
+estante-de-cifras/
+  app/        the PWA
+  service/    Go
+    cmd/service
+    cmd/pre-receive
+  api/        the contract
+  cifra.md/   the format (a git subtree, published as github.com/ruoso/cifra.md)
+    spec/       the specification
+    corpus/     the agreed bytes
+    reference/  Python
+    js/         for the app
+    go/         for the hook, and git-merge-cifra
   docs/
   compose.yaml
 ```
 
-**Both repositories meet in the image build.** The app bundles cifra.md for
-JavaScript, and the hook links cifra.md for Go; both packages live in the
-sibling cifra.md checkout, outside this repository's build context. The Docker
-build brings each in as a *named build context* — `cifra-md` for the
-JavaScript package, `cifra-md-go` for the Go one — wired in `compose.yaml` to
-the checkout and copied by the `Dockerfile` at the path the dependency expects,
-so `npm ci` and vite, and later `go build`, resolve the sibling package inside
-Docker without vendoring it or copying code between the two repositories
-(implementations agree because they are checked, not shared).
+**The format lives here and is published on its own.** cifra.md is a git
+subtree at `cifra.md/`: work on the format lands in this repository, and
+`git subtree push --prefix=cifra.md` publishes it to github.com/ruoso/cifra.md
+for anyone using the format without Estante. The app depends on it as
+`file:../cifra.md/js` and the service's module replaces it with
+`../cifra.md/go`, so the Docker build, which runs from the repository root,
+copies both at those paths with no build context of its own (implementations
+agree because they are checked, not shared).
 
 **Locally, everything runs as in production**: `compose.yaml` brings up
 Postgres, the service's image with git, the hook and the built app, and a
 local mail catcher in place of the email provider, and the end-to-end tests
 run against that one origin. While developing the app, its dev server proxies
-the API to the service, so it is one origin there too. CI runs the app's
-tests, the Go tests and the end-to-end tests here; the corpus and the cross-
-implementation comparison run in cifra.md.
+the API to the service, so it is one origin there too. CI runs the gate: the app's
+tests, the Go tests, the end-to-end tests, the corpus and the cross-
+implementation comparison.
 
 ### 3.7 The app
 

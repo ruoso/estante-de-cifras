@@ -1,6 +1,7 @@
-# The image is built from the repository root but needs only app/, service/
-# and api/ sources (service/ replaces estantedecifras.app/api with ../api, so
-# the API contract module meets it in the build); keep the build context small,
+# The image is built from the repository root but needs only app/, service/,
+# api/ and cifra.md's js/ and go/ sources (service/ replaces
+# estantedecifras.app/api with ../api, so the API contract module meets it in
+# the build); keep the build context small,
 # deterministic and free of host-built artefacts (node_modules and dist are
 # rebuilt inside the image).
 **/node_modules
@@ -22,6 +23,11 @@ report
 orchestrator
 e2e
 scripts
+cifra.md/reference
+cifra.md/spec
+cifra.md/corpus
+cifra.md/examples
+cifra.md/schema
 
 # The build files themselves and docs never belong in the context.
 Dockerfile

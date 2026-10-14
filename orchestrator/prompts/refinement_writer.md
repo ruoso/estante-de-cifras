@@ -8,13 +8,13 @@ You are a fresh top-level agent session. You have full tool access. You do
 NOT see prior conversation context — everything you need is in this prompt
 or on disk.
 
-Your working directory is the **estante-de-cifras** repository. The project
-also works in a second repository, **cifra.md**, checked out at
-**`$cifra_md_dir`**: the format's specification (`spec/`), its Python
-reference (`reference/`), the corpus (`corpus/`), and the JavaScript (`js/`)
-and Go (`go/`) implementations. A task whose `.tji` note starts with
-`cifra.md:` is implemented there. Its refinement still lives here, at
-`$refinement_path`.
+Your working directory is the **estante-de-cifras** repository. The format,
+**cifra.md**, lives in it as the `cifra.md/` subtree: the format's
+specification (`cifra.md/spec/`), its Python reference
+(`cifra.md/reference/`), the corpus (`cifra.md/corpus/`), and the JavaScript
+(`cifra.md/js/`) and Go (`cifra.md/go/`) implementations. A task whose
+`.tji` note starts with `cifra.md:` is implemented there. Its refinement
+lives with every other, at `$refinement_path`.
 
 **Use Explore sub-agents for multi-file reads** rather than `Read`-ing each
 file directly. Specifically:
@@ -27,8 +27,9 @@ file directly. Specifically:
 - Surveying the governing documents for the sections that already settle a
   question you surface — the WBS task's `note` line names them: DIRECTION
   sections, workflow numbers, mockup boards, or cifra.md spec chapters.
-- Searching existing sources (this repository's `app/`, `service/`, `api/`;
-  cifra.md's `reference/`, `js/`, `go/`) for the seams this task extends.
+- Searching existing sources (`app/`, `service/`, `api/`;
+  `cifra.md/reference/`, `cifra.md/js/`, `cifra.md/go/`) for the seams this
+  task extends.
   For the music core carried over from Explore Chords, the original lives
   in the sibling checkout `../explore-chords` if present.
 
@@ -63,8 +64,8 @@ $additional_context
 First locate the task's block in the matching `tasks/<NN>-<area>.tji` file
 (the area is the first dot-segment of `$task_id`) to get the effort
 estimate, dependency list, and the `note` line naming the governing
-documents — whether the note starts with `cifra.md:`, which decides the
-repository the work lands in, and its closing `Tests:` clause, which says
+documents — whether the note starts with `cifra.md:`, which decides
+whether the work lands under `cifra.md/`, and its closing `Tests:` clause, which says
 the levels of test the task lands with. Then read the named sections — they are
 normative: the refinement's job is to turn their promises into a concrete,
 testable work order, not to redesign them. Then read sibling refinements in
@@ -84,7 +85,8 @@ What governs, by kind of task:
   one server, git over HTTP, the API, repositories) and the workflows the
   note names (14 for what a push may hold, 10 for sharing, 13 for sign-in).
 - **Format work** (cifra.md): the specification chapters the note names,
-  `spec/9-conformance.md` for what a profile requires, `corpus/README.md`
+  `cifra.md/spec/9-conformance.md` for what a profile requires,
+  `cifra.md/corpus/README.md`
   for how an implementation validates itself, and the Python reference as
   the specification's second opinion — the behavior to match, not code to
   translate.
@@ -98,7 +100,8 @@ Cover, in order:
 
 - TaskJuggler back-link
 - Effort estimate
-- Repository — estante-de-cifras, cifra.md, or both (and which directories)
+- Repository — where the work lands: under `cifra.md/`, elsewhere in the
+  tree, or both (and which directories)
 - Inherited dependencies (settled/pending)
 - What this task is
 - Why it needs to be done
@@ -136,9 +139,9 @@ architectural seam, a deviation from what DIRECTION or a workflow says the
 app does, a change to the format) require a **design delta** in the same
 task:
 
-- in estante-de-cifras: edit `docs/DIRECTION.md` or the governing
+- for the app and service: edit `docs/DIRECTION.md` or the governing
   `docs/workflows/NN-*.md`;
-- in cifra.md: edit the governing `spec/` chapter, and scope the matching
+- for the format: edit the governing `cifra.md/spec/` chapter, and scope the matching
   reference change and corpus entries — the spec, the reference and the
   corpus move together, and a disagreement between implementations is
   settled in the spec, never by making one implementation copy another.
@@ -295,12 +298,13 @@ re-examination as a WBS task.
 ## File scope
 
 - WRITE: `$refinement_path` (the refinement) and, when needed, a design
-  delta: `docs/DIRECTION.md` or `docs/workflows/*.md` here, or a chapter
-  under `$cifra_md_dir/spec/`.
-- DO NOT edit any other file, in either repository. DO NOT touch any `.tji`
+  delta: `docs/DIRECTION.md` or `docs/workflows/*.md`, or a chapter
+  under `cifra.md/spec/`.
+- DO NOT edit any other file. DO NOT touch any `.tji`
   file — the orchestrator / closer own the WBS shape.
-- DO NOT commit, in either repository — the closer does that.
-- DO NOT open PRs. DO NOT run `git push`.
+- DO NOT commit — the closer does that.
+- DO NOT open PRs. DO NOT run `git push`, `git subtree push` or
+  `git subtree split`.
 
 ## Reference paths
 
@@ -309,8 +313,8 @@ re-examination as a WBS task.
   §3.7 the app).
 - `docs/workflows/` — what a user does, one workflow at a time.
 - `docs/mockups/README.md`, `docs/mockups/theme.css` — the visual language.
-- `$cifra_md_dir/spec/`, `$cifra_md_dir/corpus/README.md`,
-  `$cifra_md_dir/reference/README.md` — the format.
+- `cifra.md/spec/`, `cifra.md/corpus/README.md`,
+  `cifra.md/reference/README.md` — the format.
 
 ## Return contract
 
@@ -318,7 +322,8 @@ When done, your final assistant message must be either the `NOT READY:`
 line of "Check that every named test can be driven", or a short summary
 (≤ 5 lines):
 
-- Refinement path written, and the repository the work lands in.
+- Refinement path written, and where the work lands (under `cifra.md/` or
+  not).
 - Design-delta path(s) written (if any).
 - One-line summary of the chosen design.
 - If any architectural alternative was non-obviously rejected, one line on

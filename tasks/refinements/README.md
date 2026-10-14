@@ -24,15 +24,16 @@ Areas, matching `tasks/05-…80-*.tji`: `format`, `cifra_js`, `cifra_go`,
 `music`, `songs`, `books`, `account`, `launch`. (`bootstrap` is
 complete and has none.)
 
-### Two repositories
+### The format lives in `cifra.md/`
 
-The WBS plans work in two repositories. A task whose `.tji` note starts
-with `cifra.md:` is implemented in the sibling
-[cifra.md](https://github.com/ruoso/cifra.md) repository — its
-specification, Python reference, corpus, and the JavaScript (`js/`) and Go
-(`go/`) implementations. **Its refinement still lives here**, beside every
-other, and so does its completion: the Status block and `complete 100` are
-committed in this repository, the work itself in cifra.md.
+A task whose `.tji` note starts with `cifra.md:` is implemented under
+`cifra.md/` — the format's specification, Python reference, corpus, and the
+JavaScript (`cifra.md/js/`) and Go (`cifra.md/go/`) implementations. It is a
+git subtree, published to [github.com/ruoso/cifra.md](https://github.com/ruoso/cifra.md)
+by the human with `git subtree push --prefix=cifra.md`; agents never push or
+split it. Its refinement lives here beside every other, and the task lands in
+one commit like any other. (Refinements written before 2026-10-14 speak of a
+sibling cifra.md repository and cifra.md commit SHAs; those are history.)
 
 ### Design tasks
 
@@ -49,8 +50,8 @@ acceptance criteria are what the document must decide, not tests.
 Each refinement covers, in roughly this order:
 
 1. **TaskJuggler entry** — back-link to the `.tji` task definition.
-2. **Effort estimate**, the **repository** the work lands in
-   (estante-de-cifras, cifra.md, or both, with the directories), and
+2. **Effort estimate**, **where** the work lands (under `cifra.md/`,
+   elsewhere, or both, with the directories), and
    **Inherited dependencies** (settled or pending).
 3. **What this task is** — one paragraph of plain-language scope.
 4. **Why it needs to be done** — the dependency chain and downstream
@@ -123,9 +124,8 @@ The rule, for every role in the loop:
 
 ## Task-completion ritual
 
-When a task ships, these happen in the **same commit** in this repository
-(after the work itself is committed in cifra.md, for a `cifra.md:` task —
-the Status block cites that commit):
+When a task ships, these happen in the **same commit** as the work itself
+(for a `cifra.md:` task too):
 
 0. **The named tests exist and ran.** Every test the acceptance criteria
    name is in the change and ran, not skipped, in the gate's output (see

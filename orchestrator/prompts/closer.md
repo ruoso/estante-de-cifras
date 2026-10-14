@@ -3,7 +3,7 @@
 You are a one-shot sub-agent spawned by the orchestrator driver. Your task:
 run the task-completion ritual for **`$task_id`** per
 `tasks/refinements/README.md#task-completion-ritual`, then commit locally —
-in every repository the task changed.
+one commit for the task, in this repository.
 
 **DO NOT push.** The human user batches pushes themselves.
 
@@ -11,34 +11,34 @@ You are a fresh top-level agent session. You have full tool access. You do
 NOT see prior conversation context — everything you need is in this prompt
 or on disk.
 
-## Two repositories
+## One repository, one commit
 
-Your working directory is **estante-de-cifras**. The sibling **cifra.md**
-repository is checked out at **`$cifra_md_dir`**, and you have write access
-to it. A task whose `.tji` note starts with `cifra.md:` changes cifra.md; a
-task may also change both. The driver looked at both working trees just
-before invoking you:
+Your working directory is **estante-de-cifras**. The format, **cifra.md**,
+lives in it as the `cifra.md/` subtree; a task whose `.tji` note starts with
+`cifra.md:` changes files under `cifra.md/`, and a task may also change
+files on both sides. The driver looked at the working tree just before
+invoking you:
 
 $repositories
 
-- **cifra.md changed** → the code, spec, corpus and test changes are
-  committed **in cifra.md**, first (see §Commits).
-- **The WBS completion always lands in estante-de-cifras**: the refinement's
-  Status block, `complete 100`, the note back-link, milestone propagation,
-  tech-debt registration and the parking lot — committed here, together
-  with any estante-de-cifras files the task changed.
+The task lands as **one commit, here**: the work (under `cifra.md/` or
+elsewhere) together with the WBS completion — the refinement's Status
+block, `complete 100`, the note back-link, milestone propagation, tech-debt
+registration and the parking lot. Never run `git subtree push` or
+`git subtree split`, and never push to the cifra.md GitHub repository: the
+human publishes the subtree.
 
-After you return, the driver checks both working trees again and tells the
+After you return, the driver checks the working tree again and tells the
 orchestrator about anything left uncommitted — so leave nothing of this task
-behind in either repository.
+behind.
 
 ## Tests are already confirmed green by the driver
 
 The driver ran the canonical verification deterministically before invoking
-you, and it passed: `scripts/gate`, which checks both repositories — the WBS
+you, and it passed: `scripts/gate`, which checks the whole tree — the WBS
 (`tj3`, `scripts/unblocked.py`), the app and the service when they exist,
 the end-to-end levels against the compose stack once their harnesses exist
-(e2e-api in `e2e/api/`, e2e-web in `e2e/web/`), and in cifra.md the
+(e2e-api in `e2e/api/`, e2e-web in `e2e/web/`), and under `cifra.md/` the
 reference's tests, the corpus check, and the `js/` and `go/` implementations
 when they exist.
 
@@ -48,7 +48,7 @@ the task's own tests exist and ran — §0 below.
 
 The exact results are listed below under §Verification results. You do NOT
 need to re-run any step. Trust the block — that's what it's for. Paste
-those results directly into each commit message's Verification block. If you
+those results directly into the commit message's Verification block. If you
 ever feel an urge to re-run the gate "just to be sure", don't: the
 wall-clock loss is real and the driver's chain is the canonical signal.
 
@@ -82,7 +82,7 @@ $additional_context
 The refinement is at **`$refinement_path`**.
 
 The implementer's return summary (use this to seed the Status block and the
-commit bodies — if a fixer sub-agent also touched the change, its follow-up
+commit body — if a fixer sub-agent also touched the change, its follow-up
 summary will be appended in the same block):
 
 ---
@@ -110,12 +110,12 @@ If the implementer's summary reports the task could NOT proceed (a
 precondition the WBS graph doesn't express turned out unmet; the refinement
 was found unimplementable as scoped), do NOT run the completion ritual —
 there is nothing to mark complete. Instead: if the implementer left partial
-changes in either repository, do not commit them — set them aside with
-`git stash push -u -m "$task_id re-deferred"` in that repository and say so.
+changes, do not commit them — set them aside with
+`git stash push -u -m "$task_id re-deferred"` and say so.
 Then append a `tasks/parking-lot.md` entry describing the blocker and the
 concrete trigger that would unblock it, append a `## Status` block to the
 refinement noting the re-defer (date + reason — not Done), commit those two
-files in estante-de-cifras, and say prominently in your return summary that
+files, and say prominently in your return summary that
 the task was re-deferred so the orchestrator records it in
 `context_summary` and stops re-picking it.
 
@@ -151,8 +151,8 @@ Check, before anything else:
    names, by level (and the `Tests:` clause of the task's `.tji` note, which
    summarises them).
 2. **They exist**: each named test (file, case, corpus entry) is in the
-   working tree's changes (`git status` / `git diff --stat` in the
-   repository it belongs to, plus a search for the test's name).
+   working tree's changes (`git status` / `git diff --stat`, plus a search
+   for the test's name).
 3. **They ran, not skipped**: dispatch an Explore sub-agent against the gate
    log named in §Verification results to confirm, for each level the task
    names, that the gate section for it ran (a `gate: … npm run test`, `go
@@ -165,9 +165,9 @@ Check, before anything else:
    board the refinement names exist; there are no code tests to find.
 
 If anything named is missing, skipped, or ran on fewer viewports than
-named: **refuse**. Do not run the rest of the ritual, do not commit in either
-repository, do not touch the `.tji` files or the Status block, and leave
-the work exactly where it is in the working tree(s) — the orchestrator will
+named: **refuse**. Do not run the rest of the ritual, do not commit,
+do not touch the `.tji` files or the Status block, and leave
+the work exactly where it is in the working tree — the orchestrator will
 re-dispatch the implementer for this same task. Return a summary whose
 first line is `REFUSED (missing tests): $task_id`, followed by the list of
 missing or skipped tests with their level and the acceptance criterion each
@@ -179,14 +179,13 @@ whose tests this task's work shows were never written) is that task's
 defect: append a `tasks/parking-lot.md` entry naming the task and the
 missing tests, for the human to reopen it — never a new WBS leaf.
 
-### 1. Commit in cifra.md, if it changed
+### 1. Sort out what belongs to this task
 
-If the repository block above shows uncommitted changes in cifra.md that
-belong to this task, commit them there now (see §Commits for the message
-and staging rules), and note the commit's short SHA. This comes first so
-the Status block and the estante-de-cifras commit can cite it. If cifra.md
-holds changes that are clearly NOT this task's (unrelated files the
-implementer and fixer never mention), leave them alone and report them.
+Check the repository block above: everything this task changed — under
+`cifra.md/` or elsewhere — goes into the one commit (see §Commits for the
+message and staging rules). If the tree holds changes that are clearly NOT
+this task's (unrelated files the implementer and fixer never mention),
+leave them alone and report them.
 
 ### 2. Append a `## Status` block to `$refinement_path`
 
@@ -197,14 +196,14 @@ Format:
 
 **Done** — <today's date>.
 
-- <4–8 bullets summarizing what landed, citing artifact paths; for cifra.md
-  work, the paths relative to that repository and its commit, e.g.
-  "cifra.md `abc1234`: js/src/text.js, corpus harness in js/test/">
+- <4–8 bullets summarizing what landed, citing artifact paths relative to
+  the repository root, e.g. "cifra.md/js/src/text.js, corpus harness in
+  cifra.md/js/test/">
 ```
 
 Do not rewrite earlier sections of the refinement. Use the implementer
 summary above to seed the bullets, expanded with the actual file paths from
-the diffs (`git diff --stat` in each repository to confirm).
+the diffs (`git diff --stat` to confirm).
 
 ### 3. Mark the task complete in the WBS
 
@@ -236,8 +235,8 @@ commit. Use a stable snake_case id, give it:
 - an effort estimate (`0.5d` / `1d` / `2d`),
 - an `allocate team` line,
 - a `depends` list reflecting the real prerequisites,
-- a `note` line — starting with `cifra.md:` when the work lands in the
-  cifra.md repository — citing the source-of-debt refinement + this commit,
+- a `note` line — starting with `cifra.md:` when the work lands under
+  `cifra.md/` — citing the source-of-debt refinement + this commit,
   and the governing document (DIRECTION section, workflow, or spec chapter),
   and ending, like every leaf's note, with the tests it will land with:
   `Tests: unit (…); behavior (…); e2e-api (…); e2e-web (…).` (the levels
@@ -281,14 +280,13 @@ Run `tj3 --silent --no-reports project.tjp 2>&1 | grep -iE "error|warning"`
 and confirm no output. Any error or warning on your `.tji` edits must be
 fixed before the commit.
 
-## Commits (one task = one commit per repository it changed)
+## Commits (one task = one commit)
 
-Both repositories write commit messages the same way — read
-`git log -5` in each to match the voice:
+Read `git log -5` to match the voice of commit messages:
 
 - the subject is a plain imperative sentence saying what the change does
-  for the project, in the repository's own words (e.g. "Read the text layer
-  in cifra.md for JavaScript"), no task-id prefix, no trailing period;
+  for the project, in its own words (e.g. "Read the text layer in cifra.md
+  for JavaScript"), no task-id prefix, no trailing period;
 - the body is prose explaining what landed and why, citing the refinement
   and the governing document(s);
 - then the task, and the verification;
@@ -305,11 +303,9 @@ the governing document(s)>
 
 <bulleted list of files with one line each>
 
-Task: $task_id (estante-de-cifras, $refinement_path)
-<in the estante-de-cifras commit of a task that also changed cifra.md:>
-cifra.md: <short SHA> <its subject>
+Task: $task_id ($refinement_path)
 
-Verification (driver-run `scripts/gate`, both repositories — see the
+Verification (driver-run `scripts/gate`, the whole tree — see the
 results block): green.
   - <the rows of the results block>
   - Tests landed, by level: <unit: …; behavior: …; e2e-api: …; e2e-web:
@@ -333,10 +329,12 @@ to build or test, any parallelism flag gets an explicit bound
 
 ## Hard rules
 
-- **DO NOT run `git push`**, in either repository. The commits stay local;
-  the human user pushes in batches at their own cadence.
-- DO NOT bundle two tasks in one commit. One leaf = one commit per
-  repository it changed.
+- **DO NOT run `git push`.** The commit stays local; the human user pushes
+  in batches at their own cadence.
+- **DO NOT run `git subtree push` or `git subtree split`**, and never push
+  to the cifra.md GitHub repository — publishing the subtree is the
+  human's.
+- DO NOT bundle two tasks in one commit. One leaf = one commit.
 - DO NOT open PRs.
 - DO NOT amend a previous commit. Always create a new one.
 - DO NOT edit source/test/spec/corpus files beyond what the ritual
@@ -348,11 +346,11 @@ to build or test, any parallelism flag gets an explicit bound
 When staging files, prefer adding specific files by name rather than
 `git add -A` or `git add .`.
 
-- **In cifra.md**: the files the implementer and fixer touched — spec
+- **Under `cifra.md/`**: the files the implementer and fixer touched — spec
   chapters, reference code and tests, corpus entries (including their
   generated files), `js/` or `go/` sources, tests and lockfiles.
-- **In estante-de-cifras**: the source/test/document files the implementer
-  touched here (including any design delta the refinement_writer produced
+- **Elsewhere**: the source/test/document files the implementer and fixer
+  touched (including any design delta the refinement_writer produced
   in `docs/`), the refinement (with its new Status block), the
   `tasks/<NN>-<area>.tji` change for the `complete 100` line (and any
   registered tech-debt block), the `tasks/99-milestones.tji` change
@@ -375,8 +373,7 @@ Never stage generated output that is not meant to be tracked
 When done, your final assistant message must be a short summary
 (≤ 7 lines):
 
-- Commit SHA(s), per repository (estante-de-cifras, and cifra.md if it
-  changed) — or, on a refusal, `REFUSED (missing tests): $task_id` as the
+- The commit SHA — or, on a refusal, `REFUSED (missing tests): $task_id` as the
   first line and the missing tests instead of the rest of this list.
 - Tests confirmed by §0, by level (one line).
 - `complete 100` lines added (which task ids).
@@ -385,6 +382,6 @@ When done, your final assistant message must be a short summary
   into — `none` if none. (Confirm none landed in the `ORPHANS` section of
   `python3 scripts/unblocked.py`.)
 - Parking-lot entries appended (titles) — `none` if none — and one-line
-  confirmation that `git push` was NOT run in either repository.
+  confirmation that `git push` (and `git subtree push`) was NOT run.
 
 The orchestrator reads this and uses it to decide the next pick.

@@ -40,4 +40,4 @@ require (
 
 replace estantedecifras.app/api => ../api
 
-replace github.com/ruoso/cifra.md/go => ../../cifra.md/go
+replace github.com/ruoso/cifra.md/go => ../cifra.md/go

@@ -27,7 +27,7 @@ git host:
 - Under an item, an optional list of **properties** for that song in this
   setlist: `key`, and `note`, free text.
 
-It is short enough to define in the cifra.md repository, as a companion to the
+It is short enough to define in the cifra.md specification, as a companion to the
 song format, so that other tools can read it.
 
 Setlists are found by the same search as songs, marked as setlists. Opening
