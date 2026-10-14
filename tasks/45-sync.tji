@@ -79,4 +79,16 @@ task sync "Sync" {
     depends !conflicts, !keep_both
     note "Workflow 9 (Settling one) shows the two bars with their chord diagrams; the app resolver shows no diagrams for yours and theirs. Also from the W09 board: a blank indent before the conflicted title in the IN CONFLICT row, and on a computer the book panel without the shell sidebar. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (both diagrams beside each choice, axe); e2e-web (a conflict settled on the three viewports, mockup W09#1-4)."
   }
+  task in_place_notices "Full-screen and editor merge notices as drawn" {
+    effort 1d
+    allocate team
+    depends !read_in_place, songs.edit_in_place
+    note "Workflow 8 (A song open while it changes; W08): full-screen reading lacks the song title and the footnote that an update is waiting until it is left, and its control reads Exit full screen; the editor's merge notice does not say the incoming save was merged under the unsaved edits, and the editor shows no unsaved mark. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the footnote while full screen; the merged-under-your-edits notice; axe); e2e-web (mockup W08#3-5)."
+  }
+  task conflicts_editing "Editing a conflict in the source editor, with people's names" {
+    effort 1d
+    allocate team
+    depends !conflicts
+    note "Workflow 9 (Settling one, Edit): Edit opens the marked text in a plain textarea, not the workflow-3 source editor with line numbers and marker highlighting; the markers read ours/theirs where the board says yours/Ana's; the bar conflict's title says A bar you both changed where the board names it (Primeira parte, bar 5). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (Edit mounts the source editor on the marked text; the bar named; axe); e2e-web (a conflict edited and saved, mockup W09#3)."
+  }
 }

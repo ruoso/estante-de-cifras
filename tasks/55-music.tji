@@ -52,6 +52,18 @@ task music "Music" {
     effort 0.5d
     allocate team
     depends !explorer
-    note "Workflow 16 (Viewing by notation) offers to read C7+ as C7#5; the app asks Read as C7(5+) instead?. Use the notation the workflow names for the flip, in every language. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: unit (the flip label for C7+ and its siblings); e2e-web (the explorer on C7+, mockup W16#3)."
+    note "Workflow 16 (Viewing by notation) offers to read C7+ as C7#5; the app asks Read as C7(5+) instead?. Use the notation the workflow names for the flip, in every language. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: unit (the flip label for C7+ and its siblings); e2e-web (the explorer on C7+, mockup W16#3). Also (pairwise audit): the difficulty words read Easy/Medium/Hard where the W16 board writes them lowercase."
+  }
+  task instruments_roster_default "The roster lists the instrument in use from the first run" {
+    effort 0.5d
+    allocate team
+    depends !instruments
+    note "On a fresh device the Instruments roster shows only Add instrument, while the header chip already says Guitar: the built-in standard guitar the app plays by default is not listed or marked in use (workflow 15; W15 phone). Also the remove confirm says Its 0 saved shapes when there are none. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: unit (the roster with no stored instrument lists the default, in use); behavior (axe); e2e-web (first run → Instruments lists Guitar in use; mockup W15#1)."
+  }
+  task instruments_layout "Instruments and voicing rules as drawn" {
+    effort 1.5d
+    allocate team
+    depends !instruments
+    note "The W15 board opens the voicing rules full screen in two columns and, on a computer, the instruments with a rail; the app opens both as sheets over the shell, and the add-instrument sheet carries a Cancel and a back arrow the board does not draw. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (axe); e2e-web (instruments and rules on the three viewports, mockup W15#1-4)."
   }
 }

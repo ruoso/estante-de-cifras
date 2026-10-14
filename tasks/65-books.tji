@@ -121,4 +121,28 @@ task books "Books" {
     depends !setlists
     note "The W12 board keeps Search, Books and Setlists visible under an open setlist on a phone; the app hides the tab bar there. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (the tab bar under an open setlist on narrow); e2e-web (a setlist opened from the Setlists tab on a phone, the tab bar reaches Search; mockup W12#1-2)."
   }
+  task share_people "Sharing names people, and reads as drawn" {
+    effort 2d
+    allocate team
+    depends !share, service.sharing
+    note "The Share sheet lists a member, and who joined through an invitation, by raw account id (1813458e-...) where the W10 board names them (workflow 10: members listed). Name people by their display name (the service's members/invitations responses carry it, or the contract gains it). Also from W10: the new invitation lacks the room-left callout, invitations lack Copy link, the owner's people screen and a song's share are sheets where the board draws a screen and a side panel. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (names, not ids; Copy link; axe); e2e-api (members and invitations carry names); e2e-web (two people, the owner sees the other by name; mockup W10#1-6)."
+  }
+  task add_book_chooser "Add a book as a four-way chooser" {
+    effort 1d
+    allocate team
+    depends !add_by_link, !upload_ui
+    note "The W07 board opens Add a book as a chooser of four ways in (new, by link, mine on Estante, upload); the app shows four inline forms. The upload preview is a side pane whose mode switch wraps. Under Mine on Estante the board offers No passkey here? Email me a link, which needs a recovery email to exist (account.recovery_email). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (each way in from the chooser; axe); e2e-web (each way on the three viewports, mockup W07#1-4)."
+  }
+  task setlist_play_chrome "Playing a setlist shows its key" {
+    effort 0.5d
+    allocate team
+    depends !play
+    note "The W12 board's player carries the song's key chip (In A) and the setlist's key line; the app's player has neither. The Add to setlist dialog is cramped (list, title and buttons with no gaps). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the key chip and line; axe); e2e-web (play a setlist with a key on the three viewports, mockup W12#2-3)."
+  }
+  task file_view_history_polish "The file view's history and rename as drawn" {
+    effort 1d
+    allocate team
+    depends !file_view
+    note "From W14: the rename dialog does not list the links it will update (workflow 14 rename keeps setlists pointing at the song); the computer history detail has no commit heading or message line. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (rename lists the setlists it updates; the commit heading; axe); e2e-web (mockup W14#3-4)."
+  }
 }
