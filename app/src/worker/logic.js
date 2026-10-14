@@ -968,13 +968,16 @@ export function createWorkerLogic(port, options = {}) {
             // title typed but not saved is findable immediately (storage.index
             // acceptance 5, DIRECTION §3 L116-117). Marked unsaved.
             await ensureIndexHydrated();
-            await persistIndexChanges(
-              await ensureSearchIndex().reindexPath({
-                bookId,
-                path,
-                unsaved: true,
-              }),
-            );
+            const changes = await ensureSearchIndex().reindexPath({ bookId, path, unsaved: true });
+            await persistIndexChanges(changes);
+            // The song's listing moved (it is newly unsaved, or its title
+            // changed): tell the views, so a browse listing (recents, a book's
+            // songs, Save all) re-reads it. Browse takes no lock and can be
+            // answered before this re-index lands, so asking again after it is
+            // what keeps the listing true.
+            if (changes.visibleChange) {
+              port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: 'ready' }));
+            }
             break;
           }
           case CommandKind.SAVE: {

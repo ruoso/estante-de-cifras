@@ -314,9 +314,17 @@ export function createSearchIndex({ fs, git, parse, parseSetlist, readHeadOids }
       changes.putDocs.push(doc);
     }
 
+    const prev = locationByKey.get(key);
     const location = { key, bookId, path, oid, unsaved };
     locationByKey.set(key, location);
     changes.putLocations.push(location);
+    // What a listing shows of this location moved: it is new, its unsaved flag
+    // flipped, or its title changed. Lets the caller tell views to refresh a
+    // listing without doing so on every keystroke's write.
+    changes.visibleChange =
+      !prev ||
+      prev.unsaved !== unsaved ||
+      (docsByOid.get(prev.oid)?.title ?? null) !== (doc.title ?? null);
 
     // Replace this location's MiniSearch document (ids are unique): `replace`
     // when it already exists, `add` otherwise.

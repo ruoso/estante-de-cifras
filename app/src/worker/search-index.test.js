@@ -115,6 +115,29 @@ describe('extractFields', () => {
   });
 });
 
+describe('createSearchIndex — visibleChange', () => {
+  it('flags a new location, a flipped unsaved flag and a new title — not an edit that leaves the listing as it was', async () => {
+    const index = createSearchIndex({ parse });
+    const v1 = song(['# Maré', '## A', FENCE, 'C', FENCE]);
+    const first = await index.indexDocument({ bookId: 'b', path: 'm.cifra.md', bytes: v1 });
+    expect(first.visibleChange).toBe(true); // new
+
+    const same = await index.indexDocument({ bookId: 'b', path: 'm.cifra.md', bytes: v1 });
+    expect(same.visibleChange).toBe(false);
+
+    const dirty = await index.indexDocument({ bookId: 'b', path: 'm.cifra.md', bytes: v1, unsaved: true });
+    expect(dirty.visibleChange).toBe(true); // newly unsaved
+
+    const body = song(['# Maré', '## A', FENCE, 'C | G', FENCE]);
+    const typed = await index.indexDocument({ bookId: 'b', path: 'm.cifra.md', bytes: body, unsaved: true });
+    expect(typed.visibleChange).toBe(false); // the body moved, the listing did not
+
+    const retitled = song(['# Maré Alta', '## A', FENCE, 'C | G', FENCE]);
+    const renamed = await index.indexDocument({ bookId: 'b', path: 'm.cifra.md', bytes: retitled, unsaved: true });
+    expect(renamed.visibleChange).toBe(true); // a new title
+  });
+});
+
 describe('createSearchIndex — ranking', () => {
   const index = createSearchIndex({ parse });
 
