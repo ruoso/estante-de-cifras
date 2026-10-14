@@ -279,6 +279,10 @@ export default {
     conflict: 'conflict',
     where: '{book} · {folder}/',
     addToSetlist: 'Add {title} to a setlist',
+    // The word that marks a setlist result in the one song search
+    // (books.setlist_search, workflow 12 L33-34; mockups README L26 — status by
+    // a word, never colour alone).
+    setlist: 'Setlist',
   },
 
   // Setlists (books.setlists, workflow 12, board W12): the Setlists destination

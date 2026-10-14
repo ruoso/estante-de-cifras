@@ -61,6 +61,51 @@ describe('SearchScreen (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
+  it('a setlist result is marked "Setlist", shows its title and location (not the file name), offers no Add-to-setlist, and opens via onOpenSetlist (books.setlist_search; workflow 12 L33-34, DIRECTION §4 L470, mockups README L26)', async () => {
+    const opened = [];
+    const added = [];
+    const { store, emit } = makeStore();
+    const { container } = render(
+      <SearchScreen
+        store={store}
+        onOpenSetlist={(x) => opened.push(x)}
+        onAddToSetlist={(x) => added.push(x)}
+      />,
+    );
+
+    type('noite');
+    emit(
+      event(EventKind.SEARCH_RESULTS, {
+        query: 'noite',
+        results: [
+          { bookId: 'book-1', path: 'shows/minha-noite.setlist.md', title: 'Minha Noite', kind: 'setlist', score: 3, unsaved: false },
+          { bookId: 'book-1', path: 'noite.cifra.md', title: 'Noite Azul', artist: 'Ana', kind: 'song', score: 2, unsaved: false },
+        ],
+      }),
+    );
+
+    // Marked by the WORD "Setlist" (status by a word, never colour alone).
+    expect(screen.getByText('Setlist')).toBeInTheDocument();
+    // Title and where it lives — never the *.setlist.md file name (DIRECTION §4 L470).
+    expect(screen.getByText('Minha Noite')).toBeInTheDocument();
+    expect(screen.getByText('book-1 · shows/')).toBeInTheDocument();
+    expect(screen.queryByText(/minha-noite\.setlist\.md/)).toBeNull();
+
+    // No Add-to-setlist on the setlist row; the song row keeps it.
+    expect(screen.queryByRole('button', { name: 'Add Minha Noite to a setlist' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Add Noite Azul to a setlist' })).toBeInTheDocument();
+
+    // Opening it routes through onOpenSetlist with its location; the button's
+    // accessible name carries the title AND that it is a setlist.
+    const setlistButton = screen.getByRole('button', { name: /Minha Noite/ });
+    expect(setlistButton).toHaveAccessibleName(/Setlist/);
+    act(() => fireEvent.click(setlistButton));
+    expect(opened).toEqual([{ bookId: 'book-1', path: 'shows/minha-noite.setlist.md' }]);
+    expect(added).toHaveLength(0);
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
   it('recents: with an empty query the Recent section renders the recents slice most-recent-first (workflow 2 L13-20)', async () => {
     const { store, emit } = makeStore();
     const { container } = render(<SearchScreen store={store} />);

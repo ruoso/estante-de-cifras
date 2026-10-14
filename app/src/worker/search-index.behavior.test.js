@@ -420,6 +420,145 @@ describe('search index (behavior)', () => {
   });
 });
 
+// behavior — setlists in the one song search, built and kept in the real Worker
+// (books.setlist_search). Same harness as above; all setlist/song text is
+// written for this test (no-song-text rule). No network beyond the local git
+// remote that seeds the book. Pins workflow 12 §The file L33-34 ("Setlists are
+// found by the same search as songs, marked as setlists"), the suffix/kind
+// dispatch over the live WRITE/SAVE edit path (Decision 3), and the
+// reconcile-on-save / reconcile-on-restart seams (DIRECTION §3.7 L433-435).
+describe('setlist search (behavior)', () => {
+  const setlist = (lines) => lines.join('\n') + '\n';
+
+  it('indexes a setlist on open, a WRITE marks it unsaved and a SAVE clears it, a discarded draft drops', async () => {
+    const ctx = await setup();
+    try {
+      // A setlist seeded before open: reconcile indexes it by its title, tagged
+      // kind:setlist (found by the same search as songs — workflow 12 L33-34).
+      ctx.writeSong(
+        'minha-noite.setlist.md',
+        setlist(['# Minha Noite', '', '1. [Abertura](abertura.cifra.md)']),
+      );
+      const { store } = ctx.makeStore();
+      store.open();
+      await until(() => expect(store.slice('index')[ctx.bookId]).toBe('ready'));
+
+      const seeded = await searchUntil(store, 'minha noite', (rs) =>
+        rs.some((r) => r.path === 'minha-noite.setlist.md'),
+      );
+      const seededHit = seeded.find((r) => r.path === 'minha-noite.setlist.md');
+      expect(seededHit.kind).toBe('setlist');
+      expect(seededHit.title).toBe('Minha Noite');
+
+      // A WRITE to a *.setlist.md path is parsed as a setlist (suffix dispatch,
+      // Decision 3) — a never-saved setlist is findable immediately, unsaved.
+      store.send(
+        command(CommandKind.WRITE, {
+          bookId: ctx.bookId,
+          path: 'gig.setlist.md',
+          text: setlist(['# Gig de Sabado', '', '1. [Abertura](abertura.cifra.md)']),
+        }),
+      );
+      const written = await searchUntil(store, 'gig de sabado', (rs) =>
+        rs.some((r) => r.path === 'gig.setlist.md' && r.unsaved === true),
+      );
+      expect(written.find((r) => r.path === 'gig.setlist.md').kind).toBe('setlist');
+
+      // SAVE clears unsaved (now canonical and committed).
+      store.send(
+        command(CommandKind.SAVE, {
+          bookId: ctx.bookId,
+          paths: ['gig.setlist.md'],
+          message: 'add setlist',
+          author: IDENTITY,
+        }),
+      );
+      await until(() => expect(store.slice('save')[ctx.bookId]?.status).toBe('saved'));
+      await searchUntil(store, 'gig de sabado', (rs) =>
+        rs.some((r) => r.path === 'gig.setlist.md' && r.unsaved === false),
+      );
+
+      // A never-saved draft setlist is found, then discarded and gone.
+      store.send(
+        command(CommandKind.WRITE, {
+          bookId: ctx.bookId,
+          path: 'rascunho.setlist.md',
+          text: setlist(['# Rascunho de Lista', '', '1. [Abertura](abertura.cifra.md)']),
+        }),
+      );
+      await searchUntil(store, 'rascunho de lista', (rs) =>
+        rs.some((r) => r.path === 'rascunho.setlist.md'),
+      );
+      store.send(
+        command(CommandKind.DISCARD, { bookId: ctx.bookId, paths: ['rascunho.setlist.md'] }),
+      );
+      await searchUntil(store, 'rascunho de lista', (rs) =>
+        rs.every((r) => r.path !== 'rascunho.setlist.md'),
+      );
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('re-derives a setlist’s unsaved flag on a restart: a saved one is clean, a never-committed draft keeps its badge', async () => {
+    const ctx = await setup();
+    try {
+      const first = ctx.makeStore();
+      first.store.open();
+      await until(() => expect(first.store.slice('index')[ctx.bookId]).toBe('ready'));
+
+      // A setlist written and SAVED (committed) — no longer unsaved.
+      first.store.send(
+        command(CommandKind.WRITE, {
+          bookId: ctx.bookId,
+          path: 'salva.setlist.md',
+          text: setlist(['# Lista Salva', '', '1. [Abertura](abertura.cifra.md)']),
+        }),
+      );
+      first.store.send(
+        command(CommandKind.SAVE, {
+          bookId: ctx.bookId,
+          paths: ['salva.setlist.md'],
+          message: 'add lista',
+          author: IDENTITY,
+        }),
+      );
+      await until(() => expect(first.store.slice('save')[ctx.bookId]?.status).toBe('saved'));
+
+      // A second setlist written as a draft and NEVER committed.
+      first.store.send(
+        command(CommandKind.WRITE, {
+          bookId: ctx.bookId,
+          path: 'esboco.setlist.md',
+          text: setlist(['# Lista Esboço', '', '1. [Abertura](abertura.cifra.md)']),
+        }),
+      );
+      await searchUntil(first.store, 'lista esboço', (rs) =>
+        rs.some((r) => r.path === 'esboco.setlist.md' && r.unsaved === true),
+      );
+
+      // Restart = full reload: the index rebuilds through reconcile, which
+      // RE-DERIVES unsaved from git for setlists exactly as for songs.
+      const second = ctx.makeStore();
+      second.store.open();
+      await until(() => expect(second.store.slice('index')[ctx.bookId]).toBe('ready'));
+
+      const saved = await searchUntil(second.store, 'lista salva', (rs) =>
+        rs.some((r) => r.path === 'salva.setlist.md'),
+      );
+      expect(saved.find((r) => r.path === 'salva.setlist.md').unsaved).toBe(false);
+      expect(saved.find((r) => r.path === 'salva.setlist.md').kind).toBe('setlist');
+
+      const draft = await searchUntil(second.store, 'lista esboço', (rs) =>
+        rs.some((r) => r.path === 'esboco.setlist.md'),
+      );
+      expect(draft.find((r) => r.path === 'esboco.setlist.md').unsaved).toBe(true);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+});
+
 // behavior — chord-progression search built and matched in the real Worker
 // (storage.progression_search). Same harness as above; all song text is written
 // for this test (no-song-text rule). No network beyond the local git remote

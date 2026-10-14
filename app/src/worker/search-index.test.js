@@ -8,11 +8,12 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { hashBlob } from 'isomorphic-git';
-import { parse } from 'cifra-md';
+import { parse, parseSetlist } from 'cifra-md';
 import { createSearchIndex, extractFields } from './search-index.js';
 
 const FENCE = '```';
 const song = (lines) => lines.join('\n') + '\n';
+const setlist = (lines) => lines.join('\n') + '\n';
 
 // The git blob oid of a song's working bytes — the same hash reconcile computes
 // (search-index.js hashBlob) and the same identity a HEAD tree entry carries, so
@@ -276,6 +277,104 @@ describe('createSearchIndex — accent-insensitive and scope', () => {
       scope: { bookId: 'b1', prefix: 'folder/' },
     });
     expect(inFolder.map((r) => r.path)).toEqual(['folder/one.cifra.md']);
+  });
+});
+
+// Setlists ride the same index, indexed title-only and tagged kind:'setlist'
+// (books.setlist_search). Pins workflow 12 §The file L33-34 ("Setlists are found
+// by the same search as songs, marked as setlists"), the suffix/kind dispatch
+// (Decision 1-3), and browse-stays-songs-only (Decision 4). All text is written
+// for this test (no-song-text rule).
+describe('createSearchIndex — setlists by kind', () => {
+  it('indexes a *.setlist.md path title-only as kind:setlist, a *.cifra.md path as kind:song', async () => {
+    const index = createSearchIndex({ parse, parseSetlist });
+
+    const setlistChanges = await index.indexDocument({
+      bookId: 'b',
+      path: 'shows/noite.setlist.md',
+      bytes: setlist(['# Noite no Bar', '', '1. [Uma](uma.cifra.md)']),
+    });
+    // The setlist doc carries kind:setlist and its title — and none of the
+    // song-only fields (Decision 2, "Index the title only").
+    expect(setlistChanges.putDocs).toHaveLength(1);
+    const doc = setlistChanges.putDocs[0];
+    expect(doc.kind).toBe('setlist');
+    expect(doc.title).toBe('Noite no Bar');
+    expect(doc.artist).toBeUndefined();
+    expect(doc.sections).toBeUndefined();
+    expect(doc.words).toBeUndefined();
+    expect(doc.chords).toBeUndefined();
+    expect(doc.chordSeq).toBeUndefined();
+
+    const songChanges = await index.indexDocument({
+      bookId: 'b',
+      path: 'uma.cifra.md',
+      bytes: song(['# Uma Canção', '## A', FENCE, 'C   G', FENCE]),
+    });
+    expect(songChanges.putDocs[0].kind).toBe('song');
+    expect(songChanges.putDocs[0].chords).toContain('C');
+  });
+
+  it('a typed search returns both kinds with the kind tag on each row, and finds a setlist by its title', async () => {
+    const index = createSearchIndex({ parse, parseSetlist });
+    await index.indexDocument({
+      bookId: 'b',
+      path: 'festa.setlist.md',
+      bytes: setlist(['# Festa na Praça', '', '1. [X](x.cifra.md)']),
+    });
+    await index.indexDocument({
+      bookId: 'b',
+      path: 'festa-cancao.cifra.md',
+      bytes: song(['# Festa da Canção', '## A', FENCE, 'G', FENCE]),
+    });
+
+    const byPath = new Map(index.search({ query: 'festa' }).map((r) => [r.path, r]));
+    expect(byPath.get('festa.setlist.md').kind).toBe('setlist');
+    expect(byPath.get('festa.setlist.md').title).toBe('Festa na Praça');
+    expect(byPath.get('festa-cancao.cifra.md').kind).toBe('song');
+  });
+
+  it('browse returns songs only — a setlist never appears in the pre-typing grouping (Decision 4)', async () => {
+    const index = createSearchIndex({ parse, parseSetlist });
+    await index.indexDocument({
+      bookId: 'b',
+      path: 'so.setlist.md',
+      bytes: setlist(['# So Setlist', '', '1. [X](x.cifra.md)']),
+    });
+    await index.indexDocument({
+      bookId: 'b',
+      path: 'cancao.cifra.md',
+      bytes: song(['# Cançãozinha', '## A', FENCE, 'C', FENCE]),
+    });
+
+    const paths = index.browse().books.flatMap((bk) => bk.songs.map((s) => s.path));
+    expect(paths).toContain('cancao.cifra.md');
+    expect(paths).not.toContain('so.setlist.md');
+    // The setlist is still found by the typed search (Decision 4: found by
+    // search, not by browse).
+    expect(index.search({ query: 'So Setlist' }).some((r) => r.path === 'so.setlist.md')).toBe(true);
+  });
+
+  it('reconcile walks the working tree for both kinds, tagging each by suffix', async () => {
+    const fileMap = {
+      'minha.setlist.md': setlist(['# Minha Lista', '', '1. [Canção](cancao.cifra.md)']),
+      'cancao.cifra.md': song(['# Canção Solta', '## A', FENCE, 'C   G', FENCE]),
+    };
+    const index = createSearchIndex({
+      parse,
+      parseSetlist,
+      fs: makeStubFs(fileMap),
+      git: stubGit,
+      readHeadOids: async () => new Map(),
+    });
+    await index.reconcile('b');
+
+    expect(index.search({ query: 'minha' }).find((r) => r.path === 'minha.setlist.md')?.kind).toBe(
+      'setlist',
+    );
+    // browse (songs only) has the song, not the setlist.
+    const browsed = index.browse().books.flatMap((bk) => bk.songs.map((s) => s.path));
+    expect(browsed).toEqual(['cancao.cifra.md']);
   });
 });
 

@@ -168,6 +168,7 @@
 .badge.conflict { background: var(--conflict-soft); color: var(--conflict); }
 .badge.ok { background: var(--ok-soft); color: var(--ok); }
 .badge.voiced { background: var(--accent-soft); color: var(--accent); }
+.badge.setlist { background: var(--accent-soft); color: var(--accent); }
 .badge.dot::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 
 /* ---- Lists and cards --------------------------------------------------- */

@@ -257,6 +257,7 @@ export default {
     conflict: 'conflitto',
     where: '{book} · {folder}/',
     addToSetlist: 'Aggiungi {title} a una scaletta',
+    setlist: 'Scaletta',
   },
 
   setlists: {

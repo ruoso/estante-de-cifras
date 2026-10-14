@@ -197,6 +197,7 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
           onQueryChange={search.onQueryChange}
           onExploreChord={search.onExploreChord}
           onAddToSetlist={onAddToSetlist}
+          onOpenSetlist={onOpenSetlist}
         />
       ) : key === 'books' ? (
         // The Add-a-book sheet's "By link" (paste a link → the invited flow) and

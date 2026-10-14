@@ -499,6 +499,10 @@ export function createWorkerLogic(port, options = {}) {
         fs: ensureFs(),
         git: ensureGit(),
         parse: parseSong,
+        // Setlists ride the same index, parsed by suffix (books.setlist_search
+        // Decision 3): a `*.setlist.md` path is indexed title-only via
+        // `parseSetlist`. Wired beside `parse`, both from `cifra-md`.
+        parseSetlist,
       });
     }
     return searchIndex;

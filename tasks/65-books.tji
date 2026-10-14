@@ -64,8 +64,9 @@ task books "Books" {
   task setlist_search "Surface setlists in song search" {
     effort 1d
     allocate team
+    complete 100
     depends !setlists
-    note "Index setlist titles and surface setlists in the one song search marked as setlists (workflow 12 §The file L33-34), reconciled on save/sync like song index entries. Source of debt: tasks/refinements/books/setlists.md (books.setlists). Governing: workflow 12 §The file; DIRECTION §4. Tests: behavior (a setlist found by search, marked as a setlist, opens; axe); e2e-web (search surfaces a setlist and opens it, phone, tablet, computer; axe)."
+    note "Index setlist titles and surface setlists in the one song search marked as setlists (workflow 12 §The file L33-34), reconciled on save/sync like song index entries. Source of debt: tasks/refinements/books/setlists.md (books.setlists). Governing: workflow 12 §The file; DIRECTION §4. Tests: behavior (a setlist found by search, marked as a setlist, opens; axe); e2e-web (search surfaces a setlist and opens it, phone, tablet, computer; axe). Refinement: tasks/refinements/books/setlist_search.md"
   }
   task play "Playing through" {
     effort 2d

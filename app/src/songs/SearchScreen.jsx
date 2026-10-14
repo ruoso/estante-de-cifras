@@ -237,6 +237,39 @@ function SongRow({ item, bookLabel, instrument, onOpen, onAddToSetlist }) {
   );
 }
 
+// One setlist row in the typed-query results (books.setlist_search, workflow 12
+// §The file L34: "Setlists are found by the same search as songs, marked as
+// setlists. Opening one lists its songs."). A setlist is MARKED by the word
+// "Setlist" (mockups README L26 — status by a word, never colour alone), shows
+// its title and where it lives (book, and folder when not at the root — never
+// the file name, DIRECTION §4 L470), and is NOT offered Add-to-setlist (that is
+// for songs). The badge sits inside the open Button, so the button's accessible
+// name carries the title AND that it is a setlist (acceptance 2). Activating it
+// routes to the existing setlist view through `onOpenSetlist` (Decision 5).
+function SetlistRow({ item, bookLabel, onOpen }) {
+  const folder = folderOf(item.path);
+  const where = folder
+    ? t('search.where', { book: bookLabel, folder })
+    : bookLabel;
+  const title = songTitle(item.title, item.path);
+  return (
+    <div className="row search-row">
+      <Button
+        className="search-row-open"
+        onPress={() => onOpen({ bookId: item.bookId, path: item.path })}
+      >
+        <span className="grow">
+          <span className="name">{title}</span>
+          <span className="meta">{where}</span>
+        </span>
+        <span className="badges">
+          <span className="badge setlist">{t('search.setlist')}</span>
+        </span>
+      </Button>
+    </div>
+  );
+}
+
 // The Add-to-setlist glyph on a song row — a list with a plus.
 function AddToSetlistIcon() {
   return (
@@ -358,6 +391,7 @@ function scopeChipLabel(scope, bookLabelFor) {
 export default function SearchScreen({
   store,
   onOpenSong = () => {},
+  onOpenSetlist = () => {},
   onExploreChord = () => {},
   onWriteSong = () => {},
   onAddBook = () => {},
@@ -525,16 +559,25 @@ export default function SearchScreen({
             </div>
             {results.length ? (
               <div className="list">
-                {results.map((r) => (
-                  <SongRow
-                    key={keyOf(r.bookId, r.path)}
-                    item={r}
-                    bookLabel={bookLabelFor(r.bookId)}
-                    instrument={instrument}
-                    onOpen={onOpenSong}
-                    onAddToSetlist={onAddToSetlist}
-                  />
-                ))}
+                {results.map((r) =>
+                  r.kind === 'setlist' ? (
+                    <SetlistRow
+                      key={keyOf(r.bookId, r.path)}
+                      item={r}
+                      bookLabel={bookLabelFor(r.bookId)}
+                      onOpen={onOpenSetlist}
+                    />
+                  ) : (
+                    <SongRow
+                      key={keyOf(r.bookId, r.path)}
+                      item={r}
+                      bookLabel={bookLabelFor(r.bookId)}
+                      instrument={instrument}
+                      onOpen={onOpenSong}
+                      onAddToSetlist={onAddToSetlist}
+                    />
+                  ),
+                )}
               </div>
             ) : (
               <>

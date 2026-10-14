@@ -257,6 +257,7 @@ export default {
     conflict: 'conflito',
     where: '{book} · {folder}/',
     addToSetlist: 'Adicionar {title} a um repertório',
+    setlist: 'Repertório',
   },
 
   setlists: {

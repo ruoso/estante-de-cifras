@@ -66,9 +66,19 @@ const PROGRESSION_BOOST = 4;
 const SEP = '\0';
 const locationKey = (bookId, path) => `${bookId}${SEP}${path}`;
 
-// Only song files are indexed (acceptance 1). Setlists and other artifacts are
-// out of scope (Deferred work).
+// The two indexed file kinds. A song (`*.cifra.md`) is indexed across all its
+// fields; a setlist (`*.setlist.md`) is indexed by its title only and tagged
+// `kind: 'setlist'` so the one search can tell them apart (books.setlist_search,
+// workflow 12 §The file L33-34, Decision 1-2). Anything else is not indexed.
 const SONG_SUFFIX = '.cifra.md';
+const SETLIST_SUFFIX = '.setlist.md';
+
+// The kind of an indexed path, by suffix (Decision 3): a setlist is parsed with
+// `parseSetlist` and indexed title-only, a song with the full field set. This is
+// the single dispatch point reconcile / reindexPath / indexDocument share, so
+// the live WRITE edit path parses a setlist correctly, matching what reconcile
+// enforces on reload.
+const kindOf = (path) => (path.endsWith(SETLIST_SUFFIX) ? 'setlist' : 'song');
 
 // Read the committed tree at `HEAD` into a `path -> blob oid` map, over the
 // local git repo at `dir` (storage.index_dirty_reconcile, Decision 2). A single
@@ -173,15 +183,18 @@ export function extractFields(model, oid) {
  *   fs?: import('./fs.js').FileSystem,
  *   git?: ReturnType<typeof import('./git.js').createGitLayer>,
  *   parse: (bytes: Uint8Array|string) => object,
+ *   parseSetlist?: (bytes: Uint8Array|string) => object,
  *   readHeadOids?: (bookId: string) => Promise<Map<string, string>>,
  * }} deps `fs`/`git` are used only to read and locate working-tree bytes
- *   (`reconcile`, `reindexPath`); `parse` turns those bytes into a model.
+ *   (`reconcile`, `reindexPath`); `parse` turns a song's bytes into a model and
+ *   `parseSetlist` a setlist's (injected beside `parse`, both wired from
+ *   `cifra-md` in logic.js; dispatched by file suffix — Decision 3).
  *   `readHeadOids` resolves a book's committed `path -> blob oid` map so
  *   `reconcile` can derive `unsaved` (storage.index_dirty_reconcile); it
  *   defaults to a local isomorphic-git tree walk and is injectable so the
  *   dirty-derivation is unit-testable with a stub map (Decision 3).
  */
-export function createSearchIndex({ fs, git, parse, readHeadOids } = {}) {
+export function createSearchIndex({ fs, git, parse, parseSetlist, readHeadOids } = {}) {
   if (typeof parse !== 'function') {
     throw new Error('createSearchIndex requires a parse function');
   }
@@ -202,7 +215,10 @@ export function createSearchIndex({ fs, git, parse, readHeadOids } = {}) {
     return new MiniSearch({
       idField: 'id',
       fields: SEARCH_FIELDS,
-      storeFields: ['bookId', 'path', 'title', 'artist'],
+      // `kind` ('song' | 'setlist') rides the stored fields so a result row
+      // carries it to the view (books.setlist_search Decision 1, 5): a setlist
+      // hit is marked and routed differently from a song.
+      storeFields: ['bookId', 'path', 'title', 'artist', 'kind'],
       // The accent fold is applied to indexed terms AND query terms alike
       // through `processTerm`, so `coracao` matches *Coração* (Decision 7,
       // DIRECTION §4 L431-432). A term that folds to empty is dropped. The
@@ -222,26 +238,44 @@ export function createSearchIndex({ fs, git, parse, readHeadOids } = {}) {
       id: location.key,
       bookId: location.bookId,
       path: location.path,
-      title: doc.title,
-      artist: doc.artist,
-      properties: doc.properties,
-      sections: doc.sections,
-      words: doc.words,
-      chords: doc.chords,
+      // A setlist carries only `kind` and `title`; its song-only fields default
+      // empty so MiniSearch indexes the title alone (books.setlist_search
+      // Decision 2). A song record has them all.
+      kind: doc.kind ?? 'song',
+      title: doc.title ?? '',
+      artist: doc.artist ?? '',
+      properties: doc.properties ?? '',
+      sections: doc.sections ?? '',
+      words: doc.words ?? '',
+      chords: doc.chords ?? '',
       // The n-gram field, derived from the stored ordered sequence so hydrate
       // rebuilds it with no re-parse (storage.progression_search, Decision 2).
       [PROGRESSION_FIELD]: progressionField(doc.chordSeq ?? []),
     };
   }
 
-  // Parse `bytes` into extracted fields, or — on the only throw `parse` makes,
-  // `NotUtf8Error` — an empty record, so a non-UTF-8 file caches its oid (never
-  // re-parsed) and simply stays unfindable rather than crashing the build.
-  function extractFromBytes(bytes, oid) {
+  // The extracted record for a non-UTF-8 (or otherwise unparseable) file of the
+  // given kind: it caches its oid (never re-parsed) and simply stays unfindable
+  // rather than crashing the build. A setlist carries title only.
+  const emptyDoc = (oid, kind) =>
+    kind === 'setlist'
+      ? { oid, kind: 'setlist', title: '' }
+      : { oid, kind: 'song', title: '', artist: '', properties: '', sections: '', words: '', chords: '', chordSeq: [] };
+
+  // Parse `bytes` into extracted fields, dispatched by kind (Decision 3): a
+  // setlist is parsed with `parseSetlist` and yields `{ oid, kind, title }`
+  // (its only indexable content — workflow 12 L24, Decision 2); a song gets the
+  // full field set. On the only throw a parser makes (`NotUtf8Error`), the empty
+  // record of that kind. The record carries `kind` so the per-oid cache, hydrate
+  // and the result row all know what it is.
+  function extractFromBytes(bytes, oid, kind) {
     try {
-      return extractFields(parse(bytes), oid);
+      if (kind === 'setlist') {
+        return { oid, kind: 'setlist', title: parseSetlist(bytes)?.title ?? '' };
+      }
+      return { ...extractFields(parse(bytes), oid), kind: 'song' };
     } catch {
-      return { oid, title: '', artist: '', properties: '', sections: '', words: '', chords: '', chordSeq: [] };
+      return emptyDoc(oid, kind);
     }
   }
 
@@ -275,7 +309,7 @@ export function createSearchIndex({ fs, git, parse, readHeadOids } = {}) {
 
     let doc = docsByOid.get(oid);
     if (!doc) {
-      doc = extractFromBytes(bytes, oid);
+      doc = extractFromBytes(bytes, oid, kindOf(path));
       docsByOid.set(oid, doc);
       changes.putDocs.push(doc);
     }
@@ -332,7 +366,9 @@ export function createSearchIndex({ fs, git, parse, readHeadOids } = {}) {
     return { putDocs: [], putLocations: [], deleteLocations };
   }
 
-  // Walk a book's working tree for song files, relative to its book dir.
+  // Walk a book's working tree for indexable files — songs AND setlists
+  // (books.setlist_search Decision 1) — relative to its book dir. The kind of
+  // each is decided by its suffix downstream (`kindOf`).
   async function songPaths(bookId) {
     const dir = git.bookDir(bookId);
     const out = [];
@@ -350,7 +386,7 @@ export function createSearchIndex({ fs, git, parse, readHeadOids } = {}) {
         const childRel = rel ? `${rel}/${name}` : name;
         const stat = await fs.promises.stat(`${dir}/${childRel}`);
         if (stat.isDirectory()) await walk(childRel);
-        else if (name.endsWith(SONG_SUFFIX)) out.push(childRel);
+        else if (name.endsWith(SONG_SUFFIX) || name.endsWith(SETLIST_SUFFIX)) out.push(childRel);
       }
     }
     await walk('');
@@ -511,6 +547,9 @@ export function createSearchIndex({ fs, git, parse, readHeadOids } = {}) {
   const toRow = (r) => ({
     bookId: r.bookId,
     path: r.path,
+    // The kind the view marks and routes on (books.setlist_search Decision 5):
+    // a setlist row shows the "Setlist" word and opens the setlist view.
+    kind: r.kind ?? 'song',
     title: r.title,
     artist: r.artist,
     unsaved: !!locationByKey.get(r.id)?.unsaved,
@@ -537,6 +576,10 @@ export function createSearchIndex({ fs, git, parse, readHeadOids } = {}) {
     for (const location of locationByKey.values()) {
       if (!matchesScope(location, scope)) continue;
       const doc = docsByOid.get(location.oid);
+      // Browse is songs-only (books.setlist_search Decision 4): setlists are
+      // discovered through the typed search and the Setlists destination, not
+      // duplicated into the pre-typing per-book grouping.
+      if ((doc?.kind ?? 'song') !== 'song') continue;
       let book = byBook.get(location.bookId);
       if (!book) {
         book = { bookId: location.bookId, count: 0, songs: [] };

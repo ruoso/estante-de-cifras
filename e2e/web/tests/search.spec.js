@@ -1,5 +1,24 @@
 import { test, expect } from '../lib/axe.js';
-import { runOffline } from '../lib/offline.js';
+import { runOffline, waitForServiceWorker } from '../lib/offline.js';
+
+// Put the example book on the device and wait until its songs are indexed, at
+// the search front door (the setlists/reading e2e pattern). The bundled book
+// carries a setlist, `a-short-set.setlist.md` ("A Short Set").
+async function seedExample(page) {
+  await page.goto('/');
+  await waitForServiceWorker(page);
+  const openExample = page.getByRole('button', { name: /Open the example book/ });
+  const books = page.getByRole('heading', { name: 'Books' });
+  await expect(async () => {
+    if (await openExample.isVisible().catch(() => false)) {
+      await openExample.click({ timeout: 2000 }).catch(() => {});
+    }
+    await expect(books).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20000 });
+  await page.getByRole('searchbox').fill('Morning');
+  await expect(page.getByRole('button', { name: /Morning on the Porch/ }).first()).toBeVisible();
+  await page.getByRole('searchbox').fill('');
+}
 
 // e2e-web (songs.search) — the search screen against the served compose stack,
 // on the phone / tablet / computer viewport projects (playwright.config.js),
@@ -55,6 +74,28 @@ test('a chord typed in the box offers the explorer first, on the device (workflo
 
   // Axe clean in the typed state too, on this viewport.
   await checkA11y();
+});
+
+test('a setlist is found by the one search, marked as a setlist, and opens to list its songs (books.setlist_search; workflow 12 §The file L33-34)', async ({
+  page,
+  checkA11y,
+}) => {
+  await seedExample(page);
+
+  // Type the setlist's title into the one song search: it is listed, marked by
+  // the word "Setlist" alongside song results.
+  await page.getByRole('searchbox').fill('A Short Set');
+  const setlistResult = page.getByRole('button', { name: /A Short Set/ }).first();
+  await expect(setlistResult).toBeVisible();
+  await expect(setlistResult).toContainText('Setlist');
+  await checkA11y(); // the results list with a setlist present
+
+  // Opening it lands on the setlist view (workflow 12 L34, "Opening one lists
+  // its songs") — not the reading view.
+  await setlistResult.click();
+  await expect(page.getByRole('heading', { level: 2, name: 'A Short Set' })).toBeVisible();
+  await expect(page.getByText('Morning on the Porch')).toBeVisible();
+  await checkA11y(); // the opened setlist
 });
 
 test('search still recognises a chord after an offline reload (workflow 2 L152-155, offline-first)', async ({
