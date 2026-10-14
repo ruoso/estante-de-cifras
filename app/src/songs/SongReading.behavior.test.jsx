@@ -570,4 +570,18 @@ describe('SongReading — the wide master-detail (shell.layout)', () => {
     expect(screen.getByRole('searchbox')).toBeInTheDocument();
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
+
+  it('has a Back to the destinations on the wide layout too', async () => {
+    const onBack = vi.fn();
+    const { store } = makeStore({ text: song({}), entry: guitarEntry() });
+    render(
+      <ThemeRoot store={store}>
+        <SongReading store={store} bookId={BOOK} path={PATH} mode="wide" onBack={onBack} />
+      </ThemeRoot>,
+    );
+    act(() => store.open());
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Tarde Clara' })).toBeInTheDocument());
+    await click(screen.getByRole('button', { name: 'Back' }));
+    expect(onBack).toHaveBeenCalled();
+  });
 });

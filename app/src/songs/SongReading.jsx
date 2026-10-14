@@ -562,6 +562,11 @@ export default function SongReading({
           </div>
           <div className="pane main">
             <div className="appbar reading-chrome">
+              {/* Back to the destinations (Books, Setlists, Account): the shell
+                  is replaced while a song is open, on every layout. */}
+              <Button className="btn icon" aria-label={t('reading.back')} onPress={onBack}>
+                <BackIcon />
+              </Button>
               <span className="title">{baseModel?.title ?? path}</span>
               <Button className="btn" onPress={() => onEdit({ bookId, path, title: baseModel?.title })}>
                 {t('reading.edit')}
