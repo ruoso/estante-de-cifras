@@ -141,9 +141,9 @@ export default function SongEditor({
   // entry from an earlier open of the same song — stale once the working copy
   // moved since (a discard, or edits made after that open) — so the entry
   // present at mount is ignored; every SOURCE reply lands as a new entry object.
-  const staleSourceEntry = useRef(sourceSlice?.[bookId]?.[path]);
+  const [staleSourceEntry] = useState(() => sourceSlice?.[bookId]?.[path]);
   const sourceEntry = sourceSlice?.[bookId]?.[path];
-  const sourceText = sourceEntry && sourceEntry !== staleSourceEntry.current ? sourceEntry.text : undefined;
+  const sourceText = sourceEntry && sourceEntry !== staleSourceEntry ? sourceEntry.text : undefined;
   // A new song's template carries the title the host started it with (the
   // search query, the file-view/book-section empty title) — songs.new_song
   // wires the `title` the template seam already accepts (editor.md Decision 9;
