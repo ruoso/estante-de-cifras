@@ -28,6 +28,7 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import SearchScreen from '../songs/SearchScreen.jsx';
 import SongReading from '../songs/SongReading.jsx';
 import SongHistory from '../songs/SongHistory.jsx';
+import SaveSheet from '../songs/SaveSheet.jsx';
 import SongArrange from '../songs/SongArrange.jsx';
 import SongWizard from '../songs/SongWizard.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
@@ -312,6 +313,9 @@ export default function AppShell({
   // reading. Ephemeral view state, no router, like `openSong` itself. This closes
   // the seam songs.reading left for its toolbar (Decision 6).
   const [history, setHistory] = useState(null);
+  // A version or block restored from the history opens the save sheet over it
+  // (workflow 6 L59-62): saving the restored text makes a new version.
+  const [restoredSaveOpen, setRestoredSaveOpen] = useState(false);
   // The arrange surface, raised from the reading view's `onArrange` seam
   // (songs.arrange Decision 1): `{ bookId, path }` or null. A full-screen surface
   // mounted over the open song — **Done** clears it and returns to reading with
@@ -632,12 +636,22 @@ export default function AppShell({
   // (songs.edit_in_place) reach it through `onOpenHistory`.
   if (history) {
     return (
-      <SongHistory
-        store={store}
-        bookId={history.bookId}
-        path={history.path}
-        onBack={() => setHistory(null)}
-      />
+      <>
+        <SongHistory
+          store={store}
+          bookId={history.bookId}
+          path={history.path}
+          onBack={() => setHistory(null)}
+          onRestored={() => setRestoredSaveOpen(true)}
+        />
+        <SaveSheet
+          store={store}
+          isOpen={restoredSaveOpen}
+          onClose={() => setRestoredSaveOpen(false)}
+          bookId={history.bookId}
+          paths={[history.path]}
+        />
+      </>
     );
   }
 

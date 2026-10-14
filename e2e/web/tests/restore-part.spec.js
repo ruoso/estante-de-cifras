@@ -9,9 +9,8 @@
 // it does not ask). The restored block comes back and the other edited block stays.
 //
 // Every step is the real UI from `/` (search -> Edit -> save sheet; reading ->
-// History). BUG: the real shell mounts SongHistory without `onRestored`
-// (AppShell.jsx:633-641), so a restore never opens the save sheet; the tests
-// that need the sheet are fixme'd, the ones that check the working copy run.
+// History). A restore opens the save sheet over the history (workflow 6
+// L59-62); saving it makes a new version.
 
 import { test, expect } from '../lib/axe.js';
 import { openExampleBook, openSongInEditor, saveThroughSheet } from '../lib/journeys.js';
@@ -186,11 +185,10 @@ test('restore a voicing block with no unsaved changes: no prompt, keeps the othe
   expect(content).not.toContain('5433'); // version B's voicing is gone
 });
 
-test.fixme('a restored block opens the save sheet; saving makes a new version; axe', async ({
+test('a restored block opens the save sheet; saving makes a new version; axe', async ({
   page,
   checkA11y,
 }) => {
-  // BUG: AppShell mounts SongHistory without onRestored, so no save sheet opens — see coordinator report
   await buildVersions(page, VOICE_A, VOICE_B, 'Voicings version A', 'Voicings version B');
   await compareWithVersion(page, 'Voicings version A');
   await page.getByRole('button', { name: 'Restore this block: Voicings for G4 C4 E4 A4' }).click();

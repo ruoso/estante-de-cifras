@@ -81,10 +81,8 @@ test('after a save, reading -> History lists the new version with its note, also
   await expect(rows).toHaveCount(count);
 });
 
-// BUG: the real shell mounts SongHistory without `onRestored` (AppShell.jsx:633-641), so a restored
-// version never opens the save sheet (workflow 6 L59-62; only the retired #dev/history host did) — see
-// coordinator report. The tests below that need the sheet are fixme'd; the ones that stop at the
-// working copy run.
+// A restored version opens the save sheet over the history (workflow 6 L59-62); saving it makes a
+// new version at the top.
 
 // Leave History (from its list or a version) for the song's reading view.
 async function backToTheSong(page) {
@@ -134,10 +132,9 @@ test('restore asks first over unsaved changes, then puts the version in the work
   await expect(content).not.toContainText('Coda');
 });
 
-test.fixme('a restored version opens the save sheet, and saving makes it a new version at the top', async ({
+test('a restored version opens the save sheet, and saving makes it a new version at the top', async ({
   page,
 }) => {
-  // BUG: AppShell mounts SongHistory without onRestored, so no save sheet opens — see coordinator report
   await buildHistory(page);
   await historyFromReading(page);
   const before = await page.locator('.est-history-row').count();
@@ -164,8 +161,7 @@ test('the history flow (list, read, show the text) works offline after a reload'
   });
 });
 
-test.fixme('an older version restored and saved offline becomes a new version', async ({ page }) => {
-  // BUG: AppShell mounts SongHistory without onRestored, so no save sheet opens — see coordinator report
+test('an older version restored and saved offline becomes a new version', async ({ page }) => {
   await buildHistory(page);
 
   await runOffline(page, {

@@ -250,9 +250,17 @@ export async function saveThroughSheet(page, { note, name = 'Marina Souza', onSh
   await expect(sheet).toBeHidden();
 }
 
-// From the reading view, the song's History.
+// From the reading view, the song's History: a toolbar button on the wide
+// layouts, the More menu on a phone. Waits for the history list.
 export async function historyFromReading(page) {
-  await page.getByRole('button', { name: 'History', exact: true }).first().click();
+  const button = page.getByRole('button', { name: 'History', exact: true }).first();
+  if (await button.isVisible().catch(() => false)) {
+    await button.click();
+  } else {
+    await page.getByRole('button', { name: 'More', exact: true }).first().click();
+    await page.getByRole('menuitem', { name: 'History', exact: true }).click();
+  }
+  await expect(page.locator('.est-history-row').first()).toBeVisible();
 }
 
 // ---- the file view (workflow 14) ---------------------------------------------
