@@ -101,4 +101,28 @@ task songs "Songs" {
     depends !save_sheet, books.file_view
     note "Saving a non-song file (README.md, .gitattributes), an unchanged song, or a song whose note the user cleared sends an empty message — the note is prefilled from the musical diff summary (app/src/songs/save-note.js:20), which is empty there — and isomorphic-git's commit throws (app/src/worker/working-copy.js:168, :236 nameAndSave). The Worker answers a generic ERROR the save sheet does not listen for, so the sheet stays open with no feedback. Reproduced on all three viewports by a raw edit of README.md in the file view and by restoring README.md from history. Fix: a non-empty default message in the Worker save path (e.g. naming the paths), and the save sheet surfaces a command failure instead of staying silently open. Source: tasks/parking-lot.md 2026-10-14 (Non-song/no-change file restore+save). Tests: unit (the default message); behavior (a blank note commits; a failed save shows its error; axe); e2e-web (README.md edited in the file view and saved, the sheet closes, on the three viewports; axe)."
   }
+  task reading_chrome "The reading view chrome as drawn" {
+    effort 1d
+    allocate team
+    depends !reading, !edit_in_place
+    note "The W01, W02 and W12 boards put the instrument chip, Transpose and a ... menu in the reading header, with the shapes in a bordered SHAPES · <instrument> card; the app puts Edit, History, Add to setlist and Print in the header and the chip and Transpose in the body, and the shapes panel has no card or subtitle. Follow the boards (the menu holds Edit, History, Add to setlist, Print, Share), keeping every action keyboard-reachable. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (each action reachable from the menu, axe); e2e-web (reading on the three viewports, mockup W01#3, W02#2-4, W12#3)."
+  }
+  task arrange_polish "Arrange and the wizard as drawn" {
+    effort 2d
+    allocate team
+    depends !arrange, !wizard_ui
+    note "Arrange shows a generic instrument word in its mode chip and no instrument chip (workflow 15: the chip in the header everywhere; the locale string Arranging · {instrument} is not filled, app/src/i18n/locales/en.js:1200). Enter a shape is a modal over arrange, where the W05 board draws it inline, and its note list lacks chord-tone roles; its help text differs from the board. On a computer the wizard takes the whole screen where the board sits it beside the arrange chart; its back control reads Other ways where the board says Back. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (the chip names the instrument; enter a shape inline with chord-tone roles; axe); e2e-web (arrange and the wizard on the three viewports, mockup W05#1-4)."
+  }
+  task history_phone_actions "A version's actions in reach on a phone" {
+    effort 0.5d
+    allocate team
+    depends !history
+    note "On a phone the version view runs past the fold and its Compare with now / Restore this version bar is not visible (workflow 6 A version, Restoring; the W06 board pins it at the bottom). Pin the bar, and keep the title readable. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (the bar outside the scrolling content); e2e-web (a version on a phone: both actions visible without scrolling, mockup W06#2)."
+  }
+  task show_the_file "Show the file from the reading view" {
+    effort 1d
+    allocate team
+    depends !reading, books.file_view
+    note "Workflow 14 (14.8 in the e2e coverage audit) opens a song's file in the file view from its reading view; no task built the entry and the UI has none. Source: e2e coverage audit 2026-10-14 (audit/e2e-coverage.md P3). Tests: behavior (the action opens the file view on the song's file, axe); e2e-web (search → song → Show the file → the file view with the file open, three viewports)."
+  }
 }

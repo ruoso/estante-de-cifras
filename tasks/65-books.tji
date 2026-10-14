@@ -103,4 +103,22 @@ task books "Books" {
     depends !online, service.leave_book, design.leave_book
     note "As design.leave_book decides: the Leave verb in book management for a member, its confirmation with unsaved changes and unpushed saves counted, then the book removed from this device and Mine on Estante no longer offering it. Source: tasks/parking-lot.md 2026-10-14. Tests: behavior (the verb shown to members and not owners; the confirmation; axe); e2e-web (a member leaves on the stack and the book is gone from the shelf and from Mine on Estante; axe)."
   }
+  task invited_presentation "The invited screen and refusals as drawn" {
+    effort 0.5d
+    allocate team
+    depends !add_by_link
+    note "The invited screen centres its content a third of the way down where the W01 board top-aligns it under a book mark; its heading shows a dark focus box on arrival (the programmatic focus needs the theme focus treatment, or a focus target that is not outlined); and the dead-link and full-book refusals are standalone screens where the board draws them as dialogs over the empty shelf. Copy is unchanged (workflow 1 Invited L49-66 names no book). Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (refusals as dialogs, focus lands on the heading without the outline, axe); e2e-web (a dead link and a full book on the three viewports, mockup W01#2 and W01#4)."
+  }
+  task file_view_create_menu "Create a song, a setlist, a folder or a README in the file view" {
+    effort 2d
+    allocate team
+    depends !file_view
+    note "Workflow 14 (What can be done to a file, first bullet) lets the file view create a song, a setlist, a folder or a README; the app offers only New song. Add the create menu the W14 board draws, and on a phone the board top bar (icon actions, the title not collapsed) and the open file header with a ... menu holding Rename and Delete. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: unit (the new file names and their templates); behavior (each create kind, axe); e2e-web (Books → Files → create each kind, then it appears in the tree and opens; mockup W14#1-2)."
+  }
+  task setlist_chrome "The setlist view keeps the tab bar on a phone" {
+    effort 0.5d
+    allocate team
+    depends !setlists
+    note "The W12 board keeps Search, Books and Setlists visible under an open setlist on a phone; the app hides the tab bar there. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (the tab bar under an open setlist on narrow); e2e-web (a setlist opened from the Setlists tab on a phone, the tab bar reaches Search; mockup W12#1-2)."
+  }
 }

@@ -91,4 +91,16 @@ task shell "Shell" {
     depends !layout
     note "The Worker's OPEN command — which surfaces preferences, theme and instruments — is sent only from AppShell's mount effect (app/src/shell/AppShell.jsx:403-405). A cold boot or reload straight into a #dev/* mount (App.jsx ~176-192) never mounts AppShell, so preferences stay empty and, e.g., the save sheet asks 'Your name' again although authorName is durably in the home book. Users always boot through AppShell; this bites e2e tests that reload a dev mount. Move the open effect up into App (ensureOpen is memoised, the store a singleton). Source: tasks/parking-lot.md 2026-10-14 (SET_IDENTITY_NAME author-name durability). Tests: behavior (App mounting a dev route sends OPEN once); e2e-web (name set, a dev-mount editor reloaded, Save does not ask for the name)."
   }
+  task header_chrome "The header as drawn: wordmark and a short instrument chip" {
+    effort 1d
+    allocate team
+    depends !layout, music.instruments
+    note "The instrument chip shows the full tuning (Guitar (6-string) · E2 A2 D3 G3 B3 E4) and is clipped by the account button on a phone; the boards and workflow 1 (The instrument) draw a short chip (Guitar), and its copy varies between screens (W16). The phone shelf is titled Search where the boards put the Estante wordmark, and the computer search rail lacks the wordmark and the chip (W02 desktop). One chip label everywhere, the full tuning as its accessible description. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: unit (the chip label for each instrument); behavior (the chip and wordmark on each destination, axe); e2e-web (the header on the three viewports with no clipping, mockup W01#1, W02#1, W02#4)."
+  }
+  task narrow_fit "Nothing clipped, overflowing or wrapped word by word at phone and tablet widths" {
+    effort 2d
+    allocate team
+    depends !layout
+    note "Fit defects the UI audit found: the search field breaks onto two lines (typed text, then the clear control) on phone and computer (W01, W02); the reading view notice wraps one word per line on a phone (W02); two first-run row descriptions end in an ellipsis (W01); the explorer title truncates and the chip clips at tablet width (W16); the raw editor toolbar overflows with Save clipped on a phone (W14); the version view title truncates (W06); the reading toolbar clips Print on a tablet (W12); the raw Markdown pane clips long lines with no horizontal scroll (W12). Fix each at its component, and add an e2e check that no visible control overflows the viewport on each surface. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: e2e-web (each listed surface on the three viewports: no element wider than the viewport, controls fully visible; axe)."
+  }
 }

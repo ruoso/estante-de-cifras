@@ -41,7 +41,7 @@ task milestones "Milestones" {
 
   task m5_complete "M5: The first pass, complete" {
     milestone
-    depends milestones.m4_together, books.setlists, books.setlist_search, books.play, books.upload_ui, account.new_device, account.sign_out, account.leaving, shell.a11y_chart, service.rate_limits, songs.restore_part, shell.routing, shell.fonts, shell.display_preferences, songs.save_gate_dropped_section, books.leave, account.recovery_email, design.w07_remove_board, songs.save_empty_message, shell.full_height, shell.dev_mount_open
+    depends milestones.m4_together, books.setlists, books.setlist_search, books.play, books.upload_ui, account.new_device, account.sign_out, account.leaving, shell.a11y_chart, service.rate_limits, songs.restore_part, shell.routing, shell.fonts, shell.display_preferences, songs.save_gate_dropped_section, books.leave, account.recovery_email, design.w07_remove_board, shell.header_chrome, shell.narrow_fit, account.preferences_layout, books.invited_presentation, books.file_view_create_menu, books.setlist_chrome, songs.reading_chrome, songs.arrange_polish, songs.history_phone_actions, songs.show_the_file, music.explorer_flip_copy, sync.conflicts_polish, design.boards_refresh, songs.save_empty_message, shell.full_height, shell.dev_mount_open
     note "Setlists and playing through, upload and download, a new device, leaving, and a sung line read aloud as decided."
   }
 

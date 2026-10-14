@@ -48,4 +48,10 @@ task music "Music" {
     depends !fallback, cifra_js.editing
     note "Explore Chords' planners; the plan into a new variation first. Workflow 5. Tests: unit (Explore Chords' planners' tests carried over; the plan written into a new variation, canonical). Refinement: tasks/refinements/music/wizard.md"
   }
+  task explorer_flip_copy "The explorer reads an augmented fifth as the workflow writes it" {
+    effort 0.5d
+    allocate team
+    depends !explorer
+    note "Workflow 16 (Viewing by notation) offers to read C7+ as C7#5; the app asks Read as C7(5+) instead?. Use the notation the workflow names for the flip, in every language. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: unit (the flip label for C7+ and its siblings); e2e-web (the explorer on C7+, mockup W16#3)."
+  }
 }
