@@ -19,6 +19,7 @@ import {
   openSongFromSearch,
   openSongInEditor,
   waitUntilSearchable,
+  syncNow,
 } from '../lib/journeys.js';
 import {
   hostedBookWithSong,
@@ -36,15 +37,14 @@ const BOOK = 'Choros da Ana';
 const SONG_TITLE = 'Roda de rua';
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// Reload (a sync pass runs on open) until the song in the editor carries every
-// mark — the clean-merge assertion.
+// Sync (Books → Sync now), then reopen the song in the editor until it carries
+// every mark — the clean-merge assertion.
 async function expectSongHasMarks(page, marks) {
+  await syncNow(page);
   await expect(async () => {
-    await startApp(page);
-    await page.waitForTimeout(1500);
     await openSongInEditor(page, 'Roda', SONG_TITLE);
     for (const mark of marks) {
-      await expect(page.locator('.cm-content')).toContainText(mark, { timeout: 2500 });
+      await expect(page.locator('.cm-content')).toContainText(mark, { timeout: 1000 });
     }
   }).toPass({ timeout: 10000 });
 }

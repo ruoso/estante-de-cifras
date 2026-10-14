@@ -20,11 +20,10 @@
 import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
 import {
   enableVirtualAuthenticator,
-  gotoTab,
   openSongFromSearch,
   openSongInEditor,
-  startApp,
   waitUntilSearchable,
+  syncNow,
 } from '../lib/journeys.js';
 import {
   hostedBookWithSong,
@@ -78,14 +77,8 @@ test('losing access: the owner removes an editor; the member sees no longer shar
 
     // The member's device syncs and learns it is gone: the shelf reads
     // *no longer shared with you* (states.md; workflow 8 L34).
-    await expect(async () => {
-      await startApp(joiner.page);
-      await joiner.page.waitForTimeout(1500);
-      await gotoTab(joiner.page, 'Books');
-      await expect(joiner.page.getByText('no longer shared with you')).toBeVisible({
-        timeout: 2500,
-      });
-    }).toPass({ timeout: 10000 });
+    await syncNow(joiner.page);
+    await expect(joiner.page.getByText('no longer shared with you')).toBeVisible({ timeout: 10000 });
     expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the shelf with the gone badge
 
     // The book detail shows the losing-access notice and both escape offers

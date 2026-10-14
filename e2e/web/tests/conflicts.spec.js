@@ -29,6 +29,7 @@ import {
   bookGitUrl,
   sessionCookie,
   typeAtEndOfLine,
+  syncNow,
 } from '../lib/journeys.js';
 import { writeSongInBook, inviteThroughShare } from '../lib/journeys-share.js';
 import { joinByInvite } from '../lib/journeys-account.js';
@@ -138,17 +139,26 @@ async function openResolver(page) {
 
 // After settling, the book leaves *needs you* and the song reads `bar`.
 async function expectSettledWithBar(page, bar) {
-  // Let the settle run before any reload: the resolver's choices close once
-  // the Worker has handled it (a reload right after the click kills it).
-  await expect(page.getByRole('button', { name: /^(Take theirs|Keep mine)$/ })).toHaveCount(0, {
+  // Let the settle finish before going anywhere: the conflict panel (whose
+  // every variant offers Abandon the merge) closes once the Worker has handled
+  // it. Acting earlier races the panel's own exit (a reload kills the settle;
+  // its Back vanishes under the click).
+  await expect(page.getByRole('button', { name: 'Abandon the merge' })).toHaveCount(0, {
     timeout: 10000,
   });
+  await openSongInEditor(page, 'Roda', SONG_TITLE);
+  await expect(page.locator('.cm-content')).toContainText(bar);
+  await expect(page.locator('.cm-content')).not.toContainText('<<<<<<<');
+}
+
+// Sync this device (Books → Sync now), then reopen the song in the editor until
+// it reads `bar` with no markers.
+async function syncUntilSongReads(page, bar) {
+  await syncNow(page);
   await expect(async () => {
-    await startApp(page);
-    await page.waitForTimeout(1500);
     await openSongInEditor(page, 'Roda', SONG_TITLE);
-    await expect(page.locator('.cm-content')).toContainText(bar, { timeout: 2500 });
-    await expect(page.locator('.cm-content')).not.toContainText('<<<<<<<', { timeout: 2500 });
+    await expect(page.locator('.cm-content')).toContainText(bar, { timeout: 1000 });
+    await expect(page.locator('.cm-content')).not.toContainText('<<<<<<<', { timeout: 1000 });
   }).toPass({ timeout: 10000 });
 }
 
@@ -168,13 +178,7 @@ test('take theirs settles the conflict, and the resolved merge is pushed, fetche
   await expect.poll(() => remoteFile(url, cookie, SONG_FILE), { timeout: 10000 }).toContain(BAR_ANA);
 
   // Ana's own device takes the resolved song too.
-  await expect(async () => {
-    await startApp(ana);
-    await ana.waitForTimeout(1500);
-    await openSongInEditor(ana, 'Roda', SONG_TITLE);
-    await expect(ana.locator('.cm-content')).toContainText(BAR_ANA, { timeout: 2500 });
-    await expect(ana.locator('.cm-content')).not.toContainText('<<<<<<<', { timeout: 2500 });
-  }).toPass({ timeout: 10000 });
+  await syncUntilSongReads(ana, BAR_ANA);
 });
 
 test('keep mine settles the conflict with the owner’s own version', async ({ browser, page }) => {
@@ -248,7 +252,6 @@ test('a save is refused while the book needs you, and the panel says so (workflo
   await gotoTabFromSong(page, 'Search');
   await openSongInEditor(page, 'Cantiga', OTHER_TITLE);
   await typeAtEndOfLine(page, 'G | D | Em | C', ' | Am');
-  await page.waitForTimeout(800);
   await page.getByRole('button', { name: 'Save', exact: true }).first().click();
   const sheet = page.getByRole('dialog');
   await expect(sheet).toBeVisible();

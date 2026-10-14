@@ -114,13 +114,19 @@ test('restore asks first over unsaved changes, then puts the version in the work
 
   // Restore the oldest version: it differs from the working copy.
   await restoreOldest(page);
-  const confirm = page.getByRole('dialog');
+  const confirm = page.getByRole('dialog').filter({ hasText: /Restore the version of/ });
   await expect(confirm).toBeVisible();
-  await expect(confirm.getByText(/Restore the version of/)).toBeVisible();
   await mockup(page, 'W06-history', 3); // restoring over unsaved changes asks first
   await checkA11y(); // the restore confirm dialog
   await confirm.getByRole('button', { name: 'Lose them and restore' }).click();
   await expect(confirm).toBeHidden();
+
+  // The restored text opens the save sheet (workflow 6 L59-62); Cancel keeps it
+  // in the working copy, unsaved.
+  const sheet = page.getByRole('dialog');
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole('button', { name: 'Cancel' }).click();
+  await expect(sheet).toBeHidden();
 
   // The working copy is the bundled first version again: no Coda/Bridge/Outro.
   await backToTheSong(page);
@@ -141,8 +147,8 @@ test('a restored version opens the save sheet, and saving makes it a new version
   await restoreOldest(page);
   await expect(page.getByRole('dialog')).toBeVisible();
   await confirmSheet(page);
-  await expect(page.getByRole('group', { name: SONG_TITLE }).first()).toBeVisible();
-  await historyFromReading(page);
+  // The sheet closes over the history, whose list now has the new version.
+  await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.locator('.est-history-row')).toHaveCount(before + 1);
 });
 
@@ -173,7 +179,7 @@ test('an older version restored and saved offline becomes a new version', async 
       await restoreOldest(offlinePage);
       await expect(offlinePage.getByRole('dialog')).toBeVisible();
       await confirmSheet(offlinePage);
-      await historyFromReading(offlinePage);
+      await expect(offlinePage.getByRole('dialog')).toBeHidden();
       await expect(offlinePage.locator('.est-history-row')).toHaveCount(before + 1);
     },
   });

@@ -12,7 +12,7 @@
 import { test, expect } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
 import { runOffline } from '../lib/offline.js';
-import { openExampleBook, openSongInEditor, startApp } from '../lib/journeys.js';
+import { openExampleBook, openSongInEditor, settleEdits, startApp } from '../lib/journeys.js';
 
 const SONG_TITLE = 'Morning on the Porch';
 
@@ -34,7 +34,7 @@ test('an edit typed by keyboard or touch persists across a reload, axe-clean on 
 
   // The debounced WRITE persists the edit locally; after a full reload the
   // editor opened through the UI reads it straight back from the working copy.
-  await page.waitForTimeout(800);
+  await settleEdits(page); // a reload does not flush the editor's debounced write
   await startApp(page);
   await openSongInEditor(page, 'Morning', SONG_TITLE);
   await page.locator('.cm-content').click();

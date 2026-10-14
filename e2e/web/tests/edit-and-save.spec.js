@@ -54,7 +54,6 @@ test('Back from the editor keeps the unsaved edit, and Discard reverts it (workf
   await openExampleBook(page);
   await openSongInEditor(page, 'Morning', 'Morning on the Porch');
   await typeAtEndOfLine(page, INTRO, ADDED);
-  await page.waitForTimeout(700); // the editor's debounced write lands in the working copy
 
   await page.getByRole('button', { name: 'Back' }).first().click();
   await openSongFromSearch(page, 'Morning', 'Morning on the Porch');

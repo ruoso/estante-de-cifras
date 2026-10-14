@@ -116,6 +116,15 @@ async function buildVersions(page, first, second, firstNote, secondNote) {
   await save(page, secondNote);
 }
 
+// A restore opens the save sheet (workflow 6 L59-62); Cancel keeps the restored
+// text in the working copy, unsaved.
+async function keepRestoreUnsaved(page) {
+  const sheet = page.getByRole('dialog').filter({ has: page.getByRole('textbox', { name: 'Note' }) });
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole('button', { name: 'Cancel' }).click();
+  await expect(sheet).toBeHidden();
+}
+
 // From the song's reading view: the working copy's text, via Edit.
 async function workingCopy(page) {
   await editAgain(page);
@@ -153,11 +162,12 @@ test('restore a section block over an unsaved edit: asks first, keeps the other 
 
   // Restore the Verse block: it holds the unsaved edit, so it asks first.
   await page.getByRole('button', { name: 'Restore this block: Verse' }).click();
-  const confirm = page.getByRole('dialog');
-  await expect(confirm.getByText('Restore Verse?')).toBeVisible();
+  const confirm = page.getByRole('dialog').filter({ hasText: 'Restore Verse?' });
+  await expect(confirm).toBeVisible();
   await checkA11y(); // the block-scoped restore confirm
   await confirm.getByRole('button', { name: 'Lose them and restore' }).click();
   await expect(confirm).toBeHidden();
+  await keepRestoreUnsaved(page);
 
   // The Verse is back to Version A; the Chorus kept Version B's chords.
   await backToTheSong(page);
@@ -173,9 +183,11 @@ test('restore a voicing block with no unsaved changes: no prompt, keeps the othe
   await buildVersions(page, VOICE_A, VOICE_B, 'Voicings version A', 'Voicings version B');
   await compareWithVersion(page, 'Voicings version A');
 
-  // Clean working copy, so restoring the voicing block does not ask.
+  // Clean working copy, so restoring the voicing block does not ask first: the
+  // next dialog is the save sheet, not a confirm.
   await page.getByRole('button', { name: 'Restore this block: Voicings for G4 C4 E4 A4' }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('dialog').filter({ hasText: /^Restore / })).toHaveCount(0);
+  await keepRestoreUnsaved(page);
 
   // The C voicing is back to version A (0003); the added Chorus block stays.
   await backToTheSong(page);
@@ -196,7 +208,9 @@ test('a restored block opens the save sheet; saving makes a new version; axe', a
   await expect(sheet.getByRole('textbox', { name: 'Note' })).toBeVisible();
   await checkA11y(); // the save sheet
   await confirmSheet(page);
-  await expect(page.getByRole('group', { name: SONG_TITLE }).first()).toBeVisible();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  // The history behind the sheet now leads with the new version.
+  await backToTheSong(page);
   await openHistory(page);
   await expect(page.locator('.est-history-row').first()).not.toContainText('Voicings version B');
 });

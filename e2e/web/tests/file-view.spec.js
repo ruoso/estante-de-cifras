@@ -50,7 +50,6 @@ async function writeNewSong(page, lines) {
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Delete');
   await page.keyboard.insertText(lines.join('\n'));
-  await page.waitForTimeout(800); // let the debounced WRITE settle
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await confirmSaveSheet(page);
 }
@@ -61,7 +60,6 @@ async function editOpenSong(page, mark) {
   await heading.click();
   await page.keyboard.press('Home');
   await page.keyboard.insertText(`## ${mark}\n\`\`\`\nC | G\n\`\`\`\n\n`);
-  await page.waitForTimeout(800);
 }
 
 test('the file view: a new song, a raw edit and a rename saved together; axe-clean', async ({

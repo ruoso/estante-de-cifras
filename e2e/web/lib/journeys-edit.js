@@ -13,7 +13,6 @@ export async function addSection(page, mark) {
   await heading.click();
   await page.keyboard.press('Home');
   await page.keyboard.insertText(`## ${mark}\n\`\`\`\nC | G\n\`\`\`\n\n`);
-  await page.waitForTimeout(800);
 }
 
 // Replace the whole song in the open editor with `text`, then let the write
@@ -23,12 +22,10 @@ export async function replaceSong(page, text) {
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Delete');
   await page.keyboard.insertText(text);
-  await page.waitForTimeout(800);
 }
 
 // The editor's Save -> the open save sheet (not confirmed).
 export async function openSaveSheet(page) {
-  await page.waitForTimeout(800);
   await page.getByRole('button', { name: 'Save', exact: true }).first().click();
   const sheet = page.getByRole('dialog');
   await expect(sheet).toBeVisible();

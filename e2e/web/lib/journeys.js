@@ -32,6 +32,9 @@ export async function startApp(page, path = '/') {
 // layouts' rail). Waits for the destination's heading.
 export async function gotoTab(page, name) {
   await page.getByRole('tab', { name }).click();
+  // On a phone or tablet a book's detail replaces the Books list: step back.
+  const backToBooks = page.getByRole('button', { name: 'Back to books' }).filter({ visible: true });
+  if (name === 'Books' && (await backToBooks.count())) await backToBooks.first().click();
   if (name !== 'Search') {
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
   }
@@ -172,17 +175,37 @@ export async function networkBlip(page, { offlineMs = 300 } = {}) {
   await context.setOffline(false);
 }
 
-// Reload until `title` is searchable — proof a sync brought a song down and
-// the open-time sweep indexed it.
+// Back out of an open song (or any full screen with a Back) to the
+// destinations, where the tabs are.
+export async function toDestinations(page) {
+  // Close an open dialog or sheet first (Escape, as a person would).
+  for (let i = 0; i < 3 && (await page.getByRole('dialog').count()) > 0; i++) {
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 1000 }).catch(() => {});
+  }
+  const tab = page.getByRole('tab', { name: 'Books' });
+  if (!(await tab.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: /^Back/ }).filter({ visible: true }).first().click();
+  }
+  await expect(tab).toBeVisible();
+}
+
+// Books → Sync now: one sync pass, started the way a person starts it.
+export async function syncNow(page) {
+  await toDestinations(page);
+  await gotoTab(page, 'Books');
+  await page.getByRole('button', { name: 'Sync now' }).click();
+}
+
+// Sync, then wait until `title` is found by search — proof the pass brought
+// the song down (a merge re-indexes its book at once).
 export async function waitUntilSearchable(page, query, title, { timeout = 10000 } = {}) {
-  await expect(async () => {
-    await startApp(page);
-    await page.waitForTimeout(1500);
-    await page.getByRole('searchbox').fill(query);
-    await expect(page.getByRole('button', { name: new RegExp(escape(title)) }).first()).toBeVisible({
-      timeout: 2500,
-    });
-  }).toPass({ timeout });
+  await syncNow(page);
+  await gotoTab(page, 'Search');
+  await page.getByRole('searchbox').first().fill(query);
+  await expect(page.getByRole('button', { name: new RegExp(escape(title)) }).first()).toBeVisible({
+    timeout,
+  });
 }
 
 // ---- songs (workflows 2, 4, 6) ---------------------------------------------
@@ -196,7 +219,7 @@ export async function openSongFromSearch(page, query, title) {
     // A full-screen song on a phone: Back to the destinations first.
     const tab = page.getByRole('tab', { name: 'Search' });
     if (!(await tab.isVisible().catch(() => false))) {
-      await page.getByRole('button', { name: 'Back' }).first().click();
+      await page.getByRole('button', { name: /^Back/ }).filter({ visible: true }).first().click();
     }
     await gotoTab(page, 'Search');
   }
@@ -226,8 +249,10 @@ export async function typeAtEndOfLine(page, line, text) {
   await page.keyboard.type(text);
 }
 
-// The editor writes to the working copy on a debounce; wait it out before a
-// step that reads the working copy (the save sheet's diff, a sync).
+// The editor writes to the working copy on a debounce. Save, Back and leaving
+// the editor all send it at once; only a step that kills the page (a reload,
+// closing the tab) or reads the working copy from elsewhere (a sync) needs to
+// wait it out.
 export async function settleEdits(page) {
   await page.waitForTimeout(800);
 }
@@ -238,7 +263,6 @@ export async function settleEdits(page) {
 // `onSheet(sheet)` runs while the sheet is open, before saving (assertions,
 // axe, a mockup() snapshot).
 export async function saveThroughSheet(page, { note, name = 'Marina Souza', onSheet } = {}) {
-  await settleEdits(page);
   await page.getByRole('button', { name: 'Save', exact: true }).first().click();
   const sheet = page.getByRole('dialog');
   await expect(sheet).toBeVisible();

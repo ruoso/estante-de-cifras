@@ -119,7 +119,6 @@ export async function writeSongFromScratch(page, lines, { name = 'Marina Souza' 
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Delete');
   await page.keyboard.insertText(lines.join('\n'));
-  await page.waitForTimeout(800); // the editor's debounced write
   await page.getByRole('button', { name: 'Save' }).click();
   const sheet = page.getByRole('dialog');
   await expect(sheet).toBeVisible();

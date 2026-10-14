@@ -18,7 +18,7 @@
 // anyone's copyrighted words or a real notice (no-song-text rule).
 
 import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
-import { gotoTab, startApp } from '../lib/journeys.js';
+import { syncNow } from '../lib/journeys.js';
 import { hostedBookWithSong, bookIdOf } from '../lib/journeys-share.js';
 import { takeDownBook } from '../lib/db.js';
 
@@ -45,12 +45,8 @@ test('a taken-down book shows the operator reason on its detail, beside Download
 
   // The device syncs and learns the book is unreachable: the shelf reads
   // *no longer shared with you*, like any gone book (workflow 10 L113).
-  await expect(async () => {
-    await startApp(page);
-    await page.waitForTimeout(1500);
-    await gotoTab(page, 'Books');
-    await expect(page.getByText('no longer shared with you')).toBeVisible({ timeout: 2500 });
-  }).toPass({ timeout: 8000 });
+  await syncNow(page);
+  await expect(page.getByText('no longer shared with you')).toBeVisible({ timeout: 10000 });
   expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the shelf with the gone badge
 
   // The book detail carries the take-down notice with the operator's reason,

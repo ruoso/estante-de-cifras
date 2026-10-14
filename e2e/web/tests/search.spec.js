@@ -185,7 +185,6 @@ test('a song edited through Edit carries the unsaved badge in search until it is
   await openSongInEditor(page, 'Morning', 'Morning on the Porch');
   await typeAtEndOfLine(page, INTRO, ADDED);
   await expect(page.locator('.cm-content')).toContainText(`${INTRO}${ADDED}`);
-  await page.waitForTimeout(800); // the editor's debounced write lands in the working copy
 
   // Back to search: the badge is a word on the result, and on the recent.
   await toSearch(page);

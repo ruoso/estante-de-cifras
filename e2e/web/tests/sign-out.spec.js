@@ -54,7 +54,6 @@ async function editSong(page, mark) {
   await heading.click();
   await page.keyboard.press('Home');
   await page.keyboard.insertText(`## ${mark}\n\`\`\`\nC | G\n\`\`\`\n\n`);
-  await page.waitForTimeout(800);
 }
 
 // Sign in, host a book, seed one song into it from a second device (the git CLI
