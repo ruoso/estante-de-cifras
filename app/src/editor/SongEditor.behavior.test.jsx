@@ -242,6 +242,23 @@ describe('SongEditor', () => {
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
+  it('sends a still-debounced edit before Save hands over, so the save sheet sees it', async () => {
+    const { store, sent, emit } = makeStore();
+    const editorRef = { current: null };
+    const writesAtSave = [];
+    const onSave = () => writesAtSave.push(...sent.filter((c) => c.kind === CommandKind.WRITE));
+    render(<SongEditor store={store} bookId={BOOK} path={PATH} editorRef={editorRef} onSave={onSave} />);
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: '# Tide\n' }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe('# Tide\n'));
+
+    // An edit, then Save at once — well inside the write debounce.
+    act(() => editorRef.current.dispatch({ changes: { from: 7, insert: '- key: G\n' } }));
+    act(() => fireEvent.click(screen.getByRole('button', { name: t('editor.source.save') })));
+
+    expect(writesAtSave).toHaveLength(1);
+    expect(writesAtSave[0].payload.text).toBe('# Tide\n- key: G\n');
+  });
+
   it('stops the save on a conflict-marker buffer', async () => {
     const { store, emit } = makeStore();
     const onSave = vi.fn();

@@ -383,6 +383,17 @@ export default function SongEditor({
       return;
     }
     setSaveError(null);
+    // Send a still-debounced edit now: the Worker handles commands in order,
+    // so the save sheet's preview (sent once it opens) reads the text as typed
+    // — a Save pressed within the debounce otherwise previews the older text.
+    if (writeTimer.current) {
+      clearTimeout(writeTimer.current);
+      writeTimer.current = null;
+      if (pendingWrite.current != null && bookId && path) {
+        store.send(command(CommandKind.WRITE, { bookId, path, text: pendingWrite.current }));
+      }
+      pendingWrite.current = null;
+    }
     onSave?.();
   };
 
