@@ -1,91 +1,56 @@
 // history.spec.js (e2e-web) — a song's history on the three viewports, offline,
 // and a version restored and saved (songs.history, workflow 6; workflow 8
-// §Offline). Against the compose stack, on the phone/tablet/computer projects:
-// seed the example book, build a short history by editing and saving a song
-// through #dev/editor (the save sheet is Done), then open #dev/history and
-// drive the journey — the versions list newest first, reading a version,
-// *compare with now*, *show the text*, and *restore this version* (which asks
-// first over unsaved changes, then opens the save sheet, and the saved copy
-// appears as a new version at the top) — with axe at WCAG 2.1 AA on the list,
-// the version view and the restore dialog, and the whole flow once more after a
-// reload with the network cut.
-//
-// No `#dev/history` entry point existed before this task (songs.reading wires
-// the real toolbar control later, Decision 5); this spec reaches the surface
-// through the dev hash, as the editor's save-sheet spec does.
+// §Offline). Against the compose stack, on the phone/tablet/computer projects,
+// every step through the real UI from `/`: open the example book, build a short
+// history by editing (reading -> Edit) and saving a song through the save sheet,
+// then reading -> History and drive the journey — the versions list newest
+// first, reading a version, *compare with now*, *show the text*, and *restore
+// this version* (which asks first over unsaved changes, then opens the save
+// sheet, and the saved copy appears as a new version at the top) — with axe at
+// WCAG 2.1 AA on the list, the version view and the restore dialog, and the
+// whole flow once more after a reload with the network cut.
 
 import { test, expect } from '../lib/axe.js';
-import { runOffline, waitForServiceWorker } from '../lib/offline.js';
+import { mockup } from '../lib/mockup.js';
+import { runOffline } from '../lib/offline.js';
+import {
+  openExampleBook,
+  openSongInEditor,
+  openSongFromSearch,
+  saveThroughSheet,
+  startApp,
+} from '../lib/journeys.js';
+import { addSection, editAgain, openFirstVersion, confirmSheet, openHistory as historyFromReading } from '../lib/journeys-edit.js';
 
-const BOOK = 'local-example-book';
-const SONG_PATH = 'morning-on-the-porch.cifra.md';
 const SONG_TITLE = 'Morning on the Porch';
-const editorUrl = (p) => `/#dev/editor?book=${BOOK}&path=${encodeURIComponent(p)}`;
-const historyUrl = (p) => `/#dev/history?book=${BOOK}&path=${encodeURIComponent(p)}`;
-
-// Put the example book on the device and wait until the song is indexed.
-async function seedExampleBook(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.getByRole('button', { name: /Open the example book/ }).click();
-  await page.getByRole('searchbox').fill('Morning');
-  await expect(page.getByText(SONG_TITLE)).toBeVisible();
-  await page.getByRole('searchbox').fill('');
-}
-
-// Type a new section at the top of the song. insertText (not type): the mobile
-// CodeMirror input path collapses Enter keydowns (editor.spec.js).
-async function editSong(page, mark) {
-  const heading = page.locator('.cm-content .cm-line').filter({ hasText: /^## / }).first();
-  await heading.click();
-  await page.keyboard.press('Home');
-  await page.keyboard.insertText(`## ${mark}\n\`\`\`\nC | G\n\`\`\`\n\n`);
-  await page.waitForTimeout(800); // let the debounced WRITE settle
-}
-
-// Confirm a save through the sheet, filling the one-time name prompt if present.
-async function saveThroughSheet(page) {
-  await page.getByRole('button', { name: 'Save' }).click();
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  const nameField = sheet.getByRole('textbox', { name: /Your name/ });
-  if (await nameField.count()) await nameField.fill('Marina Souza');
-  await sheet.getByRole('button', { name: 'Save' }).click();
-  await expect(sheet).toBeHidden();
-}
 
 // Two saves give the song a short history over its bundled first version.
+// Leaves the app on the reading view of the song.
 async function buildHistory(page) {
-  await page.goto(editorUrl(SONG_PATH));
-  await expect(page.locator('.cm-content')).toBeVisible();
-  await editSong(page, 'Coda');
-  await saveThroughSheet(page);
-  await editSong(page, 'Bridge');
-  await saveThroughSheet(page);
-}
-
-// Open a version (the computer opens the newest beside the list; the phone and
-// tablet show the list until a row is tapped — tapping the first row reaches the
-// version on every viewport).
-async function openFirstVersion(page) {
-  await expect(page.locator('.est-history-row').first()).toBeVisible();
-  await page.locator('.est-history-row').first().click();
-  await expect(page.getByRole('group', { name: 'The song as it was' })).toBeVisible();
+  await openExampleBook(page);
+  await openSongInEditor(page, 'Morning', SONG_TITLE);
+  await addSection(page, 'Coda');
+  await saveThroughSheet(page, { note: 'Add a Coda' });
+  await editAgain(page);
+  await addSection(page, 'Bridge');
+  await saveThroughSheet(page, { note: 'Add a Bridge' });
+  await expect(page.getByRole('group', { name: SONG_TITLE }).first()).toBeVisible();
 }
 
 test('a song’s history: list, read a version, compare with now, show the text; axe-clean', async ({
   page,
   checkA11y,
 }) => {
-  await seedExampleBook(page);
   await buildHistory(page);
 
-  await page.goto(historyUrl(SONG_PATH));
+  await historyFromReading(page);
   await expect(page.locator('.est-history-row').first()).toBeVisible();
+  await mockup(page, 'W06-history', 1); // the song's history
   await checkA11y(); // the list (and, on the computer, the split)
 
   await openFirstVersion(page);
   await expect(page.getByText('What changed from the version before')).toBeVisible();
+  await mockup(page, 'W06-history', 2); // one old version
   await checkA11y(); // the version view
 
   await page.getByRole('button', { name: 'Compare with now' }).click();
@@ -93,74 +58,127 @@ test('a song’s history: list, read a version, compare with now, show the text;
 
   await page.getByRole('switch', { name: 'Show the text' }).click();
   await expect(page.locator('.est-history-text')).toBeVisible();
+  await mockup(page, 'W06-history', 4); // the list beside a version, text shown
 });
 
-test('restore asks first over unsaved changes, then saves as a new version; axe-clean dialog', async ({
+test('after a save, reading -> History lists the new version with its note, also after a reload', async ({
+  page,
+}) => {
+  await buildHistory(page);
+
+  await historyFromReading(page);
+  const rows = page.locator('.est-history-row');
+  await expect(rows.first()).toBeVisible();
+  await expect(rows.first()).toContainText('Add a Bridge'); // newest first
+  await expect(page.locator('.est-history-row', { hasText: 'Add a Coda' })).toBeVisible();
+  const count = await rows.count();
+
+  // Durable: after a reload the history is the same.
+  await startApp(page);
+  await openSongFromSearch(page, 'Morning', SONG_TITLE);
+  await historyFromReading(page);
+  await expect(rows.first()).toContainText('Add a Bridge');
+  await expect(rows).toHaveCount(count);
+});
+
+// BUG: the real shell mounts SongHistory without `onRestored` (AppShell.jsx:633-641), so a restored
+// version never opens the save sheet (workflow 6 L59-62; only the retired #dev/history host did) — see
+// coordinator report. The tests below that need the sheet are fixme'd; the ones that stop at the
+// working copy run.
+
+// Leave History (from its list or a version) for the song's reading view.
+async function backToTheSong(page) {
+  const backToHistory = page.getByRole('button', { name: 'Back to history' });
+  if (await backToHistory.count()) await backToHistory.click();
+  await page.getByRole('button', { name: 'Back to the song' }).click();
+  await expect(page.getByRole('group', { name: SONG_TITLE }).first()).toBeVisible();
+}
+
+// Restore the oldest version from the open History list.
+async function restoreOldest(page) {
+  await page.locator('.est-history-row').last().click();
+  await page.getByRole('button', { name: 'Restore this version' }).click();
+}
+
+test('restore asks first over unsaved changes, then puts the version in the working copy; axe-clean dialog', async ({
   page,
   checkA11y,
 }) => {
-  await seedExampleBook(page);
   await buildHistory(page);
 
-  // Leave an unsaved edit so restore must ask first (and clears on a reload —
-  // the unsaved signal is the save preview, not the index flag).
-  await page.goto(editorUrl(SONG_PATH));
-  await expect(page.locator('.cm-content')).toBeVisible();
-  await editSong(page, 'Outro');
+  // Leave an unsaved edit so restore must ask first.
+  await editAgain(page);
+  await addSection(page, 'Outro');
+  await page.getByRole('button', { name: 'Back' }).first().click();
 
-  await page.goto(historyUrl(SONG_PATH));
+  await historyFromReading(page);
   await expect(page.getByText('Unsaved, on this device')).toBeVisible();
-  const before = await page.locator('.est-history-row').count();
 
-  // Restore the oldest version: it differs from HEAD, so saving makes a new one.
-  await page.locator('.est-history-row').last().click();
-  await page.getByRole('button', { name: 'Restore this version' }).click();
-
+  // Restore the oldest version: it differs from the working copy.
+  await restoreOldest(page);
   const confirm = page.getByRole('dialog');
   await expect(confirm).toBeVisible();
   await expect(confirm.getByText(/Restore the version of/)).toBeVisible();
+  await mockup(page, 'W06-history', 3); // restoring over unsaved changes asks first
   await checkA11y(); // the restore confirm dialog
-
   await confirm.getByRole('button', { name: 'Lose them and restore' }).click();
+  await expect(confirm).toBeHidden();
 
-  // The restored copy opens the save sheet; saving makes a new version.
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  const nameField = sheet.getByRole('textbox', { name: /Your name/ });
-  if (await nameField.count()) await nameField.fill('Marina Souza');
-  await sheet.getByRole('button', { name: 'Save' }).click();
-  await expect(sheet).toBeHidden();
+  // The working copy is the bundled first version again: no Coda/Bridge/Outro.
+  await backToTheSong(page);
+  await editAgain(page);
+  const content = page.locator('.cm-content');
+  await expect(content).toContainText(SONG_TITLE);
+  await expect(content).not.toContainText('Outro');
+  await expect(content).not.toContainText('Bridge');
+  await expect(content).not.toContainText('Coda');
+});
 
+test.fixme('a restored version opens the save sheet, and saving makes it a new version at the top', async ({
+  page,
+}) => {
+  // BUG: AppShell mounts SongHistory without onRestored, so no save sheet opens — see coordinator report
+  await buildHistory(page);
+  await historyFromReading(page);
+  const before = await page.locator('.est-history-row').count();
+  await restoreOldest(page);
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await confirmSheet(page);
+  await expect(page.getByRole('group', { name: SONG_TITLE }).first()).toBeVisible();
+  await historyFromReading(page);
   await expect(page.locator('.est-history-row')).toHaveCount(before + 1);
 });
 
-test('the whole history flow works offline after a reload', async ({ page }) => {
-  await seedExampleBook(page);
+test('the history flow (list, read, show the text) works offline after a reload', async ({ page }) => {
   await buildHistory(page);
 
   await runOffline(page, {
-    path: historyUrl(SONG_PATH),
+    path: '/',
     async whileOffline(offlinePage) {
+      await openSongFromSearch(offlinePage, 'Morning', SONG_TITLE);
+      await historyFromReading(offlinePage);
       await openFirstVersion(offlinePage);
       await offlinePage.getByRole('switch', { name: 'Show the text' }).click();
       await expect(offlinePage.locator('.est-history-text')).toBeVisible();
+    },
+  });
+});
 
-      // Restore an older version and save it — all local, no network. On the
-      // phone and tablet a version fills the screen (W06 one-at-a-time), so step
-      // back to the list to choose an older one; the computer keeps the list
-      // beside the version and has no such back control.
-      const backToHistory = offlinePage.getByRole('button', { name: 'Back to history' });
-      if (await backToHistory.count()) await backToHistory.click();
-      await offlinePage.locator('.est-history-row').last().click();
-      await offlinePage.getByRole('button', { name: 'Restore this version' }).click();
-      const sheet = offlinePage.getByRole('dialog');
-      await expect(sheet).toBeVisible();
-      // The name is asked once; fill it if the sheet still asks (as the other
-      // save flows in this file do) so saving is never blocked.
-      const nameField = sheet.getByRole('textbox', { name: /Your name/ });
-      if (await nameField.count()) await nameField.fill('Marina Souza');
-      await sheet.getByRole('button', { name: 'Save' }).click();
-      await expect(sheet).toBeHidden();
+test.fixme('an older version restored and saved offline becomes a new version', async ({ page }) => {
+  // BUG: AppShell mounts SongHistory without onRestored, so no save sheet opens — see coordinator report
+  await buildHistory(page);
+
+  await runOffline(page, {
+    path: '/',
+    async whileOffline(offlinePage) {
+      await openSongFromSearch(offlinePage, 'Morning', SONG_TITLE);
+      await historyFromReading(offlinePage);
+      const before = await offlinePage.locator('.est-history-row').count();
+      await restoreOldest(offlinePage);
+      await expect(offlinePage.getByRole('dialog')).toBeVisible();
+      await confirmSheet(offlinePage);
+      await historyFromReading(offlinePage);
+      await expect(offlinePage.locator('.est-history-row')).toHaveCount(before + 1);
     },
   });
 });

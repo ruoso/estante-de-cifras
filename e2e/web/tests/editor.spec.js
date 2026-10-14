@@ -1,40 +1,27 @@
 // editor (e2e-web) — the source editor against the compose stack, on the phone,
-// tablet and computer projects (songs.editor). Opens a song from the bundled
-// example book through the `#dev/editor` mount (the on-device seam the editor's
-// hosts are not wired to yet, Decision 6): editing by keyboard and touch that
-// survives a reload (workflow 4 §Editing), the preview beside on a wide screen
-// and a tap away on the phone (workflow 3 L78-79), pasting a cifra into a fence
-// with an Undo (workflow 3 L87-95), a voicing the reader cannot read stopping
-// the save (workflow 4 §Normalising), and all of it working offline
-// (offline-first; DIRECTION §3.4). Axe runs at WCAG 2.1 AA on the editor on
-// every viewport. A fresh Playwright context is a first visit — the shelf and
-// IndexedDB start empty, so each test seeds the example book first.
+// tablet and computer projects (songs.editor). Every test starts at `/` and
+// reaches the editor the way a person does: search a song in the bundled example
+// book and press Edit in the reading view, or Write a song from the empty shelf.
+// Editing by keyboard and touch that survives a reload (workflow 4 §Editing),
+// the preview beside on a wide screen and a tap away on the phone (workflow 3
+// L78-79), pasting a cifra into a fence with an Undo using the REAL clipboard
+// (workflow 3 L87-95), a voicing the reader cannot read stopping the save
+// (workflow 4 §Normalising), and all of it working offline (offline-first;
+// DIRECTION §3.4). Axe runs at WCAG 2.1 AA on the editor on every viewport.
 
 import { test, expect } from '../lib/axe.js';
-import { runOffline, waitForServiceWorker } from '../lib/offline.js';
+import { mockup } from '../lib/mockup.js';
+import { runOffline } from '../lib/offline.js';
+import { openExampleBook, openSongInEditor, startApp } from '../lib/journeys.js';
 
-const SONG_PATH = 'morning-on-the-porch.cifra.md';
 const SONG_TITLE = 'Morning on the Porch';
-const editorUrl = (p) => `/#dev/editor?book=local-example-book&path=${encodeURIComponent(p)}`;
-
-// Put the example book on the device (first-run), wait until a song is indexed,
-// then open the editor on it and confirm the working-copy text loaded.
-async function seedAndOpen(page, songPath = SONG_PATH) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.getByRole('button', { name: /Open the example book/ }).click();
-  await page.getByRole('searchbox').fill('Morning');
-  await expect(page.getByText(SONG_TITLE)).toBeVisible();
-  await page.goto(editorUrl(songPath));
-  await expect(page.locator('.cm-content')).toBeVisible();
-  await expect(page.locator('.cm-content')).toContainText(SONG_TITLE);
-}
 
 test('an edit typed by keyboard or touch persists across a reload, axe-clean on this viewport', async ({
   page,
   checkA11y,
 }, testInfo) => {
-  await seedAndOpen(page);
+  await openExampleBook(page);
+  await openSongInEditor(page, 'Morning', SONG_TITLE);
   const content = page.locator('.cm-content');
   // Touch on the phone and tablet, the keyboard on the computer — both reach it.
   if (testInfo.project.use.hasTouch) await content.tap();
@@ -45,11 +32,11 @@ test('an edit typed by keyboard or touch persists across a reload, axe-clean on 
 
   await checkA11y();
 
-  // The debounced WRITE persists the edit locally; a reload of the mount reads
-  // it straight back from the working copy.
+  // The debounced WRITE persists the edit locally; after a full reload the
+  // editor opened through the UI reads it straight back from the working copy.
   await page.waitForTimeout(800);
-  await page.goto(editorUrl(SONG_PATH));
-  await expect(page.locator('.cm-content')).toBeVisible();
+  await startApp(page);
+  await openSongInEditor(page, 'Morning', SONG_TITLE);
   await page.locator('.cm-content').click();
   await page.keyboard.press('Control+End');
   await expect(page.locator('.cm-content')).toContainText(stamp);
@@ -58,7 +45,8 @@ test('an edit typed by keyboard or touch persists across a reload, axe-clean on 
 test('the preview sits beside the text on a wide screen and a tap away on the phone', async ({
   page,
 }, testInfo) => {
-  await seedAndOpen(page);
+  await openExampleBook(page);
+  await openSongInEditor(page, 'Morning', SONG_TITLE);
   if (testInfo.project.name === 'phone') {
     await expect(page.locator('.chart')).toHaveCount(0);
     await page.getByRole('radio', { name: 'Preview' }).click();
@@ -66,26 +54,47 @@ test('the preview sits beside the text on a wide screen and a tap away on the ph
   } else {
     await expect(page.locator('.chart')).toBeVisible();
   }
+  await mockup(page, 'W03-write-a-new-song', 4); // text and preview side by side
 });
 
-test('pasting a cifra outside a fence wraps it in a fence, with an Undo', async ({ page, checkA11y }) => {
-  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-  await page.goto('/#dev/editor?new=1');
+test('pasting a cifra outside a fence wraps it in a fence, with an Undo (real clipboard)', async ({
+  page,
+  context,
+  checkA11y,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await startApp(page);
+  await page.getByRole('button', { name: /Write a song/ }).click();
   const content = page.locator('.cm-content');
   await expect(content).toBeVisible();
+  await mockup(page, 'W03-write-a-new-song', 2); // the template
+
+  // Put the cifra on the system clipboard the way a person does: write it in
+  // the editor, select it, Ctrl+C. (insertText: multi-line on every input path.)
+  const CIFRA = 'Verse one\nAm  G  F  E7\na line of words';
   await content.click();
-  // Past the template's closing fence, so the paste lands outside any fence.
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Delete');
+  await page.keyboard.insertText(CIFRA);
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Control+c');
+
+  // Start over with plain prose, so the paste lands outside any fence.
+  await page.keyboard.press('Control+a');
+  await page.keyboard.insertText('# Pasted\n\nSomething to play:\n\n');
   await page.keyboard.press('Control+End');
-  await page.evaluate((text) => navigator.clipboard.writeText(text), 'Verse one\nAm  G  F  E7\na line of words');
   await page.keyboard.press('Control+v');
 
   await expect(page.getByRole('status')).toBeVisible();
   await expect(content).toContainText('```');
+  await expect(content).toContainText('Am  G  F  E7');
+  await mockup(page, 'W03-write-a-new-song', 3); // pasted cifra, fenced, with Undo
   await checkA11y();
 
   const undo = page.getByRole('button', { name: 'Undo' });
   await undo.click();
   await expect(page.getByRole('button', { name: 'Undo' })).toHaveCount(0);
+  await expect(content).not.toContainText('```');
 });
 
 test('a voicing the reader cannot read stops the save until it is fixed, axe-clean', async ({
@@ -109,26 +118,24 @@ test('a voicing the reader cannot read stops the save until it is fixed, axe-cle
     '- G: 1', // one fret for a four-string tuning — unreadable (§7.4)
   ];
 
-  await page.goto('/#dev/editor?new=1');
+  await startApp(page);
+  await page.getByRole('button', { name: /Write a song/ }).click();
   const content = page.locator('.cm-content');
   await expect(content).toBeVisible();
   await content.click();
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Delete');
-  // Enter the whole song in one insertText. keyboard.type with Enter keydowns
-  // forms the newlines on the desktop input path, but NOT on CodeMirror's
-  // Android input reading — the phone and tablet projects carry a mobile
-  // user-agent, where the keydowns collapse the song to a single line so no
-  // voicing section parses and the save-gate never fires. insertText drives the
-  // DOM `insertText` input event CodeMirror applies the same on both paths, so
-  // the multi-line voicing section the save-gate reads forms on every viewport.
+  // Enter the whole song in one insertText: keyboard.type with Enter keydowns
+  // collapses the song to a single line on CodeMirror's Android input path (the
+  // phone and tablet projects), so no voicing section parses.
   await page.keyboard.insertText(LINES.join('\n'));
 
   await page.getByRole('button', { name: 'Save' }).click();
   const alert = page.getByRole('alert');
   await expect(alert).toBeVisible();
   await expect(alert).toContainText('Not saved.');
-  await expect(page.getByText('Ready to save.')).toHaveCount(0);
+  await mockup(page, 'W04-edit-and-save', 4); // save stopped by an unreadable voicing
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await checkA11y();
 
   // Fix the last line to a readable four-fret shape; the stop clears and Save
@@ -140,21 +147,21 @@ test('a voicing the reader cannot read stops the save until it is fixed, axe-cle
   await page.keyboard.type('- G: 0232');
   await expect(page.getByRole('alert')).toHaveCount(0);
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Ready to save.')).toBeVisible();
+  await expect(page.getByRole('dialog')).toBeVisible(); // the save sheet opens: the gate let it through
 });
 
 test('loading, editing and preview still work after an offline reload', async ({ page }, testInfo) => {
-  await seedAndOpen(page);
+  await openExampleBook(page);
   await runOffline(page, {
-    path: editorUrl(SONG_PATH),
+    path: '/',
     async whileOffline(offlinePage) {
-      await expect(offlinePage.locator('.cm-content')).toBeVisible();
+      await openSongInEditor(offlinePage, 'Morning', SONG_TITLE);
       await expect(offlinePage.locator('.cm-content')).toContainText(SONG_TITLE);
       if (testInfo.project.name === 'phone') {
         await offlinePage.getByRole('radio', { name: 'Preview' }).click();
       }
       await expect(offlinePage.locator('.chart')).toBeVisible();
-      // An edit offline is accepted and persisted locally.
+      // An edit offline is accepted.
       await offlinePage.locator('.cm-content').click();
       await offlinePage.keyboard.press('Control+End');
       await offlinePage.keyboard.type('\noffline edit');

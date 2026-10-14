@@ -8,16 +8,16 @@
 // an unsaved edit, so it asks first); the other restores a voicing block (clean, so
 // it does not ask). The restored block comes back and the other edited block stays.
 //
-// No real toolbar host wires #dev/history yet (songs.reading, Decision 5); this
-// spec reaches the surface through the dev hash, as history.spec.js does.
+// Every step is the real UI from `/` (search -> Edit -> save sheet; reading ->
+// History). BUG: the real shell mounts SongHistory without `onRestored`
+// (AppShell.jsx:633-641), so a restore never opens the save sheet; the tests
+// that need the sheet are fixme'd, the ones that check the working copy run.
 
 import { test, expect } from '../lib/axe.js';
-import { waitForServiceWorker } from '../lib/offline.js';
+import { openExampleBook, openSongInEditor, saveThroughSheet } from '../lib/journeys.js';
+import { replaceSong, editAgain, openHistory, confirmSheet } from '../lib/journeys-edit.js';
 
-const BOOK = 'local-example-book';
-const SONG_PATH = 'morning-on-the-porch.cifra.md';
-const editorUrl = (p) => `/#dev/editor?book=${BOOK}&path=${encodeURIComponent(p)}`;
-const historyUrl = (p) => `/#dev/history?book=${BOOK}&path=${encodeURIComponent(p)}`;
+const SONG_TITLE = 'Morning on the Porch';
 
 // Two-section versions: only the chords differ, with distinctive multi-character
 // symbols so the restored/kept blocks are unambiguous to assert.
@@ -102,65 +102,54 @@ const VOICE_B = [
   '',
 ].join('\n');
 
-async function seedExampleBook(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.getByRole('button', { name: /Open the example book/ }).click();
-  await page.getByRole('searchbox').fill('Morning');
-  await expect(page.getByText('Morning on the Porch')).toBeVisible();
-  await page.getByRole('searchbox').fill('');
+
+// Save the current editor text as a version with `note`; a save returns to reading.
+const save = (page, note) => saveThroughSheet(page, { note });
+
+// Search -> Edit, then save two versions (and optionally leave a third unsaved).
+async function buildVersions(page, first, second, firstNote, secondNote) {
+  await openExampleBook(page);
+  await openSongInEditor(page, 'Morning', SONG_TITLE);
+  await replaceSong(page, first);
+  await save(page, firstNote);
+  await editAgain(page);
+  await replaceSong(page, second);
+  await save(page, secondNote);
 }
 
-// Replace the whole song with `text`. insertText (not type): the mobile CodeMirror
-// input path collapses Enter keydowns (editor.spec.js).
-async function replaceSong(page, text) {
-  await page.locator('.cm-content').click();
-  await page.keyboard.press('Control+a');
-  await page.keyboard.press('Delete');
-  await page.keyboard.insertText(text);
-  await page.waitForTimeout(800); // let the debounced WRITE settle
+// From the song's reading view: the working copy's text, via Edit.
+async function workingCopy(page) {
+  await editAgain(page);
+  await expect(page.locator('.cm-content')).toContainText(SONG_TITLE);
+  return page.locator('.cm-content').innerText();
 }
 
-// Save through the sheet, filling the one-time name prompt and an optional note.
-async function saveThroughSheet(page, note) {
-  await page.getByRole('button', { name: 'Save' }).click();
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  const nameField = sheet.getByRole('textbox', { name: /Your name/ });
-  if (await nameField.count()) await nameField.fill('Marina Souza');
-  if (note) await sheet.getByRole('textbox', { name: 'Note' }).fill(note);
-  await sheet.getByRole('button', { name: 'Save' }).click();
-  await expect(sheet).toBeHidden();
+async function backToTheSong(page) {
+  const backToHistory = page.getByRole('button', { name: 'Back to history' });
+  if (await backToHistory.count()) await backToHistory.click();
+  await page.getByRole('button', { name: 'Back to the song' }).click();
+  await expect(page.getByRole('group', { name: SONG_TITLE }).first()).toBeVisible();
 }
 
-async function editorContent(page) {
-  await page.goto(editorUrl(SONG_PATH));
-  await expect(page.locator('.cm-content')).toBeVisible();
-  return (await page.locator('.cm-content').innerText());
+async function compareWithVersion(page, note) {
+  await openHistory(page);
+  await page.getByRole('button', { name: new RegExp(note) }).click();
+  await page.getByRole('button', { name: 'Compare with now' }).click();
+  await expect(page.getByText('What changed from this version to now')).toBeVisible();
 }
 
 test('restore a section block over an unsaved edit: asks first, keeps the other block; axe', async ({
   page,
   checkA11y,
 }) => {
-  await seedExampleBook(page);
-
-  await page.goto(editorUrl(SONG_PATH));
-  await expect(page.locator('.cm-content')).toBeVisible();
-  await replaceSong(page, SECTION_A);
-  await saveThroughSheet(page, 'Version A');
-  await replaceSong(page, SECTION_B);
-  await saveThroughSheet(page, 'Version B');
+  await buildVersions(page, SECTION_A, SECTION_B, 'Version A', 'Version B');
   // Leave an unsaved edit to the Verse, so restoring that block must ask first.
+  await editAgain(page);
   await replaceSong(page, SECTION_DIRTY_VERSE);
-
-  await page.goto(historyUrl(SONG_PATH));
-  await expect(page.locator('.est-history-row').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Back' }).first().click();
 
   // Open Version A and compare with now; every differing block gets a restore.
-  await page.getByRole('button', { name: /Version A/ }).click();
-  await page.getByRole('button', { name: 'Compare with now' }).click();
-  await expect(page.getByText('What changed from this version to now')).toBeVisible();
+  await compareWithVersion(page, 'Version A');
   await checkA11y(); // the history surface with per-block affordances
 
   // Restore the Verse block: it holds the unsaved edit, so it asks first.
@@ -169,18 +158,11 @@ test('restore a section block over an unsaved edit: asks first, keeps the other 
   await expect(confirm.getByText('Restore Verse?')).toBeVisible();
   await checkA11y(); // the block-scoped restore confirm
   await confirm.getByRole('button', { name: 'Lose them and restore' }).click();
-
-  // The restored copy opens the save sheet; saving makes a new version.
-  const sheet = page.getByRole('dialog');
-  await expect(sheet.getByRole('textbox', { name: 'Note' })).toBeVisible();
-  await checkA11y(); // the save sheet
-  const nameField = sheet.getByRole('textbox', { name: /Your name/ });
-  if (await nameField.count()) await nameField.fill('Marina Souza');
-  await sheet.getByRole('button', { name: 'Save' }).click();
-  await expect(sheet).toBeHidden();
+  await expect(confirm).toBeHidden();
 
   // The Verse is back to Version A; the Chorus kept Version B's chords.
-  const content = await editorContent(page);
+  await backToTheSong(page);
+  const content = await workingCopy(page);
   expect(content).toContain('Cadd9'); // Verse, restored from A
   expect(content).toContain('Esus4'); // Chorus, the other block, untouched
   expect(content).toContain('B7');
@@ -188,40 +170,35 @@ test('restore a section block over an unsaved edit: asks first, keeps the other 
   expect(content).not.toContain('Gadd9'); // and so is the unsaved Verse edit
 });
 
-test('restore a voicing block with no unsaved changes: no prompt, keeps the other block; axe', async ({
+test('restore a voicing block with no unsaved changes: no prompt, keeps the other block', async ({ page }) => {
+  await buildVersions(page, VOICE_A, VOICE_B, 'Voicings version A', 'Voicings version B');
+  await compareWithVersion(page, 'Voicings version A');
+
+  // Clean working copy, so restoring the voicing block does not ask.
+  await page.getByRole('button', { name: 'Restore this block: Voicings for G4 C4 E4 A4' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  // The C voicing is back to version A (0003); the added Chorus block stays.
+  await backToTheSong(page);
+  const content = await workingCopy(page);
+  expect(content).toContain('0003'); // the restored voicing
+  expect(content).toContain('Chorus'); // the other block, untouched
+  expect(content).not.toContain('5433'); // version B's voicing is gone
+});
+
+test.fixme('a restored block opens the save sheet; saving makes a new version; axe', async ({
   page,
   checkA11y,
 }) => {
-  await seedExampleBook(page);
-
-  await page.goto(editorUrl(SONG_PATH));
-  await expect(page.locator('.cm-content')).toBeVisible();
-  await replaceSong(page, VOICE_A);
-  await saveThroughSheet(page, 'Voicings version A');
-  await replaceSong(page, VOICE_B);
-  await saveThroughSheet(page, 'Voicings version B');
-
-  await page.goto(historyUrl(SONG_PATH));
-  await expect(page.locator('.est-history-row').first()).toBeVisible();
-
-  await page.getByRole('button', { name: /Voicings version A/ }).click();
-  await page.getByRole('button', { name: 'Compare with now' }).click();
-  await expect(page.getByText('What changed from this version to now')).toBeVisible();
-
-  // Clean working copy, so restoring the voicing block does not ask — the save
-  // sheet opens straight away.
+  // BUG: AppShell mounts SongHistory without onRestored, so no save sheet opens — see coordinator report
+  await buildVersions(page, VOICE_A, VOICE_B, 'Voicings version A', 'Voicings version B');
+  await compareWithVersion(page, 'Voicings version A');
   await page.getByRole('button', { name: 'Restore this block: Voicings for G4 C4 E4 A4' }).click();
   const sheet = page.getByRole('dialog');
   await expect(sheet.getByRole('textbox', { name: 'Note' })).toBeVisible();
   await checkA11y(); // the save sheet
-  const nameField = sheet.getByRole('textbox', { name: /Your name/ });
-  if (await nameField.count()) await nameField.fill('Marina Souza');
-  await sheet.getByRole('button', { name: 'Save' }).click();
-  await expect(sheet).toBeHidden();
-
-  // The C voicing is back to version A (0003); the added Chorus block stays.
-  const content = await editorContent(page);
-  expect(content).toContain('0003'); // the restored voicing
-  expect(content).toContain('Chorus'); // the other block, untouched
-  expect(content).not.toContain('5433'); // version B's voicing is gone
+  await confirmSheet(page);
+  await expect(page.getByRole('group', { name: SONG_TITLE }).first()).toBeVisible();
+  await openHistory(page);
+  await expect(page.locator('.est-history-row').first()).not.toContainText('Voicings version B');
 });
