@@ -14,6 +14,7 @@ import {
   saveThroughSheet,
   startApp,
 } from '../lib/journeys.js';
+import { mockup } from '../lib/mockup.js';
 
 const INTRO = 'G | C | G | D';
 const ADDED = ' | Em';
@@ -28,8 +29,15 @@ test('a song edited from the reading view saves and is still changed after a rel
   await typeAtEndOfLine(page, INTRO, ADDED);
   await expect(page.locator('.cm-content')).toContainText(`${INTRO}${ADDED}`);
   await checkA11y(); // the editor host with an edit, this viewport
+  await mockup(page, 'W04-edit-and-save', 1);
 
-  await saveThroughSheet(page, { note: 'Add Em to the intro' });
+  await saveThroughSheet(page, {
+    note: 'Add Em to the intro',
+    onSheet: async () => {
+      await mockup(page, 'W04-edit-and-save', 2);
+      await mockup(page, 'W04-edit-and-save', 4, { note: 'the first save asks your name' });
+    },
+  });
 
   // A save returns to reading the song, which shows the new chord.
   await expect(page.getByRole('group', { name: 'Morning on the Porch' }).first()).toBeVisible();
@@ -56,6 +64,7 @@ test('Back from the editor keeps the unsaved edit, and Discard reverts it (workf
   await page.getByRole('button', { name: 'Discard changes' }).click();
   const confirm = page.getByRole('dialog');
   await expect(confirm.getByText(/This would be lost/)).toBeVisible();
+  await mockup(page, 'W04-edit-and-save', 3);
   await confirm.getByRole('button', { name: 'Discard changes' }).click();
   await expect(confirm).toBeHidden();
   await expect(page.locator('.cm-content')).not.toContainText(`${INTRO}${ADDED}`);

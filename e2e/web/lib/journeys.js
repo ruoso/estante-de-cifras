@@ -235,7 +235,9 @@ export async function settleEdits(page) {
 // The editor's Save → the save sheet → its Save, with an optional note. The
 // first save on a device asks for the author's name (workflow 4 §Who made the
 // change); `name` answers it. Waits for the sheet to close (the commit landed).
-export async function saveThroughSheet(page, { note, name = 'Marina Souza' } = {}) {
+// `onSheet(sheet)` runs while the sheet is open, before saving (assertions,
+// axe, a mockup() snapshot).
+export async function saveThroughSheet(page, { note, name = 'Marina Souza', onSheet } = {}) {
   await settleEdits(page);
   await page.getByRole('button', { name: 'Save', exact: true }).first().click();
   const sheet = page.getByRole('dialog');
@@ -243,6 +245,7 @@ export async function saveThroughSheet(page, { note, name = 'Marina Souza' } = {
   const nameField = sheet.getByRole('textbox', { name: /Your name/ });
   if (await nameField.count()) await nameField.fill(name);
   if (note !== undefined) await sheet.getByRole('textbox', { name: /Note/ }).fill(note);
+  if (onSheet) await onSheet(sheet);
   await sheet.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(sheet).toBeHidden();
 }

@@ -1,0 +1,476 @@
+[
+ {
+  "board": "Screen-reader",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · a sung line, then a chart line — each beside its reading"
+ },
+ {
+  "board": "Screen-reader",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · a sung line, then a chart line — each beside its reading"
+ },
+ {
+  "board": "Screen-reader",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · a chord diagram, read by its fingering and whose shape it is"
+ },
+ {
+  "board": "Screen-reader",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · a conflicted line bounded by a word — and the raw markers that stay in the editor"
+ },
+ {
+  "board": "Theme-picker",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · before signing in (Estante), then signed in with Palco chosen"
+ },
+ {
+  "board": "Theme-picker",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · before signing in (Estante), then signed in with Palco chosen"
+ },
+ {
+  "board": "Theme-picker",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · signed in with Caderno chosen — Preferences beside devices and passkeys"
+ },
+ {
+  "board": "Theme-picker",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · the W13 Account surface, with Preferences above devices and passkeys"
+ },
+ {
+  "board": "W01-first-run",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · the cold door, then the invited one: sign in or make an account to open the book"
+ },
+ {
+  "board": "W01-first-run",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · the cold door, then the invited one: sign in or make an account to open the book"
+ },
+ {
+  "board": "W01-first-run",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · the first song opened asks about the instrument, once"
+ },
+ {
+  "board": "W01-first-run",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · a link that does not open its book (expired, withdrawn, not a member), and a full book; neither says whose"
+ },
+ {
+  "board": "W02-find-and-play",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · typing “A”, then reading"
+ },
+ {
+  "board": "W02-find-and-play",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · typing “A”, then reading"
+ },
+ {
+  "board": "W02-find-and-play",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · a song with nothing chosen for the cavaquinho"
+ },
+ {
+  "board": "W02-find-and-play",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · search beside the song, transposed for the singer"
+ },
+ {
+  "board": "W03-write-a-new-song",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · nothing matched, so create it; the template"
+ },
+ {
+  "board": "W03-write-a-new-song",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · nothing matched, so create it; the template"
+ },
+ {
+  "board": "W03-write-a-new-song",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · a pasted cifra, fenced by the editor, with Undo"
+ },
+ {
+  "board": "W03-write-a-new-song",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · text and preview side by side; the first save names the file"
+ },
+ {
+  "board": "W04-edit-and-save",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · unsaved changes, then the save sheet"
+ },
+ {
+  "board": "W04-edit-and-save",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · unsaved changes, then the save sheet"
+ },
+ {
+  "board": "W04-edit-and-save",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · discard shows what would be lost, and always asks"
+ },
+ {
+  "board": "W04-edit-and-save",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · a save stopped by an unreadable voicing; the first save asks your name"
+ },
+ {
+  "board": "W05-arrange",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · arrange mode, then the picker from one bar"
+ },
+ {
+  "board": "W05-arrange",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · arrange mode, then the picker from one bar"
+ },
+ {
+  "board": "W05-arrange",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · entering a shape by hand"
+ },
+ {
+  "board": "W05-arrange",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · the wizard’s plan, offered into a new variation first"
+ },
+ {
+  "board": "W06-history",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · the song's history, then one old version"
+ },
+ {
+  "board": "W06-history",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · the song's history, then one old version"
+ },
+ {
+  "board": "W06-history",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · restoring over unsaved changes asks first, showing what would be lost"
+ },
+ {
+  "board": "W06-history",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · the list beside a version, with the text of the file shown"
+ },
+ {
+  "board": "W07-add-a-book",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · the books on the shelf, then the four ways in"
+ },
+ {
+  "board": "W07-add-a-book",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · the books on the shelf, then the four ways in"
+ },
+ {
+  "board": "W07-add-a-book",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · uploading a zip: the preview, before anything is written"
+ },
+ {
+  "board": "W07-add-a-book",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · a book's detail, and deleting it from Estante"
+ },
+ {
+  "board": "W08-sync",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · the shelf when books are not in step, and a song updated while read"
+ },
+ {
+  "board": "W08-sync",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · the shelf when books are not in step, and a song updated while read"
+ },
+ {
+  "board": "W08-sync",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · editing, when Ana's save is merged under the unsaved changes"
+ },
+ {
+  "board": "W08-sync",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · full screen during a performance: Ana's update waits"
+ },
+ {
+  "board": "W08-sync",
+  "index": 5,
+  "kind": "desktop",
+  "label": "Computer · full screen during a performance: Ana's update waits"
+ },
+ {
+  "board": "W09-conflicts",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · a bar both changed, then a shape both chose"
+ },
+ {
+  "board": "W09-conflicts",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · a bar both changed, then a shape both chose"
+ },
+ {
+  "board": "W09-conflicts",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · “Edit” chosen: the text with git's markers, and Save refusing"
+ },
+ {
+  "board": "W09-conflicts",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · the book needs you; the rest of it carries on"
+ },
+ {
+  "board": "W10-share",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · Ana's share screen for her book, 37 of 50 people; then a new invitation"
+ },
+ {
+  "board": "W10-share",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · Ana's share screen for her book, 37 of 50 people; then a new invitation"
+ },
+ {
+  "board": "W10-share",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · the owner's people screen, 37 of 50: members, invitations, removing someone"
+ },
+ {
+  "board": "W10-share",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · Share on a song: an invitation that opens on that song, and its plain address for members"
+ },
+ {
+  "board": "W10-share",
+  "index": 5,
+  "kind": "desktop",
+  "label": "Computer · Share on a song: an invitation that opens on that song, and its plain address for members"
+ },
+ {
+  "board": "W10-share",
+  "index": 6,
+  "kind": "desktop",
+  "label": "Computer · Share on a song: an invitation that opens on that song, and its plain address for members"
+ },
+ {
+  "board": "W11-fork",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · saving in Ana's book, then the shelf after forking"
+ },
+ {
+  "board": "W11-fork",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · saving in Ana's book, then the shelf after forking"
+ },
+ {
+  "board": "W11-fork",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · “Bring them in”: the preview, song by song, before anything is written"
+ },
+ {
+  "board": "W11-fork",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · the original went away; and Fork, deliberately, in book management"
+ },
+ {
+  "board": "W12-setlists",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · a setlist opened, then playing through it"
+ },
+ {
+  "board": "W12-setlists",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · a setlist opened, then playing through it"
+ },
+ {
+  "board": "W12-setlists",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · Add to setlist, on a song from another book"
+ },
+ {
+  "board": "W12-setlists",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · the setlist editor beside its Markdown file, a missing link being repointed"
+ },
+ {
+  "board": "W13-new-device",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · signing in on a new phone, then the shelf filling"
+ },
+ {
+  "board": "W13-new-device",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · signing in on a new phone, then the shelf filling"
+ },
+ {
+  "board": "W13-new-device",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · used before signing in: two My songs, merge or keep both"
+ },
+ {
+  "board": "W13-new-device",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · the account screen, and signing out of this computer"
+ },
+ {
+  "board": "W14-file-view",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · the book's files, then one opened in the raw editor"
+ },
+ {
+  "board": "W14-file-view",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · the book's files, then one opened in the raw editor"
+ },
+ {
+  "board": "W14-file-view",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · tree and file side by side, renaming a song"
+ },
+ {
+  "board": "W14-file-view",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · the book's history as git sees it, one commit open, saving chosen files"
+ },
+ {
+  "board": "W15-set-up-an-instrument",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · the roster opened from the chip, the one in use marked; then adding one"
+ },
+ {
+  "board": "W15-set-up-an-instrument",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · the roster opened from the chip, the one in use marked; then adding one"
+ },
+ {
+  "board": "W15-set-up-an-instrument",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · the voicing rules — a preset, then the expert panel; one edit has turned it Custom"
+ },
+ {
+  "board": "W15-set-up-an-instrument",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · an instrument's screen — definition, rules, my shapes — and removing one"
+ },
+ {
+  "board": "W16-chord-explorer",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · exploring A on guitar, one shape starred; then an empty state"
+ },
+ {
+  "board": "W16-chord-explorer",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · exploring A on guitar, one shape starred; then an empty state"
+ },
+ {
+  "board": "W16-chord-explorer",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · an ambiguous symbol, C7+, with the reading it took and the flip"
+ },
+ {
+  "board": "W16-chord-explorer",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · reached from search’s chord row (workflow 2), the explorer beside it"
+ },
+ {
+  "board": "W17-leaving",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · the Leaving Estante region on the account screen, then taking your data out (offline)"
+ },
+ {
+  "board": "W17-leaving",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · the Leaving Estante region on the account screen, then taking your data out (offline)"
+ },
+ {
+  "board": "W17-leaving",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · a member's shelf after the owner left: no longer shared with you, the copy kept, a fork or download offered"
+ },
+ {
+  "board": "W17-leaving",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · the delete-account confirm: what will happen, who loses access, work only here, and type-the-name"
+ }
+]
