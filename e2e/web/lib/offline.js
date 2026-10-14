@@ -14,7 +14,7 @@
 // worker claim the first visit, which sets navigator.serviceWorker.controller;
 // waiting on it (not just registration) is the "the worker controls the page"
 // signal the offline reload depends on.
-export async function waitForServiceWorker(page, { timeout = 20000 } = {}) {
+export async function waitForServiceWorker(page, { timeout = 10000 } = {}) {
   await page.waitForFunction(
     () => Boolean(navigator.serviceWorker && navigator.serviceWorker.controller),
     null,

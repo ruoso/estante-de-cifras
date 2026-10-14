@@ -118,7 +118,6 @@ test('deleting an account that shares a book counts the people who lose access, 
   browser,
   page,
 }) => {
-  test.setTimeout(180000);
   const BOOK = 'Choros do Dono';
 
   // The owner: an account with an address (seeded — see the first test), a
@@ -151,7 +150,7 @@ test('deleting an account that shares a book counts the people who lose access, 
       await startApp(member.page);
       await member.page.getByRole('tab', { name: 'Books' }).click();
       await expect(member.page.getByText('no longer shared with you')).toBeVisible({ timeout: 2500 });
-    }).toPass({ timeout: 90000 });
+    }).toPass({ timeout: 10000 });
     await mockup(member.page, 'W17-leaving', 3);
   } finally {
     await member.context.close();

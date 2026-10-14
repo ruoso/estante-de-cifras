@@ -49,7 +49,7 @@ export async function openExampleBook(page) {
       await openExample.click({ timeout: 2000 }).catch(() => {});
     }
     await expect(books).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 20000 });
+  }).toPass({ timeout: 10000 });
   await page.getByRole('searchbox').fill('Morning');
   await expect(page.getByRole('button', { name: /Morning on the Porch/ }).first()).toBeVisible();
   await page.getByRole('searchbox').fill('');
@@ -174,7 +174,7 @@ export async function networkBlip(page, { offlineMs = 300 } = {}) {
 
 // Reload until `title` is searchable — proof a sync brought a song down and
 // the open-time sweep indexed it.
-export async function waitUntilSearchable(page, query, title, { timeout = 60000 } = {}) {
+export async function waitUntilSearchable(page, query, title, { timeout = 10000 } = {}) {
   await expect(async () => {
     await startApp(page);
     await page.waitForTimeout(1500);

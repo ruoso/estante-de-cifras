@@ -78,7 +78,6 @@ test('Sync now is reachable by keyboard, fires a pass and returns at once (workf
 // WBS task sync.states_e2e_hosted: the positive out-of-step journey on a hosted
 // book (workflow 8 L28-38; acceptance 1-2).
 async function offlineSavesJourney(page, checkA11y, recover) {
-  test.setTimeout(150000);
   const HOSTED = 'Caderno Offline';
   const TITLE = 'Maré Baixa';
   const FILE = 'mare-baixa.cifra.md';
@@ -112,7 +111,7 @@ async function offlineSavesJourney(page, checkA11y, recover) {
 
   // Books reads the state in words, with the header's quiet mark.
   await gotoTabFromSong(page, 'Books');
-  await expect(row.getByText('2 saves waiting to go up')).toBeVisible({ timeout: 20000 });
+  await expect(row.getByText('2 saves waiting to go up')).toBeVisible({ timeout: 10000 });
   await expect(page.getByRole('img', { name: 'Some books are not in step' })).toBeVisible();
   await mockup(page, 'W08-sync', 1);
   await checkA11y(); // the shelf out of step, this viewport
@@ -120,7 +119,7 @@ async function offlineSavesJourney(page, checkA11y, recover) {
   // The network returns: the saves go up and the states clear.
   await page.context().setOffline(false);
   await recover();
-  await expect(row.getByText(/saves? waiting/)).toHaveCount(0, { timeout: 60000 });
+  await expect(row.getByText(/saves? waiting/)).toHaveCount(0, { timeout: 10000 });
   await expect(page.getByRole('img', { name: 'Some books are not in step' })).toHaveCount(0);
   await expect(row.locator('.badge')).toHaveCount(0);
   await checkA11y(); // the shelf back in step

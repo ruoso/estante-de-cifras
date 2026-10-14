@@ -149,7 +149,7 @@ test('a sync brings a new version of the open song in place, with the notice tha
   // open song: MERGED names it, the view re-reads it in place, the notice shows.
   await networkBlip(page);
   const notice = page.locator('.reading-update-notice');
-  await expect(notice).toBeVisible({ timeout: 20000 });
+  await expect(notice).toBeVisible({ timeout: 10000 });
   await expect(notice).toHaveAttribute('role', 'status');
   await expect(notice).toContainText(`Updated by ${INCOMING_AUTHOR}`);
   await expect(sheet).toContainText('lighthouse');
@@ -199,7 +199,7 @@ test('full screen holds the update back until the reader leaves it (acceptance 4
   // Leaving full screen applies the deferred update.
   await page.getByRole('button', { name: 'Exit full screen' }).click();
   const notice = page.locator('.reading-update-notice');
-  await expect(notice).toBeVisible({ timeout: 20000 });
+  await expect(notice).toBeVisible({ timeout: 10000 });
   await expect(notice).toContainText(`Updated by ${INCOMING_AUTHOR}`);
   await expect(sheet).toContainText('lighthouse');
   await mockup(page, 'W08-sync', 5);

@@ -93,7 +93,7 @@ test('a sync merges a new version under the open editor’s unsaved edit, in pla
   // MERGED: the editor re-reads the merged working text in place, notice shown.
   await networkBlip(page);
   const notice = page.locator('.est-editor-update-notice');
-  await expect(notice).toBeVisible({ timeout: 20000 });
+  await expect(notice).toBeVisible({ timeout: 10000 });
   await expect(notice).toHaveAttribute('role', 'status');
   await expect(notice).toContainText(`Updated by ${INCOMING_AUTHOR}`);
 

@@ -1,26 +1,39 @@
 // conflicts (e2e-web) — the conflict-resolution journey against the compose
 // stack, on the phone/tablet/computer projects, with axe at WCAG 2.1 AA on every
-// conflict screen (sync.conflicts, workflow 9; board W09). An owner hosts a book
-// with one song; a second writer (a node `git` client, the read-in-place.spec.js
-// pattern — the owner's own smart-HTTP session, committing as another person) and
-// the owner both change the same bar. The owner syncs second, meets *needs you*,
-// engages the paused panel while the rest of the book stays readable, and settles
-// the conflict — each way across the four tests: *keep mine*, *take theirs*,
-// *edit* the markers away, and *abandon*. The resolved merge is pushed and is
-// fetched back by a fresh clone. Book and song names are written for this test
-// (no-song-text rule).
-
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+// conflict screen (sync.conflicts, workflow 9; board W09). TWO PEOPLE: the owner
+// writes a song into a book, puts it online and shares it as an editor with a
+// second browser context (a second account, joined through the real Share
+// dialog and the invitation link). The second person, Ana, edits the same bar
+// in her own editor and saves (a push the server accepts from a member); the
+// owner then edits the same bar and saves, syncs, and meets *needs you*, engages
+// the paused panel while the rest of the book stays readable, and settles the
+// conflict — each way across the tests: *take theirs*, *keep mine*, *edit* the
+// markers away, *abandon*, *keep both* for a voicing, and a song one person
+// deleted while the other edited it. Also: a save is refused while the book
+// needs you. Book and song names are written for these tests (no-song-text
+// rule). A git CLI device appears only to read what is on the server.
 
 import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
-import { waitForServiceWorker } from '../lib/offline.js';
-import { baseUrl } from '../lib/env.js';
-
-const execFileAsync = promisify(execFile);
+import { GitDevice } from '../lib/git-device.js';
+import { mockup } from '../lib/mockup.js';
+import {
+  signedInDevice,
+  makeLocalBook,
+  putBookOnline,
+  startApp,
+  gotoTab,
+  waitUntilSearchable,
+  openSongInEditor,
+  saveThroughSheet,
+  openSongFromSearch,
+  bookGitUrl,
+  sessionCookie,
+  typeAtEndOfLine,
+} from '../lib/journeys.js';
+import { writeSongInBook, inviteThroughShare } from '../lib/journeys-share.js';
+import { joinByInvite } from '../lib/journeys-account.js';
+import { deleteSongInFiles, saveAllChanges } from '../lib/journeys-files.js';
+import { replaceLine, gotoTabFromSong, openBookRow } from '../lib/journeys-sync.js';
 
 const BOOK = 'Choros da Ana';
 const SONG_TITLE = 'Roda de rua';
@@ -29,240 +42,178 @@ const BAR_BASE = 'C | G | Am | F';
 const BAR_OWNER = 'C | G | Am | Dm';
 const BAR_ANA = 'C | G | Am | E7';
 const INCOMING_AUTHOR = 'Ana';
-const songWithBar = (bar) => [`# ${SONG_TITLE}`, '- language: en', '', '## Parte', '```', bar, '```'].join('\n');
+const songWithBar = (bar) => [`# ${SONG_TITLE}`, '- language: en', '', '## Parte', '```', bar, '```', ''];
 
-const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const rowFor = (title) => new RegExp('^' + escapeRegExp(title));
+// A calm second song nobody touches, so the book has "the rest" and a place to
+// try a save while the book needs you.
+const OTHER_TITLE = 'Cantiga calma';
+const OTHER_LINES = [`# ${OTHER_TITLE}`, '- language: en', '', '## Parte', '```', 'G | D | Em | C', '```', ''];
 
-// --- account + book helpers (inline, as the harness does) ---
+const rowFor = (title) => new RegExp('^' + title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 
-async function enableVirtualAuthenticator(page) {
-  const client = await page.context().newCDPSession(page);
-  await client.send('WebAuthn.enable');
-  await client.send('WebAuthn.addVirtualAuthenticator', {
-    options: {
-      protocol: 'ctap2',
-      transport: 'internal',
-      hasResidentKey: true,
-      hasUserVerification: true,
-      isUserVerified: true,
-      automaticPresenceSimulation: true,
-    },
-  });
-}
-
-async function hasSessionCookie(page) {
-  const cookies = await page.context().cookies();
-  return cookies.some((c) => c.name === 'estante_session' && c.value);
-}
-
-async function signInWithPasskey(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.getByRole('button', { name: /Sign in/ }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  await page.getByRole('button', { name: 'Use a passkey' }).click();
-  await expect.poll(() => hasSessionCookie(page)).toBe(true);
-}
-
-async function makeLocalBook(page, name) {
-  await page.getByRole('tab', { name: 'Books' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible();
-  await page.getByRole('button', { name: 'Add a book' }).click();
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  await sheet.getByRole('textbox', { name: 'Book name' }).fill(name);
-  await sheet.getByRole('button', { name: 'New book' }).click();
-  await expect(page.getByRole('button', { name: rowFor(name) })).toBeVisible();
-}
-
-async function putBookOnline(page, name) {
-  await page.getByRole('button', { name: rowFor(name) }).click();
-  await page.getByRole('button', { name: 'Put online' }).click();
-  await expect(page.getByText('On Estante · private')).toBeVisible();
-}
-
-async function sessionCookieHeader(page) {
-  const cookies = await page.context().cookies();
-  const c = cookies.find((x) => x.name === 'estante_session');
-  if (!c) throw new Error('no estante_session cookie on the device context');
-  return `estante_session=${c.value}`;
-}
-
-async function bookFromApi(page, title) {
-  const resp = await page.request.get('/api/books');
-  expect(resp.ok()).toBeTruthy();
-  const { books } = await resp.json();
-  const book = books.find((b) => b.title === title);
-  if (!book) throw new Error(`book ${title} not found for the account`);
-  return book;
-}
-
-// --- node git (the second writer, over the owner's own smart-HTTP session) ---
-
-const tmpDirs = [];
-function makeDir() {
-  const dir = mkdtempSync(join(tmpdir(), 'estante-e2e-conflicts-'));
-  tmpDirs.push(dir);
-  return dir;
-}
-test.afterEach(() => {
-  for (const dir of tmpDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+const contexts = [];
+test.afterEach(async () => {
+  for (const context of contexts.splice(0)) await context.close().catch(() => {});
 });
 
-function runGit(cwd, args) {
-  return execFileAsync('git', args, {
-    cwd,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1' },
-  });
-}
-const cookieArgs = (cookie) => ['-c', `http.extraHeader=Cookie: ${cookie}`];
-async function configIdentity(dir, name, email) {
-  await runGit(dir, ['config', 'user.name', name]);
-  await runGit(dir, ['config', 'user.email', email]);
-  await runGit(dir, ['config', 'commit.gpgsign', 'false']);
-}
-
-async function seedSong(gitUrl, cookie) {
-  const dir = makeDir();
-  await runGit(tmpdir(), [...cookieArgs(cookie), 'clone', gitUrl, dir]);
-  await configIdentity(dir, 'Beto', 'beto@users.estantedecifras.app');
-  writeFileSync(join(dir, SONG_FILE), `${songWithBar(BAR_BASE)}\n`);
-  await runGit(dir, ['add', SONG_FILE]);
-  await runGit(dir, ['commit', '-m', 'Seed a song']);
-  await runGit(dir, [...cookieArgs(cookie), 'push', gitUrl, 'HEAD:refs/heads/main']);
-}
-
-// The second writer rewrites the same bar and pushes it first, as INCOMING_AUTHOR.
-async function anaRewritesTheBar(gitUrl, cookie) {
-  const dir = makeDir();
-  await runGit(tmpdir(), [...cookieArgs(cookie), 'clone', gitUrl, dir]);
-  await configIdentity(dir, INCOMING_AUTHOR, 'ana@users.estantedecifras.app');
-  writeFileSync(join(dir, SONG_FILE), `${songWithBar(BAR_ANA)}\n`);
-  await runGit(dir, ['add', SONG_FILE]);
-  await runGit(dir, ['commit', '-m', 'Rework the bar']);
-  await runGit(dir, [...cookieArgs(cookie), 'push', gitUrl, 'HEAD:refs/heads/main']);
-}
-
-// The resolved bar now on the remote (a fresh clone — the merge fetched back).
-async function remoteBar(gitUrl, cookie) {
-  const dir = makeDir();
-  await runGit(tmpdir(), [...cookieArgs(cookie), 'clone', gitUrl, dir]);
-  return readFileSync(join(dir, SONG_FILE), 'utf8');
-}
-
-// --- editor / sync helpers ---
-
-async function editorGoto(page, bookId) {
-  await page.goto(`/#dev/editor?book=${encodeURIComponent(bookId)}&path=${encodeURIComponent(SONG_FILE)}`);
-  await expect(page.locator('.cm-content')).toBeVisible();
-}
-
-async function reloadAndSync(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.waitForTimeout(1500);
-}
-
-// The owner rewrites the same bar in the on-device editor and saves (naming
-// themselves on the first save). A local commit, ahead of the fetched remote.
-async function ownerRewritesTheBar(page, bookId) {
-  await editorGoto(page, bookId);
-  const line = page.locator('.cm-content .cm-line').filter({ hasText: BAR_BASE }).first();
-  await line.click();
-  await page.keyboard.press('Home');
-  await page.keyboard.press('Shift+End');
-  await page.keyboard.insertText(BAR_OWNER);
-  await page.waitForTimeout(800);
-  await page.getByRole('button', { name: 'Save' }).click();
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  const nameField = sheet.getByRole('textbox', { name: /Your name/ });
-  if (await nameField.count()) await nameField.fill('Beto');
-  await sheet.getByRole('button', { name: 'Save' }).click();
-  await expect(sheet).toBeHidden();
-}
-
-// Drive the owner to the paused panel: host + seed, the second writer collides,
-// the owner rewrites the same bar and syncs second, meets *needs you*, engages.
-// Returns `{ bookId, gitUrl, cookie }`.
-async function reachNeedsYou(page) {
-  await enableVirtualAuthenticator(page);
-  await signInWithPasskey(page);
+// The owner hosts `songs` (arrays of lines) in BOOK, shares it as an editor, and
+// Ana joins from her own browser context and has the first song.
+async function ownerAndAna(browser, page, songs, { query, title }) {
+  await signedInDevice(page);
   await makeLocalBook(page, BOOK);
+  for (const lines of songs) await writeSongInBook(page, BOOK, lines);
   await putBookOnline(page, BOOK);
-  const book = await bookFromApi(page, BOOK);
-  const bookId = book.id;
-  const gitUrl = new URL(book.gitUrl, `${baseUrl}/`).toString();
-  const cookie = await sessionCookieHeader(page);
+  await startApp(page);
+  const link = await inviteThroughShare(page, BOOK, { role: 'Editor' });
 
-  await seedSong(gitUrl, cookie);
-  await reloadAndSync(page); // pull the seeded song into the working copy
-  await anaRewritesTheBar(gitUrl, cookie); // the remote is now ahead, same bar
-  await ownerRewritesTheBar(page, bookId); // a colliding local commit
-  await reloadAndSync(page); // sync second → the merge cannot settle alone
+  const ana = await joinByInvite(browser, link, BOOK);
+  contexts.push(ana.context);
+  await expect(ana.page.getByText('On Estante · can save')).toBeVisible();
+  await waitUntilSearchable(ana.page, query, title);
 
-  // The shelf reads *needs you*; the rest of the book stays readable.
-  await page.getByRole('tab', { name: 'Books' }).click();
-  await expect(page.getByText('needs you').first()).toBeVisible({ timeout: 30000 });
+  const url = await bookGitUrl(page, BOOK);
+  const cookie = await sessionCookie(page);
+  return { ana: ana.page, url, cookie };
+}
 
-  // Engage the book: the paused panel opens.
-  await page.getByRole('button', { name: rowFor(BOOK) }).click();
+// Ana changes `oldLine` to `newLine` in the song and saves (her save pushes).
+async function anaRewrites(ana, { query, title, oldLine, newLine }) {
+  await openSongInEditor(ana, query, title);
+  await replaceLine(ana, oldLine, newLine);
+  await saveThroughSheet(ana, { name: INCOMING_AUTHOR });
+}
+
+// The text of `file` on the server now (a fresh clone of the book).
+async function remoteFile(url, cookie, file) {
+  const device = new GitDevice({ url, cookie });
+  try {
+    await device.clone();
+    return device.read(file);
+  } finally {
+    device.cleanup();
+  }
+}
+
+// Wait until Ana's save is on the server (so the owner's next save collides).
+async function waitForRemote(url, cookie, file, text) {
+  await expect.poll(() => remoteFile(url, cookie, file), { timeout: 10000 }).toContain(text);
+}
+
+// The owner (who has not synced since) changes the same line and saves, then a
+// sync pass runs; the shelf reads *needs you*; engage the book → paused panel.
+async function ownerCollidesAndEngages(page, { query, title, oldLine, newLine, deleted = false }) {
+  await openSongInEditor(page, query, title);
+  await replaceLine(page, oldLine, newLine);
+  await saveThroughSheet(page);
+  await page.context().setOffline(false); // back online: the sync pass meets the collision
+  await gotoTabFromSong(page, 'Books');
+  await expect(page.getByText('needs you').first()).toBeVisible({ timeout: 10000 });
+  await openBookRow(page, BOOK);
   await expect(page.getByText(/songs? need you|song needs you/i)).toBeVisible();
-  await expect(page.getByText('In conflict')).toBeVisible();
-  return { bookId, gitUrl, cookie };
+  // A song deleted on one side has no "In conflict" group: its choice is inline.
+  if (!deleted) await expect(page.getByText('In conflict')).toBeVisible();
+}
+
+// Both change the same bar: the paused panel is up for the owner.
+async function reachNeedsYou(browser, page) {
+  const { ana, url, cookie } = await ownerAndAna(browser, page, [songWithBar(BAR_BASE), OTHER_LINES], {
+    query: 'Roda',
+    title: SONG_TITLE,
+  });
+  await page.context().setOffline(true); // the owner is away from the network while Ana saves
+  await anaRewrites(ana, { query: 'Roda', title: SONG_TITLE, oldLine: BAR_BASE, newLine: BAR_ANA });
+  await waitForRemote(url, cookie, SONG_FILE, BAR_ANA);
+  await ownerCollidesAndEngages(page, { query: 'Roda', title: SONG_TITLE, oldLine: BAR_BASE, newLine: BAR_OWNER });
+  return { ana, url, cookie };
 }
 
 async function openResolver(page) {
   expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the paused book panel
-  await page.getByRole('button', { name: new RegExp(`^Settle ${escapeRegExp(SONG_TITLE)}`) }).click();
+  await page.getByRole('button', { name: new RegExp(`^Settle ${SONG_TITLE}`) }).click();
   await expect(page.getByText(/Conflict \d+ of \d+/)).toBeVisible();
   await expect(page.getByText('Yours', { exact: true })).toBeVisible();
   await expect(page.getByText('Ana’s', { exact: true })).toBeVisible();
   expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the per-song resolver
 }
 
-// After settling, the book leaves *needs you* and the editor shows `bar`.
-async function expectSettledWithBar(page, bookId, bar) {
+// After settling, the book leaves *needs you* and the song reads `bar`.
+async function expectSettledWithBar(page, bar) {
+  // Let the settle run before any reload: the resolver's choices close once
+  // the Worker has handled it (a reload right after the click kills it).
+  await expect(page.getByRole('button', { name: /^(Take theirs|Keep mine)$/ })).toHaveCount(0, {
+    timeout: 10000,
+  });
   await expect(async () => {
-    await reloadAndSync(page);
-    await editorGoto(page, bookId);
+    await startApp(page);
+    await page.waitForTimeout(1500);
+    await openSongInEditor(page, 'Roda', SONG_TITLE);
     await expect(page.locator('.cm-content')).toContainText(bar, { timeout: 2500 });
     await expect(page.locator('.cm-content')).not.toContainText('<<<<<<<', { timeout: 2500 });
-  }).toPass({ timeout: 90000 });
+  }).toPass({ timeout: 10000 });
 }
 
-test('take theirs settles the conflict, and the resolved merge is pushed and fetched back', async ({ page }) => {
-  test.setTimeout(240000);
-  const { bookId, gitUrl, cookie } = await reachNeedsYou(page);
+test('take theirs settles the conflict, and the resolved merge is pushed, fetched back, and reaches the other person', async ({
+  browser,
+  page,
+}) => {
+  const { ana, url, cookie } = await reachNeedsYou(browser, page);
+  await mockup(page, 'W09-conflicts', 4);
   await openResolver(page);
+  await mockup(page, 'W09-conflicts', 1);
 
   await page.getByRole('button', { name: 'Take theirs' }).click();
 
   // The two-parent merge is committed and pushed; a fresh clone sees Ana's bar.
-  await expectSettledWithBar(page, bookId, BAR_ANA);
-  await expect.poll(async () => remoteBar(gitUrl, cookie), { timeout: 90000 }).toContain(BAR_ANA);
+  await expectSettledWithBar(page, BAR_ANA);
+  await expect.poll(() => remoteFile(url, cookie, SONG_FILE), { timeout: 10000 }).toContain(BAR_ANA);
+
+  // Ana's own device takes the resolved song too.
+  await expect(async () => {
+    await startApp(ana);
+    await ana.waitForTimeout(1500);
+    await openSongInEditor(ana, 'Roda', SONG_TITLE);
+    await expect(ana.locator('.cm-content')).toContainText(BAR_ANA, { timeout: 2500 });
+    await expect(ana.locator('.cm-content')).not.toContainText('<<<<<<<', { timeout: 2500 });
+  }).toPass({ timeout: 10000 });
 });
 
-test('keep mine settles the conflict with the owner’s own version', async ({ page }) => {
-  test.setTimeout(240000);
-  const { bookId } = await reachNeedsYou(page);
+test('keep mine settles the conflict with the owner’s own version', async ({ browser, page }) => {
+  await reachNeedsYou(browser, page);
   await openResolver(page);
 
   await page.getByRole('button', { name: 'Keep mine' }).click();
-  await expectSettledWithBar(page, bookId, BAR_OWNER);
+  await expectSettledWithBar(page, BAR_OWNER);
 });
 
-test('edit opens the marked text and a save refuses while a marker line remains, then settles once removed (§11.12.3; workflow 9 L59)', async ({ page }) => {
-  test.setTimeout(240000);
-  const { bookId } = await reachNeedsYou(page);
+test('keep mine pushes the resolved merge, so the other person and the server get the owner’s version', async ({
+  browser,
+  page,
+}) => {
+  const { url, cookie } = await reachNeedsYou(browser, page);
+  await openResolver(page);
+  await page.getByRole('button', { name: 'Keep mine' }).click();
+  // The server gets the owner's bar without any reload or nudge.
+  await expect.poll(() => remoteFile(url, cookie, SONG_FILE), { timeout: 10000 }).toContain(BAR_OWNER);
+  await expectSettledWithBar(page, BAR_OWNER);
+});
+
+test('edit opens the marked text and a save refuses while a marker line remains, then settles once removed (§11.12.3; workflow 9 L59)', async ({
+  browser,
+  page,
+}) => {
+  await reachNeedsYou(browser, page);
   await openResolver(page);
 
   await page.getByRole('button', { name: 'Edit' }).click();
   const editor = page.getByRole('textbox', { name: /text, with the conflict markers/i });
   await expect(editor).toBeVisible();
   await expect(editor).toHaveValue(/<<<<<<</);
+  await mockup(page, 'W09-conflicts', 3);
   expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the edit view
+
+  // Saving with the markers still there is refused, pointing at the line.
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText(/is still a conflict marker/)).toBeVisible();
 
   // Edit the markers away, keeping the owner's line.
   const resolved = (await editor.inputValue())
@@ -272,22 +223,68 @@ test('edit opens the marked text and a save refuses while a marker line remains,
   await editor.fill(resolved);
   await page.getByRole('button', { name: 'Save' }).click();
 
-  await expectSettledWithBar(page, bookId, BAR_OWNER);
+  await expectSettledWithBar(page, BAR_OWNER);
 });
 
-test('abandon puts the book back as it was before the sync', async ({ page }) => {
-  test.setTimeout(240000);
-  await reachNeedsYou(page);
+test('abandon puts the book back as it was before the sync', async ({ browser, page }) => {
+  await reachNeedsYou(browser, page);
 
   await page.getByRole('button', { name: 'Abandon the merge' }).click();
 
   // The panel closes back to the shell; the book is no longer paused (the
   // incoming change waits to be merged at the next sync — workflow 9 L77-78).
-  await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible({ timeout: 10000 });
+});
+
+test('a save is refused while the book needs you, and the panel says so (workflow 9 L42-43)', async ({ browser, page }) => {
+  await reachNeedsYou(browser, page);
+
+  // The panel tells the owner a save now would be folded into the merge.
+  await expect(page.getByText('Saving in this book')).toBeVisible();
+  await expect(page.getByText(/A save made now would be folded into the merge/)).toBeVisible();
+
+  // The rest of the book stays readable and editable: open the calm song, edit
+  // it and try to save — the save is refused until the conflict is settled.
+  await gotoTabFromSong(page, 'Search');
+  await openSongInEditor(page, 'Cantiga', OTHER_TITLE);
+  await typeAtEndOfLine(page, 'G | D | Em | C', ' | Am');
+  await page.waitForTimeout(800);
+  await page.getByRole('button', { name: 'Save', exact: true }).first().click();
+  const sheet = page.getByRole('dialog');
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText(/Settle the conflicts in this book first/)).toBeVisible();
+});
+
+test('a song one person deleted while the other edited it asks to keep it with the edits or delete it (workflow 9 §Deleted vs edited)', async ({
+  browser,
+  page,
+}) => {
+  const { ana, url, cookie } = await ownerAndAna(browser, page, [songWithBar(BAR_BASE), OTHER_LINES], {
+    query: 'Roda',
+    title: SONG_TITLE,
+  });
+
+  // Ana deletes the song through the file view and saves (a push).
+  await page.context().setOffline(true); // the owner is away from the network while Ana saves
+  await deleteSongInFiles(ana, BOOK, SONG_FILE);
+  await saveAllChanges(ana);
+  await expect
+    .poll(async () => remoteFile(url, cookie, SONG_FILE).then(() => 'present', () => 'gone'), { timeout: 10000 })
+    .toBe('gone');
+
+  // The owner, who has not synced, edits the same song and saves.
+  await ownerCollidesAndEngages(page, { query: 'Roda', title: SONG_TITLE, oldLine: BAR_BASE, newLine: BAR_OWNER, deleted: true });
+  await expect(page.getByText(/deleted this song\. You had edited it\./)).toBeVisible();
+  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: deleted vs edited
+
+  await page.getByRole('button', { name: 'Keep the song, with the edits' }).click();
+  await expectSettledWithBar(page, BAR_OWNER);
+  // (The push of this resolution shows the same keep-mine push bug above.)
 });
 
 // --- keep both, for a voicing (workflow 9 §Settling one, the keep-both option;
-// sync.keep_both) — a song that carries a voicings block, both sides reshaping
+// sync.keep_both) — a song that carries a voicings block, both people reshaping
 // the same chord. Its own song fixture (written for the purpose). ---
 
 const VSONG_TITLE = 'Toada da Ana';
@@ -295,114 +292,79 @@ const VSONG_FILE = 'toada-da-ana.cifra.md';
 const V_TUNING = 'E2 A2 D3 G3 B3 E4';
 const V_BASE = 'x35543'; // the seeded Cm shape
 const V_OWNER = 'x3554x'; // the owner reshapes it their way
-const V_ANA = '8-10-10-8-8-8'; // the second writer reshapes it hers
-const voicingSong = (cm) =>
-  [`# ${VSONG_TITLE}`, '- language: en', '', '## Parte', '```', 'Cm | F7 | Cm | G7', '```',
-    '', '---', '', `## Voicings: ${V_TUNING}`, `- Cm: ${cm}`, '- F7: 131211', '- G7: 320001'].join('\n');
+const V_ANA = '8-10-10-8-8-8'; // Ana reshapes it hers
+const voicingSong = (cm) => [
+  `# ${VSONG_TITLE}`,
+  '- language: en',
+  '',
+  '## Parte',
+  '```',
+  'Cm | F7 | Cm | G7',
+  '```',
+  '',
+  '---',
+  '',
+  `## Voicings: ${V_TUNING}`,
+  `- Cm: ${cm}`,
+  '- F7: 131211',
+  '- G7: 320001',
+  '',
+];
 
-async function seedVoicingSong(gitUrl, cookie) {
-  const dir = makeDir();
-  await runGit(tmpdir(), [...cookieArgs(cookie), 'clone', gitUrl, dir]);
-  await configIdentity(dir, 'Beto', 'beto@users.estantedecifras.app');
-  writeFileSync(join(dir, VSONG_FILE), `${voicingSong(V_BASE)}\n`);
-  await runGit(dir, ['add', VSONG_FILE]);
-  await runGit(dir, ['commit', '-m', 'Seed a voicing song']);
-  await runGit(dir, [...cookieArgs(cookie), 'push', gitUrl, 'HEAD:refs/heads/main']);
-}
-
-async function anaReshapesVoicing(gitUrl, cookie) {
-  const dir = makeDir();
-  await runGit(tmpdir(), [...cookieArgs(cookie), 'clone', gitUrl, dir]);
-  await configIdentity(dir, INCOMING_AUTHOR, 'ana@users.estantedecifras.app');
-  writeFileSync(join(dir, VSONG_FILE), `${voicingSong(V_ANA)}\n`);
-  await runGit(dir, ['add', VSONG_FILE]);
-  await runGit(dir, ['commit', '-m', 'Reshape the chord']);
-  await runGit(dir, [...cookieArgs(cookie), 'push', gitUrl, 'HEAD:refs/heads/main']);
-}
-
-async function ownerReshapesVoicing(page, bookId) {
-  await page.goto(`/#dev/editor?book=${encodeURIComponent(bookId)}&path=${encodeURIComponent(VSONG_FILE)}`);
-  await expect(page.locator('.cm-content')).toBeVisible();
-  const line = page.locator('.cm-content .cm-line').filter({ hasText: `- Cm: ${V_BASE}` }).first();
-  await line.click();
-  await page.keyboard.press('Home');
-  await page.keyboard.press('Shift+End');
-  await page.keyboard.insertText(`- Cm: ${V_OWNER}`);
-  await page.waitForTimeout(800);
-  await page.getByRole('button', { name: 'Save' }).click();
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  const nameField = sheet.getByRole('textbox', { name: /Your name/ });
-  if (await nameField.count()) await nameField.fill('Beto');
-  await sheet.getByRole('button', { name: 'Save' }).click();
-  await expect(sheet).toBeHidden();
-}
-
-async function remoteVoicingSong(gitUrl, cookie) {
-  const dir = makeDir();
-  await runGit(tmpdir(), [...cookieArgs(cookie), 'clone', gitUrl, dir]);
-  return readFileSync(join(dir, VSONG_FILE), 'utf8');
-}
-
-async function reachNeedsYouVoicing(page) {
-  await enableVirtualAuthenticator(page);
-  await signInWithPasskey(page);
-  await makeLocalBook(page, BOOK);
-  await putBookOnline(page, BOOK);
-  const book = await bookFromApi(page, BOOK);
-  const bookId = book.id;
-  const gitUrl = new URL(book.gitUrl, `${baseUrl}/`).toString();
-  const cookie = await sessionCookieHeader(page);
-
-  await seedVoicingSong(gitUrl, cookie);
-  await reloadAndSync(page); // pull the seeded song
-  await anaReshapesVoicing(gitUrl, cookie); // the remote is ahead, same chord
-  await ownerReshapesVoicing(page, bookId); // a colliding local commit
-  await reloadAndSync(page); // sync second → the merge cannot settle alone
-
-  await page.getByRole('tab', { name: 'Books' }).click();
-  await expect(page.getByText('needs you').first()).toBeVisible({ timeout: 30000 });
-  await page.getByRole('button', { name: rowFor(BOOK) }).click();
-  await expect(page.getByText(/songs? need you|song needs you/i)).toBeVisible();
-  await expect(page.getByText('In conflict')).toBeVisible();
-  return { bookId, gitUrl, cookie };
-}
-
-test('keep both a voicing: the owner keeps their shape and Ana’s lands in a variation named for her, pushed and fetched back (workflow 9 §Later)', async ({ page }) => {
-  test.setTimeout(240000);
-  const { bookId, gitUrl, cookie } = await reachNeedsYouVoicing(page);
+test('keep both a voicing: the owner keeps their shape and Ana’s lands in a variation named for her, pushed and fetched back (workflow 9 §Later)', async ({
+  browser,
+  page,
+}) => {
+  const { ana, url, cookie } = await ownerAndAna(browser, page, [voicingSong(V_BASE)], {
+    query: 'Toada',
+    title: VSONG_TITLE,
+  });
+  await page.context().setOffline(true); // the owner is away from the network while Ana saves
+  await anaRewrites(ana, {
+    query: 'Toada',
+    title: VSONG_TITLE,
+    oldLine: `- Cm: ${V_BASE}`,
+    newLine: `- Cm: ${V_ANA}`,
+  });
+  await waitForRemote(url, cookie, VSONG_FILE, V_ANA);
+  await ownerCollidesAndEngages(page, {
+    query: 'Toada',
+    title: VSONG_TITLE,
+    oldLine: `- Cm: ${V_BASE}`,
+    newLine: `- Cm: ${V_OWNER}`,
+  });
 
   // Open the resolver; axe on the paused panel and the per-song resolver.
   expect(await analyzeWcag21aa(page)).toEqual([]);
-  await page.getByRole('button', { name: new RegExp(`^Settle ${escapeRegExp(VSONG_TITLE)}`) }).click();
+  await page.getByRole('button', { name: new RegExp(`^Settle ${VSONG_TITLE}`) }).click();
   await expect(page.getByText('The shape for Cm')).toBeVisible();
   await expect(page.getByText('Yours', { exact: true })).toBeVisible();
   await expect(page.getByText('Ana’s', { exact: true })).toBeVisible();
+  await mockup(page, 'W09-conflicts', 2);
   expect(await analyzeWcag21aa(page)).toEqual([]);
 
   // Keep both: ours stays in use, Ana's goes into a variation named for her.
   await page.getByRole('button', { name: 'Keep both', exact: true }).click();
 
-  // The resolved two-parent merge is pushed: a fresh clone keeps the owner's Cm
-  // in the default block and carries Ana's shape in a variation named for her.
-  await expect.poll(async () => remoteVoicingSong(gitUrl, cookie), { timeout: 90000 }).toContain(`## Ana: ${V_TUNING}`);
-  const resolved = await remoteVoicingSong(gitUrl, cookie);
+  await expect
+    .poll(() => remoteFile(url, cookie, VSONG_FILE), { timeout: 10000 })
+    .toContain(`## Ana: ${V_TUNING}`);
+  const resolved = await remoteFile(url, cookie, VSONG_FILE);
   expect(resolved).toContain(`- Cm: ${V_OWNER}`); // the owner's shape, still in use
   expect(resolved).toContain(V_ANA); // Ana's shape, kept
   expect(resolved).not.toContain('<<<<<<<'); // canonical, no markers
 
   // The book no longer *needs you*.
-  await reloadAndSync(page);
-  await page.getByRole('tab', { name: 'Books' }).click();
+  await startApp(page);
+  await gotoTab(page, 'Books');
   await expect(page.getByRole('button', { name: rowFor(BOOK) })).toBeVisible();
   await expect(page.getByText('needs you')).toHaveCount(0);
 
-  // The reading view offers the variation named for Ana in its picker (the
-  // picker — a Select — appears once the song has two variations), and axe is
-  // clean on the resolved song.
-  await page.goto(`/#dev/reading?book=${encodeURIComponent(bookId)}&path=${encodeURIComponent(VSONG_FILE)}`);
+  // The reading view offers the variation named for Ana in its picker, and axe
+  // is clean on the resolved song.
+  await openSongFromSearch(page, 'Toada', VSONG_TITLE);
   const variationPicker = page.getByRole('button', { name: /Variation/ });
-  await expect(variationPicker).toBeVisible({ timeout: 30000 });
+  await expect(variationPicker).toBeVisible({ timeout: 10000 });
   expect(await analyzeWcag21aa(page)).toEqual([]);
   await variationPicker.click();
   await expect(page.getByRole('option', { name: 'Ana' })).toBeVisible();
