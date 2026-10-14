@@ -356,6 +356,8 @@ export default function AppShell({
   // A pending Change-book re-target: the text to carry and the placeholder to
   // discard, consumed by the next NEW_SONG_READY.
   const retargetRef = useRef(null);
+  // A re-target's old placeholder, discarded once its editor has unmounted.
+  const pendingDiscardRef = useRef(null);
 
   // Start a new song from any way in (songs.new_song, workflow 3 §Ways in). The
   // payload carries the started-from book (else *My songs*), the folder (the
@@ -489,17 +491,26 @@ export default function AppShell({
     if (retarget) {
       retargetRef.current = null;
       store.send(command(CommandKind.WRITE, { bookId, path, text: retarget.text }));
-      store.send(
-        command(CommandKind.DISCARD, {
-          bookId: retarget.from.bookId,
-          paths: [retarget.from.path],
-        }),
-      );
+      // The old placeholder is discarded only once its editor has unmounted:
+      // that editor flushes a still-debounced write on unmount (the template's
+      // first write, or the last keystrokes), which would re-create the file
+      // after an earlier DISCARD and leave a stray unsaved draft behind.
+      pendingDiscardRef.current = retarget.from;
       setEditing((prev) => (prev ? { ...prev, bookId, path, isNew: false } : prev));
     } else {
       setEditing((prev) => (prev ? { ...prev, bookId, path, isNew: true } : prev));
     }
   });
+
+  // Send a re-target's DISCARD after the commit that swapped the editor: parent
+  // effects run after the old child editor's unmount cleanup (its flush), and
+  // the Worker handles commands in order.
+  useEffect(() => {
+    const from = pendingDiscardRef.current;
+    if (!from) return;
+    pendingDiscardRef.current = null;
+    store.send(command(CommandKind.DISCARD, { bookId: from.bookId, paths: [from.path] }));
+  }, [store, editing]);
 
   // The first save landed: the song is now an ordinary one (workflow 3 §The
   // first save). Close the host and return to where the writer was.

@@ -137,6 +137,27 @@ describe('ways in → NEW_SONG', () => {
 });
 
 describe('which book', () => {
+  it('changing the book right away discards the old placeholder after its last write, leaving no stray draft', async () => {
+    const { store, sent, emit } = makeStore();
+    render(<AppShell store={store} />);
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: /Write a song/ })));
+    emit(event(EventKind.SHELF, SHELF));
+    emit(event(EventKind.NEW_SONG_READY, { bookId: MY_SONGS_ID, path: 'untitled.cifra.md' }));
+    // The template's first write is still debounced; move the draft at once.
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Change book' })));
+    act(() => fireEvent.click(screen.getByRole('menuitem', { name: 'Banda do Bairro' })));
+    emit(event(EventKind.NEW_SONG_READY, { bookId: 'book-editor', path: 'untitled.cifra.md' }));
+
+    const toOld = (c) => c.payload?.bookId === MY_SONGS_ID;
+    const lastWriteOld = sent.findLastIndex((c) => c.kind === CommandKind.WRITE && toOld(c));
+    const discardOld = sent.findLastIndex(
+      (c) => c.kind === CommandKind.DISCARD && toOld(c) && c.payload.paths.includes('untitled.cifra.md'),
+    );
+    expect(discardOld).toBeGreaterThan(-1);
+    expect(discardOld).toBeGreaterThan(lastWriteOld);
+  });
+
   it('defaults to My songs and offers only push-capable books (workflow 3 §Which book L26-33)', async () => {
     const { store, emit } = makeStore();
     render(<AppShell store={store} />);
