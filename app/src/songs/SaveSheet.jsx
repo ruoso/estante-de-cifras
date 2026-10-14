@@ -62,7 +62,9 @@ function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, title
   }, [store, bookId, previewPaths]);
 
   // The save landed: close (filtered to this book, so another book's save never
-  // closes it). SAVE_REFUSED is the Worker's backstop — surface it, stay open.
+  // closes it). SAVE_REFUSED is the Worker's backstop — surface it, stay open; a
+  // save that failed outright (reason 'failed') is surfaced the same way, with
+  // Save still enabled for another try (songs.save_empty_message).
   const [refused, setRefused] = useState(null);
   useWorkerEvent(store, EventKind.SAVED, (payload) => {
     if (payload?.bookId === bookId) onClose();
@@ -171,7 +173,9 @@ function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, title
         <p className="notice conflict est-save-refused" role="alert">
           {refused.reason === 'merge_in_progress'
             ? t('saveSheet.refusedMerge')
-            : t('saveSheet.refused', { line: refused.line ?? '?' })}
+            : refused.reason === 'failed'
+              ? t('saveSheet.failed')
+              : t('saveSheet.refused', { line: refused.line ?? '?' })}
         </p>
       )}
 

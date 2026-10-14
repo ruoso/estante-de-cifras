@@ -602,6 +602,7 @@ export default {
     refused: 'Non salvato. La riga {line} non è leggibile. Correggila nell’editor e salva di nuovo.',
     refusedMerge:
       'Non salvato. Risolvi prima i conflitti di questo libro — un salvataggio ora verrebbe fuso nell’unione.',
+    failed: 'Non salvato. Qualcosa è andato storto scrivendolo su questo dispositivo. Le tue modifiche sono ancora qui — salva di nuovo.',
     discardTitle: 'Scartare le modifiche a {title}?',
     discardBody: 'La canzone torna com’era all’ultimo salvataggio. Questo andrebbe perso:',
     keepEditing: 'Continua a modificare',

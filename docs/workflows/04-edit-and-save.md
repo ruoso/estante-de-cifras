@@ -28,6 +28,13 @@ saved or discarded the same way.
   voicings for G4 C4 E4 A4* — from the semantic diff;
 - **a note**, prefilled from that summary, which the user may edit.
 
+When there is no musical summary — a file that is not a song, such as
+`README.md`, or a save with nothing musical in it — the note is prefilled
+with the file it saves instead: *Update README.md*. A note the user clears
+commits with that same line; a save is never left without a message. A save
+that cannot be made says so on the sheet — *Not saved* — and keeps the
+changes in the working copy, so the user can save again.
+
 Confirming commits the one file, with the note as the commit message. Two
 taps rather than one, because a save is a version the user chose to keep,
 and seeing what is in it is part of choosing. It also catches the change

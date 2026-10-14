@@ -253,3 +253,70 @@ describe('discard confirm (§Discarding)', () => {
     });
   });
 });
+
+// songs.save_empty_message — workflow 4 §Saving: with no musical summary the note
+// names the file it saves; a cleared note still saves (the Worker supplies the
+// default); a save that cannot be made says *Not saved* and stays open.
+describe('save sheet — no summary, a cleared note, a failed save (§Saving)', () => {
+  const README = preview({ path: 'README.md', title: '', changes: [], summary: '' });
+
+  it('a save with no musical summary prefills Update <path> and sends it', async () => {
+    const { store, sent, emit } = makeStore();
+    renderSheet({ paths: ['README.md'] }, store);
+    withName(emit);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [README] }));
+
+    expect(screen.getByRole('textbox', { name: 'Note' })).toHaveValue('Update README.md');
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+    expect(lastCommand(sent, CommandKind.SAVE).payload).toMatchObject({
+      bookId: BOOK,
+      paths: ['README.md'],
+      message: 'Update README.md',
+    });
+  });
+
+  it('a cleared note still sends SAVE', async () => {
+    const { store, sent, emit } = makeStore();
+    renderSheet({ paths: ['tarde-clara.cifra.md'] }, store);
+    withName(emit);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
+
+    act(() => fireEvent.change(screen.getByRole('textbox', { name: 'Note' }), { target: { value: '' } }));
+    expect(screen.getByRole('textbox', { name: 'Note' })).toHaveValue('');
+    const save = screen.getByRole('button', { name: 'Save' });
+    expect(save).toBeEnabled();
+    act(() => fireEvent.click(save));
+    expect(lastCommand(sent, CommandKind.SAVE).payload).toMatchObject({
+      paths: ['tarde-clara.cifra.md'],
+      message: '',
+    });
+  });
+
+  it('a failed save says Not saved and stays open for another try', async () => {
+    const { store, sent, emit } = makeStore();
+    renderSheet({ paths: ['README.md'] }, store);
+    withName(emit);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [README] }));
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+    emit(
+      event(EventKind.SAVE_REFUSED, {
+        bookId: BOOK,
+        path: 'README.md',
+        reason: 'failed',
+        marker: null,
+        line: null,
+      }),
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Not saved. Something went wrong writing it to this device. Your changes are still here — save again.',
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const save = screen.getByRole('button', { name: 'Save' });
+    expect(save).toBeEnabled();
+    expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
+
+    act(() => fireEvent.click(save));
+    expect(commandsOf(sent, CommandKind.SAVE)).toHaveLength(2);
+  });
+});

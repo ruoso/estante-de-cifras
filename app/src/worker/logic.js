@@ -44,6 +44,7 @@ import { createBooks } from './books.js';
 import { createExampleBook } from './example-book.js';
 import { createMySongs, MY_SONGS_ID } from './my-songs.js';
 import { deriveSongFilename } from '../songs/song-filename.js';
+import { defaultSaveMessage } from '../songs/save-note.js';
 import { createSearchIndex } from './search-index.js';
 import { createRecents } from './recents.js';
 import { surfacePreferences } from './preferences.js';
@@ -994,12 +995,35 @@ export function createWorkerLogic(port, options = {}) {
               );
               break;
             }
-            const outcome = await ensureWorkingCopy().save({
-              bookId,
-              paths,
-              message: note,
-              author: authorFrom(author),
-            });
+            // A blank note (empty or whitespace-only — a non-song file, a save
+            // with nothing musical, a note the user cleared) commits with the
+            // default *Update <paths>* (songs.save_empty_message, workflow 4
+            // §Saving): git refuses an empty message. Git history, not a log.
+            const saveMessage = note?.trim() ? note : defaultSaveMessage(paths);
+            let outcome;
+            try {
+              outcome = await ensureWorkingCopy().save({
+                bookId,
+                paths,
+                message: saveMessage,
+                author: authorFrom(author),
+              });
+            } catch {
+              // A save that throws answers the sheet's SAVE_REFUSED, not the
+              // generic ERROR it never hears (songs.save_empty_message Decision
+              // 3). No error text in the payload or a log (Decision 4); the
+              // working copy keeps the user's changes.
+              port.postMessage(
+                event(EventKind.SAVE_REFUSED, {
+                  bookId,
+                  path: paths?.[0] ?? null,
+                  reason: 'failed',
+                  marker: null,
+                  line: null,
+                }),
+              );
+              break;
+            }
             if (outcome.refused) {
               port.postMessage(
                 event(EventKind.SAVE_REFUSED, {
@@ -2186,32 +2210,51 @@ export function createWorkerLogic(port, options = {}) {
             // working copy.
             const { bookId, fromPath, author, message: note, title: promptedTitle } =
               message.payload;
-            const dir = ensureGit().bookDir(bookId);
-            const bytes = await ensureFs().promises.readFile(`${dir}/${fromPath}`);
-            // The name the file carries, else the one the save sheet prompted for
-            // when the song has no title line yet (songs.save_sheet acceptance 7),
-            // which feeds both the slug filename and the default commit message.
-            const title =
-              (parseSong(bytes)?.title ?? '').trim() || (promptedTitle ?? '').trim();
-            // Collision set: the folder's names minus the placeholder itself, so
-            // a title whose slug equals the placeholder does not gain a suffix
-            // against it.
-            const slash = fromPath.lastIndexOf('/');
-            const folder = slash > 0 ? fromPath.slice(0, slash) : '';
-            const fromName = slash >= 0 ? fromPath.slice(slash + 1) : fromPath;
-            const prefix = folder ? `${folder}/` : '';
-            const names = (await folderNames(bookId, folder)).filter((n) => n !== fromName);
-            const toPath = `${prefix}${deriveSongFilename(title, names)}`;
-            const outcome = await ensureWorkingCopy().nameAndSave({
-              bookId,
-              fromPath,
-              toPath,
-              // The save sheet's note, else the W03 default *Add {title}*
-              // (songs.save_sheet Decision 5). Git history, not a log — never
-              // written to `console` (standing rule).
-              message: note || `Add ${title || 'untitled'}`,
-              author: authorFrom(author),
-            });
+            let outcome;
+            let toPath;
+            try {
+              const dir = ensureGit().bookDir(bookId);
+              const bytes = await ensureFs().promises.readFile(`${dir}/${fromPath}`);
+              // The name the file carries, else the one the save sheet prompted for
+              // when the song has no title line yet (songs.save_sheet acceptance 7),
+              // which feeds both the slug filename and the default commit message.
+              const title =
+                (parseSong(bytes)?.title ?? '').trim() || (promptedTitle ?? '').trim();
+              // Collision set: the folder's names minus the placeholder itself, so
+              // a title whose slug equals the placeholder does not gain a suffix
+              // against it.
+              const slash = fromPath.lastIndexOf('/');
+              const folder = slash > 0 ? fromPath.slice(0, slash) : '';
+              const fromName = slash >= 0 ? fromPath.slice(slash + 1) : fromPath;
+              const prefix = folder ? `${folder}/` : '';
+              const names = (await folderNames(bookId, folder)).filter((n) => n !== fromName);
+              toPath = `${prefix}${deriveSongFilename(title, names)}`;
+              outcome = await ensureWorkingCopy().nameAndSave({
+                bookId,
+                fromPath,
+                toPath,
+                // The save sheet's note, else the W03 default *Add {title}*
+                // (songs.save_sheet Decision 5); a whitespace-only note is blank too
+                // (songs.save_empty_message). Git history, not a log — never
+                // written to `console` (standing rule).
+                message: note?.trim() ? note : `Add ${title || 'untitled'}`,
+                author: authorFrom(author),
+              });
+            } catch {
+              // As SAVE: a throw is answered with SAVE_REFUSED failed, never the
+              // generic ERROR, and carries no error text (songs.save_empty_message
+              // Decisions 3-4).
+              port.postMessage(
+                event(EventKind.SAVE_REFUSED, {
+                  bookId,
+                  path: fromPath ?? null,
+                  reason: 'failed',
+                  marker: null,
+                  line: null,
+                }),
+              );
+              break;
+            }
             if (outcome.refused) {
               port.postMessage(
                 event(EventKind.SAVE_REFUSED, {

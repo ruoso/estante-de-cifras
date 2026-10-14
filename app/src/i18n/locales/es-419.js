@@ -602,6 +602,7 @@ export default {
     refused: 'No guardado. La línea {line} no se pudo leer. Corrígela en el editor y guarda de nuevo.',
     refusedMerge:
       'No guardado. Resuelve primero los conflictos de este libro — guardar ahora se fundiría con la combinación.',
+    failed: 'No guardado. Algo salió mal al escribirlo en este dispositivo. Tus cambios siguen aquí — guarda de nuevo.',
     discardTitle: '¿Descartar los cambios en {title}?',
     discardBody: 'La canción vuelve a como estaba al guardar por última vez. Esto se perdería:',
     keepEditing: 'Seguir editando',

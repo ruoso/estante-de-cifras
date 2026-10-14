@@ -493,3 +493,86 @@ describe('the working copy, save and discard (behavior)', () => {
     }
   });
 });
+
+// songs.save_empty_message — workflow 4 §Saving: a save is never left without a
+// message, and a save that cannot be made answers the sheet's SAVE_REFUSED.
+describe('a save with no message, a save that fails (behavior)', () => {
+  it('SAVE with a blank note commits with Update <path> (workflow 4 §Saving)', async () => {
+    const ctx = await setup('book-blank-note');
+    try {
+      // A file that is not a song: no musical summary, the sheet's note empty.
+      ctx.store.send(
+        command(CommandKind.WRITE, {
+          bookId: ctx.bookId,
+          path: 'README.md',
+          text: '# A book for testing\n\nWritten for this test.\n',
+        }),
+      );
+      ctx.store.send(
+        command(CommandKind.SAVE, {
+          bookId: ctx.bookId,
+          paths: ['README.md'],
+          message: '',
+          author: IDENTITY,
+        }),
+      );
+      await until(() => expect(ctx.status()).toBe('saved'));
+      const first = ctx.store.slice('save')[ctx.bookId].commit;
+      expect(await gitRemote(ctx.remote.repoDir, 'log', '-1', '--format=%s', 'main')).toBe(
+        'Update README.md',
+      );
+
+      // A whitespace-only note on a song is blank too.
+      ctx.store.send(
+        command(CommandKind.WRITE, {
+          bookId: ctx.bookId,
+          path: 'rainy-window.cifra.md',
+          text: TYPED_SONG,
+        }),
+      );
+      ctx.store.send(
+        command(CommandKind.SAVE, {
+          bookId: ctx.bookId,
+          paths: ['rainy-window.cifra.md'],
+          message: '   ',
+          author: IDENTITY,
+        }),
+      );
+      await until(() => expect(ctx.store.slice('save')[ctx.bookId].commit).not.toBe(first));
+      expect(await gitRemote(ctx.remote.repoDir, 'log', '-1', '--format=%s', 'main')).toBe(
+        'Update rainy-window.cifra.md',
+      );
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('a SAVE that throws answers SAVE_REFUSED failed, not ERROR (workflow 4 §Saving)', async () => {
+    const ctx = await setup('book-save-throws');
+    try {
+      const localBefore = await ctx.head();
+      // A book with no repository on this device: the save throws inside the
+      // case (no test-only seam).
+      ctx.store.send(
+        command(CommandKind.SAVE, {
+          bookId: 'book-not-on-this-device',
+          paths: ['README.md'],
+          message: 'Update README.md',
+          author: IDENTITY,
+        }),
+      );
+      await until(() =>
+        expect(ctx.store.slice('save')['book-not-on-this-device']?.status).toBe('refused'),
+      );
+      const outcome = ctx.store.slice('save')['book-not-on-this-device'];
+      expect(outcome.reason).toBe('failed');
+      expect(outcome.path).toBe('README.md');
+      // No generic ERROR reached the store.
+      expect(ctx.store.slice('connection')?.status).not.toBe('error');
+      // The seeded book's working copy is as it was.
+      expect(await ctx.head()).toBe(localBefore);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+});

@@ -691,6 +691,7 @@ export default {
     // refusal above.
     refusedMerge:
       'Not saved. Settle the conflicts in this book first — a save now would be folded into the merge.',
+    failed: 'Not saved. Something went wrong writing it to this device. Your changes are still here — save again.',
     // Discard — the one destructive action, which always asks (§Discarding).
     discardTitle: 'Discard changes to {title}?',
     discardBody: 'The song goes back to how it was last saved. This would be lost:',

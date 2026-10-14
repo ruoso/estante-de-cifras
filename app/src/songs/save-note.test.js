@@ -3,7 +3,7 @@
 // songs at once (save all → the per-song aggregate, one commit over many files).
 
 import { describe, it, expect } from 'vitest';
-import { buildSaveNote } from './save-note.js';
+import { buildSaveNote, defaultSaveMessage } from './save-note.js';
 
 describe('buildSaveNote', () => {
   it('one song → the diff summary, verbatim (the neutral-English commit note)', () => {
@@ -34,5 +34,41 @@ describe('buildSaveNote', () => {
   it('no previews → empty note', () => {
     expect(buildSaveNote([])).toBe('');
     expect(buildSaveNote(undefined)).toBe('');
+  });
+});
+
+// songs.save_empty_message — workflow 4 §Saving: with no musical summary the note
+// names the file it saves; a save is never left without a message.
+describe('defaultSaveMessage', () => {
+  it('one path → Update <path> (workflow 4 §Saving)', () => {
+    expect(defaultSaveMessage(['README.md'])).toBe('Update README.md');
+  });
+
+  it('several paths → comma-joined in the given order', () => {
+    expect(defaultSaveMessage(['README.md', 'songs/tarde-clara.md', '.gitattributes'])).toBe(
+      'Update README.md, songs/tarde-clara.md, .gitattributes',
+    );
+  });
+
+  it('no paths → Update', () => {
+    expect(defaultSaveMessage([])).toBe('Update');
+    expect(defaultSaveMessage(undefined)).toBe('Update');
+  });
+});
+
+describe('buildSaveNote with no musical summary (workflow 4 §Saving)', () => {
+  it('a single preview with an empty summary → Update <path>', () => {
+    expect(buildSaveNote([{ path: 'README.md', title: '', summary: '' }])).toBe(
+      'Update README.md',
+    );
+  });
+
+  it('save all mixing a summarised song and a summary-less README.md', () => {
+    expect(
+      buildSaveNote([
+        { path: 'tarde-clara.md', title: 'Tarde Clara', summary: 'Primeira Parte bar 2: D → D7' },
+        { path: 'README.md', title: '', summary: '' },
+      ]),
+    ).toBe('Tarde Clara: Primeira Parte bar 2: D → D7; Update README.md');
   });
 });

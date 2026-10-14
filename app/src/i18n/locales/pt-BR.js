@@ -602,6 +602,7 @@ export default {
     refused: 'Não salvo. A linha {line} não pôde ser lida. Corrija no editor e salve de novo.',
     refusedMerge:
       'Não salvo. Resolva primeiro os conflitos deste livro — um save agora seria incorporado à mesclagem.',
+    failed: 'Não salvo. Algo deu errado ao gravar neste dispositivo. Suas mudanças continuam aqui — salve de novo.',
     discardTitle: 'Descartar as mudanças em {title}?',
     discardBody: 'A música volta a como estava no último salvamento. Isto seria perdido:',
     keepEditing: 'Continuar editando',

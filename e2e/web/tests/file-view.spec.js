@@ -7,7 +7,7 @@
 // (keeping .cifra.md); save them together in one commit from the change list;
 // open the book's history, open a commit, and restore an earlier version from
 // the log, saved as a new version; delete a song, save, and recover it from
-// history; rename offline. Axe runs at WCAG 2.1 AA on the tree, the editor,
+// history; rename offline; edit README.md (no musical summary) and restore it. Axe runs at WCAG 2.1 AA on the tree, the editor,
 // the rename dialog, the change list, the history and an open commit. Fixtures
 // are purpose-written songs — never anyone's words.
 
@@ -161,6 +161,60 @@ test('restoring an earlier version from the book’s history saves it as a new v
   await filesTab(page);
   await fileRow(page, MORNING).click();
   await expect(page.locator('.cm-content')).not.toContainText('Reprise');
+});
+
+// songs.save_empty_message — workflow 4 §Saving, workflow 14 L149-158: a file
+// that is not a song has no musical summary, so the note names the file; the
+// save commits and the sheet closes (the parking-lot reproductions).
+async function editAndSaveReadme(page, checkA11y) {
+  await fileRow(page, 'README.md').click();
+  const content = page.locator('.cm-content');
+  await expect(content).toBeVisible();
+  await content.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.insertText('\nA line added for this test.\n');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+  // The note is prefilled with the file it saves; axe on the open sheet.
+  const sheet = page.getByRole('dialog');
+  await expect(sheet.getByRole('textbox', { name: 'Note' })).toHaveValue('Update README.md');
+  if (checkA11y) await checkA11y(); // the save sheet over a non-song file
+  await confirmSaveSheet(page); // the sheet hides
+}
+
+test('README.md edited in the raw editor and saved closes the sheet and commits Update README.md', async ({
+  page,
+  checkA11y,
+}) => {
+  await openExampleBook(page);
+  await openFiles(page, EXAMPLE_BOOK);
+  await editAndSaveReadme(page, checkA11y);
+
+  // The book's history lists the new version under that message.
+  await openFilesHistory(page);
+  const commits = page.getByRole('group', { name: /Versions of/ });
+  await expect(commits).toBeVisible();
+  await expect(commits.getByText('Update README.md').first()).toBeVisible();
+});
+
+test('README.md restored from the book’s history and saved closes the sheet', async ({ page }) => {
+  await openExampleBook(page);
+  await openFiles(page, EXAMPLE_BOOK);
+  await editAndSaveReadme(page);
+
+  // Restore README.md's earlier version from the oldest commit and save
+  // (workflow 14 L169-173).
+  await openFilesHistory(page);
+  const commits = page.getByRole('group', { name: /Versions of/ });
+  await expect(commits).toBeVisible();
+  await commits.getByRole('button').last().click(); // the oldest (bundled) commit
+  await page
+    .locator('.commit-file', {
+      has: page.locator('.commit-file-name', { hasText: /^README\.md$/ }),
+    })
+    .getByRole('button', { name: 'Restore this version' })
+    .click();
+  await confirmSaveSheet(page); // the sheet hides
 });
 
 test('a deleted song is saved as gone, and recovered from the book’s history (workflow 14 §Delete, workflow 6)', async ({
