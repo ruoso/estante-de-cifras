@@ -224,6 +224,15 @@ describe('SongReading — the chart and the shapes (workflow 2 L69-77, L88-108)'
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 
+  it('Edit hands the song (book, path and title) to the host that opens the editor (workflow 4)', async () => {
+    const onEdit = vi.fn();
+    const { store } = makeStore({ text: song({ chart: 'G  C  Am' }), entry: guitarEntry() });
+    await openAndWait(store, { onEdit });
+
+    await click(screen.getByRole('button', { name: 'Edit' }));
+    expect(onEdit).toHaveBeenCalledWith({ bookId: BOOK, path: PATH, title: 'Tarde Clara' });
+  });
+
   it('shows the no-voicings notice and an Arrange action (→ onArrange) for a song with no block', async () => {
     const onArrange = vi.fn();
     const { store } = makeStore({ text: song({ chart: 'G  C  Am' }), entry: guitarEntry() });

@@ -31,6 +31,7 @@ import SongHistory from '../songs/SongHistory.jsx';
 import SongArrange from '../songs/SongArrange.jsx';
 import SongWizard from '../songs/SongWizard.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
+import EditSongHost from '../songs/EditSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
 import SetlistsScreen from '../books/SetlistsScreen.jsx';
 import SetlistView from '../books/SetlistView.jsx';
@@ -275,6 +276,10 @@ export default function AppShell({
   // open it carries the song's title, its target book and placeholder path (set
   // once NEW_SONG_READY lands), and whether it is still a fresh template.
   const [editing, setEditing] = useState(null);
+  // Editing a song that already exists (workflow 4): what the reading view's
+  // Edit opens — { bookId, path, songTitle } or null. Kept apart from `editing`
+  // (a new song), whose SAVED and re-target handling it must not share.
+  const [editingSong, setEditingSong] = useState(null);
   // The open book's file view (books.file_view): its bookId, or null. Like
   // `editing`, a full-screen host over the shell and ephemeral view state (no
   // router); the per-book Files control on the book-management screen sets it.
@@ -500,6 +505,11 @@ export default function AppShell({
     setEditing((prev) => (prev && prev.bookId === bookId ? null : prev));
   });
 
+  // A save of the song being edited closes the editor, back to reading it.
+  useWorkerEvent(store, EventKind.SAVED, ({ bookId }) => {
+    setEditingSong((prev) => (prev && prev.bookId === bookId ? null : prev));
+  });
+
   // Leave the editor (Back): a never-saved draft stays in the working copy,
   // findable by its badge (workflow 3 §Abandoning it L53-54). Drop any pending
   // re-target so a later new song does not consume it.
@@ -656,6 +666,21 @@ export default function AppShell({
     );
   }
 
+  // Editing an existing song (workflow 4): a full screen over the reading view;
+  // Back and a save return to it (the unsaved edit stays in the working copy).
+  if (editingSong) {
+    return (
+      <EditSongHost
+        store={store}
+        editing={editingSong}
+        mode={mode}
+        onBack={() => setEditingSong(null)}
+        onOpenHistory={setHistory}
+        editorRef={editorRef}
+      />
+    );
+  }
+
   // The voicing wizard (songs.wizard_ui): the action behind arrange's **Run the
   // wizard** affordance, a surface mounted over arrange. Checked before
   // `arranging` so it sits over it; **Back** / **Write the plan** close it and
@@ -723,6 +748,7 @@ export default function AppShell({
           mode={mode}
           onBack={() => setOpenSong(null)}
           onOpenSong={setOpenSong}
+          onEdit={({ bookId, path, title }) => setEditingSong({ bookId, path, songTitle: title ?? '' })}
           onArrange={setArranging}
           onOpenHistory={setHistory}
           onShare={setSharing}

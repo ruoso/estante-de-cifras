@@ -563,7 +563,7 @@ export default function SongReading({
           <div className="pane main">
             <div className="appbar reading-chrome">
               <span className="title">{baseModel?.title ?? path}</span>
-              <Button className="btn" onPress={() => onEdit({ bookId, path })}>
+              <Button className="btn" onPress={() => onEdit({ bookId, path, title: baseModel?.title })}>
                 {t('reading.edit')}
               </Button>
               <Button className="btn" onPress={() => onOpenHistory({ bookId, path })}>
@@ -647,7 +647,7 @@ export default function SongReading({
               {t('reading.arrange')}
             </Button>
           ) : null}
-          <Button className="btn grow" onPress={() => onEdit({ bookId, path })}>
+          <Button className="btn grow" onPress={() => onEdit({ bookId, path, title: baseModel?.title })}>
             {t('reading.edit')}
           </Button>
           <Button className="btn primary grow" onPress={() => setFullScreen(true)}>
