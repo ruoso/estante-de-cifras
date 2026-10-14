@@ -1,24 +1,15 @@
 import { test, expect } from '../lib/axe.js';
-import { runOffline, waitForServiceWorker } from '../lib/offline.js';
-
-// Put the example book on the device and wait until its songs are indexed, at
-// the search front door (the setlists/reading e2e pattern). The bundled book
-// carries a setlist, `a-short-set.setlist.md` ("A Short Set").
-async function seedExample(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  const openExample = page.getByRole('button', { name: /Open the example book/ });
-  const books = page.getByRole('heading', { name: 'Books' });
-  await expect(async () => {
-    if (await openExample.isVisible().catch(() => false)) {
-      await openExample.click({ timeout: 2000 }).catch(() => {});
-    }
-    await expect(books).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 20000 });
-  await page.getByRole('searchbox').fill('Morning');
-  await expect(page.getByRole('button', { name: /Morning on the Porch/ }).first()).toBeVisible();
-  await page.getByRole('searchbox').fill('');
-}
+import { mockup } from '../lib/mockup.js';
+import { runOffline } from '../lib/offline.js';
+import {
+  openExampleBook,
+  openSongFromSearch,
+  openSongInEditor,
+  typeAtEndOfLine,
+  saveThroughSheet,
+  startApp,
+} from '../lib/journeys.js';
+import { toSearch, createSongFromSearch } from '../lib/journeys-core.js';
 
 // e2e-web (songs.search) — the search screen against the served compose stack,
 // on the phone / tablet / computer viewport projects (playwright.config.js),
@@ -31,16 +22,8 @@ async function seedExample(page) {
 // keeps working after an offline reload, because nothing on this screen needs a
 // network (workflow 2 L152-155).
 //
-// SCOPE NOTE — seeded songs across books: the refinement's "search across books,
-// results narrow" case needs purpose-written songs seeded into several books on
-// the device. There is no e2e seam to put a book on a device yet: a fresh device
-// is an empty shelf, the clone / account / git-serving flows are unbuilt, and
-// the Worker's store is not reachable from the page to inject one. So that case
-// cannot be written against the current harness without inventing a seeding seam
-// or a dev-only injection mount (out of this task's scope). The cases below are
-// everything the served surface supports today; the across-books narrowing is
-// called out for the first task that lands a book-onto-device flow (see the
-// implementer summary).
+// The "across books" narrowing needs two books on the device: the bundled
+// example book plus a second book made through Books (the scope test below).
 
 const EXPLORE_ROW = /Explore A on your/;
 
@@ -48,7 +31,7 @@ test('opens on the search box, axe-clean on this viewport (workflow 2 L11, DIREC
   page,
   checkA11y,
 }) => {
-  await page.goto('/');
+  await startApp(page);
 
   // The app opens on the Search destination with its one box.
   await expect(page.getByRole('tab', { name: 'Search' })).toHaveAttribute(
@@ -65,12 +48,13 @@ test('a chord typed in the box offers the explorer first, on the device (workflo
   page,
   checkA11y,
 }) => {
-  await page.goto('/');
+  await startApp(page);
 
   // Typing a chord symbol offers "Explore A on your instrument" — recognised on
   // the device, with no book on the shelf and no network call.
   await page.getByRole('searchbox').fill('A');
   await expect(page.getByRole('button', { name: EXPLORE_ROW })).toBeVisible();
+  await mockup(page, 'W02-find-and-play', 1);
 
   // Axe clean in the typed state too, on this viewport.
   await checkA11y();
@@ -80,7 +64,7 @@ test('a setlist is found by the one search, marked as a setlist, and opens to li
   page,
   checkA11y,
 }) => {
-  await seedExample(page);
+  await openExampleBook(page);
 
   // Type the setlist's title into the one song search: it is listed, marked by
   // the word "Setlist" alongside song results.
@@ -113,4 +97,112 @@ test('search still recognises a chord after an offline reload (workflow 2 L152-1
       ).toBeVisible();
     },
   });
+});
+
+const INTRO = 'G | C | G | D';
+const ADDED = ' | Em';
+const BADGE = '.search-row-open .badge.unsaved';
+
+test('before typing, the songs just opened are listed as recents, most recent first, and survive a reload (workflow 2 §Before typing)', async ({
+  page,
+  checkA11y,
+}) => {
+  await openExampleBook(page);
+  await openSongFromSearch(page, 'Morning', 'Morning on the Porch');
+  await toSearch(page);
+  await openSongFromSearch(page, 'Ferry', 'The Ferry Line');
+  await toSearch(page);
+  await page.getByRole('searchbox').fill('');
+
+  const recents = page.getByRole('region', { name: 'Recent' });
+  const rows = recents.locator('.search-row-open');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText('The Ferry Line');
+  await expect(rows.nth(1)).toContainText('Morning on the Porch');
+  await expect(page.getByRole('region', { name: 'Books' })).toBeVisible(); // the book sections follow
+  await checkA11y(); // search before typing, with recents
+
+  // Opening the older one again moves it to the top.
+  await rows.nth(1).click();
+  await expect(page.getByRole('group', { name: 'Morning on the Porch' }).first()).toBeVisible();
+  await toSearch(page);
+  await expect(rows.nth(0)).toContainText('Morning on the Porch');
+
+  // The list lives on the device: a reload brings it back in the same order.
+  await startApp(page);
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText('Morning on the Porch');
+  await expect(rows.nth(1)).toContainText('The Ferry Line');
+});
+
+test('Search only in a book narrows the results to it, and a reload resets the filter (workflow 2 §Scope)', async ({
+  page,
+  checkA11y,
+}) => {
+  const OTHER = 'My songs';
+  await openExampleBook(page);
+  // A second book with a song of its own: Create from a search with no match
+  // writes into My songs.
+  await createSongFromSearch(page, 'Moonlit Pier');
+  await toSearch(page);
+  await page.getByRole('searchbox').fill('');
+  await expect(page.getByRole('button', { name: `Search only in ${OTHER}` })).toBeVisible();
+
+  // Narrow to the example book: its song is found, the other book's is not.
+  await page.getByRole('button', { name: 'Search only in Example Book' }).click();
+  await expect(page.getByRole('button', { name: 'Clear filter' })).toBeVisible();
+  await expect(page.locator('.scope')).toContainText('Example Book');
+  await page.getByRole('searchbox').fill('Morning');
+  await expect(page.getByRole('button', { name: /Morning on the Porch/ }).first()).toBeVisible();
+  await page.getByRole('searchbox').fill('Moonlit');
+  await expect(page.getByText(/No songs match/)).toBeVisible();
+
+  // Narrow to the other book instead: the same query now finds the other song
+  // and the example book's is out of reach.
+  await page.getByRole('searchbox').fill('');
+  await page.getByRole('button', { name: 'Clear filter' }).click();
+  await expect(page.getByRole('button', { name: 'Clear filter' })).toHaveCount(0);
+  await page.getByRole('button', { name: `Search only in ${OTHER}` }).click();
+  await expect(page.locator('.scope')).toContainText(OTHER);
+  await page.getByRole('searchbox').fill('Morning');
+  await expect(page.getByText(/No songs match/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Morning on the Porch/ })).toHaveCount(0);
+  await checkA11y(); // a filtered search with no result
+  await page.getByRole('searchbox').fill('Moonlit');
+  await expect(page.getByRole('button', { name: /Moonlit Pier/ }).first()).toBeVisible();
+
+  // The filter is for this session only: after a reload, search spans every book.
+  await startApp(page);
+  await expect(page.getByRole('button', { name: 'Clear filter' })).toHaveCount(0);
+  await page.getByRole('searchbox').fill('Morning');
+  await expect(page.getByRole('button', { name: /Morning on the Porch/ }).first()).toBeVisible();
+});
+
+test('a song edited through Edit carries the unsaved badge in search until it is saved (workflow 2 §Badges, workflow 4)', async ({
+  page,
+}) => {
+  await openExampleBook(page);
+  await openSongInEditor(page, 'Morning', 'Morning on the Porch');
+  await typeAtEndOfLine(page, INTRO, ADDED);
+  await expect(page.locator('.cm-content')).toContainText(`${INTRO}${ADDED}`);
+  await page.waitForTimeout(800); // the editor's debounced write lands in the working copy
+
+  // Back to search: the badge is a word on the result, and on the recent.
+  await toSearch(page);
+  await page.getByRole('searchbox').fill('Morning');
+  const row = page.locator('.search-row-open', { hasText: 'Morning on the Porch' }).first();
+  await expect(row).toBeVisible();
+  await expect(row.locator('.badge.unsaved')).toHaveText('unsaved');
+  await page.getByRole('searchbox').fill('');
+  await expect(page.getByRole('region', { name: 'Recent' }).locator(BADGE)).toHaveCount(1);
+
+  // Save through the sheet: the badge goes.
+  await openSongFromSearch(page, 'Morning', 'Morning on the Porch');
+  await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+  await expect(page.locator('.cm-content')).toContainText(`${INTRO}${ADDED}`);
+  await saveThroughSheet(page, { note: 'Add Em' });
+  await toSearch(page);
+  await page.getByRole('searchbox').fill('Morning');
+  await expect(page.locator('.search-row-open', { hasText: 'Morning on the Porch' }).first()).toBeVisible();
+  await expect(page.locator(BADGE)).toHaveCount(0);
 });

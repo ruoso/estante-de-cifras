@@ -1,4 +1,5 @@
 import { test, expect } from '../lib/axe.js';
+import { startApp, gotoTab } from '../lib/journeys.js';
 
 // e2e-web — the portal-scope provider against the compose stack, on the three
 // viewports (phone/tablet/computer projects auto-run every spec). ThemeRoot wraps
@@ -55,9 +56,8 @@ test('RAC overlays portal into `.est` and inherit tokens on this viewport (shell
   page,
   checkA11y,
 }) => {
-  await page.goto('/');
-  await page.getByRole('tab', { name: 'Books' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible();
+  await startApp(page);
+  await gotoTab(page, 'Books');
 
   // ---- The Add-a-book sheet (a `.sheet` overlay) ----
   await page.getByRole('button', { name: 'Add a book' }).click();

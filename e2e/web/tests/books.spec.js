@@ -1,4 +1,6 @@
 import { test, expect } from '../lib/axe.js';
+import { mockup } from '../lib/mockup.js';
+import { startApp } from '../lib/journeys.js';
 
 // e2e-web — the book-management screen against the compose stack, on the three
 // viewports (the phone/tablet/computer projects auto-run every spec). Making and
@@ -17,7 +19,7 @@ test('a new book is made and renamed on the shelf, axe-clean on this viewport (w
   page,
   checkA11y,
 }) => {
-  await page.goto('/');
+  await startApp(page);
 
   // Open the Books destination — the book-management screen (DIRECTION §4 L434).
   await page.getByRole('tab', { name: 'Books' }).click();
@@ -28,6 +30,7 @@ test('a new book is made and renamed on the shelf, axe-clean on this viewport (w
   await page.getByRole('button', { name: 'Add a book' }).click();
   const sheet = page.getByRole('dialog');
   await expect(sheet).toBeVisible();
+  await mockup(page, 'W07-add-a-book', 2);
   await checkA11y(); // the open Add-a-book sheet
   await sheet.getByRole('textbox', { name: 'Book name' }).fill(NAME);
   await sheet.getByRole('button', { name: 'New book' }).click();

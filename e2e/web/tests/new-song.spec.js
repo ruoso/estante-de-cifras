@@ -10,7 +10,9 @@
 // purpose-written songs — never anyone's copyrighted words.
 
 import { test, expect } from '../lib/axe.js';
-import { runOffline, waitForServiceWorker } from '../lib/offline.js';
+import { runOffline } from '../lib/offline.js';
+import { mockup } from '../lib/mockup.js';
+import { startApp, openExampleBook, saveThroughSheet } from '../lib/journeys.js';
 
 // A full, canonicalisable song to type in place of the template.
 const HARBOUR = [
@@ -25,42 +27,29 @@ const HARBOUR = [
   '',
 ];
 
-// Replace the editor's template with `lines`, let the debounced WRITE settle so
-// the first save reads the typed title, then press Save and confirm the sheet.
-// The editor's Save opens the save sheet (songs.save_sheet); the first save ever
-// asks once for the author's name before it commits (§Who made the change).
-async function typeAndSave(page, lines) {
+// Replace the editor's template with `lines`, then save through the save sheet
+// (the first save ever asks once for the author's name; a typed title means no
+// song-name prompt, and the note prefills from the preview).
+async function typeAndSave(page, lines, { frame } = {}) {
   const content = page.locator('.cm-content');
   await expect(content).toBeVisible();
   await content.click();
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Delete');
   await page.keyboard.insertText(lines.join('\n'));
-  // The debounced WRITE persists the buffer; the first save reads it back, so
-  // wait for it before Save (mirrors editor.spec.js).
-  await page.waitForTimeout(800);
-  await page.getByRole('button', { name: 'Save' }).click();
-  await confirmSaveSheet(page);
-}
-
-// Confirm the open save sheet: wait for the preview (the note prefills from it,
-// and a typed title means no song-name prompt), give the author's name on this
-// first-ever save, then save and wait for the sheet to close.
-async function confirmSaveSheet(page) {
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  await expect(sheet.getByRole('textbox', { name: 'Note' })).not.toHaveValue('');
-  await sheet.getByRole('textbox', { name: /Your name/ }).fill('Marina Souza');
-  await sheet.getByRole('button', { name: 'Save' }).click();
-  await expect(sheet).toBeHidden();
+  await saveThroughSheet(page, {
+    onSheet: async (sheet) => {
+      await expect(sheet.getByRole('textbox', { name: 'Note' })).not.toHaveValue('');
+      if (frame) await mockup(page, 'W03-write-a-new-song', frame);
+    },
+  });
 }
 
 test('from the empty shelf: Write a song opens the editor on My songs, the first save names and keeps it', async ({
   page,
   checkA11y,
 }) => {
-  await page.goto('/');
-  await waitForServiceWorker(page);
+  await startApp(page);
 
   // The first-run ways-in surface is axe-clean.
   await checkA11y();
@@ -71,7 +60,7 @@ test('from the empty shelf: Write a song opens the editor on My songs, the first
   await expect(page.getByText(/In My songs/)).toBeVisible();
   await checkA11y();
 
-  await typeAndSave(page, HARBOUR);
+  await typeAndSave(page, HARBOUR, { frame: 4 });
 
   // Back on search, the song is on the shelf and findable without an unsaved
   // badge; My songs now exists as a book.
@@ -89,38 +78,37 @@ test('from the empty shelf: Write a song opens the editor on My songs, the first
 test('from search (no match): Create "{query}" opens the template titled with the query', async ({
   page,
 }) => {
-  await page.goto('/');
-  await waitForServiceWorker(page);
+  await startApp(page);
 
   await page.getByRole('searchbox').fill('Moonlit Pier');
+  await expect(page.getByRole('button', { name: /Create .Moonlit Pier./ })).toBeVisible();
+  await mockup(page, 'W03-write-a-new-song', 1);
   await page.getByRole('button', { name: /Create .Moonlit Pier./ }).click();
 
   // The template is titled with the query.
   const content = page.locator('.cm-content');
   await expect(content).toBeVisible();
   await expect(content).toContainText('Moonlit Pier');
+  await mockup(page, 'W03-write-a-new-song', 2);
 
   // Put a chord in the empty fence and save; the song is then findable.
   await content.click();
   await page.keyboard.press('Control+End');
   await page.keyboard.insertText('Am G C');
-  await page.waitForTimeout(800);
-  await page.getByRole('button', { name: 'Save' }).click();
-  await confirmSaveSheet(page);
+  await saveThroughSheet(page, {
+    onSheet: async (sheet) => {
+      await expect(sheet.getByRole('textbox', { name: 'Note' })).not.toHaveValue('');
+    },
+  });
 
   await page.getByRole('searchbox').fill('Moonlit');
   await expect(page.getByText('Moonlit Pier')).toBeVisible();
 });
 
 test('from a book section: new song in this book lands the song in that book', async ({ page }) => {
-  await page.goto('/');
-  await waitForServiceWorker(page);
+  await startApp(page);
 
-  // Seed the bundled example book (the editor's e2e pattern), wait until indexed.
-  await page.getByRole('button', { name: /Open the example book/ }).click();
-  await page.getByRole('searchbox').fill('Morning');
-  await expect(page.getByText('Morning on the Porch')).toBeVisible();
-  await page.getByRole('searchbox').fill('');
+  await openExampleBook(page);
 
   await page.getByRole('button', { name: /New song in Example Book/ }).click();
   await expect(page.getByText(/In Example Book/)).toBeVisible();
@@ -144,8 +132,7 @@ test('from a book section: new song in this book lands the song in that book', a
 });
 
 test('offline: a new song can be written and saved, and persists', async ({ page }) => {
-  await page.goto('/');
-  await waitForServiceWorker(page);
+  await startApp(page);
 
   await runOffline(page, {
     path: '/',
@@ -158,6 +145,11 @@ test('offline: a new song can be written and saved, and persists', async ({ page
       await offlinePage.getByRole('searchbox').fill('Harbour');
       await expect(offlinePage.getByText('Harbour Lights')).toBeVisible();
       await expect(offlinePage.getByText('unsaved')).toHaveCount(0);
+
+      // It persists: after a reload, still offline, the song is still there.
+      await offlinePage.reload();
+      await offlinePage.getByRole('searchbox').fill('Harbour');
+      await expect(offlinePage.getByText('Harbour Lights')).toBeVisible();
     },
   });
 });

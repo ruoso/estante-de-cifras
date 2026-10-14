@@ -15,6 +15,7 @@
  * viewport, reached the same way (tap the tab bar / activate the sidebar rail).
  */
 import { test, expect } from '../lib/axe.js';
+import { startApp } from '../lib/journeys.js';
 
 const DESTINATIONS = ['Search', 'Books', 'Setlists'];
 // The shell's layout breakpoint (app/src/shell/layout-mode.js): phone (Pixel 7,
@@ -27,7 +28,7 @@ test('each destination is reached and axe-clean on this viewport', async ({
   page,
   checkA11y,
 }) => {
-  await page.goto('/');
+  await startApp(page);
 
   // The drawn layout for this viewport: the phone tab bar below the breakpoint,
   // the sidebar + detail split above it (GUIDE.md 34; the two-layouts Decision).
@@ -52,7 +53,7 @@ test('each destination is reached and axe-clean on this viewport', async ({
 });
 
 test('the destinations are reachable by keyboard', async ({ page }) => {
-  await page.goto('/');
+  await startApp(page);
 
   // Focus the first destination and move with the keyboard: RAC's roving
   // tabindex takes End to the last destination and selection follows focus.

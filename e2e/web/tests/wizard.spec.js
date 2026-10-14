@@ -1,5 +1,16 @@
 import { test, expect } from '../lib/axe.js';
 import { runOffline, waitForServiceWorker } from '../lib/offline.js';
+import { mockup } from '../lib/mockup.js';
+import { openExampleBook, openSongFromSearch, startApp, settleEdits } from '../lib/journeys.js';
+import {
+  SONG,
+  enterArrange,
+  unchosenWords,
+  addEmptyVariation,
+  saveArrangementThroughSheet,
+} from '../lib/journeys-core.js';
+
+const openSong = (page) => openSongFromSearch(page, SONG.search, SONG.title);
 
 // e2e-web — running the voicing wizard end to end on the three viewports
 // (songs.wizard_ui, workflow 5). The example book is seeded through the UI, a
@@ -12,45 +23,6 @@ import { runOffline, waitForServiceWorker } from '../lib/offline.js';
 // the new/over question is offered. phone is the narrow screen; tablet and
 // computer are the wide side-by-side. Pins workflow 5 L64-72; the .tji e2e
 // clause; offline-first.
-
-const SEARCH = 'Morning';
-const SONG_TITLE = 'Morning on the Porch';
-
-async function gotoSearch(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  const openExample = page.getByRole('button', { name: /Open the example book/ });
-  const books = page.getByRole('heading', { name: 'Books' });
-  await expect(async () => {
-    if (await openExample.isVisible().catch(() => false)) {
-      await openExample.click({ timeout: 2000 }).catch(() => {});
-    }
-    await expect(books).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 20000 });
-  await page.getByRole('searchbox').fill(SEARCH);
-  await expect(page.getByRole('button', { name: new RegExp(SONG_TITLE) }).first()).toBeVisible();
-  await page.getByRole('searchbox').fill('');
-}
-
-async function openSong(page) {
-  await page.getByRole('searchbox').fill(SEARCH);
-  const result = page.getByRole('button', { name: new RegExp(SONG_TITLE) });
-  await expect(result.first()).toBeVisible();
-  await result.first().click();
-  await expect(page.locator('.reading-sheet')).toBeVisible();
-}
-
-// Enter arrange from the reading view: the narrow action bar's Arrange, or the
-// wide "More" overflow's "Arrange for …".
-async function enterArrange(page, narrow) {
-  if (narrow) {
-    await page.getByRole('button', { name: 'Arrange', exact: true }).click();
-  } else {
-    await page.getByRole('button', { name: 'More' }).click();
-    await page.getByRole('menuitem', { name: /^Arrange for/ }).click();
-  }
-  await expect(page.getByText(/Arranging ·/)).toBeVisible();
-}
 
 const runWizard = (page) => page.getByRole('button', { name: 'Run the wizard' });
 const policy = (page, name) => page.getByRole('button', { name });
@@ -66,16 +38,16 @@ async function toPreview(page, name = 'The smoothest path') {
   await expect(writePlan(page)).toBeVisible();
 }
 
-test('runs the wizard into a new variation; the variation reads back in arrange', async ({ page, checkA11y }, testInfo) => {
-  const narrow = testInfo.project.name === 'phone';
-  await gotoSearch(page);
+test('runs the wizard into a new variation; the variation reads back in arrange', async ({ page, checkA11y }) => {
+  await openExampleBook(page);
   await openSong(page);
-  await enterArrange(page, narrow);
+  await enterArrange(page);
 
   await toPreview(page);
   // The example song's guitar block already has choices, so the plan is offered
   // into a new variation first.
   await expect(page.getByRole('radio', { name: /Into a new variation/ })).toBeChecked();
+  await mockup(page, 'W05-arrange', 4);
   await checkA11y(); // the wizard, at its preview + plan-ready state
 
   await page.getByRole('textbox', { name: 'Name for this variation' }).fill('Up the neck');
@@ -88,13 +60,27 @@ test('runs the wizard into a new variation; the variation reads back in arrange'
   await expect(page.getByRole('button', { name: 'Up the neck' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Shapes' })).toBeVisible();
   await checkA11y(); // the arrange screen after the wizard
+
+  // Saved through the save sheet (Done, Edit, Save) and durable: after a reload
+  // the variation is in the song and every chord in it has a chosen shape.
+  await saveArrangementThroughSheet(page, {
+    note: 'Wizard plan',
+    inspect: async (sheet) => {
+      await expect(sheet).toContainText('Voicings');
+    },
+  });
+  await startApp(page);
+  await openSong(page);
+  await enterArrange(page);
+  await page.getByRole('group', { name: 'Variation' }).getByRole('button', { name: 'Up the neck' }).click();
+  await expect(page.getByRole('region', { name: 'Shapes' })).toBeVisible();
+  await expect(unchosenWords(page)).toHaveCount(0);
 });
 
-test('offers into a new variation first and over this one second; a fresh variation writes straight in', async ({ page }, testInfo) => {
-  const narrow = testInfo.project.name === 'phone';
-  await gotoSearch(page);
+test('offers into a new variation first and over this one second; a fresh variation writes straight in', async ({ page }) => {
+  await openExampleBook(page);
   await openSong(page);
-  await enterArrange(page, narrow);
+  await enterArrange(page);
 
   // With choices in the in-use variation, both options are offered, new first.
   await toPreview(page);
@@ -111,13 +97,7 @@ test('offers into a new variation first and over this one second; a fresh variat
   // A fresh variation with no choices: add an empty one in arrange (not a copy
   // of the one in use), then the wizard writes straight in with no new/over
   // question.
-  await page.getByRole('button', { name: 'Variations' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Add a variation' });
-  await dialog.getByRole('textbox', { name: 'Name for this variation' }).fill('Blank');
-  await dialog.getByRole('checkbox').uncheck();
-  await dialog.getByRole('button', { name: 'Add' }).click();
-  await expect(dialog).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Blank' })).toBeVisible();
+  await addEmptyVariation(page, 'Blank');
 
   await toPreview(page, 'Down at the nut');
   await expect(page.getByRole('radio', { name: /Into a new variation/ })).toBeHidden();
@@ -125,9 +105,8 @@ test('offers into a new variation first and over this one second; a fresh variat
   await expect(page.getByText(/Arranging ·/)).toBeVisible();
 });
 
-test('runs the wizard offline; the plan is written to the working copy', async ({ page }, testInfo) => {
-  const narrow = testInfo.project.name === 'phone';
-  await gotoSearch(page);
+test('runs the wizard offline; the plan is in the working copy after an offline reload', async ({ page }) => {
+  await openExampleBook(page);
   await expect(page.getByRole('searchbox')).toBeVisible();
 
   await runOffline(page, {
@@ -135,7 +114,7 @@ test('runs the wizard offline; the plan is written to the working copy', async (
     async whileOffline(offlinePage) {
       await waitForServiceWorker(offlinePage);
       await openSong(offlinePage);
-      await enterArrange(offlinePage, narrow);
+      await enterArrange(offlinePage);
 
       await toPreview(offlinePage);
       await offlinePage.getByRole('textbox', { name: 'Name for this variation' }).fill('Offline plan');
@@ -144,6 +123,15 @@ test('runs the wizard offline; the plan is written to the working copy', async (
       // The whole run and the write to the working copy succeed offline.
       await expect(offlinePage.getByText(/Arranging ·/)).toBeVisible();
       await expect(offlinePage.getByRole('button', { name: 'Offline plan' })).toBeVisible();
+
+      // The plan is on the device: it is still there after a reload, offline.
+      await settleEdits(offlinePage);
+      await offlinePage.reload();
+      await waitForServiceWorker(offlinePage);
+      await openSong(offlinePage);
+      await enterArrange(offlinePage);
+      await offlinePage.getByRole('group', { name: 'Variation' }).getByRole('button', { name: 'Offline plan' }).click();
+      await expect(unchosenWords(offlinePage)).toHaveCount(0);
     },
   });
 });

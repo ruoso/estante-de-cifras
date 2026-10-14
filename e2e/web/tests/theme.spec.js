@@ -1,4 +1,5 @@
 import { test, expect } from '../lib/axe.js';
+import { startApp } from '../lib/journeys.js';
 
 // e2e-web (shell.tokens) — the shell under the automatic theme on the three
 // viewports (phone/tablet/computer via the config projects). With no chosen
@@ -28,7 +29,7 @@ test('automatic theme follows the device light/dark mode, axe-clean on each', as
 }) => {
   // Device in light mode → Estante.
   await page.emulateMedia({ colorScheme: 'light' });
-  await page.goto('/');
+  await startApp(page);
 
   const root = page.locator('.est');
   await expect(root).toHaveClass(/theme-estante/);

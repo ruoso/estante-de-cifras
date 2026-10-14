@@ -1,6 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { test, expect } from '../lib/axe.js';
+import { mockup } from '../lib/mockup.js';
+import { startApp, gotoTab, openFiles } from '../lib/journeys.js';
 
 // e2e-web — the upload preview surface against the compose stack, on the three
 // viewports (the phone/tablet/computer projects auto-run every spec). The whole
@@ -20,9 +22,8 @@ const MERGE_ZIP = join(here, '../fixtures/upload/merge.zip');
 const TITLE = 'Banda do Bairro';
 
 async function openBooks(page) {
-  await page.goto('/');
-  await page.getByRole('tab', { name: 'Books' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible();
+  await startApp(page);
+  await gotoTab(page, 'Books');
 }
 
 // Pick a zip through the Add-a-book Upload way-in; the full-screen preview opens.
@@ -48,6 +49,7 @@ test('a zip uploaded as a new book appears on the shelf (workflow 7 §Ends one o
   // ("Title added: Partida; …"), so a loose substring match is not unique.
   await expect(page.getByText('Partida', { exact: true })).toBeVisible();
   await expect(page.getByText('Chegada', { exact: true })).toBeVisible();
+  await mockup(page, 'W07-add-a-book', 3);
   await checkA11y(); // the open preview
 
   await page.getByRole('button', { name: 'Import as a new book' }).click();
@@ -86,7 +88,7 @@ test('a zip merged into an existing book replaces song by song (workflow 7 §A z
   // The surface closes and the target reflects the import: open its files and
   // find the newly added song.
   await expect(page.getByRole('radiogroup', { name: 'What to do with the upload' })).toBeHidden();
-  await page.getByRole('button', { name: `Files in ${TITLE}` }).click();
+  await openFiles(page, TITLE);
   await expect(page.getByText('nova.cifra.md')).toBeVisible();
   await checkA11y(); // the book's files after the merge
 });

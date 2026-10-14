@@ -13,7 +13,10 @@
 // start empty.
 
 import { test, expect } from '../lib/axe.js';
-import { runOffline, waitForServiceWorker } from '../lib/offline.js';
+import { mockup } from '../lib/mockup.js';
+import { runOffline } from '../lib/offline.js';
+import { openExampleBook, openSongFromSearch, startApp } from '../lib/journeys.js';
+import { toSearch } from '../lib/journeys-core.js';
 
 const WAYS = [
   'Write a song',
@@ -28,40 +31,8 @@ const FIRST = { search: 'Ferry', title: 'The Ferry Line' };
 const SECOND = { search: 'Morning', title: 'Morning on the Porch' };
 const PROMPT = /Playing on guitar/;
 
-// Reach the search front door with the example book seeded and a song actually
-// searchable (the seed-then-wait the reading/editor e2es use — the heading paints
-// before the open-example durability flush, so wait for a result, not the
-// heading). Idempotent across reloads and retries.
-async function gotoSearch(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  const openExample = page.getByRole('button', { name: /Open the example book/ });
-  const books = page.getByRole('heading', { name: 'Books' });
-  await expect(async () => {
-    if (await openExample.isVisible().catch(() => false)) {
-      await openExample.click({ timeout: 2000 }).catch(() => {});
-    }
-    await expect(books).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 20000 });
-  await page.getByRole('searchbox').fill(FIRST.search);
-  await expect(page.getByRole('button', { name: new RegExp(FIRST.title) }).first()).toBeVisible();
-  await page.getByRole('searchbox').fill('');
-}
-
-// Open a seeded song from search and wait for the reading sheet. On the phone the
-// reading view is a full screen, so the caller returns to search with Back; on the
-// tablet/computer the side search is always present, so there is nothing to undo.
-async function openSong(page, { search, title }) {
-  await page.getByRole('searchbox').fill(search);
-  const result = page.getByRole('button', { name: new RegExp(title) });
-  await expect(result.first()).toBeVisible();
-  await result.first().click();
-  await expect(page.locator('.reading-sheet')).toBeVisible();
-}
-
 test('a first visit shows the empty shelf and its four ways in', async ({ page, checkA11y }) => {
-  await page.goto('/');
-  await waitForServiceWorker(page);
+  await startApp(page);
 
   await expect(
     page.getByRole('heading', { name: 'Your shelf is empty' }),
@@ -71,6 +42,7 @@ test('a first visit shows the empty shelf and its four ways in', async ({ page, 
   for (const name of WAYS) {
     await expect(page.getByRole('button', { name: new RegExp(name) })).toBeVisible();
   }
+  await mockup(page, 'W01-first-run', 1);
   // My songs is listed from the start, with its state carried by a word. Pin
   // the listing's own name exactly — "My songs" also appears inside the "Write
   // a song" row's meta ("It goes into My songs"), so a loose text match is
@@ -85,8 +57,7 @@ test('opening the example book puts it on the shelf, its songs are searchable, a
   page,
   checkA11y,
 }) => {
-  await page.goto('/');
-  await waitForServiceWorker(page);
+  await startApp(page);
 
   await page.getByRole('button', { name: /Open the example book/ }).click();
 
@@ -119,10 +90,9 @@ test('opening the example book puts it on the shelf, its songs are searchable, a
 test('the first song opened asks about the instrument once; the second does not', async ({
   page,
   checkA11y,
-}, testInfo) => {
-  const narrow = testInfo.project.name === 'phone';
-  await gotoSearch(page);
-  await openSong(page, FIRST);
+}) => {
+  await openExampleBook(page);
+  await openSongFromSearch(page, FIRST.search, FIRST.title);
 
   // The inline notice shows above the chart, with Change and dismiss controls.
   await expect(page.getByText(PROMPT)).toBeVisible();
@@ -132,6 +102,7 @@ test('the first song opened asks about the instrument once; the second does not'
   await expect(page.getByRole('button', { name: 'Change instrument', exact: true })).toBeVisible();
   const dismiss = page.getByRole('button', { name: 'Keep guitar and dismiss' });
   await expect(dismiss).toBeVisible();
+  await mockup(page, 'W01-first-run', 3);
   await checkA11y(); // the reading screen with the notice present
 
   // Keep the guitar and dismiss: the notice goes.
@@ -140,24 +111,22 @@ test('the first song opened asks about the instrument once; the second does not'
 
   // A second song shows no notice (the phone returns to search with Back; the
   // wide master-detail keeps search beside the song).
-  if (narrow) {
-    await page.getByRole('button', { name: 'Back' }).click();
-  }
-  await openSong(page, SECOND);
+  await toSearch(page);
+  await openSongFromSearch(page, SECOND.search, SECOND.title);
   await expect(page.getByText(PROMPT)).toHaveCount(0);
 });
 
 test('the dismissed prompt stays dismissed across a reload (persisted in the home book)', async ({
   page,
 }) => {
-  await gotoSearch(page);
-  await openSong(page, FIRST);
+  await openExampleBook(page);
+  await openSongFromSearch(page, FIRST.search, FIRST.title);
   await page.getByRole('button', { name: 'Keep guitar and dismiss' }).click();
   await expect(page.getByText(PROMPT)).toHaveCount(0);
 
   // Reload the app and open a song again: the flag lives in preferences.json, so
   // the prompt does not return (AC 2 durability; DIRECTION §3.2).
-  await gotoSearch(page);
-  await openSong(page, FIRST);
+  await startApp(page);
+  await openSongFromSearch(page, FIRST.search, FIRST.title);
   await expect(page.getByText(PROMPT)).toHaveCount(0);
 });

@@ -11,12 +11,13 @@
  * passes a clean page".
  */
 import { test, expect } from '../lib/axe.js';
+import { startApp } from '../lib/journeys.js';
 
 test('the app shell loads at the origin and passes WCAG 2.1 AA', async ({
   page,
   checkA11y,
 }) => {
-  await page.goto('/');
+  await startApp(page);
 
   // Stable landmarks the served shell renders (app/src/App.jsx → AppShell): the
   // document title, the main landmark and the default destination's level-1

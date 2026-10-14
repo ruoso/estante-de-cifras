@@ -11,62 +11,18 @@
 import { statSync } from 'node:fs';
 
 import { test, expect } from '../lib/axe.js';
-import { waitForServiceWorker } from '../lib/offline.js';
-
-// A signed-in device needs a passkey; the virtual authenticator is driven over
-// CDP, the same inline helper account-sign-in.spec.js uses (no shared module).
-async function enableVirtualAuthenticator(page) {
-  const client = await page.context().newCDPSession(page);
-  await client.send('WebAuthn.enable');
-  await client.send('WebAuthn.addVirtualAuthenticator', {
-    options: {
-      protocol: 'ctap2',
-      transport: 'internal',
-      hasResidentKey: true,
-      hasUserVerification: true,
-      isUserVerified: true,
-      automaticPresenceSimulation: true,
-    },
-  });
-  return client;
-}
-
-async function hasSessionCookie(page) {
-  const cookies = await page.context().cookies();
-  return cookies.some((c) => c.name === 'estante_session' && c.value);
-}
-
-// Make an account with a passkey, landing signed in on the shelf.
-async function signIn(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.getByRole('button', { name: /Sign in/ }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  await page.getByRole('button', { name: 'Use a passkey' }).click();
-  await expect.poll(() => hasSessionCookie(page)).toBe(true);
-}
-
-// Make a local book from the Books screen (the books.spec New-book flow).
-async function makeLocalBook(page, name) {
-  await page.getByRole('tab', { name: 'Books' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible();
-  await page.getByRole('button', { name: 'Add a book' }).click();
-  const sheet = page.getByRole('dialog');
-  await expect(sheet).toBeVisible();
-  await sheet.getByRole('textbox', { name: 'Book name' }).fill(name);
-  await sheet.getByRole('button', { name: 'New book' }).click();
-  await expect(page.getByRole('button', { name: new RegExp(`^${name}`) })).toBeVisible();
-}
+import { mockup } from '../lib/mockup.js';
+import { signedInDevice, makeLocalBook } from '../lib/journeys.js';
 
 test('put a local book online, download it, then delete it as owner (workflow 7)', async ({
   page,
   checkA11y,
 }) => {
-  await enableVirtualAuthenticator(page);
-  await signIn(page);
+  await signedInDevice(page);
 
   const NAME = 'Quarta à noite';
   await makeLocalBook(page, NAME);
+  await mockup(page, 'W07-add-a-book', 1);
   await checkA11y(); // the shelf with the new local book
 
   // Open its detail by pressing the row.
@@ -92,6 +48,7 @@ test('put a local book online, download it, then delete it as owner (workflow 7)
   await page.getByRole('button', { name: 'Delete the book' }).click();
   const del = page.getByRole('dialog');
   await expect(del).toBeVisible();
+  await mockup(page, 'W07-add-a-book', 4);
   await checkA11y(); // the delete typed-name confirm
   await del.getByRole('textbox', { name: 'Type the book’s name to confirm' }).fill(NAME);
   await del.getByRole('button', { name: 'Delete the book' }).click();
@@ -103,8 +60,7 @@ test('remove a device-only book from the shelf through its confirmation (workflo
   page,
   checkA11y,
 }) => {
-  await enableVirtualAuthenticator(page);
-  await signIn(page);
+  await signedInDevice(page);
 
   const NAME = 'Só neste aparelho';
   await makeLocalBook(page, NAME);

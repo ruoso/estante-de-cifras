@@ -1,5 +1,14 @@
 import { test, expect } from '../lib/axe.js';
-import { waitForServiceWorker } from '../lib/offline.js';
+import { mockup } from '../lib/mockup.js';
+import { startApp, openExampleBook, openSongFromSearch } from '../lib/journeys.js';
+import {
+  SONG,
+  chip,
+  addInstrument,
+  closeInstruments,
+  openExplorerFor,
+  toSearch,
+} from '../lib/journeys-core.js';
 
 // e2e-web (music.explorer) — workflow 16 against the served compose stack, on the
 // phone / tablet / computer viewport projects (playwright.config.js), with axe at
@@ -17,36 +26,17 @@ import { waitForServiceWorker } from '../lib/offline.js';
 
 const EXPLORE_ROW = /Explore A on your/;
 
-const chip = (page) => page.getByRole('button', { name: /change instrument/ });
-const addButton = (page) => page.getByRole('button', { name: 'Add instrument', exact: true });
-
-// Add a standard guitar as a real instrument (so a starred shape persists and is
-// reviewable), then close the roster. Works online or offline — it is a local
-// home-book write.
-async function addGuitar(page) {
-  await chip(page).click();
-  await expect(page.getByRole('heading', { name: 'Instruments' })).toBeVisible();
-  await addButton(page).click();
-  await expect(page.getByRole('heading', { name: 'Add instrument' })).toBeVisible();
-  await addButton(page).click();
-  await expect(page.getByRole('button', { name: /^Open Guitar/ })).toBeVisible();
-  await page.keyboard.press('Escape');
-}
-
-// From the search screen, type a chord and open the explorer through its row.
-async function openExplorer(page) {
-  await page.getByRole('searchbox').fill('A');
-  await page.getByRole('button', { name: EXPLORE_ROW }).click();
-  // The explorer carries the symbol in its chord input.
-  await expect(page.getByRole('textbox', { name: 'Chord' })).toHaveValue('A');
-}
+const addGuitar = async (page) => {
+  await addInstrument(page, { listed: 'Guitar' });
+  await closeInstruments(page);
+};
+const openExplorer = (page) => openExplorerFor(page, 'A');
 
 test('search’s chord row opens the explorer; a shape is starred as my shape and reviewed; axe', async ({
   page,
   checkA11y,
 }) => {
-  await page.goto('/');
-  await waitForServiceWorker(page);
+  await startApp(page);
 
   await addGuitar(page);
   await openExplorer(page);
@@ -54,12 +44,14 @@ test('search’s chord row opens the explorer; a shape is starred as my shape an
   // The ranked shapes are drawn, each with a star; axe on the screen.
   await expect(page.getByRole('button', { name: /^Star A,/ }).first()).toBeVisible();
   await checkA11y();
+  await mockup(page, 'W16-chord-explorer', 4);
 
   // Star the first shape — it becomes *your shape* and its button is pressed.
   await page.getByRole('button', { name: /^Star A,/ }).first().click();
   const starred = page.getByRole('button', { name: /^Your shape for A,/ }).first();
   await expect(starred).toBeVisible();
   await expect(starred).toHaveAttribute('aria-pressed', 'true');
+  await mockup(page, 'W16-chord-explorer', 1);
 
   // Back returns to search with the symbol still typed.
   await page.getByRole('button', { name: 'Back to search' }).click();
@@ -75,8 +67,7 @@ test('the explorer works offline: explore and star with the network cut, and it 
   page,
 }) => {
   const context = page.context();
-  await page.goto('/');
-  await waitForServiceWorker(page);
+  await startApp(page);
   // Set the instrument up online, then cut the network for the real journey.
   await addGuitar(page);
 
@@ -101,4 +92,82 @@ test('the explorer works offline: explore and star with the network cut, and it 
   } finally {
     await context.setOffline(false);
   }
+});
+
+test('the explorer’s chord input can be edited: the shapes re-derive, an ambiguous symbol says how it was read, and Back returns to the typed query (workflow 16 §The chord)', async ({
+  page,
+}) => {
+  await startApp(page);
+  await openExplorer(page);
+  await expect(page.getByRole('button', { name: /^Star A,/ }).first()).toBeVisible();
+
+  // A → Am: the diagrams are Am's now.
+  const input = page.getByRole('textbox', { name: 'Chord' });
+  await input.fill('Am');
+  await expect(page.getByRole('button', { name: /^Star Am,/ }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Star A,/ })).toHaveCount(0);
+
+  // C7+ is ambiguous: the reading it took is said, with the flip.
+  await input.fill('C7+');
+  await expect(page.getByText(/Read as/).first()).toBeVisible();
+  await mockup(page, 'W16-chord-explorer', 3);
+
+  // Something that is not a chord says so rather than showing shapes.
+  await input.fill('Zzz');
+  await expect(page.getByText(/is not a chord this app can read/)).toBeVisible();
+
+  // Back returns to search with the symbol that was typed there to open it.
+  await page.getByRole('button', { name: 'Back to search' }).click();
+  await expect(page.getByRole('searchbox')).toHaveValue('A');
+});
+
+test('a shape entered by hand and starred is "your shape" in the reading view, and removing it takes it away (workflow 16 §Entering a shape; workflow 15 §My shapes)', async ({
+  page,
+  checkA11y,
+}) => {
+  await openExampleBook(page);
+  // A tuning none of the example songs carries, so the song has no chosen shape
+  // for this instrument and the chord falls to *your shape* when there is one.
+  await addInstrument(page, { tuning: 'Drop D', name: 'My Drop D' });
+  await closeInstruments(page);
+
+  await openExplorerFor(page, 'G');
+  await page.getByRole('button', { name: /^Enter a shape/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Enter a shape' });
+  await expect(dialog).toBeVisible();
+  // x-2-0-0-0-3 on D A D G B E: a G chord, placed finger by finger.
+  await dialog.getByRole('radio', { name: 'String 5, fret 2' }).click();
+  await dialog.getByRole('radio', { name: 'Open string 4' }).click();
+  await dialog.getByRole('radio', { name: 'Open string 3' }).click();
+  await dialog.getByRole('radio', { name: 'Open string 2' }).click();
+  await dialog.getByRole('radio', { name: 'String 1, fret 3' }).click();
+  await checkA11y(); // the enter-a-shape dialog with a shape placed
+  await dialog.getByRole('button', { name: /^Star G,/ }).click();
+  await expect(dialog).toBeHidden();
+
+  // In the song, G reads as the shape entered by hand.
+  await page.getByRole('button', { name: 'Back to search' }).click();
+  await openSongFromSearch(page, SONG.search, SONG.title);
+  await expect(page.getByText(/Nobody has chosen shapes for My Drop D/)).toBeVisible();
+  await mockup(page, 'W02-find-and-play', 3);
+  const yours = page.locator('.reading-shapes .chord-diagram__who', { hasText: 'your shape' });
+  await expect(yours).toHaveCount(1);
+
+  // Remove it from the instrument's my shapes.
+  await toSearch(page);
+  await chip(page).click();
+  await page.getByRole('button', { name: /^Open My Drop D/ }).click();
+  await page.getByRole('button', { name: /^Remove your shape for G,/ }).click();
+  await expect(page.getByRole('button', { name: /^Remove your shape for G,/ })).toHaveCount(0);
+  await expect(page.getByText(/No shapes saved for this tuning yet/)).toBeVisible();
+  await closeInstruments(page);
+
+  // The song no longer has a shape of yours, and the explorer shows G unstarred.
+  await openSongFromSearch(page, SONG.search, SONG.title);
+  await expect(page.locator('.reading-shapes .chord-diagram').first()).toBeVisible();
+  await expect(yours).toHaveCount(0);
+  await startApp(page);
+  await openExplorerFor(page, 'G');
+  await expect(page.getByRole('button', { name: /^Your shape for G,/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Star G,/ }).first()).toBeVisible();
 });
