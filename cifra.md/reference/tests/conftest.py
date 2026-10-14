@@ -1,0 +1,33 @@
+import json
+import pathlib
+import sys
+
+import pytest
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "reference"))  # for tools.corpus
+EXAMPLES = sorted((ROOT / "examples").glob("*.cifra.md"))
+CASES = sorted((ROOT / "tests" / "cases").glob("*.json"))
+SCHEMA = json.loads((ROOT / "schema" / "cifra.schema.json").read_text())
+CONFLICTS_SCHEMA = json.loads((ROOT / "schema" / "conflicts.schema.json").read_text())
+SETLIST_SCHEMA = json.loads((ROOT / "schema" / "setlist.schema.json").read_text())
+
+
+@pytest.fixture(scope="session")
+def schema():
+    return SCHEMA
+
+
+@pytest.fixture(scope="session")
+def conflicts_schema():
+    return CONFLICTS_SCHEMA
+
+
+@pytest.fixture(scope="session")
+def setlist_schema():
+    return SETLIST_SCHEMA
+
+
+def chart(text: str) -> str:
+    """Wrap chart lines in a section fence, the shortest well-formed document."""
+    return "## A\n```\n" + text + "\n```\n"

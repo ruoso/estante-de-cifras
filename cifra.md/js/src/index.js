@@ -1,0 +1,118 @@
+// cifra.md for JavaScript — the app's implementation of the format
+// (DIRECTION §3.6). Framework-free, ES modules, no runtime dependencies: this
+// module knows nothing of React; the view is the only layer that does
+// (DIRECTION §3.7). The reader, writer, setlist reader/writer and merge are
+// filled in by the later `cifra_js` tasks (`text_layer`, `chords`, `reader`,
+// `writer`, `setlists`, `merge`); the setlist reader/writer land with
+// `cifra_js.setlists`, so the song reader (`parse`/`write`/`canonical`) and
+// `merge` are the corpus-facing operations still stubbed — named stubs that
+// throw, so the corpus harness can call them and record each check as an
+// expected failure until their task lands.
+//
+// The names and the fact that they are corpus-facing are fixed here; their
+// real signatures and any richer public surface belong to the tasks that
+// implement them (cifra_js.package refinement, §Decisions).
+
+// The text layer (spec §1.3) and the marker-line primitive (§11.12.3), the
+// floor every reader stands on: re-exported from one place so the reader,
+// writer, merge and the canonicality check all import one correct
+// implementation (cifra_js.text_layer refinement, §Decisions).
+export { decode, prepare, markerLines, isMarkerLine, NotUtf8Error } from "./text.js";
+
+// Chord symbols (spec §5): the permissive parser, the canonical dialect-free
+// model, the three dialects and their four ambiguities, and the §5.5 spelled
+// tones. Re-exported from one place so the reader (which classifies every
+// chart token) and future tasks import one correct implementation
+// (cifra_js.chords refinement, §Decisions). The note-name helpers of pitch.js
+// come with them, as the reference exposes parse_note alongside parse_chord.
+export { parseChord, isChord, chordTones, DIALECTS, DEFAULT_DIALECT } from "./chord.js";
+export { parseNote, formatNote, isNote } from "./pitch.js";
+
+// The two block-level Markdown primitives chapter 10 borrows — the §1.4.1 title
+// and the §1.9 fences — in one neutral module the setlist reader uses now and
+// `cifra_js.reader` imports when it lands (cifra_js.setlists refinement
+// §Decisions).
+export { mdHeading, fenceOpen, closesFence } from "./markdown.js";
+
+// Setlists (spec §10): the reader, the canonical writer, the §10.5/§10.9.2 path
+// machinery and the §10.10 editing operations. A setlist holds no music, so
+// this layer reads no chart and imports no chord layer (cifra_js.setlists
+// refinement). The two book-wide §10.10 operations (a song moved across the
+// book; the setlist moved) are the app's — they resolve items against the
+// working copy the Worker owns — and compose with `songPath`,
+// `pathFromSetlistToSong` and `retargetItem` here.
+export {
+  parseSetlist,
+  writeSetlist,
+  canonicalSetlist,
+  songPath,
+  writePath,
+  pathFromSetlistToSong,
+  textForSong,
+  addSong,
+  removeItem,
+  moveItem,
+  setProperty,
+  removeProperty,
+  pointItemAtSong,
+  retargetItem,
+  refreshText,
+} from "./setlist.js";
+
+// Reader: bytes of a cifra.md document -> model (spec §1–§7). Takes bytes
+// because the text layer (spec §1.3) begins by validating UTF-8. The reader
+// never throws on malformed music — everything it cannot keep is a diagnostic —
+// the single exception being invalid UTF-8, which the text layer rejects
+// (NotUtf8Error), because such bytes are not a document (cifra_js.reader
+// refinement §Constraints).
+export { parse } from "./parse.js";
+
+// Canonical writer: model -> canonical text (spec §8). `write` is
+// `serialize ∘ canonical` with the §8.1 marked-text refusal; `canonical` is the
+// §8.2/§8.3/§4.5 model-level canonicaliser. `MarkedTextError` and `isCanonical`
+// are part of the writer's public contract for the app's save path — it
+// surfaces the refusal and uses `isCanonical` to know whether a save would
+// change the file (cifra_js.writer refinement §Decisions). A marked text is
+// never canonical, never saved, never pushed.
+export { write, canonical, MarkedTextError, isCanonical } from "./write.js";
+
+// Editing operations (spec §8.5): the five changes a writer makes to a song's
+// voicings — choose a shape for one occurrence, for a key, clear a key, choose
+// shapes for many at once, and add a variation — the app's write path for
+// arranging (what the arrange mode and the chord wizard call). Each is a pure
+// model transform `doc → doc` returning a new, mutated model; the caller writes
+// it canonical with `write`/`canonical`, under which §8.3 renumbers, merges and
+// prunes. The reference carries no editor and the corpus no editing fixture, so
+// these are unit-tested against the spec prose (cifra_js.editing refinement).
+export {
+  chooseShapeForOccurrence,
+  chooseShapeForKey,
+  clearKey,
+  chooseShapes,
+  addVariation,
+} from "./edit.js";
+
+// Semantic diff — "what changed, in musical terms" (DIRECTION §3.6, §4, §5).
+// The app's own layer over the spec-defined model, not part of the format:
+// `diff(before, after) -> { changes, summary }` compares two models `parse`
+// produces and returns an ordered list of change records plus a one-line
+// summary (the default save message). It has no corpus footprint and nothing
+// in the Python reference to port — its conformance is its unit tests
+// (cifra_js.diff refinement §Decisions). Framework-free, below the view; runs
+// in the Worker alongside save/merge/index, feeding the save sheet, song
+// history and version previews (workflows 4 and 6).
+export { diff } from "./diff.js";
+
+// Three-way merge (spec §11). Each of base/ours/theirs is bytes, a string, or
+// absent (null); a merge input need not be UTF-8 (corpus/README.md).
+// `merge(base, ours, theirs, { setlist }) -> Outcome` returns the structured
+// outcome `{ result, deleted, conflicts, marked, kept, kind }` the app's
+// conflict UI reads to present each conflict one at a time (§11.12). Three pure
+// helpers accompany it: `conflictsJson` writes the §11.12.5 JSON, `mergeOutputs`
+// maps an outcome to the corpus file set, and `resolveMarked` resolves a marked
+// text by one side for the *keep mine* / *take theirs* choices (§11.12.4). The
+// merge finishes through the §8 writer and merges setlists through the §10
+// setlist layer; it knows nothing of git, the Worker, storage or the network —
+// the Worker that wires it as isomorphic-git's merge driver is elsewhere
+// (cifra_js.merge refinement §Deferred work).
+export { merge, conflictsJson, mergeOutputs, resolveMarked } from "./merge.js";

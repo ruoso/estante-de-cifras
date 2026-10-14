@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ruoso/cifra.md/schema/setlist.schema.json",
+  "title": "cifra.md setlist",
+  "description": "The result of reading a setlist (spec §10.6). Everything a conforming reader produces, and everything a canonical writer (§10.9) needs. This formalizes the §10.6 prose model; it mirrors the JSON the reader emits, which carries three things the §10.6 structure block abbreviates away: a `type` discriminator on every entry, item and notes block, the `number` on every item, and the `diagnostics` array (§10.6, §10.8.3). Resolution (§10.8) is not part of what reading produces and is not modelled here.",
+  "type": "object",
+  "required": ["title", "properties", "body", "diagnostics"],
+  "additionalProperties": false,
+  "properties": {
+    "title": { "type": ["string", "null"], "minLength": 1, "description": "The text of the level-1 heading, or null when there is no title or its text is empty (§10.3.1)." },
+    "properties": {
+      "type": "array",
+      "description": "The property list under the title, in order (§10.3.1). Order is significant.",
+      "items": { "$ref": "#/$defs/Entry" }
+    },
+    "body": {
+      "type": "array",
+      "description": "The items and notes blocks of the setlist, in document order (§10.6): each element is a song or unlinked item, or a notes block.",
+      "items": { "$ref": "#/$defs/BodyElement" }
+    },
+    "diagnostics": {
+      "type": "array",
+      "description": "The diagnostics reported by reading, sorted by line (§10.6, §10.8.3).",
+      "items": { "$ref": "#/$defs/Diagnostic" }
+    }
+  },
+  "$defs": {
+    "Entry": {
+      "description": "An entry: a property (`key: value`) or an unrecognised line, selected by `type` (§10.3.3; a top-level property §10.3.1). The §10.6 box abbreviates the `type` discriminator away.",
+      "type": "object",
+      "required": ["type"],
+      "oneOf": [
+        { "$ref": "#/$defs/PropertyEntry" },
+        { "$ref": "#/$defs/UnrecognisedEntry" }
+      ]
+    },
+    "PropertyEntry": {
+      "description": "A `key: value` property. The reserved keys are `key` and `note`; any other key is application-defined (§10.7). Keys are lower-cased (§10.7, §1.4.3).",
+      "type": "object",
+      "required": ["type", "key", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "property" },
+        "key": { "type": "string", "pattern": "^[a-z0-9_-]+$", "description": "The property's key, lower-cased (§10.7)." },
+        "value": { "type": "string", "description": "The rest of the line after the colon and the spaces after it; may be empty (§10.3.3)." }
+      }
+    },
+    "UnrecognisedEntry": {
+      "description": "A line under the title or an item that is not `key: value`; kept as written (§10.3.3).",
+      "type": "object",
+      "required": ["type", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "unrecognised" },
+        "text": { "type": "string", "description": "The content as written (§10.3.3)." }
+      }
+    },
+    "BodyElement": {
+      "description": "An element of the body: a song item, an unlinked item, or a notes block, selected by `type` (§10.6, document order).",
+      "type": "object",
+      "required": ["type"],
+      "oneOf": [
+        { "$ref": "#/$defs/SongItem" },
+        { "$ref": "#/$defs/UnlinkedItem" },
+        { "$ref": "#/$defs/Notes" }
+      ]
+    },
+    "SongItem": {
+      "description": "An item that is a song link (§10.3.2, §10.4, §10.5). The §10.6 box abbreviates the `type` discriminator and `number` away.",
+      "type": "object",
+      "required": ["type", "number", "text", "path", "entries"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "song" },
+        "number": { "type": "integer", "minimum": 1, "description": "The item's position, numbered from 1 (§10.3.2)." },
+        "text": { "type": "string", "description": "The link text, as written (§10.4)." },
+        "path": { "type": "string", "description": "The link destination's decoded segments joined by `/` (§10.5)." },
+        "entries": { "type": "array", "items": { "$ref": "#/$defs/Entry" }, "description": "The entries under the item (§10.3.3)." }
+      }
+    },
+    "UnlinkedItem": {
+      "description": "An item that is not a song link; kept, and skipped when playing (§10.3.2). The §10.6 box abbreviates the `type` discriminator and `number` away.",
+      "type": "object",
+      "required": ["type", "number", "content", "entries"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "unlinked" },
+        "number": { "type": "integer", "minimum": 1, "description": "The item's position, numbered from 1 (§10.3.2)." },
+        "content": { "type": "string", "description": "The item's content, as written (§10.3.2)." },
+        "entries": { "type": "array", "items": { "$ref": "#/$defs/Entry" }, "description": "The entries under the item (§10.3.3)." }
+      }
+    },
+    "Notes": {
+      "description": "A notes block between items (§10.3.4). The §10.6 box abbreviates the `type` discriminator away.",
+      "type": "object",
+      "required": ["type", "lines"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "notes" },
+        "lines": { "type": "array", "items": { "type": "string" }, "description": "The block's lines, in order; a blank line inside the block is kept as `\"\"` (§10.3.4)." }
+      }
+    },
+    "Diagnostic": {
+      "description": "A diagnostic reported by reading: a code, a message and a line (§10.8.3). The known codes are `duplicate-key`, `unrecognised-entry`, `bad-key`, `backslash-in-path`, `bad-path`, `unlinked-item` and `unclosed-fence`; `code` is left a string, not an enum, so §10.8.3 stays the single source of the diagnostics table. A setlist diagnostic has no `text` field.",
+      "type": "object",
+      "required": ["code", "message", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "string", "description": "The diagnostic code (§10.8.3)." },
+        "message": { "type": "string", "description": "The human-readable message (§10.8.3)." },
+        "line": { "type": "integer", "minimum": 1, "description": "1-based line in the setlist (§10.8.3)." }
+      }
+    }
+  }
+}

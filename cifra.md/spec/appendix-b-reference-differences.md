@@ -1,0 +1,62 @@
+# Appendix B. Differences from explore-chords
+
+Informative. The format grew up inside explore-chords, whose parser evolved
+with the application rather than from a written plan. This specification
+was written from the semantics, and the reference implementation in
+`reference/` follows it. The table lists where explore-chords' parser still
+differs; each item is a change to make there, or a decision to revisit
+here.
+
+| # | Topic | This draft | explore-chords today |
+|---|---|---|---|
+| 1 | Notation dialect | Declared by the `notation` property; default `brazilian` (§1.4.3) | An application preference, not in the text |
+| 2 | Title and properties | Level-1 heading as the first line, then a `- key: value` list (§1.4) | Title kept outside the text; a leading `# Title` would be read as a section |
+| 2b | Fences | Music is inside fenced blocks; everything else in the chart is notes (§1.9) | No fences; every non-heading line is music |
+| 2c | Voicing syntax | List items `- key: frets` (§7.4) | Bare lines `key = frets` |
+| 2a | Heading levels | `#` is the title; sections and blocks are `##` (§1.7.1) | Level ignored; sections are written `#` |
+| 3 | Block heading recognition | By position: every `#` heading after the rule is a block; label, colon, tuning (§7.2) | Anywhere in the document, by whether the heading text names a tuning; `for`, `(`, `-`, `–` accepted as separators |
+| 4 | Heading after the rule that is not a block | Error; its lines are skipped | Opens a chart section, whose lines are read as chart |
+| 5 | The rule | The first rule ends the chart; later rules ignored (§1.6) | Every rule closes the current section or block; chart can continue after one |
+| 6 | Tuning identity | By sounding pitch; `Eb2` = `D#2` (§6.3) | By uppercased text; `Eb2` ≠ `D#2` |
+| 7 | Fret string length | Must equal the string count; else a problem (§7.5) | Not checked at parse time |
+| 8 | Bar-line forms | `\|\|`, `\|:`, `:\|`, `:\|\|` are bar lines (§2.2) | `\|\|` works by accident (empty measures dropped); a `:` becomes an unknown token |
+| 8a | Repeat groups | Paired, with counts and endings; expansion defined (§3) | Brackets kept as marks with no pairing; `x2` and `1.` are unknown tokens |
+| 8b | `%` beside other items | Reported | Kept silently |
+| 8c | `N.C.` | A no-chord item (§2.6) | An unknown token |
+| 8e | Counts | `(2x)`, `bis`, `(bis)` are counts; a count on a heading is the section's count (§3.3, §1.7.4) | Unknown tokens; part of the name |
+| 8f | Beat marks | `/`, `.`, `-` are beat items (§2.3) | Unknown tokens |
+| 8g | Runs | A chord line with no bar lines is a run, not a bar (§2.1) | One measure, numbered |
+| 8h | Annotations and verbatim fences | `//` lines and non-empty info strings (§1.9) | No fences at all |
+| 8i | `words` property, `sungAt` | Defined (§4.2) | Absent |
+| 8j | `Cmaj`, `CM` alone | The triad (§5.3.2) | The major seventh |
+| 8d | Fingering on a voicing item | Optional, `(3 2 - - - 4)` after the fret string (§7.5.1) | Not read; fingers always computed |
+| 9 | Lines containing a bar line | Always chord lines (§4.1) | Classified by word ratio like any other line |
+| 10 | Two blocks, same tuning and name | Read as one; later line wins (§7.3) | Reading uses the first only; writing merges |
+| 11 | Columns on sung lines | Counted in code points (§4.4) | UTF-16 code units; identical outside the supplementary planes |
+| 12 | Block order when writing | First appearance of the tuning, default variation first (§8.4.6) | Sorted by normalised tuning text, then name |
+| 13 | Voicing line spacing | Canonical `- key: frets` with single spaces; any spaces accepted | Bare `key = frets` lines with single spaces |
+| 14 | Lowercase root letters | Not chords (§5.1.1) | Accepted |
+| 15 | Legacy `# Tuning` and unlabelled `# Voicings` | Appendix A: MAY accept; migration is a separate operation, never part of canonicalising (§8.7) | Accepted and migrated on load |
+| 16 | Bracket heading with digits only | Never a heading (§1.7.2) | Same |
+| 17 | `[1]` | Equals the bare key; never written (§2.4) | Same |
+| 18 | Bar anchors | Same rules (§2.8) | Same |
+| 19 | Unknown tokens | Kept, reported (§2.9) | Same |
+| 20 | Section with no lines | Kept (§1.8) | Kept when named |
+
+Items 1 to 10, 2a to 2c, 8a to 8j and 12 to 14 are behavioural changes
+the reference parser would need to make to conform. Items 11 and 15 to 20
+are confirmations. This table predates the canonical form of §8.4 and the
+text layer of §1.3; where explore-chords writes documents, it would also
+have to follow those to produce the same bytes as the reference
+implementation.
+
+## Decisions taken in this draft that the reference did not have to make
+
+- A document without a rule has no voicings part. The reference let blocks
+  appear anywhere because it recognised them by content; this draft trades
+  that flexibility for a heading grammar with no heuristic in it.
+- The label of a block heading is the variation's name, full stop. The
+  reference arrived at the same place (its §2.13) but by repurposing a
+  label it had previously treated as a synonym.
+- Bar-line forms are notation, not structure. Defining them costs nothing
+  and stops `:|` from being an unknown token.

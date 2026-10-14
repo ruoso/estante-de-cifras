@@ -1,0 +1,29 @@
+{
+  "title": "Pasted Without a Fence",
+  "properties": [],
+  "sections": [
+    {
+      "name": "",
+      "heading": null,
+      "anchor": null,
+      "body": [
+        {
+          "type": "notes",
+          "text": "Tom: G\n\n[Intro] C  G  Am  F\n\nG           D\nQuando eu te vi passar"
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "blocks": [],
+  "sung": false,
+  "sungAt": null,
+  "diagnostics": [
+    {
+      "code": "unfenced-music",
+      "message": "this reads as a line of chords, but it is outside a fence, so it is notes; put the music between ``` lines (or ~~~)",
+      "line": 7,
+      "text": "G           D"
+    }
+  ]
+}
