@@ -50,8 +50,9 @@ task books "Books" {
   task upload_ui "Upload preview" {
     effort 2d
     allocate team
+    complete 100
     depends sync.upload, !shelf
-    note "Import as a new book or merge into one; song by song; left out and canonicalised; marked files; history that cannot be rewritten. Workflow 7. Tests: behavior (new book or merge, song by song, left out and canonicalised, marked files, history that cannot be rewritten; axe); e2e-web (a zip uploaded as a new book and merged into one on the three viewports; axe)."
+    note "Import as a new book or merge into one; song by song; left out and canonicalised; marked files; history that cannot be rewritten. Workflow 7. Tests: behavior (new book or merge, song by song, left out and canonicalised, marked files, history that cannot be rewritten; axe); e2e-web (a zip uploaded as a new book and merged into one on the three viewports; axe). Refinement: tasks/refinements/books/upload_ui.md"
   }
   task setlists "Setlists" {
     effort 4d

@@ -1,0 +1,180 @@
+/* upload-preview.css — layout for the upload preview surface (books.upload_ui,
+   W07 tablet board). The visual vocabulary (.screen, .appbar, .scroll, .seg,
+   .list, .row, .card, .badge, .btn, .actions) lives in theme.css; this file only
+   lays those pieces out. No colours of its own beyond theme tokens (DIRECTION
+   §3.7; mockups GUIDE.md). */
+
+.upload-preview {
+  flex: 1;
+  min-height: 0;
+}
+
+/* The body scrolls between the fixed app bar and the fixed confirm row. */
+.upload-body {
+  gap: calc(var(--u) * 2.5);
+}
+
+.upload-what-section,
+.upload-songs-section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+}
+
+/* The "what to do" choice: a RAC RadioGroup worn as the board's segmented
+   control. Each Radio is a labelled segment; the chosen one takes the accent
+   wash (the .seg button.on look), and the word is always the marker. */
+.upload-what {
+  align-self: flex-start;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+.upload-what-opt {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  font: 600 14px var(--font-ui);
+  color: var(--ink-2);
+  cursor: default;
+}
+.upload-what-opt:last-child {
+  border-right: 0;
+}
+.upload-what-opt[data-selected] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.upload-what-opt[data-focus-visible] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* The merge-target picker (a RadioGroup styled as the shelf's own book list). */
+.upload-targets {
+  max-width: 420px;
+}
+.upload-target {
+  position: relative;
+  cursor: default;
+}
+.upload-target[data-focus-visible] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* React Aria renders each radio's real <input> inside a visually-hidden <span>
+   (RAC's Radio passes elementType: "span" to VisuallyHidden, as the first child)
+   that clips it to a 1px box, so a pointer aimed at the accessible radio lands on
+   the label behind it: a user tap still works via RAC's press handling, but an
+   automated by-role click is swallowed ("intercepts pointer events"). Lift that
+   wrapper and its input to cover the whole option so the radio is hit where it is
+   seen; opacity keeps it invisible while the word/label shows through. Mirrors
+   .wizard-choice-radio in wizard.css and .enter-shape-fret in music.css. The
+   :first-child selector targets only the input's wrapper, never the text/badge
+   spans beside it. !important beats VisuallyHidden's inline styles. */
+.upload-what-opt > span:first-child,
+.upload-target > span:first-child {
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  clip-path: none !important;
+}
+.upload-what-opt > span:first-child input,
+.upload-target > span:first-child input {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-branch {
+  color: var(--ink-2);
+}
+
+/* A song-by-song row grows to hold its musical summary, diff and keep toggle
+   stacked under the title, with the status badge pinned to the right. */
+.upload-song {
+  align-items: flex-start;
+}
+.upload-song .grow {
+  gap: 6px;
+}
+.upload-song .meta {
+  white-space: normal;
+}
+.upload-song .diff {
+  margin-top: 2px;
+}
+
+/* The per-row keep toggle (no-history replace): a RAC Checkbox carrying its own
+   label; the box is a second, visual signal only. */
+.upload-keep {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font: 600 13px var(--font-ui);
+  color: var(--ink-2);
+  cursor: default;
+}
+.upload-keep-box {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  flex: 0 0 auto;
+}
+.upload-keep[data-selected] .upload-keep-box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.upload-keep[data-focus-visible] .upload-keep-box {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The two informational cards side by side, stacking on a narrow screen. */
+.upload-cards {
+  display: flex;
+  gap: calc(var(--u) * 2);
+  flex-wrap: wrap;
+}
+.upload-cards > .card {
+  flex: 1 1 240px;
+}
+
+.upload-markers {
+  gap: calc(var(--u) * 1);
+}
+
+/* An error / note message: the word carries the meaning, the tint is a second
+   signal only (mockups README L26). */
+.upload-error {
+  color: var(--conflict);
+}
+.upload-note {
+  color: var(--ink-2);
+}
+
+/* The fixed confirm row at the foot of the surface (the board's bottom bar):
+   the caption takes the free space, the buttons sit at the end. */
+.upload-confirm {
+  align-items: center;
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.upload-caption {
+  margin-right: auto;
+  color: var(--ink-2);
+}

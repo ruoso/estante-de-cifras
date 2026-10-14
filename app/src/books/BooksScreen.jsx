@@ -27,6 +27,7 @@ import {
   Button,
   Dialog,
   DialogTrigger,
+  FileTrigger,
   Heading,
   Input,
   Label,
@@ -42,6 +43,7 @@ import { BOOKS_WIDE_QUERY } from '../shell/layout-mode.js';
 import { titleFor, whereFor, canSaveFor, orderedBooks } from './book-display.js';
 import { syncDisplayFor, anyOutOfStep } from '../sync-display.js';
 import BookDetail from './BookDetail.jsx';
+import UploadPreview from './UploadPreview.jsx';
 import './books.css';
 
 // Before sign-in there is no account; a local book's commits carry a device-local
@@ -315,7 +317,7 @@ function MineList({ mine, onAddMine, onSignIn }) {
 // open it asks the Worker for the "mine" list (LIST_MINE); New book sends
 // CREATE_BOOK, By link starts the invited flow with the pasted token, and each
 // Mine row sends ADD_MINE.
-function AddBookSheet({ onCreate, onByLink, onSignIn, onAddMine, onListMine, mine }) {
+function AddBookSheet({ onCreate, onByLink, onSignIn, onAddMine, onListMine, onUpload, mine }) {
   const [name, setName] = useState('');
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState(false);
@@ -452,6 +454,38 @@ function AddBookSheet({ onCreate, onByLink, onSignIn, onAddMine, onListMine, min
                     }}
                   />
                 </section>
+
+                {/* Upload (books.upload_ui; W07 L96-99): a zip of a book read as
+                    a remote and previewed before anything is written. The RAC
+                    FileTrigger owns an accessible file input accepting `.zip`;
+                    the picked file is read to an ArrayBuffer on this thread and
+                    the BYTES handed to the Worker (DIRECTION §3.7) — the only
+                    data handling here. The full-screen preview opens over the
+                    shelf once the sheet closes. */}
+                <section className="add-section" aria-labelledby="add-upload-h">
+                  <h3 className="t-h3" id="add-upload-h">
+                    {t('books.uploadRow')}
+                  </h3>
+                  <p className="t-small mine-note">{t('books.uploadRowMeta')}</p>
+                  <div className="actions">
+                    <FileTrigger
+                      acceptedFileTypes={['.zip', 'application/zip']}
+                      onSelect={(files) => {
+                        const file = files?.[0];
+                        if (!file) return;
+                        // Read to a Uint8Array view (the Worker accepts
+                        // ArrayBuffer/Uint8Array — protocol.js:334); a view
+                        // survives structured-clone with its byte offsets intact.
+                        file.arrayBuffer().then((buf) => {
+                          onUpload({ bytes: new Uint8Array(buf), fileName: file.name });
+                          close();
+                        });
+                      }}
+                    >
+                      <Button className="btn primary">{t('books.uploadChoose')}</Button>
+                    </FileTrigger>
+                  </div>
+                </section>
               </>
             )}
           </Dialog>
@@ -492,6 +526,10 @@ export default function BooksScreen({
   // Decision 2): the detail opens only when a row is pressed.
   const [selected, setSelected] = useState(null);
   const [openDetail, setOpenDetail] = useState(null);
+  // The upload preview is a full-screen surface over the shelf (books.upload_ui,
+  // Decision 1), ephemeral like the detail. It holds the picked zip's bytes and
+  // name until the preview is confirmed or cancelled.
+  const [upload, setUpload] = useState(null);
 
   // A new book's row takes focus once it appears on the shelf (acceptance 6).
   // The create re-surfaces SHELF, growing `ordered`; when a create is pending
@@ -602,6 +640,7 @@ export default function BooksScreen({
           onSignIn={onSignIn}
           onAddMine={addMine}
           onListMine={listMine}
+          onUpload={setUpload}
           mine={mine}
         />
       </div>
@@ -636,6 +675,29 @@ export default function BooksScreen({
       )}
     </>
   );
+
+  // The upload preview takes the whole screen on every viewport (Decision 1; the
+  // W07 board draws one layout, not a split): it is the thing being previewed,
+  // not yet a book on the shelf. A new book landing closes it (the shelf
+  // re-surfaces the row); a colliding merge hands off to the conflict surface via
+  // the shell's `onOpenBook` (Decision 2).
+  if (upload) {
+    return (
+      <div className="books-screen">
+        <UploadPreview
+          store={store}
+          bytes={upload.bytes}
+          fileName={upload.fileName}
+          onClose={() => setUpload(null)}
+          onNeedsYou={(bookId) => {
+            setUpload(null);
+            setSelected(bookId);
+            onOpenBook(bookId);
+          }}
+        />
+      </div>
+    );
+  }
 
   // Wide (computer): the shelf list on the side, the selected book's detail in
   // the main pane (Decision 2; W07 desktop frame). Narrow (phone and tablet — the
