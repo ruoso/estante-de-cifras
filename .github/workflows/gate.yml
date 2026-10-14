@@ -1,11 +1,11 @@
 # The quality gate on every push and pull request.
 #
 # CI's whole job is to run scripts/gate — the project's single source of
-# "is the tree green?" — on a neutral machine, over BOTH repositories, and
-# nothing else (orchestrator/README.md; foundation.ci). It reimplements no
-# check the gate performs: it only provisions the runner (checks the two
-# repositories out as siblings, installs the toolchain the gate needs) and
-# then delegates all verification to scripts/gate.
+# "is the tree green?" — on a neutral machine, over the app, the service and
+# the cifra.md/ subtree, and nothing else (orchestrator/README.md;
+# foundation.ci). It reimplements no check the gate performs: it only
+# provisions the runner (checks the repository out, installs the toolchain the
+# gate needs) and then delegates all verification to scripts/gate.
 #
 # Toolchain versions are read from the repo's own files (.node-version,
 # service/go.mod), never hardcoded here, so a version bump moves CI with it.
@@ -19,18 +19,12 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
-      # Both repositories as siblings under the workspace, so scripts/gate's
-      # default ESTANTE_CIFRA_MD_DIR=../cifra.md resolves with no override and
-      # it validates both trees exactly as the orchestrator driver does.
+      # One checkout: cifra.md lives in the repository as the cifra.md/
+      # subtree.
       - name: Check out estante-de-cifras
         uses: actions/checkout@v4
         with:
           path: estante-de-cifras
-      - name: Check out cifra.md beside it
-        uses: actions/checkout@v4
-        with:
-          repository: ruoso/cifra.md
-          path: cifra.md
 
       # Node, pinned by .node-version; npm cache keyed on the lockfiles.
       - name: Set up Node
@@ -41,6 +35,7 @@ jobs:
           cache-dependency-path: |
             estante-de-cifras/app/package-lock.json
             estante-de-cifras/api/package-lock.json
+            estante-de-cifras/cifra.md/js/package-lock.json
 
       # Go, pinned by service/go.mod; module/build cache keyed on go.mod/go.sum.
       - name: Set up Go
@@ -58,8 +53,17 @@ jobs:
           python-version: "3"
 
       # TaskJuggler (tj3) is a Ruby gem the gate requires for WBS validation.
+      # The runner's system Ruby has no writable gem directory (a bare
+      # `gem install` fails there), so set up a Ruby of our own first; its
+      # bin/ is on PATH, which puts tj3 there too.
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
       - name: Install TaskJuggler
-        run: gem install --no-document taskjuggler
+        run: |
+          gem install --no-document taskjuggler -v 3.8.1
+          tj3 --version
 
       # Docker with the Compose plugin ship with the standard Ubuntu runner;
       # the gate's end-to-end level brings the compose stack up when an e2e
@@ -80,8 +84,7 @@ jobs:
             echo "e2e/web/package.json does not exist yet — skipping Playwright browser install"
           fi
 
-      # The single source of green: the gate, over both repositories, nothing
-      # else. It discovers cifra.md at ../cifra.md by default.
+      # The single source of green: the gate, over everything, nothing else.
       - name: Run scripts/gate
         working-directory: estante-de-cifras
         run: scripts/gate
