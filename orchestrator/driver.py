@@ -1010,12 +1010,12 @@ class CodexEventNormalizer(AgentEventNormalizer):
 class ClaudeCli(AgentCli):
     name = "claude"
     default_models = {
-        "orchestrator": "claude-sonnet-4-6",
-        "refinement_writer": "claude-opus-4-8",
-        "implementer": "claude-opus-4-8",
-        "fixer": "claude-opus-4-8",
-        "closer": "claude-sonnet-4-6",
-        "default": "claude-opus-4-8",
+        "orchestrator": "claude-sonnet-5-5",
+        "refinement_writer": "claude-opus-5-5",
+        "implementer": "claude-opus-5-5",
+        "fixer": "claude-opus-5-5",
+        "closer": "claude-sonnet-5-5",
+        "default": "claude-opus-5-5",
     }
 
     def command(
