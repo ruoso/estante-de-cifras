@@ -10,6 +10,7 @@ import ReadingDev from './songs/ReadingDev.jsx';
 import ArrangeDev from './songs/ArrangeDev.jsx';
 import WizardDev from './songs/WizardDev.jsx';
 import FilesDev from './files/FilesDev.jsx';
+import SetlistsDev from './books/SetlistsDev.jsx';
 import UpdateReady from './pwa/UpdateReady.jsx';
 import { signInToken } from './account/sign-in-route.js';
 import { invitationToken } from './account/invitation-route.js';
@@ -72,6 +73,14 @@ function isWizardDev() {
 // surface up at `#dev/files?book=…` so its e2e journey runs now.
 function isFilesDev() {
   return typeof location !== 'undefined' && location.hash.startsWith('#dev/files');
+}
+
+// The setlist surface's dev mount, `#dev/setlists` — mirroring `#dev/files`
+// (books.setlists Decision 3). Its real entry is the Setlists destination tap
+// (wired here in AppShell); the dev mount stands the surface up at
+// `#dev/setlists?book=…&path=…` so its behavior and e2e run on every viewport.
+function isSetlistsDev() {
+  return typeof location !== 'undefined' && location.hash.startsWith('#dev/setlists');
 }
 
 // The dev mounts (`#dev/chart`, `#dev/editor`) are chosen from the hash. There
@@ -177,6 +186,8 @@ export default function App({ store = getAppStore() }) {
           <WizardDev store={store} />
         ) : isFilesDev() ? (
           <FilesDev store={store} />
+        ) : isSetlistsDev() ? (
+          <SetlistsDev store={store} />
         ) : (
           <AppShell
             store={store}

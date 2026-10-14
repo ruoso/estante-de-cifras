@@ -60,10 +60,30 @@ export function createSavePreview({ fs, git, locks, parse } = {}) {
   }
 
   // Preview one path: the semantic diff between HEAD (before) and the working
-  // copy (after), the working copy's title, and whether the song is new.
+  // copy (after), the working copy's title, and whether the song is new. A path
+  // in the save set whose working copy is GONE is a deletion (workflow 14 L147;
+  // a rename removes the old path) — read it as HEAD → nothing rather than
+  // letting the ENOENT abort the whole preview and leave the save note empty.
   async function previewPath(dir, path) {
-    const after = parse(await fs.promises.readFile(at(dir, path)));
+    let afterBytes = null;
+    try {
+      afterBytes = await fs.promises.readFile(at(dir, path));
+    } catch (err) {
+      if (err?.code !== 'ENOENT') throw err;
+    }
     const before = await headModel(dir, path);
+    if (afterBytes == null) {
+      const { changes, summary } = diff(before ?? EMPTY, EMPTY);
+      return {
+        path,
+        title: (before?.title ?? '').trim(),
+        changes,
+        summary,
+        isNew: false,
+        deleted: true,
+      };
+    }
+    const after = parse(afterBytes);
     const { changes, summary } = diff(before ?? EMPTY, after);
     return {
       path,

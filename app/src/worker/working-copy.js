@@ -31,6 +31,13 @@ import {
   checkout as gitCheckout,
   statusMatrix,
 } from 'isomorphic-git';
+import {
+  parseSetlist,
+  writeSetlist,
+  addSong,
+  pathFromSetlistToSong,
+  textForSong,
+} from 'cifra-md';
 import { canonicaliseFile } from './canonicalise.js';
 import { relinkSetlists } from './setlist-links.js';
 
@@ -354,5 +361,61 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
     });
   }
 
-  return { write, save, nameAndSave, discard, move, remove };
+  // Add a song to a setlist as ONE locked, uncommitted working-copy change
+  // (books.setlists, workflow 12 §Building one, §Songs from another book; the
+  // file_view move+relink precedent). The pieces, all under ONE
+  // `withLock(targetBookId)` (Web Locks are non-reentrant), so a confirm is one
+  // coherent unsaved change the shared SAVE later commits as one commit:
+  //   1. a song from another book is copied into the target book at its own path
+  //      first — "a setlist points only into its own book" (workflow 12 L38-40);
+  //   2. a `newTitle` starts a fresh setlist model; otherwise the existing
+  //      `*.setlist.md` is read and parsed;
+  //   3. the item is appended with cifra-md's `addSong`, its link made
+  //      folder-relative to the setlist (`pathFromSetlistToSong`) and its text
+  //      derived from the song (`textForSong`), and the whole setlist written
+  //      back through `writeSetlist` so what lands is canonical.
+  // Nothing is staged or committed here (like `write`/`move`): the tree's status
+  // derives from HEAD vs the working tree, and SAVE canonicalises, stages and
+  // commits the copied song and the rewritten setlist together. The source book
+  // is read without its own lock (a local read, like OPEN_SOURCE). `song.title`
+  // may be null — the link text then falls back to the file name (§10.10).
+  function addToSetlist({ targetBookId, setlistPath, newTitle, song }) {
+    return locks.withLock(targetBookId, async () => {
+      const dir = git.bookDir(targetBookId);
+      const copied = song.bookId !== targetBookId;
+
+      if (copied) {
+        const bytes = await fs.promises.readFile(
+          `${git.bookDir(song.bookId)}/${song.path}`,
+        );
+        const destFull = at(dir, song.path);
+        const slash = destFull.lastIndexOf('/');
+        if (slash > 0) await mkdirp(destFull.slice(0, slash));
+        await fs.promises.writeFile(destFull, bytes);
+      }
+
+      let model;
+      if (newTitle != null) {
+        model = { title: newTitle, properties: [], body: [] };
+      } else {
+        model = parseSetlist(await fs.promises.readFile(at(dir, setlistPath), 'utf8'));
+      }
+
+      const dirSegments = setlistPath.split('/').slice(0, -1);
+      const rel = pathFromSetlistToSong(dirSegments, song.path.split('/'));
+      const fileName = song.path.slice(song.path.lastIndexOf('/') + 1);
+      const text = textForSong({ title: song.title || null, fileName });
+      model = addSong(model, { text, path: rel });
+
+      const setlistFull = at(dir, setlistPath);
+      const setlistSlash = setlistFull.lastIndexOf('/');
+      if (setlistSlash > 0) await mkdirp(setlistFull.slice(0, setlistSlash));
+      await fs.promises.writeFile(setlistFull, writeSetlist(model));
+
+      await fs.flush();
+      return { copied, path: song.path, setlistPath };
+    });
+  }
+
+  return { write, save, nameAndSave, discard, move, remove, addToSetlist };
 }

@@ -149,6 +149,12 @@ export const initialState = {
   // entry (the panel and the save guard stand down). A book an event does not
   // touch keeps its entry reference. Starts empty: nothing paused yet.
   conflicts: {},
+  // Every loaded book's setlists for the Setlists destination (books.setlists,
+  // SETLISTS): `[{ bookId, path, title, count }]`, replaced whole on each
+  // LIST_SETLISTS reply (like `shelf`/`mine`). `null` means "not listed yet",
+  // so the destination can tell loading from genuinely empty. ADD_TO_SETLIST's
+  // confirmation is transient (SETLIST_UPDATED, no slice), like FILE_MOVED.
+  setlists: null,
 };
 
 // Fold one message into the state. Only event-direction messages change
@@ -392,6 +398,12 @@ export function reduce(state, message) {
       // resets to empty — two independently-changing home-book files move two
       // slices independently (Decision 2).
       return { ...state, shelf: message.payload ?? {} };
+
+    case EventKind.SETLISTS:
+      // The loaded books' setlists surfaced (books.setlists): replace the slice
+      // whole, like `shelf`. An absent payload resets to the empty list (listed,
+      // none found) — distinct from the `null` initial (not listed yet).
+      return { ...state, setlists: message.payload?.setlists ?? [] };
 
     case EventKind.SAVE_PREVIEW: {
       // A save preview arrived: set this book's previews. Only this book's entry

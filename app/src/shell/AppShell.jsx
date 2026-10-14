@@ -32,6 +32,9 @@ import SongArrange from '../songs/SongArrange.jsx';
 import SongWizard from '../songs/SongWizard.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
+import SetlistsScreen from '../books/SetlistsScreen.jsx';
+import SetlistView from '../books/SetlistView.jsx';
+import AddToSetlist from '../books/AddToSetlist.jsx';
 import SharingScreen from '../books/SharingScreen.jsx';
 import BookConflicts from '../books/BookConflicts.jsx';
 import SongConflict from '../songs/SongConflict.jsx';
@@ -165,12 +168,12 @@ function destinationTab(key, variant) {
 }
 
 // The destination regions: each a `TabPanel` (role=tabpanel, named by its tab).
-// The `search` panel renders the real search screen and the `books` panel the
-// book-management screen — both threaded the store (songs.search / books.shelf
-// Decision 1) — while `setlists` stays a labelled slot its own content task will
-// fill. RAC mounts only the selected panel, so exactly one level-1 heading (the
+// The `search` panel renders the real search screen, the `books` panel the
+// book-management screen and the `setlists` panel the Setlists destination — all
+// threaded the store (songs.search / books.shelf / books.setlists Decision 1).
+// RAC mounts only the selected panel, so exactly one level-1 heading (the
 // screen's own) is present at a time.
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, search, mode) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key}>
       {key === 'search' ? (
@@ -192,6 +195,7 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
           query={search.query}
           onQueryChange={search.onQueryChange}
           onExploreChord={search.onExploreChord}
+          onAddToSetlist={onAddToSetlist}
         />
       ) : key === 'books' ? (
         // The Add-a-book sheet's "By link" (paste a link → the invited flow) and
@@ -205,6 +209,8 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
           onSignIn={onSignIn}
           mode={mode}
         />
+      ) : key === 'setlists' ? (
+        <SetlistsScreen store={store} onOpenSetlist={onOpenSetlist} />
       ) : (
         <h1 className="t-h1">{t(`shell.${key}`)}</h1>
       )}
@@ -320,6 +326,14 @@ export default function AppShell({
   // panel. Ephemeral view state, no router, like the other surfaces.
   const [conflictsBook, setConflictsBook] = useState(null);
   const [songConflict, setSongConflict] = useState(null);
+  // The setlist surface (books.setlists, workflow 12): `openSetlist` is the
+  // opened setlist `{ bookId, path }` (a full-screen surface over the shell /
+  // master-detail, like `openSong`); `addingToSetlist` is the song the
+  // Add-to-setlist dialog is adding `{ bookId, path, title? }`, raised from the
+  // reading view's and the search rows' `onAddToSetlist` seam — a RAC Modal
+  // portaled into `.est` over whatever surface raised it. Ephemeral, no router.
+  const [openSetlist, setOpenSetlist] = useState(null);
+  const [addingToSetlist, setAddingToSetlist] = useState(null);
   // The live CodeMirror view, so Change book can carry the current text to the
   // new book's placeholder (Decision 3). A ref, not state — it never renders.
   const editorRef = useRef(null);
@@ -705,6 +719,7 @@ export default function AppShell({
           onArrange={setArranging}
           onOpenHistory={setHistory}
           onShare={setSharing}
+          onAddToSetlist={setAddingToSetlist}
         />
         {sharing ? (
           <SharingScreen
@@ -715,7 +730,30 @@ export default function AppShell({
             onClose={() => setSharing(null)}
           />
         ) : null}
+        {addingToSetlist ? (
+          <AddToSetlist
+            store={store}
+            song={addingToSetlist}
+            onClose={() => setAddingToSetlist(null)}
+          />
+        ) : null}
       </>
+    );
+  }
+
+  // The opened setlist (books.setlists, workflow 12): a full-screen surface over
+  // the shell / master-detail, like the open song. Play is a seam books.play
+  // wires (Decision 1); Back returns to the Setlists destination.
+  if (openSetlist) {
+    return (
+      <SetlistView
+        store={store}
+        bookId={openSetlist.bookId}
+        path={openSetlist.path}
+        mode={mode}
+        author={LOCAL_IDENTITY}
+        onBack={() => setOpenSetlist(null)}
+      />
     );
   }
 
@@ -766,7 +804,7 @@ export default function AppShell({
             </div>
             <main className="pane main">
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, search, mode)}
+                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, setOpenSetlist, setAddingToSetlist, search, mode)}
               </div>
             </main>
           </div>
@@ -787,7 +825,7 @@ export default function AppShell({
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className="scroll">
-              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, search, mode)}
+              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, setOpenSetlist, setAddingToSetlist, search, mode)}
             </main>
           </div>
         )}
@@ -797,6 +835,13 @@ export default function AppShell({
         isOpen={instrumentsOpen}
         onClose={() => setInstrumentsOpen(false)}
       />
+      {addingToSetlist ? (
+        <AddToSetlist
+          store={store}
+          song={addingToSetlist}
+          onClose={() => setAddingToSetlist(null)}
+        />
+      ) : null}
     </>
   );
 }

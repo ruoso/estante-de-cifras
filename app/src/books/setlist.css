@@ -1,0 +1,159 @@
+/* The setlist surface (books.setlists, board W12). Layout only — every colour
+   comes from the theme tokens through the shared classes (.appbar, .list, .row,
+   .badge, .notice, .btn, .input, .search, .split, .pane, .editor, .dialog), so
+   the surface re-themes with no code in it. */
+
+/* The Setlists destination list (inside the shell's TabPanel). */
+.setlists-screen {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 2);
+  overflow-y: auto;
+}
+.setlists-empty {
+  max-width: 48ch;
+}
+
+/* The open/read view and the editor — a bounded full-screen scroll frame like
+   the reading view, so the app bar stays put while the body scrolls. */
+.setlist-screen {
+  flex: 1;
+  min-height: 0;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+.setlist-screen .scroll {
+  overflow-y: auto;
+}
+/* The editor's app bar carries the most controls of any bar in the app (back,
+   title, book, the unsaved badge, Add song, Play, Discard, Save); on a phone
+   they cannot fit one row, so let the bar wrap rather than overflow its right
+   edge (where Save would sit under a neighbour, uncliquable). Harmless on the
+   wider read-view bar and the computer, which never overflow. */
+.setlist-screen .appbar {
+  flex-wrap: wrap;
+}
+.setlist-appbar-book {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.setlist-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* The leading number in a row. */
+.setlist-num {
+  width: 22px;
+  flex: none;
+  color: var(--ink-2);
+  text-align: left;
+}
+
+/* The missing-item notice stacks its sentence and its action. */
+.setlist-missing-notice {
+  flex-direction: column;
+  gap: 6px;
+}
+.setlist-point-act {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0 calc(var(--u) * 1.5);
+}
+
+/* The editor's reorderable list. GridList rows carry the drag handle, number,
+   name/meta, the key and note fields and the remove button. */
+.setlist-edit-list:focus-visible {
+  outline: none;
+}
+.setlist-edit-row {
+  gap: 10px;
+  align-items: center;
+  /* The row packs a drag handle, number, name, the fixed-width key and note
+     fields and a remove button. On a narrow editor those fixed fields would
+     squeeze the flexible name column (`.grow`, min-width 0) to nothing — the
+     song title vanishes. Let the row wrap so the key/note fields fall to a
+     second line, and hold the name column to a readable minimum, rather than
+     overflow a phone's width. Harmless where it all fits (no wrap occurs). */
+  flex-wrap: wrap;
+}
+.setlist-edit-row .grow {
+  min-width: 40%;
+}
+.setlist-edit-row[data-dragging='true'] {
+  background: var(--surface);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.setlist-row-missing {
+  background: var(--conflict-soft);
+}
+.setlist-drag {
+  width: 28px;
+  color: var(--ink-2);
+  cursor: grab;
+}
+.setlist-field {
+  flex: none;
+}
+.setlist-key {
+  width: 64px;
+  min-height: 36px;
+}
+.setlist-note {
+  width: 200px;
+  min-height: 36px;
+}
+
+/* The inline in-book picker (add a song, point a missing item at a song). */
+.setlist-repoint {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2);
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+.setlist-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+/* The raw *.setlist.md side pane (wide, read-only). */
+.setlist-side {
+  width: 420px;
+  flex: none;
+  border-right: 0;
+  border-left: 1px solid var(--line);
+  background: var(--bg);
+}
+.setlist-side .scroll {
+  overflow-y: auto;
+  gap: 10px;
+}
+.setlist-filename {
+  font-size: 14px;
+  font-weight: 600;
+}
+.setlist-raw {
+  font-size: 12px;
+}
+
+/* The Add-to-setlist dialog is a touch wider than the default dialog (board). */
+.setlist-dialog {
+  width: min(580px, 92vw);
+}
+.setlist-new-row .name {
+  font-weight: 600;
+}

@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
-import { StateField, RangeSetBuilder } from '@codemirror/state';
+import { Annotation, StateField, RangeSetBuilder } from '@codemirror/state';
 import {
   EditorView,
   Decoration,
@@ -41,6 +41,15 @@ import './editor.css';
 // writes (storage.working_copy Decision 3). Short enough that closing the tab
 // shortly after a keystroke loses nothing (the unmount also flushes).
 const WRITE_DEBOUNCE_MS = 400;
+
+// Marks the one programmatic dispatch that loads a file's on-disk bytes into the
+// buffer (the initial-load effect). The update listener skips its debounced
+// WRITE for such a transaction: those bytes are already on disk, so persisting
+// them is redundant — and, worse, a pending self-write flushed on unmount would
+// resurrect a file deleted right after it was opened (books.file_view delete).
+// A genuine edit and the merge-adopt dispatch carry no such annotation, so they
+// still schedule a WRITE.
+const ExternalLoad = Annotation.define();
 
 // The diagnostics that stop a save (Decision 3): a voicing the reader could not
 // read (which canonicalising would silently drop — workflow 4 §Normalising) and
@@ -228,7 +237,12 @@ export default function SongEditor({
         syntaxField,
         EditorView.contentAttributes.of({ 'aria-label': t('editor.source.sourceLabel') }),
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) changeHandlerRef.current(update.state.doc.toString());
+          if (!update.docChanged) return;
+          // The initial on-disk load is not an edit to persist (ExternalLoad):
+          // mirror its text into React but schedule no WRITE.
+          const external = update.transactions.some((tr) => tr.annotation(ExternalLoad));
+          if (external) setText(update.state.doc.toString());
+          else changeHandlerRef.current(update.state.doc.toString());
         }),
         EditorView.domEventHandlers({
           paste: (event, cmView) => pasteHandlerRef.current(event, cmView),
@@ -268,6 +282,11 @@ export default function SongEditor({
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: initial },
       selection: { anchor: Math.min(cursor, initial.length) },
+      // An existing file's bytes are already on disk, so adopting them must not
+      // schedule a WRITE (ExternalLoad). A NEW song is the exception: its
+      // placeholder file is created by the editor's first WRITE (the Worker's
+      // NEW_SONG does not write it), so the template load must still persist.
+      ...(isNew ? null : { annotations: ExternalLoad.of(true) }),
     });
     setText(initial);
   }, [isNew, templateDoc, sourceText, bookId, path]);

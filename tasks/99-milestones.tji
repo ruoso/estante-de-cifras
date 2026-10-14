@@ -41,7 +41,7 @@ task milestones "Milestones" {
 
   task m5_complete "M5: The first pass, complete" {
     milestone
-    depends milestones.m4_together, books.setlists, books.play, books.upload_ui, account.new_device, account.sign_out, account.leaving, shell.a11y_chart, service.rate_limits, songs.restore_part
+    depends milestones.m4_together, books.setlists, books.setlist_search, books.play, books.upload_ui, account.new_device, account.sign_out, account.leaving, shell.a11y_chart, service.rate_limits, songs.restore_part
     note "Setlists and playing through, upload and download, a new device, leaving, and a sung line read aloud as decided."
   }
 

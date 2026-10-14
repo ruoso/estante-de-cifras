@@ -60,4 +60,8 @@ test('the destinations are reachable by keyboard', async ({ page }) => {
   await page.keyboard.press('End');
   await expect(page.getByRole('tab', { name: 'Setlists' })).toBeFocused();
   await expect(page.getByRole('heading', { level: 1, name: 'Setlists' })).toBeVisible();
+  // The Setlists destination now renders the real list surface (books.setlists),
+  // no longer a bare heading: with no book on the device it shows the empty
+  // state rather than nothing below the heading.
+  await expect(page.getByText(/No setlists yet/)).toBeVisible();
 });

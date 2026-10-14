@@ -122,6 +122,32 @@
   border-radius: var(--radius);
 }
 
+/* A song row carries the open action and an Add-to-setlist icon as siblings
+   (a button cannot nest in a RAC Button): the `.row` becomes a flex container,
+   the open Button fills it with the row padding, the icon sits at the end
+   (books.setlists, workflow 12 §Building one). */
+.search-row {
+  padding: 0;
+}
+.search-row-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2);
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.search-add-setlist {
+  flex: none;
+  margin-right: calc(var(--u) * 0.75);
+  color: var(--ink-2);
+}
+
 .book-trigger .caret {
   flex: none;
   width: 14px;

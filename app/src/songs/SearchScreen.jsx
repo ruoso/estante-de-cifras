@@ -196,7 +196,7 @@ function Badges({ item, instrument }) {
 // result shows the song to be read"); the reading view is `songs.reading`, so
 // here it is the `onOpen` seam. Shows the title (or the file name for a titleless
 // song), where it lives (book, and folder when not at the root), and badges.
-function SongRow({ item, bookLabel, instrument, onOpen }) {
+function SongRow({ item, bookLabel, instrument, onOpen, onAddToSetlist }) {
   const folder = folderOf(item.path);
   const where = folder
     ? t('search.where', { book: bookLabel, folder })
@@ -205,17 +205,45 @@ function SongRow({ item, bookLabel, instrument, onOpen }) {
   // only when not at the root (workflow 2 L46-49). The artist leads the meta
   // line, then the location.
   const meta = [item.artist, where].filter(Boolean).join(' · ');
+  const title = songTitle(item.title, item.path);
+  // Add-to-setlist is on every song (workflow 12 §Building one): a trailing icon
+  // button beside the open action. A button cannot nest inside a RAC Button, so
+  // the row is a flex container with the open Button and this one as siblings
+  // (the BookSection header precedent).
   return (
-    <Button
-      className="row"
-      onPress={() => onOpen({ bookId: item.bookId, path: item.path })}
-    >
-      <span className="grow">
-        <span className="name">{songTitle(item.title, item.path)}</span>
-        <span className="meta">{meta}</span>
-      </span>
-      <Badges item={item} instrument={instrument} />
-    </Button>
+    <div className="row search-row">
+      <Button
+        className="search-row-open"
+        onPress={() => onOpen({ bookId: item.bookId, path: item.path })}
+      >
+        <span className="grow">
+          <span className="name">{title}</span>
+          <span className="meta">{meta}</span>
+        </span>
+        <Badges item={item} instrument={instrument} />
+      </Button>
+      {onAddToSetlist ? (
+        <Button
+          className="btn icon search-add-setlist"
+          aria-label={t('search.addToSetlist', { title })}
+          onPress={() =>
+            onAddToSetlist({ bookId: item.bookId, path: item.path, title: item.title || null })
+          }
+        >
+          <AddToSetlistIcon />
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+// The Add-to-setlist glyph on a song row — a list with a plus.
+function AddToSetlistIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 6h10M4 12h10M4 18h7M17 15v6M14 18h6" />
+    </svg>
   );
 }
 
@@ -235,6 +263,7 @@ function BookSection({
   onWriteSong,
   onSaveAll,
   canWrite,
+  onAddToSetlist,
 }) {
   const count = book?.count ?? 0;
   const songs = book?.songs ?? [];
@@ -301,6 +330,7 @@ function BookSection({
                   bookLabel={bookLabel}
                   instrument={instrument}
                   onOpen={onOpen}
+                  onAddToSetlist={onAddToSetlist}
                 />
               ))}
             </div>
@@ -332,6 +362,7 @@ export default function SearchScreen({
   onWriteSong = () => {},
   onAddBook = () => {},
   onSignIn = () => {},
+  onAddToSetlist = null,
   query: controlledQuery,
   onQueryChange,
 }) {
@@ -501,6 +532,7 @@ export default function SearchScreen({
                     bookLabel={bookLabelFor(r.bookId)}
                     instrument={instrument}
                     onOpen={onOpenSong}
+                    onAddToSetlist={onAddToSetlist}
                   />
                 ))}
               </div>
@@ -568,6 +600,7 @@ export default function SearchScreen({
                     bookLabel={bookLabelFor(item.bookId)}
                     instrument={instrument}
                     onOpen={onOpenSong}
+                    onAddToSetlist={onAddToSetlist}
                   />
                 ))}
               </div>
@@ -594,6 +627,7 @@ export default function SearchScreen({
                     onWriteSong={onWriteSong}
                     onSaveAll={setSaveAll}
                     canWrite={canWriteTo(shelf, id)}
+                    onAddToSetlist={onAddToSetlist}
                   />
                 ))}
               </div>

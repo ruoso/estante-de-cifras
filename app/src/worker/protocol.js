@@ -274,6 +274,21 @@ export const CommandKind = Object.freeze({
   MOVE_FILE: 'move_file',
   DELETE_FILE: 'delete_file',
   COMMIT_DIFF: 'commit_diff',
+  // Setlists (books.setlists, workflow 12). LIST_SETLISTS `{}` walks every
+  // loaded book's working tree for its `*.setlist.md` files and replies with a
+  // SETLISTS event (each setlist's book, path, title and song count) — a local,
+  // offline read. ADD_TO_SETLIST `{ targetBookId, setlistPath, newTitle?, song:
+  // { bookId, path, title } }` adds a song to a setlist as one locked, uncommitted
+  // working-copy change (the file_view move+relink precedent): when the song is
+  // from another book it is copied into the target book first (workflow 12 §Songs
+  // from another book), a `newTitle` creates the `*.setlist.md`, and the item is
+  // appended in canonical form — all under one `withLock(targetBookId)`, replying
+  // with SETLIST_UPDATED. A following SAVE commits the copy and the setlist change
+  // as one commit. Opening and editing a setlist reuse OPEN_SOURCE, BOOK_TREE,
+  // WRITE, SAVE and DISCARD with cifra-md's pure §10.10 ops in the view
+  // (Decision 3).
+  LIST_SETLISTS: 'list_setlists',
+  ADD_TO_SETLIST: 'add_to_setlist',
   // The instrument write path (music.instruments, workflow 15). Each mutation is
   // a home-book change written through `home-book.set` — one lock, canonical,
   // auto-committed, no push (DIRECTION §3.2; workflow 16 L119-122) — followed by
@@ -520,6 +535,15 @@ export const EventKind = Object.freeze({
   FILE_MOVED: 'file_moved',
   FILE_DELETED: 'file_deleted',
   COMMIT_DIFF: 'commit_diff',
+  // Setlists (books.setlists, workflow 12). SETLISTS carries every loaded book's
+  // setlists in reply to LIST_SETLISTS: `{ setlists: [{ bookId, path, title,
+  // count }] }`, folded into the `setlists` slice the Setlists destination
+  // reads. SETLIST_UPDATED `{ bookId, setlistPath, path, copied }` confirms an
+  // ADD_TO_SETLIST landed in the working copy — a TRANSIENT event, like
+  // FILE_MOVED: the view observes it (to re-list and show the unsaved state) and
+  // it carries no reducer slice.
+  SETLISTS: 'setlists',
+  SETLIST_UPDATED: 'setlist_updated',
   // The instrument surface (music.instruments, workflow 15): the whole roster
   // projected from the home book's instruments.json, the resolved in-use
   // instrument (its id, or null for the implicit standard guitar), the standard

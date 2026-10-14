@@ -278,6 +278,67 @@ export default {
     unsaved: 'unsaved',
     conflict: 'conflict',
     where: '{book} · {folder}/',
+    addToSetlist: 'Add {title} to a setlist',
+  },
+
+  // Setlists (books.setlists, workflow 12, board W12): the Setlists destination
+  // list, the open/read view, the structured editor, the Add-to-setlist dialog
+  // and the missing-item repoint panel.
+  setlists: {
+    // The Setlists destination.
+    title: 'Setlists',
+    empty: 'No setlists yet. Add a song to a setlist from search or the reading view.',
+    loading: 'Loading setlists…',
+    songCount: { one: '{count} song', other: '{count} songs' },
+    // The open/read view.
+    back: 'Back',
+    play: 'Play',
+    edit: 'Edit',
+    more: 'More',
+    done: 'Done',
+    inKey: 'in {key}',
+    missing: 'missing',
+    missingNotice: '{title} is missing.',
+    missingDetail: 'Nothing is at {path} any more, so it is skipped when playing.',
+    pointItAtASong: 'Point it at a song',
+    // The editor.
+    addSong: 'Add song',
+    save: 'Save',
+    saveMessage: 'Edit setlist',
+    discard: 'Discard',
+    unsaved: 'unsaved changes',
+    songsLabel: 'Songs · drag to reorder',
+    keyNoteHint: 'Key and note apply in this setlist only',
+    dragToReorder: 'Drag to reorder',
+    removeFromSetlist: 'Remove {title} from setlist',
+    keyLabel: 'Key for {title}',
+    keyPlaceholder: 'Key',
+    noteLabel: 'Note for {title}',
+    notePlaceholder: 'Note',
+    notInBook: '{path} is not in the book',
+    // The missing-item repoint panel.
+    pointHereTitle: 'Point it at a song in {book}',
+    searchLabel: 'Search for a song',
+    cancel: 'Cancel',
+    pointHere: 'Point here',
+    noResults: 'No songs found.',
+    // The raw *.setlist.md side pane (wide, read-only).
+    relativeNote: 'Links are relative to {folder}, so the file opens the songs on any git host.',
+    // The Add-to-setlist dialog (from search and the reading view).
+    addToSetlistTitle: 'Add to setlist',
+    newSetlist: 'New setlist…',
+    pickerMeta: '{book} · {count}',
+    copyNotice: 'This song will be copied into {book} first.',
+    copyDetail: '{title} is in {other}, and a setlist points only at songs in its own book.',
+    copyThenUnsaved: 'The copy and the setlist change are then unsaved changes to {book}, saved like any other.',
+    thenUnsaved: 'The setlist change is then an unsaved change to {book}, saved like any other.',
+    add: 'Add',
+    copyAndAdd: 'Copy and add',
+    // The New-setlist dialog.
+    newSetlistTitle: 'New setlist',
+    newSetlistNameLabel: 'Setlist name',
+    newSetlistNamePlaceholder: 'Setlist name',
+    create: 'Create',
   },
 
   // The chord explorer (music.explorer, workflow 16): reached from search's chord

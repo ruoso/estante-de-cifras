@@ -10,7 +10,7 @@
 // commit messages, or secrets (standing rule); this task stores none of those
 // anyway, only the schema `meta`.
 
-import { parse } from 'cifra-md';
+import { parse, parseSetlist } from 'cifra-md';
 import { event, EventKind, COMMAND, CommandKind } from './protocol.js';
 import {
   MIGRATIONS,
@@ -73,6 +73,10 @@ import { LOCALE_IDS } from '../i18n/index.js';
 export const SCHEMA_VERSION = latestVersion(MIGRATIONS);
 export const DB_NAME = 'estante';
 export const META_KEY = 'meta';
+
+// The setlist file suffix (spec §10; canonicalise.js keys off it too) — used by
+// LIST_SETLISTS to pick a book's setlists out of its working tree.
+const SETLIST_SUFFIX = '.setlist.md';
 
 // Open (and, first time or on upgrade, migrate) the Worker's database at the
 // latest schema version derived from `steps`. `idb` is the IndexedDB factory —
@@ -1274,6 +1278,70 @@ export function createWorkerLogic(port, options = {}) {
             const { bookId, commit } = message.payload;
             const { files } = await ensureHistory().commitDiff({ bookId, commit });
             port.postMessage(event(EventKind.COMMIT_DIFF, { bookId, commit, files }));
+            break;
+          }
+          case CommandKind.LIST_SETLISTS: {
+            // Every loaded book's setlists for the Setlists destination
+            // (books.setlists, workflow 12 §The file L34): walk each book's
+            // working tree, read its `*.setlist.md` files and reply with each
+            // one's book, path, title and song count. A local, offline read;
+            // the home-state book holds no setlists, so it is excluded exactly
+            // as the index sweep excludes it.
+            const bookIds = await listBookIds(ensureFs(), HOME_BOOK_ID);
+            const setlists = [];
+            for (const bookId of bookIds) {
+              const { entries } = await ensureBookTree().tree({ bookId });
+              const dir = ensureGit().bookDir(bookId);
+              for (const entry of entries) {
+                if (!entry.path.endsWith(SETLIST_SUFFIX) || entry.status === 'deleted') {
+                  continue;
+                }
+                let text;
+                try {
+                  text = await ensureFs().promises.readFile(`${dir}/${entry.path}`, 'utf8');
+                } catch (err) {
+                  if (err?.code === 'ENOENT') continue;
+                  throw err;
+                }
+                const model = parseSetlist(text);
+                const count = model.body.filter(
+                  (el) => el.type === 'song' || el.type === 'unlinked',
+                ).length;
+                setlists.push({ bookId, path: entry.path, title: model.title, count });
+              }
+            }
+            port.postMessage(event(EventKind.SETLISTS, { setlists }));
+            break;
+          }
+          case CommandKind.ADD_TO_SETLIST: {
+            // Add a song to a setlist as one locked, uncommitted change
+            // (books.setlists, workflow 12 §Building one, §Songs from another
+            // book): the working copy does the copy-if-cross-book,
+            // create-if-new and append under a single lock (Decision 3). Keep
+            // the index in step for a copied song, the way MOVE_FILE does for a
+            // moved one, so it is findable before the shared save; the setlist
+            // file itself is not a song-index entry.
+            const { targetBookId, setlistPath, newTitle, song } = message.payload;
+            const result = await ensureWorkingCopy().addToSetlist({
+              targetBookId,
+              setlistPath,
+              newTitle,
+              song,
+            });
+            if (result.copied) {
+              await ensureIndexHydrated();
+              await persistIndexChanges(
+                await reindexOrRemove({ bookId: targetBookId, path: result.path, unsaved: true }),
+              );
+            }
+            port.postMessage(
+              event(EventKind.SETLIST_UPDATED, {
+                bookId: targetBookId,
+                setlistPath: result.setlistPath,
+                path: result.path,
+                copied: result.copied,
+              }),
+            );
             break;
           }
           case CommandKind.SEARCH: {
