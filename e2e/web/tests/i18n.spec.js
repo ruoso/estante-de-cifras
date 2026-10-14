@@ -25,19 +25,16 @@ const LANGUAGES = [
 
 for (const lang of LANGUAGES) {
   test.describe(lang.id, () => {
-    // The context's locale sets Accept-Language and navigator.language; an init
-    // script sets navigator.languages (the list detectLocale reads) before any
-    // app code runs, the way a device configured for this language would.
+    // The context's locale (platform emulation) sets Accept-Language, and
+    // Chromium derives navigator.language / navigator.languages (the list
+    // detectLocale reads) from it, the way a device configured for this
+    // language would. Nothing is injected into the page.
     test.use({ locale: lang.tag });
 
     test(`first load shows the shell in ${lang.id}, <html lang>, axe-clean`, async ({
       page,
       checkA11y,
     }) => {
-      await page.addInitScript((tag) => {
-        Object.defineProperty(navigator, 'languages', { configurable: true, get: () => [tag] });
-      }, lang.tag);
-
       await page.goto('/');
 
       // <html lang> carries the resolved language the instant the app mounts.

@@ -19,12 +19,13 @@
  */
 import { test, expect } from '../lib/axe.js';
 import { runOffline, waitForServiceWorker } from '../lib/offline.js';
+import { startApp } from '../lib/journeys.js';
 
 test('installable: a complete manifest with real icons, served as images', async ({
   page,
   checkA11y,
 }) => {
-  await page.goto('/');
+  await startApp(page);
 
   // index.html links the manifest; fetching it parses to a web app manifest.
   const manifestHref = await page.locator('link[rel="manifest"]').first().getAttribute('href');
@@ -97,28 +98,32 @@ test('update: a new version is held, then taken on the next launch', async ({
   // Simulate a new deploy: serve sw.js with an appended version comment so its
   // bytes change when we bump the version (shell.pwa Decision). route.fetch()
   // gets the real worker; fulfill keeps its JS content-type and overrides only
-  // the body.
+  // the body. This route is the one injection we cannot avoid: a test cannot
+  // rebuild and redeploy the app mid-run, and a byte-changed sw.js is exactly
+  // what a deploy looks like to the browser. Everything else here is real: the
+  // browser's own update check (it re-fetches sw.js on a navigation), the real
+  // install/waiting lifecycle, and the real notice.
   let swVersion = 0;
+  // eslint-disable-next-line no-restricted-syntax -- fakes a redeploy (a changed sw.js); the only hard-to-avoid injection, see the comment above
   await context.route('**/sw.js', async (route) => {
     const res = await route.fetch();
     const body = await res.text();
     await route.fulfill({ response: res, body: `${body}\n// e2e-sw-version ${swVersion}\n` });
   });
 
-  await page.goto('/');
-  await waitForServiceWorker(page); // worker v0 controls the page
+  await startApp(page); // worker v0 controls the page
 
-  // A marker on the window that survives only if the page is not reloaded.
-  await page.evaluate(() => {
-    window.__estanteNotReloaded = true;
-  });
+  // Something typed into the running shell survives only if the page is not
+  // reloaded (the UI-observable "not disturbed", in place of a window global).
+  await page.getByRole('searchbox').fill('kettle');
 
-  // Deploy a byte-changed worker and check for updates.
+  // Deploy a byte-changed worker. The browser checks for a new worker when a
+  // page navigates, so a second tab opening the app is the real trigger — the
+  // first tab keeps running on the old worker.
   swVersion = 1;
-  await page.evaluate(async () => {
-    const reg = await navigator.serviceWorker.getRegistration();
-    await reg.update();
-  });
+  const second = await context.newPage();
+  await second.goto('/');
+  await waitForServiceWorker(second);
 
   // The new worker installs and goes to waiting — not active — because
   // skipWaiting is false: the update is held.
@@ -134,7 +139,7 @@ test('update: a new version is held, then taken on the next launch', async ({
   // The running session is undisturbed: the controller is unchanged and the
   // shell was not reloaded.
   expect(await page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
-  expect(await page.evaluate(() => window.__estanteNotReloaded === true)).toBe(true);
+  await expect(page.getByRole('searchbox')).toHaveValue('kettle');
 
   // The quiet, dismissible notice surfaces the waiting update (onNeedRefresh).
   // Matched by its text (the shell may carry other role=status regions).
@@ -146,6 +151,7 @@ test('update: a new version is held, then taken on the next launch', async ({
   // A next launch: with every tab using the old worker closed, the waiting
   // worker activates; a fresh page is then controlled by it, and nothing is
   // left waiting (the update is taken).
+  await second.close();
   await page.close();
   const next = await context.newPage();
   await next.goto('/');

@@ -8,100 +8,56 @@
 //       app is in Palco (est theme-palco on the root) and Portuguese (<html
 //       lang="pt-BR"> and a translated string). Preferences live in the local
 //       home book from the first minute, offline, unpushed (workflow 13 L70-76).
-//   (2) Another device signed out from here — context A and context B sign in to
-//       the same account via emailed links; A's account screen lists both
+//   (2) Another device signed out from here — context A makes an account with a
+//       passkey and context B gets a copy of that passkey (a synced passkey,
+//       journeys.sharePasskeys) and signs in with it; A's account screen lists both
 //       devices; "Sign out" on the B row revokes it; B's next request 401s, so
 //       B's account screen reads "Not signed in" (workflow 13 L77-79).
 //   (3) Passkeys listed, added and removed — make an account with a passkey via
 //       the virtual authenticator; the account screen lists it; "Add a passkey"
 //       registers a second; "Remove" takes one away (workflow 13 L80).
 //
-// Reuses lib/axe (checkA11y), lib/devices (openDevice), lib/mail (the Mailpit
-// reader), lib/db (seedAccount) and the virtual-authenticator / hasSessionCookie
-// helpers established by account-sign-in.spec.js — never a parallel harness.
+// Built from lib/journeys.js (real-UI steps) and lib/axe (checkA11y); no SQL
+// seeding and no emailed link: two devices of one person share one passkey.
 
+import { mockup } from '../lib/mockup.js';
 import { test, expect } from '../lib/axe.js';
-import { waitForServiceWorker } from '../lib/offline.js';
-import { waitForMessageTo, extractSignInLink } from '../lib/mail.js';
-import { seedAccount } from '../lib/db.js';
+import {
+  startApp,
+  signedInDevice,
+  enableVirtualAuthenticator,
+  sharePasskeys,
+} from '../lib/journeys.js';
+import { openAccount, signInExistingWithPasskey } from '../lib/journeys-account.js';
 import { openDevice } from '../lib/devices.js';
 
-function uniqueEmail() {
-  return `account-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}@estante.test`;
-}
-
-// Mirror of account-sign-in.spec.js (the two small WebAuthn/cookie helpers the
-// refinement names; the harness libs are the shared seam, these stay local).
-async function enableVirtualAuthenticator(page) {
-  const client = await page.context().newCDPSession(page);
-  await client.send('WebAuthn.enable');
-  await addVirtualAuthenticator(client);
-  return client;
-}
-
-// Attach one resident-key, auto-present virtual authenticator to an
-// already-enabled CDP WebAuthn session. A second one stands in for "another
-// authenticator on this device": the service excludes the account's existing
-// credentials from register/begin (so the same authenticator is never enrolled
-// twice — service passkeys.go), so adding a passkey from the first authenticator
-// would raise InvalidStateError; a fresh authenticator is the one create() can
-// enrol. The second must use a non-internal transport: Chrome permits only one
-// internal authenticator per environment, so the extra one is a 'usb' roamer.
-async function addVirtualAuthenticator(client, transport = 'internal') {
-  const { authenticatorId } = await client.send('WebAuthn.addVirtualAuthenticator', {
+// A second authenticator on the same device: the service excludes the account's
+// existing credentials from register/begin (so the same authenticator is never
+// enrolled twice — service passkeys.go), so adding a passkey from the first
+// authenticator would raise InvalidStateError; a fresh authenticator is the one
+// create() can enrol. It must use a non-internal transport: Chrome permits only
+// one internal authenticator per environment, so the extra one is a 'usb' roamer.
+async function addRoamingAuthenticator(client) {
+  await client.send('WebAuthn.addVirtualAuthenticator', {
     options: {
       protocol: 'ctap2',
-      transport,
+      transport: 'usb',
       hasResidentKey: true,
       hasUserVerification: true,
       isUserVerified: true,
       automaticPresenceSimulation: true,
     },
   });
-  return authenticatorId;
-}
-
-async function hasSessionCookie(page) {
-  const cookies = await page.context().cookies();
-  return cookies.some((c) => c.name === 'estante_session' && c.value);
-}
-
-// Open the account screen from the header affordance.
-async function openAccount(page) {
-  await page.getByRole('button', { name: 'Account' }).click();
-  await expect(page.getByRole('radiogroup', { name: 'Theme' })).toBeVisible();
-}
-
-// Sign a context in via an emailed link (no passkey): request a link from the
-// empty shelf's Sign in row, read it from Mailpit, redeem, and decline the
-// passkey offer — leaving a plain cookie session on this context.
-async function signInByEmail(page, email) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.getByRole('button', { name: /Sign in/ }).click();
-  await page.getByRole('button', { name: 'Email me a link' }).click();
-  await page.getByRole('textbox', { name: 'Your email' }).fill(email);
-  await page.getByRole('button', { name: 'Send the link' }).click();
-  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
-
-  const message = await waitForMessageTo(email);
-  expect(message, 'the sign-in mail should arrive at the catcher').not.toBeNull();
-  const link = extractSignInLink(message);
-  expect(link, 'the mail should carry a /sign-in/<token> link').not.toBeNull();
-
-  await page.goto(link);
-  await page.getByRole('button', { name: 'Not now' }).click();
-  await expect.poll(() => hasSessionCookie(page)).toBe(true);
 }
 
 test('keeps a theme and language choice across a reload, with no sign-in', async ({
   page,
   checkA11y,
 }) => {
-  await page.goto('/');
-  await waitForServiceWorker(page);
+  await startApp(page);
 
   await openAccount(page);
+  await mockup(page, 'Theme-picker', 1, { note: 'account screen before signing in (Estante)' });
 
   // Choose Palco and Português (Brasil); the app applies them live.
   await page.getByRole('radio', { name: /Palco/ }).click();
@@ -113,8 +69,7 @@ test('keeps a theme and language choice across a reload, with no sign-in', async
 
   // Reload: the committed registers re-surface, so the choice survives (offline,
   // unpushed — it is in the local home book).
-  await page.reload();
-  await waitForServiceWorker(page);
+  await startApp(page);
   await expect(page.locator('div.est').first()).toHaveClass(/theme-palco/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'pt-BR');
   // A translated string: the empty shelf heading, now in Portuguese.
@@ -126,19 +81,19 @@ test('signs another device out from here, and that device’s session stops', as
   page,
   checkA11y,
 }) => {
-  const email = uniqueEmail();
-  await seedAccount(email);
-
-  // Context A signs in; context B signs in to the same account.
-  await signInByEmail(page, email);
+  // Device A makes the account with a passkey; device B (a second browser
+  // context) holds a synced copy of that passkey and signs in to the SAME
+  // account with "Use a passkey".
+  const authA = await signedInDevice(page);
   const deviceB = await openDevice(browser);
   try {
-    await signInByEmail(deviceB.page, email);
+    const authB = await enableVirtualAuthenticator(deviceB.page);
+    expect(await sharePasskeys(authA, authB)).toBeGreaterThan(0);
+    await signInExistingWithPasskey(deviceB.page);
 
     // A's account screen lists both devices: the current one in use now, the
     // other with its last use.
-    await page.goto('/');
-    await waitForServiceWorker(page);
+    await startApp(page);
     await openAccount(page);
     // Exact match: the copy legitimately says "this device" in several places
     // (the Automatic theme meta, the signed-in status, the add-passkey button),
@@ -148,6 +103,7 @@ test('signs another device out from here, and that device’s session stops', as
     const otherRow = page.locator('.account-row', { hasText: /last used/ });
     await expect(otherRow).toHaveCount(1);
     await checkA11y(); // the signed-in account screen, this viewport
+    await mockup(page, 'W13-new-device', 4, { note: 'account screen with two devices' });
 
     // Sign the other device out: confirm, which revokes its session.
     await otherRow.getByRole('button', { name: /Sign .* out/ }).click();
@@ -156,8 +112,7 @@ test('signs another device out from here, and that device’s session stops', as
 
     // B's next request 401s (lazy revocation), so B's account screen reads
     // "Not signed in".
-    await deviceB.page.goto('/');
-    await waitForServiceWorker(deviceB.page);
+    await startApp(deviceB.page);
     await deviceB.page.getByRole('button', { name: 'Account' }).click();
     await expect(deviceB.page.getByText('Not signed in')).toBeVisible();
   } finally {
@@ -166,26 +121,22 @@ test('signs another device out from here, and that device’s session stops', as
 });
 
 test('lists, adds and removes passkeys', async ({ page, checkA11y }) => {
-  const cdp = await enableVirtualAuthenticator(page);
-
   // Make an account with a passkey from the empty shelf (one resident passkey).
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.getByRole('button', { name: /Sign in/ }).click();
-  await page.getByRole('button', { name: 'Use a passkey' }).click();
+  const { client } = await signedInDevice(page);
   await expect(page.getByRole('heading', { name: 'Your shelf is empty' })).toBeVisible();
-  await expect.poll(() => hasSessionCookie(page)).toBe(true);
 
   // The account screen lists the one passkey.
   await openAccount(page);
   const passkeyRemovers = page.getByRole('button', { name: /^Remove/ });
   await expect(passkeyRemovers).toHaveCount(1);
   await checkA11y(); // the signed-in account screen, this viewport
+  await mockup(page, 'Theme-picker', 2, { note: 'signed in (theme not Palco here)' });
+  await mockup(page, 'Theme-picker', 3);
+  await mockup(page, 'Theme-picker', 4);
 
-  // Add a passkey: a second authenticator (register/begin excludes the account's
-  // existing credential, so the first authenticator can't enrol again) takes the
-  // new credential, and the list reflects it.
-  await addVirtualAuthenticator(cdp, 'usb');
+  // Add a passkey: a second authenticator takes the new credential, and the
+  // list reflects it.
+  await addRoamingAuthenticator(client);
   await page.getByRole('button', { name: 'Add a passkey to this device' }).click();
   await expect(passkeyRemovers).toHaveCount(2);
 

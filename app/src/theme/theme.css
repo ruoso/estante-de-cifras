@@ -210,9 +210,13 @@
    Chord-only lines are measures between bar rules. */
 .chart { font-family: var(--font-chart); font-size: var(--chart-size); line-height: 1.3; display: flex; flex-direction: column; gap: 2px; }
 .chart .sung { display: flex; flex-wrap: wrap; align-items: flex-end; padding: 2px 0; }
-.chart .s { display: inline-flex; flex-direction: column; }
+.chart .s { display: inline-flex; flex-direction: column; max-width: 100%; }
 .chart .s .c { color: var(--chord); font-weight: 700; min-height: 1.3em; padding-right: 0.45em; white-space: pre; }
-.chart .s .w { color: var(--ink); white-space: pre; display: flex; align-items: baseline; }
+/* App fix over the boards (which never drew a line longer than its screen):
+   a segment is capped at the chart's width and its words wrap inside it
+   (pre-wrap keeps the spacing), so a long run of words under one chord wraps
+   rather than pushing the chart wider than the screen. */
+.chart .s .w { color: var(--ink); white-space: pre-wrap; display: flex; align-items: baseline; min-width: 0; }
 /* A word split across two chords: when the chord opens room inside the word,
    the gap shows a centred hyphen, as syllables do under notes in sheet music.
    No room opened, nothing drawn. */

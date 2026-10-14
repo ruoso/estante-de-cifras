@@ -10,7 +10,8 @@
  */
 import { test, expect } from '@playwright/test';
 
-import { runOffline, waitForServiceWorker } from '../lib/offline.js';
+import { runOffline } from '../lib/offline.js';
+import { startApp } from '../lib/journeys.js';
 
 test('the app shell still renders with the network cut, then works online again', async ({
   page,
@@ -29,7 +30,6 @@ test('the app shell still renders with the network cut, then works online again'
   });
 
   // Network restored: a fresh load succeeds and the worker still controls it.
-  await page.goto('/');
-  await waitForServiceWorker(page);
+  await startApp(page);
   await expect(page.getByRole('main')).toBeVisible();
 });

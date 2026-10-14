@@ -23,44 +23,14 @@
 // parallel harness.
 
 import { test, expect } from '../lib/axe.js';
-import { waitForServiceWorker } from '../lib/offline.js';
+import { startApp, enableVirtualAuthenticator, hasSessionCookie } from '../lib/journeys.js';
 import { waitForMessageTo, extractSignInLink } from '../lib/mail.js';
 import { seedAccount } from '../lib/db.js';
-
-function uniqueEmail() {
-  return `signin-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}@estante.test`;
-}
-
-// Attach a Chromium virtual authenticator over CDP: a platform (internal),
-// resident-key, user-verifying authenticator with presence simulated, so the
-// real `navigator.credentials` ceremony the surface runs completes without a UI.
-// The web harness is the first to drive one (the api harness hand-builds a
-// software authenticator instead; the harnesses share no code — DIRECTION §3.6).
-async function enableVirtualAuthenticator(page) {
-  const client = await page.context().newCDPSession(page);
-  await client.send('WebAuthn.enable');
-  await client.send('WebAuthn.addVirtualAuthenticator', {
-    options: {
-      protocol: 'ctap2',
-      transport: 'internal',
-      hasResidentKey: true,
-      hasUserVerification: true,
-      isUserVerified: true,
-      automaticPresenceSimulation: true,
-    },
-  });
-  return client;
-}
-
-async function hasSessionCookie(page) {
-  const cookies = await page.context().cookies();
-  return cookies.some((c) => c.name === 'estante_session' && c.value);
-}
+import { uniqueEmail } from '../lib/journeys-account.js';
 
 // Open the sign-in surface from the empty shelf's "Sign in" row.
 async function openSignIn(page) {
-  await page.goto('/');
-  await waitForServiceWorker(page);
+  await startApp(page);
   await page.getByRole('button', { name: /Sign in/ }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 }
@@ -90,7 +60,11 @@ test('signs in from an emailed link and then offers a passkey on this device', a
   page,
   checkA11y,
 }) => {
-  const email = uniqueEmail();
+  // seedAccount stays here, and only here: an emailed link needs an address on
+  // the account, and no UI writes a recovery email yet (tasks
+  // account.recovery_email / service.recovery_email), so the one precondition
+  // is seeded in Postgres. Everything after it is the real UI and the real mail.
+  const email = uniqueEmail('signin');
   await seedAccount(email);
   await enableVirtualAuthenticator(page);
 
@@ -124,5 +98,5 @@ test('signs in from an emailed link and then offers a passkey on this device', a
   // the surface closes back to the shelf.
   await page.getByRole('button', { name: 'Add a passkey' }).click();
   await expect(page.getByRole('heading', { name: 'Your shelf is empty' })).toBeVisible();
-  await expect(await hasSessionCookie(page)).toBe(true);
+  expect(await hasSessionCookie(page)).toBe(true);
 });

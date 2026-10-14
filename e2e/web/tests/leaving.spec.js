@@ -15,63 +15,39 @@
 //     notice, while Delete my account is disabled with the needs-a-connection note.
 // Account email and book names are written for this test (no-song-text rule).
 
+import { mockup } from '../lib/mockup.js';
 import { test, expect } from '../lib/axe.js';
-import { waitForServiceWorker } from '../lib/offline.js';
-import { waitForMessageTo, extractSignInLink } from '../lib/mail.js';
+import {
+  startApp,
+  signedInDevice,
+  enableVirtualAuthenticator,
+  hasSessionCookie,
+  makeLocalBook,
+  putBookOnline,
+  networkBlip,
+} from '../lib/journeys.js';
 import { seedAccount } from '../lib/db.js';
-
-function uniqueEmail() {
-  return `leaving-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}@estante.test`;
-}
-
-async function enableVirtualAuthenticator(page) {
-  const client = await page.context().newCDPSession(page);
-  await client.send('WebAuthn.enable');
-  await client.send('WebAuthn.addVirtualAuthenticator', {
-    options: {
-      protocol: 'ctap2',
-      transport: 'internal',
-      hasResidentKey: true,
-      hasUserVerification: true,
-      isUserVerified: true,
-      automaticPresenceSimulation: true,
-    },
-  });
-}
-
-async function hasSessionCookie(page) {
-  const cookies = await page.context().cookies();
-  return cookies.some((c) => c.name === 'estante_session' && c.value);
-}
-
-async function openAccount(page) {
-  await page.getByRole('button', { name: 'Account' }).click();
-  await expect(page.getByRole('radiogroup', { name: 'Theme' })).toBeVisible();
-}
+import {
+  uniqueEmail,
+  openAccount,
+  signInByEmailWithPasskey,
+  inviteLink,
+  joinByInvite,
+} from '../lib/journeys-account.js';
 
 test('deletes the account end to end: data-out downloads, then the device returns to first-run; axe-clean', async ({
   page,
   checkA11y,
 }) => {
-  const email = uniqueEmail();
+  // seedAccount stays here, and only here: the terminal confirm type-matches
+  // the account's email, a passkey-only account has none, and no UI writes a
+  // recovery email yet (tasks account.recovery_email / service.recovery_email).
+  // So the account is seeded with an address and signed in through the emailed
+  // link, then a passkey is added on the offer.
+  const email = uniqueEmail('leaving');
   await seedAccount(email);
   await enableVirtualAuthenticator(page);
-
-  // Sign in via the emailed link, so the account carries the email the confirm
-  // type-matches; add a passkey on the offer to land on the empty shelf.
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.getByRole('button', { name: /Sign in/ }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  await page.getByRole('button', { name: 'Email me a link' }).click();
-  await page.getByRole('textbox', { name: 'Your email' }).fill(email);
-  await page.getByRole('button', { name: 'Send the link' }).click();
-  const message = await waitForMessageTo(email);
-  expect(message, 'the sign-in mail should arrive at the catcher').not.toBeNull();
-  await page.goto(extractSignInLink(message));
-  await expect(page.getByRole('heading', { name: 'Make signing in quicker' })).toBeVisible();
-  await page.getByRole('button', { name: 'Add a passkey' }).click();
-  await expect(page.getByRole('heading', { name: 'Your shelf is empty' })).toBeVisible();
+  await signInByEmailWithPasskey(page, email);
 
   // The Leaving Estante region at the foot of the account screen.
   await openAccount(page);
@@ -79,6 +55,7 @@ test('deletes the account end to end: data-out downloads, then the device return
   await expect(page.getByRole('button', { name: 'Take your data out' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Delete my account' })).toBeVisible();
   await checkA11y(); // the account screen with the Leaving region
+  await mockup(page, 'W17-leaving', 1);
 
   // Take your data out: the home book downloads as a zip, read from the device.
   await page.getByRole('button', { name: 'Take your data out' }).click();
@@ -112,13 +89,7 @@ test('offline: take your data out still downloads, while Delete my account waits
   page,
   checkA11y,
 }) => {
-  await enableVirtualAuthenticator(page);
-  await page.goto('/');
-  await waitForServiceWorker(page);
-  await page.getByRole('button', { name: /Sign in/ }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  await page.getByRole('button', { name: 'Use a passkey' }).click();
-  await expect.poll(() => hasSessionCookie(page)).toBe(true);
+  await signedInDevice(page);
 
   await openAccount(page);
   await page.context().setOffline(true);
@@ -136,8 +107,53 @@ test('offline: take your data out still downloads, while Delete my account waits
   const dataOut = page.getByRole('dialog');
   await expect(dataOut.getByText(/downloads work here/)).toBeVisible();
   await checkA11y(); // the offline take-your-data-out surface
+  await mockup(page, 'W17-leaving', 2);
   const downloadPromise = page.waitForEvent('download');
   await dataOut.getByRole('button', { name: 'Download Your home book' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.zip$/);
+});
+
+test('deleting an account that shares a book counts the people who lose access, and the member’s shelf then reads no longer shared (workflow 17)', async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(180000);
+  const BOOK = 'Choros do Dono';
+
+  // The owner: an account with an address (seeded — see the first test), a
+  // hosted book, and a second PERSON joined through the real Share dialog.
+  const email = uniqueEmail('owner');
+  await seedAccount(email);
+  await enableVirtualAuthenticator(page);
+  await signInByEmailWithPasskey(page, email);
+  await makeLocalBook(page, BOOK);
+  await putBookOnline(page, BOOK);
+  const link = await inviteLink(page, BOOK, 'Reader');
+
+  const member = await joinByInvite(browser, link, BOOK);
+  try {
+    // The owner's delete dialog counts the one person who loses access.
+    await startApp(page);
+    await openAccount(page);
+    await page.getByRole('button', { name: 'Delete my account' }).click();
+    const del = page.getByRole('dialog');
+    await expect(del.getByText('Books you own — deleted for everyone:')).toBeVisible();
+    await expect(del.getByText(`${BOOK} · shared with 1 person — they will lose access`)).toBeVisible();
+    await mockup(page, 'W17-leaving', 4);
+    await del.getByRole('textbox', { name: 'Type your email address to confirm:' }).fill(email);
+    await del.getByRole('button', { name: 'Delete my account' }).click();
+    await expect.poll(() => hasSessionCookie(page)).toBe(false);
+
+    // The member's next sync finds the book gone: their shelf says so.
+    await expect(async () => {
+      await networkBlip(member.page);
+      await startApp(member.page);
+      await member.page.getByRole('tab', { name: 'Books' }).click();
+      await expect(member.page.getByText('no longer shared with you')).toBeVisible({ timeout: 2500 });
+    }).toPass({ timeout: 90000 });
+    await mockup(member.page, 'W17-leaving', 3);
+  } finally {
+    await member.context.close();
+  }
 });
