@@ -139,10 +139,8 @@ test('a hosted book offline with two saves waiting reads "2 saves waiting" with 
   page,
   checkA11y,
 }) => {
-  // BUG: after the app is reloaded while offline (the only way off a wide-layout
-  // song), the `online` event no longer triggers a push — the saves stay waiting
-  // until Sync now — see coordinator report
-  test.fixme(true, 'online event does not push after an offline reload');
+  // After a reload made offline, Chromium fires no `online` when the network
+  // returns; the sync scheduler's backoff retry pushes the waiting saves.
   await offlineSavesJourney(page, checkA11y, async () => {});
 });
 
