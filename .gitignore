@@ -18,3 +18,4 @@ report/
 orchestrator/logs/
 orchestrator/state/
 __pycache__/
+.stack/

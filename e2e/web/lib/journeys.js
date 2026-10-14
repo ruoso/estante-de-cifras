@@ -1,0 +1,267 @@
+// Shared real-UI journeys for the e2e-web specs.
+//
+// Every helper here drives the app the way a person does — from `/`, through
+// the real navigation, against the real stack — so a spec built from them
+// covers the workflow end to end. The only things below the UI are platform
+// emulation the browser itself offers (the CDP virtual WebAuthn authenticator,
+// context.setOffline), and read-only lookups (a book's git URL, the session
+// cookie) a second device needs. No helper writes app state from test code:
+// no #dev/* mounts, no page.evaluate that changes anything, no page.route
+// mocks, no synthetic DOM events, no API writes the UI can do.
+//
+// Before these existed, each spec carried its own copy of these steps, and the
+// copies drifted into shortcuts. Add a step here, once, when a second spec
+// needs it.
+
+import { expect } from '@playwright/test';
+import { waitForServiceWorker } from './offline.js';
+import { baseUrl } from './env.js';
+
+const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// ---- arriving ------------------------------------------------------------
+
+// Load the app at its real entry point and wait until the service worker
+// controls it (the app is precache-first; offline steps depend on this).
+export async function startApp(page, path = '/') {
+  await page.goto(path);
+  await waitForServiceWorker(page);
+}
+
+// One of the three destinations (phone tab bar; the same tabs on the wide
+// layouts' rail). Waits for the destination's heading.
+export async function gotoTab(page, name) {
+  await page.getByRole('tab', { name }).click();
+  if (name !== 'Search') {
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+  }
+}
+
+// First run: put the bundled example book on the device and wait until its
+// songs are searchable. The first-run button can race the shelf's first
+// render, hence the retry.
+export async function openExampleBook(page) {
+  await startApp(page);
+  const openExample = page.getByRole('button', { name: /Open the example book/ });
+  const books = page.getByRole('heading', { name: 'Books' });
+  await expect(async () => {
+    if (await openExample.isVisible().catch(() => false)) {
+      await openExample.click({ timeout: 2000 }).catch(() => {});
+    }
+    await expect(books).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 20000 });
+  await page.getByRole('searchbox').fill('Morning');
+  await expect(page.getByRole('button', { name: /Morning on the Porch/ }).first()).toBeVisible();
+  await page.getByRole('searchbox').fill('');
+}
+
+// ---- signing in (workflow 13) ----------------------------------------------
+
+// A virtual platform authenticator on this page's browser context — platform
+// emulation, the way a real device's passkey store answers WebAuthn.
+export async function enableVirtualAuthenticator(page) {
+  const client = await page.context().newCDPSession(page);
+  await client.send('WebAuthn.enable');
+  const { authenticatorId } = await client.send('WebAuthn.addVirtualAuthenticator', {
+    options: {
+      protocol: 'ctap2',
+      transport: 'internal',
+      hasResidentKey: true,
+      hasUserVerification: true,
+      isUserVerified: true,
+      automaticPresenceSimulation: true,
+    },
+  });
+  return { client, authenticatorId };
+}
+
+// Model a synced passkey (iCloud Keychain, Google Password Manager): copy the
+// credentials of one device's authenticator into another's, so the second
+// device signs in to the SAME account with "Use a passkey". Both arguments are
+// what enableVirtualAuthenticator returned.
+export async function sharePasskeys(from, to) {
+  const { credentials } = await from.client.send('WebAuthn.getCredentials', {
+    authenticatorId: from.authenticatorId,
+  });
+  for (const credential of credentials) {
+    await to.client.send('WebAuthn.addCredential', { authenticatorId: to.authenticatorId, credential });
+  }
+  return credentials.length;
+}
+
+export async function hasSessionCookie(page) {
+  const cookies = await page.context().cookies();
+  return cookies.some((c) => c.name === 'estante_session' && c.value);
+}
+
+// The session cookie as a `Cookie:` header value — what a second device (the
+// git CLI over smart HTTP) carries to act as this account.
+export async function sessionCookie(page) {
+  const cookies = await page.context().cookies();
+  const c = cookies.find((x) => x.name === 'estante_session');
+  if (!c) throw new Error('no estante_session cookie on this context');
+  return `estante_session=${c.value}`;
+}
+
+// Sign in (or create the account) with a passkey, from the shell's Sign in
+// button. Needs enableVirtualAuthenticator first.
+export async function signInWithPasskey(page) {
+  await startApp(page);
+  await page.getByRole('button', { name: /Sign in/ }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await page.getByRole('button', { name: 'Use a passkey' }).click();
+  await expect.poll(() => hasSessionCookie(page)).toBe(true);
+}
+
+// A fresh device with its own authenticator, signed in to a new account.
+export async function signedInDevice(page) {
+  const authenticator = await enableVirtualAuthenticator(page);
+  await signInWithPasskey(page);
+  return authenticator;
+}
+
+// ---- books (workflow 7) ------------------------------------------------------
+
+export async function makeLocalBook(page, name) {
+  await gotoTab(page, 'Books');
+  await page.getByRole('button', { name: 'Add a book' }).click();
+  const sheet = page.getByRole('dialog');
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole('textbox', { name: 'Book name' }).fill(name);
+  await sheet.getByRole('button', { name: 'New book' }).click();
+  await expect(page.getByRole('button', { name: new RegExp(`^${escape(name)}`) })).toBeVisible();
+}
+
+// Put a book online from its row on the Books screen (signed in).
+export async function putBookOnline(page, name) {
+  await gotoTab(page, 'Books');
+  await page.getByRole('button', { name: new RegExp(`^${escape(name)}`) }).click();
+  await page.getByRole('button', { name: 'Put online' }).click();
+  await expect(page.getByText('On Estante · private')).toBeVisible();
+}
+
+// Read-only: the hosted book's git URL, for a second device to clone.
+export async function bookGitUrl(page, title) {
+  const resp = await page.request.get('/api/books');
+  expect(resp.ok()).toBeTruthy();
+  const { books } = await resp.json();
+  const book = books.find((b) => b.title === title);
+  if (!book) throw new Error(`book ${title} not found for the account`);
+  return new URL(book.gitUrl, `${baseUrl}/`).toString();
+}
+
+// Sign in, make a book, put it online, and come back to `/`. Returns the
+// authenticator, the book's git URL and the session cookie.
+export async function hostedBook(page, name) {
+  const authenticator = await signedInDevice(page);
+  await makeLocalBook(page, name);
+  await putBookOnline(page, name);
+  await startApp(page);
+  return { authenticator, url: await bookGitUrl(page, name), cookie: await sessionCookie(page) };
+}
+
+// ---- sync (workflow 8) --------------------------------------------------------
+
+// Run a sync pass the way the world does: the network drops and comes back.
+// Chromium fires the real `online` event, which the app listens for
+// (app/src/sync-triggers.js).
+export async function networkBlip(page, { offlineMs = 300 } = {}) {
+  const context = page.context();
+  await context.setOffline(true);
+  await page.waitForTimeout(offlineMs);
+  await context.setOffline(false);
+}
+
+// Reload until `title` is searchable — proof a sync brought a song down and
+// the open-time sweep indexed it.
+export async function waitUntilSearchable(page, query, title, { timeout = 60000 } = {}) {
+  await expect(async () => {
+    await startApp(page);
+    await page.waitForTimeout(1500);
+    await page.getByRole('searchbox').fill(query);
+    await expect(page.getByRole('button', { name: new RegExp(escape(title)) }).first()).toBeVisible({
+      timeout: 2500,
+    });
+  }).toPass({ timeout });
+}
+
+// ---- songs (workflows 2, 4, 6) ---------------------------------------------
+
+// Search for a song and open it in the reading view. With a song already open
+// on a wide layout the search sits beside it (no tab bar); otherwise go to the
+// Search destination first.
+export async function openSongFromSearch(page, query, title) {
+  const searchbox = page.getByRole('searchbox');
+  if (!(await searchbox.first().isVisible().catch(() => false))) {
+    // A full-screen song on a phone: Back to the destinations first.
+    const tab = page.getByRole('tab', { name: 'Search' });
+    if (!(await tab.isVisible().catch(() => false))) {
+      await page.getByRole('button', { name: 'Back' }).first().click();
+    }
+    await gotoTab(page, 'Search');
+  }
+  await searchbox.first().fill(query);
+  await page.getByRole('button', { name: new RegExp(escape(title)) }).first().click();
+  await expect(page.getByRole('group', { name: title }).first()).toBeVisible();
+}
+
+// From the reading view, the song's Edit: the source editor opens on it.
+export async function editFromReading(page) {
+  await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+  await expect(page.locator('.cm-content')).toBeVisible();
+}
+
+// Search → song → Edit.
+export async function openSongInEditor(page, query, title) {
+  await openSongFromSearch(page, query, title);
+  await editFromReading(page);
+}
+
+// Put the caret at the end of the editor line that reads `line` exactly, and
+// type `text` there.
+export async function typeAtEndOfLine(page, line, text) {
+  const content = page.locator('.cm-content');
+  await content.getByText(line, { exact: true }).first().click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(text);
+}
+
+// The editor writes to the working copy on a debounce; wait it out before a
+// step that reads the working copy (the save sheet's diff, a sync).
+export async function settleEdits(page) {
+  await page.waitForTimeout(800);
+}
+
+// The editor's Save → the save sheet → its Save, with an optional note. The
+// first save on a device asks for the author's name (workflow 4 §Who made the
+// change); `name` answers it. Waits for the sheet to close (the commit landed).
+export async function saveThroughSheet(page, { note, name = 'Marina Souza' } = {}) {
+  await settleEdits(page);
+  await page.getByRole('button', { name: 'Save', exact: true }).first().click();
+  const sheet = page.getByRole('dialog');
+  await expect(sheet).toBeVisible();
+  const nameField = sheet.getByRole('textbox', { name: /Your name/ });
+  if (await nameField.count()) await nameField.fill(name);
+  if (note !== undefined) await sheet.getByRole('textbox', { name: /Note/ }).fill(note);
+  await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(sheet).toBeHidden();
+}
+
+// From the reading view, the song's History.
+export async function historyFromReading(page) {
+  await page.getByRole('button', { name: 'History', exact: true }).first().click();
+}
+
+// ---- the file view (workflow 14) ---------------------------------------------
+
+// Books → the book's Files control: the file view on that book.
+export async function openFiles(page, bookTitle) {
+  await gotoTab(page, 'Books');
+  await page.getByRole('button', { name: `Files in ${bookTitle}` }).click();
+}
+
+// Books → Files → a file in the tree (a song opens in the raw editor).
+export async function openFileInFiles(page, bookTitle, fileName) {
+  await openFiles(page, bookTitle);
+  await page.getByRole('button', { name: new RegExp(escape(fileName)) }).click();
+}
