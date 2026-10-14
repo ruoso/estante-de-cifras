@@ -282,7 +282,10 @@ if [[ $want_estante -eq 1 ]]; then
   echo "gate: estante-de-cifras ($ROOT)"
 
   step "estante: tj3 (the WBS schedules, no errors or warnings)"
-  # --no-reports: check only, nothing written to report/.
+  # --no-reports: check only, nothing written to report/. tj3 still insists
+  # the project's outputdir exists, and report/ is gitignored, so a fresh
+  # checkout (CI) has none.
+  mkdir -p report
   if ! tj3 --silent --no-reports project.tjp >"$TMP/tj3.log" 2>&1; then
     cat "$TMP/tj3.log"
     echo "gate: FAIL tj3" >&2
