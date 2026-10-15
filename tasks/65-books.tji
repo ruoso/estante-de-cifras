@@ -115,8 +115,9 @@ task books "Books" {
   task remove_counts_unsaved "Remove from my shelf counts unsaved songs" {
     effort 0.5d
     allocate team
+    complete 100
     depends !online, design.w07_remove_board
-    note "Remove from my shelf counts the songs with unsaved changes beside the saves waiting to go up, read from SURVEY_SIGN_OUT, and shows N songs with unsaved changes will be lost with their titles, as the Remove-from-shelf board draws it. Source of debt: tasks/refinements/design/w07_remove_board.md (design.w07_remove_board). Governing: workflow 7 Removing a book; workflow 10 Leaving a book. Tests: behavior (BookDetail.behavior.test.jsx: the Remove confirmation counts unsaved songs and names them, axe); e2e-web (online.spec.js: unsaved songs are counted and named in the Remove confirmation on phone, tablet and computer; axe)."
+    note "Remove from my shelf counts the songs with unsaved changes beside the saves waiting to go up, read from SURVEY_SIGN_OUT, and shows N songs with unsaved changes will be lost with their titles, as the Remove-from-shelf board draws it. Source of debt: tasks/refinements/design/w07_remove_board.md (design.w07_remove_board). Governing: workflow 7 Removing a book; workflow 10 Leaving a book. Tests: behavior (BookDetail.behavior.test.jsx: the Remove confirmation counts unsaved songs and names them, axe); e2e-web (online.spec.js: unsaved songs are counted and named in the Remove confirmation on phone, tablet and computer; axe). Refinement: tasks/refinements/books/remove_counts_unsaved.md"
   }
   task owner_name "The owner's name on a shared book" {
     effort 1d

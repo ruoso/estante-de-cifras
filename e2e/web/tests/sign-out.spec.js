@@ -27,7 +27,7 @@ import {
   gotoTab,
   hasSessionCookie,
 } from '../lib/journeys.js';
-import { confirmSaveSheet, leaveFiles } from '../lib/journeys-files.js';
+import { confirmSaveSheet, leaveFiles, editSong } from '../lib/journeys-files.js';
 import { GitDevice } from '../lib/git-device.js';
 
 const HOSTED = 'Banda do Bairro';
@@ -44,16 +44,6 @@ async function openAccount(page) {
   await leaveFiles(page);
   await page.getByRole('button', { name: 'Account' }).click();
   await expect(page.getByRole('radiogroup', { name: 'Theme' })).toBeVisible();
-}
-
-// Add a new section to the open song — a clean, canonicalisable change. Inserted
-// before the first section heading so it lands in the body. Lets the debounced
-// WRITE settle.
-async function editSong(page, mark) {
-  const heading = page.locator('.cm-content .cm-line').filter({ hasText: /^## / }).first();
-  await heading.click();
-  await page.keyboard.press('Home');
-  await page.keyboard.insertText(`## ${mark}\n\`\`\`\nC | G\n\`\`\`\n\n`);
 }
 
 // Sign in, host a book, seed one song into it from a second device (the git CLI

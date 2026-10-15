@@ -41,6 +41,17 @@ export async function leaveFiles(page) {
   await page.getByRole('button', { name: 'Back', exact: true }).first().click();
 }
 
+// In the file view with a song open: an unsaved edit — a new section, a clean,
+// canonicalisable change, inserted before the first section heading so it lands
+// in the body. Not saved: the song stays `unsaved` for as long as the session
+// lives (the flag is live-only — never reload after this).
+export async function editSong(page, mark) {
+  const heading = page.locator('.cm-content .cm-line').filter({ hasText: /^## / }).first();
+  await heading.click();
+  await page.keyboard.press('Home');
+  await page.keyboard.insertText(`## ${mark}\n\`\`\`\nC | G\n\`\`\`\n\n`);
+}
+
 // Confirm the open save sheet, answering the one-time name prompt if present.
 export async function confirmSaveSheet(page, name = 'Marina Souza') {
   const sheet = page.getByRole('dialog');

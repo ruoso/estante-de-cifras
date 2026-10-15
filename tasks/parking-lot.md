@@ -130,3 +130,11 @@ Append one `###` block per item, newest at the bottom:
   - W17-leaving--4-desktop: Delete-account confirm frame shows the account screen with no dialog
 - **Frames no spec reaches yet**: Screen-reader #3 (a chord diagram read aloud) and #4 (a conflicted line), W16-chord-explorer #2 (no shape fits); W11-fork #1-4 and W13-new-device #1-3 wait on `books.fork` / `sync.fork_follow` and `service.home_book` / `account.new_device`.
 - **Why parked**: a human-initiated audit pass, not an implementable leaf; test-only by nature. Best done after the M5 UI leaves from both audits land.
+
+### 2026-10-15 — Remove/Leave confirmations: `alertdialog` role (from `books.remove_counts_unsaved`)
+- **What**: the Remove-from-shelf board marks the confirmation `alertdialog`; the app keeps `role="dialog"` (refinement Decision 4) because Playwright's `getByRole('dialog')` and several queries (`BookDetail.behavior.test.jsx`, `online.spec.js`, `leave-book.spec.js`) depend on it. Accessibility is met either way (labelled, modal, axe-clean).
+- **Decide**: whether to change the role on Remove and Leave together, or amend the board.
+
+### 2026-10-15 — Flake: `online.spec.js` "remove a hosted book with an unsaved song" fails once on phone and tablet
+- **What**: in the driver's gate run it timed out on the first attempt on phone and tablet (`gotoTab` → `Back to books` click, "element was detached from the DOM, retrying") and passed on retry #1; computer passed first time. Log: `orchestrator/logs/iter-0037-verify-gate.log`.
+- **Why parked**: a stability fix to a test helper path (`e2e/web/lib/journeys.js:37`) needs a person to judge whether the re-render is an app bug or a helper race.

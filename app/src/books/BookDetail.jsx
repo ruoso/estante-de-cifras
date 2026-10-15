@@ -49,7 +49,7 @@ import { titleFor, canSaveFor, orderedBooks, originalOf, broughtInOn } from './b
 import { saveZip } from './download-zip.js';
 import SharingScreen from './SharingScreen.jsx';
 import MakeYourOwn from './MakeYourOwn.jsx';
-import LeaveDialog from './LeaveDialog.jsx';
+import LeaveDialog, { WarnIcon } from './LeaveDialog.jsx';
 import { useOnline } from '../account/use-online.js';
 import './book-detail.css';
 
@@ -89,15 +89,38 @@ function OnlineIcon() {
 // unpushed saves it warns of the saves not yet on Estante; for a device-only
 // book it warns the book will be gone for good and offers Download first; for a
 // hosted book in step it is the board's plain one-liner (workflow 7 L128-135,
-// Decision 5).
-function RemoveDialog({ title, isLocal, savesWaiting, onRemove, onDownload }) {
+// Decision 5). A hosted book with unsaved songs also counts and names them above
+// that line (books.remove_counts_unsaved; workflow 7 L148-149; Remove-from-shelf
+// board L72-82): the counts come from the Worker's SURVEY_SIGN_OUT, asked for on
+// open and filtered to this book as Leave does (Decision 1); until the reply
+// arrives the `sync` slice's saves waiting stands in (Decision 2), and the
+// confirm never waits on it.
+function RemoveDialog({ store, bookId, title, isLocal, savesWaiting: syncWaiting, onRemove, onDownload }) {
+  const [open, setOpen] = useState(false);
+  const [survey, setSurvey] = useState(null);
+
+  useWorkerEvent(store, EventKind.SIGN_OUT_SURVEY, ({ books }) => {
+    if (!open || isLocal) return;
+    setSurvey(books?.find((b) => b.id === bookId) ?? null);
+  });
+
+  const onOpenChange = (next) => {
+    setOpen(next);
+    if (!next) return;
+    setSurvey(null);
+    if (!isLocal) store.send(command(CommandKind.SURVEY_SIGN_OUT, {}));
+  };
+
+  const savesWaiting = survey?.savesWaiting ?? syncWaiting;
+  const unsaved = isLocal ? 0 : (survey?.unsavedSongs ?? 0);
+  const unsavedTitles = survey?.unsavedTitles ?? [];
   const body = isLocal
     ? t('books.removeGone')
     : savesWaiting > 0
       ? t('books.removeLoss', { count: savesWaiting })
       : t('books.removeBody');
   return (
-    <DialogTrigger>
+    <DialogTrigger isOpen={open} onOpenChange={onOpenChange}>
       <Button className="btn" style={{ alignSelf: 'flex-start' }}>
         {t('books.remove')}
       </Button>
@@ -109,7 +132,20 @@ function RemoveDialog({ title, isLocal, savesWaiting, onRemove, onDownload }) {
                 <Heading slot="title" className="t-h2">
                   {t('books.removeTitle', { name: title })}
                 </Heading>
-                <p className="t-body">{body}</p>
+                {unsaved > 0 ? (
+                  <div className="notice unsaved" style={{ flexDirection: 'column', gap: 8 }}>
+                    <span style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <WarnIcon />
+                      <span>
+                        <b>{t('books.removeUnsaved', { count: unsaved })}</b>
+                        {unsavedTitles.length ? ` · ${unsavedTitles.join(', ')}` : null}
+                      </span>
+                    </span>
+                    <span>{body}</span>
+                  </div>
+                ) : (
+                  <p className="t-body">{body}</p>
+                )}
                 <div className="actions">
                   <Button className="btn" onPress={close}>
                     {t('books.cancel')}
@@ -443,6 +479,8 @@ export default function BookDetail({
           <span className="t-h2">{t('books.remove')}</span>
           <p className="t-small">{t('books.removeBody')}</p>
           <RemoveDialog
+            store={store}
+            bookId={bookId}
             title={title}
             isLocal={isLocal}
             savesWaiting={savesWaiting}

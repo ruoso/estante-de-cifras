@@ -191,6 +191,10 @@ export default {
       other:
         'This device has {count} saves not yet on Estante; removing this copy loses them. The book stays on Estante.',
     },
+    removeUnsaved: {
+      one: '{count} song with unsaved changes will be lost',
+      other: '{count} songs with unsaved changes will be lost',
+    },
     removeGone:
       'This book is only on this device. Removing it deletes it for good — there is no copy on Estante. Download it first to keep a copy.',
     removeConfirm: 'Remove from my shelf',

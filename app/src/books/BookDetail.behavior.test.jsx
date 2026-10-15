@@ -125,7 +125,7 @@ describe('BookDetail (workflow 7; W07 board)', () => {
   });
 
   it('Remove warns of unpushed saves for a hosted book (L128-135)', async () => {
-    const { store, emit } = makeStore();
+    const { store, sent, emit } = makeStore();
     renderDetail(store, { bookId: 'srv-1', kind: 'shared' });
     emit(hostedShelf());
     // The book has two saves not yet on Estante.
@@ -137,6 +137,67 @@ describe('BookDetail (workflow 7; W07 board)', () => {
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByText(/2 saves not yet on Estante/)).toBeInTheDocument();
     // A hosted book's remove offers no Download — the book stays on Estante.
+    expect(within(dialog).queryByRole('button', { name: 'Download' })).toBeNull();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+    // No survey reply has arrived: the `sync` slice's count stood in
+    // (books.remove_counts_unsaved Constraint 3), and the confirm is pressable
+    // before the reply and sends REMOVE_BOOK (Constraint 5).
+    const confirm = within(dialog).getByRole('button', { name: 'Remove from my shelf' });
+    expect(confirm).toBeEnabled();
+    act(() => fireEvent.click(confirm));
+    expect(lastCommand(sent, CommandKind.REMOVE_BOOK).payload.bookId).toBe('srv-1');
+  });
+
+  // books.remove_counts_unsaved — workflow 7 L148-149; Remove-from-shelf board L72-82.
+  const survey = (books) => event(EventKind.SIGN_OUT_SURVEY, { books });
+
+  it('Remove counts unsaved songs and names them for a hosted book (workflow 7 L148-149; Remove-from-shelf L72-82)', async () => {
+    const { store, sent, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-1', kind: 'shared' });
+    emit(hostedShelf());
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Remove from my shelf' })));
+    const dialog = screen.getByRole('dialog');
+    // Opening asks the Worker for the counts (Constraint 1, Decision 1).
+    expect(lastCommand(sent, CommandKind.SURVEY_SIGN_OUT)).toBeTruthy();
+    emit(
+      survey([
+        { id: 'other', title: 'Outro Livro', unsavedSongs: 3, unsavedTitles: ['Canção Alheia'], savesWaiting: 4 },
+        { id: 'srv-1', title: 'Choros da Ana', unsavedSongs: 1, unsavedTitles: ['Rua do Porto'], savesWaiting: 0 },
+      ]),
+    );
+
+    expect(within(dialog).getByText('1 song with unsaved changes will be lost')).toBeInTheDocument();
+    expect(within(dialog).getByText(/Rua do Porto/)).toBeInTheDocument();
+    // No saves waiting: the second line is the in-step body (Decision 3).
+    expect(
+      within(dialog).getByText('Deletes this device’s copy only. The book stays on Estante.'),
+    ).toBeInTheDocument();
+    // Only this book's entry is kept.
+    expect(within(dialog).queryByText(/Canção Alheia/)).toBeNull();
+    expect(within(dialog).queryByText(/saves not yet on Estante/)).toBeNull();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+  });
+
+  it('Remove shows unsaved songs beside saves waiting (workflow 7 L148-149; Remove-from-shelf L72-82)', async () => {
+    const { store, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-1', kind: 'shared' });
+    emit(hostedShelf());
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Remove from my shelf' })));
+    const dialog = screen.getByRole('dialog');
+    emit(
+      survey([
+        { id: 'srv-1', title: 'Choros da Ana', unsavedSongs: 2, unsavedTitles: ['Valsa Nova', 'Samba Curto'], savesWaiting: 2 },
+      ]),
+    );
+
+    const unsaved = within(dialog).getByText('2 songs with unsaved changes will be lost');
+    expect(within(dialog).getByText(/Valsa Nova, Samba Curto/)).toBeInTheDocument();
+    // The survey's saves waiting is used once it arrives (Decision 2), and the
+    // unsaved line sits above it (board L75-76).
+    const waiting = within(dialog).getByText(/2 saves not yet on Estante/);
+    expect(unsaved.compareDocumentPosition(waiting) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(dialog).queryByRole('button', { name: 'Download' })).toBeNull();
     expect(await checkWcag21aa(dialog)).toHaveNoViolations();
   });
@@ -354,6 +415,9 @@ describe('BookDetail (workflow 7; W07 board)', () => {
     act(() => fireEvent.click(download));
     expect(lastCommand(sent, CommandKind.DOWNLOAD_BOOK).payload.bookId).toBe('local-1');
     expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+    // A device-only book's dialog asks for no survey (books.remove_counts_unsaved
+    // Constraint 4).
+    expect(lastCommand(sent, CommandKind.SURVEY_SIGN_OUT)).toBeUndefined();
   });
 });
 

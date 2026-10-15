@@ -171,6 +171,10 @@ export default {
       other:
         'Este dispositivo tem {count} alterações ainda não enviadas ao Estante; remover esta cópia as perde. O livro continua no Estante.',
     },
+    removeUnsaved: {
+      one: '{count} música com alterações não salvas será perdida',
+      other: '{count} músicas com alterações não salvas serão perdidas',
+    },
     removeGone:
       'Este livro está só neste dispositivo. Removê-lo o apaga para sempre — não há cópia no Estante. Baixe-o primeiro para guardar uma cópia.',
     removeConfirm: 'Remover da minha estante',

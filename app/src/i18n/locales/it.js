@@ -171,6 +171,10 @@ export default {
       other:
         'Questo dispositivo ha {count} salvataggi non ancora su Estante; rimuovere questa copia li perde. Il libro resta su Estante.',
     },
+    removeUnsaved: {
+      one: '{count} brano con modifiche non salvate andrà perso',
+      other: '{count} brani con modifiche non salvate andranno persi',
+    },
     removeGone:
       'Questo libro è solo su questo dispositivo. Rimuoverlo lo cancella per sempre — non c’è copia su Estante. Scaricalo prima per conservarne una copia.',
     removeConfirm: 'Rimuovi dalla mia libreria',

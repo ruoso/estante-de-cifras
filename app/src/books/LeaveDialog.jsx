@@ -26,7 +26,7 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 // The device commit identity for a shelf-touching command (BookDetail.jsx).
 const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
 
-function WarnIcon() {
+export function WarnIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: 'none', color: 'var(--unsaved)' }}>
       <path d="M12 3l10 18H2zM12 10v5M12 18h.01" />

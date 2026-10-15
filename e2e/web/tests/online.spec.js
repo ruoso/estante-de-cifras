@@ -12,7 +12,9 @@ import { statSync } from 'node:fs';
 
 import { test, expect } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
-import { signedInDevice, makeLocalBook } from '../lib/journeys.js';
+import { signedInDevice, makeLocalBook, openFileInFiles, gotoTab } from '../lib/journeys.js';
+import { hostedBookWithSong } from '../lib/journeys-share.js';
+import { editSong, leaveFiles } from '../lib/journeys-files.js';
 
 test('put a local book online, download it, then delete it as owner (workflow 7)', async ({
   page,
@@ -78,4 +80,38 @@ test('remove a device-only book from the shelf through its confirmation (workflo
   await confirm.getByRole('button', { name: 'Remove from my shelf' }).click();
 
   await expect(page.getByRole('button', { name: new RegExp(`^${NAME}`) })).toHaveCount(0);
+});
+
+// books.remove_counts_unsaved — the hosted book's Remove confirmation counts and
+// names the songs with unsaved changes (workflow 7 L148-149; Remove-from-shelf
+// board L72-82). The edit is made through the real editor and the detail is
+// reached in the same session, never a reload: the index's `unsaved` flag is
+// live-only.
+test('remove a hosted book with an unsaved song: the confirmation names it (workflow 7 L148-149)', async ({
+  page,
+  checkA11y,
+}) => {
+  const BOOK = 'Banda do Bairro';
+  const SONG = 'Rua do Porto';
+  await hostedBookWithSong(page, BOOK, SONG);
+
+  // An edit in the song, not saved.
+  await openFileInFiles(page, BOOK, 'rua-do-porto.cifra.md');
+  await editSong(page, 'Ponte');
+  await expect(page.locator('.cm-content')).toContainText('Ponte');
+
+  // Back to the shell in the same session, then the book's detail.
+  await leaveFiles(page);
+  await gotoTab(page, 'Books');
+  await page.getByRole('button', { name: new RegExp(`^${BOOK}`) }).click();
+
+  await page.getByRole('button', { name: 'Remove from my shelf' }).click();
+  const confirm = page.getByRole('dialog');
+  await expect(confirm.getByText('1 song with unsaved changes will be lost')).toBeVisible();
+  await expect(confirm.getByText(new RegExp(SONG))).toBeVisible();
+  await checkA11y(); // the remove confirmation with the unsaved count
+  await confirm.getByRole('button', { name: 'Remove from my shelf' }).click();
+
+  await gotoTab(page, 'Books');
+  await expect(page.getByRole('button', { name: new RegExp(`^${BOOK}`) })).toHaveCount(0);
 });
