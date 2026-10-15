@@ -86,6 +86,11 @@ const latestResults = (events, query) =>
   [...events].reverse().find((e) => e.kind === EventKind.SEARCH_RESULTS && e.payload.query === query)
     ?.payload.results ?? null;
 
+const indexedSince = (events, mark, bookId) =>
+  events
+    .slice(mark)
+    .some((e) => e.kind === EventKind.INDEX_STATUS && e.payload.bookId === bookId && e.payload.state === 'ready');
+
 async function createLocalBook(w, title) {
   const mark = w.events.length;
   w.send(command(CommandKind.CREATE_BOOK, { title, author: IDENTITY }));
@@ -111,13 +116,21 @@ async function putOnline(w, localId) {
 
 async function sharedBookWithUnsavedSong(w, title, term) {
   const localId = await createLocalBook(w, title);
+  const opened = w.events.length;
   w.send(command(CommandKind.OPEN));
-  await waitFor(() => expect(w.events.some((e) => e.kind === EventKind.READY)).toBe(true));
+  // OPEN keeps indexing every book after READY, concurrently with later
+  // commands; wait for its sweep to report this book ready, so the next `ready`
+  // for it can only be the WRITE's.
+  await waitFor(() => expect(indexedSince(w.events, opened, localId)).toBe(true));
   const path = `${term}.cifra.md`;
   const text = song([`# ${term}`, '- artist: Trio de Teste', '## A', FENCE, 'C   G', 'ai', FENCE]);
+  const written = w.events.length;
   w.send(command(CommandKind.WRITE, { bookId: localId, path, text }));
+  // The WRITE re-indexes the new song and then announces it; search only after
+  // that, once, rather than re-sending SEARCH on every poll.
+  await waitFor(() => expect(indexedSince(w.events, written, localId)).toBe(true));
+  w.send(command(CommandKind.SEARCH, { query: term }));
   await waitFor(() => {
-    w.send(command(CommandKind.SEARCH, { query: term }));
     const hit = (latestResults(w.events, term) ?? []).some((r) => r.bookId === localId);
     expect(hit).toBe(true);
   });

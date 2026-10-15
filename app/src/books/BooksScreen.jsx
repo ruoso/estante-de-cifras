@@ -337,6 +337,7 @@ function MineList({ store, mine, onAddMine, onSignIn }) {
                   store={store}
                   bookId={book.id}
                   title={label}
+                  ownerName={book.ownerName}
                   trigger={t('books.mineLeave')}
                   triggerLabel={t('books.mineLeaveLabel', { name: label })}
                   triggerClass="btn quiet"
@@ -649,6 +650,7 @@ export default function BooksScreen({
         gitUrl: book.gitUrl,
         label: book.label,
         role: book.role,
+        ...(book.ownerName ? { ownerName: book.ownerName } : {}),
         author: LOCAL_IDENTITY,
       }),
     );

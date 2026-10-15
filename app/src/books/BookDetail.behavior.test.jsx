@@ -695,3 +695,66 @@ describe('Leave this book (books.leave; workflow 10 §Leaving a book)', () => {
     await waitFor(() => expect(document.activeElement).toBe(leaveCard()));
   });
 });
+
+// Who shares a member's book (books.owner_name; workflow 10 §Leaving a book
+// L103-105; Leave-book board L36, L73, L96, L166-167). The chip and the Leave
+// sentence read the shelf's `owner` register (home-book-format §4.2), offline.
+describe('The owner\'s name on a shared book (books.owner_name)', () => {
+  const sharedShelf = (owner, role = 'reader', id = 'srv-4') =>
+    event(EventKind.SHELF, {
+      books: {
+        [id]: {
+          label: reg('Roda de Choro'),
+          position: reg(1),
+          role: reg(role),
+          ...(owner === undefined ? {} : { owner: reg(owner) }),
+        },
+      },
+      local: {},
+    });
+
+  it('a reader\'s book with owner Ana reads *On Estante · shared by Ana* (board L36); axe clean', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderDetail(store, { bookId: 'srv-4', kind: 'shared' });
+    emit(sharedShelf('Ana'));
+    expect(screen.getByText('On Estante · shared by Ana')).toBeInTheDocument();
+    expect(screen.queryByText('On Estante · private')).toBeNull();
+    expect(screen.queryByText('You own it')).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('an editor\'s book with no name — absent or tombstoned — reads *On Estante · shared* (Decision 4)', () => {
+    for (const owner of [undefined, null]) {
+      const { store, emit } = makeStore();
+      renderDetail(store, { bookId: 'srv-4', kind: 'shared' });
+      emit(sharedShelf(owner, 'editor'));
+      expect(screen.getByText('On Estante · shared')).toBeInTheDocument();
+      expect(screen.queryByText('On Estante · private')).toBeNull();
+      cleanup();
+    }
+  });
+
+  it('the owner\'s chips are unchanged: *On Estante · private* and *You own it* (board L166-167)', () => {
+    const { store, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-4', kind: 'shared' });
+    emit(sharedShelf(undefined, 'owner'));
+    expect(screen.getByText('On Estante · private')).toBeInTheDocument();
+    expect(screen.getByText('You own it')).toBeInTheDocument();
+    expect(screen.queryByText(/shared/)).toBeNull();
+  });
+
+  it('the Leave confirmation reads *… Ana can invite you again.* (board L73; workflow 10 L103-105); axe clean', async () => {
+    const { store, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-4', kind: 'shared' });
+    emit(sharedShelf('Ana'));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Leave this book' })));
+    const dialog = screen.getByRole('alertdialog');
+    expect(
+      within(dialog).getByText(
+        'You will no longer open or sync it, on any of your devices, and it is removed from this one. Ana can invite you again.',
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/The owner can invite you again/)).toBeNull();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+  });
+});

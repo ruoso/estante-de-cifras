@@ -146,6 +146,8 @@ export default {
     detailBack: 'Voltar aos livros',
     pickBook: 'Escolha um livro para ver os detalhes.',
     private: 'privado',
+    sharedBy: 'compartilhado por {owner}',
+    shared: 'compartilhado',
     youOwn: 'Você é o dono',
     youCanSave: 'Você pode salvar',
     readOnly: 'Somente leitura',
@@ -193,6 +195,8 @@ export default {
     leaveTitle: 'Sair de {name}?',
     leaveSentence: 'Você não poderá mais abri-lo nem sincronizá-lo, em nenhum dos seus dispositivos, e ele é removido deste. O dono pode convidar você de novo.',
     leaveSentenceRemote: 'Você não poderá mais abri-lo nem sincronizá-lo, em nenhum dos seus dispositivos. O dono pode convidar você de novo.',
+    leaveSentenceNamed: 'Você não poderá mais abri-lo nem sincronizá-lo, em nenhum dos seus dispositivos, e ele é removido deste. {owner} pode convidar você de novo.',
+    leaveSentenceRemoteNamed: 'Você não poderá mais abri-lo nem sincronizá-lo, em nenhum dos seus dispositivos. {owner} pode convidar você de novo.',
     leaveUnsaved: {
       one: '{count} música com alterações não salvas será perdida',
       other: '{count} músicas com alterações não salvas serão perdidas',

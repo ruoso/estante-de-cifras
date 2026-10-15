@@ -34,7 +34,7 @@ import { createBooksClient } from './books-client.js';
 import { createOnline } from './online.js';
 import { createFork } from './fork.js';
 import { createAddByLink } from './add-by-link.js';
-import { booksNotOnShelf } from '../books/mine-on-estante.js';
+import { booksNotOnShelf, ownerRefreshChanges } from '../books/mine-on-estante.js';
 import { createCifraMergeDriver } from './cifra-merge-driver.js';
 import { createSyncEngine, countCommitsAhead, resolveOriginHead } from './sync-engine.js';
 import { keepAsLocalChanges, removeChanges } from './sign-out.js';
@@ -752,6 +752,13 @@ export function createWorkerLogic(port, options = {}) {
     await ensureFs().flush();
   }
 
+  // The tombstone of a hosted book's `owner` register (books.owner_name), when
+  // the shelf entry holds one — so a book taken off the shelf leaves no live
+  // register behind (§5.3) and can come back through *Mine on Estante*.
+  function ownerTombstone(shelf, bookId) {
+    return shelf?.books?.[bookId]?.owner ? [{ path: ['books', bookId, 'owner'], value: null }] : [];
+  }
+
   // Compose the scheduler once (sync.engine): it coalesces the five triggers
   // into non-overlapping passes and runs the five-minute heartbeat. The timer
   // functions are injectable (`options.setInterval`/`options.clearInterval`,
@@ -909,8 +916,11 @@ export function createWorkerLogic(port, options = {}) {
   // online_reindex obligation, books.online). One global flush at the tail
   // persists the relocated repo and the shelf write together, so an immediate
   // reload lists the cloned book. Writes `role: owner` never happens here — only
-  // put-online owns a book; this path writes reader/editor.
-  async function cloneOntoShelf({ serviceId, gitUrl, title, role, author }) {
+  // put-online owns a book; this path writes reader/editor. When the Book or the
+  // row carries the owner's name, it is written as the `owner` register
+  // (books.owner_name, home-book-format §4.2) — what the chip and the Leave
+  // confirmation read, offline.
+  async function cloneOntoShelf({ serviceId, gitUrl, title, role, ownerName, author }) {
     // Clone only if the book is not already on the device — re-opening the same
     // link (accept is idempotent and would 200 again) must not clone twice into a
     // non-empty directory. A present `.git` is the "already cloned" signal; the
@@ -941,6 +951,9 @@ export function createWorkerLogic(port, options = {}) {
         { path: ['books', serviceId, 'link'], value: gitUrl },
         { path: ['books', serviceId, 'position'], value: position },
         { path: ['books', serviceId, 'role'], value: role },
+        ...(typeof ownerName === 'string' && ownerName !== ''
+          ? [{ path: ['books', serviceId, 'owner'], value: ownerName }]
+          : []),
       ],
       author,
     });
@@ -973,6 +986,7 @@ export function createWorkerLogic(port, options = {}) {
           { path: ['books', bookId, 'link'], value: null },
           { path: ['books', bookId, 'position'], value: null },
           { path: ['books', bookId, 'role'], value: null },
+          ...ownerTombstone(shelf, bookId),
         ];
     await home.set({ bookId: HOME_BOOK_ID, file: 'shelf.json', changes, author });
     await surfaceHomeBookShelf();
@@ -2001,6 +2015,7 @@ export function createWorkerLogic(port, options = {}) {
                 { path: ['books', bookId, 'position'], value: null },
                 { path: ['books', bookId, 'role'], value: null },
                 ...(entry.original ? [{ path: ['books', bookId, 'original'], value: null }] : []),
+                ...ownerTombstone(shelf, bookId),
                 // The fork in its place: the same label and position, owned.
                 { path: ['books', forkId, 'label'], value: label },
                 { path: ['books', forkId, 'link'], value: result.gitUrl },
@@ -2214,6 +2229,7 @@ export function createWorkerLogic(port, options = {}) {
                     label: shared[id]?.label?.value ?? null,
                     position: shared[id]?.position?.value ?? null,
                   }),
+                  ...ownerTombstone(shelf, id),
                 );
               }
               // Already-local books are left untouched.
@@ -2222,6 +2238,7 @@ export function createWorkerLogic(port, options = {}) {
                 const kind = sharedIds.includes(id) ? 'shared' : 'local';
                 await online.remove({ bookId: id });
                 changes.push(...removeChanges({ bookId: id, deviceId, kind }));
+                if (kind === 'shared') changes.push(...ownerTombstone(shelf, id));
                 await persistIndexChanges(index.removeBook(id));
                 removedIds.push(id);
               }
@@ -2328,6 +2345,7 @@ export function createWorkerLogic(port, options = {}) {
               gitUrl: book.gitUrl,
               title: book.title,
               role: book.role,
+              ownerName: book.ownerName,
               author,
             });
             // A freshly cloned book syncs on the engine's next pass (offline-save
@@ -2340,12 +2358,13 @@ export function createWorkerLogic(port, options = {}) {
             // ("mine on Estante", workflow 7 §Add-a-book; Decision 5). No accept —
             // membership is a given — so the same clone-and-record tail runs
             // directly over the id/url/role the LIST_MINE reply already carried.
-            const { bookId, gitUrl, label, role, author } = message.payload;
+            const { bookId, gitUrl, label, role, ownerName, author } = message.payload;
             await cloneOntoShelf({
               serviceId: bookId,
               gitUrl,
               title: label,
               role,
+              ownerName,
               author,
             });
             ensureSyncScheduler().trigger();
@@ -2377,6 +2396,20 @@ export function createWorkerLogic(port, options = {}) {
                 books: booksNotOnShelf(listed, shelf, deviceId),
               }),
             );
+            // The listing is also where an on-shelf member's book learns its
+            // owner's name, or a changed one (books.owner_name Decision 3): bring
+            // each `owner` register in line, writing only when something differs.
+            const ownerChanges = ownerRefreshChanges(listed, shelf);
+            if (ownerChanges.length) {
+              await ensureHomeBook().set({
+                bookId: HOME_BOOK_ID,
+                file: 'shelf.json',
+                changes: ownerChanges,
+                author: await resolveSyncAuthor(),
+              });
+              await surfaceHomeBookShelf();
+              await ensureFs().flush();
+            }
             break;
           }
           case CommandKind.OPEN_SOURCE: {

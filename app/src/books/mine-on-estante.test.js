@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { booksNotOnShelf } from './mine-on-estante.js';
+import { booksNotOnShelf, ownerRefreshChanges } from './mine-on-estante.js';
 
 // unit (books.add_by_link) — the pure "mine on Estante" diff (workflow 7
 // §Add-a-book "Mine on Estante"; Decision 5): GET /api/books minus this device's
@@ -82,5 +82,65 @@ describe('booksNotOnShelf', () => {
       'b-turma',
     ]);
     expect(booksNotOnShelf(null, { books: {} }, DEVICE)).toEqual([]);
+  });
+});
+
+// unit (books.owner_name) — the owner's name a member's Book carries (ownerName,
+// api/openapi.yaml Book) rides the row through, so the row's Leave can name the
+// owner (workflow 10 §Leaving a book L116-117) and the add can write the shelf's
+// `owner` register (home-book-format §4.2); a Book without it gives a row without it.
+describe('booksNotOnShelf — the owner\'s name', () => {
+  it('carries ownerName through, and leaves it absent when the Book has none', () => {
+    const named = [
+      { id: 'b-choros', title: 'Choros da Ana', role: 'reader', gitUrl: 'https://e/git/b-choros', ownerName: 'Ana' },
+      { id: 'b-turma', title: 'Turma de quarta', role: 'editor', gitUrl: 'https://e/git/b-turma' },
+    ];
+    const [choros, turma] = booksNotOnShelf(named, { books: {}, local: {} }, DEVICE);
+    expect(choros).toEqual({
+      id: 'b-choros',
+      label: 'Choros da Ana',
+      role: 'reader',
+      gitUrl: 'https://e/git/b-choros',
+      ownerName: 'Ana',
+    });
+    expect(turma).not.toHaveProperty('ownerName');
+  });
+});
+
+// unit (books.owner_name) — LIST_MINE's refresh of the shelf's `owner` register
+// (home-book-format §4.2): only on-shelf books, only when the name differs.
+describe('ownerRefreshChanges', () => {
+  const onShelfEntry = (extra = {}) => ({ label: reg('x'), role: reg('reader'), ...extra });
+
+  it('writes the listed name for an on-shelf book whose register lacks or differs from it', () => {
+    const shelf = {
+      books: {
+        'b-new': onShelfEntry(),
+        'b-old': onShelfEntry({ owner: reg('Ana') }),
+        'b-same': onShelfEntry({ owner: reg('Bia') }),
+      },
+    };
+    const listed = [
+      { id: 'b-new', ownerName: 'Ana' },
+      { id: 'b-old', ownerName: 'Ana Lima' },
+      { id: 'b-same', ownerName: 'Bia' },
+    ];
+    expect(ownerRefreshChanges(listed, shelf)).toEqual([
+      { path: ['books', 'b-new', 'owner'], value: 'Ana' },
+      { path: ['books', 'b-old', 'owner'], value: 'Ana Lima' },
+    ]);
+  });
+
+  it('tombstones a held name the listing no longer carries, and leaves an absent one absent', () => {
+    const shelf = { books: { 'b-held': onShelfEntry({ owner: reg('Ana') }), 'b-none': onShelfEntry() } };
+    expect(ownerRefreshChanges([{ id: 'b-held' }, { id: 'b-none' }], shelf)).toEqual([
+      { path: ['books', 'b-held', 'owner'], value: null },
+    ]);
+  });
+
+  it('ignores a listed book that is not on the shelf (absent or fully tombstoned)', () => {
+    const shelf = { books: { 'b-gone': { label: reg(null), role: reg(null) } } };
+    expect(ownerRefreshChanges([{ id: 'b-gone', ownerName: 'Ana' }, { id: 'b-off', ownerName: 'Ana' }], shelf)).toEqual([]);
+    expect(ownerRefreshChanges([{ id: 'b-off', ownerName: 'Ana' }], {})).toEqual([]);
   });
 });

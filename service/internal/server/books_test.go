@@ -268,6 +268,75 @@ func TestListBooksReturnsOwnedSharedAndForks(t *testing.T) {
 	}
 }
 
+// TestListBooksOwnerName pins books.owner_name AC1 (workflow 10 §Leaving a
+// book, §Who sees whom; DIRECTION §3.3): an editor and a reader of a book whose
+// owner set an authorName in their home book see it as ownerName; the owner's
+// own listing carries none; a book whose owner has no home book, or a home book
+// with no name, lists without the field and the list is still 200. Every
+// response is validated against the contract by the listBooks helper.
+func TestListBooksOwnerName(t *testing.T) {
+	e := newBooksEnv(t)
+	_, anaCookie := e.registerNewAccount(t)
+	e.seedHomeBookName(t, anaCookie,
+		`{"authorName":{"value":"Ana Lima","at":"2026-10-05T14:29:12.500Z"}}`+"\n")
+	named := e.createBook(t, anaCookie, "Choros da Ana")
+	seedREADME(t, e.repoPath(named.ID), "Choros da Ana")
+	named2 := e.createBook(t, anaCookie, "Valsas da Ana")
+
+	// A second owner with no home book at all, and a third whose home book holds
+	// no name.
+	_, noHomeCookie := e.registerNewAccount(t)
+	noHome := e.createBook(t, noHomeCookie, "Sem Casa")
+	_, noNameCookie := e.registerNewAccount(t)
+	e.seedHomeBookName(t, noNameCookie,
+		`{"theme":{"value":"palco","at":"2026-10-05T14:29:12.500Z"}}`+"\n")
+	noName := e.createBook(t, noNameCookie, "Sem Nome")
+
+	editorID, editorCookie := e.registerNewAccount(t)
+	readerID, readerCookie := e.registerNewAccount(t)
+	e.insertMembership(t, named.ID, editorID, "editor")
+	e.insertMembership(t, named2.ID, editorID, "reader")
+	e.insertMembership(t, named.ID, readerID, "reader")
+	e.insertMembership(t, noHome.ID, readerID, "reader")
+	e.insertMembership(t, noName.ID, readerID, "editor")
+
+	editorList := e.listBooks(t, editorCookie)
+	for _, id := range []string{named.ID, named2.ID} {
+		if b, ok := bookByID(editorList, id); !ok || b.OwnerName != "Ana Lima" {
+			t.Errorf("editor's listing of %s: ownerName = %q (ok=%v), want %q", id, b.OwnerName, ok, "Ana Lima")
+		}
+	}
+
+	readerList := e.listBooks(t, readerCookie)
+	if b, ok := bookByID(readerList, named.ID); !ok || b.OwnerName != "Ana Lima" {
+		t.Errorf("reader's listing: ownerName = %q (ok=%v), want %q", b.OwnerName, ok, "Ana Lima")
+	}
+	if b, ok := bookByID(readerList, noHome.ID); !ok || b.OwnerName != "" {
+		t.Errorf("owner with no home book: ownerName = %q (ok=%v), want absent", b.OwnerName, ok)
+	}
+	if b, ok := bookByID(readerList, noName.ID); !ok || b.OwnerName != "" {
+		t.Errorf("owner with no name: ownerName = %q (ok=%v), want absent", b.OwnerName, ok)
+	}
+
+	// The owner's own listing never carries the field — on the wire, not just
+	// decoded empty.
+	resp, body := e.do(t, http.MethodGet, "/api/books", anaCookie, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("owner list: status = %d, want 200", resp.StatusCode)
+	}
+	if bytes.Contains(body, []byte("ownerName")) {
+		t.Errorf("owner's own listing carries ownerName: %s", body)
+	}
+	if b, ok := bookByID(e.listBooks(t, anaCookie), named.ID); !ok || b.OwnerName != "" {
+		t.Errorf("owner's listing: ownerName = %q (ok=%v), want absent", b.OwnerName, ok)
+	}
+
+	// The name is user-chosen text: it never reaches the logs.
+	if strings.Contains(e.logBuf.String(), "Ana Lima") {
+		t.Errorf("the owner's name appears in the service log")
+	}
+}
+
 // TestDeleteBook pins acceptance #3 (workflow 7 lines 136-137; DIRECTION §3.6
 // lines 337-340; contract deleteBook): the owner's delete sets deleted_at,
 // removes the directory and drops the book from a later list; a non-owner
@@ -435,6 +504,26 @@ func seedREADME(t *testing.T, barePath, title string) {
 	gitRun(t, work, "add", "README.md")
 	gitRun(t, work, "commit", "-q", "-m", "seed")
 	gitRun(t, work, "push", "-q", barePath, "main:refs/heads/main")
+}
+
+// seedHomeBookName provisions the account's home book (getHomeBook) and pushes
+// a first commit with a preferences.json holding prefs, straight into the bare
+// repo with the git CLI (books.owner_name: the owner's authorName,
+// docs/home-book-format.md §4.1).
+func (e *booksEnv) seedHomeBookName(t *testing.T, cookie, prefs string) {
+	t.Helper()
+	hb := e.getHomeBook(t, cookie)
+	work := t.TempDir()
+	gitRun(t, work, "init", "-q", "-b", "main")
+	gitRun(t, work, "config", "user.email", "seed@estante.test")
+	gitRun(t, work, "config", "user.name", "Seed Author")
+	gitRun(t, work, "config", "commit.gpgsign", "false")
+	if err := os.WriteFile(filepath.Join(work, "preferences.json"), []byte(prefs), 0o644); err != nil {
+		t.Fatalf("write preferences.json: %v", err)
+	}
+	gitRun(t, work, "add", "preferences.json")
+	gitRun(t, work, "commit", "-q", "-m", "seed home book")
+	gitRun(t, work, "push", "-q", e.repoPath(hb.ID), "main:refs/heads/main")
 }
 
 func headRev(t *testing.T, barePath string) string {

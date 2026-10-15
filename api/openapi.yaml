@@ -1380,6 +1380,14 @@ components:
             - $ref: '#/components/schemas/Original'
             - type: 'null'
           description: Present (non-null) only when the book is a fork.
+        ownerName:
+          type: string
+          description: >-
+            The owner's name, as the owner gives it to their saves (authorName in
+            their home book). Present only when the caller is an editor or a
+            reader, not the owner, and the owner has set a name (workflow 10
+            §Leaving a book). The service stores no name; it reads it from the
+            owner's home book.
 
     BookList:
       type: object

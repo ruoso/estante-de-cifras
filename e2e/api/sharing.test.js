@@ -76,6 +76,26 @@ function findBook(list, id) {
   return list.books.find((b) => b.id === id);
 }
 
+// A home book as the owner's device brings it online: the exact §2.2 README and
+// .gitattributes and a canonical §6 preferences.json holding the name the owner
+// gives their saves (docs/home-book-format.md §4.1 authorName) — the bytes the
+// hook accepts, as home-book.test.js pushes them.
+const homeReadme =
+  '# Home book\n' +
+  '\n' +
+  'This repository holds one person\'s Estante de Cifras settings. Its files are\n' +
+  'JSON that merge key by key, the later change winning; it is written and merged\n' +
+  'by the app, not edited by hand. The format is docs/home-book-format.md in the\n' +
+  'estante-de-cifras repository.\n';
+const homeGitattributes = '* text=auto eol=lf\n*.json merge=binary\n';
+const namedPreferences =
+  '{\n' +
+  '  "authorName": {\n' +
+  '    "at": "2026-10-05T14:29:12.500Z",\n' +
+  '    "value": "Ana Lima"\n' +
+  '  }\n' +
+  '}\n';
+
 const tempDirs = [];
 
 async function tempDir(prefix) {
@@ -247,5 +267,45 @@ describe('sharing (workflow 10)', () => {
     expect(ownerLeave.status).toBe(409);
     expect((await ownerLeave.json()).code).toBe('owner_cannot_leave');
     expect(findBook(await owner.getJson('/api/books'), book.id)).toBeTruthy();
+  });
+
+  // books.owner_name (workflow 10 §Leaving a book, §Who sees whom; DIRECTION
+  // §3.3): the service reads the owner's name from their home book and tells the
+  // book's members — on the accept and on the member's listing — and no one
+  // else: the owner's own listing carries none.
+  it("a member's listBooks carries the owner's name", async () => {
+    const owner = new HttpClient();
+    await registerNewAccount(owner);
+
+    // The owner's device brings its home book online with an authorName, with
+    // the git CLI through the hook.
+    const homeResp = await owner.get('/api/account/home-book');
+    expect(homeResp.status).toBe(200);
+    const home = await homeResp.json();
+    const homeDir = await tempDir('estante-e2e-owner-home-');
+    const homeWork = await GitCli.create(homeDir);
+    await homeWork.init();
+    await writeFile(join(homeDir, 'README.md'), homeReadme);
+    await writeFile(join(homeDir, '.gitattributes'), homeGitattributes);
+    await writeFile(join(homeDir, 'preferences.json'), namedPreferences);
+    await homeWork.add('.');
+    await homeWork.commit('Bring the home book online');
+    await homeWork.pushHTTP(gitEndpoint(home), owner.cookieHeader());
+
+    // The owner creates a book and invites; a second account accepts.
+    const book = await createBook(owner, 'Choros Compartilhados');
+    expect(book.ownerName).toBeUndefined();
+    const inv = await createInvitation(owner, book.id, { role: 'reader' });
+    const member = new HttpClient();
+    await registerNewAccount(member);
+    const acceptResp = await acceptInvitation(member, tokenFromUrl(inv.url));
+    expect(acceptResp.status).toBe(200);
+    expect((await acceptResp.json()).ownerName).toBe('Ana Lima');
+
+    // The member's listing names the owner; the owner's own does not.
+    expect(findBook(await member.getJson('/api/books'), book.id).ownerName).toBe('Ana Lima');
+    const ownList = await owner.getJson('/api/books');
+    expect(findBook(ownList, book.id)).toBeTruthy();
+    expect(ownList.books.every((b) => !('ownerName' in b))).toBe(true);
   });
 });

@@ -397,7 +397,13 @@ func assertConflictCode(t *testing.T, e *booksEnv, body []byte, wantCode string)
 func TestAcceptInvitation(t *testing.T) {
 	e := newBooksEnv(t)
 	_, ownerCookie := e.registerNewAccount(t)
+	// The owner's name, in their home book (books.owner_name).
+	e.seedHomeBookName(t, ownerCookie,
+		`{"authorName":{"value":"Ana Lima","at":"2026-10-05T14:29:12.500Z"}}`+"\n")
 	b := e.createBook(t, ownerCookie, "Acceptable")
+	if b.OwnerName != "" {
+		t.Errorf("createBook ownerName = %q, want absent for the owner", b.OwnerName)
+	}
 	seedREADME(t, e.repoPath(b.ID), "Acceptable")
 	inv := e.createInvitation(t, ownerCookie, b.ID, `{"role":"editor","useLimit":2}`)
 	token := tokenFromURL(t, inv.URL)
@@ -416,6 +422,11 @@ func TestAcceptInvitation(t *testing.T) {
 	}
 	if book.ID != b.ID || book.Role != "editor" || book.Title != "Acceptable" {
 		t.Errorf("accepted book = {id %s role %s title %q}, want {%s editor Acceptable}", book.ID, book.Role, book.Title, b.ID)
+	}
+	// The joiner is told who shares the book (workflow 10 §Leaving a book;
+	// DIRECTION §3.3; books.owner_name AC2).
+	if book.OwnerName != "Ana Lima" {
+		t.Errorf("accepted book ownerName = %q, want %q", book.OwnerName, "Ana Lima")
 	}
 	if n := e.countRows(t, `SELECT count(*) FROM memberships WHERE book_id = $1 AND account_id = $2 AND role = 'editor'`, b.ID, joinerID); n != 1 {
 		t.Errorf("membership row = %d, want 1 editor", n)

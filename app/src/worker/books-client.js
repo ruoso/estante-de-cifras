@@ -44,7 +44,9 @@ const BOOKS_PATH = '/api/books';
  * }}
  * @typedef {{ id: string, title: string, role: 'owner'|'editor'|'reader',
  *   visibility: 'private', gitUrl: string,
- *   original?: { bookId: string, title: string } | null }} Book
+ *   original?: { bookId: string, title: string } | null,
+ *   ownerName?: string }} Book — `ownerName` only for a book shared with the
+ *   caller whose owner has a name (books.owner_name)
  */
 export function createBooksClient(options = {}) {
   const fetchImpl = options.fetch ?? globalThis.fetch;

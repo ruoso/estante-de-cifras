@@ -245,6 +245,7 @@ namespaced by device id (§7).
       "link":     { "value": "https://estantedecifras.app/…", "at": "…" },
       "position": { "value": 2, "at": "…" },
       "role":     { "value": "editor", "at": "…" },
+      "owner":    { "value": "Ana Lima", "at": "…" },
       "original": { "value": {
                       "bookId":     "<original-book-id>",
                       "title":      "Ana's Choros",
@@ -269,9 +270,18 @@ namespaced by device id (§7).
   `link`, its clone URL; `position`, its place in the shelf's order; `role`,
   the role the account was granted when the book came onto the shelf
   (`"owner"`, `"editor"` or `"reader"` — a hint for the shelf, never an
-  authority: the service decides access); and, for a fork, `original`.
+  authority: the service decides access); `owner`, for a book shared with the
+  account, the owner's name; and, for a fork, `original`.
   **No credential is written** — access itself is the account's, held by the
   service, so nothing secret is written down (workflow 13).
+- `owner` — present only on a book someone else shared with the account
+  (`role` `"editor"` or `"reader"`), and only when the owner has a name: the
+  owner's `authorName` (§4.1) as the service last gave it (`ownerName` in
+  [`api/openapi.yaml`](../api/openapi.yaml)'s `Book`). It is written when the
+  book comes onto the shelf and refreshed when the account's books are listed
+  (*Mine on Estante*), so it can lag a later change of name. Like `role` it is a
+  hint for display (*shared by Ana*, *Ana can invite you again*, workflow 10
+  §Leaving a book), never an authority.
 - `original` — present only on a fork (workflow 11): the book it was copied
   from and follows, one step only. One register whose value is an object,
   written whole so no device ever reads a half-updated original:

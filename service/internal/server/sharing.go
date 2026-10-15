@@ -622,10 +622,12 @@ func (api *APIDeps) acceptInvitationTx(ctx context.Context, tokenHash, accountID
 
 // composeBookJSON builds a Book for the shelf exactly as listBooks does (book.go):
 // the title read from the README (placeholder when there is no commit), the
-// caller's role, the git URL, and the fork's single-level original when present.
+// caller's role, the git URL, the fork's single-level original when present,
+// and, for a caller who is not the owner, the owner's name (books.owner_name).
 func (api *APIDeps) composeBookJSON(ctx context.Context, store book.Store, id, role string) (bookJSON, error) {
 	var originalID *string
-	if err := api.DB.QueryRow(ctx, `SELECT original_book_id FROM books WHERE id = $1`, id).Scan(&originalID); err != nil {
+	var ownerID string
+	if err := api.DB.QueryRow(ctx, `SELECT original_book_id, owner_id FROM books WHERE id = $1`, id).Scan(&originalID, &ownerID); err != nil {
 		return bookJSON{}, err
 	}
 	title, found := store.ReadTitle(ctx, id)
@@ -644,6 +646,9 @@ func (api *APIDeps) composeBookJSON(ctx context.Context, store book.Store, id, r
 		if ot, ok := store.ReadTitle(ctx, *originalID); ok {
 			bj.Original.Title = &ot
 		}
+	}
+	if role != "owner" {
+		bj.OwnerName = newOwnerNames(api, store).name(ctx, ownerID)
 	}
 	return bj, nil
 }

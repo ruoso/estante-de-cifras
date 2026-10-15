@@ -35,12 +35,18 @@ function onShelf(entry) {
  * granted role. A fully-tombstoned shelf entry counts as absent (the book was
  * removed from this device and can be added back).
  *
- * @param {Array<{ id: string, title?: string, role?: string, gitUrl?: string }>} listBooks
+ * A member's book also carries the owner's name (`ownerName`, books.owner_name)
+ * when the service gave one, so the row's Leave can name the owner and the add
+ * can write the shelf's `owner` register; it is absent otherwise.
+ *
+ * @param {Array<{ id: string, title?: string, role?: string, gitUrl?: string,
+ *   ownerName?: string }>} listBooks
  *   the GET /api/books response array (each Book carries `role` and `gitUrl`)
  * @param {{ books?: Object, local?: Object }} shelf the parsed shelf.json model
  *   (nested `{value, at}` registers; an absent file is `{}`)
  * @param {string} deviceId this device's local namespace key (§7)
- * @returns {Array<{ id: string, label: string, gitUrl: string, role: string }>}
+ * @returns {Array<{ id: string, label: string, gitUrl: string, role: string,
+ *   ownerName?: string }>}
  */
 export function booksNotOnShelf(listBooks, shelf, deviceId) {
   const held = new Set();
@@ -66,5 +72,40 @@ export function booksNotOnShelf(listBooks, shelf, deviceId) {
       label: book.title,
       gitUrl: book.gitUrl,
       role: book.role,
+      ...(ownerNameOf(book) ? { ownerName: book.ownerName } : {}),
     }));
+}
+
+// The owner's name a listed Book carries, or null when it carries none (the
+// field is optional, books.owner_name). Only a non-empty string is a name.
+function ownerNameOf(book) {
+  return typeof book?.ownerName === 'string' && book.ownerName !== '' ? book.ownerName : null;
+}
+
+/**
+ * The shelf changes that bring each on-shelf book's `owner` register in line
+ * with the account's listing (books.owner_name; home-book-format §4.2): the
+ * owner's name as the service last gave it. A book on the shelf (any live
+ * register) whose listed name differs from its register gets the new name, or
+ * a tombstone when the listing no longer carries one and the register still
+ * holds one (§5.3). A book not on the shelf, or already in line, yields no
+ * change — so a listing with nothing new writes nothing.
+ *
+ * @param {Array<{ id: string, ownerName?: string }>} listBooks the GET /api/books array
+ * @param {{ books?: Object }} shelf the parsed shelf.json model
+ * @returns {Array<{ path: string[], value: string | null }>} home-book `set` changes
+ */
+export function ownerRefreshChanges(listBooks, shelf) {
+  const books = shelf && typeof shelf === 'object' ? shelf.books : null;
+  if (!books || typeof books !== 'object') return [];
+  const changes = [];
+  for (const book of Array.isArray(listBooks) ? listBooks : []) {
+    if (!book || typeof book.id !== 'string' || !onShelf(books[book.id])) continue;
+    const name = ownerNameOf(book);
+    const held = books[book.id].owner;
+    const current = registerHolds(held) ? held.value : null;
+    if (name === current) continue;
+    changes.push({ path: ['books', book.id, 'owner'], value: name });
+  }
+  return changes;
 }

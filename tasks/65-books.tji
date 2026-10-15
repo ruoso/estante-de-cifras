@@ -122,8 +122,9 @@ task books "Books" {
   task owner_name "The owner's name on a shared book" {
     effort 1d
     allocate team
+    complete 100
     depends !leave
-    note "The Book in listBooks carries the owner's display name (api/openapi.yaml first, then the service's GET /api/books); the Worker keeps it in the shelf register; BookDetail's role chip reads On Estante · shared by {owner} and the Leave confirmation names the owner ({owner} can invite you again), as the Leave-book board and workflow 10 Leaving a book draw it. Source: tasks/refinements/books/leave.md Decision 5 (commit of books.leave). Tests: unit (the contract shape); behavior (the service lists the owner's name, Go httptest; BookDetail's chip and the Leave confirmation name the owner; axe); e2e-api (a member's listBooks carries the owner's name); e2e-web (a joiner sees shared by {owner} and the named confirmation; axe)."
+    note "The Book in listBooks carries the owner's display name (api/openapi.yaml first, then the service's GET /api/books); the Worker keeps it in the shelf register; BookDetail's role chip reads On Estante · shared by {owner} and the Leave confirmation names the owner ({owner} can invite you again), as the Leave-book board and workflow 10 Leaving a book draw it. Source: tasks/refinements/books/leave.md Decision 5 (commit of books.leave). Tests: unit (the contract shape); behavior (the service lists the owner's name, Go httptest; BookDetail's chip and the Leave confirmation name the owner; axe); e2e-api (a member's listBooks carries the owner's name); e2e-web (a joiner sees shared by {owner} and the named confirmation; axe). Refinement: tasks/refinements/books/owner_name.md"
   }
   task invited_presentation "The invited screen and refusals as drawn" {
     effort 0.5d

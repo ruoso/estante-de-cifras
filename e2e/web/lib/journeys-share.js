@@ -8,7 +8,11 @@
 // need, and which the app itself never prints.
 
 import { expect } from '@playwright/test';
-import { gotoTab, saveThroughSheet, signedInDevice, makeLocalBook, putBookOnline, startApp } from './journeys.js';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { gotoTab, saveThroughSheet, signedInDevice, makeLocalBook, putBookOnline, startApp, sessionCookie } from './journeys.js';
+import { GitDevice } from './git-device.js';
+import { baseUrl } from './env.js';
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const row = (title) => new RegExp(`^${escape(title)}`);
@@ -49,6 +53,62 @@ export async function hostedBookWithSong(page, bookTitle, songTitle, { chords } 
   await putBookOnline(page, bookTitle);
   await startApp(page);
   return authenticator;
+}
+
+// ---- the owner's name on the service (books.owner_name) ---------------------
+
+// The home book's README and .gitattributes, byte for byte (home-book-format
+// §2.2), for a home book the service has not been given yet.
+const HOME_README =
+  '# Home book\n' +
+  '\n' +
+  "This repository holds one person's Estante de Cifras settings. Its files are\n" +
+  'JSON that merge key by key, the later change winning; it is written and merged\n' +
+  'by the app, not edited by hand. The format is docs/home-book-format.md in the\n' +
+  'estante-de-cifras repository.\n';
+const HOME_GITATTRIBUTES = '* text=auto eol=lf\n*.json merge=binary\n';
+
+// home-book-format §6: sorted members at every depth, two-space pretty print,
+// one trailing LF. Enough for the plain strings and registers written here.
+function canonicalJson(value) {
+  const sort = (v) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sort(v[k])]))
+      : v;
+  return `${JSON.stringify(sort(value), null, 2)}\n`;
+}
+
+// Give the signed-in account's home book on the service an `authorName`
+// register (home-book-format §4.1), with the git CLI through the hook as a
+// device would push it. A fixture for the joiner's side of books.owner_name:
+// the web app does not yet bring its home book online on its own, so the
+// service would have no name to tell the book's members. Keeps whatever the
+// home book already holds; retries once if a device's push lands in between.
+export async function ownerNameOnService(page, name) {
+  const resp = await page.request.get('/api/account/home-book');
+  expect(resp.ok()).toBeTruthy();
+  const home = await resp.json();
+  const url = new URL(home.gitUrl, `${baseUrl}/`).toString();
+  const device = new GitDevice({ url, cookie: await sessionCookie(page), name, email: 'owner@users.estantedecifras.app' });
+  try {
+    for (let attempt = 0; ; attempt++) {
+      await device.clone();
+      if (!existsSync(join(device.dir, 'README.md'))) device.write('README.md', HOME_README);
+      if (!existsSync(join(device.dir, '.gitattributes'))) device.write('.gitattributes', HOME_GITATTRIBUTES);
+      const prefs = existsSync(join(device.dir, 'preferences.json')) ? JSON.parse(device.read('preferences.json')) : {};
+      prefs.authorName = { at: new Date().toISOString(), value: name };
+      device.write('preferences.json', canonicalJson(prefs));
+      await device.commit('Set the author name');
+      try {
+        await device.push();
+        return;
+      } catch (err) {
+        if (attempt > 0) throw err;
+      }
+    }
+  } finally {
+    device.cleanup();
+  }
 }
 
 // Read-only: a hosted book's id, for the two seams that act below the UI (the

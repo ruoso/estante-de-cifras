@@ -70,6 +70,42 @@ describe('changeCheck 200 response', () => {
   });
 });
 
+// books.owner_name — the Book's optional ownerName (a member's view of who
+// shares the book, workflow 10 §Leaving a book): present or absent, but a string.
+describe('listBooks 200 response', () => {
+  const book = (extra) => ({
+    id: 'bk_1',
+    title: 'Choros para estudo',
+    role: 'reader',
+    visibility: 'private',
+    gitUrl: 'https://estante.example/git/bk_1.git',
+    ...extra,
+  });
+
+  it('passes a Book with ownerName', () => {
+    const result = validator.validate(
+      'listBooks',
+      RESPONSE,
+      { books: [book({ ownerName: 'Ana Lima' })] },
+      { status: 200 },
+    );
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('passes a Book without ownerName', () => {
+    const result = validator.validate('listBooks', RESPONSE, { books: [book({ role: 'owner' })] }, { status: 200 });
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('rejects a non-string ownerName', () => {
+    const result = validator.validate('listBooks', RESPONSE, { books: [book({ ownerName: 42 })] }, { status: 200 });
+    expect(result.valid).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+  });
+});
+
 describe('the helper itself', () => {
   it('throws on an unknown operationId', () => {
     expect(() => validator.validate('nope', REQUEST, {})).toThrow(/operationId/);

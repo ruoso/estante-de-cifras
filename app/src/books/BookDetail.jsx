@@ -256,6 +256,10 @@ export default function BookDetail({
   const title = titleFor(book, bookId);
   const role = book?.role?.value ?? null;
   const isOwner = isLocal || role === 'owner';
+  // Who shares a member's book with them (books.owner_name): the shelf's `owner`
+  // register, a display hint read offline. Absent when the owner has no name.
+  const ownerName =
+    typeof book?.owner?.value === 'string' && book.owner.value !== '' ? book.owner.value : null;
   const canSave = canSaveFor(bookKind, book);
   const savesWaiting = sync?.[bookId]?.savesWaiting ?? 0;
   // The book's live sync phase (the same `sync` slice the shelf badge reads —
@@ -369,7 +373,15 @@ export default function BookDetail({
       <div className="scroll book-detail-body">
         <div className="chips">
           <span className="chip">
-            {isLocal ? t('books.onDevice') : `${t('books.onEstante')} · ${t('books.private')}`}
+            {isLocal
+              ? t('books.onDevice')
+              : `${t('books.onEstante')} · ${
+                  isOwner
+                    ? t('books.private')
+                    : ownerName
+                      ? t('books.sharedBy', { owner: ownerName })
+                      : t('books.shared')
+                }`}
           </span>
           {isOwner ? <span className="chip">{t('books.youOwn')}</span> : null}
           {canSave === true ? (
@@ -506,6 +518,7 @@ export default function BookDetail({
               store={store}
               bookId={bookId}
               title={title}
+              ownerName={ownerName}
               onDevice
               isDisabled={!online}
               trigger={t('books.leave')}

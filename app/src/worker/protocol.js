@@ -167,12 +167,13 @@ export const CommandKind = Object.freeze({
   // account-first gate, Decision 2); a 409/404 emits BOOK_REFUSED with the mapped
   // reason ('full' | 'dead' | 'error') and leaves the shelf unchanged. The
   // Worker's fetch carries the same-origin session cookie the sign-in minted.
-  // ADD_MINE `{ bookId, gitUrl, label, role, author }` clones a book the account
+  // ADD_MINE `{ bookId, gitUrl, label, role, ownerName?, author }` clones a book the account
   // is ALREADY a member of (no accept — "mine on Estante", Decision 5), writing
   // the same shelf entry and emitting BOOK_CLONED. LIST_MINE lists the account's
   // books not yet on this device's shelf (GET /api/books minus the local shelf,
   // Decision 5) and replies with a MINE event; a 401 replies MINE
-  // `{ status: 'signed_out' }`.
+  // `{ status: 'signed_out' }`. It then refreshes the shelf `owner` register of
+  // every on-shelf book whose listed owner's name differs (books.owner_name).
   ADD_BY_LINK: 'add_by_link',
   ADD_MINE: 'add_mine',
   LIST_MINE: 'list_mine',
@@ -528,7 +529,7 @@ export const EventKind = Object.freeze({
   // three are transient command replies (like BOOK_ONLINE / SAVED), folded into
   // ephemeral view state, not reducer slices. MINE `{ status, books }` is the
   // "mine on Estante" list in reply to LIST_MINE: `status` is 'ready' (with
-  // `books: [{ id, label, gitUrl, role }]`, the account's off-shelf books),
+  // `books: [{ id, label, gitUrl, role, ownerName? }]`, the account's off-shelf books),
   // 'signed_out' (a 401 — the sheet shows "Sign in to see them"), or 'error'; it
   // folds into the `mine` reducer slice the Add-a-book sheet reads.
   BOOK_CLONED: 'book_cloned',

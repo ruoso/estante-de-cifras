@@ -39,12 +39,16 @@ export function WarnIcon() {
  * `triggerLabel` its accessible name (a row's *Leave {book}*); `triggerClass`
  * and `triggerStyle` its button style (a card's left-aligned danger button by
  * default; a row passes its quiet button and no style). `isDisabled` holds the trigger off (offline, Decision 8).
- * `onMakeYourOwn` opens the fork sheet (book management only).
+ * `onMakeYourOwn` opens the fork sheet (book management only). `ownerName` is
+ * the owner's name, when known (the shelf's `owner` register or the *Mine on
+ * Estante* row — books.owner_name): the sentence then names who can invite you
+ * again; without it, *The owner*.
  */
 export default function LeaveDialog({
   store,
   bookId,
   title,
+  ownerName,
   onDevice = false,
   isDisabled = false,
   trigger,
@@ -114,7 +118,11 @@ export default function LeaveDialog({
                   {t('books.leaveTitle', { name: title })}
                 </Heading>
                 <p className="t-body">
-                  {onDevice ? t('books.leaveSentence') : t('books.leaveSentenceRemote')}
+                  {ownerName
+                    ? t(onDevice ? 'books.leaveSentenceNamed' : 'books.leaveSentenceRemoteNamed', {
+                        owner: ownerName,
+                      })
+                    : t(onDevice ? 'books.leaveSentence' : 'books.leaveSentenceRemote')}
                 </p>
                 {onDevice && unsaved > 0 ? (
                   <div className="notice unsaved" style={{ gap: 10 }}>

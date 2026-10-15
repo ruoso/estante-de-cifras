@@ -214,3 +214,65 @@ func TestCountNewSaves(t *testing.T) {
 		t.Errorf("empty original: CountNewSaves = %d, %v; want 0", n, err)
 	}
 }
+
+// TestReadAuthorName pins books.owner_name's read of the owner's name from a
+// home book (docs/home-book-format.md §4.1 authorName, §5.3 tombstones), against
+// real bare repositories: a set authorName gives the name; a tombstone, an
+// absent key, no main, no preferences.json and malformed JSON each mean "no
+// name" (ok=false), never an error.
+func TestReadAuthorName(t *testing.T) {
+	ctx := context.Background()
+	s := Store{Root: t.TempDir()}
+
+	// seed makes a bare home book whose main holds the given files.
+	seed := func(id string, files map[string]string) {
+		t.Helper()
+		if err := s.InitBare(ctx, id); err != nil {
+			t.Fatalf("init %s: %v", id, err)
+		}
+		if len(files) == 0 {
+			return
+		}
+		work := filepath.Join(t.TempDir(), "wc")
+		git(t, filepath.Dir(work), "clone", "-q", filepath.Join(s.Root, id+".git"), work)
+		git(t, work, "checkout", "-q", "-b", "main")
+		for name, body := range files {
+			commitFile(t, work, name, body, "seed "+name)
+		}
+		git(t, work, "push", "-q", "origin", "main")
+	}
+	const readme = "# Home\n"
+	const at = `"at": "2026-10-05T14:29:12.500Z"`
+
+	cases := []struct {
+		name   string
+		id     string
+		files  map[string]string
+		want   string
+		wantOK bool
+	}{
+		{"a set authorName gives the name", "1a2b3c4d-0000-4000-8000-000000000001",
+			map[string]string{"README.md": readme, "preferences.json": `{"authorName": {"value": "Marina Souza", ` + at + `}, "theme": {"value": "palco", ` + at + `}}` + "\n"},
+			"Marina Souza", true},
+		{"a tombstoned authorName is no name", "1a2b3c4d-0000-4000-8000-000000000002",
+			map[string]string{"README.md": readme, "preferences.json": `{"authorName": {"value": null, ` + at + `}}` + "\n"},
+			"", false},
+		{"an absent authorName is no name", "1a2b3c4d-0000-4000-8000-000000000003",
+			map[string]string{"README.md": readme, "preferences.json": `{"theme": {"value": "palco", ` + at + `}}` + "\n"},
+			"", false},
+		{"no main is no name", "1a2b3c4d-0000-4000-8000-000000000004", nil, "", false},
+		{"no preferences.json is no name", "1a2b3c4d-0000-4000-8000-000000000005",
+			map[string]string{"README.md": readme}, "", false},
+		{"malformed JSON is no name", "1a2b3c4d-0000-4000-8000-000000000006",
+			map[string]string{"README.md": readme, "preferences.json": `{"authorName": {"value": "Ana"`}, "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			seed(tc.id, tc.files)
+			got, ok := s.ReadAuthorName(ctx, tc.id)
+			if got != tc.want || ok != tc.wantOK {
+				t.Errorf("ReadAuthorName = %q, %v; want %q, %v", got, ok, tc.want, tc.wantOK)
+			}
+		})
+	}
+}

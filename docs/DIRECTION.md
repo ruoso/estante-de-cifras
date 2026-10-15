@@ -168,7 +168,12 @@ book's history goes wherever the book is shared or downloaded, and a
 person's address does not belong in it. History recognises *you* by that
 address (workflow 6); before sign-in, a device's commits carry a local id
 in its place, which the account's address replaces in the saves not yet
-pushed when the user signs in. **One origin** for both: no CORS, a
+pushed when the user signs in. The service stores no name for an
+account: the name a person gives their saves (`authorName` in their home
+book, `docs/home-book-format.md` §4.1) is already in the history of every
+book they save to. The service reads it from the owner's home book to tell a
+book's members who shares it (*shared by Ana*, *Ana can invite you again*,
+workflow 10 §Leaving a book), and to no one else. **One origin** for both: no CORS, a
 session cookie that simply flows, and a passkey for the one domain.
 Moving the app to a CDN later is possible but not free, since a shelf
 belongs to the app's origin; it would keep the same domain.

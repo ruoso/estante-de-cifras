@@ -54,6 +54,39 @@ type bookJSON struct {
 	Visibility string        `json:"visibility"`
 	GitURL     string        `json:"gitUrl"`
 	Original   *originalJSON `json:"original,omitempty"`
+	// OwnerName is the owner's name for a caller who is not the owner, read
+	// from the owner's home book; omitted when unset (books.owner_name).
+	OwnerName string `json:"ownerName,omitempty"`
+}
+
+// ownerNames reads, once per owner within one request, the name an owner gives
+// their saves: the authorName of the owner's home book (books.kind = 'home',
+// one per owner). The service stores no name (DIRECTION §3.3); a missing home
+// book or an unreadable or unset name is "" — never an error, and never logged.
+type ownerNames struct {
+	api   *APIDeps
+	store book.Store
+	names map[string]string
+}
+
+func newOwnerNames(api *APIDeps, store book.Store) *ownerNames {
+	return &ownerNames{api: api, store: store, names: map[string]string{}}
+}
+
+func (o *ownerNames) name(ctx context.Context, ownerID string) string {
+	if name, seen := o.names[ownerID]; seen {
+		return name
+	}
+	var name string
+	var homeID string
+	err := o.api.DB.QueryRow(ctx, `
+		SELECT id FROM books
+		WHERE owner_id = $1 AND kind = 'home' AND deleted_at IS NULL`, ownerID).Scan(&homeID)
+	if err == nil {
+		name, _ = o.store.ReadAuthorName(ctx, homeID)
+	}
+	o.names[ownerID] = name
+	return name
 }
 
 type bookListJSON struct {
@@ -181,7 +214,7 @@ func handleListBooks(api *APIDeps) http.HandlerFunc {
 		// collides. Deleted books are omitted, and so is the account's home book:
 		// it is not a songbook (service.home_book).
 		rows, err := api.DB.Query(ctx, `
-			SELECT b.id, b.original_book_id,
+			SELECT b.id, b.original_book_id, b.owner_id,
 			       CASE WHEN b.owner_id = $1 THEN 'owner' ELSE m.role::text END AS role
 			FROM books b
 			LEFT JOIN memberships m ON m.book_id = b.id AND m.account_id = $1
@@ -196,10 +229,15 @@ func handleListBooks(api *APIDeps) http.HandlerFunc {
 
 		store := book.Store{Root: api.BooksRoot}
 		list := bookListJSON{Books: []bookJSON{}}
+		type listed struct {
+			bj      bookJSON
+			ownerID string
+		}
+		var books []listed
 		for rows.Next() {
-			var id, role string
+			var id, ownerID, role string
 			var originalID *string
-			if err := rows.Scan(&id, &originalID, &role); err != nil {
+			if err := rows.Scan(&id, &originalID, &ownerID, &role); err != nil {
 				writeError(w, http.StatusInternalServerError, "internal", "Could not list the books.")
 				return
 			}
@@ -224,11 +262,23 @@ func handleListBooks(api *APIDeps) http.HandlerFunc {
 					bj.Original.Title = &ot
 				}
 			}
-			list.Books = append(list.Books, bj)
+			books = append(books, listed{bj: bj, ownerID: ownerID})
 		}
 		if err := rows.Err(); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal", "Could not list the books.")
 			return
+		}
+		rows.Close()
+
+		// A member is told who shares the book: the owner's name, read once per
+		// owner (books.owner_name). The owner's own books carry none. Read after
+		// the rows are drained, so the lookup does not share the connection.
+		owners := newOwnerNames(api, store)
+		for _, b := range books {
+			if b.bj.Role != "owner" {
+				b.bj.OwnerName = owners.name(ctx, b.ownerID)
+			}
+			list.Books = append(list.Books, b.bj)
 		}
 
 		writeJSON(w, http.StatusOK, list)

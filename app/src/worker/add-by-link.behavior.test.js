@@ -86,7 +86,7 @@ async function seedRemoteWithSong(remote, scratch) {
 // the REAL loopback remote and serves the accept contract from `onAccept(token)`,
 // which returns `{ status, body }`. The change-check is stubbed empty so the sync
 // scheduler's trigger has nothing to do.
-function routingFetch(onAccept) {
+function routingFetch(onAccept, onList = () => []) {
   const apiCalls = [];
   const impl = async (url, init = {}) => {
     if (typeof url === 'string' && url.startsWith('http')) {
@@ -99,6 +99,9 @@ function routingFetch(onAccept) {
       const status = r.status ?? 200;
       return { ok: status >= 200 && status < 300, status, json: async () => r.body ?? null };
     }
+    if (url === '/api/books' && (init.method ?? 'GET') === 'GET') {
+      return { ok: true, status: 200, json: async () => ({ books: onList() }) };
+    }
     if (url === '/api/shelf/change-check') {
       return { ok: true, status: 200, json: async () => ({ books: [] }) };
     }
@@ -107,14 +110,14 @@ function routingFetch(onAccept) {
   return { impl, apiCalls };
 }
 
-async function makeWorker(onAccept) {
+async function makeWorker(onAccept, onList) {
   const idb = new IDBFactory();
   const name = `addlink-${rand()}`;
   const fs = createFileSystem(`${name}-fs`, { indexedDB: idb });
   const git = createGitLayer({ fs, http: createGitHttpClient({ fetch: globalThis.fetch }) });
   const locks = createBookLocks({ navigator });
   const deviceId = await createHomeBook({ fs, git, locks }).ensureDeviceId({ idb, name });
-  const { impl: fetchImpl, apiCalls } = routingFetch(onAccept);
+  const { impl: fetchImpl, apiCalls } = routingFetch(onAccept, onList);
   const events = [];
   const endpoint = createLoopbackEndpoint((port) =>
     createWorkerLogic(port, { indexedDB: idb, name, fetch: fetchImpl }),
@@ -285,6 +288,91 @@ describe('add by link (books.add_by_link, workflow 1 §Invited)', () => {
       const t = await addByLink(notFound, 'tok-404');
       expect(t.kind).toBe(EventKind.BOOK_REFUSED);
       expect(t.payload.reason).toBe('dead');
+    } finally {
+      await remote.stop();
+    }
+  });
+});
+
+// books.owner_name — the shelf's `owner` register (home-book-format §4.2): the
+// owner's name as the service last gave it, written when a member's book comes
+// onto the shelf (by invitation or from *Mine on Estante*) and refreshed when
+// LIST_MINE lists the account's books. What the chip and the Leave confirmation
+// read, offline (workflow 10 §Leaving a book).
+describe('the owner\'s name on the shelf (books.owner_name; home-book-format §4.2)', () => {
+  it('accepting a Book with ownerName writes the owner register', async () => {
+    const remote = await startGitHttpRemote({ seed: false });
+    const serviceId = `srv-${rand()}`;
+    try {
+      await seedRemoteWithSong(remote, scratch);
+      const w = await makeWorker(() => ({
+        status: 200,
+        body: { ...bookOf('reader', serviceId, remote.url), ownerName: 'Ana Lima' },
+      }));
+      expect((await addByLink(w, 'tok-named')).kind).toBe(EventKind.BOOK_CLONED);
+      const shelf = JSON.parse(await w.readHome('shelf.json'));
+      expect(shelf.books[serviceId].owner.value).toBe('Ana Lima');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('accepting a Book without ownerName writes no owner register', async () => {
+    const remote = await startGitHttpRemote({ seed: false });
+    const serviceId = `srv-${rand()}`;
+    try {
+      await seedRemoteWithSong(remote, scratch);
+      const w = await makeWorker(() => ({ status: 200, body: bookOf('editor', serviceId, remote.url) }));
+      expect((await addByLink(w, 'tok-unnamed')).kind).toBe(EventKind.BOOK_CLONED);
+      const shelf = JSON.parse(await w.readHome('shelf.json'));
+      expect(shelf.books[serviceId].owner).toBeUndefined();
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('ADD_MINE writes the owner register from the row; LIST_MINE refreshes it when the name changes', async () => {
+    const remote = await startGitHttpRemote({ seed: false });
+    const serviceId = `srv-${rand()}`;
+    let listedName = 'Ana';
+    try {
+      await seedRemoteWithSong(remote, scratch);
+      const w = await makeWorker(
+        () => ({ status: 404 }),
+        () => [{ ...bookOf('reader', serviceId, remote.url), ownerName: listedName }],
+      );
+
+      const mark = w.events.length;
+      w.send(
+        command(CommandKind.ADD_MINE, {
+          bookId: serviceId,
+          gitUrl: remote.url,
+          label: 'Choros da Ana',
+          role: 'reader',
+          ownerName: 'Ana',
+          author: IDENTITY,
+        }),
+      );
+      await waitFor(() => {
+        expect(w.events.slice(mark).some((e) => e.kind === EventKind.BOOK_CLONED)).toBe(true);
+      }, CLONE_WAIT);
+      expect(JSON.parse(await w.readHome('shelf.json')).books[serviceId].owner.value).toBe('Ana');
+
+      // The owner changed their name; the next listing brings the register in
+      // line, re-surfacing SHELF with it.
+      listedName = 'Ana Lima';
+      const before = w.events.length;
+      w.send(command(CommandKind.LIST_MINE, {}));
+      await waitFor(() => {
+        const shelfEv = w.events
+          .slice(before)
+          .find((e) => e.kind === EventKind.SHELF && e.payload.books?.[serviceId]?.owner?.value === 'Ana Lima');
+        expect(shelfEv).toBeTruthy();
+      });
+      // The MINE reply does not list it: it is already on this shelf.
+      const mine = w.events.slice(before).find((e) => e.kind === EventKind.MINE);
+      expect(mine.payload.books.map((b) => b.id)).not.toContain(serviceId);
+      expect(JSON.parse(await w.readHome('shelf.json')).books[serviceId].owner.value).toBe('Ana Lima');
     } finally {
       await remote.stop();
     }

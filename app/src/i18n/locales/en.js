@@ -159,6 +159,8 @@ export default {
     detailBack: 'Back to books',
     pickBook: 'Pick a book to see its details.',
     private: 'private',
+    sharedBy: 'shared by {owner}',
+    shared: 'shared',
     youOwn: 'You own it',
     youCanSave: 'You can save',
     readOnly: 'Read only',
@@ -213,6 +215,8 @@ export default {
     leaveTitle: 'Leave {name}?',
     leaveSentence: 'You will no longer open or sync it, on any of your devices, and it is removed from this one. The owner can invite you again.',
     leaveSentenceRemote: 'You will no longer open or sync it, on any of your devices. The owner can invite you again.',
+    leaveSentenceNamed: 'You will no longer open or sync it, on any of your devices, and it is removed from this one. {owner} can invite you again.',
+    leaveSentenceRemoteNamed: 'You will no longer open or sync it, on any of your devices. {owner} can invite you again.',
     leaveUnsaved: {
       one: '{count} song with unsaved changes will be lost',
       other: '{count} songs with unsaved changes will be lost',

@@ -152,4 +152,35 @@ describe('Mine on Estante (behavior)', () => {
     expect(within(sheet).queryByText('Choros da Ana')).toBeNull();
     expect(within(sheet).getByText('Turma de quarta')).toBeInTheDocument();
   });
+
+  // books.owner_name — the row carries the owner's name the listing gave
+  // (ownerName), so its confirmation names who can invite you again (Leave-book
+  // board L198; workflow 10 §Leaving a book L116-117), and the add writes it on
+  // the shelf (ADD_MINE carries it).
+  it('a row with ownerName names the owner in its confirmation, and ADD_MINE carries the name; axe clean', async () => {
+    const { store, sent, emit } = makeStore();
+    renderScreen(store);
+    const sheet = openSheet();
+    emit(
+      event(EventKind.MINE, {
+        status: 'ready',
+        books: [{ ...MINE[0], ownerName: 'Ana' }, MINE[1]],
+      }),
+    );
+
+    act(() => fireEvent.click(within(sheet).getByRole('button', { name: 'Leave Choros da Ana' })));
+    const confirm = screen.getByRole('alertdialog');
+    expect(
+      within(confirm).getByText('You will no longer open or sync it, on any of your devices. Ana can invite you again.'),
+    ).toBeInTheDocument();
+    expect(within(confirm).queryByText(/The owner can invite you again/)).toBeNull();
+    expect(await checkWcag21aa(confirm)).toHaveNoViolations();
+    act(() => fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' })));
+
+    act(() => fireEvent.click(within(sheet).getByRole('button', { name: 'Add Choros da Ana' })));
+    expect(lastCommand(sent, CommandKind.ADD_MINE).payload).toMatchObject({
+      bookId: 'b-choros',
+      ownerName: 'Ana',
+    });
+  });
 });

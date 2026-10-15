@@ -227,6 +227,9 @@ function spawnGit(cwd, args, input) {
     const child = spawn('git', args, {
       cwd,
       env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1' },
+      // No input: give git no stdin at all, so there is no pipe to write into
+      // after a git that never reads it (rev-list) has already exited.
+      stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
     });
     const out = [];
     const err = [];
@@ -237,7 +240,14 @@ function spawnGit(cwd, args, input) {
       if (code !== 0) reject(new Error(`git ${args.join(' ')} exited ${code}: ${Buffer.concat(err)}`));
       else resolve(Buffer.concat(out));
     });
-    child.stdin.end(input ?? '');
+    if (input !== undefined) {
+      // git may exit before draining stdin; the EPIPE that follows is not the
+      // failure — the exit code (reported on close) is.
+      child.stdin.on('error', (e) => {
+        if (e.code !== 'EPIPE') reject(e);
+      });
+      child.stdin.end(input);
+    }
   });
 }
 

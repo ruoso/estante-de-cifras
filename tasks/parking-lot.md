@@ -138,3 +138,7 @@ Append one `###` block per item, newest at the bottom:
 ### 2026-10-15 — Flake: `online.spec.js` "remove a hosted book with an unsaved song" fails once on phone and tablet
 - **What**: in the driver's gate run it timed out on the first attempt on phone and tablet (`gotoTab` → `Back to books` click, "element was detached from the DOM, retrying") and passed on retry #1; computer passed first time. Log: `orchestrator/logs/iter-0037-verify-gate.log`.
 - **Why parked**: a stability fix to a test helper path (`e2e/web/lib/journeys.js:37`) needs a person to judge whether the re-render is an app bug or a helper race.
+
+### 2026-10-15 — Flake: `leave-book.spec.js` Mine-on-Estante-row Leave fails once on phone (from `books.owner_name`)
+- **What**: in the driver's gate run "a book removed from the shelf is left from its Mine on Estante row" timed out (30s, `leave-book.spec.js:161`) on the first phone attempt and passed on retry #1; tablet and computer passed first time. The same run flaked `online.spec.js:90` on tablet. Log: `orchestrator/logs/iter-0040-verify-gate.log`.
+- **Why parked**: judging whether the wait is an app race or a helper race needs a person.

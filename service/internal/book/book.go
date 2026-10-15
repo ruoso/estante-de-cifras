@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -108,6 +109,37 @@ func (s Store) ReadTitle(ctx context.Context, id string) (string, bool) {
 		return "", false
 	}
 	return titleFromREADME(out), true
+}
+
+// ReadAuthorName returns the name a person gives their saves — the authorName
+// register of their home book's preferences.json at refs/heads/main
+// (docs/home-book-format.md §4.1) — and whether one is set. ok is false when
+// the repository has no main, no preferences.json, malformed JSON, or an
+// absent, tombstoned (§5.3), non-string or empty register: every case means
+// "no name", never an error. The service stores no name of its own (DIRECTION
+// §3.3); it reads this one to tell a book's members who shares it
+// (books.owner_name). The name is user-chosen text: callers never log it.
+func (s Store) ReadAuthorName(ctx context.Context, homeBookID string) (string, bool) {
+	path, err := repoPath(s.Root, homeBookID)
+	if err != nil {
+		return "", false
+	}
+	out, err := runGit(ctx, "--git-dir", path, "cat-file", "-p", "refs/heads/main:preferences.json")
+	if err != nil {
+		return "", false
+	}
+	var prefs struct {
+		AuthorName *struct {
+			Value *string `json:"value"`
+		} `json:"authorName"`
+	}
+	if err := json.Unmarshal(out, &prefs); err != nil {
+		return "", false
+	}
+	if prefs.AuthorName == nil || prefs.AuthorName.Value == nil || *prefs.AuthorName.Value == "" {
+		return "", false
+	}
+	return *prefs.AuthorName.Value, true
 }
 
 // ResolveHead resolves the book's main branch to its commit SHA — the single
