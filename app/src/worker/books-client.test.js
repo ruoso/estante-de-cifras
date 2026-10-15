@@ -137,6 +137,39 @@ describe('books-client (service.books contract)', () => {
     }
   });
 
+  // leaveBook (books.leave; api/openapi.yaml L668-692): DELETE the caller's own
+  // membership, 204 no body.
+  it('leave DELETEs /api/books/{id}/membership with credentials and resolves on 204', async () => {
+    const { fetchImpl, calls } = fakeFetch(() => ({ status: 204 }));
+    const client = createBooksClient({ fetch: fetchImpl });
+
+    await expect(client.leave('srv-shared')).resolves.toBeUndefined();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe('/api/books/srv-shared/membership');
+    expect(calls[0].init.method).toBe('DELETE');
+    expect(calls[0].init.credentials).toBe('include');
+  });
+
+  it('surfaces a leave 404 (not a member), 409 (owner) and 401 (no session) as typed errors', async () => {
+    for (const status of [404, 409, 401]) {
+      const { fetchImpl } = fakeFetch(() => ({ status, body: { code: 'owner_cannot_leave' } }));
+      const client = createBooksClient({ fetch: fetchImpl });
+      await expect(client.leave('srv-shared')).rejects.toMatchObject({ status });
+    }
+  });
+
+  it('surfaces a thrown fetch on leave as the network error itself (no .status)', async () => {
+    const offline = new TypeError('Failed to fetch');
+    const client = createBooksClient({
+      fetch: async () => {
+        throw offline;
+      },
+    });
+    const err = await client.leave('srv-shared').catch((e) => e);
+    expect(err).toBe(offline);
+    expect(err.status).toBeUndefined();
+  });
+
   it('logs nothing — not on success, not on failure', async () => {
     const { fetchImpl } = fakeFetch((url, init) =>
       init.method === 'DELETE' ? { status: 403 } : { status: 201, body: { id: 'x' } },
@@ -144,6 +177,7 @@ describe('books-client (service.books contract)', () => {
     const client = createBooksClient({ fetch: fetchImpl });
     await client.create({ title: 'Quiet' });
     await client.remove('x').catch(() => {});
+    await client.leave('x').catch(() => {});
     expect(logs).toEqual([]);
   });
 });

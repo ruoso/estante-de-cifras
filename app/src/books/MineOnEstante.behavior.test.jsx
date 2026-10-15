@@ -100,4 +100,56 @@ describe('Mine on Estante (behavior)', () => {
     emit(event(EventKind.MINE, { status: 'ready', books: [] }));
     expect(within(dialog).getByText('All your books are already on this shelf.')).toBeInTheDocument();
   });
+
+  // Leave on a Mine on Estante row (books.leave; workflow 10 L99-101, L116-117;
+  // Leave-book board L143, L192): a book already removed from this shelf is
+  // left without adding it back.
+  it('a reader’s row offers Leave; an owner’s does not (L99-101)', async () => {
+    const { store, emit } = makeStore();
+    renderScreen(store);
+    const dialog = openSheet();
+    emit(
+      event(EventKind.MINE, {
+        status: 'ready',
+        books: [...MINE, { id: 'b-own', label: 'Meus estudos', role: 'owner', gitUrl: 'https://e/git/b-own' }],
+      }),
+    );
+
+    expect(within(dialog).getByRole('button', { name: 'Leave Choros da Ana' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Leave Turma de quarta' })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: 'Leave Meus estudos' })).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Add Meus estudos' })).toBeInTheDocument();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+  });
+
+  it('the row’s confirmation is the sentence alone; confirming sends LEAVE_BOOK, and on BOOK_LEFT the row is gone (L116-117; board L192); axe clean', async () => {
+    const { store, sent, emit } = makeStore();
+    renderScreen(store);
+    const sheet = openSheet();
+    emit(event(EventKind.MINE, { status: 'ready', books: MINE }));
+
+    act(() => fireEvent.click(within(sheet).getByRole('button', { name: 'Leave Choros da Ana' })));
+    const confirm = screen.getByRole('alertdialog');
+    expect(within(confirm).getByRole('heading', { name: 'Leave Choros da Ana?' })).toBeInTheDocument();
+    expect(
+      within(confirm).getByText(
+        'You will no longer open or sync it, on any of your devices. The owner can invite you again.',
+      ),
+    ).toBeInTheDocument();
+    // No counts, no "removed from this one", and no survey asked for.
+    expect(within(confirm).queryByText(/removed from this one/)).toBeNull();
+    expect(within(confirm).queryByText(/will be lost|never will/)).toBeNull();
+    expect(lastCommand(sent, CommandKind.SURVEY_SIGN_OUT)).toBeUndefined();
+    expect(within(confirm).getAllByRole('button').map((b) => b.textContent)).toEqual(['Cancel', 'Leave the book']);
+    expect(await checkWcag21aa(confirm)).toHaveNoViolations();
+
+    act(() => fireEvent.click(within(confirm).getByRole('button', { name: 'Leave the book' })));
+    expect(lastCommand(sent, CommandKind.LEAVE_BOOK).payload).toMatchObject({ bookId: 'b-choros' });
+
+    // The Worker answered: the reducer drops the row, the other stays.
+    emit(event(EventKind.BOOK_LEFT, { bookId: 'b-choros' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(within(sheet).queryByText('Choros da Ana')).toBeNull();
+    expect(within(sheet).getByText('Turma de quarta')).toBeInTheDocument();
+  });
 });

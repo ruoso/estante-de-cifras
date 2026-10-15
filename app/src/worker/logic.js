@@ -950,6 +950,43 @@ export function createWorkerLogic(port, options = {}) {
     port.postMessage(event(EventKind.BOOK_CLONED, { bookId: serviceId }));
   }
 
+  // Remove one book from this device (workflow 7 L128-135): delete the local
+  // repository and tombstone the shelf register so the row drops (§5.3). A local
+  // book's `title`/`position` registers are tombstoned; a hosted book's
+  // `label`/`link`/`position`/`role`. The one teardown REMOVE_BOOK and
+  // LEAVE_BOOK share (books.leave Constraint 3); the reply event is the
+  // caller's. Touches no network.
+  async function removeFromShelf({ bookId, author }) {
+    const home = ensureHomeBook();
+    await home.ensureLocal({ author });
+    const deviceId = await home.ensureDeviceId({ idb, name, version });
+    const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+    const isLocal = Boolean(shelf?.local?.[deviceId]?.[bookId]);
+    await ensureOnline().remove({ bookId });
+    const changes = isLocal
+      ? [
+          { path: ['local', deviceId, bookId, 'title'], value: null },
+          { path: ['local', deviceId, bookId, 'position'], value: null },
+        ]
+      : [
+          { path: ['books', bookId, 'label'], value: null },
+          { path: ['books', bookId, 'link'], value: null },
+          { path: ['books', bookId, 'position'], value: null },
+          { path: ['books', bookId, 'role'], value: null },
+        ];
+    await home.set({ bookId: HOME_BOOK_ID, file: 'shelf.json', changes, author });
+    await surfaceHomeBookShelf();
+    // The clone is gone; drop the book's index entries so a SEARCH in this
+    // session no longer surfaces a book the device no longer holds
+    // (books.online_reindex acceptance 3), and null its stale build-status
+    // entry (Decision 4) — both before the caller's reply, so the view's next
+    // read is already consistent.
+    await ensureIndexHydrated();
+    await persistIndexChanges(ensureSearchIndex().removeBook(bookId));
+    port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: null }));
+    await ensureFs().flush();
+  }
+
   // Read the home book's instruments.json, preferences.json (for the in-use
   // register) and shapes.json, project them to the roster payload, and post the
   // INSTRUMENTS event — the contract music.instruments defined (reducer replaces
@@ -2013,41 +2050,37 @@ export function createWorkerLogic(port, options = {}) {
             break;
           }
           case CommandKind.REMOVE_BOOK: {
-            // Remove this device's clone only (workflow 7 L128-135): delete the
-            // local repository and tombstone the shelf register so the row drops
-            // (§5.3). The service book (if any) is untouched — all local. A local
-            // book's `title`/`position` registers are tombstoned; a hosted book's
-            // `label`/`link`/`position`/`role`.
+            // Remove this device's clone only (workflow 7 L128-135). The service
+            // book (if any) is untouched — all local.
             const { bookId, author } = message.payload;
-            const home = ensureHomeBook();
-            await home.ensureLocal({ author });
-            const deviceId = await home.ensureDeviceId({ idb, name, version });
-            const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
-            const isLocal = Boolean(shelf?.local?.[deviceId]?.[bookId]);
-            await ensureOnline().remove({ bookId });
-            const changes = isLocal
-              ? [
-                  { path: ['local', deviceId, bookId, 'title'], value: null },
-                  { path: ['local', deviceId, bookId, 'position'], value: null },
-                ]
-              : [
-                  { path: ['books', bookId, 'label'], value: null },
-                  { path: ['books', bookId, 'link'], value: null },
-                  { path: ['books', bookId, 'position'], value: null },
-                  { path: ['books', bookId, 'role'], value: null },
-                ];
-            await home.set({ bookId: HOME_BOOK_ID, file: 'shelf.json', changes, author });
-            await surfaceHomeBookShelf();
-            // The clone is gone; drop the book's index entries so a SEARCH in
-            // this session no longer surfaces a book the device no longer holds
-            // (books.online_reindex acceptance 3), and null its stale
-            // build-status entry (Decision 4) — both before the BOOK_REMOVED
-            // emit, so the view's next read is already consistent.
-            await ensureIndexHydrated();
-            await persistIndexChanges(ensureSearchIndex().removeBook(bookId));
-            port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: null }));
-            await ensureFs().flush();
+            await removeFromShelf({ bookId, author });
             port.postMessage(event(EventKind.BOOK_REMOVED, { bookId }));
+            break;
+          }
+          case CommandKind.LEAVE_BOOK: {
+            // End this person's membership of a shared book (books.leave;
+            // workflow 10 §Leaving a book). The service first — DELETE
+            // /api/books/{id}/membership — and only on its 204, or a 404 (the
+            // membership already gone, Decision 3), the same teardown as
+            // REMOVE_BOOK, if the book is on this shelf at all (a *Mine on
+            // Estante* row's book is not: nothing local to touch). A network
+            // failure, a 401 or a 409 touches nothing local and replies
+            // LEAVE_FAILED (workflow 10 L119-120, L128-130). Logs nothing.
+            const { bookId, author } = message.payload;
+            try {
+              await ensureBooksClient().leave(bookId);
+            } catch (err) {
+              if (err?.status !== 404) {
+                const reason = typeof err?.status === 'number' ? 'refused' : 'network';
+                port.postMessage(event(EventKind.LEAVE_FAILED, { bookId, reason }));
+                break;
+              }
+            }
+            const shelf = await ensureHomeBook().read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+            if (shelf?.books?.[bookId]?.label?.value != null) {
+              await removeFromShelf({ bookId, author });
+            }
+            port.postMessage(event(EventKind.BOOK_LEFT, { bookId }));
             break;
           }
           case CommandKind.DELETE_BOOK: {
@@ -2098,10 +2131,14 @@ export function createWorkerLogic(port, options = {}) {
             const surveyFs = ensureFs();
             const surveyGit = ensureGit();
             const surveyIndex = ensureSearchIndex();
-            const unsavedSongsIn = (id) => {
+            const unsavedIn = (id) => {
               const [first] = surveyIndex.browse({ scope: { bookId: id } }).books;
-              return (first?.songs ?? []).filter((s) => s.unsaved).length;
+              return (first?.songs ?? []).filter((s) => s.unsaved);
             };
+            const unsavedSongsIn = (id) => unsavedIn(id).length;
+            // The titles the Leave confirmation lists beside its count
+            // (books.leave; Leave-book board L74). Never logged.
+            const unsavedTitlesIn = (id) => unsavedIn(id).map((s) => s.title || s.path);
             const books = [];
             const shared = shelf?.books ?? {};
             for (const id of Object.keys(shared)) {
@@ -2115,6 +2152,7 @@ export function createWorkerLogic(port, options = {}) {
                 role: shared[id]?.role?.value ?? null,
                 savesWaiting: await countCommitsAhead({ fs: surveyFs, dir }),
                 unsavedSongs: unsavedSongsIn(id),
+                unsavedTitles: unsavedTitlesIn(id),
                 onEstante: (await resolveOriginHead({ fs: surveyFs, dir })) != null,
               });
             }
@@ -2129,6 +2167,7 @@ export function createWorkerLogic(port, options = {}) {
                 role: null,
                 savesWaiting: 0,
                 unsavedSongs: unsavedSongsIn(id),
+                unsavedTitles: unsavedTitlesIn(id),
                 onEstante: false,
               });
             }

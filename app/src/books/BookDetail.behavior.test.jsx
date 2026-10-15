@@ -7,7 +7,7 @@
 // mounts it, so its overlays portal into the `.est` token root (the app-wide
 // UNSAFE_PortalProvider) — [[rac-overlays-portal-outside-est-theme-root]].
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent, act, within, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, act, within, cleanup, waitFor } from '@testing-library/react';
 
 import { checkWcag21aa } from '../a11y/axe.js';
 import { createStore } from '../worker/store.js';
@@ -431,5 +431,203 @@ describe('BookDetail — the original is no longer shared (books.bring_in; W11 b
     renderDetail(plain.store, { bookId: 'srv-fork', kind: 'shared' });
     plain.emit(forkShelf(null));
     expect(screen.queryByText(TITLE)).toBeNull();
+  });
+});
+
+// Leaving one shared book (books.leave; workflow 10 §Leaving a book L95-143;
+// Leave-book board L72-77, L103-106, L121-134, L192). The card is a member's
+// only; the confirmation counts what this device would lose from the Worker's
+// SIGN_OUT_SURVEY (Decision 2); the view sends LEAVE_BOOK and reacts to
+// BOOK_LEFT / LEAVE_FAILED.
+describe('Leave this book (books.leave; workflow 10 §Leaving a book)', () => {
+  const readerShelf = (id = 'srv-3') =>
+    event(EventKind.SHELF, {
+      books: { [id]: { label: reg('Roda de Choro'), position: reg(1), role: reg('reader') } },
+      local: {},
+    });
+  const leaveCard = () => screen.queryByRole('button', { name: 'Leave this book' });
+  const openLeave = () => {
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Leave this book' })));
+    return screen.getByRole('alertdialog');
+  };
+  const survey = (books) => event(EventKind.SIGN_OUT_SURVEY, { books });
+
+  it('is shown to a reader and to an editor, below Remove from my shelf (L95-101); axe clean on the card', async () => {
+    for (const [shelf, id] of [
+      [readerShelf(), 'srv-3'],
+      [memberShelf(), 'srv-2'],
+    ]) {
+      const { store, emit } = makeStore();
+      const { container } = renderDetail(store, { bookId: id, kind: 'shared' });
+      emit(shelf);
+      const leave = leaveCard();
+      expect(leave).toBeInTheDocument();
+      expect(screen.getByText('Stop following it on all your devices.')).toBeInTheDocument();
+      // Below the Remove card, in document order.
+      const remove = screen.getByRole('button', { name: 'Remove from my shelf' });
+      expect(remove.compareDocumentPosition(leave) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+      cleanup();
+    }
+  });
+
+  it('is not shown to an owner (who sees Delete), a local book, a gone book or a taken-down book (L95-101, L141-143)', () => {
+    const owned = makeStore();
+    renderDetail(owned.store, { bookId: 'srv-1', kind: 'shared' });
+    owned.emit(hostedShelf());
+    expect(screen.getByRole('button', { name: 'Delete the book' })).toBeInTheDocument();
+    expect(leaveCard()).toBeNull();
+    cleanup();
+
+    const local = makeStore();
+    renderDetail(local.store, { bookId: 'local-1', kind: 'local' });
+    local.emit(localShelf());
+    expect(leaveCard()).toBeNull();
+    cleanup();
+
+    const gone = makeStore();
+    renderDetail(gone.store, { bookId: 'srv-2', kind: 'shared' });
+    gone.emit(memberShelf());
+    gone.emit(event(EventKind.SYNC, { bookId: 'srv-2', phase: 'gone', at: AT }));
+    expect(leaveCard()).toBeNull();
+    cleanup();
+
+    const takenDown = makeStore();
+    renderDetail(takenDown.store, { bookId: 'srv-2', kind: 'shared' });
+    takenDown.emit(memberShelf());
+    takenDown.emit(
+      event(EventKind.SYNC, { bookId: 'srv-2', phase: 'taken_down', reason: 'A notice written for this test.', at: AT }),
+    );
+    expect(leaveCard()).toBeNull();
+  });
+
+  it('with nothing to lose: the sentence, Leave the book and Cancel, no typed name (L114-116)', async () => {
+    const { store, sent, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-3', kind: 'shared' });
+    emit(readerShelf());
+
+    const dialog = openLeave();
+    // Opening asks the Worker for the counts (Decision 2).
+    expect(lastCommand(sent, CommandKind.SURVEY_SIGN_OUT)).toBeTruthy();
+    emit(survey([{ id: 'srv-3', title: 'Roda de Choro', unsavedSongs: 0, unsavedTitles: [], savesWaiting: 0 }]));
+
+    expect(within(dialog).getByRole('heading', { name: 'Leave Roda de Choro?' })).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        'You will no longer open or sync it, on any of your devices, and it is removed from this one. The owner can invite you again.',
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).getAllByRole('button').map((b) => b.textContent)).toEqual(['Cancel', 'Leave the book']);
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+    expect(within(dialog).queryByText(/will be lost/)).toBeNull();
+  });
+
+  it('counts 2 unsaved songs and 3 saves waiting; Make it my own first opens the fork sheet, Download first sends DOWNLOAD_BOOK (L106-113); axe clean', async () => {
+    const { store, sent, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-2', kind: 'shared' });
+    emit(memberShelf());
+
+    const dialog = openLeave();
+    // The Leave the book button is pressable before the survey arrives (Constraint 5).
+    expect(within(dialog).getByRole('button', { name: 'Leave the book' })).toBeEnabled();
+    emit(
+      survey([
+        { id: 'other', title: 'Another book', unsavedSongs: 9, unsavedTitles: [], savesWaiting: 9 },
+        { id: 'srv-2', title: 'Choros da Ana', unsavedSongs: 2, unsavedTitles: ['Valsa Nova', 'Samba Curto'], savesWaiting: 3 },
+      ]),
+    );
+
+    expect(within(dialog).getByText('2 songs with unsaved changes will be lost')).toBeInTheDocument();
+    expect(within(dialog).getByText(/Valsa Nova, Samba Curto/)).toBeInTheDocument();
+    expect(within(dialog).getByText('3 saves have not reached the book and never will')).toBeInTheDocument();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+
+    // Download first sends DOWNLOAD_BOOK and leaves the dialog open.
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Download first' })));
+    expect(lastCommand(sent, CommandKind.DOWNLOAD_BOOK).payload).toEqual({ bookId: 'srv-2' });
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+    // Make it my own first closes the dialog and opens the fork sheet.
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Make it my own first' })));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.getByRole('dialog', { name: /make it your own\?/ })).toBeInTheDocument();
+    expect(lastCommand(sent, CommandKind.LEAVE_BOOK)).toBeUndefined();
+  });
+
+  it('Leave the book sends LEAVE_BOOK {bookId}, and BOOK_LEFT closes the detail (L119-125)', () => {
+    const { store, sent, emit } = makeStore();
+    let backs = 0;
+    renderDetail(store, { bookId: 'srv-3', kind: 'shared', onBack: () => (backs += 1) });
+    emit(readerShelf());
+
+    const dialog = openLeave();
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Leave the book' })));
+    expect(lastCommand(sent, CommandKind.LEAVE_BOOK).payload).toMatchObject({ bookId: 'srv-3' });
+
+    // Another book's BOOK_LEFT is not ours.
+    emit(event(EventKind.BOOK_LEFT, { bookId: 'srv-other' }));
+    expect(backs).toBe(0);
+    emit(event(EventKind.BOOK_LEFT, { bookId: 'srv-3' }));
+    expect(backs).toBe(1);
+  });
+
+  it('LEAVE_FAILED keeps the dialog open with “You did not leave …” in a live region (L128-130, Decision 7); axe clean', async () => {
+    const { store, sent, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-3', kind: 'shared' });
+    emit(readerShelf());
+
+    const dialog = openLeave();
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Leave the book' })));
+    emit(event(EventKind.LEAVE_FAILED, { bookId: 'srv-3', reason: 'network' }));
+
+    expect(screen.getByRole('alertdialog')).toBe(dialog);
+    const status = within(dialog).getByRole('status');
+    expect(status).toHaveTextContent('You did not leave Roda de Choro. You are still a member.');
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+
+    // The buttons stay, so the person can retry.
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Leave the book' })));
+    expect(sent.filter((m) => m.kind === CommandKind.LEAVE_BOOK)).toHaveLength(2);
+  });
+
+  it('offline: the button is disabled and the card says Leaving needs a connection (L127-128, Decision 8)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderDetail(store, { bookId: 'srv-3', kind: 'shared' });
+    emit(readerShelf());
+    try {
+      await act(async () => {
+        globalThis.dispatchEvent(new Event('offline'));
+      });
+      expect(leaveCard()).toBeDisabled();
+      const status = screen.getByRole('status');
+      expect(status).toHaveTextContent('Leaving needs a connection. Nothing has changed; you are still a member.');
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+      await act(async () => {
+        globalThis.dispatchEvent(new Event('online'));
+      });
+      expect(leaveCard()).toBeEnabled();
+      expect(screen.queryByText(/Leaving needs a connection/)).toBeNull();
+    } finally {
+      globalThis.dispatchEvent(new Event('online'));
+    }
+  });
+
+  it('Escape cancels, sends nothing, and returns focus to the card’s button', async () => {
+    const { store, sent, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-3', kind: 'shared' });
+    emit(readerShelf());
+
+    // Keyboard path: the card's button holds focus when the dialog opens.
+    act(() => leaveCard().focus());
+    const dialog = openLeave();
+    await act(async () => {
+      fireEvent.keyDown(dialog, { key: 'Escape' });
+      fireEvent.keyUp(dialog, { key: 'Escape' });
+    });
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(lastCommand(sent, CommandKind.LEAVE_BOOK)).toBeUndefined();
+    await waitFor(() => expect(document.activeElement).toBe(leaveCard()));
   });
 });

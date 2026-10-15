@@ -1,7 +1,8 @@
 // BookDetail.jsx — the per-book detail (books.online, workflow 7; W07 board).
 // The four acts that turn a book from a device-only thing into a hosted one,
 // carry it away, or take it off: Put online (a local book), Download (any),
-// Remove from my shelf (any), Delete the book (owner only). Opened by selecting
+// Remove from my shelf (any), Delete the book (owner only) — and, for a member,
+// Leave this book (books.leave, workflow 10 §Leaving a book). Opened by selecting
 // a book row on the book-management screen (the shelf's `selected` seam); laid
 // out by BooksScreen as a detail pane beside the list on a wide viewport and a
 // full-screen detail over the list on a phone (Decision 2). This component is
@@ -20,7 +21,7 @@
 //
 // The Worker owns git, the working copy and the network (DIRECTION §3.7): this
 // view only sends commands (PUT_ONLINE / DOWNLOAD_BOOK / REMOVE_BOOK /
-// DELETE_BOOK) and reacts to their replies. It reads the `shelf` and `sync`
+// DELETE_BOOK / LEAVE_BOOK) and reacts to their replies. It reads the `shelf` and `sync`
 // slices to resolve the book and its state; it never touches IndexedDB or git.
 //
 // Accessibility: every act is a React Aria Component with a keyboard path and a
@@ -48,6 +49,8 @@ import { titleFor, canSaveFor, orderedBooks, originalOf, broughtInOn } from './b
 import { saveZip } from './download-zip.js';
 import SharingScreen from './SharingScreen.jsx';
 import MakeYourOwn from './MakeYourOwn.jsx';
+import LeaveDialog from './LeaveDialog.jsx';
+import { useOnline } from '../account/use-online.js';
 import './book-detail.css';
 
 // The device commit identity for a shelf-touching command, the same literal the
@@ -248,6 +251,18 @@ export default function BookDetail({
   const original = originalOf(book);
   const originalGone = Boolean(original) && (Boolean(original.goneAt) || originals?.[bookId]?.gone === true);
   const lastBroughtIn = originalGone ? broughtInOn(original.followedAt, currentLocale()) : null;
+  // Leaving one shared book (books.leave Constraint 4): only a member — a reader
+  // or an editor — of a hosted book that is not the home book, and not once the
+  // book is `gone` (nothing to leave, workflow 10 L141-143) or `taken_down`
+  // (Decision 6). An owner sees *Delete the book* in that place.
+  const offersLeave =
+    !isLocal &&
+    bookId !== 'home' &&
+    (role === 'reader' || role === 'editor') &&
+    !isGone &&
+    !isTakenDown;
+  // Leaving needs a connection (Decision 8): offline, the button is held off.
+  const online = useOnline();
   // The make-it-your-own sheet: closed, or `{ following }` — false once access is
   // lost, when following has already ended.
   const [forkSheet, setForkSheet] = useState(null);
@@ -267,6 +282,10 @@ export default function BookDetail({
   // A remove or delete finished: close the detail (the SHELF re-surface drops
   // the row).
   useWorkerEvent(store, EventKind.BOOK_REMOVED, ({ bookId: id }) => {
+    if (id === bookId) onBack();
+  });
+  // A leave finished (books.leave): the book is gone from this shelf; close.
+  useWorkerEvent(store, EventKind.BOOK_LEFT, ({ bookId: id }) => {
     if (id === bookId) onBack();
   });
   // The Worker produced the download zip: save it as a file.
@@ -431,6 +450,31 @@ export default function BookDetail({
             onDownload={download}
           />
         </div>
+
+        {offersLeave ? (
+          <div className="card pad">
+            <span className="t-h2">{t('books.leave')}</span>
+            <p className="t-small">{t('books.leaveBody')}</p>
+            {online ? null : (
+              // The precondition in words, in a live region (Leave-book board
+              // L192; never colour alone).
+              <p className="notice" role="status">
+                <span>
+                  <b>{t('books.leaveOffline')}</b> {t('books.leaveOfflineBody')}
+                </span>
+              </p>
+            )}
+            <LeaveDialog
+              store={store}
+              bookId={bookId}
+              title={title}
+              onDevice
+              isDisabled={!online}
+              trigger={t('books.leave')}
+              onMakeYourOwn={() => makeYourOwn(true)}
+            />
+          </div>
+        ) : null}
 
         {isOwner && !isLocal ? (
           <div className="card pad">

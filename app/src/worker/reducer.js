@@ -593,6 +593,16 @@ export function reduce(state, message) {
       return next;
     }
 
+    case EventKind.BOOK_LEFT: {
+      // A leave finished (books.leave Decision 4): drop the left book from the
+      // "mine on Estante" list so its row disappears without a second LIST_MINE.
+      // Only this slice moves; a book not in it leaves the state untouched.
+      const id = message.payload?.bookId;
+      const books = state.mine?.books ?? [];
+      if (!books.some((b) => b.id === id)) return state;
+      return { ...state, mine: { ...state.mine, books: books.filter((b) => b.id !== id) } };
+    }
+
     case EventKind.MINE:
       // The "mine on Estante" list arrived (books.add_by_link): replace the slice
       // whole with the reported `{ status, books }`, like SHELF. Only this slice

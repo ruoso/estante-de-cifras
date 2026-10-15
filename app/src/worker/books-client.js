@@ -40,6 +40,7 @@ const BOOKS_PATH = '/api/books';
  *   remove: (bookId: string) => Promise<void>,
  *   accept: (token: string) => Promise<Book>,
  *   fork: (bookId: string) => Promise<Book>,
+ *   leave: (bookId: string) => Promise<void>,
  * }}
  * @typedef {{ id: string, title: string, role: 'owner'|'editor'|'reader',
  *   visibility: 'private', gitUrl: string,
@@ -157,5 +158,22 @@ export function createBooksClient(options = {}) {
     return response.json();
   }
 
-  return { create, list, remove, accept, fork };
+  /**
+   * End the caller's own membership of a shared book (DELETE
+   * /api/books/{bookId}/membership → 204, no body — leaveBook, api/openapi.yaml
+   * L668-692; workflow 10 §Leaving a book; books.leave). A `404` (not a member —
+   * already removed — or the home book), `409` (owner_cannot_leave) or `401` (no
+   * session) surfaces as a typed error carrying only `.status`; offline is the
+   * thrown `fetch` itself. The caller decides what a `404` means (books.leave
+   * Decision 3: already left).
+   */
+  async function leave(bookId) {
+    const response = await fetchImpl(
+      `${BOOKS_PATH}/${encodeURIComponent(bookId)}/membership`,
+      { method: 'DELETE', credentials: 'include' },
+    );
+    if (!response.ok) throw refuse(response);
+  }
+
+  return { create, list, remove, accept, fork, leave };
 }

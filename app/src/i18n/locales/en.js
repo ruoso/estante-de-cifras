@@ -49,6 +49,8 @@ export default {
     mineSignIn: 'Sign in',
     mineAdd: 'Add',
     mineAddLabel: 'Add {name}',
+    mineLeave: 'Leave',
+    mineLeaveLabel: 'Leave {name}',
     mineEmpty: 'All your books are already on this shelf.',
     mineError: 'We couldn’t reach Estante. Try again.',
     // Add-a-book: Upload (books.upload_ui; W07 L96-99) — a zip of a book, read as
@@ -199,6 +201,27 @@ export default {
       'This deletes the book, with its whole history, for everyone who shares it. It cannot be undone.',
     deleteField: 'Type the book’s name to confirm',
     deleteConfirm: 'Delete the book',
+    // Leaving one shared book (books.leave; workflow 10 §Leaving a book; Leave-book board).
+    leave: 'Leave this book',
+    leaveBody: 'Stop following it on all your devices.',
+    leaveOffline: 'Leaving needs a connection.',
+    leaveOfflineBody: 'Nothing has changed; you are still a member.',
+    leaveTitle: 'Leave {name}?',
+    leaveSentence: 'You will no longer open or sync it, on any of your devices, and it is removed from this one. The owner can invite you again.',
+    leaveSentenceRemote: 'You will no longer open or sync it, on any of your devices. The owner can invite you again.',
+    leaveUnsaved: {
+      one: '{count} song with unsaved changes will be lost',
+      other: '{count} songs with unsaved changes will be lost',
+    },
+    leaveUnpushed: {
+      one: '{count} save has not reached the book and never will',
+      other: '{count} saves have not reached the book and never will',
+    },
+    leaveUnpushedHelp: 'Make it your own to keep them as a book of yours, with its history; or download the book as it is on this device.',
+    leaveForkFirst: 'Make it my own first',
+    leaveDownloadFirst: 'Download first',
+    leaveConfirm: 'Leave the book',
+    leaveFailed: 'You did not leave {name}. You are still a member.',
     // The owner-only Share card on the per-book detail (books.share, workflow 10).
     share: 'Share',
     shareBody: 'Invite people to read or edit this book — up to fifty.',

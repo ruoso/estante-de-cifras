@@ -113,6 +113,13 @@ export const CommandKind = Object.freeze({
   DOWNLOAD_BOOK: 'download_book',
   REMOVE_BOOK: 'remove_book',
   DELETE_BOOK: 'delete_book',
+  // Leaving one shared book (books.leave, workflow 10 §Leaving a book).
+  // LEAVE_BOOK `{ bookId, author }` (a reader or an editor) ends the membership
+  // on Estante first (DELETE /api/books/{id}/membership); only on its 204, or a
+  // 404 (already not a member — Decision 3), it runs REMOVE_BOOK's teardown if
+  // the book is on this shelf (a *Mine on Estante* row's book is not). It replies
+  // BOOK_LEFT, or LEAVE_FAILED with nothing local touched.
+  LEAVE_BOOK: 'leave_book',
   // Leaving the account on this device (account.sign_out, workflow 13 §Signing
   // out). SURVEY_SIGN_OUT `{}` counts this device's local-only work — unsaved
   // changes and saves not yet pushed per book — and flags the books only on this
@@ -470,6 +477,15 @@ export const EventKind = Object.freeze({
   BOOK_ONLINE_REFUSED: 'book_online_refused',
   BOOK_DOWNLOAD: 'book_download',
   BOOK_REMOVED: 'book_removed',
+  // Leave replies (books.leave). BOOK_LEFT `{ bookId }`: the membership ended
+  // and, if the book was on this shelf, its clone is gone and its register
+  // tombstoned; the view closes the detail and the reducer drops the book from
+  // the `mine` slice (a left book is never offered again, Decision 4).
+  // LEAVE_FAILED `{ bookId, reason }`: nothing changed — `reason` is a word,
+  // 'network' (unreachable) or 'refused' (a 401 or a 409); the confirmation
+  // says the person did not leave (Decision 7).
+  BOOK_LEFT: 'book_left',
+  LEAVE_FAILED: 'leave_failed',
   // Make-it-my-own replies (books.fork). BOOK_FORKED `{ previousBookId, bookId,
   // via }`: the book now lives under its fork's id `bookId` (`via` 'service' — the
   // service copied it — or 'own' — the device put its own copy online after

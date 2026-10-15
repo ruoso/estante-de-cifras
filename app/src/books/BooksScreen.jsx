@@ -45,6 +45,7 @@ import { syncDisplayFor, anyOutOfStep } from '../sync-display.js';
 import BookDetail from './BookDetail.jsx';
 import UploadPreview from './UploadPreview.jsx';
 import BringIn from './BringIn.jsx';
+import LeaveDialog from './LeaveDialog.jsx';
 import './books.css';
 
 // Before sign-in there is no account; a local book's commits carry a device-local
@@ -281,7 +282,11 @@ function RenameDialog({ bookId, currentName, onRename }) {
 // carried in the `mine` slice. Signed out, it says so in a word and offers the
 // passkey surface; signed in, it lists each off-shelf book with an Add that
 // clones it (ADD_MINE). A status carried by a word, never colour alone.
-function MineList({ mine, onAddMine, onSignIn }) {
+//
+// A row whose role is not `owner` also offers Leave (books.leave; workflow 10
+// L99-101, Leave-book board L143): the same confirmation as book management,
+// the sentence alone — nothing of it is on this device (board L192).
+function MineList({ store, mine, onAddMine, onSignIn }) {
   const status = mine?.status ?? 'idle';
   if (status === 'signed_out') {
     return (
@@ -327,6 +332,17 @@ function MineList({ mine, onAddMine, onSignIn }) {
               >
                 {t('books.mineAdd')}
               </Button>
+              {book.role !== 'owner' ? (
+                <LeaveDialog
+                  store={store}
+                  bookId={book.id}
+                  title={label}
+                  trigger={t('books.mineLeave')}
+                  triggerLabel={t('books.mineLeaveLabel', { name: label })}
+                  triggerClass="btn quiet"
+                  triggerStyle={null}
+                />
+              ) : null}
             </div>
           );
         })}
@@ -344,7 +360,7 @@ function MineList({ mine, onAddMine, onSignIn }) {
 // open it asks the Worker for the "mine" list (LIST_MINE); New book sends
 // CREATE_BOOK, By link starts the invited flow with the pasted token, and each
 // Mine row sends ADD_MINE.
-function AddBookSheet({ onCreate, onByLink, onSignIn, onAddMine, onListMine, onUpload, mine }) {
+function AddBookSheet({ store, onCreate, onByLink, onSignIn, onAddMine, onListMine, onUpload, mine }) {
   const [name, setName] = useState('');
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState(false);
@@ -470,6 +486,7 @@ function AddBookSheet({ onCreate, onByLink, onSignIn, onAddMine, onListMine, onU
                   </h3>
                   <p className="t-small mine-note">{t('books.mineMeta')}</p>
                   <MineList
+                    store={store}
                     mine={mine}
                     onAddMine={(book) => {
                       onAddMine(book);
@@ -689,6 +706,7 @@ export default function BooksScreen({
           {t('books.syncNow')}
         </Button>
         <AddBookSheet
+          store={store}
           onCreate={createBook}
           onByLink={onByLink}
           onSignIn={onSignIn}

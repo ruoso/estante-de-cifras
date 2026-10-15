@@ -181,7 +181,12 @@ export async function startGitHttpRemote({ seed = true } = {}) {
     root,
     repoDir: bare,
     async stop() {
-      await new Promise((resolve) => server.close(resolve));
+      // close() alone waits for the clients' idle keep-alive sockets to time
+      // out (seconds per test, enough to trip the per-test timeout under a
+      // loaded full run); every request is answered by now, so drop them.
+      const closed = new Promise((resolve) => server.close(resolve));
+      server.closeAllConnections();
+      await closed;
       rmSync(root, { recursive: true, force: true });
     },
   };
