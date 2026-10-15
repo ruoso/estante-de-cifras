@@ -206,3 +206,53 @@ func TestUnknownRuleNeverLimits(t *testing.T) {
 		}
 	}
 }
+
+// TestRecoveryEmailRulesTripAtThresholds pins DIRECTION §3.3 for the
+// verification link (service.recovery_email): NewDefault caps the request per
+// account and per address at their thresholds, each keyed independently — one
+// account's spent cap leaves another account free, one address's spent cap
+// leaves another address free, and the two rules do not share a count.
+func TestRecoveryEmailRulesTripAtThresholds(t *testing.T) {
+	for _, c := range []struct {
+		rule RuleID
+		max  int
+	}{
+		{RecoveryEmailAccount, RecoveryEmailsPerHourPerAccount},
+		{RecoveryEmailAddr, RecoveryEmailsPerHourPerAddress},
+	} {
+		clk := &fakeClock{t: time.Unix(1_700_000_000, 0)}
+		l := NewDefault(clk.now)
+		for i := 0; i < c.max; i++ {
+			if d := l.Allow(c.rule, "k1"); !d.Allowed {
+				t.Fatalf("%s: call %d of %d refused, want allowed", c.rule, i+1, c.max)
+			}
+		}
+		if d := l.Allow(c.rule, "k1"); d.Allowed {
+			t.Errorf("%s: call %d allowed, want refused at the cap", c.rule, c.max+1)
+		}
+		if d := l.Allow(c.rule, "k2"); !d.Allowed {
+			t.Errorf("%s: another key refused, want keys independent", c.rule)
+		}
+		clk.advance(time.Hour)
+		if d := l.Allow(c.rule, "k1"); !d.Allowed {
+			t.Errorf("%s: refused after the hour rolled, want allowed", c.rule)
+		}
+	}
+
+	// The two rules and the sign-in link's per-address rule are separate
+	// buckets: spending one leaves the others untouched.
+	clk := &fakeClock{t: time.Unix(1_700_000_000, 0)}
+	l := NewDefault(clk.now)
+	for i := 0; i < RecoveryEmailsPerHourPerAddress; i++ {
+		l.Allow(RecoveryEmailAddr, "a@estante.test")
+	}
+	if d := l.Allow(RecoveryEmailAddr, "a@estante.test"); d.Allowed {
+		t.Fatal("RecoveryEmailAddr not at its cap")
+	}
+	if d := l.Allow(RecoveryEmailAccount, "a@estante.test"); !d.Allowed {
+		t.Error("RecoveryEmailAccount shares RecoveryEmailAddr's count, want independent")
+	}
+	if d := l.Allow(EmailLinkAddr, "a@estante.test"); !d.Allowed {
+		t.Error("EmailLinkAddr shares RecoveryEmailAddr's count, want independent")
+	}
+}

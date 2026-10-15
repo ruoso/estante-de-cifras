@@ -365,8 +365,10 @@ func handleListPasskeys(api *APIDeps) http.HandlerFunc {
 }
 
 // handleRemovePasskey implements DELETE /api/account/passkeys/{passkeyId}
-// (removePasskey, api/openapi.yaml:270-283): remove one of the caller's own
-// passkeys. 204, 401 without a session, or 404 for an id not on the account.
+// (removePasskey, api/openapi.yaml): remove one of the caller's own passkeys.
+// 204, 401 without a session, 404 for an id not on the account, or 409
+// last_way_in for the last passkey of an account with no confirmed recovery
+// email (service.recovery_email).
 func handleRemovePasskey(api *APIDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -388,14 +390,42 @@ func handleRemovePasskey(api *APIDeps) http.HandlerFunc {
 			writeError(w, http.StatusNotFound, "not_found", "No such passkey.")
 			return
 		}
-		tag, err := api.DB.Exec(ctx,
-			`DELETE FROM passkeys WHERE id = $1 AND account_id = $2`, passkeyID, accountID)
+		// The last way in cannot be removed (workflow 13 §The last way in): the
+		// account row is locked first, so two concurrent removals serialise and
+		// the second sees the first's delete — they cannot leave zero.
+		tx, err := api.DB.Begin(ctx)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal", "Could not remove the passkey.")
 			return
 		}
-		if tag.RowsAffected() == 0 {
+		defer tx.Rollback(ctx)
+		var email *string
+		if err := tx.QueryRow(ctx, `SELECT email FROM accounts WHERE id = $1 FOR UPDATE`, accountID).Scan(&email); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not remove the passkey.")
+			return
+		}
+		var mine, total int
+		if err := tx.QueryRow(ctx,
+			`SELECT count(*) FILTER (WHERE id = $1), count(*) FROM passkeys WHERE account_id = $2`,
+			passkeyID, accountID).Scan(&mine, &total); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not remove the passkey.")
+			return
+		}
+		if mine == 0 {
 			writeError(w, http.StatusNotFound, "not_found", "No such passkey.")
+			return
+		}
+		if email == nil && total == 1 {
+			writeError(w, http.StatusConflict, "last_way_in", "This is the account's last passkey and it has no recovery email.")
+			return
+		}
+		if _, err := tx.Exec(ctx,
+			`DELETE FROM passkeys WHERE id = $1 AND account_id = $2`, passkeyID, accountID); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not remove the passkey.")
+			return
+		}
+		if err := tx.Commit(ctx); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not remove the passkey.")
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)

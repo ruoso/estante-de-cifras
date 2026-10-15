@@ -39,16 +39,38 @@ type recordingMailer struct {
 	sent []sentMail
 }
 
+// sentMail is one recorded mail: its kind (mailSignIn, mailRecoveryLink,
+// mailRecoveryChanged), its recipient, and the link it carries ("" for the
+// link-less change notice).
 type sentMail struct {
+	Kind string
 	To   string
 	Link string
 }
 
-func (m *recordingMailer) SendSignInLink(_ context.Context, to, link string) error {
+const (
+	mailSignIn          = "sign-in"
+	mailRecoveryLink    = "recovery-link"
+	mailRecoveryChanged = "recovery-changed"
+)
+
+func (m *recordingMailer) record(s sentMail) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.sent = append(m.sent, sentMail{To: to, Link: link})
+	m.sent = append(m.sent, s)
 	return nil
+}
+
+func (m *recordingMailer) SendSignInLink(_ context.Context, to, link string) error {
+	return m.record(sentMail{Kind: mailSignIn, To: to, Link: link})
+}
+
+func (m *recordingMailer) SendRecoveryEmailLink(_ context.Context, to, link string) error {
+	return m.record(sentMail{Kind: mailRecoveryLink, To: to, Link: link})
+}
+
+func (m *recordingMailer) SendRecoveryEmailChanged(_ context.Context, to string) error {
+	return m.record(sentMail{Kind: mailRecoveryChanged, To: to})
 }
 
 func (m *recordingMailer) messages() []sentMail {

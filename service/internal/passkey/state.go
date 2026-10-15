@@ -30,19 +30,35 @@ var enc = base64.RawURLEncoding
 // distinguish them and nothing about the secret leaks.
 var errBadState = errors.New("passkey: the state token is not valid")
 
-// sealed is the envelope the state token carries: the go-webauthn SessionData
-// and an explicit expiry (unix seconds). The expiry is sealed inside the signed
-// blob so it cannot be extended without the key.
+// sealed is the envelope the state token carries: the go-webauthn SessionData,
+// an explicit expiry (unix seconds) and the purpose the ceremony was begun for.
+// The expiry and the purpose are sealed inside the signed blob so neither can
+// be changed without the key.
 type sealed struct {
 	Session webauthn.SessionData `json:"s"`
 	Exp     int64                `json:"e"`
+	Purpose string               `json:"p,omitempty"`
 }
+
+// PurposeDeleteAccount is the purpose the account-deletion passkey confirm is
+// sealed for (workflow 17 §An account with no email: "made for this
+// deletion"). The sign-in and registration ceremonies are purpose "".
+const PurposeDeleteAccount = "delete-account"
 
 // Seal signs sd into a state token that expires ttl from now:
 // base64url(payload) || "." || base64url(HMAC-SHA256(payload)). The payload is
-// the SessionData and the absolute expiry.
+// the SessionData and the absolute expiry. It is SealFor with purpose "", the
+// sign-in and registration ceremonies'.
 func Seal(sd *webauthn.SessionData, secret []byte, now time.Time, ttl time.Duration) (string, error) {
-	payload, err := json.Marshal(sealed{Session: *sd, Exp: now.Add(ttl).Unix()})
+	return SealFor("", sd, secret, now, ttl)
+}
+
+// SealFor is Seal for a named purpose: the purpose is sealed with the session,
+// and only OpenFor with the same purpose opens the token, so a state begun for
+// one ceremony cannot finish another (service.recovery_email Decision *A
+// purpose sealed into the passkey state*).
+func SealFor(purpose string, sd *webauthn.SessionData, secret []byte, now time.Time, ttl time.Duration) (string, error) {
+	payload, err := json.Marshal(sealed{Session: *sd, Exp: now.Add(ttl).Unix(), Purpose: purpose})
 	if err != nil {
 		return "", err
 	}
@@ -53,8 +69,15 @@ func Seal(sd *webauthn.SessionData, secret []byte, now time.Time, ttl time.Durat
 // SessionData. It recomputes the HMAC and compares in constant time, then
 // checks the sealed expiry against now. A tampered signature, a truncated or
 // malformed token, a token minted under another secret, or an expired one is
-// rejected with errBadState and no detail.
+// rejected with errBadState and no detail. It is OpenFor with purpose "", so a
+// state sealed for another purpose is rejected too.
 func Open(state string, secret []byte, now time.Time) (*webauthn.SessionData, error) {
+	return OpenFor("", state, secret, now)
+}
+
+// OpenFor is Open for a named purpose: a token sealed for any other purpose is
+// rejected with the same detail-free errBadState.
+func OpenFor(purpose, state string, secret []byte, now time.Time) (*webauthn.SessionData, error) {
 	payloadPart, sigPart, found := strings.Cut(state, ".")
 	if !found {
 		return nil, errBadState
@@ -74,7 +97,7 @@ func Open(state string, secret []byte, now time.Time) (*webauthn.SessionData, er
 	if err := json.Unmarshal(payload, &s); err != nil {
 		return nil, errBadState
 	}
-	if now.Unix() >= s.Exp {
+	if now.Unix() >= s.Exp || s.Purpose != purpose {
 		return nil, errBadState
 	}
 	return &s.Session, nil

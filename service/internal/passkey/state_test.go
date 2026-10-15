@@ -105,3 +105,33 @@ func TestOpenRejectsExpiredState(t *testing.T) {
 		t.Error("Open accepted an expired handle, want an error")
 	}
 }
+
+// TestStatePurposeIsBound pins workflow 17 §An account with no email ("made
+// for this deletion"): a state sealed for delete-account does not open as a
+// sign-in or registration state (purpose ""), and a sign-in state does not
+// open for delete-account — while each opens for its own purpose.
+func TestStatePurposeIsBound(t *testing.T) {
+	now := time.Now()
+
+	deletion, err := SealFor(PurposeDeleteAccount, sampleSession(), stateSecret, now, StateTTL)
+	if err != nil {
+		t.Fatalf("SealFor: %v", err)
+	}
+	if _, err := Open(deletion, stateSecret, now); err == nil {
+		t.Error("a delete-account state opened with purpose \"\", want it refused")
+	}
+	if _, err := OpenFor(PurposeDeleteAccount, deletion, stateSecret, now); err != nil {
+		t.Errorf("a delete-account state did not open for delete-account: %v", err)
+	}
+
+	signIn, err := Seal(sampleSession(), stateSecret, now, StateTTL)
+	if err != nil {
+		t.Fatalf("Seal: %v", err)
+	}
+	if _, err := OpenFor(PurposeDeleteAccount, signIn, stateSecret, now); err == nil {
+		t.Error("a sign-in state opened for delete-account, want it refused")
+	}
+	if _, err := Open(signIn, stateSecret, now); err != nil {
+		t.Errorf("a sign-in state did not open with purpose \"\": %v", err)
+	}
+}

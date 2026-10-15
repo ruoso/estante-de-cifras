@@ -204,8 +204,9 @@ verification link (they send mail), creating a book
 (workflow 14) and accepting an invitation — so the service caps how fast each
 may be made, refusing the excess with a *try again shortly* and no other
 effect. Where a request carries a session the cap is per account; before
-sign-in it is per client IP, and for the emailed link also per address, so one
-mailbox cannot be flooded. The caps are generous enough that no real use meets
+sign-in it is per client IP, and for each emailed link (the sign-in link and
+the verification link alike) also per address, so one mailbox cannot be
+flooded. The caps are generous enough that no real use meets
 them. The one instance (§3.4) keeps the counts in memory, which is all a single
 process with small traffic needs.
 

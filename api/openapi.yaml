@@ -231,13 +231,22 @@ paths:
       tags: [Sign-in]
       summary: Delete the account everywhere, with its cascade (workflow 17).
       description: >-
-        Terminal and confirmed by the account's own email in the body. The server
-        compares `confirm` to the account's email and never echoes it (the
-        EmailLinkRequest precedent; workflow 17 Decision 4). On success the cascade
-        removes the account, its sessions and passkeys, drops its memberships and
-        withdraws its invitations, and soft-deletes and removes the bare
-        repositories of the books it owns — so a book whose owner leaves is deleted
-        for everyone (DIRECTION §3.6). The session cookie is cleared.
+        Terminal, and confirmed in one of two ways (workflow 17 §An account with
+        no email). An account with a confirmed recovery email sends `confirm`,
+        its own email typed: the server compares it to the account's email and
+        never echoes it (the EmailLinkRequest precedent; workflow 17 Decision 4).
+        An account without one — a pending, unconfirmed address does not count —
+        sends `passkey`, a fresh assertion answering the challenge of
+        `beginDeleteAccountPasskey`, made for this deletion and good for a few
+        minutes; it is validated against the session's own account. Neither
+        branch is accepted for the other kind of account (400
+        `confirm_mismatch`); a stale or other-purpose state, a passkey not on
+        this account or a bad signature is 400 `passkey_refused`. Either way a
+        refusal deletes nothing. On success the cascade removes the account, its
+        sessions and passkeys, drops its memberships and withdraws its
+        invitations, and soft-deletes and removes the bare repositories of the
+        books it owns — so a book whose owner leaves is deleted for everyone
+        (DIRECTION §3.6). The session cookie is cleared.
       requestBody:
         required: true
         content:
@@ -251,6 +260,108 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /api/account/delete/begin:
+    post:
+      operationId: beginDeleteAccountPasskey
+      tags: [Sign-in]
+      summary: Begin the passkey confirm of an account deletion (workflow 17).
+      description: >-
+        For a signed-in account with no confirmed recovery email: a
+        non-discoverable assertion request listing the account's own passkeys
+        (`allowCredentials`), whose opaque state is sealed for deletion only and
+        lasts a few minutes. The assertion is carried, with the state, in
+        `deleteAccount`'s `passkey` branch. An account that has a confirmed
+        email confirms by typing it instead (400 `confirm_by_email`).
+      responses:
+        '200':
+          description: The credential-request options and an opaque handle to echo in `deleteAccount`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialRequestOptions'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/account/recovery-email:
+    get:
+      operationId: getRecoveryEmail
+      tags: [Sign-in]
+      summary: The account's recovery email, and any address waiting for confirmation (workflow 13).
+      description: >-
+        Read by its owner only. `email` is the confirmed address (null when
+        none); `pending` is the address of the latest verification link not yet
+        confirmed — expired or not, so the account screen can keep saying
+        *waiting for you to confirm* with **send again** — else null.
+      responses:
+        '200':
+          description: The confirmed and the pending address.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecoveryEmail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: requestRecoveryEmail
+      tags: [Sign-in]
+      summary: Ask for a verification link to set or change the recovery email (workflow 13).
+      description: >-
+        Always answered 202 for a well-formed address — free, held by another
+        account, or this account's own — so the response never reveals who
+        holds an address; the link is mailed in every case. The account's email
+        does not change here: only opening the link does (verify, then write),
+        and the old address stays in effect until then. A new request replaces
+        the account's earlier unconfirmed link. The address is never echoed in
+        an error and never logged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecoveryEmailRequest'
+      responses:
+        '202':
+          description: Accepted; a verification link is on its way to the address.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/recovery-email/confirm:
+    post:
+      operationId: confirmRecoveryEmail
+      tags: [Sign-in]
+      summary: Confirm a recovery email by its emailed verification link (workflow 13).
+      description: >-
+        Works on any device and needs no session; it does not sign in (no
+        cookie is set). On success the address becomes the account's recovery
+        email, and when it replaced a different confirmed address, that address
+        is sent a notice with no link. A tampered, unknown, expired or used link
+        is one refusal, 400 `link_invalid`. An address another account holds is
+        409 `address_taken`, and the link stays as it was. Nothing about the
+        account travels in the response.
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecoveryEmailConfirmRequest'
+      responses:
+        '204':
+          description: Confirmed; the address is the account's recovery email.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/RateLimited'
 
   /api/account/sessions:
     get:
@@ -329,6 +440,11 @@ paths:
       operationId: removePasskey
       tags: [Sign-in]
       summary: Remove a passkey (workflow 13).
+      description: >-
+        The last way in cannot be removed (workflow 13 §The last way in): when
+        the passkey is the account's last and the account has no confirmed
+        recovery email, the removal is refused with 409 `last_way_in` and the
+        passkey stays.
       parameters:
         - $ref: '#/components/parameters/PasskeyId'
       responses:
@@ -338,6 +454,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   # ---------------------------------------------------------------------------
   # Books (workflows 07, 11)
@@ -1045,17 +1163,82 @@ components:
           description: Kept to this request body; never echoed in an error (workflow 13).
 
     DeleteAccountRequest:
+      description: >-
+        The deletion's confirmation: the typed email for an account with a
+        confirmed recovery email, or a fresh passkey assertion for one without
+        (workflow 17 §An account with no email).
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [confirm]
+          properties:
+            confirm:
+              type: string
+              format: email
+              description: >-
+                The account's own email, typed to confirm deletion (workflow 17).
+                Kept to this request body; compared server-side and never echoed
+                in an error (the EmailLinkRequest precedent; workflow 17 Decision 4).
+        - type: object
+          additionalProperties: false
+          required: [passkey]
+          properties:
+            passkey:
+              $ref: '#/components/schemas/DeleteAccountPasskey'
+
+    DeleteAccountPasskey:
       type: object
       additionalProperties: false
-      required: [confirm]
+      required: [state, credential]
+      description: >-
+        The passkey confirm: echoes the `beginDeleteAccountPasskey` handle and
+        carries the WebAuthn assertion answering its challenge.
       properties:
-        confirm:
+        state:
           type: string
+          minLength: 1
+        credential:
+          type: object
+          additionalProperties: true
+          description: The standard WebAuthn assertion JSON from the authenticator.
+
+    RecoveryEmail:
+      type: object
+      additionalProperties: false
+      required: [email, pending]
+      description: >-
+        The account's recovery email, read by its owner only (workflow 13). Never
+        logged.
+      properties:
+        email:
+          type: [string, 'null']
+          format: email
+          description: The confirmed address, or null when there is none.
+        pending:
+          type: [string, 'null']
           format: email
           description: >-
-            The account's own email, typed to confirm deletion (workflow 17). Kept
-            to this request body; compared server-side and never echoed in an error
-            (the EmailLinkRequest precedent; workflow 17 Decision 4).
+            The address of the latest verification link not yet confirmed
+            (expired or not), or null.
+
+    RecoveryEmailRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Kept to this request body; never echoed in an error (workflow 13).
+
+    RecoveryEmailConfirmRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 1
 
     EmailLinkRedeemRequest:
       type: object

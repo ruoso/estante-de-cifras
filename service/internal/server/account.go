@@ -1,13 +1,17 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/jackc/pgx/v5"
 
 	"estantedecifras.app/service/internal/book"
+	"estantedecifras.app/service/internal/passkey"
 	"estantedecifras.app/service/internal/session"
 )
 
@@ -15,9 +19,14 @@ import (
 // workflow 17). It is the one write the app makes that waits for a connection; on
 // its 204 the device forgets the account (the Worker teardown, main-thread side).
 //
-// The confirmation is the account's own email, typed by the user and sent in the
-// body (Decision 4): the server compares it to the stored email and never echoes
-// the address (the EmailLinkRequest precedent; DIRECTION §3.3 metadata-only).
+// The confirmation is one of two (service.recovery_email; workflow 17 §An
+// account with no email). For an account with a confirmed email it is that
+// email, typed by the user and sent in the body (Decision 4): the server
+// compares it to the stored email and never echoes the address (the
+// EmailLinkRequest precedent; DIRECTION §3.3 metadata-only). For an account
+// without one it is a fresh passkey assertion answering the challenge of
+// handleBeginDeleteAccountPasskey, its state sealed for deletion and good for
+// passkey.StateTTL, validated against the session's own account.
 //
 // The cascade is the schema's own `ON DELETE CASCADE` (Decision 1): a single
 // `DELETE FROM accounts WHERE id = $1` removes the account's sessions, passkeys,
@@ -46,32 +55,47 @@ func handleDeleteAccount(api *APIDeps) http.HandlerFunc {
 		}
 
 		var req struct {
-			Confirm string `json:"confirm"`
+			Confirm *string            `json:"confirm"`
+			Passkey *deletePasskeyBody `json:"passkey"`
 		}
-		if err := decodeStrict(r, &req); err != nil {
+		if err := decodeStrict(r, &req); err != nil || (req.Confirm == nil) == (req.Passkey == nil) {
 			writeError(w, http.StatusBadRequest, "bad_request", "Could not read the request.")
 			return
 		}
 
-		// The account's email is the thing only its owner knows (account_screen
-		// Decision 5: no endpoint returns it). Compare here; a NULL email (a
-		// passkey-only account with nothing to type-match) can never match, so
-		// the confirm fails closed rather than erroring — graceful degradation
-		// (refinement Open questions). The address is never put in the response.
+		// The account's confirmed email decides which confirmation it gives
+		// (workflow 17 §An account with no email): with one, the typed email; with
+		// none — a pending, unconfirmed address does not count — a fresh passkey
+		// assertion. Neither is accepted for the other kind of account. The
+		// address is never put in the response.
 		var email *string
 		switch err := api.DB.QueryRow(ctx, `SELECT email FROM accounts WHERE id = $1`, accountID).Scan(&email); {
 		case errors.Is(err, pgx.ErrNoRows):
 			// The session resolved but the row is gone (a concurrent delete):
 			// nothing to delete, and no address to reveal.
-			writeError(w, http.StatusBadRequest, "confirm_mismatch", "That is not the email on this account.")
+			writeConfirmMismatch(w)
 			return
 		case err != nil:
 			writeError(w, http.StatusInternalServerError, "internal", "Could not delete the account.")
 			return
 		}
-		if email == nil || !strings.EqualFold(strings.TrimSpace(req.Confirm), strings.TrimSpace(*email)) {
-			writeError(w, http.StatusBadRequest, "confirm_mismatch", "That is not the email on this account.")
-			return
+		if req.Confirm != nil {
+			// The account's email is the thing only its owner knows. A NULL email
+			// (a passkey-only account) can never match, so the typed confirm fails
+			// closed rather than erroring.
+			if email == nil || !strings.EqualFold(strings.TrimSpace(*req.Confirm), strings.TrimSpace(*email)) {
+				writeConfirmMismatch(w)
+				return
+			}
+		} else {
+			if email != nil {
+				writeConfirmMismatch(w)
+				return
+			}
+			if !api.passkeyConfirmsDeletion(r, accountID, req.Passkey) {
+				writeError(w, http.StatusBadRequest, "passkey_refused", "That passkey did not confirm the deletion.")
+				return
+			}
 		}
 
 		// Collect the owned books' ids, then delete the account — atomically, so
@@ -123,5 +147,104 @@ func handleDeleteAccount(api *APIDeps) http.HandlerFunc {
 
 		session.ClearCookie(w)
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// deletePasskeyBody is DeleteAccountPasskey (api/openapi.yaml): the deletion
+// begin's state and the WebAuthn assertion answering its challenge.
+type deletePasskeyBody struct {
+	State      string          `json:"state"`
+	Credential json.RawMessage `json:"credential"`
+}
+
+// writeConfirmMismatch writes the 400 for a confirmation that is not this
+// account's: a wrong typed email, a typed email on an account with none, or a
+// passkey confirm on an account that has one. It names no address.
+func writeConfirmMismatch(w http.ResponseWriter) {
+	writeError(w, http.StatusBadRequest, "confirm_mismatch", "That is not the email on this account.")
+}
+
+// passkeyConfirmsDeletion reports whether body is a valid passkey confirm of
+// deleting accountID: a state sealed for deletion and still within
+// passkey.StateTTL, answered by one of this account's own passkeys with a good
+// signature. A state begun for sign-in or registration, a stale one, a
+// credential not on the account, or a bad signature is false. go-webauthn's
+// ValidateLogin checks the state's user handle against the account and the
+// asserted credential against the account's credentials.
+func (api *APIDeps) passkeyConfirmsDeletion(r *http.Request, accountID string, body *deletePasskeyBody) bool {
+	if api.Passkeys == nil || body.State == "" || len(body.Credential) == 0 {
+		return false
+	}
+	sessionData, err := api.Passkeys.OpenFor(passkey.PurposeDeleteAccount, body.State, time.Now())
+	if err != nil {
+		return false
+	}
+	parsed, err := protocol.ParseCredentialRequestResponseBytes(body.Credential)
+	if err != nil {
+		return false
+	}
+	email, rows, err := api.loadAccountAndPasskeys(r.Context(), accountID)
+	if err != nil {
+		return false
+	}
+	user, err := passkey.UserFor(accountID, email, rows)
+	if err != nil {
+		return false
+	}
+	_, err = api.Passkeys.WebAuthn().ValidateLogin(user, *sessionData, parsed)
+	return err == nil
+}
+
+// handleBeginDeleteAccountPasskey implements POST /api/account/delete/begin
+// (beginDeleteAccountPasskey): for a signed-in account with no confirmed
+// email, a non-discoverable assertion request listing the account's own
+// passkeys (allowCredentials, so the browser offers only them — refinement
+// Decision *The passkey confirm rides in the DELETE body*), its state sealed
+// for deletion. 200, 401 without a session, 400 confirm_by_email for an
+// account that confirms by typing its email.
+func handleBeginDeleteAccountPasskey(api *APIDeps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		accountID, ok, err := session.Resolve(ctx, api.DB, r)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not begin the passkey confirm.")
+			return
+		}
+		if !ok {
+			writeUnauthorized(w)
+			return
+		}
+
+		var confirmed *string
+		if err := api.DB.QueryRow(ctx, `SELECT email FROM accounts WHERE id = $1`, accountID).Scan(&confirmed); err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not begin the passkey confirm.")
+			return
+		}
+		if confirmed != nil {
+			writeError(w, http.StatusBadRequest, "confirm_by_email", "This account confirms its deletion by its email.")
+			return
+		}
+
+		email, rows, err := api.loadAccountAndPasskeys(ctx, accountID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not begin the passkey confirm.")
+			return
+		}
+		user, err := passkey.UserFor(accountID, email, rows)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not begin the passkey confirm.")
+			return
+		}
+		assertion, sessionData, err := api.Passkeys.WebAuthn().BeginLogin(user)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", "Could not begin the passkey confirm.")
+			return
+		}
+		state, err := api.Passkeys.SealFor(passkey.PurposeDeleteAccount, sessionData, time.Now())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not begin the passkey confirm.")
+			return
+		}
+		writeJSON(w, http.StatusOK, credentialBeginResponse{PublicKey: assertion.Response, State: state})
 	}
 }

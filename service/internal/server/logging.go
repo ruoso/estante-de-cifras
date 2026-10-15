@@ -53,7 +53,9 @@ func LogRequests(logger *slog.Logger, h http.Handler) http.Handler {
 			// (it is carried in the path, api/openapi.yaml
 			// /api/invitations/{token}/accept, and must never be logged —
 			// service.sharing Constraints; DIRECTION §3.3).
-			slog.String("path", redactInvitationToken(r.URL.Path)),
+			// The recovery email's mailed app page carries its token in the path
+			// too (/recovery-email/<token>, service.recovery_email), redacted alike.
+			slog.String("path", redactRecoveryEmailToken(redactInvitationToken(r.URL.Path))),
 			slog.Int("status", rec.status),
 			slog.Duration("duration", time.Since(start)),
 		)
@@ -75,4 +77,20 @@ func redactInvitationToken(path string) string {
 		return path // not the single-segment {token} shape
 	}
 	return prefix + "{token}" + suffix
+}
+
+// redactRecoveryEmailToken replaces the token segment of the app page a
+// recovery email verification link opens (/recovery-email/<token>, mailed by
+// requestRecoveryEmail) with a placeholder, so the link's token never reaches a
+// log line (service.recovery_email Constraint 6). Any other path is returned
+// unchanged.
+func redactRecoveryEmailToken(path string) string {
+	const prefix = "/recovery-email/"
+	if !strings.HasPrefix(path, prefix) {
+		return path
+	}
+	if rest := path[len(prefix):]; rest == "" || strings.Contains(rest, "/") {
+		return path
+	}
+	return prefix + "{token}"
 }

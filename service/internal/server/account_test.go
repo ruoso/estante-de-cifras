@@ -2,12 +2,16 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	apicontract "estantedecifras.app/api"
+	"estantedecifras.app/service/internal/passkey"
+	"estantedecifras.app/service/internal/webauthntest"
 )
 
 // These behavior tests drive handleDeleteAccount through httptest against the
@@ -145,7 +149,8 @@ func TestDeleteAccountCascades(t *testing.T) {
 
 // TestDeleteAccountNullEmailFailsClosed pins the Open-questions degrade-gracefully
 // note: a passkey-only account has a NULL email, so there is nothing to type-match
-// and the confirm fails closed with a 400 (never a 500), leaving the account.
+// and the typed confirm fails closed with a 400 (never a 500), leaving the
+// account — it confirms by passkey instead (TestDeleteAccountByPasskey).
 func TestDeleteAccountNullEmailFailsClosed(t *testing.T) {
 	e := newBooksEnv(t)
 	accountID, cookie := e.registerNewAccount(t) // email stays NULL
@@ -156,5 +161,230 @@ func TestDeleteAccountNullEmailFailsClosed(t *testing.T) {
 	}
 	if n := e.countRows(t, `SELECT count(*) FROM accounts WHERE id = $1`, accountID); n != 1 {
 		t.Errorf("account deleted despite a failed confirm, want it kept")
+	}
+}
+
+// deleteAssertion runs a begin's options through auth and returns the
+// begin's state and the assertion JSON; tamper corrupts the signature.
+func deleteAssertion(t *testing.T, auth *webauthntest.Authenticator, beginBody []byte, tamper bool) (string, json.RawMessage) {
+	t.Helper()
+	var begin beginResponse
+	if err := json.Unmarshal(beginBody, &begin); err != nil {
+		t.Fatalf("decoding begin response: %v", err)
+	}
+	assertion, err := webauthntest.CredentialAssertionFrom(begin.PublicKey)
+	if err != nil {
+		t.Fatalf("building assertion options: %v", err)
+	}
+	var cred []byte
+	if tamper {
+		cred, err = auth.GetTampered(assertion)
+	} else {
+		cred, err = auth.Get(assertion)
+	}
+	if err != nil {
+		t.Fatalf("authenticator Get: %v", err)
+	}
+	return begin.State, cred
+}
+
+// beginDelete POSTs /api/account/delete/begin and returns the response,
+// validating its body against the contract.
+func (e *booksEnv) beginDelete(t *testing.T, cookie string) (*http.Response, []byte) {
+	t.Helper()
+	resp, body := e.do(t, http.MethodPost, "/api/account/delete/begin", cookie, nil)
+	if err := e.contract.Validate("beginDeleteAccountPasskey", apicontract.Response, statusString(resp), body); err != nil {
+		t.Errorf("beginDeleteAccountPasskey %d does not conform: %v", resp.StatusCode, err)
+	}
+	return resp, body
+}
+
+// deleteByPasskey sends DELETE /api/account with the passkey branch, the body
+// validated as a DeleteAccountRequest and any error response too.
+func (e *booksEnv) deleteByPasskey(t *testing.T, cookie, state string, cred json.RawMessage) (*http.Response, []byte) {
+	t.Helper()
+	reqBody := mustJSON(t, map[string]any{"passkey": map[string]any{"state": state, "credential": cred}})
+	if err := e.contract.Validate("deleteAccount", apicontract.Request, "", reqBody); err != nil {
+		t.Errorf("the passkey DeleteAccountRequest does not conform: %v", err)
+	}
+	resp, body := e.do(t, http.MethodDelete, "/api/account", cookie, reqBody)
+	if resp.StatusCode != http.StatusNoContent {
+		if err := e.contract.Validate("deleteAccount", apicontract.Response, statusString(resp), body); err != nil {
+			t.Errorf("deleteAccount %d does not conform: %v", resp.StatusCode, err)
+		}
+	}
+	return resp, body
+}
+
+// TestDeleteAccountByPasskey pins workflow 17 §An account with no email: a
+// passkey-only account begins the confirm, answers it with its passkey, and the
+// DELETE carrying the assertion runs the cascade — the account, its sessions,
+// passkeys and owned books gone, their repos reclaimed, the cookie cleared.
+func TestDeleteAccountByPasskey(t *testing.T) {
+	e := newBooksEnv(t)
+	accountID, cookie := e.registerNewAccount(t)
+	owned := e.createBook(t, cookie, "My songs")
+
+	resp, body := e.beginDelete(t, cookie)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("begin: status = %d, want 200; body=%s", resp.StatusCode, body)
+	}
+	// Non-discoverable: the request lists the account's own passkey.
+	var begin struct {
+		PublicKey struct {
+			AllowCredentials []struct {
+				ID string `json:"id"`
+			} `json:"allowCredentials"`
+		} `json:"publicKey"`
+	}
+	if err := json.Unmarshal(body, &begin); err != nil {
+		t.Fatalf("decoding begin: %v", err)
+	}
+	if len(begin.PublicKey.AllowCredentials) != 1 {
+		t.Errorf("allowCredentials lists %d passkeys, want the account's 1", len(begin.PublicKey.AllowCredentials))
+	}
+
+	state, cred := deleteAssertion(t, e.auth, body, false)
+	resp, body = e.deleteByPasskey(t, cookie, state, cred)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete by passkey: status = %d, want 204; body=%s", resp.StatusCode, body)
+	}
+	if v := sessionCookieValue(resp); v != "" {
+		t.Errorf("delete left a non-empty session cookie %q, want it cleared", v)
+	}
+	for _, c := range []struct {
+		what  string
+		query string
+	}{
+		{"account", `SELECT count(*) FROM accounts WHERE id = $1`},
+		{"sessions", `SELECT count(*) FROM sessions WHERE account_id = $1`},
+		{"passkeys", `SELECT count(*) FROM passkeys WHERE account_id = $1`},
+		{"owned books", `SELECT count(*) FROM books WHERE owner_id = $1`},
+	} {
+		if n := e.countRows(t, c.query, accountID); n != 0 {
+			t.Errorf("after delete, %s rows = %d, want 0", c.what, n)
+		}
+	}
+	if _, err := os.Stat(e.repoPath(owned.ID)); !os.IsNotExist(err) {
+		t.Errorf("repo for %s still on disk (err=%v), want removed", owned.ID, err)
+	}
+	if resp, _ := e.do(t, http.MethodGet, "/api/account/sessions", cookie, nil); resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("listSessions after delete: status = %d, want 401", resp.StatusCode)
+	}
+}
+
+// TestDeleteAccountPasskeyRefused pins workflow 17 ("a passkey not on this
+// account, or a confirmation gone stale"): a stale deletion state, a sign-in
+// state, a tampered assertion and an assertion by another account's passkey
+// are each 400 passkey_refused, and nothing is deleted.
+func TestDeleteAccountPasskeyRefused(t *testing.T) {
+	e := newBooksEnv(t)
+	accountID, cookie := e.registerNewAccount(t)
+	mine := e.auth
+
+	// Another account, on another authenticator.
+	other := freshAuthenticator()
+	e.auth = other
+	e.registerNewAccount(t)
+	e.auth = mine
+
+	freshBegin := func() []byte {
+		t.Helper()
+		resp, body := e.beginDelete(t, cookie)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("begin: status = %d, want 200; body=%s", resp.StatusCode, body)
+		}
+		return body
+	}
+	secret := []byte("behavior-test-webauthn-state-secret")
+
+	cases := map[string]func() (string, json.RawMessage){
+		"a stale state": func() (string, json.RawMessage) {
+			state, cred := deleteAssertion(t, mine, freshBegin(), false)
+			sd, err := passkey.OpenFor(passkey.PurposeDeleteAccount, state, secret, time.Now())
+			if err != nil {
+				t.Fatalf("opening the begin's state: %v", err)
+			}
+			stale, err := passkey.SealFor(passkey.PurposeDeleteAccount, sd, secret,
+				time.Now().Add(-passkey.StateTTL-time.Minute), passkey.StateTTL)
+			if err != nil {
+				t.Fatalf("resealing: %v", err)
+			}
+			return stale, cred
+		},
+		"a sign-in state": func() (string, json.RawMessage) {
+			resp, body := e.do(t, http.MethodPost, "/api/auth/passkey/authenticate/begin", "", []byte(`{}`))
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("authenticate/begin: status = %d", resp.StatusCode)
+			}
+			return deleteAssertion(t, mine, body, false)
+		},
+		"a tampered assertion": func() (string, json.RawMessage) {
+			return deleteAssertion(t, mine, freshBegin(), true)
+		},
+		"another account's passkey": func() (string, json.RawMessage) {
+			return deleteAssertion(t, other, freshBegin(), false)
+		},
+	}
+	for name, build := range cases {
+		state, cred := build()
+		resp, body := e.deleteByPasskey(t, cookie, state, cred)
+		if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(body), `"passkey_refused"`) {
+			t.Errorf("%s: status = %d body=%s, want 400 passkey_refused", name, resp.StatusCode, body)
+		}
+		if n := e.countRows(t, `SELECT count(*) FROM accounts WHERE id = $1`, accountID); n != 1 {
+			t.Fatalf("%s: the account was deleted, want it kept", name)
+		}
+		if n := e.countRows(t, `SELECT count(*) FROM passkeys WHERE account_id = $1`, accountID); n != 1 {
+			t.Errorf("%s: passkeys = %d, want 1", name, n)
+		}
+	}
+}
+
+// TestDeleteAccountConfirmBranchesMatchTheEmail pins workflow 17 §An account
+// with no email ("neither is required of the other") and §Edge cases: an account
+// with a confirmed email cannot begin a passkey confirm (400 confirm_by_email)
+// nor delete by one (400 confirm_mismatch), and deletes by the typed email; an
+// account with only a pending address begins and deletes by passkey.
+func TestDeleteAccountConfirmBranchesMatchTheEmail(t *testing.T) {
+	e := newRecoveryEnv(t)
+	withEmailID, withEmail := e.registerNewAccount(t)
+	const address = "confirmed@estante.test"
+	e.setEmail(t, withEmailID, address)
+
+	resp, body := e.beginDelete(t, withEmail)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(body), `"confirm_by_email"`) {
+		t.Errorf("begin with a confirmed email: status = %d body=%s, want 400 confirm_by_email", resp.StatusCode, body)
+	}
+	// A passkey assertion (from a sign-in begin — the deletion begin refused)
+	// is not this account's confirmation.
+	_, signInBegin := e.do(t, http.MethodPost, "/api/auth/passkey/authenticate/begin", "", []byte(`{}`))
+	state, cred := deleteAssertion(t, e.auth, signInBegin, false)
+	resp, body = e.deleteByPasskey(t, withEmail, state, cred)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(body), `"confirm_mismatch"`) {
+		t.Errorf("passkey delete with a confirmed email: status = %d body=%s, want 400 confirm_mismatch", resp.StatusCode, body)
+	}
+	if n := e.countRows(t, `SELECT count(*) FROM accounts WHERE id = $1`, withEmailID); n != 1 {
+		t.Fatal("the account was deleted by a refused passkey confirm")
+	}
+	resp, body = e.do(t, http.MethodDelete, "/api/account", withEmail, []byte(`{"confirm":`+mustQuote(address)+`}`))
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("typed delete: status = %d, want 204; body=%s", resp.StatusCode, body)
+	}
+
+	// Only a pending address: still confirms by passkey.
+	e.auth = freshAuthenticator()
+	pendingID, pending := e.registerNewAccount(t)
+	e.mustRequest(t, pending, "pending@estante.test")
+	resp, body = e.beginDelete(t, pending)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("begin with only a pending address: status = %d, want 200; body=%s", resp.StatusCode, body)
+	}
+	state, cred = deleteAssertion(t, e.auth, body, false)
+	if resp, body := e.deleteByPasskey(t, pending, state, cred); resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("passkey delete with only a pending address: status = %d, want 204; body=%s", resp.StatusCode, body)
+	}
+	if n := e.countRows(t, `SELECT count(*) FROM accounts WHERE id = $1`, pendingID); n != 0 {
+		t.Errorf("the pending-address account survived its deletion")
 	}
 }

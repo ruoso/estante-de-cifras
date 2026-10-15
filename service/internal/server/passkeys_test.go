@@ -338,7 +338,7 @@ func TestUnknownCredentialRefused(t *testing.T) {
 // session.
 func TestListAndRemovePasskeys(t *testing.T) {
 	e := newPasskeyEnv(t)
-	_, cookie := e.registerNewAccount(t)
+	accountID, cookie := e.registerNewAccount(t)
 
 	// 401 without a session.
 	if resp, _ := e.do(t, http.MethodGet, "/api/account/passkeys", "", nil); resp.StatusCode != http.StatusUnauthorized {
@@ -366,13 +366,71 @@ func TestListAndRemovePasskeys(t *testing.T) {
 		t.Errorf("removePasskey of an id not on the account = %d, want 404", resp.StatusCode)
 	}
 
-	// Remove the account's own passkey.
+	// Remove the account's own passkey. It is the account's last, so the
+	// account first gets a confirmed recovery email — without one the last
+	// way in cannot be removed (TestRemoveLastPasskeyRefusedWithoutEmail).
+	if _, err := e.pool.Exec(context.Background(),
+		`UPDATE accounts SET email = 'owner@estante.test' WHERE id = $1`, accountID); err != nil {
+		t.Fatalf("set email: %v", err)
+	}
 	if resp, _ := e.do(t, http.MethodDelete, "/api/account/passkeys/"+ids[0], cookie, nil); resp.StatusCode != http.StatusNoContent {
 		t.Errorf("removePasskey status = %d, want 204", resp.StatusCode)
 	}
 	_, after := e.do(t, http.MethodGet, "/api/account/passkeys", cookie, nil)
 	if n := len(passkeyIDs(t, after)); n != 0 {
 		t.Errorf("listed %d passkeys after removal, want 0", n)
+	}
+}
+
+// TestRemoveLastPasskeyRefusedWithoutEmail pins workflow 13 §The last way in:
+// the only passkey of an account with no confirmed recovery email cannot be
+// removed (409 last_way_in, still listed); with a second passkey the first
+// removes and the remaining one is then refused; once a recovery email is
+// confirmed the last one removes.
+func TestRemoveLastPasskeyRefusedWithoutEmail(t *testing.T) {
+	e := newPasskeyEnv(t)
+	accountID, cookie := e.registerNewAccount(t)
+
+	listIDs := func() []string {
+		t.Helper()
+		_, body := e.do(t, http.MethodGet, "/api/account/passkeys", cookie, nil)
+		return passkeyIDs(t, body)
+	}
+	assertLastWayIn := func(id string) {
+		t.Helper()
+		resp, body := e.do(t, http.MethodDelete, "/api/account/passkeys/"+id, cookie, nil)
+		if resp.StatusCode != http.StatusConflict || !strings.Contains(string(body), `"last_way_in"`) {
+			t.Fatalf("removing the last passkey: status = %d body=%s, want 409 last_way_in", resp.StatusCode, body)
+		}
+		if err := e.contract.Validate("removePasskey", apicontract.Response, "409", body); err != nil {
+			t.Errorf("removePasskey 409 does not conform: %v", err)
+		}
+		if ids := listIDs(); len(ids) != 1 || ids[0] != id {
+			t.Errorf("after a refused removal the passkeys are %v, want [%s]", ids, id)
+		}
+	}
+
+	first := listIDs()[0]
+	assertLastWayIn(first)
+
+	// A second passkey: the first removes, the remaining one is the last.
+	_, beginBody := e.do(t, http.MethodPost, "/api/auth/passkey/register/begin", cookie, []byte(`{}`))
+	if resp, body := e.do(t, http.MethodPost, "/api/auth/passkey/register/finish", cookie, e.finishRegistrationBody(t, beginBody)); resp.StatusCode != http.StatusOK {
+		t.Fatalf("second register/finish: status = %d; body=%s", resp.StatusCode, body)
+	}
+	if resp, body := e.do(t, http.MethodDelete, "/api/account/passkeys/"+first, cookie, nil); resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("removing one of two passkeys: status = %d, want 204; body=%s", resp.StatusCode, body)
+	}
+	last := listIDs()[0]
+	assertLastWayIn(last)
+
+	// A confirmed recovery email is another way in: the last passkey removes.
+	if _, err := e.pool.Exec(context.Background(),
+		`UPDATE accounts SET email = 'way-in@estante.test' WHERE id = $1`, accountID); err != nil {
+		t.Fatalf("set email: %v", err)
+	}
+	if resp, body := e.do(t, http.MethodDelete, "/api/account/passkeys/"+last, cookie, nil); resp.StatusCode != http.StatusNoContent {
+		t.Errorf("removing the last passkey with an email: status = %d, want 204; body=%s", resp.StatusCode, body)
 	}
 }
 

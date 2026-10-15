@@ -42,6 +42,14 @@ const (
 	BookCreate RuleID = "book_create"
 	// InviteAccept caps invitation acceptance per account.
 	InviteAccept RuleID = "invite_accept"
+	// RecoveryEmailAccount caps recovery-email verification requests per
+	// account (the request carries a session).
+	RecoveryEmailAccount RuleID = "recovery_email_account"
+	// RecoveryEmailAddr caps recovery-email verification links per address, a
+	// bucket of its own so a signed-in stranger cannot spend a victim's sign-in
+	// links by asking for verifications to their address (service.recovery_email
+	// Decision *Rate limits: their own per-address bucket*).
+	RecoveryEmailAddr RuleID = "recovery_email_addr"
 )
 
 // Default thresholds (service.rate_limits Constraint 8): compile-time consts
@@ -70,6 +78,13 @@ const (
 	// InvitesPerHourPerAccount: accepting twenty invitations an hour is far past
 	// any real use.
 	InvitesPerHourPerAccount = 20
+	// RecoveryEmailsPerHourPerAccount: setting or changing a recovery email is
+	// a once-in-a-while act; ten verification requests an hour from one account
+	// is far past a few typos and a send again.
+	RecoveryEmailsPerHourPerAccount = 10
+	// RecoveryEmailsPerHourPerAddress: as for the sign-in link, five an hour to
+	// one mailbox is generous and still stops a flood.
+	RecoveryEmailsPerHourPerAddress = 5
 )
 
 // A Rule is a fixed-window limit: at most Max events per Window for a given key.
@@ -132,6 +147,9 @@ func NewDefault(now func() time.Time) *Limiter {
 		EmailLinkIP:   {Max: EmailLinksPerHourPerIP, Window: time.Hour},
 		BookCreate:    {Max: BooksPerHourPerAccount, Window: time.Hour},
 		InviteAccept:  {Max: InvitesPerHourPerAccount, Window: time.Hour},
+
+		RecoveryEmailAccount: {Max: RecoveryEmailsPerHourPerAccount, Window: time.Hour},
+		RecoveryEmailAddr:    {Max: RecoveryEmailsPerHourPerAddress, Window: time.Hour},
 	})
 }
 

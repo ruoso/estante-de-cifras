@@ -58,6 +58,12 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 		mux.HandleFunc("POST /api/auth/signout", handleSignOut(api))
 		mux.HandleFunc("DELETE /api/account", handleDeleteAccount(api))
 		mux.HandleFunc("GET /api/account/sessions", handleListSessions(api))
+		// The recovery email: read it, ask for a verification link, and confirm
+		// one — the confirm needs no session and starts none (workflow 13 §The
+		// recovery email; service.recovery_email).
+		mux.HandleFunc("GET /api/account/recovery-email", handleGetRecoveryEmail(api))
+		mux.HandleFunc("POST /api/account/recovery-email", handleRequestRecoveryEmail(api))
+		mux.HandleFunc("POST /api/recovery-email/confirm", handleConfirmRecoveryEmail(api, logger))
 		mux.HandleFunc("DELETE /api/account/sessions/{sessionId}", handleRevokeSession(api))
 		// The account's home book: its id and git URL, made empty on the first
 		// request and the same one ever after, so a signed-in device attaches it
@@ -114,6 +120,9 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 			mux.HandleFunc("POST /api/auth/passkey/authenticate/finish", handleAuthenticatePasskeyFinish(api))
 			mux.HandleFunc("GET /api/account/passkeys", handleListPasskeys(api))
 			mux.HandleFunc("DELETE /api/account/passkeys/{passkeyId}", handleRemovePasskey(api))
+			// The passkey confirm of an account deletion, for an account with no
+			// confirmed recovery email (workflow 17 §An account with no email).
+			mux.HandleFunc("POST /api/account/delete/begin", handleBeginDeleteAccountPasskey(api))
 		}
 	}
 	// The app at /: ServeMux routes everything not matched by a more specific

@@ -17,7 +17,9 @@
  * is refused its git endpoint and it leaves their shelf), while a book the leaver
  * was only a member of is untouched but for that one membership, and a fork
  * survives with original_book_id nulled. A wrong email is 400 and deletes nothing;
- * an unauthenticated call is 401.
+ * an unauthenticated call is 401. A passkey-only account (no email to type)
+ * deletes by a fresh passkey confirm instead (service.recovery_email; workflow 17
+ * §An account with no email), with the same cascade.
  */
 import { afterEach, describe, it, expect } from 'vitest';
 import { writeFile, rm } from 'node:fs/promises';
@@ -30,11 +32,11 @@ import { GitCli, makeTempDir } from './lib/git.js';
 import { sampleSong } from './fixtures/songs.js';
 import { connect } from './lib/db.js';
 
-async function registerNewAccount(client) {
+async function registerNewAccount(client, authenticator = new Authenticator(baseUrl)) {
   const beginResp = await client.postJson('/api/auth/passkey/register/begin', {});
   expect(beginResp.status).toBe(200);
   const begin = await beginResp.json();
-  const credential = await new Authenticator(baseUrl).create(begin.publicKey);
+  const credential = await authenticator.create(begin.publicKey);
   const finishResp = await client.postJson('/api/auth/passkey/register/finish', {
     state: begin.state,
     credential,
@@ -82,6 +84,16 @@ function deleteAccount(client, confirm) {
     method: 'DELETE',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ confirm }),
+  });
+}
+
+// DELETE /api/account with the passkey confirm (DeleteAccountRequest { passkey }),
+// for an account with no confirmed email (workflow 17 §An account with no email).
+function deleteAccountByPasskey(client, passkey) {
+  return client.fetch('/api/account', {
+    method: 'DELETE',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ passkey }),
   });
 }
 
@@ -192,5 +204,46 @@ describe('account deletion (workflow 17)', () => {
     } finally {
       await sql.end({ timeout: 5 });
     }
+  });
+
+  it('deletes a passkey-only account by a fresh passkey confirm, cascading on the stack', async () => {
+    const authenticator = new Authenticator(baseUrl);
+    const a = new HttpClient();
+    const aId = await registerNewAccount(a, authenticator);
+    const book = await createBook(a, 'Só meus');
+    const oldCookie = a.cookieHeader();
+
+    // Begin the confirm made for this deletion, answer it with the passkey.
+    const beginResp = await a.fetch('/api/account/delete/begin', { method: 'POST' });
+    expect(beginResp.status).toBe(200);
+    const begin = await beginResp.json();
+    const credential = await authenticator.get(begin.publicKey);
+    const passkey = { state: begin.state, credential };
+
+    expect((await deleteAccountByPasskey(a, passkey)).status).toBe(204);
+
+    const sql = connect();
+    try {
+      const n = async (q) => (await q)[0].n;
+      expect(await n(sql`SELECT count(*)::int AS n FROM accounts WHERE id = ${aId}`)).toBe(0);
+      expect(await n(sql`SELECT count(*)::int AS n FROM passkeys WHERE account_id = ${aId}`)).toBe(0);
+      expect(await n(sql`SELECT count(*)::int AS n FROM sessions WHERE account_id = ${aId}`)).toBe(0);
+      // The owned book is gone with its owner: no live row is left.
+      expect(await n(sql`SELECT count(*)::int AS n FROM books WHERE id = ${book.id} AND deleted_at IS NULL`)).toBe(0);
+    } finally {
+      await sql.end({ timeout: 5 });
+    }
+
+    // The old cookie no longer resolves, and replaying the same confirm is
+    // refused at the session (there is none left to delete).
+    const stale = new HttpClient();
+    const staleResp = await stale.fetch('/api/account/sessions', { headers: { cookie: oldCookie } });
+    expect(staleResp.status).toBe(401);
+    const replay = await stale.fetch('/api/account', {
+      method: 'DELETE',
+      headers: { cookie: oldCookie, 'content-type': 'application/json' },
+      body: JSON.stringify({ passkey }),
+    });
+    expect(replay.status).toBe(401);
   });
 });

@@ -84,8 +84,15 @@ task service "The service" {
   task recovery_email "Recovery email and passkey-confirmed deletion" {
     effort 2d
     allocate team
+    complete 100
     depends !email_links, !passkeys, design.recovery_email
-    note "As design.recovery_email decides: an endpoint to set or change the account's recovery email, written to accounts.email only once the emailed verification link is redeemed; DELETE /api/account confirmed by a fresh passkey assertion when the account has no email (today it fails closed with 400). api/openapi.yaml extended first. Source: tasks/parking-lot.md 2026-10-14. Tests: unit (verification token rules); behavior (set, verify, change the email; delete a passkey-only account by passkey, a wrong or stale assertion refused); e2e-api (an email set and verified via the mail catcher, then used for an emailed sign-in; a passkey-only account deleted on the stack)."
+    note "As design.recovery_email decides: an endpoint to set or change the account's recovery email, written to accounts.email only once the emailed verification link is redeemed; DELETE /api/account confirmed by a fresh passkey assertion when the account has no email (today it fails closed with 400). api/openapi.yaml extended first. Source: tasks/parking-lot.md 2026-10-14. Tests: unit (verification token rules); behavior (set, verify, change the email; delete a passkey-only account by passkey, a wrong or stale assertion refused); e2e-api (an email set and verified via the mail catcher, then used for an emailed sign-in; a passkey-only account deleted on the stack). Refinement: tasks/refinements/service/recovery_email.md"
+  }
+  task signin_link_path_redaction "Redact the sign-in link token from the logged request path" {
+    effort 0.5d
+    allocate team
+    depends !recovery_email
+    note "The app page /sign-in/<token> is still logged with its token in the path; service.recovery_email redacted only /recovery-email/<token>. Source: tasks/refinements/service/recovery_email.md (commit of service.recovery_email); governing document: docs/DIRECTION.md section 3.3 and workflow 13 (never logged). Tests: unit (the path redaction); behavior (a sign-in link opened leaves no token in the captured log)."
   }
   task leave_book "A member leaves a book" {
     effort 1d

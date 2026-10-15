@@ -124,3 +124,16 @@ func (rp *RP) Seal(sd *webauthn.SessionData, now time.Time) (string, error) {
 func (rp *RP) Open(state string, now time.Time) (*webauthn.SessionData, error) {
 	return Open(state, rp.secret, now)
 }
+
+// SealFor seals sd for a named purpose (PurposeDeleteAccount); only OpenFor
+// with the same purpose opens it.
+func (rp *RP) SealFor(purpose string, sd *webauthn.SessionData, now time.Time) (string, error) {
+	return SealFor(purpose, sd, rp.secret, now, StateTTL)
+}
+
+// OpenFor verifies a state token sealed for purpose and returns its
+// SessionData, or an error when it is tampered, malformed, expired or sealed
+// for another purpose.
+func (rp *RP) OpenFor(purpose, state string, now time.Time) (*webauthn.SessionData, error) {
+	return OpenFor(purpose, state, rp.secret, now)
+}
