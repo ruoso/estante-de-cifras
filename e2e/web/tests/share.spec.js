@@ -200,8 +200,6 @@ test('share from a song: the member address, and an invitation that opens on the
 });
 
 test('a non-member opening a book address gets the "does not open" state', async ({ browser, page }, testInfo) => {
-  // BUG: /b/<book>/<path> for a book the account does not hold opens an empty reading view (title = file name, no chart, Edit/Share offered) instead of a "does not open" state — see coordinator report
-  test.fixme(true, 'no non-member state for /b/<id>/<path>: app/src/shell/AppShell.jsx boot effect just setOpenSong');
   const narrow = testInfo.project.name === 'phone';
 
   await hostedBookWithSong(page, BOOK, SONG_TITLE);

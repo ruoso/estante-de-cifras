@@ -62,7 +62,9 @@ which is the one you have been working in. Results are not grouped by song.
 Search covers every book. A filter narrows it to books, or to folders within
 one, and **resets at the start of each session**: a scope you have forgotten
 about hides results without saying so. While a filter is on, it is shown in
-the box, not tucked behind a button.
+the box, not tucked behind a button. The one exception is a session that
+starts from a book's address (`…/b/<book>`, workflow 7): it opens on that
+book's songs, the scope shown in the box like any other.
 
 ## Reading a song
 

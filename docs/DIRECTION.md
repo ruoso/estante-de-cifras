@@ -472,6 +472,14 @@ languages. Its components carry no look of their own, so the visual language
   the worst moment for anything to move (workflow 8), and the main thread and
   the Worker stay the same build within one session, so a schema migration
   (§3.2) only ever runs at that same launch boundary.
+- **The address follows where you are.** The destination (search, books,
+  setlists), a book's songs (`/b/<book>`) and an open song or setlist
+  (`/b/<book>/<path>`) are in the URL, so a reload, a bookmark and the
+  browser's or Android's back land where the person was (workflow 7, *Links
+  to books*). The screens over them — the editor, history, the file view,
+  the explorer — are steps in the browser's history but not addresses. It is
+  the History API under a small module of the app's own, not a routing
+  library; the URL is view state, and the Worker never sees it.
 - **Tooling carries over from Explore Chords**: Vite, the PWA plugin, Vitest
   with Testing Library, Playwright, axe at WCAG 2.1 AA, and the i18n set-up
   with its four languages.

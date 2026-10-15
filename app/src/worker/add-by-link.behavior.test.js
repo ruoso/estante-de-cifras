@@ -126,7 +126,10 @@ async function makeWorker(onAccept) {
 }
 
 // Send ADD_BY_LINK and wait for a terminal event (cloned / needs-account /
-// refused), returning it.
+// refused), returning it. The accept path does a real clone over HTTP, so the
+// wait gets the budget the other real-git worker tests use (CLONE_WAIT), not
+// waitFor's 1s default, which a loaded full-suite run can outlast.
+const CLONE_WAIT = { timeout: 8000 };
 async function addByLink(w, token) {
   const mark = w.events.length;
   w.send(command(CommandKind.ADD_BY_LINK, { token, author: IDENTITY }));
@@ -141,7 +144,7 @@ async function addByLink(w, token) {
           e.kind === EventKind.BOOK_REFUSED,
       );
     expect(terminal).toBeTruthy();
-  });
+  }, CLONE_WAIT);
   return terminal;
 }
 

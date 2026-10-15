@@ -66,6 +66,16 @@ var reservedPrefixes = []string{"/api", "/git"}
 // has its token logged.
 var linkRoutes = []string{"sign-in", "recovery-email"}
 
+// appRoutes are the app's own addresses (shell.routing, DIRECTION §3.7 "The
+// address follows where you are"): a book's songs (/b/<book>) and a song or
+// setlist in it (/b/<book>/<path>). A song's path ends in .cifra.md and a
+// setlist's in .setlist.md, which path.Ext reads as an extension, so a path
+// under one of these is exempted from the asset rule and boots the shell on a
+// device with no service worker yet (workflow 10 §Sharing a song). Kept apart
+// from linkRoutes on purpose: those also drive the request log's token
+// redaction, and a /b/ address is logged as it is.
+var appRoutes = []string{"b"}
+
 // ServeHTTP serves a real file when the path resolves to one, and otherwise
 // either falls back to the app shell (a navigation such as the app's own
 // /b/{book} deep links — so the single-page app boots and client-routes) or
@@ -138,10 +148,10 @@ func isReserved(urlPath string) bool {
 // isAssetRequest reports whether a path that did not resolve to a real file
 // should 404 rather than fall back to the shell: a path under assets/, or any
 // path that names a file with an extension. A navigation (no extension, not
-// under assets/, or any path under an emailed-link route) falls back to
-// index.html instead.
+// under assets/, or any path under an emailed-link route or an app address)
+// falls back to index.html instead.
 func isAssetRequest(name string) bool {
-	if isLinkRoute(name) {
+	if isLinkRoute(name) || isAppRoute(name) {
 		return false
 	}
 	return strings.HasPrefix(name, "assets/") || path.Ext(name) != ""
@@ -152,6 +162,17 @@ func isAssetRequest(name string) bool {
 // after it).
 func isLinkRoute(name string) bool {
 	for _, route := range linkRoutes {
+		if strings.HasPrefix(name, route+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// isAppRoute reports whether a bundle-relative path lies beneath one of the
+// app's own addresses (a first segment in appRoutes, with something after it).
+func isAppRoute(name string) bool {
+	for _, route := range appRoutes {
 		if strings.HasPrefix(name, route+"/") {
 			return true
 		}

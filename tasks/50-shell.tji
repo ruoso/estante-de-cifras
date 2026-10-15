@@ -64,8 +64,21 @@ task shell "Shell" {
   task routing "The URL follows where you are" {
     effort 2d
     allocate team
+    complete 100
     depends !layout, books.add_by_link
-    note "Sync the active destination and deep screens (a book, a song, a setlist) to the URL so browser and Android back work and a place can be bookmarked or reloaded; book invitation links (books.add_by_link) keep working through it. Opening a URL for something not on this device lands on a clear not-here state, never a crash. Source: tasks/parking-lot.md 2026-10-14 (Shell URL / deep-link routing). Tests: unit (URL ↔ location both ways); behavior (navigating updates the URL, back returns, a deep URL opens its screen; axe); e2e-web (a song opened, reloaded and still open; back from a song to its book on the three viewports; axe)."
+    note "Sync the active destination and deep screens (a book, a song, a setlist) to the URL so browser and Android back work and a place can be bookmarked or reloaded; book invitation links (books.add_by_link) keep working through it. Opening a URL for something not on this device lands on a clear not-here state, never a crash. Source: tasks/parking-lot.md 2026-10-14 (Shell URL / deep-link routing). Tests: unit (URL ↔ location both ways); behavior (navigating updates the URL, back returns, a deep URL opens its screen; axe); e2e-web (a song opened, reloaded and still open; back from a song to its book on the three viewports; axe). Refinement: tasks/refinements/shell/routing.md"
+  }
+  task routing_rename_across_reload "A fork's new book id reaches history entries from before a reload" {
+    effort 1d
+    allocate team
+    depends !routing
+    note "Source of debt: shell.routing fixer-1 (tasks/refinements/shell/routing.md). usePlaceHistory.renameBook keeps a book id change (BOOK_FORKED, BOOK_ONLINE) only in memory, so after a reload the history entries made before it can still name the old book and Back lands on the not-here state. Persist the rename (for example in sessionStorage keyed by the session's history) so entries from before a reload resolve to the new id. Governing document: DIRECTION section 3.7, workflow 7 (Links to books). Tests: unit (the rename record read back after a simulated reload); behavior (back after a fork and a reload lands on the fork, not not-here; axe); e2e-web (fork, reload, back lands on the fork on the three viewports; axe)."
+  }
+  task routing_reload_scope_step "Back after a reload keeps a scope-only history step" {
+    effort 0.5d
+    allocate team
+    depends !routing
+    note "Source of debt: shell.routing fixer-3 (tasks/refinements/shell/routing.md). After a reload, Back skips history entries from before the reload that differ from the current one only in search scope, so on a wide layout one Back can skip a scope-only step. Narrow the skip to the case it was added for (same song address, a layer dropped by the reload on a phone) so scope-only steps are kept. Governing document: DIRECTION section 3.7, workflow 2 (Scope delta). Tests: unit (the skip rule); behavior (back after a reload under a layer leaves the song, back after a reload keeps a scope-only step; axe); e2e-web (the arrange and wizard reload-then-back journeys still pass on the three viewports; axe)."
   }
   task fonts "Self-host the designed typefaces" {
     effort 1d

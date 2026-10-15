@@ -104,6 +104,34 @@ func TestAppServedAtRoot(t *testing.T) {
 	if body != testShell {
 		t.Errorf("GET /b/demo body = %q, want the fixture shell (SPA fallback)", body)
 	}
+
+	// A song's and a setlist's address end in a dotted name, yet are the app's
+	// own addresses: the shell with 200 on a device with no service worker
+	// (shell.routing; workflow 10 §Sharing a song).
+	for _, p := range []string{"/b/demo/choro/x.cifra.md", "/b/demo/y.setlist.md"} {
+		resp, body = get(t, ts.URL, p)
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("GET %s status = %d, want 200 (SPA fallback)", p, resp.StatusCode)
+		}
+		if body != testShell {
+			t.Errorf("GET %s body = %q, want the fixture shell (SPA fallback)", p, body)
+		}
+	}
+}
+
+// TestAppDottedPathOutsideBStill404s pins that the /b/ exemption is narrow
+// (shell.routing; service.serve_app's SPA-fallback constraint): a missing asset
+// and a dotted path outside b/ still 404 rather than being masked as the shell.
+func TestAppDottedPathOutsideBStill404s(t *testing.T) {
+	ts := httptest.NewServer(newTestHandler(t))
+	defer ts.Close()
+
+	for _, p := range []string{"/assets/missing.js", "/x.cifra.md"} {
+		resp, _ := get(t, ts.URL, p)
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("GET %s status = %d, want 404", p, resp.StatusCode)
+		}
+	}
 }
 
 // TestApiNamespaceBesideApp pins "the API beneath" (DIRECTION §3.3 line 170,

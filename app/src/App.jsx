@@ -15,7 +15,7 @@ import UpdateReady from './pwa/UpdateReady.jsx';
 import { signInToken } from './account/sign-in-route.js';
 import { recoveryEmailToken } from './account/recovery-email-route.js';
 import { invitationToken } from './account/invitation-route.js';
-import { bookSongRoute, songAnchorFromHash } from './books/book-route.js';
+import { songAnchorFromHash } from './books/book-route.js';
 import { getAppStore } from './worker/store.js';
 
 // The chart's dev gallery is reachable only at `#dev/chart` — absent from the
@@ -128,14 +128,6 @@ function bootInvitationToken() {
   return typeof location === 'undefined' ? null : invitationToken(location.pathname);
 }
 
-// A song's plain address boots the app at `/b/<bookId>/<path>` — a member's deep
-// link into a book they already hold (books.share, workflow 10 L95-96; Decision
-// 2). Read once at boot, beside the invitation token; AppShell seeds the open
-// song. Pure parse in `bookSongRoute`.
-function bootBookSong() {
-  return typeof location === 'undefined' ? null : bookSongRoute(location.pathname);
-}
-
 // An invitation link may carry the shared song as a client-only `#<path>`
 // fragment (books.share Decision 2). It is meaningful only alongside an
 // invitation link, and the URL is cleaned at boot (dropping the fragment), so it
@@ -188,15 +180,18 @@ export default function App({ store = getAppStore() }) {
   // same way — so the single-use-ish link does not linger in history or a share,
   // and a reload does not re-run the invited flow. AppShell runs the flow.
   const [inviteToken] = useState(bootInvitationToken);
-  // A member's `/b/<bookId>/<path>` deep link and an invitation's `#<path>` song
-  // fragment, each captured once and the URL cleaned to `/` the same way.
-  const [bookSong] = useState(bootBookSong);
+  // An invitation's `#<path>` song fragment, captured once the same way.
   const [inviteSongAnchor] = useState(bootInviteSongAnchor);
+  // The places themselves — `/`, `/books`, `/setlists`, `/b/<book>[/<path>]` —
+  // are AppShell's (shell.routing): it reads the address at boot and writes it
+  // as the person moves, replacing a token path with the place the flow lands
+  // on. This cleans a token path to `/` too, for a boot that mounts no shell,
+  // keeping whatever entry state the shell already wrote.
   useEffect(() => {
-    if ((redeemToken || recoveryToken || inviteToken || bookSong) && typeof history !== 'undefined') {
-      history.replaceState(null, '', '/');
+    if ((redeemToken || recoveryToken || inviteToken) && typeof history !== 'undefined') {
+      history.replaceState(history.state, '', '/');
     }
-  }, [redeemToken, recoveryToken, inviteToken, bookSong]);
+  }, [redeemToken, recoveryToken, inviteToken]);
 
   return (
     <ThemeRoot store={store}>
@@ -223,7 +218,6 @@ export default function App({ store = getAppStore() }) {
             redeemToken={redeemToken}
             recoveryToken={recoveryToken}
             inviteToken={inviteToken}
-            bookSong={bookSong}
             inviteSongAnchor={inviteSongAnchor}
           />
         )}

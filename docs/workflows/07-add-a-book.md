@@ -42,6 +42,22 @@ A link to a book is a link into the app, `…/b/<book>`: the thing a teacher
 sends a student. It names the book, not its git URL, which is the service's
 business. What the link lets its holder do is workflow 10's.
 
+The same address is where the app is while the book is open: `…/b/<book>`
+is search scoped to that book — its songs — and `…/b/<book>/<path>` is a
+song or a setlist in it. Reloading, bookmarking or going back lands there
+again. An address for something not on this device opens a plain screen
+instead, never an empty song:
+
+- **A book not on this device** says the link does not open a book, as a
+  dead invitation does (workflow 1, *A link that no longer works*), and
+  names nothing about the book — the app cannot tell a book that is not
+  yours from one of yours not yet added here. It suggests asking whoever
+  sent it for an invitation, or adding it from Books if it is yours on
+  Estante (*mine on Estante*).
+- **A song or setlist no longer in a book that is here** — renamed, moved
+  or deleted — says so, naming the book, and offers to open the book's
+  songs.
+
 ## Putting a book online
 
 *Put online*, on a local book, creates the book on Estante, adds it as the

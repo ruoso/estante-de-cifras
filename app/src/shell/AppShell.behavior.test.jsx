@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { checkWcag21aa } from '../a11y/axe.js';
 import AppShell from './AppShell.jsx';
@@ -40,6 +40,12 @@ function installMatchMedia(initialWide) {
     },
   };
 }
+
+// The shell starts on the place its address names (shell.routing), and jsdom's
+// URL carries over from one test to the next: every test starts at `/`.
+beforeEach(() => {
+  history.replaceState(null, '', '/');
+});
 
 afterEach(() => {
   delete globalThis.matchMedia;

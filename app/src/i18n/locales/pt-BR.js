@@ -469,6 +469,19 @@ export default {
 
   // A porta do convite para um livro compartilhado (books.add_by_link, fluxo 1
   // §Convidado; mockup W01). Genérica antes de entrar — não nomeia o livro.
+  // shell.routing — um endereço para algo que não está neste aparelho.
+  notHere: {
+    back: 'Voltar',
+    brand: 'Estante',
+    bookTitle: 'Este link não abre um livro',
+    bookBody:
+      'Ele não está neste aparelho. Se você foi convidado, peça a quem enviou um novo convite; se ele é seu na Estante, adicione-o em Livros.',
+    goToBooks: 'Ir para Livros',
+    songTitle: 'Esta música não está em {book}',
+    setlistTitle: 'Este repertório não está em {book}',
+    itemBody: 'Ela pode ter sido renomeada, movida ou apagada.',
+    openBook: 'Abrir as músicas de {book}',
+  },
   invited: {
     brand: 'Estante',
     close: 'Fechar',

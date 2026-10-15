@@ -401,6 +401,8 @@ export default function SearchScreen({
   onAddToSetlist = null,
   query: controlledQuery,
   onQueryChange,
+  scope: controlledScope,
+  onScopeChange,
 }) {
   const searchSlice = useSlice(store, 'search');
   const indexSlice = useSlice(store, 'index');
@@ -423,7 +425,13 @@ export default function SearchScreen({
   const [internalQuery, setInternalQuery] = useState('');
   const query = controlledQuery ?? internalQuery;
   const setQuery = onQueryChange ?? setInternalQuery;
-  const [scope, setScope] = useState(INITIAL_SCOPE);
+  // The scope is controllable too: the shell lifts it so a book's address
+  // (`/b/<book>`) can set it and back can return to it (shell.routing Decision
+  // 1). Uncontrolled, it is local state reset on every mount (Decision 8). The
+  // setter takes a value or an updater, either way.
+  const [internalScope, setInternalScope] = useState(INITIAL_SCOPE);
+  const scope = controlledScope === undefined ? internalScope : controlledScope;
+  const setScope = onScopeChange ?? setInternalScope;
   // Save all opens the one save sheet over a book's changed songs (workflow 4
   // §Several songs at once). Ephemeral view state: `{ bookId, paths, bookLabel }`.
   const [saveAll, setSaveAll] = useState(null);

@@ -21,6 +21,7 @@
 // raw segment rather than losing the link.
 
 const BOOK_SONG_PATH = /^\/b\/([^/]+)\/(.+)$/;
+const BOOK_PATH = /^\/b\/([^/]+)\/?$/;
 
 function decodeSegment(segment) {
   try {
@@ -51,6 +52,22 @@ export function bookSongRoute(pathname) {
   const path = decodePath(match[2]);
   if (!bookId || !path) return null;
   return { bookId, path };
+}
+
+// The bookId of a book's own address, `/b/<bookId>` (with or without a trailing
+// slash), or null when the pathname is not one (shell.routing; workflow 7 §Links
+// to books). A song address (`/b/<bookId>/<path>`) is not a book address.
+export function bookRoute(pathname) {
+  if (typeof pathname !== 'string') return null;
+  const match = BOOK_PATH.exec(pathname);
+  if (!match) return null;
+  return decodeSegment(match[1]) || null;
+}
+
+// A book's address, `/b/<bookId>` — what a teacher sends a student, and where
+// the app is while search is scoped to that book (shell.routing).
+export function bookPath(bookId) {
+  return `/b/${encodeURIComponent(bookId)}`;
 }
 
 // The song path an invitation link carried as a `#<path>` fragment, or null when

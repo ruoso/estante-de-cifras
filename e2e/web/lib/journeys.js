@@ -214,6 +214,10 @@ export async function waitUntilSearchable(page, query, title, { timeout = 10000 
 // on a wide layout the search sits beside it (no tab bar); otherwise go to the
 // Search destination first.
 export async function openSongFromSearch(page, query, title) {
+  // Landed (a reload, a deep link) on an address: the shell shows its
+  // destination, busy, while the address resolves, then opens what it names.
+  // Wait for that before deciding where search is.
+  await expect(page.locator('main[aria-busy="true"]')).toHaveCount(0);
   const searchbox = page.getByRole('searchbox');
   if (!(await searchbox.first().isVisible().catch(() => false))) {
     // A full-screen song on a phone: Back to the destinations first.
@@ -226,6 +230,14 @@ export async function openSongFromSearch(page, query, title) {
   await searchbox.first().fill(query);
   await page.getByRole('button', { name: new RegExp(escape(title)) }).first().click();
   await expect(page.getByRole('group', { name: title }).first()).toBeVisible();
+}
+
+// From search, narrow it to one book with that book's *Search only in {book}*
+// (workflow 2 §Scope): the scope chip shows the book.
+export async function scopeToBook(page, bookTitle) {
+  await page.getByRole('searchbox').first().fill('');
+  await page.getByRole('button', { name: `Search only in ${bookTitle}` }).click();
+  await expect(page.locator('.scope')).toContainText(bookTitle);
 }
 
 // From the reading view, the song's Edit: the source editor opens on it.

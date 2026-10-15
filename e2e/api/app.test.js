@@ -32,6 +32,16 @@ describe('app', () => {
     expect(await response.text()).toBe(shell);
   });
 
+  // shell.routing: a song's address ends in `.cifra.md`, yet a device with no
+  // service worker still gets the shell for it (workflow 10 §Sharing a song).
+  it('GET /b/<book>/<path>.cifra.md returns the same shell (SPA fallback)', async () => {
+    const client = new HttpClient();
+    const shell = await (await client.get('/')).text();
+    const response = await client.get('/b/some-book/choro/a-song.cifra.md');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe(shell);
+  });
+
   it('the app at / and an API namespace beside it both carry noindex', async () => {
     const client = new HttpClient();
     // No /api handler exists yet; the app handler at / must not swallow the

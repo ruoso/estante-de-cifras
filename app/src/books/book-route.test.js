@@ -4,6 +4,8 @@ import {
   songAnchorFromHash,
   bookSongPath,
   invitationSongLink,
+  bookRoute,
+  bookPath,
 } from './book-route.js';
 
 // unit (books.share) — the deep-link parser/builder for the two song-share link
@@ -90,5 +92,31 @@ describe('the link builders round-trip with the parsers', () => {
     expect(bookSongRoute(bookSongPath('b1', path))).toEqual({ bookId: 'b1', path });
     const link = invitationSongLink('https://estante.app/i/tok', path);
     expect(songAnchorFromHash(new URL(link).hash)).toBe(path);
+  });
+});
+
+// unit (shell.routing) — the book-only address `/b/<bookId>`: where the app is
+// while search is scoped to one book (workflow 7 §Links to books L41).
+describe('bookRoute / bookPath — /b/<bookId>', () => {
+  it('parses a book address with and without a trailing slash', () => {
+    expect(bookRoute('/b/choros-da-ana')).toBe('choros-da-ana');
+    expect(bookRoute('/b/choros-da-ana/')).toBe('choros-da-ana');
+  });
+
+  it('decodes a percent-encoded id', () => {
+    expect(bookRoute('/b/sr_abc%20123')).toBe('sr_abc 123');
+  });
+
+  it('is not a song address, nor anything else', () => {
+    expect(bookRoute('/b/book/song.cifra.md')).toBeNull();
+    expect(bookRoute('/b/')).toBeNull();
+    expect(bookRoute('/b')).toBeNull();
+    expect(bookRoute('/books')).toBeNull();
+    expect(bookRoute(null)).toBeNull();
+  });
+
+  it('builds the address with the id encoded, and round-trips', () => {
+    expect(bookPath('sr_abc 123')).toBe('/b/sr_abc%20123');
+    expect(bookRoute(bookPath('livro de ação'))).toBe('livro de ação');
   });
 });

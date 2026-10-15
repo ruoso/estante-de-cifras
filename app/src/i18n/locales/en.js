@@ -519,6 +519,20 @@ export default {
   // never the title or owner (Decision 1, the design delta), since a dead link
   // must tell its holder nothing. The dead/full copy is W01's; a status is always
   // a word, never colour alone.
+  // shell.routing — an address for something not on this device (workflow 7
+  // §Links to books). The book state names nothing about the book.
+  notHere: {
+    back: 'Back',
+    brand: 'Estante',
+    bookTitle: 'This link doesn’t open a book',
+    bookBody:
+      'It isn’t on this device. If you were invited, ask whoever sent it for a new invitation; if it’s yours on Estante, add it from Books.',
+    goToBooks: 'Go to Books',
+    songTitle: 'This song isn’t in {book}',
+    setlistTitle: 'This setlist isn’t in {book}',
+    itemBody: 'It may have been renamed, moved or deleted.',
+    openBook: 'Open {book}’s songs',
+  },
   invited: {
     brand: 'Estante',
     close: 'Close',

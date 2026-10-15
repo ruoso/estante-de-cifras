@@ -51,6 +51,11 @@ import ChordExplorer from '../music/ChordExplorer.jsx';
 import InstrumentChip from '../instruments/InstrumentChip.jsx';
 import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
 import { DESTINATIONS, WIDE_QUERY, layoutMode } from './layout-mode.js';
+import { bookFileSet } from '../books/setlist-display.js';
+import { initialState } from '../worker/reducer.js';
+import NotHere from './NotHere.jsx';
+import { bookOfScope, sameItem } from './place.js';
+import { bootEntry, usePlaceHistory } from './use-place-history.js';
 import './shell.css';
 
 // The device-local commit identity before sign-in (SearchScreen/BooksScreen use
@@ -177,6 +182,22 @@ function destinationTab(key, variant) {
 // threaded the store (songs.search / books.shelf / books.setlists Decision 1).
 // RAC mounts only the selected panel, so exactly one level-1 heading (the
 // screen's own) is present at a time.
+// What an address names, resolved on the device from the shelf and the book's
+// tree (shell.routing Decision 6): 'pending' while the tree is on its way, 'ok',
+// or the not-here kind — 'book' (not on the shelf), 'song' / 'setlist' (not in
+// the book's present files). `checkItem` is false for an entry popped from
+// history, whose item an in-app open already vouched for.
+function resolvePlace({ place, checkItem, treeReady }, shelf, tree) {
+  const item = place.song ?? place.setlist ?? null;
+  const bookId = item?.bookId ?? place.book;
+  if (!bookId) return 'ok';
+  if (!orderedBooks(shelf).some((entry) => entry.id === bookId)) return 'book';
+  if (!item || !checkItem) return 'ok';
+  if (!treeReady || !tree?.[bookId]) return 'pending';
+  if (bookFileSet(tree[bookId].entries).has(item.path)) return 'ok';
+  return place.song ? 'song' : 'setlist';
+}
+
 function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key} className="shell-panel">
@@ -199,6 +220,8 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
           query={search.query}
           onQueryChange={search.onQueryChange}
           onExploreChord={search.onExploreChord}
+          scope={search.scope}
+          onScopeChange={search.onScopeChange}
           onAddToSetlist={onAddToSetlist}
           onOpenSetlist={onOpenSetlist}
         />
@@ -228,13 +251,27 @@ export default function AppShell({
   redeemToken = null,
   recoveryToken = null,
   inviteToken = null,
-  bookSong = null,
   inviteSongAnchor = null,
 }) {
   const mode = useLayoutMode();
   const shelf = useSlice(store, 'shelf');
+  const tree = useSlice(store, 'tree');
   const sync = useSlice(store, 'sync');
-  const [selected, setSelected] = useState(DESTINATIONS[0]);
+  // Where the session starts (shell.routing): the address's place, read once.
+  // Its tab is selected from the first render; a book, song or setlist it names
+  // waits in `resolving` until the shelf (and the book's tree) say it is here.
+  const [boot] = useState(bootEntry);
+  const [selected, setSelected] = useState(boot.place.tab ?? DESTINATIONS[0]);
+  // The search scope, lifted here (shell.routing Decision 1) so a book's address
+  // can set it and back can return to it; SearchScreen is controlled by it.
+  const [scope, setScope] = useState(null);
+  // A place applied from an address (boot) or from history (popstate) that names
+  // a book or an item, held until it resolves: `{ place, checkItem, treeReady }`
+  // or null. While pending the shell's destination shows; when it resolves to a
+  // not-here kind, the NotHere surface shows and the URL stays at the address.
+  const [resolving, setResolving] = useState(() =>
+    boot.fromAddress ? { place: boot.place, checkItem: true, treeReady: false } : null,
+  );
 
   // The invited flow (books.add_by_link, workflow 1 §Invited): a full-screen
   // surface over the shell, opened when the app booted on an invitation link
@@ -368,14 +405,144 @@ export default function AppShell({
   // A re-target's old placeholder, discarded once its editor has unmounted.
   const pendingDiscardRef = useRef(null);
 
+  // The place shown now and the surfaces open over it (shell.routing): what the
+  // address and the history entry say. A one-book scope is part of the place on
+  // search only; the layers are listed in a fixed order.
+  const scopedBook = selected === 'search' ? bookOfScope(scope) : null;
+  const place = {
+    tab: selected,
+    ...(scopedBook ? { book: scopedBook } : {}),
+    ...(openSong ? { song: { bookId: openSong.bookId, path: openSong.path } } : {}),
+    ...(openSetlist ? { setlist: { bookId: openSetlist.bookId, path: openSetlist.path } } : {}),
+  };
+  const layers = [
+    account && 'account',
+    conflictsBook && 'conflicts',
+    songConflict && 'songConflict',
+    history && 'history',
+    openFile && 'files',
+    editing && 'newSong',
+    editingSong && 'editor',
+    wizard && 'wizard',
+    arranging && 'arrange',
+    playingSetlist && 'play',
+    exploring && 'explorer',
+  ].filter(Boolean);
+  // How each surface closes — what its Back does at the bottom of the history,
+  // and what `popstate` does to a surface the entry it lands on does not name.
+  // The editor's unsaved edit stays in the working copy either way.
+  const closers = {
+    account: () => setAccount(false),
+    conflicts: () => setConflictsBook(null),
+    songConflict: () => setSongConflict(null),
+    history: () => {
+      setRestoredSaveOpen(false);
+      setHistory(null);
+    },
+    files: () => setOpenFile(null),
+    newSong: () => {
+      // A never-saved draft stays in the working copy, findable by its badge
+      // (workflow 3 §Abandoning it L53-54); a pending re-target is dropped so a
+      // later new song does not consume it.
+      retargetRef.current = null;
+      setEditing(null);
+    },
+    editor: () => setEditingSong(null),
+    wizard: () => {
+      setWizard(null);
+      setWizardReturn(true);
+    },
+    arrange: () => setArranging(null),
+    play: () => setPlayingSetlist(null),
+    explorer: () => setExploring(null),
+  };
+  // Set the place's slots: the tab, the one-book scope (on search), the open
+  // song and setlist.
+  const applyPlace = (next) => {
+    setSelected(next.tab);
+    if (next.tab === 'search') {
+      setScope((prev) => {
+        if (next.book) return bookOfScope(prev) === next.book ? prev : { bookId: next.book };
+        return bookOfScope(prev) ? null : prev;
+      });
+    }
+    setOpenSong(next.song ?? null);
+    setOpenSetlist(next.setlist ?? null);
+  };
+  // An entry popped from history: close every surface it does not name, then set
+  // its place — through `resolving` when it names a book (or an item) other than
+  // the one open, so a book removed since says so instead of opening empty.
+  const applyEntry = (next, kept) => {
+    for (const kind of layers) {
+      if (!kept.includes(kind)) closers[kind]();
+    }
+    const item = next.song ?? next.setlist ?? null;
+    const bookId = item?.bookId ?? next.book ?? null;
+    const unchanged = item
+      ? sameItem(item, next.song ? openSong : openSetlist)
+      : !bookId || bookId === bookOfScope(scope);
+    if (bookId && !unchanged) {
+      setResolving({ place: next, checkItem: false, treeReady: false });
+    } else {
+      setResolving(null);
+      applyPlace(next);
+    }
+  };
+  const { back, renameBook } = usePlaceHistory({
+    boot,
+    place,
+    layers,
+    hold: Boolean(resolving),
+    onApply: applyEntry,
+  });
+
+  // Resolving an address: once the shelf has its first value, a place naming a
+  // book that is here (and, from an address, an item in its present files)
+  // opens; otherwise the not-here kind shows. Decided while rendering, so the
+  // empty reading view never mounts for something that is not here.
+  const shelfSeen = shelf !== initialState.shelf;
+  const verdict = resolving ? (shelfSeen ? resolvePlace(resolving, shelf, tree) : 'pending') : null;
+  if (resolving && verdict === 'ok') {
+    setResolving(null);
+    applyPlace(resolving.place);
+  }
+  // The book's tree is asked for once per resolution; its TREE reply marks the
+  // resolution's tree as fresh.
+  const resolvingBook =
+    resolving && verdict === 'pending' && shelfSeen
+      ? (resolving.place.song ?? resolving.place.setlist)?.bookId ?? null
+      : null;
+  useEffect(() => {
+    if (resolvingBook) store.send(command(CommandKind.BOOK_TREE, { bookId: resolvingBook }));
+  }, [store, resolvingBook]);
+  useWorkerEvent(store, EventKind.TREE, ({ bookId }) => {
+    setResolving((prev) => {
+      if (!prev || prev.treeReady) return prev;
+      const item = prev.place.song ?? prev.place.setlist;
+      return item?.bookId === bookId ? { ...prev, treeReady: true } : prev;
+    });
+  });
+
   // A book became its fork (books.fork, workflow 11): the device's copy now lives
   // under the fork's id, so every open surface holding the original's id follows
   // it — the editor host, the file view, the open song and its history, arrange,
   // the wizard, sharing and the setlist surfaces — and a save made from any of
   // them lands in the fork. Each `{ bookId, … }` surface keeps the rest of its
-  // state; the file view's is the id itself.
-  useWorkerEvent(store, EventKind.BOOK_FORKED, ({ previousBookId, bookId: forkId }) => {
+  // state; the file view's is the id itself. A put-online changes the book's id
+  // the same way (BOOK_ONLINE, shell.routing Decision 8). The search scope
+  // follows too, and the current history entry is replaced with the new id's
+  // address rather than a step pushed.
+  const followBookId = ({ previousBookId, bookId: forkId }) => {
+    if (!previousBookId || !forkId || previousBookId === forkId) return;
     const follow = (prev) => (prev && prev.bookId === previousBookId ? { ...prev, bookId: forkId } : prev);
+    renameBook(previousBookId, forkId);
+    setScope((prev) => {
+      if (!prev) return prev;
+      if (Array.isArray(prev.books) && prev.books.includes(previousBookId)) {
+        return { ...prev, books: prev.books.map((id) => (id === previousBookId ? forkId : id)) };
+      }
+      return prev.bookId === previousBookId ? { ...prev, bookId: forkId } : prev;
+    });
     setEditingSong(follow);
     setOpenSong(follow);
     setHistory(follow);
@@ -385,7 +552,9 @@ export default function AppShell({
     setOpenSetlist(follow);
     setPlayingSetlist(follow);
     setOpenFile((prev) => (prev === previousBookId ? forkId : prev));
-  });
+  };
+  useWorkerEvent(store, EventKind.BOOK_FORKED, followBookId);
+  useWorkerEvent(store, EventKind.BOOK_ONLINE, followBookId);
 
   // Start a new song from any way in (songs.new_song, workflow 3 §Ways in). The
   // payload carries the started-from book (else *My songs*), the folder (the
@@ -452,18 +621,6 @@ export default function AppShell({
     openByLink(inviteToken);
   }, [inviteToken, openByLink]);
 
-  // Boot a member's `/b/<bookId>/<path>` deep link once: open that song in the
-  // book the account already holds (books.share, workflow 10 L95-96). The
-  // open-song-by-(bookId, path) seam self-resolves the text (SongReading), so no
-  // index lookup is needed. Guarded so it fires exactly once for the captured
-  // address.
-  const bookSongBooted = useRef(false);
-  useEffect(() => {
-    if (!bookSong || bookSongBooted.current) return;
-    bookSongBooted.current = true;
-    setOpenSong({ bookId: bookSong.bookId, path: bookSong.path });
-  }, [bookSong]);
-
   // The account-first gate: the accept answered 401, so show the generic invited
   // screen (names nothing about the book) with the account-first prompt. The
   // token to retry is kept in the ref.
@@ -482,7 +639,9 @@ export default function AppShell({
     setInvited(null);
     setSelected('books');
     // A song-share invitation carried the song path as a client-only `#<path>`
-    // fragment (books.share Decision 2): open it in the freshly cloned book.
+    // fragment (books.share Decision 2): open it in the freshly cloned book —
+    // a pushed step, so the address bar ends on the song's address
+    // (shell.routing Decision 9), never on the token.
     if (inviteSongAnchor && bookId) {
       setOpenSong({ bookId, path: inviteSongAnchor });
     }
@@ -542,10 +701,7 @@ export default function AppShell({
   // Leave the editor (Back): a never-saved draft stays in the working copy,
   // findable by its badge (workflow 3 §Abandoning it L53-54). Drop any pending
   // re-target so a later new song does not consume it.
-  const exitEditing = useCallback(() => {
-    retargetRef.current = null;
-    setEditing(null);
-  }, []);
+  const exitEditing = () => back(closers.newSong);
 
   // The recovery email's confirm page, checked before every other surface so a
   // `/recovery-email/<token>` boot shows it on any device, signed in or not
@@ -590,7 +746,7 @@ export default function AppShell({
     return (
       <AccountScreen
         store={store}
-        onClose={() => setAccount(false)}
+        onClose={() => back(closers.account)}
         onSignIn={() => setSignIn({ intent: 'signIn' })}
         onSignOut={() => setAccount(false)}
       />
@@ -617,6 +773,29 @@ export default function AppShell({
     );
   }
 
+  // An address for something not on this device (shell.routing; workflow 7
+  // §Links to books): the plain not-here screen, never an empty song. The URL
+  // stays at the address. Back leaves for search (or the entry below); *Go to
+  // Books* opens the Books destination; *Open {book}'s songs* scopes search to
+  // the book that is here.
+  if (verdict === 'book' || verdict === 'song' || verdict === 'setlist') {
+    const notHereBook = (resolving.place.song ?? resolving.place.setlist)?.bookId ?? resolving.place.book;
+    const entry = orderedBooks(shelf).find((e) => e.id === notHereBook);
+    const leave = (next) => {
+      setResolving(null);
+      applyPlace(next);
+    };
+    return (
+      <NotHere
+        kind={verdict}
+        bookLabel={verdict === 'book' ? '' : titleFor(entry?.book ?? {}, notHereBook)}
+        onBack={() => back(() => leave({ tab: 'search' }))}
+        onGoToBooks={() => leave({ tab: 'books' })}
+        onOpenBook={() => leave({ tab: 'search', book: notHereBook })}
+      />
+    );
+  }
+
   // Opening a book (shell.layout): its Files view, unless the sync engine left it
   // reading *needs you* (sync.conflicts) — then engage the merge (OPEN_CONFLICTS
   // recomputes and materialises it) and show the paused panel instead (workflow
@@ -639,7 +818,7 @@ export default function AppShell({
         store={store}
         bookId={songConflict.bookId}
         path={songConflict.path}
-        onClose={() => setSongConflict(null)}
+        onClose={() => back(closers.songConflict)}
       />
     );
   }
@@ -655,7 +834,7 @@ export default function AppShell({
         bookId={conflictsBook}
         title={titleFor(entry?.book ?? {}, conflictsBook)}
         onSettle={(path) => setSongConflict({ bookId: conflictsBook, path })}
-        onClose={() => setConflictsBook(null)}
+        onClose={() => back(closers.conflicts)}
       />
     );
   }
@@ -673,7 +852,7 @@ export default function AppShell({
           store={store}
           bookId={history.bookId}
           path={history.path}
-          onBack={() => setHistory(null)}
+          onBack={() => back(closers.history)}
           onRestored={() => setRestoredSaveOpen(true)}
         />
         <SaveSheet
@@ -693,7 +872,7 @@ export default function AppShell({
   // exactly as the new-song editor host is; Back returns to the shell.
   if (openFile) {
     return (
-      <FileView store={store} bookId={openFile} mode={mode} onBack={() => setOpenFile(null)} onOpenHistory={setHistory} />
+      <FileView store={store} bookId={openFile} mode={mode} onBack={() => back(closers.files)} onOpenHistory={setHistory} />
     );
   }
 
@@ -722,7 +901,7 @@ export default function AppShell({
         store={store}
         editing={editingSong}
         mode={mode}
-        onBack={() => setEditingSong(null)}
+        onBack={() => back(closers.editor)}
         onOpenHistory={setHistory}
         editorRef={editorRef}
       />
@@ -740,10 +919,7 @@ export default function AppShell({
         bookId={wizard.bookId}
         path={wizard.path}
         mode={mode}
-        onBack={() => {
-          setWizard(null);
-          setWizardReturn(true);
-        }}
+        onBack={() => back(closers.wizard)}
       />
     );
   }
@@ -761,7 +937,7 @@ export default function AppShell({
         bookId={arranging.bookId}
         path={arranging.path}
         mode={mode}
-        onBack={() => setArranging(null)}
+        onBack={() => back(closers.arrange)}
         onRunWizard={(args) => setWizard(args)}
         autoFocusWizard={wizardReturn}
         onWizardFocusReturned={() => setWizardReturn(false)}
@@ -794,7 +970,7 @@ export default function AppShell({
           bookId={openSong.bookId}
           path={openSong.path}
           mode={mode}
-          onBack={() => setOpenSong(null)}
+          onBack={() => back(() => setOpenSong(null))}
           onOpenSong={setOpenSong}
           onEdit={({ bookId, path, title }) => setEditingSong({ bookId, path, songTitle: title ?? '' })}
           onArrange={setArranging}
@@ -832,7 +1008,7 @@ export default function AppShell({
         bookId={playingSetlist.bookId}
         path={playingSetlist.path}
         mode={mode}
-        onStop={() => setPlayingSetlist(null)}
+        onStop={() => back(closers.play)}
       />
     );
   }
@@ -848,7 +1024,7 @@ export default function AppShell({
         path={openSetlist.path}
         mode={mode}
         author={LOCAL_IDENTITY}
-        onBack={() => setOpenSetlist(null)}
+        onBack={() => back(() => setOpenSetlist(null))}
         onPlay={({ bookId, path }) => setPlayingSetlist({ bookId, path })}
       />
     );
@@ -863,7 +1039,7 @@ export default function AppShell({
         store={store}
         initialText={exploring.text}
         mode={mode}
-        onBack={() => setExploring(null)}
+        onBack={() => back(closers.explorer)}
         onTextChange={setSearchQuery}
       />
     );
@@ -874,6 +1050,8 @@ export default function AppShell({
     query: searchQuery,
     onQueryChange: setSearchQuery,
     onExploreChord: (_chord, typedQuery) => setExploring({ text: typedQuery ?? searchQuery }),
+    scope,
+    onScopeChange: setScope,
   };
 
   return (
@@ -900,7 +1078,9 @@ export default function AppShell({
                 {DESTINATIONS.map((key) => destinationTab(key, 'rail'))}
               </TabList>
             </div>
-            <main className="pane main">
+            {/* Busy while an address resolves (shell.routing): what it names
+                opens over this destination once the device says it is here. */}
+            <main className="pane main" aria-busy={resolving ? true : undefined}>
               <div className="scroll">
                 {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, setOpenSetlist, setAddingToSetlist, search, mode)}
               </div>
@@ -922,7 +1102,7 @@ export default function AppShell({
             <TabList className="tabbar" aria-label={t('shell.nav')}>
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
-            <main className="scroll">
+            <main className="scroll" aria-busy={resolving ? true : undefined}>
               {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, setOpenSetlist, setAddingToSetlist, search, mode)}
             </main>
           </div>
