@@ -125,7 +125,8 @@ export const initialState = {
   // The per-book sync state (sync.engine, SYNC), keyed by `bookId`: `{ phase,
   // savesWaiting, lastInStep, reason, at }`. `phase` is carried as a word (never
   // colour alone) — 'syncing' | 'in_step' | 'saves_waiting' | 'offline' |
-  // 'needs_you' | 'gone' | 'taken_down' (workflow 8 §What the shelf says;
+  // 'needs_you' | 'gone' | 'cannot_save' | 'taken_down' (workflow 8 §What the
+  // shelf says; 'cannot_save' is books.fork's reader-push refusal;
   // 'taken_down' is books.notice_surface, carrying the operator's copyright-notice
   // `reason`). The engine is the single source of
   // sync truth; the shelf (sync.states) renders this slice. A book an event does
@@ -552,6 +553,44 @@ export function reduce(state, message) {
           },
         },
       };
+    }
+
+    case EventKind.BOOK_FORKED: {
+      // A book became its fork (books.fork): the original's id is off the shelf.
+      // Its sync fact and its original count go with it — a `gone` or
+      // `cannot_save` that no longer names a book must not keep the Books
+      // header's out-of-step mark lit; the fork's own facts arrive with the next
+      // pass. The search, browse and recent rows already on screen are re-pointed
+      // at the fork, so a row listed before the fork opens the fork's song — not
+      // the original's vanished copy — until the next reply replaces them.
+      const previous = message.payload?.previousBookId;
+      const forkId = message.payload?.bookId;
+      if (!previous || !forkId) return state;
+      const follow = (row) => (row?.bookId === previous ? { ...row, bookId: forkId } : row);
+      const names = (rows) => Array.isArray(rows) && rows.some((r) => r?.bookId === previous);
+      let next = state;
+      const edit = () => {
+        if (next === state) next = { ...state };
+        return next;
+      };
+      if (previous in state.sync) {
+        edit().sync = { ...state.sync };
+        delete next.sync[previous];
+      }
+      if (previous in state.originals) {
+        edit().originals = { ...state.originals };
+        delete next.originals[previous];
+      }
+      if (names(state.search?.results)) {
+        edit().search = { ...state.search, results: state.search.results.map(follow) };
+      }
+      if (names(state.browse?.books)) {
+        edit().browse = { ...state.browse, books: state.browse.books.map(follow) };
+      }
+      if (names(state.recents)) {
+        edit().recents = state.recents.map(follow);
+      }
+      return next;
     }
 
     case EventKind.MINE:

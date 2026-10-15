@@ -1,5 +1,14 @@
-import { describe, it, expect } from 'vitest';
-import { titleFor, whereFor, canSaveFor, orderedBooks } from './book-display.js';
+import { describe, it, expect, beforeAll } from 'vitest';
+import {
+  titleFor,
+  whereFor,
+  canSaveFor,
+  orderedBooks,
+  originalOf,
+  forkLineFor,
+  saveTargetFor,
+} from './book-display.js';
+import { t, setLocale } from '../i18n/index.js';
 
 // unit — the pure display/ordering helper for the book-management screen
 // (books.shelf, the added level: a genuine pure module). Pins workflow 7 L16-21
@@ -109,5 +118,67 @@ describe('book-display: orderedBooks (shelf order — home-book-format §4.2 `po
       },
     };
     expect(orderedBooks(shelf).map((e) => e.id)).toEqual(['l-live', 'srv-1', 'b-empty']);
+  });
+});
+
+// books.fork — what a fork's shelf row says about its original (W11 board #2
+// :68-97 and #4 :153; workflow 11 §What a fork is, §Following the original).
+describe('book-display: a fork’s shelf lines (books.fork; W11 board #2, #4)', () => {
+  beforeAll(() => setLocale('en'));
+  const ORIGINAL = { bookId: 'srv-orig', title: 'Choros da Ana', link: 'https://x/git/srv-orig', followedAt: AT };
+  const fork = (original) => ({ label: reg('Choros da Ana'), role: reg('owner'), original: reg(original) });
+
+  it('is null for a book that is not a fork, or whose original was tombstoned', () => {
+    expect(forkLineFor({ label: reg('Banda do Bairro') }, undefined)).toBeNull();
+    expect(forkLineFor({ original: reg(null) }, undefined)).toBeNull();
+    expect(originalOf({})).toBeNull();
+  });
+
+  it('gives the meta line *from {original}*', () => {
+    const line = forkLineFor(fork(ORIGINAL), undefined);
+    expect(line).toEqual({ from: 'Choros da Ana', newSaves: 0, gone: false });
+    expect(t('books.fromOriginal', { original: line.from })).toBe('from Choros da Ana');
+  });
+
+  it('gives the *N new saves* line from the originals slice, with its singular', () => {
+    const three = forkLineFor(fork(ORIGINAL), { newSaves: 3, gone: false });
+    expect(three.newSaves).toBe(3);
+    expect(t('books.originalNewSaves', { original: three.from, count: 3 })).toBe(
+      'Choros da Ana has 3 new saves.',
+    );
+    const one = forkLineFor(fork(ORIGINAL), { newSaves: 1, gone: false });
+    expect(t('books.originalNewSaves', { original: one.from, count: one.newSaves })).toBe(
+      'Choros da Ana has 1 new save.',
+    );
+    expect(forkLineFor(fork(ORIGINAL), { newSaves: 0, gone: false }).newSaves).toBe(0);
+  });
+
+  it('says *original no longer shared* once `goneAt` is set — and counts nothing after', () => {
+    const line = forkLineFor(fork({ ...ORIGINAL, goneAt: AT }), { newSaves: 2, gone: false });
+    expect(line.gone).toBe(true);
+    expect(line.newSaves).toBe(0);
+    expect(t('books.originalNoLongerShared')).toBe('original no longer shared');
+    // The live ORIGINAL fact says so before the register re-surfaces.
+    expect(forkLineFor(fork(ORIGINAL), { newSaves: 0, gone: true }).gone).toBe(true);
+  });
+});
+
+// books.fork Constraint 7 — every save sheet host asks the shelf whether a save
+// can go there (workflow 4 §A book the user cannot push to).
+describe('book-display: saveTargetFor (books.fork Constraint 7)', () => {
+  const shelf = {
+    books: {
+      'srv-r': { label: reg('Turma de quarta'), role: reg('reader') },
+      'srv-e': { label: reg('Banda do Bairro'), role: reg('editor') },
+    },
+    local: { 'l-1': { title: reg('My songs') } },
+  };
+  it('is false for a reader’s book, with its label', () => {
+    expect(saveTargetFor(shelf, 'srv-r')).toEqual({ canSave: false, label: 'Turma de quarta' });
+  });
+  it('is true for an editor’s or a local book, and for a book with no shelf entry', () => {
+    expect(saveTargetFor(shelf, 'srv-e').canSave).toBe(true);
+    expect(saveTargetFor(shelf, 'l-1').canSave).toBe(true);
+    expect(saveTargetFor(shelf, 'nowhere')).toEqual({ canSave: true, label: 'nowhere' });
   });
 });

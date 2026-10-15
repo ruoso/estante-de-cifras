@@ -12,6 +12,10 @@ arriving.
 - **Saving in a book the user cannot save to** (workflow 4): *make this book
   your own*.
 - **Losing access** with saves not yet pushed (workflows 8, 10).
+- **Lowered to reader** with saves not yet pushed (workflow 10): the push is
+  refused, the book says those saves can no longer go to it, and offers the
+  fork or the download. It is the first way in, met after the save rather than
+  before it.
 - **Deliberately**, from the book-management screen.
 
 ## What a fork is
@@ -33,6 +37,17 @@ shelf, as any book (workflow 7).
 on its volume (DIRECTION §3.3). Everyone who can open a book has an account
 (workflow 10), so a fork is always on Estante, with its own limit of fifty
 people.
+
+**When the original can no longer be opened** (losing access), the service
+will not copy a book the user is no longer in. The device puts its own copy
+online instead, as a new private book with the history it holds, saves not
+yet pushed included. Nothing the user had not already seen comes with it. Its
+shelf entry says *from Ana's Choros* and *the original is no longer shared
+with you* from the start: following has already ended.
+
+**Making a fork needs the network**, like putting a book online (workflow 7).
+Offline, the offer says so and nothing changes; the edits stay where they
+were.
 
 **A fork of a fork** is allowed. Its original is the book it was forked from,
 not the first one; nothing follows more than one step.

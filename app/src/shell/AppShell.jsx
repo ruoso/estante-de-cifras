@@ -41,7 +41,7 @@ import AddToSetlist from '../books/AddToSetlist.jsx';
 import SharingScreen from '../books/SharingScreen.jsx';
 import BookConflicts from '../books/BookConflicts.jsx';
 import SongConflict from '../songs/SongConflict.jsx';
-import { orderedBooks, titleFor } from '../books/book-display.js';
+import { orderedBooks, titleFor, saveTargetFor } from '../books/book-display.js';
 import SignIn from '../account/SignIn.jsx';
 import InvitedScreen from '../account/InvitedScreen.jsx';
 import AccountScreen from '../account/AccountScreen.jsx';
@@ -359,6 +359,25 @@ export default function AppShell({
   // A re-target's old placeholder, discarded once its editor has unmounted.
   const pendingDiscardRef = useRef(null);
 
+  // A book became its fork (books.fork, workflow 11): the device's copy now lives
+  // under the fork's id, so every open surface holding the original's id follows
+  // it — the editor host, the file view, the open song and its history, arrange,
+  // the wizard, sharing and the setlist surfaces — and a save made from any of
+  // them lands in the fork. Each `{ bookId, … }` surface keeps the rest of its
+  // state; the file view's is the id itself.
+  useWorkerEvent(store, EventKind.BOOK_FORKED, ({ previousBookId, bookId: forkId }) => {
+    const follow = (prev) => (prev && prev.bookId === previousBookId ? { ...prev, bookId: forkId } : prev);
+    setEditingSong(follow);
+    setOpenSong(follow);
+    setHistory(follow);
+    setArranging(follow);
+    setWizard(follow);
+    setSharing(follow);
+    setOpenSetlist(follow);
+    setPlayingSetlist(follow);
+    setOpenFile((prev) => (prev === previousBookId ? forkId : prev));
+  });
+
   // Start a new song from any way in (songs.new_song, workflow 3 §Ways in). The
   // payload carries the started-from book (else *My songs*), the folder (the
   // file view's, else the book root), the search query as the title, and the
@@ -647,6 +666,8 @@ export default function AppShell({
           onClose={() => setRestoredSaveOpen(false)}
           bookId={history.bookId}
           paths={[history.path]}
+          bookLabel={saveTargetFor(shelf, history.bookId).label}
+          canSave={saveTargetFor(shelf, history.bookId).canSave}
         />
       </>
     );

@@ -103,6 +103,16 @@ export default {
     offline: 'offline desde {time}',
     offlineUnknown: 'offline',
     noLongerShared: 'não compartilhado mais com você',
+    // books.fork (workflow 11): as linhas de cópia própria na estante.
+    cannotSaveHere: 'não dá para salvar aqui',
+    fromOriginal: 'de {original}',
+    originalNewSaves: {
+      one: '{original} tem {count} alteração nova.',
+      other: '{original} tem {count} alterações novas.',
+    },
+    originalNoLongerShared: 'original não compartilhado mais',
+    forkedNote:
+      '{book} agora é seu: ocupou o lugar do original na sua estante, então cada música aparece uma vez na busca.',
     syncNow: 'Sincronizar agora',
     notInStep: 'Alguns livros não estão em dia',
     // O detalhe de cada livro (books.online, workflow 7 L46-63, L128-137; W07).
@@ -146,6 +156,14 @@ export default {
     deleteConfirm: 'Excluir o livro',
     share: 'Compartilhar',
     shareBody: 'Convide pessoas para ler ou editar este livro — até cinquenta.',
+    // Os cartões de cópia própria no detalhe (books.fork, workflow 11).
+    cannotSaveTitle: 'Não dá para salvar aqui',
+    cannotSaveBody: {
+      one: '{count} alteração não pode mais ir para {book}: você pode lê-lo, mas não salvar mais nele.',
+      other: '{count} alterações não podem mais ir para {book}: você pode lê-lo, mas não salvar mais nele.',
+    },
+    fork: 'Fazer uma cópia',
+    forkBody: 'Sua própria cópia de {book}, com o histórico, que continua acompanhando o original.',
   },
 
   sharing: {
@@ -583,6 +601,23 @@ export default {
       'A notação vem da sua preferência, então a música é lida igual por todo mundo.',
   },
 
+  // A folha de tornar o livro seu (books.fork, workflow 11; W11 #1).
+  fork: {
+    title: '{book} é de outra pessoa — torná-lo seu?',
+    body: 'Você pode ler {book}, mas não salvar nele. Torná-lo seu te dá:',
+    pointCopy: 'Sua própria cópia do livro, com todo o histórico. Suas edições vão para ela e são salvas lá.',
+    pointFollow: 'Ela continua acompanhando {book}: quando houver alterações novas, você escolhe quando trazê-las.',
+    pointShelf: 'Ela ocupa o lugar de {book} na sua estante, então nada aparece duas vezes.',
+    smallPrint: 'Sua cópia fica no Estante, privada para você. Você pode compartilhá-la, com seu próprio limite de 50 pessoas.',
+    confirm: 'Tornar meu',
+    notNow: 'Agora não',
+    busy: 'Tornando seu…',
+    offline: 'Tornar o livro seu precisa de rede. Nada mudou: conecte-se e tente de novo.',
+    quota: 'Isso passaria do seu limite no Estante.',
+    signedOut: 'Entre para tornar o livro seu.',
+    error: 'Não foi possível torná-lo seu. Nada mudou: tente de novo.',
+  },
+
   saveSheet: {
     title: 'Salvar {title}',
     titleAll: { one: 'Salvar {count} música', other: 'Salvar {count} músicas' },
@@ -607,9 +642,6 @@ export default {
     discardBody: 'A música volta a como estava no último salvamento. Isto seria perdido:',
     keepEditing: 'Continuar editando',
     discard: 'Descartar mudanças',
-    cannotSaveTitle: 'Salvando {title}',
-    cannotSaveBody:
-      '{book} é o livro de outra pessoa, então não dá para salvar ali. Suas mudanças ficam neste dispositivo, marcadas como não salvas.',
     makeYourOwn: 'Tornar este livro seu',
     notNow: 'Agora não',
     change: {

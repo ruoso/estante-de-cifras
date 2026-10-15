@@ -48,7 +48,7 @@ import {
 import { authorFrom } from './author.js';
 import { reapplyWorkingText } from './cifra-merge-driver.js';
 import { HOME_BOOK_ID } from './home-book.js';
-import { isAccessRefused, takenDownReason } from './access-refused.js';
+import { isAccessRefused, takenDownReason, readerPushRefused } from './access-refused.js';
 
 // A merge that does not merge cleanly (a cifra-aware conflict, or isomorphic-git
 // refusing an unsupported merge). The engine halts the book and emits
@@ -264,6 +264,12 @@ export function createSyncEngine(deps = {}) {
     readOriginals = null,
     recordOriginal = null,
     emitOriginal = null,
+    // A push refused as a reader's (`403 forbidden` — books.fork Constraint 6):
+    // called once with the book's id when the engine first classifies it
+    // `cannot_save`, so the caller rewrites the shelf's `role` hint to `reader`
+    // (Decision 8) and the next Save opens the fork sheet. Called outside the
+    // book's lock. Absent, nothing is written.
+    onCannotSave = null,
   } = deps;
   const now = deps.now ?? Date.now;
   const homeBookId = deps.homeBookId ?? HOME_BOOK_ID;
@@ -514,6 +520,13 @@ export function createSyncEngine(deps = {}) {
   // no `online` event ever reaches the page (a cold open made offline).
   let passLeftWaiting = false;
 
+  // The books whose push the service refused as a reader's this session (books.fork
+  // Constraint 6): their pushes are not retried — a reader's push can never
+  // succeed — while their fetches go on (a reader can still read). In memory
+  // only, like `gone`: a reload re-derives it from the next push (sync.lost_access's
+  // no-durable-state decision). Unpushed commits are kept.
+  const cannotSave = new Set();
+
   function emitFact(bookId, phase, extra = {}) {
     const at = instant(now());
     if (phase === 'in_step') lastInStep.set(bookId, at);
@@ -591,6 +604,12 @@ export function createSyncEngine(deps = {}) {
         settle();
         return;
       }
+      if (cannotSave.has(bookId)) {
+        // Already refused as a reader's this session: not pushed again. The
+        // saves stay waiting for the fork (workflow 10 L83-85).
+        emitFact(bookId, 'cannot_save', { savesWaiting: await countAhead(bookId) });
+        return;
+      }
       try {
         await pushBook(bookId);
         settle();
@@ -616,6 +635,16 @@ export function createSyncEngine(deps = {}) {
         if (isAccessRefused(err)) {
           emitFact(bookId, 'gone');
           return;
+        }
+        // A `403 forbidden` is the service refusing a READER's push
+        // (git.go:276): an editor lowered to reader. Permanent, unlike offline:
+        // the book reads `cannot_save` carrying its waiting saves, is not pushed
+        // again this session, and keeps its commits for the fork (books.fork
+        // Constraint 6; workflow 10 L83-85). Checked after taken_down and 404.
+        if (readerPushRefused(err)) {
+          cannotSave.add(bookId);
+          emitFact(bookId, 'cannot_save', { savesWaiting: await countAhead(bookId) });
+          return 'refused_reader';
         }
         // Offline, or the service unreachable: the local commits wait (workflow
         // 8 L31). The commit is kept; next pass retries.
@@ -671,11 +700,17 @@ export function createSyncEngine(deps = {}) {
       emitFact(bookId, reachable ? 'in_step' : 'offline');
       return;
     }
+    if (!changed && cannotSave.has(bookId)) {
+      // Refused as a reader's earlier this session and nothing incoming: say so
+      // again without a push (books.fork Constraint 6).
+      emitFact(bookId, 'cannot_save', { savesWaiting: await countAhead(bookId) });
+      return;
+    }
 
     emitFact(bookId, 'syncing');
     const author = await resolveAuthor();
 
-    await locks.withLock(bookId, async () => {
+    const outcome = await locks.withLock(bookId, async () => {
       // The incoming merge is no longer deferred over an unsaved edit — it is
       // merged under it (sync.unsaved supersedes the dirty-tree guard). A book
       // only reads `syncing` now when a lost race on a dirty retry cannot finish
@@ -742,8 +777,17 @@ export function createSyncEngine(deps = {}) {
           await announceMerge(bookId, result?.before, result?.after);
         }
       }
-      await pushWithRetry(bookId, author, deferred);
+      return pushWithRetry(bookId, author, deferred);
     });
+    // First refused as a reader's: rewrite the shelf's `role` hint (Decision 8),
+    // outside the book's lock — the home book takes its own.
+    if (outcome === 'refused_reader' && onCannotSave) {
+      try {
+        await onCannotSave(bookId);
+      } catch {
+        /* a hint; the next refusal writes it again */
+      }
+    }
   }
 
   async function syncHomeBook(book, news, reachable) {

@@ -29,10 +29,10 @@ import {
   Heading,
 } from 'react-aria-components';
 import { t } from '../i18n/index.js';
-import { useSlice } from '../worker/useStore.js';
-import { command, CommandKind } from '../worker/protocol.js';
+import { useSlice, useWorkerEvent } from '../worker/useStore.js';
+import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
-import { canSaveFor } from '../books/book-display.js';
+import { canSaveFor, saveTargetFor } from '../books/book-display.js';
 import {
   recognizeChord,
   scopePayload,
@@ -335,9 +335,11 @@ function BookSection({
               </Button>
             )}
             {/* Save all the book's changed songs in one commit (workflow 4
-                §Several songs at once); only for a book the user can push to and
-                only when something is unsaved. */}
-            {canWrite && unsavedPaths.length > 0 && (
+                §Several songs at once), only when something is unsaved. In a
+                book the user cannot push to it opens the make-it-your-own
+                offer instead (workflow 4 §A book the user cannot push to;
+                books.fork Constraint 7). */}
+            {unsavedPaths.length > 0 && (
               <Button
                 className="btn save-all"
                 aria-label={t('saveSheet.saveAllLabel', { book: bookLabel })}
@@ -425,6 +427,20 @@ export default function SearchScreen({
   // Save all opens the one save sheet over a book's changed songs (workflow 4
   // §Several songs at once). Ephemeral view state: `{ bookId, paths, bookLabel }`.
   const [saveAll, setSaveAll] = useState(null);
+  // A book became its fork (books.fork): the scope and an open save-all follow
+  // the new id, so the save lands in the fork and the search stays narrowed to
+  // the same book.
+  useWorkerEvent(store, EventKind.BOOK_FORKED, ({ previousBookId, bookId: forkId }) => {
+    setSaveAll((prev) => (prev && prev.bookId === previousBookId ? { ...prev, bookId: forkId } : prev));
+    setScope((prev) => {
+      if (!prev) return prev;
+      if (Array.isArray(prev.books) && prev.books.includes(previousBookId)) {
+        return { ...prev, books: prev.books.map((id) => (id === previousBookId ? forkId : id)) };
+      }
+      if (prev.bookId === previousBookId) return { ...prev, bookId: forkId };
+      return prev;
+    });
+  });
 
   const typedQuery = query.trim();
   const typed = typedQuery.length > 0;
@@ -692,6 +708,8 @@ export default function SearchScreen({
         bookId={saveAll?.bookId}
         paths={saveAll?.paths ?? []}
         titleHint={saveAll?.bookLabel ?? ''}
+        bookLabel={saveAll?.bookLabel ?? ''}
+        canSave={saveAll ? saveTargetFor(shelf, saveAll.bookId).canSave : true}
       />
     </div>
   );

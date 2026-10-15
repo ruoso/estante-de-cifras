@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isAccessRefused, takenDownReason } from './access-refused.js';
+import { isAccessRefused, takenDownReason, readerPushRefused } from './access-refused.js';
 
 // unit — the lost-access classifier (sync.lost_access) and the take-down
 // classifier (books.notice_surface). Pins DIRECTION §3.3 L338-341 (the service
@@ -101,5 +101,39 @@ describe('takenDownReason (unit)', () => {
     expect(takenDownReason(null)).toBeNull();
     expect(takenDownReason(undefined)).toBeNull();
     expect(takenDownReason(new Error('something else'))).toBeNull();
+  });
+});
+
+// books.fork Constraint 6 — the permanent push refusal a lowered editor meets
+// (workflow 10 L83-85): the service's reader-push `403 {code:'forbidden'}`
+// (service/internal/server/git.go:276). It is the only error that classifies as
+// `cannot_save`; the take-down 403, a 404, offline and a 5xx never do.
+const forbiddenBody = JSON.stringify({ code: 'forbidden', message: 'A reader cannot push to this book.' });
+
+describe('readerPushRefused (unit; books.fork Constraint 6, workflow 10 L83-85)', () => {
+  it('is true for the reader-push 403 {code: forbidden}', () => {
+    expect(readerPushRefused(httpError(403, forbiddenBody))).toBe(true);
+  });
+
+  it('is false for a 403 taken_down — the copyright-notice halt', () => {
+    expect(readerPushRefused(httpError(403, takenDownBody))).toBe(false);
+  });
+
+  it('is false for a 404 — lost access', () => {
+    expect(readerPushRefused(httpError(404, JSON.stringify({ code: 'not_found' })))).toBe(false);
+  });
+
+  it('is false offline (a thrown fetch, no status)', () => {
+    expect(readerPushRefused(new TypeError('Failed to fetch'))).toBe(false);
+  });
+
+  it('is false for a 5xx', () => {
+    expect(readerPushRefused(httpError(500, JSON.stringify({ code: 'internal' })))).toBe(false);
+  });
+
+  it('is false for a 403 with no body or an unparseable one', () => {
+    expect(readerPushRefused(httpError(403))).toBe(false);
+    expect(readerPushRefused(httpError(403, 'not json'))).toBe(false);
+    expect(readerPushRefused(null)).toBe(false);
   });
 });

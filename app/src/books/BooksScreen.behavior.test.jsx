@@ -269,4 +269,85 @@ describe('BooksScreen (behavior)', () => {
 
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
+
+  // books.fork AC5 — the fork on the shelf (workflow 11 §What a fork is,
+  // §Following the original; W11 board #2 :68-97 and #4 :153).
+  describe('a fork on the shelf (books.fork; W11 board #2, #4)', () => {
+    const ORIGINAL = {
+      bookId: 'srv-orig',
+      title: 'Choros da Ana',
+      link: 'https://estante.example/git/srv-orig',
+      followedAt: AT,
+    };
+    const forkShelf = (original = ORIGINAL) =>
+      event(EventKind.SHELF, {
+        books: {
+          // The original's registers cleared, as the fork's one write leaves them.
+          'srv-orig': { label: reg(null), link: reg(null), position: reg(null), role: reg(null) },
+          'srv-fork': {
+            label: reg('Choros da Ana'),
+            link: reg('https://estante.example/git/srv-fork'),
+            position: reg(1),
+            role: reg('owner'),
+            original: reg(original),
+          },
+        },
+        local: { 'l-1': { title: reg('My songs'), position: reg(0) } },
+      });
+
+    it('one row, the original’s label, with *from {original}*; the *N new saves* line from an ORIGINAL event; axe clean', async () => {
+      const { store, emit } = makeStore();
+      const { container } = renderScreen(store);
+      emit(forkShelf());
+
+      // One row, not two: the original's tombstoned entry draws nothing.
+      expect(screen.getAllByText('Choros da Ana')).toHaveLength(1);
+      expect(screen.getByText('from Choros da Ana')).toBeInTheDocument();
+      expect(screen.queryByText(/new save/)).toBeNull();
+
+      emit(event(EventKind.ORIGINAL, { bookId: 'srv-fork', newSaves: 3, gone: false }));
+      expect(screen.getByText('Choros da Ana has 3 new saves.')).toBeInTheDocument();
+      // Bring them in is books.bring_in's (Decision 5): no dead control here.
+      expect(screen.queryByRole('button', { name: 'Bring them in' })).toBeNull();
+      emit(event(EventKind.ORIGINAL, { bookId: 'srv-fork', newSaves: 1, gone: false }));
+      expect(screen.getByText('Choros da Ana has 1 new save.')).toBeInTheDocument();
+
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    });
+
+    it('once the original is gone the badge reads *original no longer shared*, in a word', async () => {
+      const { store, emit } = makeStore();
+      const { container } = renderScreen(store);
+      emit(forkShelf({ ...ORIGINAL, goneAt: AT }));
+
+      expect(screen.getByText('original no longer shared')).toBeInTheDocument();
+      expect(screen.getByText('from Choros da Ana')).toBeInTheDocument();
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    });
+
+    it('says the post-fork footnote once BOOK_FORKED arrives', async () => {
+      const { store, emit } = makeStore();
+      const { container } = renderScreen(store);
+      emit(forkShelf());
+      expect(screen.queryByText(/is your own now/)).toBeNull();
+
+      emit(event(EventKind.BOOK_FORKED, { previousBookId: 'srv-orig', bookId: 'srv-fork', via: 'service' }));
+      const note = screen.getByText(/Choros da Ana is your own now: it took the place of the original/);
+      expect(note).toHaveAttribute('role', 'status');
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    });
+
+    it('a cannot_save book reads *can’t save here* on the shelf (books.fork AC2)', () => {
+      const { store, emit } = makeStore();
+      renderScreen(store);
+      emit(
+        event(EventKind.SHELF, {
+          books: { 'srv-2': { label: reg('Banda do Bairro'), position: reg(0), role: reg('reader') } },
+          local: {},
+        }),
+      );
+      emit(event(EventKind.SYNC, { bookId: 'srv-2', phase: 'cannot_save', savesWaiting: 1, at: AT }));
+      expect(screen.getByText('can’t save here')).toBeInTheDocument();
+    });
+  });
 });

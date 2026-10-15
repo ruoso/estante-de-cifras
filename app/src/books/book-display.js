@@ -123,3 +123,61 @@ export function orderedBooks(shelf) {
   });
   return entries;
 }
+
+/**
+ * A fork's `original` register value — `{ bookId, title, link, followedAt,
+ * goneAt? }` (home-book-format §4.2) — or `null` for a book that is not a fork
+ * (or whose register was tombstoned). Pins workflow 11 §What a fork is.
+ *
+ * @param {Object} book one book's register map
+ * @returns {{ bookId: string, title?: string, goneAt?: string } | null}
+ */
+export function originalOf(book) {
+  const value = registerValue(book?.original);
+  return value && typeof value === 'object' && typeof value.bookId === 'string' ? value : null;
+}
+
+/**
+ * What a fork's shelf row says about its original (books.fork; W11 board #2 and
+ * #4 :153), as tokens the view words: `from` — the original's title for the
+ * *from {original}* line; `newSaves` — how many saves the original has that the
+ * fork does not, for *{original} has N new saves* (0 draws nothing, and nothing
+ * once following ended); `gone` — following ended, for the *original no longer
+ * shared* badge: the register's durable `goneAt`, or the live `ORIGINAL` fact
+ * saying so before the register re-surfaces. `null` for a book that is not a fork.
+ *
+ * @param {Object} book one book's register map
+ * @param {{ newSaves?: number, gone?: boolean } | undefined} counted the fork's
+ *   entry in the `originals` slice
+ * @returns {{ from: string, newSaves: number, gone: boolean } | null}
+ */
+export function forkLineFor(book, counted) {
+  const original = originalOf(book);
+  if (!original) return null;
+  const gone = Boolean(original.goneAt) || counted?.gone === true;
+  const n = counted?.newSaves;
+  return {
+    from: original.title || original.bookId,
+    newSaves: !gone && Number.isInteger(n) && n > 0 ? n : 0,
+    gone,
+  };
+}
+
+/**
+ * Whether a Save in `bookId` can go there, and the book's label — what every
+ * save sheet host passes (books.fork Constraint 7): `canSave` is `canSaveFor`
+ * over the book's shelf entry (`false` for a reader's book, which opens the
+ * make-it-your-own sheet), and a book with no shelf entry is a device book the
+ * user can save to. Pins workflow 4 §A book the user cannot push to.
+ *
+ * @param {{ books?: Object, local?: Object }} shelf the `shelf` slice
+ * @param {string} bookId
+ * @returns {{ canSave: boolean | null, label: string }}
+ */
+export function saveTargetFor(shelf, bookId) {
+  const entry = orderedBooks(shelf).find((e) => e.id === bookId);
+  return {
+    canSave: entry ? canSaveFor(entry.kind, entry.book) : true,
+    label: titleFor(entry?.book, bookId),
+  };
+}

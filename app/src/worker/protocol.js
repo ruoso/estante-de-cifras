@@ -138,14 +138,17 @@ export const CommandKind = Object.freeze({
   // count the per-book warnings the delete dialog shows.
   LEAVE_ESTANTE: 'leave_estante',
   // Make a book the user's own copy (books.fork, workflow 11). FORK_BOOK
-  // `{ bookId, author }` is dispatched by the "Make this book your own" offer —
-  // one of fork's ways in: a book the user lost access to (sync.lost_access,
-  // workflow 8 L65-69), one that stopped following its original, or one they
-  // cannot push to. sync.lost_access ships the offer (the losing-access surface);
-  // `books.fork` owns the handler (the service repo-copy, the Worker module, the
-  // shelf "from X's book") and the end-to-end *make it my own after losing
-  // access* journey. Named here so the offer has a command to dispatch; until
-  // `books.fork` lands the handler, the Worker has nothing wired to it.
+  // `{ bookId, author }` is dispatched by every *make it your own* offer: Save in
+  // a book the user cannot push to (the save sheet), a book refused as a
+  // reader's push (`cannot_save`), a book the user lost access to (`gone`), and
+  // the book detail's **Fork** card. The Worker asks the service to copy the
+  // book (POST /api/books/{id}/fork); on a 404 it puts its own copy online
+  // instead (POST /api/books + push — Decision 2). It relocates the working copy
+  // to the fork's id (unsaved edits and unpushed commits carried), marks the
+  // history *Made your own from …*, replaces the original on the shelf in one
+  // home-book write (with the fork's `original` register), moves the search
+  // entries, and replies BOOK_FORKED; a refusal replies FORK_FAILED and leaves
+  // the device unchanged.
   FORK_BOOK: 'fork_book',
   // Join a shared book from its invitation (books.add_by_link, workflow 1
   // §Invited, workflow 7 §By link). ADD_BY_LINK `{ token, author }` accepts the
@@ -467,6 +470,17 @@ export const EventKind = Object.freeze({
   BOOK_ONLINE_REFUSED: 'book_online_refused',
   BOOK_DOWNLOAD: 'book_download',
   BOOK_REMOVED: 'book_removed',
+  // Make-it-my-own replies (books.fork). BOOK_FORKED `{ previousBookId, bookId,
+  // via }`: the book now lives under its fork's id `bookId` (`via` 'service' — the
+  // service copied it — or 'own' — the device put its own copy online after
+  // losing access); the SHELF re-surface that rides alongside shows the fork in
+  // the original's place. The hosts holding the old id (the save sheet, the
+  // editor, the file view, the detail) move to the new one. FORK_FAILED
+  // `{ bookId, code, message }`: nothing changed on the device; `code` is a word
+  // the view turns into copy — 'offline', 'quota' (413), 'signed_out' (401),
+  // 'not_hosted' or 'error'. Transient command replies, like BOOK_ONLINE.
+  BOOK_FORKED: 'book_forked',
+  FORK_FAILED: 'fork_failed',
   // Sign-out replies (account.sign_out). SIGN_OUT_SURVEY `{ books }` carries one
   // record per shelf book — `{ id, title, kind, role, savesWaiting, unsavedSongs,
   // onEstante }` — for the dialog to warn about local-only work and offer a
@@ -578,7 +592,9 @@ export const EventKind = Object.freeze({
   // not go up — offline or the service unreachable), 'offline' (the change
   // check / fetch could not reach the service), 'needs_you' (a merge conflict —
   // the book halts for sync.conflicts), 'gone' (the caller is no longer a
-  // member — sync.lost_access) or 'taken_down' (the service removed the book for
+  // member — sync.lost_access), 'cannot_save' (the push was refused as a
+  // reader's, `403 forbidden` — still a member, fetched and read, its saves
+  // waiting for the fork; books.fork, carrying `savesWaiting`) or 'taken_down' (the service removed the book for
   // a copyright notice; still a member — books.notice_surface, carrying the
   // operator's reason as `reason`). `savesWaiting` counts the local-ahead commits
   // for the "N saves waiting" word; `lastInStep` is the instant the book was last

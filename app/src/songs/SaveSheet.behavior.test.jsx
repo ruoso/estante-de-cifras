@@ -6,7 +6,7 @@
 // axe (WCAG 2.1 AA) over every state. Fixtures are purpose-written — never
 // anyone's copyrighted words.
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
@@ -206,19 +206,61 @@ describe('save sheet — save all (§Several songs at once)', () => {
   });
 });
 
-describe('save sheet — a book the user cannot push to (§A book the user cannot push to)', () => {
-  it('explains the book is someone else’s and offers to make it your own; it does not save', async () => {
-    const { store, sent } = makeStore();
-    renderSheet(
-      { paths: ['carinhoso.cifra.md'], canSave: false, titleHint: 'Carinhoso', bookLabel: 'Choros da Ana' },
-      store,
-    );
+// Workflow 4 §A book the user cannot push to; books.fork AC1 (W11 board #1):
+// Save in a reader's book opens the make-it-your-own offer, never the form; on
+// BOOK_FORKED it turns into the ordinary save form for the same paths in the
+// fork, and the SAVE goes to the fork.
+describe('save sheet — a book the user cannot push to (§A book the user cannot push to; books.fork)', () => {
+  const props = {
+    paths: ['carinhoso.cifra.md'],
+    canSave: false,
+    titleHint: 'Carinhoso',
+    bookLabel: 'Choros da Ana',
+  };
 
-    expect(screen.getByText(/Choros da Ana is someone else/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Make this book your own' })).toBeInTheDocument();
+  it('offers to make the book your own with the board #1 copy; it does not save', async () => {
+    const { store, sent } = makeStore();
+    renderSheet(props, store);
+
+    expect(
+      screen.getByRole('heading', { name: 'Choros da Ana is someone else’s — make it your own?' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('You can read Choros da Ana, but not save to it. Making it your own gives you:'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Make it my own' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Not now' })).toBeInTheDocument();
     expect(commandsOf(sent, CommandKind.SAVE)).toHaveLength(0);
+    expect(commandsOf(sent, CommandKind.PREVIEW_SAVE)).toHaveLength(0);
     expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
+  });
+
+  it('after BOOK_FORKED shows the save form for the fork’s id, and the SAVE goes to the fork', async () => {
+    const { store, sent, emit } = makeStore();
+    withName(emit);
+    const onMakeYourOwn = vi.fn();
+    renderSheet({ ...props, onMakeYourOwn }, store);
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Make it my own' })));
+    expect(lastCommand(sent, CommandKind.FORK_BOOK).payload.bookId).toBe(BOOK);
+    expect(screen.getByRole('status')).toHaveTextContent('Making it your own…');
+
+    emit(event(EventKind.BOOK_FORKED, { previousBookId: BOOK, bookId: 'fork-1', via: 'service' }));
+    expect(onMakeYourOwn).toHaveBeenCalledWith('fork-1');
+    // The ordinary form, asking for the fork's preview.
+    expect(lastCommand(sent, CommandKind.PREVIEW_SAVE).payload).toMatchObject({
+      bookId: 'fork-1',
+      paths: ['carinhoso.cifra.md'],
+    });
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: 'fork-1', previews: [preview({ path: 'carinhoso.cifra.md', title: 'Carinhoso' })] }));
+    expect(screen.getByRole('heading', { name: 'Save Carinhoso' })).toBeInTheDocument();
+    expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+    expect(lastCommand(sent, CommandKind.SAVE).payload).toMatchObject({
+      bookId: 'fork-1',
+      paths: ['carinhoso.cifra.md'],
+    });
   });
 });
 

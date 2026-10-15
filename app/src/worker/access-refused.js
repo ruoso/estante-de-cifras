@@ -75,3 +75,30 @@ export function takenDownReason(err) {
   if (body?.code !== 'taken_down') return null;
   return typeof body.message === 'string' ? body.message : null;
 }
+
+/**
+ * Is this error the service's permanent refusal of a READER's push — `403`
+ * whose JSON body code is `forbidden` (service/internal/server/git.go:276,
+ * `authorizePush`)? It is how a lowered editor learns they can no longer save to
+ * a book (books.fork Constraint 6; workflow 10 L83-85): still a member, so the
+ * book is still fetched and read, but its unpushed saves can no longer go to it.
+ * The engine classifies it `cannot_save` and stops retrying the push.
+ *
+ * Only that exact refusal counts. A `403 taken_down` (that is `takenDownReason`),
+ * a `404` (lost access — `isAccessRefused`), a missing response (offline), a 5xx,
+ * a `403` with no or another body: all false. The three classifiers never
+ * overlap. Reads the body's `code` only, never logs it (standing rule).
+ *
+ * @param {unknown} err
+ * @returns {boolean}
+ */
+export function readerPushRefused(err) {
+  if (err?.data?.statusCode !== 403) return false;
+  const { response } = err.data;
+  if (typeof response !== 'string') return false;
+  try {
+    return JSON.parse(response)?.code === 'forbidden';
+  } catch {
+    return false;
+  }
+}

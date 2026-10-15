@@ -40,6 +40,7 @@ function makeEngine(overrides = {}) {
     countAhead: overrides.countAhead ?? (async () => 1),
     syncHome: overrides.syncHome,
     surfaceHome: overrides.surfaceHome,
+    onCannotSave: overrides.onCannotSave,
     now: overrides.now,
   });
   return { engine, facts };
@@ -303,6 +304,107 @@ describe('sync engine routing (unit)', () => {
       const fact = lastFact(facts);
       expect(fact.phase).toBe('taken_down');
       expect(fact.reason).toBe(TAKEN_DOWN_REASON);
+    });
+  });
+
+  // books.fork Constraint 6 / Decision 1 — the lowered editor's permanent push
+  // refusal (workflow 10 L83-85). The service refuses a reader's push `403
+  // {code:'forbidden'}` (git.go:276): the book reads `cannot_save` carrying its
+  // waiting saves, its commits are kept, the shelf's role hint is rewritten to
+  // `reader`, and the push is not retried this session — while a `403
+  // taken_down` stays `taken_down` and a `404` stays `gone`.
+  describe('cannot save — a reader push refused 403 forbidden (books.fork Constraint 6; workflow 10 L83-85)', () => {
+    const forbidden403 = () =>
+      httpError(403, JSON.stringify({ code: 'forbidden', message: 'A reader cannot push to this book.' }));
+    const quietCheck = { check: async () => new Map() }; // nothing incoming
+
+    it('emits cannot_save {savesWaiting}, keeps the commits and writes role: reader', async () => {
+      const pushBook = vi.fn(async () => {
+        throw forbidden403();
+      });
+      const fetchBook = vi.fn(async () => {});
+      const mergeBook = vi.fn(async () => ({ merged: false }));
+      const onCannotSave = vi.fn(async () => {});
+      const { engine, facts } = makeEngine({
+        changeCheck: quietCheck,
+        pushBook,
+        fetchBook,
+        mergeBook,
+        onCannotSave,
+        localAhead: async () => true,
+        countAhead: async () => 2,
+      });
+
+      await engine.pass();
+
+      expect(pushBook).toHaveBeenCalledTimes(1); // not a lost race: no retry
+      const fact = lastFact(facts);
+      expect(fact.phase).toBe('cannot_save');
+      expect(fact.savesWaiting).toBe(2); // the commits are kept and counted
+      expect(mergeBook).not.toHaveBeenCalled(); // nothing rolled back or merged away
+      // The role hint follows what the service said (Decision 8).
+      expect(onCannotSave).toHaveBeenCalledTimes(1);
+      expect(onCannotSave).toHaveBeenCalledWith('book1');
+    });
+
+    it('the next pass does not push it again, while its fetches go on', async () => {
+      let check = quietCheck;
+      const pushBook = vi.fn(async () => {
+        throw forbidden403();
+      });
+      const fetchBook = vi.fn(async () => {});
+      const onCannotSave = vi.fn(async () => {});
+      const { engine, facts } = makeEngine({
+        changeCheck: { check: (...a) => check.check(...a) },
+        pushBook,
+        fetchBook,
+        onCannotSave,
+        localAhead: async () => true,
+        countAhead: async () => 1,
+      });
+
+      await engine.pass();
+      expect(pushBook).toHaveBeenCalledTimes(1);
+
+      // A quiet second pass: no push, still cannot_save.
+      await engine.pass();
+      expect(pushBook).toHaveBeenCalledTimes(1);
+      expect(lastFact(facts).phase).toBe('cannot_save');
+
+      // The original moved: a reader can still read — the fetch runs, the push
+      // does not.
+      check = { check: async () => new Map([['book1', { bookId: 'book1', status: 'changed' }]]) };
+      await engine.pass();
+      expect(fetchBook).toHaveBeenCalledTimes(1);
+      expect(pushBook).toHaveBeenCalledTimes(1);
+      expect(lastFact(facts).phase).toBe('cannot_save');
+      // The hint is written once, on the first classification.
+      expect(onCannotSave).toHaveBeenCalledTimes(1);
+    });
+
+    it('a 403 taken_down is still taken_down and a 404 still gone — never cannot_save', async () => {
+      const takenDown = makeEngine({
+        changeCheck: quietCheck,
+        pushBook: async () => {
+          throw takenDown403();
+        },
+        localAhead: async () => true,
+      });
+      await takenDown.engine.pass();
+      expect(lastFact(takenDown.facts).phase).toBe('taken_down');
+
+      const onCannotSave = vi.fn(async () => {});
+      const gone = makeEngine({
+        changeCheck: quietCheck,
+        pushBook: async () => {
+          throw httpError(404, JSON.stringify({ code: 'not_found', message: 'No such book.' }));
+        },
+        onCannotSave,
+        localAhead: async () => true,
+      });
+      await gone.engine.pass();
+      expect(lastFact(gone.facts).phase).toBe('gone');
+      expect(onCannotSave).not.toHaveBeenCalled();
     });
   });
 

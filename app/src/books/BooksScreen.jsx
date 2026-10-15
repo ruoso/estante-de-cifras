@@ -36,11 +36,11 @@ import {
   TextField,
 } from 'react-aria-components';
 import { t } from '../i18n/index.js';
-import { useSlice } from '../worker/useStore.js';
-import { command, CommandKind } from '../worker/protocol.js';
+import { useSlice, useWorkerEvent } from '../worker/useStore.js';
+import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { tokenFromLink } from '../account/invitation-route.js';
 import { BOOKS_WIDE_QUERY } from '../shell/layout-mode.js';
-import { titleFor, whereFor, canSaveFor, orderedBooks } from './book-display.js';
+import { titleFor, whereFor, canSaveFor, orderedBooks, forkLineFor } from './book-display.js';
 import { syncDisplayFor, anyOutOfStep } from '../sync-display.js';
 import BookDetail from './BookDetail.jsx';
 import UploadPreview from './UploadPreview.jsx';
@@ -128,12 +128,16 @@ function PencilIcon() {
 // L28; mockup L48). The word (never colour alone, mockups README L26) and its
 // class come from the one sync-word authority, `syncDisplayFor` (sync.states);
 // this view never derives the word itself.
-function SyncBadge({ entry }) {
+// A fork whose original is no longer shared carries a second badge, *original
+// no longer shared* (books.fork; W11 board #4 :153) — a word, beside the sync
+// word when there is one.
+function SyncBadge({ entry, originalGone = false }) {
   const atom = syncDisplayFor(entry, { t });
-  if (!atom) return null;
+  if (!atom && !originalGone) return null;
   return (
     <span className="badges">
-      <span className={`badge ${atom.cls}`.trim()}>{atom.word}</span>
+      {atom ? <span className={`badge ${atom.cls}`.trim()}>{atom.word}</span> : null}
+      {originalGone ? <span className="badge">{t('books.originalNoLongerShared')}</span> : null}
     </span>
   );
 }
@@ -164,8 +168,13 @@ function SyncGlyph() {
 // task's seam, `onOpen`) and a rename control beside it. The row carries the
 // title, the `{where} · {role}` meta line, and the sync badge when present; it
 // reads `.sel` when it is the selected book (W07 desktop master-detail).
-function BookRow({ id, book, kind, syncEntry, selected, onOpen, onFiles, onRename, rowRef }) {
+//
+// A fork (books.fork, workflow 11; W11 board #2) also says where it came from —
+// *from {original}* — and, when its original has saves it does not, *{original}
+// has N new saves.* (the *Bring them in* action is books.bring_in's, Decision 5).
+function BookRow({ id, book, kind, syncEntry, original, selected, onOpen, onFiles, onRename, rowRef }) {
   const title = titleFor(book, id);
+  const fork = forkLineFor(book, original);
   const where = t(`books.${whereFor(kind)}`);
   const canSave = canSaveFor(kind, book);
   const role =
@@ -176,8 +185,14 @@ function BookRow({ id, book, kind, syncEntry, selected, onOpen, onFiles, onRenam
       <Button className="row book-open" ref={rowRef} onPress={() => onOpen(id)}>
         <span className="grow">
           <span className="name">{title}</span>
+          {fork ? <span className="meta">{t('books.fromOriginal', { original: fork.from })}</span> : null}
           <span className="meta">{meta}</span>
-          <SyncBadge entry={syncEntry} />
+          {fork?.newSaves ? (
+            <span className="meta new-saves">
+              {t('books.originalNewSaves', { original: fork.from, count: fork.newSaves })}
+            </span>
+          ) : null}
+          <SyncBadge entry={syncEntry} originalGone={Boolean(fork?.gone)} />
         </span>
         <span className="caret t-small" aria-hidden="true">
           ▸
@@ -504,6 +519,7 @@ export default function BooksScreen({
 }) {
   const shelf = useSlice(store, 'shelf');
   const sync = useSlice(store, 'sync');
+  const originals = useSlice(store, 'originals');
   const mine = useSlice(store, 'mine');
   const ordered = useMemo(() => orderedBooks(shelf), [shelf]);
 
@@ -552,6 +568,22 @@ export default function BooksScreen({
     // `idsKey` captures exactly the set of ids; `ordered` is read fresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey]);
+
+  // A book became its fork (books.fork, workflow 11 §What a fork is): the fork
+  // took the original's place, so the selection follows the new id. On a wide
+  // shelf its detail stays open; on a narrow one the shelf comes back, as the
+  // board draws it (W11 #2), with the one-time note saying what happened.
+  const [forkedNote, setForkedNote] = useState(null);
+  useWorkerEvent(store, EventKind.BOOK_FORKED, ({ previousBookId, bookId: forkId }) => {
+    const book = ordered.find((e) => e.id === forkId)?.book;
+    const original = forkLineFor(book, undefined)?.from ?? titleFor(book, forkId);
+    setForkedNote({ book: titleFor(book, forkId), original });
+    setSelected((prev) => (prev === previousBookId ? forkId : prev));
+    setOpenDetail((prev) => {
+      if (prev !== previousBookId) return prev;
+      return splitMode === 'wide' ? forkId : null;
+    });
+  });
 
   const createBook = (title) => {
     wantFocus.current = true;
@@ -654,6 +686,7 @@ export default function BooksScreen({
               book={book}
               kind={kind}
               syncEntry={sync[id]}
+              original={originals[id]}
               selected={selected === id}
               onOpen={openBookDetail}
               onFiles={(bookId) => {
@@ -673,6 +706,13 @@ export default function BooksScreen({
           {t('books.empty')}
         </p>
       )}
+      {/* Said once, on BOOK_FORKED (W11 board #2 :88): the fork took the
+          original's place, so nothing shows twice. */}
+      {forkedNote ? (
+        <p className="t-small forked-note" role="status">
+          {t('books.forkedNote', forkedNote)}
+        </p>
+      ) : null}
     </>
   );
 

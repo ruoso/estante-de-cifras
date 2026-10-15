@@ -270,6 +270,42 @@ describe('worker store reducer', () => {
     expect(reduce(initialState, event(EventKind.ORIGINAL, { newSaves: 2 }))).toBe(initialState);
   });
 
+  // books.fork: the original's id leaves the shelf when it becomes its fork, so
+  // its sync fact and original count go with it (no lingering out-of-step mark).
+  it('drops the original id from sync and originals on BOOK_FORKED, leaving the rest', () => {
+    const a = [
+      event(EventKind.SYNC, { bookId: 'orig', phase: 'cannot_save', savesWaiting: 1 }),
+      event(EventKind.SYNC, { bookId: 'other', phase: 'in_step' }),
+      event(EventKind.ORIGINAL, { bookId: 'orig', newSaves: 2, gone: false }),
+    ].reduce(reduce, initialState);
+    const b = reduce(a, event(EventKind.BOOK_FORKED, { previousBookId: 'orig', bookId: 'fork', via: 'service' }));
+    expect(b.sync.orig).toBeUndefined();
+    expect(b.originals.orig).toBeUndefined();
+    expect(Object.is(b.sync.other, a.sync.other)).toBe(true);
+    // Nothing to drop: no churn.
+    expect(reduce(initialState, event(EventKind.BOOK_FORKED, { previousBookId: 'x', bookId: 'y' }))).toBe(
+      initialState,
+    );
+  });
+
+  // books.fork: a search/browse/recent row listed before the fork opens the
+  // fork's song, not the original's vanished copy.
+  it('re-points search, browse and recent rows from the original to the fork on BOOK_FORKED', () => {
+    const a = [
+      event(EventKind.SEARCH_RESULTS, {
+        query: 'roda',
+        results: [{ bookId: 'orig', path: 'roda.cifra.md' }, { bookId: 'other', path: 'x.cifra.md' }],
+      }),
+      event(EventKind.BROWSE_RESULTS, { books: [{ bookId: 'orig', songs: [] }] }),
+      event(EventKind.RECENTS, { recents: [{ bookId: 'orig', path: 'roda.cifra.md' }] }),
+    ].reduce(reduce, initialState);
+    const b = reduce(a, event(EventKind.BOOK_FORKED, { previousBookId: 'orig', bookId: 'fork' }));
+    expect(b.search.results.map((r) => r.bookId)).toEqual(['fork', 'other']);
+    expect(b.search.query).toBe('roda');
+    expect(b.browse.books[0].bookId).toBe('fork');
+    expect(b.recents[0]).toEqual({ bookId: 'fork', path: 'roda.cifra.md' });
+  });
+
   it('returns the same state reference for a command, a malformed message, or an unknown event kind', () => {
     expect(reduce(initialState, command(CommandKind.OPEN))).toBe(initialState);
     expect(reduce(initialState, null)).toBe(initialState);

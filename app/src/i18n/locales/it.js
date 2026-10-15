@@ -103,6 +103,16 @@ export default {
     offline: 'offline da {time}',
     offlineUnknown: 'offline',
     noLongerShared: 'non più condiviso con te',
+    // books.fork (workflow 11): le righe della copia propria sullo scaffale.
+    cannotSaveHere: 'non puoi salvare qui',
+    fromOriginal: 'da {original}',
+    originalNewSaves: {
+      one: '{original} ha {count} modifica nuova.',
+      other: '{original} ha {count} modifiche nuove.',
+    },
+    originalNoLongerShared: 'originale non più condiviso',
+    forkedNote:
+      '{book} ora è tuo: ha preso il posto dell’originale sul tuo scaffale, così ogni canzone compare una volta nella ricerca.',
     syncNow: 'Sincronizza ora',
     notInStep: 'Alcuni libri non sono allineati',
     // Il dettaglio di ogni libro (books.online, workflow 7 L46-63, L128-137; W07).
@@ -146,6 +156,14 @@ export default {
     deleteConfirm: 'Elimina il libro',
     share: 'Condividi',
     shareBody: 'Invita persone a leggere o modificare questo libro — fino a cinquanta.',
+    // Le schede della copia propria nel dettaglio (books.fork, workflow 11).
+    cannotSaveTitle: 'Non puoi salvare qui',
+    cannotSaveBody: {
+      one: '{count} modifica non può più andare a {book}: puoi leggerlo, ma non salvarci più.',
+      other: '{count} modifiche non possono più andare a {book}: puoi leggerlo, ma non salvarci più.',
+    },
+    fork: 'Fai una copia',
+    forkBody: 'La tua copia di {book}, con la sua storia, che continua a seguirlo.',
   },
 
   sharing: {
@@ -583,6 +601,23 @@ export default {
       'La notazione viene dalla tua preferenza, così il brano si legge uguale per tutti.',
   },
 
+  // Il foglio per rendere tuo il libro (books.fork, workflow 11; W11 #1).
+  fork: {
+    title: '{book} è di qualcun altro — renderlo tuo?',
+    body: 'Puoi leggere {book}, ma non salvarci. Renderlo tuo ti dà:',
+    pointCopy: 'La tua copia del libro, con tutta la sua storia. Le tue modifiche ci passano e si salvano lì.',
+    pointFollow: 'Continua a seguire {book}: quando ha modifiche nuove, scegli tu quando portarle dentro.',
+    pointShelf: 'Prende il posto di {book} sul tuo scaffale, così niente compare due volte.',
+    smallPrint: 'La tua copia va su Estante, privata per te. Puoi condividerla, con il suo limite di 50 persone.',
+    confirm: 'Rendilo mio',
+    notNow: 'Non ora',
+    busy: 'Lo sto rendendo tuo…',
+    offline: 'Rendere tuo il libro richiede la rete. Non è cambiato nulla: connettiti e riprova.',
+    quota: 'Questo ti porterebbe oltre il tuo limite su Estante.',
+    signedOut: 'Accedi per renderlo tuo.',
+    error: 'Non è stato possibile renderlo tuo. Non è cambiato nulla: riprova.',
+  },
+
   saveSheet: {
     title: 'Salva {title}',
     titleAll: { one: 'Salva {count} canzone', other: 'Salva {count} canzoni' },
@@ -607,9 +642,6 @@ export default {
     discardBody: 'La canzone torna com’era all’ultimo salvataggio. Questo andrebbe perso:',
     keepEditing: 'Continua a modificare',
     discard: 'Scarta modifiche',
-    cannotSaveTitle: 'Salvataggio di {title}',
-    cannotSaveBody:
-      '{book} è il libro di qualcun altro, quindi non si può salvare lì. Le tue modifiche restano su questo dispositivo, segnate come non salvate.',
     makeYourOwn: 'Rendi tuo questo libro',
     notNow: 'Non ora',
     change: {

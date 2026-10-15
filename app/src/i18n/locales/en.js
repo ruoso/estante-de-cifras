@@ -112,6 +112,17 @@ export default {
     offline: 'offline since {time}',
     offlineUnknown: 'offline',
     noLongerShared: 'no longer shared with you',
+    // books.fork (workflow 11): the shelf's fork lines and the cannot-save word —
+    // each state carried by a word, never colour alone.
+    cannotSaveHere: 'can’t save here',
+    fromOriginal: 'from {original}',
+    originalNewSaves: {
+      one: '{original} has {count} new save.',
+      other: '{original} has {count} new saves.',
+    },
+    originalNoLongerShared: 'original no longer shared',
+    forkedNote:
+      '{book} is your own now: it took the place of the original on your shelf, so every song shows once in search.',
     syncNow: 'Sync now',
     notInStep: 'Some books are not in step',
     // The per-book detail (books.online, workflow 7 L46-63, L128-137; W07 board).
@@ -163,6 +174,14 @@ export default {
     // The owner-only Share card on the per-book detail (books.share, workflow 10).
     share: 'Share',
     shareBody: 'Invite people to read or edit this book — up to fifty.',
+    // The book detail's fork cards (books.fork, workflow 11; W11 board :189-196).
+    cannotSaveTitle: 'Can’t save here',
+    cannotSaveBody: {
+      one: '{count} save can no longer go to {book}: you can read it, but no longer save to it.',
+      other: '{count} saves can no longer go to {book}: you can read it, but no longer save to it.',
+    },
+    fork: 'Fork',
+    forkBody: 'Your own copy of {book}, with its history, that keeps following it.',
   },
 
   // The sharing surface (books.share, workflow 10; board W10): the owner's view
@@ -660,6 +679,24 @@ export default {
       'The notation comes from your preference, so the song reads the same to everyone.',
   },
 
+  // The make-it-your-own sheet (books.fork, workflow 11 §Ways in; W11 board #1).
+  // It names the book, not its owner (Decision 4).
+  fork: {
+    title: '{book} is someone else’s — make it your own?',
+    body: 'You can read {book}, but not save to it. Making it your own gives you:',
+    pointCopy: 'Your own copy of the book, with all its history. Your edits move into it and save there.',
+    pointFollow: 'It keeps following {book}: when it has new saves, you choose when to bring them in.',
+    pointShelf: 'It takes the place of {book} on your shelf, so nothing shows twice.',
+    smallPrint: 'Your copy goes on Estante, private to you. You can share it, with its own limit of 50 people.',
+    confirm: 'Make it my own',
+    notNow: 'Not now',
+    busy: 'Making it your own…',
+    offline: 'Making it your own needs the network. Nothing changed: connect, then try again.',
+    quota: 'This would put you over your limit on Estante.',
+    signedOut: 'Sign in to make it your own.',
+    error: 'Couldn’t make it your own. Nothing changed: try again.',
+  },
+
   // The save sheet, discard confirm and save-all (songs.save_sheet, workflow 4;
   // W04 board). `{title}` is a song's title, `{count}` a number of songs,
   // `{book}` a book's label. The on-screen "what changed" rows are localized
@@ -697,11 +734,9 @@ export default {
     discardBody: 'The song goes back to how it was last saved. This would be lost:',
     keepEditing: 'Keep editing',
     discard: 'Discard changes',
-    // A book the user cannot push to (§A book the user cannot push to); the fork
-    // action itself is workflow 11's, delivered there (Deferred).
-    cannotSaveTitle: 'Saving {title}',
-    cannotSaveBody:
-      '{book} is someone else’s book, so this can’t be saved there. Your changes stay on this device, marked unsaved.',
+    // A book the user cannot push to (§A book the user cannot push to): the
+    // offer on the book detail's lost-access and cannot-save cards, which opens
+    // the make-it-your-own sheet (`fork`, books.fork).
     makeYourOwn: 'Make this book your own',
     notNow: 'Not now',
     // The localized "what changed" rows (renderChange, Decision 3): a location

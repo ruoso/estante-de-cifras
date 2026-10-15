@@ -39,6 +39,7 @@ const BOOKS_PATH = '/api/books';
  *   list: () => Promise<Book[]>,
  *   remove: (bookId: string) => Promise<void>,
  *   accept: (token: string) => Promise<Book>,
+ *   fork: (bookId: string) => Promise<Book>,
  * }}
  * @typedef {{ id: string, title: string, role: 'owner'|'editor'|'reader',
  *   visibility: 'private', gitUrl: string,
@@ -140,5 +141,21 @@ export function createBooksClient(options = {}) {
     if (!response.ok) throw refuse(response);
   }
 
-  return { create, list, remove, accept };
+  /**
+   * Fork a book on Estante (POST /api/books/{bookId}/fork → 201 Book, workflow
+   * 11; books.fork). A private server-side copy owned by the caller, its
+   * `original` set. A `404` (no longer a member, the original deleted — or the
+   * home book), `413` (over the account's limits) or `401` surfaces as a typed
+   * error carrying only `.status`; offline is the thrown `fetch` itself.
+   */
+  async function fork(bookId) {
+    const response = await fetchImpl(`${BOOKS_PATH}/${encodeURIComponent(bookId)}/fork`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!response.ok) throw refuse(response);
+    return response.json();
+  }
+
+  return { create, list, remove, accept, fork };
 }

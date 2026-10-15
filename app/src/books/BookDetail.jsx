@@ -10,8 +10,13 @@
 // When the book's live `sync` phase is `gone` — the device is no longer a member
 // (sync.lost_access, workflow 8 §Losing access) — it also shows a *no longer
 // shared with you* notice: the book is readable as it is and never syncs again,
-// and it offers the download and "Make this book your own" (the fork offer;
-// books.fork owns the action) so nothing unpushed is stranded.
+// and it offers the download and "Make this book your own" so nothing unpushed
+// is stranded. When the phase is `cannot_save` — the push was refused as a
+// reader's (an editor lowered to reader, workflow 10 L83-85) — it says how many
+// saves can no longer go to the book and makes the same offer. A hosted book the
+// user does not own carries a **Fork** card, the deliberate way in (books.fork,
+// workflow 11 §Ways in; W11 board :189-196). Every offer opens the one
+// make-it-your-own sheet (MakeYourOwn.jsx).
 //
 // The Worker owns git, the working copy and the network (DIRECTION §3.7): this
 // view only sends commands (PUT_ONLINE / DOWNLOAD_BOOK / REMOVE_BOOK /
@@ -42,6 +47,7 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { titleFor, canSaveFor, orderedBooks } from './book-display.js';
 import { saveZip } from './download-zip.js';
 import SharingScreen from './SharingScreen.jsx';
+import MakeYourOwn from './MakeYourOwn.jsx';
 import './book-detail.css';
 
 // The device commit identity for a shelf-touching command, the same literal the
@@ -53,6 +59,17 @@ function DownloadIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 4v12M7 11l5 5 5-5M4 20h16" />
+    </svg>
+  );
+}
+
+function ForkIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <circle cx="6" cy="5" r="2" />
+      <circle cx="18" cy="5" r="2" />
+      <circle cx="12" cy="19" r="2" />
+      <path d="M6 7v2a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V7M12 12v5" />
     </svg>
   );
 }
@@ -214,6 +231,18 @@ export default function BookDetail({
   // either `gone` or `taken_down`, never both.
   const isTakenDown = sync?.[bookId]?.phase === 'taken_down';
   const takenDownReason = sync?.[bookId]?.reason ?? null;
+  // The push was refused as a reader's (books.fork Constraint 6): still a
+  // member, still read, but its saves can no longer go to it.
+  const cannotSave = sync?.[bookId]?.phase === 'cannot_save';
+  // The deliberate way in (books.fork Constraint 11): a hosted book the user
+  // does not own. Not a local book (theirs already), not the home book, not a
+  // taken-down one (notice_surface Decision 3) — and not while the gone or
+  // cannot-save card already makes the offer.
+  const offersFork =
+    !isLocal && !isOwner && bookId !== 'home' && !isGone && !isTakenDown && !cannotSave;
+  // The make-it-your-own sheet: closed, or `{ following }` — false once access is
+  // lost, when following has already ended.
+  const [forkSheet, setForkSheet] = useState(null);
 
   // A successful put-online changed the book's on-device id (Decision 3): move
   // the open detail to the adopted service id so it keeps showing the book.
@@ -242,11 +271,9 @@ export default function BookDetail({
     store.send(command(CommandKind.PUT_ONLINE, { bookId, author: LOCAL_IDENTITY }));
   };
   const download = () => store.send(command(CommandKind.DOWNLOAD_BOOK, { bookId }));
-  // The fork offer dispatches the fork entry; `books.fork` owns the handler and
-  // the completed journey (Decision "The fork offer is this task's; the fork
-  // action is books.fork's"). This task ships the control, present and reachable.
-  const makeYourOwn = () =>
-    store.send(command(CommandKind.FORK_BOOK, { bookId, author: LOCAL_IDENTITY }));
+  // Every fork offer opens the one sheet; the Worker makes the fork on its
+  // confirm (MakeYourOwn sends FORK_BOOK). BooksScreen follows BOOK_FORKED.
+  const makeYourOwn = (following) => setForkSheet({ following });
   const remove = () =>
     store.send(command(CommandKind.REMOVE_BOOK, { bookId, author: LOCAL_IDENTITY }));
   const deleteBook = () =>
@@ -316,7 +343,22 @@ export default function BookDetail({
             </p>
             {/* Make it my own: present and reachable here; the fork machinery and
                 the completed journey are books.fork's (W11 board surface). */}
-            <Button className="btn" style={{ alignSelf: 'flex-start' }} onPress={makeYourOwn}>
+            <Button className="btn" style={{ alignSelf: 'flex-start' }} onPress={() => makeYourOwn(false)}>
+              {t('saveSheet.makeYourOwn')}
+            </Button>
+          </div>
+        ) : null}
+
+        {cannotSave ? (
+          <div className="card pad">
+            <span className="t-h2">{t('books.cannotSaveTitle')}</span>
+            {/* The count and the state, in words, in a live region (workflow 10
+                L83-85; never colour alone). The saves are kept for the fork;
+                Download stays available below. */}
+            <p className="t-small" role="status">
+              {t('books.cannotSaveBody', { count: savesWaiting, book: title })}
+            </p>
+            <Button className="btn" style={{ alignSelf: 'flex-start' }} onPress={() => makeYourOwn(true)}>
               {t('saveSheet.makeYourOwn')}
             </Button>
           </div>
@@ -346,6 +388,17 @@ export default function BookDetail({
             {t('books.download')}
           </Button>
         </div>
+
+        {offersFork ? (
+          <div className="card pad">
+            <span className="t-h2">{t('books.fork')}</span>
+            <p className="t-small">{t('books.forkBody', { book: title })}</p>
+            <Button className="btn" style={{ alignSelf: 'flex-start' }} onPress={() => makeYourOwn(true)}>
+              <ForkIcon />
+              {t('books.fork')}
+            </Button>
+          </div>
+        ) : null}
 
         <div className="card pad">
           <span className="t-h2">{t('books.remove')}</span>
@@ -381,6 +434,15 @@ export default function BookDetail({
           </div>
         ) : null}
       </div>
+
+      <MakeYourOwn
+        store={store}
+        isOpen={forkSheet !== null}
+        onClose={() => setForkSheet(null)}
+        bookId={bookId}
+        bookTitle={title}
+        following={forkSheet?.following ?? true}
+      />
 
       {sharing ? (
         <SharingScreen

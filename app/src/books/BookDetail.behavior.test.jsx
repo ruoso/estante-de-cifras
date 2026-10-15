@@ -7,7 +7,7 @@
 // mounts it, so its overlays portal into the `.est` token root (the app-wide
 // UNSAFE_PortalProvider) — [[rac-overlays-portal-outside-est-theme-root]].
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent, act, within } from '@testing-library/react';
+import { render, screen, fireEvent, act, within, cleanup } from '@testing-library/react';
 
 import { checkWcag21aa } from '../a11y/axe.js';
 import { createStore } from '../worker/store.js';
@@ -163,12 +163,19 @@ describe('BookDetail (workflow 7; W07 board)', () => {
     expect(download).toBeInTheDocument();
     expect(fork).toBeInTheDocument();
 
-    // Keyboard-reachable: focus and activate the fork offer. It dispatches the
-    // fork entry (the handler is books.fork's — this task ships the control).
+    // Keyboard-reachable: focus and activate the fork offer. It opens the
+    // make-it-your-own sheet (books.fork AC3) — following has already ended, so
+    // the *keeps following* point is dropped — whose confirm sends FORK_BOOK.
     fork.focus();
     expect(fork).toHaveFocus();
     act(() => fireEvent.click(fork));
+    const sheet = screen.getByRole('dialog', { name: /make it your own\?/ });
+    expect(within(sheet).queryByText(/keeps following/)).toBeNull();
+    expect(lastCommand(sent, CommandKind.FORK_BOOK)).toBeUndefined();
+    expect(await checkWcag21aa(sheet)).toHaveNoViolations();
+    act(() => fireEvent.click(within(sheet).getByRole('button', { name: 'Make it my own' })));
     expect(lastCommand(sent, CommandKind.FORK_BOOK).payload.bookId).toBe('srv-2');
+    act(() => fireEvent.click(within(sheet).getByRole('button', { name: 'Not now' })));
 
     // Download stays wired to the existing zip (functional, acceptance 4).
     act(() => fireEvent.click(download));
@@ -232,6 +239,106 @@ describe('BookDetail (workflow 7; W07 board)', () => {
     emit(event(EventKind.SYNC, { bookId: 'srv-1', phase: 'in_step', at: AT }));
 
     expect(screen.queryByText('This book has been taken down')).toBeNull();
+  });
+
+  // books.fork AC2 — lowered to reader with saves not yet pushed (workflow 10
+  // L83-85): the push was refused `403 forbidden`, the engine says cannot_save.
+  it('a cannot_save book says how many saves can no longer go to it, with Make this book your own and Download; axe clean', async () => {
+    const { store, sent, emit } = makeStore();
+    const { container } = renderDetail(store, { bookId: 'srv-2', kind: 'shared' });
+    emit(memberShelf());
+    emit(event(EventKind.SYNC, { bookId: 'srv-2', phase: 'cannot_save', savesWaiting: 1, at: AT }));
+
+    expect(screen.getByText('Can’t save here')).toBeInTheDocument();
+    const body = screen.getByText(
+      '1 save can no longer go to Choros da Ana: you can read it, but no longer save to it.',
+    );
+    expect(body).toHaveAttribute('role', 'status');
+    expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
+    // The deliberate Fork card stands down while this card makes the offer.
+    expect(screen.queryByRole('button', { name: 'Fork' })).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Make this book your own' })));
+    const sheet = screen.getByRole('dialog', { name: /make it your own\?/ });
+    act(() => fireEvent.click(within(sheet).getByRole('button', { name: 'Make it my own' })));
+    expect(lastCommand(sent, CommandKind.FORK_BOOK).payload.bookId).toBe('srv-2');
+  });
+
+  it('the plural count reads *N saves can no longer go to …*', () => {
+    const { store, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-2', kind: 'shared' });
+    emit(memberShelf());
+    emit(event(EventKind.SYNC, { bookId: 'srv-2', phase: 'cannot_save', savesWaiting: 3, at: AT }));
+    expect(
+      screen.getByText('3 saves can no longer go to Choros da Ana: you can read it, but no longer save to it.'),
+    ).toBeInTheDocument();
+  });
+
+  // books.fork AC4 — the deliberate way in (W11 board :189-196): a Fork card on a
+  // hosted book the user does not own, between Download and Remove.
+  for (const role of ['reader', 'editor']) {
+    it(`a ${role}'s hosted book carries the Fork card, which opens the sheet; axe clean`, async () => {
+      const { store, sent, emit } = makeStore();
+      const { container } = renderDetail(store, { bookId: 'srv-3', kind: 'shared' });
+      emit(
+        event(EventKind.SHELF, {
+          books: { 'srv-3': { label: reg('Banda do Bairro'), position: reg(1), role: reg(role) } },
+          local: {},
+        }),
+      );
+
+      expect(
+        screen.getByText('Your own copy of Banda do Bairro, with its history, that keeps following it.'),
+      ).toBeInTheDocument();
+      // Between Download and Remove, in reading order.
+      const names = screen.getAllByRole('button').map((b) => b.textContent);
+      const at = (n) => names.findIndex((x) => x.includes(n));
+      expect(at('Download')).toBeLessThan(at('Fork'));
+      expect(at('Fork')).toBeLessThan(at('Remove from my shelf'));
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+      act(() => fireEvent.click(screen.getByRole('button', { name: 'Fork' })));
+      const sheet = screen.getByRole('dialog', { name: 'Banda do Bairro is someone else’s — make it your own?' });
+      // It keeps following its original: the point is there.
+      expect(within(sheet).getByText(/keeps following Banda do Bairro/)).toBeInTheDocument();
+      expect(await checkWcag21aa(sheet)).toHaveNoViolations();
+      act(() => fireEvent.click(within(sheet).getByRole('button', { name: 'Make it my own' })));
+      expect(lastCommand(sent, CommandKind.FORK_BOOK).payload.bookId).toBe('srv-3');
+    });
+  }
+
+  it('no Fork card for an owned, local, home or taken-down book', () => {
+    const owned = makeStore();
+    renderDetail(owned.store, { bookId: 'srv-1', kind: 'shared' });
+    owned.emit(hostedShelf());
+    expect(screen.queryByRole('button', { name: 'Fork' })).toBeNull();
+    cleanup();
+
+    const local = makeStore();
+    renderDetail(local.store, { bookId: 'local-1', kind: 'local' });
+    local.emit(localShelf());
+    expect(screen.queryByRole('button', { name: 'Fork' })).toBeNull();
+    cleanup();
+
+    const home = makeStore();
+    renderDetail(home.store, { bookId: 'home', kind: 'shared' });
+    home.emit(
+      event(EventKind.SHELF, {
+        books: { home: { label: reg('Home'), role: reg('reader') } },
+        local: {},
+      }),
+    );
+    expect(screen.queryByRole('button', { name: 'Fork' })).toBeNull();
+    cleanup();
+
+    const takenDown = makeStore();
+    renderDetail(takenDown.store, { bookId: 'srv-2', kind: 'shared' });
+    takenDown.emit(memberShelf());
+    takenDown.emit(
+      event(EventKind.SYNC, { bookId: 'srv-2', phase: 'taken_down', reason: 'A notice written for this test.', at: AT }),
+    );
+    expect(screen.queryByRole('button', { name: 'Fork' })).toBeNull();
   });
 
   it('Remove warns a device-only book is gone for good and offers Download first (L128-135)', async () => {

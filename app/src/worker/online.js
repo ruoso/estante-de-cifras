@@ -144,6 +144,25 @@ export function createOnline({ fs, git, locks, booksClient } = {}) {
   }
 
   /**
+   * Move a book's whole working copy — `.git`, the working tree, unsaved edits
+   * and unpushed commits — from `bookDir(fromId)` to `bookDir(toId)`, and point
+   * its `origin` at `gitUrl`. Under the FROM book's lock: no other module knows
+   * the new id yet, so nothing else holds its lock. Put-online adopts the service
+   * id this way (Decision 3), and books.fork moves a book onto its fork's id.
+   *
+   * @param {{ fromId: string, toId: string, gitUrl: string }} opts
+   */
+  function relocate({ fromId, toId, gitUrl }) {
+    return locks.withLock(fromId, async () => {
+      const from = git.bookDir(fromId);
+      const to = git.bookDir(toId);
+      await copyTree(from, to);
+      await removeTree(from);
+      await git.setRemote({ dir: to, url: gitUrl });
+    });
+  }
+
+  /**
    * Put a device-only book online. Create it on Estante (empty, private — the
    * service create happens FIRST, Decision 4), then under the local book's lock
    * relocate the working copy from `bookDir(localId)` to `bookDir(serviceId)`
@@ -166,13 +185,7 @@ export function createOnline({ fs, git, locks, booksClient } = {}) {
 
     // Relocate + set the remote under the local book's lock. No other module
     // knows the service id yet, so nothing else holds its lock.
-    await locks.withLock(localId, async () => {
-      const from = git.bookDir(localId);
-      const to = git.bookDir(serviceId);
-      await copyTree(from, to);
-      await removeTree(from);
-      await git.setRemote({ dir: to, url: gitUrl });
-    });
+    await relocate({ fromId: localId, toId: serviceId, gitUrl });
 
     // Push the first commit best-effort under the (service) book's lock. A
     // failure keeps the book hosted; the sync engine retries (Decision 4).
@@ -273,5 +286,5 @@ export function createOnline({ fs, git, locks, booksClient } = {}) {
     });
   }
 
-  return { putOnline, download, remove, deleteBook, detach };
+  return { putOnline, relocate, download, remove, deleteBook, detach };
 }

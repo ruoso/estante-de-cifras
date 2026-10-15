@@ -1,0 +1,39 @@
+/* make-your-own.css — the make-it-your-own sheet (books.fork, W11 board #1
+   :49-63). The sheet scaffolding (.scrim, .sheet, .grip, .btn) is the theme's;
+   this adds the points list and the stacked buttons. Tokens only, never
+   hard-coded colour (mockups README L26). */
+
+.est-fork-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.est-fork-points li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 15px;
+}
+
+.est-fork-check {
+  color: var(--accent);
+  flex: none;
+  margin-top: 2px;
+}
+
+/* The busy word and the worded refusal: a live region kept in the tree (so a
+   change is announced), empty until there is something to say. */
+.est-fork-status {
+  margin: 0;
+  color: var(--ink);
+}
+
+.est-fork-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

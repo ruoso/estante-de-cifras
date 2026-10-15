@@ -33,6 +33,7 @@ const OUT_OF_STEP = new Set([
   'offline',
   'needs_you',
   'gone',
+  'cannot_save',
   'taken_down',
 ]);
 
@@ -67,6 +68,7 @@ function timeOf(iso) {
  *   needs_you     → "needs you"                    (.badge.conflict.dot)
  *   gone          → "no longer shared with you"    (.badge.conflict.dot)
  *   taken_down    → "no longer shared with you"    (.badge.conflict.dot, same as gone)
+ *   cannot_save   → "can't save here"              (.badge.conflict.dot; books.fork)
  *
  * @param {{ phase?: string, savesWaiting?: number, lastInStep?: string|null }|null|undefined} entry
  * @param {{ t: (key: string, params?: object) => string, now?: () => number }} options
@@ -100,6 +102,17 @@ export function syncDisplayFor(entry, options = {}) {
       return { kind: 'needs_you', word: t('books.needsYou'), cls: 'conflict dot', dot: true };
     case 'gone':
       return { kind: 'gone', word: t('books.noLongerShared'), cls: 'conflict dot', dot: true };
+    case 'cannot_save':
+      // The push was refused as a reader's (books.fork Constraint 6): the saves
+      // can no longer go to this book. The detail says how many and offers the
+      // fork; the shelf says it in a word, never colour alone.
+      return {
+        kind: 'cannot_save',
+        word: t('books.cannotSaveHere'),
+        cls: 'conflict dot',
+        dot: true,
+        count: entry?.savesWaiting ?? 0,
+      };
     case 'taken_down':
       // A book the service took down for a copyright notice reads the same word
       // and badge as gone on every shelf (workflow 10 L113; books.notice_surface

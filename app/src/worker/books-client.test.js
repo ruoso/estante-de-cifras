@@ -108,6 +108,35 @@ describe('books-client (service.books contract)', () => {
     await expect(client.remove('not-mine')).rejects.toMatchObject({ status: 403 });
   });
 
+  // books.fork — POST /api/books/{bookId}/fork (api/openapi.yaml forkBook):
+  // 201 Book with `original`; 404 / 413 ride on `.status` for the Worker's two
+  // paths (Constraint 2) and its worded failure (Constraint 8).
+  it('fork POSTs to /api/books/{id}/fork with credentials and parses the Book', async () => {
+    const book = {
+      id: 'srv-fork',
+      title: 'Choros da Ana',
+      role: 'owner',
+      visibility: 'private',
+      gitUrl: 'https://estante.example/git/srv-fork',
+      original: { bookId: 'srv-orig', title: 'Choros da Ana' },
+    };
+    const { fetchImpl, calls } = fakeFetch(() => ({ status: 201, body: book }));
+    const client = createBooksClient({ fetch: fetchImpl });
+
+    expect(await client.fork('srv-orig')).toEqual(book);
+    expect(calls[0].url).toBe('/api/books/srv-orig/fork');
+    expect(calls[0].init.method).toBe('POST');
+    expect(calls[0].init.credentials).toBe('include');
+  });
+
+  it('surfaces a fork 404 (no longer a member) and 413 (over the limit) as typed errors', async () => {
+    for (const status of [404, 413]) {
+      const { fetchImpl } = fakeFetch(() => ({ status }));
+      const client = createBooksClient({ fetch: fetchImpl });
+      await expect(client.fork('srv-orig')).rejects.toMatchObject({ status });
+    }
+  });
+
   it('logs nothing — not on success, not on failure', async () => {
     const { fetchImpl } = fakeFetch((url, init) =>
       init.method === 'DELETE' ? { status: 403 } : { status: 201, body: { id: 'x' } },

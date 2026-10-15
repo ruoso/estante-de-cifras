@@ -84,6 +84,18 @@ describe('syncDisplayFor — deriving each state (workflow 8 L28-34)', () => {
       dot: true,
     });
   });
+
+  it("cannot_save → \"can't save here\" on .badge.conflict with the dot — a word, never colour alone (books.fork Constraint 6; README Decisions :26)", () => {
+    const atom = syncDisplayFor({ phase: 'cannot_save', savesWaiting: 1 }, { t });
+    expect(atom).toMatchObject({
+      kind: 'cannot_save',
+      word: 'can’t save here',
+      cls: 'conflict dot',
+      dot: true,
+      count: 1,
+    });
+    expect(anyOutOfStep({ 'b-1': { phase: 'cannot_save', savesWaiting: 1 } })).toBe(true);
+  });
 });
 
 describe('anyOutOfStep — the header quiet mark (workflow 8 L36-37)', () => {

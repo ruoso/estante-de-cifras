@@ -37,6 +37,7 @@ import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import DiffRows from './DiffRows.jsx';
+import { MakeYourOwnBody } from '../books/MakeYourOwn.jsx';
 import { buildSaveNote } from './save-note.js';
 import './save-sheet.css';
 
@@ -193,6 +194,63 @@ function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, title
   );
 }
 
+// The open sheet's content. A book the user cannot save to shows the
+// make-it-your-own offer (workflow 4 §A book the user cannot push to; books.fork)
+// in place of the form; once the Worker made the fork it turns into the ordinary
+// save form for the same paths in the fork, so the save lands there. Whether it
+// must offer the fork is latched on open: between the SHELF re-surface that
+// drops the original and BOOK_FORKED, the host's `canSave` reads a book with no
+// shelf entry and must not flip to a form for the vanished id.
+function SheetContent({
+  store,
+  close,
+  onClose,
+  bookId,
+  canSave,
+  bookLabel,
+  titleHint,
+  onMakeYourOwn,
+  ...form
+}) {
+  const [mustFork] = useState(canSave === false);
+  const [forkedTo, setForkedTo] = useState(null);
+  if (mustFork && !forkedTo) {
+    return (
+      <>
+        <div className="grip" aria-hidden="true" />
+        <MakeYourOwnBody
+          store={store}
+          bookId={bookId}
+          bookTitle={bookLabel || titleHint}
+          onCancel={close}
+          onForked={({ bookId: forkId }) => {
+            setForkedTo(forkId);
+            onMakeYourOwn(forkId);
+          }}
+        />
+      </>
+    );
+  }
+  return (
+    <>
+      <div className="grip" aria-hidden="true" />
+      <SaveForm
+        store={store}
+        close={close}
+        onClose={onClose}
+        bookId={forkedTo ?? bookId}
+        titleHint={titleHint}
+        {...form}
+      />
+    </>
+  );
+}
+
+/**
+ * The save sheet. `canSave === false` (a reader's book — `saveTargetFor`) opens
+ * the make-it-your-own offer instead of the form; `onMakeYourOwn(forkId)` tells
+ * the host the book became its fork (the host's own id follows BOOK_FORKED).
+ */
 export default function SaveSheet({
   store,
   isOpen,
@@ -206,11 +264,14 @@ export default function SaveSheet({
   canSave = true,
   onMakeYourOwn = () => {},
 }) {
-  // A stable accessible name for the overlay, independent of the preview arriving.
+  // A stable accessible name for the overlay, independent of the preview
+  // arriving; the make-it-your-own offer is named by its own heading.
   const label =
-    !isNew && (paths?.length ?? 0) > 1
-      ? t('saveSheet.titleAll', { count: paths.length })
-      : t('saveSheet.title', { title: titleHint || t('newSong.untitled') });
+    canSave === false
+      ? undefined
+      : !isNew && (paths?.length ?? 0) > 1
+        ? t('saveSheet.titleAll', { count: paths.length })
+        : t('saveSheet.title', { title: titleHint || t('newSong.untitled') });
 
   return (
     <ModalOverlay
@@ -223,44 +284,21 @@ export default function SaveSheet({
     >
       <Modal className="sheet est-save-sheet">
         <Dialog aria-label={label}>
-          {({ close }) =>
-            canSave === false ? (
-              // A book the user cannot push to (workflow 4 §A book the user
-              // cannot push to): explain and offer to make it their own
-              // (workflow 11, delivered there — Deferred). Nothing to commit.
-              <>
-                <div className="grip" aria-hidden="true" />
-                <Heading slot="title" className="t-h2">
-                  {t('saveSheet.cannotSaveTitle', { title: titleHint })}
-                </Heading>
-                <p className="t-small est-save-cannot">
-                  {t('saveSheet.cannotSaveBody', { title: titleHint, book: bookLabel })}
-                </p>
-                <div className="actions">
-                  <Button className="btn quiet" onPress={close}>
-                    {t('saveSheet.notNow')}
-                  </Button>
-                  <Button className="btn primary" onPress={onMakeYourOwn}>
-                    {t('saveSheet.makeYourOwn')}
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="grip" aria-hidden="true" />
-                <SaveForm
-                  store={store}
-                  close={close}
-                  onClose={onClose}
-                  bookId={bookId}
-                  paths={paths}
-                  isNew={isNew}
-                  fromPath={fromPath}
-                  titleHint={titleHint}
-                />
-              </>
-            )
-          }
+          {({ close }) => (
+            <SheetContent
+              store={store}
+              close={close}
+              onClose={onClose}
+              bookId={bookId}
+              canSave={canSave}
+              bookLabel={bookLabel}
+              titleHint={titleHint}
+              onMakeYourOwn={onMakeYourOwn}
+              paths={paths}
+              isNew={isNew}
+              fromPath={fromPath}
+            />
+          )}
         </Dialog>
       </Modal>
     </ModalOverlay>

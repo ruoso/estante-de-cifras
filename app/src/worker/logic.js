@@ -32,6 +32,7 @@ import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createChangeCheckClient } from './change-check-client.js';
 import { createBooksClient } from './books-client.js';
 import { createOnline } from './online.js';
+import { createFork } from './fork.js';
 import { createAddByLink } from './add-by-link.js';
 import { booksNotOnShelf } from '../books/mine-on-estante.js';
 import { createCifraMergeDriver } from './cifra-merge-driver.js';
@@ -335,6 +336,7 @@ export function createWorkerLogic(port, options = {}) {
   let changeCheck = null;
   let booksClient = null;
   let online = null;
+  let fork = null;
   let addByLink = null;
   let syncEngine = null;
   let syncScheduler = null;
@@ -555,6 +557,23 @@ export function createWorkerLogic(port, options = {}) {
     return online;
   }
 
+  // Compose the make-it-my-own mechanic once (books.fork) over the SAME fs, git
+  // layer, lock registry and `/api/books` client, relocating through online.js's
+  // `relocate` (the put-online move). The view only sends FORK_BOOK and renders
+  // BOOK_FORKED / FORK_FAILED; the shelf and index writes stay here.
+  function ensureFork() {
+    if (!fork) {
+      fork = createFork({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+        booksClient: ensureBooksClient(),
+        relocate: (opts) => ensureOnline().relocate(opts),
+      });
+    }
+    return fork;
+  }
+
   // Compose the clone-a-hosted-book mechanic once over the SAME git layer and
   // lock registry (books.add_by_link), the sibling of ensureOnline. The Worker
   // owns git; the view only sends ADD_BY_LINK / ADD_MINE and reacts to the reply
@@ -602,6 +621,10 @@ export function createWorkerLogic(port, options = {}) {
         readOriginals,
         recordOriginal,
         emitOriginal: (payload) => port.postMessage(event(EventKind.ORIGINAL, payload)),
+        // A push refused as a reader's (books.fork Constraint 6): rewrite the
+        // shelf's `role` hint to what the service said (Decision 8), so the next
+        // Save — on every device of the account — opens the fork sheet.
+        onCannotSave: markReader,
       });
     }
     return syncEngine;
@@ -703,6 +726,26 @@ export function createWorkerLogic(port, options = {}) {
       bookId: HOME_BOOK_ID,
       file: 'shelf.json',
       changes: [{ path: ['books', bookId, 'original'], value: original }],
+      author,
+    });
+    await surfaceHomeBookShelf();
+    await ensureFs().flush();
+  }
+
+  // Rewrite a hosted book's `role` hint to `reader` and re-surface SHELF (books.fork
+  // Decision 8). The register is "a hint for the shelf, never an authority"
+  // (home-book-format §4.2): the service just refused this account's push as a
+  // reader's. A book no longer on the shelf (or already a reader) is left alone.
+  async function markReader(bookId) {
+    const home = ensureHomeBook();
+    const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+    const entry = shelf?.books?.[bookId];
+    if (!entry || entry?.role?.value === 'reader') return;
+    const author = await resolveSyncAuthor();
+    await home.set({
+      bookId: HOME_BOOK_ID,
+      file: 'shelf.json',
+      changes: [{ path: ['books', bookId, 'role'], value: 'reader' }],
       author,
     });
     await surfaceHomeBookShelf();
@@ -1843,6 +1886,110 @@ export function createWorkerLogic(port, options = {}) {
             );
             // A first-push that could not complete inline retries next pass
             // (offline-save retry, Decision 4). Coalesced and fire-and-forget.
+            ensureSyncScheduler().trigger();
+            break;
+          }
+          case CommandKind.FORK_BOOK: {
+            // Make a hosted book the user's own (books.fork, workflow 11): the
+            // service copies it, or — when it will not (a 404: no longer a
+            // member) — the device puts its own copy online (Decision 2). Every
+            // service call precedes the device writes, so a refusal changes
+            // nothing (Constraint 8). The fork then replaces the original on the
+            // shelf in ONE home-book write (workflow 11 L27-30; Constraint 3), its
+            // search entries move with the id, and the engine pushes what the
+            // device holds on its next pass.
+            const { bookId, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            const deviceId = await home.ensureDeviceId({ idb, name, version });
+            const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+            const entry = shelf?.books?.[bookId];
+            if (!entry || bookId === HOME_BOOK_ID) {
+              // A local book is the user's own already (Constraint 11).
+              port.postMessage(
+                event(EventKind.FORK_FAILED, { bookId, code: 'not_hosted', message: 'fork: not hosted' }),
+              );
+              break;
+            }
+            const label = entry?.label?.value ?? bookId;
+            const originalLink = entry?.link?.value ?? null;
+            const position =
+              typeof entry?.position?.value === 'number'
+                ? entry.position.value
+                : nextShelfPosition(shelf, deviceId);
+            let result;
+            try {
+              result = await ensureFork().fork({ bookId, title: label, author: await resolveSyncAuthor() });
+            } catch (err) {
+              // Refused or unreachable before any device write: word it for the
+              // view — over the limit (413), no session (401), offline (no
+              // status) or other. `{ code, message }` only, no song text.
+              const code =
+                err?.status === 413
+                  ? 'quota'
+                  : err?.status === 401
+                    ? 'signed_out'
+                    : err?.status
+                      ? 'error'
+                      : 'offline';
+              port.postMessage(
+                event(EventKind.FORK_FAILED, {
+                  bookId,
+                  code,
+                  message: err?.status ? `fork: ${err.status}` : 'fork: unreachable',
+                }),
+              );
+              break;
+            }
+            const forkId = result.bookId;
+            const followedAt = new Date().toISOString();
+            // The fork's original: the book it was made from, one step only (a
+            // fork of a fork records its immediate parent). Made after losing
+            // access, following has already ended (workflow 11 L41-46).
+            const original = {
+              bookId,
+              title: label,
+              link: originalLink,
+              followedAt,
+              ...(result.via === 'own' ? { goneAt: followedAt } : {}),
+            };
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'shelf.json',
+              changes: [
+                // The original's registers cleared, as remove does — its own
+                // `original` too, when it was itself a fork, so no row lingers.
+                { path: ['books', bookId, 'label'], value: null },
+                { path: ['books', bookId, 'link'], value: null },
+                { path: ['books', bookId, 'position'], value: null },
+                { path: ['books', bookId, 'role'], value: null },
+                ...(entry.original ? [{ path: ['books', bookId, 'original'], value: null }] : []),
+                // The fork in its place: the same label and position, owned.
+                { path: ['books', forkId, 'label'], value: label },
+                { path: ['books', forkId, 'link'], value: result.gitUrl },
+                { path: ['books', forkId, 'position'], value: position },
+                { path: ['books', forkId, 'role'], value: 'owner' },
+                // Written whole, one register (sync.fork_follow Decision) — the
+                // same write recordOriginal makes, folded into this one.
+                { path: ['books', forkId, 'original'], value: original },
+              ],
+              author,
+            });
+            await surfaceHomeBookShelf();
+            // The search entries move with the id (the online_reindex
+            // obligation): drop the original's, index the relocated tree. Docs
+            // are oid-keyed, so nothing is re-parsed; `unsaved` is re-derived
+            // from the working tree against HEAD, so unsaved edits stay marked.
+            await ensureIndexHydrated();
+            await persistIndexChanges(ensureSearchIndex().removeBook(bookId));
+            port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: null }));
+            await indexOneBook(forkId);
+            await ensureFs().flush();
+            port.postMessage(
+              event(EventKind.BOOK_FORKED, { previousBookId: bookId, bookId: forkId, via: result.via }),
+            );
+            // The engine fetches the fork, merges and pushes the local commits
+            // (Decision 3), or retries the create path's first push.
             ensureSyncScheduler().trigger();
             break;
           }
