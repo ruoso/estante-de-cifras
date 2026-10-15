@@ -97,8 +97,9 @@ task service "The service" {
   task leave_book "A member leaves a book" {
     effort 1d
     allocate team
+    complete 100
     depends !sharing, design.leave_book
-    note "A self-remove endpoint: a member (reader or editor) ends their own membership; the owner cannot. Its effect matches the owner's remove (no clone or push afterwards; not listed in Mine on Estante). api/openapi.yaml extended first. Source: tasks/parking-lot.md 2026-10-14. Tests: behavior (a member leaves; the owner refused; a non-member 404); e2e-api (a second account joins by invitation, leaves, and can no longer clone)."
+    note "A self-remove endpoint: a member (reader or editor) ends their own membership; the owner cannot. Its effect matches the owner's remove (no clone or push afterwards; not listed in Mine on Estante). api/openapi.yaml extended first. Source: tasks/parking-lot.md 2026-10-14. Tests: behavior (a member leaves; the owner refused; a non-member 404); e2e-api (a second account joins by invitation, leaves, and can no longer clone). Refinement: tasks/refinements/service/leave_book.md"
   }
   task home_book "The account's home book on the service" {
     effort 1d

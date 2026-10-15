@@ -88,7 +88,7 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 		// books volume (service.change_check).
 		mux.HandleFunc("POST /api/shelf/change-check", handleChangeCheck(api))
 		// Sharing: a book's members and invitations (workflow 10; api/openapi.yaml
-		// /api/books/{bookId}/members[/{userId}], /invitations[/{invitationId}]
+		// /api/books/{bookId}/members[/{userId}], /membership, /invitations[/{invitationId}]
 		// and /api/invitations/{token}/accept). These move registry rows and
 		// compose the shareable link; they need only the pool and the books
 		// volume (for the accepted book's README title), so they are routed
@@ -96,6 +96,7 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 		mux.HandleFunc("GET /api/books/{bookId}/members", handleListMembers(api))
 		mux.HandleFunc("PATCH /api/books/{bookId}/members/{userId}", handleChangeMemberRole(api))
 		mux.HandleFunc("DELETE /api/books/{bookId}/members/{userId}", handleRemoveMember(api))
+		mux.HandleFunc("DELETE /api/books/{bookId}/membership", handleLeaveBook(api))
 		mux.HandleFunc("GET /api/books/{bookId}/invitations", handleListInvitations(api))
 		mux.HandleFunc("POST /api/books/{bookId}/invitations", handleCreateInvitation(api))
 		mux.HandleFunc("DELETE /api/books/{bookId}/invitations/{invitationId}", handleWithdrawInvitation(api))

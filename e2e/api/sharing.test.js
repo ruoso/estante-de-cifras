@@ -8,7 +8,9 @@
  * service.sharing e2e clause: an invitation accepted by a second account that
  * then clones and, as editor, pushes over git, while a reader is refused the
  * push; and a full book refusing a join, and a withdrawn invitation refusing a
- * new join while an already-joined member keeps access.
+ * new join while an already-joined member keeps access. And service.leave_book's
+ * clause: a member who joined by invitation leaves and can no longer clone,
+ * while the owner cannot leave (workflow 10 §Leaving a book, §Edge cases).
  *
  * One setup step reaches Postgres directly through the harness's db seam
  * (lib/db.js): fifty members seeded straight, a fixture no endpoint shapes (the
@@ -22,7 +24,7 @@ import { join } from 'node:path';
 import { HttpClient } from './lib/http.js';
 import { baseUrl } from './lib/env.js';
 import { Authenticator } from './lib/authenticator.js';
-import { GitCli, makeTempDir } from './lib/git.js';
+import { GitCli, IsoGit, makeTempDir } from './lib/git.js';
 import { sampleSong } from './fixtures/songs.js';
 import { connect } from './lib/db.js';
 
@@ -189,5 +191,61 @@ describe('sharing (workflow 10)', () => {
     expect(resp.status).toBe(409);
     expect((await resp.json()).code).toBe('invitation_withdrawn');
     expect(findBook(await member.getJson('/api/books'), book.id)).toBeTruthy();
+  });
+
+  // service.leave_book e2e-api: "joins by invitation, leaves, and can no longer
+  // clone" (workflow 10 §Leaving a book lines 121-122) and "the owner cannot
+  // leave" (§Edge cases lines 140-141).
+  it('a member who leaves can no longer clone, and the owner cannot leave', async () => {
+    const owner = new HttpClient();
+    await registerNewAccount(owner);
+    const book = await createBook(owner, 'Leavable Book');
+    const url = gitEndpoint(book);
+
+    const ownerDir = await tempDir('estante-e2e-leave-owner-');
+    const ownerWork = await GitCli.create(ownerDir);
+    await ownerWork.init();
+    await writeFile(join(ownerDir, sampleSong.filename), sampleSong.content);
+    await ownerWork.add('.');
+    await ownerWork.commit('Add the tuning song');
+    await ownerWork.pushHTTP(url, owner.cookieHeader());
+
+    // A reader joins by invitation and clones.
+    const inv = await createInvitation(owner, book.id, { role: 'reader' });
+    const member = new HttpClient();
+    const memberId = await registerNewAccount(member);
+    expect((await acceptInvitation(member, tokenFromUrl(inv.url))).status).toBe(200);
+    const firstDir = await tempDir('estante-e2e-leave-member-');
+    await GitCli.cloneHTTP(url, firstDir, member.cookieHeader());
+    expect(await readFile(join(firstDir, sampleSong.filename), 'utf8')).toBe(sampleSong.content);
+
+    // The member leaves, without asking the owner.
+    const leave = await member.fetch(`/api/books/${book.id}/membership`, { method: 'DELETE' });
+    expect(leave.status).toBe(204);
+
+    // The book is gone from their shelf and refused to their git clients.
+    expect(findBook(await member.getJson('/api/books'), book.id)).toBeUndefined();
+    const refs = await member.get(`/git/${book.id}/info/refs?service=git-upload-pack`);
+    expect(refs.status).toBe(404);
+    const cliDir = await tempDir('estante-e2e-leave-cli-');
+    await expect(GitCli.cloneHTTP(url, cliDir, member.cookieHeader())).rejects.toThrow();
+    const iso = await IsoGit.create(await tempDir('estante-e2e-leave-iso-'));
+    await expect(iso.clone({ url, cookie: member.cookieHeader() })).rejects.toThrow();
+
+    // The owner's people list no longer shows them.
+    const people = await owner.getJson(`/api/books/${book.id}/members`);
+    expect(people.members.some((m) => m.userId === memberId)).toBe(false);
+    expect(people.count).toBe(0);
+
+    // Nothing left to leave: a second leave is 404.
+    const again = await member.fetch(`/api/books/${book.id}/membership`, { method: 'DELETE' });
+    expect(again.status).toBe(404);
+    expect((await again.json()).code).toBe('not_found');
+
+    // The owner cannot leave their own book.
+    const ownerLeave = await owner.fetch(`/api/books/${book.id}/membership`, { method: 'DELETE' });
+    expect(ownerLeave.status).toBe(409);
+    expect((await ownerLeave.json()).code).toBe('owner_cannot_leave');
+    expect(findBook(await owner.getJson('/api/books'), book.id)).toBeTruthy();
   });
 });

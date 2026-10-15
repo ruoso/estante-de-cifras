@@ -665,6 +665,33 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/books/{bookId}/membership:
+    delete:
+      operationId: leaveBook
+      tags: [Sharing]
+      summary: >-
+        Leave a book: end the caller's own membership (reader or editor,
+        workflow 10 §Leaving a book).
+      description: >-
+        The session's account is the one that leaves; the request names no
+        account. Takes effect at the caller's next request, as a removal does:
+        the book is absent from their `listBooks`, `gone` on their change check,
+        and refused to their clone, fetch and push. Coming back is an ordinary
+        invitation. The owner cannot leave (`409` `owner_cannot_leave`). A book
+        the caller is not a member of, and the account's home book, are not
+        books here: answered as `404`.
+      parameters:
+        - $ref: '#/components/parameters/BookId'
+      responses:
+        '204':
+          description: Left.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
   /api/books/{bookId}/invitations:
     get:
       operationId: listInvitations
@@ -1002,8 +1029,8 @@ components:
     Conflict:
       description: >-
         A state refusal, with a machine-readable reason in `code` (e.g. an
-        invitation withdrawn, expired or exhausted, or a book at its fifty-member
-        cap).
+        invitation withdrawn, expired or exhausted, a book at its fifty-member
+        cap, or the owner trying to leave their own book).
       content:
         application/json:
           schema:

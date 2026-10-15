@@ -212,8 +212,8 @@ func TestHomeBookAbsentFromBookList(t *testing.T) {
 // (docs/home-book-format.md lines 18-23: "no invitations, no members beyond the
 // one owner") and DIRECTION §3.6's home book bullet: on the Books and sharing
 // routes the home book is no such book, even to its owner — createInvitation,
-// listInvitations, listMembers, deleteBook and forkBook all answer 404, the row
-// stays and no invitation is made. An invitation onto a home book put there by
+// listInvitations, listMembers, deleteBook, forkBook and leaveBook all answer
+// 404, the row stays and no invitation is made. An invitation onto a home book put there by
 // hand is refused on accept as unknown (the accept transaction's defence in
 // depth).
 func TestHomeBookNotShareable(t *testing.T) {
@@ -232,6 +232,7 @@ func TestHomeBookNotShareable(t *testing.T) {
 		{"listMembers", http.MethodGet, "/api/books/" + hb.ID + "/members", nil},
 		{"deleteBook", http.MethodDelete, "/api/books/" + hb.ID, nil},
 		{"forkBook", http.MethodPost, "/api/books/" + hb.ID + "/fork", nil},
+		{"leaveBook", http.MethodDelete, "/api/books/" + hb.ID + "/membership", nil},
 	} {
 		resp, body := e.do(t, c.method, c.path, cookie, c.body)
 		if resp.StatusCode != http.StatusNotFound {

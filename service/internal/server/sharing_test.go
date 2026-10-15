@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -682,5 +683,239 @@ func TestRemoveMember(t *testing.T) {
 	// A second remove (no membership now) -> 404.
 	if resp, _ := e.do(t, http.MethodDelete, "/api/books/"+b.ID+"/members/"+memberID, ownerCookie, nil); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("remove of non-member userId: status = %d, want 404", resp.StatusCode)
+	}
+}
+
+// --- behavior: leaving a book ------------------------------------------------
+
+// leaveBook DELETEs the caller's own membership and validates the response
+// against the contract's leaveBook operation, returning status and body.
+func (e *booksEnv) leaveBook(t *testing.T, cookie, bookID string) (int, []byte) {
+	t.Helper()
+	resp, body := e.do(t, http.MethodDelete, "/api/books/"+bookID+"/membership", cookie, nil)
+	status := strconv.Itoa(resp.StatusCode)
+	if resp.StatusCode == http.StatusNoContent {
+		return resp.StatusCode, body
+	}
+	if err := e.contract.Validate("leaveBook", apicontract.Response, status, body); err != nil {
+		t.Errorf("leaveBook %s does not conform: %v", status, err)
+	}
+	return resp.StatusCode, body
+}
+
+// errorCode decodes an Error body's machine-readable code.
+func errorCode(t *testing.T, body []byte) string {
+	t.Helper()
+	var e struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(body, &e); err != nil {
+		t.Fatalf("decoding error body %s: %v", body, err)
+	}
+	return e.Code
+}
+
+// TestLeaveBook pins workflow 10 §Leaving a book (lines 89, 119-125) and the
+// .tji's "a member leaves": an editor and then a reader each end their own
+// membership (204); the book is gone from their listBooks, the change check
+// answers gone with no head, the owner's people list no longer shows them and
+// the count drops by one — and nobody else's access changes.
+func TestLeaveBook(t *testing.T) {
+	e := newBooksEnv(t)
+	ownerID, ownerCookie := e.registerNewAccount(t)
+	b := e.createBook(t, ownerCookie, "Leavable")
+	seedREADME(t, e.repoPath(b.ID), "Leavable")
+	head := headRev(t, e.repoPath(b.ID))
+	editorID, editorCookie := e.registerNewAccount(t)
+	e.insertMembership(t, b.ID, editorID, "editor")
+	readerID, readerCookie := e.registerNewAccount(t)
+	e.insertMembership(t, b.ID, readerID, "reader")
+
+	members := func() memberListJSON {
+		t.Helper()
+		resp, body := e.do(t, http.MethodGet, "/api/books/"+b.ID+"/members", ownerCookie, nil)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("owner list members: status = %d, want 200; body=%s", resp.StatusCode, body)
+		}
+		return decodeMemberList(t, body)
+	}
+	listed := func(list memberListJSON, id string) bool {
+		for _, m := range list.Members {
+			if m.UserID == id {
+				return true
+			}
+		}
+		return false
+	}
+	if c := members().Count; c != 2 {
+		t.Fatalf("members before leaving: count = %d, want 2", c)
+	}
+
+	// The editor leaves.
+	if status, body := e.leaveBook(t, editorCookie, b.ID); status != http.StatusNoContent {
+		t.Fatalf("editor leave: status = %d, want 204; body=%s", status, body)
+	}
+	if n := e.countRows(t, `SELECT count(*) FROM memberships WHERE book_id = $1 AND account_id = $2`, b.ID, editorID); n != 0 {
+		t.Errorf("editor membership rows after leaving = %d, want 0", n)
+	}
+	if n := e.countRows(t, `SELECT count(*) FROM memberships WHERE book_id = $1 AND account_id = $2 AND role = 'reader'`, b.ID, readerID); n != 1 {
+		t.Errorf("reader membership rows after the editor left = %d, want 1", n)
+	}
+	if n := e.countRows(t, `SELECT count(*) FROM books WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL`, b.ID, ownerID); n != 1 {
+		t.Errorf("the book row changed after the editor left (live owned rows = %d, want 1)", n)
+	}
+	if _, ok := bookByID(e.listBooks(t, editorCookie), b.ID); ok {
+		t.Errorf("the editor still lists the book after leaving")
+	}
+	if _, ok := bookByID(e.listBooks(t, readerCookie), b.ID); !ok {
+		t.Errorf("the reader lost the book when the editor left")
+	}
+	if _, ok := bookByID(e.listBooks(t, ownerCookie), b.ID); !ok {
+		t.Errorf("the owner lost the book when the editor left")
+	}
+	_, out := e.changeCheck(t, editorCookie, ccBody(t, headEntry(b.ID, head)))
+	if c, ok := changeByID(out, b.ID); !ok || c.Status != "gone" || c.Head != nil {
+		t.Errorf("editor change check after leaving = %+v (ok=%v), want gone with no head", c, ok)
+	}
+	after := members()
+	if after.Count != 1 || listed(after, editorID) || !listed(after, readerID) {
+		t.Errorf("owner's members after the editor left = %+v, want count 1 with the reader and not the editor", after)
+	}
+
+	// The reader leaves likewise.
+	if status, body := e.leaveBook(t, readerCookie, b.ID); status != http.StatusNoContent {
+		t.Fatalf("reader leave: status = %d, want 204; body=%s", status, body)
+	}
+	if n := e.countRows(t, `SELECT count(*) FROM memberships WHERE book_id = $1`, b.ID); n != 0 {
+		t.Errorf("membership rows after both left = %d, want 0", n)
+	}
+	if _, ok := bookByID(e.listBooks(t, readerCookie), b.ID); ok {
+		t.Errorf("the reader still lists the book after leaving")
+	}
+	if after := members(); after.Count != 0 || listed(after, readerID) {
+		t.Errorf("owner's members after the reader left = %+v, want count 0", after)
+	}
+}
+
+// TestLeaveBookOwnerRefused pins workflow 10 §Edge cases (lines 140-141) and
+// the .tji's "the owner refused": the owner's leave is 409 owner_cannot_leave,
+// and nothing changes.
+func TestLeaveBookOwnerRefused(t *testing.T) {
+	e := newBooksEnv(t)
+	_, ownerCookie := e.registerNewAccount(t)
+	b := e.createBook(t, ownerCookie, "Owned")
+	memberID, _ := e.registerNewAccount(t)
+	e.insertMembership(t, b.ID, memberID, "editor")
+
+	status, body := e.leaveBook(t, ownerCookie, b.ID)
+	if status != http.StatusConflict {
+		t.Fatalf("owner leave: status = %d, want 409; body=%s", status, body)
+	}
+	if code := errorCode(t, body); code != "owner_cannot_leave" {
+		t.Errorf("owner leave code = %q, want owner_cannot_leave", code)
+	}
+	if _, ok := bookByID(e.listBooks(t, ownerCookie), b.ID); !ok {
+		t.Errorf("the owner lost the book after a refused leave")
+	}
+	if n := e.countRows(t, `SELECT count(*) FROM memberships WHERE book_id = $1 AND account_id = $2 AND role = 'editor'`, b.ID, memberID); n != 1 {
+		t.Errorf("member rows after a refused owner leave = %d, want 1", n)
+	}
+}
+
+// TestLeaveBookNonMember404 pins the .tji's "a non-member 404", the contract's
+// non-member policy (openapi.yaml NotFound) and workflow 10 §Edge cases
+// (lines 142-143, already removed — nothing to leave): a stranger, a second
+// leave, a malformed id, an unknown id, and a soft-deleted or taken-down book
+// the caller was a member of are all 404 not_found alike; no cookie is 401.
+func TestLeaveBookNonMember404(t *testing.T) {
+	e := newBooksEnv(t)
+	_, ownerCookie := e.registerNewAccount(t)
+	b := e.createBook(t, ownerCookie, "Private")
+	memberID, memberCookie := e.registerNewAccount(t)
+	e.insertMembership(t, b.ID, memberID, "reader")
+	_, strangerCookie := e.registerNewAccount(t)
+
+	deleted := e.createBook(t, ownerCookie, "Deleted")
+	e.insertMembership(t, deleted.ID, memberID, "editor")
+	if _, err := e.pool.Exec(context.Background(), `UPDATE books SET deleted_at = now() WHERE id = $1`, deleted.ID); err != nil {
+		t.Fatalf("soft-delete book: %v", err)
+	}
+	takenDown := e.createBook(t, ownerCookie, "Taken Down")
+	e.insertMembership(t, takenDown.ID, memberID, "editor")
+	if _, err := e.pool.Exec(context.Background(), `UPDATE books SET taken_down_reason = 'dmca' WHERE id = $1`, takenDown.ID); err != nil {
+		t.Fatalf("take down book: %v", err)
+	}
+
+	want404 := func(name, cookie, bookID string) {
+		t.Helper()
+		status, body := e.leaveBook(t, cookie, bookID)
+		if status != http.StatusNotFound {
+			t.Errorf("%s: status = %d, want 404; body=%s", name, status, body)
+			return
+		}
+		if code := errorCode(t, body); code != "not_found" {
+			t.Errorf("%s: code = %q, want not_found", name, code)
+		}
+	}
+
+	want404("stranger", strangerCookie, b.ID)
+	if n := e.countRows(t, `SELECT count(*) FROM memberships WHERE book_id = $1 AND account_id = $2`, b.ID, memberID); n != 1 {
+		t.Errorf("a stranger's leave touched the member's row (rows = %d, want 1)", n)
+	}
+	if status, body := e.leaveBook(t, memberCookie, b.ID); status != http.StatusNoContent {
+		t.Fatalf("member leave: status = %d, want 204; body=%s", status, body)
+	}
+	want404("second leave", memberCookie, b.ID)
+	want404("malformed id", memberCookie, "not-a-uuid")
+	want404("unknown id", memberCookie, "11111111-1111-1111-1111-111111111111")
+	want404("soft-deleted book", memberCookie, deleted.ID)
+	want404("taken-down book", memberCookie, takenDown.ID)
+	if n := e.countRows(t, `SELECT count(*) FROM memberships WHERE account_id = $1 AND book_id IN ($2, $3)`, memberID, deleted.ID, takenDown.ID); n != 2 {
+		t.Errorf("memberships of the deleted/taken-down books = %d, want 2 (left untouched)", n)
+	}
+
+	if status, body := e.leaveBook(t, "", b.ID); status != http.StatusUnauthorized {
+		t.Errorf("no cookie: status = %d, want 401; body=%s", status, body)
+	}
+}
+
+// TestLeaveBookThenRejoin pins workflow 10 lines 132-133 (coming back is an
+// invitation, counted against the fifty): a member who joined by an invitation
+// with two uses leaves, then accepts the same token again — admitted, a second
+// use spent, and the invitation_joins history still one row for them.
+func TestLeaveBookThenRejoin(t *testing.T) {
+	e := newBooksEnv(t)
+	_, ownerCookie := e.registerNewAccount(t)
+	b := e.createBook(t, ownerCookie, "Rejoinable")
+	seedREADME(t, e.repoPath(b.ID), "Rejoinable")
+	inv := e.createInvitation(t, ownerCookie, b.ID, `{"role":"reader","useLimit":2}`)
+	token := tokenFromURL(t, inv.URL)
+
+	memberID, memberCookie := e.registerNewAccount(t)
+	if resp, body := e.acceptInvitation(t, memberCookie, token); resp.StatusCode != http.StatusOK {
+		t.Fatalf("first accept: status = %d, want 200; body=%s", resp.StatusCode, body)
+	}
+	if status, body := e.leaveBook(t, memberCookie, b.ID); status != http.StatusNoContent {
+		t.Fatalf("leave: status = %d, want 204; body=%s", status, body)
+	}
+	if _, ok := bookByID(e.listBooks(t, memberCookie), b.ID); ok {
+		t.Fatalf("the book is still listed after leaving")
+	}
+
+	resp, body := e.acceptInvitation(t, memberCookie, token)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("rejoin accept: status = %d, want 200; body=%s", resp.StatusCode, body)
+	}
+	if err := e.contract.Validate("acceptInvitation", apicontract.Response, "200", body); err != nil {
+		t.Errorf("rejoin acceptInvitation does not conform: %v", err)
+	}
+	if _, ok := bookByID(e.listBooks(t, memberCookie), b.ID); !ok {
+		t.Errorf("the book is not listed after rejoining")
+	}
+	if u := e.invitationUsesRemaining(t, inv.ID); u == nil || *u != 0 {
+		t.Errorf("uses_remaining after join, leave, rejoin = %v, want 0", u)
+	}
+	if n := e.countRows(t, `SELECT count(*) FROM invitation_joins WHERE invitation_id = $1 AND account_id = $2`, inv.ID, memberID); n != 1 {
+		t.Errorf("invitation_joins rows for the member = %d, want 1", n)
 	}
 }

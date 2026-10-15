@@ -801,3 +801,60 @@ func handleRemoveMember(api *APIDeps) http.HandlerFunc {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
+
+// handleLeaveBook implements DELETE /api/books/{bookId}/membership (leaveBook,
+// workflow 10 §Leaving a book): a reader or editor ends their own membership,
+// without asking the owner. The session's account is the one that leaves; the
+// effect is exactly the owner's remove — the row goes, and the book resolves
+// inaccessible at the caller's next request (listBooks, the change check, git),
+// lazily, with nothing in flight to interrupt (service.sharing Decisions). The
+// owner cannot leave (409 owner_cannot_leave, workflow 10 §Edge cases); a
+// non-member, a deleted or taken-down book and the home book are 404 alike.
+// invitation_joins rows stay as history; coming back is an ordinary invitation.
+func handleLeaveBook(api *APIDeps) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		accountID, signedIn, err := session.Resolve(ctx, api.DB, r)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not leave the book.")
+			return
+		}
+		if !signedIn {
+			writeUnauthorized(w)
+			return
+		}
+
+		bookID := r.PathValue("bookId")
+		if !isUUID(bookID) {
+			writeError(w, http.StatusNotFound, "not_found", "No such book.")
+			return
+		}
+
+		access, found, err := resolveBookAccess(ctx, api.DB, bookID, accountID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not leave the book.")
+			return
+		}
+		if !found || access.kind == "home" {
+			writeError(w, http.StatusNotFound, "not_found", "No such book.")
+			return
+		}
+		if access.role == "owner" {
+			writeError(w, http.StatusConflict, "owner_cannot_leave", "The owner cannot leave the book.")
+			return
+		}
+
+		tag, err := api.DB.Exec(ctx, `DELETE FROM memberships WHERE book_id = $1 AND account_id = $2`, bookID, accountID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not leave the book.")
+			return
+		}
+		if tag.RowsAffected() == 0 {
+			// Removed by the owner between the read and the delete.
+			writeError(w, http.StatusNotFound, "not_found", "No such book.")
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
