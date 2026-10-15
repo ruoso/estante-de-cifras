@@ -285,6 +285,30 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/account/home-book:
+    get:
+      operationId: getHomeBook
+      tags: [Sign-in]
+      summary: The account's home book — its id and git remote URL (workflows 01, 13).
+      description: >-
+        Every account has exactly one home book, the settings repository that
+        travels with it (DIRECTION §3.2; docs/home-book-format.md). It is made,
+        empty, on the account's first request and is the same one on every
+        request after, from any device. A signed-in device attaches it as its
+        home book's remote and pushes its local one there; a new device clones
+        it first. It is not a songbook: never listed by `listBooks`, never
+        deleted, forked or shared through the Books and Sharing operations, and
+        deleted only with the account.
+      responses:
+        '200':
+          description: The account's home book.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeBook'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/account/passkeys:
     get:
       operationId: listPasskeys
@@ -324,6 +348,9 @@ paths:
       operationId: listBooks
       tags: [Books]
       summary: List the books on the account (owned, shared and forks).
+      description: >-
+        The account's home book (`getHomeBook`) is not a book here and is
+        never listed.
       responses:
         '200':
           description: The account's books.
@@ -367,6 +394,8 @@ paths:
       operationId: deleteBook
       tags: [Books]
       summary: Delete a book from Estante for everyone (owner only, workflow 07).
+      description: >-
+        The account's home book is not a book here: answered as `404`, even to its owner. It is deleted only with the account.
       parameters:
         - $ref: '#/components/parameters/BookId'
       responses:
@@ -386,7 +415,7 @@ paths:
       summary: Fork a book — a private server-side copy owned by the caller (workflow 11).
       description: >-
         The fork remembers its single-level original. Any member may fork a book
-        they can open; the caller becomes the fork's owner.
+        they can open; the caller becomes the fork's owner. The account's home book is not a book here: answered as `404`, even to its owner.
       parameters:
         - $ref: '#/components/parameters/BookId'
       responses:
@@ -452,7 +481,7 @@ paths:
       description: >-
         The owner sees every member; a member sees the owner and the editors but
         not other readers. The count is members besides the owner, against the
-        fifty cap (shown as "37 of 50").
+        fifty cap (shown as "37 of 50"). The account's home book is not a book here: answered as `404`, even to its owner.
       parameters:
         - $ref: '#/components/parameters/BookId'
       responses:
@@ -472,7 +501,8 @@ paths:
       operationId: changeMemberRole
       tags: [Sharing]
       summary: Change a member's role (owner only, workflow 10).
-      description: Takes effect at the member's next request (workflow 10).
+      description: >-
+        Takes effect at the member's next request (workflow 10). The account's home book is not a book here: answered as `404`, even to its owner.
       parameters:
         - $ref: '#/components/parameters/BookId'
         - $ref: '#/components/parameters/UserId'
@@ -501,7 +531,9 @@ paths:
       operationId: removeMember
       tags: [Sharing]
       summary: Remove a member (owner only, workflow 10).
-      description: Takes effect at the member's next request; the book becomes "no longer shared with you".
+      description: >-
+        Takes effect at the member's next request; the book becomes "no longer
+        shared with you". The account's home book is not a book here: answered as `404`, even to its owner.
       parameters:
         - $ref: '#/components/parameters/BookId'
         - $ref: '#/components/parameters/UserId'
@@ -520,6 +552,9 @@ paths:
       operationId: listInvitations
       tags: [Sharing]
       summary: List a book's invitations with who joined through each (owner only, workflow 10).
+      description: >-
+        The account's home book is not a book here: answered as `404`, even to
+        its owner.
       parameters:
         - $ref: '#/components/parameters/BookId'
       responses:
@@ -539,6 +574,9 @@ paths:
       operationId: createInvitation
       tags: [Sharing]
       summary: Create an invitation for a role, with an expiry and an optional use-limit (owner only).
+      description: >-
+        The account's home book is not a book here: answered as `404`, even to
+        its owner.
       parameters:
         - $ref: '#/components/parameters/BookId'
       requestBody:
@@ -568,7 +606,8 @@ paths:
       operationId: withdrawInvitation
       tags: [Sharing]
       summary: Withdraw an invitation (owner only, workflow 10).
-      description: Nobody new joins; those who already joined stay members.
+      description: >-
+        Nobody new joins; those who already joined stay members. The account's home book is not a book here: answered as `404`, even to its owner.
       parameters:
         - $ref: '#/components/parameters/BookId'
         - $ref: '#/components/parameters/InvitationId'
@@ -1053,6 +1092,19 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Session'
+
+    HomeBook:
+      type: object
+      additionalProperties: false
+      required: [id, gitUrl]
+      description: The account's one home book (DIRECTION §3.2; docs/home-book-format.md).
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        gitUrl:
+          type: string
+          format: uri
+          description: The home book's git remote URL (the service's).
 
     Passkey:
       type: object

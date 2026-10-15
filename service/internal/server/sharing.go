@@ -202,8 +202,11 @@ func (api *APIDeps) requireOwner(w http.ResponseWriter, r *http.Request, action 
 		writeError(w, http.StatusInternalServerError, "internal", "Could not "+action+".")
 		return "", "", false
 	}
-	if !found {
+	if !found || access.kind == "home" {
 		// Neither owner nor member: never confirm a private book to a stranger.
+		// The account's home book is not a book on the sharing surface, even to
+		// its owner — "no invitations, no members beyond the one owner"
+		// (docs/home-book-format.md §1; service.home_book).
 		writeError(w, http.StatusNotFound, "not_found", "No such book.")
 		return "", "", false
 	}
@@ -541,15 +544,20 @@ func (api *APIDeps) acceptInvitationTx(ctx context.Context, tokenHash, accountID
 
 	// Lock the book row so two concurrent accepts cannot both pass a count of 49
 	// (service.sharing Decisions). A soft-deleted book has no live row: its
-	// invitation resolves to nothing to accept.
-	var ownerID string
+	// invitation resolves to nothing to accept. A home book is never shared, so
+	// an invitation onto one (which requireOwner never mints) is refused as
+	// unknown — defence in depth (service.home_book).
+	var ownerID, kind string
 	err = tx.QueryRow(ctx,
-		`SELECT owner_id FROM books WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, bookID).Scan(&ownerID)
+		`SELECT owner_id, kind FROM books WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, bookID).Scan(&ownerID, &kind)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", errInvitationNotFound
 	}
 	if err != nil {
 		return "", err
+	}
+	if kind == "home" {
+		return "", errInvitationNotFound
 	}
 
 	// Already-has-access is an idempotent no-op: the owner, or an existing
@@ -671,8 +679,10 @@ func handleListMembers(api *APIDeps) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "internal", "Could not list the members.")
 			return
 		}
-		if !found {
-			// A stranger is told the book does not exist (never confirming it).
+		if !found || access.kind == "home" {
+			// A stranger is told the book does not exist (never confirming it);
+			// the home book has no members to list, even to its owner
+			// (service.home_book).
 			writeError(w, http.StatusNotFound, "not_found", "No such book.")
 			return
 		}

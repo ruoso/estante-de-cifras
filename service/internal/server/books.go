@@ -178,13 +178,15 @@ func handleListBooks(api *APIDeps) http.HandlerFunc {
 
 		// Owned books carry role 'owner'; shared books carry the membership
 		// role. The owner is never a membership row (schema), so the CASE never
-		// collides. Deleted books are omitted.
+		// collides. Deleted books are omitted, and so is the account's home book:
+		// it is not a songbook (service.home_book).
 		rows, err := api.DB.Query(ctx, `
 			SELECT b.id, b.original_book_id,
 			       CASE WHEN b.owner_id = $1 THEN 'owner' ELSE m.role::text END AS role
 			FROM books b
 			LEFT JOIN memberships m ON m.book_id = b.id AND m.account_id = $1
-			WHERE b.deleted_at IS NULL AND (b.owner_id = $1 OR m.account_id = $1)
+			WHERE b.deleted_at IS NULL AND b.kind = 'songbook'
+			  AND (b.owner_id = $1 OR m.account_id = $1)
 			ORDER BY b.created_at`, accountID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal", "Could not list the books.")
@@ -258,8 +260,10 @@ func handleDeleteBook(api *APIDeps) http.HandlerFunc {
 			return
 		}
 
+		// The home book is not a book on the Books API, even to its owner: it is
+		// deleted only with the account (service.home_book).
 		var ownerID string
-		err = api.DB.QueryRow(ctx, `SELECT owner_id FROM books WHERE id = $1 AND deleted_at IS NULL`, bookID).Scan(&ownerID)
+		err = api.DB.QueryRow(ctx, `SELECT owner_id FROM books WHERE id = $1 AND deleted_at IS NULL AND kind = 'songbook'`, bookID).Scan(&ownerID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "not_found", "No such book.")
 			return
@@ -338,9 +342,11 @@ func handleForkBook(api *APIDeps) http.HandlerFunc {
 			return
 		}
 
+		// The home book is not forkable, even by its owner: on the Books API it is
+		// no such book (service.home_book).
 		var srcOwner string
 		var srcSize int64
-		err = api.DB.QueryRow(ctx, `SELECT owner_id, size_bytes FROM books WHERE id = $1 AND deleted_at IS NULL`, srcID).Scan(&srcOwner, &srcSize)
+		err = api.DB.QueryRow(ctx, `SELECT owner_id, size_bytes FROM books WHERE id = $1 AND deleted_at IS NULL AND kind = 'songbook'`, srcID).Scan(&srcOwner, &srcSize)
 		if errors.Is(err, pgx.ErrNoRows) {
 			writeError(w, http.StatusNotFound, "not_found", "No such book.")
 			return
@@ -436,12 +442,15 @@ type querier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-// ownedUsage returns the count and total size_bytes of the account's live
-// (non-deleted) owned books — the quota inputs for create and fork (workflow 14;
-// deleted books count against no quota, DIRECTION §3.6).
+// ownedUsage returns the count of the account's live (non-deleted) owned
+// songbooks and the total size_bytes of all its live owned books — the quota
+// inputs for create and fork (workflow 14; deleted books count against no quota,
+// DIRECTION §3.6). The home book is not a songbook, so it does not count toward
+// the 100 books, but its bytes do count toward the 200 MB (service.home_book).
 func ownedUsage(ctx context.Context, q querier, accountID string) (count int, sum int64, err error) {
 	err = q.QueryRow(ctx,
-		`SELECT count(*), COALESCE(sum(size_bytes), 0) FROM books WHERE owner_id = $1 AND deleted_at IS NULL`,
+		`SELECT count(*) FILTER (WHERE kind = 'songbook'), COALESCE(sum(size_bytes), 0)
+		 FROM books WHERE owner_id = $1 AND deleted_at IS NULL`,
 		accountID).Scan(&count, &sum)
 	return count, sum, err
 }

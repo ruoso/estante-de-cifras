@@ -59,6 +59,12 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 		mux.HandleFunc("DELETE /api/account", handleDeleteAccount(api))
 		mux.HandleFunc("GET /api/account/sessions", handleListSessions(api))
 		mux.HandleFunc("DELETE /api/account/sessions/{sessionId}", handleRevokeSession(api))
+		// The account's home book: its id and git URL, made empty on the first
+		// request and the same one ever after, so a signed-in device attaches it
+		// and a new device clones it first (workflows 1, 13; api/openapi.yaml
+		// /api/account/home-book). It needs only the pool and the books volume
+		// (service.home_book).
+		mux.HandleFunc("GET /api/account/home-book", handleGetHomeBook(api))
 		// Books: create, list, delete and fork a book — a registry row plus a
 		// bare repository on the volume (workflows 7, 11; api/openapi.yaml
 		// /api/books and /api/books/{bookId}[/fork]). These need only the pool and

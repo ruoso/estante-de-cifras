@@ -377,6 +377,11 @@ Written down as a contract, `api/`, and both sides tested against it:
   altogether, with the cascade over the books it owns (workflow 17).
 - **Books**: the user's own, listed; creating one, empty and private;
   deleting one (owner only); forking one (workflows 7, 11).
+- **The home book**: the account's one home book (§3.2), its id and git
+  URL, made empty on the first request and the same one ever after, so a
+  signed-in device attaches it and a new device clones it first (workflows
+  1, 13). It is not a songbook: never listed among the books, never shared
+  or forked, deleted only with the account.
 - **The change check**: one request for a whole shelf, each book with the
   head the device has, answered with the books that moved (workflow 8).
 - **Sharing**: members listed, their roles changed, removed; invitations

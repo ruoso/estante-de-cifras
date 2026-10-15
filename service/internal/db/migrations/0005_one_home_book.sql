@@ -1,0 +1,16 @@
+-- 0005_one_home_book.sql — exactly one home book per account.
+--
+-- Every account has one home book on the service, the per-user settings
+-- repository (docs/home-book-format.md §1, §8), made empty on the account's
+-- first GET /api/account/home-book and the same one ever after
+-- (service.home_book). "Exactly one" is a database fact, not the handler's: the
+-- partial unique index lets the provisioning INSERT … ON CONFLICT (owner_id)
+-- WHERE kind = 'home' DO NOTHING make a second, concurrent first request block
+-- on the first and then read its row, never a second home book. Songbooks are
+-- untouched — an account owns as many of those as its quota allows.
+--
+-- A partial index rather than an accounts.home_book_id column: books.kind
+-- already says which row is the home book, and a column would be a second
+-- source of truth and a cycle between the two tables (service.home_book
+-- Decision).
+CREATE UNIQUE INDEX books_one_home_per_owner ON books (owner_id) WHERE kind = 'home';
