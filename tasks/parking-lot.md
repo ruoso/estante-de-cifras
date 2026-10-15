@@ -91,11 +91,12 @@ Append one `###` block per item, newest at the bottom:
 - **Why parked**: product-and-legal judgment call; workflow 10 explicitly scopes it *Later*. No WBS task is currently blocked. Only a person can decide whether and how to implement proactive notification.
 - **Updated** (2026-10-14, triage): the two entries merged into one future notification channel; still workflow 10 §Later.
 
-### 2026-10-13 — Republish the mockup canvas after W15, Theme-picker, Screen-reader, W09, and W17 boards
+### 2026-10-13 — Republish the mockup canvas after W15, Theme-picker, Screen-reader, W09, W17 and Recovery-email boards
 - **Source**: closer for `design.theme_picker` (tasks/refinements/design/theme_picker.md); updated by closer for `design.screen_reader`; updated by closer for `sync.keep_both`; updated by closer for `design.leaving`.
 - **Question**: `docs/mockups/Theme-picker.dc.html`, `docs/mockups/Screen-reader.dc.html`, `docs/mockups/W09-conflicts.dc.html`, and `docs/mockups/W17-leaving.dc.html` are written/updated and registered in `canvas.json`, but the published canvas needs to be updated to include the new boards and the W09 change (hint region → Keep both action). Implementers cannot render or publish the board.
 - **Why parked**: work only a person can do — requires publishing access to the external canvas host. (See also the earlier 2026-10-05 entry for W15; all five boards can be published in one pass.)
 - **Updated** (2026-10-14, triage): merged the 2026-10-05 W15 entry here. Boards still to come and to publish in the same pass: W07 (design.w07_remove_board), and whatever design.display_preferences, design.recovery_email and design.leave_book draw.
+- **Updated** (2026-10-15, closer for `design.recovery_email`): `docs/mockups/Recovery-email.dc.html` is drawn and registered in `canvas.json`; it was not rendered, so check it on publishing.
 
 ### 2026-10-13 — Handing ownership of a book to a successor on leaving
 - **Source**: closer for `design.leaving` (tasks/refinements/design/leaving.md), surfaced by implementer's return summary and workflow 10 §Later (line 120).

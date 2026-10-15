@@ -198,7 +198,8 @@ public lyrics site because a link was posted somewhere.
   the limits per book and per account (workflow 14).
 
 **Abuse-prone requests are rate-limited.** A few requests invite abuse —
-sign-in attempts, the emailed sign-in link (it sends mail), creating a book
+sign-in attempts, the emailed sign-in link and the recovery email's
+verification link (they send mail), creating a book
 (workflow 14) and accepting an invitation — so the service caps how fast each
 may be made, refusing the excess with a *try again shortly* and no other
 effect. Where a request carries a session the cap is per account; before
@@ -373,8 +374,11 @@ Written down as a contract, `api/`, and both sides tested against it:
 
 - **Signing in**: registering a passkey and signing in with one; requesting
   and redeeming an emailed link; signing out; the signed-in devices and the
-  passkeys, listed and removed (workflow 13); and deleting the account
-  altogether, with the cascade over the books it owns (workflow 17).
+  passkeys, listed and removed (workflow 13); the recovery email, read by its
+  owner, set and changed through a verification link (workflow 13 §The
+  recovery email); and deleting the account altogether, confirmed by its
+  email or, without one, a passkey, with the cascade over the books it owns
+  (workflow 17).
 - **Books**: the user's own, listed; creating one, empty and private;
   deleting one (owner only); forking one (workflows 7, 11).
 - **The home book**: the account's one home book (§3.2), its id and git
@@ -575,6 +579,14 @@ workflows do not yet cover, and work that comes before building:
   present before sign-in, holding the four theme choices (Automatic, Estante,
   Caderno, Palco) beside the language. No new workflow: the decision is
   workflow 1's; this closes the gap by drawing it and placing it.
+- **The recovery email**, decided (workflows 13, 17) and drawn:
+  [mockups/Recovery-email.dc.html](mockups/Recovery-email.dc.html) — an
+  account starts with a passkey and no email; its owner sets, confirms and
+  changes the address the sign-in link goes to from the account screen, written
+  only when the emailed verification link is opened (which confirms, and does
+  not sign in). The last passkey of an account without one cannot be removed,
+  and an account without one confirms its deletion with a passkey instead of
+  the typed name. No new workflow: the decisions are workflow 13's and 17's.
 
 ## 7. Workflows
 

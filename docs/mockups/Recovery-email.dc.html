@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>13 &amp; 17. The recovery email</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 13 · Workflow 17</div>
+    <h1 class="board-title">The recovery email</h1>
+    <p class="board-sub">An account starts with a passkey and no email. Its owner adds the address the sign-in link goes to from the account screen; it is written only when the emailed verification link is opened, which confirms and does not sign in. Without one, the last passkey cannot be removed, and deleting the account is confirmed with a passkey instead of a typed name.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · the account screen with no recovery email and its last passkey, then waiting for you to confirm</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Account</span>
+            </div>
+            <div class="scroll" style="gap: 14px">
+              <div class="t-h3">Signed-in devices</div>
+              <div class="list">
+                <div class="row"><span class="grow"><span class="name">This phone</span><span class="meta">Chrome on Android · in use now</span></span><button class="btn quiet">Sign out</button></div>
+              </div>
+              <div class="t-h3" style="margin-top: 4px">Passkeys</div>
+              <div class="list">
+                <div class="row" style="flex-direction: column; align-items: stretch; gap: 6px">
+                  <div style="display: flex; align-items: center; gap: 10px">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>
+                    <span class="grow"><span class="name">Google Password Manager</span><span class="meta">this phone · added today</span></span>
+                    <span class="badge">last way in</span>
+                  </div>
+                  <span class="t-small">Your only way to sign in — add a recovery email or another passkey first.</span>
+                </div>
+              </div>
+              <div class="t-h3" style="margin-top: 4px">Recovery email</div>
+              <div class="card pad" style="gap: 12px">
+                <div style="display: flex; align-items: center; gap: 8px"><span class="badge unsaved dot">No recovery email</span></div>
+                <div class="notice unsaved" style="gap: 10px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--unsaved)"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg><span>If you lose every device with a passkey, there is no way back in.</span></div>
+                <div class="field">
+                  <label for="re-p1-email">Recovery email</label>
+                  <input id="re-p1-email" class="input" type="email" value="ana@example.com">
+                </div>
+                <p class="t-small">Used only to email you a sign-in link. Shown here, to you, and nowhere else.</p>
+                <button class="btn primary block">Send a verification link</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Account</span>
+            </div>
+            <div class="scroll" style="gap: 14px">
+              <div class="t-h3">Passkeys</div>
+              <div class="list">
+                <div class="row" style="flex-direction: column; align-items: stretch; gap: 6px">
+                  <div style="display: flex; align-items: center; gap: 10px">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>
+                    <span class="grow"><span class="name">Google Password Manager</span><span class="meta">this phone · added today</span></span>
+                    <span class="badge">last way in</span>
+                  </div>
+                  <span class="t-small">Your only way to sign in — add a recovery email or another passkey first.</span>
+                </div>
+              </div>
+              <div class="t-h3" style="margin-top: 4px">Recovery email</div>
+              <div class="card pad" style="gap: 12px">
+                <div style="display: flex; align-items: center; gap: 8px"><span class="badge dot">Waiting for you to confirm</span></div>
+                <div class="notice accent" style="gap: 10px; flex-direction: column">
+                  <span>We sent a verification link to <b>ana@example.com</b>. Check your inbox and open it.</span>
+                  <span class="t-small">The link works once, for fifteen minutes. Until it is opened, nothing changes and the account still has no recovery email.</span>
+                </div>
+                <button class="btn block">Send again</button>
+                <button class="btn quiet block">Use a different address</button>
+              </div>
+              <div class="notice" style="flex-direction: column; gap: 4px">
+                <span style="display: flex; align-items: center; gap: 8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M3 3l18 18M8 7a6 6 0 0 1 10 4h1a4 4 0 0 1 2 7.5M17 18H7a4 4 0 0 1-1-7.9"></path></svg><b>When offline</b></span>
+                <span class="t-small">The recovery email needs a connection, like signing in. Its buttons wait until you are back online; your songs do not.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · the verification link opened: confirmed, not signed in; and the account screen's Confirmed state</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <span class="title">Estante</span>
+          </div>
+          <div class="scroll" style="padding: 40px 48px; gap: 20px">
+            <div style="display: flex; align-items: center; gap: 14px">
+              <span style="width: 52px; height: 52px; border-radius: 50%; background: var(--ok-soft); color: var(--ok); display: flex; align-items: center; justify-content: center; flex: none"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>
+              <h2 class="t-display">Your recovery email is confirmed</h2>
+            </div>
+            <p class="t-body" style="color: var(--ink-2)"><b>ana@example.com</b> is now where Estante sends a sign-in link if you lose every device with a passkey.</p>
+            <div class="notice"><span>This link only confirms the address — it does not sign you in on this tablet, and opens no book.</span></div>
+            <div class="notice conflict" style="flex-direction: column; gap: 4px">
+              <span class="t-h3">If the link had expired or was used</span>
+              <span>This link has expired or was already used — send a new one from the account screen.</span>
+            </div>
+
+            <div class="section-label" style="margin-top: 12px"><span class="t-h3">Meanwhile, on the account screen</span><span class="t-small">on the device that asked</span></div>
+            <div class="card pad" style="gap: 14px; border: 1px solid var(--line)">
+              <span class="t-h3">Recovery email</span>
+              <div style="display: flex; align-items: center; gap: 12px">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg>
+                <span class="grow" style="display: flex; flex-direction: column; flex: 1"><span class="t-h2">ana@example.com</span><span class="t-small">Gets a sign-in link when you ask for one. Shown only to you.</span></span>
+                <span class="badge ok dot">Confirmed</span>
+                <button class="btn">Change</button>
+              </div>
+              <p class="t-small">Changing it keeps this address in effect until the new one is confirmed; this address then gets a short notice that it was changed.</p>
+            </div>
+            <div class="list">
+              <sc-for list="{{passkeysTablet}}" as="k" hint-placeholder-count="1">
+                <div class="row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg><span class="grow"><span class="name">{{k.name}}</span><span class="meta">{{k.meta}}</span></span><button class="btn quiet">Remove</button></div>
+              </sc-for>
+            </div>
+            <p class="t-small">With a confirmed recovery email, every passkey can be removed — the emailed link still signs you in.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · deleting an account with no email: confirmed with a passkey, and the passkey prompt cancelled</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side" style="width: 300px">
+            <div style="padding: 22px 20px; display: flex; flex-direction: column; gap: 14px">
+              <span class="t-h1">Account</span>
+              <div class="card pad" style="gap: 10px; border: 1px solid var(--conflict)">
+                <span class="t-h3" style="color: var(--conflict)">Leaving Estante</span>
+                <button class="btn block">Take your data out</button>
+                <button class="btn danger block">Delete my account</button>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="scroll" style="padding: 24px 32px; gap: 14px">
+              <div class="t-h3">Passkeys</div>
+              <div class="list">
+                <div class="row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg><span class="grow"><span class="name">Windows Hello</span><span class="meta">This computer · added 2 May</span></span><button class="btn quiet">Remove</button></div>
+                <div class="row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg><span class="grow"><span class="name">Google Password Manager</span><span class="meta">Phone · added 12 March</span></span><button class="btn quiet">Remove</button></div>
+              </div>
+              <div class="t-h3" style="margin-top: 8px">Recovery email</div>
+              <div class="row" style="display: flex; align-items: center; gap: 10px"><span class="badge unsaved dot">No recovery email</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" style="width: 640px">
+            <h2 class="t-h1">Delete your account?</h2>
+            <div class="notice conflict" role="alert" style="gap: 10px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--conflict)"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg><span><b>Not deleted — the passkey was not confirmed.</b> Nothing has changed. Try again when you are ready.</span></div>
+            <p class="t-body" style="color: var(--ink-2)">When you delete your account:</p>
+            <ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px">
+              <sc-for list="{{willHappen}}" as="w" hint-placeholder-count="4">
+                <li class="t-body">{{w.text}}</li>
+              </sc-for>
+            </ul>
+            <div class="notice conflict" style="flex-direction: column; gap: 4px">
+              <span><b>Books you own — deleted for everyone:</b></span>
+              <sc-for list="{{loseAccess}}" as="b" hint-placeholder-count="2">
+                <span>{{b.line}} · {{b.note}}</span>
+              </sc-for>
+            </div>
+            <div class="notice unsaved" style="flex-direction: column; gap: 4px">
+              <span><b>Only on this computer — take it first:</b></span>
+              <sc-for list="{{notYetPushed}}" as="p" hint-placeholder-count="1">
+                <span>{{p.line}} · {{p.note}}</span>
+              </sc-for>
+              <a class="act" href="#" style="align-self: flex-start">Take your data out first</a>
+            </div>
+            <div class="notice" style="gap: 10px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg><span>This account has no email. Confirm with one of your passkeys to delete it.</span></div>
+            <p class="t-small"><b>This cannot be undone.</b></p>
+            <div class="actions">
+              <button class="btn">Cancel</button>
+              <button class="btn danger">Delete my account</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      passkeysTablet: [
+        { name: 'Google Password Manager', meta: 'Phone · added today' },
+      ],
+      willHappen: [
+        { text: 'Your account, every session and every passkey are removed.' },
+        { text: 'The books you own are deleted for everyone who shares them.' },
+        { text: 'Your access to books other people own ends.' },
+        { text: 'Your books and home book are removed from this computer.' },
+      ],
+      loseAccess: [
+        { line: 'Choros da Ana', note: 'shared with 9 people — they will lose access' },
+        { line: 'My songs', note: 'only you — deleted' },
+      ],
+      notYetPushed: [
+        { line: 'Choros da Ana', note: '1 save not yet pushed' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

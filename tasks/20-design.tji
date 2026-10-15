@@ -56,7 +56,8 @@ task design "Design gaps" {
   task recovery_email "Setting a recovery email; deleting a passkey-only account" {
     effort 1d
     allocate team
-    note "Decide and draw where a signed-in person sets, verifies (by an emailed link) and changes the recovery email that service.email_links mails — nothing writes accounts.email today, so a passkey-only account has no recovery path. And how a passkey-only account (no email) confirms deletion: a passkey re-authentication in place of the typed email (workflow 17). Workflows 13, 17. Source: tasks/parking-lot.md 2026-10-14 (Where accounts.email is first written; Passkey-only account cannot confirm deletion). Tests: none — design deliverable (workflow 13 and 17 edits and the boards)."
+    complete 100
+    note "Decide and draw where a signed-in person sets, verifies (by an emailed link) and changes the recovery email that service.email_links mails — nothing writes accounts.email today, so a passkey-only account has no recovery path. And how a passkey-only account (no email) confirms deletion: a passkey re-authentication in place of the typed email (workflow 17). Workflows 13, 17. Source: tasks/parking-lot.md 2026-10-14 (Where accounts.email is first written; Passkey-only account cannot confirm deletion). Tests: none — design deliverable (workflow 13 and 17 edits and the boards). Refinement: tasks/refinements/design/recovery_email.md"
   }
   task leave_book "Leaving one shared book" {
     effort 0.5d

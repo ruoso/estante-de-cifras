@@ -51,7 +51,9 @@ copy, made as often as wanted.
 
 **Delete my account** opens a terminal dialog, guarded like a book delete by a
 **type-the-name confirm**: the danger action stays disabled until the user types
-the account's own name (its email address). The dialog states **in words** what
+the account's own name (its recovery email, workflow 13 §The recovery email) —
+or, for an account that has none, by **confirming with a passkey** (below).
+The dialog states **in words** what
 deleting will do, and shows the blast radius before the confirm is reachable:
 
 - the account, its **sessions** and its **passkeys** are removed — every device
@@ -64,6 +66,30 @@ deleting will do, and shows the blast radius before the confirm is reachable:
 The danger action is labelled with a word — **Delete my account** — never
 colour alone. A **Take your data out first** link sits in the dialog, so the
 safe step is one tap away from the terminal one.
+
+### An account with no email
+
+An account made with a passkey alone has no name to type. Its dialog is the
+same — the same blast radius, the same counted warnings, the same *Take your
+data out first* — with the typed field replaced by a line in words: *This
+account has no email. Confirm with one of your passkeys to delete it.* The
+danger action keeps its word, **Delete my account**, and pressing it asks for
+a passkey through the browser's own prompt, as signing in does (the phone's
+QR code included, workflow 13 §Signing in on another device). The deletion
+goes only with that fresh confirmation, made for this deletion and good for
+a few minutes:
+
+- **Cancelled** at the browser's prompt — nothing is deleted, and the dialog
+  says so: *Not deleted — the passkey was not confirmed*. The dialog stays
+  open to try again.
+- **Refused** by the service — a passkey not on this account, or a
+  confirmation gone stale — nothing is deleted: *That passkey did not confirm
+  this account. Try again.*
+
+An account **with** a recovery email confirms by typing it, as above; the
+passkey is the confirm only where there is no name to type. Neither is
+required of the other: a passkey-only account is not made to set an email in
+order to leave.
 
 ### The warnings, counted
 
@@ -114,8 +140,9 @@ as a counted blast radius before they confirm. Handing ownership stays a named
 
 ## The cascade, and the one endpoint
 
-Deleting the account is a single `DELETE /api/account` call — a **new server
-capability** this workflow introduces (DIRECTION §3.6 §The API, beside sign-out
+Deleting the account is a single `DELETE /api/account` call, carrying the typed
+name or, for an account with no email, the fresh passkey confirmation — a **new
+server capability** this workflow introduces (DIRECTION §3.6 §The API, beside sign-out
 and device/passkey removal). The app and the service share no code; the app
 makes the one call across the HTTP contract, and the server runs the cascade:
 
@@ -163,6 +190,14 @@ The service logs request metadata only, never song text or book contents
 - **Offline at the delete step.** Covered above: data-out works, delete waits.
 - **The last device.** Nothing special — the cascade is the server's; a signed-in
   session anywhere can run it, and all sessions end when it completes.
+- **No email, and no passkey reachable here.** A device signed in on a passkey
+  from another device's QR code can confirm the same way again. Where no
+  passkey can be reached at all, the deletion is not confirmed from this
+  device, and the dialog's refusal says so in words; the account is deleted
+  from a device that holds a passkey, or after adding a recovery email
+  (workflow 13).
+- **A recovery email set but not yet confirmed.** The account still has no
+  email: the confirm is the passkey, until the link is opened.
 
 ## Later
 

@@ -156,6 +156,13 @@
    "w": 3208,
    "h": 1500,
    "title": "17. Leaving"
+  },
+  "Recovery-email.dc.html": {
+   "x": 0,
+   "y": 33200,
+   "w": 3208,
+   "h": 1500,
+   "title": "13 & 17. The recovery email"
   }
  },
  "order": [
@@ -179,7 +186,8 @@
   "W15-set-up-an-instrument.dc.html",
   "Theme-picker.dc.html",
   "Screen-reader.dc.html",
-  "W17-leaving.dc.html"
+  "W17-leaving.dc.html",
+  "Recovery-email.dc.html"
  ],
  "notes": {
   "workflows": {
