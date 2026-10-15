@@ -5,9 +5,12 @@
 //
 // Two things live here:
 //   - canDeleteAccount — the enable predicate for the terminal Delete action
-//     (workflow 17 §Deleting / §Offline): the typed-email field is non-empty AND
-//     the device is online. The email itself is verified server-side (Decision 4),
-//     so the predicate never compares addresses — it only gates deliberateness.
+//     (workflow 17 §Deleting / §Offline / §An account with no email): an account
+//     with a confirmed email confirms by the typed field (non-empty AND online);
+//     a passkey-only account confirms with a passkey (online only); until the
+//     screen knows which (`confirmBy` null) the action is disabled. The email
+//     itself is verified server-side (Decision 4), so the predicate never
+//     compares addresses — it only gates deliberateness.
 //   - aggregateLeaveWarnings — merges the sign-out survey's per-book counts
 //     (SURVEY_SIGN_OUT) with per-owned-book member counts (listMembers) into the
 //     two warning lists the dialog shows (workflow 17 §The warnings, counted,
@@ -24,15 +27,21 @@
 //     reaches either list here.
 
 /**
- * Whether the terminal Delete action may fire: a non-empty typed confirmation and
- * an online device (deleting is the one action that waits for a connection —
- * workflow 17 §Offline). The address match is the server's (Decision 4).
+ * Whether the terminal Delete action may fire. Deleting is the one action that
+ * waits for a connection (workflow 17 §Offline), so it always needs `online`.
+ * `confirmBy` is how the account confirms: 'email' needs a non-empty typed
+ * confirmation (the address match is the server's, Decision 4); 'passkey' (no
+ * email — workflow 17 L70–92) needs nothing typed; null (not yet known) never
+ * fires (account.recovery_email Decision 3).
  *
- * @param {{ confirmEmail?: string, online?: boolean }} state
+ * @param {{ confirmBy?: 'email'|'passkey'|null, confirmEmail?: string, online?: boolean }} state
  * @returns {boolean}
  */
-export function canDeleteAccount({ confirmEmail = '', online = false } = {}) {
-  return confirmEmail.trim().length > 0 && Boolean(online);
+export function canDeleteAccount({ confirmBy = null, confirmEmail = '', online = false } = {}) {
+  if (!online) return false;
+  if (confirmBy === 'passkey') return true;
+  if (confirmBy === 'email') return confirmEmail.trim().length > 0;
+  return false;
 }
 
 /**

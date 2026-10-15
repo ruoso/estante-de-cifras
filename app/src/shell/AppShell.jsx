@@ -43,6 +43,7 @@ import BookConflicts from '../books/BookConflicts.jsx';
 import SongConflict from '../songs/SongConflict.jsx';
 import { orderedBooks, titleFor, saveTargetFor } from '../books/book-display.js';
 import SignIn from '../account/SignIn.jsx';
+import RecoveryEmailConfirm from '../account/RecoveryEmailConfirm.jsx';
 import InvitedScreen from '../account/InvitedScreen.jsx';
 import AccountScreen from '../account/AccountScreen.jsx';
 import FileView from '../files/FileView.jsx';
@@ -225,6 +226,7 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
 export default function AppShell({
   store = getAppStore(),
   redeemToken = null,
+  recoveryToken = null,
   inviteToken = null,
   bookSong = null,
   inviteSongAnchor = null,
@@ -270,6 +272,13 @@ export default function AppShell({
   // and its not-signed-in card opens the SignIn surface above it; closing returns
   // to where it was opened from (the selected destination is held in `selected`).
   const [account, setAccount] = useState(false);
+
+  // The recovery email's confirm page (account.recovery_email; workflow 13
+  // §Confirming it): a full-screen surface opened only when the app booted at
+  // `/recovery-email/<token>` (App.jsx). It posts the token once, needs no
+  // session and never signs in, so the device's signed-in state is untouched.
+  // `null` is closed; "Open Estante" closes it onto the shelf.
+  const [recoveryConfirm, setRecoveryConfirm] = useState(recoveryToken);
 
   // Writing a new song is ephemeral view state, not Worker data and not a store
   // slice (songs.new_song Decision 5; shell.layout Decision 5 — navigation is
@@ -537,6 +546,13 @@ export default function AppShell({
     retargetRef.current = null;
     setEditing(null);
   }, []);
+
+  // The recovery email's confirm page, checked before every other surface so a
+  // `/recovery-email/<token>` boot shows it on any device, signed in or not
+  // (account.recovery_email Decision 6).
+  if (recoveryConfirm) {
+    return <RecoveryEmailConfirm token={recoveryConfirm} onClose={() => setRecoveryConfirm(null)} />;
+  }
 
   // The sign-in surface is a full screen over the shell (account.sign_in
   // Decision 3), checked first so a `/sign-in/<token>` boot shows it even with

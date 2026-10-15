@@ -53,6 +53,17 @@ func newAppHandler(fsys fs.FS) (*appHandler, error) {
 // the API and git namespaces (DIRECTION §3.3 line 170, one origin).
 var reservedPrefixes = []string{"/api", "/git"}
 
+// linkRoutes are the app's own emailed-link routes: the sign-in link
+// (/sign-in/<token>) and the recovery-email confirm link
+// (/recovery-email/<token>). Their token is base64url(id).base64url(hmac)
+// (internal/emaillink), so it holds a dot that path.Ext reads as an extension.
+// A path under one of these is always a navigation, so a device that has never
+// loaded the app (no service worker yet) still boots the shell from the link
+// (workflow 13 L48, "on any device"). An explicit allowlist rather than a
+// looser extension rule, so a missing asset elsewhere still 404s
+// (account.recovery_email Decisions §1).
+var linkRoutes = []string{"sign-in", "recovery-email"}
+
 // ServeHTTP serves a real file when the path resolves to one, and otherwise
 // either falls back to the app shell (a navigation such as the app's own
 // /b/{book} deep links — so the single-page app boots and client-routes) or
@@ -125,9 +136,25 @@ func isReserved(urlPath string) bool {
 // isAssetRequest reports whether a path that did not resolve to a real file
 // should 404 rather than fall back to the shell: a path under assets/, or any
 // path that names a file with an extension. A navigation (no extension, not
-// under assets/) falls back to index.html instead.
+// under assets/, or any path under an emailed-link route) falls back to
+// index.html instead.
 func isAssetRequest(name string) bool {
+	if isLinkRoute(name) {
+		return false
+	}
 	return strings.HasPrefix(name, "assets/") || path.Ext(name) != ""
+}
+
+// isLinkRoute reports whether a bundle-relative path lies beneath one of the
+// app's emailed-link routes (a first segment in linkRoutes, with a token
+// after it).
+func isLinkRoute(name string) bool {
+	for _, route := range linkRoutes {
+		if strings.HasPrefix(name, route+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // contentType returns the explicit Content-Type for a bundle path. Go's mime

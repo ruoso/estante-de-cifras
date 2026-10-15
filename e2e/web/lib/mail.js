@@ -63,3 +63,26 @@ export function extractSignInLink(message) {
   if (!match) return null;
   return match[0].replace(/[\s"'<>]+$/, '');
 }
+
+// Poll until the newest message to `recipient` is one `accept` takes — an
+// address gets several mails in turn (a verification link, a sign-in link, a
+// changed notice), so the newest may still be the previous one until the next
+// lands. Mirrors e2e/api's waitForMail (account.recovery_email).
+export async function waitForMessage(recipient, accept, { timeout = 5000, interval = 100 } = {}) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    const message = await latestMessageTo(recipient);
+    if (message && accept(message)) return message;
+    if (Date.now() >= deadline) return null;
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+}
+
+// Pull the first `/recovery-email/<token>` URL from a message body — the
+// recovery email's verification link (workflow 13 §Confirming it).
+export function extractRecoveryEmailLink(message) {
+  const body = `${message.Text ?? ''}\n${message.HTML ?? ''}`;
+  const match = body.match(/https?:\/\/\S*\/recovery-email\/\S+/);
+  if (!match) return null;
+  return match[0].replace(/[\s"'<>]+$/, '');
+}

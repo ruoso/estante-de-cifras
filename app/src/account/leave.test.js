@@ -8,21 +8,46 @@ import { describe, it, expect } from 'vitest';
 import { canDeleteAccount, aggregateLeaveWarnings } from './leave.js';
 
 describe('canDeleteAccount (workflow 17 §Deleting / §Offline)', () => {
+  // confirmBy 'email': the typed path, unchanged by account.recovery_email.
   it('is false until the field is non-empty', () => {
-    expect(canDeleteAccount({ confirmEmail: '', online: true })).toBe(false);
-    expect(canDeleteAccount({ confirmEmail: '   ', online: true })).toBe(false);
+    expect(canDeleteAccount({ confirmBy: 'email', confirmEmail: '', online: true })).toBe(false);
+    expect(canDeleteAccount({ confirmBy: 'email', confirmEmail: '   ', online: true })).toBe(false);
   });
 
   it('is false while offline, even with a typed address (deleting waits for a connection)', () => {
-    expect(canDeleteAccount({ confirmEmail: 'rafael@example.com', online: false })).toBe(false);
+    expect(
+      canDeleteAccount({ confirmBy: 'email', confirmEmail: 'rafael@example.com', online: false }),
+    ).toBe(false);
   });
 
   it('is true with a non-empty field and an online device', () => {
-    expect(canDeleteAccount({ confirmEmail: 'rafael@example.com', online: true })).toBe(true);
+    expect(
+      canDeleteAccount({ confirmBy: 'email', confirmEmail: 'rafael@example.com', online: true }),
+    ).toBe(true);
   });
 
   it('defaults to false with nothing supplied', () => {
     expect(canDeleteAccount()).toBe(false);
+  });
+});
+
+// account.recovery_email — workflow 17 §An account with no email (L70–92): a
+// passkey-only account confirms with a passkey, so nothing is typed.
+describe('canDeleteAccount — confirmBy (workflow 17 §An account with no email)', () => {
+  it("'passkey' is enabled online with an empty field", () => {
+    expect(canDeleteAccount({ confirmBy: 'passkey', confirmEmail: '', online: true })).toBe(true);
+  });
+
+  it("'passkey' is disabled offline", () => {
+    expect(canDeleteAccount({ confirmBy: 'passkey', confirmEmail: '', online: false })).toBe(false);
+  });
+
+  it('null (not yet known) is always disabled', () => {
+    expect(canDeleteAccount({ confirmBy: null, confirmEmail: '', online: true })).toBe(false);
+    expect(
+      canDeleteAccount({ confirmBy: null, confirmEmail: 'rafael@example.com', online: true }),
+    ).toBe(false);
+    expect(canDeleteAccount({ confirmBy: null, confirmEmail: '', online: false })).toBe(false);
   });
 });
 

@@ -177,7 +177,9 @@ async function hostedBookWithLocalWork(ctx, title, term) {
 
 const EMAIL = 'rafael@example.com';
 
-function renderLeave(ctx, { client, sharingClient, onLeft = () => {} }) {
+// `confirmBy` defaults to 'email' — the typed path these cases were written for
+// (an account with a confirmed email); the no-email cases pass 'passkey' / null.
+function renderLeave(ctx, { client, sharingClient, onLeft = () => {}, confirmBy = 'email', onConfirmByChanged }) {
   return render(
     <ThemeRoot store={ctx.store}>
       <LocaleRoot store={ctx.store}>
@@ -185,12 +187,54 @@ function renderLeave(ctx, { client, sharingClient, onLeft = () => {} }) {
           store={ctx.store}
           authClient={client}
           sharingClient={sharingClient}
+          confirmBy={confirmBy}
+          onConfirmByChanged={onConfirmByChanged}
           onLeft={onLeft}
         />
       </LocaleRoot>
     </ThemeRoot>,
   );
 }
+
+// Stub the platform WebAuthn sign-in surface (jsdom has neither): parse*FromJSON
+// is identity, and navigator.credentials.get records the options it was handed
+// and answers with `getImpl` (a credential carrying toJSON(), or a rejection).
+function installWebAuthn(getImpl) {
+  const seen = [];
+  const PublicKeyCredential = function PublicKeyCredential() {};
+  PublicKeyCredential.parseRequestOptionsFromJSON = (json) => json;
+  PublicKeyCredential.parseCreationOptionsFromJSON = (json) => json;
+  globalThis.PublicKeyCredential = PublicKeyCredential;
+  Object.defineProperty(globalThis.navigator, 'credentials', {
+    configurable: true,
+    value: {
+      get: async (options) => {
+        seen.push(options);
+        return getImpl(options);
+      },
+    },
+  });
+  return seen;
+}
+function uninstallWebAuthn() {
+  delete globalThis.PublicKeyCredential;
+  if (Object.getOwnPropertyDescriptor(globalThis.navigator, 'credentials')) {
+    delete globalThis.navigator.credentials;
+  }
+}
+const assertion = () => ({
+  id: 'cred_1',
+  type: 'public-key',
+  authenticatorAttachment: 'platform',
+  toJSON() {
+    return { id: 'cred_1', rawId: 'cred_1', type: 'public-key', response: { signature: 'sig' }, clientExtensionResults: {} };
+  },
+});
+const notAllowed = () => {
+  const error = new Error('The operation either timed out or was not allowed.');
+  error.name = 'NotAllowedError';
+  throw error;
+};
 
 let restoreLocks;
 let openRemotes;
@@ -203,6 +247,7 @@ beforeEach(() => {
 afterEach(async () => {
   restoreLocks();
   delete globalThis.matchMedia;
+  uninstallWebAuthn();
   setLocale('en');
   for (const r of openRemotes) {
     try {
@@ -360,5 +405,182 @@ describe('Offline (workflow 17 §Offline)', () => {
     await waitFor(() => {
       expect(ctx.events.slice(mark).some((e) => e.kind === EventKind.BOOK_DOWNLOAD && e.payload.bookId === shared)).toBe(true);
     });
+  });
+});
+
+// behavior (account.recovery_email) — deleting an account with no email, confirmed
+// with a passkey instead of a typed address. Pins workflow 17 §An account with no
+// email (L70–92) and Edge cases L196–203, and board Recovery-email.dc.html
+// Computer. Bodies pinned structurally against api/openapi.yaml: the begin
+// answer { publicKey, state } and DeleteAccountRequest's passkey branch
+// { passkey: { state, credential } }.
+describe('Delete — no email', () => {
+  const BEGIN = { publicKey: { challenge: 'ch_del', allowCredentials: [{ id: 'cred_1', type: 'public-key' }] }, state: 'st_del' };
+  const NOT_CONFIRMED = 'Not deleted — the passkey was not confirmed. Nothing has changed. Try again when you are ready.';
+  const NOTICE = 'This account has no email. Confirm with one of your passkeys to delete it.';
+
+  async function openDeleteDialog(ctx, opts) {
+    const rendered = renderLeave(ctx, opts);
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete my account' }));
+    const dialog = await screen.findByRole('dialog');
+    return { ...rendered, dialog };
+  }
+
+  it('confirmBy="passkey": no textbox, the passkey notice, and Delete enabled online with nothing typed, axe clean', async () => {
+    const ctx = workerStoreOnline(openRemotes);
+    installWebAuthn(assertion);
+    const { client } = makeAuthClient({});
+    const { container, dialog } = await openDeleteDialog(ctx, {
+      client,
+      sharingClient: sharingDouble(),
+      confirmBy: 'passkey',
+    });
+
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+    expect(within(dialog).getByText(NOTICE)).toBeInTheDocument();
+    // The willHappen list stays.
+    expect(within(dialog).getByText('Your account, every session and every passkey are removed.')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Delete my account' })).toBeEnabled();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('Delete runs begin → credentials.get → DELETE {passkey:{state, credential}}; a 204 tears down and fires onLeft', async () => {
+    const ctx = workerStoreOnline(openRemotes);
+    await createBook(ctx, 'Só aqui');
+    const seen = installWebAuthn(assertion);
+    const { client, calls } = makeAuthClient({
+      'POST /api/account/delete/begin': () => ({ status: 200, body: BEGIN }),
+      'DELETE /api/account': () => ({ status: 204 }),
+    });
+    let left = 0;
+    const { dialog } = await openDeleteDialog(ctx, {
+      client,
+      sharingClient: sharingDouble(),
+      confirmBy: 'passkey',
+      onLeft: () => (left += 1),
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete my account' }));
+    await waitFor(() => expect(left).toBe(1));
+
+    const order = calls.map((c) => `${c.method} ${c.path}`);
+    expect(order).toEqual(['POST /api/account/delete/begin', 'DELETE /api/account']);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toEqual({ publicKey: BEGIN.publicKey });
+    const del = calls.find((c) => c.method === 'DELETE');
+    expect(Object.keys(del.body)).toEqual(['passkey']);
+    expect(del.body.passkey.state).toBe('st_del');
+    expect(del.body.passkey.credential.id).toBe('cred_1');
+    // The Worker teardown ran (LEAVE_ESTANTE): the shelf is empty.
+    await waitFor(() => {
+      const shelf = ctx.store.slice('shelf') ?? {};
+      const live = Object.values(shelf.books ?? {}).filter((b) => b?.label?.value != null);
+      expect(live).toHaveLength(0);
+    });
+  });
+
+  it('a cancelled prompt (NotAllowedError): the not-confirmed alert, the dialog open, and no DELETE, axe clean', async () => {
+    const ctx = workerStoreOnline(openRemotes);
+    installWebAuthn(notAllowed);
+    const { client, calls } = makeAuthClient({
+      'POST /api/account/delete/begin': () => ({ status: 200, body: BEGIN }),
+      'DELETE /api/account': () => ({ status: 204 }),
+    });
+    let left = 0;
+    const { container, dialog } = await openDeleteDialog(ctx, {
+      client,
+      sharingClient: sharingDouble(),
+      confirmBy: 'passkey',
+      onLeft: () => (left += 1),
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete my account' }));
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent(NOT_CONFIRMED);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+    expect(left).toBe(0);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('passkey_refused: the refused alert, the dialog open, axe clean', async () => {
+    const ctx = workerStoreOnline(openRemotes);
+    installWebAuthn(assertion);
+    const { client } = makeAuthClient({
+      'POST /api/account/delete/begin': () => ({ status: 200, body: BEGIN }),
+      'DELETE /api/account': () => ({
+        status: 400,
+        body: { code: 'passkey_refused', message: 'That passkey did not confirm the deletion.' },
+      }),
+    });
+    const { container, dialog } = await openDeleteDialog(ctx, {
+      client,
+      sharingClient: sharingDouble(),
+      confirmBy: 'passkey',
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete my account' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'That passkey did not confirm this account. Try again.',
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('confirm_by_email from begin: the typed field appears with its switch-over word, and the screen is asked to reload', async () => {
+    const ctx = workerStoreOnline(openRemotes);
+    const seen = installWebAuthn(assertion);
+    const { client, calls } = makeAuthClient({
+      'POST /api/account/delete/begin': () => ({
+        status: 400,
+        body: { code: 'confirm_by_email', message: 'This account confirms its deletion by its email.' },
+      }),
+    });
+    let reloads = 0;
+    const { dialog } = await openDeleteDialog(ctx, {
+      client,
+      sharingClient: sharingDouble(),
+      confirmBy: 'passkey',
+      onConfirmByChanged: () => (reloads += 1),
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete my account' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'This account now has an email — type it to confirm.',
+    );
+    const field = within(dialog).getByRole('textbox', { name: 'Type your email address to confirm:' });
+    expect(field).toHaveValue('');
+    expect(within(dialog).queryByText(NOTICE)).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Delete my account' })).toBeDisabled();
+    expect(reloads).toBe(1);
+    expect(seen).toHaveLength(0);
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+  });
+
+  it('offline: Delete is disabled with "Needs a connection…"', async () => {
+    const ctx = workerStoreOnline(openRemotes);
+    const { client } = makeAuthClient({});
+    renderLeave(ctx, { client, sharingClient: sharingDouble(), confirmBy: 'passkey' });
+    await act(async () => {
+      globalThis.dispatchEvent(new Event('offline'));
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete my account' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/Needs a connection/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Delete my account' })).toBeDisabled();
+    await act(async () => {
+      globalThis.dispatchEvent(new Event('online'));
+    });
+  });
+
+  it('confirmBy={null} (not yet known): Delete is disabled', async () => {
+    const ctx = workerStoreOnline(openRemotes);
+    const { client } = makeAuthClient({});
+    const { dialog } = await openDeleteDialog(ctx, {
+      client,
+      sharingClient: sharingDouble(),
+      confirmBy: null,
+    });
+    expect(within(dialog).getByRole('button', { name: 'Delete my account' })).toBeDisabled();
   });
 });

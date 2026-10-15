@@ -18,7 +18,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 
 import { add, commit } from 'isomorphic-git';
 
@@ -239,6 +239,7 @@ describe('Signed-in devices (workflow 13 L77-79; acceptance 5)', () => {
         },
       }),
       'GET /api/account/passkeys': () => ({ body: { passkeys: [] } }),
+      'GET /api/account/recovery-email': () => ({ body: { email: null, pending: null } }),
       ...over,
     });
   }
@@ -309,6 +310,8 @@ describe('Passkeys (workflow 13 L80; acceptance 6)', () => {
     const { client, calls } = makeAuthClient({
       'GET /api/account/sessions': () => ({ body: { sessions: [{ id: 's1', current: true, lastUsedAt: '2026-10-12T10:00:00.000Z', device: 'Chrome on Linux' }] } }),
       'GET /api/account/passkeys': () => ({ body: { passkeys: [...passkeys] } }),
+      // A confirmed email, so the only passkey keeps its Remove (workflow 13 L70–76).
+      'GET /api/account/recovery-email': () => ({ body: { email: 'ana@example.com', pending: null } }),
       'DELETE /api/account/passkeys/k1': () => {
         const i = passkeys.findIndex((k) => k.id === 'k1');
         if (i >= 0) passkeys.splice(i, 1);
@@ -357,6 +360,7 @@ describe('Errors are worded and retryable (acceptance 7)', () => {
         if (failing) throw new TypeError('Failed to fetch');
         return { body: { passkeys: [{ id: 'k1', label: 'iCloud Keychain', createdAt: '2026-03-12T00:00:00.000Z', lastUsedAt: null }] } };
       },
+      'GET /api/account/recovery-email': () => ({ body: { email: null, pending: null } }),
     });
     renderAccount(bareStore(), { client });
 
@@ -479,6 +483,7 @@ describe('Signing out of this device (account.sign_out; workflow 13 §Signing ou
         },
       }),
       'GET /api/account/passkeys': () => ({ body: { passkeys: [] } }),
+      'GET /api/account/recovery-email': () => ({ body: { email: null, pending: null } }),
       'POST /api/auth/signout': () => ({ status: 204 }),
       ...over,
     });
@@ -609,6 +614,7 @@ describe('Leaving Estante region (account.leaving; workflow 17 §Where leaving l
         body: { sessions: [{ id: 's1', current: true, lastUsedAt: '2026-10-12T10:00:00.000Z', device: 'Chrome on Linux' }] },
       }),
       'GET /api/account/passkeys': () => ({ body: { passkeys: [] } }),
+      'GET /api/account/recovery-email': () => ({ body: { email: null, pending: null } }),
     });
   }
 
@@ -644,5 +650,253 @@ describe('Leaving Estante region (account.leaving; workflow 17 §Where leaving l
     await screen.findByText('Not signed in');
     expect(screen.queryByText('Leaving Estante')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Delete my account' })).toBeNull();
+  });
+});
+
+// behavior (account.recovery_email) — the Recovery email region and the last way
+// in, through the real screen with an injected loopback auth-client. Pins
+// workflow 13 §The recovery email L41–68, §The last way in L70–76 and §The
+// account screen L133–142; board Recovery-email.dc.html Phone 1, Phone 2 and
+// Tablet (the account card). Shapes are pinned structurally against
+// api/openapi.yaml: RecoveryEmail { email|null, pending|null } and the request
+// body { email } ([[api-validate-js-breaks-under-vite]]).
+describe('Recovery email', () => {
+  const sharingDouble = { listMembers: async () => ({ members: [], count: 0, limit: 50 }) };
+  const SESSION = { id: 's1', current: true, lastUsedAt: '2026-10-12T10:00:00.000Z', device: 'Chrome on Linux' };
+  const key = (id, label) => ({ id, label, createdAt: '2026-03-12T00:00:00.000Z', lastUsedAt: null });
+
+  // A signed-in double whose recovery email is held in `state` and moves to
+  // `pending` on an accepted request, as the service does (always 202).
+  function recoveryClient({ email = null, pending = null, passkeys = [key('k1', 'iCloud Keychain')], routes = {} } = {}) {
+    const state = { email, pending };
+    const list = [...passkeys];
+    const { client, calls } = makeAuthClient({
+      'GET /api/account/sessions': () => ({ body: { sessions: [SESSION] } }),
+      'GET /api/account/passkeys': () => ({ body: { passkeys: [...list] } }),
+      'GET /api/account/recovery-email': () => ({ body: { ...state } }),
+      'POST /api/account/recovery-email': ({ body }) => {
+        state.pending = body.email;
+        return { status: 202 };
+      },
+      ...routes,
+    });
+    return { client, calls, state };
+  }
+
+  const region = () => screen.getByRole('region', { name: 'Recovery email' });
+  const recoveryPosts = (calls) =>
+    calls.filter((c) => c.method === 'POST' && c.path === '/api/account/recovery-email');
+
+  it('is present only when signed in, below Passkeys and above Leaving Estante', async () => {
+    const { client } = recoveryClient();
+    renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+
+    await screen.findByText('No recovery email');
+    const passkeysHead = screen.getByText('Passkeys');
+    const recoveryHead = within(region()).getByRole('heading', { name: 'Recovery email' });
+    const leavingHead = screen.getByText('Leaving Estante');
+    expect(passkeysHead.compareDocumentPosition(recoveryHead) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(recoveryHead.compareDocumentPosition(leavingHead) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('is absent when not signed in', async () => {
+    const { client } = signedOut();
+    renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+    await screen.findByText('Not signed in');
+    expect(screen.queryByRole('region', { name: 'Recovery email' })).toBeNull();
+  });
+
+  it('none: the badge word, the warning and the field; sending posts {email} and lands in waiting, axe clean', async () => {
+    const { client, calls } = recoveryClient();
+    const { container } = renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+
+    expect(await screen.findByText('No recovery email')).toBeInTheDocument();
+    expect(screen.getByText('If you lose every device with a passkey, there is no way back in.')).toBeInTheDocument();
+    const field = within(region()).getByRole('textbox', { name: 'Recovery email' });
+    expect(field).toHaveValue('');
+    expect(
+      screen.getByText('Used only to email you a sign-in link. Shown here, to you, and nowhere else.'),
+    ).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.change(field, { target: { value: 'ana@example.com' } });
+    fireEvent.click(within(region()).getByRole('button', { name: 'Send a verification link' }));
+
+    expect(await screen.findByText('Waiting for you to confirm')).toBeInTheDocument();
+    const posts = recoveryPosts(calls);
+    expect(posts).toHaveLength(1);
+    expect(Object.keys(posts[0].body)).toEqual(['email']);
+    expect(posts[0].body.email).toBe('ana@example.com');
+
+    // Waiting names the address, with Send again and Use a different address.
+    expect(region()).toHaveTextContent('We sent a verification link to ana@example.com. Check your inbox and open it.');
+    expect(region()).toHaveTextContent('nothing changes and the account still has no recovery email.');
+    expect(within(region()).getByRole('button', { name: 'Send again' })).toBeInTheDocument();
+    expect(within(region()).getByRole('button', { name: 'Use a different address' })).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('Send again re-posts the pending address; Use a different address returns to the field', async () => {
+    const { client, calls } = recoveryClient({ pending: 'ana@example.com' });
+    renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Send again' }));
+    await waitFor(() => expect(recoveryPosts(calls)).toHaveLength(1));
+    expect(recoveryPosts(calls)[0].body).toEqual({ email: 'ana@example.com' });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Use a different address' }));
+    const field = within(region()).getByRole('textbox', { name: 'Recovery email' });
+    expect(field).toHaveValue('');
+    expect(within(region()).queryByRole('button', { name: 'Send again' })).toBeNull();
+    fireEvent.change(field, { target: { value: 'bia@example.com' } });
+    fireEvent.click(within(region()).getByRole('button', { name: 'Send a verification link' }));
+    await waitFor(() => expect(recoveryPosts(calls)).toHaveLength(2));
+    expect(recoveryPosts(calls)[1].body).toEqual({ email: 'bia@example.com' });
+    expect(await screen.findByRole('button', { name: 'Send again' })).toBeInTheDocument();
+  });
+
+  it('confirmed: the address with its Confirmed badge; Change opens the field, axe clean', async () => {
+    const { client } = recoveryClient({ email: 'ana@example.com' });
+    const { container } = renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+
+    expect(await screen.findByText('ana@example.com')).toBeInTheDocument();
+    expect(within(region()).getByText('Confirmed')).toBeInTheDocument();
+    expect(screen.getByText('Gets a sign-in link when you ask for one. Shown only to you.')).toBeInTheDocument();
+    expect(within(region()).queryByRole('textbox')).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.click(within(region()).getByRole('button', { name: 'Change' }));
+    const field = within(region()).getByRole('textbox', { name: 'Recovery email' });
+    expect(field).toHaveValue(''); // not prefilled
+    expect(within(region()).getByRole('button', { name: 'Send a verification link' })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Changing it keeps this address in effect until the new one is confirmed; this address then gets a short notice that it was changed.',
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(within(region()).getByRole('button', { name: 'Cancel' }));
+    expect(within(region()).queryByRole('textbox')).toBeNull();
+  });
+
+  it('confirmed+waiting: the confirmed address stays shown above the waiting block, axe clean', async () => {
+    const { client } = recoveryClient({ email: 'ana@example.com', pending: 'bia@example.com' });
+    const { container } = renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+
+    expect(await screen.findByText('Waiting for you to confirm')).toBeInTheDocument();
+    const confirmedAddress = within(region()).getByText('ana@example.com', { selector: '.t-h2' });
+    const waitingBadge = within(region()).getByText('Waiting for you to confirm');
+    expect(within(region()).getByText('Confirmed')).toBeInTheDocument();
+    expect(confirmedAddress.compareDocumentPosition(waitingBadge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(region()).toHaveTextContent('We sent a verification link to bia@example.com.');
+    expect(region()).toHaveTextContent('nothing changes and ana@example.com stays your recovery email.');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('a 429 is worded "Too many tries — try again shortly."; a 400 is the invalid-address word', async () => {
+    let answer = { status: 429, body: { code: 'rate_limited', message: 'Too many requests. Try again shortly.' } };
+    const { client } = recoveryClient({ routes: { 'POST /api/account/recovery-email': () => answer } });
+    renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+
+    const field = await within(await screen.findByRole('region', { name: 'Recovery email' })).findByRole('textbox', {
+      name: 'Recovery email',
+    });
+    fireEvent.change(field, { target: { value: 'ana@example.com' } });
+    fireEvent.click(within(region()).getByRole('button', { name: 'Send a verification link' }));
+    expect(await within(region()).findByRole('alert')).toHaveTextContent('Too many tries — try again shortly.');
+    // The region stays usable.
+    expect(within(region()).getByRole('button', { name: 'Send a verification link' })).toBeEnabled();
+
+    answer = { status: 400, body: { code: 'bad_request', message: 'The request body did not conform.' } };
+    fireEvent.click(within(region()).getByRole('button', { name: 'Send a verification link' }));
+    await waitFor(() =>
+      expect(within(region()).getByRole('alert')).toHaveTextContent('That does not look like an email address.'),
+    );
+  });
+
+  it('offline: every region button is disabled, with the When offline note, axe clean', async () => {
+    const { client } = recoveryClient({ pending: 'ana@example.com' });
+    const { container } = renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+    await screen.findByText('Waiting for you to confirm');
+
+    await act(async () => {
+      globalThis.dispatchEvent(new Event('offline'));
+    });
+
+    expect(within(region()).getByText('When offline')).toBeInTheDocument();
+    expect(
+      within(region()).getByText(
+        'The recovery email needs a connection, like signing in. Its buttons wait until you are back online; your songs do not.',
+      ),
+    ).toBeInTheDocument();
+    for (const button of within(region()).getAllByRole('button')) expect(button).toBeDisabled();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    await act(async () => {
+      globalThis.dispatchEvent(new Event('online'));
+    });
+  });
+
+  describe('the last way in (workflow 13 L70–76)', () => {
+    const SENTENCE = 'Your only way to sign in — add a recovery email or another passkey first.';
+
+    it('one passkey and no email: no Remove, the badge and the sentence, axe clean', async () => {
+      const { client } = recoveryClient();
+      const { container } = renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+      await screen.findByText('No recovery email');
+      expect(screen.getByText('iCloud Keychain')).toBeInTheDocument();
+      expect(screen.getByText('last way in')).toBeInTheDocument();
+      expect(screen.getByText(SENTENCE)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Remove iCloud Keychain' })).toBeNull();
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    });
+
+    it('a pending address does not lift it', async () => {
+      const { client } = recoveryClient({ pending: 'ana@example.com' });
+      renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+      await screen.findByText('Waiting for you to confirm');
+      expect(screen.getByText('last way in')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Remove iCloud Keychain' })).toBeNull();
+    });
+
+    it('two passkeys: both have Remove', async () => {
+      const { client } = recoveryClient({ passkeys: [key('k1', 'iCloud Keychain'), key('k2', 'Windows Hello')] });
+      renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+      await screen.findByText('No recovery email');
+      expect(screen.getByRole('button', { name: 'Remove iCloud Keychain' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Remove Windows Hello' })).toBeInTheDocument();
+      expect(screen.queryByText('last way in')).toBeNull();
+    });
+
+    it('a confirmed email and one passkey: Remove is present', async () => {
+      const { client } = recoveryClient({ email: 'ana@example.com' });
+      renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+      await screen.findByText('Confirmed');
+      expect(screen.getByRole('button', { name: 'Remove iCloud Keychain' })).toBeInTheDocument();
+      expect(screen.queryByText('last way in')).toBeNull();
+    });
+
+    it('a remove answered 409 last_way_in is worded with the sentence, not errNetwork, and reloads', async () => {
+      const { client, calls } = recoveryClient({
+        passkeys: [key('k1', 'iCloud Keychain'), key('k2', 'Windows Hello')],
+        routes: {
+          'DELETE /api/account/passkeys/k1': () => ({
+            status: 409,
+            body: { code: 'last_way_in', message: "This is the account's last passkey and it has no recovery email." },
+          }),
+        },
+      });
+      renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Remove iCloud Keychain' }));
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(SENTENCE));
+      expect(screen.queryByText(/offline, or Estante is unreachable/)).toBeNull();
+      await waitFor(() =>
+        expect(calls.filter((c) => c.path === '/api/account/passkeys' && c.method === 'GET')).toHaveLength(2),
+      );
+      expect(calls.filter((c) => c.path === '/api/account/recovery-email' && c.method === 'GET')).toHaveLength(2);
+    });
   });
 });

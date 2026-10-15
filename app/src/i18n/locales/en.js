@@ -687,6 +687,52 @@ export default {
     // Worded errors.
     errNetwork: 'You’re offline, or Estante is unreachable. Connect and try again.',
     errGeneric: 'Something went wrong. Try again.',
+    // The Recovery email region, the last way in, and the passkey-confirmed
+    // delete (account.recovery_email; workflow 13, workflow 17).
+    recoveryHeading: 'Recovery email',
+    recoveryNone: 'No recovery email',
+    recoveryNoneWarn: 'If you lose every device with a passkey, there is no way back in.',
+    recoveryLabel: 'Recovery email',
+    recoveryHint: 'Used only to email you a sign-in link. Shown here, to you, and nowhere else.',
+    recoverySend: 'Send a verification link',
+    recoveryWaiting: 'Waiting for you to confirm',
+    recoverySent: 'We sent a verification link to {address}. Check your inbox and open it.',
+    recoveryOnceNone: 'The link works once, for fifteen minutes. Until it is opened, nothing changes and the account still has no recovery email.',
+    recoveryOnceKept: 'The link works once, for fifteen minutes. Until it is opened, nothing changes and {address} stays your recovery email.',
+    recoverySendAgain: 'Send again',
+    recoveryDifferent: 'Use a different address',
+    recoveryConfirmed: 'Confirmed',
+    recoveryConfirmedBody: 'Gets a sign-in link when you ask for one. Shown only to you.',
+    recoveryChange: 'Change',
+    recoveryChangeHint: 'Changing it keeps this address in effect until the new one is confirmed; this address then gets a short notice that it was changed.',
+    recoveryInvalid: 'That does not look like an email address.',
+    recoveryOfflineHead: 'When offline',
+    recoveryOffline: 'The recovery email needs a connection, like signing in. Its buttons wait until you are back online; your songs do not.',
+    rateLimited: 'Too many tries — try again shortly.',
+    lastWayIn: 'last way in',
+    lastWayInBody: 'Your only way to sign in — add a recovery email or another passkey first.',
+    leaveByPasskey: 'This account has no email. Confirm with one of your passkeys to delete it.',
+    leaveNotConfirmed: 'Not deleted — the passkey was not confirmed.',
+    leaveNotConfirmedBody: 'Nothing has changed. Try again when you are ready.',
+    leaveRefused: 'That passkey did not confirm this account. Try again.',
+    leaveNowEmail: 'This account now has an email — type it to confirm.',
+  },
+
+  // The recovery email's confirm page, opened by the emailed link
+  // (account.recovery_email; workflow 13 §Confirming it).
+  recoveryConfirm: {
+    brand: 'Estante',
+    heading: 'Recovery email',
+    working: 'Confirming your recovery email…',
+    confirmed: 'Your recovery email is confirmed',
+    body: 'Your recovery email is now where Estante sends a sign-in link if you lose every device with a passkey.',
+    notice: 'This link only confirms the address — it does not sign you in on this device, and opens no book.',
+    expired: 'This link has expired or was already used — send a new one from the account screen.',
+    taken: 'This address is the recovery email of another Estante account — sign in with it instead.',
+    rateLimited: 'Too many tries — try again shortly.',
+    errNetwork: 'You’re offline, or Estante is unreachable. Connect and try again.',
+    retry: 'Try again',
+    open: 'Open Estante',
   },
 
   // Writing a new song (songs.new_song, workflow 3; W03 board). The ways in (the

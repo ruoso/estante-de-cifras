@@ -15,7 +15,12 @@
 //      session). The current device's sign-out delegates to an `onSignOut` seam
 //      account.sign_out fills (Decision 4).
 //   3. Passkeys (additive, when signed in) — listed, removable, and "add a
-//      passkey to this device" reusing the authed register flow.
+//      passkey to this device" reusing the authed register flow. While the
+//      account has no confirmed email, its only passkey is its last way in and
+//      has no Remove (workflow 13 §The last way in).
+//   4. Recovery email (additive, when signed in; account.recovery_email) — the
+//      RecoveryEmailRegion, read after the passkeys. It also tells Leaving how a
+//      deletion is confirmed (`confirmBy`: the typed email, or a passkey).
 //
 // "Signed in" is known only from a response (the session is a cookie the app
 // never reads — DIRECTION §3.3): listSessions returns 200 under a session and
@@ -27,7 +32,9 @@
 // labelled RadioGroups, the chosen option marked by the word "Selected" and an
 // indicator (never colour alone), each destructive action confirms through a RAC
 // Dialog, and every status/error is carried by a word (role="status"/"alert").
-// It logs nothing and shows no email (Decision 5) — Account is only `{ id }`.
+// It logs nothing. The Recovery email region is the one place the app shows an
+// address, to its owner (account.recovery_email, superseding Decision 5 for that
+// region alone); Account itself is only `{ id }`.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -50,6 +57,9 @@ import { createSharingClient } from '../books/sharing-client.js';
 import { createAuthClient, AuthError } from './auth-client.js';
 import SignOutDialog from './SignOutDialog.jsx';
 import LeaveDialogs from './LeaveDialogs.jsx';
+import RecoveryEmailRegion from './RecoveryEmailRegion.jsx';
+import { isLastWayIn } from './recovery-email.js';
+import { useOnline } from './use-online.js';
 import { createCredential, isCancellation } from './webauthn-json.js';
 import './account.css';
 
@@ -238,6 +248,7 @@ function ErrorNotice({ message, onRetry }) {
 // device string), so the wording is generic by design (Constraints — nothing
 // names the user).
 function errorCopy(error) {
+  if (error instanceof AuthError && error.kind === 'last_way_in') return t('account.lastWayInBody');
   if (error instanceof AuthError && (error.kind === 'network' || error.status === null)) {
     return t('account.errNetwork');
   }
@@ -305,7 +316,11 @@ export default function AccountScreen({
   const [passkeys, setPasskeys] = useState([]);
   const [passkeysError, setPasskeysError] = useState(null);
   const [actionError, setActionError] = useState(null);
+  // The recovery email `{ email, pending }` (null until read) and its read error.
+  const [recovery, setRecovery] = useState(null);
+  const [recoveryError, setRecoveryError] = useState(null);
   const addInFlight = useRef(false);
+  const online = useOnline();
 
   // Hold the client in a ref (the SharingScreen pattern): a stable value so the
   // load effect's setState-past-await is not read as a synchronous cascade, and
@@ -323,6 +338,16 @@ export default function AccountScreen({
     }
   }, [client]);
 
+  const loadRecovery = useCallback(async () => {
+    try {
+      const result = await client.getRecoveryEmail();
+      setRecovery({ email: result?.email ?? null, pending: result?.pending ?? null });
+      setRecoveryError(null);
+    } catch (error) {
+      setRecoveryError(error);
+    }
+  }, [client]);
+
   // Probe the session: 200 → signed in (fill the devices roster, then passkeys);
   // 401 → not signed in; anything else → a worded, retryable error. No token is
   // stored; the probe runs on open and on retry. Every setState happens past the
@@ -336,6 +361,7 @@ export default function AccountScreen({
       setProbeError(null);
       setAuth('in');
       await loadPasskeys();
+      await loadRecovery();
     } catch (error) {
       if (error instanceof AuthError && error.kind === 'unauthorized') {
         setAuth('out');
@@ -344,7 +370,7 @@ export default function AccountScreen({
         setAuth('error');
       }
     }
-  }, [client, loadPasskeys]);
+  }, [client, loadPasskeys, loadRecovery]);
 
   useEffect(() => {
     probe();
@@ -365,13 +391,21 @@ export default function AccountScreen({
     setSessions((prev) => prev.filter((s) => s.id !== session.id));
   };
 
-  // Remove a passkey. A 404 (already gone) reconciles the row away; other
+  // Remove a passkey. A 404 (already gone) reconciles the row away; a 409
+  // `last_way_in` (a remove that raced the last-way-in rule) is worded with the
+  // rule's sentence and reloads the passkeys and the recovery email; other
   // failures are worded.
   const removePasskey = async (passkey) => {
     setActionError(null);
     try {
       await client.removePasskey(passkey.id);
     } catch (error) {
+      if (error instanceof AuthError && error.kind === 'last_way_in') {
+        setActionError(error);
+        await loadPasskeys();
+        await loadRecovery();
+        return;
+      }
       if (!(error instanceof AuthError && error.kind === 'not_found')) {
         setActionError(error);
         return;
@@ -506,6 +540,13 @@ export default function AccountScreen({
     </>
   );
 
+  // Unknown (not yet read) counts as no confirmed email: the conservative side,
+  // with the server's 409 as the backstop (account.recovery_email Decision 5).
+  const lastWayIn = isLastWayIn({ email: recovery?.email ?? null, passkeys });
+
+  // How Leaving confirms a deletion: the typed email, a passkey, or not yet known.
+  const confirmBy = recovery ? (recovery.email ? 'email' : 'passkey') : null;
+
   const passkeysRegion = (
     <>
       <div className="t-h3 account-section">{t('account.passkeys')}</div>
@@ -515,8 +556,8 @@ export default function AccountScreen({
         <div className="list account-list">
           {passkeys.map((passkey) => {
             const label = passkey.label || t('account.passkeyUnnamed');
-            return (
-              <div className="row account-row" key={passkey.id}>
+            const added = (
+              <>
                 <PasskeyIcon />
                 <span className="grow">
                   <span className="name">{label}</span>
@@ -524,6 +565,24 @@ export default function AccountScreen({
                     {t('account.passkeyAdded', { date: formatDateTime(passkey.createdAt, false) })}
                   </span>
                 </span>
+              </>
+            );
+            // The last way in (workflow 13 L70–76; board Phone 1): no Remove, a
+            // worded badge and the sentence instead.
+            if (lastWayIn) {
+              return (
+                <div className="row account-row account-last-way-in" key={passkey.id}>
+                  <span className="account-last-way-in-line">
+                    {added}
+                    <span className="badge">{t('account.lastWayIn')}</span>
+                  </span>
+                  <span className="t-small">{t('account.lastWayInBody')}</span>
+                </div>
+              );
+            }
+            return (
+              <div className="row account-row" key={passkey.id}>
+                {added}
                 <ConfirmDialog
                   trigger={
                     <Button className="btn quiet" aria-label={t('account.removePasskeyLabel', { name: label })}>
@@ -595,10 +654,19 @@ export default function AccountScreen({
         {actionError ? <ErrorNotice message={errorCopy(actionError)} onRetry={() => setActionError(null)} /> : null}
         {devicesRegion}
         {passkeysRegion}
+        <RecoveryEmailRegion
+          recovery={recovery}
+          loadError={recoveryError}
+          authClient={authClient}
+          online={online}
+          onReload={loadRecovery}
+        />
         <LeaveDialogs
           store={store}
           authClient={authClient}
           sharingClient={sharingClient}
+          confirmBy={confirmBy}
+          onConfirmByChanged={loadRecovery}
           onLeft={onSignOut}
         />
       </>

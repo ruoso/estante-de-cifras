@@ -125,10 +125,14 @@ test('lists, adds and removes passkeys', async ({ page, checkA11y }) => {
   const { client } = await signedInDevice(page);
   await expect(page.getByRole('heading', { name: 'Your shelf is empty' })).toBeVisible();
 
-  // The account screen lists the one passkey.
+  // The account screen lists the one passkey. With no recovery email it is the
+  // account's last way in, so it has no Remove (account.recovery_email;
+  // workflow 13 §The last way in).
   await openAccount(page);
   const passkeyRemovers = page.getByRole('button', { name: /^Remove/ });
-  await expect(passkeyRemovers).toHaveCount(1);
+  const lastWayIn = page.getByText('last way in', { exact: true });
+  await expect(lastWayIn).toBeVisible();
+  await expect(passkeyRemovers).toHaveCount(0);
   await checkA11y(); // the signed-in account screen, this viewport
   await mockup(page, 'Theme-picker', 2, { note: 'signed in (theme not Palco here)' });
   await mockup(page, 'Theme-picker', 3);
@@ -140,8 +144,13 @@ test('lists, adds and removes passkeys', async ({ page, checkA11y }) => {
   await page.getByRole('button', { name: 'Add a passkey to this device' }).click();
   await expect(passkeyRemovers).toHaveCount(2);
 
-  // Remove one: confirm, and the list reflects it.
+  // Two passkeys: neither is the last way in, both have Remove.
+  await expect(lastWayIn).toHaveCount(0);
+
+  // Remove one: confirm, and the list reflects it — the survivor is now the
+  // last way in, with no Remove.
   await passkeyRemovers.first().click();
   await page.getByRole('dialog').getByRole('button', { name: 'Remove' }).click();
-  await expect(passkeyRemovers).toHaveCount(1);
+  await expect(lastWayIn).toBeVisible();
+  await expect(passkeyRemovers).toHaveCount(0);
 });

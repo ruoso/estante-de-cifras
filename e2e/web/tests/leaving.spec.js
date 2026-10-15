@@ -13,6 +13,10 @@
 //     cleared, the empty shelf's Sign in back).
 //   - Offline (virtual authenticator): take-your-data-out still downloads with its
 //     notice, while Delete my account is disabled with the needs-a-connection note.
+//   - A passkey-only account (account.recovery_email; workflow 17 §An account with
+//     no email): deleted with the virtual authenticator answering instead of a
+//     typed address; and, with the authenticator's credentials cleared, the
+//     prompt ends unconfirmed and the dialog says so and stays open.
 // Account email and book names are written for this test (no-song-text rule).
 
 import { mockup } from '../lib/mockup.js';
@@ -39,11 +43,11 @@ test('deletes the account end to end: data-out downloads, then the device return
   page,
   checkA11y,
 }) => {
-  // seedAccount stays here, and only here: the terminal confirm type-matches
-  // the account's email, a passkey-only account has none, and no UI writes a
-  // recovery email yet (tasks account.recovery_email / service.recovery_email).
-  // So the account is seeded with an address and signed in through the emailed
-  // link, then a passkey is added on the offer.
+  // seedAccount stays here: this journey is the typed confirm, which needs an
+  // account with an email; recovery-email.spec.js covers setting one through
+  // the UI (account.recovery_email Decision 10). So the account is seeded with
+  // an address and signed in through the emailed link, then a passkey is added
+  // on the offer.
   const email = uniqueEmail('leaving');
   await seedAccount(email);
   await enableVirtualAuthenticator(page);
@@ -155,4 +159,65 @@ test('deleting an account that shares a book counts the people who lose access, 
   } finally {
     await member.context.close();
   }
+});
+
+// account.recovery_email — the passkey branch of the delete dialog (workflow 17
+// §An account with no email L70–92, §The cascade L143–145; board
+// Recovery-email.dc.html Computer).
+const PASSKEY_NOTICE = 'This account has no email. Confirm with one of your passkeys to delete it.';
+
+// Open the delete dialog of a passkey-only account, once the account screen
+// knows it has no email (the region reads "No recovery email").
+async function openPasskeyDelete(page) {
+  await openAccount(page);
+  await expect(page.getByRole('region', { name: 'Recovery email' }).getByText('No recovery email')).toBeVisible();
+  await page.getByRole('button', { name: 'Delete my account' }).click();
+  const del = page.getByRole('dialog');
+  await expect(del.getByText(PASSKEY_NOTICE)).toBeVisible();
+  return del;
+}
+
+test('a passkey-only account is deleted with a passkey, and the device returns to first-run; axe-clean', async ({
+  page,
+  checkA11y,
+}) => {
+  await signedInDevice(page);
+
+  const del = await openPasskeyDelete(page);
+  await expect(del.getByRole('textbox')).toHaveCount(0);
+  await expect(del.getByText('When you delete your account:')).toBeVisible();
+  const confirmBtn = del.getByRole('button', { name: 'Delete my account' });
+  await expect(confirmBtn).toBeEnabled();
+  await checkA11y(); // the passkey-confirmed delete dialog
+
+  // The virtual authenticator answers the prompt; the device returns
+  // signed-out to its first-run state.
+  await confirmBtn.click();
+  await expect.poll(() => hasSessionCookie(page)).toBe(false);
+  await expect(page.getByRole('button', { name: /Sign in/ })).toBeVisible();
+});
+
+test('the passkey prompt not confirmed leaves the dialog open with its alert, and the account in place; axe-clean', async ({
+  page,
+  checkA11y,
+}) => {
+  const { client, authenticatorId } = await signedInDevice(page);
+  const del = await openPasskeyDelete(page);
+
+  // No passkey for the account can answer here: the prompt ends unconfirmed.
+  await client.send('WebAuthn.clearCredentials', { authenticatorId });
+  await del.getByRole('button', { name: 'Delete my account' }).click();
+  await expect(del.getByRole('alert')).toContainText('Not deleted — the passkey was not confirmed.', {
+    timeout: 30000,
+  });
+  await expect(del.getByRole('alert')).toContainText('Nothing has changed. Try again when you are ready.');
+  await expect(del).toBeVisible();
+  await checkA11y(); // the cancelled alert
+
+  // The account still exists: the account screen still lists its sessions.
+  await del.getByRole('button', { name: 'Cancel' }).click();
+  await expect(del).toBeHidden();
+  await expect(page.getByText('Signed-in devices')).toBeVisible();
+  await expect(page.getByText('This device', { exact: true })).toBeVisible();
+  expect(await hasSessionCookie(page)).toBe(true);
 });

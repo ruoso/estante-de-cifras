@@ -16,14 +16,63 @@
 // for a 401 (a passkey that did not work, an expired/used link) and `network`
 // for an unreachable service or a 5xx (offline, a server fault) — both the
 // retryable "couldn't reach Estante" case. Nothing in an error names the user.
+//
+// An error also carries the server's `code` when the `{code, message}` body has
+// one (account.recovery_email Decision 4), and the recovery-email and
+// passkey-delete calls type their codes into kinds of their own: 429 →
+// `rate_limited`, `link_invalid`, `address_taken`, `passkey_refused` →
+// `refused`, `confirm_by_email`, `last_way_in` and `bad_request`. The view words
+// each kind itself; the server's English `message` is never read.
 
 export class AuthError extends Error {
-  constructor(kind, status) {
+  constructor(kind, status, code) {
     super(kind);
     this.name = 'AuthError';
-    this.kind = kind; // 'unauthorized' | 'network' | 'not_found' | 'mismatch'
+    // 'unauthorized' | 'network' | 'not_found' | 'mismatch' | 'rate_limited' |
+    // 'link_invalid' | 'address_taken' | 'refused' | 'confirm_by_email' |
+    // 'last_way_in' | 'bad_request'
+    this.kind = kind;
     this.status = status ?? null;
+    this.code = code ?? null;
   }
+}
+
+// The server's error `code`, read from a `{code, message}` body when one is
+// present; null when the body is absent or not JSON. Only the code is kept.
+async function codeOf(response) {
+  try {
+    const body = await response.json();
+    return typeof body?.code === 'string' ? body.code : null;
+  } catch {
+    return null;
+  }
+}
+
+// The kinds a recovery-email or passkey-delete answer types into, by code.
+const KIND_BY_CODE = {
+  link_invalid: 'link_invalid',
+  address_taken: 'address_taken',
+  passkey_refused: 'refused',
+  confirm_by_email: 'confirm_by_email',
+  last_way_in: 'last_way_in',
+  bad_request: 'bad_request',
+};
+
+// Type a non-ok response into an AuthError: 401 → unauthorized, 429 →
+// rate_limited, a known code → its kind, anything else (a 5xx, a surprise) →
+// network.
+async function failureOf(response) {
+  const code = await codeOf(response);
+  if (response.status === 401) return new AuthError('unauthorized', response.status, code);
+  if (response.status === 429) return new AuthError('rate_limited', response.status, code);
+  const kind = code ? KIND_BY_CODE[code] : undefined;
+  return new AuthError(kind ?? 'network', response.status, code);
+}
+
+// An answer with no body to keep (202/204): ok → done, else the typed failure.
+async function emptyOf(response) {
+  if (response.ok) return undefined;
+  throw await failureOf(response);
 }
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
@@ -85,6 +134,9 @@ async function del(fetchImpl, path) {
   if (response.ok) return undefined;
   if (response.status === 401) throw new AuthError('unauthorized', response.status);
   if (response.status === 404) throw new AuthError('not_found', response.status);
+  // 409 last_way_in: the account's last passkey with no recovery email
+  // (account.recovery_email; workflow 13 §The last way in).
+  if (response.status === 409) throw await failureOf(response);
   throw new AuthError('network', response.status);
 }
 
@@ -195,6 +247,59 @@ export function createAuthClient({ fetch: injected } = {}) {
       if (response.status === 400) throw new AuthError('mismatch', response.status);
       if (response.status === 401) throw new AuthError('unauthorized', response.status);
       throw new AuthError('network', response.status);
+    },
+
+    // --- deleting a passkey-only account (workflow 17 §An account with no email)
+    // begin → `{ publicKey, state }`: a non-discoverable assertion over the
+    // account's own passkeys, sealed for deletion. 400 `confirm_by_email` when
+    // the account has a confirmed email (it confirms by the typed field instead).
+    async beginDeletePasskey() {
+      const response = await postJson(fetchImpl, '/api/account/delete/begin', {});
+      if (response.ok) return response.json();
+      throw await failureOf(response);
+    },
+    // DELETE /api/account with `{ passkey: { state, credential } }` → 204. 400
+    // `passkey_refused` → `refused`; 400 `confirm_mismatch` (the account gained
+    // an email since begin — the wrong branch) → `confirm_by_email`, so the
+    // dialog switches to the typed field.
+    async deleteAccountByPasskey({ state, credential }) {
+      let response;
+      try {
+        response = await fetchImpl('/api/account', {
+          method: 'DELETE',
+          headers: JSON_HEADERS,
+          credentials: 'same-origin',
+          body: JSON.stringify({ passkey: { state, credential } }),
+        });
+      } catch {
+        throw new AuthError('network');
+      }
+      if (response.ok) return undefined;
+      const failure = await failureOf(response);
+      if (failure.code === 'confirm_mismatch') {
+        throw new AuthError('confirm_by_email', failure.status, failure.code);
+      }
+      throw failure;
+    },
+
+    // --- the recovery email (account.recovery_email; workflow 13) ------------
+    // Plain session HTTP, like sessions and passkeys: nothing touches the Worker,
+    // IndexedDB or a book. The address is kept to these bodies and never logged.
+    // GET → `{ email, pending }`, both nullable (`pending` is still reported
+    // after it expires, so the region keeps offering Send again).
+    async getRecoveryEmail() {
+      return getJson(fetchImpl, '/api/account/recovery-email');
+    },
+    // POST `{ email }` → 202, always (it reveals nothing about who holds the
+    // address); 400 → `bad_request`; 429 → `rate_limited`.
+    async requestRecoveryEmail(email) {
+      return emptyOf(await postJson(fetchImpl, '/api/account/recovery-email', { email }));
+    },
+    // POST `{ token }` with no session → 204 (confirmed). 400 → `link_invalid`
+    // (expired, used, tampered or unknown); 409 → `address_taken`; 429 →
+    // `rate_limited`. Sets no cookie: it never signs in.
+    async confirmRecoveryEmail(token) {
+      return emptyOf(await postJson(fetchImpl, '/api/recovery-email/confirm', { token }));
     },
   };
 }

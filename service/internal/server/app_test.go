@@ -214,6 +214,35 @@ func TestMissingAssetIs404(t *testing.T) {
 	}
 }
 
+// TestEmailedLinkRoutesServeShell pins the SPA fallback for the app's emailed
+// links (service.serve_app; workflow 13 L48, the link opens "on any device"):
+// the token holds a dot, yet /recovery-email/<id>.<sig> and /sign-in/<id>.<sig>
+// are navigations and get the shell, while a missing asset still 404s
+// (account.recovery_email Decisions §1).
+func TestEmailedLinkRoutesServeShell(t *testing.T) {
+	ts := httptest.NewServer(newTestHandler(t))
+	defer ts.Close()
+
+	for _, path := range []string{"/recovery-email/AAAA.BBBB", "/sign-in/AAAA.BBBB"} {
+		resp, body := get(t, ts.URL, path)
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("GET %s status = %d, want 200", path, resp.StatusCode)
+		}
+		if body != testShell {
+			t.Errorf("GET %s body = %q, want the shell's index.html", path, body)
+		}
+	}
+	for _, path := range []string{"/assets/missing.js", "/foo.js"} {
+		resp, body := get(t, ts.URL, path)
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("GET %s status = %d, want 404", path, resp.StatusCode)
+		}
+		if strings.Contains(body, "data-shell") {
+			t.Errorf("GET %s returned the HTML shell, want a 404", path)
+		}
+	}
+}
+
 // TestFailFastOnMissingBundle pins the missing-bundle requirement: building the
 // handler against an app-root with no index.html returns an error, not a
 // booting server.

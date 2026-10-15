@@ -49,8 +49,9 @@ task account "First run and the account" {
   task recovery_email "Recovery email; deleting a passkey-only account" {
     effort 2d
     allocate team
+    complete 100
     depends !account_screen, !leaving, service.recovery_email, design.recovery_email
-    note "As design.recovery_email decides: set, verify and change the recovery email on the account screen; Leaving confirms a passkey-only account's deletion with a passkey instead of the typed email. Source: tasks/parking-lot.md 2026-10-14. Tests: behavior (the email set and pending verification; the passkey confirm when there is no email; axe); e2e-web (an email set and verified via the mail catcher; a passkey-only account deleted with a virtual authenticator; axe)."
+    note "As design.recovery_email decides: set, verify and change the recovery email on the account screen; Leaving confirms a passkey-only account's deletion with a passkey instead of the typed email. Source: tasks/parking-lot.md 2026-10-14. Tests: behavior (the email set and pending verification; the passkey confirm when there is no email; axe); e2e-web (an email set and verified via the mail catcher; a passkey-only account deleted with a virtual authenticator; axe). Refinement: tasks/refinements/account/recovery_email.md"
   }
   task preferences_layout "The account screen as drawn: compact theme rows, two columns on a computer" {
     effort 1d

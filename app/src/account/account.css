@@ -347,3 +347,117 @@ label.signout-card > span:first-child input {
   flex-direction: column;
   gap: calc(var(--u) * 0.75);
 }
+
+/* The last way in (account.recovery_email; workflow 13 §The last way in; board
+   Phone 1): the row stacks its line (key, name, the "last way in" badge) over the
+   sentence that replaces Remove. The badge's word carries the status. */
+.account-list .account-last-way-in {
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--u) * 0.75);
+  cursor: default;
+}
+
+.account-last-way-in-line {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.25);
+}
+
+.account-last-way-in-line > svg {
+  flex: none;
+}
+
+/* The Recovery email region (account.recovery_email; board Phone 1, Phone 2,
+   Tablet): a heading over one card per state, each stacking its lines. */
+.account-recovery {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}
+
+.account-recovery h3 {
+  margin-bottom: 0;
+}
+
+.account-recovery-card {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}
+
+.account-recovery-badges {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+}
+
+.account-recovery-warn {
+  gap: calc(var(--u) * 1.25);
+}
+
+.account-recovery-warn-icon {
+  flex: none;
+  color: var(--unsaved);
+}
+
+.account-recovery-sent,
+.account-recovery-offline {
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+}
+
+.account-recovery-offline-head {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+}
+
+.account-recovery-confirmed {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 1.5);
+}
+
+.account-recovery-confirmed > svg {
+  flex: none;
+}
+
+.account-recovery-address {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The delete dialog's passkey notice (workflow 17 §An account with no email;
+   board Computer): the key glyph beside the sentence. */
+.account-leave-passkey {
+  gap: calc(var(--u) * 1.25);
+}
+
+.account-leave-passkey > svg {
+  flex: none;
+}
+
+/* The recovery email's confirm page (board Tablet): the check beside the
+   heading, then the body and the does-not-sign-in notice. */
+.account-confirm-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.75);
+}
+
+.account-confirm-check {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--ok-soft);
+  color: var(--ok);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}

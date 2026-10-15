@@ -13,6 +13,7 @@ import FilesDev from './files/FilesDev.jsx';
 import SetlistsDev from './books/SetlistsDev.jsx';
 import UpdateReady from './pwa/UpdateReady.jsx';
 import { signInToken } from './account/sign-in-route.js';
+import { recoveryEmailToken } from './account/recovery-email-route.js';
 import { invitationToken } from './account/invitation-route.js';
 import { bookSongRoute, songAnchorFromHash } from './books/book-route.js';
 import { getAppStore } from './worker/store.js';
@@ -109,6 +110,15 @@ function bootRedeemToken() {
   return typeof location === 'undefined' ? null : signInToken(location.pathname);
 }
 
+// The recovery email's verification link boots the app at
+// `/recovery-email/<token>` — a path, like the sign-in link (account.
+// recovery_email; workflow 13 §Confirming it). Read it once at boot; AppShell
+// opens the confirm page, which needs no session. Pure parse in
+// `recoveryEmailToken`.
+function bootRecoveryEmailToken() {
+  return typeof location === 'undefined' ? null : recoveryEmailToken(location.pathname);
+}
+
 // An invitation boots the app at `/i/<token>` — a path, not a hash
 // (books.add_by_link, workflow 1 §Invited; the service mails/links a path). Read
 // it once at boot, beside the redeem token; AppShell opens the invited flow (try
@@ -171,6 +181,9 @@ export default function App({ store = getAppStore() }) {
   // a share (Decision 4). The surface runs the redeem; AppShell receives the
   // token and opens the surface in redeem mode.
   const [redeemToken] = useState(bootRedeemToken);
+  // The recovery email's confirm token, captured and the URL cleaned the same
+  // way, so the single-use link does not linger in history or a share.
+  const [recoveryToken] = useState(bootRecoveryEmailToken);
   // The invitation token, captured once at mount and the URL cleaned to `/` the
   // same way — so the single-use-ish link does not linger in history or a share,
   // and a reload does not re-run the invited flow. AppShell runs the flow.
@@ -180,10 +193,10 @@ export default function App({ store = getAppStore() }) {
   const [bookSong] = useState(bootBookSong);
   const [inviteSongAnchor] = useState(bootInviteSongAnchor);
   useEffect(() => {
-    if ((redeemToken || inviteToken || bookSong) && typeof history !== 'undefined') {
+    if ((redeemToken || recoveryToken || inviteToken || bookSong) && typeof history !== 'undefined') {
       history.replaceState(null, '', '/');
     }
-  }, [redeemToken, inviteToken, bookSong]);
+  }, [redeemToken, recoveryToken, inviteToken, bookSong]);
 
   return (
     <ThemeRoot store={store}>
@@ -208,6 +221,7 @@ export default function App({ store = getAppStore() }) {
           <AppShell
             store={store}
             redeemToken={redeemToken}
+            recoveryToken={recoveryToken}
             inviteToken={inviteToken}
             bookSong={bookSong}
             inviteSongAnchor={inviteSongAnchor}

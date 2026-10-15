@@ -12,12 +12,17 @@
 //
 // Delete my account is the one action that waits for a connection (Constraint 2,
 // Decision 3): the DELETE /api/account call comes FIRST — the inverse of sign-out
-// — and the Worker device teardown (LEAVE_ESTANTE) runs only on its 204. The
-// confirm is the account's email typed into a field; the app never holds the
-// address (Decision 4), so the danger action gates only on a non-empty field and
-// an online device, and the server verifies the address and returns 400 on a
-// mismatch, which the dialog words in a role="alert" without ever showing the
-// real one. Warnings are counted from the sign-out survey (per-book unsaved /
+// — and the Worker device teardown (LEAVE_ESTANTE) runs only on its 204. How it
+// is confirmed is the account screen's `confirmBy` (account.recovery_email
+// Decision 2): an account with a confirmed email types it into a field — never
+// prefilled, though the account screen's Recovery email region is the one place
+// that shows the address to its owner — so the danger action gates only on a
+// non-empty field and an online device, and the server verifies the address and
+// returns 400 on a mismatch, which the dialog words in a role="alert" without
+// ever showing the real one. An account with no email (workflow 17 §An account
+// with no email) confirms with a fresh passkey instead: delete/begin, the
+// browser's prompt, then DELETE with the assertion; a cancelled prompt or a
+// refused passkey each leave the dialog open with their own alert. Warnings are counted from the sign-out survey (per-book unsaved /
 // not-yet-pushed) and listMembers (who loses access) via aggregateLeaveWarnings.
 //
 // Overlays are portaled into the `.est` token root by ThemeRoot's
@@ -43,29 +48,32 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { saveZip } from '../books/download-zip.js';
 import { AuthError } from './auth-client.js';
 import { canDeleteAccount, aggregateLeaveWarnings } from './leave.js';
+import { useOnline } from './use-online.js';
+import { getCredential, isCancellation } from './webauthn-json.js';
 
 // The home book's id (home-book.js HOME_BOOK_ID). The view does not import the
 // Worker module; it names the shared id the way sync-display.js does.
 const HOME_BOOK_ID = 'home';
 
-// The device's online state, read from navigator and kept live by the network
-// events. Deleting waits on a connection (workflow 17 §Offline); taking data out
-// does not. In a test with no navigator this defaults to online.
-function useOnline() {
-  const [online, setOnline] = useState(() =>
-    typeof navigator === 'undefined' ? true : navigator.onLine !== false,
+// The key glyph of the passkey notice (board Computer); decorative.
+function PasskeyIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="8" cy="15" r="4" />
+      <path d="M11 12l9-9M17 6l3 3M15 8l2 2" />
+    </svg>
   );
-  useEffect(() => {
-    const up = () => setOnline(true);
-    const down = () => setOnline(false);
-    globalThis.addEventListener?.('online', up);
-    globalThis.addEventListener?.('offline', down);
-    return () => {
-      globalThis.removeEventListener?.('online', up);
-      globalThis.removeEventListener?.('offline', down);
-    };
-  }, []);
-  return online;
 }
 
 // The four willHappen statements (workflow 17 §Deleting; mockup W17 Computer).
@@ -79,12 +87,30 @@ const WILL_HAPPEN_KEYS = [
 /**
  * @param {{
  *   store: object,
- *   authClient: { deleteAccount: (email: string) => Promise<void> },
+ *   authClient: {
+ *     deleteAccount: (email: string) => Promise<void>,
+ *     beginDeletePasskey: () => Promise<{ publicKey: object, state: string }>,
+ *     deleteAccountByPasskey: (body: { state: string, credential: object }) => Promise<void>,
+ *   },
  *   sharingClient: { listMembers: (bookId: string) => Promise<{ count: number }> },
+ *   confirmBy?: 'email' | 'passkey' | null,
+ *   onConfirmByChanged?: () => void,
  *   onLeft?: () => void,
  * }} props
+ *   `confirmBy` is 'email' when the account has a confirmed email, 'passkey'
+ *   when it has none, and null until the account screen knows (Delete is then
+ *   disabled — account.recovery_email Decision 3). `onConfirmByChanged` asks the
+ *   screen to reload the recovery email when the server says the account now
+ *   confirms by email.
  */
-export default function LeaveDialogs({ store, authClient, sharingClient, onLeft = () => {} }) {
+export default function LeaveDialogs({
+  store,
+  authClient,
+  sharingClient,
+  confirmBy = null,
+  onConfirmByChanged = () => {},
+  onLeft = () => {},
+}) {
   const shelf = useSlice(store, 'shelf');
   const online = useOnline();
 
@@ -96,7 +122,13 @@ export default function LeaveDialogs({ store, authClient, sharingClient, onLeft 
   const [survey, setSurvey] = useState(null);
   const [memberCounts, setMemberCounts] = useState({});
   const [confirmEmail, setConfirmEmail] = useState('');
-  const [error, setError] = useState(null); // null | 'mismatch' | 'network' | 'generic'
+  // null | 'mismatch' | 'network' | 'generic' | 'cancelled' | 'refused' | 'nowEmail'
+  const [error, setError] = useState(null);
+  // Set when delete/begin answered `confirm_by_email` (an email was confirmed
+  // elsewhere since the screen loaded): the dialog switches to the typed field
+  // without waiting for the screen's reload.
+  const [switchedToEmail, setSwitchedToEmail] = useState(false);
+  const mode = switchedToEmail ? 'email' : confirmBy;
   const inFlight = useRef(false);
   const sharingRef = useRef(sharingClient); // held in a ref so the count fetch
   useEffect(() => {
@@ -153,16 +185,61 @@ export default function LeaveDialogs({ store, authClient, sharingClient, onLeft 
   const openDelete = () => {
     setConfirmEmail('');
     setError(null);
+    setSwitchedToEmail(false);
     setSurvey(null);
     setMemberCounts({});
     store.send(command(CommandKind.SURVEY_SIGN_OUT, {}));
     setOpen('delete');
   };
 
+  // The server says this account now confirms by its email: switch the dialog to
+  // the typed field, worded, and have the screen reload the recovery email.
+  const switchToEmail = () => {
+    inFlight.current = false;
+    setSwitchedToEmail(true);
+    setConfirmEmail('');
+    setError('nowEmail');
+    onConfirmByChanged();
+  };
+
+  // A passkey-only account (workflow 17 §An account with no email): begin, the
+  // browser's passkey prompt, then DELETE with the assertion. No DELETE is sent
+  // after a cancelled prompt; a device with no passkey for the account ends in
+  // the same NotAllowedError, so it shares the cancelled alert (Decision 8).
+  const confirmByPasskey = async () => {
+    let begin;
+    let credential;
+    try {
+      begin = await authClient.beginDeletePasskey();
+    } catch (err) {
+      if (err instanceof AuthError && err.kind === 'confirm_by_email') return switchToEmail();
+      inFlight.current = false;
+      return setError(err instanceof AuthError && err.kind === 'network' ? 'network' : 'generic');
+    }
+    try {
+      ({ credential } = await getCredential(begin.publicKey));
+    } catch (err) {
+      inFlight.current = false;
+      return setError(isCancellation(err) ? 'cancelled' : 'generic');
+    }
+    try {
+      await authClient.deleteAccountByPasskey({ state: begin.state, credential });
+    } catch (err) {
+      if (err instanceof AuthError && err.kind === 'confirm_by_email') return switchToEmail();
+      inFlight.current = false;
+      if (err instanceof AuthError && err.kind === 'refused') return setError('refused');
+      if (err instanceof AuthError && err.kind === 'network') return setError('network');
+      return setError('generic');
+    }
+    // 204 — the same device teardown as the typed path.
+    store.send(command(CommandKind.LEAVE_ESTANTE, {}));
+  };
+
   const confirmDelete = async () => {
-    if (inFlight.current || !canDeleteAccount({ confirmEmail, online })) return;
+    if (inFlight.current || !canDeleteAccount({ confirmBy: mode, confirmEmail, online })) return;
     inFlight.current = true;
     setError(null);
+    if (mode === 'passkey') return confirmByPasskey();
     try {
       await authClient.deleteAccount(confirmEmail);
     } catch (err) {
@@ -302,24 +379,41 @@ export default function LeaveDialogs({ store, authClient, sharingClient, onLeft 
               </div>
             ) : null}
 
-            <TextField
-              className="field"
-              value={confirmEmail}
-              onChange={setConfirmEmail}
-              type="email"
-              autoComplete="off"
-            >
-              <Label>{t('account.leaveConfirmLabel')}</Label>
-              <Input className="input" />
-            </TextField>
+            {mode === 'passkey' ? (
+              <div className="notice account-leave-passkey">
+                <PasskeyIcon />
+                <span>{t('account.leaveByPasskey')}</span>
+              </div>
+            ) : (
+              <TextField
+                className="field"
+                value={confirmEmail}
+                onChange={setConfirmEmail}
+                type="email"
+                autoComplete="off"
+              >
+                <Label>{t('account.leaveConfirmLabel')}</Label>
+                <Input className="input" />
+              </TextField>
+            )}
 
-            {error ? (
+            {error === 'cancelled' ? (
+              <p className="notice conflict account-leave-error" role="alert">
+                <span>
+                  <b>{t('account.leaveNotConfirmed')}</b> {t('account.leaveNotConfirmedBody')}
+                </span>
+              </p>
+            ) : error ? (
               <p className="notice warn account-leave-error" role="alert">
                 {error === 'mismatch'
                   ? t('account.leaveMismatch')
-                  : error === 'network'
-                    ? t('account.errNetwork')
-                    : t('account.errGeneric')}
+                  : error === 'refused'
+                    ? t('account.leaveRefused')
+                    : error === 'nowEmail'
+                      ? t('account.leaveNowEmail')
+                      : error === 'network'
+                        ? t('account.errNetwork')
+                        : t('account.errGeneric')}
               </p>
             ) : null}
 
@@ -339,7 +433,7 @@ export default function LeaveDialogs({ store, authClient, sharingClient, onLeft 
               </Button>
               <Button
                 className="btn danger"
-                isDisabled={!canDeleteAccount({ confirmEmail, online })}
+                isDisabled={!canDeleteAccount({ confirmBy: mode, confirmEmail, online })}
                 onPress={confirmDelete}
               >
                 {t('account.leaveDelete')}

@@ -4,7 +4,7 @@
 
 import { expect } from '@playwright/test';
 import { startApp, gotoTab, enableVirtualAuthenticator, hasSessionCookie } from './journeys.js';
-import { waitForMessageTo, extractSignInLink } from './mail.js';
+import { waitForMessage, extractSignInLink } from './mail.js';
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -20,8 +20,10 @@ export async function openAccount(page) {
 
 // Request an emailed sign-in link from the shell's Sign in and open it, as a
 // mail client would. Leaves the page on the "Make signing in quicker" offer.
-// The address must already have an account: no UI writes a recovery email yet
-// (tasks account.recovery_email / service.recovery_email), so callers seed it.
+// The address must already be an account's: seeded (lib/db.js) or set through
+// the account screen's Recovery email region (setRecoveryEmail). The mail read
+// is the newest one carrying a sign-in link, since the same address may have
+// had a verification mail just before.
 export async function openEmailedLink(page, email) {
   await startApp(page);
   await page.getByRole('button', { name: /Sign in/ }).click();
@@ -30,13 +32,39 @@ export async function openEmailedLink(page, email) {
   await page.getByRole('textbox', { name: 'Your email' }).fill(email);
   await page.getByRole('button', { name: 'Send the link' }).click();
   await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
-  const message = await waitForMessageTo(email);
+  const message = await waitForMessage(email, (m) => extractSignInLink(m) !== null);
   expect(message, 'the sign-in mail should arrive at the catcher').not.toBeNull();
   const link = extractSignInLink(message);
   expect(link, 'the mail should carry a /sign-in/<token> link').not.toBeNull();
   await page.goto(link);
   await expect(page.getByRole('heading', { name: 'Make signing in quicker' })).toBeVisible();
   await expect.poll(() => hasSessionCookie(page)).toBe(true);
+}
+
+// The account screen's Recovery email region (account.recovery_email).
+export function recoveryRegion(page) {
+  return page.getByRole('region', { name: 'Recovery email' });
+}
+
+// Set (or change) the recovery email from the account screen, which must be
+// open: type the address, send, and wait for the waiting badge. A confirmed
+// address is changed through Change; a pending one through Use a different
+// address.
+export async function setRecoveryEmail(page, email) {
+  const region = recoveryRegion(page);
+  const field = region.getByRole('textbox', { name: 'Recovery email' });
+  // Loaded: one of the region's state words is drawn.
+  await expect(
+    region.getByText(/^(No recovery email|Confirmed|Waiting for you to confirm)$/).first(),
+  ).toBeVisible();
+  if (!(await field.isVisible())) {
+    const change = region.getByRole('button', { name: 'Change' });
+    if (await change.isVisible()) await change.click();
+    else await region.getByRole('button', { name: 'Use a different address' }).click();
+  }
+  await field.fill(email);
+  await region.getByRole('button', { name: 'Send a verification link' }).click();
+  await expect(region.getByText('Waiting for you to confirm')).toBeVisible();
 }
 
 // Emailed-link sign-in, then add a passkey on the offer (needs a virtual

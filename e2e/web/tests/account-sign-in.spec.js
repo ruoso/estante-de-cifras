@@ -60,10 +60,11 @@ test('signs in from an emailed link and then offers a passkey on this device', a
   page,
   checkA11y,
 }) => {
-  // seedAccount stays here, and only here: an emailed link needs an address on
-  // the account, and no UI writes a recovery email yet (tasks
-  // account.recovery_email / service.recovery_email), so the one precondition
-  // is seeded in Postgres. Everything after it is the real UI and the real mail.
+  // seedAccount stays here: an emailed link needs an address on the account,
+  // and this journey is about signing in by it, not setting it — that UI path
+  // is recovery-email.spec.js's (account.recovery_email Decision 10). So the one
+  // precondition is seeded in Postgres. Everything after it is the real UI and
+  // the real mail.
   const email = uniqueEmail('signin');
   await seedAccount(email);
   await enableVirtualAuthenticator(page);
