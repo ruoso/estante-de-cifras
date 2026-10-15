@@ -195,7 +195,10 @@ A flat map of singleton preferences, each a register:
   "theme":      { "value": "palco",   "at": "2026-10-05T14:30:00.000Z" },
   "language":   { "value": "pt-BR",   "at": "2026-10-05T14:29:12.500Z" },
   "notation":   { "value": "<opaque>", "at": "2026-10-05T14:29:12.500Z" },
-  "authorName": { "value": "Marina Souza", "at": "2026-10-05T14:29:12.500Z" }
+  "authorName": { "value": "Marina Souza", "at": "2026-10-05T14:29:12.500Z" },
+  "density":    { "value": "roomy",   "at": "2026-10-15T09:12:00.000Z" },
+  "diagramHanded":      { "value": "left",       "at": "2026-10-15T09:12:04.000Z" },
+  "diagramOrientation": { "value": "horizontal", "at": "2026-10-15T09:12:07.000Z" }
 }
 ```
 
@@ -212,6 +215,22 @@ A flat map of singleton preferences, each a register:
   keeps it here; it is the commit author's name, distinct from the no-reply
   address the id forms (§3.2). Absent until the first save; after sign-in the
   account's name is offered in its place.
+- `density` — how much fits on a screen: `"compact"`, `"comfortable"` or
+  `"roomy"` (workflow 1 §Density). Absent until the user chooses; while absent
+  the density is comfortable. Choosing comfortable again writes the tombstone,
+  so absent and comfortable are one state.
+- `diagramHanded` — which hand the chord diagrams are drawn for: `"right"` or
+  `"left"`, a left-handed mirror (workflow 16 §How diagrams are drawn). Absent
+  until chosen; while absent, right. Choosing right again writes the tombstone.
+- `diagramOrientation` — the chord diagram's neck: `"vertical"`, the chord box,
+  or `"horizontal"`, the neck lying across (workflow 16 §How diagrams are
+  drawn). Absent until chosen; while absent, vertical. Choosing vertical again
+  writes the tombstone.
+
+A reader treats a value of `theme`, `density`, `diagramHanded` or
+`diagramOrientation` it does not know as absent — the default — and leaves the
+register as it is: an older app meeting a newer value draws the default, never
+fails.
 
 ### 4.2 `shelf.json`
 

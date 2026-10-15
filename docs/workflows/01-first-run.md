@@ -116,3 +116,26 @@ the laptop at home shows Estante.
 
 The chart itself never changes with the theme beyond colour and typeface:
 which chord sits over which syllable is the song's, not the theme's.
+
+## Density
+
+Beside the theme, in the same **Preferences** section (drawn in
+[the mockups](../mockups/Theme-picker.dc.html)), the user chooses how much fits
+on a screen: **Compact** (tighter spacing and a smaller chart, more of a song on
+a phone), **Comfortable** (the default) or **Roomy** (looser spacing and a
+larger chart, read from further away — a music stand, a tablet on the floor).
+Each is named in words with a one-line description and a live sample drawn in
+that density, the chosen one marked by the word *Selected*, never by colour
+alone. The choice takes effect at once, on every screen, and nothing waits on
+the network.
+
+Until the user chooses, the density is comfortable. The choice is a preference,
+kept in the home book like the theme (home-book-format §4.1 `density`), so it
+follows the user to every device: one person's eyes and the distance they read
+from do not change with the device, and each viewport's layout already adapts to
+its size.
+
+Density changes spacing and the chart's size, never the chart: like the theme,
+it does not move a chord off its syllable, rewrap a bar differently from how the
+screen's width would, or hide anything — the same song, more or less of it in
+view.

@@ -51,7 +51,8 @@ task design "Design gaps" {
   task display_preferences "Density and chord-diagram display preferences" {
     effort 1d
     allocate team
-    note "Decide and draw two new user-chosen, synced preferences on the account screen's Preferences section beside theme and language: density (the theme.css densities, today locked at comfortable) and the chord diagram's display — left-handed mirror and vertical/horizontal neck, as Explore Chords offered — applied in the explorer and the in-song picker. Add the home-book registers to docs/home-book-format.md §4.1 and the decision to workflow 1 (density) and workflow 16 (diagram). Source: tasks/parking-lot.md 2026-10-14 (Density; Left-handed / horizontal-neck). Tests: none — design deliverable (the workflow and home-book-format edits and the Theme-picker board updated)."
+    complete 100
+    note "Decide and draw two new user-chosen, synced preferences on the account screen's Preferences section beside theme and language: density (the theme.css densities, today locked at comfortable) and the chord diagram's display — left-handed mirror and vertical/horizontal neck, as Explore Chords offered — applied in the explorer and the in-song picker. Add the home-book registers to docs/home-book-format.md §4.1 and the decision to workflow 1 (density) and workflow 16 (diagram). Source: tasks/parking-lot.md 2026-10-14 (Density; Left-handed / horizontal-neck). Tests: none — design deliverable (the workflow and home-book-format edits and the Theme-picker board updated). Refinement: tasks/refinements/design/display_preferences.md"
   }
   task recovery_email "Setting a recovery email; deleting a passkey-only account" {
     effort 1d

@@ -136,7 +136,8 @@ component (§3.3).
 ### 3.2 Personal state
 
 Instruments, which instrument is in use, voicing rules, preferred notation,
-the theme, which variation is in use and how far a song is transposed,
+the theme, the density, how chord diagrams are drawn, which variation is in
+use and how far a song is transposed,
 *my shapes* — how the user plays a chord on an instrument, used wherever a
 song has chosen none (workflow 2): none of this belongs to a song. It lives in a **home book**, a repository
 like any other but committed automatically — explicit save is for what the
@@ -595,6 +596,14 @@ workflows do not yet cover, and work that comes before building:
   and unpushed saves, offering a fork or the download as for someone removed;
   the membership ends on the service before the device's copy goes, so the
   book stops being offered. No new workflow: the decision is workflow 10's.
+- **Display preferences**, decided (workflow 1 §Density, workflow 16 §How
+  diagrams are drawn) and drawn on
+  [mockups/Theme-picker.dc.html](mockups/Theme-picker.dc.html) — beside theme
+  and language in the Preferences section, a density (Compact, Comfortable,
+  Roomy) and the chord diagram's hand (left-handed mirror) and neck (vertical
+  or horizontal), each a synced home-book register (home-book-format §4.1),
+  applied on every screen and to every diagram the app draws, never changing
+  what a chart or a diagram says. No new workflow.
 
 ## 7. Workflows
 

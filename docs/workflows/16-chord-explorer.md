@@ -190,15 +190,47 @@ there is nothing here that waits on an account or a connection.
   typed, the explorer says the symbol is not one it can read and keeps the last
   good results dimmed, rather than emptying; *back* still returns to search.
 
+## How diagrams are drawn
+
+As Explore Chords offered, two display choices change how a shape is **drawn**,
+never which shapes are found, their ranking, their grouping or their
+shorthand:
+
+- **Hand** — **Right-handed** (the default) or **Left-handed**, the strings
+  drawn in the opposite order: on the vertical chord box an exact mirror, the
+  lowest string on the right, as a left-handed player sees their own
+  instrument.
+- **Neck** — **Vertical** (the default), the chord box with the nut at the top,
+  or **Horizontal**, the neck lying across with the nut at the left and the
+  frets running to the right — the lowest string at the top, at the bottom when
+  left-handed.
+
+They are chosen in the **Preferences** section of the account screen, beside
+theme, density and language (workflow 1; drawn in
+[the mockups](../mockups/Theme-picker.dc.html)), as two labelled choices with
+one live diagram drawn as the pair would draw it; the chosen ones marked by the
+word *Selected*. They are preferences, kept in the home book
+(home-book-format §4.1 `diagramHanded`, `diagramOrientation`), so they follow
+the user to every device; until chosen, right-handed and vertical.
+
+They apply to **every chord diagram the app draws** — the explorer's groups, the
+in-song picker (workflow 5), the diagrams beside a song (workflow 2), the
+wizard's and a conflict's diagrams, *my shapes* and entering a shape by hand —
+so a left-handed player never meets one drawn the other way. Entering a shape by
+hand follows them too: a tap lands on the string and fret drawn under the
+finger, and the shape recorded is the same whichever way it was drawn.
+
+What a diagram says does not change: its accessible name is still the music
+core's `describeFingering` sentence, which names strings by their order on the
+instrument, not by where they sit on the screen; the starting fret stays a
+plain number beside the first fret (the mockups' README, *Decisions the
+drawings carry*); *your shape* and *default*
+are drawn and said as before.
+
 ## Out of scope
 
 Decided to be **not** part of this screen:
 
-- **Left-handed and horizontal-neck diagrams.** Explore Chords had display
-  toggles (a horizontal neck, a left-handed mirror); the app draws the vertical
-  `ChordBox` only, and no Estante workflow carries the toggles. Whether Estante
-  wants them — and, if so, as a home-book preference — is a product judgment for
-  later, not an undrawn import.
 - **A *browse all my shapes* surface.** The explorer stars and unstars one chord
   at a time; there is no screen here to review or remove *your shapes* across
   chords. It may belong with the instrument-attached personal state workflow 15
