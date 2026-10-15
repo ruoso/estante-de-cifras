@@ -4,8 +4,9 @@
 // note prefilled from it; confirming commits the one file (or, for save all,
 // every changed song in the book in one commit) and the song is no longer
 // unsaved. Discard shows what would be lost and always asks. The first save ever
-// asks once for a name; the second does not. A save made offline commits locally
-// and persists. Axe runs at WCAG 2.1 AA on the sheet and the discard dialog.
+// asks once for a name; the second does not, nor does a save after a reload. A
+// save made offline commits locally and persists. Axe runs at WCAG 2.1 AA on the
+// sheet and the discard dialog.
 // Every test starts at `/`: search -> song -> Edit, all through the real UI.
 // Fixtures are the bundled example book — purpose-written songs.
 
@@ -122,6 +123,30 @@ test('the first save asks for a name and the second does not', async ({ page }) 
   await addSection(page, 'SecondCoda');
   const second = await openSaveSheet(page);
   await expect(second.getByRole('textbox', { name: /Your name/ })).toHaveCount(0);
+  await second.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(second).toBeHidden();
+});
+
+// The name is kept in the home book, not in the page: after a reload the sheet
+// still does not ask for it (workflow 4 §The save sheet: asked once, then kept).
+test('a name kept in the home book is not asked again after a reload', async ({ page, checkA11y }) => {
+  await openExampleBook(page);
+  await openMorning(page);
+  await addSection(page, 'NamedCoda');
+  const sheet = await openSaveSheet(page);
+  await sheet.getByRole('textbox', { name: /Your name/ }).fill('Marina Souza');
+  await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(sheet).toBeHidden();
+
+  await page.reload();
+  await openMorning(page);
+  await expect(page.locator('.cm-content')).toContainText('NamedCoda');
+
+  await addSection(page, 'ReloadCoda');
+  const second = await openSaveSheet(page);
+  await expect(second.getByText('What changed')).toBeVisible();
+  await expect(second.getByRole('textbox', { name: /Your name/ })).toHaveCount(0);
+  await checkA11y();
   await second.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(second).toBeHidden();
 });

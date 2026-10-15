@@ -150,6 +150,22 @@ function bootInviteSongAnchor() {
 export default function App({ store = getAppStore() }) {
   useHashRoute();
 
+  // Bring the Worker up once the app is on screen (store.js `open()`): it opens
+  // the database, reports READY, and surfaces the home book's preferences, shelf
+  // and instrument roster plus the device recents — what ThemeRoot, LocaleRoot,
+  // the header instrument chip and the save sheet's kept name read. It lives at
+  // the root, not in AppShell, so every mount the page can boot into sends it —
+  // the shell and each `#dev/*` mount alike (a reload straight into a dev mount
+  // would otherwise leave `preferences` empty) — and it sits above LocaleRoot,
+  // whose language-change remount therefore does not re-open (shell.dev_mount_open).
+  // Depends on the store only, so a hashchange re-render sends nothing more.
+  // Idempotent in the Worker (`ensureOpen`/`ensureIndexHydrated` are memoised)
+  // and the store is a singleton, so StrictMode's dev-only double-invoke is
+  // harmless; the inert no-op store (jsdom) has `open()` too.
+  useEffect(() => {
+    store.open?.();
+  }, [store]);
+
   // Capture the redeem token once at mount and clean the URL to `/` with
   // history.replaceState, so the single-use token does not linger in history or
   // a share (Decision 4). The surface runs the redeem; AppShell receives the

@@ -401,20 +401,6 @@ export default function AppShell({
     [store, editing],
   );
 
-  // Bring the Worker up once the shell is on screen (store.js `open()`): it
-  // opens the database, reports READY, and surfaces the home book's
-  // preferences, shelf and instrument roster plus the device recents — the
-  // bring-up that fills the header instrument chip with the in-use (or the
-  // standard-guitar default) instrument as soon as the shell paints, with no
-  // interaction (music.instruments §The roster; the chip is shell chrome, not a
-  // destination). Idempotent in the Worker (`ensureOpen`/`ensureIndexHydrated`
-  // are memoised) and the store is a singleton, so StrictMode's double-invoke
-  // cannot bring up twice; the inert no-op store (jsdom) has `open()` too, so
-  // the behaviour tests that mount the shell post to a dead endpoint and no-op.
-  useEffect(() => {
-    store.open?.();
-  }, [store]);
-
   // Start the invited flow for a token: show the working surface and send
   // ADD_BY_LINK. The Worker attempts the accept and replies NEED_ACCOUNT (no
   // session yet), BOOK_CLONED (joined) or BOOK_REFUSED (dead/full link). Reused

@@ -89,8 +89,9 @@ task shell "Shell" {
   task dev_mount_open "Every app mount brings the Worker up" {
     effort 0.5d
     allocate team
+    complete 100
     depends !layout
-    note "The Worker's OPEN command — which surfaces preferences, theme and instruments — is sent only from AppShell's mount effect (app/src/shell/AppShell.jsx:403-405). A cold boot or reload straight into a #dev/* mount (App.jsx ~176-192) never mounts AppShell, so preferences stay empty and, e.g., the save sheet asks 'Your name' again although authorName is durably in the home book. Users always boot through AppShell; this bites e2e tests that reload a dev mount. Move the open effect up into App (ensureOpen is memoised, the store a singleton). Source: tasks/parking-lot.md 2026-10-14 (SET_IDENTITY_NAME author-name durability). Tests: behavior (App mounting a dev route sends OPEN once); e2e-web (name set, a dev-mount editor reloaded, Save does not ask for the name)."
+    note "The Worker's OPEN command — which surfaces preferences, theme and instruments — is sent only from AppShell's mount effect (app/src/shell/AppShell.jsx:403-405). A cold boot or reload straight into a #dev/* mount (App.jsx ~176-192) never mounts AppShell, so preferences stay empty and, e.g., the save sheet asks 'Your name' again although authorName is durably in the home book. Users always boot through AppShell, and e2e specs may not use dev mounts (e2e/web/eslint.config.js), so it bites only a developer on a dev route — where it looks like a durability failure of the name. Move the open effect up into App (ensureOpen is memoised, the store a singleton). Source: tasks/parking-lot.md 2026-10-14 (SET_IDENTITY_NAME author-name durability). Tests: behavior (App mounting a dev route sends OPEN once); e2e-web (name set, the app reloaded, Save does not ask for the name — the durability the parking-lot entry asked about, through the real UI). Refinement: tasks/refinements/shell/dev_mount_open.md"
   }
   task header_chrome "The header as drawn: wordmark and a short instrument chip" {
     effort 1d
