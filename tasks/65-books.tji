@@ -47,6 +47,12 @@ task books "Books" {
     depends !online, sync.fork_follow, sync.lost_access, service.books
     note "Offered by saving where one cannot, losing access, or deliberately; replaces the original on the shelf; from Ana's Choros beneath it. Workflow 11. Tests: behavior (the three ways in, replacing the original on the shelf, from the original beneath; axe); e2e-web (make it my own after losing access and deliberately, then a new save of the original counted; axe). Open question the refinement must answer (tasks/parking-lot.md 2026-10-14, Editor lowered to reader with unpushed saves): an editor lowered to reader with saves not yet pushed gets a 403 on every push and the engine keeps the book on saves_waiting, retrying forever; workflow 10 L83-85 says they are told those saves can no longer go and offered a fork or the download. Decide whether that is this task's saving-where-one-cannot entry or a distinct engine change detecting the permanent 403."
   }
+  task bring_in "Bring them in, as drawn" {
+    effort 2d
+    allocate team
+    depends !fork, sync.fork_follow, !upload_ui
+    note "The Bring in Ana's saves screen (W11 board :102-135): N new saves since you last brought them in, the preview rows reusing the upload preview's, the prefilled note, the conflict notice, Not now / Bring them in, consuming PREVIEW_BRING_IN / BRING_IN / CANCEL_BRING_IN; the original is no longer shared with you notice on the book with its last brought-in date (:169), and the offline reply said plainly. Source of debt: tasks/refinements/sync/fork_follow.md (sync.fork_follow). Workflow 11. Tests: behavior (the preview screen and the notice with Testing Library and axe, keyboard paths through Not now and Bring them in, stale and unreachable replies); e2e-web (Ana's account pushes a new save to a book Bia forked, Bia brings it in on phone, tablet and computer; Bia removed from the original sees the notice; axe, mockup W11#2-3)."
+  }
   task upload_ui "Upload preview" {
     effort 2d
     allocate team

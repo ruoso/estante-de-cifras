@@ -59,14 +59,16 @@ type changeCheckRequest struct {
 }
 
 // shelfBookChange is one ShelfBookChange (api/openapi.yaml): a book with news.
-// This task emits only changed (with its new head) and gone; the unchanged
-// status and the originalNewSaves / originalGone fork fields are a later task's
-// (sync.fork_follow, workflow 11) and stay unset, so Head is the only optional
-// field — present for changed, omitted for gone.
+// Status is changed (with its new head), unchanged (reported only for a fork's
+// original — sync.fork_follow) or gone (no head). A fork the caller can access
+// may carry OriginalNewSaves (≥ 1) or OriginalGone (workflow 11 §Following the
+// original); both are omitted otherwise.
 type shelfBookChange struct {
-	BookID string  `json:"bookId"`
-	Status string  `json:"status"`
-	Head   *string `json:"head,omitempty"`
+	BookID           string  `json:"bookId"`
+	Status           string  `json:"status"`
+	Head             *string `json:"head,omitempty"`
+	OriginalNewSaves int     `json:"originalNewSaves,omitempty"`
+	OriginalGone     bool    `json:"originalGone,omitempty"`
 }
 
 // changeCheckResponse is ChangeCheckResponse (api/openapi.yaml): only the books
@@ -131,6 +133,25 @@ func handleChangeCheck(api *APIDeps) http.HandlerFunc {
 			return
 		}
 
+		// A fork follows its original (workflow 11 §Following the original;
+		// sync.fork_follow). For the accessible forks only — an inaccessible fork
+		// is answered exactly as any book and never carries a fork field
+		// (Constraint 4) — learn which originals the caller can still access, in
+		// one more query over the same predicate. Only the original the service
+		// recorded at fork time is ever consulted (one step — workflow 11 lines
+		// 37-38), so a fork of a fork never reports its grand-original.
+		var originalIDs []string
+		for _, b := range accessible {
+			if b.original != "" {
+				originalIDs = append(originalIDs, b.original)
+			}
+		}
+		originalAccessible, err := accessibleBooks(ctx, api, accountID, originalIDs)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "Could not run the change check.")
+			return
+		}
+
 		// One ref read per accessible book, cached so a book listed twice is read
 		// once (Constraint 2). heads holds the resolved SHA (ok=false for an empty
 		// book with no refs/heads/main yet).
@@ -149,20 +170,55 @@ func handleChangeCheck(api *APIDeps) http.HandlerFunc {
 			heads[id] = headResult{sha: sha, ok: ok}
 		}
 
+		// The fork fields, computed once per accessible fork. An original the
+		// caller can no longer access — removed from it, soft-deleted, taken down
+		// — or no longer recorded at all (its owner's account deleted nulled
+		// original_book_id; is_fork remembers it was a fork) is gone, all four
+		// answered alike. Otherwise the count of the original's saves the fork's
+		// pushed main lacks (CountNewSaves answers 0 when either main is absent).
+		type forkResult struct {
+			newSaves int
+			gone     bool
+		}
+		forks := make(map[string]forkResult)
+		for id, b := range accessible {
+			if !b.isFork {
+				continue
+			}
+			if b.original == "" || !originalAccessible[b.original].ok {
+				forks[id] = forkResult{gone: true}
+				continue
+			}
+			n, err := store.CountNewSaves(ctx, b.original, id)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, "internal", "Could not run the change check.")
+				return
+			}
+			forks[id] = forkResult{newSaves: n}
+		}
+
 		out := changeCheckResponse{Books: []shelfBookChange{}}
 		for _, b := range req.Books {
-			if accessible[b.BookID] {
+			if accessible[b.BookID].ok {
 				h := heads[b.BookID]
 				if !h.ok {
 					// An empty book with no main yet: nothing truthful to report,
 					// whether or not the device claims a head (Constraint 4).
 					continue
 				}
+				entry := shelfBookChange{BookID: b.BookID, Status: "unchanged"}
 				if b.Head == nil || *b.Head != h.sha {
 					sha := h.sha
-					out.Books = append(out.Books, shelfBookChange{BookID: b.BookID, Status: "changed", Head: &sha})
+					entry.Status = "changed"
+					entry.Head = &sha
 				}
-				// sha == deviceHead: in step, omitted.
+				f := forks[b.BookID]
+				entry.OriginalNewSaves = f.newSaves
+				entry.OriginalGone = f.gone
+				// In step and nothing from its original: omitted.
+				if entry.Status == "changed" || entry.OriginalNewSaves > 0 || entry.OriginalGone {
+					out.Books = append(out.Books, entry)
+				}
 				continue
 			}
 			// Not accessible — not a member, or deleted / taken down. A non-null
@@ -178,19 +234,28 @@ func handleChangeCheck(api *APIDeps) http.HandlerFunc {
 	}
 }
 
+// accessBook is one book the caller may access, with what the change check
+// needs to follow a fork's original: whether the row was made by a fork
+// (is_fork) and the original it recorded ("" when original_book_id is NULL).
+type accessBook struct {
+	ok       bool
+	isFork   bool
+	original string
+}
+
 // accessibleBooks returns the subset of ids the account may access as a live
 // book — owner or member of a book that is not deleted and not taken down — in
 // one query, reusing the resolveBookAccess predicate (books.go) over
 // id = ANY($ids). Access is binary here: the change check needs only "can the
-// caller read this book", not the role the git hook reads. An empty id list
-// skips the query.
-func accessibleBooks(ctx context.Context, api *APIDeps, accountID string, ids []string) (map[string]bool, error) {
-	accessible := make(map[string]bool, len(ids))
+// caller read this book", not the role the git hook reads. A missing id reads
+// as the zero accessBook (ok false). An empty id list skips the query.
+func accessibleBooks(ctx context.Context, api *APIDeps, accountID string, ids []string) (map[string]accessBook, error) {
+	accessible := make(map[string]accessBook, len(ids))
 	if len(ids) == 0 {
 		return accessible, nil
 	}
 	rows, err := api.DB.Query(ctx, `
-		SELECT b.id
+		SELECT b.id, b.is_fork, COALESCE(b.original_book_id::text, '')
 		FROM books b
 		LEFT JOIN memberships m ON m.book_id = b.id AND m.account_id = $2
 		WHERE b.id = ANY($1::uuid[])
@@ -203,11 +268,12 @@ func accessibleBooks(ctx context.Context, api *APIDeps, accountID string, ids []
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var id, original string
+		var isFork bool
+		if err := rows.Scan(&id, &isFork, &original); err != nil {
 			return nil, err
 		}
-		accessible[id] = true
+		accessible[id] = accessBook{ok: true, isFork: isFork, original: original}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

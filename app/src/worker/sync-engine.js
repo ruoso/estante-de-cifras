@@ -255,6 +255,15 @@ export function createSyncEngine(deps = {}) {
     // you* and takes nothing new until it is settled or abandoned (workflow 9
     // L38-45; Decision 4). Defaults to "never", so the clean engine is unchanged.
     hasInProgressMerge = () => false,
+    // Following an original (sync.fork_follow, workflow 11 §Following the
+    // original). `readOriginals` resolves the shelf's `original` registers as
+    // `{ [forkId]: { bookId, title, link, followedAt, goneAt? } }`;
+    // `recordOriginal({ bookId, original })` writes one back (the durable
+    // `goneAt`); `emitOriginal` posts the ORIGINAL fact. Absent, the engine
+    // follows nothing.
+    readOriginals = null,
+    recordOriginal = null,
+    emitOriginal = null,
   } = deps;
   const now = deps.now ?? Date.now;
   const homeBookId = deps.homeBookId ?? HOME_BOOK_ID;
@@ -768,6 +777,33 @@ export function createSyncEngine(deps = {}) {
     }
   }
 
+  // Learn what each followed fork's original did, from the pass's one change
+  // check (DIRECTION §3.3: no per-fork request, no fetch of the original —
+  // bringing in is never automatic, workflow 11 lines 42-44). For every shelf
+  // book whose `original` register is present and not gone, emit ORIGINAL with
+  // the count (0 when the change check said nothing, so a count clears after a
+  // bring-in). `originalGone` is final (sync.fork_follow Decision): `goneAt` is
+  // written to the register — durable, synced to the account's other devices —
+  // and from then on the fork's original is no longer consulted. None of it
+  // touches the fork's own SYNC phase (Constraint 2).
+  async function followOriginals(news) {
+    if (!readOriginals || !emitOriginal) return;
+    const originals = (await readOriginals()) ?? {};
+    for (const [bookId, original] of Object.entries(originals)) {
+      if (!original || original.goneAt) continue;
+      const change = news.get(bookId);
+      if (change?.originalGone === true) {
+        if (recordOriginal) {
+          await recordOriginal({ bookId, original: { ...original, goneAt: instant(now()) } });
+        }
+        emitOriginal({ bookId, newSaves: 0, gone: true });
+        continue;
+      }
+      const n = change?.originalNewSaves;
+      emitOriginal({ bookId, newSaves: Number.isInteger(n) && n > 0 ? n : 0, gone: false });
+    }
+  }
+
   /**
    * Run one sync pass: one change-check for every hosted book, then per book —
    * the home book to its own merge, a songbook to the cifra-aware fetch→merge→
@@ -799,6 +835,18 @@ export function createSyncEngine(deps = {}) {
       news = null;
     }
     const reachable = news !== null;
+
+    // The forks' originals, counted from the same answer. Unreachable: nothing
+    // is emitted, the last facts stand. Before the books so a `goneAt` written
+    // here rides this pass's home-book sync. A failure here is swallowed like a
+    // book's (offline-first; never logged).
+    if (reachable) {
+      try {
+        await followOriginals(news);
+      } catch {
+        /* the next pass counts again */
+      }
+    }
 
     for (const book of books) {
       try {

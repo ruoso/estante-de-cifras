@@ -149,6 +149,12 @@ export const initialState = {
   // entry (the panel and the save guard stand down). A book an event does not
   // touch keeps its entry reference. Starts empty: nothing paused yet.
   conflicts: {},
+  // A fork's original, per fork (sync.fork_follow, ORIGINAL), keyed by the
+  // fork's `bookId`: `{ newSaves, gone }` — how many saves its original has that
+  // the fork does not (*Ana's Choros has 3 new saves*, workflow 11 line 46), and
+  // whether the original is no longer shared with the user (following ends,
+  // :51-54). Empty until a pass reaches the service; only followed forks appear.
+  originals: {},
   // Every loaded book's setlists for the Setlists destination (books.setlists,
   // SETLISTS): `[{ bookId, path, title, count }]`, replaced whole on each
   // LIST_SETLISTS reply (like `shelf`/`mine`). `null` means "not listed yet",
@@ -525,6 +531,24 @@ export function reduce(state, message) {
             deleted: message.payload?.deleted ?? [],
             incoming: message.payload?.incoming ?? [],
             savesHeld: message.payload?.savesHeld ?? [],
+          },
+        },
+      };
+    }
+
+    case EventKind.ORIGINAL: {
+      // A fork's original was counted on a pass (sync.fork_follow): set it under
+      // the fork's key, whole-entry replace like SYNC, so a count that cleared
+      // after a bring-in reads 0. Only this fork's entry moves.
+      const bookId = message.payload?.bookId;
+      if (!bookId) return state;
+      return {
+        ...state,
+        originals: {
+          ...state.originals,
+          [bookId]: {
+            newSaves: message.payload?.newSaves ?? 0,
+            gone: message.payload?.gone === true,
           },
         },
       };

@@ -370,6 +370,21 @@ export const CommandKind = Object.freeze({
   PREVIEW_UPLOAD: 'preview_upload',
   IMPORT_UPLOAD: 'import_upload',
   CANCEL_UPLOAD: 'cancel_upload',
+  // Following an original (sync.fork_follow, workflow 11 §Following the
+  // original). Bringing in is never automatic: a pass only counts (ORIGINAL).
+  // PREVIEW_BRING_IN `{ bookId }` — under the fork's lock, fetch the original's
+  // `link` (the shelf's `original` register) into `refs/remotes/original/main`
+  // and classify song by song as an upload does, writing nothing to the fork;
+  // replies BRING_IN_PREVIEW. BRING_IN `{ bookId, followId, note, author? }` —
+  // merge that ref into `main` as a merge commit (never a fast-forward) carrying
+  // `note` as its message, unsaved edits carried on top, push to the fork's own
+  // remote and move the register's `followedAt`; replies BRING_IN_DONE. A
+  // `followId` that no longer matches (a second preview, a pass that moved
+  // `main`) is refused as `stale`. CANCEL_BRING_IN `{ bookId, followId }` drops
+  // the fetched ref. The views are books.bring_in's and books.fork's.
+  PREVIEW_BRING_IN: 'preview_bring_in',
+  BRING_IN: 'bring_in',
+  CANCEL_BRING_IN: 'cancel_bring_in',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -628,6 +643,28 @@ export const EventKind = Object.freeze({
   // never whole song text (standing rule). The target book is not mutated. The
   // `uploadPreview` ephemeral view state the books.upload_ui screen renders.
   UPLOAD_PREVIEW: 'upload_preview',
+  // A fork's original, learned on a sync pass (sync.fork_follow, workflow 11
+  // lines 42-46, 51-54): `{ bookId, newSaves, gone }` for every shelf book whose
+  // `original` register is present and not yet gone — `newSaves` the number of
+  // saves on the original the fork does not have (0 when the change check said
+  // nothing, so a count clears after a bring-in), `gone` true once the original
+  // is no longer shared with the user (following ends; the register's `goneAt`
+  // records it). An unreachable change check emits nothing — the last facts
+  // stand. Never touches the fork's own SYNC phase. Folded into the `originals`
+  // reducer slice by bookId.
+  ORIGINAL: 'original',
+  // The bring-in preview, in reply to PREVIEW_BRING_IN: `{ bookId, followId,
+  // original: { bookId, title }, newSaves, previews }` — `previews` the upload's
+  // row shape `{ path, title, status, changes?, summary?, line? }`, `followId`
+  // the token BRING_IN / CANCEL_BRING_IN quote. `{ bookId, gone: true }` when
+  // the original refused the fetch (removed, deleted, taken down — following
+  // ends, the fork untouched); `{ bookId, error: 'unreachable' }` when it could
+  // not be reached (offline, 5xx), nothing recorded. Never song text.
+  BRING_IN_PREVIEW: 'bring_in_preview',
+  // The bring-in outcome, in reply to BRING_IN: `{ bookId, kind: 'merged',
+  // pushed }`, `{ bookId, kind: 'needs_you' }` (a conflict handed to workflow 9,
+  // its incoming ref `refs/remotes/original/main`) or `{ bookId, kind: 'stale' }`.
+  BRING_IN_DONE: 'bring_in_done',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

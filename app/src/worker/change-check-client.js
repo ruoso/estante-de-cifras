@@ -32,7 +32,8 @@ const MAX_BOOKS = 500;
  *
  * @param {{ fetch?: typeof globalThis.fetch }} [options]
  * @returns {{ check: (books: Array<{ bookId: string, head: string|null }>) =>
- *   Promise<Map<string, { bookId: string, status: 'changed'|'unchanged'|'gone', head?: string }>> }}
+ *   Promise<Map<string, { bookId: string, status: 'changed'|'unchanged'|'gone', head?: string,
+ *     originalNewSaves?: number, originalGone?: boolean }>> }}
  */
 export function createChangeCheckClient(options = {}) {
   const fetchImpl = options.fetch ?? globalThis.fetch;
@@ -40,9 +41,11 @@ export function createChangeCheckClient(options = {}) {
   /**
    * Ask the service which of `books` moved. Each entry is `{ bookId, head }`
    * with `head` null when the device holds nothing yet (an empty book, L1070).
-   * Resolves to a Map keyed by book id carrying only the books with news —
-   * `changed` (with its new `head`) or `gone`; an unchanged book is omitted by
-   * the service and so absent from the Map (L1114-1116). Rejects when the
+   * Resolves to a Map keyed by book id carrying every entry the service named —
+   * `changed` (with its new `head`), `gone`, or `unchanged` (a fork reported only
+   * for its original) — with a fork's `originalNewSaves` / `originalGone` passed
+   * through on any of them (sync.fork_follow AC5; workflow 11). A book with no
+   * news at all is omitted by the service and so absent from the Map. Rejects when the
    * service cannot be reached or answers non-2xx; the engine treats that as "no
    * news this pass" (offline-first).
    */
@@ -76,7 +79,14 @@ export function createChangeCheckClient(options = {}) {
     const body = await response.json();
     const map = new Map();
     for (const change of body?.books ?? []) {
-      if (change?.bookId) map.set(change.bookId, change);
+      if (!change?.bookId) continue;
+      const entry = { bookId: change.bookId, status: change.status };
+      if (change.head !== undefined) entry.head = change.head;
+      // A fork's original (workflow 11 §Following the original): kept on every
+      // status, so the engine counts it whether or not the fork itself moved.
+      if (typeof change.originalNewSaves === 'number') entry.originalNewSaves = change.originalNewSaves;
+      if (change.originalGone === true) entry.originalGone = true;
+      map.set(change.bookId, entry);
     }
     return map;
   }

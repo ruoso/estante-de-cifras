@@ -1239,10 +1239,18 @@ components:
         originalNewSaves:
           type: integer
           minimum: 1
-          description: How many new saves the fork's original has (workflow 11).
+          description: >-
+            How many saves (non-merge commits) are on the original's main not yet
+            in the fork's main, as pushed (workflow 11). Reported only for a fork
+            the caller can access whose original the caller can still access.
+            Omitted when the fork is in step with its original.
         originalGone:
           type: boolean
-          description: The fork's original is no longer available; following ends (workflow 11).
+          description: >-
+            The fork's original is no longer available to the caller — the caller
+            was removed from it, it was deleted, it was taken down, or its owner's
+            account was deleted (all four answered alike); following ends
+            (workflow 11). Reported only for a fork the caller can access.
 
     ChangeCheckResponse:
       type: object

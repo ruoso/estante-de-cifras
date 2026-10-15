@@ -1,7 +1,12 @@
 package book
 
 import (
+	"context"
+	"io/fs"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -89,5 +94,123 @@ func TestTitleFromREADMEFallsBackToPlaceholder(t *testing.T) {
 				t.Errorf("titleFromREADME placeholder is empty, want non-empty")
 			}
 		})
+	}
+}
+
+// git runs the host git in dir for the CountNewSaves fixture, failing the test
+// on error, and returns its trimmed stdout.
+func git(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_TERMINAL_PROMPT=0",
+		"GIT_AUTHOR_NAME=Seed Author", "GIT_AUTHOR_EMAIL=seed@estante.test",
+		"GIT_COMMITTER_NAME=Seed Author", "GIT_COMMITTER_EMAIL=seed@estante.test")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// commitFile writes one file in the work tree and commits it.
+func commitFile(t *testing.T, work, name, body, msg string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(work, name), []byte(body), 0o644); err != nil {
+		t.Fatalf("write %s: %v", name, err)
+	}
+	git(t, work, "add", name)
+	git(t, work, "-c", "commit.gpgsign=false", "commit", "-q", "-m", msg)
+}
+
+// repoSnapshot lists a bare repository's refs and every file under objects/, the
+// state CountNewSaves must leave exactly as it found it.
+func repoSnapshot(t *testing.T, bare string) string {
+	t.Helper()
+	refs := git(t, bare, "for-each-ref")
+	var files []string
+	if err := filepath.WalkDir(filepath.Join(bare, "objects"), func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			files = append(files, p)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("walk objects: %v", err)
+	}
+	sort.Strings(files)
+	return refs + "\n" + strings.Join(files, "\n")
+}
+
+// TestCountNewSaves pins sync.fork_follow AC2, workflow 11 line 46 ("Ana's
+// Choros has 3 new saves") and Constraint 3: on a fork made by Store.Fork, two
+// saves and one merge commit landing on the original count 2 (a save is a
+// non-merge commit); once the fork has merged them the count is 0; an empty
+// original counts 0; and counting changes neither repository's refs or objects.
+func TestCountNewSaves(t *testing.T) {
+	ctx := context.Background()
+	s := Store{Root: t.TempDir()}
+	const origID = "4f8c0b2e-1a3d-4c5e-8b7a-9d0e1f2a3b4c"
+	const forkID = "5a9d1c3f-2b4e-4d6f-9c8b-0e1f2a3b4c5d"
+	const emptyID = "6b0e2d4a-3c5f-4e7a-8d9c-1f2a3b4c5d6e"
+	origPath := filepath.Join(s.Root, origID+".git")
+	forkPath := filepath.Join(s.Root, forkID+".git")
+
+	if err := s.InitBare(ctx, origID); err != nil {
+		t.Fatalf("init original: %v", err)
+	}
+	work := filepath.Join(t.TempDir(), "wc")
+	git(t, filepath.Dir(work), "clone", "-q", origPath, work)
+	git(t, work, "checkout", "-q", "-b", "main")
+	commitFile(t, work, "README.md", "# Choros de Teste\n", "seed")
+	git(t, work, "push", "-q", "origin", "main")
+
+	if err := s.Fork(ctx, origID, forkID); err != nil {
+		t.Fatalf("fork: %v", err)
+	}
+	if n, err := s.CountNewSaves(ctx, origID, forkID); err != nil || n != 0 {
+		t.Fatalf("fresh fork: CountNewSaves = %d, %v; want 0", n, err)
+	}
+
+	// Two saves on the original, joined by one merge commit (as the original's
+	// own sync between two members makes): A on main, B on a side line, M merges.
+	git(t, work, "checkout", "-q", "-b", "side")
+	commitFile(t, work, "valsa.cifra.md", "# Valsa\n", "save B")
+	git(t, work, "checkout", "-q", "main")
+	commitFile(t, work, "choro.cifra.md", "# Choro\n", "save A")
+	git(t, work, "-c", "commit.gpgsign=false", "merge", "-q", "--no-ff", "-m", "sync merge", "side")
+	git(t, work, "push", "-q", "origin", "main")
+
+	before := repoSnapshot(t, origPath) + repoSnapshot(t, forkPath)
+	n, err := s.CountNewSaves(ctx, origID, forkID)
+	if err != nil {
+		t.Fatalf("CountNewSaves: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("two saves and a merge on the original: CountNewSaves = %d, want 2 (merges are not saves)", n)
+	}
+	if after := repoSnapshot(t, origPath) + repoSnapshot(t, forkPath); after != before {
+		t.Errorf("CountNewSaves changed a repository's refs or objects")
+	}
+
+	// The fork saves on its own, then brings the original in with a merge.
+	fwork := filepath.Join(t.TempDir(), "fwc")
+	git(t, filepath.Dir(fwork), "clone", "-q", forkPath, fwork)
+	commitFile(t, fwork, "minha.cifra.md", "# Minha\n", "fork's own save")
+	git(t, fwork, "fetch", "-q", origPath, "main:refs/remotes/original/main")
+	git(t, fwork, "-c", "commit.gpgsign=false", "merge", "-q", "--no-ff", "-m", "Bring in", "refs/remotes/original/main")
+	git(t, fwork, "push", "-q", "origin", "main")
+	if n, err := s.CountNewSaves(ctx, origID, forkID); err != nil || n != 0 {
+		t.Errorf("after the fork merged them: CountNewSaves = %d, %v; want 0", n, err)
+	}
+
+	// An original with no main yet has nothing to bring in.
+	if err := s.InitBare(ctx, emptyID); err != nil {
+		t.Fatalf("init empty: %v", err)
+	}
+	if n, err := s.CountNewSaves(ctx, emptyID, forkID); err != nil || n != 0 {
+		t.Errorf("empty original: CountNewSaves = %d, %v; want 0", n, err)
 	}
 }

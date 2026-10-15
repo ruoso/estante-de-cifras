@@ -74,6 +74,36 @@ describe('change-check client (unit)', () => {
     expect(news.has('book-c')).toBe(false); // unchanged → omitted
   });
 
+  // sync.fork_follow AC5 (workflow 11 lines 46, 51-54): an `unchanged` entry —
+  // a fork reported only for its original — is kept, and a fork's
+  // `originalNewSaves` / `originalGone` ride through on every status.
+  it('keeps unchanged entries and passes the fork fields through on every status', async () => {
+    const head = 'c'.repeat(40);
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        books: [
+          { bookId: 'fork-a', status: 'unchanged', originalNewSaves: 3 },
+          { bookId: 'fork-b', status: 'changed', head, originalNewSaves: 1 },
+          { bookId: 'fork-c', status: 'unchanged', originalGone: true },
+          { bookId: 'fork-d', status: 'gone' },
+        ],
+      }),
+    );
+    const client = createChangeCheckClient({ fetch: fetchImpl });
+
+    const news = await client.check([
+      { bookId: 'fork-a', head: 'a'.repeat(40) },
+      { bookId: 'fork-b', head: 'a'.repeat(40) },
+      { bookId: 'fork-c', head: 'a'.repeat(40) },
+      { bookId: 'fork-d', head: 'a'.repeat(40) },
+    ]);
+
+    expect(news.get('fork-a')).toEqual({ bookId: 'fork-a', status: 'unchanged', originalNewSaves: 3 });
+    expect(news.get('fork-b')).toEqual({ bookId: 'fork-b', status: 'changed', head, originalNewSaves: 1 });
+    expect(news.get('fork-c')).toEqual({ bookId: 'fork-c', status: 'unchanged', originalGone: true });
+    expect(news.get('fork-d')).toStrictEqual({ bookId: 'fork-d', status: 'gone' });
+  });
+
   it('rejects (for the engine to treat as "no news") on a non-2xx and logs nothing', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

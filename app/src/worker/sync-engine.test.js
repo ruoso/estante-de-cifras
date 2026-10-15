@@ -478,3 +478,115 @@ Second chorus line
     expect(marked).toBe(false);
   });
 });
+
+// unit — following an original (sync.fork_follow AC6, Constraint 2; workflow 11
+// lines 42-46, 51-54). A pass emits ORIGINAL for each followed fork from the one
+// change check: the count, 0 when absent, `gone` (with `goneAt` recorded) on
+// `originalGone`; nothing for a fork already gone; nothing when the change check
+// is unreachable; and the fork's own SYNC phase is never moved by any of it.
+describe('sync engine following an original (unit)', () => {
+  const ORIGINAL = {
+    bookId: 'orig',
+    title: 'Choros de Teste',
+    link: 'https://estante.test/git/orig',
+    followedAt: '2026-09-28T10:00:00.000Z',
+  };
+
+  function makeFollowEngine({ news, originals, unreachable = false }) {
+    const facts = [];
+    const followed = [];
+    const recordOriginal = vi.fn(async () => {});
+    const engine = createSyncEngine({
+      git,
+      locks: { withLock: (_id, fn) => fn() },
+      changeCheck: {
+        check: vi.fn(async () => {
+          if (unreachable) throw new TypeError('Failed to fetch');
+          return new Map(news);
+        }),
+      },
+      resolveAuthor: async () => ({ id: 'device', name: 'Device' }),
+      emit: (payload) => facts.push(payload),
+      listBooks: async () => Object.keys(originals).map((bookId) => ({
+        bookId,
+        head: 'h',
+        hosted: true,
+        home: false,
+      })),
+      fetchBook: vi.fn(async () => {}),
+      mergeBook: vi.fn(async () => ({ merged: false })),
+      pushBook: vi.fn(async () => {}),
+      localAhead: async () => false,
+      treeDirty: async () => false,
+      countAhead: async () => 0,
+      readOriginals: async () => originals,
+      recordOriginal,
+      emitOriginal: (payload) => followed.push(payload),
+      now: () => Date.parse('2026-10-15T12:00:00.000Z'),
+    });
+    return { engine, facts, followed, recordOriginal };
+  }
+
+  it('emits the count for a fork whose original advanced, and 0 for one the check did not name', async () => {
+    const { engine, facts, followed } = makeFollowEngine({
+      news: [['fork1', { bookId: 'fork1', status: 'unchanged', originalNewSaves: 3 }]],
+      originals: { fork1: ORIGINAL, fork2: { ...ORIGINAL, bookId: 'orig2' } },
+    });
+    await engine.pass();
+    expect(followed).toEqual([
+      { bookId: 'fork1', newSaves: 3, gone: false },
+      { bookId: 'fork2', newSaves: 0, gone: false },
+    ]);
+    // The fork itself is in step: `unchanged` because of its original is not a
+    // reason to fetch it (Constraint 2).
+    expect(lastPhase(facts, 'fork1')).toBe('in_step');
+    expect(lastPhase(facts, 'fork2')).toBe('in_step');
+  });
+
+  it('on originalGone records goneAt and emits gone, leaving the fork in step', async () => {
+    const { engine, facts, followed, recordOriginal } = makeFollowEngine({
+      news: [['fork1', { bookId: 'fork1', status: 'unchanged', originalGone: true }]],
+      originals: { fork1: ORIGINAL },
+    });
+    await engine.pass();
+    expect(recordOriginal).toHaveBeenCalledWith({
+      bookId: 'fork1',
+      original: { ...ORIGINAL, goneAt: '2026-10-15T12:00:00.000Z' },
+    });
+    expect(followed).toEqual([{ bookId: 'fork1', newSaves: 0, gone: true }]);
+    expect(lastPhase(facts, 'fork1')).toBe('in_step');
+    expect(facts.some((f) => f.bookId === 'fork1' && f.phase === 'gone')).toBe(false);
+  });
+
+  it('emits nothing for a fork already gone, even if a count arrives', async () => {
+    const { engine, followed, recordOriginal } = makeFollowEngine({
+      news: [['fork1', { bookId: 'fork1', status: 'unchanged', originalNewSaves: 2 }]],
+      originals: { fork1: { ...ORIGINAL, goneAt: '2026-10-01T00:00:00.000Z' } },
+    });
+    await engine.pass();
+    expect(followed).toEqual([]);
+    expect(recordOriginal).not.toHaveBeenCalled();
+  });
+
+  it('emits nothing when the change check is unreachable (the last facts stand)', async () => {
+    const { engine, facts, followed, recordOriginal } = makeFollowEngine({
+      news: [],
+      originals: { fork1: ORIGINAL },
+      unreachable: true,
+    });
+    await engine.pass();
+    expect(followed).toEqual([]);
+    expect(recordOriginal).not.toHaveBeenCalled();
+    expect(lastPhase(facts, 'fork1')).toBe('offline');
+  });
+
+  it('a fork that moved itself still syncs as any book, with its original counted', async () => {
+    const { engine, facts, followed } = makeFollowEngine({
+      news: [['fork1', { bookId: 'fork1', status: 'changed', head: 'n', originalNewSaves: 1 }]],
+      originals: { fork1: ORIGINAL },
+    });
+    await engine.pass();
+    expect(followed).toEqual([{ bookId: 'fork1', newSaves: 1, gone: false }]);
+    expect(lastPhase(facts, 'fork1')).toBe('in_step');
+  });
+});

@@ -243,6 +243,33 @@ describe('worker store reducer', () => {
     expect(reduce(initialState, event(EventKind.BOOK_LOG, {}))).toBe(initialState);
   });
 
+  // sync.fork_follow AC6: the `originals` slice — a fork's original counted on a
+  // pass (workflow 11 line 46) or gone (:51-54), whole-entry per fork.
+  it('folds ORIGINAL into the originals slice per fork, leaving other forks and slices untouched', () => {
+    expect(initialState.originals).toEqual({});
+    const a = reduce(
+      initialState,
+      event(EventKind.ORIGINAL, { bookId: 'fork-1', newSaves: 3, gone: false }),
+    );
+    expect(a.originals['fork-1']).toEqual({ newSaves: 3, gone: false });
+    expect(Object.is(a.sync, initialState.sync)).toBe(true);
+
+    const b = reduce(a, event(EventKind.ORIGINAL, { bookId: 'fork-2', newSaves: 0, gone: true }));
+    expect(b.originals['fork-2']).toEqual({ newSaves: 0, gone: true });
+    expect(Object.is(b.originals['fork-1'], a.originals['fork-1'])).toBe(true);
+
+    // A count clears after a bring-in: the whole entry is replaced.
+    const c = reduce(b, event(EventKind.ORIGINAL, { bookId: 'fork-1', newSaves: 0, gone: false }));
+    expect(c.originals['fork-1']).toEqual({ newSaves: 0, gone: false });
+
+    // Missing fields default; a payload with no bookId does not churn.
+    expect(reduce(initialState, event(EventKind.ORIGINAL, { bookId: 'f' })).originals.f).toEqual({
+      newSaves: 0,
+      gone: false,
+    });
+    expect(reduce(initialState, event(EventKind.ORIGINAL, { newSaves: 2 }))).toBe(initialState);
+  });
+
   it('returns the same state reference for a command, a malformed message, or an unknown event kind', () => {
     expect(reduce(initialState, command(CommandKind.OPEN))).toBe(initialState);
     expect(reduce(initialState, null)).toBe(initialState);

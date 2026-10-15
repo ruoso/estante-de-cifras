@@ -37,6 +37,32 @@ describe('surfaceShelf (unit)', () => {
     expect(payload.local).toEqual({});
   });
 
+  // sync.fork_follow AC7: a fork's `original` is one register whose value is an
+  // object — projected whole, as are the `role` register and the rest.
+  it('projects a fork\'s `original` register whole, with `role` (§4.2)', () => {
+    const original = {
+      bookId: 'b-orig',
+      title: 'Choros de Teste',
+      link: 'https://example.test/git/b-orig',
+      followedAt: AT1,
+      goneAt: AT2,
+    };
+    const out = surfaceShelf(
+      {
+        books: {
+          'b-fork': {
+            label: { value: 'Choros de Teste', at: AT1 },
+            role: { value: 'owner', at: AT1 },
+            original: { value: original, at: AT2 },
+          },
+        },
+      },
+      THIS_DEVICE,
+    );
+    expect(out.books['b-fork'].original).toEqual({ value: original, at: AT2 });
+    expect(out.books['b-fork'].role).toEqual({ value: 'owner', at: AT1 });
+  });
+
   it('narrows `local` to this device, excluding another device (§7 L445-463)', () => {
     const model = {
       local: {

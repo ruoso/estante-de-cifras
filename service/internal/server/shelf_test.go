@@ -313,3 +313,215 @@ func TestChangeCheckRequestAndAuthEdges(t *testing.T) {
 		t.Errorf("empty books answer = %+v, want no books", out.Books)
 	}
 }
+
+// saveOn lands one save (a non-merge commit adding the named song) on a bare
+// repository's main — a member saving and pushing.
+func saveOn(t *testing.T, barePath, song string) {
+	t.Helper()
+	parent := t.TempDir()
+	clone := filepath.Join(parent, "wc")
+	gitRun(t, parent, "clone", "-q", barePath, clone)
+	gitRun(t, clone, "config", "user.email", "seed@estante.test")
+	gitRun(t, clone, "config", "user.name", "Seed Author")
+	gitRun(t, clone, "config", "commit.gpgsign", "false")
+	if err := os.WriteFile(filepath.Join(clone, song), []byte("# "+song+"\n"), 0o644); err != nil {
+		t.Fatalf("write song: %v", err)
+	}
+	gitRun(t, clone, "add", song)
+	gitRun(t, clone, "commit", "-q", "-m", "save "+song)
+	gitRun(t, clone, "push", "-q", "origin", "main")
+}
+
+// bringInto merges the original's main into the fork's main with a merge commit
+// and pushes it — what a bring-in does (workflow 11 lines 47-48).
+func bringInto(t *testing.T, originalBare, forkBare string) {
+	t.Helper()
+	parent := t.TempDir()
+	clone := filepath.Join(parent, "wc")
+	gitRun(t, parent, "clone", "-q", forkBare, clone)
+	gitRun(t, clone, "config", "user.email", "seed@estante.test")
+	gitRun(t, clone, "config", "user.name", "Seed Author")
+	gitRun(t, clone, "config", "commit.gpgsign", "false")
+	gitRun(t, clone, "fetch", "-q", originalBare, "main:refs/remotes/original/main")
+	gitRun(t, clone, "merge", "-q", "--no-ff", "-m", "Bring in", "refs/remotes/original/main")
+	gitRun(t, clone, "push", "-q", "origin", "main")
+}
+
+// forkSetup makes Ana's book with a first commit, shares it with Bia as reader
+// and has Bia fork it over HTTP (workflow 11 §Making a copy).
+func forkSetup(t *testing.T, e *booksEnv) (anaCookie, original, biaID, biaCookie, fork string) {
+	t.Helper()
+	_, anaCookie = e.registerNewAccount(t)
+	src := e.createBook(t, anaCookie, "Choros de Teste")
+	seedREADME(t, e.repoPath(src.ID), "Choros de Teste")
+	biaID, biaCookie = e.registerNewAccount(t)
+	e.insertMembership(t, src.ID, biaID, "reader")
+	f := e.forkBook(t, biaCookie, src.ID)
+	return anaCookie, src.ID, biaID, biaCookie, f.ID
+}
+
+func (e *booksEnv) exec(t *testing.T, sql string, args ...any) {
+	t.Helper()
+	if _, err := e.pool.Exec(context.Background(), sql, args...); err != nil {
+		t.Fatalf("%s: %v", sql, err)
+	}
+}
+
+// TestChangeCheckForkOriginalNewSaves pins workflow 11 lines 46-48 and
+// sync.fork_follow AC1: a fork in step with an original that advanced two saves
+// answers {status: unchanged, originalNewSaves: 2}; the fork having moved too
+// answers changed with its head and the count; once the fork's main includes
+// them the fork is omitted.
+func TestChangeCheckForkOriginalNewSaves(t *testing.T) {
+	e := newBooksEnv(t)
+	_, original, _, biaCookie, fork := forkSetup(t, e)
+	forkHead := headRev(t, e.repoPath(fork))
+
+	// In step, nothing new on the original: omitted.
+	_, out := e.changeCheck(t, biaCookie, ccBody(t, headEntry(fork, forkHead)))
+	if c, ok := changeByID(out, fork); ok {
+		t.Errorf("fresh fork = %+v, want omitted", c)
+	}
+
+	saveOn(t, e.repoPath(original), "carinhoso.cifra.md")
+	saveOn(t, e.repoPath(original), "lamentos.cifra.md")
+	_, out = e.changeCheck(t, biaCookie, ccBody(t, headEntry(fork, forkHead)))
+	c, ok := changeByID(out, fork)
+	if !ok || c.Status != "unchanged" || c.Head != nil || c.OriginalNewSaves != 2 || c.OriginalGone {
+		t.Errorf("original two saves ahead = %+v (ok=%v), want unchanged, no head, originalNewSaves 2", c, ok)
+	}
+
+	// The fork itself moves too: changed with its new head, and still the count.
+	saveOn(t, e.repoPath(fork), "minha.cifra.md")
+	forkHead1 := headRev(t, e.repoPath(fork))
+	_, out = e.changeCheck(t, biaCookie, ccBody(t, headEntry(fork, forkHead)))
+	c, ok = changeByID(out, fork)
+	if !ok || c.Status != "changed" || c.Head == nil || *c.Head != forkHead1 || c.OriginalNewSaves != 2 {
+		t.Errorf("fork and original both moved = %+v (ok=%v), want changed at %q with originalNewSaves 2", c, ok, forkHead1)
+	}
+
+	// Brought in: the fork's main includes them, so nothing more to report.
+	bringInto(t, e.repoPath(original), e.repoPath(fork))
+	forkHead2 := headRev(t, e.repoPath(fork))
+	_, out = e.changeCheck(t, biaCookie, ccBody(t, headEntry(fork, forkHead2)))
+	if c, ok := changeByID(out, fork); ok {
+		t.Errorf("after the bring-in = %+v, want omitted", c)
+	}
+}
+
+// TestChangeCheckForkOriginalGone pins workflow 11 lines 51-54 and Constraint 4:
+// the caller removed from the original, the original soft-deleted, taken down,
+// and its row gone (original_book_id nulled, as its owner's account deletion
+// does) each answer originalGone: true — alike — while the fork itself is not
+// gone.
+func TestChangeCheckForkOriginalGone(t *testing.T) {
+	e := newBooksEnv(t)
+	_, original, biaID, biaCookie, fork := forkSetup(t, e)
+	forkHead := headRev(t, e.repoPath(fork))
+
+	wantGone := func(cause string) {
+		t.Helper()
+		_, out := e.changeCheck(t, biaCookie, ccBody(t, headEntry(fork, forkHead)))
+		c, ok := changeByID(out, fork)
+		if !ok || c.Status != "unchanged" || !c.OriginalGone || c.OriginalNewSaves != 0 || c.Head != nil {
+			t.Errorf("%s: fork = %+v (ok=%v), want unchanged with originalGone and no count", cause, c, ok)
+		}
+	}
+
+	// The original advanced, so a count would show were it not gone.
+	saveOn(t, e.repoPath(original), "carinhoso.cifra.md")
+
+	e.exec(t, `DELETE FROM memberships WHERE book_id = $1 AND account_id = $2`, original, biaID)
+	wantGone("removed from the original")
+	e.insertMembership(t, original, biaID, "reader")
+
+	e.exec(t, `UPDATE books SET deleted_at = now() WHERE id = $1`, original)
+	wantGone("original deleted")
+	e.exec(t, `UPDATE books SET deleted_at = NULL WHERE id = $1`, original)
+
+	e.exec(t, `UPDATE books SET taken_down_reason = 'dmca' WHERE id = $1`, original)
+	wantGone("original taken down")
+	e.exec(t, `UPDATE books SET taken_down_reason = NULL WHERE id = $1`, original)
+
+	// Sanity: restored, the fork counts again.
+	_, out := e.changeCheck(t, biaCookie, ccBody(t, headEntry(fork, forkHead)))
+	if c, ok := changeByID(out, fork); !ok || c.OriginalNewSaves != 1 || c.OriginalGone {
+		t.Errorf("restored original = %+v (ok=%v), want originalNewSaves 1", c, ok)
+	}
+
+	e.exec(t, `UPDATE books SET original_book_id = NULL WHERE id = $1`, fork)
+	wantGone("original's row gone")
+}
+
+// TestChangeCheckForkOfForkOneStep pins workflow 11 lines 37-38: a fork of a
+// fork follows one step only — it reports its own original's saves, never its
+// grand-original's.
+func TestChangeCheckForkOfForkOneStep(t *testing.T) {
+	e := newBooksEnv(t)
+	_, grand, _, biaCookie, middle := forkSetup(t, e)
+	middleHead := headRev(t, e.repoPath(middle))
+	carlaID, carlaCookie := e.registerNewAccount(t)
+	e.insertMembership(t, middle, carlaID, "reader")
+	leaf := e.forkBook(t, carlaCookie, middle).ID
+	leafHead := headRev(t, e.repoPath(leaf))
+
+	// The grand-original advances two saves; the middle fork does not.
+	saveOn(t, e.repoPath(grand), "carinhoso.cifra.md")
+	saveOn(t, e.repoPath(grand), "lamentos.cifra.md")
+
+	_, out := e.changeCheck(t, carlaCookie, ccBody(t, headEntry(leaf, leafHead)))
+	if c, ok := changeByID(out, leaf); ok {
+		t.Errorf("fork of a fork whose original did not move = %+v, want omitted (one step only)", c)
+	}
+	_, out = e.changeCheck(t, biaCookie, ccBody(t, headEntry(middle, middleHead)))
+	if c, ok := changeByID(out, middle); !ok || c.OriginalNewSaves != 2 {
+		t.Errorf("middle fork = %+v (ok=%v), want originalNewSaves 2", c, ok)
+	}
+
+	// Its own original saves once: that, and only that, is counted.
+	saveOn(t, e.repoPath(middle), "minha.cifra.md")
+	_, out = e.changeCheck(t, carlaCookie, ccBody(t, headEntry(leaf, leafHead)))
+	if c, ok := changeByID(out, leaf); !ok || c.Status != "unchanged" || c.OriginalNewSaves != 1 {
+		t.Errorf("fork of a fork = %+v (ok=%v), want unchanged with originalNewSaves 1", c, ok)
+	}
+}
+
+// TestChangeCheckNotAFork pins Constraint 4: a plain book never carries a fork
+// field, and a fork the caller cannot access is answered exactly as any book —
+// gone, with no fork field — even when its original advanced or went away.
+func TestChangeCheckNotAFork(t *testing.T) {
+	e := newBooksEnv(t)
+	anaCookie, original, _, biaCookie, fork := forkSetup(t, e)
+
+	plain := e.createBook(t, anaCookie, "Plain Book")
+	seedREADME(t, e.repoPath(plain.ID), "Plain Book")
+	plainHead := headRev(t, e.repoPath(plain.ID))
+	saveOn(t, e.repoPath(plain.ID), "carinhoso.cifra.md")
+	resp, raw := e.do(t, http.MethodPost, "/api/shelf/change-check", anaCookie,
+		ccBody(t, headEntry(plain.ID, plainHead), headEntry(original, headRev(t, e.repoPath(original)))))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("change check: status = %d", resp.StatusCode)
+	}
+	if strings.Contains(string(raw), "originalNewSaves") || strings.Contains(string(raw), "originalGone") {
+		t.Errorf("plain books carry a fork field: %s", raw)
+	}
+
+	// Carla was a member of Bia's fork and is removed; the original advances.
+	carlaID, carlaCookie := e.registerNewAccount(t)
+	e.insertMembership(t, fork, carlaID, "reader")
+	forkHead := headRev(t, e.repoPath(fork))
+	e.exec(t, `DELETE FROM memberships WHERE book_id = $1 AND account_id = $2`, fork, carlaID)
+	saveOn(t, e.repoPath(original), "lamentos.cifra.md")
+	_, out := e.changeCheck(t, carlaCookie, ccBody(t, headEntry(fork, forkHead)))
+	if c, ok := changeByID(out, fork); !ok || c.Status != "gone" || c.OriginalNewSaves != 0 || c.OriginalGone {
+		t.Errorf("inaccessible fork = %+v (ok=%v), want gone with no fork field", c, ok)
+	}
+
+	// The fork itself deleted by Bia, its original also gone: still just gone.
+	e.exec(t, `UPDATE books SET deleted_at = now() WHERE id = $1`, original)
+	e.exec(t, `UPDATE books SET deleted_at = now() WHERE id = $1`, fork)
+	_, out = e.changeCheck(t, biaCookie, ccBody(t, headEntry(fork, forkHead)))
+	if c, ok := changeByID(out, fork); !ok || c.Status != "gone" || c.OriginalNewSaves != 0 || c.OriginalGone {
+		t.Errorf("deleted fork = %+v (ok=%v), want gone with no fork field", c, ok)
+	}
+}

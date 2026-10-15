@@ -63,8 +63,9 @@ task sync "Sync" {
   task fork_follow "Following an original" {
     effort 2d
     allocate team
+    complete 100
     depends !engine, service.books
-    note "The original's new saves counted; bring them in through the preview; the original going away. Workflow 11. Tests: behavior (the original's new saves counted, brought in through the preview, the original gone — against local remotes); e2e-api (fork on the stack, push to the original, the fork's device counts and brings in the new save)."
+    note "The original's new saves counted; bring them in through the preview; the original going away. Workflow 11. Tests: behavior (the original's new saves counted, brought in through the preview, the original gone — against local remotes); e2e-api (fork on the stack, push to the original, the fork's device counts and brings in the new save). Refinement: tasks/refinements/sync/fork_follow.md"
   }
   task read_in_place "A song open while sync changes it" {
     effort 1.5d

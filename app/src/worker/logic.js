@@ -40,6 +40,7 @@ import { keepAsLocalChanges, removeChanges } from './sign-out.js';
 import { createSyncScheduler } from './sync-scheduler.js';
 import { createConflicts } from './conflicts.js';
 import { createUpload } from './upload.js';
+import { createBringIn } from './bring-in.js';
 import { createBooks } from './books.js';
 import { createExampleBook } from './example-book.js';
 import { createMySongs, MY_SONGS_ID } from './my-songs.js';
@@ -339,6 +340,7 @@ export function createWorkerLogic(port, options = {}) {
   let syncScheduler = null;
   let conflicts = null;
   let upload = null;
+  let bringIn = null;
 
   function ensureOpen() {
     if (!dbPromise) dbPromise = openDatabase(idb, name, version, migrations);
@@ -594,6 +596,12 @@ export function createWorkerLogic(port, options = {}) {
         // A merge moved a book's head: re-index it, so what sync brought in is
         // found by search now (workflow 8: a change on another device is there).
         onHeadMoved: (bookId) => indexOneBook(bookId),
+        // A fork follows its original (sync.fork_follow, workflow 11): the
+        // engine counts each followed fork's original from the pass's one change
+        // check and records `goneAt` when the original goes away.
+        readOriginals,
+        recordOriginal,
+        emitOriginal: (payload) => port.postMessage(event(EventKind.ORIGINAL, payload)),
       });
     }
     return syncEngine;
@@ -620,7 +628,11 @@ export function createWorkerLogic(port, options = {}) {
         // book; prefer it over origin/main so the SAME session settles an upload
         // collision as a racing sync (sync.upload Decision 3). upload.js owns the
         // ref convention; conflicts.js just asks for the incoming ref.
-        incomingRef: (bookId, dir) => ensureUpload().incomingRefFor(bookId, dir),
+        // A bring-in that collided retains `refs/remotes/original/main`
+        // (sync.fork_follow AC9) — the same session settles it.
+        incomingRef: async (bookId, dir) =>
+          (await ensureBringIn().incomingRefFor(bookId, dir)) ??
+          ensureUpload().incomingRefFor(bookId, dir),
       });
     }
     return conflicts;
@@ -643,6 +655,58 @@ export function createWorkerLogic(port, options = {}) {
       });
     }
     return upload;
+  }
+
+  // Compose the bring-in once over the SAME fs, git layer, lock registry and
+  // merge driver as the upload, whose merge path it shares (sync.fork_follow,
+  // workflow 11 §Following the original). The Worker fetches and merges; the
+  // view (books.bring_in) only sends PREVIEW_BRING_IN / BRING_IN /
+  // CANCEL_BRING_IN and renders the reply.
+  function ensureBringIn() {
+    if (!bringIn) {
+      bringIn = createBringIn({
+        fs: ensureFs(),
+        git: ensureGit(),
+        locks: ensureLocks(),
+        mergeDriver: createCifraMergeDriver(),
+        resolveAuthor: resolveSyncAuthor,
+        readOriginal: async (bookId) => (await readOriginals())[bookId] ?? null,
+        recordOriginal,
+        emitOriginal: (payload) => port.postMessage(event(EventKind.ORIGINAL, payload)),
+      });
+    }
+    return bringIn;
+  }
+
+  // The shelf's `original` registers (home-book-format §4.2): `{ [forkId]:
+  // { bookId, title, link, followedAt, goneAt? } }` for every shared book that
+  // follows an original. Local and lock-free, like every home-book read.
+  async function readOriginals() {
+    const shelf = await ensureHomeBook().read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+    const out = {};
+    for (const [bookId, entry] of Object.entries(shelf?.books ?? {})) {
+      const value = entry?.original?.value;
+      if (value && typeof value === 'object' && typeof value.bookId === 'string') out[bookId] = value;
+    }
+    return out;
+  }
+
+  // Write a fork's `original` register whole — one register, so no reader ever
+  // sees a half-updated original (sync.fork_follow Decision) — and re-surface
+  // SHELF. books.fork calls it when it makes a fork; a bring-in moves
+  // `followedAt`; the original going away sets `goneAt`.
+  async function recordOriginal({ bookId, original }) {
+    const home = ensureHomeBook();
+    const author = await resolveSyncAuthor();
+    await home.ensureLocal({ author });
+    await home.set({
+      bookId: HOME_BOOK_ID,
+      file: 'shelf.json',
+      changes: [{ path: ['books', bookId, 'original'], value: original }],
+      author,
+    });
+    await surfaceHomeBookShelf();
+    await ensureFs().flush();
   }
 
   // Compose the scheduler once (sync.engine): it coalesces the five triggers
@@ -1544,6 +1608,45 @@ export function createWorkerLogic(port, options = {}) {
             // Discard a previewed upload: remove the scratch repo (workflow 7
             // §The preview, "nothing is written until it is confirmed"). All local.
             await ensureUpload().cancel({ uploadId: message.payload.uploadId });
+            break;
+          }
+          case CommandKind.PREVIEW_BRING_IN: {
+            // Fetch a fork's original and preview bringing it in, song by song,
+            // writing nothing to the fork (sync.fork_follow AC8, workflow 11
+            // line 47). The reply says `gone` when the original refused (following
+            // ends) or `unreachable` when there is no network — never an ERROR.
+            const reply = await ensureBringIn().preview({ bookId: message.payload.bookId });
+            port.postMessage(event(EventKind.BRING_IN_PREVIEW, reply));
+            break;
+          }
+          case CommandKind.BRING_IN: {
+            // Merge the previewed original into the fork, commit with the user's
+            // note and push (AC9, workflow 11 line 48). A conflict leaves the fork
+            // `needs_you` for workflow 9; a clean landing re-indexes it and emits
+            // its SYNC fact, as an upload merge does.
+            const { bookId, followId, note } = message.payload;
+            const result = await ensureBringIn().bringIn({ bookId, followId, note });
+            port.postMessage(event(EventKind.BRING_IN_DONE, result));
+            if (result.kind === 'stale') break;
+            const at = new Date().toISOString();
+            if (result.kind === 'needs_you') {
+              port.postMessage(event(EventKind.SYNC, { bookId, phase: 'needs_you', at }));
+              break;
+            }
+            await ensureIndexHydrated();
+            await indexOneBook(bookId);
+            const phase = result.pushed ? 'in_step' : 'saves_waiting';
+            const extra = result.pushed
+              ? {}
+              : { savesWaiting: await countCommitsAhead({ fs: ensureFs(), dir: ensureGit().bookDir(bookId) }) };
+            port.postMessage(event(EventKind.SYNC, { bookId, phase, at, ...extra }));
+            if (!result.pushed) ensureSyncScheduler().trigger();
+            break;
+          }
+          case CommandKind.CANCEL_BRING_IN: {
+            // *Not now*: drop the fetched original; the preview is spent.
+            const { bookId, followId } = message.payload;
+            await ensureBringIn().cancel({ bookId, followId });
             break;
           }
           case CommandKind.CREATE_BOOK: {

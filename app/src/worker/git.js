@@ -30,6 +30,7 @@ import {
   fetch as gitFetch,
   push as gitPush,
   addRemote as gitAddRemote,
+  setConfig as gitSetConfig,
 } from 'isomorphic-git';
 
 /**
@@ -42,6 +43,7 @@ import {
  *   fetch: (opts: { dir: string, url: string, onProgress?: Function }) => Promise<any>,
  *   push: (opts: { dir: string, url: string, onProgress?: Function }) => Promise<any>,
  *   setRemote: (opts: { dir: string, url: string }) => Promise<void>,
+ *   fetchOriginal: (opts: { dir: string, url: string }) => Promise<any>,
  *   bookDir: (bookId: string) => string,
  * }}
  */
@@ -121,5 +123,25 @@ export function createGitLayer({ fs, http } = {}) {
     return gitAddRemote({ fs, dir, remote: 'origin', url, force: true });
   }
 
-  return { init, clone, fetch, push, setRemote, bookDir };
+  /**
+   * Fetch a fork's ORIGINAL (sync.fork_follow, workflow 11 §Following the
+   * original) into `refs/remotes/original/main` — the one fetch that is not from
+   * `origin`. The URL is per call (the shelf's `original` register), never
+   * written to config, so nothing that reads `remote.origin.url` (the engine's
+   * book listing) or pushes to `origin` is affected. Only the fetch refspec is
+   * written (isomorphic-git reads it to name the tracking ref); a fetch never
+   * moves `main`. The same http client — the session cookie and protocol v1.
+   * @param {{ dir: string, url: string }} opts
+   */
+  async function fetchOriginal({ dir, url }) {
+    await gitSetConfig({
+      fs,
+      dir,
+      path: 'remote.original.fetch',
+      value: '+refs/heads/main:refs/remotes/original/main',
+    });
+    return gitFetch({ fs, http, dir, url, remote: 'original', ref: 'main', singleBranch: true });
+  }
+
+  return { init, clone, fetch, push, setRemote, fetchOriginal, bookDir };
 }

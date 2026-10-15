@@ -135,6 +135,60 @@ func (s Store) ResolveHead(ctx context.Context, id string) (string, bool, error)
 	return strings.TrimSpace(string(out)), true, nil
 }
 
+// CountNewSaves counts the saves on the original's main that the fork's main
+// does not have yet — the number a fork's shelf entry shows as "Ana's Choros has
+// 3 new saves" (workflow 11 lines 42-46; sync.fork_follow AC2). A save is a
+// non-merge commit (workflow 4: one save, one commit; merges are sync's), so the
+// original's own sync merges never inflate it. It runs
+//
+//	git --git-dir <original> rev-list --count --no-merges <origHead> --not <forkHead>
+//
+// with the fork's object directory lent as an alternate, read-only: the two
+// repositories are independent copies on one volume (Fork's --no-hardlinks), so
+// the fork's own commits are only reachable through its objects, and an
+// alternate set through the environment is never written to either repository's
+// config. Nothing is written to either repository. It answers 0, with a nil
+// error, when either main is absent (an empty book has no saves to bring in) or
+// the repositories cannot be read; a non-nil error is reserved for an id that is
+// not a canonical UUID.
+func (s Store) CountNewSaves(ctx context.Context, originalID, forkID string) (int, error) {
+	origPath, err := repoPath(s.Root, originalID)
+	if err != nil {
+		return 0, err
+	}
+	forkPath, err := repoPath(s.Root, forkID)
+	if err != nil {
+		return 0, err
+	}
+	origHead, ok, err := s.ResolveHead(ctx, originalID)
+	if err != nil || !ok {
+		return 0, err
+	}
+	forkHead, ok, err := s.ResolveHead(ctx, forkID)
+	if err != nil || !ok {
+		return 0, err
+	}
+	if origHead == forkHead {
+		return 0, nil
+	}
+	cmd := exec.CommandContext(ctx, "git", "--git-dir", origPath,
+		"rev-list", "--count", "--no-merges", origHead, "--not", forkHead)
+	cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_TERMINAL_PROMPT=0",
+		"GIT_ALTERNATE_OBJECT_DIRECTORIES="+filepath.Join(forkPath, "objects"))
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		// An unreadable pair has nothing truthful to count: no new saves.
+		return 0, nil
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(stdout.String()))
+	if err != nil {
+		return 0, nil
+	}
+	return n, nil
+}
+
 // Remove deletes the book's bare repository from the volume. A missing
 // directory is not an error (delete is idempotent; deleted_at is the
 // authoritative gate — service.books Decision).

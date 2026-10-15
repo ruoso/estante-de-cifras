@@ -312,7 +312,8 @@ func handleDeleteBook(api *APIDeps) http.HandlerFunc {
 // handleForkBook implements POST /api/books/{bookId}/fork (forkBook, workflow
 // 11): any member of the source may fork it. It copies the repository with all
 // its history to a new id on the volume, inserts a books row owned by the caller
-// with original_book_id set and size_bytes copied from the source, and returns
+// with original_book_id and is_fork set (is_fork outlives the original's row —
+// sync.fork_follow) and size_bytes copied from the source, and returns
 // the fork with its original. The quota is checked before git starts; the clone
 // runs inside the open transaction with rollback and directory removal on a
 // half-failure (service.books Constraints).
@@ -396,7 +397,7 @@ func handleForkBook(api *APIDeps) http.HandlerFunc {
 
 		var newID string
 		if err := tx.QueryRow(ctx,
-			`INSERT INTO books (owner_id, original_book_id, size_bytes) VALUES ($1, $2, $3) RETURNING id`,
+			`INSERT INTO books (owner_id, original_book_id, is_fork, size_bytes) VALUES ($1, $2, true, $3) RETURNING id`,
 			accountID, srcID, srcSize).Scan(&newID); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal", "Could not fork the book.")
 			return

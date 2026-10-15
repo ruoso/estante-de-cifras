@@ -1,6 +1,6 @@
 # The home book format
 
-Depends on: DIRECTION §3.1, §3.2, §3.3, §3.7; workflows 1, 8, 13. This
+Depends on: DIRECTION §3.1, §3.2, §3.3, §3.7; workflows 1, 8, 11, 13. This
 document fixes the on-disk shape of the **home book** — the per-user git
 repository that holds personal state — and the merge that keeps it conflict-
 free. It settles the open decision DIRECTION §6 recorded, and it is the
@@ -224,7 +224,14 @@ namespaced by device id (§7).
     "<book-id>": {
       "label":    { "value": "Turma de quarta", "at": "…" },
       "link":     { "value": "https://estantedecifras.app/…", "at": "…" },
-      "position": { "value": 2, "at": "…" }
+      "position": { "value": 2, "at": "…" },
+      "role":     { "value": "editor", "at": "…" },
+      "original": { "value": {
+                      "bookId":     "<original-book-id>",
+                      "title":      "Ana's Choros",
+                      "link":       "https://estantedecifras.app/git/…",
+                      "followedAt": "…"
+                    }, "at": "…" }
     }
   },
   "local": {
@@ -239,10 +246,26 @@ namespaced by device id (§7).
 ```
 
 - `books` — books hosted on the service, shared across the account's devices.
-  Each entry is a map of three registers: `label`, the user's label for the
-  book; `link`, its clone URL; and `position`, its place in the shelf's order.
-  **Only the link and the label are written** — access itself is the account's,
-  held by the service, so nothing secret is written down (workflow 13).
+  Each entry is a map of registers: `label`, the user's label for the book;
+  `link`, its clone URL; `position`, its place in the shelf's order; `role`,
+  the role the account was granted when the book came onto the shelf
+  (`"owner"`, `"editor"` or `"reader"` — a hint for the shelf, never an
+  authority: the service decides access); and, for a fork, `original`.
+  **No credential is written** — access itself is the account's, held by the
+  service, so nothing secret is written down (workflow 13).
+- `original` — present only on a fork (workflow 11): the book it was copied
+  from and follows, one step only. One register whose value is an object,
+  written whole so no device ever reads a half-updated original:
+  `bookId`, the original's id; `title`, its title as the fork last knew it
+  (kept after the original goes away, so the shelf can still say *from Ana's
+  Choros*); `link`, the original's clone URL, which a bring-in fetches;
+  `followedAt`, the §3 instant of the fork or of the last bring-in; and
+  `goneAt`, the §3 instant the original stopped being shared with the user —
+  absent while it is followed. Once `goneAt` is written following has ended
+  for good (workflow 11 §Following the original): nothing counts or brings in
+  from that original again, and the fork itself is untouched. The value is
+  opaque to the merge (§3): two devices writing it resolve last-writer-wins,
+  like any register.
 - `local` — books that were never put online, which have nothing on the service
   to clone (workflow 13). They are namespaced by the device that holds them, so
   a new device can list one as *only on your iPhone* (workflow 13) and two

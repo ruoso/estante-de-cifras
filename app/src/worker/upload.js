@@ -44,18 +44,15 @@ import {
   remove as gitRemove,
   commit as gitCommit,
   writeRef,
-  deleteRef,
   findMergeBase,
-  isDescendent,
-  merge as igMerge,
   checkout,
   statusMatrix,
   log as gitLog,
 } from 'isomorphic-git';
-import { parse, diff, merge as cifraMerge } from 'cifra-md';
+import { parse } from 'cifra-md';
 import { canonicaliseFile } from './canonicalise.js';
 import { authorFrom } from './author.js';
-import { captureDirtyWork, reapplyDirtyWork } from './sync-engine.js';
+import { createMergePath, basename, titleOf, diffRow, readBlobBytes } from './bring-in.js';
 import { readZip } from './book-zip.js';
 import { GITATTRIBUTES_BYTES } from './books.js';
 
@@ -64,34 +61,11 @@ const SETLIST_SUFFIX = '.setlist.md';
 const isMergeable = (p) => p.endsWith(SONG_SUFFIX) || p.endsWith(SETLIST_SUFFIX);
 const decoder = new TextDecoder();
 
-// The cifra.md Outcome for one file (the same `merge` the merge driver and
-// sync.conflicts use), so the preview classifies with the format's own merge,
-// never a bespoke comparison (Constraints).
-function recomputeMerge(base, ours, theirs, setlist) {
-  return cifraMerge(base, ours, theirs, { setlist });
-}
-
 // The scratch-repo root for one upload (Decision 8): under `/uploads/<id>`, never
 // under `/books`, so it is never mistaken for a book and is removed on confirm,
 // cancel or abandon.
 const scratchDirOf = (uploadId) => `/uploads/${uploadId}`;
 const uploadRefOf = (uploadId) => `refs/upload/${uploadId}`;
-
-// The display name of a song/setlist, or the file's basename when it cannot be
-// read (never logged).
-function basename(path) {
-  const name = path.split('/').pop() ?? path;
-  return name.replace(/\.(setlist\.md|cifra\.md|md)$/i, '');
-}
-
-function titleOf(path, text) {
-  if (text == null) return basename(path);
-  try {
-    return (parse(text).title || '').trim() || basename(path);
-  } catch {
-    return basename(path);
-  }
-}
 
 // The level-1 heading of a README's bytes (DIRECTION §2.1), or null.
 function titleFromReadme(bytes) {
@@ -146,6 +120,9 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
   const author = resolveAuthor ?? (async () => ({ id: 'device', name: 'Me' }));
   const clock = now ?? (() => Date.now());
   const EMPTY = parse('');
+  // The preview and the merge are the shared merge path (bring-in.js), the one
+  // a fork's bring-in also takes (sync.fork_follow AC10).
+  const { previewMerge, mergeInto } = createMergePath({ fs, git, locks, mergeDriver });
 
   // ---- shared fs-tree helpers (the online.js copyTree pattern) -------------
 
@@ -234,14 +211,7 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
     }
   }
 
-  async function blobBytes(dir, oid, filepath) {
-    try {
-      const { blob } = await readBlob({ fs, dir, oid, filepath });
-      return blob;
-    } catch {
-      return null;
-    }
-  }
+  const blobBytes = (dir, oid, filepath) => readBlobBytes(fs, dir, oid, filepath);
 
   // The song/setlist blobs of one commit's tree: `[{ path, oid }]`.
   async function treeSongs(dir, oid) {
@@ -288,29 +258,6 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
       files.push({ path: rel, bytes: await fs.promises.readFile(`${repoDir}/${rel}`) });
     }
     return files;
-  }
-
-  // The paths that differ across base / ours / theirs (mirrors conflicts.js).
-  async function changedPaths(dir, baseOid, oursOid, theirsOid) {
-    const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
-    const rows = await walk({
-      fs,
-      dir,
-      trees: [TREE({ ref: oursOid }), TREE({ ref: baseOid ?? EMPTY_TREE }), TREE({ ref: theirsOid })],
-      map: async (filepath, [ours, base, theirs]) => {
-        if (filepath === '.') return undefined;
-        const types = await Promise.all([ours?.type(), base?.type(), theirs?.type()]);
-        if (types.some((ty) => ty === 'tree')) return undefined;
-        const [o, b, t] = await Promise.all([
-          ours ? ours.oid() : null,
-          base ? base.oid() : null,
-          theirs ? theirs.oid() : null,
-        ]);
-        if (o === b && b === t) return undefined;
-        return { path: filepath, b, o, t };
-      },
-    });
-    return rows.filter(Boolean);
   }
 
   // ---- materialise the zip as a scratch repo (Decision 2) ------------------
@@ -440,39 +387,6 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
   }
 
   // ---- preview (Decision 4): classify, never mutate the target -------------
-
-  // An *added* / *changed* / *replace* preview row with its musical diff.
-  function diffRow(path, status, beforeModel, afterModel) {
-    const { changes, summary } = diff(beforeModel, afterModel);
-    return { path, title: (afterModel?.title ?? '').trim() || basename(path), status, changes, summary };
-  }
-
-  async function previewMerge(dir, baseOid, oursOid, theirsOid) {
-    const previews = [];
-    for (const { path, o } of await changedPaths(dir, baseOid, oursOid, theirsOid)) {
-      const setlist = path.endsWith(SETLIST_SUFFIX);
-      const base = await blobBytes(dir, baseOid, path);
-      const ours = await blobBytes(dir, oursOid, path);
-      const theirs = await blobBytes(dir, theirsOid, path);
-      const outcome = recomputeMerge(base, ours, theirs, setlist);
-      if (outcome.kind === 'result') {
-        const after = parse(outcome.result);
-        const before = ours != null ? parse(decoder.decode(ours)) : EMPTY;
-        previews.push(diffRow(path, o === null ? 'added' : 'changed', before, after));
-      } else if (outcome.kind === 'conflicts') {
-        const first = outcome.conflicts[0];
-        const txt = ours != null ? decoder.decode(ours) : theirs != null ? decoder.decode(theirs) : null;
-        previews.push({
-          path,
-          title: titleOf(path, txt),
-          status: first.kind === 'unresolved' ? 'unresolved' : 'conflict',
-          line: first.line ?? null,
-        });
-      }
-      // kind 'deleted' leaves the preview silent — nothing lands to show.
-    }
-    return previews;
-  }
 
   async function previewUnrelated(dir, oursOid, theirsOid) {
     const previews = [];
@@ -672,64 +586,6 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
     return { bookId, title: title ?? 'Untitled' };
   }
 
-  // Merge the zip into an existing book by the SAME cifra-aware merge sync uses
-  // (Constraints): `igMerge` with the zip's temp ref as *theirs* and the cifra
-  // merge driver. A clean merge is committed, the temp ref dropped and the merge
-  // pushed best-effort; unsaved edits in the book are carried on top, still
-  // unsaved (captureDirtyWork / reapplyDirtyWork — no new three-way). A collision
-  // leaves `main` at *ours* with the temp ref retained for the conflict session
-  // (Decision 3); a reader resolves or abandons it.
-  async function mergeInto(bookId, uploadId, theirsOid, identity) {
-    const dir = git.bookDir(bookId);
-    const ref = uploadRefOf(uploadId);
-    return locks.withLock(bookId, async () => {
-      const oursHead = await oidAt(dir, 'main');
-      if (oursHead && (oursHead === theirsOid ||
-        (await isDescendent({ fs, dir, oid: oursHead, ancestor: theirsOid, depth: -1 })))) {
-        // The book already contains the upload: nothing to merge; drop the ref.
-        try { await deleteRef({ fs, dir, ref }); } catch { /* gone */ }
-        return { kind: 'merged', pushed: false };
-      }
-      const captured = await captureDirtyWork({ fs, dir, headOid: oursHead });
-      let result;
-      try {
-        result = await igMerge({
-          fs,
-          dir,
-          ours: 'main',
-          theirs: ref,
-          author: identity,
-          committer: identity,
-          abortOnConflict: true,
-          mergeDriver,
-          message: 'Merge',
-          fastForward: true,
-        });
-      } catch (err) {
-        if (err instanceof Error &&
-          (err.code === 'MergeConflictError' || err.code === 'MergeNotSupportedError' || err.conflict === true)) {
-          // Hand off to the existing conflict session (needs_you); keep the ref.
-          return { kind: 'needs_you' };
-        }
-        throw err;
-      }
-      await checkout({ fs, dir, ref: 'main', force: true });
-      if (captured.length && result.oid && result.oid !== oursHead) {
-        await reapplyDirtyWork({ fs, dir, captured });
-      }
-      try { await deleteRef({ fs, dir, ref }); } catch { /* gone */ }
-      await fs.flush?.();
-      let pushed = false;
-      try {
-        await git.push({ dir });
-        pushed = true;
-      } catch {
-        pushed = false; // offline — the merge waits, pushed at the next sync
-      }
-      return { kind: 'merged', pushed };
-    });
-  }
-
   // A no-history zip into an existing book is a REPLACE, not a merge (Decision 6;
   // spec §11.1): each matching file the reader chose is written with the uploaded
   // (canonical) version, non-matching files added, in one ordinary single-parent
@@ -815,7 +671,11 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
       const dir = git.bookDir(bookId);
       await copyObjects(scratchDir, dir);
       await writeRef({ fs, dir, ref: uploadRefOf(uploadId), value: headForMerge, force: true });
-      const result = await mergeInto(bookId, uploadId, headForMerge, identity);
+      // The SAME cifra-aware merge sync uses, with the zip's temp ref as *theirs*
+      // (bring-in.js mergeInto): unsaved edits carried on top, still unsaved; a
+      // collision leaves `main` at *ours* with the ref retained for the conflict
+      // session (Decision 3).
+      const result = await mergeInto(bookId, { theirsRef: uploadRefOf(uploadId), identity, fastForward: true });
       await removeTree(scratchDir); // the ref now lives in the book; the scratch is spent
       if (result.kind === 'needs_you') return { kind: 'needs_you', bookId };
       return { kind: 'merged', bookId, pushed: result.pushed };
