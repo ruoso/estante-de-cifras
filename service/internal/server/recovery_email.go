@@ -28,7 +28,7 @@ import (
 // The address is never logged and never put in an error body; only its owner
 // reads it back. The token is never logged: the confirm carries it in the body,
 // and the app page it is mailed to (/recovery-email/<token>) has the segment
-// redacted by LogRequests.
+// redacted by LogRequests (redactLinkToken).
 
 // recoveryEmailJSON is the RecoveryEmail body (api/openapi.yaml).
 type recoveryEmailJSON struct {

@@ -61,7 +61,9 @@ var reservedPrefixes = []string{"/api", "/git"}
 // loaded the app (no service worker yet) still boots the shell from the link
 // (workflow 13 L48, "on any device"). An explicit allowlist rather than a
 // looser extension rule, so a missing asset elsewhere still 404s
-// (account.recovery_email Decisions §1).
+// (account.recovery_email Decisions §1). The same list drives the request log's
+// redaction (redactLinkToken, logging.go): a path served as a link page never
+// has its token logged.
 var linkRoutes = []string{"sign-in", "recovery-email"}
 
 // ServeHTTP serves a real file when the path resolves to one, and otherwise

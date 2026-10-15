@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -485,6 +486,51 @@ func TestNoAddressOrTokenInLogs(t *testing.T) {
 	// The path is logged (metadata), but never the query — confirm a line exists.
 	if !strings.Contains(logs, "/api/auth/email/request") || !strings.Contains(logs, "/api/auth/email/redeem") {
 		t.Errorf("expected metadata-only request lines for both endpoints:\n%s", logs)
+	}
+}
+
+// TestSignInLinkPageNeverLogged pins workflow 13 "Signing in on a new device"
+// and "never logged": opening the mailed sign-in link's app page — plain, with
+// a trailing slash, or in a non-clean form the router 301s — leaves only
+// /sign-in/{token} in the captured log: no token, neither half of it, and no
+// address.
+func TestSignInLinkPageNeverLogged(t *testing.T) {
+	e := newLinksEnv(t)
+	email := "link-opener-" + randHex(t) + "@estante.test"
+	token := e.requestTokenFor(t, email)
+	id, sig, ok := strings.Cut(token, ".")
+	if !ok || id == "" || sig == "" {
+		t.Fatalf("token %q is not id.signature", token)
+	}
+
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	get := func(p string) (int, string) {
+		t.Helper()
+		resp, err := client.Get(e.server.URL + p)
+		if err != nil {
+			t.Fatalf("GET %s: %v", p, err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(b)
+	}
+	for _, p := range []string{"/sign-in/" + token, "/sign-in/" + token + "/"} {
+		if status, body := get(p); status != http.StatusOK || !strings.Contains(body, "estante-test") {
+			t.Errorf("GET %s = %d, want 200 with the app shell", p, status)
+		}
+	}
+	if status, _ := get("//sign-in/" + token); status != http.StatusMovedPermanently {
+		t.Errorf("GET //sign-in/<token> = %d, want 301", status)
+	}
+
+	logs := e.logBuf.String()
+	if !strings.Contains(logs, `"path":"/sign-in/{token}"`) {
+		t.Errorf("expected a /sign-in/{token} request line:\n%s", logs)
+	}
+	for _, secret := range []string{token, id, sig, email} {
+		if strings.Contains(logs, secret) {
+			t.Errorf("the log contains %q:\n%s", secret, logs)
+		}
 	}
 }
 

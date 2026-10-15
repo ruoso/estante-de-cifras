@@ -433,6 +433,8 @@ func TestRecoveryEmailNeverLogged(t *testing.T) {
 	e.confirm(t, t1)
 	t2 := e.mustRequest(t, cookie, second)
 	e.do(t, http.MethodGet, "/recovery-email/"+t2, "", nil)
+	// The trailing-slash form the shell also serves (service.signin_link_path_redaction).
+	e.do(t, http.MethodGet, "/recovery-email/"+t2+"/", "", nil)
 	e.confirm(t, t2)
 	e.read(t, cookie)
 

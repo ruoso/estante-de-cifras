@@ -3,6 +3,7 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 )
@@ -53,9 +54,11 @@ func LogRequests(logger *slog.Logger, h http.Handler) http.Handler {
 			// (it is carried in the path, api/openapi.yaml
 			// /api/invitations/{token}/accept, and must never be logged —
 			// service.sharing Constraints; DIRECTION §3.3).
-			// The recovery email's mailed app page carries its token in the path
-			// too (/recovery-email/<token>, service.recovery_email), redacted alike.
-			slog.String("path", redactRecoveryEmailToken(redactInvitationToken(r.URL.Path))),
+			// The app pages an emailed link opens carry their token in the path
+			// too (/sign-in/<token>, /recovery-email/<token> — linkRoutes),
+			// redacted alike. Both match on the path the router sees, so a
+			// non-clean form (//sign-in/<token>, answered with a 301) is caught.
+			slog.String("path", redactLinkToken(redactInvitationToken(r.URL.Path))),
 			slog.Int("status", rec.status),
 			slog.Duration("duration", time.Since(start)),
 		)
@@ -64,33 +67,54 @@ func LogRequests(logger *slog.Logger, h http.Handler) http.Handler {
 
 // redactInvitationToken replaces the secret token segment of the invitation
 // accept route (/api/invitations/{token}/accept) with a placeholder, so the raw
-// token — the invitation's capability — never reaches a log line. Any other
-// path is returned unchanged.
-func redactInvitationToken(path string) string {
+// token — the invitation's capability — never reaches a log line. It matches on
+// path.Clean of p — the shape ServeMux routes (and 301s a non-clean path to) —
+// so //api/invitations/<token>/accept is redacted too. Any other path is
+// returned unchanged, raw.
+func redactInvitationToken(p string) string {
 	const prefix = "/api/invitations/"
 	const suffix = "/accept"
-	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
-		return path
+	c := path.Clean(p)
+	if !strings.HasPrefix(c, prefix) || !strings.HasSuffix(c, suffix) {
+		return p
 	}
-	mid := path[len(prefix) : len(path)-len(suffix)]
+	mid := c[len(prefix) : len(c)-len(suffix)]
 	if mid == "" || strings.Contains(mid, "/") {
-		return path // not the single-segment {token} shape
+		return p // not the single-segment {token} shape
 	}
 	return prefix + "{token}" + suffix
 }
 
-// redactRecoveryEmailToken replaces the token segment of the app page a
-// recovery email verification link opens (/recovery-email/<token>, mailed by
-// requestRecoveryEmail) with a placeholder, so the link's token never reaches a
-// log line (service.recovery_email Constraint 6). Any other path is returned
-// unchanged.
-func redactRecoveryEmailToken(path string) string {
-	const prefix = "/recovery-email/"
-	if !strings.HasPrefix(path, prefix) {
-		return path
+// redactLinkToken replaces everything after the route of an emailed-link app
+// page (/sign-in/<token>, /recovery-email/<token> — the routes in linkRoutes,
+// the same list the shell fallback serves) with a placeholder, so a link's
+// token never reaches a log line (workflow 13 "never logged";
+// service.recovery_email Constraint 6). It matches on the path as the router
+// cleans it: empty and "." segments are dropped and ".." pops, and the path is
+// redacted as soon as the cleaned path so far is /<route>/<segment> — so a
+// trailing slash, //sign-in/<token>, /x/../sign-in/<token> and even
+// /sign-in/<token>/.. all log as /sign-in/{token}. Any other path is returned
+// unchanged, raw.
+func redactLinkToken(p string) string {
+	var stack []string
+	for _, seg := range strings.Split(p, "/") {
+		switch seg {
+		case "", ".":
+			continue
+		case "..":
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+			continue
+		}
+		if len(stack) == 1 {
+			for _, route := range linkRoutes {
+				if stack[0] == route {
+					return "/" + route + "/{token}"
+				}
+			}
+		}
+		stack = append(stack, seg)
 	}
-	if rest := path[len(prefix):]; rest == "" || strings.Contains(rest, "/") {
-		return path
-	}
-	return prefix + "{token}"
+	return p
 }

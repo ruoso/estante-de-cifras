@@ -121,6 +121,13 @@ func TestRedactInvitationToken(t *testing.T) {
 	if got := redactInvitationToken("/api/invitations/" + secret + "/accept"); got != "/api/invitations/{token}/accept" {
 		t.Errorf("redactInvitationToken = %q, want the placeholder path", got)
 	}
+	// Non-clean forms ServeMux 301s to the accept route are redacted too
+	// (service.signin_link_path_redaction Decision 3).
+	for _, p := range []string{"//api/invitations/" + secret + "/accept", "/api/./invitations/" + secret + "/accept"} {
+		if got := redactInvitationToken(p); got != "/api/invitations/{token}/accept" {
+			t.Errorf("redactInvitationToken(%q) = %q, want the placeholder path", p, got)
+		}
+	}
 	for _, p := range []string{"/api/books", "/api/books/abc/members", "/api/invitations", "/healthz"} {
 		if got := redactInvitationToken(p); got != p {
 			t.Errorf("redactInvitationToken(%q) = %q, want it unchanged", p, got)
