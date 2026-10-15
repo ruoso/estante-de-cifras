@@ -21,8 +21,10 @@
 //   - `popstate` hands the entry's place and layers to `onApply`; a layer is
 //     never reopened by it — only the layers still open and named by the entry
 //     are kept, and the entry is rewritten to say so; a step back onto an
-//     entry from before a reload that shows the same address (a layer the
-//     reload dropped) keeps going back;
+//     entry from before a reload that is the same place as the reloaded one,
+//     naming only layers the reload dropped, is a dead step and keeps going
+//     back (reload-step.js) — any other entry, a scope-only or tab-only step
+//     among them, is a real step;
 //   - `renameBook` follows a book whose id changed (a fork, a put-online): the
 //     current entry is replaced, and an entry below naming the old id is read
 //     as naming the new one when `popstate` lands on it. The record of renames
@@ -31,10 +33,14 @@
 //
 // A reload keeps only what the address says: `bootEntry` parses the pathname,
 // drops the layers, and keeps the depth so back still walks the earlier entries.
+// What the reload dropped (the entry's place and layers before it) is kept as
+// the `reloaded` record, written into the entry so a second reload still knows
+// it; it is spent once back lands on a real step, or the hook writes an entry.
 
 import { useCallback, useEffect, useRef } from 'react';
 import { isOpening, placeFromUrl, samePlace, urlFromPlace } from './place.js';
 import { readRenames, recordRename, resolveBookId, writeRenames } from './book-renames.js';
+import { isDeadStep, reloadRecord, renamePlace } from './reload-step.js';
 
 // The tab's sessionStorage, or null where there is none (or reaching it throws).
 function sessionStore() {
@@ -47,9 +53,12 @@ function sessionStore() {
 
 // The place a session starts on: the address's (`fromAddress` when it names a
 // book, a song or a setlist — AppShell resolves those before opening them), or
-// search for any other path. `depth` is kept from the entry a reload landed on.
+// search for any other path. `depth` is kept from the entry a reload landed on,
+// and `reloaded` says what the reload dropped (reload-step.js), or is null.
 export function bootEntry() {
-  if (typeof location === 'undefined') return { place: { tab: 'search' }, fromAddress: false, depth: 0 };
+  if (typeof location === 'undefined') {
+    return { place: { tab: 'search' }, fromAddress: false, depth: 0, reloaded: null };
+  }
   const parsed = placeFromUrl(location.pathname);
   const state = typeof history === 'undefined' ? null : history.state;
   const depth = Number.isInteger(state?.depth) && state.depth > 0 ? state.depth : 0;
@@ -57,19 +66,7 @@ export function bootEntry() {
     place: parsed ?? { tab: 'search' },
     fromAddress: Boolean(parsed && (parsed.book || parsed.song || parsed.setlist)),
     depth,
-  };
-}
-
-// A place with every book id it holds passed through `rename` (an id → its
-// current id).
-function renamePlace(place, rename) {
-  if (!place) return place;
-  const item = (it) => (it ? { ...it, bookId: rename(it.bookId) } : it);
-  return {
-    ...place,
-    ...(place.book ? { book: rename(place.book) } : {}),
-    ...(place.song ? { song: item(place.song) } : {}),
-    ...(place.setlist ? { setlist: item(place.setlist) } : {}),
+    reloaded: reloadRecord(state),
   };
 }
 
@@ -100,6 +97,9 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
   // The next change replaces the entry whatever it is (a book's id changing
   // under the open place — a fork or a put-online).
   const forceReplaceRef = useRef(false);
+  // What the reload this session booted from dropped (reload-step.js), until
+  // back lands on a real step or the hook writes an entry.
+  const reloadedRef = useRef(null);
   // Book ids changed under this session (a fork or a put-online): old → new.
   // The entries below the current one still name the old id, so an entry popped
   // from history is read through this map. Read back from sessionStorage, so an
@@ -114,10 +114,17 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
   });
 
   // The first entry: the boot place at its canonical address (an unknown path
-  // becomes `/`, a captured token is never left in the URL), no layers.
+  // becomes `/`, a captured token is never left in the URL), no layers; what a
+  // reload dropped rides along, so a second reload still skips the same steps.
   useEffect(() => {
-    const state = { place: boot.place, layers: [], depth: boot.depth };
+    const state = {
+      place: boot.place,
+      layers: [],
+      depth: boot.depth,
+      ...(boot.reloaded ? { reloaded: boot.reloaded } : {}),
+    };
     history.replaceState(state, '', urlFromPlace(boot.place));
+    reloadedRef.current = boot.reloaded ?? null;
     lastRef.current = state;
     stackRef.current[state.depth] = state;
   }, [boot]);
@@ -130,6 +137,8 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
     const force = forceReplaceRef.current;
     forceReplaceRef.current = false;
     if (sameEntry(cur, place, layers)) return;
+    // The person moved on: no entry below is a dead step of the reload anymore.
+    reloadedRef.current = null;
     const stack = stackRef.current;
     const adds = layers.some((kind) => !cur.layers.includes(kind));
     if (!force && (isOpening(cur.place, place) || adds)) {
@@ -170,25 +179,19 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
       if (renamed || !sameLayers(kept, named)) {
         history.replaceState(applied, '', urlFromPlace(place));
       }
-      const shown = lastRef.current;
       const known = Boolean(stackRef.current[depth]);
       lastRef.current = applied;
-      // An entry from before a reload that shows what is already shown — the
-      // same address, the reload having dropped the layer that set it apart —
-      // is a dead step: keep going back.
-      if (
-        shown &&
-        !known &&
-        depth > 0 &&
-        depth < shown.depth &&
-        urlFromPlace(place) === urlFromPlace(shown.place) &&
-        sameLayers(kept, shown.layers)
-      ) {
+      // An entry from before a reload that is the place the reload landed on,
+      // naming only layers the reload dropped, shows what is already shown: a
+      // dead step, keep going back (the record holds across the skips).
+      if (!known && isDeadStep({ place: state.place, layers: named, depth }, reloadedRef.current, rename)) {
         stackRef.current[depth] = applied;
         pendingPopRef.current = true;
         history.back();
         return;
       }
+      // A real step: the reload's record is spent.
+      reloadedRef.current = null;
       stackRef.current[depth] = applied;
       onApplyRef.current(place, kept);
     };

@@ -7,7 +7,7 @@ import {
   scopeToBook,
   gotoTab,
 } from '../lib/journeys.js';
-import { SONG } from '../lib/journeys-core.js';
+import { SONG, enterArrange } from '../lib/journeys-core.js';
 import { hostedBookWithSong } from '../lib/journeys-share.js';
 import { biaJoins, forkSheetTitle } from '../lib/journeys-fork.js';
 import { addSection } from '../lib/journeys-edit.js';
@@ -68,6 +68,52 @@ test('back closes the editor before the song', async ({ page }) => {
   await expect(page.getByRole('group', { name: SONG.title })).toHaveCount(0);
   await expect(page.getByRole('searchbox').first()).toBeVisible();
   await expect(page).not.toHaveURL(SONG_URL);
+});
+
+// shell.routing_reload_scope_step — a reload under a screen over the song
+// keeps only the song's address; back then leaves the song for the book's
+// songs, passing over the entries the reload left showing the same song.
+// Pins DIRECTION §3.7 and workflow 5 (arrange and the wizard as screens over a
+// song).
+async function songUnderArrangeFromBook(page) {
+  await openExampleBook(page);
+  await scopeToBook(page, EXAMPLE_BOOK);
+  await expect(page).toHaveURL(BOOK_URL);
+  const bookUrl = page.url();
+  await openSongFromSearch(page, SONG.search, SONG.title);
+  await enterArrange(page);
+  return bookUrl;
+}
+
+async function expectBackOnTheBook(page, bookUrl) {
+  await expect(page).toHaveURL(bookUrl);
+  await expect(page.getByRole('group', { name: SONG.title })).toHaveCount(0);
+  await expect(page.locator('.scope')).toContainText(EXAMPLE_BOOK);
+}
+
+test('back after a reload under arrange leaves the song', async ({ page, checkA11y }) => {
+  const bookUrl = await songUnderArrangeFromBook(page);
+
+  await page.reload();
+  await expect(page.getByRole('group', { name: SONG.title }).first()).toBeVisible();
+  await expect(page).toHaveURL(SONG_URL);
+  await checkA11y(); // the song, reloaded without arrange
+
+  await page.goBack();
+  await expectBackOnTheBook(page, bookUrl);
+  await checkA11y(); // the book's songs
+});
+
+test('back after a reload under the wizard leaves the song', async ({ page, checkA11y }) => {
+  const bookUrl = await songUnderArrangeFromBook(page);
+  await page.getByRole('button', { name: 'Run the wizard' }).click();
+  await expect(page.getByRole('button', { name: 'The smoothest path' })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole('group', { name: SONG.title }).first()).toBeVisible();
+  await page.goBack();
+  await expectBackOnTheBook(page, bookUrl);
+  await checkA11y(); // the book's songs
 });
 
 // shell.routing_rename_across_reload — a fork's new id reaches the history

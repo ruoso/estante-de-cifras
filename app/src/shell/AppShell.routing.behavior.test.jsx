@@ -3,6 +3,7 @@ import { render, screen, fireEvent, act, cleanup, waitFor } from '@testing-libra
 import { createStore } from '../worker/store.js';
 import { command, event, EventKind, CommandKind } from '../worker/protocol.js';
 import { checkWcag21aa } from '../a11y/axe.js';
+import { instrumentInstance, configFor } from '../core/instrument.js';
 import { WIDE_QUERY } from './layout-mode.js';
 import AppShell from './AppShell.jsx';
 
@@ -44,6 +45,26 @@ const ENTRIES = [
   { path: SONG_PATH, status: null },
   { path: SETLIST_PATH, status: null },
 ];
+// A second song, for the steps reached past another song.
+const OTHER_PATH = 'choro/noite-alta.cifra.md';
+const OTHER_TITLE = 'Noite Alta';
+const OTHER_URL = '/b/b1/choro/noite-alta.cifra.md';
+const OTHER_TEXT = [`# ${OTHER_TITLE}`, '', '## Verse', FENCE, 'D  G | Em  A', FENCE, ''].join('\n');
+
+// The guitar in use, so the wizard over arrange has its policies.
+const GUITAR_TUNING = 'E2 A2 D3 G3 B3 E4';
+function guitarEntry() {
+  const inst = instrumentInstance({ catalogId: '6guitar', strings: GUITAR_TUNING, fretCount: 22 });
+  return {
+    id: 'g1',
+    catalogId: '6guitar',
+    label: 'Guitar',
+    tuning: GUITAR_TUNING,
+    fretCount: 22,
+    config: configFor(inst, 'strumming'),
+    shapes: [],
+  };
+}
 
 function makeStore() {
   const sent = [];
@@ -191,6 +212,131 @@ describe('AppShell routing (behavior)', () => {
     await waitFor(() => expect(location.pathname).toBe('/'));
     expect(screen.queryByRole('group', { name: SONG_TITLE })).not.toBeInTheDocument();
     expect(screen.getByRole('searchbox')).toBeInTheDocument();
+  });
+
+  // shell.routing_reload_scope_step — after a reload only the entries that are
+  // the same place, naming only layers the reload dropped, are passed over
+  // (DIRECTION §3.7 "The address follows where you are"; workflow 2 §Scope).
+  it('back after a reload keeps a scope-only step', async () => {
+    // The entries a previous page left: the song opened from unscoped search,
+    // then the same song in the book's scope under the editor (the same
+    // address). Seeding history stands for entries written before the load.
+    history.replaceState({ place: { tab: 'search' }, layers: [], depth: 0 }, '', '/');
+    const song = { bookId: BOOK, path: SONG_PATH };
+    history.pushState({ place: { tab: 'search', song }, layers: [], depth: 1 }, '', SONG_URL);
+    history.pushState({ place: { tab: 'search', book: BOOK, song }, layers: ['editor'], depth: 2 }, '', SONG_URL);
+
+    // The reload lands on the second.
+    const { store, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, SHELF));
+    emit(event(EventKind.TREE, { bookId: BOOK, entries: ENTRIES }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
+    expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+    expect(history.state.depth).toBe(2);
+
+    // Back lands on the scope-only step: the song stays, at its address.
+    await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+    expect(location.pathname).toBe(SONG_URL);
+    expect(history.state.depth).toBe(1);
+    // The shell's scope followed the entry: the hook writes what the shell
+    // shows, and the place it shows names no book.
+    expect(history.state.place.book).toBeUndefined();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // And the book's scope chip is gone when the song closes onto search.
+    await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    expect(location.pathname).toBe('/');
+    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Clear filter' })).not.toBeInTheDocument();
+  });
+
+  it('back after a reload under arrange and the wizard leaves the song', async () => {
+    const first = makeStore();
+    render(<AppShell store={first.store} />);
+    openSongFromSearch(first.emit);
+    const guitar = guitarEntry();
+    first.emit(event(EventKind.INSTRUMENTS, { instruments: [guitar], inUseId: guitar.id, standard: guitar }));
+    fireEvent.click(screen.getByRole('button', { name: 'Arrange' }));
+    expect(history.state.layers).toEqual(['arrange']);
+    fireEvent.click(screen.getByRole('button', { name: 'Run the wizard' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'The smoothest path' })).toBeInTheDocument());
+    expect(history.state.layers).toEqual(['wizard', 'arrange']);
+
+    // A reload keeps the address and drops both layers.
+    cleanup();
+    const { store, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, SHELF));
+    emit(event(EventKind.TREE, { bookId: BOOK, entries: ENTRIES }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
+    expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+
+    // Both the arrange-only entry and the bare song entry are passed over.
+    await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    await waitFor(() => expect(location.pathname).toBe('/'));
+    expect(screen.queryByRole('group', { name: SONG_TITLE })).not.toBeInTheDocument();
+    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('after a reload, a same-song step reached past another song is real', async () => {
+    // The wide layout: the search beside the song opens another song (a push).
+    globalThis.matchMedia = (media) => ({
+      media,
+      matches: media === WIDE_QUERY,
+      addEventListener() {},
+      removeEventListener() {},
+    });
+    const results = [
+      { bookId: BOOK, path: SONG_PATH, title: SONG_TITLE, artist: '', score: 3, unsaved: false },
+      { bookId: BOOK, path: OTHER_PATH, title: OTHER_TITLE, artist: '', score: 2, unsaved: false },
+    ];
+    const entries = [...ENTRIES, { path: OTHER_PATH, status: null }];
+    const first = makeStore();
+    render(<AppShell store={first.store} />);
+    first.emit(event(EventKind.SHELF, SHELF));
+    const openFromSearch = (title, path, text) => {
+      act(() => {
+        fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'a' } });
+      });
+      first.emit(event(EventKind.SEARCH_RESULTS, { query: 'a', results }));
+      fireEvent.click(screen.getAllByRole('button', { name: new RegExp(title) })[0]);
+      first.emit(event(EventKind.SOURCE, { bookId: BOOK, path, text }));
+    };
+    // S, then T, then S again, then the editor over S.
+    openFromSearch(SONG_TITLE, SONG_PATH, SONG_TEXT);
+    openFromSearch(OTHER_TITLE, OTHER_PATH, OTHER_TEXT);
+    expect(location.pathname).toBe(OTHER_URL);
+    openFromSearch(SONG_TITLE, SONG_PATH, SONG_TEXT);
+    expect(location.pathname).toBe(SONG_URL);
+    expect(history.state.depth).toBe(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(history.state.layers).toEqual(['editor']);
+
+    cleanup();
+    const { store, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, SHELF));
+    emit(event(EventKind.TREE, { bookId: BOOK, entries }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
+    expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+
+    // Back passes over the bare S below the editor and lands on T.
+    await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    await waitFor(() => expect(location.pathname).toBe(OTHER_URL));
+    emit(event(EventKind.TREE, { bookId: BOOK, entries }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: OTHER_PATH, text: OTHER_TEXT }));
+    await waitFor(() => expect(screen.getByRole('group', { name: OTHER_TITLE })).toBeInTheDocument());
+
+    // The reload's record is spent: the earlier S is a real step.
+    await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
+    await waitFor(() => expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument());
+    expect(location.pathname).toBe(SONG_URL);
+    expect(history.state.depth).toBe(1);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
   it('a deep URL opens its screen — a song, with its book as the scope', async () => {

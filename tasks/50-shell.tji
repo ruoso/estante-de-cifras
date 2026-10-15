@@ -78,8 +78,9 @@ task shell "Shell" {
   task routing_reload_scope_step "Back after a reload keeps a scope-only history step" {
     effort 0.5d
     allocate team
+    complete 100
     depends !routing
-    note "Source of debt: shell.routing fixer-3 (tasks/refinements/shell/routing.md). After a reload, Back skips history entries from before the reload that differ from the current one only in search scope, so on a wide layout one Back can skip a scope-only step. Narrow the skip to the case it was added for (same song address, a layer dropped by the reload on a phone) so scope-only steps are kept. Governing document: DIRECTION section 3.7, workflow 2 (Scope delta). Tests: unit (the skip rule); behavior (back after a reload under a layer leaves the song, back after a reload keeps a scope-only step; axe); e2e-web (the arrange and wizard reload-then-back journeys still pass on the three viewports; axe)."
+    note "Source of debt: shell.routing fixer-3 (tasks/refinements/shell/routing.md). After a reload, Back skips history entries from before the reload that differ from the current one only in search scope, so on a wide layout one Back can skip a scope-only step. Narrow the skip to the case it was added for (same song address, a layer dropped by the reload on a phone) so scope-only steps are kept. Governing document: DIRECTION section 3.7, workflow 2 (Scope delta). Tests: unit (the skip rule); behavior (back after a reload under a layer leaves the song, back after a reload keeps a scope-only step; axe); e2e-web (the arrange and wizard reload-then-back journeys still pass on the three viewports; axe). Refinement: tasks/refinements/shell/routing_reload_scope_step.md"
   }
   task fonts "Self-host the designed typefaces" {
     effort 1d
