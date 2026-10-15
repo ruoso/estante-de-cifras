@@ -40,11 +40,6 @@ import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import { inUseHasChoices, existingFor } from './wizard-choices.js';
 import './wizard.css';
 
-// The device-local commit identity before sign-in, as every write path uses: the
-// personal variation-in-use register is auto-committed to the home book, never
-// pushed (mirrors SongArrange's LOCAL_IDENTITY).
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 function CloseIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
@@ -181,7 +176,6 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
         path,
         tuning: tuningId,
         variation: next,
-        author: LOCAL_IDENTITY,
       }),
     );
 

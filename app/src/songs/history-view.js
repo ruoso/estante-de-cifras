@@ -28,13 +28,6 @@
 
 import { parse, diff } from 'cifra-md';
 
-// The device-local commit email (DIRECTION §3.2 L164-170: the per-user no-reply
-// address, `local@users.estantedecifras.app` before sign-in). Mirrored here as a
-// literal, NOT imported from the Worker's author.js — that module is Worker-only
-// and the view never imports it (DIRECTION §3.7 L407-414). The account address
-// replaces this once the sign-in flow lands.
-export const LOCAL_NO_REPLY = 'local@users.estantedecifras.app';
-
 // The first line of a commit message — the note the save sheet wrote (workflow
 // 4). Never the whole body, so a row stays one line.
 function subjectOf(message) {
@@ -42,13 +35,14 @@ function subjectOf(message) {
 }
 
 /**
- * Is this commit the user's own save? Recognised by the device no-reply email
- * (`identity.email`, the account address once signed in) or, before sign-in,
- * the display name the home book keeps (`identity.name`). Workflow 6 L15-19.
+ * Is this commit the user's own save? Recognised by the address — the Worker
+ * marks `author.self` when the email is this device's account or local address,
+ * which only it knows (account.commit_author Decision 7) — or else by the
+ * display name the home book keeps (`identity.name`). Workflow 6 L16-19.
  */
 export function isYou(author, identity = {}) {
   if (!author) return false;
-  if (identity.email && author.email === identity.email) return true;
+  if (author.self === true) return true;
   if (identity.name && author.name && author.name === identity.name) return true;
   return false;
 }
@@ -99,7 +93,7 @@ function changeOf(thisText, beforeText) {
  * @param {Array<object>} [opts.entries] SONG_LOG entries, newest first
  * @param {Record<string,string>} [opts.versions] commit → version text (VERSION cache)
  * @param {{ changes?: object[], summary?: string }|null} [opts.preview] the path's save preview
- * @param {{ email?: string, name?: string }} [opts.identity] the *you* identity
+ * @param {{ name?: string }} [opts.identity] the *you* identity
  * @param {(key: string, params?: object) => string} opts.t the i18n lookup
  * @param {string} [opts.locale] the BCP-47 tag for the date format
  * @returns {{ rows: object[] }}

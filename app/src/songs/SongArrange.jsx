@@ -60,11 +60,6 @@ import { chartChordList } from './reading-view.js';
 import { occurrenceAt, unchosenPlan, toShape } from './arrange-choices.js';
 import './arrange.css';
 
-// The device-local commit identity before sign-in (as every write path uses):
-// the personal variation-in-use register is auto-committed to the home book,
-// never pushed.
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 function BackIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
@@ -236,7 +231,6 @@ export default function SongArrange({
         path,
         tuning: tuningId,
         variation: next,
-        author: LOCAL_IDENTITY,
       }),
     );
 

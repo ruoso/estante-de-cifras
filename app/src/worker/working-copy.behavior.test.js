@@ -7,7 +7,7 @@ import { createGitLayer } from './git.js';
 import { createGitHttpClient } from './git-http.js';
 import { createWorkerLogic } from './logic.js';
 import { createStore } from './store.js';
-import { command, CommandKind } from './protocol.js';
+import { command, CommandKind, EventKind } from './protocol.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { startGitHttpRemote } from '../test/git-http-remote.js';
 import { installWebLocks } from '../test/web-locks.js';
@@ -206,6 +206,19 @@ describe('the working copy, save and discard (behavior)', () => {
     const ctx = await setup('book-save-one');
     try {
       const seed = await gitRemote(ctx.remote.repoDir, 'rev-parse', 'refs/heads/main');
+      // Signed in as IDENTITY's account: the Worker authors the save as it
+      // (account.commit_author Constraint 2). No service answers the attach here;
+      // the account id is kept all the same.
+      const attached = new Promise((resolve) => {
+        const off = ctx.store.subscribeEvents((message) => {
+          if (message.kind === EventKind.HOME_ATTACHED) {
+            off();
+            resolve();
+          }
+        });
+      });
+      ctx.store.send(command(CommandKind.ATTACH_HOME, { accountId: IDENTITY.id }));
+      await attached;
       ctx.store.send(
         command(CommandKind.WRITE, {
           bookId: ctx.bookId,
@@ -218,7 +231,7 @@ describe('the working copy, save and discard (behavior)', () => {
           bookId: ctx.bookId,
           paths: ['rainy-window.cifra.md'],
           message: 'Add Rainy Window',
-          author: IDENTITY,
+          name: IDENTITY.name,
         }),
       );
       await until(() => expect(ctx.status()).toBe('saved'));

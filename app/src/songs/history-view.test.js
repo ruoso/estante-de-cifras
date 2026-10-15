@@ -9,7 +9,11 @@
 import { describe, it, expect } from 'vitest';
 import { parse, diff } from 'cifra-md';
 import { t } from '../i18n/index.js';
-import { buildHistoryView, isYou, LOCAL_NO_REPLY } from './history-view.js';
+import { buildHistoryView, isYou } from './history-view.js';
+
+// This device's own address, as the Worker marks it (`author.self`,
+// account.commit_author Decision 7); the view never knows the address itself.
+const OWN = '0c1d2e3f-local-author@users.estantedecifras.app';
 
 const V1 = ['# Rua do Porto', '', '## Primeira Parte', '```', 'C', 'desci a rua', '```', ''].join('\n');
 const V2 = ['# Rua do Porto', '', '## Primeira Parte', '```', 'C7', 'desci a rua', '```', ''].join('\n');
@@ -23,7 +27,7 @@ const entries = () => [
     path: 'rua-do-porto.cifra.md',
     parents: ['c1'],
     resolution: false,
-    author: { name: 'Ana', email: 'ana-id@users.estantedecifras.app' },
+    author: { name: 'Ana', email: 'ana-id@users.estantedecifras.app', self: false },
     timestamp: 1_700_000_100,
     message: 'Darker turn into the chorus',
   },
@@ -32,7 +36,7 @@ const entries = () => [
     path: 'rua-do-porto.cifra.md',
     parents: [],
     resolution: false,
-    author: { name: 'Me', email: LOCAL_NO_REPLY },
+    author: { name: 'Me', email: OWN, self: true },
     timestamp: 1_700_000_000,
     message: 'First version',
   },
@@ -54,11 +58,12 @@ describe('buildHistoryView', () => {
     expect(rows[1].summary).toBe(summaryBetween('', V1));
   });
 
-  it('marks *you* by the local no-reply email, and shows the author name otherwise', () => {
+  it('marks *you* by the Worker\'s `author.self`, and shows the author name otherwise', () => {
+    // A stored name that matches nobody: *you* comes from the address flag alone.
     const { rows } = buildHistoryView({
       entries: entries(),
       versions: versions(),
-      identity: { email: LOCAL_NO_REPLY, name: 'Me' },
+      identity: { name: 'Nobody Here' },
       t,
     });
     expect(rows[0].isYou).toBe(false);
@@ -82,12 +87,34 @@ describe('buildHistoryView', () => {
     const { rows } = buildHistoryView({
       entries: before,
       versions: { x: V1 },
-      identity: { email: LOCAL_NO_REPLY, name: 'Marina Souza' },
+      identity: { name: 'Marina Souza' },
       t,
     });
     expect(rows[0].isYou).toBe(true);
-    expect(isYou(before[0].author, { email: LOCAL_NO_REPLY, name: 'Marina Souza' })).toBe(true);
-    expect(isYou(before[0].author, { email: LOCAL_NO_REPLY, name: 'Someone Else' })).toBe(false);
+    expect(isYou(before[0].author, { name: 'Marina Souza' })).toBe(true);
+    expect(isYou(before[0].author, { name: 'Someone Else' })).toBe(false);
+  });
+
+  // account.commit_author acceptance 6; workflow 6 L16-19: *you* by the address
+  // the Worker recognises, else by the name given before sign-in.
+  describe('isYou', () => {
+    it('is true on `author.self`, whatever the name', () => {
+      expect(isYou({ name: 'A Name', email: OWN, self: true }, { name: 'Other' })).toBe(true);
+      expect(isYou({ name: 'A Name', email: OWN, self: true }, {})).toBe(true);
+    });
+
+    it('falls back to the stored name when the address is not this device\'s', () => {
+      expect(
+        isYou({ name: 'Marina', email: 'x@users.estantedecifras.app', self: false }, { name: 'Marina' }),
+      ).toBe(true);
+    });
+
+    it('a foreign author with a different name is not *you*', () => {
+      expect(
+        isYou({ name: 'Ana', email: 'ana@users.estantedecifras.app', self: false }, { name: 'Marina' }),
+      ).toBe(false);
+      expect(isYou({ name: 'Ana', email: 'ana@users.estantedecifras.app' }, {})).toBe(false);
+    });
   });
 
   it('prepends the unsaved row only when the preview has changes', () => {
@@ -119,7 +146,7 @@ describe('buildHistoryView', () => {
         path: 'rua-do-porto.cifra.md',
         parents: ['p1', 'p2'],
         resolution: true,
-        author: { name: 'Me', email: LOCAL_NO_REPLY },
+        author: { name: 'Me', email: OWN, self: true },
         timestamp: 1_700_000_200,
         message: 'Merge branch main',
       },

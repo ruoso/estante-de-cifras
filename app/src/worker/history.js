@@ -131,7 +131,7 @@ export function filterSongLog(rawEntries) {
  *     Promise<{ files: { path: string, status: string, before: string, after: string }[] }>,
  * }}
  */
-export function createHistory({ fs, git, locks } = {}) {
+export function createHistory({ fs, git, locks, selfAddresses } = {}) {
   if (!fs) throw new Error('createHistory requires an fs');
   if (!git) throw new Error('createHistory requires a git layer');
   if (!locks) throw new Error('createHistory requires a lock registry');
@@ -221,20 +221,31 @@ export function createHistory({ fs, git, locks } = {}) {
     return changes;
   }
 
+  // The addresses this device writes as (account.commit_author Decision 7): the
+  // account's and this device's local ones, injected by logic.js, which alone
+  // knows them. Read once per log; absent, no entry carries `self`.
+  async function ownAddresses() {
+    return selfAddresses ? new Set(await selfAddresses()) : null;
+  }
+
   // Shared commit-metadata projection (author, dates, parents, short hash) used by
   // both logs. Carries the author's name/email and the author instant; never the
-  // committer, which the no-reply address makes identical here anyway.
-  function metaOf(entry) {
+  // committer, which the no-reply address makes identical here anyway. `own`
+  // marks the user's own saves `author.self` (workflow 6 L16-19: *you*,
+  // recognised by the address).
+  function metaOf(entry, own) {
     const parents = entry.commit.parent ?? [];
+    const author = {
+      name: entry.commit.author.name,
+      email: entry.commit.author.email,
+    };
+    if (own) author.self = own.has(author.email);
     return {
       commit: entry.oid,
       short: entry.oid.slice(0, SHORT),
       parents,
       isMerge: parents.length >= 2,
-      author: {
-        name: entry.commit.author.name,
-        email: entry.commit.author.email,
-      },
+      author,
       timestamp: entry.commit.author.timestamp,
       timezoneOffset: entry.commit.author.timezoneOffset,
       message: entry.commit.message,
@@ -255,6 +266,7 @@ export function createHistory({ fs, git, locks } = {}) {
     return locks.withLock(bookId, async () => {
       const dir = git.bookDir(bookId);
       const raw = await gitLog({ fs, dir, filepath: path, follow: true });
+      const own = await ownAddresses();
 
       // A diamond makes `log` visit a shared ancestor once per branch; dedupe by
       // oid, keeping the first (newest) occurrence so ordering is preserved.
@@ -280,7 +292,7 @@ export function createHistory({ fs, git, locks } = {}) {
           }
         }
 
-        const meta = metaOf(entry);
+        const meta = metaOf(entry, own);
         let mergeClass = null;
         if (meta.isMerge) {
           const parentBlobOids = await Promise.all(
@@ -383,9 +395,10 @@ export function createHistory({ fs, git, locks } = {}) {
     return locks.withLock(bookId, async () => {
       const dir = git.bookDir(bookId);
       const raw = await gitLog({ fs, dir });
+      const own = await ownAddresses();
       const commits = [];
       for (const entry of raw) {
-        const meta = metaOf(entry);
+        const meta = metaOf(entry, own);
         const files = await changedFiles(dir, entry.oid, meta.parents[0] ?? null);
         commits.push({ ...meta, files });
       }

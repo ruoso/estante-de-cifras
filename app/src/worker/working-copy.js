@@ -65,9 +65,9 @@ function kindOfPath(path) {
  * }} deps
  * @returns {{
  *   write: (opts: { bookId: string, path: string, text: string|Uint8Array }) => Promise<void>,
- *   save: (opts: { bookId: string, paths: string[], message: string, author: object }) =>
+ *   save: (opts: { bookId: string, paths: string[], message: string, author: object|(() => Promise<object>) }) =>
  *     Promise<{ commit: string, pushed: boolean } | { refused: { path: string, reason: string, marker?: string, line?: number } }>,
- *   nameAndSave: (opts: { bookId: string, fromPath: string, toPath: string, message: string, author: object }) =>
+ *   nameAndSave: (opts: { bookId: string, fromPath: string, toPath: string, message: string, author: object|(() => Promise<object>) }) =>
  *     Promise<{ commit: string, pushed: boolean, path: string } | { refused: { path: string, reason: string, marker?: string, line?: number } }>,
  *   discard: (opts: { bookId: string, paths: string[] }) => Promise<void>,
  *   move: (opts: { bookId: string, fromPath: string, toPath: string }) => Promise<void>,
@@ -113,6 +113,14 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
       // so closing the tab loses nothing" (DIRECTION §3 L108-110) forbids.
       await fs.flush();
     });
+  }
+
+  // The commit identity: an author object, or a function resolving one, called
+  // here inside the book lock — so a save that waited on the sign-in re-author's
+  // lock takes the identity as it stands after it (account.commit_author
+  // Constraint 6), never one resolved before the account id was stored.
+  async function identityOf(author) {
+    return typeof author === 'function' ? author() : author;
   }
 
   // Save the named paths as ONE commit, authored by the per-user no-reply
@@ -165,7 +173,8 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
           await gitAdd({ fs, dir, filepath: step.path });
         }
       }
-      const commit = await gitCommit({ fs, dir, message, author, committer: author });
+      const who = await identityOf(author);
+      const commit = await gitCommit({ fs, dir, message, author: who, committer: who });
 
       // Force the inode table out now (fs.js Decision 6), still inside the save's
       // single lock: the commit the user chose to keep is the durable artifact,
@@ -233,7 +242,8 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
         }
       }
       await gitAdd({ fs, dir, filepath: toPath });
-      const commit = await gitCommit({ fs, dir, message, author, committer: author });
+      const who = await identityOf(author);
+      const commit = await gitCommit({ fs, dir, message, author: who, committer: who });
 
       // Force the inode table out now (fs.js Decision 6), inside the one lock and
       // before the best-effort push, so the commit the user chose to keep is

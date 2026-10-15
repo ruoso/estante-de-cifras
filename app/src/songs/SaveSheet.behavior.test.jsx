@@ -115,8 +115,10 @@ describe('save sheet — what changed and the note (§Saving)', () => {
       bookId: BOOK,
       paths: ['tarde-clara.cifra.md'],
       message: SUMMARY,
-      author: { id: 'local', name: 'Marina' },
+      name: 'Marina',
     });
+    // No author id: the Worker resolves it (account.commit_author Decision 3).
+    expect(cmd.payload.author).toBeUndefined();
   });
 
   it('confirming a never-saved song sends NAME_AND_SAVE with the note', async () => {
@@ -152,7 +154,8 @@ describe('save sheet — who made the change (§Who made the change)', () => {
 
     // The name is persisted to the home book and used as the commit author.
     expect(lastCommand(sent, CommandKind.SET_IDENTITY_NAME).payload.name).toBe('Ana');
-    expect(lastCommand(sent, CommandKind.SAVE).payload.author).toMatchObject({ id: 'local', name: 'Ana' });
+    expect(lastCommand(sent, CommandKind.SAVE).payload.name).toBe('Ana');
+    expect(lastCommand(sent, CommandKind.SAVE).payload.author).toBeUndefined();
 
     // Once persisted, the field is gone — it is asked only once.
     withName(emit);

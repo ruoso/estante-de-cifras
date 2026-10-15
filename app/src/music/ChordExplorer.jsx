@@ -34,9 +34,6 @@ import { groupViewModel, spokenShorthand } from './fingering-groups.js';
 import { BackIcon, StarIcon } from './icons.jsx';
 import './music.css';
 
-// The device-local commit identity before sign-in, as every other write path uses.
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 export default function ChordExplorer({
   store,
   initialText = '',
@@ -125,7 +122,7 @@ export default function ChordExplorer({
   // music core matches it — never written into a song.
   const toggleStar = ({ fingering, starred }) => {
     if (!entry || !chord) return;
-    const base = { id: entry.id, tuning: entry.tuning, author: LOCAL_IDENTITY };
+    const base = { id: entry.id, tuning: entry.tuning };
     if (starred) {
       // Tombstone the exact stored leaf matching this chord (by chord, not
       // spelling) and shorthand, falling back to the canonical key.

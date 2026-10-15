@@ -36,11 +36,6 @@ import { titleFor, canSaveFor, orderedBooks } from './book-display.js';
 import PreviewRows from './PreviewRows.jsx';
 import './upload-preview.css';
 
-// The device commit identity for a shelf-touching command, the same literal the
-// shelf and the detail use (BooksScreen.jsx, BookDetail.jsx). The Worker's
-// `authorFrom` turns the id into a no-reply address.
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 function CancelIcon() {
   return (
     <svg
@@ -214,7 +209,7 @@ export default function UploadPreview({
     const uploadId = preview.uploadId;
     if (choice === 'new') {
       awaitingRef.current = 'new';
-      store.send(command(CommandKind.IMPORT_UPLOAD, { uploadId, choice: 'new_book', author: LOCAL_IDENTITY }));
+      store.send(command(CommandKind.IMPORT_UPLOAD, { uploadId, choice: 'new_book' }));
       return;
     }
     awaitingRef.current = targetId;
@@ -224,7 +219,6 @@ export default function UploadPreview({
           uploadId,
           choice: 'merge',
           target: { bookId: targetId },
-          author: LOCAL_IDENTITY,
         }),
       );
     } else {
@@ -235,7 +229,6 @@ export default function UploadPreview({
           choice: 'replace',
           target: { bookId: targetId },
           perFile,
-          author: LOCAL_IDENTITY,
         }),
       );
     }
@@ -250,7 +243,6 @@ export default function UploadPreview({
       command(CommandKind.IMPORT_UPLOAD, {
         uploadId: preview.uploadId,
         choice: 'latest_without_history',
-        author: LOCAL_IDENTITY,
       }),
     );
   };

@@ -25,10 +25,6 @@ import { BackIcon, CloseIcon, PlusIcon } from './icons.jsx';
 import { catalogName, displayLabel, presetLabel } from './instrument-helpers.js';
 import './instruments.css';
 
-// The device-local commit identity before sign-in, as every other write path
-// uses (BooksScreen/AppShell); the Worker turns the id into a no-reply address.
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 // One instrument on the roster: opens its detail; shows the preset and string
 // count, and the word *in use* (a badge, never colour alone) when it is the one
 // in use.
@@ -59,7 +55,7 @@ export default function InstrumentsOverlay({ store, isOpen, onClose }) {
   const [view, setView] = useState({ name: 'roster', id: null });
 
   const send = (kind, payload) =>
-    store.send(command(kind, { ...payload, author: LOCAL_IDENTITY }));
+    store.send(command(kind, payload));
 
   const close = () => {
     setView({ name: 'roster', id: null });

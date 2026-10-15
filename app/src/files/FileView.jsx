@@ -28,11 +28,6 @@ import { buildTree, changedFiles, fileKind, splitPath } from './file-tree.js';
 import { ChevronLeftIcon, PlusIcon, ClockIcon } from './icons.jsx';
 import './file-view.css';
 
-// The device-local commit identity before sign-in (shell/BooksScreen use the
-// same literal; the Worker's `authorFrom` turns the id into the no-reply
-// address).
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 export default function FileView({ store, bookId, mode, onBack = () => {}, onOpenHistory = () => {} }) {
   const treeSlice = useSlice(store, 'tree');
   const shelf = useSlice(store, 'shelf');
@@ -80,7 +75,6 @@ export default function FileView({ store, bookId, mode, onBack = () => {}, onOpe
         targetBookId: bookId,
         folder: folder || null,
         mySongsTitle: t('firstRun.mySongs'),
-        author: LOCAL_IDENTITY,
       }),
     );
   };

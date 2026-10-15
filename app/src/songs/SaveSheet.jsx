@@ -41,10 +41,6 @@ import { MakeYourOwnBody } from '../books/MakeYourOwn.jsx';
 import { buildSaveNote } from './save-note.js';
 import './save-sheet.css';
 
-// Before sign-in a device's commits carry a local id (DIRECTION §3.2 L164-170);
-// the save sheet supplies the display name (stored, or asked here) on top of it.
-const LOCAL_ID = 'local';
-
 // The editable commit form, mounted only while the sheet is open.
 function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, titleHint }) {
   const savePreview = useSlice(store, 'savePreview');
@@ -100,22 +96,23 @@ function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, title
     if (!canConfirm) return;
     const name = (storedName ?? authorName.trim()) || '';
     if (needsName) {
-      store.send(command(CommandKind.SET_IDENTITY_NAME, { name, author: { id: LOCAL_ID, name } }));
+      store.send(command(CommandKind.SET_IDENTITY_NAME, { name }));
     }
-    const author = { id: LOCAL_ID, name: name || 'Me' };
+    // The Worker authors the commit (account.commit_author Decision 3); the
+    // sheet hands it only the typed name, which may not be stored yet.
     if (isNew) {
       store.send(
         command(CommandKind.NAME_AND_SAVE, {
           bookId,
           fromPath,
-          author,
+          name,
           message: noteValue,
           title: songName.trim() || undefined,
         }),
       );
     } else {
       store.send(
-        command(CommandKind.SAVE, { bookId, paths: paths ?? [], message: noteValue, author }),
+        command(CommandKind.SAVE, { bookId, paths: paths ?? [], message: noteValue, name }),
       );
     }
   };

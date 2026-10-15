@@ -60,13 +60,6 @@ import BringIn from './BringIn.jsx';
 import LeaveDialog from './LeaveDialog.jsx';
 import './books.css';
 
-// Before sign-in there is no account; a local book's commits carry a device-local
-// identity (DIRECTION §3.2 L164-170). account.first_run (which depends on this
-// task) replaces it with the account's address on the saves not yet pushed when
-// the user signs in. Until then a stable local id authors the offline commit — a
-// local book never pushes, so it reaches no one.
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 // Whether the shelf has room for its OWN side-by-side master-detail
 // (books.online Decision 2). This is a SECOND sidebar nested inside the shell's
 // wide main pane, so it needs a wider budget than the shell split — see
@@ -730,11 +723,11 @@ export default function BooksScreen({
 
   const createBook = (title) => {
     wantFocus.current = true;
-    store.send(command(CommandKind.CREATE_BOOK, { title, author: LOCAL_IDENTITY }));
+    store.send(command(CommandKind.CREATE_BOOK, { title }));
   };
 
   const renameBook = (bookId, name) => {
-    store.send(command(CommandKind.RENAME_BOOK, { bookId, name, author: LOCAL_IDENTITY }));
+    store.send(command(CommandKind.RENAME_BOOK, { bookId, name }));
   };
 
   // Ask the Worker for the account's off-shelf books when the sheet opens
@@ -754,7 +747,6 @@ export default function BooksScreen({
         label: book.label,
         role: book.role,
         ...(book.ownerName ? { ownerName: book.ownerName } : {}),
-        author: LOCAL_IDENTITY,
       }),
     );
   };

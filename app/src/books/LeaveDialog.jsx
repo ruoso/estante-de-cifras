@@ -23,9 +23,6 @@ import { t } from '../i18n/index.js';
 import { useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 
-// The device commit identity for a shelf-touching command (BookDetail.jsx).
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 export function WarnIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: 'none', color: 'var(--unsaved)' }}>
@@ -91,7 +88,7 @@ export default function LeaveDialog({
     if (inFlight.current) return;
     inFlight.current = true;
     setFailed(false);
-    store.send(command(CommandKind.LEAVE_BOOK, { bookId, author: LOCAL_IDENTITY }));
+    store.send(command(CommandKind.LEAVE_BOOK, { bookId }));
   };
   const download = () => store.send(command(CommandKind.DOWNLOAD_BOOK, { bookId }));
 

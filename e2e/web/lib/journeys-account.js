@@ -3,8 +3,10 @@
 // generally useful ones into journeys.js.
 
 import { expect } from '@playwright/test';
+import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import {
   startApp,
   gotoTab,
@@ -12,6 +14,7 @@ import {
   hasSessionCookie,
   sharePasskeys,
   sessionCookie,
+  bookGitUrl,
 } from './journeys.js';
 import { waitForMessage, extractSignInLink } from './mail.js';
 import { openDevice } from './devices.js';
@@ -191,6 +194,23 @@ export async function accountShelf(page) {
     return existsSync(join(device.dir, 'shelf.json')) ? JSON.parse(device.read('shelf.json')) : {};
   } catch {
     return {}; // nothing pushed yet
+  } finally {
+    device.cleanup();
+  }
+}
+
+// Read-only: every author and committer address on a hosted book's `main` as the
+// service holds it — a git clone carrying the session, the way another device
+// would read it (account.commit_author; DIRECTION §3.3).
+export async function pushedAuthorEmails(page, title) {
+  const device = new GitDevice({ url: await bookGitUrl(page, title), cookie: await sessionCookie(page) });
+  try {
+    await device.clone();
+    const { stdout } = await promisify(execFile)('git', ['log', '--format=%ae%n%ce', 'main'], {
+      cwd: device.dir,
+      env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1' },
+    });
+    return stdout.split('\n').filter(Boolean);
   } finally {
     device.cleanup();
   }

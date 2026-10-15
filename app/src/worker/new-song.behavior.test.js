@@ -197,7 +197,9 @@ describe('NAME_AND_SAVE — the first save names and commits', () => {
     const [entry] = await log({ fs: w.fs, dir, ref: 'main', depth: 1 });
     expect(entry.commit.message.trim()).toBe('Add Coração de Estrada');
     expect(entry.commit.author.name).toBe('Me');
-    expect(entry.commit.author.email).toBe('local@users.estantedecifras.app');
+    // Signed out, the commit carries this device's own local author id — a random
+    // id, never the shared literal `local` (account.commit_author Constraint 3).
+    expect(entry.commit.author.email).toMatch(/^[0-9a-f-]{36}@users\.estantedecifras\.app$/);
 
     const files = await listFiles({ fs: w.fs, dir, ref: 'main' });
     expect(files).toContain('coracao-de-estrada.cifra.md');

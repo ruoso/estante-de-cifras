@@ -198,7 +198,7 @@ describe("the Worker's history reads (behavior)", () => {
       // Each entry carries the song's path AT THAT COMMIT (pre-rename for c1/c2).
       expect(entries.map((e) => e.path)).toEqual([current, current, previous, previous]);
       // The author surfaces from the commit; none is a merge or a resolution.
-      expect(entries[0].author).toEqual({ name: SEED_NAME, email: SEED_EMAIL });
+      expect(entries[0].author).toEqual({ name: SEED_NAME, email: SEED_EMAIL, self: false });
       expect(entries.every((e) => e.isMerge === false && e.resolution === false)).toBe(true);
       expect(entries[0].short).toBe(oids.c4.slice(0, 7));
     } finally {
@@ -448,7 +448,7 @@ describe("the Worker's history reads (behavior)", () => {
       // Shape: short hash, author, date, message, parents; none here is a merge.
       const head = byCommit.get(oids.delB);
       expect(head.short).toBe(oids.delB.slice(0, 7));
-      expect(head.author).toEqual({ name: SEED_NAME, email: SEED_EMAIL });
+      expect(head.author).toEqual({ name: SEED_NAME, email: SEED_EMAIL, self: false });
       expect(typeof head.timestamp).toBe('number');
       expect(head.message).toContain('Delete B');
       expect(head.isMerge).toBe(false);

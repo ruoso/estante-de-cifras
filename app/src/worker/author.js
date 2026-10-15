@@ -5,15 +5,19 @@
 // account's address replaces in the saves not yet pushed when the user signs
 // in."
 //
-// This module owns ONE mapping: an `id` -> the no-reply address, and the
-// isomorphic-git `author`/`committer` shape built from it. It does not generate
-// the local id, store the display name, or know about sign-in — those belong to
-// the home book and the account flow (storage.home_book; Decision 7). The `id`
-// it is handed is either the account user-id or the device local id; it forms
-// the address the same way for both, so the save path never has to care which.
+// This module owns the mapping from an `id` to the no-reply address, and the
+// isomorphic-git `author`/`committer` shape built from it. The `id` it is handed
+// is either the account user-id or the device local id; it forms the address the
+// same way for both, so the save path never has to care which.
 //
-// Pure: no I/O, no logging, no song text, no real email (standing rules). Plain
-// ESM, Worker-only; the main thread and the view never import it.
+// It also holds the ONE author resolver every commit path goes through
+// (account.commit_author Constraint 2): `{ id: meta.accountId ??
+// meta.localAuthorId, name }`. The resolver does no I/O of its own — the `meta`
+// record and the home book's display name are read through accessors logic.js
+// injects (storage.home_book Decision 7: device state lives on `meta`).
+//
+// No logging, no song text, no real email (standing rules). Plain ESM,
+// Worker-only; the main thread and the view never import it.
 
 // The root domain the app is served from (DIRECTION §3.2 L160). The `users.`
 // sub-domain namespaces the per-user no-reply addresses so they can never
@@ -52,4 +56,81 @@ export function authorFrom({ id, name }, now = Date.now()) {
     timestamp: Math.floor(now / 1000),
     timezoneOffset: new Date(now).getTimezoneOffset(),
   };
+}
+
+/**
+ * The one author resolver (account.commit_author Constraint 2). Every commit the
+ * Worker makes takes its identity from `resolveAuthor()`:
+ * `{ id: meta.accountId ?? meta.localAuthorId, name: authorName ?? 'Me' }`.
+ *
+ * The local author id is per device and distinct from the §2.3 device id
+ * (storage/home_book Decision 6): a random id made on first need and kept as
+ * `meta.localAuthorId`; the literal `local` is never written.
+ *
+ * - `readMeta()` resolves the `meta` record (`{}` when absent);
+ * - `writeMeta(fields)` merges fields into it;
+ * - `readName()` resolves the home book's display name, or null;
+ * - `randomId()` mints an id (defaults to `crypto.randomUUID`).
+ *
+ * @param {{ readMeta: () => Promise<object>, writeMeta: (fields: object) => Promise<void>,
+ *   readName?: () => Promise<string|null>, randomId?: () => string }} deps
+ */
+export function createAuthorResolver({
+  readMeta,
+  writeMeta,
+  readName = async () => null,
+  randomId = () => crypto.randomUUID(),
+}) {
+  let minting = null;
+
+  // This device's local author id, made once: concurrent callers share the one
+  // mint, so no two commits ever carry two different fresh ids.
+  async function localAuthorId(meta) {
+    if (!meta) meta = await readMeta();
+    if (meta.localAuthorId) return meta.localAuthorId;
+    if (!minting) {
+      minting = (async () => {
+        let id = randomId();
+        while (id === 'local' || id === meta.deviceId) id = randomId();
+        await writeMeta({ localAuthorId: id });
+        return id;
+      })();
+      minting.catch(() => {
+        minting = null;
+      });
+    }
+    return minting;
+  }
+
+  /**
+   * The identity a commit is authored with. `name` overrides the stored display
+   * name — the save sheet's typed name, which may not be stored yet.
+   *
+   * @param {{ name?: string }} [override]
+   * @returns {Promise<{ id: string, name: string }>}
+   */
+  async function resolveAuthor({ name } = {}) {
+    const meta = await readMeta();
+    const id = meta.accountId ?? (await localAuthorId(meta));
+    const typed = typeof name === 'string' ? name.trim() : '';
+    return { id, name: typed || (await readName()) || 'Me' };
+  }
+
+  // This device's local addresses (Constraint 3): the local author id's and the
+  // legacy `<deviceId>@` the sync identity wrote before this task. Never the
+  // shared `local@`, which every device wrote (Decision 2).
+  async function localAddresses() {
+    const meta = await readMeta();
+    return [meta.localAuthorId, meta.deviceId].filter(Boolean).map(noReplyAddress);
+  }
+
+  // Every address that is this device's user: the account's, if signed in, and
+  // the local ones (history's *you*, Decision 7).
+  async function ownAddresses() {
+    const meta = await readMeta();
+    const local = await localAddresses();
+    return meta.accountId ? [noReplyAddress(meta.accountId), ...local] : local;
+  }
+
+  return { resolveAuthor, localAuthorId, localAddresses, ownAddresses };
 }

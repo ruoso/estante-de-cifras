@@ -211,7 +211,10 @@ describe('the first save', () => {
     const cmd = lastCommand(sent, CommandKind.NAME_AND_SAVE);
     expect(cmd).toBeTruthy();
     expect(cmd.payload).toMatchObject({ bookId: MY_SONGS_ID, fromPath: 'untitled.cifra.md' });
-    expect(cmd.payload.author).toMatchObject({ id: 'local', name: 'Marina' });
+    // The name rides along; the Worker resolves the author (account.commit_author
+    // Decision 3), so no author id is sent.
+    expect(cmd.payload.name).toBe('Marina');
+    expect(cmd.payload.author).toBeUndefined();
 
     // The first save landed: the song is ordinary now, the which-book bar gone.
     emit(

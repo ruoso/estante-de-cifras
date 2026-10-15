@@ -34,7 +34,7 @@ import Chart from '../chart/Chart.jsx';
 import DiffRows from './DiffRows.jsx';
 import RestoreConfirm from './RestoreConfirm.jsx';
 import { restorableBlocks, sameBlockRef, blockLabelText } from './restorable-blocks.js';
-import { buildHistoryView, beforeTextOf, LOCAL_NO_REPLY } from './history-view.js';
+import { buildHistoryView, beforeTextOf } from './history-view.js';
 import { lineDiff } from './line-diff.js';
 import { useLayoutMode } from '../shell/AppShell.jsx';
 import './song-history.css';
@@ -248,7 +248,7 @@ export default function SongHistory({
   );
   const workingText = sourceSlice?.[bookId]?.[path]?.text ?? null;
   const storedName = preferences?.authorName?.value;
-  const identity = useMemo(() => ({ email: LOCAL_NO_REPLY, name: storedName }), [storedName]);
+  const identity = useMemo(() => ({ name: storedName }), [storedName]);
 
   // The song's title and the book's label for the chrome: the props when the
   // host knows them, else the working copy's parsed title (carried on the save

@@ -45,13 +45,6 @@ import SaveSheet from './SaveSheet.jsx';
 import { showsFirstRun, bookLabelFor as resolveBookLabel } from './first-run.js';
 import './search.css';
 
-// A local book's offline commits carry a device-local identity until an account
-// arrives (DIRECTION §3.2; mirrors BooksScreen's `LOCAL_IDENTITY` — account.sign_in
-// replaces it on the unpushed saves). The view supplies it, and the localised
-// label, with OPEN_EXAMPLE_BOOK, exactly as the Add-a-book flow supplies them
-// with CREATE_BOOK.
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 // Results narrow "on every keystroke" (workflow 2 L22), but a SEARCH per
 // keystroke would thrash the Worker; a short debounce coalesces a fast typist's
 // bursts while still feeling immediate. The browse/recents the pre-typing state
@@ -648,7 +641,6 @@ export default function SearchScreen({
               store.send(
                 command(CommandKind.OPEN_EXAMPLE_BOOK, {
                   title: t('firstRun.exampleLabel'),
-                  author: LOCAL_IDENTITY,
                 }),
               )
             }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { noReplyAddress, authorFrom } from './author.js';
+import { noReplyAddress, authorFrom, createAuthorResolver } from './author.js';
 
 // unit — the commit identity (storage.working_copy). Pins tasks/40-storage.tji:33
 // ("the author's no-reply address") and DIRECTION §3.2 L164-170: commits are
@@ -44,5 +44,89 @@ describe('authorFrom', () => {
   it('floors the timestamp to whole seconds', () => {
     const author = authorFrom({ id: 'u_1', name: 'X' }, 1577836800999);
     expect(author.timestamp).toBe(1577836800);
+  });
+});
+
+// unit — the one author resolver (account.commit_author Constraint 2-3;
+// storage/home_book Decision 6): `{ id: meta.accountId ?? meta.localAuthorId,
+// name }`, the local author id made once, never `local`, never the device id.
+describe('createAuthorResolver', () => {
+  // An in-memory `meta` record standing in for the Worker's IndexedDB one.
+  function fakeMeta(initial = {}) {
+    const record = { ...initial };
+    return {
+      record,
+      readMeta: async () => ({ ...record }),
+      writeMeta: async (fields) => {
+        Object.assign(record, fields);
+      },
+    };
+  }
+
+  it('resolves the account id when one is stored', async () => {
+    const meta = fakeMeta({ accountId: 'u_acc', localAuthorId: 'loc-1', deviceId: 'dev-1' });
+    const { resolveAuthor } = createAuthorResolver({ ...meta, readName: async () => 'Marina' });
+    expect(await resolveAuthor()).toEqual({ id: 'u_acc', name: 'Marina' });
+  });
+
+  it('otherwise the local author id, created once and stable across calls', async () => {
+    const meta = fakeMeta({ deviceId: 'dev-1' });
+    let minted = 0;
+    const { resolveAuthor } = createAuthorResolver({
+      ...meta,
+      randomId: () => `fresh-${++minted}`,
+    });
+    const [a, b] = await Promise.all([resolveAuthor(), resolveAuthor()]);
+    const c = await resolveAuthor();
+    expect(a.id).toBe('fresh-1');
+    expect(b.id).toBe('fresh-1');
+    expect(c.id).toBe('fresh-1');
+    expect(minted).toBe(1);
+    expect(meta.record.localAuthorId).toBe('fresh-1');
+    // A fresh resolver over the same record (a relaunch) keeps the id.
+    const again = createAuthorResolver({ ...meta, randomId: () => 'other' });
+    expect((await again.resolveAuthor()).id).toBe('fresh-1');
+  });
+
+  it('never resolves the literal `local`', async () => {
+    const meta = fakeMeta({ deviceId: 'dev-1' });
+    const ids = ['local', 'ok-id'];
+    const { resolveAuthor } = createAuthorResolver({ ...meta, randomId: () => ids.shift() });
+    expect((await resolveAuthor()).id).toBe('ok-id');
+  });
+
+  it('never resolves the §2.3 device id (storage/home_book Decision 6)', async () => {
+    const meta = fakeMeta({ deviceId: 'dev-1' });
+    const ids = ['dev-1', 'loc-2'];
+    const { resolveAuthor } = createAuthorResolver({ ...meta, randomId: () => ids.shift() });
+    const { id } = await resolveAuthor();
+    expect(id).toBe('loc-2');
+    expect(id).not.toBe('dev-1');
+    // The default mint is a random UUID, distinct from the device id too.
+    const real = createAuthorResolver(fakeMeta({ deviceId: 'dev-1' }));
+    expect((await real.resolveAuthor()).id).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('takes a typed name over the stored one, the stored one over `Me`', async () => {
+    const meta = fakeMeta({ localAuthorId: 'loc-1' });
+    const stored = createAuthorResolver({ ...meta, readName: async () => 'Stored' });
+    expect((await stored.resolveAuthor({ name: ' Typed ' })).name).toBe('Typed');
+    expect((await stored.resolveAuthor()).name).toBe('Stored');
+    const none = createAuthorResolver({ ...meta });
+    expect((await none.resolveAuthor()).name).toBe('Me');
+  });
+
+  it('names this device\'s local addresses and its own (local + account)', async () => {
+    const meta = fakeMeta({ localAuthorId: 'loc-1', deviceId: 'dev-1' });
+    const r = createAuthorResolver(meta);
+    expect(await r.localAddresses()).toEqual([
+      'loc-1@users.estantedecifras.app',
+      'dev-1@users.estantedecifras.app',
+    ]);
+    expect(await r.ownAddresses()).not.toContain('u_acc@users.estantedecifras.app');
+    meta.record.accountId = 'u_acc';
+    expect(await r.ownAddresses()).toContain('u_acc@users.estantedecifras.app');
+    // The shared `local@` every device wrote is never this device's (Decision 2).
+    expect(await r.ownAddresses()).not.toContain('local@users.estantedecifras.app');
   });
 });

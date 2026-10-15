@@ -26,10 +26,6 @@ import { useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import './make-your-own.css';
 
-// The device commit identity for a shelf-touching command, as the shelf and the
-// detail send it (BookDetail.jsx); the Worker marks the fork with the device's.
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 // The FORK_FAILED code as copy — always a word, never colour alone, never song
 // text (Constraint 8).
 function failureCopy(code) {
@@ -94,7 +90,7 @@ export function MakeYourOwnBody({
   const makeIt = () => {
     if (status.busy) return;
     setStatus({ busy: true, code: null });
-    store.send(command(CommandKind.FORK_BOOK, { bookId, author: LOCAL_IDENTITY }));
+    store.send(command(CommandKind.FORK_BOOK, { bookId }));
   };
 
   const points = [

@@ -45,7 +45,6 @@ import { orderedBooks, titleFor } from './book-display.js';
 import { setlistRows, bookFileSet, folderOf } from './setlist-display.js';
 import './setlist.css';
 
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
 // A `key` as §10.7.1 writes it — a root then `m` for minor; mirrored locally so
 // the field can flag a value the format would not read (the chord layer is not
 // imported — cifra_js.setlists Decisions).
@@ -128,7 +127,6 @@ export default function SetlistView({
   bookId,
   path,
   mode = 'narrow',
-  author = LOCAL_IDENTITY,
   onBack = () => {},
   onPlay = () => {},
 }) {
@@ -197,7 +195,6 @@ export default function SetlistView({
       bookId,
       paths: savePaths,
       message: t('setlists.saveMessage'),
-      author,
     }));
   };
 

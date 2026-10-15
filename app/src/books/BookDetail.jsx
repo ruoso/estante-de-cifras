@@ -53,11 +53,6 @@ import LeaveDialog, { WarnIcon } from './LeaveDialog.jsx';
 import { useOnline } from '../account/use-online.js';
 import './book-detail.css';
 
-// The device commit identity for a shelf-touching command, the same literal the
-// shelf and the shell use (BooksScreen.jsx:49). The Worker's `authorFrom` turns
-// the id into a no-reply address.
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 function DownloadIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -335,16 +330,16 @@ export default function BookDetail({
 
   const putOnline = () => {
     setFailure(null);
-    store.send(command(CommandKind.PUT_ONLINE, { bookId, author: LOCAL_IDENTITY }));
+    store.send(command(CommandKind.PUT_ONLINE, { bookId }));
   };
   const download = () => store.send(command(CommandKind.DOWNLOAD_BOOK, { bookId }));
   // Every fork offer opens the one sheet; the Worker makes the fork on its
   // confirm (MakeYourOwn sends FORK_BOOK). BooksScreen follows BOOK_FORKED.
   const makeYourOwn = (following) => setForkSheet({ following });
   const remove = () =>
-    store.send(command(CommandKind.REMOVE_BOOK, { bookId, author: LOCAL_IDENTITY }));
+    store.send(command(CommandKind.REMOVE_BOOK, { bookId }));
   const deleteBook = () =>
-    store.send(command(CommandKind.DELETE_BOOK, { bookId, author: LOCAL_IDENTITY }));
+    store.send(command(CommandKind.DELETE_BOOK, { bookId }));
 
   const failureCopy =
     failure === 'quota'

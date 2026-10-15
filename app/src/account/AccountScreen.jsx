@@ -63,12 +63,6 @@ import { useOnline } from './use-online.js';
 import { createCredential, isCancellation } from './webauthn-json.js';
 import './account.css';
 
-// The device-local commit identity for the preference writes (mirrors the shell
-// and the other preference-writing surfaces; `authorFrom` turns the id into the
-// no-reply address). The account author switch is account.new_device's, not this
-// surface's.
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 // The real client, bound to the browser's fetch; the behavior level injects a
 // loopback double instead (like SignIn / SharingScreen).
 const DEFAULT_CLIENT = createAuthClient();
@@ -304,9 +298,9 @@ export default function AccountScreen({
   const authorName = preferences?.authorName?.value;
 
   const chooseTheme = (theme) =>
-    store.send(command(CommandKind.SET_THEME, { theme, author: LOCAL_IDENTITY }));
+    store.send(command(CommandKind.SET_THEME, { theme }));
   const chooseLanguage = (language) =>
-    store.send(command(CommandKind.SET_LANGUAGE, { language, author: LOCAL_IDENTITY }));
+    store.send(command(CommandKind.SET_LANGUAGE, { language }));
 
   // 'loading' | 'in' | 'out' | 'error' — "signed in" read afresh from a 200 vs
   // 401 each time the screen opens (Constraints; Decision 3).

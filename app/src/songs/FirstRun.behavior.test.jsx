@@ -83,7 +83,9 @@ describe('FirstRun (behavior)', () => {
     const cmd = lastCommand(sent, CommandKind.OPEN_EXAMPLE_BOOK);
     expect(cmd).toBeTruthy();
     expect(cmd.payload.title).toBe('Example Book');
-    expect(cmd.payload.author).toEqual({ id: 'local', name: 'Me' });
+    // The Worker authors the commit (account.commit_author Decision 3): the view
+    // sends no author.
+    expect(cmd.payload.author).toBeUndefined();
   });
 
   it('every way-in is reachable by keyboard (Enter activates it)', () => {

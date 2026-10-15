@@ -24,6 +24,13 @@ export const EVENT = 'event';
 // database up (storage.fs). `WRITE`/`SAVE`/`DISCARD` are the working-copy flow
 // (storage.working_copy): WRITE persists the editor's current text, SAVE
 // canonicalises + commits + pushes, DISCARD puts files back as last saved.
+// SAVE `{ bookId, paths, message?, name? }` — `name` is the save sheet's typed
+// display name (it may not be stored yet).
+//
+// No command carries an author (account.commit_author Decision 3): the Worker
+// authors every commit through its one resolver, as the account once signed in
+// and as this device's local author id before. Where a payload below names
+// `author`, it is that resolved identity, never a field the view sends.
 // Later tasks add clone / fetch / merge / index without touching the envelope.
 export const CommandKind = Object.freeze({
   OPEN: 'open',
@@ -82,11 +89,11 @@ export const CommandKind = Object.freeze({
   // commit) and replies with a RECENTS event. `songs.reading` calls this on
   // open; the search screen displays it.
   RECORD_RECENT: 'record_recent',
-  // The shelf write path (books.shelf, workflow 7). CREATE_BOOK `{ title,
-  // author }` makes an empty local songbook with no account — `git.init` +
+  // The shelf write path (books.shelf, workflow 7). CREATE_BOOK `{ title }`
+  // makes an empty local songbook with no account — `git.init` +
   // §2.1 scaffold + one commit — writes its `shelf.local` entry through the
   // home book (provisioning a local home book if none exists), re-surfaces
-  // SHELF and emits BOOK_CREATED. RENAME_BOOK `{ bookId, name, author }` writes
+  // SHELF and emits BOOK_CREATED. RENAME_BOOK `{ bookId, name }` writes
   // the book's shelf label (shared) or title (local) register and re-surfaces
   // SHELF — a label kept in the home book that changes nothing in the
   // repository (workflow 7 L16-18). Both commit locally, never push.
@@ -94,7 +101,7 @@ export const CommandKind = Object.freeze({
   RENAME_BOOK: 'rename_book',
   // The four acts of the per-book detail (books.online, workflow 7 L46-63,
   // L128-137), each going through the Worker because git and IndexedDB live
-  // there (DIRECTION §3.7). PUT_ONLINE `{ bookId, author }` creates the book on
+  // there (DIRECTION §3.7). PUT_ONLINE `{ bookId }` creates the book on
   // Estante (POST /api/books), adopts the service id as the on-device id
   // (Decision 3), sets the git remote, pushes the first commit, and migrates the
   // shelf register from `shelf.local` to `shelf.books`; it emits BOOK_ONLINE on
@@ -103,9 +110,9 @@ export const CommandKind = Object.freeze({
   // (Decision 4). `bookId` is the current on-device id (the local id).
   // DOWNLOAD_BOOK `{ bookId }` zips the repository as it is on the device
   // (`.git` + working tree, unsaved included, remote stripped) and replies with
-  // BOOK_DOWNLOAD carrying the Blob; all local. REMOVE_BOOK `{ bookId, author }`
+  // BOOK_DOWNLOAD carrying the Blob; all local. REMOVE_BOOK `{ bookId }`
   // deletes this device's clone and tombstones the shelf register, leaving the
-  // service book untouched; all local. DELETE_BOOK `{ bookId, author }` (owner
+  // service book untouched; all local. DELETE_BOOK `{ bookId }` (owner
   // only) deletes the book from Estante for everyone (DELETE /api/books/{id}),
   // then removes the local clone and tombstones the shelf register. REMOVE_BOOK
   // and DELETE_BOOK both reply with BOOK_REMOVED so the view closes the detail.
@@ -114,7 +121,7 @@ export const CommandKind = Object.freeze({
   REMOVE_BOOK: 'remove_book',
   DELETE_BOOK: 'delete_book',
   // Leaving one shared book (books.leave, workflow 10 §Leaving a book).
-  // LEAVE_BOOK `{ bookId, author }` (a reader or an editor) ends the membership
+  // LEAVE_BOOK `{ bookId }` (a reader or an editor) ends the membership
   // on Estante first (DELETE /api/books/{id}/membership); only on its 204, or a
   // 404 (already not a member — Decision 3), it runs REMOVE_BOOK's teardown if
   // the book is on this shelf (a *Mine on Estante* row's book is not). It replies
@@ -124,7 +131,7 @@ export const CommandKind = Object.freeze({
   // out). SURVEY_SIGN_OUT `{}` counts this device's local-only work — unsaved
   // changes and saves not yet pushed per book — and flags the books only on this
   // device, replying with SIGN_OUT_SURVEY; a read, no teardown. SIGN_OUT
-  // `{ mode, author }` performs the teardown: `mode:'remove'` drops every clone
+  // `{ mode }` performs the teardown: `mode:'remove'` drops every clone
   // (the account's shared books and this device's local books) and tombstones
   // their shelf registers; `mode:'keep'` migrates each shared book into the local
   // shelf map and strips its git remote (the inverse of PUT_ONLINE), leaving the
@@ -145,7 +152,7 @@ export const CommandKind = Object.freeze({
   // count the per-book warnings the delete dialog shows.
   LEAVE_ESTANTE: 'leave_estante',
   // Make a book the user's own copy (books.fork, workflow 11). FORK_BOOK
-  // `{ bookId, author }` is dispatched by every *make it your own* offer: Save in
+  // `{ bookId }` is dispatched by every *make it your own* offer: Save in
   // a book the user cannot push to (the save sheet), a book refused as a
   // reader's push (`cannot_save`), a book the user lost access to (`gone`), and
   // the book detail's **Fork** card. The Worker asks the service to copy the
@@ -158,7 +165,7 @@ export const CommandKind = Object.freeze({
   // the device unchanged.
   FORK_BOOK: 'fork_book',
   // Join a shared book from its invitation (books.add_by_link, workflow 1
-  // §Invited, workflow 7 §By link). ADD_BY_LINK `{ token, author }` accepts the
+  // §Invited, workflow 7 §By link). ADD_BY_LINK `{ token }` accepts the
   // invitation (POST /api/invitations/{token}/accept) and, on a 200 Book, clones
   // it over git-over-HTTP into bookDir(serviceId), writes its
   // `shelf.books[serviceId]` entry with the GRANTED `role` (reader/editor — the
@@ -167,7 +174,7 @@ export const CommandKind = Object.freeze({
   // account-first gate, Decision 2); a 409/404 emits BOOK_REFUSED with the mapped
   // reason ('full' | 'dead' | 'error') and leaves the shelf unchanged. The
   // Worker's fetch carries the same-origin session cookie the sign-in minted.
-  // ADD_MINE `{ bookId, gitUrl, label, role, ownerName?, author }` clones a book the account
+  // ADD_MINE `{ bookId, gitUrl, label, role, ownerName? }` clones a book the account
   // is ALREADY a member of (no accept — "mine on Estante", Decision 5), writing
   // the same shelf entry and emitting BOOK_CLONED. LIST_MINE lists the account's
   // books not yet on this device's shelf (GET /api/books minus the local shelf,
@@ -178,7 +185,7 @@ export const CommandKind = Object.freeze({
   ADD_MINE: 'add_mine',
   LIST_MINE: 'list_mine',
   // Open the bundled example book (account.first_run, workflow 1 §Cold).
-  // Payload `{ title, author }`: the localised shelf label (the view knows the
+  // Payload `{ title }`: the localised shelf label (the view knows the
   // language) and the device-local commit identity. The Worker provisions a
   // local home book if none exists, seeds the bundled book as a local git
   // repository under a reserved id (idempotently — a second open reuses the one
@@ -208,7 +215,7 @@ export const CommandKind = Object.freeze({
   SET_TRANSPOSITION: 'set_transposition',
   SET_VARIATION: 'set_variation',
   // Start a new song (songs.new_song, workflow 3). NEW_SONG `{ targetBookId?,
-  // folder?, mySongsTitle?, author }` ensures the target book exists — for *My
+  // folder?, mySongsTitle? }` ensures the target book exists — for *My
   // songs* (when no `targetBookId`), idempotently under the reserved
   // `local-my-songs` id, provisioning a local home book and a `shelf.local`
   // entry if absent and re-surfacing SHELF; for a chosen book, a no-op — then
@@ -219,7 +226,7 @@ export const CommandKind = Object.freeze({
   // (the view knows the language), used only when provisioning *My songs*.
   NEW_SONG: 'new_song',
   // The first save of a new song (songs.new_song, workflow 3 §The first save).
-  // NAME_AND_SAVE `{ bookId, fromPath, author, message?, title? }`: the Worker
+  // NAME_AND_SAVE `{ bookId, fromPath, name?, message?, title? }`: the Worker
   // parses the working-copy file for its title, derives the title's ASCII slug
   // filename (`deriveSongFilename`, with a collision suffix against the folder),
   // renames the placeholder to it, then canonicalises, commits and pushes (a
@@ -230,7 +237,7 @@ export const CommandKind = Object.freeze({
   // falls back to the W03 *Add {title}*. `title` is the name the save sheet
   // prompts for when the song has no title line yet (songs.save_sheet acceptance
   // 7); it feeds `deriveSongFilename` and the default message when the parsed
-  // title is empty.
+  // title is empty. `name` is the save sheet's typed display name, as on SAVE.
   NAME_AND_SAVE: 'name_and_save',
   // Compute the per-file save preview (songs.save_sheet, Decision 2). PREVIEW_SAVE
   // `{ bookId, paths }`: for each path the Worker reads the last-saved version
@@ -241,8 +248,7 @@ export const CommandKind = Object.freeze({
   // working copy (DIRECTION §3.7); the view renders what it returns.
   PREVIEW_SAVE: 'preview_save',
   // Persist the author's display name to the home book (songs.save_sheet,
-  // Decision 4; workflow 4 §Who made the change). SET_IDENTITY_NAME `{ name,
-  // author }`: the Worker provisions a local home book if none exists and writes
+  // Decision 4; workflow 4 §Who made the change). SET_IDENTITY_NAME `{ name }`: the Worker provisions a local home book if none exists and writes
   // the `authorName` register into preferences.json (home-book-format §4.1),
   // then re-surfaces PREFERENCES so the slice carries it and the first save is
   // the only one that asks. Offline, auto-committed, never pushed (a preference).
@@ -251,18 +257,18 @@ export const CommandKind = Object.freeze({
   // design.theme_picker; workflow 13 §Preferences; home-book-format §4.1). Each is
   // the SET_IDENTITY_NAME template: provision a local home book, write the
   // `{ value, at }` register into preferences.json, re-surface PREFERENCES so
-  // ThemeRoot/LocaleRoot re-apply off the slice, and flush. SET_THEME `{ theme,
-  // author }` — `theme` is one of CHOSEN_THEMES (resolve.js); `automatic` clears
+  // ThemeRoot/LocaleRoot re-apply off the slice, and flush. SET_THEME `{ theme }`
+  // — `theme` is one of CHOSEN_THEMES (resolve.js); `automatic` clears
   // the register to a tombstone (Decision 3) so a new device follows its own
-  // light/dark mode, never a literal `"automatic"`. SET_LANGUAGE `{ language,
-  // author }` — `language` is one of LOCALE_IDS (i18n). Each validates its value
+  // light/dark mode, never a literal `"automatic"`. SET_LANGUAGE `{ language }`
+  // — `language` is one of LOCALE_IDS (i18n). Each validates its value
   // at the boundary and rejects an invalid one (no write). Offline, auto-committed,
   // never pushed (a preference); the value is never logged (standing rule).
   SET_THEME: 'set_theme',
   SET_LANGUAGE: 'set_language',
   // Record that the first-open "Playing on guitar — change?" prompt was answered
   // (songs.first_song, workflow 1 §The instrument). MARK_INSTRUMENT_PROMPT_SEEN
-  // `{ author }`: the Worker provisions a local home book if none exists and
+  // `{}`: the Worker provisions a local home book if none exists and
   // writes the `instrumentPromptSeen` register into preferences.json
   // (home-book-format §4.1), then re-surfaces PREFERENCES so the slice carries it
   // and the reading view never asks again — on this device or, after sync, the
@@ -303,22 +309,22 @@ export const CommandKind = Object.freeze({
   // The instrument write path (music.instruments, workflow 15). Each mutation is
   // a home-book change written through `home-book.set` — one lock, canonical,
   // auto-committed, no push (DIRECTION §3.2; workflow 16 L119-122) — followed by
-  // an INSTRUMENTS re-surface. SAVE_INSTRUMENT `{ id?, definition, preset?,
-  // author }` adds (no id → mint one, write the `definition` and `rules`
+  // an INSTRUMENTS re-surface. SAVE_INSTRUMENT `{ id?, definition, preset? }`
+  // adds (no id → mint one, write the `definition` and `rules`
   // registers, and set it in use when it is the first) or edits a definition
   // (id → rewrite only its `definition` register). SET_INSTRUMENT_RULES `{ id,
-  // rules, author }` writes the `rules` register — a named preset `{ preset }`
+  // rules }` writes the `rules` register — a named preset `{ preset }`
   // or a frozen `{ preset: 'custom', config }` (home-book §4.3). USE_INSTRUMENT
-  // `{ id, author }` writes the singleton `instrumentInUse` preference (switching;
-  // absent means the standard guitar). REMOVE_INSTRUMENT `{ id, author }`
+  // `{ id }` writes the singleton `instrumentInUse` preference (switching;
+  // absent means the standard guitar). REMOVE_INSTRUMENT `{ id }`
   // tombstones the instrument's two registers, every `shapes.json[id]` leaf, and
   // each `songs.json[*].variation[<tuning>]` no remaining instrument still uses,
   // falling back to the standard guitar when the in-use or last one goes.
-  // SAVE_SHAPE `{ id, tuning, chord, shorthand, author }` writes one my-shape leaf
+  // SAVE_SHAPE `{ id, tuning, chord, shorthand }` writes one my-shape leaf
   // — the opaque fret shorthand (cifra.md §7), keyed by the chord as the music
   // core matches it (home-book §4.4) — the star in the chord explorer
-  // (music.explorer, workflow 16 L108-133). REMOVE_SHAPE `{ id, tuning, chord,
-  // author }` tombstones one my-shape leaf (home-book §4.4, §5.3). SYNC_HOME
+  // (music.explorer, workflow 16 L108-133). REMOVE_SHAPE `{ id, tuning, chord }`
+  // tombstones one my-shape leaf (home-book §4.4, §5.3). SYNC_HOME
   // re-surfaces INSTRUMENTS alongside the rest.
   SAVE_INSTRUMENT: 'save_instrument',
   SET_INSTRUMENT_RULES: 'set_instrument_rules',
@@ -334,7 +340,7 @@ export const CommandKind = Object.freeze({
   // copy (every clean-merged file lands; each conflicted song stays at *ours*),
   // and emits a CONFLICTS event with the recomputed per-book model. Idempotent —
   // re-opening recomputes and re-emits. RESOLVE_CONFLICT `{ bookId, path, choice,
-  // text?, author }` settles one file: `choice` is 'mine' / 'theirs' (resolve the
+  // text? }` settles one file: `choice` is 'mine' / 'theirs' (resolve the
   // whole file's marked text by that side, §11.12.4), 'edit' (`text` is the
   // user's edited text — refused if it still holds a marker line, §11.12.3),
   // 'keep' / 'delete' (a deleted-vs-edited `file` conflict — keep the edited song
@@ -344,7 +350,7 @@ export const CommandKind = Object.freeze({
   // keep ours and write theirs's version beside it as <name>-<author>.cifra.md).
   // It re-emits CONFLICTS; when the last
   // conflict in the book is settled it commits the two-parent merge and pushes.
-  // COMMIT_MERGE `{ bookId, author }` forces the settle-and-push when every file
+  // COMMIT_MERGE `{ bookId }` forces the settle-and-push when every file
   // is already resolved (the book-level *everything settled* path); normally
   // RESOLVE_CONFLICT does it. ABANDON_MERGE `{ bookId }` resets the book to
   // exactly before the sync (working copy back to *ours*, the in-progress merge
@@ -367,7 +373,7 @@ export const CommandKind = Object.freeze({
   // upload* commit, and classifies song by song WITHOUT writing to the target,
   // replying with UPLOAD_PREVIEW. A non-zip buffer, a CRC failure or a zip-slip
   // entry name is refused (ERROR, never a crash). IMPORT_UPLOAD `{ uploadId,
-  // choice, perFile?, title?, author }` lands it on confirm — `choice` is
+  // choice, perFile?, title? }` lands it on confirm — `choice` is
   // 'new_book' (the zip's history becomes a fresh local book's, or a folder/no
   // -history zip's one canonical first commit), 'latest_without_history' (the
   // escape hatch for history that holds conflict markers — the latest clean tree
@@ -386,7 +392,7 @@ export const CommandKind = Object.freeze({
   // PREVIEW_BRING_IN `{ bookId }` — under the fork's lock, fetch the original's
   // `link` (the shelf's `original` register) into `refs/remotes/original/main`
   // and classify song by song as an upload does, writing nothing to the fork;
-  // replies BRING_IN_PREVIEW. BRING_IN `{ bookId, followId, note, author? }` —
+  // replies BRING_IN_PREVIEW. BRING_IN `{ bookId, followId, note }` —
   // merge that ref into `main` as a merge commit (never a fast-forward) carrying
   // `note` as its message, unsaved edits carried on top, push to the fork's own
   // remote and move the register's `followedAt`; replies BRING_IN_DONE. A
@@ -400,14 +406,18 @@ export const CommandKind = Object.freeze({
   // carry `{ device }`, the main thread's `deviceHintOf(navigator)`, from which
   // the Worker works out the device's kind (Decision 5); at start the Worker
   // attaches an unattached home book on its own, quietly (Decision 3), and
-  // fills the shelf of an attached one. ATTACH_HOME `{}` — sent on sign-in —
-  // asks the service where the account's home book is (GET
+  // fills the shelf of an attached one. ATTACH_HOME `{ accountId? }` — sent on sign-in
+  // with the sign-in reply's account id, which the Worker keeps on `meta` and
+  // authors every later commit as (account.commit_author Decision 1); before
+  // attaching it re-authors every book's saves not yet pushed that carry this
+  // device's local addresses as the account (DIRECTION §3.3). Without
+  // `accountId` (the start-time path) the stored id stands. It then asks the service where the account's home book is (GET
   // /api/account/home-book), sets it as the home book's `origin` with its
   // service id beside it (`remote.origin.estanteid`), writes this device's kind
   // and syncs the home book: the account's settings come down, or this device's
   // merge into them key by key, or are pushed as the first. Replies
   // HOME_ATTACHED; an attached home book is never attached again. The shelf then
-  // fills in the background (SHELF_FILL). KEEP_BOTH_MY_SONGS `{ title, author }`
+  // fills in the background (SHELF_FILL). KEEP_BOTH_MY_SONGS `{ title }`
   // relabels this device's *My songs* `title` (*My songs (this device)*, in the
   // device's language) and stops the two-*My songs* offer for good on this
   // device. PREVIEW_MY_SONGS `{ target }` zips this device's *My songs* as

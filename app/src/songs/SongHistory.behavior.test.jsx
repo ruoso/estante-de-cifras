@@ -21,7 +21,7 @@ import { createGitLayer } from '../worker/git.js';
 import { createGitHttpClient } from '../worker/git-http.js';
 import { createWorkerLogic } from '../worker/logic.js';
 import { createStore } from '../worker/store.js';
-import { command, CommandKind } from '../worker/protocol.js';
+import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { startGitHttpRemote } from '../test/git-http-remote.js';
 import { installWebLocks } from '../test/web-locks.js';
@@ -31,7 +31,11 @@ import SongHistory from './SongHistory.jsx';
 
 const BOOK = 'book-hist';
 const SONG = 'rua-do-porto.cifra.md';
-const YOU_EMAIL = 'local@users.estantedecifras.app';
+// The account this device signs in as before the history is read: the Worker
+// marks a save by its address `author.self`, which the view reads as *you*
+// (account.commit_author Decision 7; workflow 6 L16-19).
+const ACCOUNT_ID = 'u_hist';
+const YOU_EMAIL = `${ACCOUNT_ID}@users.estantedecifras.app`;
 
 const V1 = ['# Rua do Porto', '', '## Primeira Parte', '```', 'C', 'desci a rua', '```', ''].join('\n');
 const V2 = ['# Rua do Porto', '', '## Primeira Parte', '```', 'C7', 'desci a rua', '```', ''].join('\n');
@@ -134,6 +138,19 @@ async function setup(bookId) {
     createWorkerLogic(port, { indexedDB: idb, name, fetch: globalThis.fetch }),
   );
   const store = createStore(endpoint);
+
+  // Sign the device in (ATTACH_HOME with the sign-in reply's account id): the
+  // attach itself meets no service here and attaches nothing, but the id is kept.
+  const attached = new Promise((resolve) => {
+    const off = store.subscribeEvents((message) => {
+      if (message.kind === EventKind.HOME_ATTACHED) {
+        off();
+        resolve();
+      }
+    });
+  });
+  store.send(command(CommandKind.ATTACH_HOME, { accountId: ACCOUNT_ID }));
+  await attached;
 
   async function seed(build) {
     execFileSync('git', ['clone', '-q', remote.repoDir, workdir], { env: seedEnv() });

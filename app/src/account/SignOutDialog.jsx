@@ -36,11 +36,6 @@ import { aggregateSignOutSurvey } from '../worker/sign-out.js';
 import { saveZip } from '../books/download-zip.js';
 import { AuthError } from './auth-client.js';
 
-// The device commit identity for the shelf-touching teardown, the same literal
-// the shell and the shelf use; the Worker's `authorFrom` turns it into a no-reply
-// address (the account-id switch is new_device's, unbuilt).
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 // A check-mark for the chosen card (mockup's filled circle); the Radio's own
 // aria-checked carries the selection to a screen reader, so this is decoration.
 function CheckMark() {
@@ -125,7 +120,7 @@ export default function SignOutDialog({ store, authClient, onSignedOut = () => {
   const confirm = () => {
     if (inFlight.current) return;
     inFlight.current = true;
-    store.send(command(CommandKind.SIGN_OUT, { mode, author: LOCAL_IDENTITY }));
+    store.send(command(CommandKind.SIGN_OUT, { mode }));
   };
 
   const { notYetOnEstante, downloadGuard } = aggregateSignOutSurvey(survey?.books ?? []);

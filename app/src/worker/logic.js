@@ -70,7 +70,8 @@ import {
   variationChange,
   songRefOf,
 } from './songs.js';
-import { authorFrom } from './author.js';
+import { authorFrom, createAuthorResolver, noReplyAddress } from './author.js';
+import { reauthorBook } from './reauthor.js';
 import { CHOSEN_THEMES } from '../theme/resolve.js';
 import { LOCALE_IDS } from '../i18n/index.js';
 
@@ -163,6 +164,10 @@ function loadOrCreateMeta(db) {
       // state on the same record, never view state either.
       delete view.mySongsKeptBoth;
       delete view.mySongsMergePending;
+      // The authoring identities (account.commit_author Constraint 1) are Worker
+      // state too: the main thread never sees an account or local author id.
+      delete view.accountId;
+      delete view.localAuthorId;
       resolve(view);
     };
     tx.onerror = () => reject(tx.error);
@@ -353,6 +358,7 @@ export function createWorkerLogic(port, options = {}) {
   let upload = null;
   let bringIn = null;
   let accountClient = null;
+  let authors = null;
   // What the device's kind is worked out from (account.new_device Decision 5):
   // the main thread's `navigator` hint, carried by OPEN, else this Worker's own.
   let deviceHint = deviceHintOf(navigator);
@@ -441,6 +447,9 @@ export function createWorkerLogic(port, options = {}) {
         fs: ensureFs(),
         git: ensureGit(),
         locks: ensureLocks(),
+        // History's *you* (account.commit_author Decision 7): the addresses only
+        // the Worker knows are this device's user's.
+        selfAddresses: () => ensureAuthors().ownAddresses(),
       });
     }
     return history;
@@ -617,7 +626,7 @@ export function createWorkerLogic(port, options = {}) {
   // client, the cifra merge driver and the home book. It emits per-book SYNC
   // facts through the port and re-surfaces the home-book-derived slices after a
   // home sync (the SYNC_HOME path). The commit identity is the device's
-  // (`resolveSyncAuthor`).
+  // (`resolveAuthor`).
   function ensureSyncEngine() {
     if (!syncEngine) {
       syncEngine = createSyncEngine({
@@ -627,7 +636,7 @@ export function createWorkerLogic(port, options = {}) {
         changeCheck: ensureChangeCheck(),
         mergeDriver: createCifraMergeDriver(),
         homeBook: ensureHomeBook(),
-        resolveAuthor: resolveSyncAuthor,
+        resolveAuthor: resolveAuthor,
         // After a home sync: re-surface its slices, then let the shelf fill pick
         // up any book the merge brought (account.new_device acceptance 4) and
         // re-ask the *My songs* question (acceptance 6).
@@ -676,7 +685,7 @@ export function createWorkerLogic(port, options = {}) {
         fs: ensureFs(),
         git: ensureGit(),
         locks: ensureLocks(),
-        resolveAuthor: resolveSyncAuthor,
+        resolveAuthor: resolveAuthor,
         emit: (payload) => port.postMessage(event(EventKind.CONFLICTS, payload)),
         emitRefused: (payload) => port.postMessage(event(EventKind.SAVE_REFUSED, payload)),
         requestSync: () => ensureSyncScheduler().trigger(),
@@ -698,7 +707,7 @@ export function createWorkerLogic(port, options = {}) {
   // as the working copy (sync.upload), plus the cifra merge driver it merges
   // through. The Worker owns git and IndexedDB; the view (books.upload_ui) only
   // sends PREVIEW_UPLOAD / IMPORT_UPLOAD / CANCEL_UPLOAD and renders the reply.
-  // The authored commits take the uploading user's identity (resolveSyncAuthor,
+  // The authored commits take the uploading user's identity (resolveAuthor,
   // the home-book author name — Decision 7).
   function ensureUpload() {
     if (!upload) {
@@ -707,7 +716,7 @@ export function createWorkerLogic(port, options = {}) {
         git: ensureGit(),
         locks: ensureLocks(),
         mergeDriver: createCifraMergeDriver(),
-        resolveAuthor: resolveSyncAuthor,
+        resolveAuthor: resolveAuthor,
       });
     }
     return upload;
@@ -725,7 +734,7 @@ export function createWorkerLogic(port, options = {}) {
         git: ensureGit(),
         locks: ensureLocks(),
         mergeDriver: createCifraMergeDriver(),
-        resolveAuthor: resolveSyncAuthor,
+        resolveAuthor: resolveAuthor,
         readOriginal: async (bookId) => (await readOriginals())[bookId] ?? null,
         recordOriginal,
         emitOriginal: (payload) => port.postMessage(event(EventKind.ORIGINAL, payload)),
@@ -753,7 +762,7 @@ export function createWorkerLogic(port, options = {}) {
   // `followedAt`; the original going away sets `goneAt`.
   async function recordOriginal({ bookId, original }) {
     const home = ensureHomeBook();
-    const author = await resolveSyncAuthor();
+    const author = await resolveAuthor();
     await home.ensureLocal({ author });
     await home.set({
       bookId: HOME_BOOK_ID,
@@ -774,7 +783,7 @@ export function createWorkerLogic(port, options = {}) {
     const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
     const entry = shelf?.books?.[bookId];
     if (!entry || entry?.role?.value === 'reader') return;
-    const author = await resolveSyncAuthor();
+    const author = await resolveAuthor();
     await home.set({
       bookId: HOME_BOOK_ID,
       file: 'shelf.json',
@@ -816,17 +825,58 @@ export function createWorkerLogic(port, options = {}) {
     return syncScheduler;
   }
 
-  // The device commit identity the sync engine authors merge commits and home
-  // syncs with (sync.engine): the §2.3 device id as the address id, and the
-  // display name the home book keeps (authorName register, home-book-format
-  // §4.1), falling back to a neutral word before the user gives one. Read
+  // The one commit identity (account.commit_author Constraint 2): every save,
+  // merge, settle, home-book write and sync, upload, bring-in and fork is
+  // authored as `{ id: meta.accountId ?? meta.localAuthorId, name }` — the
+  // account once signed in, this device's own local author id before (never the
+  // §2.3 device id, storage/home_book Decision 6) — with the display name the
+  // home book keeps (authorName register, home-book-format §4.1), falling back to
+  // a neutral word. `override.name` is the save sheet's typed name. Read
   // locally, offline-first; it never surfaces the name to a log (standing rule).
-  async function resolveSyncAuthor() {
-    const home = ensureHomeBook();
-    const deviceId = await home.ensureDeviceId({ idb, name, version });
-    const prefs = await home.read({ bookId: HOME_BOOK_ID, file: 'preferences.json' });
-    const displayName = prefs?.authorName?.value ?? 'Me';
-    return { id: deviceId, name: displayName };
+  function ensureAuthors() {
+    if (!authors) {
+      authors = createAuthorResolver({
+        readMeta: readMetaRecord,
+        writeMeta: writeMetaFields,
+        readName: async () => {
+          const prefs = await ensureHomeBook().read({ bookId: HOME_BOOK_ID, file: 'preferences.json' });
+          return prefs?.authorName?.value ?? null;
+        },
+      });
+    }
+    return authors;
+  }
+
+  function resolveAuthor(override) {
+    return ensureAuthors().resolveAuthor(override);
+  }
+
+  // Re-author every book's saves not yet pushed as the account (account.
+  // commit_author Constraints 4-7): local books, *My songs*, the home book,
+  // kept-as-local and hosted books alike — the commits not reachable from
+  // `origin/main` that carry this device's local addresses, and their
+  // descendants. Local, never waits on the network; idempotent. Only `main`
+  // moves (the trees are identical), so the working copy and index stay.
+  async function reauthorAll() {
+    const meta = await readMetaRecord();
+    if (!meta.accountId) return;
+    const local = new Set(await ensureAuthors().localAddresses());
+    if (!local.size) return;
+    const to = noReplyAddress(meta.accountId);
+    const bookIds = [...(await listBookIds(ensureFs(), HOME_BOOK_ID)), HOME_BOOK_ID];
+    let moved = false;
+    for (const bookId of bookIds) {
+      const n = await reauthorBook({
+        fs: ensureFs(),
+        dir: ensureGit().bookDir(bookId),
+        bookId,
+        locks: ensureLocks(),
+        isLocal: (email) => local.has(email),
+        to,
+      });
+      if (n) moved = true;
+    }
+    if (moved) await ensureFs().flush();
   }
 
   // Rebuild the in-memory index from its persisted records, once per session
@@ -1161,7 +1211,7 @@ export function createWorkerLogic(port, options = {}) {
       bookId: HOME_BOOK_ID,
       file: 'shelf.json',
       changes: [{ path: ['devices', deviceId, 'kind'], value: kind }],
-      author: await resolveSyncAuthor(),
+      author: await resolveAuthor(),
     });
     return true;
   }
@@ -1177,6 +1227,9 @@ export function createWorkerLogic(port, options = {}) {
   // Resolves `{ attached, restored, fresh }`: `restored` when the account's
   // home book already had saves (Decision 9), `fresh` when this call attached.
   async function doAttach() {
+    // The saves not yet pushed become the account's before any push this attach
+    // (or a later put online) makes (account.commit_author Decision 5).
+    await reauthorAll();
     if ((await homeRemote()).url) return { attached: true, restored: false, fresh: false };
     let book;
     try {
@@ -1185,7 +1238,7 @@ export function createWorkerLogic(port, options = {}) {
       return { attached: false, restored: false, fresh: false };
     }
     const home = ensureHomeBook();
-    const author = await resolveSyncAuthor();
+    const author = await resolveAuthor();
     await home.ensureLocal({ author });
     const dir = ensureGit().bookDir(HOME_BOOK_ID);
     await ensureLocks().withLock(HOME_BOOK_ID, async () => {
@@ -1386,7 +1439,7 @@ export function createWorkerLogic(port, options = {}) {
     if (!abandoned && ensureConflicts().hasInProgressMerge(bookId)) return;
     await writeMetaFields({ mySongsMergePending: null });
     if (!abandoned) {
-      await removeFromShelf({ bookId: MY_SONGS_ID, author: await resolveSyncAuthor() });
+      await removeFromShelf({ bookId: MY_SONGS_ID, author: await resolveAuthor() });
       // The songs it brought are found in the account's *My songs* now.
       await indexOneBook(bookId);
     }
@@ -1489,7 +1542,18 @@ export function createWorkerLogic(port, options = {}) {
           case CommandKind.ATTACH_HOME: {
             // Signing in made this device the account's (account.new_device
             // acceptance 1; workflow 13 §What comes down): attach the home book,
-            // its settings first, then fill the shelf in the background.
+            // its settings first, then fill the shelf in the background. The
+            // sign-in reply's account id is stored first (account.commit_author
+            // Decision 1; Constraint 6), so every commit from here on — the
+            // re-author's racing saves included — is the account's; without one
+            // (the start-time path) the stored id stands.
+            const accountId = message.payload?.accountId;
+            if (typeof accountId === 'string' && accountId) {
+              await writeMetaFields({ accountId });
+              // Even when an attach is already in flight and this one only waits
+              // on it: the saves not yet pushed become this account's now.
+              await reauthorAll();
+            }
             const result = await attachHome();
             port.postMessage(
               event(EventKind.HOME_ATTACHED, { attached: result.attached, restored: result.restored }),
@@ -1506,7 +1570,8 @@ export function createWorkerLogic(port, options = {}) {
             // as *My songs (this device)* — `title` comes from the view, in the
             // device's language — and the offer stops for good on this device
             // (a device-local flag in `meta`, outside the home book).
-            const { title, author } = message.payload;
+            const { title } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             const deviceId = await home.ensureDeviceId({ idb, name, version });
@@ -1560,8 +1625,9 @@ export function createWorkerLogic(port, options = {}) {
           }
           case CommandKind.SAVE: {
             // Canonicalise, commit one file or several, then push — the author
-            // formed from the command's identity (id -> no-reply address).
-            const { bookId, paths, message: note, author } = message.payload;
+            // from the one resolver (account.commit_author Constraint 2), the
+            // save sheet's typed `name` over the stored one.
+            const { bookId, paths, message: note, name: typedName } = message.payload;
             // A book with an in-progress merge is paused (sync.conflicts): a save
             // made mid-merge would be folded into it, so refuse it outright with
             // *settle the conflicts first* — distinct from the marker-line refusal
@@ -1583,7 +1649,8 @@ export function createWorkerLogic(port, options = {}) {
                 bookId,
                 paths,
                 message: saveMessage,
-                author: authorFrom(author),
+                // Resolved inside the book lock (Constraint 6).
+                author: async () => authorFrom(await resolveAuthor({ name: typedName })),
               });
             } catch {
               // A save that throws answers the sheet's SAVE_REFUSED, not the
@@ -1661,7 +1728,8 @@ export function createWorkerLogic(port, options = {}) {
             // slice carries it and the save sheet stops asking. Offline,
             // auto-committed, never pushed (a preference). The name is a user's
             // own words — never logged (standing rule).
-            const { name: displayName, author } = message.payload;
+            const { name: displayName } = message.payload;
+            const author = await resolveAuthor({ name: displayName });
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             await home.set({
@@ -1688,7 +1756,8 @@ export function createWorkerLogic(port, options = {}) {
             // "automatic"; a named theme writes its value. Then re-surface
             // PREFERENCES so ThemeRoot re-applies, and flush so an immediate reload
             // reads it. Offline, auto-committed, never pushed. No value logged.
-            const { theme, author } = message.payload;
+            const { theme } = message.payload;
+            const author = await resolveAuthor();
             if (!CHOSEN_THEMES.includes(theme)) {
               throw new Error('invalid theme');
             }
@@ -1712,7 +1781,8 @@ export function createWorkerLogic(port, options = {}) {
             // unknown value is rejected (no write). Write the `language` register,
             // re-surface PREFERENCES so LocaleRoot re-applies, and flush. Offline,
             // auto-committed, never pushed. No value logged.
-            const { language, author } = message.payload;
+            const { language } = message.payload;
+            const author = await resolveAuthor();
             if (!LOCALE_IDS.includes(language)) {
               throw new Error('invalid language');
             }
@@ -1737,7 +1807,7 @@ export function createWorkerLogic(port, options = {}) {
             // auto-committed, never pushed (a preference, like SET_IDENTITY_NAME
             // and USE_INSTRUMENT). The payload carries only the commit identity
             // and the boolean — no song text, no path (standing rule).
-            const { author } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             await home.set({
@@ -2009,12 +2079,12 @@ export function createWorkerLogic(port, options = {}) {
             // one lock, offline-first — home-book.js:243) and re-surface its
             // preferences, so a register the sync changed reaches the slice
             // ("re-emitted when sync changes a register"). The sync forms the
-            // merge-commit identity from the command's author ({ id, name });
+            // merge-commit identity from the one resolver (account.commit_author);
             // a failed push keeps the local commit (home-book.js:317-324) and the
             // re-surface runs regardless, reflecting whatever the local tree holds.
             await ensureHomeBook().sync({
               bookId: HOME_BOOK_ID,
-              author: message.payload.author,
+              author: await resolveAuthor(),
             });
             await surfaceHomeBookPreferences();
             // Re-surface the shelf too, so a label, link or order a sync merged
@@ -2079,7 +2149,8 @@ export function createWorkerLogic(port, options = {}) {
             // ways). The upload engine reads the scratch repo named by `uploadId`
             // and lands it; this handler maps the result to the existing events
             // and (for a new book) writes the shelf register as CREATE_BOOK does.
-            const { uploadId, choice, target, perFile, author, fromMySongs } = message.payload;
+            const { uploadId, choice, target, perFile, fromMySongs } = message.payload;
+            const author = await resolveAuthor();
             const result = await ensureUpload().import_({ uploadId, choice, target, perFile });
             if (fromMySongs && choice === 'merge') {
               // *Merge and save* of this device's *My songs* into the account's
@@ -2195,7 +2266,8 @@ export function createWorkerLogic(port, options = {}) {
             // move focus to it. All local — no fetch, no push (offline-first).
             // The lock on the new book and the lock on the home book are taken
             // in sequence, never nested (locks.md Decision 1).
-            const { title, author } = message.payload;
+            const { title } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             const { bookId } = await ensureBooks().createLocal({ title, author });
@@ -2232,7 +2304,8 @@ export function createWorkerLogic(port, options = {}) {
             // and the home book's lock are taken in sequence, never nested
             // (locks.md Decision 1). `title` is the localised shelf label the
             // view sends (the view knows the language; Decision 5).
-            const { title, author } = message.payload;
+            const { title } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             const example = ensureExampleBook();
@@ -2276,7 +2349,8 @@ export function createWorkerLogic(port, options = {}) {
             // `title` register; any other book its `label` register. Offline,
             // auto-committed, never pushed. `name` is aliased so it does not
             // shadow the Worker's database name the closure holds.
-            const { bookId, name: newName, author } = message.payload;
+            const { bookId, name: newName } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             const deviceId = await home.ensureDeviceId({ idb, name, version });
@@ -2308,7 +2382,8 @@ export function createWorkerLogic(port, options = {}) {
             // service create is first; a dropped network after it does not lose
             // the book (the sync engine retries the push — Decision 4). `bookId`
             // is the current on-device id (the local id).
-            const { bookId: localId, author } = message.payload;
+            const { bookId: localId } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             const deviceId = await home.ensureDeviceId({ idb, name, version });
@@ -2397,7 +2472,8 @@ export function createWorkerLogic(port, options = {}) {
             // shelf in ONE home-book write (workflow 11 L27-30; Constraint 3), its
             // search entries move with the id, and the engine pushes what the
             // device holds on its next pass.
-            const { bookId, author } = message.payload;
+            const { bookId } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             const deviceId = await home.ensureDeviceId({ idb, name, version });
@@ -2418,7 +2494,7 @@ export function createWorkerLogic(port, options = {}) {
                 : nextShelfPosition(shelf, deviceId);
             let result;
             try {
-              result = await ensureFork().fork({ bookId, title: label, author: await resolveSyncAuthor() });
+              result = await ensureFork().fork({ bookId, title: label, author: await resolveAuthor() });
             } catch (err) {
               // Refused or unreachable before any device write: word it for the
               // view — over the limit (413), no session (401), offline (no
@@ -2506,7 +2582,7 @@ export function createWorkerLogic(port, options = {}) {
             // home book first when it is absent. Offline, no account: ensureLocal
             // is a no-op once a committed home book exists.
             if (bookId === HOME_BOOK_ID) {
-              await ensureHomeBook().ensureLocal({ author: await resolveSyncAuthor() });
+              await ensureHomeBook().ensureLocal({ author: await resolveAuthor() });
             }
             const { bytes } = await ensureOnline().download({ bookId });
             port.postMessage(event(EventKind.BOOK_DOWNLOAD, { bookId, bytes }));
@@ -2515,7 +2591,8 @@ export function createWorkerLogic(port, options = {}) {
           case CommandKind.REMOVE_BOOK: {
             // Remove this device's clone only (workflow 7 L128-135). The service
             // book (if any) is untouched — all local.
-            const { bookId, author } = message.payload;
+            const { bookId } = message.payload;
+            const author = await resolveAuthor();
             await removeFromShelf({ bookId, author });
             port.postMessage(event(EventKind.BOOK_REMOVED, { bookId }));
             break;
@@ -2529,7 +2606,7 @@ export function createWorkerLogic(port, options = {}) {
             // Estante* row's book is not: nothing local to touch). A network
             // failure, a 401 or a 409 touches nothing local and replies
             // LEAVE_FAILED (workflow 10 L119-120, L128-130). Logs nothing.
-            const { bookId, author } = message.payload;
+            const { bookId } = message.payload;
             try {
               await ensureBooksClient().leave(bookId);
             } catch (err) {
@@ -2541,7 +2618,7 @@ export function createWorkerLogic(port, options = {}) {
             }
             const shelf = await ensureHomeBook().read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
             if (shelf?.books?.[bookId]?.label?.value != null) {
-              await removeFromShelf({ bookId, author });
+              await removeFromShelf({ bookId, author: await resolveAuthor() });
             }
             port.postMessage(event(EventKind.BOOK_LEFT, { bookId }));
             break;
@@ -2553,7 +2630,8 @@ export function createWorkerLogic(port, options = {}) {
             // ERROR event the catch posts) — then remove the local clone and
             // tombstone the shelf register (a hosted book: label/link/position/
             // role). The typed-name guard is the app's (service.books decision).
-            const { bookId, author } = message.payload;
+            const { bookId } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             await ensureOnline().deleteBook({ bookId });
@@ -2647,7 +2725,14 @@ export function createWorkerLogic(port, options = {}) {
             // book stays (its preferences keep working signed out, Constraint 9)
             // and its remote is stripped idempotently. All local, no network —
             // POST /api/auth/signout is the main thread's, after this (Decision 4).
-            const { mode, author } = message.payload;
+            const { mode } = message.payload;
+            // Authorship reverts going forward only (account.commit_author
+            // Constraint 9; sign_out.md:360-363): the account id is cleared
+            // FIRST, so this teardown's own shelf write and every later commit
+            // are local. Nothing already written is rewritten back (sign_out
+            // Constraint 4).
+            await writeMetaFields({ accountId: null });
+            const author = await resolveAuthor();
             const keep = mode === 'keep';
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
@@ -2776,7 +2861,8 @@ export function createWorkerLogic(port, options = {}) {
             // Book clones and records it with the GRANTED role; a 409/404 emits a
             // worded BOOK_REFUSED and leaves the shelf untouched (a dead/full link
             // reveals nothing about the book, workflow 1 §Invited L53-58).
-            const { token, author } = message.payload;
+            const { token } = message.payload;
+            const author = await resolveAuthor();
             let book;
             try {
               book = await ensureBooksClient().accept(token);
@@ -2806,7 +2892,8 @@ export function createWorkerLogic(port, options = {}) {
             // ("mine on Estante", workflow 7 §Add-a-book; Decision 5). No accept —
             // membership is a given — so the same clone-and-record tail runs
             // directly over the id/url/role the LIST_MINE reply already carried.
-            const { bookId, gitUrl, label, role, ownerName, author } = message.payload;
+            const { bookId, gitUrl, label, role, ownerName } = message.payload;
+            const author = await resolveAuthor();
             await cloneOntoShelf({
               serviceId: bookId,
               gitUrl,
@@ -2853,7 +2940,7 @@ export function createWorkerLogic(port, options = {}) {
                 bookId: HOME_BOOK_ID,
                 file: 'shelf.json',
                 changes: ownerChanges,
-                author: await resolveSyncAuthor(),
+                author: await resolveAuthor(),
               });
               await surfaceHomeBookShelf();
               await ensureFs().flush();
@@ -2890,12 +2977,13 @@ export function createWorkerLogic(port, options = {}) {
             // local home book is provisioned if none exists. No song text.
             const { bookId, path, semitones } = message.payload;
             const home = ensureHomeBook();
-            await home.ensureLocal({ author: message.payload.author });
+            const author = await resolveAuthor();
+            await home.ensureLocal({ author });
             await home.set({
               bookId: HOME_BOOK_ID,
               file: 'songs.json',
               changes: [transpositionChange(songRefOf(bookId, path), semitones)],
-              author: message.payload.author,
+              author,
             });
             await surfaceHomeBookSong(bookId, path);
             await ensureFs().flush();
@@ -2909,12 +2997,13 @@ export function createWorkerLogic(port, options = {}) {
             // then re-surface SONG. A local home book is provisioned if absent.
             const { bookId, path, tuning, variation } = message.payload;
             const home = ensureHomeBook();
-            await home.ensureLocal({ author: message.payload.author });
+            const author = await resolveAuthor();
+            await home.ensureLocal({ author });
             await home.set({
               bookId: HOME_BOOK_ID,
               file: 'songs.json',
               changes: [variationChange(songRefOf(bookId, path), tuning, variation)],
-              author: message.payload.author,
+              author,
             });
             await surfaceHomeBookSong(bookId, path);
             await ensureFs().flush();
@@ -2925,7 +3014,8 @@ export function createWorkerLogic(port, options = {}) {
             // the target book exists, allocate a free placeholder path against
             // its working copy, and reply so the host can mount the editor on a
             // concrete book/path. All local — no account, no network.
-            const { targetBookId, folder, mySongsTitle, author } = message.payload;
+            const { targetBookId, folder, mySongsTitle } = message.payload;
+            const author = await resolveAuthor();
             const bookId = targetBookId ?? MY_SONGS_ID;
             if (bookId === MY_SONGS_ID) {
               // *My songs* "created when first written to" (workflow 3 §Which
@@ -2978,7 +3068,7 @@ export function createWorkerLogic(port, options = {}) {
             // collision-suffixed name are derived here (the Worker owns the dir
             // listing); the rename + canonical commit run under one lock in the
             // working copy.
-            const { bookId, fromPath, author, message: note, title: promptedTitle } =
+            const { bookId, fromPath, name: typedName, message: note, title: promptedTitle } =
               message.payload;
             let outcome;
             let toPath;
@@ -3008,7 +3098,7 @@ export function createWorkerLogic(port, options = {}) {
                 // (songs.save_empty_message). Git history, not a log — never
                 // written to `console` (standing rule).
                 message: note?.trim() ? note : `Add ${title || 'untitled'}`,
-                author: authorFrom(author),
+                author: async () => authorFrom(await resolveAuthor({ name: typedName })),
               });
             } catch {
               // As SAVE: a throw is answered with SAVE_REFUSED failed, never the
@@ -3070,7 +3160,8 @@ export function createWorkerLogic(port, options = {}) {
             // the catalogue default), and — when this is the first instrument and
             // the in-use is still the implicit standard guitar — set it in use
             // (workflow 15 L97-99). Offline, auto-committed, never pushed.
-            const { id, definition, preset, author } = message.payload;
+            const { id, definition, preset } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             if (id) {
@@ -3116,7 +3207,8 @@ export function createWorkerLogic(port, options = {}) {
             // rebuilt on load, a Custom `{ preset: 'custom', config }` is kept
             // exactly (home-book §4.3; the surfacing re-derives the effective
             // config). Offline, auto-committed, never pushed.
-            const { id, rules, author } = message.payload;
+            const { id, rules } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             await home.set({
@@ -3134,7 +3226,8 @@ export function createWorkerLogic(port, options = {}) {
             // the singleton `instrumentInUse` preference, under last-write-wins
             // (Decision — a singleton register admits one winner). Everything on
             // screen re-derives off the re-surfaced slice. Offline, auto-committed.
-            const { id, author } = message.payload;
+            const { id } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             await home.set({
@@ -3155,7 +3248,8 @@ export function createWorkerLogic(port, options = {}) {
             // in-use or last one goes. Each file is written under its own lock,
             // never nested (home-book composition rule). The change-set is the
             // Worker's own (the format's key paths never cross to the main thread).
-            const { id, author } = message.payload;
+            const { id } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             const [instruments, shapes, songs, preferences] = await Promise.all([
@@ -3209,7 +3303,8 @@ export function createWorkerLogic(port, options = {}) {
             // a shape starred for `Cmaj7` serves a song written `C7M`. Starring is
             // a preference, so it is offline, auto-committed and never pushed
             // (DIRECTION §3.2); never written into a song.
-            const { id, tuning, chord, shorthand, author } = message.payload;
+            const { id, tuning, chord, shorthand } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             // Materialize the standard guitar on its first star (home-book §2.1
@@ -3258,7 +3353,8 @@ export function createWorkerLogic(port, options = {}) {
             // Remove one my-shape (workflow 15 §Reviewing my shapes): tombstone
             // the leaf register at `shapes.json[id][tuning][chord]` (home-book
             // §4.4, §5.3). Offline, auto-committed, never pushed.
-            const { id, tuning, chord, author } = message.payload;
+            const { id, tuning, chord } = message.payload;
+            const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             await home.set({

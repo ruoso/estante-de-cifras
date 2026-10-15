@@ -27,9 +27,6 @@ import PreviewRows from '../books/PreviewRows.jsx';
 import '../books/upload-preview.css';
 import './account.css';
 
-// The device-local commit identity, as the shelf's other commands send it.
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 function CheckIcon() {
   return (
     <svg
@@ -100,7 +97,7 @@ export default function MySongsChoice({ store, choice, onClose = () => {}, onNee
   const keepBoth = () => {
     cancelUpload();
     store.send(
-      command(CommandKind.KEEP_BOTH_MY_SONGS, { title: t('newDevice.keepBothTitle'), author: LOCAL_IDENTITY }),
+      command(CommandKind.KEEP_BOTH_MY_SONGS, { title: t('newDevice.keepBothTitle') }),
     );
     onClose();
   };
@@ -118,7 +115,6 @@ export default function MySongsChoice({ store, choice, onClose = () => {}, onNee
         uploadId: preview.uploadId,
         choice: 'merge',
         target: { bookId: accountBookId },
-        author: LOCAL_IDENTITY,
         fromMySongs: true,
       }),
     );

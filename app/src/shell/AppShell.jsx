@@ -59,11 +59,6 @@ import { bookOfScope, sameItem } from './place.js';
 import { bootEntry, usePlaceHistory } from './use-place-history.js';
 import './shell.css';
 
-// The device-local commit identity before sign-in (SearchScreen/BooksScreen use
-// the same literal; `authorFrom` in the Worker turns the id into the no-reply
-// address). An account id replaces it once signed in — not an M2 concern.
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 // The wide media query, or null where `matchMedia` is absent (jsdom provides
 // none — the behavior test stubs it). A missing query reads as not-wide, so the
 // default layout is the phone tab bar. Mirrors ThemeRoot's `usePrefersDark`.
@@ -297,9 +292,8 @@ export default function AppShell({
   // books.add_by_link's, which opens this same surface in sign-in intent.
   // `null` is closed; otherwise `{ intent, token }`. Closing (cancel, or after a
   // successful `onSignedIn`) returns to where it was opened from. The account
-  // itself is handed to `onSignedIn`; filling the shelf and switching the commit
-  // author from the device-local id are account.new_device's, not this surface's
-  // (Decision 6), so here a sign-in simply closes the surface.
+  // itself is handed to `onSignedIn`, which hands its id to the Worker's attach
+  // (account.commit_author Decision 1) and closes the surface.
   const [signIn, setSignIn] = useState(
     redeemToken ? { intent: 'signIn', token: redeemToken } : null,
   );
@@ -580,7 +574,6 @@ export default function AppShell({
           targetBookId: opts.bookId ?? null,
           folder: opts.folder ?? null,
           mySongsTitle: t('firstRun.mySongs'),
-          author: LOCAL_IDENTITY,
         }),
       );
     },
@@ -603,7 +596,6 @@ export default function AppShell({
           targetBookId,
           folder: null,
           mySongsTitle: t('firstRun.mySongs'),
-          author: LOCAL_IDENTITY,
         }),
       );
     },
@@ -617,7 +609,7 @@ export default function AppShell({
   const openByLink = useCallback(
     (token) => {
       setInvited({ phase: 'working', token });
-      store.send(command(CommandKind.ADD_BY_LINK, { token, author: LOCAL_IDENTITY }));
+      store.send(command(CommandKind.ADD_BY_LINK, { token }));
     },
     [store],
   );
@@ -724,19 +716,22 @@ export default function AppShell({
 
   // The sign-in surface is a full screen over the shell (account.sign_in
   // Decision 3), checked first so a `/sign-in/<token>` boot shows it even with
-  // no shelf yet behind it. `onSignedIn` hands the account out (the shelf fill
-  // and the author switch are account.new_device's — Decision 6); here it just
-  // closes. Cancel closes the same way.
+  // no shelf yet behind it. `onSignedIn` hands the account's id to the Worker's
+  // attach, which fills the shelf and switches the commit author
+  // (account.new_device; account.commit_author), then closes. Cancel closes the
+  // same way.
   if (signIn) {
     return (
       <SignIn
         intent={signIn.intent}
         redeemToken={signIn.token ?? null}
-        onSignedIn={() => {
+        onSignedIn={(account) => {
           // Signing in makes this device the account's (account.new_device):
           // the Worker attaches the home book — its settings first — and fills
-          // the shelf in the background.
-          store.send(command(CommandKind.ATTACH_HOME, {}));
+          // the shelf in the background. The account id rides along: the Worker
+          // keeps it and authors every commit as the account from now on,
+          // re-authoring the saves not yet pushed first (account.commit_author).
+          store.send(command(CommandKind.ATTACH_HOME, account?.id ? { accountId: account.id } : {}));
           // Opened from the invited flow: re-send the accept now that there is a
           // session (idempotent on repeat — no double join), showing the working
           // surface again while it clones.
@@ -1059,7 +1054,6 @@ export default function AppShell({
         bookId={openSetlist.bookId}
         path={openSetlist.path}
         mode={mode}
-        author={LOCAL_IDENTITY}
         onBack={() => back(() => setOpenSetlist(null))}
         onPlay={({ bookId, path }) => setPlayingSetlist({ bookId, path })}
       />

@@ -29,8 +29,9 @@ task account "First run and the account" {
   task commit_author "Authoring as the account" {
     effort 2d
     allocate team
+    complete 100
     depends !new_device, sync.engine
-    note "After sign-in, saves, merges and home syncs are authored as <account-id>@users.estantedecifras.app instead of the device-local id; the account id comes from the sign-in reply and the attach and is kept in the Worker's meta store. On sign-in the saves not yet pushed that carry the local id are re-authored (chain rewritten from the first local-authored commit); sign-out reverts to the local id; AppShell's LOCAL_IDENTITY is retired. Source: tasks/refinements/account/new_device.md Decision 8 (account.new_device commit). Governing: DIRECTION §3.3, workflow 6, sign_in.md Decision 6, sign_out.md. Tests: unit (re-author of a mixed local and foreign chain); behavior (Worker: pre-sign-in saves re-authored, hosted pushes authored by the account, sign-out reverts); e2e-web (a song saved before sign-in shows as you in history after signing in and putting the book online; axe)."
+    note "After sign-in, saves, merges and home syncs are authored as <account-id>@users.estantedecifras.app instead of the device-local id; the account id comes from the sign-in reply and the attach and is kept in the Worker's meta store. On sign-in the saves not yet pushed that carry the local id are re-authored (chain rewritten from the first local-authored commit); sign-out reverts to the local id; AppShell's LOCAL_IDENTITY is retired. Source: tasks/refinements/account/new_device.md Decision 8 (account.new_device commit). Governing: DIRECTION §3.3, workflow 6, sign_in.md Decision 6, sign_out.md. Tests: unit (re-author of a mixed local and foreign chain); behavior (Worker: pre-sign-in saves re-authored, hosted pushes authored by the account, sign-out reverts); e2e-web (a song saved before sign-in shows as you in history after signing in and putting the book online; axe). Refinement: tasks/refinements/account/commit_author.md"
   }
   task account_screen "The account screen" {
     effort 2d

@@ -56,10 +56,6 @@ import { bookLabelFor } from './first-run.js';
 import { transposeStatus, chartChordList } from './reading-view.js';
 import './reading.css';
 
-// The device-local commit identity before sign-in, as every other write path
-// uses (the home book's reading-state writes are auto-committed, never pushed).
-const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
 // Keep an offset inside an octave: beyond ±11 is a redundant re-spelling of a
 // smaller one, and the key name wraps anyway.
 const clampOffset = (n) => Math.max(-11, Math.min(11, n));
@@ -308,10 +304,10 @@ export default function SongReading({
   const transposed = offset !== 0;
 
   const setTransposition = (semitones) =>
-    store.send(command(CommandKind.SET_TRANSPOSITION, { bookId, path, semitones, author: LOCAL_IDENTITY }));
+    store.send(command(CommandKind.SET_TRANSPOSITION, { bookId, path, semitones }));
   const setVariation = (next) =>
     store.send(
-      command(CommandKind.SET_VARIATION, { bookId, path, tuning: tuningId, variation: next, author: LOCAL_IDENTITY }),
+      command(CommandKind.SET_VARIATION, { bookId, path, tuning: tuningId, variation: next }),
     );
 
   const variationLabel = (v) => (v === '' ? t('reading.variationDefault') : v);
@@ -506,7 +502,7 @@ export default function SongReading({
   // must not aria-hide the chrome or chart (Decision 4; project memory).
   const showInstrumentPrompt = !preferences?.instrumentInUse && !preferences?.instrumentPromptSeen;
   const markInstrumentPromptSeen = () =>
-    store.send(command(CommandKind.MARK_INSTRUMENT_PROMPT_SEEN, { author: LOCAL_IDENTITY }));
+    store.send(command(CommandKind.MARK_INSTRUMENT_PROMPT_SEEN, {}));
   const instrumentPrompt = showInstrumentPrompt ? (
     <div className="notice accent reading-instrument-prompt">
       <span>{t('reading.instrumentPrompt')}</span>
