@@ -170,6 +170,13 @@
    "w": 3208,
    "h": 1500,
    "title": "10. Leaving one book"
+  },
+  "Remove-from-shelf.dc.html": {
+   "x": 0,
+   "y": 36440,
+   "w": 3208,
+   "h": 1500,
+   "title": "7. Removing a book from the shelf"
   }
  },
  "order": [
@@ -195,7 +202,8 @@
   "Screen-reader.dc.html",
   "W17-leaving.dc.html",
   "Recovery-email.dc.html",
-  "Leave-book.dc.html"
+  "Leave-book.dc.html",
+  "Remove-from-shelf.dc.html"
  ],
  "notes": {
   "workflows": {

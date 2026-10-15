@@ -69,7 +69,8 @@ task design "Design gaps" {
   task w07_remove_board "Draw the Remove loss-warning cases on W07" {
     effort 0.5d
     allocate team
-    note "docs/mockups/W07-add-a-book.dc.html draws only the hosted-in-step Remove one-liner; add the two normative confirmations of workflow 7 L128-135 — unsaved/unpushed loss warning, and the device-only 'gone for good, download first' case — as already implemented by books.online. Publishing the canvas stays a human step (tasks/parking-lot.md, Republish the mockup canvas). Source: tasks/parking-lot.md 2026-10-14 (W07 board under-illustrates the Remove flow). Tests: none — design deliverable (the board)."
+    complete 100
+    note "docs/mockups/W07-add-a-book.dc.html draws only the hosted-in-step Remove one-liner; add the two normative confirmations of workflow 7 L128-135 — unsaved/unpushed loss warning, and the device-only 'gone for good, download first' case — as already implemented by books.online. Publishing the canvas stays a human step (tasks/parking-lot.md, Republish the mockup canvas). Source: tasks/parking-lot.md 2026-10-14 (W07 board under-illustrates the Remove flow). Tests: none — design deliverable (the board). Refinement: tasks/refinements/design/w07_remove_board.md"
   }
   task boards_refresh "Redraw the boards where the app follows the workflows" {
     effort 1d

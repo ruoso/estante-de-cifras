@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>7. Removing a book from the shelf</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 7</div>
+    <h1 class="board-title">Removing a book from the shelf</h1>
+    <p class="board-sub">Remove from my shelf deletes this device's copy only; when that would lose unsaved changes or saves not yet pushed, it counts them and asks, and a book only on this device is gone for good, with the download offered first. The membership stays, so Mine on Estante offers the book again.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · a book on Estante with an unsaved song and saves waiting: Remove, then what it would lose, counted</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back to Books"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Banda do Bairro</span>
+            </div>
+            <div class="scroll" style="gap: 14px">
+              <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                <span class="chip">On Estante</span>
+                <span class="chip">You can save</span>
+                <span class="badge unsaved">2 saves waiting to go up</span>
+              </div>
+              <sc-for list="{{hostedVerbs}}" as="v" hint-placeholder-count="3">
+                <div class="card pad">
+                  <span class="t-h2">{{v.title}}</span>
+                  <p class="t-small">{{v.text}}</p>
+                  <button class="btn {{v.cls}}" style="align-self: flex-start">{{v.button}}</button>
+                </div>
+              </sc-for>
+            </div>
+            <div class="tabbar">
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Search</button>
+              <button class="tab on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>Books</button>
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg>Setlists</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back to Books"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Banda do Bairro</span>
+            </div>
+            <div class="scroll" style="gap: 14px">
+              <sc-for list="{{hostedVerbs}}" as="v" hint-placeholder-count="3">
+                <div class="card pad">
+                  <span class="t-h2">{{v.title}}</span>
+                  <p class="t-small">{{v.text}}</p>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div class="scrim center">
+            <div class="dialog" role="alertdialog" aria-labelledby="rs-p2-title" style="width: 340px">
+              <h2 class="t-h2" id="rs-p2-title">Remove “Banda do Bairro” from this device?</h2>
+              <div class="notice unsaved" style="flex-direction: column; gap: 8px">
+                <span style="display: flex; align-items: flex-start; gap: 10px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--unsaved)"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg><span><b>1 song with unsaved changes will be lost</b> · Rua do Porto</span></span>
+                <span>This device has 2 saves not yet on Estante; removing this copy loses them. The book stays on Estante.</span>
+              </div>
+              <div class="actions">
+                <button class="btn">Cancel</button>
+                <button class="btn danger">Remove from my shelf</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · a book only on this device: gone for good, with the download offered first</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Back to Books"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Exercícios de violão</span>
+          </div>
+          <div class="scroll" style="padding: 24px 28px; gap: 16px">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap">
+              <span class="chip">Only on this device</span>
+            </div>
+            <div class="card pad">
+              <span class="t-h2">Put online</span>
+              <p class="t-small">Only on this device. Putting it online creates it on Estante, private: only you can open it, until you invite people to it, at most 50.</p>
+              <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V8M7 13l5-5 5 5M4 4h16"></path></svg>Put online</button>
+            </div>
+            <div style="display: flex; gap: 16px">
+              <div class="card pad" style="flex: 1">
+                <span class="t-h2">Download</span>
+                <p class="t-small">A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.</p>
+                <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"></path></svg>Download</button>
+              </div>
+              <div class="card pad" style="flex: 1">
+                <span class="t-h2">Remove from my shelf</span>
+                <p class="t-small">Deletes this device's copy only. The book stays on Estante.</p>
+                <button class="btn" style="align-self: flex-start">Remove from my shelf</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" role="alertdialog" aria-labelledby="rs-t-title" style="width: 620px">
+            <h2 class="t-h1" id="rs-t-title">Remove “Exercícios de violão” from this device?</h2>
+            <div class="notice unsaved" style="gap: 10px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--unsaved)"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg><span>This book is only on this device. Removing it deletes it for good — there is no copy on Estante. Download it first to keep a copy.</span></div>
+            <p class="t-small">The download holds the whole history, and unsaved changes as modified files.</p>
+            <div class="actions" style="flex-wrap: wrap">
+              <button class="btn">Cancel</button>
+              <button class="btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"></path></svg>Download</button>
+              <button class="btn danger">Remove from my shelf</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · after removing Banda do Bairro: gone from the shelf, and Mine on Estante offers it again — the membership stays</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side">
+            <div style="padding: 18px 16px 12px; display: flex; align-items: center; gap: 8px">
+              <span class="t-h1" style="flex: 1">Books</span>
+              <button class="btn primary">Add a book</button>
+            </div>
+            <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 12px; overflow: hidden">
+              <div class="list">
+                <sc-for list="{{shelf}}" as="b" hint-placeholder-count="3">
+                  <a class="row {{b.cls}}" href="#"><span class="grow"><span class="name">{{b.title}}</span><span class="meta">{{b.where}} · {{b.role}}</span></span></a>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="appbar" style="padding: 14px 24px">
+              <span class="title">My songs</span>
+              <button class="btn">Share</button>
+            </div>
+            <div class="scroll" style="padding: 24px 32px; gap: 18px">
+              <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                <span class="chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>On Estante · private</span>
+                <span class="chip">You own it</span>
+                <span class="chip">You can save</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" role="dialog" aria-labelledby="rs-d-add" style="width: 560px">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <h2 class="t-h2" id="rs-d-add" style="flex: 1">Add a book</h2>
+              <button class="btn icon" aria-label="Close"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+            </div>
+            <span class="t-h3">Mine on Estante</span>
+            <p class="t-small">Your books that are not on this shelf yet.</p>
+            <div class="list">
+              <sc-for list="{{mine}}" as="m" hint-placeholder-count="1">
+                <div class="row">
+                  <span class="grow"><span class="name">{{m.title}}</span><span class="meta">{{m.meta}}</span></span>
+                  <button class="btn" aria-label="{{m.addLabel}}">Add</button>
+                  <button class="btn quiet" aria-label="{{m.leaveLabel}}">Leave</button>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var shelf = [
+      { title: 'My songs', where: 'On Estante', role: 'can save', cls: 'sel' },
+      { title: 'Choros da Ana', where: 'On Estante', role: 'reader', cls: '' },
+      { title: 'Exercícios de violão', where: 'On this device', role: 'can save', cls: '' },
+    ];
+    var mine = [
+      { title: 'Banda do Bairro', meta: 'On Estante · can save' },
+    ].map(function (m) {
+      return { title: m.title, meta: m.meta, addLabel: 'Add ' + m.title, leaveLabel: 'Leave ' + m.title };
+    });
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      hostedVerbs: [
+        { title: 'Download', text: 'A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.', button: 'Download', cls: '' },
+        { title: 'Remove from my shelf', text: 'Deletes this device’s copy only. The book stays on Estante.', button: 'Remove from my shelf', cls: '' },
+        { title: 'Leave this book', text: 'Stop following it on all your devices.', button: 'Leave this book', cls: 'danger' },
+      ],
+      shelf: shelf,
+      mine: mine,
+    };
+  }
+}
+</script>
+</body>
+</html>
