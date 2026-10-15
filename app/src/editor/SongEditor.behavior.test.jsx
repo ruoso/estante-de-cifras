@@ -307,6 +307,29 @@ describe('SongEditor', () => {
     expect(write(parse(SONG))).not.toContain('## Refrão');
   });
 
+  it('saves a README with a rule and a heading under it, with no after-rule stop (workflow 14 L73)', async () => {
+    // books.save_readme_verbatim Decision 4 — README.md is saved as written, not
+    // through the song writer, so a `---` and the `## Usage` under it drop
+    // nothing and the after-rule stop does not apply (it still does for a song, above).
+    const { store, emit } = makeStore();
+    const onSave = vi.fn();
+    const editorRef = { current: null };
+    const README = '# Livro de Ensaio\n\nNotas do grupo.\n\n---\n\n## Usage\n\nAbra uma cifra.\n';
+    const { container } = render(
+      <SongEditor store={store} bookId={BOOK} path="README.md" layoutMode="wide" editorRef={editorRef} onSave={onSave} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: 'README.md', text: README }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(README));
+    // The reader does flag the heading after the rule…
+    expect(parse(README).diagnostics.map((d) => d.code)).toContain('bad-block-heading');
+
+    // …but on README.md it stops nothing.
+    act(() => fireEvent.click(screen.getByRole('button', { name: t('editor.source.save') })));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
   it('sends a still-debounced edit before Save hands over, so the save sheet sees it', async () => {
     const { store, sent, emit } = makeStore();
     const editorRef = { current: null };

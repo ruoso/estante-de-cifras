@@ -10,13 +10,16 @@
 // - `bad-block-heading`, `notes-outside-block`, `item-outside-block` — content
 //   after the rule the song writer drops (spec §7.2, §7.4, §8.2): a heading with
 //   no tuning and the lines under it, or text/a voicing before the first block.
-//   These describe a drop only where the Worker writes the file with the song
-//   writer — every path but `*.setlist.md` (worker/canonicalise.js
-//   canonicaliseFile), including a new song with no path yet.
+// The last four describe a drop only where the Worker writes the file with the
+// song writer — a `*.cifra.md` path, or a new song with no path yet
+// (worker/canonicalise.js canonicaliseFile). A setlist has its own writer, and
+// README.md / `.gitattributes` are saved as written (books.save_readme_verbatim
+// Decision 4).
 
-const SETLIST_SUFFIX = '.setlist.md';
+const SONG_SUFFIX = '.cifra.md';
 
-const EVERY_FILE = new Set(['marker-line', 'bad-voicing']);
+const EVERY_FILE = new Set(['marker-line']);
+const SONG_WRITER = new Set(['bad-voicing', 'bad-block-heading', 'notes-outside-block', 'item-outside-block']);
 const AFTER_RULE = new Set(['bad-block-heading', 'notes-outside-block', 'item-outside-block']);
 
 /**
@@ -27,9 +30,9 @@ const AFTER_RULE = new Set(['bad-block-heading', 'notes-outside-block', 'item-ou
  * @returns {Array<{ code: string, line: number }>}
  */
 export function saveBlockers(diagnostics, path) {
-  const songWriter = !path || !path.endsWith(SETLIST_SUFFIX);
+  const songWriter = !path || path.endsWith(SONG_SUFFIX);
   return diagnostics
-    .filter((d) => EVERY_FILE.has(d.code) || (songWriter && AFTER_RULE.has(d.code)))
+    .filter((d) => EVERY_FILE.has(d.code) || (songWriter && SONG_WRITER.has(d.code)))
     .sort((a, b) => a.line - b.line);
 }
 

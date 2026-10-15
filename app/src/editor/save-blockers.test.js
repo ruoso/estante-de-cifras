@@ -84,17 +84,27 @@ describe('saveBlockers', () => {
     expect(blockersOf(song('---', '', '## Voicings: E2 A2 D3 G3 B3 E4', '- G: 320003', '- D: xx0232', ''))).toEqual([]);
   });
 
-  it('stops the dropped-content codes only where the song writer runs; a marker line everywhere (Decision 3)', () => {
+  it('stops the song-writer codes only on a song or a new song; a marker line everywhere (Decision 3)', () => {
+    // books.save_readme_verbatim Decision 4: README.md / .gitattributes are saved
+    // as written and a setlist has its own writer, so none of the four drops a line there.
     const { diagnostics } = parse(SECTION_AFTER_RULE);
-    expect(saveBlockers(diagnostics, 'x.setlist.md')).toEqual([]);
+    for (const path of ['README.md', '.gitattributes', 'x.setlist.md']) {
+      expect(saveBlockers(diagnostics, path)).toEqual([]);
+    }
     expect(saveBlockers(diagnostics, 'x.cifra.md').map((d) => d.code)).toEqual(['bad-block-heading']);
     expect(saveBlockers(diagnostics, null).map((d) => d.code)).toEqual(['bad-block-heading']); // a new song
     expect(saveBlockers(diagnostics, undefined).map((d) => d.code)).toEqual(['bad-block-heading']);
 
+    const badVoicing = parse(song('---', '', '## Voicings: E2 A2 D3 G3 B3 E4', '- Em: 02200', '')).diagnostics;
+    expect(saveBlockers(badVoicing, 'README.md')).toEqual([]);
+    expect(saveBlockers(badVoicing, 'x.cifra.md').map((d) => d.code)).toEqual(['bad-voicing']);
+
     const marked = parse(['# Ensaio', '<<<<<<< ours', '- a.cifra.md', '=======', '- b.cifra.md', '>>>>>>> theirs'].join('\n'));
-    const onSetlist = saveBlockers(marked.diagnostics, 'x.setlist.md');
-    expect(onSetlist.length).toBeGreaterThan(0);
-    expect(onSetlist.every((d) => d.code === 'marker-line')).toBe(true);
+    for (const path of ['README.md', 'x.setlist.md']) {
+      const blockers = saveBlockers(marked.diagnostics, path);
+      expect(blockers.length).toBeGreaterThan(0);
+      expect(blockers.every((d) => d.code === 'marker-line')).toBe(true);
+    }
   });
 
   it('puts the earliest blocker first (line order)', () => {

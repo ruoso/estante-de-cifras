@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { canonicaliseFile } from './canonicalise.js';
+import { GITATTRIBUTES_BYTES } from './books.js';
 
 // unit — the canonicalise-one-file step (storage.working_copy). Pins
 // tasks/40-storage.tji:33 ("canonicalising before commit"), workflow 4 L48-56
@@ -29,6 +30,12 @@ const CANONICAL_SONG = [
   '- G: 320003',
   '',
 ].join('\n');
+
+// A book's README written for this test: an interior run of blank lines, a
+// trailing double space (a Markdown hard break), and a `---` rule with a heading
+// and text under it — all of which the song writer would drop or collapse.
+const README = '# Livro de Ensaio\n\nNotas do grupo.  \n\n\n---\n\n## Usage\n\nAbra uma cifra.\n';
+const bytesOf = (text) => new TextEncoder().encode(text);
 
 describe('canonicaliseFile — songs', () => {
   it('puts a hand-typed song back in canonical order, the chart untouched (workflow 4 L48-56)', () => {
@@ -72,6 +79,14 @@ describe('canonicaliseFile — songs', () => {
     expect(result.marker).toBe('<<<<<<< ours');
     expect(typeof result.line).toBe('number');
   });
+
+  it('dispatches by suffix: the README text under a *.cifra.md path still goes through the song writer', () => {
+    // books.save_readme_verbatim Decision 1 — only a non-song, non-setlist path is saved as written.
+    const result = canonicaliseFile('x.cifra.md', bytesOf(README));
+    expect(result.ok).toBe(true);
+    expect(result.text).not.toBe(README);
+    expect(result.text).not.toContain('## Usage');
+  });
 });
 
 describe('canonicaliseFile — setlists', () => {
@@ -110,5 +125,55 @@ describe('canonicaliseFile — setlists', () => {
     expect(result.ok).toBe(false);
     expect(result.reason).toBe('marked');
     expect(result.marker).toBe('<<<<<<< ours');
+  });
+});
+
+// books.save_readme_verbatim — README.md and .gitattributes are not songs
+// (workflow 14 L73): saved as written, held only to the text rules (workflow 14
+// L65-66; the hook's readmeReason), a marked text refused (spec §11.12.3).
+describe('canonicaliseFile — README.md and .gitattributes', () => {
+  it('keeps a README with a rule and headings under it byte for byte (workflow 14 L73)', () => {
+    expect(canonicaliseFile('README.md', bytesOf(README))).toEqual({ ok: true, text: README });
+  });
+
+  it('applies the text rules and nothing else (workflow 14 L65-66; spec §1 step 5; hook readmeReason)', () => {
+    const nfd = 'Caf\u0065\u0301';
+    const messy =
+      '\uFEFF# Livro de Ensaio\r\n\r\nNotas do grupo.  \r\n\n\r---\n\n## Usage\n\n\tAbra uma cifra. ' + nfd + '\n\n\n';
+    const result = canonicaliseFile('README.md', bytesOf(messy));
+    expect(result.ok).toBe(true);
+    expect(result.text).toBe(
+      '# Livro de Ensaio\n\nNotas do grupo.  \n\n\n---\n\n## Usage\n\n Abra uma cifra. Caf\u00e9\n',
+    );
+    expect(result.text).not.toMatch(/[\uFEFF\r\t]/);
+    expect(result.text.normalize('NFC')).toBe(result.text);
+    expect(result.text.endsWith('\n')).toBe(true);
+    expect(result.text.endsWith('\n\n')).toBe(false);
+    // Idempotent: the output is its own canonical form.
+    expect(canonicaliseFile('README.md', result.text)).toEqual(result);
+    expect(canonicaliseFile('README.md', '')).toEqual({ ok: true, text: '\n' });
+  });
+
+  it('refuses a README holding a marker line (spec §11.12.3; hook/canonical.md marker Decision)', () => {
+    const marked = '# Livro de Ensaio\n\n<<<<<<< ours\nAbra uma cifra.\n=======\nAbra um setlist.\n>>>>>>> theirs\n';
+    expect(canonicaliseFile('README.md', bytesOf(marked))).toEqual({
+      ok: false,
+      reason: 'marked',
+      line: 3,
+      marker: '<<<<<<< ours',
+    });
+  });
+
+  it('refuses invalid UTF-8 as unreadable (workflow 14 L30-31)', () => {
+    const result = canonicaliseFile('README.md', new Uint8Array([0x23, 0x20, 0xff, 0x0a]));
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe('unreadable');
+  });
+
+  it("keeps the app's .gitattributes byte for byte", () => {
+    expect(canonicaliseFile('.gitattributes', bytesOf(GITATTRIBUTES_BYTES))).toEqual({
+      ok: true,
+      text: GITATTRIBUTES_BYTES,
+    });
   });
 });

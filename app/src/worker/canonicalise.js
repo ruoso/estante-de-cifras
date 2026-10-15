@@ -5,8 +5,11 @@
 // cifra.md writer, and the canonical text is what the save writes back and
 // commits; "a marked text is never saved or pushed" (spec §11.12.3).
 //
-// It dispatches by file extension: a `*.setlist.md` through the setlist
-// reader/writer, every other (song) file through the §1-§8 reader/writer.
+// It dispatches by file extension: a `*.cifra.md` through the §1-§8 song
+// reader/writer, a `*.setlist.md` through the setlist reader/writer, and every
+// other path (README.md, `.gitattributes` — books.save_readme_verbatim) is saved
+// as written, held only to the text rules (workflow 14 L65-66, L73): a README is
+// not a song, and the song writer would drop a `---` and the headings under it.
 //
 // The writer is the single authority on canonicality and marker lines
 // (Decision 4): the song writer throws `MarkedTextError`, and the marker-line
@@ -24,10 +27,12 @@ import {
   parseSetlist,
   markerLines,
   prepare,
+  decode,
   MarkedTextError,
 } from 'cifra-md';
 
-// A setlist file (workflow 14 L24-36). Anything else is a song (`*.cifra.md`).
+// A song and a setlist file (workflow 14 L24-36). Anything else is prose.
+const SONG_SUFFIX = '.cifra.md';
 const SETLIST_SUFFIX = '.setlist.md';
 
 /**
@@ -47,9 +52,28 @@ function firstMarkerRefusal(text) {
 }
 
 /**
+ * A non-song, non-setlist file's canonical form: the text as written, held to
+ * the text rules the hook holds README.md to (`readmeReason`; workflow 14
+ * L65-66), in order — no U+FEFF, LF line endings, NFC, each tab as one space
+ * (spec §1 step 5), exactly one final newline. Trailing spaces, every line and
+ * every blank line are kept. Idempotent.
+ *
+ * @param {string} text  the decoded text
+ * @returns {string}
+ */
+function applyTextRules(text) {
+  const tidied = text
+    .replace(/\uFEFF/g, '')
+    .replace(/\r\n?/g, '\n')
+    .normalize('NFC')
+    .replace(/\t/g, ' ')
+    .replace(/\n+$/, '');
+  return `${tidied}\n`;
+}
+
+/**
  * Canonicalise one working-copy file. `input` is the file's bytes (a
- * `Uint8Array`) or its text (a string) — the reader takes either and validates
- * UTF-8 itself.
+ * `Uint8Array`) or its text (a string) — bytes are validated as UTF-8.
  *
  * Returns `{ ok: true, text }` with the canonical text to write back and commit,
  * or `{ ok: false, reason, marker?, line? }` when the file cannot be saved:
@@ -73,10 +97,17 @@ export function canonicaliseFile(path, input) {
       const text = writeSetlist(parseSetlist(input));
       return firstMarkerRefusal(text) ?? { ok: true, text };
     }
-    // A song: the writer is `serialize ∘ canonical` with the §8.1 marked-text
-    // refusal, so a conflict marker surfaces here as `MarkedTextError`.
-    const text = write(parse(input));
-    return { ok: true, text };
+    if (path.endsWith(SONG_SUFFIX)) {
+      // A song: the writer is `serialize ∘ canonical` with the §8.1 marked-text
+      // refusal, so a conflict marker surfaces here as `MarkedTextError`.
+      const text = write(parse(input));
+      return { ok: true, text };
+    }
+    // README.md / `.gitattributes`: saved as written under the text rules. The
+    // bytes are checked as UTF-8 (`decode` throws `NotUtf8Error`), and a marked
+    // text is refused on the format's marker-line primitive (§11.12.3).
+    const text = applyTextRules(typeof input === 'string' ? input : decode(input));
+    return firstMarkerRefusal(text) ?? { ok: true, text };
   } catch (err) {
     if (err instanceof MarkedTextError) {
       return { ok: false, reason: 'marked', line: err.line, marker: err.text };

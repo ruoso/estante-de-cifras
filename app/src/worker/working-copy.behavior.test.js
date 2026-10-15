@@ -492,6 +492,66 @@ describe('the working copy, save and discard (behavior)', () => {
       await ctx.cleanup();
     }
   });
+
+  // books.save_readme_verbatim — a README is not a song (workflow 14 L73): it is
+  // saved as written, not through the song writer, which would drop the `---`
+  // and the heading under it and collapse the blank-line run.
+  const README = '# Livro de Ensaio\n\nNotas do grupo.  \n\n\n---\n\n## Usage\n\nAbra uma cifra.\n';
+
+  it('SAVEs a README.md as written — the rule and the headings under it committed unchanged (workflow 14 L73)', async () => {
+    const ctx = await setup('book-readme');
+    try {
+      ctx.store.send(command(CommandKind.WRITE, { bookId: ctx.bookId, path: 'README.md', text: README }));
+      ctx.store.send(
+        command(CommandKind.SAVE, {
+          bookId: ctx.bookId,
+          paths: ['README.md'],
+          message: 'Update README.md',
+          author: IDENTITY,
+        }),
+      );
+      await until(() => expect(ctx.status()).toBe('saved'));
+
+      // The pushed commit holds the README byte for byte (read untrimmed).
+      const blob = await run('git', ['--git-dir', ctx.remote.repoDir, 'show', 'main:README.md']);
+      expect(blob).toBe(README);
+      expect(await ctx.read('README.md')).toBe(README);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('REFUSES a README.md holding a marker line — no commit, no push (spec §11.12.3)', async () => {
+    const ctx = await setup('book-readme-marked');
+    try {
+      const remoteBefore = await gitRemote(ctx.remote.repoDir, 'rev-parse', 'refs/heads/main');
+      const localBefore = await ctx.head();
+
+      const marked = '# Livro de Ensaio\n\n<<<<<<< ours\nAbra uma cifra.\n=======\nAbra um setlist.\n>>>>>>> theirs\n';
+      ctx.store.send(command(CommandKind.WRITE, { bookId: ctx.bookId, path: 'README.md', text: marked }));
+      ctx.store.send(
+        command(CommandKind.SAVE, {
+          bookId: ctx.bookId,
+          paths: ['README.md'],
+          message: 'Update README.md',
+          author: IDENTITY,
+        }),
+      );
+      await until(() => expect(ctx.status()).toBe('refused'));
+
+      const outcome = ctx.store.slice('save')[ctx.bookId];
+      expect(outcome.path).toBe('README.md');
+      expect(outcome.reason).toBe('marked');
+      expect(outcome.marker).toBe('<<<<<<< ours');
+
+      expect(await gitRemote(ctx.remote.repoDir, 'rev-parse', 'refs/heads/main')).toBe(
+        remoteBefore,
+      );
+      expect(await ctx.head()).toBe(localBefore);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
 });
 
 // songs.save_empty_message — workflow 4 §Saving: a save is never left without a

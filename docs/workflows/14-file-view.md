@@ -70,8 +70,14 @@ For the user this is little. The chart keeps its spacing and spelling
 already does, and tidies whitespace. A voicing line the parser cannot read
 already stops the save (workflow 4).
 
-- **`README.md`** is not a song, but is held to the text rules.
-- **`.gitattributes`** must be exactly what the app writes.
+- **`README.md`** is not a song, but is held to the text rules. The app
+  saves it as written — every line, every blank line, a `---` and the
+  headings under it — tidying only the text rules: no BOM, LF, NFC, a tab
+  as one space (cifra.md §1), exactly one final newline. A marker line stops
+  its save, as it stops any file's.
+- **`.gitattributes`** must be exactly what the app writes. The app saves it
+  as written, held to the same text rules; one edited away from the app's
+  bytes is refused by the service when it is pushed.
 - **Merges** made by sync produce canonical files by construction, and are
   checked like any other commit.
 
