@@ -84,6 +84,64 @@ An editor lowered to reader, or removed, with saves not yet pushed, is told
 those saves can no longer go to the book, and is offered a fork (workflow 11)
 or the download (workflow 7), so that nothing they wrote is lost.
 
+## Leaving a book
+
+A member — a reader or an editor — can end their own membership:
+**Leave this book**, without asking the owner and without leaving Estante
+(workflow 17). *Remove from my shelf* (workflow 7) is not leaving: it deletes
+this device's copy and keeps the membership, so *Mine on Estante* offers the
+book again. Leaving is the one that makes it stop.
+
+**Where it sits.** On the book in the book-management screen, among the
+book's verbs and below *Remove from my shelf*, shown only to a member: an
+owner sees *Delete the book* there instead, and a book that is only on this
+device has no membership to leave. A book the member already removed from
+this shelf is still listed in *Mine on Estante*, and its row offers
+**Leave** too, so nobody has to put a book back on the shelf in order to
+leave it.
+
+**The confirmation** names the book and its owner, and says what leaving
+does: *Leave Choros da Ana? You will no longer open or sync it, on any of
+your devices, and it is removed from this one. Ana can invite you again.*
+What would be lost is counted, as *Remove from my shelf* counts it:
+
+- **unsaved changes** — *2 songs with unsaved changes will be lost*;
+- **saves not yet pushed**, for an editor — *3 saves have not reached the
+  book and never will*, with **Make it my own first** (a fork, workflow 11,
+  which carries those saves and the unsaved changes) and **Download first**
+  (workflow 7) beside **Leave the book**, as for someone removed.
+
+With nothing to lose, the confirmation is the sentence and two buttons,
+**Leave the book** and **Cancel**. There is no typed name: leaving touches
+nobody else's data, and an invitation undoes it. From *Mine on Estante* there
+is nothing on this device to lose, so the confirmation is the sentence alone.
+
+**What it does.** The membership ends on the service first; only then is the
+book removed from this device. The book is gone from the shelf and from *Mine
+on Estante*; the member can no longer clone, fetch or push it. On the
+person's other devices it becomes *no longer shared with you* at their next
+sync (workflow 8 §Losing access), their copy kept, as for someone removed.
+The owner's people screen no longer lists them and the count drops by one;
+the owner is not notified (telling people things is *Later*).
+
+**It needs a connection**, like accepting an invitation: offline, the verb
+says *Leaving needs a connection* and nothing changes. If the service refuses
+or cannot be reached mid-way, the book stays on the shelf, a member still,
+and the confirmation says it did not leave.
+
+**Coming back** is an invitation like anyone's: one still valid lets them in
+again, counted against the fifty.
+
+Edge cases:
+
+- **A fork of the book** is the person's own and is untouched; it stops
+  following the original, which it now says is *no longer shared with you*
+  (workflow 11 §When the original goes away).
+- **An owner cannot leave** — handing ownership is *Later*; the way out is
+  deleting the book (workflow 7) or the account (workflow 17).
+- **Already removed by the owner** — the book is already *no longer shared
+  with you*; there is nothing to leave, and the verb is not offered.
+
 ## A reader who wants to change something
 
 Their edits stay unsaved on their device, as workflow 4 has it, and *save*

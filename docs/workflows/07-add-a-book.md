@@ -132,7 +132,9 @@ Two different acts:
 - **Remove from my shelf** deletes the local clone only. With unsaved
   changes or saves not yet pushed, it says what would be lost and asks. For a
   book that is only on this device, it says the book will be gone for good,
-  and offers the download first.
+  and offers the download first. Removing keeps a member's membership, so
+  *Mine on Estante* offers the book again; ending it is *Leave this book*
+  (workflow 10 §Leaving a book).
 - **Delete the book**, only for its owner, deletes it from Estante for
   everyone, and asks for the book's name to be typed.
 

@@ -388,7 +388,8 @@ Written down as a contract, `api/`, and both sides tested against it:
   or forked, deleted only with the account.
 - **The change check**: one request for a whole shelf, each book with the
   head the device has, answered with the books that moved (workflow 8).
-- **Sharing**: members listed, their roles changed, removed; invitations
+- **Sharing**: members listed, their roles changed, removed; a member
+  leaving a book of their own accord (workflow 10 §Leaving a book); invitations
   made with a role, an expiry and a limit on uses, listed with who joined,
   withdrawn, and accepted, up to fifty people per book (workflow 10).
 - **Git**: smart HTTP for each book, for its members only, by session.
@@ -587,6 +588,13 @@ workflows do not yet cover, and work that comes before building:
   not sign in). The last passkey of an account without one cannot be removed,
   and an account without one confirms its deletion with a passkey instead of
   the typed name. No new workflow: the decisions are workflow 13's and 17's.
+- **Leaving one shared book**, decided (workflow 10 §Leaving a book) and drawn:
+  [mockups/Leave-book.dc.html](mockups/Leave-book.dc.html) — a member (never
+  the owner) ends their own membership with *Leave this book* on the book, or
+  *Leave* on its *Mine on Estante* row; the confirmation counts unsaved changes
+  and unpushed saves, offering a fork or the download as for someone removed;
+  the membership ends on the service before the device's copy goes, so the
+  book stops being offered. No new workflow: the decision is workflow 10's.
 
 ## 7. Workflows
 

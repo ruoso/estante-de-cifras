@@ -62,7 +62,8 @@ task design "Design gaps" {
   task leave_book "Leaving one shared book" {
     effort 0.5d
     allocate team
-    note "Decide and draw a Leave this book verb for a member who wants to drop one membership without deleting their account: where it sits in book management, its confirmation (unsaved changes and unpushed saves counted, as Remove does), and that Mine on Estante no longer offers the book afterwards. An owner cannot leave (handing ownership stays workflow 10 Later). Workflow 10. Source: tasks/parking-lot.md 2026-10-14 (Leave one shared book). Tests: none — design deliverable (workflow 10 edit and the board)."
+    complete 100
+    note "Decide and draw a Leave this book verb for a member who wants to drop one membership without deleting their account: where it sits in book management, its confirmation (unsaved changes and unpushed saves counted, as Remove does), and that Mine on Estante no longer offers the book afterwards. An owner cannot leave (handing ownership stays workflow 10 Later). Workflow 10. Source: tasks/parking-lot.md 2026-10-14 (Leave one shared book). Tests: none — design deliverable (workflow 10 edit and the board). Refinement: tasks/refinements/design/leave_book.md"
   }
   task w07_remove_board "Draw the Remove loss-warning cases on W07" {
     effort 0.5d

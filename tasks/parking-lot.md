@@ -97,6 +97,7 @@ Append one `###` block per item, newest at the bottom:
 - **Why parked**: work only a person can do — requires publishing access to the external canvas host. (See also the earlier 2026-10-05 entry for W15; all five boards can be published in one pass.)
 - **Updated** (2026-10-14, triage): merged the 2026-10-05 W15 entry here. Boards still to come and to publish in the same pass: W07 (design.w07_remove_board), and whatever design.display_preferences, design.recovery_email and design.leave_book draw.
 - **Updated** (2026-10-15, closer for `design.recovery_email`): `docs/mockups/Recovery-email.dc.html` is drawn and registered in `canvas.json`; it was not rendered, so check it on publishing.
+- **Updated** (2026-10-15, closer for `design.leave_book`): `docs/mockups/Leave-book.dc.html` is drawn and registered in `canvas.json` (y 34820); it was not rendered, so check it on publishing.
 
 ### 2026-10-13 — Handing ownership of a book to a successor on leaving
 - **Source**: closer for `design.leaving` (tasks/refinements/design/leaving.md), surfaced by implementer's return summary and workflow 10 §Later (line 120).

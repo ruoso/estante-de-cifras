@@ -182,6 +182,9 @@ The service logs request metadata only, never song text or book contents
 - **A book the leaver only reads.** The membership ends; the owner and the other
   members keep the book unchanged. If the leaver wants to keep its songs, the
   data-out download hands back the clone they hold.
+- **Leaving one book, not Estante.** A member who only wants to drop one
+  membership does not delete the account: *Leave this book* on that book ends
+  it alone (workflow 10 §Leaving a book).
 - **Unsaved or unpushed work.** Counted and warned per book (above), with the
   download offered, before the terminal action — never silently discarded.
 - **The home book.** Exported with the rest if the user downloads everything
@@ -209,10 +212,6 @@ The service logs request metadata only, never song text or book contents
 - **A single combined archive** instead of per-book zips — one file holding
   every book — as a convenience over the same local downloads, not a new server
   endpoint.
-- **Leaving one shared book** without deleting the account — a member dropping a
-  single membership. There is no self-remove endpoint today (removing a book from
-  the shelf keeps the membership, so *Mine on Estante* re-offers it); giving the
-  member a *leave this book* verb is a separate small design decision.
 - **A grace period or undo window** before the account is truly gone — a hold
   during which the deletion can be recalled. The chosen flow is immediate and
   terminal, guarded only by the type-the-name confirm.
