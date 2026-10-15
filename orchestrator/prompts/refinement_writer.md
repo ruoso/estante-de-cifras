@@ -228,6 +228,15 @@ Rules:
 - The e2e harnesses (`foundation.e2e_api`, `foundation.e2e_web`) land
   before any task that needs them (the WBS wires the dependency); write e2e
   tests in them, never a parallel harness.
+- **e2e-web journeys go through the real UI only.** `e2e/web/eslint.config.js`
+  fails the gate on a spec that opens a `#dev/*` mount, injects state
+  (`addInitScript`), mocks the network, dispatches synthetic events, or makes
+  API writes; `e2e/web/lib/journeys*.js` hold the real-UI paths. Never name an
+  e2e-web case that needs one of these. A bug only a `#dev/*` mount can reach
+  reaches no user: pin it with behavior tests, and give the e2e level the
+  user-visible promise through the real UI (or a Decision saying why there is
+  none). The rare sanctioned `eslint-disable` exceptions are a human's call,
+  not the refinement's.
 
 ### Check that every named test can be driven — before anything else
 
