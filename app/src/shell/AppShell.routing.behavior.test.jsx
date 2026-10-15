@@ -79,6 +79,9 @@ function openSongFromSearch(emit) {
 
 beforeEach(() => {
   history.replaceState(null, '', '/');
+  // The rename record lives in sessionStorage (book-renames.js); no case's
+  // record leaks into the next.
+  sessionStorage.clear();
   globalThis.matchMedia = (media) => ({
     media,
     matches: media === WIDE_QUERY ? false : false,
@@ -259,6 +262,48 @@ describe('AppShell routing (behavior)', () => {
     expect(location.pathname).toBe('/b/fork-1');
     expect(screen.getByRole('searchbox')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /doesn’t open a book/ })).not.toBeInTheDocument();
+  });
+
+  // shell.routing_rename_across_reload — the rename record outlives a reload
+  // (DIRECTION §3.7 "The address follows where you are"; workflow 7 §Links to
+  // books L45–48). The reload: cleanup() and a fresh AppShell on a fresh store,
+  // keeping jsdom's location, history and sessionStorage.
+  async function backAfterRenameAndReload(renameEvent, newId, goBack) {
+    history.replaceState(null, '', '/b/b1');
+    const first = makeStore();
+    render(<AppShell store={first.store} />);
+    openSongFromSearch(first.emit);
+    expect(location.pathname).toBe(SONG_URL);
+    first.emit(event(renameEvent, { previousBookId: BOOK, bookId: newId, via: 'service' }));
+    expect(location.pathname).toBe(`/b/${newId}/${SONG_PATH}`);
+    cleanup();
+
+    const { store, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    // The device's copy now lives under the new id only.
+    emit(event(EventKind.SHELF, { ...SHELF, books: { [newId]: SHELF.books[BOOK] } }));
+    emit(event(EventKind.TREE, { bookId: newId, entries: ENTRIES }));
+    emit(event(EventKind.SOURCE, { bookId: newId, path: SONG_PATH, text: SONG_TEXT }));
+    expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+
+    await traverse(goBack);
+    expect(location.pathname).toBe(`/b/${newId}`);
+    expect(history.state.place.book).toBe(newId);
+    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Search songs, words and chords' })).toHaveTextContent(BOOK_LABEL);
+    expect(screen.queryByRole('heading', { name: /doesn’t open a book/ })).not.toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  }
+
+  it('back after a fork and a reload lands on the fork, not not-here', async () => {
+    await backAfterRenameAndReload(EventKind.BOOK_FORKED, 'fork-1', () =>
+      fireEvent.click(screen.getByRole('button', { name: 'Back' })),
+    );
+  });
+
+  it('back after a put-online and a reload lands on the new id', async () => {
+    // routing.md Decision 8: BOOK_ONLINE follows like a fork; the system back.
+    await backAfterRenameAndReload(EventKind.BOOK_ONLINE, 'sr_online', () => history.back());
   });
 
   it('an invitation link ends on the song address', () => {

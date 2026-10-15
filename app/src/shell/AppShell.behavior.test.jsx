@@ -45,6 +45,8 @@ function installMatchMedia(initialWide) {
 // URL carries over from one test to the next: every test starts at `/`.
 beforeEach(() => {
   history.replaceState(null, '', '/');
+  // The rename record (book-renames.js) lives in sessionStorage: none leaks in.
+  sessionStorage.clear();
 });
 
 afterEach(() => {

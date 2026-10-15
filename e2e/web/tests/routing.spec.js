@@ -1,6 +1,16 @@
-import { test, expect } from '../lib/axe.js';
-import { openExampleBook, openSongFromSearch, editFromReading, scopeToBook } from '../lib/journeys.js';
+import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
+import {
+  openExampleBook,
+  openSongFromSearch,
+  openSongInEditor,
+  editFromReading,
+  scopeToBook,
+  gotoTab,
+} from '../lib/journeys.js';
 import { SONG } from '../lib/journeys-core.js';
+import { hostedBookWithSong } from '../lib/journeys-share.js';
+import { biaJoins, forkSheetTitle } from '../lib/journeys-fork.js';
+import { addSection } from '../lib/journeys-edit.js';
 
 // e2e-web — the URL follows where you are (shell.routing), on the three
 // viewports: a song's address survives a reload, and the browser's back — the
@@ -58,4 +68,55 @@ test('back closes the editor before the song', async ({ page }) => {
   await expect(page.getByRole('group', { name: SONG.title })).toHaveCount(0);
   await expect(page.getByRole('searchbox').first()).toBeVisible();
   await expect(page).not.toHaveURL(SONG_URL);
+});
+
+// shell.routing_rename_across_reload — a fork's new id reaches the history
+// entries from before a reload. Ana's hosted book, Bia joins as a reader; on
+// Bia's device: the book's songs (an entry naming the original), the song, a
+// save that forks (fork.spec.js *saving where one cannot*), a reload, then
+// back lands on the fork's songs, never the not-here screen. Pins DIRECTION
+// §3.7, workflow 7 §Links to books, workflow 11 (the fork takes the original's
+// place). Book and song names are written for this test.
+test('back after a fork and a reload lands on the fork', async ({ browser, page }) => {
+  test.setTimeout(120000);
+  const BOOK = 'Serestas do Leo';
+  const SONG_TITLE = 'Valsa da janela';
+  const QUERY = 'Valsa';
+  await hostedBookWithSong(page, BOOK, SONG_TITLE);
+  const bia = await biaJoins(browser, page, { book: BOOK, role: 'Reader', query: QUERY, songTitle: SONG_TITLE });
+  try {
+    await gotoTab(bia.page, 'Search');
+    await scopeToBook(bia.page, BOOK);
+    await expect(bia.page).toHaveURL(BOOK_URL);
+    const originalUrl = bia.page.url();
+
+    // The song → Edit → a section → Save → make it her own → the save form's Save.
+    await openSongInEditor(bia.page, QUERY, SONG_TITLE);
+    await addSection(bia.page, 'LeoPart');
+    await bia.page.getByRole('button', { name: 'Save', exact: true }).first().click();
+    const sheet = bia.page.getByRole('dialog', { name: forkSheetTitle(BOOK) });
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole('button', { name: 'Make it my own' }).click();
+    const form = bia.page.getByRole('dialog');
+    await expect(form.getByRole('button', { name: 'Save', exact: true })).toBeVisible({ timeout: 15000 });
+    const nameField = form.getByRole('textbox', { name: /Your name/ });
+    if (await nameField.count()) await nameField.fill('Bia');
+    await form.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(form).toBeHidden({ timeout: 15000 });
+    await expect(bia.page).toHaveURL(SONG_URL);
+    const originalId = new URL(originalUrl).pathname.split('/')[2];
+    expect(new URL(bia.page.url()).pathname.split('/')[2]).not.toBe(originalId);
+
+    await bia.page.reload();
+    await expect(bia.page.getByRole('group', { name: SONG_TITLE }).first()).toBeVisible();
+
+    await bia.page.goBack();
+    await expect(bia.page).toHaveURL(BOOK_URL);
+    expect(bia.page.url()).not.toBe(originalUrl);
+    await expect(bia.page.getByRole('heading', { name: /This link doesn’t open a book/ })).toHaveCount(0);
+    await expect(bia.page.locator('.scope')).toContainText(BOOK);
+    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the fork's songs
+  } finally {
+    await bia.context.close();
+  }
 });

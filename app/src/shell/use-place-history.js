@@ -25,13 +25,25 @@
 //     reload dropped) keeps going back;
 //   - `renameBook` follows a book whose id changed (a fork, a put-online): the
 //     current entry is replaced, and an entry below naming the old id is read
-//     as naming the new one when `popstate` lands on it.
+//     as naming the new one when `popstate` lands on it. The record of renames
+//     (book-renames.js) is kept in `sessionStorage`, so it outlives a reload as
+//     the tab's history entries do.
 //
 // A reload keeps only what the address says: `bootEntry` parses the pathname,
 // drops the layers, and keeps the depth so back still walks the earlier entries.
 
 import { useCallback, useEffect, useRef } from 'react';
 import { isOpening, placeFromUrl, samePlace, urlFromPlace } from './place.js';
+import { readRenames, recordRename, resolveBookId, writeRenames } from './book-renames.js';
+
+// The tab's sessionStorage, or null where there is none (or reaching it throws).
+function sessionStore() {
+  try {
+    return typeof sessionStorage === 'undefined' ? null : sessionStorage;
+  } catch {
+    return null;
+  }
+}
 
 // The place a session starts on: the address's (`fromAddress` when it names a
 // book, a song or a setlist — AppShell resolves those before opening them), or
@@ -90,8 +102,10 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
   const forceReplaceRef = useRef(false);
   // Book ids changed under this session (a fork or a put-online): old → new.
   // The entries below the current one still name the old id, so an entry popped
-  // from history is read through this map.
-  const renamesRef = useRef(new Map());
+  // from history is read through this map. Read back from sessionStorage, so an
+  // entry from before a reload still opens the new id.
+  const renamesRef = useRef(null);
+  if (renamesRef.current === null) renamesRef.current = readRenames(sessionStore());
   const layersRef = useRef(layers);
   const onApplyRef = useRef(onApply);
   useEffect(() => {
@@ -146,14 +160,7 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
       if (!state || !state.place) return;
       pendingPopRef.current = false;
       const renames = renamesRef.current;
-      const rename = (id) => {
-        const seen = new Set();
-        while (renames.has(id) && !seen.has(id)) {
-          seen.add(id);
-          id = renames.get(id);
-        }
-        return id;
-      };
+      const rename = (id) => resolveBookId(renames, id);
       const place = renamePlace(state.place, rename);
       const renamed = JSON.stringify(place) !== JSON.stringify(state.place);
       const named = Array.isArray(state.layers) ? state.layers : [];
@@ -204,8 +211,8 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
   // id opens the new one when back lands on it.
   const renameBook = useCallback((previousBookId, bookId) => {
     forceReplaceRef.current = true;
-    renamesRef.current.set(previousBookId, bookId);
-    renamesRef.current.delete(bookId);
+    recordRename(renamesRef.current, previousBookId, bookId);
+    writeRenames(sessionStore(), renamesRef.current);
     const rename = (id) => (id === previousBookId ? bookId : id);
     stackRef.current = stackRef.current.map((entry) =>
       entry ? { ...entry, place: renamePlace(entry.place, rename) } : entry,

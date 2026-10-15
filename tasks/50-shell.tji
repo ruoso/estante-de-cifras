@@ -71,8 +71,9 @@ task shell "Shell" {
   task routing_rename_across_reload "A fork's new book id reaches history entries from before a reload" {
     effort 1d
     allocate team
+    complete 100
     depends !routing
-    note "Source of debt: shell.routing fixer-1 (tasks/refinements/shell/routing.md). usePlaceHistory.renameBook keeps a book id change (BOOK_FORKED, BOOK_ONLINE) only in memory, so after a reload the history entries made before it can still name the old book and Back lands on the not-here state. Persist the rename (for example in sessionStorage keyed by the session's history) so entries from before a reload resolve to the new id. Governing document: DIRECTION section 3.7, workflow 7 (Links to books). Tests: unit (the rename record read back after a simulated reload); behavior (back after a fork and a reload lands on the fork, not not-here; axe); e2e-web (fork, reload, back lands on the fork on the three viewports; axe)."
+    note "Source of debt: shell.routing fixer-1 (tasks/refinements/shell/routing.md). usePlaceHistory.renameBook keeps a book id change (BOOK_FORKED, BOOK_ONLINE) only in memory, so after a reload the history entries made before it can still name the old book and Back lands on the not-here state. Persist the rename (for example in sessionStorage keyed by the session's history) so entries from before a reload resolve to the new id. Governing document: DIRECTION section 3.7, workflow 7 (Links to books). Tests: unit (the rename record read back after a simulated reload); behavior (back after a fork and a reload lands on the fork, not not-here; axe); e2e-web (fork, reload, back lands on the fork on the three viewports; axe). Refinement: tasks/refinements/shell/routing_rename_across_reload.md"
   }
   task routing_reload_scope_step "Back after a reload keeps a scope-only history step" {
     effort 0.5d
