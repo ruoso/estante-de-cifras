@@ -1574,6 +1574,8 @@ export default {
       voicingStop:
         'Line {line} is a voicing that can’t be read, and saving would drop it. Fix it or delete it, then save again.',
       markerStop: 'Line {line} is a conflict marker. Resolve it before the song can be saved.',
+      afterRuleStop:
+        'Line {line} comes after the rule, where only voicing blocks are kept, and saving would drop it. If it is part of the song, move the rule below it; a voicings heading needs a tuning, like ## Voicings: E2 A2 D3 G3 B3 E4.',
     },
     // A background sync merged a new version in under the open editor's unsaved
     // edits (songs.edit_in_place, workflow 8 §"A song open while it changes";

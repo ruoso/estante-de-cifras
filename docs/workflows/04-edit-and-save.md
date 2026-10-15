@@ -62,6 +62,13 @@ A voicing line the parser could not read is one normalising would drop
 (§8.3). Rather than lose it, **such a line stops the save**, with a message
 pointing at it. The user fixes it or deletes it, and saves again.
 
+The same holds for anything else after the rule that normalising would drop
+(§7.2, §7.4, §8.2): a heading with no tuning, and the lines under it — most
+often a section typed below a `---` out of Markdown habit — or text before
+the first voicings block. The save stops at that line; the message says it
+comes after the rule, that a section of the song belongs above the rule (move
+the rule below it), and that a voicings heading needs a tuning.
+
 ### Several songs at once
 
 Each song saves on its own, from its own page. Where many songs changed

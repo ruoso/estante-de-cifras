@@ -34,6 +34,7 @@ import Chart from '../chart/Chart.jsx';
 import { classifyLines } from './cifra-syntax.js';
 import { fencePaste } from './fence-paste.js';
 import { sectionInsertPos } from './section-insert.js';
+import { saveBlockers, stopMessageKey } from './save-blockers.js';
 import { template, templateDialect } from './template.js';
 import './editor.css';
 
@@ -50,12 +51,6 @@ const WRITE_DEBOUNCE_MS = 400;
 // A genuine edit and the merge-adopt dispatch carry no such annotation, so they
 // still schedule a WRITE.
 const ExternalLoad = Annotation.define();
-
-// The diagnostics that stop a save (Decision 3): a voicing the reader could not
-// read (which canonicalising would silently drop — workflow 4 §Normalising) and
-// a conflict marker (never canonical — spec §8.1/§11.12.3). Everything else the
-// format is happy to normalise.
-const SAVE_BLOCKERS = new Set(['bad-voicing', 'marker-line']);
 
 // The ✕ on the merge notice's dismiss control (mirrors SongReading's; aria-hidden
 // — the button's "Dismiss update notice" label is its accessible name).
@@ -346,10 +341,11 @@ export default function SongEditor({
   }, [sourceText]);
 
   const parsed = useMemo(() => parse(text, dialect), [text, dialect]);
-  const blockers = useMemo(
-    () => parsed.diagnostics.filter((d) => SAVE_BLOCKERS.has(d.code)),
-    [parsed],
-  );
+  // The diagnostics that stop a save (Decision 3; save-blockers.js): a conflict
+  // marker, a voicing the reader could not read, and content after the rule the
+  // song writer would drop (workflow 4 §Normalising). Everything else the format
+  // is happy to normalise.
+  const blockers = useMemo(() => saveBlockers(parsed.diagnostics, path), [parsed, path]);
 
   const addSection = () => {
     const view = viewRef.current;
@@ -407,10 +403,7 @@ export default function SongEditor({
   const showStop = Boolean(saveError) && blockers.length > 0;
   let stopMessage = '';
   if (saveError) {
-    stopMessage =
-      saveError.code === 'marker-line'
-        ? t('editor.source.markerStop', { line: saveError.line })
-        : t('editor.source.voicingStop', { line: saveError.line });
+    stopMessage = t(stopMessageKey(saveError.code), { line: saveError.line });
   }
 
   const showEditorPane = !(mode === 'narrow' && showPreview);

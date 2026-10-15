@@ -1419,6 +1419,8 @@ export default {
       voicingStop:
         'A linha {line} é um dedilhado que não pode ser lido, e salvar iria descartá-lo. Corrija ou apague a linha e salve de novo.',
       markerStop: 'A linha {line} é um marcador de conflito. Resolva-o antes de poder salvar a música.',
+      afterRuleStop:
+        'A linha {line} vem depois da linha ---, onde só se guardam blocos de dedilhados, e salvar iria descartá-la. Se ela faz parte da música, mova a linha --- para baixo dela; um título de dedilhados precisa de uma afinação, como ## Voicings: E2 A2 D3 G3 B3 E4.',
     },
     // Uma sincronização em segundo plano mesclou uma nova versão sob as edições
     // não salvas do editor aberto (songs.edit_in_place, workflow 8; W08). O aviso

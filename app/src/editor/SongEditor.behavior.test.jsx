@@ -242,6 +242,71 @@ describe('SongEditor', () => {
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
+  it('stops the save on a section typed after the rule, and saves it once the rule moves below it', async () => {
+    // songs.save_gate_dropped_section — a `---` typed above a section out of
+    // Markdown habit makes the section a heading with no tuning in the voicings
+    // part, which canonicalising drops (spec §7.2, §8.2). Pins workflow 4
+    // §Normalising: the save stops at the heading's line with the after-rule
+    // message, and moving the rule below the section unblocks it and keeps it.
+    const { store, emit } = makeStore();
+    const onSave = vi.fn();
+    const editorRef = { current: null };
+    const SONG = [
+      '# Tarde Clara',
+      '',
+      '## Primeira Parte',
+      '```',
+      'G  D',
+      '```',
+      '',
+      '---',
+      '',
+      '## Refrão', // line 10
+      '```',
+      'C | G | Am',
+      '```',
+      '',
+    ].join('\n');
+    const { container } = render(
+      <SongEditor store={store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} onSave={onSave} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: SONG }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(SONG));
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: t('editor.source.save') })));
+    expect(onSave).not.toHaveBeenCalled();
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(t('editor.source.notSaved'));
+    expect(alert).toHaveTextContent(t('editor.source.afterRuleStop', { line: 10 }));
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // Move the rule below the section: delete the `---` line (and the blank
+    // after it), then append a rule at the end — the section is now in the chart.
+    act(() => {
+      const doc = editorRef.current.state.doc;
+      const rule = doc.line(8);
+      editorRef.current.dispatch({
+        changes: [
+          { from: rule.from, to: doc.line(9).to + 1 },
+          { from: doc.length, insert: '\n---\n' },
+        ],
+      });
+    });
+    const moved = editorRef.current.state.doc.toString();
+    expect(moved.indexOf('## Refrão')).toBeLessThan(moved.indexOf('---'));
+    expect(screen.queryByRole('alert')).toBeNull();
+    act(() => fireEvent.click(screen.getByRole('button', { name: t('editor.source.save') })));
+    expect(onSave).toHaveBeenCalledTimes(1);
+
+    // The save round-trips the section: canonicalising the buffer as the
+    // Worker's save does (write ∘ parse) keeps its heading and its bar line.
+    const saved = write(parse(moved));
+    expect(saved).toContain('## Refrão');
+    expect(saved).toContain('C | G | Am');
+    // Whereas the stopped buffer would have lost them (spec §8.2).
+    expect(write(parse(SONG))).not.toContain('## Refrão');
+  });
+
   it('sends a still-debounced edit before Save hands over, so the save sheet sees it', async () => {
     const { store, sent, emit } = makeStore();
     const editorRef = { current: null };

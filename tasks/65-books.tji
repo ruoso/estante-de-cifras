@@ -160,4 +160,10 @@ task books "Books" {
     depends !file_view
     note "From W14: the rename dialog does not list the links it will update (workflow 14 rename keeps setlists pointing at the song); the computer history detail has no commit heading or message line. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (rename lists the setlists it updates; the commit heading; axe); e2e-web (mockup W14#3-4)."
   }
+  task save_readme_verbatim "Save README.md and .gitattributes as written" {
+    effort 0.5d
+    allocate team
+    depends songs.save_gate_dropped_section
+    note "The Worker's save writes README.md and .gitattributes through the song writer (app/src/worker/canonicalise.js:30,76-79 treats every non-setlist path as a song), so a README with a `---` above a `## Heading` loses the lines under it and runs of blank lines are collapsed, but the hook holds README.md only to the text rules (hook.canonical). Save README.md and .gitattributes as written (UTF-8 checked, marker lines refused), and narrow the editor's after-rule save gate (app/src/editor/save-blockers.js) to `*.cifra.md` paths and new songs. Source: tasks/refinements/songs/save_gate_dropped_section.md (songs.save_gate_dropped_section). Governing: docs/workflows/04-edit-and-save.md Normalising. Tests: unit (canonicaliseFile keeps a README with a rule and headings byte for byte; refuses a marker line); behavior (a README saved through working-copy.js save commits its bytes unchanged; the raw editor saves a README with `---` / `## Usage` without the after-rule stop; axe)."
+  }
 }

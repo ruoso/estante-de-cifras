@@ -1420,6 +1420,8 @@ export default {
       voicingStop:
         'La riga {line} è un diteggiatura che non può essere letta, e salvando andrebbe persa. Correggila o eliminala, poi salva di nuovo.',
       markerStop: 'La riga {line} è un marcatore di conflitto. Risolvilo prima di poter salvare la canzone.',
+      afterRuleStop:
+        'La riga {line} viene dopo la riga ---, dove si conservano solo blocchi di diteggiature, e salvando andrebbe persa. Se fa parte della canzone, sposta la riga --- sotto di essa; un titolo di diteggiature ha bisogno di un’accordatura, come ## Voicings: E2 A2 D3 G3 B3 E4.',
     },
     // Una sincronizzazione in background ha unito una nuova versione sotto le
     // modifiche non salvate dell'editor aperto (songs.edit_in_place, workflow 8;

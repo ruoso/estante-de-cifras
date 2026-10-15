@@ -93,7 +93,8 @@ task songs "Songs" {
     effort 0.5d
     allocate team
     depends !save_sheet, !editor_section_after_voicings
-    note "A hand-typed `---` above a section, or a `## Section` typed below the voicings rule, is reported by the reader (bad-block-heading; spec/7-voicings.md §7.2) but canonicalise drops it silently on save. Add the diagnostic(s) for content below the rule that the writer drops to SAVE_BLOCKERS (app/src/editor/SongEditor.jsx), so the save sheet blocks with the reader's message (move the rule below it) instead of losing the lines. Source: tasks/parking-lot.md 2026-10-14 (Extend the save gate). Tests: unit (which diagnostics block); behavior (a section typed after the rule blocks the save with the message; moving the rule unblocks and the save round-trips it; axe)."
+    complete 100
+    note "A hand-typed `---` above a section, or a `## Section` typed below the voicings rule, is reported by the reader (bad-block-heading; spec/7-voicings.md §7.2) but canonicalise drops it silently on save. Add the diagnostic(s) for content below the rule that the writer drops to SAVE_BLOCKERS (app/src/editor/SongEditor.jsx), so the save sheet blocks with the reader's message (move the rule below it) instead of losing the lines. Source: tasks/parking-lot.md 2026-10-14 (Extend the save gate). Tests: unit (which diagnostics block); behavior (a section typed after the rule blocks the save with the message; moving the rule unblocks and the save round-trips it; axe). Refinement: tasks/refinements/songs/save_gate_dropped_section.md"
   }
   task save_empty_message "A save with no musical summary commits instead of hanging" {
     effort 0.5d

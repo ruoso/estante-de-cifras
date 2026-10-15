@@ -1419,6 +1419,8 @@ export default {
       voicingStop:
         'La línea {line} es una digitación que no se puede leer, y al guardar se descartaría. Corrígela o bórrala y guarda de nuevo.',
       markerStop: 'La línea {line} es un marcador de conflicto. Resuélvelo antes de poder guardar la canción.',
+      afterRuleStop:
+        'La línea {line} viene después de la línea ---, donde solo se conservan bloques de digitaciones, y al guardar se descartaría. Si es parte de la canción, mueve la línea --- debajo de ella; un título de digitaciones necesita una afinación, como ## Voicings: E2 A2 D3 G3 B3 E4.',
     },
     // Una sincronización en segundo plano fusionó una nueva versión bajo las
     // ediciones sin guardar del editor abierto (songs.edit_in_place, workflow 8;
