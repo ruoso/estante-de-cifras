@@ -110,6 +110,8 @@ describe('the shelf surface (behavior)', () => {
         expect(store.slice('shelf')).toEqual({
           books: { 'b-1': { label: { value: 'Turma de quarta', at: AT_EARLY } } },
           local: {},
+          // account.new_device: other devices' local books — none here.
+          elsewhere: [],
         }),
       );
 
@@ -163,7 +165,7 @@ describe('the shelf surface (behavior)', () => {
       const { store } = await makeWorkerDevice(remote, 'w');
       store.open();
       await waitFor(() =>
-        expect(store.slice('shelf')).toEqual({ books: {}, local: {} }),
+        expect(store.slice('shelf')).toEqual({ books: {}, local: {}, elsewhere: [] }),
       );
     } finally {
       await remote.stop();

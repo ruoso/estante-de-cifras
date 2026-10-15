@@ -210,3 +210,88 @@ export function broughtInOn(iso, locale, now = Date.now()) {
     return new Intl.DateTimeFormat('en-GB', options).format(date);
   }
 }
+
+// ---- a new device (account.new_device, workflow 13) -----------------------
+
+// The kinds a device may write for itself (home-book-format §4.2).
+const DEVICE_KIND_TOKENS = new Set([
+  'iphone',
+  'ipad',
+  'android-phone',
+  'android-tablet',
+  'mac',
+  'windows',
+  'linux',
+  'chromebook',
+]);
+
+/**
+ * What a book's row says while the shelf fills (workflow 13 §What comes down;
+ * W13 board frame 2): the state as a word — *ready*, *cloning 45%*, *waiting* —
+ * never colour alone, the meta line under the title, the badge class, and the
+ * percent a progress bar draws while cloning. `null` for a book that is not
+ * filling. `t` is injected, so this stays free of i18n state (like
+ * `syncDisplayFor`).
+ *
+ * @param {{ state: string, progress?: number|null, songs?: number|null } | undefined} entry
+ *   the book's entry in the `fill` slice
+ * @param {{ t: Function }} deps
+ * @returns {{ state: string, word: string, meta: string|null, cls: string, percent: number|null } | null}
+ */
+export function fillDisplayFor(entry, { t }) {
+  switch (entry?.state) {
+    case 'ready':
+      return {
+        state: 'ready',
+        word: t('books.fillReady'),
+        meta: typeof entry.songs === 'number' ? t('books.fillReadyMeta', { count: entry.songs }) : null,
+        cls: 'ok',
+        percent: null,
+      };
+    case 'cloning': {
+      const raw = typeof entry.progress === 'number' ? entry.progress : 0;
+      const percent = Math.max(0, Math.min(100, Math.round(raw)));
+      return {
+        state: 'cloning',
+        word: t('books.fillCloning', { percent }),
+        meta: t('books.fillCloningMeta'),
+        cls: '',
+        percent,
+      };
+    }
+    case 'waiting':
+      return { state: 'waiting', word: t('books.fillWaiting'), meta: t('books.fillWaitingMeta'), cls: '', percent: null };
+    default:
+      return null;
+  }
+}
+
+/**
+ * The words of an *only on your …* row (workflow 13 §Books that were only on the
+ * other device; W13 board frame 2): *Only on your iPhone: Rascunhos* / *Put it
+ * online there to have it here.* The device is named by its kind, in this
+ * reader's language; a kind it cannot tell reads *another device*.
+ *
+ * @param {{ title: string, kind: string }} entry one item of the shelf's `elsewhere`
+ * @param {{ t: Function }} deps
+ * @returns {{ line: string, help: string }}
+ */
+export function elsewhereCopyFor(entry, { t }) {
+  const kind = entry?.kind;
+  const line = DEVICE_KIND_TOKENS.has(kind)
+    ? t('books.onlyOn', { device: t(['newDevice', 'kind', kind]), title: entry.title })
+    : t('books.onlyOnOther', { title: entry?.title ?? '' });
+  return { line, help: t('books.onlyOnHelp') };
+}
+
+/**
+ * How this device names itself (*This tablet has its own My songs*, W13 board
+ * frame 3), from its kind token; *This device* when it cannot tell.
+ *
+ * @param {string} kind
+ * @param {{ t: Function }} deps
+ * @returns {string}
+ */
+export function thisDeviceFor(kind, { t }) {
+  return t(['newDevice', 'thisKind', DEVICE_KIND_TOKENS.has(kind) ? kind : 'other']);
+}

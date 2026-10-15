@@ -461,3 +461,75 @@ label.signout-card > span:first-child input {
   justify-content: center;
   flex: none;
 }
+
+/* The two-My-songs choice (account.new_device; W13 board frame 3): a full
+   screen, the merged-settings note, the heading, the two cards side by side
+   (stacked on a phone), and the preview under them. Layout only. */
+.my-songs-choice {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.my-songs-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2.25);
+  padding: calc(var(--u) * 3) calc(var(--u) * 3.5);
+}
+
+.my-songs-merged {
+  background: var(--ok-soft);
+}
+
+.my-songs-ok {
+  color: var(--ok);
+  flex: none;
+}
+
+.my-songs-intro {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.75);
+}
+
+.my-songs-intro .t-body {
+  color: var(--ink-2);
+}
+
+.my-songs-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: calc(var(--u) * 1.75);
+}
+
+.my-songs-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--u) * 0.5);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.my-songs-card.primary {
+  border: 2px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.my-songs-card[data-disabled] {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.my-songs-preview {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}

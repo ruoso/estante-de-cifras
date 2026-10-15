@@ -494,12 +494,22 @@ export function createSyncEngine(deps = {}) {
         url = null;
       }
       if (!url) continue;
-      out.push({
-        bookId,
-        head: await headOf(bookId),
-        hosted: true,
-        home: bookId === homeBookId,
-      });
+      const home = bookId === homeBookId;
+      const entry = { bookId, head: await headOf(bookId), hosted: true, home };
+      // The home book's directory is the reserved `home`, but the service knows
+      // it by its own id, kept beside the remote as `remote.origin.estanteid`
+      // when the device attached it (account.new_device Decision 2). The change
+      // check names it by that id (service/home_book.md, "send that id in the
+      // change check"); the pass maps the answer back.
+      if (home) {
+        try {
+          const serviceId = await getConfig({ fs, dir: bookDir(bookId), path: 'remote.origin.estanteid' });
+          if (typeof serviceId === 'string' && serviceId) entry.checkId = serviceId;
+        } catch {
+          /* not attached by account.new_device: named by its directory */
+        }
+      }
+      out.push(entry);
     }
     return out;
   }
@@ -873,10 +883,20 @@ export function createSyncEngine(deps = {}) {
     let news = null;
     try {
       news = await changeCheck.check(
-        books.map(({ bookId, head }) => ({ bookId, head })),
+        books.map(({ bookId, head, checkId }) => ({ bookId: checkId ?? bookId, head })),
       );
     } catch {
       news = null;
+    }
+    // A book named in the check by another id (the home book, by its service
+    // id) reads its answer back under its own id.
+    if (news) {
+      for (const { bookId, checkId } of books) {
+        if (!checkId || checkId === bookId) continue;
+        const change = news.get(checkId);
+        news.delete(checkId);
+        if (change) news.set(bookId, { ...change, bookId });
+      }
     }
     const reachable = news !== null;
 

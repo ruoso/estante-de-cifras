@@ -162,6 +162,23 @@ export const initialState = {
   // so the destination can tell loading from genuinely empty. ADD_TO_SETLIST's
   // confirmation is transient (SETLIST_UPDATED, no slice), like FILE_MOVED.
   setlists: null,
+  // The home book's attach (account.new_device, HOME_ATTACHED): `{ attached,
+  // restored }` once the Worker has attached it on sign-in — `restored` true when
+  // the account's settings came down, which the shelf's *Home book restored*
+  // notice reads (workflow 13 §What comes down; W13 frame 2). Null until an
+  // attach this session; a next start begins without it (the notice is shown
+  // until dismissed, or until the next start).
+  home: null,
+  // The shelf fill (account.new_device, SHELF_FILL), keyed by `bookId`: `{ state,
+  // progress, songs }` with `state` a word — 'waiting' | 'cloning' | 'ready' —
+  // for each of the account's books coming down onto this device, in shelf
+  // order (workflow 13 §What comes down). A book an event does not touch keeps
+  // its entry reference. Starts empty: nothing filling.
+  fill: {},
+  // The two-*My songs* offer (account.new_device, MY_SONGS_CHOICE): `{ offered,
+  // accountBookId, ready, kind }`, replaced whole on each event (workflow 13 §A
+  // device used before signing in). Null until the Worker has evaluated it.
+  mySongsChoice: null,
 };
 
 // Fold one message into the state. Only event-direction messages change
@@ -602,6 +619,58 @@ export function reduce(state, message) {
       if (!books.some((b) => b.id === id)) return state;
       return { ...state, mine: { ...state.mine, books: books.filter((b) => b.id !== id) } };
     }
+
+    case EventKind.HOME_ATTACHED:
+      // The home book's attach finished (account.new_device): replace the slice.
+      return {
+        ...state,
+        home: {
+          attached: message.payload?.attached === true,
+          restored: message.payload?.restored === true,
+        },
+      };
+
+    case EventKind.SHELF_FILL: {
+      // One book of the shelf fill moved (account.new_device): set its entry,
+      // whole-entry replace like SYNC. Only this book's entry moves.
+      const bookId = message.payload?.bookId;
+      if (!bookId) return state;
+      const progress = message.payload?.progress;
+      const songs = message.payload?.songs;
+      return {
+        ...state,
+        fill: {
+          ...state.fill,
+          [bookId]: {
+            state: message.payload?.state ?? 'waiting',
+            progress: typeof progress === 'number' ? progress : null,
+            songs: typeof songs === 'number' ? songs : null,
+          },
+        },
+      };
+    }
+
+    case EventKind.MY_SONGS_CHOICE:
+      // The two-*My songs* offer was (re-)evaluated: replace the slice whole.
+      return {
+        ...state,
+        mySongsChoice: {
+          offered: message.payload?.offered === true,
+          accountBookId: message.payload?.accountBookId ?? null,
+          ready: message.payload?.ready === true,
+          kind: message.payload?.kind ?? 'other',
+        },
+      };
+
+    case EventKind.SIGNED_OUT:
+    case EventKind.LEFT_ESTANTE:
+      // Signed out on this device (account.sign_out / account.leaving): the
+      // account's attach, its fill and its *My songs* offer are no longer this
+      // device's to show. Nothing else moves.
+      if (state.home === null && Object.keys(state.fill).length === 0 && state.mySongsChoice === null) {
+        return state;
+      }
+      return { ...state, home: null, fill: {}, mySongsChoice: null };
 
     case EventKind.MINE:
       // The "mine on Estante" list arrived (books.add_by_link): replace the slice

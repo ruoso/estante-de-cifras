@@ -46,6 +46,7 @@ import SignIn from '../account/SignIn.jsx';
 import RecoveryEmailConfirm from '../account/RecoveryEmailConfirm.jsx';
 import InvitedScreen from '../account/InvitedScreen.jsx';
 import AccountScreen from '../account/AccountScreen.jsx';
+import MySongsChoice from '../account/MySongsChoice.jsx';
 import FileView from '../files/FileView.jsx';
 import ChordExplorer from '../music/ChordExplorer.jsx';
 import InstrumentChip from '../instruments/InstrumentChip.jsx';
@@ -198,7 +199,7 @@ function resolvePlace({ place, checkItem, treeReady }, shelf, tree) {
   return place.song ? 'song' : 'setlist';
 }
 
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode, restore = {}) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key} className="shell-panel">
       {key === 'search' ? (
@@ -236,6 +237,8 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
           onByLink={onByLink}
           onSignIn={onSignIn}
           mode={mode}
+          restoreDismissed={restore.dismissed}
+          onDismissRestored={restore.onDismiss}
         />
       ) : key === 'setlists' ? (
         <SetlistsScreen store={store} onOpenSetlist={onOpenSetlist} />
@@ -309,6 +312,15 @@ export default function AppShell({
   // and its not-signed-in card opens the SignIn surface above it; closing returns
   // to where it was opened from (the selected destination is held in `selected`).
   const [account, setAccount] = useState(false);
+
+  // A new device (account.new_device): the shelf's *Home book restored* notice
+  // is dismissed for the rest of this start (it outlives a tab switch, so it is
+  // held here), and *Later* on the two-*My songs* choice puts it away until the
+  // next start — it sends nothing; the Worker asks again then.
+  const [restoreDismissed, setRestoreDismissed] = useState(false);
+  const restore = { dismissed: restoreDismissed, onDismiss: () => setRestoreDismissed(true) };
+  const mySongsChoice = useSlice(store, 'mySongsChoice');
+  const [mySongsLater, setMySongsLater] = useState(false);
 
   // The recovery email's confirm page (account.recovery_email; workflow 13
   // §Confirming it): a full-screen surface opened only when the app booted at
@@ -721,6 +733,10 @@ export default function AppShell({
         intent={signIn.intent}
         redeemToken={signIn.token ?? null}
         onSignedIn={() => {
+          // Signing in makes this device the account's (account.new_device):
+          // the Worker attaches the home book — its settings first — and fills
+          // the shelf in the background.
+          store.send(command(CommandKind.ATTACH_HOME, {}));
           // Opened from the invited flow: re-send the accept now that there is a
           // session (idempotent on repeat — no double join), showing the working
           // surface again while it clones.
@@ -808,6 +824,26 @@ export default function AppShell({
       setOpenFile(bookId);
     }
   };
+
+  // A device used before signing in, with songs in its own *My songs*, whose
+  // account has one online too (account.new_device; workflow 13 §A device used
+  // before signing in; W13 board frame 3): the choice to merge or keep both, a
+  // full screen over the shell. *Later* puts it away until the next start. A
+  // merge that collides hands the account's *My songs* to the conflict panel.
+  if (mySongsChoice?.offered && !mySongsLater) {
+    return (
+      <MySongsChoice
+        store={store}
+        choice={mySongsChoice}
+        onClose={() => setMySongsLater(true)}
+        onNeedsYou={(bookId) => {
+          setMySongsLater(true);
+          store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
+          setConflictsBook(bookId);
+        }}
+      />
+    );
+  }
 
   // The per-song conflict resolver (sync.conflicts, workflow 9 §Settling one): a
   // full screen over the paused panel, raised by its *Settle*. Checked first so
@@ -1082,7 +1118,7 @@ export default function AppShell({
                 opens over this destination once the device says it is here. */}
             <main className="pane main" aria-busy={resolving ? true : undefined}>
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, setOpenSetlist, setAddingToSetlist, search, mode)}
+                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, setOpenSetlist, setAddingToSetlist, search, mode, restore)}
               </div>
             </main>
           </div>
@@ -1103,7 +1139,7 @@ export default function AppShell({
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className="scroll" aria-busy={resolving ? true : undefined}>
-              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, setOpenSetlist, setAddingToSetlist, search, mode)}
+              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, setOpenSetlist, setAddingToSetlist, search, mode, restore)}
             </main>
           </div>
         )}

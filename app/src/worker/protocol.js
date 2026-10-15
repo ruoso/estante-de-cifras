@@ -396,6 +396,28 @@ export const CommandKind = Object.freeze({
   PREVIEW_BRING_IN: 'preview_bring_in',
   BRING_IN: 'bring_in',
   CANCEL_BRING_IN: 'cancel_bring_in',
+  // A new device (account.new_device, workflow 13 §What comes down). OPEN may
+  // carry `{ device }`, the main thread's `deviceHintOf(navigator)`, from which
+  // the Worker works out the device's kind (Decision 5); at start the Worker
+  // attaches an unattached home book on its own, quietly (Decision 3), and
+  // fills the shelf of an attached one. ATTACH_HOME `{}` — sent on sign-in —
+  // asks the service where the account's home book is (GET
+  // /api/account/home-book), sets it as the home book's `origin` with its
+  // service id beside it (`remote.origin.estanteid`), writes this device's kind
+  // and syncs the home book: the account's settings come down, or this device's
+  // merge into them key by key, or are pushed as the first. Replies
+  // HOME_ATTACHED; an attached home book is never attached again. The shelf then
+  // fills in the background (SHELF_FILL). KEEP_BOTH_MY_SONGS `{ title, author }`
+  // relabels this device's *My songs* `title` (*My songs (this device)*, in the
+  // device's language) and stops the two-*My songs* offer for good on this
+  // device. PREVIEW_MY_SONGS `{ target }` zips this device's *My songs* as
+  // Download does, working tree included, and previews it as an upload merge
+  // into `target` (the account's *My songs*); replies UPLOAD_PREVIEW, and the
+  // confirm is IMPORT_UPLOAD with choice 'merge' and `fromMySongs: true`, after
+  // which this device's *My songs* leaves the shelf.
+  ATTACH_HOME: 'attach_home',
+  KEEP_BOTH_MY_SONGS: 'keep_both_my_songs',
+  PREVIEW_MY_SONGS: 'preview_my_songs',
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
@@ -698,6 +720,24 @@ export const EventKind = Object.freeze({
   // pushed }`, `{ bookId, kind: 'needs_you' }` (a conflict handed to workflow 9,
   // its incoming ref `refs/remotes/original/main`) or `{ bookId, kind: 'stale' }`.
   BRING_IN_DONE: 'bring_in_done',
+  // A new device (account.new_device, workflow 13). HOME_ATTACHED `{ attached,
+  // restored }` replies to an attach: `attached` whether the home book now has
+  // the account's remote (false for a 401 or an unreachable service), `restored`
+  // whether the account's settings came down (its home book already had saves —
+  // false for a first device pushing into an empty one); the shelf's *Home book
+  // restored* notice reads it (Decision 9). Folded into the `home` slice.
+  // SHELF_FILL `{ bookId, state, progress, songs? }` is one book of the shelf
+  // fill: `state` is a word — 'waiting' (in line, or a clone that failed for
+  // want of a network), 'cloning' (with `progress`, 0-100), 'ready' (with its
+  // `songs` count) — folded into the `fill` slice by bookId. MY_SONGS_CHOICE
+  // `{ offered, accountBookId?, ready?, kind? }` says whether this device is
+  // offered its two *My songs* choice: `accountBookId` the account's *My songs*,
+  // `ready` whether it is on this device yet (Merge needs it), `kind` this
+  // device's kind token (for *This tablet has its own My songs*). Folded into
+  // the `mySongsChoice` slice.
+  HOME_ATTACHED: 'home_attached',
+  SHELF_FILL: 'shelf_fill',
+  MY_SONGS_CHOICE: 'my_songs_choice',
 });
 
 // Build a command envelope (main -> Worker). `payload` is any

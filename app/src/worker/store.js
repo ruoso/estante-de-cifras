@@ -12,6 +12,7 @@
 
 import { initialState, reduce } from './reducer.js';
 import { command, CommandKind } from './protocol.js';
+import { deviceHintOf } from './device-kind.js';
 
 // Wrap a transport endpoint (`{ postMessage, onmessage }`) in a store.
 // Exposes `subscribe` + per-slice snapshots for `useSyncExternalStore`, and
@@ -70,9 +71,11 @@ export function createStore(endpoint) {
       endpoint.postMessage(message);
     },
     // Convenience for this task's one command: ask the Worker to open its
-    // database and report its meta.
+    // database and report its meta. It carries the main thread's `navigator`
+    // hint (account.new_device Decision 5): a WorkerNavigator has no
+    // `maxTouchPoints`, which tells an iPad from a Mac.
     open() {
-      endpoint.postMessage(command(CommandKind.OPEN));
+      endpoint.postMessage(command(CommandKind.OPEN, { device: deviceHintOf(globalThis.navigator) }));
     },
   };
 }

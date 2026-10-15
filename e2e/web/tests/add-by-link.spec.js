@@ -17,8 +17,10 @@
 //   - an invitation limited to one use is "used up" after it, and the next
 //     person is refused;
 //   - Add a book -> By link takes a pasted invitation URL;
-//   - Mine on Estante lists the account's off-shelf book on a second device and
-//     adds it.
+//   - a second device of the same person finds the account's book come onto its
+//     shelf on its own (workflow 13 §What comes down, account.new_device), so
+//     Mine on Estante does not offer it twice; once removed from that shelf,
+//     Mine on Estante offers it back and adds it.
 // Axe (WCAG 2.1 AA) runs on the invited screen, each refusal and the Add-a-book
 // sheet. Book names are written for this test (no-song-text rule).
 //
@@ -42,7 +44,8 @@ import {
   inviteThroughShare,
   openSharing,
 } from '../lib/journeys-share.js';
-import { signInExistingWithPasskey } from '../lib/journeys-account.js';
+import { signInExistingWithPasskey, untilAccountShelf } from '../lib/journeys-account.js';
+import { openBookRow } from '../lib/journeys-sync.js';
 import { fillBookToCapacity } from '../lib/db.js';
 import { openDevice } from '../lib/devices.js';
 import { mockup } from '../lib/mockup.js';
@@ -217,7 +220,12 @@ test.describe('add by link', () => {
   });
 
   // The second device of one person: a copy of the passkey, the same account.
-  async function secondDevice(browser, first) {
+  // The owner's home book is on the service first (its shelf lists the book),
+  // so signing in brings the book down (workflow 13 §What comes down).
+  async function secondDevice(browser, page, first, title) {
+    await untilAccountShelf(page, (shelf) =>
+      Object.values(shelf.books ?? {}).some((b) => b?.label?.value === title && b?.link?.value),
+    );
     const other = await openDevice(browser);
     const second = await enableVirtualAuthenticator(other.page);
     expect(await sharePasskeys(first, second)).toBeGreaterThan(0);
@@ -227,21 +235,22 @@ test.describe('add by link', () => {
     return other;
   }
 
-  test('a second device signs in to the same account with a synced passkey and lists its book under Add a book (workflow 7)', async ({
+  // Workflow 13 §What comes down (account.new_device): the shelf fills on its
+  // own, so the account's book is not offered twice under Add a book.
+  test('a second device signs in to the same account with a synced passkey: the account’s book comes onto its shelf, and Mine on Estante does not offer it twice (workflows 7, 13)', async ({
     browser,
     page,
   }) => {
-    test.setTimeout(10000);
+    test.setTimeout(60000);
     const first = await ownerWithBooks(page, ['Minhas cifras']);
-    const other = await secondDevice(browser, first);
+    const other = await secondDevice(browser, page, first, 'Minhas cifras');
     try {
-      // Nothing on this shelf yet, though the account has a book.
-      await expect(other.page.getByRole('button', { name: rowFor('Minhas cifras') })).toHaveCount(0);
+      await expect(other.page.getByRole('button', { name: rowFor('Minhas cifras') })).toBeVisible({ timeout: 30000 });
       await other.page.getByRole('button', { name: 'Add a book' }).click();
       const sheet = other.page.getByRole('dialog');
       await expect(sheet).toBeVisible();
-      await expect(sheet.getByText('Minhas cifras')).toBeVisible();
-      expect(await analyzeWcag21aa(other.page)).toEqual([]); // axe: the Add-a-book sheet with the list
+      await expect(sheet.getByText('All your books are already on this shelf.')).toBeVisible({ timeout: 10000 });
+      expect(await analyzeWcag21aa(other.page)).toEqual([]); // axe: the Add-a-book sheet
     } finally {
       await other.context.close();
     }
@@ -251,12 +260,22 @@ test.describe('add by link', () => {
     browser,
     page,
   }) => {
-    test.setTimeout(10000);
+    test.setTimeout(60000);
     const first = await ownerWithBooks(page, ['Minhas cifras']);
-    const other = await secondDevice(browser, first);
+    const other = await secondDevice(browser, page, first, 'Minhas cifras');
     try {
+      // It came down on its own; taken off this shelf, the account still has it.
+      await expect(other.page.getByRole('button', { name: rowFor('Minhas cifras') })).toBeVisible({ timeout: 30000 });
+      await openBookRow(other.page, 'Minhas cifras');
+      await other.page.getByRole('button', { name: 'Remove from my shelf' }).click();
+      await other.page.getByRole('dialog').getByRole('button', { name: 'Remove from my shelf' }).click();
+      await gotoTab(other.page, 'Books');
+      await expect(other.page.getByRole('button', { name: rowFor('Minhas cifras') })).toHaveCount(0);
+
       await other.page.getByRole('button', { name: 'Add a book' }).click();
       const sheet = other.page.getByRole('dialog');
+      await expect(sheet.getByText('Minhas cifras')).toBeVisible({ timeout: 10000 });
+      expect(await analyzeWcag21aa(other.page)).toEqual([]); // axe: the Add-a-book sheet with the list
       await sheet.getByRole('button', { name: 'Add Minhas cifras' }).click();
 
       // It clones onto the shelf, On Estante (the add lands on Search).

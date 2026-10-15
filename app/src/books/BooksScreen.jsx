@@ -33,14 +33,26 @@ import {
   Label,
   Modal,
   ModalOverlay,
+  ProgressBar,
   TextField,
 } from 'react-aria-components';
-import { t } from '../i18n/index.js';
+import { t, LOCALES, resolveLocale } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { tokenFromLink } from '../account/invitation-route.js';
 import { BOOKS_WIDE_QUERY } from '../shell/layout-mode.js';
-import { titleFor, whereFor, canSaveFor, orderedBooks, forkLineFor } from './book-display.js';
+import {
+  titleFor,
+  whereFor,
+  canSaveFor,
+  orderedBooks,
+  forkLineFor,
+  fillDisplayFor,
+  elsewhereCopyFor,
+} from './book-display.js';
+import { inUseEntry } from '../instruments/InstrumentChip.jsx';
+import { displayLabel } from '../instruments/instrument-helpers.js';
+import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
 import { syncDisplayFor, anyOutOfStep } from '../sync-display.js';
 import BookDetail from './BookDetail.jsx';
 import UploadPreview from './UploadPreview.jsx';
@@ -176,8 +188,11 @@ function SyncGlyph() {
 // has N new saves.*, with the *Bring them in* button beside the count
 // (books.bring_in Constraint 6) — a sibling of the row's open button, never
 // nested in it, named for the original (WCAG 2.5.3: the name holds the word).
-function BookRow({ id, book, kind, syncEntry, original, selected, onOpen, onFiles, onRename, onBringIn, rowRef }) {
+function BookRow({ id, book, kind, syncEntry, fillEntry, original, selected, onOpen, onFiles, onRename, onBringIn, rowRef }) {
   const title = titleFor(book, id);
+  // While the shelf fills on a new device (account.new_device; W13 frame 2):
+  // the state as a word, its meta line, and a labelled bar while cloning.
+  const fill = fillDisplayFor(fillEntry, { t });
   const fork = forkLineFor(book, original);
   const where = t(`books.${whereFor(kind)}`);
   const canSave = canSaveFor(kind, book);
@@ -191,7 +206,13 @@ function BookRow({ id, book, kind, syncEntry, original, selected, onOpen, onFile
           <span className="name">{title}</span>
           {fork ? <span className="meta">{t('books.fromOriginal', { original: fork.from })}</span> : null}
           <span className="meta">{meta}</span>
+          {fill?.meta ? <span className="meta fill-meta">{fill.meta}</span> : null}
           <SyncBadge entry={syncEntry} originalGone={Boolean(fork?.gone)} />
+          {fill ? (
+            <span className="badges">
+              <span className={`badge ${fill.cls}`.trim()}>{fill.word}</span>
+            </span>
+          ) : null}
         </span>
         <span className="caret t-small" aria-hidden="true">
           ▸
@@ -205,6 +226,19 @@ function BookRow({ id, book, kind, syncEntry, original, selected, onOpen, onFile
         {t('fileView.filesEntry')}
       </Button>
       <RenameDialog bookId={id} currentName={title} onRename={onRename} />
+      {fill?.state === 'cloning' ? (
+        <ProgressBar
+          className="fill-progress"
+          value={fill.percent}
+          aria-label={t('books.fillProgressLabel', { name: title })}
+        >
+          {({ percentage }) => (
+            <div className="bar">
+              <div style={{ width: `${percentage}%` }} />
+            </div>
+          )}
+        </ProgressBar>
+      ) : null}
       {fork?.newSaves ? (
         <div className="notice accent bring-in-notice">
           <span className="new-saves">
@@ -273,6 +307,63 @@ function RenameDialog({ bookId, currentName, onRename }) {
         </Modal>
       </ModalOverlay>
     </DialogTrigger>
+  );
+}
+
+// The *Home book restored* notice (account.new_device acceptance 3; W13 board
+// frame 2): shown on the shelf when the account's settings came down on sign-in,
+// with what is now set — the instrument and its tuning, the notation and the
+// language, each read from the surfaced slices — until dismissed or the next
+// start. Announced politely (`role="status"`); the dismiss is a RAC Button.
+function RestoreNotice({ preferences, instruments, onDismiss }) {
+  const instrument = displayLabel(inUseEntry(instruments));
+  const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
+  const notation = ['brazilian', 'american', 'realbook'].includes(dialect)
+    ? t(['newDevice', 'notation', dialect])
+    : dialect;
+  const languageId = resolveLocale(preferences?.language?.value);
+  const language = LOCALES.find((l) => l.id === languageId)?.name ?? languageId;
+  return (
+    <div className="notice accent restore-notice">
+      <div className="restore-text" role="status">
+        <span>
+          <b>{t('books.restoredTitle')}</b> {t('books.restoredBody')}
+        </span>
+        <span className="badges">
+          {[instrument, notation, language].filter(Boolean).map((word) => (
+            <span key={word} className="badge voiced">
+              {word}
+            </span>
+          ))}
+        </span>
+      </div>
+      <Button className="btn quiet" aria-label={t('books.restoredDismissLabel')} onPress={onDismiss}>
+        {t('books.restoredDismiss')}
+      </Button>
+    </div>
+  );
+}
+
+// The books only on another device of the account (account.new_device
+// acceptance 5; workflow 13 §Books that were only on the other device; W13 board
+// frame 2): *Only on your iPhone: Rascunhos* / *Put it online there to have it
+// here.* Not rows that open — nothing of them is on this device.
+function ElsewhereRows({ elsewhere }) {
+  if (!elsewhere?.length) return null;
+  return (
+    <div className="elsewhere">
+      {elsewhere.map((entry) => {
+        const copy = elsewhereCopyFor(entry, { t });
+        return (
+          <div className="notice elsewhere-row" key={`${entry.deviceId}/${entry.bookId}`}>
+            <span>
+              <b>{copy.line}</b>
+            </span>
+            <span className="t-small">{copy.help}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -546,8 +637,20 @@ export default function BooksScreen({
   onByLink = () => {},
   onSignIn = () => {},
   mode = 'narrow',
+  // The restore notice's dismissal, held by the shell so it outlives a tab
+  // switch (account.new_device); a screen mounted alone keeps its own.
+  restoreDismissed,
+  onDismissRestored = () => {},
 }) {
   const shelf = useSlice(store, 'shelf');
+  const fill = useSlice(store, 'fill');
+  const home = useSlice(store, 'home');
+  const preferences = useSlice(store, 'preferences');
+  const instruments = useSlice(store, 'instruments');
+  const [ownDismissed, setOwnDismissed] = useState(false);
+  const dismissed = restoreDismissed ?? ownDismissed;
+  const showRestored = home?.restored === true && !dismissed;
+  const filling = Object.keys(fill ?? {}).length > 0;
   const sync = useSlice(store, 'sync');
   const originals = useSlice(store, 'originals');
   const mine = useSlice(store, 'mine');
@@ -719,6 +822,26 @@ export default function BooksScreen({
         />
       </div>
 
+      {showRestored ? (
+        <RestoreNotice
+          preferences={preferences}
+          instruments={instruments}
+          onDismiss={() => {
+            setOwnDismissed(true);
+            onDismissRestored();
+          }}
+        />
+      ) : null}
+
+      {filling ? (
+        <div className="section-label">
+          <span className="t-h3">{t('books.yourShelf')}</span>
+          <span className="t-small" role="status">
+            {t('books.yourShelfCount', { count: ordered.length })}
+          </span>
+        </div>
+      ) : null}
+
       {ordered.length ? (
         <div className="list">
           {ordered.map(({ id, book, kind }) => (
@@ -728,6 +851,7 @@ export default function BooksScreen({
               book={book}
               kind={kind}
               syncEntry={sync[id]}
+              fillEntry={fill?.[id]}
               original={originals[id]}
               selected={selected === id}
               onOpen={openBookDetail}
@@ -749,6 +873,7 @@ export default function BooksScreen({
           {t('books.empty')}
         </p>
       )}
+      <ElsewhereRows elsewhere={shelf?.elsewhere} />
       {/* Said once, on BOOK_FORKED (W11 board #2 :88): the fork took the
           original's place, so nothing shows twice. */}
       {forkedNote ? (

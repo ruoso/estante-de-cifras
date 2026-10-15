@@ -8,6 +8,9 @@ import {
   forkLineFor,
   saveTargetFor,
   broughtInOn,
+  fillDisplayFor,
+  elsewhereCopyFor,
+  thisDeviceFor,
 } from './book-display.js';
 import { t, setLocale } from '../i18n/index.js';
 
@@ -203,5 +206,77 @@ describe('book-display: broughtInOn (books.bring_in Constraint 7)', () => {
     expect(broughtInOn('', 'en', NOW)).toBeNull();
     expect(broughtInOn('not a date', 'en', NOW)).toBeNull();
     expect(broughtInOn(42, 'en', NOW)).toBeNull();
+  });
+});
+
+// account.new_device — the shelf filling and the *only on your …* rows
+// (workflow 13 §What comes down, §Books that were only on the other device,
+// delta: a device named by its kind; W13 board frame 2).
+describe('book-display: a new device (account.new_device)', () => {
+  beforeAll(() => setLocale('en'));
+
+  it('words the only-on row for each kind', () => {
+    const cases = {
+      iphone: 'Only on your iPhone: Rascunhos',
+      ipad: 'Only on your iPad: Rascunhos',
+      'android-phone': 'Only on your Android phone: Rascunhos',
+      'android-tablet': 'Only on your Android tablet: Rascunhos',
+      mac: 'Only on your Mac: Rascunhos',
+      windows: 'Only on your Windows computer: Rascunhos',
+      linux: 'Only on your Linux computer: Rascunhos',
+      chromebook: 'Only on your Chromebook: Rascunhos',
+    };
+    for (const [kind, line] of Object.entries(cases)) {
+      expect(elsewhereCopyFor({ title: 'Rascunhos', kind }, { t })).toEqual({
+        line,
+        help: 'Put it online there to have it here.',
+      });
+    }
+  });
+
+  it('a device it cannot tell is another device', () => {
+    expect(elsewhereCopyFor({ title: 'Rascunhos', kind: 'other' }, { t }).line).toBe(
+      'Only on another device: Rascunhos',
+    );
+    expect(elsewhereCopyFor({ title: 'Rascunhos', kind: 'toaster' }, { t }).line).toBe(
+      'Only on another device: Rascunhos',
+    );
+  });
+
+  it('words this device by its kind', () => {
+    expect(thisDeviceFor('android-tablet', { t })).toBe('This tablet');
+    expect(thisDeviceFor('iphone', { t })).toBe('This iPhone');
+    expect(thisDeviceFor('other', { t })).toBe('This device');
+    expect(thisDeviceFor(undefined, { t })).toBe('This device');
+  });
+
+  it('words each fill state: ready (with its songs), cloning 45%, waiting', () => {
+    expect(fillDisplayFor({ state: 'ready', progress: 100, songs: 21 }, { t })).toEqual({
+      state: 'ready',
+      word: 'ready',
+      meta: '21 songs · searchable',
+      cls: 'ok',
+      percent: null,
+    });
+    expect(fillDisplayFor({ state: 'ready', songs: 1 }, { t }).meta).toBe('1 song · searchable');
+    expect(fillDisplayFor({ state: 'cloning', progress: 45 }, { t })).toEqual({
+      state: 'cloning',
+      word: 'cloning 45%',
+      meta: 'songs searchable as they arrive',
+      cls: '',
+      percent: 45,
+    });
+    expect(fillDisplayFor({ state: 'waiting', progress: 0 }, { t })).toEqual({
+      state: 'waiting',
+      word: 'waiting',
+      meta: 'next in line',
+      cls: '',
+      percent: null,
+    });
+  });
+
+  it('is nothing for a book that is not filling', () => {
+    expect(fillDisplayFor(undefined, { t })).toBeNull();
+    expect(fillDisplayFor({ state: 'something' }, { t })).toBeNull();
   });
 });

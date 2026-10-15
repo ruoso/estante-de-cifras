@@ -116,7 +116,7 @@ function instant(now) {
  * @returns {{
  *   read: (opts: { bookId: string, file: string }) => Promise<Object>,
  *   set: (opts: { bookId: string, file: string, changes: Array<{ path: string[], value: * }>, author: { id: string, name: string }, now?: number }) => Promise<string>,
- *   sync: (opts: { bookId: string, author: { id: string, name: string } }) => Promise<{ commit: string | null, pushed: boolean }>,
+ *   sync: (opts: { bookId: string, author: { id: string, name: string } }) => Promise<{ commit: string | null, pushed: boolean, remoteHead: string | null }>,
  *   ensureLocal: (opts?: { author: { id: string, name: string }, now?: number }) => Promise<boolean>,
  *   ensureDeviceId: (opts: { idb: IDBFactory, name: string, version?: number }) => Promise<string>,
  * }}
@@ -245,8 +245,12 @@ export function createHomeBook({ fs, git, locks } = {}) {
    * commit is kept and the result carries `pushed: false`, to be retried by the
    * sync engine (mirrors working-copy.js:141-152).
    *
-   * @returns {Promise<{ commit: string | null, pushed: boolean }>} `commit` is
-   *   the merge or scaffold commit this sync made, or `null` if it made none.
+   * @returns {Promise<{ commit: string | null, pushed: boolean, remoteHead: string | null }>}
+   *   `commit` is the merge or scaffold commit this sync made, or `null` if it
+   *   made none; `remoteHead` is the origin's `main` as fetched, before any merge
+   *   — `null` when the origin had none (an empty service repository) or could
+   *   not be reached. account.new_device reads it as "the account's settings
+   *   came down" (its Decision 9).
    */
   function sync({ bookId, author }) {
     return locks.withLock(bookId, async () => {
@@ -268,9 +272,9 @@ export function createHomeBook({ fs, git, locks } = {}) {
       }
 
       let commitOid = null;
+      let fetchedOid = null;
       if (fetched) {
         const localHead = await resolveRef({ fs, dir, ref: 'main' });
-        let fetchedOid = null;
         try {
           fetchedOid = await resolveRef({ fs, dir, ref: 'refs/remotes/origin/main' });
         } catch {
@@ -329,7 +333,7 @@ export function createHomeBook({ fs, git, locks } = {}) {
       } catch {
         pushed = false;
       }
-      return { commit: commitOid, pushed };
+      return { commit: commitOid, pushed, remoteHead: fetchedOid };
     });
   }
 

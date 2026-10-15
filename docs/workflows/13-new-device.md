@@ -98,6 +98,12 @@ lists it by title too, so the new device can say *only on your iPhone: My
 songs — put it online there to have it here*, rather than letting it look
 lost.
 
+The device is named by its kind — *your iPhone*, *your iPad*, *your Android
+phone*, *your Mac*, *your Windows computer* — which each device writes down
+for itself in the home book when it signs in, worked out from the browser;
+never a name the user typed, and never the device id. A device whose kind
+cannot be told is *another device*.
+
 ### Unsaved changes
 
 They stay on the device they were made on: the working copy belongs to a
@@ -112,7 +118,18 @@ It has its own home book, and perhaps a local *My songs* with songs in it.
 - The two ***My songs*** are offered as a choice: **merge** this device's
   songs into the account's — the upload preview, unrelated histories and all
   (workflow 7) — or **keep both**, the local one labelled *My songs (this
-  device)* on the shelf.
+  device)* on the shelf. *Later* leaves both as they are and asks again the
+  next time the app starts.
+
+The account's *My songs* is the one a device put online: the home book
+records which hosted book that is when it happens. The choice is offered only
+when there is one and this device's own *My songs* has songs in it. When the
+account's *My songs* was never put online it is only on another device, with
+nothing here to merge into: no choice is offered, this device keeps its own,
+and the other is listed as *only on your iPhone: My songs* like any local
+book. Merging takes this device's songs as they stand, unsaved changes
+included, and on *Merge and save* this device's *My songs* leaves the shelf —
+its songs are now in the account's.
 
 ## The account screen
 

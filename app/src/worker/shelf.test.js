@@ -127,13 +127,77 @@ describe('surfaceShelf (unit)', () => {
     expect(payload.local['local-1']).toEqual({ title: { value: 'Rascunhos', at: AT1 } });
   });
 
-  it('maps an empty model to the empty shelf ({} → { books: {}, local: {} })', () => {
-    expect(surfaceShelf({}, THIS_DEVICE)).toEqual({ books: {}, local: {} });
+  // The payload carries `elsewhere` too since account.new_device (format §4.2,
+  // §7 delta): empty here, as nothing is on another device.
+  it('maps an empty model to the empty shelf ({} → { books: {}, local: {}, elsewhere: [] })', () => {
+    expect(surfaceShelf({}, THIS_DEVICE)).toEqual({ books: {}, local: {}, elsewhere: [] });
   });
 
   it('maps a non-object model to the empty shelf (never crashes)', () => {
-    expect(surfaceShelf(null, THIS_DEVICE)).toEqual({ books: {}, local: {} });
-    expect(surfaceShelf([], THIS_DEVICE)).toEqual({ books: {}, local: {} });
-    expect(surfaceShelf('nope', THIS_DEVICE)).toEqual({ books: {}, local: {} });
+    expect(surfaceShelf(null, THIS_DEVICE)).toEqual({ books: {}, local: {}, elsewhere: [] });
+    expect(surfaceShelf([], THIS_DEVICE)).toEqual({ books: {}, local: {}, elsewhere: [] });
+    expect(surfaceShelf('nope', THIS_DEVICE)).toEqual({ books: {}, local: {}, elsewhere: [] });
+  });
+});
+
+// account.new_device — other devices' local books (workflow 13 §Books that were
+// only on the other device: *only on your iPhone: Rascunhos*) and the account's
+// *My songs* register (home-book-format §4.2, §7 delta).
+describe('surfaceShelf elsewhere and mySongs (unit)', () => {
+  const THIRD_DEVICE = 'dev-third';
+  const model = {
+    devices: {
+      [OTHER_DEVICE]: { kind: { value: 'android-phone', at: AT1 } },
+      [THIS_DEVICE]: { kind: { value: 'windows', at: AT1 } },
+    },
+    local: {
+      [THIS_DEVICE]: {
+        'local-mine': { title: { value: 'Meus rascunhos', at: AT1 }, position: { value: 0, at: AT1 } },
+      },
+      [OTHER_DEVICE]: {
+        'local-rasc': { title: { value: 'Rascunhos', at: AT1 }, position: { value: 3, at: AT1 } },
+        // Put online there: its marker was tombstoned (§5.3).
+        'local-gone': { title: { value: null, at: AT2 }, position: { value: null, at: AT2 } },
+      },
+      [THIRD_DEVICE]: {
+        'local-valsas': { title: { value: 'Valsas', at: AT2 }, position: { value: 1, at: AT2 } },
+      },
+    },
+  };
+
+  it('lists other devices’ live local books with their device’s kind, in position order', () => {
+    const { elsewhere } = surfaceShelf(model, THIS_DEVICE);
+    expect(elsewhere).toEqual([
+      { deviceId: THIRD_DEVICE, bookId: 'local-valsas', title: 'Valsas', kind: 'other', position: 1 },
+      { deviceId: OTHER_DEVICE, bookId: 'local-rasc', title: 'Rascunhos', kind: 'android-phone', position: 3 },
+    ]);
+  });
+
+  it('never lists this device’s own books there', () => {
+    const { elsewhere, local } = surfaceShelf(model, THIS_DEVICE);
+    expect(elsewhere.some((e) => e.deviceId === THIS_DEVICE)).toBe(false);
+    expect(Object.keys(local)).toEqual(['local-mine']);
+  });
+
+  it('leaves a tombstoned marker out', () => {
+    const { elsewhere } = surfaceShelf(model, THIS_DEVICE);
+    expect(elsewhere.some((e) => e.bookId === 'local-gone')).toBe(false);
+  });
+
+  it('a device with no devices entry (or an unknown token) is kind other', () => {
+    const unknown = {
+      ...model,
+      devices: { [OTHER_DEVICE]: { kind: { value: 'toaster', at: AT1 } } },
+    };
+    const kinds = surfaceShelf(unknown, THIS_DEVICE).elsewhere.map((e) => e.kind);
+    expect(kinds).toEqual(['other', 'other']);
+  });
+
+  it('surfaces the mySongs register when present, and only then', () => {
+    const withMySongs = { ...model, mySongs: { value: 'srv-mysongs', at: AT2 } };
+    expect(surfaceShelf(withMySongs, THIS_DEVICE).mySongs).toEqual({ value: 'srv-mysongs', at: AT2 });
+    expect('mySongs' in surfaceShelf(model, THIS_DEVICE)).toBe(false);
+    // A malformed one is dropped like any malformed leaf.
+    expect('mySongs' in surfaceShelf({ mySongs: 'srv-x' }, THIS_DEVICE)).toBe(false);
   });
 });

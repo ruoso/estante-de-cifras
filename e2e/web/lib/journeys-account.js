@@ -3,8 +3,20 @@
 // generally useful ones into journeys.js.
 
 import { expect } from '@playwright/test';
-import { startApp, gotoTab, enableVirtualAuthenticator, hasSessionCookie } from './journeys.js';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  startApp,
+  gotoTab,
+  enableVirtualAuthenticator,
+  hasSessionCookie,
+  sharePasskeys,
+  sessionCookie,
+} from './journeys.js';
 import { waitForMessage, extractSignInLink } from './mail.js';
+import { openDevice } from './devices.js';
+import { GitDevice } from './git-device.js';
+import { baseUrl } from './env.js';
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -125,13 +137,74 @@ export async function joinByInvite(browser, link, bookTitle) {
 // an existing one is the account screen's not-signed-in card -> Use a passkey
 // -> the sign-in surface's Use a passkey. Needs an authenticator holding the
 // account's credential (journeys.sharePasskeys).
-export async function signInExistingWithPasskey(page) {
+// `onSurface(page)` runs on the sign-in surface before the passkey is used (a
+// mockup() of it, say).
+export async function signInExistingWithPasskey(page, { onSurface } = {}) {
   await startApp(page);
   await page.getByRole('button', { name: 'Account' }).click();
   await page.getByRole('button', { name: 'Use a passkey' }).click();
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  if (onSurface) await onSurface(page);
   await page.getByRole('button', { name: 'Use a passkey' }).click();
   await expect.poll(() => hasSessionCookie(page)).toBe(true);
+}
+
+// ---- a new device (workflow 13 §What comes down) ---------------------------------
+
+// Another device of the same person: a fresh browser context whose authenticator
+// holds a synced copy of `authenticator`'s passkey signs in to the account from
+// the account screen, then goes Back to the Books screen (no reload: what comes
+// down comes down in this start). The caller closes `.context`.
+export async function anotherDeviceSignsIn(browser, authenticator, { onSurface } = {}) {
+  const device = await openDevice(browser);
+  const own = await enableVirtualAuthenticator(device.page);
+  expect(await sharePasskeys(authenticator, own)).toBeGreaterThan(0);
+  await signInExistingWithPasskey(device.page, { onSurface });
+  await closeAccount(device.page);
+  await gotoTab(device.page, 'Books');
+  return { ...device, authenticator: own };
+}
+
+// Leave the account screen with its Back.
+export async function closeAccount(page) {
+  await page.getByRole('button', { name: 'Back', exact: true }).first().click();
+  await expect(page.getByRole('tab', { name: 'Books' })).toBeVisible();
+}
+
+// Choose a theme on the account screen, and leave it.
+export async function chooseTheme(page, name) {
+  await openAccount(page);
+  await page.getByRole('radio', { name: new RegExp(name) }).click();
+  await expect(page.locator('div.est').first()).toHaveClass(new RegExp(`theme-${name.toLowerCase()}`));
+  await closeAccount(page);
+}
+
+// Read-only: the account's home book's shelf.json as the service holds it (a
+// git clone, the way another device would read it), `{}` while it holds none.
+export async function accountShelf(page) {
+  const resp = await page.request.get('/api/account/home-book');
+  expect(resp.ok()).toBeTruthy();
+  const home = await resp.json();
+  const device = new GitDevice({ url: new URL(home.gitUrl, `${baseUrl}/`).toString(), cookie: await sessionCookie(page) });
+  try {
+    await device.clone();
+    return existsSync(join(device.dir, 'shelf.json')) ? JSON.parse(device.read('shelf.json')) : {};
+  } catch {
+    return {}; // nothing pushed yet
+  } finally {
+    device.cleanup();
+  }
+}
+
+// Wait until the account's home book on the service satisfies `check(shelf)` —
+// the device's home sync has pushed what it wrote.
+export async function untilAccountShelf(page, check, { timeout = 20000 } = {}) {
+  await expect.poll(async () => check(await accountShelf(page)), { timeout }).toBe(true);
+}
+
+// A book's row on the Books screen, by its title.
+export function bookRow(page, title) {
+  return page.locator('.book-row').filter({ has: page.locator('.name', { hasText: new RegExp(`^${escape(title)}$`) }) });
 }
 
 // ---- writing a song (workflow 3) ------------------------------------------------

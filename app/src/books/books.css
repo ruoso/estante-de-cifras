@@ -148,3 +148,37 @@
 .mine-row {
   align-items: center;
 }
+
+/* The shelf filling on a new device (account.new_device; W13 board frame 2).
+   A cloning book's labelled bar takes the row's full width under the title,
+   the restore notice stacks its sentence over the badges with Dismiss beside,
+   and an only-on-another-device row is a notice of its own. (The row already
+   wraps, bring-in.css.) */
+.book-row > .fill-progress {
+  flex-basis: 100%;
+  padding: 0 calc(var(--u) * 2) calc(var(--u) * 1.5);
+}
+
+.restore-notice {
+  align-items: flex-start;
+}
+
+.restore-notice .restore-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+}
+
+.elsewhere {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+  margin-top: calc(var(--u) * 1.5);
+}
+
+.elsewhere-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--u) * 0.5);
+}

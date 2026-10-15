@@ -131,9 +131,9 @@ rules of §6.3 and checked by the validator against these exact bytes (§8).
   the app runs and keeps it in local storage the Worker owns (the `meta` object
   store, outside the home book), never changing it. It identifies a device and
   so MUST NOT be a shared register — in the home book it appears only as a
-  **namespace key**, in `shelf.json`'s local books (§4.2, §7); it is also the
-  owner key of the device-local recents the Worker keeps in that `meta` store,
-  outside the home book (§4.6). Because a device writes only under its own id,
+  **namespace key**, in `shelf.json`'s local books and device kinds (§4.2,
+  §7); it is also the owner key of the device-local recents the Worker keeps
+  in that `meta` store, outside the home book (§4.6). Because a device writes only under its own id,
   two devices' per-device home-book state syncs without ever colliding.
 - **Book id.** For a book hosted on the service, the id the service gives the
   repository ([`api/openapi.yaml`](../api/openapi.yaml)); it is stable across
@@ -235,7 +235,9 @@ fails.
 ### 4.2 `shelf.json`
 
 Two maps: the shared books, keyed by book id, and the local-only books,
-namespaced by device id (§7).
+namespaced by device id (§7); beside them, what each device is (`devices`, also
+namespaced by device id) and which shared book is the account's *My songs*
+(`mySongs`).
 
 ```json
 {
@@ -261,7 +263,13 @@ namespaced by device id (§7).
         "position": { "value": 0, "at": "…" }
       }
     }
-  }
+  },
+  "devices": {
+    "<device-id>": {
+      "kind": { "value": "iphone", "at": "…" }
+    }
+  },
+  "mySongs": { "value": "<book-id>", "at": "…" }
 }
 ```
 
@@ -303,6 +311,25 @@ namespaced by device id (§7).
 - `position` — an integer order key; the shelf is shown in ascending
   `position`, local books interleaved with shared ones by the app's rule. A
   reorder rewrites the positions it moves.
+- `devices` — what each of the account's devices is, so another device can name
+  it: *only on your iPhone: Rascunhos* (workflow 13 §Books that were only on the
+  other device). Namespaced by device id like `local` (§2.3, §7): each device
+  writes only its own entry, a map holding one register, `kind`. A device writes
+  it when it signs in and its home book is attached to the account's, and
+  rewrites it if what it is has changed. `kind` is a short token worked out from
+  the browser — one of `iphone`, `ipad`, `android-phone`, `android-tablet`,
+  `mac`, `windows`, `linux`, `chromebook`, `other` — and never a user-agent
+  string or a name the user typed; each reader words it in its own language
+  (*your iPhone*, *seu iPhone*). A reader meeting a token it does not know, or a
+  device with no entry, reads it as `other` (*another device*).
+- `mySongs` — the account's *My songs*: a register whose value is the book id of
+  the shared book a device's *My songs* became when it was put online (workflow
+  13 §A device used before signing in). It is written then, and only then; if
+  two devices each put theirs online, the later write wins and the other stays
+  an ordinary shared book under its label. Absent while no *My songs* was ever
+  put online — the account's *My songs* is then only on the device that has it,
+  listed elsewhere as a local book. Labels are the user's words and cannot name
+  it; this register does.
 
 ### 4.3 `instruments.json`
 
@@ -497,12 +524,16 @@ An empty map is written `{}` followed by one LF.
 
 ## 7. Per-device state
 
-The home book's per-device state is the **local-only-book markers** (§4.2),
-namespaced by device id (§2.3). This reconciles two settled behaviours:
+The home book's per-device state is the **local-only-book markers** and the
+**device kinds** (§4.2, `local` and `devices`), both namespaced by device id
+(§2.3). This reconciles two settled behaviours:
 
-- A device writes and reads only its **own** namespace, so a local-only book is
-  listed as *only on this iPhone* on the device that holds it (workflow 13
-  L45-50) and never confused with another device's.
+- A device writes only its **own** namespace, so a local-only book is listed as
+  *only on this iPhone* on the device that holds it (workflow 13 L45-50) and
+  never confused with another device's. It reads its own markers as its own
+  books, and reads the others' — with the `kind` each device wrote for itself —
+  only to list them as *only on your iPhone: Rascunhos*, books it cannot open
+  here (workflow 13 §Books that were only on the other device).
 - The namespaces nonetheless **sync**, riding in the home book like every other
   file, so the record of a local-only book a device held is not lost with it —
   it remains under that device's id in the account's home book, where a recovery

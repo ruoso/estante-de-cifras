@@ -414,3 +414,106 @@ describe('BooksScreen (behavior)', () => {
     });
   });
 });
+
+// account.new_device — the shelf on a new device (workflow 13 §What comes down,
+// §Books that were only on the other device; W13 board frame 2): the restore
+// notice, the fill rows as words with a labelled bar, and the only-on rows that
+// do not open. Axe-clean.
+describe('BooksScreen on a new device (account.new_device, behavior)', () => {
+  const SHELF = {
+    books: {
+      'b-banda': { label: reg('Banda do Bairro'), link: reg('/git/b-banda'), position: reg(0), role: reg('owner') },
+      'b-choros': { label: reg('Choros da Ana'), link: reg('/git/b-choros'), position: reg(1), role: reg('reader') },
+      'b-valsas': { label: reg('Valsas'), link: reg('/git/b-valsas'), position: reg(2), role: reg('owner') },
+    },
+    local: {},
+    elsewhere: [{ deviceId: 'dev-phone', bookId: 'l-rasc', title: 'Rascunhos', kind: 'android-phone', position: 3 }],
+  };
+
+  function seed(emit) {
+    emit(
+      event(EventKind.PREFERENCES, {
+        notation: reg('brazilian'),
+        language: reg('en'),
+      }),
+    );
+    emit(
+      event(EventKind.INSTRUMENTS, {
+        instruments: [],
+        inUseId: null,
+        standard: { id: 'standard', catalogId: '6guitar', tuning: 'E2 A2 D3 G3 B3 E4', label: '' },
+      }),
+    );
+    emit(event(EventKind.SHELF, SHELF));
+    emit(event(EventKind.HOME_ATTACHED, { attached: true, restored: true }));
+    emit(event(EventKind.SHELF_FILL, { bookId: 'b-banda', state: 'ready', progress: 100, songs: 21 }));
+    emit(event(EventKind.SHELF_FILL, { bookId: 'b-choros', state: 'cloning', progress: 45 }));
+    emit(event(EventKind.SHELF_FILL, { bookId: 'b-valsas', state: 'waiting', progress: 0 }));
+  }
+
+  it('shows the restore notice with its summary line, announced, and dismissable', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderScreen(store);
+    seed(emit);
+
+    const notice = container.querySelector('.restore-notice');
+    expect(notice).toBeTruthy();
+    const status = within(notice).getByRole('status');
+    expect(status).toHaveTextContent('Home book restored. Your instrument, notation and language are set.');
+    expect(within(status).getByText('Brazilian notation')).toBeInTheDocument();
+    expect(within(status).getByText('English')).toBeInTheDocument();
+    expect(within(status).getByText(/E2 A2 D3 G3 B3 E4/)).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss the home book notice' }));
+    expect(container.querySelector('.restore-notice')).toBeNull();
+  });
+
+  it('is not shown when nothing came down (a first device)', () => {
+    const { store, emit } = makeStore();
+    const { container } = renderScreen(store);
+    emit(event(EventKind.SHELF, SHELF));
+    emit(event(EventKind.HOME_ATTACHED, { attached: true, restored: false }));
+    expect(container.querySelector('.restore-notice')).toBeNull();
+  });
+
+  it('fill rows read ready (with songs), cloning 45% with a labelled bar, and waiting — words, not colour', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderScreen(store);
+    seed(emit);
+
+    const rowOf = (title) => screen.getByText(title).closest('.book-row');
+    expect(within(rowOf('Banda do Bairro')).getByText('ready')).toBeInTheDocument();
+    expect(within(rowOf('Banda do Bairro')).getByText('21 songs · searchable')).toBeInTheDocument();
+    expect(within(rowOf('Choros da Ana')).getByText('cloning 45%')).toBeInTheDocument();
+    expect(within(rowOf('Choros da Ana')).getByText('songs searchable as they arrive')).toBeInTheDocument();
+    const bar = within(rowOf('Choros da Ana')).getByRole('progressbar', { name: 'Bringing Choros da Ana to this device' });
+    expect(bar).toHaveAttribute('aria-valuenow', '45');
+    expect(within(rowOf('Valsas')).getByText('waiting')).toBeInTheDocument();
+    expect(within(rowOf('Valsas')).getByText('next in line')).toBeInTheDocument();
+    // Only the cloning book draws a bar.
+    expect(screen.getAllByRole('progressbar')).toHaveLength(1);
+    // The shelf's count is announced politely.
+    expect(screen.getByText('3 books')).toHaveAttribute('role', 'status');
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('lists a book only on another device as a row that does not open', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderScreen(store);
+    seed(emit);
+
+    const line = screen.getByText('Only on your Android phone: Rascunhos');
+    const row = line.closest('.elsewhere-row');
+    expect(within(row).getByText('Put it online there to have it here.')).toBeInTheDocument();
+    // Not a link or a button that opens: nothing interactive in it.
+    expect(within(row).queryByRole('button')).toBeNull();
+    expect(within(row).queryByRole('link')).toBeNull();
+    expect(line.closest('button')).toBeNull();
+    // After the shelf's own books.
+    const rows = [...container.querySelectorAll('.book-row, .elsewhere-row')];
+    expect(rows[rows.length - 1]).toBe(row);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});

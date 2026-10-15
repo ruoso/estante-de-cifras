@@ -33,8 +33,17 @@ export async function startApp(page, path = '/') {
 export async function gotoTab(page, name) {
   await page.getByRole('tab', { name }).click();
   // On a phone or tablet a book's detail replaces the Books list: step back.
+  // The detail may close on its own meanwhile (a removed book's does, once the
+  // shelf drops it), so a Back that is gone by the time of the click is fine.
   const backToBooks = page.getByRole('button', { name: 'Back to books' }).filter({ visible: true });
-  if (name === 'Books' && (await backToBooks.count())) await backToBooks.first().click();
+  if (name === 'Books' && (await backToBooks.count())) {
+    await backToBooks
+      .first()
+      .click({ timeout: 3000 })
+      .catch(async (err) => {
+        if (await backToBooks.count()) throw err;
+      });
+  }
   if (name !== 'Search') {
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
   }

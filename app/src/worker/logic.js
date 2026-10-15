@@ -11,6 +11,7 @@
 // anyway, only the schema `meta`.
 
 import { parse, parseSetlist } from 'cifra-md';
+import { getConfig, setConfig, resolveRef } from 'isomorphic-git';
 import { event, EventKind, COMMAND, CommandKind } from './protocol.js';
 import {
   MIGRATIONS,
@@ -31,6 +32,10 @@ import { createBookTree } from './book-tree.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createChangeCheckClient } from './change-check-client.js';
 import { createBooksClient } from './books-client.js';
+import { createAccountClient } from './account-client.js';
+import { deviceHintOf, deviceKindOf } from './device-kind.js';
+import { fillQueue } from './shelf-fill.js';
+import { mySongsOffer } from './my-songs-choice.js';
 import { createOnline } from './online.js';
 import { createFork } from './fork.js';
 import { createAddByLink } from './add-by-link.js';
@@ -154,6 +159,10 @@ function loadOrCreateMeta(db) {
       // (it is written after READY, out of this transaction's band).
       const view = { ...meta };
       delete view.deviceId;
+      // The two-*My songs* flags (account.new_device) are device-local Worker
+      // state on the same record, never view state either.
+      delete view.mySongsKeptBoth;
+      delete view.mySongsMergePending;
       resolve(view);
     };
     tx.onerror = () => reject(tx.error);
@@ -343,6 +352,17 @@ export function createWorkerLogic(port, options = {}) {
   let conflicts = null;
   let upload = null;
   let bringIn = null;
+  let accountClient = null;
+  // What the device's kind is worked out from (account.new_device Decision 5):
+  // the main thread's `navigator` hint, carried by OPEN, else this Worker's own.
+  let deviceHint = deviceHintOf(navigator);
+  // The one attach in flight (ATTACH_HOME and the start-time attach share it),
+  // the one shelf fill running and whether another was asked for meanwhile,
+  // and the last *My songs* offer emitted (so an unchanged one is not re-sent).
+  let attaching = null;
+  let filling = null;
+  let fillAgain = false;
+  let lastOffer = null;
 
   function ensureOpen() {
     if (!dbPromise) dbPromise = openDatabase(idb, name, version, migrations);
@@ -540,6 +560,13 @@ export function createWorkerLogic(port, options = {}) {
     return booksClient;
   }
 
+  // The `/api/account/home-book` client (account.new_device Decision 1), over the
+  // same injected `fetch` the other API clients ride.
+  function ensureAccountClient() {
+    if (!accountClient) accountClient = createAccountClient({ fetch: options.fetch });
+    return accountClient;
+  }
+
   // Compose the put-online / download / remove / delete mechanics once over the
   // SAME fs, git layer and lock registry as the working copy and the home book
   // (books.online), plus the `/api/books` client. The Worker owns git and
@@ -601,7 +628,13 @@ export function createWorkerLogic(port, options = {}) {
         mergeDriver: createCifraMergeDriver(),
         homeBook: ensureHomeBook(),
         resolveAuthor: resolveSyncAuthor,
-        surfaceHome: surfaceHomeBook,
+        // After a home sync: re-surface its slices, then let the shelf fill pick
+        // up any book the merge brought (account.new_device acceptance 4) and
+        // re-ask the *My songs* question (acceptance 6).
+        surfaceHome: async () => {
+          await surfaceHomeBook();
+          afterHomeSync();
+        },
         // A book the user has engaged (sync.conflicts) has an in-progress merge
         // in the working copy: the engine skips it — it stays *needs you* and
         // takes nothing new from sync until it is settled or abandoned (workflow
@@ -766,7 +799,14 @@ export function createWorkerLogic(port, options = {}) {
   function ensureSyncScheduler() {
     if (!syncScheduler) {
       syncScheduler = createSyncScheduler({
-        run: () => ensureSyncEngine().pass(),
+        // Each pass also resumes a shelf fill a lost network left waiting
+        // (account.new_device Constraints: it resumes when the network returns),
+        // in the background — a pass never waits on a clone.
+        run: async () => {
+          const result = await ensureSyncEngine().pass();
+          kickFill();
+          return result;
+        },
         setInterval: options.setInterval,
         clearInterval: options.clearInterval,
         setTimeout: options.setTimeout,
@@ -1033,6 +1073,326 @@ export function createWorkerLogic(port, options = {}) {
     await surfaceHomeBookInstruments();
   }
 
+  // ---- a new device (account.new_device, workflow 13) -----------------------
+
+  // The singleton `meta` record, read whole (an absent one is `{}`), and a
+  // write of some of its fields — the device-local flags of the two-*My songs*
+  // choice live there, outside the home book (acceptance 8), like the §2.3
+  // device id.
+  async function readMetaRecord() {
+    const db = await ensureOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(META_STORE, 'readonly');
+      const request = tx.objectStore(META_STORE).get(META_KEY);
+      request.onsuccess = () => resolve(request.result ?? {});
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async function writeMetaFields(fields) {
+    const db = await ensureOpen();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(META_STORE, 'readwrite');
+      const store = tx.objectStore(META_STORE);
+      const request = store.get(META_KEY);
+      request.onsuccess = () => {
+        const meta = request.result ?? {
+          schemaVersion: db.version,
+          protocolVersion: 1,
+          createdAt: Date.now(),
+        };
+        store.put({ ...meta, ...fields }, META_KEY);
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  }
+
+  // The home book's remote, as the attach left it (Decision 2): its URL and the
+  // service id kept beside it as `remote.origin.estanteid`. Null fields when the
+  // home book is not attached (or not there at all). A local config read.
+  async function homeRemote() {
+    const dir = ensureGit().bookDir(HOME_BOOK_ID);
+    const read = async (path) => {
+      try {
+        const value = await getConfig({ fs: ensureFs(), dir, path });
+        return typeof value === 'string' && value ? value : null;
+      } catch {
+        return null;
+      }
+    };
+    return { url: await read('remote.origin.url'), serviceId: await read('remote.origin.estanteid') };
+  }
+
+  // Whether a book has a repository with commits on this device — what the fill
+  // treats as "already here". A directory a failed clone left without `main` is
+  // not.
+  async function hasCommits(bookId) {
+    try {
+      await resolveRef({ fs: ensureFs(), dir: ensureGit().bookDir(bookId), ref: 'main' });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // How many songs the index holds for a book (unsaved ones included).
+  function songCountOf(bookId) {
+    const [first] = ensureSearchIndex().browse({ scope: { bookId } }).books;
+    if (!first) return 0;
+    return typeof first.count === 'number' ? first.count : (first.songs ?? []).length;
+  }
+
+  // Write this device's kind into the home book (Decision 5):
+  // `shelf.devices[deviceId].kind`, a token, never a user agent or a name. A
+  // device writes it at attach and refreshes it on a later start when it has
+  // changed; `refreshOnly` writes only over a kind already recorded. The device
+  // id stays a namespace key (§2.3). Returns whether it wrote.
+  async function recordDeviceKind({ refreshOnly = false } = {}) {
+    const home = ensureHomeBook();
+    const deviceId = await home.ensureDeviceId({ idb, name, version });
+    const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+    const current = shelf?.devices?.[deviceId]?.kind?.value ?? null;
+    if (refreshOnly && current === null) return false;
+    const kind = deviceKindOf(deviceHint);
+    if (current === kind) return false;
+    await home.set({
+      bookId: HOME_BOOK_ID,
+      file: 'shelf.json',
+      changes: [{ path: ['devices', deviceId, 'kind'], value: kind }],
+      author: await resolveSyncAuthor(),
+    });
+    return true;
+  }
+
+  // Attach the home book to the account's (acceptance 1; Decision 1): ask the
+  // service where it is, set it as `origin` with the service id beside it, write
+  // this device's kind, and sync — the account's settings come down, or this
+  // device's merge into them key by key and are pushed, or are pushed as the
+  // first (home-book.js `sync`). Then the home-book slices are surfaced, so the
+  // instrument, notation, language and theme are right before the shelf fills
+  // (workflow 13 §What comes down). An attached home book is never attached
+  // again. A 401 — not signed in — or an unreachable service attaches nothing.
+  // Resolves `{ attached, restored, fresh }`: `restored` when the account's
+  // home book already had saves (Decision 9), `fresh` when this call attached.
+  async function doAttach() {
+    if ((await homeRemote()).url) return { attached: true, restored: false, fresh: false };
+    let book;
+    try {
+      book = await ensureAccountClient().homeBook();
+    } catch {
+      return { attached: false, restored: false, fresh: false };
+    }
+    const home = ensureHomeBook();
+    const author = await resolveSyncAuthor();
+    await home.ensureLocal({ author });
+    const dir = ensureGit().bookDir(HOME_BOOK_ID);
+    await ensureLocks().withLock(HOME_BOOK_ID, async () => {
+      await ensureGit().setRemote({ dir, url: book.gitUrl });
+      // Inside the `[remote "origin"]` section, so the sign-out strip
+      // (online.detach) removes it with the remote (Decision 2).
+      await setConfig({ fs: ensureFs(), dir, path: 'remote.origin.estanteid', value: book.id });
+    });
+    await recordDeviceKind();
+    const { remoteHead } = await home.sync({ bookId: HOME_BOOK_ID, author });
+    await surfaceHomeBook();
+    await ensureFs().flush();
+    return { attached: true, restored: remoteHead != null, fresh: true };
+  }
+
+  // The one attach at a time: a call made while another is in flight waits for
+  // it, and runs its own only when that one attached nothing (the start-time
+  // attempt may have met a 401 just before the sign-in that asks again).
+  async function attachHome() {
+    if (attaching) {
+      const prior = await attaching.catch(() => null);
+      if (prior?.attached) return { attached: true, restored: prior.restored, fresh: false };
+    }
+    const mine = doAttach();
+    attaching = mine;
+    try {
+      return await mine;
+    } finally {
+      if (attaching === mine) attaching = null;
+    }
+  }
+
+  function emitFill(bookId, state, progress, songs) {
+    port.postMessage(
+      event(EventKind.SHELF_FILL, {
+        bookId,
+        state,
+        progress,
+        ...(typeof songs === 'number' ? { songs } : {}),
+      }),
+    );
+  }
+
+  // Drop what a failed or interrupted clone left: a directory with no `main`.
+  async function clearPartialClone(bookId) {
+    if (await hasCommits(bookId)) return;
+    try {
+      await ensureFs().promises.stat(ensureGit().bookDir(bookId));
+    } catch {
+      return; // nothing there
+    }
+    await ensureOnline().remove({ bookId });
+  }
+
+  // One run of the shelf fill (acceptance 4; workflow 13 §What comes down):
+  // every live hosted book on the shelf with no repository here is listed at
+  // once as *waiting*, then cloned one at a time in shelf order (Decision 6) —
+  // *cloning* with its progress, then *ready* with its song count once indexed,
+  // so its songs are searchable as it lands. The shelf registers are left as
+  // they are: the clone writes nothing to the home book (Decision 6). A clone
+  // that fails — no network — goes back to *waiting*, never failed or lost, and
+  // is tried again by the next fill (a sync pass, a home sync, the next start).
+  // Only an attached home book's shelf is filled.
+  async function fillOnce() {
+    if (!(await homeRemote()).url) return;
+    const shelf = await ensureHomeBook().read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+    const present = new Set();
+    for (const bookId of Object.keys(shelf?.books ?? {})) {
+      if (await hasCommits(bookId)) present.add(bookId);
+    }
+    const queue = fillQueue(shelf, present);
+    if (!queue.length) return;
+    for (const { bookId } of queue) emitFill(bookId, 'waiting', 0);
+    let landed = false;
+    for (const { bookId, link } of queue) {
+      emitFill(bookId, 'cloning', 0);
+      try {
+        await clearPartialClone(bookId);
+        let percent = 0;
+        await ensureAddByLink().cloneHosted({
+          id: bookId,
+          gitUrl: link,
+          onProgress: (p) => {
+            if (!p?.total) return;
+            const next = Math.min(99, Math.floor((100 * p.loaded) / p.total));
+            if (next > percent) {
+              percent = next;
+              emitFill(bookId, 'cloning', percent);
+            }
+          },
+        });
+        await indexOneBook(bookId);
+        await ensureFs().flush();
+        emitFill(bookId, 'ready', 100, songCountOf(bookId));
+        landed = true;
+      } catch {
+        try {
+          await clearPartialClone(bookId);
+        } catch {
+          /* the next fill clears it */
+        }
+        emitFill(bookId, 'waiting', 0);
+      }
+    }
+    // The account's *My songs* may just have landed: Merge needs it here.
+    if (landed) await evaluateMySongsOffer();
+  }
+
+  // Start a fill in the background, or ask the running one to go round again
+  // (a home sync brought new books while it was cloning). Never awaited by a
+  // command: nothing the user does waits on a clone (Constraints).
+  function kickFill() {
+    if (filling) {
+      fillAgain = true;
+      return filling;
+    }
+    filling = (async () => {
+      try {
+        do {
+          fillAgain = false;
+          await fillOnce();
+        } while (fillAgain);
+      } catch {
+        /* offline-first: the next trigger fills again */
+      } finally {
+        filling = null;
+      }
+    })();
+    return filling;
+  }
+
+  // Ask (again) whether this device is offered its two-*My songs* choice
+  // (acceptance 6): the account's *My songs* online, this device's own with
+  // songs, *keep both* not chosen, and no merge of the two left half done.
+  // Emitted only when the answer changed. Only for an attached home book.
+  async function evaluateMySongsOffer() {
+    if (!(await homeRemote()).url) return;
+    const home = ensureHomeBook();
+    const deviceId = await home.ensureDeviceId({ idb, name, version });
+    const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+    await ensureIndexHydrated();
+    const meta = await readMetaRecord();
+    const offer = meta.mySongsMergePending
+      ? null
+      : mySongsOffer({
+          shelf,
+          deviceId,
+          localSongs: songCountOf(MY_SONGS_ID),
+          keptBoth: meta.mySongsKeptBoth === true,
+        });
+    const payload = offer
+      ? {
+          offered: true,
+          accountBookId: offer.accountBookId,
+          ready: await hasCommits(offer.accountBookId),
+          kind: deviceKindOf(deviceHint),
+        }
+      : { offered: false };
+    const key = JSON.stringify(payload);
+    if (key === lastOffer) return;
+    lastOffer = key;
+    port.postMessage(event(EventKind.MY_SONGS_CHOICE, payload));
+  }
+
+  // What follows a home sync (the engine's, or SYNC_HOME): the fill picks up any
+  // book it brought, and the *My songs* question is asked again. Background.
+  function afterHomeSync() {
+    kickFill();
+    evaluateMySongsOffer().catch(() => {});
+  }
+
+  // At start (Decision 3): an unattached home book is attached if the device is
+  // signed in — a 401 ends quietly, which is how a signed-out device does
+  // nothing — and an attached one refreshes this device's kind if it changed,
+  // resumes its fill and re-asks the *My songs* question. Background, after the
+  // shell is up.
+  async function startHome() {
+    if (!(await homeRemote()).url) {
+      const result = await attachHome();
+      if (!result.attached) return;
+      if (result.fresh) {
+        port.postMessage(event(EventKind.HOME_ATTACHED, { attached: true, restored: result.restored }));
+      }
+    } else if (await recordDeviceKind({ refreshOnly: true })) {
+      await surfaceHomeBookShelf();
+      await ensureFs().flush();
+    }
+    kickFill();
+    await evaluateMySongsOffer();
+  }
+
+  // A *My songs* merge that collided was settled (acceptance 7): once the
+  // account's *My songs* is no longer mid-merge, this device's leaves the shelf
+  // — its songs are in the account's now. An abandoned merge keeps it.
+  async function settleMySongsMerge(bookId, { abandoned = false } = {}) {
+    const meta = await readMetaRecord();
+    if (meta.mySongsMergePending !== bookId) return;
+    if (!abandoned && ensureConflicts().hasInProgressMerge(bookId)) return;
+    await writeMetaFields({ mySongsMergePending: null });
+    if (!abandoned) {
+      await removeFromShelf({ bookId: MY_SONGS_ID, author: await resolveSyncAuthor() });
+      // The songs it brought are found in the account's *My songs* now.
+      await indexOneBook(bookId);
+    }
+    await evaluateMySongsOffer();
+  }
+
   // SONG event — a song's reading state projected from the home book's
   // songs.json (songs.reading, Decision 2): the signed transposition offset and
   // the per-tuning variations-in-use map, keyed by the §2.3 ref. A read before
@@ -1108,6 +1468,10 @@ export function createWorkerLogic(port, options = {}) {
     // returns and the scheduler coalesces it with any trigger that follows.
     ensureSyncScheduler().start();
     ensureSyncScheduler().trigger();
+    // The home book follows the account (account.new_device Decision 3): attach
+    // it if this device is signed in, else fill an attached one's shelf.
+    // Fire-and-forget, like the first pass.
+    startHome().catch(() => {});
   }
 
   return {
@@ -1116,8 +1480,63 @@ export function createWorkerLogic(port, options = {}) {
       try {
         switch (message.kind) {
           case CommandKind.OPEN:
+            // The main thread's navigator hint, for the device's kind (Decision 5).
+            if (message.payload?.device && typeof message.payload.device === 'object') {
+              deviceHint = message.payload.device;
+            }
             await handleOpen();
             break;
+          case CommandKind.ATTACH_HOME: {
+            // Signing in made this device the account's (account.new_device
+            // acceptance 1; workflow 13 §What comes down): attach the home book,
+            // its settings first, then fill the shelf in the background.
+            const result = await attachHome();
+            port.postMessage(
+              event(EventKind.HOME_ATTACHED, { attached: result.attached, restored: result.restored }),
+            );
+            if (result.attached) {
+              kickFill();
+              await evaluateMySongsOffer();
+            }
+            break;
+          }
+          case CommandKind.KEEP_BOTH_MY_SONGS: {
+            // *Keep both* (account.new_device acceptance 8; workflow 13 §A device
+            // used before signing in): this device's *My songs* stays on the shelf
+            // as *My songs (this device)* — `title` comes from the view, in the
+            // device's language — and the offer stops for good on this device
+            // (a device-local flag in `meta`, outside the home book).
+            const { title, author } = message.payload;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            const deviceId = await home.ensureDeviceId({ idb, name, version });
+            const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+            if (shelf?.local?.[deviceId]?.[MY_SONGS_ID]?.title?.value != null && title) {
+              await home.set({
+                bookId: HOME_BOOK_ID,
+                file: 'shelf.json',
+                changes: [{ path: ['local', deviceId, MY_SONGS_ID, 'title'], value: title }],
+                author,
+              });
+            }
+            await writeMetaFields({ mySongsKeptBoth: true });
+            await surfaceHomeBookShelf();
+            await ensureFs().flush();
+            await evaluateMySongsOffer();
+            break;
+          }
+          case CommandKind.PREVIEW_MY_SONGS: {
+            // *Merge* (account.new_device acceptance 7; Decision 7): this device's
+            // *My songs* zipped as Download zips it — working tree included, so
+            // unsaved edits are carried — and previewed as an upload merge into
+            // the account's *My songs*: workflow 7's preview, unrelated histories
+            // and all. Writes nothing to the target; IMPORT_UPLOAD lands it.
+            const { target } = message.payload;
+            const { bytes } = await ensureOnline().download({ bookId: MY_SONGS_ID });
+            const model = await ensureUpload().preview({ target: { kind: 'existing', bookId: target }, bytes });
+            port.postMessage(event(EventKind.UPLOAD_PREVIEW, { ...model, mySongs: true }));
+            break;
+          }
           case CommandKind.WRITE: {
             // Durability only: persist the editor's current text. No event — the
             // write is silent; its only observable effect is the working copy.
@@ -1607,6 +2026,8 @@ export function createWorkerLogic(port, options = {}) {
             // shape a sync merged reaches the `instruments` slice
             // (music.instruments; "re-emitted when sync changes a register").
             await surfaceHomeBookInstruments();
+            // The fill picks up what the sync brought (account.new_device).
+            afterHomeSync();
             break;
           }
           case CommandKind.OPEN_CONFLICTS: {
@@ -1621,18 +2042,24 @@ export function createWorkerLogic(port, options = {}) {
             // deleting a song (workflow 9 §Settling one). Re-emits CONFLICTS; when
             // the last file is settled it commits the two-parent merge and pushes.
             await ensureConflicts().resolve(message.payload);
+            // The last file settled a *My songs* merge: this device's leaves
+            // the shelf (account.new_device acceptance 7).
+            await settleMySongsMerge(message.payload.bookId);
             break;
           }
           case CommandKind.COMMIT_MERGE: {
             // Commit the two-parent merge and push once every file is settled (the
             // book-level *everything settled* path; workflow 9 §When every).
             await ensureConflicts().commitMerge(message.payload);
+            await settleMySongsMerge(message.payload.bookId);
             break;
           }
           case CommandKind.ABANDON_MERGE: {
             // Put the book back as it was before the sync, the incoming changes
             // waiting for the next one (workflow 9 §Leaving one).
             await ensureConflicts().abandon(message.payload.bookId);
+            // An abandoned *My songs* merge keeps this device's *My songs*.
+            await settleMySongsMerge(message.payload.bookId, { abandoned: true });
             break;
           }
           case CommandKind.PREVIEW_UPLOAD: {
@@ -1652,8 +2079,20 @@ export function createWorkerLogic(port, options = {}) {
             // ways). The upload engine reads the scratch repo named by `uploadId`
             // and lands it; this handler maps the result to the existing events
             // and (for a new book) writes the shelf register as CREATE_BOOK does.
-            const { uploadId, choice, target, perFile, author } = message.payload;
+            const { uploadId, choice, target, perFile, author, fromMySongs } = message.payload;
             const result = await ensureUpload().import_({ uploadId, choice, target, perFile });
+            if (fromMySongs && choice === 'merge') {
+              // *Merge and save* of this device's *My songs* into the account's
+              // (account.new_device acceptance 7): a clean merge retires this
+              // device's — tombstone, directory, index — its songs now in the
+              // account's. A collision goes to the conflict session first; the
+              // retirement waits for it to be settled (an abandon keeps it).
+              if (result.kind === 'merged') {
+                await removeFromShelf({ bookId: MY_SONGS_ID, author });
+              } else if (result.kind === 'needs_you') {
+                await writeMetaFields({ mySongsMergePending: result.bookId });
+              }
+            }
             if (result.kind === 'new_book') {
               // A fresh local book: write its `shelf.local` entry (title from the
               // imported README), re-surface SHELF, index it and announce it —
@@ -1696,6 +2135,10 @@ export function createWorkerLogic(port, options = {}) {
               port.postMessage(event(EventKind.SYNC, { bookId: result.bookId, phase, at, ...extra }));
               ensureSyncScheduler().trigger();
             }
+            // The *My songs* question is asked again only after the import's
+            // own reply is out: the choice hands a collision to the conflict
+            // panel on that reply, before the offer is withdrawn.
+            if (fromMySongs && choice === 'merge') await evaluateMySongsOffer();
             break;
           }
           case CommandKind.CANCEL_UPLOAD: {
@@ -1911,6 +2354,11 @@ export function createWorkerLogic(port, options = {}) {
                 { path: ['books', serviceId, 'link'], value: result.gitUrl },
                 { path: ['books', serviceId, 'position'], value: position },
                 { path: ['books', serviceId, 'role'], value: 'owner' },
+                // Putting *My songs* online makes it the account's *My songs*
+                // (account.new_device Decision 7; home-book-format §4.2): the
+                // home book records which hosted book that is, so a device used
+                // before signing in is offered to merge into it.
+                ...(localId === MY_SONGS_ID ? [{ path: ['mySongs'], value: serviceId }] : []),
               ],
               author,
             });
