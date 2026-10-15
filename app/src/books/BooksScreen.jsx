@@ -44,6 +44,7 @@ import { titleFor, whereFor, canSaveFor, orderedBooks, forkLineFor } from './boo
 import { syncDisplayFor, anyOutOfStep } from '../sync-display.js';
 import BookDetail from './BookDetail.jsx';
 import UploadPreview from './UploadPreview.jsx';
+import BringIn from './BringIn.jsx';
 import './books.css';
 
 // Before sign-in there is no account; a local book's commits carry a device-local
@@ -171,8 +172,10 @@ function SyncGlyph() {
 //
 // A fork (books.fork, workflow 11; W11 board #2) also says where it came from —
 // *from {original}* — and, when its original has saves it does not, *{original}
-// has N new saves.* (the *Bring them in* action is books.bring_in's, Decision 5).
-function BookRow({ id, book, kind, syncEntry, original, selected, onOpen, onFiles, onRename, rowRef }) {
+// has N new saves.*, with the *Bring them in* button beside the count
+// (books.bring_in Constraint 6) — a sibling of the row's open button, never
+// nested in it, named for the original (WCAG 2.5.3: the name holds the word).
+function BookRow({ id, book, kind, syncEntry, original, selected, onOpen, onFiles, onRename, onBringIn, rowRef }) {
   const title = titleFor(book, id);
   const fork = forkLineFor(book, original);
   const where = t(`books.${whereFor(kind)}`);
@@ -187,11 +190,6 @@ function BookRow({ id, book, kind, syncEntry, original, selected, onOpen, onFile
           <span className="name">{title}</span>
           {fork ? <span className="meta">{t('books.fromOriginal', { original: fork.from })}</span> : null}
           <span className="meta">{meta}</span>
-          {fork?.newSaves ? (
-            <span className="meta new-saves">
-              {t('books.originalNewSaves', { original: fork.from, count: fork.newSaves })}
-            </span>
-          ) : null}
           <SyncBadge entry={syncEntry} originalGone={Boolean(fork?.gone)} />
         </span>
         <span className="caret t-small" aria-hidden="true">
@@ -206,6 +204,20 @@ function BookRow({ id, book, kind, syncEntry, original, selected, onOpen, onFile
         {t('fileView.filesEntry')}
       </Button>
       <RenameDialog bookId={id} currentName={title} onRename={onRename} />
+      {fork?.newSaves ? (
+        <div className="notice accent bring-in-notice">
+          <span className="new-saves">
+            {t('books.originalNewSaves', { original: fork.from, count: fork.newSaves })}
+          </span>
+          <Button
+            className="btn primary"
+            aria-label={t('books.bringInLabel', { original: fork.from })}
+            onPress={() => onBringIn(id, { book: title, original: fork.from })}
+          >
+            {t('books.bringIn')}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -546,6 +558,16 @@ export default function BooksScreen({
   // Decision 1), ephemeral like the detail. It holds the picked zip's bytes and
   // name until the preview is confirmed or cancelled.
   const [upload, setUpload] = useState(null);
+  // The bring-in screen (books.bring_in, Decision 3): full screen over the shelf
+  // like the upload, `{ bookId, book, original }` while open. Closing it returns
+  // focus to the fork's row (Constraint 8), once the shelf is drawn again.
+  const [bringIn, setBringIn] = useState(null);
+  const focusRowAfter = useRef(null);
+  useEffect(() => {
+    if (bringIn || !focusRowAfter.current) return;
+    rowRefs.current.get(focusRowAfter.current)?.focus();
+    focusRowAfter.current = null;
+  }, [bringIn]);
 
   // A new book's row takes focus once it appears on the shelf (acceptance 6).
   // The create re-surfaces SHELF, growing `ordered`; when a create is pending
@@ -694,6 +716,7 @@ export default function BooksScreen({
                 onOpenBook(bookId);
               }}
               onRename={renameBook}
+              onBringIn={(bookId, names) => setBringIn({ bookId, ...names })}
               rowRef={(node) => {
                 if (node) rowRefs.current.set(id, node);
                 else rowRefs.current.delete(id);
@@ -731,6 +754,31 @@ export default function BooksScreen({
           onClose={() => setUpload(null)}
           onNeedsYou={(bookId) => {
             setUpload(null);
+            setSelected(bookId);
+            onOpenBook(bookId);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // The bring-in screen takes the whole screen too (Decision 3; W11 board #3). A
+  // merge closes it (the count clears through ORIGINAL); a collision hands off
+  // to the conflict surface via the shell's `onOpenBook`, as the upload does.
+  if (bringIn) {
+    return (
+      <div className="books-screen">
+        <BringIn
+          store={store}
+          bookId={bringIn.bookId}
+          book={bringIn.book}
+          original={bringIn.original}
+          onClose={() => {
+            focusRowAfter.current = bringIn.bookId;
+            setBringIn(null);
+          }}
+          onNeedsYou={(bookId) => {
+            setBringIn(null);
             setSelected(bookId);
             onOpenBook(bookId);
           }}

@@ -111,6 +111,31 @@ export default {
       other: '{original} tiene {count} cambios nuevos.',
     },
     originalNoLongerShared: 'el original ya no se comparte',
+    bringIn: 'Traerlos',
+    bringInLabel: 'Traer los cambios de {original}',
+    bringInTitle: 'Traer los cambios de {original}',
+    bringInBody: {
+      one: '{count} cambio nuevo en {original} desde la última vez que los trajiste. Nada se escribe en {book} hasta que confirmes.',
+      other: '{count} cambios nuevos en {original} desde la última vez que los trajiste. Nada se escribe en {book} hasta que confirmes.',
+    },
+    bringInFetching: 'Buscando los cambios nuevos de {original}…',
+    bringInNote: 'Nota',
+    bringInNotePrefill: 'Trae los cambios de {original}: {titles}',
+    bringInNotePrefillEmpty: 'Trae los cambios de {original}',
+    bringInConflict: {
+      one: '{songs} se cruza con tus propias ediciones. Después de confirmar lo resolverás un conflicto a la vez; el resto entra de una vez.',
+      other: '{songs} se cruzan con tus propias ediciones. Después de confirmar los resolverás un conflicto a la vez; el resto entra de una vez.',
+    },
+    bringInCaption: 'Lo une a tu copia, lo guarda y lo envía a Estante.',
+    bringInNotNow: 'Ahora no',
+    bringInBusy: 'Trayendo los cambios…',
+    bringInStale: 'Algo cambió desde esta vista previa, así que se volvió a hacer. Revísala y luego trae los cambios.',
+    bringInOffline: 'Traer los cambios necesita la red. Nada cambió: conéctate y vuelve a intentarlo.',
+    originalGoneTitle: 'El original ya no se comparte contigo.',
+    originalGoneBody:
+      'Este libro deja de seguir {original}; los cambios se trajeron por última vez el {date}. Nada más cambia: tu copia, su historial y sus canciones están aquí, y lo guardas, compartes y sincronizas como antes.',
+    originalGoneBodyUndated:
+      'Este libro deja de seguir {original}. Nada más cambia: tu copia, su historial y sus canciones están aquí, y lo guardas, compartes y sincronizas como antes.',
     forkedNote:
       '{book} ahora es tuyo: ocupó el lugar del original en tu estante, así que cada canción aparece una vez en la búsqueda.',
     syncNow: 'Sincronizar ahora',

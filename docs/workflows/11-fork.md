@@ -61,12 +61,19 @@ into one's own is a decision.
 The shelf says when the original has new saves — *Ana's Choros has 3 new
 saves*. *Bring them in* shows the same preview an upload does (workflow 7),
 song by song; confirming merges, commits and pushes. Conflicts go to workflow
-9.
+9. The preview counts the new saves since the user last brought them in,
+offers a note already written (*Bring in changes from Ana's Choros:* and the
+songs it touches), and names the songs that meet the user's own edits before
+anything is written; *Not now* leaves the book as it was. Bringing them in
+needs the network, like making the fork: offline, the preview says so plainly
+and nothing changes.
 
 **When the original goes away** — the user removed from it, the book
 deleted — the fork is untouched. It has the whole history up to
 the last time it followed the original, and its shelf entry says *the
 original is no longer shared with you*. Following ends; nothing else does.
+The book itself says so too, with the date it last brought the original's
+saves in (the day it was forked, if it never did).
 
 ## The original's owner
 

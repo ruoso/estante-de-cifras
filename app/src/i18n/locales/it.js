@@ -111,6 +111,31 @@ export default {
       other: '{original} ha {count} modifiche nuove.',
     },
     originalNoLongerShared: 'originale non più condiviso',
+    bringIn: 'Portale qui',
+    bringInLabel: 'Porta qui le modifiche di {original}',
+    bringInTitle: 'Porta qui le modifiche di {original}',
+    bringInBody: {
+      one: '{count} modifica nuova in {original} dall’ultima volta che le hai portate qui. Niente viene scritto in {book} finché non confermi.',
+      other: '{count} modifiche nuove in {original} dall’ultima volta che le hai portate qui. Niente viene scritto in {book} finché non confermi.',
+    },
+    bringInFetching: 'Recupero delle modifiche nuove di {original}…',
+    bringInNote: 'Nota',
+    bringInNotePrefill: 'Porta le modifiche di {original}: {titles}',
+    bringInNotePrefillEmpty: 'Porta le modifiche di {original}',
+    bringInConflict: {
+      one: '{songs} incontra le tue modifiche. Dopo la conferma lo sistemerai un conflitto alla volta; il resto entra subito.',
+      other: '{songs} incontrano le tue modifiche. Dopo la conferma li sistemerai un conflitto alla volta; il resto entra subito.',
+    },
+    bringInCaption: 'Unisce alla tua copia, salva e invia a Estante.',
+    bringInNotNow: 'Non ora',
+    bringInBusy: 'Le sto portando qui…',
+    bringInStale: 'Qualcosa è cambiato da questa anteprima, quindi è stata rifatta. Controllala, poi portale qui.',
+    bringInOffline: 'Portarle qui richiede la rete. Non è cambiato niente: connettiti e riprova.',
+    originalGoneTitle: 'L’originale non è più condiviso con te.',
+    originalGoneBody:
+      'Questo libro smette di seguire {original}; le modifiche sono state portate qui l’ultima volta il {date}. Nient’altro cambia: la tua copia, la sua cronologia e i suoi brani sono tutti qui, e salvi, condividi e sincronizzi come prima.',
+    originalGoneBodyUndated:
+      'Questo libro smette di seguire {original}. Nient’altro cambia: la tua copia, la sua cronologia e i suoi brani sono tutti qui, e salvi, condividi e sincronizzi come prima.',
     forkedNote:
       '{book} ora è tuo: ha preso il posto dell’originale sul tuo scaffale, così ogni canzone compare una volta nella ricerca.',
     syncNow: 'Sincronizza ora',

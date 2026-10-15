@@ -27,39 +27,19 @@
 // L26). The surface portals nothing of its own; it is a plain full-screen pane.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Checkbox, Radio, RadioGroup } from 'react-aria-components';
+import { Button, Radio, RadioGroup } from 'react-aria-components';
 
 import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { titleFor, canSaveFor, orderedBooks } from './book-display.js';
-import DiffRows from '../songs/DiffRows.jsx';
+import PreviewRows from './PreviewRows.jsx';
 import './upload-preview.css';
 
 // The device commit identity for a shelf-touching command, the same literal the
 // shelf and the detail use (BooksScreen.jsx, BookDetail.jsx). The Worker's
 // `authorFrom` turns the id into a no-reply address.
 const LOCAL_IDENTITY = { id: 'local', name: 'Me' };
-
-const basename = (path) => path.split('/').pop();
-
-// The badge modifier per status word (W07 board preview data L266-271): added →
-// ok, changed/replace → voiced, conflict/unresolved → conflict. The word carries
-// the meaning; the tint is only a second signal (mockups README L26).
-const BADGE_CLASS = {
-  added: 'ok',
-  changed: 'voiced',
-  replace: 'voiced',
-  conflict: 'conflict',
-  unresolved: 'conflict',
-};
-const STATUS_KEY = {
-  added: 'books.uploadAdded',
-  changed: 'books.uploadChanged',
-  conflict: 'books.uploadConflict',
-  replace: 'books.uploadReplace',
-  unresolved: 'books.uploadUnresolved',
-};
 
 function CancelIcon() {
   return (
@@ -359,36 +339,7 @@ export default function UploadPreview({
             <h3 className="t-h3" id="upload-songs-h">
               {t('books.uploadSongs')}
             </h3>
-            <div className="list upload-songs">
-              {previews.map((p) => (
-                <div className="row upload-song" key={p.path}>
-                  <span className="grow">
-                    <span className="name">{p.title || basename(p.path)}</span>
-                    {p.status === 'unresolved' ? (
-                      <span className="meta">
-                        {t('books.uploadUnresolvedHelp')} · {t('books.uploadMarkerLine', { line: p.line })}
-                      </span>
-                    ) : p.summary ? (
-                      <span className="meta">{p.summary}</span>
-                    ) : null}
-                    {(p.status === 'changed' || p.status === 'replace') && p.changes?.length ? (
-                      <DiffRows changes={p.changes} />
-                    ) : null}
-                    {p.status === 'replace' ? (
-                      <Checkbox
-                        className="upload-keep"
-                        isSelected={kept.has(p.path)}
-                        onChange={(on) => toggleKeep(p.path, on)}
-                      >
-                        <span className="upload-keep-box" aria-hidden="true" />
-                        {t('books.uploadKeep', { name: p.title || basename(p.path) })}
-                      </Checkbox>
-                    ) : null}
-                  </span>
-                  <span className={`badge ${BADGE_CLASS[p.status] ?? ''}`}>{t(STATUS_KEY[p.status])}</span>
-                </div>
-              ))}
-            </div>
+            <PreviewRows previews={previews} kept={kept} onToggleKeep={toggleKeep} />
           </section>
         ) : null}
 

@@ -111,6 +111,31 @@ export default {
       other: '{original} tem {count} alterações novas.',
     },
     originalNoLongerShared: 'original não compartilhado mais',
+    bringIn: 'Trazer para cá',
+    bringInLabel: 'Trazer para cá as alterações de {original}',
+    bringInTitle: 'Trazer as alterações de {original}',
+    bringInBody: {
+      one: '{count} alteração nova em {original} desde a última vez que você as trouxe. Nada é gravado em {book} até você confirmar.',
+      other: '{count} alterações novas em {original} desde a última vez que você as trouxe. Nada é gravado em {book} até você confirmar.',
+    },
+    bringInFetching: 'Buscando as alterações novas de {original}…',
+    bringInNote: 'Nota',
+    bringInNotePrefill: 'Traz as alterações de {original}: {titles}',
+    bringInNotePrefillEmpty: 'Traz as alterações de {original}',
+    bringInConflict: {
+      one: '{songs} encontra edições suas. Depois de confirmar, você resolve um conflito por vez; o resto entra de uma vez.',
+      other: '{songs} encontram edições suas. Depois de confirmar, você resolve um conflito por vez; o resto entra de uma vez.',
+    },
+    bringInCaption: 'Junta na sua cópia, salva e envia para a Estante.',
+    bringInNotNow: 'Agora não',
+    bringInBusy: 'Trazendo as alterações…',
+    bringInStale: 'Algo mudou desde esta prévia, então ela foi refeita. Confira e depois traga as alterações.',
+    bringInOffline: 'Trazer as alterações precisa da rede. Nada mudou: conecte e tente de novo.',
+    originalGoneTitle: 'O original não é mais compartilhado com você.',
+    originalGoneBody:
+      'Este livro deixa de seguir {original}; as alterações foram trazidas pela última vez em {date}. Nada mais muda: sua cópia, o histórico e as músicas estão todos aqui, e você salva, compartilha e sincroniza como antes.',
+    originalGoneBodyUndated:
+      'Este livro deixa de seguir {original}. Nada mais muda: sua cópia, o histórico e as músicas estão todos aqui, e você salva, compartilha e sincroniza como antes.',
     forkedNote:
       '{book} agora é seu: ocupou o lugar do original na sua estante, então cada música aparece uma vez na busca.',
     syncNow: 'Sincronizar agora',

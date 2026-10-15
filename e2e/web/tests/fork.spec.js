@@ -14,53 +14,28 @@
 // (no-song-text rule).
 
 import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
-import {
-  enableVirtualAuthenticator,
-  openSongFromSearch,
-  openSongInEditor,
-  waitUntilSearchable,
-  syncNow,
-  gotoTab,
-} from '../lib/journeys.js';
+import { openSongFromSearch, openSongInEditor, syncNow, gotoTab } from '../lib/journeys.js';
 import {
   hostedBookWithSong,
-  inviteThroughShare,
   openSharing,
-  acceptInvitation,
   removeFirstMember,
   addSectionAndSave,
   booksList,
 } from '../lib/journeys-share.js';
+import { biaJoins as joins, makeItMyOwn as confirmSheet, bookRowName, forkSheetTitle } from '../lib/journeys-fork.js';
 import { addSection } from '../lib/journeys-edit.js';
-import { openDevice } from '../lib/devices.js';
 import { mockup } from '../lib/mockup.js';
 
 const BOOK = 'Choros da Ana';
 const SONG_TITLE = 'Roda de rua';
 const QUERY = 'Roda';
-const bookRow = new RegExp(`^${BOOK}`);
-const SHEET_TITLE = `${BOOK} is someone else’s — make it your own?`;
+const bookRow = bookRowName(BOOK);
+const SHEET_TITLE = forkSheetTitle(BOOK);
 
-// Bia joins Ana's book through an invitation of `role`, and waits until the
-// song is on her device.
-async function biaJoins(browser, page, role) {
-  const link = await inviteThroughShare(page, BOOK, { role });
-  const bia = await openDevice(browser);
-  await enableVirtualAuthenticator(bia.page);
-  await acceptInvitation(bia.page, link);
-  await expect(bia.page.getByRole('button', { name: bookRow })).toBeVisible();
-  await waitUntilSearchable(bia.page, QUERY, SONG_TITLE);
-  return bia;
-}
-
+// Bia joins Ana's book as `role` (journeys-fork.js), the song on Bia's device.
+const biaJoins = (browser, page, role) => joins(browser, page, { book: BOOK, role, query: QUERY, songTitle: SONG_TITLE });
 // The make-it-your-own sheet is open: axe it, then confirm.
-async function makeItMyOwn(page) {
-  const sheet = page.getByRole('dialog', { name: SHEET_TITLE });
-  await expect(sheet).toBeVisible();
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the sheet
-  await sheet.getByRole('button', { name: 'Make it my own' }).click();
-  await expect(sheet).toBeHidden({ timeout: 15000 });
-}
+const makeItMyOwn = (page) => confirmSheet(page, BOOK);
 
 // The shelf shows one row for the book, reading *from {book}*.
 async function expectOneForkRow(page) {

@@ -41,10 +41,10 @@ import {
   TextField,
 } from 'react-aria-components';
 
-import { t } from '../i18n/index.js';
+import { t, currentLocale } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
-import { titleFor, canSaveFor, orderedBooks } from './book-display.js';
+import { titleFor, canSaveFor, orderedBooks, originalOf, broughtInOn } from './book-display.js';
 import { saveZip } from './download-zip.js';
 import SharingScreen from './SharingScreen.jsx';
 import MakeYourOwn from './MakeYourOwn.jsx';
@@ -206,6 +206,7 @@ export default function BookDetail({
 }) {
   const shelf = useSlice(store, 'shelf');
   const sync = useSlice(store, 'sync');
+  const originals = useSlice(store, 'originals');
   const [failure, setFailure] = useState(null);
   const [sharing, setSharing] = useState(false);
 
@@ -240,6 +241,13 @@ export default function BookDetail({
   // cannot-save card already makes the offer.
   const offersFork =
     !isLocal && !isOwner && bookId !== 'home' && !isGone && !isTakenDown && !cannotSave;
+  // A fork whose original went away (books.bring_in Constraint 7, Decision 6;
+  // W11 board #4 :169): the register's durable `goneAt`, or the live ORIGINAL
+  // fact before the register re-surfaces. Independent of the fork's own phase —
+  // the original going away never changes it — and dated by `followedAt`.
+  const original = originalOf(book);
+  const originalGone = Boolean(original) && (Boolean(original.goneAt) || originals?.[bookId]?.gone === true);
+  const lastBroughtIn = originalGone ? broughtInOn(original.followedAt, currentLocale()) : null;
   // The make-it-your-own sheet: closed, or `{ following }` — false once access is
   // lost, when following has already ended.
   const [forkSheet, setForkSheet] = useState(null);
@@ -315,6 +323,18 @@ export default function BookDetail({
             <span className="chip">{t('books.readOnly')}</span>
           ) : null}
         </div>
+
+        {originalGone ? (
+          <div className="card pad">
+            <span className="t-h2">{t('books.originalGoneTitle')}</span>
+            {/* The state in words, in a live region (never colour alone). */}
+            <p className="t-small" role="status">
+              {lastBroughtIn
+                ? t('books.originalGoneBody', { original: original.title || original.bookId, date: lastBroughtIn })
+                : t('books.originalGoneBodyUndated', { original: original.title || original.bookId })}
+            </p>
+          </div>
+        ) : null}
 
         {isLocal ? (
           <div className="card pad">

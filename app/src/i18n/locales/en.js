@@ -121,6 +121,34 @@ export default {
       other: '{original} has {count} new saves.',
     },
     originalNoLongerShared: 'original no longer shared',
+    // books.bring_in (workflow 11 §Following the original; W11 board #2-#4):
+    // the shelf's button, the bring-in screen and the gone card. Copy names the
+    // original book, not its owner (books.fork Decision 4).
+    bringIn: 'Bring them in',
+    bringInLabel: 'Bring them in from {original}',
+    bringInTitle: 'Bring in saves from {original}',
+    bringInBody: {
+      one: '{count} new save in {original} since you last brought them in. Nothing is written to {book} until you confirm.',
+      other: '{count} new saves in {original} since you last brought them in. Nothing is written to {book} until you confirm.',
+    },
+    bringInFetching: 'Fetching the new saves from {original}…',
+    bringInNote: 'Note',
+    bringInNotePrefill: 'Bring in changes from {original}: {titles}',
+    bringInNotePrefillEmpty: 'Bring in changes from {original}',
+    bringInConflict: {
+      one: '{songs} meets your own edits. After confirming you’ll settle it one conflict at a time; the rest comes in at once.',
+      other: '{songs} meet your own edits. After confirming you’ll settle them one conflict at a time; the rest comes in at once.',
+    },
+    bringInCaption: 'Merges into your copy, saves, and sends it to Estante.',
+    bringInNotNow: 'Not now',
+    bringInBusy: 'Bringing them in…',
+    bringInStale: 'Something changed since this preview, so it was made again. Check it, then bring them in.',
+    bringInOffline: 'Bringing them in needs the network. Nothing changed: connect, then try again.',
+    originalGoneTitle: 'The original is no longer shared with you.',
+    originalGoneBody:
+      'This book stops following {original}; it was last brought in on {date}. Nothing else changes: your copy, its history and its songs are all here, and you save, share and sync it as before.',
+    originalGoneBodyUndated:
+      'This book stops following {original}. Nothing else changes: your copy, its history and its songs are all here, and you save, share and sync it as before.',
     forkedNote:
       '{book} is your own now: it took the place of the original on your shelf, so every song shows once in search.',
     syncNow: 'Sync now',

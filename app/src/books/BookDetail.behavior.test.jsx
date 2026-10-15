@@ -356,3 +356,80 @@ describe('BookDetail (workflow 7; W07 board)', () => {
     expect(await checkWcag21aa(dialog)).toHaveNoViolations();
   });
 });
+
+// books.bring_in Constraint 7 — the fork's own detail says the original went
+// away, with the day it last brought the original's saves in (workflow 11 §When
+// the original goes away; W11 board #4 :169).
+describe('BookDetail — the original is no longer shared (books.bring_in; W11 board #4)', () => {
+  const YEAR = new Date().getFullYear();
+  const ORIGINAL = {
+    bookId: 'srv-orig',
+    title: 'Choros da Ana',
+    link: 'https://estante.example/git/srv-orig',
+    followedAt: `${YEAR}-09-28T12:00:00.000Z`,
+  };
+  const forkShelf = (original) =>
+    event(EventKind.SHELF, {
+      books: {
+        'srv-fork': {
+          label: reg('Choros da Ana'),
+          position: reg(1),
+          role: reg('owner'),
+          ...(original ? { original: reg(original) } : {}),
+        },
+      },
+      local: {},
+    });
+  const TITLE = 'The original is no longer shared with you.';
+
+  it('a fork whose register has goneAt shows the card with its role=status body and the date; axe clean', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderDetail(store, { bookId: 'srv-fork', kind: 'shared' });
+    emit(forkShelf({ ...ORIGINAL, goneAt: AT }));
+
+    expect(screen.getByText(TITLE)).toBeInTheDocument();
+    const body = screen.getByText(/This book stops following Choros da Ana/);
+    expect(body).toHaveAttribute('role', 'status');
+    expect(body).toHaveTextContent(
+      'This book stops following Choros da Ana; it was last brought in on 28 September. Nothing else changes: your copy, its history and its songs are all here, and you save, share and sync it as before.',
+    );
+    // Independent of the fork's own phase: no lost-access card.
+    expect(screen.queryByText('No longer shared with you')).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('the live ORIGINAL gone fact shows the card before the register re-surfaces', () => {
+    const { store, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-fork', kind: 'shared' });
+    emit(forkShelf(ORIGINAL));
+    expect(screen.queryByText(TITLE)).toBeNull();
+    emit(event(EventKind.ORIGINAL, { bookId: 'srv-fork', newSaves: 0, gone: true }));
+    expect(screen.getByText(TITLE)).toBeInTheDocument();
+    expect(screen.getByText(/last brought in on 28 September/)).toBeInTheDocument();
+  });
+
+  it('a missing followedAt drops the date clause', () => {
+    const { store, emit } = makeStore();
+    renderDetail(store, { bookId: 'srv-fork', kind: 'shared' });
+    emit(forkShelf({ bookId: 'srv-orig', title: 'Choros da Ana', link: ORIGINAL.link, goneAt: AT }));
+    expect(screen.getByText(/This book stops following Choros da Ana\. Nothing else changes/)).toHaveAttribute(
+      'role',
+      'status',
+    );
+    expect(screen.queryByText(/last brought in/)).toBeNull();
+  });
+
+  it('no card for a fork still following, nor for a book that is not a fork', () => {
+    const following = makeStore();
+    renderDetail(following.store, { bookId: 'srv-fork', kind: 'shared' });
+    following.emit(forkShelf(ORIGINAL));
+    following.emit(event(EventKind.ORIGINAL, { bookId: 'srv-fork', newSaves: 2, gone: false }));
+    expect(screen.queryByText(TITLE)).toBeNull();
+    cleanup();
+
+    const plain = makeStore();
+    renderDetail(plain.store, { bookId: 'srv-fork', kind: 'shared' });
+    plain.emit(forkShelf(null));
+    expect(screen.queryByText(TITLE)).toBeNull();
+  });
+});

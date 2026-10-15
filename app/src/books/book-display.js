@@ -181,3 +181,32 @@ export function saveTargetFor(shelf, bookId) {
     label: titleFor(entry?.book, bookId),
   };
 }
+
+/**
+ * The day a fork last brought its original's saves in, as the gone card words it
+ * (books.bring_in Constraint 7; W11 board #4 :169 *last brought in on 28
+ * September*): day and long month in `locale`, with the year only when it is not
+ * `now`'s year. `iso` is the register's `followedAt` (the fork time, or the last
+ * bring-in); a missing or unparsable one gives `null`, and the card drops the
+ * date clause. The app's `en` is the boards' English, which writes the day
+ * before the month (*28 September*, *28 Sep*), so it is formatted as `en-GB`;
+ * every other locale formats as itself. Pins workflow 11 §When the original
+ * goes away.
+ *
+ * @param {string | undefined} iso
+ * @param {string} locale a BCP 47 tag (`currentLocale()`)
+ * @param {Date | number} [now]
+ * @returns {string | null}
+ */
+export function broughtInOn(iso, locale, now = Date.now()) {
+  if (typeof iso !== 'string' || !iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const sameYear = date.getFullYear() === new Date(now).getFullYear();
+  const options = { day: 'numeric', month: 'long', ...(sameYear ? {} : { year: 'numeric' }) };
+  try {
+    return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : locale, options).format(date);
+  } catch {
+    return new Intl.DateTimeFormat('en-GB', options).format(date);
+  }
+}

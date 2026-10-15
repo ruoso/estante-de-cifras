@@ -7,6 +7,7 @@ import {
   originalOf,
   forkLineFor,
   saveTargetFor,
+  broughtInOn,
 } from './book-display.js';
 import { t, setLocale } from '../i18n/index.js';
 
@@ -180,5 +181,27 @@ describe('book-display: saveTargetFor (books.fork Constraint 7)', () => {
     expect(saveTargetFor(shelf, 'srv-e').canSave).toBe(true);
     expect(saveTargetFor(shelf, 'l-1').canSave).toBe(true);
     expect(saveTargetFor(shelf, 'nowhere')).toEqual({ canSave: true, label: 'nowhere' });
+  });
+});
+
+// books.bring_in Constraint 7 — the gone card's *last brought in on {date}* (W11
+// board #4 :169; workflow 11 §When the original goes away). Midday instants, so
+// the day is the same in every test timezone.
+describe('book-display: broughtInOn (books.bring_in Constraint 7)', () => {
+  const NOW = new Date('2026-10-15T12:00:00.000Z');
+  it('is day and long month in en for a date this year (*28 September*)', () => {
+    expect(broughtInOn('2026-09-28T12:00:00.000Z', 'en', NOW)).toBe('28 September');
+  });
+  it('adds the year for a date in a past year', () => {
+    expect(broughtInOn('2025-09-28T12:00:00.000Z', 'en', NOW)).toBe('28 September 2025');
+  });
+  it('words the date in the given locale', () => {
+    expect(broughtInOn('2026-09-28T12:00:00.000Z', 'pt-BR', NOW)).toBe('28 de setembro');
+  });
+  it('is null for a missing or invalid followedAt (the card drops the date clause)', () => {
+    expect(broughtInOn(undefined, 'en', NOW)).toBeNull();
+    expect(broughtInOn('', 'en', NOW)).toBeNull();
+    expect(broughtInOn('not a date', 'en', NOW)).toBeNull();
+    expect(broughtInOn(42, 'en', NOW)).toBeNull();
   });
 });

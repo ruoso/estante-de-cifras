@@ -1,0 +1,36 @@
+/* bring-in.css — layout for the *Bring them in* screen (books.bring_in, W11
+   board #3). It wears the upload preview's surface (upload-preview.css: the
+   body, the rows, the fixed confirm row); this file only adds what differs.
+   No colours of its own beyond theme tokens (DIRECTION §3.7; mockups GUIDE.md). */
+
+/* The appbar title is the screen's heading (focus lands on it on open). */
+.bring-in .appbar h1.title {
+  margin: 0;
+}
+.bring-in .appbar h1.title:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.bring-in-status {
+  color: var(--ink-2);
+}
+
+.bring-in-note {
+  max-width: 640px;
+}
+
+/* The fork's shelf row with the original's new saves (W11 board #2 :78-83): the
+   count and the *Bring them in* button sit under the row, in an accent notice. */
+.book-row {
+  flex-wrap: wrap;
+}
+.book-row > .bring-in-notice {
+  flex: 1 1 100%;
+  margin: 0 16px 14px;
+  flex-direction: column;
+  gap: 10px;
+}
+.bring-in-notice > .btn {
+  align-self: flex-start;
+}

@@ -51,8 +51,9 @@ task books "Books" {
   task bring_in "Bring them in, as drawn" {
     effort 2d
     allocate team
+    complete 100
     depends !fork, sync.fork_follow, !upload_ui
-    note "The Bring in Ana's saves screen (W11 board :102-135): N new saves since you last brought them in, the preview rows reusing the upload preview's, the prefilled note, the conflict notice, Not now / Bring them in, consuming PREVIEW_BRING_IN / BRING_IN / CANCEL_BRING_IN; the original is no longer shared with you notice on the book with its last brought-in date (:169), and the offline reply said plainly. Source of debt: tasks/refinements/sync/fork_follow.md (sync.fork_follow). Workflow 11. Tests: behavior (the preview screen and the notice with Testing Library and axe, keyboard paths through Not now and Bring them in, stale and unreachable replies); e2e-web (Ana's account pushes a new save to a book Bia forked, Bia brings it in on phone, tablet and computer; Bia removed from the original sees the notice; axe, mockup W11#2-3)."
+    note "The Bring in Ana's saves screen (W11 board :102-135): N new saves since you last brought them in, the preview rows reusing the upload preview's, the prefilled note, the conflict notice, Not now / Bring them in, consuming PREVIEW_BRING_IN / BRING_IN / CANCEL_BRING_IN; the original is no longer shared with you notice on the book with its last brought-in date (:169), and the offline reply said plainly. Source of debt: tasks/refinements/sync/fork_follow.md (sync.fork_follow). Workflow 11. Tests: behavior (the preview screen and the notice with Testing Library and axe, keyboard paths through Not now and Bring them in, stale and unreachable replies); e2e-web (Ana's account pushes a new save to a book Bia forked, Bia brings it in on phone, tablet and computer; Bia removed from the original sees the notice; axe, mockup W11#2-3). Refinement: tasks/refinements/books/bring_in.md"
   }
   task upload_ui "Upload preview" {
     effort 2d
