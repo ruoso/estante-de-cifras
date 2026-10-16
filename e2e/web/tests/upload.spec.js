@@ -9,7 +9,7 @@ import { uploadZip } from '../lib/journeys-files.js';
 // viewports (the phone/tablet/computer projects auto-run every spec). The whole
 // journey is local: a `.zip` is read in the browser, previewed by the Worker and
 // imported to a local book with no account (workflow 7 §Uploading a book) — so no
-// seeding seam is needed. Axe at WCAG 2.1 AA covers the picker, the open preview
+// seeding seam is needed. Axe at WCAG 2.1 AA covers the chooser, the open preview
 // and the merge preview on every viewport (contrast included — the real browser
 // gives axe the layout jsdom lacks). Pins workflow 7 L64-99; DIRECTION §4 L434.
 //
@@ -27,6 +27,24 @@ async function openBooks(page) {
   await gotoTab(page, 'Books');
 }
 
+// The preview takes the whole screen (books.add_book_chooser Decision 5; W07 #3):
+// no rail or tab bar beside or under it on any viewport; and its mode switch is
+// one row (Decision 6; W07 #3 L119-122) — the two segments share a top and a
+// height, measured, since jsdom has no layout (Decision 7).
+async function expectFullScreenOneRow(page) {
+  await expect(page.getByRole('tablist', { name: 'Destinations' })).toHaveCount(0);
+  const group = page.getByRole('radiogroup', { name: 'What to do with the upload' });
+  const boxes = [];
+  for (const name of ['Import as a new book', 'Merge into an existing book']) {
+    const box = await group.locator('.upload-what-opt', { hasText: name }).boundingBox();
+    expect(box, `the "${name}" segment is laid out`).not.toBeNull();
+    boxes.push(box);
+  }
+  expect(Math.abs(boxes[0].y - boxes[1].y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(boxes[0].height - boxes[1].height)).toBeLessThanOrEqual(1);
+  expect(boxes[1].x).toBeGreaterThan(boxes[0].x);
+}
+
 test('a zip uploaded as a new book appears on the shelf (workflow 7 §Ends one of two ways)', async ({
   page,
   checkA11y,
@@ -39,7 +57,8 @@ test('a zip uploaded as a new book appears on the shelf (workflow 7 §Ends one o
   // ("Title added: Partida; …"), so a loose substring match is not unique.
   await expect(page.getByText('Partida', { exact: true })).toBeVisible();
   await expect(page.getByText('Chegada', { exact: true })).toBeVisible();
-  await mockup(page, 'W07-add-a-book', 3);
+  await expectFullScreenOneRow(page);
+  await mockup(page, 'W07-add-a-book', 3, { note: 'full screen, one row' });
   await checkA11y(); // the open preview
 
   await page.getByRole('button', { name: 'Import as a new book' }).click();
@@ -58,6 +77,7 @@ test('a zip merged into an existing book replaces song by song (workflow 7 §A z
   // First bring a book onto the shelf to merge into.
   await uploadZip(page, BOOK_ZIP);
   await expect(page.getByText('Partida', { exact: true })).toBeVisible();
+  await expectFullScreenOneRow(page);
   await page.getByRole('button', { name: 'Import as a new book' }).click();
   await expect(page.getByRole('button', { name: new RegExp(`^${TITLE}`) })).toBeVisible();
 
@@ -71,6 +91,8 @@ test('a zip merged into an existing book replaces song by song (workflow 7 §A z
   // line (which also contains words like "added").
   await expect(page.getByText('replace', { exact: true })).toBeVisible();
   await expect(page.getByText('added', { exact: true })).toBeVisible();
+  await expectFullScreenOneRow(page);
+  await mockup(page, 'W07-add-a-book', 3, { note: 'full screen, one row' });
   await checkA11y(); // the merge preview
 
   await page.getByRole('button', { name: 'Merge and save' }).click();

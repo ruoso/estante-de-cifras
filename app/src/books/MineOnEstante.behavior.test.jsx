@@ -18,12 +18,16 @@ import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import BooksScreen from './BooksScreen.jsx';
 
-const renderScreen = (store) =>
+const renderScreen = (store, props = {}) =>
   render(
     <ThemeRoot store={store}>
-      <BooksScreen store={store} />
+      <BooksScreen store={store} {...props} />
     </ThemeRoot>,
   );
+
+// The chooser's Mine on Estante row (books.add_book_chooser; W07 #2 L87-95): a
+// group named by the row's name, holding its own controls.
+const mineRow = (dialog) => within(dialog).getByRole('group', { name: 'Mine on Estante' });
 
 function makeStore() {
   const sent = [];
@@ -54,17 +58,35 @@ describe('Mine on Estante (behavior)', () => {
     expect(lastCommand(sent, CommandKind.LIST_MINE)).toBeTruthy();
   });
 
-  it('signed out: shows "Sign in to see them" and offers the passkey surface (W07 L91-92)', async () => {
+  it('signed out: the Mine row says "Sign in to see them" and offers a passkey or an emailed link, each to the sign-in seam at its step (W07 L87-95; books.add_book_chooser)', async () => {
+    const asked = [];
     const { store, emit } = makeStore();
-    renderScreen(store);
-    const dialog = openSheet();
+    renderScreen(store, { onSignIn: (how) => asked.push(how) });
+    let dialog = openSheet();
 
     emit(event(EventKind.MINE, { status: 'signed_out', books: [] }));
 
-    expect(within(dialog).getByText(/Sign in to see them/)).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+    const row = mineRow(dialog);
+    expect(within(row).getByText(/Sign in to see them/)).toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: 'Sign in with a passkey' })).toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: 'No passkey here? Email me a link' })).toBeInTheDocument();
+    // The old one-word "Sign in" (create intent) is gone.
+    expect(within(dialog).queryByRole('button', { name: 'Sign in' })).toBeNull();
 
     expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+
+    // Each closes the sheet and asks for the sign-in surface at its step.
+    act(() => fireEvent.click(within(row).getByRole('button', { name: 'Sign in with a passkey' })));
+    expect(asked).toEqual(['method']);
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    dialog = openSheet();
+    emit(event(EventKind.MINE, { status: 'signed_out', books: [] }));
+    act(() =>
+      fireEvent.click(within(mineRow(dialog)).getByRole('button', { name: 'No passkey here? Email me a link' })),
+    );
+    expect(asked).toEqual(['method', 'email']);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('signed in: lists the account’s off-shelf books, and Add clones one (ADD_MINE)', async () => {
@@ -74,9 +96,12 @@ describe('Mine on Estante (behavior)', () => {
 
     emit(event(EventKind.MINE, { status: 'ready', books: MINE }));
 
-    // Both off-shelf books are listed by title.
-    expect(within(dialog).getByText('Choros da Ana')).toBeInTheDocument();
-    expect(within(dialog).getByText('Turma de quarta')).toBeInTheDocument();
+    // Both off-shelf books are listed by title, in place, under the Mine row's
+    // name on the chooser (books.add_book_chooser Decision 3).
+    const row = mineRow(dialog);
+    expect(within(row).getByText('Choros da Ana')).toBeInTheDocument();
+    expect(within(row).getByText('Turma de quarta')).toBeInTheDocument();
+    expect(within(row).queryByRole('button', { name: 'Sign in with a passkey' })).toBeNull();
 
     // Axe the open sheet with its list.
     expect(await checkWcag21aa(dialog)).toHaveNoViolations();

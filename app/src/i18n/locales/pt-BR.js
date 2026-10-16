@@ -26,6 +26,7 @@ export default {
   // A tela de gerenciamento de livros (books.shelf, fluxo 7). `{name}` é o
   // título de um livro; `{count}` o número de alterações aguardando sincronia.
   books: {
+    back: 'Voltar',
     add: 'Adicionar livro',
     addTitle: 'Adicionar um livro',
     close: 'Fechar',
@@ -42,7 +43,8 @@ export default {
     mineOnEstante: 'Meus na Estante',
     mineMeta: 'Seus livros que ainda não estão nesta estante.',
     mineSignedOut: 'Entre para vê-los.',
-    mineSignIn: 'Entrar',
+    mineSignInPasskey: 'Entrar com uma chave de acesso',
+    mineEmailLink: 'Sem chave de acesso aqui? Me envie um link por e-mail',
     mineAdd: 'Adicionar',
     mineAddLabel: 'Adicionar {name}',
     mineLeave: 'Sair',
@@ -51,7 +53,6 @@ export default {
     mineError: 'Não foi possível conectar à Estante. Tente de novo.',
     uploadRow: 'Enviar',
     uploadRowMeta: 'Um zip de um livro, com ou sem o histórico.',
-    uploadChoose: 'Escolher um zip',
     uploadTitle: 'Enviar {name}',
     uploadCancelSurface: 'Cancelar o envio',
     uploadWhatToDo: 'O que fazer com ele',

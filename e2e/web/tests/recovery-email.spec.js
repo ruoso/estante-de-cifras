@@ -18,66 +18,28 @@
 // Addresses are under @estante.test, written for this test.
 
 import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
-import { signedInDevice, startApp, hasSessionCookie } from '../lib/journeys.js';
+import { signedInDevice, hasSessionCookie } from '../lib/journeys.js';
 import { openDevice } from '../lib/devices.js';
-import { waitForMessage, extractRecoveryEmailLink } from '../lib/mail.js';
+import { waitForMessage } from '../lib/mail.js';
 import {
   uniqueEmail,
   openAccount,
   openEmailedLink,
   recoveryRegion,
   setRecoveryEmail,
+  RECOVERY_CONFIRMED as CONFIRMED,
+  readVerificationLink,
+  confirmOnFreshDevice,
+  reopenAccount,
+  accountWithConfirmed,
 } from '../lib/journeys-account.js';
 
-const CONFIRMED = 'Your recovery email is confirmed';
 const EXPIRED = 'This link has expired or was already used — send a new one from the account screen.';
 const TAKEN = 'This address is the recovery email of another Estante account — sign in with it instead.';
-
-// The newest verification link mailed to `email` — other than `previous`, when
-// an earlier one went to the same address.
-async function readVerificationLink(email, previous = null) {
-  const message = await waitForMessage(email, (m) => {
-    const link = extractRecoveryEmailLink(m);
-    return link !== null && link !== previous;
-  });
-  expect(message, 'the verification mail should arrive at the catcher').not.toBeNull();
-  return extractRecoveryEmailLink(message);
-}
 
 // Axe on a page other than the fixture's own (a fresh context's).
 async function expectAxeClean(page) {
   expect(await analyzeWcag21aa(page)).toEqual([]);
-}
-
-// Open the link on a fresh device (no service worker, no session) and expect
-// it confirmed there, still signed out. The context is closed after.
-async function confirmOnFreshDevice(browser, link) {
-  const device = await openDevice(browser);
-  try {
-    await device.page.goto(link);
-    await expect(device.page.getByRole('heading', { name: CONFIRMED })).toBeVisible();
-    expect(await hasSessionCookie(device.page)).toBe(false);
-  } finally {
-    await device.context.close();
-  }
-}
-
-// Reopen the account screen so it re-reads the region.
-async function reopenAccount(page) {
-  await startApp(page);
-  await openAccount(page);
-}
-
-// A signed-in account whose recovery email is `email`, confirmed.
-async function accountWithConfirmed(page, browser, email) {
-  await signedInDevice(page);
-  await openAccount(page);
-  await setRecoveryEmail(page, email);
-  const link = await readVerificationLink(email);
-  await confirmOnFreshDevice(browser, link);
-  await reopenAccount(page);
-  await expect(recoveryRegion(page).getByText('Confirmed', { exact: true })).toBeVisible();
-  return link;
 }
 
 test('an email set and verified via the mail catcher, opened on a fresh device (workflow 13 §Setting it, §Confirming it, §The last way in)', async ({

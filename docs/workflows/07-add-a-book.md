@@ -29,6 +29,14 @@ It lists the books on the shelf, each with:
   shelf yet.
 - **Upload**: a zip (below).
 
+The sheet is a chooser: each way in is one row, named and explained in a
+line. New book and By link open their own field in the same sheet, with a
+way back to the four. Upload goes straight to picking a zip, and its preview
+takes the whole screen. Mine on Estante lists its books in place once signed
+in. Signed out, the row offers *Sign in with a passkey* to an existing
+account, and *No passkey here? Email me a link*, which reaches an account
+only through its recovery email (workflow 13).
+
 Cloning shows its progress and can be cancelled.
 
 ## Signing in

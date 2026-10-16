@@ -16,7 +16,7 @@
 // axe-clean, now via the app-wide provider.
 
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent, act, within, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, act, within, cleanup, waitFor } from '@testing-library/react';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
@@ -30,12 +30,26 @@ const reg = (value) => ({ value, at: AT });
 // overlays portal into the `.est` token root via the app-wide provider. The one
 // store carries both the `shelf` slice the screen reads and the `preferences`
 // slice ThemeRoot reads.
-const renderScreen = (store) =>
+const renderScreen = (store, props = {}) =>
   render(
     <ThemeRoot store={store}>
-      <BooksScreen store={store} />
+      <BooksScreen store={store} {...props} />
     </ThemeRoot>,
   );
+
+// The four ways in of the Add-a-book chooser, in the board's order, each with
+// its meta line (books.add_book_chooser; W07 #2 L79-99).
+const WAYS = [
+  ['New book', 'A name, and an empty book. No account needed.'],
+  ['By link', 'Paste a link to a book on Estante.'],
+  ['Mine on Estante', 'Your books that are not on this shelf yet.'],
+  ['Upload', 'A zip of a book, with or without its history.'],
+];
+
+const openSheet = () => {
+  act(() => fireEvent.click(screen.getByRole('button', { name: 'Add a book' })));
+  return screen.getByRole('dialog', { name: 'Add a book' });
+};
 
 // A real store over a loopback endpoint: `sent` captures the commands the screen
 // posts (CREATE_BOOK / RENAME_BOOK); `emit` folds a Worker event into the store
@@ -171,7 +185,7 @@ describe('BooksScreen (behavior)', () => {
     expect(cmd.payload.reason).toBe('sync-now');
   });
 
-  it('the Add a book sheet opens by keyboard and by pointer (workflow 7 L25)', () => {
+  it('the Add a book sheet opens by keyboard and by pointer on a chooser of four ways in, no field shown; axe clean (W07 #2 L58-103; workflow 7 L23-38)', async () => {
     const { store } = makeStore();
     renderScreen(store);
     const add = screen.getByRole('button', { name: 'Add a book' });
@@ -182,25 +196,49 @@ describe('BooksScreen (behavior)', () => {
       fireEvent.keyDown(add, { key: 'Enter' });
       fireEvent.keyUp(add, { key: 'Enter' });
     });
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: 'Add a book' });
+
+    // The four rows, in order: New book, By link and Upload are buttons named
+    // by their name and described by their meta line; Mine on Estante is a group
+    // holding its own controls.
+    for (const [name, meta] of [WAYS[0], WAYS[1], WAYS[3]]) {
+      const row = within(dialog).getByRole('button', { name });
+      expect(row).toHaveAccessibleDescription(meta);
+    }
+    const mine = within(dialog).getByRole('group', { name: 'Mine on Estante' });
+    expect(within(mine).getByText(WAYS[2][1])).toBeInTheDocument();
+    const order = [...dialog.querySelectorAll('.add-choice .name')].map((n) => n.textContent);
+    expect(order).toEqual(WAYS.map(([name]) => name));
+    // A chooser, not four forms: no field in the sheet.
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+    // The rows sit in a plain container, not a list of buttons.
+    expect(within(dialog).queryByRole('list')).toBeNull();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
 
     // Close and re-open by pointer.
-    act(() => fireEvent.click(screen.getByRole('button', { name: 'Cancel' })));
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Close' })));
     expect(screen.queryByRole('dialog')).toBeNull();
     act(() => fireEvent.click(add));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
-  it('New book: submits a name, sends CREATE_BOOK, the book appears via the SHELF re-surface and focus moves to it (workflow 7 L25)', async () => {
+  it('New book: chooser → New book step (Book name focused) → submit sends CREATE_BOOK, the book appears via the SHELF re-surface and focus moves to it (workflow 7 L25)', async () => {
     const { store, sent, emit } = makeStore();
     renderScreen(store);
 
-    act(() => fireEvent.click(screen.getByRole('button', { name: 'Add a book' })));
-    const dialog = screen.getByRole('dialog');
-    // Axe the open sheet (scoped to the portaled dialog subtree).
+    const dialog = openSheet();
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'New book' })));
+
+    // The step: its heading under the sheet's own, the field focused, Back and
+    // New book. The sheet keeps its name.
+    expect(screen.getByRole('dialog', { name: 'Add a book' })).toBe(dialog);
+    expect(within(dialog).getByRole('heading', { level: 3, name: 'New book' })).toBeInTheDocument();
+    const field = within(dialog).getByRole('textbox', { name: 'Book name' });
+    expect(field).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    // Axe the step (scoped to the portaled dialog subtree).
     expect(await checkWcag21aa(dialog)).toHaveNoViolations();
 
-    const field = within(dialog).getByRole('textbox', { name: 'Book name' });
     act(() => fireEvent.change(field, { target: { value: 'Quarta à noite' } }));
     act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'New book' })));
 
@@ -219,6 +257,123 @@ describe('BooksScreen (behavior)', () => {
     // The open row (not the "Rename …" button) takes focus.
     const row = screen.getByRole('button', { name: /^Quarta à noite/ });
     expect(row).toHaveFocus();
+  });
+
+  it('New book: Back returns to the chooser with focus on the New book row; Escape and reopen starts on the chooser with an empty field (books.add_book_chooser)', () => {
+    const { store } = makeStore();
+    renderScreen(store);
+
+    let dialog = openSheet();
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'New book' })));
+    act(() =>
+      fireEvent.change(within(dialog).getByRole('textbox', { name: 'Book name' }), { target: { value: 'Rascunho' } }),
+    );
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Back' })));
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'New book' })).toHaveFocus();
+
+    // Into the step again, then Escape from it.
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'New book' })));
+    act(() => fireEvent.keyDown(within(dialog).getByRole('textbox', { name: 'Book name' }), { key: 'Escape' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    // Reopened: the chooser, and the step's field is empty.
+    dialog = openSheet();
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'New book' })));
+    expect(within(dialog).getByRole('textbox', { name: 'Book name' })).toHaveValue('');
+  });
+
+  it('By link: the step takes a pasted invitation link and Open calls onByLink with its token; a bad link is an alert; axe clean (workflow 7 L27)', async () => {
+    const opened = [];
+    const { store } = makeStore();
+    renderScreen(store, { onByLink: (token) => opened.push(token) });
+
+    let dialog = openSheet();
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'By link' })));
+    expect(within(dialog).getByRole('heading', { level: 3, name: 'By link' })).toBeInTheDocument();
+    expect(within(dialog).getByText('Paste a link to a book on Estante.')).toBeInTheDocument();
+    const field = within(dialog).getByRole('textbox', { name: 'Book link' });
+    expect(field).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+
+    // A bad link: worded, as an alert; the sheet stays.
+    act(() => fireEvent.change(field, { target: { value: 'not a link at all' } }));
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Open' })));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('That is not a book link.');
+    expect(opened).toEqual([]);
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+
+    // A good one starts the invited flow with the token and closes the sheet.
+    act(() => fireEvent.change(field, { target: { value: 'https://estante.example/i/tok-quarta' } }));
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Open' })));
+    expect(opened).toEqual(['tok-quarta']);
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    // Reopened, the By link field is cleared.
+    dialog = openSheet();
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'By link' })));
+    expect(within(dialog).getByRole('textbox', { name: 'Book link' })).toHaveValue('');
+  });
+
+  it('Upload: the row is the zip picker; a chosen zip calls onUpload with a Uint8Array and its name, and the sheet closes (books.upload_ui Decision 1)', async () => {
+    const uploads = [];
+    const { store } = makeStore();
+    renderScreen(store, { onUpload: (u) => uploads.push(u) });
+
+    const dialog = openSheet();
+    // The FileTrigger's accessible `.zip` input belongs to the Upload row.
+    const input = dialog.querySelector('input[type="file"]');
+    expect(input.getAttribute('accept')).toContain('.zip');
+    const row = within(dialog).getByRole('button', { name: 'Upload' });
+    let clicked = false;
+    input.addEventListener('click', (e) => {
+      clicked = true;
+      e.preventDefault();
+    });
+    act(() => fireEvent.click(row));
+    expect(clicked).toBe(true);
+    // Cancelling the picker (nothing chosen) leaves the chooser open.
+    expect(screen.getByRole('dialog', { name: 'Add a book' })).toBeInTheDocument();
+
+    const file = new File([new Uint8Array([1, 2, 3])], 'banda.zip', { type: 'application/zip' });
+    await act(async () => {
+      fireEvent.change(input, { target: { files: [file] } });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(uploads).toHaveLength(1));
+    expect(uploads[0].bytes).toBeInstanceOf(Uint8Array);
+    expect([...uploads[0].bytes]).toEqual([1, 2, 3]);
+    expect(uploads[0].fileName).toBe('banda.zip');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('keyboard: Tab reaches a row, Enter opens its step, Back by keyboard returns to the chooser (books.add_book_chooser)', () => {
+    const { store } = makeStore();
+    renderScreen(store);
+    const dialog = openSheet();
+
+    // Tab walks the sheet's controls (RAC's focus scope): the rows are among them.
+    const newRow = within(dialog).getByRole('button', { name: 'New book' });
+    const byLinkRow = within(dialog).getByRole('button', { name: 'By link' });
+    expect(newRow.tabIndex).toBe(0);
+    expect(byLinkRow.tabIndex).toBe(0);
+    act(() => byLinkRow.focus());
+    act(() => {
+      fireEvent.keyDown(byLinkRow, { key: 'Enter' });
+      fireEvent.keyUp(byLinkRow, { key: 'Enter' });
+    });
+    expect(within(dialog).getByRole('textbox', { name: 'Book link' })).toHaveFocus();
+
+    const back = within(dialog).getByRole('button', { name: 'Back' });
+    act(() => back.focus());
+    act(() => {
+      fireEvent.keyDown(back, { key: 'Enter' });
+      fireEvent.keyUp(back, { key: 'Enter' });
+    });
+    expect(within(dialog).queryByRole('textbox')).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'By link' })).toHaveFocus();
   });
 
   it('Rename: opens with the current name, submits RENAME_BOOK and the row re-labels (workflow 7 L16-18)', async () => {

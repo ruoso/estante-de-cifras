@@ -98,13 +98,17 @@ export default function SignIn({
   // When set, the surface boots in redeem mode and redeems this emailed-link
   // token on mount (App.jsx captures it from `/sign-in/<token>`).
   redeemToken = null,
+  // The step the surface opens at: 'method' (the default), or 'email' — the
+  // Add-a-book sheet's "No passkey here? Email me a link" lands straight on the
+  // emailed-link step (books.add_book_chooser Decision 4; workflow 13 L25-30).
+  initialStep = 'method',
   authClient = DEFAULT_CLIENT,
   // An optional human label for a newly registered passkey (device name).
   label = undefined,
   onSignedIn = () => {},
   onClose = () => {},
 }) {
-  const [step, setStep] = useState(redeemToken ? 'redeeming' : 'method');
+  const [step, setStep] = useState(redeemToken ? 'redeeming' : initialStep);
   const [error, setError] = useState(null); // an i18n leaf under `signIn`, or null
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
@@ -113,10 +117,19 @@ export default function SignIn({
   const inFlight = useRef(false); // a second press does not start two ceremonies (Constraints)
   const headingRef = useRef(null);
   const redeemStarted = useRef(false);
+  const emailRef = useRef(null);
+  // Opened at the email step, the field takes focus on arrival (there is no
+  // step before it to come from); only that first arrival.
+  const focusEmailFirst = useRef(!redeemToken && initialStep === 'email');
 
   // Move focus to each step's heading as it appears, so the keyboard and a
   // screen reader land on the new step (focus management across steps).
   useEffect(() => {
+    if (focusEmailFirst.current && emailRef.current) {
+      focusEmailFirst.current = false;
+      emailRef.current.focus();
+      return;
+    }
     headingRef.current?.focus();
   }, [step]);
 
@@ -282,6 +295,7 @@ export default function SignIn({
           <TextField className="field" value={email} onChange={setEmail} isRequired>
             <Label>{t('signIn.emailLabel')}</Label>
             <Input
+              ref={emailRef}
               className="input"
               type="email"
               autoComplete="email"

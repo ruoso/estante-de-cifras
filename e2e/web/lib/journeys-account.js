@@ -15,8 +15,9 @@ import {
   sharePasskeys,
   sessionCookie,
   bookGitUrl,
+  signedInDevice,
 } from './journeys.js';
-import { waitForMessage, extractSignInLink } from './mail.js';
+import { waitForMessage, extractSignInLink, extractRecoveryEmailLink } from './mail.js';
 import { openDevice } from './devices.js';
 import { GitDevice } from './git-device.js';
 import { baseUrl } from './env.js';
@@ -81,6 +82,78 @@ export async function setRecoveryEmail(page, email) {
   await field.fill(email);
   await region.getByRole('button', { name: 'Send a verification link' }).click();
   await expect(region.getByText('Waiting for you to confirm')).toBeVisible();
+}
+
+// ---- a confirmed recovery email (account.recovery_email) ---------------------
+
+export const RECOVERY_CONFIRMED = 'Your recovery email is confirmed';
+
+// The newest verification link mailed to `email` — other than `previous`, when
+// an earlier one went to the same address.
+export async function readVerificationLink(email, previous = null) {
+  const message = await waitForMessage(email, (m) => {
+    const link = extractRecoveryEmailLink(m);
+    return link !== null && link !== previous;
+  });
+  expect(message, 'the verification mail should arrive at the catcher').not.toBeNull();
+  return extractRecoveryEmailLink(message);
+}
+
+// Open the link on a fresh device (no service worker, no session) and expect
+// it confirmed there, still signed out. The context is closed after.
+export async function confirmOnFreshDevice(browser, link) {
+  const device = await openDevice(browser);
+  try {
+    await device.page.goto(link);
+    await expect(device.page.getByRole('heading', { name: RECOVERY_CONFIRMED })).toBeVisible();
+    expect(await hasSessionCookie(device.page)).toBe(false);
+  } finally {
+    await device.context.close();
+  }
+}
+
+// Reopen the account screen so it re-reads the region.
+export async function reopenAccount(page) {
+  await startApp(page);
+  await openAccount(page);
+}
+
+// A signed-in account whose recovery email is `email`, confirmed. Returns the
+// verification link it was confirmed with.
+export async function accountWithConfirmed(page, browser, email) {
+  await signedInDevice(page);
+  await openAccount(page);
+  await setRecoveryEmail(page, email);
+  const link = await readVerificationLink(email);
+  await confirmOnFreshDevice(browser, link);
+  await reopenAccount(page);
+  await expect(recoveryRegion(page).getByText('Confirmed', { exact: true })).toBeVisible();
+  return link;
+}
+
+// From the Add-a-book chooser's Mine on Estante row, signed out
+// (books.add_book_chooser Decision 4): open the sign-in surface for an EXISTING
+// account — `'passkey'` lands on its method step ("Sign in"), `'email'` on its
+// email step ("Email me a link", "Your email"). Starts from the Books
+// destination; `onChooser(sheet)` runs on the chooser once Mine has answered.
+export async function signInFromMine(page, how, { onChooser } = {}) {
+  await gotoTab(page, 'Books');
+  await page.getByRole('button', { name: 'Add a book' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Add a book' });
+  const mine = sheet.getByRole('group', { name: 'Mine on Estante' });
+  const passkey = mine.getByRole('button', { name: 'Sign in with a passkey' });
+  const email = mine.getByRole('button', { name: 'No passkey here? Email me a link' });
+  await expect(passkey).toBeVisible();
+  await expect(email).toBeVisible();
+  if (onChooser) await onChooser(sheet);
+  if (how === 'email') {
+    await email.click();
+    await expect(page.getByRole('heading', { name: 'Email me a link' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Your email' })).toBeFocused();
+  } else {
+    await passkey.click();
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  }
 }
 
 // Emailed-link sign-in, then add a passkey on the offer (needs a virtual

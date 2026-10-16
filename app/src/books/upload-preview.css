@@ -23,18 +23,26 @@
 
 /* The "what to do" choice: a RAC RadioGroup worn as the board's segmented
    control. Each Radio is a labelled segment; the chosen one takes the accent
-   wash (the .seg button.on look), and the word is always the marker. */
+   wash (the .seg button.on look), and the word is always the marker.
+   One row at every width (W07 #3 L119-122; books.add_book_chooser Decision 6):
+   the switch is as wide as its section and each segment takes half, so a long
+   label wraps inside its own segment rather than the second segment dropping
+   under the first. */
 .upload-what {
-  align-self: flex-start;
-  max-width: 100%;
-  flex-wrap: wrap;
+  display: flex;
+  align-self: stretch;
+  flex-wrap: nowrap;
 }
 .upload-what-opt {
   position: relative;
-  display: inline-flex;
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
   align-items: center;
+  justify-content: center;
+  text-align: center;
   min-height: 40px;
-  padding: 0 14px;
+  padding: 6px 14px;
   background: var(--surface);
   border-right: 1px solid var(--line);
   font: 600 14px var(--font-ui);

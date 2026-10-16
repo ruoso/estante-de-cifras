@@ -129,18 +129,75 @@
   color: var(--ink-2);
 }
 
-/* The Add-a-book sheet's further ways in (books.add_by_link; W07 L83-98): By
-   link and Mine on Estante, each a titled block separated from the New-book form
-   by a hairline. Layout only — colours are theme tokens. */
-.add-section {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--u) * 1.25);
-  padding-top: calc(var(--u) * 1.75);
-  border-top: 1px solid var(--line);
+/* The Add-a-book chooser (books.add_book_chooser; W07 #2 L79-99): four rows,
+   each an accent icon, a name and a meta line. A row that is a button wears the
+   theme's .row (a RAC Button resets the native button look here); the meta line
+   may wrap on a phone rather than lose its words. Layout only — colours are
+   theme tokens. */
+.add-choice {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+}
+/* Upload is the last row, though the FileTrigger's hidden input follows it. */
+.add-choices > button.add-choice:last-of-type {
+  border-bottom: 0;
+}
+.add-choice[data-focus-visible] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.add-choice[data-pressed] {
+  background: var(--surface-2);
+}
+.add-choice .meta {
+  white-space: normal;
+}
+.add-choice-icon {
+  color: var(--accent);
+  flex: none;
+}
+/* Mine on Estante holds its own controls under its name (W07 L87-95). */
+.add-mine {
+  align-items: flex-start;
+}
+.add-mine .add-choice-icon {
+  margin-top: 2px;
+}
+.add-mine > .grow {
+  gap: var(--u);
+}
+.add-mine .mine-sign-in {
+  align-self: flex-start;
+}
+/* "No passkey here? Email me a link": a RAC Button worn as the board's accent
+   link (W07 L93) — it starts an action in the app, it is not an address. */
+.mine-email-link {
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.mine-email-link[data-focus-visible] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-.add-section .mine-note {
+/* A step's own heading and help (New book, By link): the second level inside
+   the sheet, named "Add a book" throughout. */
+.add-step-title {
+  margin: 0;
+}
+.book-form .mine-note,
+.add-mine .mine-note {
   color: var(--ink-2);
   margin: 0;
 }

@@ -11,15 +11,20 @@ const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // ---- uploading a book (workflow 7) ---------------------------------------------
 
-// From the Books destination: pick a zip through the Add-a-book Upload way-in;
-// the full-screen preview opens. `checkA11y`, when given, runs on the picker.
+// From the Books destination: pick a zip through the Add-a-book chooser's Upload
+// row, which is the file picker itself (books.add_book_chooser Decision 2); the
+// full-screen preview opens. `checkA11y`, when given, runs on the chooser.
 export async function uploadZip(page, zipPath, checkA11y) {
   await page.getByRole('button', { name: 'Add a book' }).click();
   const sheet = page.getByRole('dialog');
   await expect(sheet).toBeVisible();
-  await expect(sheet.getByText('A zip of a book, with or without its history.')).toBeVisible();
-  if (checkA11y) await checkA11y(); // the picker
-  await sheet.locator('input[type="file"]').setInputFiles(zipPath);
+  const row = sheet.getByRole('button', { name: 'Upload' });
+  await expect(row).toHaveAccessibleDescription('A zip of a book, with or without its history.');
+  if (checkA11y) await checkA11y(); // the chooser
+  const chooser = page.waitForEvent('filechooser');
+  await row.click();
+  await (await chooser).setFiles(zipPath);
+  await expect(sheet).toBeHidden();
   await expect(page.getByRole('radiogroup', { name: 'What to do with the upload' })).toBeVisible();
 }
 

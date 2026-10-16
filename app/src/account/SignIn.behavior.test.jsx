@@ -188,6 +188,29 @@ describe('the sign-in surface (behavior)', () => {
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 
+  // books.add_book_chooser Decision 4: the Add-a-book sheet's "No passkey here?
+  // Email me a link" opens the surface straight at the email step, which reaches
+  // an account only through its recovery email (workflow 13 L25-30).
+  it('opens at the email step: initialStep="email" shows "Email me a link" with "Your email" focused, and sending reaches "Check your email", axe clean', async () => {
+    const { client, calls } = makeClient({
+      'POST /api/auth/email/request': () => ({ status: 202 }),
+    });
+    render(<SignIn intent="signIn" initialStep="email" authClient={client} />);
+
+    expect(screen.getByRole('heading', { name: 'Email me a link' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Sign in' })).toBeNull();
+    const input = screen.getByRole('textbox', { name: 'Your email' });
+    await waitFor(() => expect(input).toHaveFocus());
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+    fireEvent.change(input, { target: { value: 'player@example.com' } });
+    fireEvent.submit(document.querySelector('form.account-form'));
+
+    await screen.findByRole('heading', { name: 'Check your email' });
+    expect(callTo(calls, 'POST', '/api/auth/email/request').body.email).toBe('player@example.com');
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
   it('redeems an emailed link on boot, then shows the offer-a-passkey step, axe clean', async () => {
     const { client, calls } = makeClient({
       'POST /api/auth/email/redeem': () => ({ body: { id: 'u_mail' } }),

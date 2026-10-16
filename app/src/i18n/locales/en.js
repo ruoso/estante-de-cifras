@@ -26,6 +26,7 @@ export default {
   // The book-management screen (books.shelf, workflow 7). `{name}` is a book's
   // title; `{count}` the number of saves waiting to sync.
   books: {
+    back: 'Back',
     add: 'Add a book',
     addTitle: 'Add a book',
     close: 'Close',
@@ -46,7 +47,8 @@ export default {
     mineOnEstante: 'Mine on Estante',
     mineMeta: 'Your books that are not on this shelf yet.',
     mineSignedOut: 'Sign in to see them.',
-    mineSignIn: 'Sign in',
+    mineSignInPasskey: 'Sign in with a passkey',
+    mineEmailLink: 'No passkey here? Email me a link',
     mineAdd: 'Add',
     mineAddLabel: 'Add {name}',
     mineLeave: 'Leave',
@@ -60,7 +62,6 @@ export default {
     // marked commit and file.
     uploadRow: 'Upload',
     uploadRowMeta: 'A zip of a book, with or without its history.',
-    uploadChoose: 'Choose a zip',
     uploadTitle: 'Upload {name}',
     uploadCancelSurface: 'Cancel the upload',
     uploadWhatToDo: 'What to do with it',

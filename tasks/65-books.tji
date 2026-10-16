@@ -156,8 +156,9 @@ task books "Books" {
   task add_book_chooser "Add a book as a four-way chooser" {
     effort 1d
     allocate team
+    complete 100
     depends !add_by_link, !upload_ui
-    note "The W07 board opens Add a book as a chooser of four ways in (new, by link, mine on Estante, upload); the app shows four inline forms. The upload preview is a side pane whose mode switch wraps. Under Mine on Estante the board offers No passkey here? Email me a link, which needs a recovery email to exist (account.recovery_email). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (each way in from the chooser; axe); e2e-web (each way on the three viewports, mockup W07#1-4)."
+    note "The W07 board opens Add a book as a chooser of four ways in (new, by link, mine on Estante, upload); the app shows four inline forms. The upload preview is a side pane whose mode switch wraps. Under Mine on Estante the board offers No passkey here? Email me a link, which needs a recovery email to exist (account.recovery_email). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (each way in from the chooser; axe); e2e-web (each way on the three viewports, mockup W07#1-4). Refinement: tasks/refinements/books/add_book_chooser.md"
   }
   task setlist_play_chrome "Playing a setlist shows its key" {
     effort 0.5d

@@ -32,6 +32,7 @@
 import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
 import {
   enableVirtualAuthenticator,
+  hasSessionCookie,
   gotoTab,
   makeLocalBook,
   putBookOnline,
@@ -47,7 +48,14 @@ import {
   openSharing,
   closeSharing,
 } from '../lib/journeys-share.js';
-import { signInExistingWithPasskey, untilAccountShelf } from '../lib/journeys-account.js';
+import {
+  accountWithConfirmed,
+  signInExistingWithPasskey,
+  signInFromMine,
+  uniqueEmail,
+  untilAccountShelf,
+} from '../lib/journeys-account.js';
+import { waitForMessage, extractSignInLink } from '../lib/mail.js';
 import { openBookRow } from '../lib/journeys-sync.js';
 import { fillBookToCapacity } from '../lib/db.js';
 import { openDevice } from '../lib/devices.js';
@@ -278,10 +286,16 @@ test.describe('add by link', () => {
       await signedInDevice(joiner.page);
       await gotoTab(joiner.page, 'Books');
       await joiner.page.getByRole('button', { name: 'Add a book' }).click();
-      const sheet = joiner.page.getByRole('dialog');
+      const sheet = joiner.page.getByRole('dialog', { name: 'Add a book' });
       await expect(sheet).toBeVisible();
-      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the Add-a-book sheet
-      await mockup(joiner.page, 'W07-add-a-book', 2);
+      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the chooser
+
+      // The By link row opens its step in the sheet (books.add_book_chooser).
+      await sheet.getByRole('button', { name: 'By link' }).click();
+      await expect(sheet.getByRole('heading', { name: 'By link' })).toBeVisible();
+      await expect(sheet.getByRole('textbox', { name: 'Book link' })).toBeFocused();
+      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the By link step
+      await mockup(joiner.page, 'W07-add-a-book', 2, { note: 'by link' });
 
       // Something that is not a book link is refused in place.
       await sheet.getByRole('textbox', { name: 'Book link' }).fill('not a link');
@@ -316,23 +330,88 @@ test.describe('add by link', () => {
   }
 
   // Workflow 13 §What comes down (account.new_device): the shelf fills on its
-  // own, so the account's book is not offered twice under Add a book.
-  test('a second device signs in to the same account with a synced passkey: the account’s book comes onto its shelf, and Mine on Estante does not offer it twice (workflows 7, 13)', async ({
+  // own, so the account's book is not offered twice under Add a book. The
+  // second device signs in FROM THE CHOOSER: Mine on Estante's "Sign in with a
+  // passkey" opens the surface for an existing account (books.add_book_chooser
+  // Decision 4), never the create intent.
+  test('a second device signs in from the chooser to the same account with a synced passkey: the account’s book comes onto its shelf, and Mine on Estante does not offer it twice (workflows 7, 13)', async ({
     browser,
     page,
   }) => {
     test.setTimeout(60000);
     const first = await ownerWithBooks(page, ['Minhas cifras']);
-    const other = await secondDevice(browser, page, first, 'Minhas cifras');
+    await untilAccountShelf(page, (shelf) =>
+      Object.values(shelf.books ?? {}).some((b) => b?.label?.value === 'Minhas cifras' && b?.link?.value),
+    );
+    const other = await openDevice(browser);
+    const second = await enableVirtualAuthenticator(other.page);
+    expect(await sharePasskeys(first, second)).toBeGreaterThan(0);
     try {
+      await startApp(other.page);
+      await signInFromMine(other.page, 'passkey', {
+        onChooser: async () => {
+          expect(await analyzeWcag21aa(other.page)).toEqual([]); // axe: the signed-out chooser
+        },
+      });
+      await other.page.getByRole('button', { name: 'Use a passkey' }).click();
+      await expect.poll(() => hasSessionCookie(other.page)).toBe(true);
+
+      await gotoTab(other.page, 'Books');
       await expect(other.page.getByRole('button', { name: rowFor('Minhas cifras') })).toBeVisible({ timeout: 30000 });
       await other.page.getByRole('button', { name: 'Add a book' }).click();
-      const sheet = other.page.getByRole('dialog');
+      const sheet = other.page.getByRole('dialog', { name: 'Add a book' });
       await expect(sheet).toBeVisible();
-      await expect(sheet.getByText('All your books are already on this shelf.')).toBeVisible({ timeout: 10000 });
-      expect(await analyzeWcag21aa(other.page)).toEqual([]); // axe: the Add-a-book sheet
+      const mine = sheet.getByRole('group', { name: 'Mine on Estante' });
+      await expect(mine.getByText('All your books are already on this shelf.')).toBeVisible({ timeout: 10000 });
+      expect(await analyzeWcag21aa(other.page)).toEqual([]); // axe: the signed-in chooser
     } finally {
       await other.context.close();
+    }
+  });
+
+  // Workflow 13 L25-30 (books.add_book_chooser Decision 4): a device with no
+  // passkey signs in from the chooser by the account's recovery email — "No
+  // passkey here? Email me a link" lands on the email step, the mail's
+  // /sign-in/<token> link signs in, and the account's book comes down.
+  test('No passkey here? Email me a link, from Mine on Estante, signs in an account by its recovery email (workflows 7, 13)', async ({
+    browser,
+    page,
+  }) => {
+    test.setTimeout(60000);
+    const email = uniqueEmail('mine');
+    await accountWithConfirmed(page, browser, email);
+    await startApp(page);
+    await makeLocalBook(page, 'Cifras do sábado');
+    await putBookOnline(page, 'Cifras do sábado');
+    await untilAccountShelf(page, (shelf) =>
+      Object.values(shelf.books ?? {}).some((b) => b?.label?.value === 'Cifras do sábado' && b?.link?.value),
+    );
+
+    // A fresh device with no passkey.
+    const fresh = await openDevice(browser);
+    try {
+      await startApp(fresh.page);
+      await signInFromMine(fresh.page, 'email');
+      expect(await analyzeWcag21aa(fresh.page)).toEqual([]); // axe: the email step
+      await fresh.page.getByRole('textbox', { name: 'Your email' }).fill(email);
+      await fresh.page.getByRole('button', { name: 'Send the link' }).click();
+      await expect(fresh.page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+
+      const message = await waitForMessage(email, (m) => extractSignInLink(m) !== null);
+      expect(message, 'the sign-in mail should arrive at the catcher').not.toBeNull();
+      const link = extractSignInLink(message);
+      expect(link, 'the mail should carry a /sign-in/<token> link').not.toBeNull();
+      await fresh.page.goto(link);
+      await expect(fresh.page.getByRole('heading', { name: 'Make signing in quicker' })).toBeVisible();
+      await expect.poll(() => hasSessionCookie(fresh.page)).toBe(true);
+      await fresh.page.getByRole('button', { name: 'Not now' }).click();
+
+      // The account's book comes onto this shelf, On Estante.
+      await gotoTab(fresh.page, 'Books');
+      await expect(fresh.page.getByRole('button', { name: rowFor('Cifras do sábado') })).toBeVisible({ timeout: 30000 });
+      await expect(fresh.page.getByText(/^On Estante/).first()).toBeVisible();
+    } finally {
+      await fresh.context.close();
     }
   });
 
@@ -354,7 +433,10 @@ test.describe('add by link', () => {
 
       await other.page.getByRole('button', { name: 'Add a book' }).click();
       const sheet = other.page.getByRole('dialog');
-      await expect(sheet.getByText('Minhas cifras')).toBeVisible({ timeout: 10000 });
+      // Listed in place, in the chooser's Mine on Estante row.
+      await expect(
+        sheet.getByRole('group', { name: 'Mine on Estante' }).getByText('Minhas cifras'),
+      ).toBeVisible({ timeout: 10000 });
       expect(await analyzeWcag21aa(other.page)).toEqual([]); // axe: the Add-a-book sheet with the list
       await sheet.getByRole('button', { name: 'Add Minhas cifras' }).click();
 

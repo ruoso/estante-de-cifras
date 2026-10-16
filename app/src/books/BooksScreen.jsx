@@ -7,9 +7,9 @@
 //
 // It is the shelf LIST plus NEW and RENAME. Each book row shows its title, where
 // it lives, whether the user can save, and — only when a book is not in step —
-// its sync state (workflow 7 L14-21; W07 board). *Add a book* opens a sheet with
-// the New-book flow (the other three ways in are books.add_by_link /
-// books.upload_ui; Decision 6). Rename writes a label kept in the home book that
+// its sync state (workflow 7 L14-21; W07 board). *Add a book* opens a sheet that
+// chooses between the four ways in (books.add_book_chooser); the upload preview
+// a zip leads to is the shell's full-screen surface, not this screen's. Rename writes a label kept in the home book that
 // changes nothing in the repository (workflow 7 L16-18; Decision 3). Putting a
 // book online, removing, deleting and the per-book detail are books.online's.
 //
@@ -22,7 +22,7 @@
 // RAC overlays portal into the `.est` token root app-wide via the
 // UNSAFE_PortalProvider in ThemeRoot (shell.portal_provider) — no per-screen
 // portal container is threaded through here any more.
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Button,
   Dialog,
@@ -55,7 +55,6 @@ import { chipLabel } from '../instruments/instrument-helpers.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
 import { syncDisplayFor, anyOutOfStep } from '../sync-display.js';
 import BookDetail from './BookDetail.jsx';
-import UploadPreview from './UploadPreview.jsx';
 import BringIn from './BringIn.jsx';
 import LeaveDialog from './LeaveDialog.jsx';
 import './books.css';
@@ -360,12 +359,58 @@ function ElsewhereRows({ elsewhere }) {
   );
 }
 
-// The "mine on Estante" sub-section of the Add-a-book sheet (books.add_by_link,
+// The chooser's row icons (W07 #2 L80-98): 22px, in the accent, decorative —
+// each row is named by its own words.
+function ChoiceIcon({ children }) {
+  return (
+    <svg
+      className="add-choice-icon"
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {children}
+    </svg>
+  );
+}
+
+// The key on Mine's "Sign in with a passkey" (W07 L92); decorative.
+function KeyIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="8" cy="15" r="4" />
+      <path d="M11 12l9-9M17 6l3 3M15 8l2 2" />
+    </svg>
+  );
+}
+
+// The "mine on Estante" row of the Add-a-book chooser (books.add_by_link,
 // workflow 7 §Add-a-book L28-29; W07 L87-95): the account's books not yet on this
 // device's shelf, computed by the Worker as the `listBooks`-minus-shelf diff and
 // carried in the `mine` slice. Signed out, it says so in a word and offers the
-// passkey surface; signed in, it lists each off-shelf book with an Add that
-// clones it (ADD_MINE). A status carried by a word, never colour alone.
+// two ways in for an existing account (books.add_book_chooser Decision 4): *Sign
+// in with a passkey* and *No passkey here? Email me a link*, each handed to
+// `onSignIn` with the sign-in step to open at ('method' / 'email'). Signed in,
+// it lists each off-shelf book with an Add that clones it (ADD_MINE). A status
+// carried by a word, never colour alone.
 //
 // A row whose role is not `owner` also offers Leave (books.leave; workflow 10
 // L99-101, Leave-book board L143): the same confirmation as book management,
@@ -375,11 +420,14 @@ function MineList({ store, mine, onAddMine, onSignIn }) {
   if (status === 'signed_out') {
     return (
       <>
-        <p className="t-small mine-note" role="status">
-          {t('books.mineSignedOut')}
-        </p>
-        <Button className="btn" onPress={onSignIn}>
-          {t('books.mineSignIn')}
+        <Button className="btn mine-sign-in" onPress={() => onSignIn('method')}>
+          <KeyIcon />
+          {t('books.mineSignInPasskey')}
+        </Button>
+        {/* An action in the app, not an address: a RAC Button worn as the
+            board's accent link (W07 L93). */}
+        <Button className="t-small mine-email-link" onPress={() => onSignIn('email')}>
+          {t('books.mineEmailLink')}
         </Button>
       </>
     );
@@ -437,27 +485,81 @@ function MineList({ store, mine, onAddMine, onSignIn }) {
   return null; // idle: the list has not loaded yet
 }
 
+// One row of the chooser that is a button (W07 L79-86, L96-99): an accent icon,
+// the way's name and its meta line. The row is named by its name and described
+// by its meta line (aria-labelledby / aria-describedby), so a screen reader
+// hears "New book, button" and then the line that explains it.
+function ChoiceRow({ id, icon, name, meta, buttonRef, onPress }) {
+  return (
+    <Button
+      ref={buttonRef}
+      className="row add-choice"
+      aria-labelledby={`${id}-name`}
+      aria-describedby={`${id}-meta`}
+      onPress={onPress}
+    >
+      <ChoiceIcon>{icon}</ChoiceIcon>
+      <span className="grow">
+        <span className="name" id={`${id}-name`}>
+          {name}
+        </span>
+        <span className="meta" id={`${id}-meta`}>
+          {meta}
+        </span>
+      </span>
+    </Button>
+  );
+}
+
 // The *Add a book* affordance: the header "+" trigger and the bottom sheet it
-// opens (W07 board). The sheet carries the four ways in (workflow 7 L13-33): New
-// book (a local repository, no account — workflow 7 L25), By link (paste a book's
-// invitation link → the invited flow, books.add_by_link), Mine on Estante (the
-// account's off-shelf books), and Upload (books.upload_ui, not this task). On
-// open it asks the Worker for the "mine" list (LIST_MINE); New book sends
-// CREATE_BOOK, By link starts the invited flow with the pasted token, and each
-// Mine row sends ADD_MINE.
+// opens (W07 #2). The sheet is a chooser (books.add_book_chooser; workflow 7
+// L23-38): four rows, New book, By link, Mine on Estante and Upload, in the
+// board's order. New book and By link open their one field as a step in the
+// same sheet, with Back to the four (Decision 1); Upload's row is the zip picker
+// itself (Decision 2); Mine on Estante holds its own controls in place
+// (Decision 3). On open it asks the Worker for the "mine" list (LIST_MINE); New
+// book sends CREATE_BOOK, By link starts the invited flow with the pasted token,
+// each Mine row sends ADD_MINE, and a picked zip goes to `onUpload`.
+//
+// The step is ephemeral sheet state: closing the sheet from a step and reopening
+// it starts on the chooser with the fields cleared. The sheet keeps its name,
+// "Add a book", in every step; a step's own heading is the level below it.
 function AddBookSheet({ store, onCreate, onByLink, onSignIn, onAddMine, onListMine, onUpload, mine }) {
+  const [step, setStep] = useState('choose'); // 'choose' | 'new' | 'byLink'
   const [name, setName] = useState('');
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState(false);
+  const idBase = useId();
+  const rowRefs = useRef({});
+  // A step's field takes focus on arrival; Back puts focus on the row the step
+  // came from.
+  const fieldRef = useRef(null);
+  const backTo = useRef(null);
+  useEffect(() => {
+    if (step !== 'choose') {
+      fieldRef.current?.focus();
+      return;
+    }
+    if (!backTo.current) return;
+    rowRefs.current[backTo.current]?.focus();
+    backTo.current = null;
+  }, [step]);
+  const goBack = () => {
+    backTo.current = step;
+    setStep('choose');
+  };
+  const mineStatus = mine?.status ?? 'idle';
   return (
     <DialogTrigger
       onOpenChange={(open) => {
         if (open) {
           onListMine();
         } else {
+          setStep('choose');
           setName('');
           setLink('');
           setLinkError(false);
+          backTo.current = null;
         }
       }}
     >
@@ -491,36 +593,34 @@ function AddBookSheet({ store, onCreate, onByLink, onSignIn, onAddMine, onListMi
                     </svg>
                   </Button>
                 </div>
-                <form
-                  className="book-form"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const trimmed = name.trim();
-                    if (!trimmed) return;
-                    onCreate(trimmed);
-                    close();
-                  }}
-                >
-                  <TextField className="field" value={name} onChange={setName}>
-                    <Label>{t('books.nameLabel')}</Label>
-                    <Input className="input" placeholder={t('books.namePlaceholder')} />
-                  </TextField>
-                  <p className="t-small">{t('books.newBookHelp')}</p>
-                  <div className="actions">
-                    <Button className="btn" onPress={close}>
-                      {t('books.cancel')}
-                    </Button>
-                    <Button type="submit" className="btn primary">
-                      {t('books.create')}
-                    </Button>
-                  </div>
-                </form>
 
-                <section className="add-section" aria-labelledby="add-bylink-h">
-                  <h3 className="t-h3" id="add-bylink-h">
-                    {t('books.byLink')}
-                  </h3>
-                  <p className="t-small mine-note">{t('books.byLinkMeta')}</p>
+                {step === 'new' ? (
+                  <form
+                    className="book-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const trimmed = name.trim();
+                      if (!trimmed) return;
+                      onCreate(trimmed);
+                      close();
+                    }}
+                  >
+                    <h3 className="t-h3 add-step-title">{t('books.create')}</h3>
+                    <TextField className="field" value={name} onChange={setName}>
+                      <Label>{t('books.nameLabel')}</Label>
+                      <Input ref={fieldRef} className="input" placeholder={t('books.namePlaceholder')} />
+                    </TextField>
+                    <p className="t-small mine-note">{t('books.newBookHelp')}</p>
+                    <div className="actions">
+                      <Button className="btn" onPress={goBack}>
+                        {t('books.back')}
+                      </Button>
+                      <Button type="submit" className="btn primary">
+                        {t('books.create')}
+                      </Button>
+                    </div>
+                  </form>
+                ) : step === 'byLink' ? (
                   <form
                     className="book-form"
                     onSubmit={(event) => {
@@ -534,6 +634,8 @@ function AddBookSheet({ store, onCreate, onByLink, onSignIn, onAddMine, onListMi
                       close();
                     }}
                   >
+                    <h3 className="t-h3 add-step-title">{t('books.byLink')}</h3>
+                    <p className="t-small mine-note">{t('books.byLinkMeta')}</p>
                     <TextField
                       className="field"
                       value={link}
@@ -544,6 +646,7 @@ function AddBookSheet({ store, onCreate, onByLink, onSignIn, onAddMine, onListMi
                     >
                       <Label>{t('books.byLinkLabel')}</Label>
                       <Input
+                        ref={fieldRef}
                         className="input"
                         inputMode="url"
                         autoCapitalize="off"
@@ -558,45 +661,77 @@ function AddBookSheet({ store, onCreate, onByLink, onSignIn, onAddMine, onListMi
                       </p>
                     ) : null}
                     <div className="actions">
+                      <Button className="btn" onPress={goBack}>
+                        {t('books.back')}
+                      </Button>
                       <Button type="submit" className="btn primary">
                         {t('books.byLinkOpen')}
                       </Button>
                     </div>
                   </form>
-                </section>
-
-                <section className="add-section" aria-labelledby="add-mine-h">
-                  <h3 className="t-h3" id="add-mine-h">
-                    {t('books.mineOnEstante')}
-                  </h3>
-                  <p className="t-small mine-note">{t('books.mineMeta')}</p>
-                  <MineList
-                    store={store}
-                    mine={mine}
-                    onAddMine={(book) => {
-                      onAddMine(book);
-                      close();
-                    }}
-                    onSignIn={() => {
-                      onSignIn();
-                      close();
-                    }}
-                  />
-                </section>
-
-                {/* Upload (books.upload_ui; W07 L96-99): a zip of a book read as
-                    a remote and previewed before anything is written. The RAC
-                    FileTrigger owns an accessible file input accepting `.zip`;
-                    the picked file is read to an ArrayBuffer on this thread and
-                    the BYTES handed to the Worker (DIRECTION §3.7) — the only
-                    data handling here. The full-screen preview opens over the
-                    shelf once the sheet closes. */}
-                <section className="add-section" aria-labelledby="add-upload-h">
-                  <h3 className="t-h3" id="add-upload-h">
-                    {t('books.uploadRow')}
-                  </h3>
-                  <p className="t-small mine-note">{t('books.uploadRowMeta')}</p>
-                  <div className="actions">
+                ) : (
+                  // The four ways in, in the board's order (W07 L79-99). A plain
+                  // container, not role="list": a list of buttons fails axe's
+                  // aria-required-children.
+                  <div className="list add-choices">
+                    <ChoiceRow
+                      id={`${idBase}-new`}
+                      icon={<path d="M12 5v14M5 12h14" />}
+                      name={t('books.create')}
+                      meta={t('books.newBookHelp')}
+                      buttonRef={(node) => (rowRefs.current.new = node)}
+                      onPress={() => setStep('new')}
+                    />
+                    <ChoiceRow
+                      id={`${idBase}-link`}
+                      icon={
+                        <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+                      }
+                      name={t('books.byLink')}
+                      meta={t('books.byLinkMeta')}
+                      buttonRef={(node) => (rowRefs.current.byLink = node)}
+                      onPress={() => setStep('byLink')}
+                    />
+                    {/* Mine on Estante is not a button: it holds controls of its
+                        own (W07 L87-95; Decision 3). */}
+                    <div className="row add-choice add-mine" role="group" aria-labelledby={`${idBase}-mine-name`}>
+                      <ChoiceIcon>
+                        <path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z" />
+                      </ChoiceIcon>
+                      <span className="grow">
+                        <span className="name" id={`${idBase}-mine-name`}>
+                          {t('books.mineOnEstante')}
+                        </span>
+                        <span className="t-small mine-note">
+                          {t('books.mineMeta')}
+                          {mineStatus === 'signed_out' ? (
+                            <>
+                              {' '}
+                              <span role="status">{t('books.mineSignedOut')}</span>
+                            </>
+                          ) : null}
+                        </span>
+                        <MineList
+                          store={store}
+                          mine={mine}
+                          onAddMine={(book) => {
+                            onAddMine(book);
+                            close();
+                          }}
+                          onSignIn={(how) => {
+                            onSignIn(how);
+                            close();
+                          }}
+                        />
+                      </span>
+                    </div>
+                    {/* Upload (books.upload_ui; W07 L96-99): the row is the RAC
+                        FileTrigger's button (Decision 2), an accessible file input
+                        accepting `.zip`. The picked file is read to bytes on this
+                        thread and handed on (DIRECTION §3.7) — the only data
+                        handling here; the shell opens the full-screen preview once
+                        the sheet closes. Cancelling the picker leaves the chooser
+                        open. */}
                     <FileTrigger
                       acceptedFileTypes={['.zip', 'application/zip']}
                       onSelect={(files) => {
@@ -611,10 +746,15 @@ function AddBookSheet({ store, onCreate, onByLink, onSignIn, onAddMine, onListMi
                         });
                       }}
                     >
-                      <Button className="btn primary">{t('books.uploadChoose')}</Button>
+                      <ChoiceRow
+                        id={`${idBase}-upload`}
+                        icon={<path d="M12 20V8M7 13l5-5 5 5M4 4h16" />}
+                        name={t('books.uploadRow')}
+                        meta={t('books.uploadRowMeta')}
+                      />
                     </FileTrigger>
                   </div>
-                </section>
+                )}
               </>
             )}
           </Dialog>
@@ -628,7 +768,12 @@ export default function BooksScreen({
   store,
   onOpenBook = () => {},
   onByLink = () => {},
+  // Mine on Estante's sign-in (books.add_book_chooser Decision 4), called with
+  // the sign-in step to open at: 'method' or 'email'.
   onSignIn = () => {},
+  // A zip picked from the sheet's Upload row, `{ bytes, fileName }`: the shell
+  // opens the full-screen upload preview (books.add_book_chooser Decision 5).
+  onUpload = () => {},
   // A book's Share (books.share_people): the shell opens the sheet or the
   // people screen, by its layout.
   onShareBook = () => {},
@@ -671,12 +816,8 @@ export default function BooksScreen({
   // Decision 2): the detail opens only when a row is pressed.
   const [selected, setSelected] = useState(null);
   const [openDetail, setOpenDetail] = useState(null);
-  // The upload preview is a full-screen surface over the shelf (books.upload_ui,
-  // Decision 1), ephemeral like the detail. It holds the picked zip's bytes and
-  // name until the preview is confirmed or cancelled.
-  const [upload, setUpload] = useState(null);
-  // The bring-in screen (books.bring_in, Decision 3): full screen over the shelf
-  // like the upload, `{ bookId, book, original }` while open. Closing it returns
+  // The bring-in screen (books.bring_in, Decision 3): full screen over the shelf,
+  // `{ bookId, book, original }` while open. Closing it returns
   // focus to the fork's row (Constraint 8), once the shelf is drawn again.
   const [bringIn, setBringIn] = useState(null);
   const focusRowAfter = useRef(null);
@@ -813,7 +954,7 @@ export default function BooksScreen({
           onSignIn={onSignIn}
           onAddMine={addMine}
           onListMine={listMine}
-          onUpload={setUpload}
+          onUpload={onUpload}
           mine={mine}
         />
       </div>
@@ -880,32 +1021,9 @@ export default function BooksScreen({
     </>
   );
 
-  // The upload preview takes the whole screen on every viewport (Decision 1; the
-  // W07 board draws one layout, not a split): it is the thing being previewed,
-  // not yet a book on the shelf. A new book landing closes it (the shelf
-  // re-surfaces the row); a colliding merge hands off to the conflict surface via
-  // the shell's `onOpenBook` (Decision 2).
-  if (upload) {
-    return (
-      <div className="books-screen">
-        <UploadPreview
-          store={store}
-          bytes={upload.bytes}
-          fileName={upload.fileName}
-          onClose={() => setUpload(null)}
-          onNeedsYou={(bookId) => {
-            setUpload(null);
-            setSelected(bookId);
-            onOpenBook(bookId);
-          }}
-        />
-      </div>
-    );
-  }
-
-  // The bring-in screen takes the whole screen too (Decision 3; W11 board #3). A
+  // The bring-in screen takes the whole screen (Decision 3; W11 board #3). A
   // merge closes it (the count clears through ORIGINAL); a collision hands off
-  // to the conflict surface via the shell's `onOpenBook`, as the upload does.
+  // to the conflict surface via the shell's `onOpenBook`.
   if (bringIn) {
     return (
       <div className="books-screen">

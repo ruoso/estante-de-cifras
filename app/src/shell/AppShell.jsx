@@ -46,6 +46,7 @@ import BookConflicts from '../books/BookConflicts.jsx';
 import SongConflict from '../songs/SongConflict.jsx';
 import { orderedBooks, titleFor, saveTargetFor } from '../books/book-display.js';
 import SignIn from '../account/SignIn.jsx';
+import UploadPreview from '../books/UploadPreview.jsx';
 import RecoveryEmailConfirm from '../account/RecoveryEmailConfirm.jsx';
 import InvitedScreen from '../account/InvitedScreen.jsx';
 import InvitedRefusal from '../account/InvitedRefusal.jsx';
@@ -171,7 +172,7 @@ function resolvePlace({ place, checkItem, treeReady }, shelf, tree) {
   return place.song ? 'song' : 'setlist';
 }
 
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode, restore = {}, openSetlistView = null, onShareBook = () => {}) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode, restore = {}, openSetlistView = null, onShareBook = () => {}, onSignInMine = () => {}, onUpload = () => {}) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key} className="shell-panel">
       {key === 'search' ? (
@@ -201,13 +202,16 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
       ) : key === 'books' ? (
         // The Add-a-book sheet's "By link" (paste a link → the invited flow) and
         // "Mine on Estante" (sign in to see them) seams are books.add_by_link's,
-        // wired here: `onByLink` starts the invited flow, `onSignIn` opens the
-        // passkey surface.
+        // wired here: `onByLink` starts the invited flow, `onSignInMine` opens the
+        // sign-in surface for an existing account at the step it names
+        // (books.add_book_chooser Decision 4), and `onUpload` opens the
+        // full-screen upload preview (Decision 5).
         <BooksScreen
           store={store}
           onOpenBook={onOpenBook}
           onByLink={onByLink}
-          onSignIn={onSignIn}
+          onSignIn={onSignInMine}
+          onUpload={onUpload}
           onShareBook={onShareBook}
           mode={mode}
           restoreDismissed={restore.dismissed}
@@ -278,6 +282,17 @@ export default function AppShell({
   const [signIn, setSignIn] = useState(
     redeemToken ? { intent: 'signIn', token: redeemToken } : null,
   );
+  // Mine on Estante's sign-in (books.add_book_chooser Decision 4): someone with
+  // books on Estante has an account, so the surface opens in sign-in intent —
+  // never create — at the method step, or at the email step for "No passkey
+  // here? Email me a link". The empty shelf's Sign in keeps create intent.
+  const signInMine = (step) => setSignIn({ intent: 'signIn', step: step === 'email' ? 'email' : 'method' });
+
+  // The upload preview (books.upload_ui Decision 1; books.add_book_chooser
+  // Decision 5): a full-screen surface over the shell on every viewport, with no
+  // rail, side pane or tab bar beside it (W07 #3). `{ bytes, fileName }` of the
+  // zip picked from the Add-a-book sheet while open; `null` closed.
+  const [upload, setUpload] = useState(null);
 
   // The account screen (account.account_screen, workflow 13 §The account screen):
   // a full-screen surface over the shell, opened from the header account
@@ -723,6 +738,7 @@ export default function AppShell({
     return (
       <SignIn
         intent={signIn.intent}
+        initialStep={signIn.step ?? 'method'}
         redeemToken={signIn.token ?? null}
         onSignedIn={(account) => {
           // Signing in makes this device the account's (account.new_device):
@@ -854,6 +870,26 @@ export default function AppShell({
           setMySongsLater(true);
           store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
           setConflictsBook(bookId);
+        }}
+      />
+    );
+  }
+
+  // The upload preview takes the whole screen (books.add_book_chooser Decision
+  // 5): it is the thing being previewed, not yet a book on the shelf. Cancel and
+  // a finished import return to the Books destination behind it; a colliding
+  // merge opens the book's conflict surface through `openBook` (books.upload_ui
+  // Decision 2).
+  if (upload) {
+    return (
+      <UploadPreview
+        store={store}
+        bytes={upload.bytes}
+        fileName={upload.fileName}
+        onClose={() => setUpload(null)}
+        onNeedsYou={(bookId) => {
+          setUpload(null);
+          openBook(bookId);
         }}
       />
     );
@@ -1194,7 +1230,7 @@ export default function AppShell({
                 opens over this destination once the device says it is here. */}
             <main className="pane main" aria-busy={resolving ? true : undefined}>
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, null, shareBook)}
+                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, null, shareBook, signInMine, setUpload)}
               </div>
             </main>
           </div>
@@ -1220,7 +1256,7 @@ export default function AppShell({
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className={setlistView ? 'scroll scroll-setlist' : 'scroll'} aria-busy={resolving ? true : undefined}>
-              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, setlistView, shareBook)}
+              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, setlistView, shareBook, signInMine, setUpload)}
             </main>
           </div>
         )}

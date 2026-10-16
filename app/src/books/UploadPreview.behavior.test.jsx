@@ -27,6 +27,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
+import { useState } from 'react';
 import { render, screen, fireEvent, act, waitFor, within, cleanup } from '@testing-library/react';
 
 import { checkWcag21aa } from '../a11y/axe.js';
@@ -91,7 +92,26 @@ async function zipOf(files) {
   return blob;
 }
 
-// Open the Add-a-book sheet and feed a zip through the Upload way-in's picker.
+// The shelf with the shell's upload seam (books.add_book_chooser Decision 5):
+// AppShell holds the picked zip and draws the full-screen preview in place of
+// everything else; this host does the same for the round trip, without the rest
+// of the shell (AppShell.routing.behavior.test.jsx pins the shell's own wiring).
+function ShelfWithUpload({ store }) {
+  const [upload, setUpload] = useState(null);
+  if (upload) {
+    return (
+      <UploadPreview
+        store={store}
+        bytes={upload.bytes}
+        fileName={upload.fileName}
+        onClose={() => setUpload(null)}
+      />
+    );
+  }
+  return <BooksScreen store={store} onUpload={setUpload} />;
+}
+
+// Open the Add-a-book sheet and feed a zip through the Upload row's picker.
 async function uploadThroughSheet(blob, fileName) {
   act(() => fireEvent.click(screen.getByRole('button', { name: 'Add a book' })));
   const dialog = screen.getByRole('dialog');
@@ -111,7 +131,7 @@ describe('UploadPreview — a real round-trip (workflow 7 §Uploading a book, §
     const { store, sent } = await makeWorkerStore('rt');
     render(
       <ThemeRoot store={store}>
-        <BooksScreen store={store} />
+        <ShelfWithUpload store={store} />
       </ThemeRoot>,
     );
     act(() => store.open());
@@ -306,7 +326,7 @@ describe('UploadPreview — every status word renders (synthetic UPLOAD_PREVIEW;
 });
 
 describe('UploadPreview — accessibility (axe WCAG 2.1 AA)', () => {
-  it('the Add-a-book picker is axe-clean', async () => {
+  it('the Add-a-book chooser’s Upload row is the zip picker, and the chooser is axe-clean (books.add_book_chooser Decision 2)', async () => {
     const { store } = makeStore();
     render(
       <ThemeRoot store={store}>
@@ -315,8 +335,31 @@ describe('UploadPreview — accessibility (axe WCAG 2.1 AA)', () => {
     );
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Add a book' })));
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByText('A zip of a book, with or without its history.')).toBeInTheDocument();
+    const row = within(dialog).getByRole('button', { name: 'Upload' });
+    expect(row).toHaveAccessibleDescription('A zip of a book, with or without its history.');
+    // No separate "Choose a zip" step: the row itself opens the picker.
+    expect(within(dialog).queryByRole('button', { name: 'Choose a zip' })).toBeNull();
+    expect(dialog.querySelector('input[type="file"]').getAttribute('accept')).toContain('.zip');
     expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+  });
+
+  // W07 #3 L119-122 (books.add_book_chooser Decision 6): the mode switch is one
+  // segmented control — the radio group carries `upload-what` and both radios'
+  // segments are its direct children. jsdom has no layout, so the one row itself
+  // is measured at e2e (upload.spec.js).
+  it('the mode switch is one segmented group: both radios are direct segments of `.upload-what`', () => {
+    const { store } = makeStore();
+    renderPreview(store);
+    const group = screen.getByRole('radiogroup', { name: 'What to do with the upload' });
+    expect(group).toHaveClass('seg', 'upload-what');
+    const radios = within(group).getAllByRole('radio');
+    expect(radios.map((r) => r.closest('.upload-what-opt').textContent)).toEqual([
+      'Import as a new book',
+      'Merge into an existing book',
+    ]);
+    for (const radio of radios) {
+      expect(radio.closest('.upload-what-opt').parentElement).toBe(group);
+    }
   });
 
   it('the preview is axe-clean with every status present', async () => {

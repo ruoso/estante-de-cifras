@@ -26,6 +26,7 @@ export default {
   // La schermata di gestione dei libri (books.shelf, flusso 7). `{name}` è il
   // titolo di un libro; `{count}` il numero di salvataggi in attesa di sincronia.
   books: {
+    back: 'Indietro',
     add: 'Aggiungi libro',
     addTitle: 'Aggiungi un libro',
     close: 'Chiudi',
@@ -42,7 +43,8 @@ export default {
     mineOnEstante: 'I miei su Estante',
     mineMeta: 'I tuoi libri non ancora su questo scaffale.',
     mineSignedOut: 'Accedi per vederli.',
-    mineSignIn: 'Accedi',
+    mineSignInPasskey: 'Accedi con una passkey',
+    mineEmailLink: 'Nessuna passkey qui? Mandami un link via email',
     mineAdd: 'Aggiungi',
     mineAddLabel: 'Aggiungi {name}',
     mineLeave: 'Esci',
@@ -51,7 +53,6 @@ export default {
     mineError: 'Non è stato possibile raggiungere Estante. Riprova.',
     uploadRow: 'Carica',
     uploadRowMeta: 'Uno zip di un libro, con o senza la sua cronologia.',
-    uploadChoose: 'Scegli uno zip',
     uploadTitle: 'Carica {name}',
     uploadCancelSurface: 'Annulla il caricamento',
     uploadWhatToDo: 'Cosa farne',

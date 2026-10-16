@@ -745,3 +745,107 @@ describe('AppShell share surfaces (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });
+
+// behavior (books.add_book_chooser) — the Add-a-book chooser's seams into the
+// shell. Mine on Estante signs in an EXISTING account (Decision 4; workflow 7
+// L32-38): its "Sign in with a passkey" opens SignIn in sign-in intent and its
+// "No passkey here? Email me a link" at the email step, while the empty shelf's
+// first-run Sign in keeps create intent (account.first_run). The intent is read
+// off the one request "Use a passkey" makes: authenticate/begin for sign-in,
+// register/begin for create. And the upload preview is a full-screen surface
+// (Decision 5; W07 #3; upload_ui Decision 1): no rail beside it, Cancel returns
+// to Books with the rail back.
+describe('AppShell and the Add-a-book chooser (behavior)', () => {
+  let realFetch;
+  let requests;
+  beforeEach(() => {
+    realFetch = globalThis.fetch;
+    requests = [];
+    globalThis.fetch = (path) => {
+      requests.push(String(path));
+      return Promise.reject(new TypeError('offline in this test'));
+    };
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  function openSheetOnBooks(emit) {
+    emit(event(EventKind.SHELF, SHELF));
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add a book' }));
+    return screen.getByRole('dialog', { name: 'Add a book' });
+  }
+
+  it('Mine’s sign-in is for an existing account: the passkey at the method step, the emailed link at the email step; the empty shelf’s Sign in still creates', async () => {
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+
+    // "Sign in with a passkey" → the Sign in surface, in sign-in intent.
+    let dialog = openSheetOnBooks(emit);
+    emit(event(EventKind.MINE, { status: 'signed_out', books: [] }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sign in with a passkey' }));
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Use a passkey' }));
+    await waitFor(() => expect(requests).toContain('/api/auth/passkey/authenticate/begin'));
+    expect(requests.some((p) => p.includes('/register/'))).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    // "No passkey here? Email me a link" → the same surface at the email step.
+    dialog = openSheetOnBooks(emit);
+    emit(event(EventKind.MINE, { status: 'signed_out', books: [] }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'No passkey here? Email me a link' }));
+    expect(screen.getByRole('heading', { name: 'Email me a link' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Your email' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Sign in' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    cleanup();
+
+    // The empty shelf's first-run Sign in keeps create intent (on Search: the
+    // address followed the Books tab, so start again from the root).
+    history.replaceState(null, '', '/');
+    requests.length = 0;
+    const fresh = makeStore();
+    render(<AppShell store={fresh.store} />);
+    fireEvent.click(screen.getByRole('button', { name: /^Sign in/ }));
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Use a passkey' }));
+    await waitFor(() => expect(requests).toContain('/api/auth/passkey/register/begin'));
+    expect(requests.some((p) => p.includes('/authenticate/'))).toBe(false);
+  });
+
+  it('the upload preview is a full-screen surface: no rail beside it, and Cancel returns to Books with the rail back (W07 #3)', async () => {
+    globalThis.matchMedia = (media) => ({
+      media,
+      matches: media === WIDE_QUERY,
+      addEventListener() {},
+      removeEventListener() {},
+    });
+    const { store, emit, sent } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    expect(screen.getByRole('tablist', { name: 'Destinations' })).toHaveClass('rail');
+
+    const dialog = openSheetOnBooks(emit);
+    const input = dialog.querySelector('input[type="file"]');
+    const file = new File([new Uint8Array([80, 75, 5, 6])], 'banda.zip', { type: 'application/zip' });
+    await act(async () => {
+      fireEvent.change(input, { target: { files: [file] } });
+      await Promise.resolve();
+    });
+
+    await screen.findByRole('button', { name: 'Cancel the upload' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByText('Upload banda.zip')).toBeInTheDocument();
+    // Nothing of the shell beside or under it: no rail, no tab bar.
+    expect(screen.queryByRole('tablist', { name: 'Destinations' })).toBeNull();
+    expect(screen.queryByRole('tablist', { hidden: true })).toBeNull();
+    expect(container.querySelector('.pane.main')).toBeNull();
+    // The preview's messages to the Worker are its own (PREVIEW_UPLOAD).
+    expect(sent.some((m) => m.kind === CommandKind.PREVIEW_UPLOAD)).toBe(true);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel the upload' }));
+    expect(screen.getByRole('tablist', { name: 'Destinations' })).toHaveClass('rail');
+    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
+  });
+});

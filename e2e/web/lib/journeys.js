@@ -139,6 +139,8 @@ export async function makeLocalBook(page, name) {
   await page.getByRole('button', { name: 'Add a book' }).click();
   const sheet = page.getByRole('dialog');
   await expect(sheet).toBeVisible();
+  // The sheet is a chooser (books.add_book_chooser): New book's row opens its step.
+  await sheet.getByRole('button', { name: 'New book' }).click();
   await sheet.getByRole('textbox', { name: 'Book name' }).fill(name);
   await sheet.getByRole('button', { name: 'New book' }).click();
   await expect(page.getByRole('button', { name: new RegExp(`^${escape(name)}`) })).toBeVisible();

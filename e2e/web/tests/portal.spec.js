@@ -69,14 +69,20 @@ test('RAC overlays portal into `.est` and inherit tokens on this viewport (shell
   await expect(sheet).toBeVisible();
   // (b) its tokens resolved (surface colour, real padding).
   await assertTokenScoped(sheet);
-  // (c) the New-book action is within the viewport and clickable.
-  const createAction = page.getByRole('dialog').getByRole('button', { name: 'New book' });
-  await assertActionInViewport(page, createAction);
+  // (c) the chooser's New book row, then its step's New-book action, are within
+  // the viewport and clickable (books.add_book_chooser: the sheet is a chooser).
+  const newRow = page.getByRole('dialog').getByRole('button', { name: 'New book' });
+  await assertActionInViewport(page, newRow);
   // axe the open sheet (contrast runs here).
   await checkA11y();
+  await newRow.click();
+  const nameField = page.getByRole('dialog').getByRole('textbox', { name: 'Book name' });
+  await expect(nameField).toBeVisible();
+  const createAction = page.getByRole('dialog').getByRole('button', { name: 'New book' });
+  await assertActionInViewport(page, createAction);
 
   // Create the book by clicking that action — proving it is reachable/clickable.
-  await page.getByRole('dialog').getByRole('textbox', { name: 'Book name' }).fill(NAME);
+  await nameField.fill(NAME);
   await createAction.click();
   await expect(page.getByRole('button', { name: new RegExp(`^${NAME}`) })).toBeVisible();
 
