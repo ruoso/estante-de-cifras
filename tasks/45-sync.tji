@@ -83,8 +83,9 @@ task sync "Sync" {
   task in_place_notices "Full-screen and editor merge notices as drawn" {
     effort 1d
     allocate team
+    complete 100
     depends !read_in_place, songs.edit_in_place
-    note "Workflow 8 (A song open while it changes; W08): full-screen reading lacks the song title and the footnote that an update is waiting until it is left, and its control reads Exit full screen; the editor's merge notice does not say the incoming save was merged under the unsaved edits, and the editor shows no unsaved mark. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the footnote while full screen; the merged-under-your-edits notice; axe); e2e-web (mockup W08#3-5)."
+    note "Workflow 8 (A song open while it changes; W08): full-screen reading lacks the song title and the footnote that an update is waiting until it is left, and its control reads Exit full screen; the editor's merge notice does not say the incoming save was merged under the unsaved edits, and the editor shows no unsaved mark. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the footnote while full screen; the merged-under-your-edits notice; axe); e2e-web (mockup W08#3-5). Refinement: tasks/refinements/sync/in_place_notices.md"
   }
   task conflicts_editing "Editing a conflict in the source editor, with people's names" {
     effort 1d

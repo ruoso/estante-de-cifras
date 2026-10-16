@@ -13,9 +13,10 @@
 //      (a different part — a clean merge) as INCOMING_AUTHOR;
 //   4. a sync (the network drops and comes back — journeys.networkBlip) merges
 //      the incoming version UNDER the unsaved edit; the open editor re-reads the
-//      merged working text in place (both edits present), the *Updated by
-//      {name}: see what changed* notice appears, and its action opens the song's
-//      history.
+//      merged working text in place (both edits present), the notice says
+//      *{name}'s save came in while you were editing, and was merged under your
+//      changes*, with a *Came in* row and *See what came in*, which opens the
+//      song's history; the *unsaved changes* mark stays (sync.in_place_notices).
 // Book and song names are written for this test (no-song-text rule).
 
 import { test, expect } from '../lib/axe.js';
@@ -54,7 +55,7 @@ const SONG_V1 = [
 const BRIDGE = ['', '## Bridge', '```', 'a lighthouse sweeps the bay', '```'];
 const INCOMING_AUTHOR = 'Ana Luiza';
 
-test('a sync merges a new version under the open editor’s unsaved edit, in place, with the notice that opens history (workflow 8 L55-56, W08)', async ({
+test('a sync merges a new version under the open editor’s unsaved edit, in place, saying it was merged under the edits and what came in, with the unsaved mark (workflow 8 L55-56, W08#3; sync.in_place_notices)', async ({
   page,
   checkA11y,
 }) => {
@@ -77,6 +78,9 @@ test('a sync merges a new version under the open editor’s unsaved edit, in pla
   // Let the debounced WRITE flush the edit into the working copy before the sync
   // captures it.
   await settleEdits(page);
+  // The editor says the text is unsaved (sync.in_place_notices; W08#3 L96).
+  const unsavedMark = page.locator('.new-song').getByText('unsaved changes', { exact: true });
+  await expect(unsavedMark).toBeVisible();
 
   // The second device publishes a new version (a bridge) of the same song.
   const ana = new GitDevice({ url, cookie, name: INCOMING_AUTHOR, email: 'ana@users.estantedecifras.app' });
@@ -95,15 +99,25 @@ test('a sync merges a new version under the open editor’s unsaved edit, in pla
   const notice = page.locator('.est-editor-update-notice');
   await expect(notice).toBeVisible({ timeout: 10000 });
   await expect(notice).toHaveAttribute('role', 'status');
-  await expect(notice).toContainText(`Updated by ${INCOMING_AUTHOR}`);
+  // It says the save was merged under the user's changes, and what came in
+  // (sync.in_place_notices; W08#3 L101-107).
+  await expect(notice).toContainText(
+    `${INCOMING_AUTHOR}'s save came in while you were editing, and was merged under your changes.`,
+  );
+  const cameIn = notice.locator('.diff .d');
+  await expect(cameIn).toContainText('Came in');
+  await expect(cameIn.locator('span').nth(1)).not.toBeEmpty();
+  await expect(notice.getByRole('button', { name: 'See what came in' })).toBeVisible();
 
   // Both the reader's unsaved edit and the incoming bridge are in the buffer.
   await expect(content).toContainText('B7');
   await expect(content).toContainText('lighthouse');
+  // The edits are still unsaved, on top: the mark stays.
+  await expect(unsavedMark).toBeVisible();
   await mockup(page, 'W08-sync', 3);
   await checkA11y(); // the merged editor + notice state, this viewport
 
-  await notice.getByRole('button', { name: 'See what changed' }).click();
+  await notice.getByRole('button', { name: 'See what came in' }).click();
   await expect(page.locator('.est-history-row').first()).toBeVisible();
   await checkA11y(); // the history surface reached from the notice, this viewport
 

@@ -10,6 +10,11 @@
 // Presentational like NewSongHost: AppShell owns the `editing` state and closes
 // this host on SAVED or Back. A discard reverts the working copy, so the editor
 // is remounted to re-read the reverted text, as the dev mount does.
+//
+// While the working text differs from the last saved version the host carries
+// the *unsaved changes* word mark (sync.in_place_notices; W08#3 L96, W04
+// L107/L158): in the app bar on a tablet or computer, and on a phone in a strip
+// directly under it (W04 L35-36), where the phone's title has the bar's room.
 
 import { useRef, useState } from 'react';
 import { Button } from 'react-aria-components';
@@ -61,6 +66,11 @@ export default function EditSongHost({
     setDiscardOpen(true);
   };
   const [reloadKey, setReloadKey] = useState(0);
+  // Reported by the editor (SOURCE's `unsaved`, or an edit since); a Discard
+  // remounts it, and the fresh SOURCE reports false.
+  const [unsaved, setUnsaved] = useState(false);
+  const unsavedMark = unsaved ? <span className="badge unsaved dot">{t('editor.unsaved')}</span> : null;
+  const phone = mode === 'narrow';
   const title = songTitle || path;
   // Whether a save can go to this book (books.fork Constraint 7): a reader's
   // book opens the make-it-your-own offer, not the form. The host's own id
@@ -74,10 +84,12 @@ export default function EditSongHost({
           <BackIcon />
         </Button>
         <span className="title">{title}</span>
+        {phone ? null : unsavedMark}
         <Button className="btn" onPress={openDiscard}>
           {t('saveSheet.discard')}
         </Button>
       </div>
+      {phone && unsavedMark ? <div className="edit-song-unsaved-strip">{unsavedMark}</div> : null}
       <SongEditor
         key={`${bookId}:${path}:${reloadKey}`}
         store={store}
@@ -87,6 +99,7 @@ export default function EditSongHost({
         layoutMode={mode}
         onSave={() => setSaveOpen(true)}
         onOpenHistory={onOpenHistory}
+        onUnsavedChange={setUnsaved}
         editorRef={editorRef}
         flushRef={flushRef}
       />

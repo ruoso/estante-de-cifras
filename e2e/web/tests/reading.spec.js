@@ -52,10 +52,10 @@ test('opens and reads a song; the chart and the shapes render', async ({ page, c
     await page.getByRole('button', { name: 'More' }).click();
     await page.getByRole('menuitem', { name: 'Full screen' }).click();
   }
-  await expect(page.getByRole('button', { name: 'Exit full screen' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Leave full screen' })).toBeVisible();
   await expect(page.locator('.reading-sheet .chart')).toBeVisible();
   await checkA11y(); // full-screen state
-  await page.getByRole('button', { name: 'Exit full screen' }).click();
+  await page.getByRole('button', { name: 'Leave full screen' }).click();
 });
 
 // songs.reading_chrome — the header, the ⋯ menu and the shapes as the boards

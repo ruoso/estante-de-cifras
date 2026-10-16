@@ -45,6 +45,7 @@ import {
   walk,
   TREE,
 } from 'isomorphic-git';
+import { parse, diff } from 'cifra-md';
 import { authorFrom } from './author.js';
 import { reapplyWorkingText } from './cifra-merge-driver.js';
 import { HOME_BOOK_ID } from './home-book.js';
@@ -440,6 +441,30 @@ export function createSyncEngine(deps = {}) {
     return null;
   }
 
+  // The musical summary of what came in for one changed song (sync.in_place_notices,
+  // W08#3 L103-105): `diff(parse(blob at before), parse(blob at after)).summary`,
+  // the call save-preview.js and bring-in.js make. A song new in `after` diffs
+  // against an empty parse; a blob read or parse fault yields '' — the event still
+  // goes out (offline-first). Never logged.
+  async function incomingSummaryFor(dir, filepath, before, after) {
+    const modelAt = async (oid) => {
+      if (!oid) return parse('');
+      try {
+        const { blob } = await readBlob({ fs, dir, oid, filepath });
+        return parse(new TextDecoder().decode(blob));
+      } catch (err) {
+        if (err?.code === 'NotFoundError') return parse('');
+        throw err;
+      }
+    };
+    try {
+      const [from, to] = [await modelAt(before), await modelAt(after)];
+      return diff(from, to).summary ?? '';
+    } catch {
+      return '';
+    }
+  }
+
   // Announce a clean, landed merge to the open reading view, per changed song
   // (sync.read_in_place, acceptance 1; DIRECTION §3.7 L423-424). Songbooks only
   // (the caller is `syncSongbook`); never when the merge changed nothing. A tree
@@ -464,7 +489,9 @@ export function createSyncEngine(deps = {}) {
     const changed = [];
     for (const path of paths) {
       const incoming = await incomingCommitFor(dir, path, before, after);
-      if (incoming) changed.push({ path, author: incoming.author, commit: incoming.commit });
+      if (!incoming) continue;
+      const summary = await incomingSummaryFor(dir, path, before, after);
+      changed.push({ path, author: incoming.author, commit: incoming.commit, summary });
     }
     if (changed.length) emitMerged({ bookId, changed });
   }

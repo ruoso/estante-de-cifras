@@ -123,6 +123,16 @@ function BackIcon() {
   );
 }
 
+// The sync arrows beside the full-screen waiting footnote (W08#4 L154;
+// aria-hidden — the words carry the state).
+function SyncIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M20 11a8 8 0 0 0-14-5l-2 2M4 4v4h4M4 13a8 8 0 0 0 14 5l2-2M20 20v-4h-4" />
+    </svg>
+  );
+}
+
 // The ✕ on the first-open instrument prompt's dismiss control (W01 L107;
 // aria-hidden — the button's "Keep guitar and dismiss" label is its name).
 function DismissIcon() {
@@ -504,9 +514,16 @@ export default function SongReading({
   if (fullScreen) {
     return (
       <div className="reading-fullscreen">
-        <Button className="btn reading-exit-full" onPress={leaveFullScreen}>
-          {t('reading.exitFullScreen')}
-        </Button>
+        {/* The top row W08#4 draws (L123-126): the song's title filling the free
+            space, then the way out (sync.in_place_notices). The title is a
+            heading-styled span, not a second landmark — the region below is
+            already named by it. */}
+        <div className="reading-fullscreen-top">
+          <span className="t-h2 reading-fullscreen-title">{baseModel?.title ?? path}</span>
+          <Button className="btn quiet reading-exit-full" onPress={leaveFullScreen}>
+            {t('reading.leaveFullScreen')}
+          </Button>
+        </div>
         {/* The sheet scrolls under the frame (shell.full_height) and holds no
             control, so it takes focus itself: a named region the keyboard can
             reach and scroll (axe scrollable-region-focusable). */}
@@ -519,6 +536,17 @@ export default function SongReading({
           tabIndex={0}
         >
           {sheet}
+          {/* A merge held back while full screen (Decision 3 of sync.read_in_place):
+              a quiet footnote at the end of the sheet, naming the most recent
+              author (W08#4 L153-156). Not a live region — announcing mid-song is
+              the interruption workflow 8 L54 forbids; it is read in document
+              order, after the chart (sync.in_place_notices Decision 1). */}
+          {pending ? (
+            <p className="reading-update-waiting">
+              <SyncIcon />
+              <span className="t-small">{t('reading.updateWaiting', { name: pending.author })}</span>
+            </p>
+          ) : null}
         </div>
       </div>
     );

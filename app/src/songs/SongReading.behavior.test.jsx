@@ -506,12 +506,20 @@ describe('the transposed row names the key, once (songs.transpose_chrome; W02#4)
 });
 
 describe('SongReading — full screen, print, add to setlist, share', () => {
-  it('enters a chrome-free full screen and returns (axe in full screen)', async () => {
+  it('full screen shows the title and Leave full screen (sync.in_place_notices; W08#4 L123-126)', async () => {
     const { store } = makeStore({ text: song({}), entry: guitarEntry() });
-    await openAndWait(store);
+    const { container } = await openAndWait(store);
 
     await click(screen.getByRole('button', { name: 'Full screen' }));
-    const exit = await screen.findByRole('button', { name: 'Exit full screen' });
+    const exit = await screen.findByRole('button', { name: 'Leave full screen' });
+    expect(screen.queryByRole('button', { name: 'Exit full screen' })).not.toBeInTheDocument();
+    // The top row: the song's title, visible, heading-styled — then the control.
+    const top = container.querySelector('.reading-fullscreen-top');
+    const title = within(top).getByText('Tarde Clara');
+    expect(title).toHaveClass('t-h2');
+    expect(top.lastElementChild).toBe(exit);
+    // The scroll region keeps its title name; the visible title is no landmark.
+    expect(screen.getByRole('region', { name: 'Tarde Clara' })).toBeInTheDocument();
     // Chrome is gone — the app bar's Back is not rendered in full screen.
     expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
     // The sheet is still there.
@@ -690,13 +698,17 @@ describe('SongReading — a merge landing while open (sync.read_in_place, workfl
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
-  it('defers in full screen and applies on leaving it, collapsing to the most recent (workflow 8 L53-54; W08 L120/L155/L159; §3.7 L438-440)', async () => {
+  it('while full screen, a waiting update is a footnote naming its author, gone on leaving (sync.in_place_notices; W08#4 L153-156, W08#5 L177; workflow 8 L53-54)', async () => {
+    const WAITING = 'An update from Bruno is waiting. It will show when you leave full screen.';
     const onOpenHistory = vi.fn();
     const { store, commands, setSource, emitMerged } = makeStore({ text: V1, entry: guitarEntry() });
-    await openAndWait(store, { onOpenHistory });
+    const { container } = await openAndWait(store, { onOpenHistory });
 
     await click(screen.getByRole('button', { name: 'Full screen' }));
-    await screen.findByRole('button', { name: 'Exit full screen' });
+    await screen.findByRole('button', { name: 'Leave full screen' });
+    // Nothing pending: no footnote.
+    expect(container.querySelector('.reading-update-waiting')).toBeNull();
+    expect(screen.queryByText(/is waiting/)).not.toBeInTheDocument();
 
     const before = commands.filter((c) => c.kind === CommandKind.OPEN_SOURCE).length;
     setSource(V2);
@@ -711,13 +723,22 @@ describe('SongReading — a merge landing while open (sync.read_in_place, workfl
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(chartFirstLineGlyphs()).toBe('G C');
     expect(commands.filter((c) => c.kind === CommandKind.OPEN_SOURCE).length).toBe(before);
+    // The footnote names the most recent author, at the end of the sheet, quiet:
+    // words with a decorative icon, and no live region (Decision 1).
+    const footnote = container.querySelector('.reading-update-waiting');
+    expect(footnote).toHaveTextContent(WAITING);
+    expect(footnote.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    expect(footnote.closest('[role="status"], [aria-live]')).toBeNull();
+    expect(container.querySelector('.reading-fullscreen-scroll').lastElementChild).toBe(footnote);
 
     expect(await checkWcag21aa(document.body)).toHaveNoViolations(); // the waiting full-screen state
 
     // Leaving full screen applies the deferred update and shows the notice, for
-    // the most recent pending merge.
-    await click(screen.getByRole('button', { name: 'Exit full screen' }));
+    // the most recent pending merge; the footnote is gone.
+    await click(screen.getByRole('button', { name: 'Leave full screen' }));
     await waitFor(() => expect(chartFirstLineGlyphs()).toBe('A D'));
+    expect(screen.queryByText(WAITING)).not.toBeInTheDocument();
+    expect(container.querySelector('.reading-update-waiting')).toBeNull();
     const notice = screen.getByRole('status');
     expect(within(notice).getByText('Updated by Bruno')).toBeInTheDocument();
     await click(within(notice).getByRole('button', { name: 'See what changed' }));

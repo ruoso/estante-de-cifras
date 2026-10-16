@@ -1365,12 +1365,15 @@ export default {
     showFile: 'Mostrar o arquivo',
     more: 'Mais',
     fullScreen: 'Tela cheia',
-    exitFullScreen: 'Sair da tela cheia',
+    leaveFullScreen: 'Sair da tela cheia',
     // Uma sincronização em segundo plano trouxe uma nova versão com a música
     // aberta (sync.read_in_place, fluxo 8; W08). `{name}` é quem fez a mudança.
     updatedBy: 'Atualizado por {name}',
     seeWhatChanged: 'Ver o que mudou',
     updateDismiss: 'Dispensar aviso de atualização',
+    // The footnote under the full-screen chart while a merge waits (sync.in_place_notices;
+    // W08#4 L153-156). `{name}` is the most recent incoming author.
+    updateWaiting: 'Uma atualização de {name} está esperando. Ela aparece quando você sair da tela cheia.',
   },
 
   arrange: {
@@ -1640,9 +1643,14 @@ export default {
     // não salvas do editor aberto (songs.edit_in_place, workflow 8; W08). O aviso
     // não modal diz de quem veio e abre o histórico da música. `{name}` é o nome
     // de quem fez a alteração. Reutiliza o texto da leitura (reading.updatedBy).
-    updatedBy: 'Atualizado por {name}',
-    seeWhatChanged: 'Ver o que mudou',
+    mergedUnderLead: 'O que {name} salvou chegou enquanto você editava',
+    mergedUnderRest: ' e foi mesclado sob as suas alterações. As suas continuam aqui, não salvas, por cima.',
+    cameIn: 'Chegou',
+    seeWhatCameIn: 'Ver o que chegou',
     updateDismiss: 'Dispensar aviso de atualização',
+    // The editor app bar's word mark while the working text differs from the last
+    // saved version (sync.in_place_notices; W08#3 L96, W04 L107/L158).
+    unsaved: 'alterações não salvas',
     variationInUse: 'Variação:',
     variationLabel: 'Qual variação usar',
     variationDefault: 'Padrão',

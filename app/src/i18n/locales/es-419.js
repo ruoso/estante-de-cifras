@@ -1366,12 +1366,15 @@ export default {
     showFile: 'Mostrar el archivo',
     more: 'Más',
     fullScreen: 'Pantalla completa',
-    exitFullScreen: 'Salir de pantalla completa',
+    leaveFullScreen: 'Salir de pantalla completa',
     // Una sincronización en segundo plano trajo una versión nueva con la canción
     // abierta (sync.read_in_place, flujo 8; W08). `{name}` es quien la cambió.
     updatedBy: 'Actualizado por {name}',
     seeWhatChanged: 'Ver qué cambió',
     updateDismiss: 'Descartar aviso de actualización',
+    // The footnote under the full-screen chart while a merge waits (sync.in_place_notices;
+    // W08#4 L153-156). `{name}` is the most recent incoming author.
+    updateWaiting: 'Una actualización de {name} está esperando. Se mostrará cuando salgas de pantalla completa.',
   },
 
   arrange: {
@@ -1642,9 +1645,14 @@ export default {
     // W08). El aviso no modal dice de quién vino y abre el historial de la
     // canción. `{name}` es el nombre de quien hizo el cambio. Reutiliza el texto
     // de la lectura (reading.updatedBy).
-    updatedBy: 'Actualizado por {name}',
-    seeWhatChanged: 'Ver qué cambió',
+    mergedUnderLead: 'Lo que guardó {name} llegó mientras editabas',
+    mergedUnderRest: ' y se combinó debajo de tus cambios. Los tuyos siguen aquí, sin guardar, encima.',
+    cameIn: 'Llegó',
+    seeWhatCameIn: 'Ver qué llegó',
     updateDismiss: 'Descartar aviso de actualización',
+    // The editor app bar's word mark while the working text differs from the last
+    // saved version (sync.in_place_notices; W08#3 L96, W04 L107/L158).
+    unsaved: 'cambios sin guardar',
     variationInUse: 'Variación:',
     variationLabel: 'Qué variación usar',
     variationDefault: 'Predeterminado',

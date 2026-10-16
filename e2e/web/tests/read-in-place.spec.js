@@ -171,7 +171,7 @@ test('a sync brings a new version of the open song in place, with the notice tha
   await expect(sheet).toBeVisible();
 });
 
-test('full screen holds the update back until the reader leaves it (acceptance 4; workflow 8 L53-54, W08 L120/L155/L159)', async ({
+test('full screen holds the update back until the reader leaves it, with its title and a waiting footnote (acceptance 4; sync.in_place_notices; workflow 8 L53-54, W08#4-5)', async ({
   page,
   checkA11y,
 }, testInfo) => {
@@ -182,6 +182,11 @@ test('full screen holds the update back until the reader leaves it (acceptance 4
   await enterFullScreen(page, narrow);
   const sheet = page.locator('.reading-sheet');
   await expect(sheet).toContainText('harbour');
+  // The top row W08#4 draws (L123-126): the song's title, then Leave full screen
+  // (sync.in_place_notices).
+  const fullScreen = page.locator('.reading-fullscreen');
+  await expect(fullScreen.locator('.reading-fullscreen-title')).toHaveText(SONG_TITLE);
+  await expect(fullScreen.getByRole('button', { name: 'Leave full screen' })).toBeVisible();
 
   await secondDevicePushesNewVersion(hosted);
 
@@ -193,11 +198,19 @@ test('full screen holds the update back until the reader leaves it (acceptance 4
   await expect(sheet).toContainText('harbour');
   await expect(sheet).not.toContainText('lighthouse');
   await expect(page.locator('.reading-update-notice')).toHaveCount(0);
+  // The waiting footnote names the incoming author (W08#4 L153-156).
+  const waiting = page.locator('.reading-update-waiting');
+  await expect(waiting).toBeVisible({ timeout: 10000 });
+  await expect(waiting).toHaveText(
+    `An update from ${INCOMING_AUTHOR} is waiting. It will show when you leave full screen.`,
+  );
+  await expect(sheet).not.toContainText('lighthouse');
   await mockup(page, 'W08-sync', 4);
   await checkA11y(); // the full-screen waiting state, this viewport
 
-  // Leaving full screen applies the deferred update.
-  await page.getByRole('button', { name: 'Exit full screen' }).click();
+  // Leaving full screen applies the deferred update; the footnote goes.
+  await page.getByRole('button', { name: 'Leave full screen' }).click();
+  await expect(waiting).toHaveCount(0);
   const notice = page.locator('.reading-update-notice');
   await expect(notice).toBeVisible({ timeout: 10000 });
   await expect(notice).toContainText(`Updated by ${INCOMING_AUTHOR}`);

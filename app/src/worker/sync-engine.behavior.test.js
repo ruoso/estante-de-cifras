@@ -13,6 +13,7 @@ import { createHomeBook } from './home-book.js';
 import { createCifraMergeDriver } from './cifra-merge-driver.js';
 import { createSyncEngine } from './sync-engine.js';
 import { createSyncScheduler } from './sync-scheduler.js';
+import { parse, diff } from 'cifra-md';
 import { startGitHttpRemote } from '../test/git-http-remote.js';
 import { installWebLocks } from '../test/web-locks.js';
 
@@ -470,7 +471,7 @@ describe('sync engine over a real remote (behavior)', () => {
       // editor view (deferred) shows the merged working text and says what came in.
       expect(merges).toHaveLength(1);
       expect(merges[0].bookId).toBe(BOOK);
-      expect(merges[0].changed).toEqual([{ path: SONG, author: 'Other Device', commit: theirHead }]);
+      expect(merges[0].changed).toEqual([{ path: SONG, author: 'Other Device', commit: theirHead, summary: '' }]);
       // Metadata only — never song text (standing rule).
       expect(JSON.stringify(merges)).not.toMatch(/verse|chorus/i);
     } finally {
@@ -549,8 +550,11 @@ describe('sync engine over a real remote (behavior)', () => {
       // device's own merge identity ("Device B"); the commit is the incoming oid
       // the history link targets (Decision 5).
       expect(changed[0]).toMatchObject({ path: SONG, author: 'Other Device', commit: theirHead });
-      // The fact carries metadata only — never song text (standing rule).
-      expect(Object.keys(changed[0]).sort()).toEqual(['author', 'commit', 'path']);
+      // The fact carries metadata and the musical summary only — never song text
+      // (standing rule; the summary field is sync.in_place_notices'). A lyrics-only
+      // change has no musical summary.
+      expect(Object.keys(changed[0]).sort()).toEqual(['author', 'commit', 'path', 'summary']);
+      expect(changed[0].summary).toBe('');
       expect(JSON.stringify(merges)).not.toMatch(/verse|chorus/i);
     } finally {
       await remote.stop();
@@ -571,7 +575,42 @@ describe('sync engine over a real remote (behavior)', () => {
       // The working copy fast-forwarded to theirs, and the merge was announced.
       expect(await b.head()).toBe(theirHead);
       expect(merges).toHaveLength(1);
-      expect(merges[0].changed).toEqual([{ path: SONG, author: 'Other Device', commit: theirHead }]);
+      expect(merges[0].changed).toEqual([{ path: SONG, author: 'Other Device', commit: theirHead, summary: '' }]);
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('MERGED carries each changed song\'s musical summary of what came in (sync.in_place_notices; W08#3 L103-105)', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const b = await makeDeviceB(remote);
+      const before = await b.head();
+      // The other device adds a section to the song and adds a new song.
+      const WITH_BRIDGE = `${BASE_SONG}\n## Bridge\n\`\`\`\nAm | F | C | G\n\`\`\`\n`;
+      const NEW_SONG = 'new.cifra.md';
+      const theirHead = await advanceRemote(
+        remote,
+        { [SONG]: WITH_BRIDGE, [NEW_SONG]: BASE_SONG.replace('Sync Test Song', 'Harbour Lights') },
+        'add a bridge and a song',
+      );
+
+      const { engine, merges } = engineFor(b, { changed: [{ bookId: BOOK, head: theirHead }] });
+      await engine.pass();
+
+      expect(merges).toHaveLength(1);
+      const byPath = Object.fromEntries(merges[0].changed.map((c) => [c.path, c]));
+      // The summary is diff(parse(before), parse(after)).summary for the path.
+      const expected = diff(parse(BASE_SONG), parse(WITH_BRIDGE)).summary;
+      expect(expected).not.toBe('');
+      expect(byPath[SONG].summary).toBe(expected);
+      expect(byPath[SONG].summary).toMatch(/Bridge/);
+      // A song added remotely diffs against an empty parse.
+      const added = diff(parse(''), parse(await b.headBlob(NEW_SONG))).summary;
+      expect(added).not.toBe('');
+      expect(byPath[NEW_SONG].summary).toBe(added);
+      expect(before).not.toBe(theirHead);
     } finally {
       await remote.stop();
     }

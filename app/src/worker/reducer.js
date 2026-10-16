@@ -458,7 +458,7 @@ export function reduce(state, message) {
           ...state.source,
           [bookId]: {
             ...prevBook,
-            [path]: { text: message.payload?.text ?? '' },
+            [path]: { text: message.payload?.text ?? '', unsaved: message.payload?.unsaved === true },
           },
         },
       };

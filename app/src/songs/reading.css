@@ -186,11 +186,32 @@
   overflow: auto;
   padding: calc(var(--u) * 3);
 }
+/* The top row (W08#4 L123-126): one line, the title truncating before the
+   control does, so the phone keeps the chart's width. */
+.reading-fullscreen-top {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  padding: calc(var(--u) * 1.75) calc(var(--u) * 3) 0;
+}
+.reading-fullscreen-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .reading-exit-full {
-  position: absolute;
-  top: calc(var(--u) * 1.5);
-  right: calc(var(--u) * 1.5);
-  z-index: 1;
+  flex: none;
+}
+/* The waiting footnote (W08#4 L153-156): right-aligned, quiet, no banner. */
+.reading-update-waiting {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--u);
+  margin: calc(var(--u) * 2) 0 0;
+  color: var(--ink-2);
 }
 
 /* Print: the chrome goes, the sheet leads. The chart and shapes print in the
@@ -204,7 +225,8 @@
   .reading-variation,
   .reading-instrument-prompt,
   .reading-update-notice,
-  .reading-exit-full,
+  .reading-fullscreen-top,
+  .reading-update-waiting,
   .reading-split .pane.side {
     display: none !important;
   }

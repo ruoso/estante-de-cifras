@@ -1519,7 +1519,7 @@ export default {
     showFile: 'Show the file',
     more: 'More',
     fullScreen: 'Full screen',
-    exitFullScreen: 'Exit full screen',
+    leaveFullScreen: 'Leave full screen',
     // A background sync brought a new version while the song was open
     // (sync.read_in_place, workflow 8 §"A song open while it changes"; W08). The
     // non-modal notice names who changed it and opens the song's history.
@@ -1527,6 +1527,9 @@ export default {
     updatedBy: 'Updated by {name}',
     seeWhatChanged: 'See what changed',
     updateDismiss: 'Dismiss update notice',
+    // The footnote under the full-screen chart while a merge waits (sync.in_place_notices;
+    // W08#4 L153-156). `{name}` is the most recent incoming author.
+    updateWaiting: 'An update from {name} is waiting. It will show when you leave full screen.',
   },
 
   // The arrange surface (songs.arrange, workflow 5; board W05): the mode entered
@@ -1798,13 +1801,19 @@ export default {
         'Line {line} comes after the rule, where only voicing blocks are kept, and saving would drop it. If it is part of the song, move the rule below it; a voicings heading needs a tuning, like ## Voicings: E2 A2 D3 G3 B3 E4.',
     },
     // A background sync merged a new version in under the open editor's unsaved
-    // edits (songs.edit_in_place, workflow 8 §"A song open while it changes";
-    // W08). The non-modal notice names who it came from and opens the song's
-    // history. `{name}` is the incoming author's display name. Reuses the
-    // reading view's wording (reading.updatedBy) — the same event, same model.
-    updatedBy: 'Updated by {name}',
-    seeWhatChanged: 'See what changed',
+    // edits (songs.edit_in_place; sync.in_place_notices, W08#3 L101-107). The
+    // non-modal notice says it was merged under the user's changes — the lead
+    // clause bold, then the rest — with a *Came in* row of the musical summary
+    // and a link opening the song's history at that commit. `{name}` is the
+    // incoming author's display name.
+    mergedUnderLead: "{name}'s save came in while you were editing",
+    mergedUnderRest: ', and was merged under your changes. Yours are still here, unsaved, on top.',
+    cameIn: 'Came in',
+    seeWhatCameIn: 'See what came in',
     updateDismiss: 'Dismiss update notice',
+    // The editor app bar's word mark while the working text differs from the last
+    // saved version (sync.in_place_notices; W08#3 L96, W04 L107/L158).
+    unsaved: 'unsaved changes',
     variationInUse: 'Variation:',
     variationLabel: 'Which variation to use',
     variationDefault: 'Default',

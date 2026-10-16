@@ -11,7 +11,7 @@
 // anyway, only the schema `meta`.
 
 import { parse, parseSetlist } from 'cifra-md';
-import { getConfig, setConfig, resolveRef } from 'isomorphic-git';
+import { getConfig, setConfig, resolveRef, readBlob } from 'isomorphic-git';
 import { event, EventKind, COMMAND, CommandKind } from './protocol.js';
 import {
   MIGRATIONS,
@@ -1750,6 +1750,9 @@ export function createWorkerLogic(port, options = {}) {
               port.postMessage(
                 event(EventKind.SAVED, {
                   bookId,
+                  // The saved paths, so an open editor clears its *unsaved
+                  // changes* mark (sync.in_place_notices; W08#3 L96).
+                  paths: paths ?? [],
                   commit: outcome.commit,
                   pushed: outcome.pushed,
                 }),
@@ -3063,10 +3066,22 @@ export function createWorkerLogic(port, options = {}) {
             // storage.working_copy did not build. A missing file throws ENOENT,
             // which the surrounding try/catch turns into an ERROR event (not a
             // throw across the port). No lock: this is a plain read, no write.
+            // `unsaved` (sync.in_place_notices; W08#3 L96) compares the working
+            // text with HEAD's blob in the same read: a path absent from HEAD (or a
+            // book with no commit yet) is unsaved.
             const { bookId, path } = message.payload;
-            const full = `${ensureGit().bookDir(bookId)}/${path}`;
-            const text = await ensureFs().promises.readFile(full, 'utf8');
-            port.postMessage(event(EventKind.SOURCE, { bookId, path, text }));
+            const dir = ensureGit().bookDir(bookId);
+            const fs = ensureFs();
+            const text = await fs.promises.readFile(`${dir}/${path}`, 'utf8');
+            let unsaved = true;
+            try {
+              const head = await resolveRef({ fs, dir, ref: 'HEAD' });
+              const { blob } = await readBlob({ fs, dir, oid: head, filepath: path });
+              unsaved = new TextDecoder().decode(blob) !== text;
+            } catch {
+              unsaved = true;
+            }
+            port.postMessage(event(EventKind.SOURCE, { bookId, path, text, unsaved }));
             break;
           }
           case CommandKind.OPEN_SONG: {

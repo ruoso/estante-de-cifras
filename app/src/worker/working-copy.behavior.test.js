@@ -269,6 +269,39 @@ describe('the working copy, save and discard (behavior)', () => {
     }
   });
 
+  it('OPEN_SOURCE replies unsaved for a working text that differs from HEAD (sync.in_place_notices; W08#3 L96)', async () => {
+    const ctx = await setup('book-source-unsaved');
+    try {
+      const path = 'rainy-window.cifra.md';
+      const source = () => ctx.store.slice('source')[ctx.bookId]?.[path];
+      // A new song not yet saved — absent from HEAD — is unsaved.
+      ctx.store.send(command(CommandKind.WRITE, { bookId: ctx.bookId, path, text: TYPED_SONG }));
+      await settled(ctx.bookId);
+      ctx.store.send(command(CommandKind.OPEN_SOURCE, { bookId: ctx.bookId, path }));
+      await until(() => expect(source()?.text).toBe(TYPED_SONG));
+      expect(source().unsaved).toBe(true);
+
+      // Saved: the working copy is in step with HEAD.
+      ctx.store.send(
+        command(CommandKind.SAVE, { bookId: ctx.bookId, paths: [path], message: 'Add Rainy Window', author: IDENTITY }),
+      );
+      await until(() => expect(ctx.status()).toBe('saved'));
+      ctx.store.send(command(CommandKind.OPEN_SOURCE, { bookId: ctx.bookId, path }));
+      await until(() => expect(source()?.unsaved).toBe(false));
+      expect(source().text).toBe(CANONICAL_SONG);
+
+      // A WRITE on top of the saved song: unsaved again.
+      const edited = CANONICAL_SONG.replace('and I stay in today', 'and I stay inside today');
+      ctx.store.send(command(CommandKind.WRITE, { bookId: ctx.bookId, path, text: edited }));
+      await settled(ctx.bookId);
+      ctx.store.send(command(CommandKind.OPEN_SOURCE, { bookId: ctx.bookId, path }));
+      await until(() => expect(source()?.text).toBe(edited));
+      expect(source().unsaved).toBe(true);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
   it('SAVEs several files in ONE commit (workflow 4 L59-65, 14 L154-158)', async () => {
     const ctx = await setup('book-save-many');
     try {

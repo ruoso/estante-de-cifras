@@ -448,7 +448,8 @@ export const CommandKind = Object.freeze({
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
 // `ERROR` carries a message and a code. The working-copy outcomes
-// (storage.working_copy): `SAVED` (commit + whether the push landed),
+// (storage.working_copy): `SAVED` (commit + whether the push landed, and the
+// saved `paths` — or, for NAME_AND_SAVE, the final `path`),
 // `DISCARDED`, and `SAVE_REFUSED` (a marked or unreadable file named, with the
 // first marker line). `PREFERENCES` carries the home book's preferences.json as
 // a flat map of `{value, at}` registers (shell.tokens defines the consumer; the
@@ -585,8 +586,11 @@ export const EventKind = Object.freeze({
   BOOK_REFUSED: 'book_refused',
   MINE: 'mine',
   // A song's working-copy text, in reply to OPEN_SOURCE (songs.editor,
-  // Decision 4): `{ bookId, path, text }`. The editor loads it into its
-  // CodeMirror buffer; the `source` slice keeps it per book and path.
+  // Decision 4): `{ bookId, path, text, unsaved }`. The editor loads it into its
+  // CodeMirror buffer; the `source` slice keeps it per book and path. `unsaved`
+  // is whether the working text differs from HEAD's blob for the path (or the
+  // path is absent from HEAD) — the editor's *unsaved changes* mark
+  // (sync.in_place_notices; W08#3 L96).
   SOURCE: 'source',
   // A song's reading state, in reply to OPEN_SONG and re-surfaced after
   // SET_TRANSPOSITION / SET_VARIATION (songs.reading, Decision 2): `{ bookId,
@@ -673,12 +677,16 @@ export const EventKind = Object.freeze({
   // A clean merge landed on a songbook, per changed song file
   // (sync.read_in_place, workflow 8 §"A song open while it changes"; DIRECTION
   // §3.7 L423-424, which anticipates "a merge landing" as its own message):
-  // `{ bookId, changed: [{ path, author, commit }] }`. Each `path` is a
+  // `{ bookId, changed: [{ path, author, commit, summary }] }`. Each `path` is a
   // `*.cifra.md` whose bytes moved between the pre-merge local head and the merged
   // head; `author` is the incoming commit's display name (the person the reader
   // is about to see — *updated by Ana* — not the device's own merge identity,
   // Decision 5); `commit` is that commit's oid (the "see what changed" history
-  // link's target). A TRANSIENT event, like RESTORED / FILE_MOVED: it adds no
+  // link's target); `summary` is the neutral-English musical summary of what came
+  // in — `diff(parse(blob at the pre-merge head), parse(blob at the merged
+  // head)).summary`, chord, section and voicing names, the same class of data as
+  // CONFLICTS' `incoming.summary` — or '' when it could not be read (the editor's
+  // *Came in* row, sync.in_place_notices; W08#3 L103-105). A TRANSIENT event, like RESTORED / FILE_MOVED: it adds no
   // reducer slice — the open reading view observes it with `useWorkerEvent` and
   // re-issues OPEN_SOURCE for its own open path, so the merged text flows through
   // the `source` slice on demand (Decisions 1, 2). Emitted only for songbooks
@@ -688,8 +696,8 @@ export const EventKind = Object.freeze({
   // merged under the edit) is named here the same way — it is the fact the
   // deferred editor view (songs.edit_in_place) consumes to show the merged
   // working text and say what came in (workflow 8 §"A song open while it
-  // changes"). It carries path, author name and commit oid only — never song
-  // text (standing rule).
+  // changes"). It carries path, author name, commit oid and the musical summary
+  // only — never lyrics or whole song text, and never logged (standing rule).
   MERGED: 'merged',
   // The recomputed in-progress-merge model for one paused book (sync.conflicts,
   // workflow 9): emitted on OPEN_CONFLICTS and after every RESOLVE_CONFLICT, and

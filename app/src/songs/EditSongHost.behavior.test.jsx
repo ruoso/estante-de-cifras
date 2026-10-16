@@ -48,13 +48,13 @@ function makeStore() {
 
 const commandsOf = (sent, kind) => sent.filter((c) => c.kind === kind);
 
-function renderHost(store, bookId, editorRef = { current: null }) {
+function renderHost(store, bookId, editorRef = { current: null }, mode = 'narrow') {
   return render(
     <ThemeRoot store={store}>
       <EditSongHost
         store={store}
         editing={{ bookId, path: PATH, songTitle: 'Tarde Clara' }}
-        mode="narrow"
+        mode={mode}
         onBack={() => {}}
         onOpenHistory={() => {}}
         editorRef={editorRef}
@@ -168,4 +168,49 @@ describe('edit → Discard (workflow 4 §Discarding)', () => {
     await act(() => new Promise((resolve) => setTimeout(resolve, 500)));
     expect(sent.slice(discardAt + 1).filter((c) => c.kind === CommandKind.WRITE)).toEqual([]);
   });
+});
+
+describe('the edit host’s unsaved changes mark', () => {
+  const CODA = '\n## Coda\n```\nG | C\n```\n';
+
+  // `wide` is the tablet/computer host (the mark in the app bar); `narrow` the
+  // phone's (the mark in a strip directly under the app bar, W04 L35-36).
+  for (const mode of ['wide', 'narrow']) {
+    it(`the app bar carries the unsaved changes mark while the text is unsaved (sync.in_place_notices; W08#3 L96, W04 L107/L158) — ${mode}`, async () => {
+      const { store, emit, sent } = makeStore();
+      const editorRef = { current: null };
+      const { container } = renderHost(store, 'srv-e', editorRef, mode);
+      emit(SHELF);
+      emit(event(EventKind.SOURCE, { bookId: 'srv-e', path: PATH, text: TEXT, unsaved: false }));
+      await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(TEXT));
+
+      // Opened in step: no mark.
+      expect(screen.queryByText('unsaved changes')).toBeNull();
+
+      // A typed change: the word mark shows, where this device draws it.
+      act(() => editorRef.current.dispatch({ changes: { from: TEXT.length, insert: CODA } }));
+      const mark = await screen.findByText('unsaved changes');
+      expect(mark).toHaveClass('badge', 'unsaved', 'dot');
+      const appbar = container.querySelector('.appbar');
+      if (mode === 'wide') {
+        expect(appbar).toContainElement(mark);
+      } else {
+        expect(appbar).not.toContainElement(mark);
+        expect(mark.closest('.edit-song-unsaved-strip')).not.toBeNull();
+        // The strip sits directly under the app bar.
+        expect(appbar.nextElementSibling).toBe(mark.closest('.edit-song-unsaved-strip'));
+      }
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+      // Discard: the editor remounts, and the fresh SOURCE reads in step.
+      act(() => fireEvent.click(screen.getByRole('button', { name: 'Discard changes' })));
+      const dialog = screen.getByRole('dialog', { name: 'Discard changes to Tarde Clara?' });
+      act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Discard changes' })));
+      const opensBefore = commandsOf(sent, CommandKind.OPEN_SOURCE).length;
+      emit(event(EventKind.DISCARDED, { bookId: 'srv-e', paths: [PATH] }));
+      expect(commandsOf(sent, CommandKind.OPEN_SOURCE).length).toBe(opensBefore + 1);
+      emit(event(EventKind.SOURCE, { bookId: 'srv-e', path: PATH, text: TEXT, unsaved: false }));
+      await waitFor(() => expect(screen.queryByText('unsaved changes')).toBeNull());
+    });
+  }
 });

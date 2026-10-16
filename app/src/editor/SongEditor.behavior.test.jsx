@@ -445,7 +445,7 @@ describe('SongEditor', () => {
   const V1 = ['# Tide', '', '## Verse', '```', 'C  G  Am  F', '```', ''].join('\n');
   const BRIDGE = ['## Bridge', '```', 'Dm  G', '```', ''].join('\n');
 
-  it('swaps to the merged working text keeping the caret, shows the Updated-by notice, and opens history', async () => {
+  it('a merge under unsaved edits says it was merged under your changes, with what came in (sync.in_place_notices; W08#3 L101-107; workflow 8 L55-56)', async () => {
     const { store, emit } = makeStore();
     const onOpenHistory = vi.fn();
     const editorRef = { current: null };
@@ -469,25 +469,90 @@ describe('SongEditor', () => {
 
     // The incoming author appends a bridge; the prefix (and the caret) is untouched.
     const MERGED = V1 + BRIDGE;
-    emit(event(EventKind.MERGED, { bookId: BOOK, changed: [{ path: PATH, author: 'Ana Luiza', commit: 'abc123' }] }));
+    // The summary is written for the test (the Worker's diff summary in life).
+    emit(
+      event(EventKind.MERGED, {
+        bookId: BOOK,
+        changed: [{ path: PATH, author: 'Ana Luiza', commit: 'abc123', summary: 'Bridge: added' }],
+      }),
+    );
     // The merged bytes are served on the re-issued OPEN_SOURCE (demand-driven, D2).
-    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: MERGED }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: MERGED, unsaved: true }));
 
     await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(MERGED));
     // The caret kept its place through the swap (Decision 3).
     expect(editorRef.current.state.selection.main.head).toBe(caret);
 
     const notice = screen.getByRole('status');
-    expect(notice).toHaveTextContent(t('editor.updatedBy', { name: 'Ana Luiza' }));
+    expect(notice).toHaveTextContent(
+      "Ana Luiza's save came in while you were editing, and was merged under your changes. Yours are still here, unsaved, on top.",
+    );
+    // The lead clause is bold, as W08#3 L102 draws it.
+    expect(notice.querySelector('b')).toHaveTextContent("Ana Luiza's save came in while you were editing");
+    // The *Came in* row carries the summary of what arrived.
+    const row = within(notice).getByText('Came in').closest('.d');
+    expect(row).toHaveTextContent('Bridge: added');
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
-    // "See what changed" opens the song's history at the incoming commit.
-    act(() => fireEvent.click(within(notice).getByRole('button', { name: t('editor.seeWhatChanged') })));
+    // "See what came in" opens the song's history at the incoming commit.
+    act(() => fireEvent.click(within(notice).getByRole('button', { name: 'See what came in' })));
     expect(onOpenHistory).toHaveBeenCalledWith({ bookId: BOOK, path: PATH, commit: 'abc123' });
 
     // The notice is dismissible.
     act(() => fireEvent.click(screen.getByRole('button', { name: t('editor.updateDismiss') })));
     expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('no Came in row when the merge brought no summary (sync.in_place_notices; W08#3 L103-105)', async () => {
+    const { store, emit } = makeStore();
+    const editorRef = { current: null };
+    render(
+      <SongEditor store={store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} onSave={() => {}} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: V1 }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(V1));
+
+    emit(event(EventKind.MERGED, { bookId: BOOK, changed: [{ path: PATH, author: 'Ana', commit: 'c1', summary: '' }] }));
+    const notice = screen.getByRole('status');
+    expect(notice).toHaveTextContent("Ana's save came in while you were editing, and was merged under your changes.");
+    expect(within(notice).queryByText('Came in')).toBeNull();
+    expect(within(notice).getByRole('button', { name: 'See what came in' })).toBeInTheDocument();
+  });
+
+  it('reports unsaved from SOURCE and from an edit, cleared by SAVED (sync.in_place_notices; W08#3 L96)', async () => {
+    const { store, emit } = makeStore();
+    const editorRef = { current: null };
+    const onUnsavedChange = vi.fn();
+    const last = () => onUnsavedChange.mock.calls.at(-1)?.[0];
+    render(
+      <SongEditor
+        store={store}
+        bookId={BOOK}
+        path={PATH}
+        layoutMode="wide"
+        editorRef={editorRef}
+        onSave={() => {}}
+        onUnsavedChange={onUnsavedChange}
+      />,
+    );
+    // In step with the last save.
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: V1, unsaved: false }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(V1));
+    await waitFor(() => expect(last()).toBe(false));
+
+    // A typed change.
+    act(() => editorRef.current.dispatch({ changes: { from: V1.length, insert: BRIDGE } }));
+    await waitFor(() => expect(last()).toBe(true));
+
+    // Saved: cleared. A SAVED for another path leaves it alone first.
+    emit(event(EventKind.SAVED, { bookId: BOOK, paths: ['other.cifra.md'], commit: 'c0', pushed: true }));
+    expect(last()).toBe(true);
+    emit(event(EventKind.SAVED, { bookId: BOOK, paths: [PATH], commit: 'c2', pushed: true }));
+    await waitFor(() => expect(last()).toBe(false));
+
+    // A SOURCE whose working text differs from HEAD: unsaved again.
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: V1 + BRIDGE, unsaved: true }));
+    await waitFor(() => expect(last()).toBe(true));
   });
 
   it('cancels the pending pre-merge write so nothing clobbers the merge on disk', async () => {

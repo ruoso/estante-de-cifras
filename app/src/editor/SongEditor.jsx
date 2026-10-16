@@ -106,6 +106,9 @@ export default function SongEditor({
   title = '',
   onSave,
   onOpenHistory = () => {},
+  // Told whether the working text differs from the last saved version — the
+  // host's *unsaved changes* mark (sync.in_place_notices; W08#3 L96).
+  onUnsavedChange,
   layoutMode,
   editorRef,
   flushRef,
@@ -124,7 +127,7 @@ export default function SongEditor({
   const [pasteNotice, setPasteNotice] = useState(null); // { titled } | null
   // A background sync merged a new version under the unsaved buffer (sync.unsaved
   // → the transient MERGED fact; workflow 8 L55-56). The shown notice —
-  // `{ author, commit }` — or null; `mergePending` flags the one re-issued
+  // `{ author, commit, summary }` — or null; `mergePending` flags the one re-issued
   // OPEN_SOURCE whose bytes the swap effect adopts past the loadedKey guard.
   const [update, setUpdate] = useState(null);
   const mergePending = useRef(false);
@@ -136,7 +139,8 @@ export default function SongEditor({
   // present at mount is ignored; every SOURCE reply lands as a new entry object.
   const [staleSourceEntry] = useState(() => sourceSlice?.[bookId]?.[path]);
   const sourceEntry = sourceSlice?.[bookId]?.[path];
-  const sourceText = sourceEntry && sourceEntry !== staleSourceEntry ? sourceEntry.text : undefined;
+  const freshEntry = sourceEntry && sourceEntry !== staleSourceEntry ? sourceEntry : null;
+  const sourceText = freshEntry ? freshEntry.text : undefined;
   // A new song's template carries the title the host started it with (the
   // search query, the file-view/book-section empty title) — songs.new_song
   // wires the `title` the template seam already accepts (editor.md Decision 9;
@@ -153,6 +157,11 @@ export default function SongEditor({
   const writeTimer = useRef(null);
   const pendingWrite = useRef(null);
   const loadedKey = useRef(null);
+  // Whether the buffer holds its first document yet (the mirrored `text` is ''
+  // until then), and the SOURCE a SAVED for this path marked saved — with the
+  // buffer text at that moment — for the unsaved signal below.
+  const [loaded, setLoaded] = useState(false);
+  const [savedMark, setSavedMark] = useState(null); // { entry, text } | null
 
   // Durability: schedule a debounced WRITE of the current text (never for a
   // template with no destination file yet).
@@ -305,6 +314,7 @@ export default function SongEditor({
       ...(isNew ? null : { annotations: ExternalLoad.of(true) }),
     });
     setText(initial);
+    setLoaded(true);
   }, [isNew, templateDoc, sourceText, bookId, path]);
 
   // Ask the Worker for the working-copy text of an existing song.
@@ -332,8 +342,30 @@ export default function SongEditor({
     }
     mergePending.current = true;
     store.send(command(CommandKind.OPEN_SOURCE, { bookId, path }));
-    setUpdate({ author: hit.author, commit: hit.commit });
+    setUpdate({ author: hit.author, commit: hit.commit, summary: hit.summary ?? '' });
   });
+
+  // The unsaved signal (sync.in_place_notices Decision 5; W08#3 L96): the last
+  // SOURCE's `unsaved` (the Worker compared the working text with HEAD), or an
+  // edit since — the buffer no longer reads as that SOURCE's text. A SAVED for
+  // this path marks the buffer as it stood saved until the next SOURCE. A new
+  // song is unsaved until it is named and saved. A merge's re-read SOURCE says
+  // `unsaved: true` under the user's edits, so the mark stays.
+  useWorkerEvent(store, EventKind.SAVED, (payload) => {
+    if (isNew || payload?.bookId !== bookId) return;
+    if (payload.path !== path && !payload.paths?.includes(path)) return;
+    setSavedMark({ entry: freshEntry, text: viewRef.current?.state.doc.toString() ?? text });
+  });
+  let unsaved = false;
+  if (isNew) unsaved = true;
+  else if (loaded && freshEntry) {
+    const saved = savedMark && savedMark.entry === freshEntry;
+    const baseText = saved ? savedMark.text : freshEntry.text;
+    unsaved = (!saved && freshEntry.unsaved === true) || text !== baseText;
+  }
+  useEffect(() => {
+    onUnsavedChange?.(unsaved);
+  }, [onUnsavedChange, unsaved]);
 
   // Adopt the merged working text past the loadedKey guard — the one deliberate
   // reload (Decision 2). Dispatch it as the minimal change from the current
@@ -456,17 +488,32 @@ export default function SongEditor({
         </div>
       )}
 
+      {/* The merged-under-your-edits notice (sync.in_place_notices; W08#3
+          L101-107; workflow 8 L55-56): what happened, a *Came in* row with the
+          musical summary of what arrived (only when there is one), and a link
+          to the song's history at that commit. */}
       {update && (
         <div className="notice accent est-editor-notice est-editor-update-notice" role="status">
-          <span className="est-editor-notice-text">
-            {t('editor.updatedBy', { name: update.author })}
-          </span>
-          <Button
-            className="btn"
-            onPress={() => onOpenHistory({ bookId, path, commit: update.commit })}
-          >
-            {t('editor.seeWhatChanged')}
-          </Button>
+          <div className="est-editor-update-body">
+            <span>
+              <b>{t('editor.mergedUnderLead', { name: update.author })}</b>
+              {t('editor.mergedUnderRest')}
+            </span>
+            {update.summary ? (
+              <div className="diff">
+                <div className="d">
+                  <span className="k">{t('editor.cameIn')}</span>
+                  <span>{update.summary}</span>
+                </div>
+              </div>
+            ) : null}
+            <Button
+              className="act btn quiet"
+              onPress={() => onOpenHistory({ bookId, path, commit: update.commit })}
+            >
+              {t('editor.seeWhatCameIn')}
+            </Button>
+          </div>
           <Button
             className="btn icon"
             aria-label={t('editor.updateDismiss')}
