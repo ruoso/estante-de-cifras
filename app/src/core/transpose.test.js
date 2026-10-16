@@ -122,6 +122,26 @@ describe('transpose — view only, never the song (wf2 L112; spec §8.6)', () =>
   });
 });
 
+// music.fourth_with_seventh_spelling: every transposed symbol is formatted in the
+// song's dialect (transpose.js L203; workflow 2's transposed view), so a fourth
+// on a seventh keeps that dialect's spelling — never C47/D47 or C74/D74.
+describe("transpose — a fourth on a seventh in the song's dialect", () => {
+  // A song carrying both `key` and `notation` (spec §1.4.2 list).
+  const keyedIn = (key, notation, chart) =>
+    ['# Song', '', `- key: ${key}`, `- notation: ${notation}`, '', '## A', FENCE, chart, FENCE].join('\n') +
+    '\n';
+
+  it('spells a brazilian C7(4) C7(add4) up a tone as D7(4) D7(add4)', () => {
+    const t = transpose(parse(keyed('C', 'C7(4) C7(add4)')), 2, { dialect: 'brazilian' });
+    expect(chordSymbols(t)).toEqual(['D7(4)', 'D7(add4)']);
+  });
+
+  it('spells a realbook C7sus4 C7add4 up a tone as D7sus4 D7add4', () => {
+    const t = transpose(parse(keyedIn('C', 'realbook', 'C7sus4 C7add4')), 2, { dialect: 'realbook' });
+    expect(chordSymbols(t)).toEqual(['D7sus4', 'D7add4']);
+  });
+});
+
 describe('transpose — an unparseable symbol is kept verbatim (spec reader rule; wf2 L78)', () => {
   it('leaves a symbol the parser rejects as written, transposing the rest', () => {
     const t = transpose(handModel([chartLineOf('C', 'H7', 'F')]), 2);

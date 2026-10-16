@@ -295,26 +295,49 @@ describe('the chord explorer (behavior)', () => {
     }
   });
 
+  // Extended by music.fourth_with_seventh_spelling: the reading and the flip back
+  // are spelled in the user's (brazilian) dialect — C7(4), C7(add4), never C47 or
+  // a bare C7(4) for the added fourth (workflow 16 L109-115) — and a star on the
+  // added-fourth reading is keyed C7(add4), so it reads back on that reading
+  // (§Starring L120-131; home-book format §4.4).
   it('shows the §5.6 reading it took and re-runs the search on the flip (C7(4))', async () => {
     const remote = await startGitHttpRemote();
     try {
       await seedRemote(remote, instrumentSeed('g1', { catalogId: '6guitar', tuning: GUITAR_TUNING, fretCount: 22 }));
-      const { store } = await makeSeededWorker(remote, 'flip');
+      const { store, idb, name } = await makeSeededWorker(remote, 'flip');
       renderExplorer(store, 'C7(4)');
       act(() => store.open());
 
       // The Brazilian default reads the suspended fourth, and says so.
-      await screen.findByText(/suspended 4th/, {}, SLOW);
+      await screen.findByText(/^Read as C7\(4\) — suspended 4th\./, {}, SLOW);
       const flip = screen.getByRole('button', { name: /Read as .* instead/ });
 
       // Flipping re-runs the search on the other reading (added fourth), without
       // changing the preference.
       act(() => fireEvent.click(flip));
-      await screen.findByText(/added 4th/, {}, SLOW);
+      await screen.findByText(/^Read as C7\(add4\) — added 4th\./, {}, SLOW);
+      expect(screen.getByRole('button', { name: 'Read as C7(4) instead?' })).toBeInTheDocument();
+      expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+      // Star the first added-fourth shape by keyboard.
+      const star = (await screen.findAllByRole('button', { name: /Star C7\(add4\),/ }, SLOW))[0];
+      act(() => star.focus());
+      act(() => fireEvent.keyDown(star, { key: 'Enter' }));
+      act(() => fireEvent.keyUp(star, { key: 'Enter' }));
+
+      // Stored under the brazilian spelling that reads back as the added fourth.
+      await waitFor(async () => {
+        const model = await readHome(idb, name, 'shapes.json');
+        expect(typeof model?.g1?.[GUITAR_TUNING]?.['C7(add4)']?.value).toBe('string');
+      }, SLOW);
+
+      // And it shows as *your shape* on that reading.
+      const unstar = await screen.findByRole('button', { name: /Your shape for C7\(add4\), .* — unstar/ }, SLOW);
+      expect(unstar).toHaveAttribute('aria-pressed', 'true');
     } finally {
       await remote.stop();
     }
-  });
+  }, HEAVY);
 
   it('spells the C7+ flip as workflow 16 names it (C7♯5), and the flip back in the user\'s dialect (C7M), axe clean', async () => {
     const remote = await startGitHttpRemote();

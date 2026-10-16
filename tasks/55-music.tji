@@ -58,8 +58,15 @@ task music "Music" {
   task fourth_with_seventh_spelling "A fourth on a seventh is spelled in each dialect's own notation" {
     effort 0.5d
     allocate team
+    complete 100
     depends !explorer_flip_copy
-    note "Source: music.explorer_flip_copy (tasks/refinements/music/explorer_flip_copy.md); workflow 16 (Viewing by notation). The Brazilian and Real Book formatters write a fourth on a seventh as C47/Csus47; spell them in each dialect's own notation. Tests: unit (the Brazilian and Real Book formatters on C7 with a fourth, round-tripped through parseChord)."
+    note "Source: music.explorer_flip_copy (tasks/refinements/music/explorer_flip_copy.md); workflow 16 (Viewing by notation). The Brazilian and Real Book formatters write a fourth on a seventh as C47/Csus47; spell them in each dialect's own notation. Tests: unit (the Brazilian and Real Book formatters on C7 with a fourth, round-tripped through parseChord). Refinement: tasks/refinements/music/fourth_with_seventh_spelling.md"
+  }
+  task voicings_song_dialect "A song's chords are voiced in the song's own notation" {
+    effort 0.5d
+    allocate team
+    depends !fourth_with_seventh_spelling
+    note "resolveSongVoicings (app/src/core/voicings.js) parses every chart symbol in the default (Brazilian) dialect, not the song's notation property (cifra.md section 5.6), so an american or realbook song that writes C7(4) is voiced as a C7sus4 and a C7+ as a major seventh. Thread the song's dialect (the one transpose is given) into resolveSongVoicings and unvoiceableKeys. Source-of-debt: tasks/refinements/music/fourth_with_seventh_spelling.md. Tests: unit (voicings.test.js: an american song's C7(4) and C7+ resolve the added-fourth and sharp-fifth default voicings; a brazilian one the suspension and the major seventh; my shape still matched by chord across dialects)."
   }
   task instruments_roster_default "The roster lists the instrument in use from the first run" {
     effort 0.5d

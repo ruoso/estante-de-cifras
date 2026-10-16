@@ -85,7 +85,14 @@ function analyse(c) {
   };
 }
 
-/** Brazilian cifra: 7M for a major 7th, ° and +, sus4 written as 4. */
+/**
+ * Brazilian cifra: 7M for a major 7th, ° and +, a sus4 triad written as 4.
+ *
+ * Over a seventh everything past the seventh shares one parenthesis, the fourth
+ * first: a suspended fourth opens it (`C7(4)`, `C7(4,9)` — spec §5.6: `C7(4)` is
+ * the Brazilian suspension), and a natural fourth added to a major triad is
+ * `add4`, since a bare 4 there is that suspension (`C7(add4)`, `C(add4)`).
+ */
 function formatBrazilian(c, a, sp) {
   const root = sp.note(c.root);
   let base = root;
@@ -106,7 +113,8 @@ function formatBrazilian(c, a, sp) {
       base += 'sus2';
       break;
     case 'sus4':
-      base += '4';
+      // Over a seventh the 4 moves into the parenthesis (`C7(4)`, not `C47`).
+      if (!a.hasSeventh) base += '4';
       break;
     case 'power':
       base += '5';
@@ -118,21 +126,27 @@ function formatBrazilian(c, a, sp) {
   if (a.hasSixNine) return `${base}6/9`;
   if (a.hasSix && !a.hasSeventh) tail += '6';
 
+  // The one parenthesis: the fourth first, then a ninth top, then the rest.
+  // The ninth stays ahead of a `5-`/`5+`: `C7(5-,9)` would read as a flat ninth.
+  const fourth = [];
+  const parenParts = [];
   if (a.hasSeventh) {
     // A diminished 7th is the ° in the base; nothing more to write.
     if (a.isDim7) tail += '';
-    else if (a.seventh === 0) tail += a.top === 7 ? '7M' : `7M(${a.top})`;
-    else if (a.top === 9) tail += '7(9)'; // a bare C9 would read as an added 9th
-    else tail += String(a.top);
+    else if (a.seventh === 0) tail += a.top === 7 || a.top === 9 ? '7M' : `7M(${a.top})`;
+    else tail += a.top === 9 ? '7' : String(a.top); // a bare C9 would read as an added 9th
+    if (c.quality === 'sus4') fourth.push('4');
+    // A ninth as the top joins the parenthesis (`C7(9,11+)`, not `C7(9)(11+)`).
+    if (!a.isDim7 && a.top === 9) parenParts.push('9');
   }
-
-  const parenParts = [];
   if (a.isHalfDim) parenParts.push('5-');
   if (c.quality === 'aug' && a.hasSeventh) parenParts.push('5+');
   for (const [degree, alter] of a.extras) {
     if (degree === 6 && !a.hasSeventh) continue;
-    parenParts.push(`${degree}${ALTER_SUFFIX_BR[String(alter)]}`);
+    if (degree === 4 && alter === 0) fourth.push(c.quality === 'major' ? 'add4' : '4');
+    else parenParts.push(`${degree}${ALTER_SUFFIX_BR[String(alter)]}`);
   }
+  parenParts.unshift(...fourth);
   if (parenParts.length) tail += `(${parenParts.join(',')})`;
 
   return base + tail;
@@ -212,7 +226,8 @@ function formatRealBook(c, a, sp) {
       base += 'sus2';
       break;
     case 'sus4':
-      base += 'sus4';
+      // Over a seventh the suspension follows it (`C7sus4`, not `Csus47`).
+      if (!a.hasSeventh) base += 'sus4';
       break;
     case 'power':
       base += '5';
@@ -229,13 +244,15 @@ function formatRealBook(c, a, sp) {
     else if (a.isHalfDim) tail += '7';
     else if (a.seventh === 0) tail += `∆${a.top}`;
     else tail += String(a.top);
+    if (c.quality === 'sus4') tail += 'sus4';
   }
 
   const parts = [];
   if (c.quality === 'aug' && a.hasSeventh) parts.push(`${sp.alter(1)}5`);
   for (const [degree, alter] of a.extras) {
     if (degree === 6 && !a.hasSeventh) continue;
-    if (alter === 0 && !a.hasSeventh) parts.push(`add${degree}`);
+    // A natural 4th over a seventh is added, never a bare `4` (`C7add4`, not `C74`).
+    if (alter === 0 && (!a.hasSeventh || degree === 4)) parts.push(`add${degree}`);
     else parts.push(`${sp.alter(alter)}${degree}`);
   }
   tail += parts.join('');

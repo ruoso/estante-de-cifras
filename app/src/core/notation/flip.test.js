@@ -16,6 +16,12 @@ describe('flipSymbol', () => {
     expect(flipSymbol('C7+', 'brazilian', { sevenPlus: 'dominantSharpFive' })).toBe('C7M');
   });
 
+  // music.fourth_with_seventh_spelling (workflow 16 L113-115): the flip back to
+  // the user's own reading is in the user's dialect — the brazilian suspension.
+  it('spells the flip back to the brazilian suspension in brazilian', () => {
+    expect(flipSymbol('C7(4)', 'brazilian', { sevenFour: 'addedFourth' })).toBe('C7(4)');
+  });
+
   it('names the other three ambiguities as workflow 16 does (brazilian)', () => {
     expect(flipSymbol('C9', 'brazilian')).toBe('C9');
     expect(flipSymbol('C°', 'brazilian')).toBe('Cdim');

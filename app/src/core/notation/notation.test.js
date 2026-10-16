@@ -3,7 +3,7 @@ import { parseNote } from '../pitch.js';
 import { chord, describeChordTones, sameChord } from '../chord.js';
 import { parseChord } from './parse.js';
 import { formatChord } from './format.js';
-import { DIALECT_IDS } from './dialects.js';
+import { DEFAULT_DIALECT, DIALECT_IDS } from './dialects.js';
 
 const n = parseNote;
 /** Parse and return the tones, for readable assertions. */
@@ -285,6 +285,18 @@ const CORPUS = [
   chord(n('G'), 'major', [{ degree: 7, alter: -1 }], n('B')),
   chord(n('C'), 'major', [], n('E')),
   chord(n('A'), 'minor', [{ degree: 7, alter: -1 }], n('G')),
+  // A fourth on a seventh (music.fourth_with_seventh_spelling): the added-fourth
+  // rows broke the brazilian round trip (C7(4) is the suspension, spec §5.6).
+  chord(n('C'), 'sus4', [{ degree: 7, alter: -1 }]),
+  chord(n('C'), 'sus4', [{ degree: 7 }]),
+  chord(n('C'), 'sus4', [{ degree: 7, alter: -1 }, { degree: 9 }]),
+  chord(n('C'), 'sus4', [{ degree: 7, alter: -1 }, { degree: 9, alter: -1 }]),
+  chord(n('C'), 'major', [{ degree: 7, alter: -1 }, { degree: 4 }]),
+  chord(n('C'), 'major', [{ degree: 7 }, { degree: 4 }]),
+  chord(n('C'), 'major', [{ degree: 7, alter: -1 }, { degree: 9 }, { degree: 4 }]),
+  chord(n('C'), 'minor', [{ degree: 7, alter: -1 }, { degree: 4 }]),
+  chord(n('C'), 'major', [{ degree: 4 }]),
+  chord(n('C'), 'major', [{ degree: 7, alter: -1 }, { degree: 9 }, { degree: 11, alter: 1 }]),
 ];
 
 describe('round-trip matrix', () => {
@@ -359,6 +371,81 @@ describe('round-trip matrix', () => {
     for (const dialect of DIALECT_IDS) {
       expect(formatChord(c, dialect)).toBe('C/E');
     }
+  });
+});
+
+// music.fourth_with_seventh_spelling: a fourth on a seventh is spelled in each
+// dialect's own notation, never C47/Csus47 or C74. Pins the round-trip contract
+// (format.js L5-7) and spec §5.6 L261-265 (`C7(4)` is the Brazilian suspension,
+// so the Brazilian added fourth on a major triad is `add4`).
+describe('a fourth on a seventh in each dialect', () => {
+  const sus4 = (...exts) => chord(n('C'), 'sus4', exts);
+  const major = (...exts) => chord(n('C'), 'major', exts);
+  const b7 = { degree: 7, alter: -1 };
+  const maj7 = { degree: 7 };
+  const nine = { degree: 9 };
+  const flatNine = { degree: 9, alter: -1 };
+  const thirteen = { degree: 13 };
+  const four = { degree: 4 };
+
+  // [name, chord, dialect, spelling]
+  const TABLE = [
+    ['C7sus4', sus4(b7), 'brazilian', 'C7(4)'],
+    ['C9sus4', sus4(b7, nine), 'brazilian', 'C7(4,9)'],
+    ['Cmaj7sus4', sus4(maj7), 'brazilian', 'C7M(4)'],
+    ['Cmaj9sus4', sus4(maj7, nine), 'brazilian', 'C7M(4,9)'],
+    ['C13sus4', sus4(b7, nine, thirteen), 'brazilian', 'C13(4)'],
+    ['C7sus4b9', sus4(b7, flatNine), 'brazilian', 'C7(4,9-)'],
+    ['C7add4', major(b7, four), 'brazilian', 'C7(add4)'],
+    ['Cmaj7add4', major(maj7, four), 'brazilian', 'C7M(add4)'],
+    ['C9add4', major(b7, nine, four), 'brazilian', 'C7(add4,9)'],
+    ['Cm7add4', chord(n('C'), 'minor', [b7, four]), 'brazilian', 'Cm7(4)'],
+    ['Cadd4', major(four), 'brazilian', 'C(add4)'],
+    ['Csus4', sus4(), 'brazilian', 'C4'],
+    ['C9#11', major(b7, nine, { degree: 11, alter: 1 }), 'brazilian', 'C7(9,11+)'],
+    ['C7sus4', sus4(b7), 'realbook', 'C7sus4'],
+    ['C9sus4', sus4(b7, nine), 'realbook', 'C9sus4'],
+    ['Cmaj7sus4', sus4(maj7), 'realbook', 'C∆7sus4'],
+    ['Cmaj9sus4', sus4(maj7, nine), 'realbook', 'C∆9sus4'],
+    ['C13sus4', sus4(b7, nine, thirteen), 'realbook', 'C13sus4'],
+    ['C7sus4b9', sus4(b7, flatNine), 'realbook', 'C7sus4b9'],
+    ['C7add4', major(b7, four), 'realbook', 'C7add4'],
+    ['Cmaj7add4', major(maj7, four), 'realbook', 'C∆7add4'],
+    ['C9add4', major(b7, nine, four), 'realbook', 'C9add4'],
+    ['Cm7add4', chord(n('C'), 'minor', [b7, four]), 'realbook', 'C−7add4'],
+    ['Cadd4', major(four), 'realbook', 'Cadd4'],
+    ['Csus4', sus4(), 'realbook', 'Csus4'],
+  ];
+
+  it.each(TABLE)('writes %s in %s as %s and reads it back', (_name, c, dialect, spelling) => {
+    expect(formatChord(c, dialect)).toBe(spelling);
+    const back = parseChord(spelling, dialect);
+    expect(back.errors).toEqual([]);
+    expect(sameChord(back.chord, c)).toBe(true);
+    expect(describeChordTones(back.chord)).toBe(describeChordTones(c));
+  });
+
+  // The display option goes through the new branches: the Real Book writes ♭9,
+  // the Brazilian keeps its `9-` suffix.
+  it.each([
+    [sus4(b7, flatNine), 'realbook', 'C7sus4♭9'],
+    [sus4(b7, flatNine), 'brazilian', 'C7(4,9-)'],
+  ])('writes the ♭9 row with { accidentals: unicode } (%#: %s)', (c, dialect, spelling) => {
+    expect(formatChord(c, dialect, { accidentals: 'unicode' })).toBe(spelling);
+  });
+
+  // Home-book format §4.4: a shape key is matched by chord, not by spelling;
+  // ChordExplorer.jsx keys a star by formatChord(chord, DEFAULT_DIALECT) and
+  // fingering-groups.js reads it back with parseChord in the default dialect.
+  it('the default-dialect shape key reads back as the chord starred', () => {
+    for (const c of [major(b7, four), sus4(b7)]) {
+      const key = formatChord(c, DEFAULT_DIALECT);
+      const back = parseChord(key).chord;
+      expect(sameChord(back, c)).toBe(true);
+      expect(describeChordTones(back)).toBe(describeChordTones(c));
+    }
+    expect(describeChordTones(parseChord(formatChord(major(b7, four), DEFAULT_DIALECT)).chord)).toBe('C E F G Bb');
+    expect(describeChordTones(parseChord(formatChord(sus4(b7), DEFAULT_DIALECT)).chord)).toBe('C F G Bb');
   });
 });
 
