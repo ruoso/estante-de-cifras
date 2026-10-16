@@ -627,6 +627,30 @@ export default {
     selected: 'Seleccionado',
     themeNote:
       'El automático sigue este dispositivo: claro → Estante, oscuro → Palco. Elegir un tema con nombre lo reemplaza. Tu elección te acompaña en todos los dispositivos; el automático vuelve a leer el modo claro u oscuro de cada uno.',
+    // Density and chord diagrams (shell.display_preferences).
+    density: 'Densidad',
+    densityCompact: 'Compacta',
+    densityCompactMeta: 'Más pequeña, más a la vista',
+    densityCompactMetaLong:
+      'Espaciado más ajustado, cifrado más pequeño — más de la canción a la vista',
+    densityComfortable: 'Cómoda',
+    densityComfortableMeta: 'La predeterminada',
+    densityRoomy: 'Amplia',
+    densityRoomyMeta: 'Más grande, para leer de lejos',
+    densityRoomyMetaLong: 'Espaciado más holgado, cifrado más grande — para leer desde más lejos',
+    diagrams: 'Diagramas de acordes',
+    diagramHand: 'Mano',
+    diagramHandRight: 'Diestro',
+    diagramHandRightMeta: 'Predeterminado · la cuerda más grave a la izquierda',
+    diagramHandLeft: 'Zurdo',
+    diagramHandLeftMeta: 'En espejo · la cuerda más grave a la derecha',
+    diagramNeck: 'Mástil',
+    diagramNeckVertical: 'Vertical',
+    diagramNeckVerticalMeta: 'Predeterminado · la cejuela arriba',
+    diagramNeckHorizontal: 'Horizontal',
+    diagramNeckHorizontalMeta: 'La cejuela a la izquierda, los trastes hacia la derecha',
+    diagramsNote:
+      'Cambia cómo se dibuja una posición, nunca qué posiciones se encuentran. Todos los diagramas la siguen.',
     languageNote: 'Usa el idioma de tu navegador hasta que elijas uno.',
     notSignedIn: 'Sin sesión iniciada',
     notSignedInBody:

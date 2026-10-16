@@ -106,3 +106,20 @@
   color: var(--ink-2);
   letter-spacing: 0.02em;
 }
+
+/* A horizontal neck (shell.display_preferences; workflow 16 §How diagrams are
+   drawn) is wider than it is tall: let it shrink to its row rather than
+   overflow a phone's grid cell, keeping its aspect ratio. Left-handed needs no
+   layout of its own — the renderer mirrors the strings — so
+   `.chord-diagram--left` carries no rule; it only makes the mirror observable
+   on the host (the SVG root carries orientation, not hand). */
+.chord-diagram--horizontal {
+  max-width: 100%;
+}
+.chord-diagram--horizontal .chord-diagram__box {
+  max-width: 100%;
+}
+.chord-diagram--horizontal .ec-diagram {
+  max-width: 100%;
+  height: auto;
+}

@@ -2,8 +2,10 @@
 // account screen; design.theme_picker; mockup Theme-picker.dc.html). One
 // full-screen surface, reached from the header, with three regions:
 //
-//   1. Preferences — a Theme picker (Automatic, Estante, Caderno, Palco) and a
-//      Language picker (the four LOCALES), present and writable whether or not
+//   1. Preferences — a Theme picker (Automatic, Estante, Caderno, Palco), a
+//      Density picker (Compact, Comfortable, Roomy), the Chord diagrams Hand and
+//      Neck pickers with one live diagram sample (shell.display_preferences),
+//      and a Language picker (the four LOCALES), present and writable whether or not
 //      the user is signed in (preferences live in the local home book from the
 //      first minute). A choice is a Worker command (SET_THEME / SET_LANGUAGE)
 //      that writes the `{ value, at }` register through the home book; the view
@@ -49,7 +51,15 @@ import {
 } from 'react-aria-components';
 
 import { t, currentLocale, resolveLocale, LOCALES } from '../i18n/index.js';
-import { THEMES } from '../theme/resolve.js';
+import {
+  THEMES,
+  resolveDensity,
+  resolveDiagramDisplay,
+} from '../theme/resolve.js';
+import ChordDiagram from '../diagram/ChordDiagram.jsx';
+import { parseChord } from '../core/notation/parse.js';
+import { fromCatalog } from '../core/instrument.js';
+import { fingeringFromFrets } from '../core/search.js';
 import { orderedBooks } from '../books/book-display.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
@@ -80,6 +90,63 @@ const THEME_OPTIONS = [
   { id: 'caderno', name: 'themeCaderno', meta: 'themeCadernoMeta', swatch: 'caderno' },
   { id: 'palco', name: 'themePalco', meta: 'themePalcoMeta', swatch: 'palco' },
 ];
+
+// The three densities, in mockup order, each with its sample chart line drawn at
+// that density's --chart-size (theme.css .density-*). `id` is what SET_DENSITY
+// carries (DENSITIES). The description is short on a phone, long wider up
+// (Theme-picker board); Comfortable's is "The default" either way.
+const DENSITY_OPTIONS = [
+  { id: 'compact', name: 'densityCompact', meta: 'densityCompactMeta', long: 'densityCompactMetaLong', size: '15px' },
+  { id: 'comfortable', name: 'densityComfortable', meta: 'densityComfortableMeta', long: 'densityComfortableMeta', size: '17px' },
+  { id: 'roomy', name: 'densityRoomy', meta: 'densityRoomyMeta', long: 'densityRoomyMetaLong', size: '19px' },
+];
+
+// The chord-diagram choices (workflow 16 §How diagrams are drawn): `id` is
+// what SET_DIAGRAM_HANDED / SET_DIAGRAM_ORIENTATION carry (HANDS / ORIENTATIONS).
+const HAND_OPTIONS = [
+  { id: 'right', name: 'diagramHandRight', meta: 'diagramHandRightMeta' },
+  { id: 'left', name: 'diagramHandLeft', meta: 'diagramHandLeftMeta' },
+];
+const NECK_OPTIONS = [
+  { id: 'vertical', name: 'diagramNeckVertical', meta: 'diagramNeckVerticalMeta' },
+  { id: 'horizontal', name: 'diagramNeckHorizontal', meta: 'diagramNeckHorizontalMeta' },
+];
+
+// The live diagram sample: C x32010 on a standard-tuned guitar, as the board
+// draws it — a fixed, known shape that shows the mirror unambiguously. Drawn
+// by ChordDiagram, so it follows the choice through ThemeRoot's context.
+const SAMPLE_GUITAR = fromCatalog('6guitar');
+const SAMPLE_CHORD = parseChord('C').chord;
+const SAMPLE_SHAPE = fingeringFromFrets(['x', 3, 2, 0, 1, 0], SAMPLE_CHORD, SAMPLE_GUITAR);
+
+// The density sample: one chart line at the option's chart size. Decorative —
+// the name and description carry the meaning — so hidden from assistive tech.
+function DensitySample({ size }) {
+  return (
+    <span className="account-density-sample" aria-hidden="true">
+      <span className="chart" style={{ '--chart-size': size }}>
+        <span className="sung">
+          <span className="s">
+            <span className="c">G</span>
+            <span className="w">Tarde</span>
+          </span>
+        </span>
+      </span>
+    </span>
+  );
+}
+
+// A description that is short on a phone and long wider up (the board's two
+// copies); the stylesheet shows one. Equal copies render once.
+function ResponsiveMeta({ short, long }) {
+  if (short === long) return short;
+  return (
+    <>
+      <span className="account-meta-short">{short}</span>
+      <span className="account-meta-long">{long}</span>
+    </>
+  );
+}
 
 // The chevron-back glyph of the app bar; decorative, named by its button.
 function BackIcon() {
@@ -302,6 +369,18 @@ export default function AccountScreen({
   const chooseLanguage = (language) =>
     store.send(command(CommandKind.SET_LANGUAGE, { language }));
 
+  // Density and the diagram's hand and neck read through the same resolvers
+  // ThemeRoot applies, so an absent, tombstoned or unknown register marks the
+  // default Selected — and nothing writes until the user chooses (§4.1).
+  const chosenDensity = resolveDensity(preferences?.density?.value);
+  const { handed: chosenHand, orientation: chosenNeck } = resolveDiagramDisplay(preferences);
+  const chooseDensity = (density) =>
+    store.send(command(CommandKind.SET_DENSITY, { density }));
+  const chooseHand = (handed) =>
+    store.send(command(CommandKind.SET_DIAGRAM_HANDED, { handed }));
+  const chooseNeck = (orientation) =>
+    store.send(command(CommandKind.SET_DIAGRAM_ORIENTATION, { orientation }));
+
   // 'loading' | 'in' | 'out' | 'error' — "signed in" read afresh from a 200 vs
   // 401 each time the screen opens (Constraints; Decision 3).
   const [auth, setAuth] = useState('loading');
@@ -445,6 +524,73 @@ export default function AccountScreen({
         ))}
       </RadioGroup>
       <p className="t-small account-note">{t('account.themeNote')}</p>
+
+      <div className="t-h3 account-subhead">{t('account.density')}</div>
+      <RadioGroup
+        className="list account-list"
+        aria-label={t('account.density')}
+        value={chosenDensity}
+        onChange={chooseDensity}
+      >
+        {DENSITY_OPTIONS.map((opt) => (
+          <PickerRow
+            key={opt.id}
+            value={opt.id}
+            name={t(`account.${opt.name}`)}
+            meta={<ResponsiveMeta short={t(`account.${opt.meta}`)} long={t(`account.${opt.long}`)} />}
+          >
+            <DensitySample size={opt.size} />
+          </PickerRow>
+        ))}
+      </RadioGroup>
+
+      <div className="t-h3 account-subhead">{t('account.diagrams')}</div>
+      <div className="account-diagram-sample">
+        <div className="card account-diagram-sample-card">
+          <ChordDiagram
+            fingering={SAMPLE_SHAPE}
+            context={{ chord: SAMPLE_CHORD, instrument: SAMPLE_GUITAR }}
+            kind="song"
+          />
+        </div>
+        <p className="t-small account-note">{t('account.diagramsNote')}</p>
+      </div>
+      <div className="account-diagram-group">
+        <span className="t-small account-diagram-label">{t('account.diagramHand')}</span>
+        <RadioGroup
+          className="list account-list account-tiles"
+          aria-label={t('account.diagramHand')}
+          value={chosenHand}
+          onChange={chooseHand}
+        >
+          {HAND_OPTIONS.map((opt) => (
+            <PickerRow
+              key={opt.id}
+              value={opt.id}
+              name={t(`account.${opt.name}`)}
+              meta={<span className="account-meta-long">{t(`account.${opt.meta}`)}</span>}
+            />
+          ))}
+        </RadioGroup>
+      </div>
+      <div className="account-diagram-group">
+        <span className="t-small account-diagram-label">{t('account.diagramNeck')}</span>
+        <RadioGroup
+          className="list account-list account-tiles"
+          aria-label={t('account.diagramNeck')}
+          value={chosenNeck}
+          onChange={chooseNeck}
+        >
+          {NECK_OPTIONS.map((opt) => (
+            <PickerRow
+              key={opt.id}
+              value={opt.id}
+              name={t(`account.${opt.name}`)}
+              meta={<span className="account-meta-long">{t(`account.${opt.meta}`)}</span>}
+            />
+          ))}
+        </RadioGroup>
+      </div>
 
       <div className="t-h3 account-subhead">{t('account.language')}</div>
       <RadioGroup

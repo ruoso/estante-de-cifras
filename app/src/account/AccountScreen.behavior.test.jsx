@@ -215,6 +215,99 @@ describe('Preferences, before sign-in (workflow 13 L70-76; design.theme_picker)'
   });
 });
 
+// behavior (shell.display_preferences) — Density and Chord diagrams on the
+// account screen, round-tripping through the real SET_DENSITY /
+// SET_DIAGRAM_HANDED / SET_DIAGRAM_ORIENTATION command path and re-applied by
+// ThemeRoot off the slice. Pins workflow 1 §Density; workflow 13 §The account
+// screen L136-146 (order theme, density, chord diagrams, language; the chosen
+// one marked by a word); workflow 16 L208-214 (chosen in Preferences with one
+// live diagram); the Theme-picker board.
+describe('Density and Chord diagrams (shell.display_preferences)', () => {
+  const groupOf = (name) => screen.getByRole('radiogroup', { name });
+  const before = (a, b) =>
+    expect(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  const sampleOf = (container) => container.querySelector('.account-diagram-sample .chord-diagram');
+
+  it('the Density, Hand and Neck groups sit between Theme and Language, defaults marked Selected', async () => {
+    const { client } = signedOut();
+    const { container } = renderAccount(workerStore(), { client });
+    await screen.findByText('Not signed in');
+
+    const theme = groupOf('Theme');
+    const density = groupOf('Density');
+    const hand = groupOf('Hand');
+    const neck = groupOf('Neck');
+    const language = groupOf('Language');
+    before(theme, density);
+    before(density, hand);
+    before(hand, neck);
+    before(neck, language);
+    expect(screen.getByText('Chord diagrams')).toBeInTheDocument();
+
+    for (const name of ['Compact', 'Comfortable', 'Roomy']) {
+      expect(within(density).getByRole('radio', { name: nameMatch(name) })).toBeInTheDocument();
+    }
+    // A fresh home book: the defaults, each marked by the word "Selected".
+    const comfortable = within(density).getByRole('radio', { name: /Comfortable/ });
+    const right = within(hand).getByRole('radio', { name: /Right-handed/ });
+    const vertical = within(neck).getByRole('radio', { name: /Vertical/ });
+    for (const radio of [comfortable, right, vertical]) {
+      expect(radio).toBeChecked();
+      expect(within(radio.closest('label')).getByText('Selected')).toBeInTheDocument();
+    }
+    expect(rootOf(container)).toHaveClass('density-comfortable');
+
+    // The live sample is C x32010, named by its describeFingering sentence.
+    expect(within(sampleOf(container)).getByRole('img', { name: /x32010/ })).toBeInTheDocument();
+    expect(sampleOf(container).querySelector('svg')).toHaveClass('ec-diagram-vertical');
+  });
+
+  it('choosing Roomy re-renders the root density-roomy and moves Selected; axe-clean in each density', async () => {
+    const { client } = signedOut();
+    const { container } = renderAccount(workerStore(), { client });
+    await screen.findByText('Not signed in');
+
+    for (const [name, density] of [
+      ['Roomy', 'roomy'],
+      ['Compact', 'compact'],
+      ['Comfortable', 'comfortable'],
+    ]) {
+      fireEvent.click(within(groupOf('Density')).getByRole('radio', { name: nameMatch(name) }));
+      await waitFor(() => expect(rootOf(container)).toHaveClass(`density-${density}`));
+      const radio = within(groupOf('Density')).getByRole('radio', { name: nameMatch(name) });
+      expect(radio).toBeChecked();
+      expect(within(radio.closest('label')).getByText('Selected')).toBeInTheDocument();
+      expect(within(groupOf('Density')).getAllByText('Selected')).toHaveLength(1);
+      expect(await checkWcag21aa(container), density).toHaveNoViolations();
+    }
+  });
+
+  it('choosing Left-handed then Horizontal re-renders the sample mirrored and as a neck; axe-clean in each orientation', async () => {
+    const { client } = signedOut();
+    const { container } = renderAccount(workerStore(), { client });
+    await screen.findByText('Not signed in');
+    const mutedPath = () => sampleOf(container).querySelector('.ec-muted').getAttribute('d');
+    const rightHanded = mutedPath();
+    expect(await checkWcag21aa(container), 'vertical').toHaveNoViolations();
+
+    fireEvent.click(within(groupOf('Hand')).getByRole('radio', { name: /Left-handed/ }));
+    await waitFor(() => expect(sampleOf(container)).toHaveClass('chord-diagram--left'));
+    // Mirrored: the lowest string's marker moved to the other side.
+    expect(mutedPath()).not.toBe(rightHanded);
+    expect(within(groupOf('Hand')).getByRole('radio', { name: /Left-handed/ })).toBeChecked();
+
+    fireEvent.click(within(groupOf('Neck')).getByRole('radio', { name: /Horizontal/ }));
+    await waitFor(() =>
+      expect(sampleOf(container).querySelector('svg')).toHaveClass('ec-diagram-horizontal'),
+    );
+    expect(sampleOf(container)).toHaveClass('chord-diagram--left', 'chord-diagram--horizontal');
+    // The accessible name is unchanged (workflow 16 L223-228).
+    expect(within(sampleOf(container)).getByRole('img', { name: /x32010/ })).toBeInTheDocument();
+    expect(within(groupOf('Neck')).getByRole('radio', { name: /Horizontal/ })).toBeChecked();
+    expect(await checkWcag21aa(container), 'horizontal').toHaveNoViolations();
+  });
+});
+
 describe('Not signed in (workflow 13 L74; acceptance 4)', () => {
   it('the card’s "Use a passkey" / "Email me a link" open the SignIn surface', async () => {
     const { client } = signedOut();

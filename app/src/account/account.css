@@ -533,3 +533,66 @@ label.signout-card > span:first-child input {
   flex-direction: column;
   gap: calc(var(--u) * 1.5);
 }
+
+/* Density and Chord diagrams (shell.display_preferences; Theme-picker board). */
+
+/* The density sample chip: one chart line drawn at the option's --chart-size
+   (set inline per row), on the page colour. Decorative (aria-hidden). */
+.account-density-sample {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+/* The board's two copies of a description: short on a phone, long wider up.
+   The Hand and Neck rows carry only the long one, so a phone shows the name. */
+.account-meta-long {
+  display: none;
+}
+@media (min-width: 600px) {
+  .account-meta-short {
+    display: none;
+  }
+  .account-meta-long {
+    display: inline;
+  }
+}
+
+/* The live diagram sample beside its caption. */
+.account-diagram-sample {
+  display: flex;
+  gap: calc(var(--u) * 1.5);
+  align-items: center;
+}
+.account-diagram-sample-card {
+  flex: none;
+  padding: 8px 14px;
+  display: flex;
+}
+
+.account-diagram-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.account-diagram-label {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Hand and Neck: the two options side by side, one row (the board's tiles). */
+.account-list.account-tiles {
+  flex-direction: row;
+}
+.account-list.account-tiles .account-row {
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+  border-bottom: 0;
+  gap: calc(var(--u) * 1.25);
+}
+.account-list.account-tiles .account-row + .account-row {
+  border-left: 1px solid var(--line);
+}

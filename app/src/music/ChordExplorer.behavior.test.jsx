@@ -106,6 +106,63 @@ const renderExplorer = (store, initialText, props = {}) =>
   );
 
 describe('the chord explorer (behavior)', () => {
+  // shell.display_preferences — pins workflow 16 L216-228: every candidate
+  // diagram follows the hand and neck chosen (the explorer and the in-song
+  // picker share FingeringGroups), while which shapes are found, their order,
+  // grouping and accessible names are unchanged from the default render.
+  it('draws every candidate as a left-handed horizontal neck when chosen, order and names unchanged, axe clean', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      const guitar = instrumentSeed('g1', { catalogId: '6guitar', tuning: GUITAR_TUNING, fretCount: 22 });
+      // What the explorer shows for C: each group's heading and, in order,
+      // every diagram's accessible name — and every diagram host.
+      const snapshot = (container) => ({
+        groups: [...container.querySelectorAll('.shapes[role="group"]')].map((g) =>
+          g.getAttribute('aria-label'),
+        ),
+        names: screen.getAllByRole('img').map((d) => d.getAttribute('aria-label')),
+      });
+
+      await seedRemote(remote, guitar);
+      const plain = await makeSeededWorker(remote, 'display-default');
+      const first = renderExplorer(plain.store, 'C');
+      act(() => plain.store.open());
+      await screen.findByText('Open', {}, SLOW);
+      const defaults = snapshot(first.container);
+      for (const host of first.container.querySelectorAll('.chord-diagram')) {
+        expect(host.querySelector('svg')).toHaveClass('ec-diagram-vertical');
+        expect(host).not.toHaveClass('chord-diagram--left');
+      }
+      first.unmount();
+
+      await seedRemote(remote, {
+        'preferences.json': [
+          { path: ['diagramHanded'], value: 'left' },
+          { path: ['diagramOrientation'], value: 'horizontal' },
+        ],
+      });
+      const chosen = await makeSeededWorker(remote, 'display-chosen');
+      const second = renderExplorer(chosen.store, 'C');
+      act(() => chosen.store.open());
+      await screen.findByText('Open', {}, SLOW);
+      await waitFor(() =>
+        expect(chosen.store.slice('preferences')?.diagramOrientation?.value).toBe('horizontal'),
+      );
+
+      const hosts = [...second.container.querySelectorAll('.chord-diagram')];
+      expect(hosts.length).toBeGreaterThan(1);
+      for (const host of hosts) {
+        expect(host).toHaveClass('chord-diagram--left', 'chord-diagram--horizontal');
+        expect(host.querySelector('svg')).toHaveClass('ec-diagram-horizontal');
+      }
+      expect(snapshot(second.container)).toEqual(defaults);
+
+      expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    } finally {
+      await remote.stop();
+    }
+  });
+
   it('shows the ranked groups with difficulty words and accessible diagram names, axe clean', async () => {
     const remote = await startGitHttpRemote();
     try {

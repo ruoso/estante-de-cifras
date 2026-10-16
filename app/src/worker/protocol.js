@@ -266,6 +266,18 @@ export const CommandKind = Object.freeze({
   // never pushed (a preference); the value is never logged (standing rule).
   SET_THEME: 'set_theme',
   SET_LANGUAGE: 'set_language',
+  // Persist the display preferences to the home book (shell.display_preferences;
+  // workflow 1 §Density, workflow 16 §How diagrams are drawn; home-book-format
+  // §4.1), each on the SET_THEME template, one command per register so two
+  // devices changing one each both survive. SET_DENSITY `{ density }` — one of
+  // DENSITIES; SET_DIAGRAM_HANDED `{ handed }` — one of HANDS;
+  // SET_DIAGRAM_ORIENTATION `{ orientation }` — one of ORIENTATIONS (resolve.js).
+  // The default (comfortable, right, vertical) clears the register to a
+  // tombstone, never the literal default. An invalid value is rejected (no
+  // write). Offline, auto-committed, never pushed.
+  SET_DENSITY: 'set_density',
+  SET_DIAGRAM_HANDED: 'set_diagram_handed',
+  SET_DIAGRAM_ORIENTATION: 'set_diagram_orientation',
   // Record that the first-open "Playing on guitar — change?" prompt was answered
   // (songs.first_song, workflow 1 §The instrument). MARK_INSTRUMENT_PROMPT_SEEN
   // `{}`: the Worker provisions a local home book if none exists and

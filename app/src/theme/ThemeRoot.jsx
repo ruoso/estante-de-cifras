@@ -10,10 +10,16 @@
 // automatic follows each device as it changes (Workflow 1 lines 94-103), never
 // a one-time read and never written to the home book.
 
-import { useRef, useSyncExternalStore } from 'react';
+import { useMemo, useRef, useSyncExternalStore } from 'react';
 import { UNSAFE_PortalProvider } from 'react-aria';
 import { useSlice } from '../worker/useStore.js';
-import { resolveTheme, themeClasses, DEFAULT_DENSITY } from './resolve.js';
+import {
+  resolveTheme,
+  resolveDensity,
+  resolveDiagramDisplay,
+  themeClasses,
+} from './resolve.js';
+import { DiagramDisplayContext } from './display-context.js';
 
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
@@ -42,9 +48,10 @@ export function usePrefersDark() {
   return useSyncExternalStore(subscribeDarkMode, readDarkMode, readDarkMode);
 }
 
-// Apply the resolved theme to the app root. `store` carries the `preferences`
-// slice (the consumer seam; the producer is deferred — storage.preferences_surface),
-// `density` is a render axis fixed at comfortable by default.
+// Apply the resolved theme and density to the app root. `store` carries the
+// `preferences` slice; the `density` register picks the density class, and the
+// `diagramHanded` / `diagramOrientation` registers become the
+// DiagramDisplayContext every ChordDiagram beneath reads (shell.display_preferences).
 //
 // React Aria Components portals its overlays (ModalOverlay/Modal/Popover/Tooltip)
 // to document.body by default — outside this `.est` root, where every design
@@ -57,16 +64,21 @@ export function usePrefersDark() {
 // `.est` div is populated by the time any overlay opens; it returns null in a
 // bare render with no mounted root, so RAC falls back to document.body — the
 // provider is additive, never required.
-export default function ThemeRoot({ store, density = DEFAULT_DENSITY, children }) {
+export default function ThemeRoot({ store, children }) {
   const preferences = useSlice(store, 'preferences');
   const prefersDark = usePrefersDark();
   const applied = resolveTheme(preferences?.theme?.value, prefersDark);
+  const density = resolveDensity(preferences?.density?.value);
+  const { handed, orientation } = resolveDiagramDisplay(preferences);
+  const diagramDisplay = useMemo(() => ({ handed, orientation }), [handed, orientation]);
   const rootRef = useRef(null);
   return (
     <div ref={rootRef} className={themeClasses(applied, density)}>
-      <UNSAFE_PortalProvider getContainer={() => rootRef.current}>
-        {children}
-      </UNSAFE_PortalProvider>
+      <DiagramDisplayContext.Provider value={diagramDisplay}>
+        <UNSAFE_PortalProvider getContainer={() => rootRef.current}>
+          {children}
+        </UNSAFE_PortalProvider>
+      </DiagramDisplayContext.Provider>
     </div>
   );
 }

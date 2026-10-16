@@ -16,6 +16,7 @@ import { setLocale } from '../i18n/index.js';
 import { parseChord } from '../core/notation/parse.js';
 import { instrumentInstance } from '../core/instrument.js';
 import { fingeringFromFrets } from '../core/search.js';
+import { DiagramDisplayContext } from '../theme/display-context.js';
 import ChordDiagram from './ChordDiagram.jsx';
 
 const guitar = instrumentInstance({
@@ -81,5 +82,47 @@ describe('ChordDiagram (behavior)', () => {
       expect(await checkWcag21aa(container), kind).toHaveNoViolations();
       unmount();
     }
+  });
+});
+
+// behavior — the diagram follows the display preference (shell.display_preferences).
+// Pins workflow 16 L216-228: every chord diagram follows the hand and neck
+// chosen, and the accessible name and the kind word are unchanged; with no
+// provider (no ThemeRoot), the defaults.
+describe('ChordDiagram — hand and neck from DiagramDisplayContext (workflow 16 L216-228)', () => {
+  beforeEach(() => setLocale('en'));
+
+  for (const handed of ['right', 'left']) {
+    for (const orientation of ['vertical', 'horizontal']) {
+      it(`draws ${handed}-handed ${orientation}, keeps its name and kind word, axe-clean`, async () => {
+        const { container } = renderDiagram(
+          <DiagramDisplayContext.Provider value={{ handed, orientation }}>
+            <ChordDiagram fingering={openC} context={context} kind="yours" />
+          </DiagramDisplayContext.Provider>
+        );
+        const host = container.querySelector('.chord-diagram');
+        const svg = host.querySelector('svg');
+        expect(svg).toHaveClass(`ec-diagram-${orientation}`);
+        if (handed === 'left') expect(host).toHaveClass('chord-diagram--left');
+        else expect(host).not.toHaveClass('chord-diagram--left');
+        if (orientation === 'horizontal') expect(host).toHaveClass('chord-diagram--horizontal');
+        else expect(host).not.toHaveClass('chord-diagram--horizontal');
+        expect(host).toHaveClass('chord-diagram--yours');
+        const img = screen.getByRole('img', { name: /x32010/ });
+        expect(img).toHaveAccessibleName(/open position/);
+        expect(within(host).getByText('your shape')).toBeInTheDocument();
+        expect(await checkWcag21aa(container)).toHaveNoViolations();
+      });
+    }
+  }
+
+  it('draws the defaults with no provider: right-handed and vertical', () => {
+    const { container } = renderDiagram(
+      <ChordDiagram fingering={openC} context={context} kind="song" />
+    );
+    const host = container.querySelector('.chord-diagram');
+    expect(host.querySelector('svg')).toHaveClass('ec-diagram-vertical');
+    expect(host).not.toHaveClass('chord-diagram--left');
+    expect(host).not.toHaveClass('chord-diagram--horizontal');
   });
 });

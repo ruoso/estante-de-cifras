@@ -17,11 +17,19 @@ export const THEMES = Object.freeze(['estante', 'caderno', 'palco']);
 // an explicit theme, or `automatic` (home-book-format §4.1 lines 199-202).
 export const CHOSEN_THEMES = Object.freeze(['automatic', ...THEMES]);
 
-// Density ships fixed at the mockup prop default; no chooser, no persistence
-// (no `density` register in home-book-format §4.1 — Decision "density ships as
-// a render axis"). It stays a parameter so the behavior test can render each.
+// The densities a user can choose, from preferences.json's `density` register
+// (home-book-format §4.1): absent, a tombstone, or an unknown value all read as
+// comfortable — the default lives here, never in the data.
 export const DENSITIES = Object.freeze(['compact', 'comfortable', 'roomy']);
 export const DEFAULT_DENSITY = 'comfortable';
+
+// How a chord diagram is drawn, from the `diagramHanded` and
+// `diagramOrientation` registers (home-book-format §4.1; workflow 16 §How
+// diagrams are drawn). Each is its own register, resolved independently.
+export const HANDS = Object.freeze(['right', 'left']);
+export const DEFAULT_HAND = 'right';
+export const ORIENTATIONS = Object.freeze(['vertical', 'horizontal']);
+export const DEFAULT_ORIENTATION = 'vertical';
 
 // Resolve the applied theme from the chosen theme and whether the device is in
 // dark mode. An explicit theme is returned unchanged whatever the device asks;
@@ -36,4 +44,22 @@ export function resolveTheme(chosenTheme, prefersDark) {
 // density-<density>` (docs/mockups/theme.css — every board sets exactly this).
 export function themeClasses(appliedTheme, density = DEFAULT_DENSITY) {
   return `est theme-${appliedTheme} density-${density}`;
+}
+
+// The applied density: the register's value when it is one of DENSITIES, else
+// comfortable (an unknown value reads as the default and is left as it is —
+// home-book-format §4.1).
+export function resolveDensity(value) {
+  return DENSITIES.includes(value) ? value : DEFAULT_DENSITY;
+}
+
+// How every chord diagram is drawn, from the preferences slice: `{ handed,
+// orientation }`, each the register's value when in its set, else the default.
+export function resolveDiagramDisplay(preferences) {
+  const handed = preferences?.diagramHanded?.value;
+  const orientation = preferences?.diagramOrientation?.value;
+  return {
+    handed: HANDS.includes(handed) ? handed : DEFAULT_HAND,
+    orientation: ORIENTATIONS.includes(orientation) ? orientation : DEFAULT_ORIENTATION,
+  };
 }

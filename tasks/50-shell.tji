@@ -92,8 +92,9 @@ task shell "Shell" {
   task display_preferences "Density and chord-diagram display" {
     effort 2d
     allocate team
+    complete 100
     depends !tokens, !diagram, design.display_preferences, storage.preferences_surface, account.account_screen
-    note "As design.display_preferences decides: density and the diagram's left-handed mirror and horizontal neck as home-book preferences, chosen on the account screen, applied by ThemeRoot (density class) and ChordBox (mirror, orientation) in the explorer and the picker. Source: tasks/parking-lot.md 2026-10-14. Tests: unit (ChordBox geometry mirrored and rotated; preference defaults); behavior (choosing each re-renders; axe in each density and orientation); e2e-web (a preference chosen, kept across a reload, on the three viewports; axe)."
+    note "As design.display_preferences decides: density and the diagram's left-handed mirror and horizontal neck as home-book preferences, chosen on the account screen, applied by ThemeRoot (density class) and ChordBox (mirror, orientation) in the explorer and the picker. Source: tasks/parking-lot.md 2026-10-14. Tests: unit (ChordBox geometry mirrored and rotated; preference defaults); behavior (choosing each re-renders; axe in each density and orientation); e2e-web (a preference chosen, kept across a reload, on the three viewports; axe). Refinement: tasks/refinements/shell/display_preferences.md"
   }
   task full_height "Full-screen surfaces scroll inside, not the page" {
     effort 1d

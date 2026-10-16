@@ -3,10 +3,15 @@ import { render, screen, act } from '@testing-library/react';
 import { createStore } from '../worker/store.js';
 import { event, EventKind } from '../worker/protocol.js';
 import { checkWcag21aa } from '../a11y/axe.js';
+import { parseChord } from '../core/notation/parse.js';
+import { fromCatalog } from '../core/instrument.js';
+import { fingeringFromFrets } from '../core/search.js';
+import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import ThemeRoot from './ThemeRoot.jsx';
 
 // behavior — the theme root on a sample surface (shell.tokens). Each theme and
-// each density renders with the right `est theme-<x> density-<y>` classes and
+// each density (a `density` register in the preferences slice —
+// shell.display_preferences; workflow 1 §Density; home-book-format §4.1) renders with the right `est theme-<x> density-<y>` classes and
 // is axe-clean at WCAG 2.1 AA; a `theme` register in the `preferences` slice
 // drives the applied theme; a device-mode change under automatic re-applies
 // Estante↔Palco. Pins the .tji note ("each theme and density rendered on a
@@ -82,12 +87,12 @@ describe('ThemeRoot (behavior)', () => {
       it(`renders ${applied} at density ${density} with the right classes, axe-clean`, async () => {
         installMatchMedia(false);
         const { store, emit } = manualStore();
-        if (chosen) {
-          emit(event(EventKind.PREFERENCES, { theme: { value: chosen, at: 't' } }));
-        }
+        const preferences = { density: { value: density, at: 't' } };
+        if (chosen) preferences.theme = { value: chosen, at: 't' };
+        emit(event(EventKind.PREFERENCES, preferences));
 
         const { container } = render(
-          <ThemeRoot store={store} density={density}>
+          <ThemeRoot store={store}>
             <Surface />
           </ThemeRoot>,
         );
@@ -99,6 +104,52 @@ describe('ThemeRoot (behavior)', () => {
       });
     }
   }
+
+  // An absent, tombstoned or unknown `density` register is the default
+  // (home-book-format §4.1 L218-221, L230-233).
+  for (const [label, preferences] of [
+    ['absent', {}],
+    ['tombstoned', { density: { value: null, at: 't' } }],
+    ['unknown', { density: { value: 'huge', at: 't' } }],
+  ]) {
+    it(`renders density-comfortable for an ${label} density register`, () => {
+      installMatchMedia(false);
+      const { store, emit } = manualStore();
+      emit(event(EventKind.PREFERENCES, preferences));
+      const { container } = render(
+        <ThemeRoot store={store}>
+          <Surface />
+        </ThemeRoot>,
+      );
+      expect(root(container)).toHaveClass('density-comfortable');
+    });
+  }
+
+  it('re-renders a child ChordDiagram mirrored when diagramHanded changes (workflow 16 L216-221)', () => {
+    installMatchMedia(false);
+    const { store, emit } = manualStore();
+    const guitar = fromCatalog('6guitar');
+    const C = parseChord('C').chord;
+    const openC = fingeringFromFrets(['x', 3, 2, 0, 1, 0], C, guitar);
+    const { container } = render(
+      <ThemeRoot store={store}>
+        <ChordDiagram fingering={openC} context={{ chord: C, instrument: guitar }} />
+      </ThemeRoot>,
+    );
+    const host = () => container.querySelector('.chord-diagram');
+    const mutedPath = () => host().querySelector('.ec-muted').getAttribute('d');
+    expect(host()).not.toHaveClass('chord-diagram--left');
+    const rightHanded = mutedPath();
+
+    emit(event(EventKind.PREFERENCES, { diagramHanded: { value: 'left', at: 't1' } }));
+    expect(host()).toHaveClass('chord-diagram--left');
+    // The lowest string's marker moved: the drawing itself is mirrored.
+    expect(mutedPath()).not.toBe(rightHanded);
+
+    emit(event(EventKind.PREFERENCES, { diagramHanded: { value: null, at: 't2' } }));
+    expect(host()).not.toHaveClass('chord-diagram--left');
+    expect(mutedPath()).toBe(rightHanded);
+  });
 
   it('lets a theme register in the preferences slice drive the applied theme', () => {
     installMatchMedia(false);

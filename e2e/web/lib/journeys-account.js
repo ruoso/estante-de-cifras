@@ -182,6 +182,40 @@ export async function chooseTheme(page, name) {
   await closeAccount(page);
 }
 
+// On the open account screen, choose a density (shell.display_preferences;
+// workflow 1 §Density) by its name — Compact, Comfortable, Roomy — and wait for
+// the app root to apply it and the row to be marked chosen.
+export async function chooseDensity(page, name) {
+  const radio = page.getByRole('radiogroup', { name: 'Density' }).getByRole('radio', { name: new RegExp(name) });
+  await radio.click();
+  await expect(page.locator('div.est').first()).toHaveClass(new RegExp(`density-${name.toLowerCase()}`));
+  await expect(radio).toBeChecked();
+}
+
+// On the open account screen, choose how chord diagrams are drawn
+// (workflow 16 §How diagrams are drawn): the hand by its name — Right-handed,
+// Left-handed — and the neck — Vertical, Horizontal. Each waits for the live
+// sample diagram to follow.
+const diagramSample = (page) => page.locator('.account-diagram-sample .chord-diagram');
+
+export async function chooseDiagramHand(page, name) {
+  const radio = page.getByRole('radiogroup', { name: 'Hand' }).getByRole('radio', { name: new RegExp(name) });
+  await radio.click();
+  await expect(radio).toBeChecked();
+  const left = /chord-diagram--left/;
+  if (name.startsWith('Left')) await expect(diagramSample(page)).toHaveClass(left);
+  else await expect(diagramSample(page)).not.toHaveClass(left);
+}
+
+export async function chooseDiagramNeck(page, name) {
+  const radio = page.getByRole('radiogroup', { name: 'Neck' }).getByRole('radio', { name: new RegExp(name) });
+  await radio.click();
+  await expect(radio).toBeChecked();
+  await expect(diagramSample(page).locator('svg')).toHaveClass(
+    new RegExp(`ec-diagram-${name.toLowerCase()}`),
+  );
+}
+
 // Read-only: the account's home book's shelf.json as the service holds it (a
 // git clone, the way another device would read it), `{}` while it holds none.
 export async function accountShelf(page) {

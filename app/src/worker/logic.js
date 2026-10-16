@@ -72,7 +72,15 @@ import {
 } from './songs.js';
 import { authorFrom, createAuthorResolver, noReplyAddress } from './author.js';
 import { reauthorBook } from './reauthor.js';
-import { CHOSEN_THEMES } from '../theme/resolve.js';
+import {
+  CHOSEN_THEMES,
+  DENSITIES,
+  DEFAULT_DENSITY,
+  HANDS,
+  DEFAULT_HAND,
+  ORIENTATIONS,
+  DEFAULT_ORIENTATION,
+} from '../theme/resolve.js';
 import { LOCALE_IDS } from '../i18n/index.js';
 
 // The schema version the database opens at, DERIVED from the migration step
@@ -86,6 +94,34 @@ export const META_KEY = 'meta';
 // The setlist file suffix (spec §10; canonicalise.js keys off it too) — used by
 // LIST_SETLISTS to pick a book's setlists out of its working tree.
 const SETLIST_SUFFIX = '.setlist.md';
+
+// The display-preference registers (shell.display_preferences;
+// home-book-format §4.1), one per command: the payload field carrying the
+// choice, its value set, the default (written as a tombstone) and the error
+// an invalid value is rejected with.
+const DISPLAY_REGISTERS = {
+  [CommandKind.SET_DENSITY]: {
+    register: 'density',
+    field: 'density',
+    values: DENSITIES,
+    fallback: DEFAULT_DENSITY,
+    error: 'invalid density',
+  },
+  [CommandKind.SET_DIAGRAM_HANDED]: {
+    register: 'diagramHanded',
+    field: 'handed',
+    values: HANDS,
+    fallback: DEFAULT_HAND,
+    error: 'invalid hand',
+  },
+  [CommandKind.SET_DIAGRAM_ORIENTATION]: {
+    register: 'diagramOrientation',
+    field: 'orientation',
+    values: ORIENTATIONS,
+    fallback: DEFAULT_ORIENTATION,
+    error: 'invalid orientation',
+  },
+};
 
 // Open (and, first time or on upgrade, migrate) the Worker's database at the
 // latest schema version derived from `steps`. `idb` is the IndexedDB factory —
@@ -1792,6 +1828,38 @@ export function createWorkerLogic(port, options = {}) {
               bookId: HOME_BOOK_ID,
               file: 'preferences.json',
               changes: [{ path: ['language'], value: language }],
+              author,
+            });
+            await surfaceHomeBookPreferences();
+            await ensureFs().flush();
+            break;
+          }
+          case CommandKind.SET_DENSITY:
+          case CommandKind.SET_DIAGRAM_HANDED:
+          case CommandKind.SET_DIAGRAM_ORIENTATION: {
+            // Persist a display preference to the home book
+            // (shell.display_preferences; home-book-format §4.1), on the
+            // SET_THEME template: validate against the register's value set at
+            // the boundary (an invalid value is rejected, no write), clear the
+            // register to a tombstone when the default is chosen (never the
+            // literal default), write it, re-surface PREFERENCES so ThemeRoot
+            // re-applies, and flush. One register per command, so a change on
+            // one device never re-stamps another's. Offline, auto-committed,
+            // never pushed. No value logged.
+            const { register, field, values, fallback, error } =
+              DISPLAY_REGISTERS[message.kind];
+            const chosen = message.payload[field];
+            const author = await resolveAuthor();
+            if (!values.includes(chosen)) {
+              throw new Error(error);
+            }
+            const value = chosen === fallback ? null : chosen;
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'preferences.json',
+              changes: [{ path: [register], value }],
               author,
             });
             await surfaceHomeBookPreferences();

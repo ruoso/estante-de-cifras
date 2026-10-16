@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { resolveTheme, themeClasses, DEFAULT_DENSITY } from './resolve.js';
+import {
+  resolveTheme,
+  resolveDensity,
+  resolveDiagramDisplay,
+  themeClasses,
+  DEFAULT_DENSITY,
+  DENSITIES,
+  HANDS,
+  ORIENTATIONS,
+} from './resolve.js';
 
 // unit — the pure theme resolver (shell.tokens). Pins "the theme chosen by the
 // device's mode and by the home book" (the .tji note): automatic maps to the
@@ -55,5 +64,69 @@ describe('themeClasses', () => {
       `est theme-estante density-${DEFAULT_DENSITY}`,
     );
     expect(DEFAULT_DENSITY).toBe('comfortable');
+  });
+});
+
+// unit — the display-preference defaults (shell.display_preferences). Pins
+// home-book-format §4.1 L218-233: absent, a tombstone, the default value and
+// an unknown value are one state — the default — and live in the resolver,
+// never the data.
+describe('resolveDensity (home-book-format §4.1 L218-221, L230-233)', () => {
+  it('reads absent, a tombstone, comfortable and an unknown value as comfortable', () => {
+    expect(resolveDensity(undefined)).toBe('comfortable');
+    expect(resolveDensity(null)).toBe('comfortable');
+    expect(resolveDensity('comfortable')).toBe('comfortable');
+    expect(resolveDensity('huge')).toBe('comfortable');
+  });
+
+  it('returns compact and roomy as themselves', () => {
+    expect(resolveDensity('compact')).toBe('compact');
+    expect(resolveDensity('roomy')).toBe('roomy');
+    expect(DENSITIES).toEqual(['compact', 'comfortable', 'roomy']);
+  });
+});
+
+describe('resolveDiagramDisplay (home-book-format §4.1 L222-233)', () => {
+  const DEFAULTS = { handed: 'right', orientation: 'vertical' };
+
+  it('reads no preferences, empty preferences, tombstones and unknown values as the defaults', () => {
+    expect(resolveDiagramDisplay(undefined)).toEqual(DEFAULTS);
+    expect(resolveDiagramDisplay({})).toEqual(DEFAULTS);
+    expect(
+      resolveDiagramDisplay({
+        diagramHanded: { value: null, at: 't' },
+        diagramOrientation: { value: null, at: 't' },
+      }),
+    ).toEqual(DEFAULTS);
+    expect(
+      resolveDiagramDisplay({
+        diagramHanded: { value: 'both', at: 't' },
+        diagramOrientation: { value: 'diagonal', at: 't' },
+      }),
+    ).toEqual(DEFAULTS);
+    expect(HANDS).toEqual(['right', 'left']);
+    expect(ORIENTATIONS).toEqual(['vertical', 'horizontal']);
+  });
+
+  it('returns left and horizontal as themselves', () => {
+    expect(
+      resolveDiagramDisplay({
+        diagramHanded: { value: 'left', at: 't' },
+        diagramOrientation: { value: 'horizontal', at: 't' },
+      }),
+    ).toEqual({ handed: 'left', orientation: 'horizontal' });
+  });
+
+  it('resolves each register independently of the other', () => {
+    expect(resolveDiagramDisplay({ diagramHanded: { value: 'left', at: 't' } })).toEqual({
+      handed: 'left',
+      orientation: 'vertical',
+    });
+    expect(
+      resolveDiagramDisplay({
+        diagramHanded: { value: 'sideways', at: 't' },
+        diagramOrientation: { value: 'horizontal', at: 't' },
+      }),
+    ).toEqual({ handed: 'right', orientation: 'horizontal' });
   });
 });
