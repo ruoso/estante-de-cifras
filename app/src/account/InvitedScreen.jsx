@@ -1,7 +1,9 @@
 // InvitedScreen — the pre-account door into a shared book (books.add_by_link,
-// workflow 1 §Invited; mockup W01). A full-screen surface mounted by AppShell
-// when the app boots on an invitation link (`/i/<token>`) and the Worker reports
-// it needs an account (NEED_ACCOUNT), or the link is dead/full (BOOK_REFUSED).
+// workflow 1 §Invited; mockup W01 #2). A full-screen surface mounted by AppShell
+// when the app boots on an invitation link (`/i/<token>`) while the accept runs
+// and when the Worker reports it needs an account (NEED_ACCOUNT). A dead or full
+// link (BOOK_REFUSED) is not this screen but InvitedRefusal, a dialog over the
+// shelf (books.invited_presentation).
 //
 // It is strictly account-first and strictly GENERIC before sign-in (Decision 1,
 // the design delta to workflow 1 §Invited): it names only "a book on Estante",
@@ -9,12 +11,13 @@
 // — alive, dead or full — without a session, and a live link cannot be told from
 // a dead one until it is accepted. So the book's name and the role it grants
 // appear only AFTER sign-in and accept, on the shelf and the book it opens on —
-// never here. A dead or full link is worded off the machine-readable reason and
-// likewise names nothing about the book (workflow 1 §Invited L53-58).
+// never here.
 //
 // Presentational with React Aria Components, managed focus on each phase's
-// heading, every status a word (never colour alone). The passkey ceremony itself
-// is the SignIn surface, opened through `onMakeAccount` / `onSignIn`.
+// heading — which takes focus without drawing a ring, since it is not operable
+// (books.invited_presentation Decision 2) — every status a word. The passkey
+// ceremony itself is the SignIn surface, opened through `onMakeAccount` /
+// `onSignIn`.
 
 import { useEffect, useRef } from 'react';
 import { Button } from 'react-aria-components';
@@ -62,29 +65,34 @@ function CloseIcon() {
   );
 }
 
-// The copy for each refusal, keyed off the Worker's reason word — never naming
-// the book (a dead link reveals nothing, workflow 1 §Invited L53-58). 'full' is
-// the one refusal told apart, so the person knows to ask the owner (workflow 1
-// §Invited); 'dead' conflates expired/withdrawn/exhausted and a non-member
-// request; 'error' is a transport failure (offline / a 5xx).
-function refusalCopy(reason) {
-  if (reason === 'full') {
-    return { title: t('invited.fullTitle'), body: t('invited.fullBody'), addByLink: false };
-  }
-  if (reason === 'error') {
-    return { title: t('invited.errorTitle'), body: t('invited.errorBody'), addByLink: false };
-  }
-  return { title: t('invited.deadTitle'), body: t('invited.deadBody'), addByLink: true };
+// The book mark above the heading (W01 #2 L70), in the accent colour;
+// decorative — it repeats nothing the heading does not say (Decision 5).
+function BookMark() {
+  return (
+    <svg
+      className="invited-mark"
+      width="40"
+      height="40"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z" />
+    </svg>
+  );
 }
 
 export default function InvitedScreen({
-  // 'working' (accepting / cloning), 'prompt' (needs an account), or 'refused'.
+  // 'working' (accepting / cloning) or 'prompt' (needs an account). A refusal
+  // is not this screen: it is InvitedRefusal, a dialog over the shelf.
   phase = 'working',
-  // For 'refused': 'full' | 'dead' | 'error' (books.add_by_link reason word).
-  reason = 'dead',
   onMakeAccount = () => {},
   onSignIn = () => {},
-  onAddByLink = () => {},
   onClose = () => {},
 }) {
   const headingRef = useRef(null);
@@ -98,7 +106,7 @@ export default function InvitedScreen({
   if (phase === 'working') {
     content = (
       <>
-        <h2 className="t-display account-heading" ref={headingRef} tabIndex={-1}>
+        <h2 className="t-h1 invited-heading" ref={headingRef} tabIndex={-1}>
           {t('invited.workingHeading')}
         </h2>
         <p className="t-body account-sub" role="status">
@@ -106,31 +114,11 @@ export default function InvitedScreen({
         </p>
       </>
     );
-  } else if (phase === 'refused') {
-    const copy = refusalCopy(reason);
-    content = (
-      <>
-        <h2 className="t-display account-heading" ref={headingRef} tabIndex={-1}>
-          {copy.title}
-        </h2>
-        <p className="t-body account-sub" role="alert">
-          {copy.body}
-        </p>
-        {copy.addByLink ? (
-          <Button className="btn quiet block" onPress={onAddByLink}>
-            {t('invited.addByLink')}
-          </Button>
-        ) : null}
-        <Button className="btn primary block" onPress={onClose}>
-          {t('invited.ok')}
-        </Button>
-      </>
-    );
   } else {
     // 'prompt' — the account-first ask. Generic: names only "a book on Estante".
     content = (
       <>
-        <h2 className="t-display account-heading" ref={headingRef} tabIndex={-1}>
+        <h2 className="t-h1 invited-heading" ref={headingRef} tabIndex={-1}>
           {t('invited.promptHeading')}
         </h2>
         <p className="t-body account-sub">{t('invited.promptBody')}</p>
@@ -160,8 +148,11 @@ export default function InvitedScreen({
         </Button>
         <span className="title">{t('invited.brand')}</span>
       </div>
-      <div className="scroll account-scroll">
-        <div className="account-card">{content}</div>
+      <div className="scroll account-scroll invited-scroll">
+        <div className="account-card">
+          <BookMark />
+          {content}
+        </div>
       </div>
     </div>
   );

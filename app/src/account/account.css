@@ -724,3 +724,53 @@ label.signout-card > span:first-child input {
 .account-list.account-tiles .account-row + .account-row {
   border-left: 1px solid var(--line);
 }
+
+/* The invited screen (books.invited_presentation; W01 #2): its column starts at
+   the top under the book mark, as the board draws it, where the shared
+   .account-scroll centres it (SignIn and the rest keep the centring). */
+.invited-scroll {
+  justify-content: flex-start;
+  padding-top: calc(var(--u) * 3.5);
+}
+
+.invited-mark {
+  color: var(--accent);
+  flex: none;
+}
+
+/* The heading takes focus on arrival so a screen reader starts there, but it is
+   not operable (tabIndex -1, out of the tab order), so it draws no focus box
+   (Decision 2; the .play-fullscreen:focus precedent). The buttons keep theirs. */
+.invited-heading:focus {
+  outline: none;
+}
+
+/* A refused link (W01 #4): the theme's dialog at the board's 470px, the phone
+   cap in books.css still applying; RAC focuses the dialog on open, which draws
+   no box either. */
+.dialog.invited-refusal {
+  width: 470px;
+}
+
+.invited-refusal:focus,
+.invited-refusal-body:focus {
+  outline: none;
+}
+
+.invited-refusal-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+
+.invited-refusal-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+}
+
+.invited-refusal-icon {
+  color: var(--conflict);
+  flex: none;
+  display: flex;
+}

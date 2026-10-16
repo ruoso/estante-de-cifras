@@ -1,12 +1,10 @@
-// behavior (books.add_by_link) — the invited door driven through its real
-// collaborators: real React Aria Components and real i18n. Pins workflow 1
-// §Invited as amended by this task's design delta (the pre-account screen is
-// generic — it names neither the book nor its owner), and the dead/full copy
-// taken from W01 (L175-191). Every screen is checked axe-clean at WCAG 2.1 AA.
-//
-// A dead or full link must reveal NOTHING about the book (workflow 1 §Invited
-// L53-58): the screen is handed no title or owner, and the test asserts a sample
-// book name never appears.
+// behavior (books.add_by_link, books.invited_presentation) — the invited door
+// driven through its real collaborators: real React Aria Components and real
+// i18n. Pins workflow 1 §Invited L50-56 (the pre-account screen is generic — it
+// names neither the book nor its owner), W01 #2 (the column under a book mark)
+// and the UI audit's focus finding (the heading takes focus, without a ring).
+// Every screen is checked axe-clean at WCAG 2.1 AA. The refusals are
+// InvitedRefusal's, in InvitedRefusal.behavior.test.jsx.
 
 import { describe, it, expect } from 'vitest';
 import { useState } from 'react';
@@ -33,26 +31,38 @@ describe('InvitedScreen (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
-  it('a dead link shows "This link doesn’t open a book" and reveals nothing about it (workflow 1 §Invited L53-58)', async () => {
-    const { container } = render(<InvitedScreen phase="refused" reason="dead" />);
+  it('each phase lands focus on its heading, which carries the no-outline class (books.invited_presentation Decision 2)', () => {
+    const { rerender } = render(<InvitedScreen phase="working" />);
+    const working = screen.getByRole('heading', { level: 2 });
+    expect(document.activeElement).toBe(working);
+    // The class `.invited-heading:focus { outline: none; }` targets (the ring
+    // itself is pinned in e2e-web, against the real CSS — Decision 3).
+    expect(working).toHaveClass('invited-heading');
 
-    expect(screen.getByRole('heading', { name: /doesn.t open a book/i })).toBeInTheDocument();
-    // Not the full-book message, and no book name.
-    expect(screen.queryByRole('heading', { name: /is full/i })).toBeNull();
-    expect(screen.queryByText(SECRET_TITLE)).toBeNull();
-    // The refusal is announced.
-    expect(screen.getByRole('alert')).toBeInTheDocument();
+    rerender(<InvitedScreen phase="prompt" />);
+    const prompt = screen.getByRole('heading', { level: 2, name: /invited to a book on Estante/i });
+    expect(document.activeElement).toBe(prompt);
+    expect(prompt).toHaveClass('invited-heading');
+  });
+
+  it('the column begins with a decorative book mark above the heading (W01 #2 L70)', async () => {
+    const { container } = render(<InvitedScreen phase="prompt" />);
+    const heading = screen.getByRole('heading', { level: 2 });
+    const column = heading.parentElement;
+    const mark = column.firstElementChild;
+    expect(mark.tagName.toLowerCase()).toBe('svg');
+    expect(mark).toHaveAttribute('aria-hidden', 'true');
+    // The mark precedes the heading in the column.
+    expect(mark.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The top-aligned modifier, not the shared centred scroller alone.
+    expect(column.parentElement).toHaveClass('account-scroll', 'invited-scroll');
 
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
-  it('a full book shows "This book is full" and reveals nothing about it (workflow 1 §Invited)', async () => {
-    const { container } = render(<InvitedScreen phase="refused" reason="full" />);
-
-    expect(screen.getByRole('heading', { name: /is full/i })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /doesn.t open a book/i })).toBeNull();
-    expect(screen.queryByText(SECRET_TITLE)).toBeNull();
-
+  it('the working phase is axe clean (books.invited_presentation)', async () => {
+    const { container } = render(<InvitedScreen phase="working" />);
+    expect(screen.getByRole('status')).toBeInTheDocument();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 

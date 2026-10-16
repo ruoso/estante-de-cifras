@@ -129,8 +129,9 @@ task books "Books" {
   task invited_presentation "The invited screen and refusals as drawn" {
     effort 0.5d
     allocate team
+    complete 100
     depends !add_by_link
-    note "The invited screen centres its content a third of the way down where the W01 board top-aligns it under a book mark; its heading shows a dark focus box on arrival (the programmatic focus needs the theme focus treatment, or a focus target that is not outlined); and the dead-link and full-book refusals are standalone screens where the board draws them as dialogs over the empty shelf. Copy is unchanged (workflow 1 Invited L49-66 names no book). Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (refusals as dialogs, focus lands on the heading without the outline, axe); e2e-web (a dead link and a full book on the three viewports, mockup W01#2 and W01#4)."
+    note "The invited screen centres its content a third of the way down where the W01 board top-aligns it under a book mark; its heading shows a dark focus box on arrival (the programmatic focus needs the theme focus treatment, or a focus target that is not outlined); and the dead-link and full-book refusals are standalone screens where the board draws them as dialogs over the empty shelf. Copy is unchanged (workflow 1 Invited L49-66 names no book). Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (refusals as dialogs, focus lands on the heading without the outline, axe); e2e-web (a dead link and a full book on the three viewports, mockup W01#2 and W01#4). Refinement: tasks/refinements/books/invited_presentation.md"
   }
   task file_view_create_menu "Create a song, a setlist, a folder or a README in the file view" {
     effort 2d

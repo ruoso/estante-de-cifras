@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup, waitFor, within } from '@testing-library/react';
 import { createStore } from '../worker/store.js';
 import { command, event, EventKind, CommandKind } from '../worker/protocol.js';
 import { checkWcag21aa } from '../a11y/axe.js';
@@ -463,6 +463,40 @@ describe('AppShell routing (behavior)', () => {
     emit(event(EventKind.BOOK_CLONED, { bookId: BOOK }));
     expect(location.pathname).toBe(SONG_URL);
     expect(location.href).not.toContain('tok-secret');
+  });
+
+  // books.invited_presentation — workflow 1 §Invited, the presentation
+  // paragraph: a refusal is a dialog over the shelf, and dismissing it leaves
+  // the person there. The modal aria-hides the shell, so the shell's tabs are
+  // queried with `hidden: true` until it closes.
+  function refusedOverShell() {
+    history.replaceState(null, '', '/i/tok-dead');
+    const { store, emit } = makeStore();
+    const view = render(<AppShell store={store} inviteToken="tok-dead" />);
+    emit(event(EventKind.SHELF, SHELF));
+    emit(event(EventKind.BOOK_REFUSED, { reason: 'dead' }));
+    // The shell is rendered behind the dialog: its tab navigation is in the DOM.
+    expect(screen.getAllByRole('tablist', { hidden: true }).length).toBeGreaterThan(0);
+    const dialog = screen.getByRole('alertdialog', { name: 'This link doesn’t open a book' });
+    // The invited screen's own heading is not rendered in the refused state.
+    expect(screen.queryByRole('heading', { name: /invited to a book on Estante|Opening the invitation/, hidden: true })).toBeNull();
+    return { ...view, dialog };
+  }
+
+  it('a refused invitation is a dialog over the shell; OK leaves it on Search', async () => {
+    const { container, dialog } = refusedOverShell();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'OK' })));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('a refused invitation’s “Add a book by its link” leaves the shell on Books', () => {
+    const { dialog } = refusedOverShell();
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Add a book by its link' })));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('axe: the shell after a deep boot', async () => {

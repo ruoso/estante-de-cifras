@@ -45,6 +45,7 @@ import { orderedBooks, titleFor, saveTargetFor } from '../books/book-display.js'
 import SignIn from '../account/SignIn.jsx';
 import RecoveryEmailConfirm from '../account/RecoveryEmailConfirm.jsx';
 import InvitedScreen from '../account/InvitedScreen.jsx';
+import InvitedRefusal from '../account/InvitedRefusal.jsx';
 import AccountScreen from '../account/AccountScreen.jsx';
 import MySongsChoice from '../account/MySongsChoice.jsx';
 import FileView from '../files/FileView.jsx';
@@ -245,8 +246,9 @@ export default function AppShell({
   );
 
   // The invited flow (books.add_by_link, workflow 1 §Invited): a full-screen
-  // surface over the shell, opened when the app booted on an invitation link
-  // (`/i/<token>`, App.jsx) or the person pasted one into the Add-a-book sheet.
+  // surface over the shell (a refusal: a dialog over it), opened when the app
+  // booted on an invitation link (`/i/<token>`, App.jsx) or the person pasted
+  // one into the Add-a-book sheet.
   // `null` is closed; otherwise `{ phase, reason?, token }` where phase is
   // 'working' (accepting/cloning), 'prompt' (needs an account) or 'refused' (a
   // dead/full link, with the worded `reason`). The Worker drives it: ADD_BY_LINK
@@ -740,18 +742,14 @@ export default function AppShell({
   // The invited door (books.add_by_link, workflow 1 §Invited): checked after
   // SignIn so pressing "Make an account" / "I have an account: sign in" opens the
   // passkey surface over it and returns here, and before the shell so it shows
-  // even with no shelf behind it.
-  if (invited) {
+  // even with no shelf behind it. A refused link is not this screen: the shell
+  // renders, with InvitedRefusal over it (books.invited_presentation).
+  if (invited && (invited.phase === 'working' || invited.phase === 'prompt')) {
     return (
       <InvitedScreen
         phase={invited.phase}
-        reason={invited.reason}
         onMakeAccount={() => setSignIn({ intent: 'create', forInvite: true })}
         onSignIn={() => setSignIn({ intent: 'signIn', forInvite: true })}
-        onAddByLink={() => {
-          setInvited(null);
-          setSelected('books');
-        }}
         onClose={() => setInvited(null)}
       />
     );
@@ -1124,6 +1122,19 @@ export default function AppShell({
           store={store}
           song={addingToSetlist}
           onClose={() => setAddingToSetlist(null)}
+        />
+      ) : null}
+      {/* A refused invitation link (books.invited_presentation; workflow 1
+          §Invited; W01 #4): an alert dialog over the person's shelf — the empty
+          front door for a fresh account — and dismissing it leaves them there. */}
+      {invited?.phase === 'refused' ? (
+        <InvitedRefusal
+          reason={invited.reason}
+          onAddByLink={() => {
+            setInvited(null);
+            setSelected('books');
+          }}
+          onClose={() => setInvited(null)}
         />
       ) : null}
     </>

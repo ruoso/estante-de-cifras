@@ -13,7 +13,9 @@
 //   - the same account opens a READER invitation and clones a book showing
 //     "reader";
 //   - a WITHDRAWN link shows "This link doesn't open a book" and a FULL book
-//     shows "This book is full", neither naming the book;
+//     shows "This book is full", neither naming the book, each a dialog over
+//     the shelf (books.invited_presentation; W01 #4) -- and a fresh device that
+//     makes its account through a withdrawn link is refused over its empty shelf;
 //   - an invitation limited to one use is "used up" after it, and the next
 //     person is refused;
 //   - Add a book -> By link takes a pasted invitation URL;
@@ -66,6 +68,28 @@ async function ownerWithBooks(page, titles) {
   return authenticator;
 }
 
+// The invited screen as W01 #2 draws it (books.invited_presentation): the
+// heading takes focus on arrival without drawing a ring (Decision 2, pinned here
+// against the real CSS — Decision 3), and the column sits at the top, the
+// heading in the upper third of the window, under the book mark.
+async function expectInvitedScreenAsDrawn(page, heading) {
+  await expect(heading).toBeFocused();
+  expect(await heading.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe('none');
+  const box = await heading.boundingBox();
+  const mark = await page.locator('.invited-mark').boundingBox();
+  const { height } = page.viewportSize();
+  expect(box.y).toBeLessThan(height / 3);
+  expect(mark.y + mark.height).toBeLessThanOrEqual(box.y);
+}
+
+// Dismissing a refusal leaves the person on their shelf (workflow 1 §Invited,
+// the presentation paragraph): the books they already had are still there.
+async function expectShelfStill(page) {
+  await gotoTab(page, 'Books');
+  await expect(page.getByRole('button', { name: /^Choros da Ana/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Turma de quarta/ })).toBeVisible();
+}
+
 test.describe('add by link', () => {
   test('a second account joins as editor then reader; a withdrawn and a full link are refused', async ({
     browser,
@@ -105,10 +129,10 @@ test.describe('add by link', () => {
       // 1) The editor invitation: account-first, generic (names nothing about
       // the book), then a passkey, then the clone shows "can save".
       await joiner.page.goto(editorLink);
-      await expect(
-        joiner.page.getByRole('heading', { name: /invited to a book on Estante/i }),
-      ).toBeVisible();
+      const invitedHeading = joiner.page.getByRole('heading', { name: /invited to a book on Estante/i });
+      await expect(invitedHeading).toBeVisible();
       await expect(joiner.page.getByText('Choros da Ana')).toHaveCount(0);
+      await expectInvitedScreenAsDrawn(joiner.page, invitedHeading);
       expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the invited screen
       await mockup(joiner.page, 'W01-first-run', 2);
 
@@ -126,18 +150,71 @@ test.describe('add by link', () => {
       await expect(joiner.page.getByRole('button', { name: /^Turma de quarta/ })).toBeVisible();
       await expect(joiner.page.getByText('On Estante · reader')).toBeVisible();
 
-      // 3) A withdrawn link: "This link doesn't open a book", naming nothing.
+      // 3) A withdrawn link: "This link doesn't open a book", naming nothing,
+      // in a dialog over the shelf (books.invited_presentation; W01 #4).
       await joiner.page.goto(deadLink);
-      await expect(joiner.page.getByRole('heading', { name: /doesn.t open a book/i })).toBeVisible();
+      let refusal = joiner.page.getByRole('alertdialog', { name: /doesn.t open a book/i });
+      await expect(refusal).toBeVisible();
       await expect(joiner.page.getByText('Roda de choro')).toHaveCount(0);
       expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the dead-link refusal
       await mockup(joiner.page, 'W01-first-run', 4);
+      await refusal.getByRole('button', { name: 'OK', exact: true }).click();
+      await expect(refusal).toHaveCount(0);
+      await expectShelfStill(joiner.page);
 
-      // 4) A full book: "This book is full", naming nothing.
+      // 4) A full book: "This book is full", naming nothing, likewise a dialog.
       await joiner.page.goto(fullLink);
-      await expect(joiner.page.getByRole('heading', { name: /is full/i })).toBeVisible();
+      refusal = joiner.page.getByRole('alertdialog', { name: /is full/i });
+      await expect(refusal).toBeVisible();
+      await expect(refusal.getByRole('button', { name: 'Add a book by its link' })).toHaveCount(0);
       await expect(joiner.page.getByText('Sarau da sexta')).toHaveCount(0);
       expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the full-book refusal
+      await mockup(joiner.page, 'W01-first-run', 4, { note: 'full book' });
+      await refusal.getByRole('button', { name: 'OK', exact: true }).click();
+      await expect(refusal).toHaveCount(0);
+      await expectShelfStill(joiner.page);
+    } finally {
+      await joiner.context.close();
+    }
+  });
+
+  // books.invited_presentation — W01 #4's exact state: a person who made their
+  // account through a withdrawn link is refused in a dialog over the empty
+  // front door, and stays on it once the dialog is dismissed.
+  test('a fresh device opening a withdrawn link makes an account and is refused in a dialog over its empty shelf', async ({
+    browser,
+    page,
+  }) => {
+    test.setTimeout(15000);
+
+    await ownerWithBooks(page, ['Roda de choro']);
+    const deadLink = await inviteThroughShare(page, 'Roda de choro', { role: 'Reader' });
+    const dialog = await openSharing(page, 'Roda de choro');
+    await dialog.getByRole('button', { name: 'Withdraw' }).click();
+    await expect(dialog.getByText('withdrawn')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Close' }).click();
+
+    const joiner = await openDevice(browser);
+    try {
+      await enableVirtualAuthenticator(joiner.page);
+      await joiner.page.goto(deadLink);
+      await expect(joiner.page.getByRole('heading', { name: /invited to a book on Estante/i })).toBeVisible();
+      await joiner.page.getByRole('button', { name: 'Make an account' }).click();
+      await expect(joiner.page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+      await joiner.page.getByRole('button', { name: 'Use a passkey' }).click();
+
+      const refusal = joiner.page.getByRole('alertdialog', { name: /doesn.t open a book/i });
+      await expect(refusal).toBeVisible();
+      await expect(joiner.page.getByText('Roda de choro')).toHaveCount(0);
+      // The empty front door is behind it (the modal aria-hides it, so by text).
+      await expect(joiner.page.getByText('Your shelf is empty')).toBeVisible();
+      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the refusal over the empty shelf
+      await mockup(joiner.page, 'W01-first-run', 4, { note: 'a new account, an empty shelf' });
+
+      await refusal.getByRole('button', { name: 'OK', exact: true }).click();
+      await expect(refusal).toHaveCount(0);
+      await expect(joiner.page.getByRole('heading', { name: 'Your shelf is empty' })).toBeVisible();
+      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the empty shelf after it
     } finally {
       await joiner.context.close();
     }

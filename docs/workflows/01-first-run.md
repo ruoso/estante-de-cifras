@@ -65,6 +65,12 @@ the book, and suggests asking whoever sent it for a new one; a full book says
 so, so that the person knows to ask the owner. It does not say whose book it
 is: a dead link should tell its holder nothing about the book.
 
+The invited screen is a screen of its own while it asks for an account or
+opens the book. A refusal is not: once the link is refused there is no book to
+show. So the refusal is a dialog over the person's shelf, which is empty for
+someone who has just made their account. Dismissing it leaves them on that
+shelf, where the app would have opened anyway (W01 board, computer frame).
+
 ## The instrument
 
 Explore Chords made the instrument the app's identity and set it up before
