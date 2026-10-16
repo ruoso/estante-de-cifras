@@ -106,6 +106,17 @@ The flip is per chord, which is the one place a dialect's choice is felt and
 worth overriding; it does not change the preference. A symbol that is not one of
 the four shows no flip.
 
+**How the flip spells the other reading.** The reading taken is written in the
+user's dialect (*read as C7M*). The flip names the other reading in a spelling
+that cannot be mistaken for the symbol typed: the **American** spelling, with
+the accidentals written as `♯` and `♭` — *C7♯5*, *C9*, *Bdim*, *C7add4*. The
+only exception is a flip back to the user's own dialect's reading, after a
+flip: that is spelled in the user's dialect (*read as C7M instead?*), the way
+the notice spelled it first. Chord symbols are not translated, so the flip reads
+the same in every language. (The user's dialect cannot spell the other reading
+safely: in `brazilian` the sharp-fifth seventh is `C7(5+)`, one easy slip from
+the `C7+` it is being told apart from.)
+
 ## Starring a shape as *your shape*
 
 Every shape card carries a **star**. Starring writes that shape as **your

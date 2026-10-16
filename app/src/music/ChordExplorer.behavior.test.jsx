@@ -178,8 +178,9 @@ describe('the chord explorer (behavior)', () => {
       await screen.findByText('Open', {}, SLOW);
       expect(screen.getByText('Fret 2')).toBeInTheDocument();
 
-      // Each shape carries a difficulty word (never the number, never colour alone).
-      expect(screen.getAllByText(/^(Easy|Medium|Hard)$/).length).toBeGreaterThan(1);
+      // Each shape carries a difficulty word (never the number, never colour alone),
+      // lowercase as workflow 16 L49-55 writes it and the W16 board's badges draw it.
+      expect(screen.getAllByText(/^(easy|medium|hard)$/).length).toBeGreaterThan(1);
 
       // The diagrams carry the describeFingering accessible name.
       const diagrams = screen.getAllByRole('img');
@@ -314,6 +315,29 @@ describe('the chord explorer (behavior)', () => {
       await remote.stop();
     }
   });
+
+  it('spells the C7+ flip as workflow 16 names it (C7♯5), and the flip back in the user\'s dialect (C7M), axe clean', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await seedRemote(remote, instrumentSeed('g1', { catalogId: '6guitar', tuning: GUITAR_TUNING, fretCount: 22 }));
+      const { store } = await makeSeededWorker(remote, 'flip-copy');
+      renderExplorer(store, 'C7+');
+      act(() => store.open());
+
+      // The default (brazilian) dialect reads the major seventh; the flip names
+      // the other reading in American with ♯ (§Viewing by notation, the delta).
+      await screen.findByText(/major 7th/, {}, SLOW);
+      const flip = screen.getByRole('button', { name: 'Read as C7♯5 instead?' });
+
+      act(() => fireEvent.click(flip));
+      await screen.findByText(/raised 5th/, {}, SLOW);
+      expect(screen.getByRole('button', { name: 'Read as C7M instead?' })).toBeInTheDocument();
+
+      expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    } finally {
+      await remote.stop();
+    }
+  }, HEAVY);
 
   it('names the reason and points at the rules when no shape fits (empty state), axe clean', async () => {
     const remote = await startGitHttpRemote();

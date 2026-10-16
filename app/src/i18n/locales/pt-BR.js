@@ -1273,7 +1273,7 @@ export default {
     showAll: 'Mostrar todas as {count}',
   },
 
-  difficulty: { easy: 'Fácil', medium: 'Média', hard: 'Difícil' },
+  difficulty: { easy: 'fácil', medium: 'média', hard: 'difícil' },
 
   diagram: {
     open: 'posição aberta',

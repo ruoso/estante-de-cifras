@@ -1274,7 +1274,7 @@ export default {
     showAll: 'Mostrar las {count}',
   },
 
-  difficulty: { easy: 'Fácil', medium: 'Media', hard: 'Difícil' },
+  difficulty: { easy: 'fácil', medium: 'media', hard: 'difícil' },
 
   diagram: {
     open: 'posición abierta',

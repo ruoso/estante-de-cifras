@@ -96,6 +96,7 @@ test('the explorer works offline: explore and star with the network cut, and it 
 
 test('the explorer’s chord input can be edited: the shapes re-derive, an ambiguous symbol says how it was read, and Back returns to the typed query (workflow 16 §The chord)', async ({
   page,
+  checkA11y,
 }) => {
   await startApp(page);
   await openExplorer(page);
@@ -107,10 +108,21 @@ test('the explorer’s chord input can be edited: the shapes re-derive, an ambig
   await expect(page.getByRole('button', { name: /^Star Am,/ }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: /^Star A,/ })).toHaveCount(0);
 
-  // C7+ is ambiguous: the reading it took is said, with the flip.
+  // C7+ is ambiguous: the reading it took is said, with the flip, spelled as
+  // workflow 16 §Viewing by notation names it (C7♯5, never C7(5+)) — visible
+  // before the W16#3 frame so it captures the drawn copy. The shapes' badges
+  // read the difficulty word lowercase, as the board draws them.
   await input.fill('C7+');
   await expect(page.getByText(/Read as/).first()).toBeVisible();
+  const flip = page.getByRole('button', { name: 'Read as C7♯5 instead?' });
+  await expect(flip).toBeVisible();
+  await expect(page.locator('.badge').getByText('easy', { exact: true }).first()).toBeVisible();
   await mockup(page, 'W16-chord-explorer', 3);
+
+  // The flip back to the Brazilian reading is spelled in the user's dialect.
+  await flip.click();
+  await expect(page.getByRole('button', { name: 'Read as C7M instead?' })).toBeVisible();
+  await checkA11y();
 
   // Something that is not a chord says so rather than showing shapes.
   await input.fill('Zzz');

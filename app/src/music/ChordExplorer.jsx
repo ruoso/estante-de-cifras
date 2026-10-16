@@ -25,6 +25,7 @@ import HeaderChrome from '../shell/HeaderChrome.jsx';
 import { instrumentInstance } from '../core/instrument.js';
 import { parseChord } from '../core/notation/parse.js';
 import { formatChord } from '../core/notation/format.js';
+import { flipSymbol } from '../core/notation/flip.js';
 import { searchFingerings } from '../core/search.js';
 import { sameChord } from '../core/chord.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
@@ -171,10 +172,8 @@ export default function ChordExplorer({
   // The reading-it-took notice and the flip to the other reading (§5.6).
   let notice = null;
   if (ambiguity && chord) {
-    const altParsed = parseChord(trimmed, dialect, {
-      readings: { ...overrides, [ambiguity.kind]: ambiguity.alternatives[0] },
-    });
-    const altSymbol = altParsed.chord ? formatChord(altParsed.chord, dialect) : null;
+    // Spelled as workflow 16 says the flip names the other reading (C7♯5, not C7(5+)).
+    const altSymbol = flipSymbol(trimmed, dialect, overrides);
     notice = (
       <div className="notice accent explorer-notice">
         <span>

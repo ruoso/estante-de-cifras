@@ -1409,7 +1409,7 @@ export default {
     showAll: 'Show all {count}',
   },
 
-  difficulty: { easy: 'Easy', medium: 'Medium', hard: 'Hard' },
+  difficulty: { easy: 'easy', medium: 'medium', hard: 'hard' },
 
   diagram: {
     open: 'open position',

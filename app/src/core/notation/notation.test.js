@@ -325,6 +325,35 @@ describe('round-trip matrix', () => {
     for (const dialect of DIALECT_IDS) expect(formatChord(triad, dialect)).toBe('Bdim');
   });
 
+  // Display-only Unicode accidentals (music.explorer_flip_copy; workflow 16
+  // §Viewing by notation): ♯/♭ on request, ASCII unchanged by default.
+  it('writes ♯ and ♭ with { accidentals: unicode }, and ASCII without it', () => {
+    const unicode = { accidentals: 'unicode' };
+    const sharpFive = chord(n('C'), 'aug', [{ degree: 7, alter: -1 }]);
+    const flatNine = chord(n('C'), 'major', [{ degree: 7, alter: -1 }, { degree: 9, alter: -1 }]);
+    const sharpMinor = chord(n('C#'), 'minor');
+    expect(formatChord(sharpFive, 'american', unicode)).toBe('C7♯5');
+    expect(formatChord(flatNine, 'american', unicode)).toBe('C7♭9');
+    expect(formatChord(sharpMinor, 'american', unicode)).toBe('C♯m');
+    expect(formatChord(sharpFive, 'american')).toBe('C7#5');
+    expect(formatChord(flatNine, 'american')).toBe('C7b9');
+    expect(formatChord(sharpMinor, 'american')).toBe('C#m');
+  });
+
+  // American fourth on a seventh (music.explorer_flip_copy): C7sus4 and C7add4,
+  // never Csus47 or C74; a sus4 triad stays Csus4.
+  it('spells a fourth over a seventh as C7sus4 and C7add4 in American, round-tripping', () => {
+    for (const text of ['C7sus4', 'C7add4', 'Csus4']) {
+      const parsed = parseChord(text, 'american').chord;
+      expect(formatChord(parsed, 'american')).toBe(text);
+      expect(sameChord(parseChord(formatChord(parsed, 'american'), 'american').chord, parsed)).toBe(true);
+    }
+    expect(formatChord(chord(n('C'), 'sus4', [{ degree: 7, alter: -1 }]), 'american')).toBe('C7sus4');
+    expect(
+      formatChord(chord(n('C'), 'major', [{ degree: 4 }, { degree: 7, alter: -1 }]), 'american'),
+    ).toBe('C7add4');
+  });
+
   it('carries a slash bass through every dialect', () => {
     const c = chord(n('C'), 'major', [], n('E'));
     for (const dialect of DIALECT_IDS) {

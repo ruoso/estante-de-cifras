@@ -51,8 +51,15 @@ task music "Music" {
   task explorer_flip_copy "The explorer reads an augmented fifth as the workflow writes it" {
     effort 0.5d
     allocate team
+    complete 100
     depends !explorer
-    note "Workflow 16 (Viewing by notation) offers to read C7+ as C7#5; the app asks Read as C7(5+) instead?. Use the notation the workflow names for the flip, in every language. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: unit (the flip label for C7+ and its siblings); e2e-web (the explorer on C7+, mockup W16#3). Also (pairwise audit): the difficulty words read Easy/Medium/Hard where the W16 board writes them lowercase."
+    note "Workflow 16 (Viewing by notation) offers to read C7+ as C7#5; the app asks Read as C7(5+) instead?. Use the notation the workflow names for the flip, in every language. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: unit (the flip label for C7+ and its siblings); e2e-web (the explorer on C7+, mockup W16#3). Also (pairwise audit): the difficulty words read Easy/Medium/Hard where the W16 board writes them lowercase. Refinement: tasks/refinements/music/explorer_flip_copy.md"
+  }
+  task fourth_with_seventh_spelling "A fourth on a seventh is spelled in each dialect's own notation" {
+    effort 0.5d
+    allocate team
+    depends !explorer_flip_copy
+    note "Source: music.explorer_flip_copy (tasks/refinements/music/explorer_flip_copy.md); workflow 16 (Viewing by notation). The Brazilian and Real Book formatters write a fourth on a seventh as C47/Csus47; spell them in each dialect's own notation. Tests: unit (the Brazilian and Real Book formatters on C7 with a fourth, round-tripped through parseChord)."
   }
   task instruments_roster_default "The roster lists the instrument in use from the first run" {
     effort 0.5d

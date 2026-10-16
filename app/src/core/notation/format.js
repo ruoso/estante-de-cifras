@@ -18,7 +18,23 @@ function extMap(c) {
 }
 
 const ALTER_SUFFIX_BR = { '-2': 'bb', '-1': '-', 0: '', 1: '+', 2: '##' };
-const ALTER_PREFIX_US = { '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: '##' };
+const ALTER_PREFIX_ASCII = { '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: '##' };
+// Display only (the explorer's flip, workflow 16 §Viewing by notation): the same
+// accidentals as written music draws them. Never what a chart or a book holds.
+const ALTER_PREFIX_UNICODE = { '-2': '♭♭', '-1': '♭', 0: '', 1: '♯', 2: '♯♯' };
+
+/**
+ * The spelling helpers one call formats with: ASCII `#`/`b` by default, `♯`/`♭`
+ * with `{ accidentals: 'unicode' }`. Applied to every note and alteration the
+ * formatters write, so the option is structural rather than a replace over text.
+ */
+function spelling(options) {
+  const prefix = options?.accidentals === 'unicode' ? ALTER_PREFIX_UNICODE : ALTER_PREFIX_ASCII;
+  return {
+    note: (n) => (prefix === ALTER_PREFIX_ASCII ? formatNote(n) : n.letter + prefix[String(n.accidental)]),
+    alter: (alter) => prefix[String(alter)],
+  };
+}
 
 /**
  * Decide the chord's headline shape: the triad name plus which degree, if any,
@@ -70,8 +86,8 @@ function analyse(c) {
 }
 
 /** Brazilian cifra: 7M for a major 7th, ° and +, sus4 written as 4. */
-function formatBrazilian(c, a) {
-  const root = formatNote(c.root);
+function formatBrazilian(c, a, sp) {
+  const root = sp.note(c.root);
   let base = root;
   let tail = '';
 
@@ -123,8 +139,8 @@ function formatBrazilian(c, a) {
 }
 
 /** American jazz: maj7, m7b5, dim7, sus4, add9. */
-function formatAmerican(c, a) {
-  const root = formatNote(c.root);
+function formatAmerican(c, a, sp) {
+  const root = sp.note(c.root);
   let base = root;
   let tail = '';
 
@@ -142,7 +158,8 @@ function formatAmerican(c, a) {
       base += 'sus2';
       break;
     case 'sus4':
-      base += 'sus4';
+      // Over a seventh the suspension follows it (`C7sus4`, not `Csus47`).
+      if (!a.hasSeventh) base += 'sus4';
       break;
     case 'power':
       base += '5';
@@ -158,15 +175,17 @@ function formatAmerican(c, a) {
     if (a.isDim7) tail += '7';
     else if (a.seventh === 0) tail += `maj${a.top}`;
     else tail += String(a.top);
+    if (c.quality === 'sus4') tail += 'sus4';
   }
 
   const parts = [];
-  if (a.isHalfDim) parts.push('b5');
-  if (c.quality === 'aug' && a.hasSeventh) parts.push('#5');
+  if (a.isHalfDim) parts.push(`${sp.alter(-1)}5`);
+  if (c.quality === 'aug' && a.hasSeventh) parts.push(`${sp.alter(1)}5`);
   for (const [degree, alter] of a.extras) {
     if (degree === 6 && !a.hasSeventh) continue;
-    if (alter === 0 && !a.hasSeventh) parts.push(`add${degree}`);
-    else parts.push(`${ALTER_PREFIX_US[String(alter)]}${degree}`);
+    // A natural 4th over a seventh is added, never a bare `4` (`C7add4`, not `C74`).
+    if (alter === 0 && (!a.hasSeventh || degree === 4)) parts.push(`add${degree}`);
+    else parts.push(`${sp.alter(alter)}${degree}`);
   }
   tail += parts.join('');
 
@@ -174,8 +193,8 @@ function formatAmerican(c, a) {
 }
 
 /** Real Book symbols: ∆ for a major 7th, − for minor, ø and °. */
-function formatRealBook(c, a) {
-  const root = formatNote(c.root);
+function formatRealBook(c, a, sp) {
+  const root = sp.note(c.root);
   let base = root;
   let tail = '';
 
@@ -213,11 +232,11 @@ function formatRealBook(c, a) {
   }
 
   const parts = [];
-  if (c.quality === 'aug' && a.hasSeventh) parts.push('#5');
+  if (c.quality === 'aug' && a.hasSeventh) parts.push(`${sp.alter(1)}5`);
   for (const [degree, alter] of a.extras) {
     if (degree === 6 && !a.hasSeventh) continue;
     if (alter === 0 && !a.hasSeventh) parts.push(`add${degree}`);
-    else parts.push(`${ALTER_PREFIX_US[String(alter)]}${degree}`);
+    else parts.push(`${sp.alter(alter)}${degree}`);
   }
   tail += parts.join('');
 
@@ -233,13 +252,18 @@ const FORMATTERS = {
 /**
  * Render a chord in a notation dialect.
  *
+ * `options.accidentals` is `'ascii'` (the default: `#`/`b`, what charts,
+ * transposition and books hold) or `'unicode'` (`♯`/`♭`, for display only).
+ *
  * @param {import('../chord.js').Chord} c
  * @param {string} [dialectId]
+ * @param {{ accidentals?: 'ascii' | 'unicode' }} [options]
  * @returns {string}
  */
-export function formatChord(c, dialectId = DEFAULT_DIALECT) {
+export function formatChord(c, dialectId = DEFAULT_DIALECT, options = {}) {
   const dialect = getDialect(dialectId);
   const a = analyse(c);
-  const symbol = FORMATTERS[dialect.id](c, a);
-  return c.bass ? `${symbol}/${formatNote(c.bass)}` : symbol;
+  const sp = spelling(options);
+  const symbol = FORMATTERS[dialect.id](c, a, sp);
+  return c.bass ? `${symbol}/${sp.note(c.bass)}` : symbol;
 }
