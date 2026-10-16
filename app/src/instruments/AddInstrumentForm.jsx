@@ -69,7 +69,7 @@ function matchTuning(entry, tuning) {
   return CUSTOM;
 }
 
-export default function AddInstrumentForm({ onSubmit, onCancel, initial = null, editId = null }) {
+export default function AddInstrumentForm({ onSubmit, initial = null, editId = null }) {
   const startCatalog = initial?.catalogId ?? CATALOG[0].id;
   const startEntry = catalogEntry(startCatalog) ?? CATALOG[0];
   const startTuning = initial ? matchTuning(startEntry, initial.tuning) : startEntry.tunings[0].name;
@@ -221,11 +221,10 @@ export default function AddInstrumentForm({ onSubmit, onCancel, initial = null, 
         </div>
       )}
 
+      {/* The submit only: the form's one way out is the bar's ✕ Cancel (W15 #2;
+          music.instruments_layout Decision 6). */}
       <div className="actions">
-        <Button className="btn" onPress={onCancel}>
-          {t('instr.add.cancel')}
-        </Button>
-        <Button type="submit" className="btn primary">
+        <Button type="submit" className="btn primary block">
           {t('instr.add.submit')}
         </Button>
       </div>

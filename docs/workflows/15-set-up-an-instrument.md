@@ -95,6 +95,33 @@ home-book-format change**: §4.1's key list is descriptive, and the format
 validates the register envelope and the file whitelist, not a fixed set of
 preference keys, so a new singleton register is already well-formed.
 
+### Where it sits
+
+The instruments are a **full screen**, not a sheet. They open over whatever
+screen the chip was tapped on, and that screen is left as it was underneath. It
+is not a step in the browser's history: like the other dialogs the chip and the
+song views open, Escape closes it (music.instruments_layout).
+
+- **Phone and tablet.** One screen at a time:
+  - The roster, with a back arrow (*Back*) that closes the instruments.
+  - An instrument's screen, whose Back returns to the roster.
+  - Its voicing rules, whose Back returns to the instrument's screen.
+  - Adding (or editing) an instrument, which has one way out: an ✕ named *Cancel* in its
+    bar. There is no second Cancel at the foot of the form, and no back arrow.
+- **Computer.** The roster is a **rail** at the left. Its head has *Back*, which
+  closes the instruments, and the heading *Instruments*. The rail holds the rows and
+  *+ Add instrument*. The selected instrument's screen fills the rest. It opens on
+  the instrument in use, and the open row is marked. The instrument's screen has no
+  Back, because the rail is beside it. Its voicing rules, and adding or editing an
+  instrument, take that same place, each with its own Back or ✕ *Cancel*.
+- **The voicing rules.**
+  - On a phone they are one column.
+  - From a tablet up they are two columns under the preset row: the *Rules*
+    toggles on the left, and the *Limits* and *Costs* on the right.
+  - Their bar names the instrument whose rules these are. This is a label, not
+    a second chip: a "change instrument" control on the instruments' own screen
+    would open the screen it is on.
+
 ## Adding an instrument
 
 Adding one is a **first-class flow** (Explore Chords §2.1), not buried in

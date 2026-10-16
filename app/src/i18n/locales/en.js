@@ -2555,7 +2555,6 @@ export default {
       addMeta: 'catalogue, a tuning, a name',
       footer:
         'The one in use shapes every chord the app shows. Switching re-derives them everywhere — one tap. One instrument in use at a time.',
-      close: 'Close',
       back: 'Back',
     },
     add: {

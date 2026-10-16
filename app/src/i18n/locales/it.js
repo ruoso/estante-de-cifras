@@ -2402,7 +2402,6 @@ export default {
       addMeta: 'catalogo, un’accordatura, un nome',
       footer:
         'Quello in uso modella ogni accordo che l’app mostra. Cambiarlo ri-deriva tutto all’istante — un tocco. Uno strumento in uso per volta.',
-      close: 'Chiudi',
       back: 'Indietro',
     },
     add: {

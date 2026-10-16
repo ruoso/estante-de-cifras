@@ -26,7 +26,8 @@
   white-space: nowrap;
 }
 
-/* The full-screen overlay: a panel filling the phone, a centred card on wide. */
+/* The full-screen overlay on every viewport (music.instruments_layout; W15): it
+   covers its scrim and the screen it opened over, never a floating card. */
 .instr-modal {
   box-sizing: border-box;
   display: flex;
@@ -35,15 +36,6 @@
   height: 100%;
   background: var(--surface);
   overflow: hidden;
-}
-@media (min-width: 600px) {
-  .instr-modal {
-    width: min(760px, 92vw);
-    height: min(680px, 90vh);
-    border: 1px solid var(--line);
-    border-radius: calc(var(--radius) + 6px);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-  }
 }
 .instr-dialog {
   display: flex;
@@ -142,6 +134,17 @@
   color: var(--ink-2);
 }
 
+/* The rules bar's trailing label: whose rules these are, in chip styling but
+   not a control (music.instruments_layout Decision 5). */
+.instr-rules-for {
+  display: block;
+  line-height: 34px;
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* The voicing-rules panel. */
 .instr-rules {
   display: flex;
@@ -156,6 +159,25 @@
 }
 .instr-reset {
   margin-left: auto;
+}
+.instr-rules-cols,
+.instr-rules-col {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+/* From a tablet up the panel is two columns under the preset row: Rules, then
+   Limits above Costs (W15 #3, gap 24px; Decision 3 — the line is WIDE_QUERY). */
+@media (min-width: 600px) {
+  .instr-rules-cols {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 24px;
+  }
+  .instr-rules-col {
+    flex: 1;
+    min-width: 0;
+  }
 }
 .instr-rules-section {
   display: flex;

@@ -54,6 +54,14 @@ export const READING_ACTIONS_WIDE_QUERY = '(min-width: 1080px)';
 // the phone draws. Computer (1280px) splits; tablet (712px) does not.
 export const ACCOUNT_WIDE_QUERY = '(min-width: 1080px)';
 
+// The instruments' computer rail (music.instruments_layout Decision 2; W15 #4):
+// the roster as a 340px rail beside the open instrument's screen, whose voicing
+// rules draw in two columns. 1080px is the app's line for a second column, as
+// for the account and the shelf; below it — the 712px tablet included — the
+// instruments keep the phone's one screen at a time, as the board's tablet
+// frame (#3) draws no split.
+export const INSTRUMENTS_WIDE_QUERY = '(min-width: 1080px)';
+
 // The three destinations, in the drawn order — Search · Books · Setlists
 // (docs/mockups/GUIDE.md line 34; W02-find-and-play.dc.html lines 55-59). This
 // array's order is the tab order; the visible labels come from i18n, keyed by

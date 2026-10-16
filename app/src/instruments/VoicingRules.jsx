@@ -77,86 +77,96 @@ export default function VoicingRules({ entry, onSetRules }) {
 
       <p className="t-small">{t('instr.rules.explainer')}</p>
 
-      <section className="instr-rules-section">
-        <div className="section-label">
-          <span className="t-h3">{t('instr.rules.rules')}</span>
+      {/* Two columns from a tablet up (W15 #3; music.instruments_layout Decision
+          3): Rules, then Limits above Costs. The DOM keeps the reading order at
+          every width; only the CSS lays them side by side. */}
+      <div className="instr-rules-cols">
+        <div className="instr-rules-col">
+          <section className="instr-rules-section">
+            <div className="section-label">
+              <span className="t-h3">{t('instr.rules.rules')}</span>
+            </div>
+            <div className="list">
+              {TOGGLE_KEYS.map((key) => {
+                const value = Boolean(config[key]);
+                const disabled = key === 'rootInBass' && !hasBass;
+                const label = t(['instr', 'rules', 'rule', key]);
+                return (
+                  <div className="row" key={key}>
+                    <span className="grow" aria-hidden="true">
+                      <span className="name">{label}</span>
+                    </span>
+                    {/* The Switch carries the label as its accessible name;
+                        role=switch and aria-checked (from RAC) convey the state,
+                        so the visible name beside it is aria-hidden to avoid
+                        saying it twice. */}
+                    <Switch
+                      className="instr-switch"
+                      aria-label={label}
+                      isSelected={value}
+                      isDisabled={disabled}
+                      onChange={(checked) => applyPatch({ [key]: checked })}
+                    >
+                      <span className={`toggle${value ? ' on' : ''}`} aria-hidden="true" />
+                    </Switch>
+                  </div>
+                );
+              })}
+            </div>
+            {!hasBass ? <p className="t-small">{t('instr.rules.noBass')}</p> : null}
+          </section>
         </div>
-        <div className="list">
-          {TOGGLE_KEYS.map((key) => {
-            const value = Boolean(config[key]);
-            const disabled = key === 'rootInBass' && !hasBass;
-            const label = t(['instr', 'rules', 'rule', key]);
-            return (
-              <div className="row" key={key}>
-                <span className="grow" aria-hidden="true">
-                  <span className="name">{label}</span>
-                </span>
-                {/* The Switch carries the label as its accessible name; role=switch
-                    and aria-checked (from RAC) convey the state, so the visible
-                    name beside it is aria-hidden to avoid saying it twice. */}
-                <Switch
-                  className="instr-switch"
-                  aria-label={label}
-                  isSelected={value}
-                  isDisabled={disabled}
-                  onChange={(checked) => applyPatch({ [key]: checked })}
+
+        <div className="instr-rules-col">
+          <section className="instr-rules-section">
+            <div className="section-label">
+              <span className="t-h3">{t('instr.rules.limits')}</span>
+            </div>
+            <div className="list">
+              {LIMIT_KEYS.map((key) => (
+                <NumberField
+                  key={key}
+                  className="row instr-num"
+                  value={Number(config[key] ?? 0)}
+                  step={1}
+                  minValue={1}
+                  onChange={(v) => Number.isFinite(v) && applyPatch({ [key]: v })}
                 >
-                  <span className={`toggle${value ? ' on' : ''}`} aria-hidden="true" />
-                </Switch>
-              </div>
-            );
-          })}
-        </div>
-        {!hasBass ? <p className="t-small">{t('instr.rules.noBass')}</p> : null}
-      </section>
+                  <Label className="grow">
+                    <span className="name">{t(['instr', 'rules', 'limit', key])}</span>
+                    {key === 'maxSpan' ? (
+                      <span className="meta">{t('instr.rules.limit.maxSpanUnit')}</span>
+                    ) : null}
+                  </Label>
+                  <Input className="input instr-num-input" />
+                </NumberField>
+              ))}
+            </div>
+          </section>
 
-      <section className="instr-rules-section">
-        <div className="section-label">
-          <span className="t-h3">{t('instr.rules.limits')}</span>
+          <section className="instr-rules-section">
+            <div className="section-label">
+              <span className="t-h3">{t('instr.rules.costs')}</span>
+            </div>
+            <div className="list">
+              {WEIGHT_KEYS.map((key) => (
+                <NumberField
+                  key={key}
+                  className="row instr-num"
+                  value={Number(config.weights?.[key] ?? 0)}
+                  step={0.1}
+                  onChange={(v) => Number.isFinite(v) && applyPatch({ weights: { [key]: v } })}
+                >
+                  <Label className="grow">
+                    <span className="name">{t(['rules', 'weight', key])}</span>
+                  </Label>
+                  <Input className="input instr-num-input" />
+                </NumberField>
+              ))}
+            </div>
+          </section>
         </div>
-        <div className="list">
-          {LIMIT_KEYS.map((key) => (
-            <NumberField
-              key={key}
-              className="row instr-num"
-              value={Number(config[key] ?? 0)}
-              step={1}
-              minValue={1}
-              onChange={(v) => Number.isFinite(v) && applyPatch({ [key]: v })}
-            >
-              <Label className="grow">
-                <span className="name">{t(['instr', 'rules', 'limit', key])}</span>
-                {key === 'maxSpan' ? (
-                  <span className="meta">{t('instr.rules.limit.maxSpanUnit')}</span>
-                ) : null}
-              </Label>
-              <Input className="input instr-num-input" />
-            </NumberField>
-          ))}
-        </div>
-      </section>
-
-      <section className="instr-rules-section">
-        <div className="section-label">
-          <span className="t-h3">{t('instr.rules.costs')}</span>
-        </div>
-        <div className="list">
-          {WEIGHT_KEYS.map((key) => (
-            <NumberField
-              key={key}
-              className="row instr-num"
-              value={Number(config.weights?.[key] ?? 0)}
-              step={0.1}
-              onChange={(v) => Number.isFinite(v) && applyPatch({ weights: { [key]: v } })}
-            >
-              <Label className="grow">
-                <span className="name">{t(['rules', 'weight', key])}</span>
-              </Label>
-              <Input className="input instr-num-input" />
-            </NumberField>
-          ))}
-        </div>
-      </section>
+      </div>
     </div>
   );
 }

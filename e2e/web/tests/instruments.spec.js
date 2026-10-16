@@ -12,6 +12,7 @@
 import { test, expect } from '../lib/axe.js';
 import { chip } from '../lib/journeys-core.js';
 import { mockup } from '../lib/mockup.js';
+import { overlaps } from '../lib/fit.js';
 import { startApp, openExampleBook, openSongFromSearch } from '../lib/journeys.js';
 import {
   SONG,
@@ -25,10 +26,25 @@ import {
 // only one is on screen at a time, so an exact match stays unambiguous.
 const addButton = (page) => page.getByRole('button', { name: 'Add instrument', exact: true });
 
+// The instruments as W15 draws them (music.instruments_layout; workflow 15
+// §Where it sits): a full screen on every viewport, the computer's roster a rail
+// beside the open instrument. Layout is pinned by measured boxes.
+const instruments = (page) => page.getByRole('dialog', { name: 'Instruments' });
+
+async function expectFullScreen(page) {
+  const box = await instruments(page).boundingBox();
+  const { width, height } = page.viewportSize();
+  expect(Math.abs(box.x), 'the instruments start at the left edge').toBeLessThanOrEqual(1);
+  expect(Math.abs(box.y), 'the instruments start at the top edge').toBeLessThanOrEqual(1);
+  expect(Math.abs(box.width - width), 'the instruments are as wide as the viewport').toBeLessThanOrEqual(1);
+  expect(Math.abs(box.height - height), 'the instruments are as tall as the viewport').toBeLessThanOrEqual(1);
+}
+
 test('set up instruments from the header chip, switch, and edit the rules', async ({
   page,
   checkA11y,
-}) => {
+}, testInfo) => {
+  const computer = testInfo.project.name === 'computer';
   await startApp(page);
 
   // The chip is present on every screen, showing the standard-guitar default.
@@ -43,11 +59,35 @@ test('set up instruments from the header chip, switch, and edit the rules', asyn
   const builtIn = page.getByRole('button', { name: /^Open Guitar/ });
   await expect(builtIn).toHaveCount(1);
   await expect(builtIn.getByText('in use', { exact: true })).toBeVisible();
+  // A full screen, never a floating card (W15 #1, #4).
+  await expectFullScreen(page);
+  if (computer) {
+    // The rail beside the in-use guitar's screen, the two side by side (W15 #4).
+    const rail = instruments(page).locator('.pane.side');
+    const heading = page.getByRole('heading', { name: /^Guitar \(6-string\)/ });
+    await expect(rail.getByRole('button', { name: /^Open Guitar/ })).toBeVisible();
+    await expect(heading).toBeVisible();
+    const railBox = await rail.boundingBox();
+    const headingBox = await heading.boundingBox();
+    expect(railBox.x + railBox.width, 'the rail is left of the heading').toBeLessThanOrEqual(headingBox.x + 0.5);
+    expect(overlaps(railBox, headingBox), 'the rail and the heading overlap').toBe(false);
+  } else {
+    // The roster leaves by the board's back arrow (W15 #1).
+    await expect(instruments(page).getByRole('button', { name: 'Back' })).toBeVisible();
+  }
   await mockup(page, 'W15-set-up-an-instrument', 1);
   await checkA11y(); // the roster
 
   await addButton(page).click();
   await expect(page.getByRole('heading', { name: 'Add instrument' })).toBeVisible();
+  if (computer) {
+    // The add form opens in the main pane, the rail still shown.
+    await expect(page.getByRole('button', { name: /^Open Guitar/ })).toBeVisible();
+  } else {
+    // One way out: the bar's ✕ Cancel, no back arrow (W15 #2).
+    await expect(instruments(page).getByRole('button', { name: 'Cancel' })).toHaveCount(1);
+    await expect(instruments(page).getByRole('button', { name: 'Back' })).toHaveCount(0);
+  }
   await mockup(page, 'W15-set-up-an-instrument', 2);
   await checkA11y(); // the add form
 
@@ -75,6 +115,23 @@ test('set up instruments from the header chip, switch, and edit the rules', asyn
   await page.getByRole('button', { name: 'Edit rules' }).click();
   await expect(page.getByRole('heading', { name: 'Voicing rules' })).toBeVisible();
   await expect(page.getByRole('switch', { name: 'Root required' })).toBeVisible();
+  // Two columns from a tablet up — Rules beside Limits and Costs — and one on the
+  // phone (W15 #3).
+  const rootBox = await page.getByRole('switch', { name: 'Root required' }).boundingBox();
+  const spanBox = await page.getByRole('textbox', { name: /^Max span/ }).boundingBox();
+  if (testInfo.project.name === 'phone') {
+    const lastRule = await page.getByRole('switch').last().boundingBox();
+    expect(spanBox.y, 'Max span is below the last rule').toBeGreaterThanOrEqual(lastRule.y + lastRule.height);
+  } else {
+    // The switch role sits on RAC's visually hidden 1px input, whose box is not
+    // where the toggle is drawn; the rows each control sits in are what line up.
+    const row = (control) =>
+      control.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " row ")][1]');
+    const rootRowBox = await row(page.getByRole('switch', { name: 'Root required' })).boundingBox();
+    const spanRowBox = await row(page.getByRole('textbox', { name: /^Max span/ })).boundingBox();
+    expect(Math.abs(spanRowBox.y - rootRowBox.y), 'Root required and Max span share a top').toBeLessThanOrEqual(4);
+    expect(spanBox.x, 'Max span is right of Root required').toBeGreaterThan(rootBox.x + rootBox.width);
+  }
   await mockup(page, 'W15-set-up-an-instrument', 3);
   await checkA11y(); // the rules panel
 
@@ -90,7 +147,7 @@ test('set up instruments from the header chip, switch, and edit the rules', asyn
 test('removing the instrument in use asks first, and the app falls back to guitar (workflow 15 §Removing)', async ({
   page,
   checkA11y,
-}) => {
+}, testInfo) => {
   await startApp(page);
   await addInstrument(page, { tuning: 'Drop D', name: 'My Drop D' });
 
@@ -103,6 +160,13 @@ test('removing the instrument in use asks first, and the app falls back to guita
   // With no shapes saved it names only the variations (workflow 15 §Removing).
   await expect(confirm).toContainText('The song variations in use for');
   await expect(confirm).not.toContainText('0 saved shape');
+  if (testInfo.project.name === 'computer') {
+    // The rail stays beside My Drop D's screen under the centred confirm (W15
+    // #4). The open alertdialog aria-hides what is under it, so these are found
+    // by their place, not their role.
+    await expect(page.locator('.pane.side .row', { hasText: /^Guitar/ })).toBeVisible();
+    await expect(page.locator('.pane.main .appbar .title', { hasText: 'My Drop D' })).toBeVisible();
+  }
   await mockup(page, 'W15-set-up-an-instrument', 4);
   await checkA11y(); // the remove confirmation
 
@@ -120,7 +184,9 @@ test('removing the instrument in use asks first, and the app falls back to guita
   await expect(fallback).toHaveCount(1);
   await expect(fallback.getByText('in use', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(chip(page)).toContainText('Guitar');
+  // The screen underneath is as it was: its chip is back, reading the guitar.
+  await expect(chip(page)).toBeVisible();
+  await expect(chip(page)).toHaveText('Guitar');
   await expect(chip(page)).not.toContainText('My Drop D');
 
   // Still gone after a reload.

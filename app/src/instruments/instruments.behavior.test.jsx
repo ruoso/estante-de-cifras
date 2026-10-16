@@ -10,7 +10,7 @@
 //
 // Pins workflow 15; home-book §4.3–§4.4; mockup W15; DIRECTION §3.7 L407-414.
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useState } from 'react';
 import { IDBFactory } from 'fake-indexeddb';
 import { render, screen, within, waitFor, act, fireEvent } from '@testing-library/react';
@@ -29,6 +29,7 @@ import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import InstrumentChip from './InstrumentChip.jsx';
 import InstrumentsOverlay from './InstrumentsOverlay.jsx';
+import { INSTRUMENTS_WIDE_QUERY, WIDE_QUERY } from '../shell/layout-mode.js';
 
 const IDENTITY = { id: 'u_8f3a21', name: 'A Tester' };
 const T_EARLY = Date.UTC(2026, 9, 5, 14, 0, 0);
@@ -59,12 +60,20 @@ afterEach(() => {
 
 // The harness that mounts the one shared chip and the overlay it opens, the way
 // AppShell wires them — the instrument surface in isolation.
-function Surface({ store }) {
+// `onClose` (optional) observes the overlay asking to close.
+function Surface({ store, onClose }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <InstrumentChip store={store} onOpen={() => setOpen(true)} />
-      <InstrumentsOverlay store={store} isOpen={open} onClose={() => setOpen(false)} />
+      <InstrumentsOverlay
+        store={store}
+        isOpen={open}
+        onClose={() => {
+          onClose?.();
+          setOpen(false);
+        }}
+      />
     </>
   );
 }
@@ -117,10 +126,10 @@ async function seedRemote(remote, changesByFile) {
   await home.sync({ bookId: HOME_BOOK_ID, author: IDENTITY });
 }
 
-const renderSurface = (store) =>
+const renderSurface = (store, onClose) =>
   render(
     <ThemeRoot store={store}>
-      <Surface store={store} />
+      <Surface store={store} onClose={onClose} />
     </ThemeRoot>,
   );
 
@@ -203,7 +212,7 @@ describe('the instrument surface (behavior)', () => {
     // Close the overlay and confirm the chip now reflects the in-use instrument:
     // a custom tuning reads "· Custom", its pitches in the description
     // (shell.header_chrome; workflow 15 §The roster, and switching).
-    act(() => fireEvent.click(screen.getByRole('button', { name: 'Close' })));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
     await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar · Custom$/));
     expect(chip()).toHaveAccessibleDescription(/custom tuning: G4 C4 E4 A4/);
 
@@ -229,7 +238,7 @@ describe('the instrument surface (behavior)', () => {
       const row = screen.getByRole('button', { name: /^Open Guitar \(6-string\) · Drop D/ });
       expect(within(row).getByText('in use')).toBeInTheDocument();
     }, SLOW);
-    act(() => fireEvent.click(screen.getByRole('button', { name: 'Close' })));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
     await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar · Drop D$/));
     expect(chip()).toHaveAccessibleName('Guitar · Drop D, change instrument');
     expect(chip()).toHaveAccessibleDescription('Guitar (6-string), Drop D tuning: D2 A2 D3 G3 B3 E4');
@@ -251,7 +260,7 @@ describe('the instrument surface (behavior)', () => {
       const row = screen.getByRole('button', { name: /^Open Slide guitar/ });
       expect(within(row).getByText('in use')).toBeInTheDocument();
     });
-    act(() => fireEvent.click(screen.getByRole('button', { name: 'Close' })));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
     await waitFor(() => expect(chip()).toHaveTextContent(/^Slide guitar$/));
     expect(chip()).toHaveAccessibleDescription('Guitar (6-string), Open G tuning: D2 G2 D3 G3 B3 D4');
   });
@@ -453,7 +462,7 @@ describe('the instrument surface (behavior)', () => {
       expect(prefs.instrumentInUse.value).toBe('standard');
     }, SLOW);
 
-    act(() => fireEvent.click(screen.getByRole('button', { name: 'Close' })));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
     await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar$/));
   });
 
@@ -585,5 +594,198 @@ describe('the instrument surface (behavior)', () => {
       fireEvent.keyUp(add, { key: 'Enter' });
     });
     expect(await screen.findByRole('heading', { name: 'Add instrument' })).toBeInTheDocument();
+  });
+});
+
+// music.instruments_layout — the instruments as W15 draws them (workflow 15
+// §Where it sits). jsdom has no layout, so these pin structure and order: which
+// controls each screen has, where they sit in the DOM, and what each one does.
+// The geometry (the full screen, the columns side by side, the rail beside the
+// detail) is pinned at e2e-web.
+describe('the instruments as drawn (behavior)', () => {
+  // A controllable viewport stub, copied from AppShell.behavior.test.jsx: it
+  // answers the shell's and the instruments' wide queries with `wide` and every
+  // other query (the colour scheme) with false.
+  function installViewport(initialWide) {
+    let wide = initialWide;
+    const listeners = new Set();
+    globalThis.matchMedia = (media) => ({
+      media,
+      get matches() {
+        return media === WIDE_QUERY || media === INSTRUMENTS_WIDE_QUERY ? wide : false;
+      },
+      addEventListener: (_type, cb) => listeners.add(cb),
+      removeEventListener: (_type, cb) => listeners.delete(cb),
+    });
+  }
+
+  const dialog = () => screen.getByRole('dialog');
+  const precedes = (a, b) =>
+    Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+  const BUILT_IN_ROW = /^Open Guitar \(6-string\) · E2 A2 D3 G3 B3 E4/;
+  const BUILT_IN_TITLE = 'Guitar (6-string) · E2 A2 D3 G3 B3 E4';
+
+  async function openFresh(label, onClose) {
+    const { store } = makeFreshWorker(label);
+    renderSurface(store, onClose);
+    act(() => store.open());
+    await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar$/));
+    openOverlay();
+    await screen.findByRole('heading', { name: 'Instruments' });
+    return store;
+  }
+
+  it('(a) narrow: the roster leaves by Back, not a Close ✕ (AC 1; W15 #1)', async () => {
+    installViewport(false);
+    const onClose = vi.fn();
+    await openFresh('narrow-back', onClose);
+    expect(within(dialog()).getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(within(dialog()).queryByRole('button', { name: 'Close' })).toBeNull();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+    act(() => fireEvent.click(within(dialog()).getByRole('button', { name: 'Back' })));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('(b) narrow: adding and editing have one way out, the bar’s ✕ Cancel (AC 1; W15 #2)', async () => {
+    installViewport(false);
+    await openFresh('one-exit');
+
+    const expectOneExit = async () => {
+      const cancels = within(dialog()).getAllByRole('button', { name: 'Cancel' });
+      expect(cancels).toHaveLength(1);
+      const bar = cancels[0].closest('.appbar');
+      expect(bar).not.toBeNull();
+      expect(precedes(cancels[0], within(bar).getByRole('heading'))).toBe(true);
+      expect(within(dialog()).queryByRole('button', { name: 'Back' })).toBeNull();
+      expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+      return cancels[0];
+    };
+
+    // Add: Cancel returns to the roster.
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Add instrument' })));
+    await screen.findByRole('heading', { name: 'Add instrument' });
+    {
+      const target = await expectOneExit();
+      act(() => fireEvent.click(target));
+    }
+    await screen.findByRole('heading', { name: 'Instruments' });
+
+    // Edit: the same form, whose Cancel returns to the instrument's screen.
+    act(() => fireEvent.click(screen.getByRole('button', { name: BUILT_IN_ROW })));
+    {
+      const target = await screen.findByRole('button', { name: 'Edit' });
+      act(() => fireEvent.click(target));
+    }
+    await screen.findByRole('heading', { name: 'Edit' });
+    {
+      const target = await expectOneExit();
+      act(() => fireEvent.click(target));
+    }
+    await screen.findByRole('heading', { name: BUILT_IN_TITLE });
+  });
+
+  it('(c) the rules in two columns, in reading order, naming the instrument as text (AC 2; W15 #3)', async () => {
+    installViewport(false);
+    await openFresh('rules-cols');
+    act(() => fireEvent.click(screen.getByRole('button', { name: BUILT_IN_ROW })));
+    {
+      const target = await screen.findByRole('button', { name: 'Edit rules' });
+      act(() => fireEvent.click(target));
+    }
+    await screen.findByRole('heading', { name: 'Voicing rules' });
+
+    const cols = dialog().querySelectorAll('.instr-rules-col');
+    expect(cols).toHaveLength(2);
+    // Rules on the left; Limits then Costs on the right.
+    expect(within(cols[0]).getByRole('switch', { name: 'Root required' })).toBeInTheDocument();
+    const maxSpan = within(cols[1]).getByRole('textbox', { name: /^Max span/ });
+    const sections = cols[1].querySelectorAll('section');
+    expect(sections).toHaveLength(2);
+    expect(sections[0]).toContainElement(maxSpan);
+    const firstCost = within(sections[1]).getAllByRole('textbox')[0];
+    expect(precedes(maxSpan, firstCost)).toBe(true);
+    // The preset row comes before both columns.
+    const presets = screen.getByRole('group', { name: 'Voicing preset' });
+    expect(precedes(presets, cols[0])).toBe(true);
+    expect(precedes(presets, cols[1])).toBe(true);
+
+    // The bar names whose rules these are as text, not as a second chip.
+    const bar = dialog().querySelector('.appbar');
+    const named = within(bar).getByText('Guitar');
+    expect(named.closest('button')).toBeNull();
+    expect(within(dialog()).queryByRole('button', { name: /change instrument/ })).toBeNull();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('(d) computer: the roster is a rail beside the open instrument (AC 3; W15 #4)', async () => {
+    installViewport(true);
+    const onClose = vi.fn();
+    await openFresh('rail', onClose);
+
+    // Add My Drop D (it goes into use), then switch back to the built-in guitar.
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Add instrument' })));
+    await screen.findByRole('heading', { name: 'Add instrument' });
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Drop D' })));
+    act(() =>
+      fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'My Drop D' } }),
+    );
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Add instrument' })));
+    // A saved add opens the new instrument's screen in the main pane.
+    await screen.findByRole('heading', { name: 'My Drop D' }, SLOW);
+    act(() => fireEvent.click(screen.getByRole('button', { name: BUILT_IN_ROW })));
+    {
+      const target = await screen.findByRole('button', { name: 'Use this instrument' });
+      act(() => fireEvent.click(target));
+    }
+    // Use this instrument keeps the detail open; the rail shows the new *in use*.
+    await waitFor(() => {
+      const guitar = screen.getByRole('button', { name: BUILT_IN_ROW });
+      expect(within(guitar).getByText('in use')).toBeInTheDocument();
+    }, SLOW);
+    expect(screen.getByRole('heading', { name: BUILT_IN_TITLE })).toBeInTheDocument();
+
+    // The rail head's Back closes the instruments; reopen them.
+    act(() => fireEvent.click(within(dialog()).getByRole('button', { name: 'Back' })));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    openOverlay();
+
+    // One render shows the rail rows and the in-use guitar's screen.
+    await screen.findByRole('heading', { name: 'Instruments' });
+    const side = dialog().querySelector('.split > .pane.side');
+    const main = dialog().querySelector('.split > .pane.main');
+    expect(within(side).getByRole('button', { name: /^Open My Drop D/ })).toBeInTheDocument();
+    expect(within(main).getByRole('heading', { name: BUILT_IN_TITLE })).toBeInTheDocument();
+    expect(within(side).getByRole('button', { name: BUILT_IN_ROW })).toHaveAttribute('aria-current', 'true');
+    expect(within(side).getByRole('button', { name: /^Open My Drop D/ })).not.toHaveAttribute('aria-current');
+    // The detail has no Back; the rail head has the one.
+    expect(within(main).queryByRole('button', { name: 'Back' })).toBeNull();
+    expect(within(dialog()).getAllByRole('button', { name: 'Back' })).toHaveLength(1);
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+    // A rail row opens its screen, moves the mark, and puts focus on its heading.
+    act(() => fireEvent.click(within(side).getByRole('button', { name: /^Open My Drop D/ })));
+    const mine = await within(main).findByRole('heading', { name: 'My Drop D' });
+    expect(within(side).getByRole('button', { name: /^Open My Drop D/ })).toHaveAttribute('aria-current', 'true');
+    expect(within(side).getByRole('button', { name: BUILT_IN_ROW })).not.toHaveAttribute('aria-current');
+    await waitFor(() => expect(mine).toHaveFocus());
+
+    // Edit rules opens in the main pane, the rail still shown; its Back returns.
+    act(() => fireEvent.click(within(main).getByRole('button', { name: 'Edit rules' })));
+    await within(main).findByRole('heading', { name: 'Voicing rules' });
+    expect(within(side).getByRole('button', { name: /^Open My Drop D/ })).toBeInTheDocument();
+    act(() => fireEvent.click(within(main).getByRole('button', { name: 'Back' })));
+    await within(main).findByRole('heading', { name: 'My Drop D' });
+
+    // + Add instrument opens the form in the main pane; its ✕ Cancel returns to
+    // the detail that was open.
+    act(() => fireEvent.click(within(side).getByRole('button', { name: /^Add instrument.*catalogue/ })));
+    await within(main).findByRole('heading', { name: 'Add instrument' });
+    expect(within(side).getByRole('button', { name: BUILT_IN_ROW })).toBeInTheDocument();
+    act(() => fireEvent.click(within(main).getByRole('button', { name: 'Cancel' })));
+    await within(main).findByRole('heading', { name: 'My Drop D' });
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 });

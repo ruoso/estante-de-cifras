@@ -2401,7 +2401,6 @@ export default {
       addMeta: 'catálogo, una afinación, un nombre',
       footer:
         'El que está en uso moldea cada acorde que la app muestra. Cambiar lo re-deriva todo al instante — un toque. Un instrumento en uso a la vez.',
-      close: 'Cerrar',
       back: 'Volver',
     },
     add: {

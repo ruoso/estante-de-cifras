@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ACCOUNT_WIDE_QUERY, DESTINATIONS, READING_ACTIONS_WIDE_QUERY, WIDE_QUERY, layoutMode } from './layout-mode.js';
+import { ACCOUNT_WIDE_QUERY, DESTINATIONS, INSTRUMENTS_WIDE_QUERY, READING_ACTIONS_WIDE_QUERY, WIDE_QUERY, layoutMode } from './layout-mode.js';
 
 // unit — the pure layout-mode policy (shell.layout). Framework-free, like the
 // theme resolver's unit test: the breakpoint decision and the drawn destination
@@ -31,6 +31,9 @@ describe('layout-mode', () => {
     // The rail beside two preference columns needs a computer's width
     // (account.preferences_layout Decision 3); the tablet keeps the one column.
     expect(ACCOUNT_WIDE_QUERY).toBe('(min-width: 1080px)');
+    // The instruments' rail starts on a computer too (music.instruments_layout
+    // Decision 2); the tablet keeps the phone's one screen at a time.
+    expect(INSTRUMENTS_WIDE_QUERY).toBe('(min-width: 1080px)');
   });
 
   it('has exactly the three destinations in the drawn order Search · Books · Setlists', () => {

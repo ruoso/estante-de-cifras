@@ -79,7 +79,8 @@ task music "Music" {
   task instruments_layout "Instruments and voicing rules as drawn" {
     effort 1.5d
     allocate team
+    complete 100
     depends !instruments
-    note "The W15 board opens the voicing rules full screen in two columns and, on a computer, the instruments with a rail; the app opens both as sheets over the shell, and the add-instrument sheet carries a Cancel and a back arrow the board does not draw. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (axe); e2e-web (instruments and rules on the three viewports, mockup W15#1-4)."
+    note "The W15 board opens the voicing rules full screen in two columns and, on a computer, the instruments with a rail; the app opens both as sheets over the shell, and the add-instrument sheet carries a Cancel and a back arrow the board does not draw. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (axe); e2e-web (instruments and rules on the three viewports, mockup W15#1-4). Refinement: tasks/refinements/music/instruments_layout.md"
   }
 }
