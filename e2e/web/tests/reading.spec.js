@@ -2,7 +2,8 @@ import { test, expect } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
 import { runOffline, waitForServiceWorker } from '../lib/offline.js';
 import { openExampleBook, openSongFromSearch } from '../lib/journeys.js';
-import { expectFits } from '../lib/fit.js';
+import { writeSongFromScratch } from '../lib/journeys-account.js';
+import { expectFits, overlaps } from '../lib/fit.js';
 
 // e2e-web — reading a song end to end on the three viewports (songs.reading,
 // workflow 2). The example book is seeded through the UI (the first-run "Open
@@ -136,17 +137,81 @@ test('transposes and remembers the offset across a reload', async ({ page, check
   await openExampleBook(page);
   await openSongFromSearch(page, SEARCH, SONG_TITLE);
 
-  // Step up a semitone through the transpose popover.
+  // Step up a semitone through the transpose popover, then close it: the one
+  // row carries the state (songs.transpose_chrome AC1) — the keyless song gets
+  // the offset alone and the way back to "the written key" (Decision 4).
   await page.getByRole('button', { name: 'Transpose' }).click();
   await page.getByRole('button', { name: 'Up a semitone' }).click();
-  await expect(page.getByText(/Transposed/).first()).toBeVisible();
-  await mockup(page, 'W02-find-and-play', 4);
+  await expect(page.getByRole('dialog').getByText('+1', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.getByText('Transposed (+1)', { exact: true })).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Back to the written key' })).toHaveCount(1);
   await checkA11y(); // transposed state
 
   // Reload and reopen — the offset is remembered per song in the home book.
   await openExampleBook(page);
   await openSongFromSearch(page, SEARCH, SONG_TITLE);
   await expect(page.getByText(/Transposed/).first()).toBeVisible();
+});
+
+// songs.transpose_chrome — the transposed state drawn once, in the meta row,
+// naming the key in the song's spelling (W02#4 L181-186; workflow 2 L137-140),
+// clear of the chart. A purpose-written song in G, written through the editor
+// (the example book is keyless — Decision 6).
+const HARBOUR_TITLE = 'Harbour Lights at Noon';
+const HARBOUR_SONG = [
+  `# ${HARBOUR_TITLE}`,
+  '',
+  '- key: G',
+  '',
+  '## Verse',
+  '```',
+  'G        C        D',
+  'gulls on the rail at noon',
+  '```',
+];
+
+test('a transposed song names its key once, clear of the chart (W02#4)', async ({ page, checkA11y }) => {
+  await writeSongFromScratch(page, HARBOUR_SONG);
+  await openSongFromSearch(page, 'Harbour', HARBOUR_TITLE);
+  await expect(page.getByText('Key of G', { exact: true })).toBeVisible();
+
+  // Two steps up through the stepper popover, then close it.
+  await page.getByRole('button', { name: 'Transpose' }).click();
+  const stepper = page.getByRole('dialog');
+  await stepper.getByRole('button', { name: 'Up a semitone' }).click();
+  await stepper.getByRole('button', { name: 'Up a semitone' }).click();
+  await expect(stepper.getByText('+2', { exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(stepper).toBeHidden();
+
+  // One row naming both keys.
+  const chip = page.getByText('Transposed to A (+2)', { exact: true });
+  const back = page.getByRole('button', { name: 'Back to G' });
+  await expect(chip).toHaveCount(1);
+  await expect(chip).toBeVisible();
+  await expect(back).toHaveCount(1);
+  await expect(back).toBeVisible();
+  await expect(page.locator('.reading-status')).toHaveCount(0);
+
+  // The row lies above the chart's first line, not over it.
+  const meta = page.locator('.reading-meta').filter({ visible: true }).first();
+  const metaBox = await meta.boundingBox();
+  const firstLine = page.locator('.reading-sheet .chart').first().locator(':scope > *').first();
+  await expect(firstLine).toBeVisible();
+  const lineBox = await firstLine.boundingBox();
+  expect(overlaps(metaBox, lineBox), 'the transposed row overlaps the chart').toBe(false);
+  expect(metaBox.y + metaBox.height).toBeLessThanOrEqual(lineBox.y + 0.5);
+
+  await mockup(page, 'W02-find-and-play', 4);
+  await checkA11y(); // transposed state, the key named
+
+  // Back to G: the row goes, the written key's chip returns.
+  await back.click();
+  await expect(page.getByText(/^Transposed/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Back to G/ })).toHaveCount(0);
+  await expect(page.getByText('Key of G', { exact: true })).toBeVisible();
 });
 
 test('reads the song, its shapes and the chord explorer offline', async ({ page }, testInfo) => {

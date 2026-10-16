@@ -64,6 +64,24 @@ describe('transpose — spelling by the key property', () => {
     const t = transpose(parse(keyed('G', 'G C D')), 2);
     expect(chordSymbols(t)).toEqual(['A', 'D', 'E']);
   });
+
+  it('reads a ♭ key as the flat it is: key B♭ is not key B (songs.transpose_chrome AC5; wf2 L133-135)', () => {
+    // One keyTonic for the chart and the key name. Up a semitone, B♭ goes to B
+    // (B major, sharps) — a misread "B" would go to C and spell the chart in
+    // flats (C♭ F♭ G♭). The ♭ glyph and the ASCII b read the same.
+    const chart = 'Bb Eb F';
+    const glyph = chordSymbols(transpose(parse(keyed('B♭', chart)), 1));
+    expect(glyph).toEqual(['B', 'E', 'F#']);
+    expect(chordSymbols(transpose(parse(keyed('Bb', chart)), 1))).toEqual(glyph);
+    expect(chordSymbols(transpose(parse(keyed('B', chart)), 1))).toEqual(['Cb', 'Fb', 'Gb']);
+    expect(transposedKeyName('B♭', 1)).toBe('B');
+  });
+
+  it('takes the neighbour letter where it spells fewer accidentals: key C# down a semitone reads in C', () => {
+    const t = transpose(parse(keyed('C#', 'C# F# G#')), -1);
+    expect(chordSymbols(t)).toEqual(['C', 'F', 'G']);
+    expect(transposedKeyName('C#', -1)).toBe('C');
+  });
 });
 
 describe('transpose — spelling by fewest accidentals when there is no key', () => {
@@ -159,5 +177,37 @@ describe('transposedKeyName — the destination key name (wf2 L136-138)', () => 
     expect(transposedKeyName(null, 2)).toBeNull();
     expect(transposedKeyName('', 2)).toBeNull();
     expect(transposedKeyName(undefined, 2)).toBeNull();
+  });
+
+  // songs.transpose_chrome AC5: the key is read as spec §1.4.3 defines it (a
+  // §5.1.1 root, ♭/♯ included, then `m` or nothing), and the name is spelled in
+  // the written key's glyphs.
+  it('reads a ♭ key: B♭ +2 → C', () => {
+    expect(transposedKeyName('B♭', 2)).toBe('C');
+  });
+
+  it('reads E♭: +2 → F, +1 → E', () => {
+    expect(transposedKeyName('E♭', 2)).toBe('F');
+    expect(transposedKeyName('E♭', 1)).toBe('E');
+  });
+
+  it('spells the name in the written key\'s glyphs: A♭ +1 → A, G +1 → Ab', () => {
+    expect(transposedKeyName('A♭', 1)).toBe('A');
+    expect(transposedKeyName('G', 1)).toBe('Ab');
+    expect(transposedKeyName('E♭', 4)).toBe('G');
+    expect(transposedKeyName('E♭', 6)).toBe('A');
+    expect(transposedKeyName('B♭', -2)).toBe('A♭');
+    expect(transposedKeyName('F♯', 2)).toBe('G♯');
+  });
+
+  it('reads a ♯ minor key and keeps the m: F♯m +1 → Gm, C♯m −1 → Cm', () => {
+    expect(transposedKeyName('F♯m', 1)).toBe('Gm');
+    expect(transposedKeyName('C♯m', -1)).toBe('Cm');
+  });
+
+  it('is null for a value that is not a key (§5.1.1 root, §1.4.3): g, G major, Sol', () => {
+    expect(transposedKeyName('g', 2)).toBeNull();
+    expect(transposedKeyName('G major', 2)).toBeNull();
+    expect(transposedKeyName('Sol', 2)).toBeNull();
   });
 });

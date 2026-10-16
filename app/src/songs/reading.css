@@ -29,8 +29,11 @@
   overflow-y: auto;
 }
 
-/* The meta line: byline, the instrument chip, the key chip, the transpose
-   control and the variation picker, wrapping on a narrow screen. */
+/* The meta line: the transpose control (computer), byline, the instrument chip,
+   the key chip — or, while transposed, the transposed state (W02#4 L181-186:
+   the chip, the way back, the right-aligned "arranging is off" note) — and the
+   variation picker, wrapping on a narrow screen. In flow above the sheet, so
+   nothing of it overlaps the chart (songs.transpose_chrome). */
 .reading-meta {
   display: flex;
   align-items: center;
@@ -41,14 +44,6 @@
   min-width: 0;
 }
 
-/* The transpose status row (W02 L181-186): the chip, the reset, and the
-   right-aligned "arranging is off" note. */
-.reading-status {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 1.5);
-  flex-wrap: wrap;
-}
 .reading-arranging-off {
   margin-left: auto;
 }
@@ -186,7 +181,6 @@
   .reading-chrome,
   .reading-actionbar,
   .reading-meta,
-  .reading-status,
   .reading-variation,
   .reading-instrument-prompt,
   .reading-update-notice,

@@ -335,7 +335,7 @@ export default function SongReading({
   const noVoicings = offset === 0 && Boolean(model) && chordList.length > 0 && variations.length === 0;
   const instrumentLabel = chipLabel(entry) || t('search.instrument');
 
-  const status = transposeStatus(writtenKey, offset, dialect);
+  const status = transposeStatus(writtenKey, offset);
   const transposed = offset !== 0;
 
   const setTransposition = (semitones) =>
@@ -347,29 +347,37 @@ export default function SongReading({
 
   const variationLabel = (v) => (v === '' ? t('reading.variationDefault') : v);
 
-  // The transpose status chip + reset + the "arranging is off" note (mockups W02
-  // L181-186). Shown only while transposed.
-  const statusRow = status ? (
-    <div className="reading-status">
-      <span className="chip accent">
-        {status.keyName
-          ? t('reading.transposedToKey', { key: status.keyName, offset: signed(status.offset) })
-          : t('reading.transposedBy', { offset: signed(status.offset) })}
-      </span>
-      <Button className="btn quiet" onPress={() => setTransposition(0)}>
-        {writtenKey ? t('reading.backToKey', { key: writtenKey }) : t('reading.backToWritten')}
-      </Button>
-      <span className="t-small reading-arranging-off">{t('reading.arrangingOff')}</span>
-    </div>
-  ) : null;
+  // The transposed state, drawn once, in the meta row (songs.transpose_chrome;
+  // mockups W02#4 L181-186): the chip naming the key, the way back to the written
+  // key, and the "arranging is off" note. Both keys named, or neither
+  // (transposeStatus). Shown only while transposed.
+  const transposedParts = status
+    ? [
+        <span key="chip" className="chip accent">
+          {status.keyName
+            ? t('reading.transposedToKey', { key: status.keyName, offset: signed(status.offset) })
+            : t('reading.transposedBy', { offset: signed(status.offset) })}
+        </span>,
+        <Button key="back" className="btn quiet" onPress={() => setTransposition(0)}>
+          {status.writtenKey
+            ? t('reading.backToKey', { key: status.writtenKey })
+            : t('reading.backToWritten')}
+        </Button>,
+        <span key="arranging-off" className="t-small reading-arranging-off">
+          {t('reading.arrangingOff')}
+        </span>,
+      ]
+    : null;
 
   // The one transpose control renders as an app-bar icon (phone) or a labelled
   // button (the tablet's app bar, the computer's meta row — Decision 3).
   const variant = mode === 'wide' ? 'button' : 'icon';
 
-  // The Transpose control: a popover stepper (down / up a semitone, and the
-  // reset). RAC's DialogTrigger owns its open state (ephemeral view state, not a
-  // slice) and gives the keyboard path, focus management and Escape.
+  // The Transpose control: a popover stepper — down a semitone, the signed
+  // offset, up a semitone — and nothing more; the meta row names the key and
+  // carries the way back (songs.transpose_chrome Decision 2). RAC's
+  // DialogTrigger owns its open state (ephemeral view state, not a slice) and
+  // gives the keyboard path, focus management and Escape.
   const transposeControl = (
     <DialogTrigger>
       <Button
@@ -385,21 +393,12 @@ export default function SongReading({
               −
             </Button>
             <span className="reading-transpose-now" aria-live="polite">
-              {status
-                ? status.keyName
-                  ? t('reading.transposedToKey', { key: status.keyName, offset: signed(status.offset) })
-                  : t('reading.transposedBy', { offset: signed(status.offset) })
-                : t('reading.writtenKey')}
+              {transposed ? signed(offset) : t('reading.writtenKey')}
             </span>
             <Button className="btn icon" aria-label={t('reading.up')} onPress={() => setTransposition(clampOffset(offset + 1))}>
               +
             </Button>
           </div>
-          {transposed ? (
-            <Button className="btn quiet block" onPress={() => setTransposition(0)}>
-              {writtenKey ? t('reading.backToKey', { key: writtenKey }) : t('reading.backToWritten')}
-            </Button>
-          ) : null}
         </Dialog>
       </Popover>
     </DialogTrigger>
@@ -609,7 +608,9 @@ export default function SongReading({
   // transposed state's controls, Decision 3); the tablet's Transpose and chip
   // are in its app bar; the phone's chip is here (W02 phone 2) and its Transpose
   // an app-bar icon. One chip per screen (shell.header_chrome Decision 7): the
-  // computer's heads the search rail.
+  // computer's heads the search rail. While transposed the written key's chip
+  // gives way to the transposed state (W02#4: Transpose · byline · chip · Back ·
+  // arranging is off), on every device.
   const metaRow = (
     <div className="reading-meta">
       {computer ? transposeControl : null}
@@ -618,19 +619,20 @@ export default function SongReading({
       </span>
       {mode === 'wide' ? null : <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />}
       {writtenKey && !transposed ? <span className="chip">{t('reading.keyOf', { key: writtenKey })}</span> : null}
+      {transposedParts}
       {variationPicker}
     </div>
   );
 
   // The scroll body every device shares: the notices first, above the chart
-  // (the instrument prompt, the update notice, the transposed row, no voicings),
+  // (the instrument prompt, the update notice, the meta row with the transposed
+  // state, no voicings),
   // then the sheet.
   const body = (
     <div className="scroll reading-scroll" ref={scrollRef}>
       {instrumentPrompt}
       {updateNotice}
       {metaRow}
-      {statusRow}
       {noVoicings ? (
         <div className="notice accent">
           <span>{t('reading.noVoicings', { instrument: instrumentLabel })}</span>

@@ -315,9 +315,16 @@ describe('SongReading — transpose (workflow 2 L111-146; W02 L181-186)', () => 
     const cmd = lastCommand(commands, CommandKind.SET_TRANSPOSITION);
     expect(cmd.payload).toMatchObject({ bookId: BOOK, path: PATH, semitones: 1 });
 
-    // The chip appears in the status row (and in the still-open popover).
-    await waitFor(() => expect(screen.getAllByText('Transposed to Ab (+1)').length).toBeGreaterThan(0));
-    expect(screen.getAllByRole('button', { name: 'Back to G' }).length).toBeGreaterThan(0);
+    // The chip appears once, in the meta row — the still-open popover is a
+    // stepper only (songs.transpose_chrome AC1, AC4). Escape closes it, which
+    // un-hides the row behind its modal.
+    await waitFor(() => expect(screen.getByText('Transposed to Ab (+1)')).toBeInTheDocument());
+    await act(async () => {
+      fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+      fireEvent.keyUp(document.activeElement, { key: 'Escape' });
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.getByRole('button', { name: 'Back to G' })).toBeInTheDocument();
     expect(screen.getByText('Arranging is off while transposed')).toBeInTheDocument();
     // Every shape is now yours/default — the song's own voicings are suppressed,
     // so each diagram carries a kind word (never a bare "song").
@@ -332,6 +339,102 @@ describe('SongReading — transpose (workflow 2 L111-146; W02 L181-186)', () => 
     expect(screen.getByText('Transposed (+3)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Back to the written key' })).toBeInTheDocument();
   });
+});
+
+describe('the transposed row names the key, once (songs.transpose_chrome; W02#4)', () => {
+  const DEVICES = [
+    { device: 'phone', mode: 'narrow', computer: false },
+    { device: 'tablet', mode: 'wide', computer: false },
+    { device: 'computer', mode: 'wide', computer: true },
+  ];
+  const seen = { instrumentInUse: register('g1'), instrumentPromptSeen: register(true) };
+  const keyedG = (transposition) =>
+    makeStore({ text: song({ props: ['key: G'] }), entry: guitarEntry(), preferences: seen, transposition });
+  const metaOf = (container) => container.querySelector('.reading-meta');
+
+  for (const { device, mode, computer } of DEVICES) {
+    it(`on the ${device}: one chip naming the key and one Back to G, in the meta row, no Key of G, axe clean (AC1, AC2)`, async () => {
+      installWidths(computer);
+      const { store } = keyedG(2);
+      const { container } = await openAndWait(store, { mode });
+
+      const chip = screen.getByText('Transposed to A (+2)');
+      const back = screen.getByRole('button', { name: 'Back to G' });
+      const meta = metaOf(container);
+      expect(meta).toContainElement(chip);
+      expect(meta).toContainElement(back);
+      expect(screen.getByText('Arranging is off while transposed')).toBeInTheDocument();
+      expect(container.querySelector('.reading-status')).toBeNull();
+      expect(screen.queryByText('Key of G')).toBeNull();
+
+      if (computer) {
+        // W02#4 L181-186: Transpose · byline · chip · Back · arranging is off.
+        const kids = [...meta.children];
+        expect(kids).toHaveLength(5);
+        expect(kids[0]).toHaveAccessibleName('Transpose');
+        expect(kids[1]).toHaveClass('reading-byline');
+        expect(kids[2]).toBe(chip);
+        expect(kids[3]).toBe(back);
+        expect(kids[4]).toHaveTextContent('Arranging is off while transposed');
+      }
+
+      expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    });
+
+    it(`on the ${device}: the Transpose popover is a stepper only, the row renames the key (AC4)`, async () => {
+      installWidths(computer);
+      const { store } = keyedG(2);
+      await openAndWait(store, { mode });
+
+      await click(screen.getByRole('button', { name: 'Transpose' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Transpose the view' });
+      await click(within(dialog).getByRole('button', { name: 'Up a semitone' }));
+
+      await waitFor(() => expect(within(dialog).getByText('+3')).toBeInTheDocument());
+      expect(within(dialog).getByRole('button', { name: 'Down a semitone' })).toBeInTheDocument();
+      expect(within(dialog).getAllByRole('button')).toHaveLength(2);
+      expect(within(dialog).queryByText(/Transposed/)).toBeNull();
+      expect(within(dialog).queryByText(/^Back/)).toBeNull();
+      expect(within(dialog).queryByRole('button', { name: /^Back/ })).toBeNull();
+
+      // Outside the dialog the one row names the new key.
+      expect(screen.getByText('Transposed to Bb (+3)')).toBeInTheDocument();
+      expect(dialog).not.toContainElement(screen.getByText('Transposed to Bb (+3)'));
+
+      expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    });
+
+    it(`on the ${device}: Back to G resets to the written key; the row goes and Key of G returns (AC3)`, async () => {
+      installWidths(computer);
+      const { store, commands } = keyedG(2);
+      const { container } = await openAndWait(store, { mode });
+
+      await click(screen.getByRole('button', { name: 'Back to G' }));
+      expect(lastCommand(commands, CommandKind.SET_TRANSPOSITION).payload).toMatchObject({
+        bookId: BOOK,
+        path: PATH,
+        semitones: 0,
+      });
+      await waitFor(() => expect(screen.getByText('Key of G')).toBeInTheDocument());
+      expect(screen.queryByText(/^Transposed/)).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Back to/ })).toBeNull();
+      expect(screen.queryByText('Arranging is off while transposed')).toBeNull();
+      expect(metaOf(container)).toContainElement(screen.getByText('Key of G'));
+    });
+
+    it(`on the ${device}: a key that is not a key (G major) names neither (Decision 4)`, async () => {
+      installWidths(computer);
+      const { store } = makeStore({
+        text: song({ props: ['key: G major'] }),
+        entry: guitarEntry(),
+        preferences: seen,
+        transposition: 2,
+      });
+      await openAndWait(store, { mode });
+      expect(screen.getByText('Transposed (+2)')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Back to the written key' })).toBeInTheDocument();
+    });
+  }
 });
 
 describe('SongReading — full screen, print, add to setlist, share', () => {

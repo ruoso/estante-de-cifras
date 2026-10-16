@@ -7,21 +7,23 @@
 import { transposedKeyName } from '../core/transpose.js';
 
 /**
- * The transpose status chip the reading view shows while a song is read away
- * from its written key (workflow 2 L135-138; mockups W02 L181-186): `null` at
- * the written key (`offset === 0` — no chip, no "Arranging is off" note), else
- * `{ offset, keyName }` where `keyName` is the destination key in the globally
- * chosen spelling, or `null` for a keyless song (the chip then shows the signed
- * offset alone — acceptance 3).
+ * The transposed row the reading view shows while a song is read away from its
+ * written key (workflow 2 L137-140; mockups W02#4 L181-186): `null` at the
+ * written key (`offset === 0` — no row, no "Arranging is off" note), else
+ * `{ offset, keyName, writtenKey }`. Both keys are named, or neither: when the
+ * `key` property is a key (spec §1.4.3), `keyName` is the destination key in the
+ * chart's spelling and `writtenKey` the property as written, trimmed; when it is
+ * absent or not a key (`G major`, `Sol`), both are `null` and the row falls back
+ * to the signed offset and "the written key" (cf. spec 10-setlists L343-345).
  *
  * @param {string|null|undefined} key  the song's `key` property, as written
  * @param {number} offset  the signed semitone offset the song is read at
- * @param {string} [dialect]  the notation dialect (passed through for symmetry)
- * @returns {{ offset: number, keyName: string|null }|null}
+ * @returns {{ offset: number, keyName: string|null, writtenKey: string|null }|null}
  */
-export function transposeStatus(key, offset, dialect) {
+export function transposeStatus(key, offset) {
   if (!offset) return null;
-  return { offset, keyName: transposedKeyName(key, offset, dialect) };
+  const keyName = transposedKeyName(key, offset);
+  return { offset, keyName, writtenKey: keyName ? key.trim() : null };
 }
 
 /** Every chord item in the chart, in document order (chart.js layout order). */

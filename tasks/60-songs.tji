@@ -137,8 +137,9 @@ task songs "Songs" {
   task transpose_chrome "Transposed reading names the key, once" {
     effort 0.5d
     allocate team
+    complete 100
     depends !reading, music.transpose
-    note "On a computer the transposed state is drawn twice: a Transposed (+1) chip with Back to the written key, and a second row whose Back to the written key overlaps the chart's first line (W02 desktop). The board names the key (Transposed to A (+2), Back to G). One control row, naming the key in the song's notation. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (one transposed row naming the key); e2e-web (transpose on the three viewports, nothing overlapping the chart; mockup W02#4)."
+    note "On a computer the transposed state is drawn twice: a Transposed (+1) chip with Back to the written key, and a second row whose Back to the written key overlaps the chart's first line (W02 desktop). The board names the key (Transposed to A (+2), Back to G). One control row, naming the key in the song's notation. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (one transposed row naming the key); e2e-web (transpose on the three viewports, nothing overlapping the chart; mockup W02#4). Refinement: tasks/refinements/songs/transpose_chrome.md"
   }
   task editor_chrome "The editor host as drawn" {
     effort 2d

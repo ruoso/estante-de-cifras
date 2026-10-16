@@ -30,28 +30,50 @@ import { parseNote, transposeNote, interval } from './pitch.js';
 import { DEFAULT_DIALECT } from './notation/dialects.js';
 
 // The pitch class reached by moving N letter-names up from a natural note
-// (letterSteps 0..6): a major second is +2, a major third +4, and so on. This is
-// what lets one semitone offset be spelled two ways — a sharp spelling reaches the
-// pitch with fewer letter steps and raises, a flat spelling with more and lowers.
-const DIATONIC = [0, 2, 4, 5, 7, 9, 11];
+// (letterSteps 0..7): a major second is +2, a major third +4, an octave 12, and so
+// on. This is what lets one semitone offset be spelled two ways — a sharp spelling
+// reaches the pitch with fewer letter steps and raises, a flat spelling with more
+// and lowers.
+const DIATONIC = [0, 2, 4, 5, 7, 9, 11, 12];
 
 /**
- * The two candidate letter-step counts for a pitch-class offset: the sharp
- * spelling (the most letter steps whose natural pitch is at or below the offset,
- * so the accidental raises) and the flat spelling (the fewest whose natural pitch
- * is at or above it, so the accidental lowers). For a "white-key" offset — a major
- * second, third, fourth, fifth, sixth or seventh — the two coincide: there is only
- * one natural spelling and no choice to make.
+ * The candidate intervals for a pitch-class offset, in tie-break order.
+ *
+ * - A "black-key" offset (a minor second, third, sixth or seventh, a tritone) has
+ *   a flat spelling (the fewest letter steps whose natural pitch is above it, so
+ *   the accidental lowers) and a sharp one (the most at or below, so it raises):
+ *   flats first, so a tie goes to flats (the "D♭" convention).
+ * - A "white-key" offset has its one natural spelling, and where that natural
+ *   interval sits a half step from a neighbour letter (a major third and a
+ *   diminished fourth, a perfect fourth and an augmented third, a major seventh
+ *   and a diminished octave) the neighbour's spelling too: `C♯` down a semitone
+ *   is `C`, not `B♯`. The natural spelling comes first, so a tie keeps it.
  *
  * @param {number} pc 0..11
- * @returns {{ sharp: number, flat: number }}
+ * @returns {import('./pitch.js').Interval[]}
  */
-function candidateLetterSteps(pc) {
+function candidateIntervals(pc) {
   let sharp = 0;
-  let flat = 6;
-  for (let ls = 0; ls <= 6; ls += 1) if (DIATONIC[ls] <= pc) sharp = ls;
-  for (let ls = 6; ls >= 0; ls -= 1) if (DIATONIC[ls] >= pc) flat = ls;
-  return { sharp, flat };
+  let flat = 7;
+  for (let ls = 0; ls <= 7; ls += 1) if (DIATONIC[ls] <= pc) sharp = ls;
+  for (let ls = 7; ls >= 0; ls -= 1) if (DIATONIC[ls] >= pc) flat = ls;
+  if (sharp !== flat) return [interval(flat, pc), interval(sharp, pc)];
+  const natural = interval(sharp, pc);
+  if (pc === 0) return [natural];
+  if (DIATONIC[sharp + 1] - pc === 1) return [natural, interval(sharp + 1, pc)];
+  if (pc - DIATONIC[sharp - 1] === 1) return [natural, interval(sharp - 1, pc)];
+  return [natural];
+}
+
+/** The candidate with the lowest cost; the earlier candidate wins a tie. */
+function cheapest(candidates, cost) {
+  let best = candidates[0];
+  let bestCost = candidates.length > 1 ? cost(best) : 0;
+  for (const iv of candidates.slice(1)) {
+    const c = cost(iv);
+    if (c < bestCost) [best, bestCost] = [iv, c];
+  }
+  return best;
 }
 
 /** The accidental count of a note under a candidate interval (a double-flat is 2). */
@@ -59,16 +81,32 @@ function accidentalsUnder(note, iv) {
   return Math.abs(transposeNote(note, iv).accidental);
 }
 
-/** The tonic note of a `key` property (`G`, `Em`, `Bb`), or null when unreadable. */
-function keyTonic(key) {
+/**
+ * A `key` property read as spec §1.4.3 defines it — a §5.1.1 root (an uppercase
+ * letter with an optional `#`/`♯`, `b`/`♭`, `##` or `bb`), then `m` for minor or
+ * nothing — or null when the value is not a key (`g`, `G major`, `Sol`), which a
+ * reader treats as absent (cf. spec 10-setlists L343-345). `glyphs` records
+ * whether the written key spells its accidental with `♭`/`♯`, so a name derived
+ * from it can be spelled the same way.
+ *
+ * @param {unknown} key
+ * @returns {{ tonic: import('./pitch.js').SpelledNote, minor: boolean, glyphs: boolean }|null}
+ */
+function readKey(key) {
   if (typeof key !== 'string') return null;
-  const m = /^([A-Ga-g](?:bb|##|[b#])?)/.exec(key.trim());
+  const m = /^([A-G])(##|bb|#|♯|b|♭)?(m?)$/.exec(key.trim());
   if (!m) return null;
-  try {
-    return parseNote(m[1]);
-  } catch {
-    return null;
-  }
+  const accidental = { '♯': '#', '♭': 'b' }[m[2]] ?? m[2] ?? '';
+  return {
+    tonic: parseNote(m[1] + accidental),
+    minor: m[3] === 'm',
+    glyphs: m[2] === '♯' || m[2] === '♭',
+  };
+}
+
+/** The tonic note of a `key` property (`G`, `Em`, `B♭`), or null when it is not a key. */
+function keyTonic(key) {
+  return readKey(key)?.tonic ?? null;
 }
 
 /**
@@ -81,13 +119,6 @@ function keyProperty(model) {
   const entry = (model?.properties ?? []).find((p) => p?.key === 'key');
   const value = entry?.value;
   return typeof value === 'string' && value.trim() !== '' ? value : null;
-}
-
-/** The non-tonic part of a `key` property (`m` for minor; `''` for major). */
-function keySuffix(key) {
-  if (typeof key !== 'string') return '';
-  const m = /^[A-Ga-g](?:bb|##|[b#])?(.*)$/.exec(key.trim());
-  return m ? m[1] : '';
 }
 
 /** Every chord item in the chart, in document order (cf. voicings.js chartChords). */
@@ -109,9 +140,10 @@ function* chordItems(model) {
 
 /**
  * The interval to transpose by, with the globally-chosen spelling for the offset.
- * With a key, the tonic decides (fewest accidentals, tie → flats); without one,
- * the total across every chord root and bass decides (tie → flats). When the
- * offset has a single natural spelling, that is returned with no counting.
+ * With a key, the tonic decides (fewest accidentals); without one, the total
+ * across every chord root and bass decides. A tie goes as candidateIntervals
+ * orders it. When the offset has a single spelling, that is returned with no
+ * counting.
  *
  * @param {object} model the parse model (read for the key property and chords)
  * @param {number} pc the pitch-class offset, 1..11
@@ -119,29 +151,18 @@ function* chordItems(model) {
  * @returns {import('./pitch.js').Interval}
  */
 function chooseInterval(model, pc, dialect) {
-  const { sharp, flat } = candidateLetterSteps(pc);
-  const sharpIv = interval(sharp, pc);
-  if (sharp === flat) return sharpIv; // one natural spelling — no choice
-  const flatIv = interval(flat, pc);
+  const candidates = candidateIntervals(pc);
+  if (candidates.length === 1) return candidates[0]; // one spelling — no choice
 
   const tonic = keyTonic(keyProperty(model));
-  if (tonic) {
-    return accidentalsUnder(tonic, flatIv) <= accidentalsUnder(tonic, sharpIv)
-      ? flatIv
-      : sharpIv;
-  }
+  if (tonic) return cheapest(candidates, (iv) => accidentalsUnder(tonic, iv));
 
-  let sharpTotal = 0;
-  let flatTotal = 0;
+  const notes = [];
   for (const item of chordItems(model)) {
     const c = parseChord(item.symbol, dialect).chord;
-    if (!c) continue;
-    for (const n of [c.root, c.bass].filter(Boolean)) {
-      sharpTotal += accidentalsUnder(n, sharpIv);
-      flatTotal += accidentalsUnder(n, flatIv);
-    }
+    if (c) notes.push(...[c.root, c.bass].filter(Boolean));
   }
-  return flatTotal <= sharpTotal ? flatIv : sharpIv; // tie → flats
+  return cheapest(candidates, (iv) => notes.reduce((sum, n) => sum + accidentalsUnder(n, iv), 0));
 }
 
 /**
@@ -185,36 +206,30 @@ export function transpose(model, semitones, { dialect = DEFAULT_DIALECT } = {}) 
 }
 
 /**
- * The name of the key a song transposes to, in the globally-chosen spelling — the
- * reading control's "Transposed to A (+2)" chip and "Back to G" button (workflow 2
- * L136-138). `G` +2 → `A`; `C` +1 → `Db` (flats). Returns `null` when the song has
- * no `key` property. Minor keys keep their `m`: `Em` +2 → `F#m`.
+ * The name of the key a song transposes to, in the spelling the chart gets — the
+ * reading row's "Transposed to A (+2)" chip (workflow 2 L133-140; W02#4). `G` +2 →
+ * `A`; `C` +1 → `Db` (flats). The tonic is read by the same keyTonic the chart's
+ * spelling is, so the two never disagree. The name is spelled in the written
+ * key's glyphs — `♭`/`♯` when the written key uses one, `b`/`#` otherwise (`G`
+ * +1 → `Ab`, `A♭` +1 → `A`) — and minor keeps its `m`: `Em` +2 → `F#m`. Returns `null` when the value is absent or not a key as spec §1.4.3
+ * defines it (`g`, `G major`, `Sol`).
  *
  * @param {string|null|undefined} key the song's `key` property
  * @param {number} semitones a signed integer
- * @param {string} [dialect] unused for the note name, kept for call-site symmetry
  * @returns {string|null}
  */
-export function transposedKeyName(key, semitones, dialect = DEFAULT_DIALECT) {
-  void dialect;
-  const tonic = keyTonic(key);
-  if (!tonic) return null;
+export function transposedKeyName(key, semitones) {
+  const read = readKey(key);
+  if (!read) return null;
   const pc = (((Math.trunc(semitones) % 12) + 12) % 12);
-  const { sharp, flat } = candidateLetterSteps(pc);
-  const sharpIv = interval(sharp, pc);
-  const iv =
-    sharp === flat
-      ? sharpIv
-      : accidentalsUnder(tonic, interval(flat, pc)) <= accidentalsUnder(tonic, sharpIv)
-        ? interval(flat, pc)
-        : sharpIv;
-  return formatNoteName(transposeNote(tonic, iv)) + keySuffix(key);
+  const iv = cheapest(candidateIntervals(pc), (c) => accidentalsUnder(read.tonic, c));
+  const names = read.glyphs ? GLYPH_NAMES : ASCII_NAMES;
+  const n = transposeNote(read.tonic, iv);
+  return n.letter + names[String(n.accidental)] + (read.minor ? 'm' : '');
 }
 
-// A spelled note's display name, reusing pitch.js's letter + accidental naming via
-// formatChord's root path would pull in the whole chord; the key name is just the
-// note, so spell it directly in the same `b`/`#` convention parseNote accepts.
-const ACCIDENTAL_NAMES = { '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: '##' };
-function formatNoteName(n) {
-  return n.letter + ACCIDENTAL_NAMES[String(n.accidental)];
-}
+// The key name is just a note, so it is spelled directly rather than through
+// formatChord: in the ASCII accidentals parseNote accepts, or in the ♭/♯ glyphs
+// when the written key uses them (spec §5.1.1 allows both).
+const ASCII_NAMES = { '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: '##' };
+const GLYPH_NAMES = { '-2': '♭♭', '-1': '♭', 0: '', 1: '♯', 2: '♯♯' };

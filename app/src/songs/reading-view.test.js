@@ -7,21 +7,29 @@ const song = (chart) => ['# Song', '## A', FENCE, chart, FENCE].join('\n') + '\n
 const keyed = (key, chart) =>
   ['# Song', '', `- key: ${key}`, '', '## A', FENCE, chart, FENCE].join('\n') + '\n';
 
-// transposeStatus — the "Transposed to A (+2)" chip descriptor (workflow 2
-// L135-138, mockups W02 L181-186). Fixtures are purpose-written songs.
-describe('transposeStatus — the transpose chip, or none at the written key', () => {
+// transposeStatus — the transposed row's descriptor (workflow 2 L137-140,
+// mockups W02#4 L181-186): both keys named, or neither (songs.transpose_chrome
+// Decision 4; spec §1.4.3, cf. 10-setlists L343-345).
+describe('transposeStatus — the transposed row names both keys, or neither', () => {
   it('is null at the written key (offset 0)', () => {
     expect(transposeStatus('G', 0)).toBeNull();
+    expect(transposeStatus(null, 0)).toBeNull();
   });
 
-  it('names the destination key for a keyed song', () => {
-    expect(transposeStatus('G', 2)).toEqual({ offset: 2, keyName: 'A' });
-    expect(transposeStatus('G', -2)).toEqual({ offset: -2, keyName: 'F' });
+  it('names the destination key and the written key for a keyed song', () => {
+    expect(transposeStatus('G', 2)).toEqual({ offset: 2, keyName: 'A', writtenKey: 'G' });
+    expect(transposeStatus('G', -2)).toEqual({ offset: -2, keyName: 'F', writtenKey: 'G' });
   });
 
-  it('carries a null key name for a keyless song — the offset shows alone (acceptance 3)', () => {
-    expect(transposeStatus(null, 3)).toEqual({ offset: 3, keyName: null });
-    expect(transposeStatus(undefined, -1)).toEqual({ offset: -1, keyName: null });
+  it('gives the written key as written, trimmed', () => {
+    expect(transposeStatus(' Em ', 2)).toEqual({ offset: 2, keyName: 'F#m', writtenKey: 'Em' });
+  });
+
+  it('names neither key when the property is not a key (§1.4.3) or is absent', () => {
+    expect(transposeStatus('G major', 2)).toEqual({ offset: 2, keyName: null, writtenKey: null });
+    expect(transposeStatus('Sol', 2)).toEqual({ offset: 2, keyName: null, writtenKey: null });
+    expect(transposeStatus(null, 3)).toEqual({ offset: 3, keyName: null, writtenKey: null });
+    expect(transposeStatus(undefined, -1)).toEqual({ offset: -1, keyName: null, writtenKey: null });
   });
 });
 
