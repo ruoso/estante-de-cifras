@@ -1011,6 +1011,10 @@ export default {
     theirsFallback: 'Deles',
     chartTitle: '{section}',
     chartTitleFallback: 'Um compasso que vocês dois mudaram',
+    // The bar or bars a chart conflict is in (sync.conflicts_editing; W09#1 L42).
+    chartTitleBar: '{section}, compasso {bar}',
+    chartTitleBars: '{section}, compassos {first} e {second}',
+    chartTitleBarRange: '{section}, compassos {first}–{last}',
     chartBody: 'Você e {author} mudaram isto.',
     chartBodyFallback: 'Vocês dois mudaram isto.',
     voicingTitle: 'A forma de {chord}',
@@ -1057,10 +1061,16 @@ export default {
     editCancel: 'Cancelar',
     editRefused:
       'Não salvo. A linha {line} ainda é uma marcação de conflito. Remova todas as linhas de marcação depois de escolher o que fica e salve de novo.',
+    editGoToLine: 'Ir para a linha {line}',
     markersTitle: 'Lendo as marcações',
     markerStart: 'começa a sua versão',
     markerMid: 'termina a sua, começa a de {author}',
     markerEnd: 'termina a versão de {author}',
+    // The labels on the marker lines in the edit view, named as the side cards
+    // name the two versions (W09#3 L284-308).
+    markerYours: 'seu',
+    markerTheirs: 'de {author}',
+    markerTheirsFallback: 'deles',
   },
 
   // O painel do livro pausado (sync.conflicts, workflow 9).

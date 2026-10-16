@@ -90,7 +90,8 @@ task sync "Sync" {
   task conflicts_editing "Editing a conflict in the source editor, with people's names" {
     effort 1d
     allocate team
+    complete 100
     depends !conflicts
-    note "Workflow 9 (Settling one, Edit): Edit opens the marked text in a plain textarea, not the workflow-3 source editor with line numbers and marker highlighting; the markers read ours/theirs where the board says yours/Ana's; the bar conflict's title says A bar you both changed where the board names it (Primeira parte, bar 5). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (Edit mounts the source editor on the marked text; the bar named; axe); e2e-web (a conflict edited and saved, mockup W09#3)."
+    note "Workflow 9 (Settling one, Edit): Edit opens the marked text in a plain textarea, not the workflow-3 source editor with line numbers and marker highlighting; the markers read ours/theirs where the board says yours/Ana's; the bar conflict's title says A bar you both changed where the board names it (Primeira parte, bar 5). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (Edit mounts the source editor on the marked text; the bar named; axe); e2e-web (a conflict edited and saved, mockup W09#3). Refinement: tasks/refinements/sync/conflicts_editing.md"
   }
 }

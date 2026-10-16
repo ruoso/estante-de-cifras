@@ -15,15 +15,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
-import { Annotation, StateField, RangeSetBuilder } from '@codemirror/state';
-import {
-  EditorView,
-  Decoration,
-  lineNumbers,
-  highlightActiveLine,
-  keymap,
-} from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap, undo } from '@codemirror/commands';
+import { Annotation } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
+import { undo } from '@codemirror/commands';
 import { parse } from 'cifra-md';
 
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
@@ -31,7 +25,7 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { useLayoutMode } from '../shell/AppShell.jsx';
 import { t } from '../i18n/index.js';
 import Chart from '../chart/Chart.jsx';
-import { classifyLines } from './cifra-syntax.js';
+import { sourceExtensions } from './source-extensions.js';
 import { fencePaste } from './fence-paste.js';
 import { sectionInsertPos } from './section-insert.js';
 import { saveBlockers, stopMessageKey } from './save-blockers.js';
@@ -78,24 +72,6 @@ function minimalChange(oldStr, newStr) {
     newEnd -= 1;
   }
   return { from, to: oldEnd, insert: newStr.slice(from, newEnd) };
-}
-
-// Build the per-line decoration set from the classifier. A `text` (plain) line
-// gets no decoration (default colour); every other class maps to an
-// `est-<class>` line decoration the stylesheet colours with tokens. The
-// classifier reads the song in its own notation (cifra.md §5.6), never the
-// user's preference.
-function buildDecorations(doc) {
-  const classes = classifyLines(doc.toString());
-  const builder = new RangeSetBuilder();
-  for (let i = 0; i < doc.lines; i += 1) {
-    const cls = classes[i];
-    if (cls && cls !== 'text') {
-      const line = doc.line(i + 1);
-      builder.add(line.from, line.from, Decoration.line({ class: `est-${cls}` }));
-    }
-  }
-  return builder.finish();
 }
 
 export default function SongEditor({
@@ -240,35 +216,18 @@ export default function SongEditor({
   // path are stable for a mounted editor (hosts remount via React key for a
   // different song), so the view is not rebuilt on every prop change.
   useEffect(() => {
-    const syntaxField = StateField.define({
-      create: (state) => buildDecorations(state.doc),
-      update: (value, tr) => (tr.docChanged ? buildDecorations(tr.state.doc) : value),
-      provide: (f) => EditorView.decorations.from(f),
-    });
-
     const view = new EditorView({
       parent: containerRef.current,
       extensions: [
-        lineNumbers(),
-        highlightActiveLine(),
-        history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
-        syntaxField,
-        // tabindex 0 states what the contenteditable already is — in the tab
-        // order — so axe sees the scrolling editor holds focusable content
-        // (scrollable-region-focusable; shell.full_height bounds the editor, so
-        // it scrolls).
-        EditorView.contentAttributes.of({
-          'aria-label': t('editor.source.sourceLabel'),
-          tabindex: '0',
-        }),
-        EditorView.updateListener.of((update) => {
-          if (!update.docChanged) return;
-          // The initial on-disk load is not an edit to persist (ExternalLoad):
-          // mirror its text into React but schedule no WRITE.
-          const external = update.transactions.some((tr) => tr.annotation(ExternalLoad));
-          if (external) setText(update.state.doc.toString());
-          else changeHandlerRef.current(update.state.doc.toString());
+        ...sourceExtensions({
+          label: t('editor.source.sourceLabel'),
+          onDocChange: (update) => {
+            // The initial on-disk load is not an edit to persist (ExternalLoad):
+            // mirror its text into React but schedule no WRITE.
+            const external = update.transactions.some((tr) => tr.annotation(ExternalLoad));
+            if (external) setText(update.state.doc.toString());
+            else changeHandlerRef.current(update.state.doc.toString());
+          },
         }),
         EditorView.domEventHandlers({
           paste: (event, cmView) => pasteHandlerRef.current(event, cmView),

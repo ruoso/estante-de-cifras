@@ -1011,6 +1011,10 @@ export default {
     theirsFallback: 'Il loro',
     chartTitle: '{section}',
     chartTitleFallback: 'Una battuta che avete cambiato entrambi',
+    // The bar or bars a chart conflict is in (sync.conflicts_editing; W09#1 L42).
+    chartTitleBar: '{section}, battuta {bar}',
+    chartTitleBars: '{section}, battute {first} e {second}',
+    chartTitleBarRange: '{section}, battute {first}–{last}',
     chartBody: 'Tu e {author} avete cambiato questo.',
     chartBodyFallback: 'Lo avete cambiato entrambi.',
     voicingTitle: 'La forma per {chord}',
@@ -1057,10 +1061,16 @@ export default {
     editCancel: 'Annulla',
     editRefused:
       'Non salvato. La riga {line} è ancora un marcatore di conflitto. Togli tutte le righe di marcatura dopo aver scelto cosa resta e salva di nuovo.',
+    editGoToLine: 'Vai alla riga {line}',
     markersTitle: 'Leggere i marcatori',
     markerStart: 'inizia la tua versione',
     markerMid: 'finisce la tua, inizia quella di {author}',
     markerEnd: 'finisce la versione di {author}',
+    // The labels on the marker lines in the edit view, named as the side cards
+    // name the two versions (W09#3 L284-308).
+    markerYours: 'il tuo',
+    markerTheirs: 'di {author}',
+    markerTheirsFallback: 'il loro',
   },
 
   // Il pannello del libro in pausa (sync.conflicts, workflow 9).

@@ -56,8 +56,12 @@ named for who wrote each: *yours* and *Ana's*. For each:
   conflict markers where the two sides differ — `<<<<<<<`, `=======`,
   `>>>>>>>` — and the user edits them away. They are what anyone who has met
   git expects, and editing covers every case the other two do not, keeping
-  both included. *Save* refuses while a marker line remains, and points at
-  it.
+  both included. The marker lines name the two sides as the screen does —
+  `<<<<<<< yours`, `>>>>>>> Ana's` — not the format's `ours` and `theirs`:
+  a marker line is one whatever follows it (cifra.md §11.12.3), and the
+  text is never saved holding one. The editor numbers its lines and colours
+  the marker lines. *Save* refuses while a marker line remains, and points
+  at it: *Go to line 10* puts the cursor on it.
 - **keep both** — offered on a *voicing* conflict: the other person's shape
   goes into a new variation named for them (*Ana's*), so neither arrangement
   is lost (workflow 5); yours stays in use. Choosing it again for another

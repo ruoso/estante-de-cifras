@@ -6,14 +6,27 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
+import { EditorView } from '@codemirror/view';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { checkWcag21aa } from '../a11y/axe.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SongConflict from './SongConflict.jsx';
+import { labelMarkers } from './conflict-text.js';
 
 globalThis.matchMedia = (media) => ({ media, matches: false, addEventListener() {}, removeEventListener() {} });
 afterEach(() => cleanup());
+
+// CodeMirror (the edit view's source editor) measures text geometry with
+// Range.getClientRects during its async measure pass; jsdom has no layout and
+// does not implement it. Stub it so the measure pass is a no-op here — real
+// geometry is covered at the e2e level.
+Range.prototype.getClientRects = function getClientRects() {
+  return [];
+};
+Range.prototype.getBoundingClientRect = function getBoundingClientRect() {
+  return { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON() {} };
+};
 
 const BOOK = 'book1';
 const PATH = 'choro.cifra.md';
@@ -121,22 +134,74 @@ describe('SongConflict (behavior)', () => {
     expect(lastCommand(sent, CommandKind.RESOLVE_CONFLICT).payload).toMatchObject({ choice: 'theirs', index: 0 });
   });
 
-  it('edit opens the raw marked text, and a save that still holds a marker line is refused, pointing at it (§11.12.3; workflow 9 L59)', async () => {
+  it('titles a chart conflict by its section and bar (sync.conflicts_editing; W09#1 L42)', async () => {
+    const { store, emit } = makeStore();
+    seed(emit);
+    const { container } = renderScreen(store);
+
+    // The region's ours line is the second of Primeira parte (bars 5-8); its
+    // third measure differs from theirs, so bar 7 (cifra.md §2.8).
+    expect(screen.getByRole('heading', { name: 'Primeira parte, bar 7' })).toBeInTheDocument();
+    expect(screen.queryByText('A bar you both changed')).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('falls back to A bar you both changed when the region has no named section', async () => {
+    const { store, emit } = makeStore();
+    seed(emit, { marked: MARKED.replace('## Primeira parte\n', '') });
+    renderScreen(store);
+
+    expect(screen.getByRole('heading', { name: 'A bar you both changed' })).toBeInTheDocument();
+  });
+
+  it('Edit mounts the source editor on the marked text, markers named for the people, and a refused save goes to the line (sync.conflicts_editing; W09#3 L158-163, L284-308; workflow 9 §Settling one)', async () => {
     const { store, sent, emit } = makeStore();
     seed(emit);
     const { container } = renderScreen(store);
 
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Edit' })));
     const editor = screen.getByRole('textbox', { name: 'The song’s text, with the conflict markers' });
-    expect(editor).toHaveValue(MARKED);
+    // The source editor of workflow 3, not a textarea: CodeMirror with numbered lines.
+    expect(editor).toHaveClass('cm-content');
+    expect(editor.closest('.cm-editor')).toBeTruthy();
+    expect(container.querySelector('.cm-lineNumbers')).toBeTruthy();
+    // The markers name the people, as the side cards do.
+    expect(editor.textContent).toContain('<<<<<<< yours');
+    expect(editor.textContent).toContain('>>>>>>> Ana’s');
+    expect(editor.textContent).not.toContain('<<<<<<< ours');
+    expect(editor.textContent).not.toContain('>>>>>>> theirs');
+    // The marker lines are coloured as marker lines (est-mk), and carried by their text.
+    const markerLines = [...editor.querySelectorAll('.cm-line.est-mk')].map((l) => l.textContent);
+    expect(markerLines).toEqual(expect.arrayContaining(['<<<<<<< yours', '=======', '>>>>>>> Ana’s']));
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
-    expect(lastCommand(sent, CommandKind.RESOLVE_CONFLICT).payload).toMatchObject({ bookId: BOOK, path: PATH, choice: 'edit' });
+    const cmd = lastCommand(sent, CommandKind.RESOLVE_CONFLICT);
+    expect(cmd.payload).toMatchObject({ bookId: BOOK, path: PATH, choice: 'edit' });
+    expect(cmd.payload.text).toBe(labelMarkers(MARKED, { yours: 'yours', theirs: 'Ana’s' }));
 
-    // The Worker refuses a text with a marker line still in it.
-    emit(event(EventKind.SAVE_REFUSED, { bookId: BOOK, path: PATH, reason: 'marked', line: 3 }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Line 3 is still a conflict marker');
+    // The Worker refuses a text with a marker line still in it, pointing at it.
+    emit(event(EventKind.SAVE_REFUSED, { bookId: BOOK, path: PATH, reason: 'marked', line: 4 }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Line 4 is still a conflict marker');
+    const goTo = screen.getByRole('button', { name: 'Go to line 4' });
+
+    act(() => fireEvent.click(goTo));
+    const view = EditorView.findFromDOM(container.querySelector('.cm-editor'));
+    expect(view.state.doc.lineAt(view.state.selection.main.head).number).toBe(4);
+    expect(view.state.selection.main.head).toBe(view.state.doc.line(4).from);
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'The song’s text, with the conflict markers' }));
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('with no author, the theirs marker reads theirs', async () => {
+    const { store, emit } = makeStore();
+    seed(emit, { author: null });
+    renderScreen(store);
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Edit' })));
+    const editor = screen.getByRole('textbox', { name: 'The song’s text, with the conflict markers' });
+    expect(editor.textContent).toContain('>>>>>>> theirs');
+    expect(editor.textContent).toContain('<<<<<<< yours');
   });
 
   it('offers Keep both only on a voicing step, not on a chart step, and the old hint is gone (workflow 9 §Settling one as amended)', async () => {

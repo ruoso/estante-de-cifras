@@ -10,16 +10,20 @@
 // index, and parses only the tiny conflict snippets it draws (cifra.md is
 // framework-free and below the view). React Aria Components throughout, keyboard
 // reachable, labelled; the only monospaced surface is the raw *edit* text
-// (mockup README L24).
+// (mockup README L24), in the source editor of workflow 3 with its markers named
+// for the people (sync.conflicts_editing; W09#3).
 
-import { useEffect, useState } from 'react';
-import { Button, TextArea, TextField, Label } from 'react-aria-components';
+import { useEffect, useRef, useState } from 'react';
+import { Button } from 'react-aria-components';
+import { EditorSelection } from '@codemirror/state';
 import { parse, resolveMarked } from 'cifra-md';
 import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import Chart from '../chart/Chart.jsx';
 import { chartRows } from '../chart/layout.js';
+import MarkedTextEditor from '../editor/MarkedTextEditor.jsx';
+import { labelMarkers, conflictPlace, rowText } from './conflict-text.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import { parseChord } from '../core/notation/parse.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
@@ -61,14 +65,6 @@ function snippetModel(lines, { fence = false } = {}) {
   } catch {
     return null;
   }
-}
-
-// The reconstructed canonical text of a chart row, for matching the disputed
-// lines (bars join with ` | `, as canonical form writes them).
-function rowText(row) {
-  if (row.type === 'bars') return row.measures.join(' | ');
-  if (row.type === 'run' || row.type === 'words') return row.text;
-  return null;
 }
 
 // The line addresses a conflicted song's reading view marks → the §7
@@ -126,8 +122,21 @@ function SideCard({ item, side, heading }) {
   );
 }
 
-// The heading and subline for a conflict, in musical terms.
-function describe(item, author) {
+// A chart conflict's title by where it is (W09#1 L42; DIRECTION §4): the
+// section, and the bar or bars that differ — or the generic title when the
+// place cannot be named.
+function placeTitle(place) {
+  if (!place) return t('songConflict.chartTitleFallback');
+  const { section, bars } = place;
+  if (bars.length === 0) return t('songConflict.chartTitle', { section });
+  if (bars.length === 1) return t('songConflict.chartTitleBar', { section, bar: bars[0] });
+  if (bars.length === 2) return t('songConflict.chartTitleBars', { section, first: bars[0], second: bars[1] });
+  return t('songConflict.chartTitleBarRange', { section, first: bars[0], last: bars[bars.length - 1] });
+}
+
+// The heading and subline for a conflict, in musical terms. `model` is ours,
+// parsed (the preview), from which a chart conflict's place is named.
+function describe(item, author, model) {
   const theirs = author ?? null;
   if (item.kind === 'voicing') {
     const variation = item.variation ? item.variation : t('songConflict.mainVariation');
@@ -152,7 +161,7 @@ function describe(item, author) {
   }
   if (item.kind === 'chart' || item.kind === 'sections') {
     return {
-      title: t('songConflict.chartTitleFallback'),
+      title: placeTitle(conflictPlace(model, item)),
       body: theirs ? t('songConflict.chartBody', { author: theirs }) : t('songConflict.chartBodyFallback'),
     };
   }
@@ -170,6 +179,7 @@ export default function SongConflict({ store, bookId, path, onClose }) {
 
   const [step, setStep] = useState(0);
   const [editing, setEditing] = useState(null); // { text } | null
+  const editorView = useRef(null);
   const [refused, setRefused] = useState(null); // { line } | null
   const [settled, setSettled] = useState([]); // view-local log of this session
 
@@ -208,28 +218,44 @@ export default function SongConflict({ store, bookId, path, onClose }) {
   const logSettled = (label) => setSettled((prev) => [...prev, { label }]);
 
   const keepMine = () => {
-    logSettled(`${describe(item, author).title} · ${t('songConflict.settledMine')}`);
+    logSettled(`${describe(item, author, previewModel).title} · ${t('songConflict.settledMine')}`);
     store.send(command(CommandKind.RESOLVE_CONFLICT, { bookId, path, choice: 'mine', index: effStep }));
   };
   const takeTheirs = () => {
-    logSettled(`${describe(item, author).title} · ${author ? t('songConflict.settledTheirs', { author }) : t('songConflict.theirsFallback')}`);
+    logSettled(`${describe(item, author, previewModel).title} · ${author ? t('songConflict.settledTheirs', { author }) : t('songConflict.theirsFallback')}`);
     store.send(command(CommandKind.RESOLVE_CONFLICT, { bookId, path, choice: 'theirs', index: effStep }));
   };
   const keepBoth = () => {
-    logSettled(`${describe(item, author).title} · ${t('songConflict.settledKeepBoth', { author })}`);
+    logSettled(`${describe(item, author, previewModel).title} · ${t('songConflict.settledKeepBoth', { author })}`);
     store.send(command(CommandKind.RESOLVE_CONFLICT, { bookId, path, choice: 'keep_both', index: effStep, author }));
   };
   const keepBothSong = () => {
     store.send(command(CommandKind.RESOLVE_CONFLICT, { bookId, path, choice: 'keep_both_song', author }));
   };
+  // The marked text with its markers named for the people, as the side cards
+  // name them (Decision 2): display only — still marker lines (§11.12.3).
   const openEdit = () => {
     setRefused(null);
-    setEditing({ text: song.marked ?? '' });
+    const labels = {
+      yours: t('songConflict.markerYours'),
+      theirs: author ? t('songConflict.markerTheirs', { author }) : t('songConflict.markerTheirsFallback'),
+    };
+    setEditing({ text: labelMarkers(song.marked ?? '', labels) });
   };
   const saveEdit = () => {
     setRefused(null);
     logSettled(t('songConflict.settledEdit'));
     store.send(command(CommandKind.RESOLVE_CONFLICT, { bookId, path, choice: 'edit', text: editing.text }));
+  };
+  // Go to line N (W09#3 L158): the cursor to the start of the refused line,
+  // scrolled into view, and the editor focused.
+  const goToLine = () => {
+    const view = editorView.current;
+    if (!view || refused?.line == null) return;
+    const n = Math.min(Math.max(1, refused.line), view.state.doc.lines);
+    const line = view.state.doc.line(n);
+    view.dispatch({ selection: EditorSelection.cursor(line.from), scrollIntoView: true });
+    view.focus();
   };
 
   const appbar = (
@@ -249,17 +275,24 @@ export default function SongConflict({ store, bookId, path, onClose }) {
         <div className="scroll est-conflict-scroll">
           <h2 className="t-h2">{t('songConflict.editTitle', { title: song.title })}</h2>
           {refused && (
-            <p className="notice conflict est-conflict-refused" role="alert">
-              {t('songConflict.editRefused', { line: refused.line ?? '?' })}
-            </p>
+            <div className="notice conflict est-conflict-refused" role="alert">
+              <span className="est-conflict-refused-text">
+                {t('songConflict.editRefused', { line: refused.line ?? '?' })}
+              </span>
+              {refused.line != null && (
+                <Button className="btn" onPress={goToLine}>
+                  {t('songConflict.editGoToLine', { line: refused.line })}
+                </Button>
+              )}
+            </div>
           )}
-          <TextField className="field est-conflict-editfield" value={editing.text} onChange={(text) => setEditing({ text })}>
-            <Label className="t-small">{t('songConflict.editTextLabel')}</Label>
-            <TextArea
-              className="input t-mono est-conflict-editor"
-              rows={Math.max(8, editing.text.split('\n').length + 1)}
-            />
-          </TextField>
+          <MarkedTextEditor
+            className="est-conflict-editor"
+            initialText={editing.text}
+            label={t('songConflict.editTextLabel')}
+            onChange={(text) => setEditing({ text })}
+            viewRef={editorView}
+          />
           <div className="card pad est-conflict-markers">
             <span className="t-h3">{t('songConflict.markersTitle')}</span>
             <ul className="est-conflict-legend">
@@ -278,7 +311,7 @@ export default function SongConflict({ store, bookId, path, onClose }) {
     );
   }
 
-  const { title, body } = describe(item, author);
+  const { title, body } = describe(item, author, previewModel);
   return (
     <div className="screen est-conflict-screen">
       {appbar}

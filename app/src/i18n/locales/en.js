@@ -1131,6 +1131,10 @@ export default {
     // Headings and sublines per kind.
     chartTitle: '{section}',
     chartTitleFallback: 'A bar you both changed',
+    // The bar or bars a chart conflict is in (sync.conflicts_editing; W09#1 L42).
+    chartTitleBar: '{section}, bar {bar}',
+    chartTitleBars: '{section}, bars {first} and {second}',
+    chartTitleBarRange: '{section}, bars {first}–{last}',
     chartBody: 'You and {author} both changed this.',
     chartBodyFallback: 'You both changed this.',
     voicingTitle: 'The shape for {chord}',
@@ -1185,10 +1189,16 @@ export default {
     editCancel: 'Cancel',
     editRefused:
       'Not saved. Line {line} is still a conflict marker. Remove every marker line once you have chosen what stays, then save again.',
+    editGoToLine: 'Go to line {line}',
     markersTitle: 'Reading the markers',
     markerStart: 'your version starts',
     markerMid: 'yours ends, {author}’s starts',
     markerEnd: '{author}’s version ends',
+    // The labels on the marker lines in the edit view, named as the side cards
+    // name the two versions (W09#3 L284-308).
+    markerYours: 'yours',
+    markerTheirs: '{author}’s',
+    markerTheirsFallback: 'theirs',
   },
 
   // The book-level paused panel (sync.conflicts, workflow 9 §Meeting one / §The

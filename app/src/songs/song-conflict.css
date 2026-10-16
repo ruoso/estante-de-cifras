@@ -80,22 +80,25 @@
   gap: calc(var(--u) * 0.5);
 }
 
-/* The raw edit surface: the only monospaced view here (README L24). */
-.est-conflict-editfield {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--u) * 0.5);
-}
-.est-conflict-editor {
+/* The raw edit surface: the source editor of workflow 3 (editor.css colours
+   the marker lines and the active line), the only monospaced view here (README
+   L24). Bounded, so a long song scrolls inside the editor. */
+.est .est-conflict-editor .cm-editor {
   min-height: calc(var(--u) * 24);
-  line-height: 1.5;
-  resize: vertical;
-  font: 400 15px/1.5 var(--font-mono, monospace);
-  white-space: pre;
-  overflow-x: auto;
+  max-height: calc(var(--u) * 60);
+}
+.est .est-conflict-editor .cm-scroller {
+  overflow: auto;
 }
 .est-conflict-refused {
   margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--u);
+}
+.est-conflict-refused-text {
+  flex: 1 1 calc(var(--u) * 30);
 }
 .est-conflict-legend {
   margin: 0;

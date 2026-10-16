@@ -134,6 +134,9 @@ async function openResolver(page) {
   await expect(page.getByText(/Conflict \d+ of \d+/)).toBeVisible();
   await expect(page.getByText('Yours', { exact: true })).toBeVisible();
   await expect(page.getByText('Ana’s', { exact: true })).toBeVisible();
+  // The conflict is titled by where it is: its section and the differing bar,
+  // the fourth of Parte (W09#1 L42; sync.conflicts_editing).
+  await expect(page.getByRole('heading', { name: 'Parte, bar 4' })).toBeVisible();
   expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the per-song resolver
 }
 
@@ -201,7 +204,7 @@ test('keep mine pushes the resolved merge, so the other person and the server ge
   await expectSettledWithBar(page, BAR_OWNER);
 });
 
-test('edit opens the marked text and a save refuses while a marker line remains, then settles once removed (§11.12.3; workflow 9 L59)', async ({
+test('edit opens the marked text in the source editor, markers named for the people; a save refuses while a marker line remains and goes to it, then settles once removed (sync.conflicts_editing; workflow 9 §Settling one; W09#3; §11.12.3)', async ({
   browser,
   page,
 }) => {
@@ -209,22 +212,32 @@ test('edit opens the marked text and a save refuses while a marker line remains,
   await openResolver(page);
 
   await page.getByRole('button', { name: 'Edit' }).click();
+  // The source editor of workflow 3: numbered lines, the markers named
+  // *yours* and *Ana's* as the side cards name them.
   const editor = page.getByRole('textbox', { name: /text, with the conflict markers/i });
   await expect(editor).toBeVisible();
-  await expect(editor).toHaveValue(/<<<<<<</);
+  await expect(page.locator('.cm-lineNumbers')).toBeVisible();
+  await expect(editor).toContainText('<<<<<<< yours');
+  await expect(editor).toContainText('>>>>>>> Ana’s');
   await mockup(page, 'W09-conflicts', 3);
   expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the edit view
 
   // Saving with the markers still there is refused, pointing at the line.
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText(/is still a conflict marker/)).toBeVisible();
+  const goTo = page.getByRole('button', { name: /^Go to line \d+$/ });
+  await expect(goTo).toBeVisible();
+  await goTo.click();
+  await expect(editor).toBeFocused();
+  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the refusal
 
-  // Edit the markers away, keeping the owner's line.
-  const resolved = (await editor.inputValue())
-    .split('\n')
+  // Edit the markers away through the editor, keeping the owner's line.
+  const resolved = (await editor.locator('.cm-line').allTextContents())
     .filter((l) => !/^(<{7}|={7}|>{7}|\|{7})/.test(l) && l !== BAR_ANA)
     .join('\n');
-  await editor.fill(resolved);
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.insertText(resolved);
   await page.getByRole('button', { name: 'Save' }).click();
 
   await expectSettledWithBar(page, BAR_OWNER);
