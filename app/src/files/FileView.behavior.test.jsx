@@ -276,4 +276,71 @@ describe('the file view (behavior)', () => {
       }),
     );
   });
+
+  // songs.show_the_file — the reading view's *Show the file* opens the view at
+  // the song's file (workflow 14 L133, "opens the tree at that file").
+  describe('opened at a file (initialPath)', () => {
+    const LANTERN = 'sets/evening/lantern-road.cifra.md';
+    const ENTRIES = [
+      { path: 'sets/evening/lantern-road.cifra.md', status: null },
+      { path: 'sets/evening/quiet-harbour.cifra.md', status: null },
+      { path: 'sets/evening.setlist.md', status: null },
+      { path: 'README.md', status: null },
+    ];
+    const LANTERN_TEXT = '# Lantern Road\n\nA road lit by lanterns';
+    // A row of the tree (the raw editor's own controls name the file too).
+    const tree = () => screen.getByRole('group', { name: t('fileView.tree', { book: BOOK }) });
+    const row = (name) => within(tree()).getByRole('button', { name: new RegExp(name.replaceAll('.', '\\.')) });
+
+    it('opened at a file: the tree shows it selected and the raw editor holds it (workflow 14 L133; Constraint 3)', async () => {
+      const { store, sent, emit } = makeStore();
+      const { container } = renderView(store, { initialPath: LANTERN });
+      seedTree(emit, ENTRIES);
+
+      // The Files tab: the tree and its History switch, not the history title.
+      expect(screen.getByRole('button', { name: t('fileView.historyTab') })).toBeInTheDocument();
+      expect(screen.queryByText(t('fileView.historyTitle', { book: BOOK }))).toBeNull();
+      // The row is marked selected by its state, not colour alone.
+      expect(row('lantern-road.cifra.md')).toHaveAttribute('aria-pressed', 'true');
+      expect(row('quiet-harbour.cifra.md')).toHaveAttribute('aria-pressed', 'false');
+      // The raw editor opened on it.
+      expect(kind(sent, 'open_source').some((c) => c.payload.path === LANTERN)).toBe(true);
+      expect(screen.getByRole('button', { name: t('editor.source.save') })).toBeInTheDocument();
+      emit(event(EventKind.SOURCE, { bookId: BOOK, path: LANTERN, text: LANTERN_TEXT }));
+      await waitFor(() => expect(container.textContent).toContain('A road lit by lanterns'));
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    });
+
+    it('opened at a file on a phone: the file pane, Back to files to the tree (workflow 14 L137-138)', async () => {
+      const { store, sent, emit } = makeStore();
+      const { container } = renderView(store, { initialPath: LANTERN, mode: 'narrow' });
+      seedTree(emit, ENTRIES);
+
+      // One pane at a time: the file, under its own Back to files.
+      expect(container.querySelector('.file-view-narrow-editor .file-view-bar')).toHaveTextContent(LANTERN);
+      expect(screen.queryByRole('group', { name: t('fileView.tree', { book: BOOK }) })).toBeNull();
+      expect(kind(sent, 'open_source').some((c) => c.payload.path === LANTERN)).toBe(true);
+      emit(event(EventKind.SOURCE, { bookId: BOOK, path: LANTERN, text: LANTERN_TEXT }));
+      await waitFor(() => expect(container.textContent).toContain('A road lit by lanterns'));
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+      act(() => fireEvent.click(screen.getByRole('button', { name: t('fileView.backToFiles') })));
+      // The tree, with the file just left marked.
+      expect(row('lantern-road.cifra.md')).toHaveAttribute('aria-pressed', 'true');
+      expect(row('quiet-harbour.cifra.md')).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.queryByRole('button', { name: t('editor.source.save') })).toBeNull();
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    });
+
+    it('without initialPath nothing is selected (the Files in {book} entry, unchanged)', () => {
+      const { store, sent, emit } = makeStore();
+      renderView(store);
+      seedTree(emit, ENTRIES);
+
+      expect(row('lantern-road.cifra.md')).toHaveAttribute('aria-pressed', 'false');
+      expect(row('quiet-harbour.cifra.md')).toHaveAttribute('aria-pressed', 'false');
+      expect(kind(sent, 'open_source')).toEqual([]);
+      expect(screen.getByText(t('fileView.emptyEditor'))).toBeInTheDocument();
+    });
+  });
 });

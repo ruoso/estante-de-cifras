@@ -1362,6 +1362,7 @@ export default {
     addToSetlist: 'Agregar al repertorio',
     print: 'Imprimir',
     share: 'Compartir',
+    showFile: 'Mostrar el archivo',
     more: 'Más',
     fullScreen: 'Pantalla completa',
     exitFullScreen: 'Salir de pantalla completa',

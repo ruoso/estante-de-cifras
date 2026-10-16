@@ -65,7 +65,8 @@ test('opens and reads a song; the chart and the shapes render', async ({ page, c
 // chart), computer W02#4 (the chip in the rail head; the full row). The ⋯ menu
 // holds every action on every device, keyboard-reachable (workflow 2 L86-87;
 // workflow 15 L62-75). Print and Share are not activated here (Decision 6).
-const MENU = ['Edit', 'History', 'Add to setlist', 'Print', 'Share', 'Arrange for Guitar', 'Full screen'];
+// songs.show_the_file adds Show the file after Share (its Decision 5).
+const MENU = ['Edit', 'History', 'Add to setlist', 'Print', 'Share', 'Show the file', 'Arrange for Guitar', 'Full screen'];
 
 test('the reading chrome as drawn: the header, the ⋯ menu and the shapes', async ({ page, checkA11y }, testInfo) => {
   const device = testInfo.project.name;

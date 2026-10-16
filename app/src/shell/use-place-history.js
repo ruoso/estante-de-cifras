@@ -29,7 +29,12 @@
 //     current entry is replaced, and an entry below naming the old id is read
 //     as naming the new one when `popstate` lands on it. The record of renames
 //     (book-renames.js) is kept in `sessionStorage`, so it outlives a reload as
-//     the tab's history entries do.
+//     the tab's history entries do;
+//   - `followSong` follows the open song's file renamed, moved or deleted (in the
+//     file view opened over it, songs.show_the_file Constraint 6): the current
+//     entry is replaced, and an entry that names the old path is read as naming
+//     the new one — or, deleted, as the same place with no song — when
+//     `popstate` lands on it. Kept for the session only.
 //
 // A reload keeps only what the address says: `bootEntry` parses the pathname,
 // drops the layers, and keeps the depth so back still walks the earlier entries.
@@ -106,6 +111,9 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
   // entry from before a reload still opens the new id.
   const renamesRef = useRef(null);
   if (renamesRef.current === null) renamesRef.current = readRenames(sessionStore());
+  // Songs whose file moved or was deleted under this session: `bookId\0path` →
+  // the new path, or null (deleted).
+  const songMovesRef = useRef(new Map());
   const layersRef = useRef(layers);
   const onApplyRef = useRef(onApply);
   useEffect(() => {
@@ -170,7 +178,7 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
       pendingPopRef.current = false;
       const renames = renamesRef.current;
       const rename = (id) => resolveBookId(renames, id);
-      const place = renamePlace(state.place, rename);
+      const place = followPlace(songMovesRef.current, renamePlace(state.place, rename));
       const renamed = JSON.stringify(place) !== JSON.stringify(state.place);
       const named = Array.isArray(state.layers) ? state.layers : [];
       const kept = layersRef.current.filter((kind) => named.includes(kind));
@@ -222,5 +230,41 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
     );
   }, []);
 
-  return { back, renameBook };
+  // The open song's file moved (`toPath`) or was deleted (`toPath` null): the
+  // next change replaces the current entry, and every entry naming the old path
+  // follows it.
+  const followSong = useCallback((bookId, fromPath, toPath) => {
+    forceReplaceRef.current = true;
+    const moves = songMovesRef.current;
+    moves.set(songKey(bookId, fromPath), toPath);
+    // A file moved back to a path it once left is there again.
+    if (toPath) moves.delete(songKey(bookId, toPath));
+    stackRef.current = stackRef.current.map((entry) =>
+      entry ? { ...entry, place: followPlace(moves, entry.place) } : entry,
+    );
+  }, []);
+
+  return { back, renameBook, followSong };
+}
+
+function songKey(bookId, path) {
+  return `${bookId}\0${path}`;
+}
+
+// The place with its song followed through the session's moves: at the path its
+// file went to, or dropped (the place underneath) if it was deleted.
+function followPlace(moves, place) {
+  if (!place?.song || !moves.size) return place;
+  const { bookId } = place.song;
+  let path = place.song.path;
+  // Bounded: each step follows one recorded move.
+  for (let i = 0; i <= moves.size && moves.has(songKey(bookId, path)); i += 1) {
+    path = moves.get(songKey(bookId, path));
+    if (path === null) {
+      const rest = { ...place };
+      delete rest.song;
+      return rest;
+    }
+  }
+  return path === place.song.path ? place : { ...place, song: { ...place.song, path } };
 }

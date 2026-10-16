@@ -177,6 +177,92 @@ describe('AppShell routing (behavior)', () => {
     expect(location.pathname).toBe(SONG_URL);
   });
 
+  // songs.show_the_file — the reading view's *Show the file* (workflow 14 §The
+  // view L132-135) opens the file view as a layer over the song.
+  const showTheFile = () => {
+    fireEvent.click(screen.getAllByRole('button', { name: 'More' })[0]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Show the file' }));
+  };
+  const MOVED_PATH = 'choro/tarde-clara-2.cifra.md';
+  const MOVED_URL = '/b/b1/choro/tarde-clara-2.cifra.md';
+
+  it('show the file is a layer over the song; back returns to the song (Constraint 4; books.file_view Decision 7)', async () => {
+    const { store, sent, emit } = makeStore();
+    render(<AppShell store={store} />);
+    openSongFromSearch(emit);
+    const before = history.length;
+    showTheFile();
+    // The file view, at the song's file: on a phone, its file pane.
+    expect(screen.queryByRole('group', { name: SONG_TITLE })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to files' })).toBeInTheDocument();
+    expect(sent.some((m) => m.kind === CommandKind.OPEN_SOURCE && m.payload.path === SONG_PATH)).toBe(true);
+    // A history step with the same address.
+    expect(location.pathname).toBe(SONG_URL);
+    expect(history.length).toBe(before + 1);
+    expect(history.state.layers).toEqual(['files']);
+    // The tree, the song's row marked; the in-app Back returns to the song.
+    fireEvent.click(screen.getByRole('button', { name: 'Back to files' }));
+    emit(event(EventKind.TREE, { bookId: BOOK, entries: ENTRIES }));
+    const tree = screen.getByRole('group', { name: `Files in ${BOOK_LABEL}` });
+    expect(within(tree).getByRole('button', { name: /tarde-clara\.cifra\.md/ })).toHaveAttribute('aria-pressed', 'true');
+    await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+    expect(location.pathname).toBe(SONG_URL);
+    expect(history.state.layers).toEqual([]);
+
+    // And the browser's back does the same.
+    showTheFile();
+    expect(history.state.layers).toEqual(['files']);
+    await traverse(() => history.back());
+    expect(screen.queryByRole('button', { name: 'Back to files' })).not.toBeInTheDocument();
+    expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+    expect(location.pathname).toBe(SONG_URL);
+  });
+
+  it('a song moved in the file view opened from it follows the move (Constraint 6)', async () => {
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    openSongFromSearch(emit);
+    showTheFile();
+    emit(event(EventKind.FILE_MOVED, { bookId: BOOK, fromPath: SONG_PATH, toPath: MOVED_PATH }));
+    // The address names where the song is now, still under the file view.
+    expect(location.pathname).toBe(MOVED_URL);
+    expect(history.state.layers).toEqual(['files']);
+    await traverse(() => history.back());
+    // Back: the reading view of the song at its new path.
+    expect(location.pathname).toBe(MOVED_URL);
+    expect(history.state.layers).toEqual([]);
+    expect(screen.queryByText(/isn.t here|not here/i)).toBeNull();
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: MOVED_PATH, text: SONG_TEXT }));
+    expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+  });
+
+  it('a song deleted in the file view opened from it closes; back lands on the destination (Constraint 6)', async () => {
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    openSongFromSearch(emit);
+    showTheFile();
+    emit(event(EventKind.FILE_DELETED, { bookId: BOOK, path: SONG_PATH }));
+    expect(history.state.layers).toEqual(['files']);
+    await traverse(() => history.back());
+    // Back: the destination underneath, no song open.
+    expect(location.pathname).toBe('/');
+    expect(screen.queryByRole('group', { name: SONG_TITLE })).not.toBeInTheDocument();
+    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+  });
+
+  it('show the file on a book needing you opens its conflicts (Constraint 5; workflow 9)', () => {
+    const { store, sent, emit } = makeStore();
+    render(<AppShell store={store} />);
+    openSongFromSearch(emit);
+    emit(event(EventKind.SYNC, { bookId: BOOK, phase: 'needs_you', at: AT }));
+    showTheFile();
+    expect(sent.some((m) => m.kind === CommandKind.OPEN_CONFLICTS && m.payload.bookId === BOOK)).toBe(true);
+    expect(history.state.layers).toEqual(['conflicts']);
+    expect(screen.queryByRole('button', { name: 'Back to files' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: `Files in ${BOOK_LABEL}` })).not.toBeInTheDocument();
+  });
+
   it('forward does not reopen a closed layer', async () => {
     const { store, emit } = makeStore();
     render(<AppShell store={store} />);

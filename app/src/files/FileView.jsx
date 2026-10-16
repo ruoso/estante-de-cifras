@@ -28,7 +28,10 @@ import { buildTree, changedFiles, fileKind, splitPath } from './file-tree.js';
 import { ChevronLeftIcon, PlusIcon, ClockIcon } from './icons.jsx';
 import './file-view.css';
 
-export default function FileView({ store, bookId, mode, onBack = () => {}, onOpenHistory = () => {} }) {
+// `initialPath` (songs.show_the_file Decision 1): the file to open the view at —
+// the reading view's *Show the file* — seeding the selection once; null (Files
+// in {book}) opens it with nothing selected.
+export default function FileView({ store, bookId, mode, initialPath = null, onBack = () => {}, onOpenHistory = () => {} }) {
   const treeSlice = useSlice(store, 'tree');
   const shelf = useSlice(store, 'shelf');
   const entries = useMemo(() => treeSlice?.[bookId]?.entries ?? [], [treeSlice, bookId]);
@@ -40,7 +43,12 @@ export default function FileView({ store, bookId, mode, onBack = () => {}, onOpe
   const savable = canSaveFor(book?.kind ?? 'local', book?.book) !== false;
 
   const [tab, setTab] = useState('files');
-  const [selected, setSelected] = useState(null); // { path, kind, isNew } | null
+  const [selected, setSelected] = useState(() =>
+    initialPath ? { path: initialPath, kind: fileKind(splitPath(initialPath).base), isNew: false } : null,
+  ); // { path, kind, isNew } | null
+  // On a phone, the file just left by *Back to files*: its row stays marked in
+  // the tree, so the way back lands where the user was (songs.show_the_file).
+  const [leftPath, setLeftPath] = useState(null);
   const [editorRef] = useState(() => ({ current: null }));
   // The editor's flush: Delete on a never-saved file opens the discard confirm
   // from outside the editor, so a still-debounced edit is sent first and the
@@ -99,6 +107,7 @@ export default function FileView({ store, bookId, mode, onBack = () => {}, onOpe
 
   useWorkerEvent(store, EventKind.FILE_MOVED, ({ bookId: movedBook, toPath }) => {
     if (movedBook !== bookId) return;
+    setLeftPath(null);
     selectFile(toPath);
     refreshTree();
   });
@@ -106,6 +115,7 @@ export default function FileView({ store, bookId, mode, onBack = () => {}, onOpe
   useWorkerEvent(store, EventKind.FILE_DELETED, ({ bookId: delBook, path }) => {
     if (delBook !== bookId) return;
     setSelected((prev) => (prev && prev.path === path ? null : prev));
+    setLeftPath((prev) => (prev === path ? null : prev));
     refreshTree();
   });
 
@@ -178,7 +188,7 @@ export default function FileView({ store, bookId, mode, onBack = () => {}, onOpe
   const treePane = (
     <FileTree
       entries={entries}
-      selectedPath={selected?.path ?? null}
+      selectedPath={selected?.path ?? (mode === 'wide' ? null : leftPath)}
       onSelect={selectFile}
       label={t('fileView.tree', { book: bookLabel })}
     />
@@ -257,7 +267,10 @@ export default function FileView({ store, bookId, mode, onBack = () => {}, onOpe
           <Button
             className="btn icon"
             aria-label={t('fileView.backToFiles')}
-            onPress={() => setSelected(null)}
+            onPress={() => {
+              setLeftPath(selected.isNew ? null : selected.path);
+              setSelected(null);
+            }}
           >
             <ChevronLeftIcon />
           </Button>

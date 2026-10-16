@@ -145,6 +145,9 @@ export default function SongReading({
   onAddToSetlist = () => {},
   onShare = () => {},
   onOpenSong = () => {},
+  // Show the file (songs.show_the_file; workflow 14 §The view L132-135): the
+  // file view opened at this song's file.
+  onShowFile = () => {},
   // A song's share (books.share_people), given the song's title: a panel beside
   // the chart on a tablet or a computer (W10 #4), the Share sheet — a Modal —
   // on a phone. Null when no share is open.
@@ -541,6 +544,7 @@ export default function SongReading({
             else if (key === 'addToSetlist') onAddToSetlist({ bookId, path });
             else if (key === 'print') window.print();
             else if (key === 'share') onShare({ bookId, path });
+            else if (key === 'showFile') onShowFile({ bookId, path });
             else if (key === 'arrange') onArrange({ bookId, path });
             else if (key === 'fullScreen') setFullScreen(true);
           }}
@@ -550,6 +554,7 @@ export default function SongReading({
           <MenuItem id="addToSetlist">{t('reading.addToSetlist')}</MenuItem>
           <MenuItem id="print">{t('reading.print')}</MenuItem>
           <MenuItem id="share">{t('reading.share')}</MenuItem>
+          <MenuItem id="showFile">{t('reading.showFile')}</MenuItem>
           {!transposed ? <MenuItem id="arrange">{t('reading.arrangeFor', { instrument: instrumentLabel })}</MenuItem> : null}
           <MenuItem id="fullScreen">{t('reading.fullScreen')}</MenuItem>
         </Menu>

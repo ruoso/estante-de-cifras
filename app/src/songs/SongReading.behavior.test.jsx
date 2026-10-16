@@ -784,7 +784,8 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
   const seen = { instrumentPromptSeen: register(true) };
   const chips = () => screen.getAllByRole('button', { name: /change instrument/ });
   const appbar = (container) => container.querySelector('.appbar.reading-chrome');
-  const SEVEN = ['Edit', 'History', 'Add to setlist', 'Print', 'Share', 'Arrange for Guitar', 'Full screen'];
+  // songs.show_the_file adds Show the file after Share (its Decision 5).
+  const EIGHT = ['Edit', 'History', 'Add to setlist', 'Print', 'Share', 'Show the file', 'Arrange for Guitar', 'Full screen'];
   const DEVICES = [
     { device: 'phone', mode: 'narrow', computer: false },
     { device: 'tablet', mode: 'wide', computer: false },
@@ -813,14 +814,15 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
         onOpenHistory: vi.fn(),
         onAddToSetlist: vi.fn(),
         onShare: vi.fn(),
+        onShowFile: vi.fn(),
       };
       const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
       const { container } = await openAndWait(store, { mode, ...handlers });
       const more = within(appbar(container)).getByRole('button', { name: 'More' });
 
-      // The seven, in order, whatever the width (Decision 2); axe with it open.
+      // The eight, in order, whatever the width (Decision 2); axe with it open.
       let menu = await openMore(more);
-      expect(itemNames(menu)).toEqual(SEVEN);
+      expect(itemNames(menu)).toEqual(EIGHT);
       expect(await checkWcag21aa(document.body)).toHaveNoViolations();
 
       // Escape closes it and returns focus to More.
@@ -831,7 +833,7 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
       // Arrow to each item and press Enter: it calls its existing seam.
       const reach = async (name) => {
         menu = await openMore(more);
-        const index = SEVEN.indexOf(name);
+        const index = EIGHT.indexOf(name);
         for (let i = 0; i < index; i += 1) await keyPress(document.activeElement, 'ArrowDown');
         expect(document.activeElement).toHaveTextContent(name);
         await keyPress(document.activeElement, 'Enter');
@@ -847,9 +849,11 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
       expect(globalThis.print).toHaveBeenCalled();
       await reach('Share');
       expect(handlers.onShare).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
+      await reach('Show the file');
+      expect(handlers.onShowFile).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
     });
 
-    it(`⋯ on the ${device} while transposed: six items, no Arrange for`, async () => {
+    it(`⋯ on the ${device} while transposed: seven items, no Arrange for`, async () => {
       installWidths(computer);
       const { store } = makeStore({
         text: song({ props: ['key: G'] }),
@@ -859,9 +863,29 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
       });
       const { container } = await openAndWait(store, { mode });
       const menu = await openMore(within(appbar(container)).getByRole('button', { name: 'More' }));
-      expect(itemNames(menu)).toEqual(SEVEN.filter((n) => n !== 'Arrange for Guitar'));
+      expect(itemNames(menu)).toEqual(EIGHT.filter((n) => n !== 'Arrange for Guitar'));
     });
   }
+
+  // songs.show_the_file — workflow 14 §The view L132-135; its Constraint 2:
+  // More by ArrowDown, arrow to the item, Enter; axe with the menu open.
+  it('Show the file in the ⋯ menu opens the song\'s file', async () => {
+    const onShowFile = vi.fn();
+    const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
+    const { container } = await openAndWait(store, { onShowFile });
+    const more = within(appbar(container)).getByRole('button', { name: 'More' });
+
+    act(() => more.focus());
+    await keyPress(more, 'ArrowDown');
+    await screen.findByRole('menu', { name: 'More' });
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    for (let i = 0; i < EIGHT.indexOf('Show the file'); i += 1) await keyPress(document.activeElement, 'ArrowDown');
+    expect(document.activeElement).toHaveTextContent('Show the file');
+    await keyPress(document.activeElement, 'Enter');
+    await waitFor(() => expect(screen.queryByRole('menu', { name: 'More' })).toBeNull());
+    expect(onShowFile).toHaveBeenCalledTimes(1);
+    expect(onShowFile).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
+  });
 
   it('phone: Back, title, the Transpose icon and ⋯; the chip in the meta row; Arrange, Edit, Full screen below', async () => {
     const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });

@@ -310,6 +310,18 @@ export async function historyFromReading(page) {
   await expect(page.locator('.est-history-row').first()).toBeVisible();
 }
 
+// From the reading view, *Show the file* (songs.show_the_file; workflow 14 §The
+// view): the More menu on every device. `checkA11y`, when given, runs with the
+// menu open. Waits for the file view's raw editor on the song's file.
+export async function showFileFromReading(page, checkA11y) {
+  await page.getByRole('button', { name: 'More', exact: true }).filter({ visible: true }).first().click();
+  const item = page.getByRole('menuitem', { name: 'Show the file', exact: true });
+  await expect(item).toBeVisible();
+  if (checkA11y) await checkA11y(); // the menu open
+  await item.click();
+  await expect(page.locator('.cm-content')).toBeVisible();
+}
+
 // ---- the file view (workflow 14) ---------------------------------------------
 
 // Books → the book's Files control: the file view on that book.

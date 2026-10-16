@@ -329,9 +329,11 @@ export default function AppShell({
   // Edit opens — { bookId, path, songTitle } or null. Kept apart from `editing`
   // (a new song), whose SAVED and re-target handling it must not share.
   const [editingSong, setEditingSong] = useState(null);
-  // The open book's file view (books.file_view): its bookId, or null. Like
-  // `editing`, a full-screen host over the shell and ephemeral view state (no
-  // router); the per-book Files control on the book-management screen sets it.
+  // The open book's file view (books.file_view): `{ bookId, path }` or null —
+  // `path` the file it opened at (the reading view's *Show the file*,
+  // songs.show_the_file) or null (the per-book Files control on the
+  // book-management screen). Like `editing`, a full-screen host over the shell
+  // and ephemeral view state (no router).
   const [openFile, setOpenFile] = useState(null);
   // The instrument surface (music.instruments Decision 1): the header chip is
   // shell chrome present on every destination; pressing it opens the roster
@@ -505,7 +507,7 @@ export default function AppShell({
       applyPlace(next);
     }
   };
-  const { back, renameBook } = usePlaceHistory({
+  const { back, renameBook, followSong } = usePlaceHistory({
     boot,
     place,
     layers,
@@ -571,10 +573,26 @@ export default function AppShell({
     setNewInvitation(follow);
     setOpenSetlist(follow);
     setPlayingSetlist(follow);
-    setOpenFile((prev) => (prev === previousBookId ? forkId : prev));
+    setOpenFile(follow);
   };
   useWorkerEvent(store, EventKind.BOOK_FORKED, followBookId);
   useWorkerEvent(store, EventKind.BOOK_ONLINE, followBookId);
+
+  // The open song's file renamed, moved or deleted in the file view opened over
+  // it (songs.show_the_file Constraint 6): the open song follows it to its new
+  // path, or closes, so Back lands on the song where it is now — or on the
+  // destination underneath — and never on a file that is gone. The history
+  // entries below that name the old path read as naming where it went.
+  useWorkerEvent(store, EventKind.FILE_MOVED, ({ bookId, fromPath, toPath }) => {
+    if (!openSong || openSong.bookId !== bookId || openSong.path !== fromPath) return;
+    followSong(bookId, fromPath, toPath);
+    setOpenSong({ ...openSong, path: toPath });
+  });
+  useWorkerEvent(store, EventKind.FILE_DELETED, ({ bookId, path }) => {
+    if (!openSong || openSong.bookId !== bookId || openSong.path !== path) return;
+    followSong(bookId, path, null);
+    setOpenSong(null);
+  });
 
   // Start a new song from any way in (songs.new_song, workflow 3 §Ways in). The
   // payload carries the started-from book (else *My songs*), the folder (the
@@ -846,12 +864,15 @@ export default function AppShell({
     setPeople({ bookId });
   };
 
-  const openBook = (bookId) => {
+  // The file view, from either way in (workflow 14 §The view): *Files in
+  // {book}* (no path) and a song's *Show the file* (its path). One rule for both:
+  // a book needing the user opens its conflicts instead (workflow 9).
+  const openBook = (bookId, path = null) => {
     if (conflictsBook === bookId || sync?.[bookId]?.phase === 'needs_you') {
       if (conflictsBook !== bookId) store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
       setConflictsBook(bookId);
     } else {
-      setOpenFile(bookId);
+      setOpenFile({ bookId, path });
     }
   };
 
@@ -989,7 +1010,14 @@ export default function AppShell({
   // exactly as the new-song editor host is; Back returns to the shell.
   if (openFile) {
     return (
-      <FileView store={store} bookId={openFile} mode={mode} onBack={() => back(closers.files)} onOpenHistory={setHistory} />
+      <FileView
+        store={store}
+        bookId={openFile.bookId}
+        initialPath={openFile.path}
+        mode={mode}
+        onBack={() => back(closers.files)}
+        onOpenHistory={setHistory}
+      />
     );
   }
 
@@ -1115,6 +1143,7 @@ export default function AppShell({
           onArrange={setArranging}
           onOpenHistory={setHistory}
           onShare={setSharing}
+          onShowFile={({ bookId, path }) => openBook(bookId, path)}
           onAddToSetlist={setAddingToSetlist}
           sidePanel={songShare}
         />

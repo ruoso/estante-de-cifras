@@ -7,13 +7,16 @@
 // (keeping .cifra.md); save them together in one commit from the change list;
 // open the book's history, open a commit, and restore an earlier version from
 // the log, saved as a new version; delete a song, save, and recover it from
-// history; rename offline; edit README.md (no musical summary) and restore it. Axe runs at WCAG 2.1 AA on the tree, the editor,
+// history; rename offline; edit README.md (no musical summary) and restore it;
+// and the second way in, a song's *Show the file* from its reading view
+// (songs.show_the_file), back to the song. Axe runs at WCAG 2.1 AA on the tree, the editor,
 // the rename dialog, the change list, the history and an open commit. Fixtures
 // are purpose-written songs — never anyone's words.
 
 import { mockup } from '../lib/mockup.js';
 import { test, expect } from '../lib/axe.js';
-import { openExampleBook, openFiles, startApp } from '../lib/journeys.js';
+import { openExampleBook, openFiles, openSongFromSearch, showFileFromReading, startApp } from '../lib/journeys.js';
+import { SONG } from '../lib/journeys-core.js';
 import {
   EXAMPLE_BOOK,
   fileRow,
@@ -269,4 +272,35 @@ test('the file view opens and renames a song offline', async ({ page }) => {
   } finally {
     await context.setOffline(false);
   }
+});
+
+// songs.show_the_file — workflow 14 §The view L132-138; the e2e coverage audit's
+// journey 14.8: search → the song → More → Show the file opens the file view at
+// the song's file; Back returns to the song.
+test('show the file from the reading view opens the file view at the song; Back returns to it (workflow 14 §The view)', async ({
+  page,
+  checkA11y,
+}, testInfo) => {
+  await openExampleBook(page);
+  await openSongFromSearch(page, SONG.search, SONG.title);
+  await showFileFromReading(page, checkA11y);
+
+  // The song's file open in the raw editor.
+  await expect(page.locator('.cm-content')).toContainText(`# ${SONG.title}`);
+  if (testInfo.project.name === 'phone') {
+    // One pane at a time: the file, with its way back to the tree.
+    await expect(page.getByRole('button', { name: 'Back to files' })).toBeVisible();
+    await checkA11y(); // the file view, at the file
+    await backToTree(page);
+  } else {
+    await checkA11y(); // the file view, at the file
+  }
+  // The tree, the song's row selected (beside the file on the wider two).
+  await expect(fileRow(page, MORNING)).toBeVisible();
+  await expect(fileRow(page, MORNING)).toHaveAttribute('aria-pressed', 'true');
+
+  // The file view's Back: the reading view of the same song.
+  await page.getByRole('button', { name: 'Back', exact: true }).first().click();
+  await expect(page.getByRole('group', { name: SONG.title }).first()).toBeVisible();
+  await expect(page.locator('.cm-content')).toHaveCount(0);
 });

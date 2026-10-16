@@ -126,8 +126,9 @@ task songs "Songs" {
   task show_the_file "Show the file from the reading view" {
     effort 1d
     allocate team
+    complete 100
     depends !reading, books.file_view
-    note "Workflow 14 (14.8 in the e2e coverage audit) opens a song's file in the file view from its reading view; no task built the entry and the UI has none. Source: e2e coverage audit 2026-10-14 (audit/e2e-coverage.md P3). Tests: behavior (the action opens the file view on the song's file, axe); e2e-web (search → song → Show the file → the file view with the file open, three viewports)."
+    note "Workflow 14 (14.8 in the e2e coverage audit) opens a song's file in the file view from its reading view; no task built the entry and the UI has none. Source: e2e coverage audit 2026-10-14 (audit/e2e-coverage.md P3). Tests: behavior (the action opens the file view on the song's file, axe); e2e-web (search → song → Show the file → the file view with the file open, three viewports). Refinement: tasks/refinements/songs/show_the_file.md"
   }
   task discard_summary "Discard says what would be lost" {
     effort 0.5d

@@ -1361,6 +1361,7 @@ export default {
     addToSetlist: 'Aggiungi alla scaletta',
     print: 'Stampa',
     share: 'Condividi',
+    showFile: 'Mostra il file',
     more: 'Altro',
     fullScreen: 'Schermo intero',
     exitFullScreen: 'Esci da schermo intero',

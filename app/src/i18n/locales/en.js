@@ -1514,6 +1514,8 @@ export default {
     addToSetlist: 'Add to setlist',
     print: 'Print',
     share: 'Share',
+    // songs.show_the_file: the file view opened at this song's file (workflow 14 L132-135).
+    showFile: 'Show the file',
     more: 'More',
     fullScreen: 'Full screen',
     exitFullScreen: 'Exit full screen',
