@@ -95,3 +95,35 @@ describe('classifyLines', () => {
     expect(c[5]).toBe('ch');
   });
 });
+
+// songs.song_notation_views (Decision 2): the classifier colours what the
+// reader reports for the song as written — the song's own `notation` property,
+// never a caller's preference (cifra.md §5.6 Rules; workflow 4 §Editing, "the
+// lines the reader reported").
+describe("classifyLines — the song's own notation (cifra.md §5.6)", () => {
+  const songIn = (notation) =>
+    [
+      '# Brass Lantern', // 1
+      `- notation: ${notation}`, // 2
+      '', // 3
+      '## A', // 4
+      '```', // 5
+      'C7+ C7(4) C9', // 6
+      '```', // 7
+    ].join('\n');
+
+  it("colours an american song's ambiguous chords as chords", () => {
+    // No dialect parameter: no preference can override the song's notation.
+    expect(classifyLines.length).toBe(1);
+    const c = classifyLines(songIn('american'));
+    expect(c[5]).toBe('ch');
+    expect(c).not.toContain('err');
+  });
+
+  it('reports a notation the reader does not know', () => {
+    // The reader's `bad-notation` lands on line 1 (cifra-md parse.js).
+    expect(classifyLines(songIn('klingon'))[0]).toBe('err');
+    // The same song in a notation the reader knows is not reported.
+    expect(classifyLines(songIn('american'))[0]).toBe('md');
+  });
+});

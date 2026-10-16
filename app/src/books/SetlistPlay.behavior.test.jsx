@@ -17,7 +17,10 @@ import { createLoopbackEndpoint } from '../test/loopback.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { checkWcag21aa } from '../a11y/axe.js';
-import { setLocale } from '../i18n/index.js';
+import { setLocale, t } from '../i18n/index.js';
+import { parseChord } from '../core/notation/parse.js';
+import { formatChord } from '../core/notation/format.js';
+import { speakChord } from '../render/chord-speech.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SetlistPlay from './SetlistPlay.jsx';
 
@@ -88,18 +91,29 @@ function installMatchMedia(matches) {
 beforeEach(() => { installMatchMedia(false); setLocale('en'); });
 afterEach(() => { delete globalThis.matchMedia; vi.restoreAllMocks(); });
 
-function makeStore() {
+// The user's notation preference is brazilian (songs.song_notation_views): a
+// song with no `notation` reads as before, and one that declares its own is
+// read in it.
+const PREFERENCES = { notation: { value: 'brazilian', at: 1 } };
+
+// `texts` overrides the files by path and `entries` the file set, for a case
+// that plays a setlist of its own.
+function makeStore({ texts = {}, entries = ENTRIES } = {}) {
+  const files = { ...TEXT_BY_PATH, ...texts };
   const endpoint = createLoopbackEndpoint((port) => ({
     handle(message) {
       const p = message.payload ?? {};
       switch (message.kind) {
+        case CommandKind.OPEN:
+          port.postMessage(event(EventKind.PREFERENCES, PREFERENCES));
+          break;
         case CommandKind.OPEN_SOURCE:
           port.postMessage(event(EventKind.SOURCE, {
-            bookId: p.bookId, path: p.path, text: TEXT_BY_PATH[p.path] ?? '',
+            bookId: p.bookId, path: p.path, text: files[p.path] ?? '',
           }));
           break;
         case CommandKind.BOOK_TREE:
-          port.postMessage(event(EventKind.TREE, { bookId: p.bookId, entries: ENTRIES }));
+          port.postMessage(event(EventKind.TREE, { bookId: p.bookId, entries }));
           break;
         case CommandKind.OPEN_SONG:
           port.postMessage(event(EventKind.SONG, {
@@ -303,6 +317,45 @@ describe('SetlistPlay — the setlist player', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
     await pressKey('ArrowRight');
     await screen.findByRole('group', { name: 'Minor Song' });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
+describe("SetlistPlay — the song's own notation (workflow 2 §Reading a song)", () => {
+  // An american song (cifra.md §5.6) written in C, played under a setlist key a
+  // tone up by a user whose preference is brazilian. Written for the purpose.
+  const AMERICAN = ['# Brass Lantern', '- notation: american', '- key: C', '', '## A', '```', 'C7+', '```', ''].join('\n');
+  const AMERICAN_SET = ['# Brass Set', '', '1. [Brass Lantern](../brass.cifra.md)', '   - key: D', ''].join('\n');
+  const texts = { [SETLIST_PATH]: AMERICAN_SET, 'brass.cifra.md': AMERICAN };
+  const entries = [
+    { path: 'brass.cifra.md', status: 'clean' },
+    { path: SETLIST_PATH, status: 'clean' },
+  ];
+
+  it("plays an american song's C7+ at a setlist key a tone up as the sharp-fifth chord", async () => {
+    // Pins workflow 12 §The key and workflow 2 §Transposing: transpose re-spells
+    // each symbol in the song's own dialect (transpose.js).
+    const store = makeStore({ texts, entries });
+    const { container } = renderPlayer(store);
+    await screen.findByRole('group', { name: 'Brass Lantern' });
+
+    const sharpFifth = parseChord('D7#5', 'american').chord;
+    const majorSeventh = parseChord('D7M', 'brazilian').chord;
+    const shown = formatChord(sharpFifth, 'american');
+    // The brazilian reading would show another symbol, so this can fail.
+    expect(shown).not.toBe(formatChord(majorSeventh, 'brazilian'));
+    expect(chartChords(container)).toEqual([shown]);
+    expect(chartChords(container)).not.toContain('D7M');
+
+    // Spoken as the sharp-fifth chord, not the major seventh.
+    const spoken = speakChord(sharpFifth, { t });
+    expect(spoken).not.toBe(speakChord(majorSeventh, { t }));
+    const chart = container.querySelector('.chart');
+    expect(within(chart).getByText(spoken)).toBeInTheDocument();
+    expect(within(chart).queryByText(speakChord(majorSeventh, { t }))).toBeNull();
+
+    // The chip names the setlist key.
+    expect(screen.getByText('In D')).toBeInTheDocument();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });

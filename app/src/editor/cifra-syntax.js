@@ -17,8 +17,8 @@ import {
   isMarkerLine,
   isChord,
   parse,
-  DEFAULT_DIALECT,
 } from 'cifra-md';
+import { songDialect } from '../core/notation/dialects.js';
 
 // The class vocabulary (each maps to an `est-<class>` CSS class on the line):
 //   md       — markdown structure: the `#` title, `- property:` lines, `##`
@@ -66,9 +66,9 @@ function looksLikeChords(line, dialect) {
 // takes its own class; every other reported line stands out as an error — "the
 // lines the reader reported" (acceptance criterion 2). `parse` only throws on
 // invalid UTF-8, which a string buffer cannot be, so this never throws.
-function reportedLines(text, dialect) {
+function reportedLines(doc) {
   const byLine = new Map();
-  for (const d of parse(text, dialect).diagnostics) {
+  for (const d of doc.diagnostics) {
     if (typeof d.line !== 'number') continue;
     const cls = d.code === 'marker-line' ? 'mk' : 'err';
     // A marker is the strongest signal; do not let a later diagnostic on the
@@ -82,13 +82,20 @@ function reportedLines(text, dialect) {
 /**
  * Classify every line of a cifra.md buffer for syntax colour.
  *
+ * The song is read in its own notation (cifra.md §5.6 Rules): the reader's
+ * dialect is the song's `notation` property, never a caller's preference, so
+ * the colouring — chord recognition and the reported lines, a `bad-notation`
+ * included — is what the reader reports for the song as written
+ * (songs.song_notation_views Decision 2).
+ *
  * @param {string} text the buffer text
- * @param {string} [dialect] the notation dialect (for chord recognition)
  * @returns {string[]} one class from {@link LINE_CLASSES} per source line
  */
-export function classifyLines(text, dialect = DEFAULT_DIALECT) {
+export function classifyLines(text) {
   const lines = text.split(/\r\n|\r|\n/);
-  const reported = reportedLines(text, dialect);
+  const doc = parse(text);
+  const dialect = songDialect(doc);
+  const reported = reportedLines(doc);
 
   let fence = null; // the open fence's { char, length } while inside one
   let fenceIsMusic = false;

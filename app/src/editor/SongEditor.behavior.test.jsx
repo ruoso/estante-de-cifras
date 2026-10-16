@@ -15,6 +15,8 @@ import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { t } from '../i18n/index.js';
 import { template } from './template.js';
+import { parseChord } from '../core/notation/parse.js';
+import { speakChord } from '../render/chord-speech.js';
 import SongEditor from './SongEditor.jsx';
 
 // CodeMirror measures text geometry with Range.getClientRects during its async
@@ -408,6 +410,31 @@ describe('SongEditor', () => {
     const previewTab = screen.getByRole('radio', { name: t('editor.source.preview') });
     act(() => fireEvent.click(previewTab));
     expect(container.querySelector('.chart')).not.toBeNull();
+  });
+
+  // songs.song_notation_views — the preview reads the song in its own notation
+  // (cifra.md §5.6; workflow 2 §Reading a song, "wherever the song is read"),
+  // never the user's preference: cifra-md reports the reading taken per chord
+  // item, and the preview speaks it.
+  it('the preview reads an american song\'s C7+ as the sharp fifth under a brazilian preference', async () => {
+    const { store, emit } = makeStore();
+    emit(event(EventKind.PREFERENCES, { notation: { value: 'brazilian', at: 1 } }));
+    const editorRef = { current: null };
+    const AMERICAN = ['# Brass Lantern', '- notation: american', '', '## A', '```', 'C7+', '```', ''].join('\n');
+    const { container } = render(
+      <SongEditor store={store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} onSave={() => {}} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: AMERICAN }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(AMERICAN));
+
+    const sharpFifth = speakChord(parseChord('C7+', 'american').chord, { t });
+    const majorSeventh = speakChord(parseChord('C7+', 'brazilian').chord, { t });
+    // The brazilian reading would speak another chord, so this can fail.
+    expect(sharpFifth).not.toBe(majorSeventh);
+    const chart = container.querySelector('.est-editor-preview .chart');
+    await waitFor(() => expect(within(chart).getByText(sharpFifth)).toBeInTheDocument());
+    expect(within(chart).queryByText(majorSeventh)).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
   // songs.edit_in_place — a sync merges a new version under the open editor's

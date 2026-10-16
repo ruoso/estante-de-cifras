@@ -32,7 +32,7 @@ import { command, CommandKind } from '../worker/protocol.js';
 import { inUseEntry } from '../instruments/InstrumentChip.jsx';
 import { instrumentInstance, openMidis } from '../core/instrument.js';
 import { fingeringFromFrets } from '../core/search.js';
-import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
+import { DEFAULT_DIALECT, songDialect } from '../core/notation/dialects.js';
 import { plannersFor, plannerById, optionDefaults, planVoicings } from '../core/voicing-plan/index.js';
 import { planIntoNewVariation, applyPlan } from '../core/voicing-plan/apply.js';
 import { sourcesFor, citation } from '../data/sources.js';
@@ -95,6 +95,9 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
   const [varError, setVarError] = useState(null);
 
   const text = sourceSlice?.[bookId]?.[path]?.text ?? '';
+  // The preference spells a chord's name for the user (the diagrams below,
+  // workflow 16 §Viewing by notation); the song is read and planned in its own
+  // notation (cifra.md §5.6; workflow 2 §Reading a song).
   const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
   const entry = inUseEntry(instrumentsSlice);
 
@@ -119,7 +122,8 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
   const tuningId = instrument ? openMidis(instrument).join(' ') : '';
   const tuningText = entry?.tuning ?? '';
 
-  const model = text ? parse(text, dialect) : null;
+  const model = text ? parse(text) : null;
+  const notation = songDialect(model);
   const reading = songSlice?.[bookId]?.[path] ?? { variations: {} };
   const variation = reading.variations?.[tuningId] ?? '';
   const variationName = (v) => (v === '' ? t('arrange.variationDefault') : v);
@@ -133,7 +137,11 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
   let planResult = null;
   if (model && instrument && plannerId) {
     try {
-      planResult = planVoicings(plannerId, model, instrument, { dialect, existing, choices });
+      planResult = planVoicings(plannerId, model, instrument, {
+        dialect: notation,
+        existing,
+        choices,
+      });
     } catch {
       planResult = null;
     }
@@ -200,7 +208,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
   // use. Either way it is an ordinary unsaved working-copy edit.
   const writePlan = () => {
     if (!model || !planResult) return;
-    const doc = parse(text, dialect);
+    const doc = parse(text);
     if (needsChoice && choice === 'new') {
       const name = varName.trim();
       if (!name) {

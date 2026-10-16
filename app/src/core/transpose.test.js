@@ -142,6 +142,21 @@ describe("transpose — a fourth on a seventh in the song's dialect", () => {
   });
 });
 
+describe('transpose — the parsed chord follows the symbol (the §3 spoken name)', () => {
+  // The chart speaks `item.chord` (chart/layout.js): an american C7+ up a tone
+  // shows D7#5 and must be read as that chord (songs.song_notation_views).
+  it("rewrites each item's chord with its transposed root, keeping the reading", () => {
+    const model = parse(['# Song', '', '- notation: american', '', '## A', FENCE, 'C7+ G/B', FENCE].join('\n') + '\n');
+    const items = [];
+    const t = transpose(model, 2, { dialect: 'american' });
+    for (const part of t.sections[0].body)
+      for (const line of part.lines) for (const m of line.measures) items.push(...m.items);
+    expect(items.map((i) => i.symbol)).toEqual(['D7#5', 'A/C#']);
+    expect(items[0].chord).toMatchObject({ root: { letter: 'D', accidental: 0 }, quality: 'aug' });
+    expect(items[1].chord).toMatchObject({ root: { letter: 'A', accidental: 0 }, bass: { letter: 'C', accidental: 1 } });
+  });
+});
+
 describe('transpose — an unparseable symbol is kept verbatim (spec reader rule; wf2 L78)', () => {
   it('leaves a symbol the parser rejects as written, transposing the rest', () => {
     const t = transpose(handModel([chartLineOf('C', 'H7', 'F')]), 2);

@@ -26,7 +26,7 @@ import { t } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import { transpose, transposedKeyName } from '../core/transpose.js';
-import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
+import { songDialect } from '../core/notation/dialects.js';
 import Chart from '../chart/Chart.jsx';
 import { setlistRows, bookFileSet } from './setlist-display.js';
 import { playableItems, clampIndex, playKeyOffset, nextItem } from './setlist-play.js';
@@ -62,8 +62,6 @@ export default function SetlistPlay({
   const source = useSlice(store, 'source');
   const tree = useSlice(store, 'tree');
   const song = useSlice(store, 'song');
-  const preferences = useSlice(store, 'preferences');
-  const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
 
   // The setlist's own text and the book's file set — the inputs to the ordered
   // playable list. Requested once on mount (the setlist does not move while
@@ -174,10 +172,11 @@ export default function SetlistPlay({
   // without one it is shown as a note, untransposed; with no item key the song
   // reads under the user's own remembered offset (workflow 12 §The key).
   const songText = resolvedPath ? source?.[bookId]?.[resolvedPath]?.text : null;
-  const baseModel = useMemo(
-    () => (songText ? parse(songText, dialect) : null),
-    [songText, dialect],
-  );
+  // Read in the song's own notation (cifra.md §5.6; workflow 2 §Reading a
+  // song): no preference overrides it, and the transposition re-spells every
+  // symbol in that same dialect — an american `C7+` up a tone is `D7#5`.
+  const baseModel = useMemo(() => (songText ? parse(songText) : null), [songText]);
+  const notation = songDialect(baseModel);
   const writtenKey = songProperty(baseModel, 'key');
   const reading = resolvedPath ? song?.[bookId]?.[resolvedPath] : null;
   const ownOffset = reading?.transposition ?? 0;
@@ -189,13 +188,13 @@ export default function SetlistPlay({
   const noteOnly = Boolean(current?.key) && itemKeyOffset == null;
   const offset = current?.key ? (itemKeyOffset ?? 0) : ownOffset;
   // The transposed model (React Compiler memoizes this derivation).
-  const model = baseModel ? transpose(baseModel, offset, { dialect }) : null;
+  const model = baseModel ? transpose(baseModel, offset, { dialect: notation }) : null;
   // The chip names the key the chart is played in: whenever a setlist key is
   // in force — offset 0 included, so a band key equal to the written one is
   // still named — and, with no item key, only when the user's own
   // transposition moves the chart. A key shown as a note claims none.
   const showChip = current?.key ? !noteOnly : Boolean(offset);
-  const currentKeyName = showChip ? transposedKeyName(writtenKey, offset, dialect) : null;
+  const currentKeyName = showChip ? transposedKeyName(writtenKey, offset) : null;
   // "written in" only when the setlist key actually moved the chart.
   const setlistLine = !current?.key
     ? null

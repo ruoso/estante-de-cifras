@@ -152,7 +152,8 @@ task songs "Songs" {
   task song_notation_views "Every view reads a song in its own notation" {
     effort 0.5d
     allocate team
+    complete 100
     depends music.voicings_song_dialect, !editor, music.wizard, books.play
-    note "SetlistPlay, SongEditor (with editor/cifra-syntax.js) and SongWizard still pass the user's notation preference as cifra-md's dialect override; they take songDialect(model) as SongReading and SongArrange now do (the preference kept for what spells for the user). Source-of-debt: tasks/refinements/music/voicings_song_dialect.md (Decision 6; cifra.md section 5.6). Tests: behavior (SetlistPlay: an american song's C7+ played at a setlist key a tone up shows the sharp-fifth chord transposed; SongWizard: an american song's C7+ is offered the sharp-fifth shapes); unit (cifra-syntax: an american song's ambiguity diagnostics report the american reading under a brazilian preference)."
+    note "SetlistPlay, SongEditor (with editor/cifra-syntax.js) and SongWizard still pass the user's notation preference as cifra-md's dialect override; they take songDialect(model) as SongReading and SongArrange now do (the preference kept for what spells for the user). Source-of-debt: tasks/refinements/music/voicings_song_dialect.md (Decision 6; cifra.md section 5.6). Tests: behavior (SetlistPlay: an american song's C7+ played at a setlist key a tone up shows the sharp-fifth chord transposed; SongWizard: an american song's C7+ is offered the sharp-fifth shapes); unit (cifra-syntax: an american song's ambiguity diagnostics report the american reading under a brazilian preference). Refinement: tasks/refinements/songs/song_notation_views.md"
   }
 }

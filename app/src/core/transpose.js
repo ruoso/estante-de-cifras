@@ -201,6 +201,9 @@ export function transpose(model, semitones, { dialect = DEFAULT_DIALECT } = {}) 
       bass: c.bass ? transposeNote(c.bass, iv) : null,
     };
     item.symbol = formatChord(transposed, dialect);
+    // The parsed chord follows the symbol, so the chart speaks the chord it
+    // shows (the §3 spoken name reads `item.chord`).
+    if (item.chord) item.chord = transposed;
   }
   return out;
 }

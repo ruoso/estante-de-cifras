@@ -87,8 +87,11 @@ does: the chart, then the shapes, a page at a time on a phone.
   (Brazilian when it declares none), not in the reader's own preference —
   that is what a new song writes the property for (workflow 3). So `C7+` in
   an American song is the sharp-fifth chord for everyone: its shape, its
-  default and its transposition are that chord's. The preference is how the
-  user reads a symbol they type (the search box, the explorer).
+  default and its transposition are that chord's. The same holds wherever the
+  song is read: playing it through a setlist (workflow 12), the voicing
+  wizard (workflow 5), and the editor's preview and colouring (workflow 4).
+  The preference is how the user reads a symbol they type (the search box,
+  the explorer).
 
 From the reading view the song can be edited (workflow 4), its history
 opened (workflow 6), transposed (below), and printed.

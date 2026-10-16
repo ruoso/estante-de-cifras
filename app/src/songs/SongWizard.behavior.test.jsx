@@ -16,6 +16,8 @@ import { createLoopbackEndpoint } from '../test/loopback.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { instrumentInstance, configFor } from '../core/instrument.js';
+import { parseChord } from '../core/notation/parse.js';
+import { formatChord } from '../core/notation/format.js';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
@@ -43,12 +45,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// A purpose-written song: a chord-only chart, optional voicing lines after the
-// `---` rule.
-const song = ({ title = 'Tarde Clara', chart = 'G | C | Am | Em', voicings = [] }) =>
+// A purpose-written song: optional `- key: value` properties, a chord-only
+// chart, optional voicing lines after the `---` rule.
+const song = ({ title = 'Tarde Clara', props = [], chart = 'G | C | Am | Em', voicings = [] }) =>
   [
     `# ${title}`,
     '',
+    ...(props.length ? [...props.map((p) => `- ${p}`), ''] : []),
     '## Primeira Parte',
     FENCE,
     chart,
@@ -95,10 +98,10 @@ function ukuleleEntry() {
 // The loopback-backed stub Worker (the SongArrange rig): seeds the slices on
 // OPEN, answers the reads, records every command, and re-surfaces SONG on
 // SET_VARIATION. WRITE is silent (durability only) — recorded, no event.
-function makeStore({ text, entry, variations = {} }) {
+function makeStore({ text, entry, variations = {}, notation = null }) {
   const commands = [];
   const state = { variations: { ...variations } };
-  const prefs = { instrumentInUse: register(entry.id) };
+  const prefs = { instrumentInUse: register(entry.id), ...(notation ? { notation } : {}) };
   const endpoint = createLoopbackEndpoint((port) => ({
     handle(message) {
       commands.push(message);
@@ -401,5 +404,46 @@ describe('SongWizard — a keyboard path, and focus back to arrange', () => {
     // The plan was written, and focus is back on arrange's Run-the-wizard button.
     expect(lastCommand(commands, CommandKind.WRITE)).toBeTruthy();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Run the wizard' })).toHaveFocus());
+  });
+});
+
+describe("SongWizard — the song's own notation (workflow 5 §The wizard; cifra.md §5.6)", () => {
+  it("offers an american song's C7+ the sharp-fifth shapes", async () => {
+    // A brazilian user plans an american song: the planner reads C7+ as C7♯5
+    // and C7(4) as C7add4 (analyseSong with the song's dialect); the preview
+    // spells those chords in the user's notation.
+    const { store, commands } = makeStore({
+      text: song({ props: ['notation: american'], chart: 'C7+  C7(4)' }),
+      entry: guitarEntry(),
+      notation: register('brazilian'),
+    });
+    const { container } = await openWizard(store);
+    await toPreview();
+
+    const sharpFifth = formatChord(parseChord('C7+', 'american').chord, 'brazilian');
+    const addedFourth = formatChord(parseChord('C7(4)', 'american').chord, 'brazilian');
+    expect(sharpFifth).toBe('C7(5+)');
+    expect(addedFourth).toBe('C7(add4)');
+
+    const names = Array.from(container.querySelectorAll('.wizard-shapes [role="img"]')).map((el) =>
+      el.getAttribute('aria-label'),
+    );
+    expect(names).toHaveLength(2);
+    expect(names[0].startsWith(sharpFifth)).toBe(true);
+    expect(names[1].startsWith(addedFourth)).toBe(true);
+    // Not the brazilian readings (C7M, C7(4) as a suspended seventh).
+    for (const n of names) {
+      expect(n.startsWith('C7M')).toBe(false);
+      expect(n.startsWith('C7(4)')).toBe(false);
+    }
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // The plan writes voicings keyed by the symbols as written (cifra.md §8).
+    await click(screen.getByRole('button', { name: 'Write the plan' }));
+    const write = lastCommand(commands, CommandKind.WRITE);
+    expect(write).toBeTruthy();
+    const block = blockOf(write.payload.text);
+    expect(block.voicings.map((v) => v.key).sort()).toEqual(['C7(4)', 'C7+']);
+    expect(write.payload.text).toContain('- notation: american');
   });
 });

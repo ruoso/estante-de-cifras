@@ -24,7 +24,7 @@ import {
   keymap,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, undo } from '@codemirror/commands';
-import { parse, DEFAULT_DIALECT } from 'cifra-md';
+import { parse } from 'cifra-md';
 
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
@@ -35,7 +35,7 @@ import { classifyLines } from './cifra-syntax.js';
 import { fencePaste } from './fence-paste.js';
 import { sectionInsertPos } from './section-insert.js';
 import { saveBlockers, stopMessageKey } from './save-blockers.js';
-import { template, templateDialect } from './template.js';
+import { template } from './template.js';
 import './editor.css';
 
 // Per-keystroke WRITE runs under the book lock, so the view debounces its
@@ -82,9 +82,11 @@ function minimalChange(oldStr, newStr) {
 
 // Build the per-line decoration set from the classifier. A `text` (plain) line
 // gets no decoration (default colour); every other class maps to an
-// `est-<class>` line decoration the stylesheet colours with tokens.
-function buildDecorations(doc, dialect) {
-  const classes = classifyLines(doc.toString(), dialect);
+// `est-<class>` line decoration the stylesheet colours with tokens. The
+// classifier reads the song in its own notation (cifra.md §5.6), never the
+// user's preference.
+function buildDecorations(doc) {
+  const classes = classifyLines(doc.toString());
   const builder = new RangeSetBuilder();
   for (let i = 0; i < doc.lines; i += 1) {
     const cls = classes[i];
@@ -112,11 +114,6 @@ export default function SongEditor({
   const sourceSlice = useSlice(store, 'source');
   const autoMode = useLayoutMode();
   const mode = layoutMode ?? autoMode;
-
-  const dialect = useMemo(
-    () => (isNew ? templateDialect(preferences) : preferences?.notation?.value ?? DEFAULT_DIALECT),
-    [isNew, preferences],
-  );
 
   // The buffer text, mirrored into React so the preview and the save gate parse
   // from the live buffer (Decision 2). CodeMirror owns the editable truth; this
@@ -151,7 +148,6 @@ export default function SongEditor({
 
   const containerRef = useRef(null);
   const viewRef = useRef(null);
-  const dialectRef = useRef(dialect);
   const changeHandlerRef = useRef(() => {});
   const pasteHandlerRef = useRef(() => false);
   const writeTimer = useRef(null);
@@ -191,11 +187,9 @@ export default function SongEditor({
   }, [store, bookId, path]);
 
   // CodeMirror's extensions are built once but must call the latest handlers
-  // (they close over the current dialect and props). The refs are updated in an
+  // (they close over the current props). The refs are updated in an
   // effect — never during render — and read lazily when an edit or paste fires.
   useEffect(() => {
-    dialectRef.current = dialect;
-
     changeHandlerRef.current = (value) => {
       setText(value);
       // Any edit clears a stale save-stop notice and a stale paste notice; a
@@ -213,7 +207,7 @@ export default function SongEditor({
       const before = view.state.doc.sliceString(0, sel.from);
       // A `#` heading (even an empty one) is a title slot; the first pasted line
       // is promoted only when the song has no heading at all.
-      const hasTitle = parse(view.state.doc.toString(), dialect).title !== null;
+      const hasTitle = parse(view.state.doc.toString()).title !== null;
       const result = fencePaste({ text: before, pasted, hasTitle });
       // The title (when promoted) is inserted at the document head and the
       // fenced body at the paste point, in one transaction — one undo reverts
@@ -238,9 +232,8 @@ export default function SongEditor({
   // different song), so the view is not rebuilt on every prop change.
   useEffect(() => {
     const syntaxField = StateField.define({
-      create: (state) => buildDecorations(state.doc, dialectRef.current),
-      update: (value, tr) =>
-        tr.docChanged ? buildDecorations(tr.state.doc, dialectRef.current) : value,
+      create: (state) => buildDecorations(state.doc),
+      update: (value, tr) => (tr.docChanged ? buildDecorations(tr.state.doc) : value),
       provide: (f) => EditorView.decorations.from(f),
     });
 
@@ -356,7 +349,11 @@ export default function SongEditor({
     view.dispatch({ changes: minimalChange(current, sourceText) });
   }, [sourceText]);
 
-  const parsed = useMemo(() => parse(text, dialect), [text, dialect]);
+  // Read in the song's own notation (cifra.md §5.6; workflow 2 §Reading a
+  // song): the preview speaks the song's chords, and the save gate reports what
+  // the reader reports. A new song's template writes `notation:` from the
+  // preference, so it reads back the same.
+  const parsed = useMemo(() => parse(text), [text]);
   // The diagnostics that stop a save (Decision 3; save-blockers.js): a conflict
   // marker, a voicing the reader could not read, and content after the rule the
   // song writer would drop (workflow 4 §Normalising). Everything else the format
