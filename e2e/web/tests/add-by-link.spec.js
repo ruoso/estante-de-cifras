@@ -45,6 +45,7 @@ import {
   booksList,
   inviteThroughShare,
   openSharing,
+  closeSharing,
 } from '../lib/journeys-share.js';
 import { signInExistingWithPasskey, untilAccountShelf } from '../lib/journeys-account.js';
 import { openBookRow } from '../lib/journeys-sync.js';
@@ -108,14 +109,14 @@ test.describe('add by link', () => {
     let dialog = await openSharing(page, 'Turma de quarta');
     await expect(dialog.getByText('Reader invitation')).toBeVisible();
     await expect(dialog.getByText(/Expires in a day/)).toBeVisible();
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await closeSharing(page);
 
     // A withdrawn invitation: made, then withdrawn in the Share dialog.
     const deadLink = await inviteThroughShare(page, 'Roda de choro', { role: 'Reader' });
     dialog = await openSharing(page, 'Roda de choro');
     await dialog.getByRole('button', { name: 'Withdraw' }).click();
     await expect(dialog.getByText('withdrawn')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await closeSharing(page);
 
     // A full book: the capacity fill is SQL (see the header).
     const fullLink = await inviteThroughShare(page, 'Sarau da sexta', { role: 'Reader' });
@@ -192,7 +193,7 @@ test.describe('add by link', () => {
     const dialog = await openSharing(page, 'Roda de choro');
     await dialog.getByRole('button', { name: 'Withdraw' }).click();
     await expect(dialog.getByText('withdrawn')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await closeSharing(page);
 
     const joiner = await openDevice(browser);
     try {
@@ -233,7 +234,7 @@ test.describe('add by link', () => {
     });
     let dialog = await openSharing(page, 'Turma de quinta');
     await expect(dialog.getByText('1 use left')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await closeSharing(page);
 
     const first = await openDevice(browser);
     const second = await openDevice(browser);
@@ -247,8 +248,10 @@ test.describe('add by link', () => {
       dialog = await openSharing(page, 'Turma de quinta');
       await expect(dialog.getByText('used up')).toBeVisible();
       await expect(dialog.getByText('0 uses left')).toBeVisible();
-      await expect(dialog.getByText(/1 person/)).toBeVisible();
-      await dialog.getByRole('button', { name: 'Close' }).click();
+      // The joiner gave no name yet: named by role, never by an id
+      // (books.share_people).
+      await expect(dialog.getByText(/Joined through it:\s*Unnamed reader/)).toBeVisible();
+      await closeSharing(page);
 
       // The next person is refused, and told nothing about the book.
       await signedInDevice(second.page);

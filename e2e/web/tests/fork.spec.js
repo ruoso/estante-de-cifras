@@ -209,14 +209,14 @@ test('lowered to reader with a save not yet pushed: can’t save here, then the 
   const bia = await biaJoins(browser, page, 'Editor');
   const MARK = 'LoweredPart';
   try {
-    // Ana lowers Bia with Make reader in the Share dialog.
+    // Ana lowers Bia with Make reader on the people screen.
     const dialog = await openSharing(page, BOOK);
     const memberRow = dialog
       .locator('.est-sharing-member', { has: page.getByRole('button', { name: 'Remove' }) })
       .first();
     await memberRow.getByRole('button', { name: /’s role$/ }).click();
     await page.getByRole('menuitem', { name: 'Make reader' }).click();
-    await expect(memberRow.locator('.badge')).toHaveText('Reader');
+    await expect(memberRow.getByRole('button', { name: /’s role$/ })).toContainText('Reader');
 
     // Bia's shelf still says editor, so she saves; the push is refused.
     await openSongInEditor(bia.page, QUERY, SONG_TITLE);

@@ -67,7 +67,7 @@ func newBooksEnvWith(t *testing.T, tweak func(*APIDeps)) *booksEnv {
 	booksRoot := t.TempDir()
 	var logBuf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&logBuf, nil))
-	api := &APIDeps{DB: pool, Passkeys: rp, PublicBaseURL: testPkOrigin, BooksRoot: booksRoot}
+	api := &APIDeps{DB: pool, Passkeys: rp, PublicBaseURL: testPkOrigin, BooksRoot: booksRoot, InvitationSecret: []byte(testInvitationSecret)}
 	if tweak != nil {
 		tweak(api)
 	}

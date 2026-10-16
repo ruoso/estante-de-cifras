@@ -80,7 +80,7 @@ import { createCredential, isCancellation } from './webauthn-json.js';
 import './account.css';
 
 // The real client, bound to the browser's fetch; the behavior level injects a
-// loopback double instead (like SignIn / SharingScreen).
+// loopback double instead (like SignIn / the sharing surfaces).
 const DEFAULT_CLIENT = createAuthClient();
 
 // The sharing client for the Leaving region's who-loses-access counts
@@ -282,7 +282,7 @@ function PickerRow({ value, name, meta, children }) {
   );
 }
 
-// A destructive-action confirm (the SharingScreen RAC Dialog pattern, without
+// A destructive-action confirm (the sharing surfaces’ RAC Dialog pattern, without
 // the typed-name guard): a trigger Button, a modal with the worded consequence,
 // Cancel and a danger confirm. Portaled into the `.est` token root by ThemeRoot.
 function ConfirmDialog({ trigger, title, body, confirmLabel, onConfirm }) {
@@ -428,7 +428,7 @@ export default function AccountScreen({
   const online = useOnline();
   const wide = useAccountWide();
 
-  // Hold the client in a ref (the SharingScreen pattern): a stable value so the
+  // Hold the client in a ref (the useSharing pattern, sharing-parts.jsx): a stable value so the
   // load effect's setState-past-await is not read as a synchronous cascade, and
   // so a re-render never re-runs the probe (react-hooks/set-state-in-effect).
   const clientRef = useRef(authClient);
@@ -458,7 +458,7 @@ export default function AccountScreen({
   // 401 → not signed in; anything else → a worded, retryable error. No token is
   // stored; the probe runs on open and on retry. Every setState happens past the
   // first `await`, so the mount effect below triggers no synchronous render
-  // cascade (react-hooks/set-state-in-effect; the SharingScreen reload pattern).
+  // cascade (react-hooks/set-state-in-effect; the useSharing reload pattern).
   const probe = useCallback(async () => {
     try {
       const { sessions: list } = await client.listSessions();

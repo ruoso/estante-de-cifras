@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -30,8 +31,9 @@ import (
 // The weight is in the rules, not the SQL (service.sharing Effort): the
 // fifty-member cap is the service's, counted under a books-row lock inside the
 // accept transaction so the fifty-first cannot slip in between a count and an
-// insert; an invitation's token is a random secret stored hashed and shown
-// once; accept is idempotent; who-sees-whom is filtered server-side because the
+// insert; an invitation's token is derived from its id by HMAC and stored
+// hashed, so the owner can copy an open one's link again (books.share_people);
+// accept is idempotent; who-sees-whom is filtered server-side because the
 // copyright framing makes the service the enforcement point, never the client.
 
 // maxMembersPerBook is the fifty-member cap, a code constant beside the books
@@ -65,10 +67,11 @@ func resolveExpiry(choice string, now time.Time) *time.Time {
 }
 
 // newInvitationToken mints a high-entropy random token and returns the raw
-// secret (carried once in the invitation link) alongside its hash (stored in
-// invitations.token, NOT NULL UNIQUE). The raw token is the capability and is
-// never stored, so a registry leak cannot expose a live invitation link
-// (service.sharing Decisions; 0002_email_links.sql header note).
+// secret alongside its hash. It is how invitations were minted before
+// books.share_people derived them (deriveInvitationToken); such a row still
+// admits whoever holds its link, but carries no url in listInvitations. The raw
+// token is the capability and is never stored (service.sharing Decisions;
+// 0002_email_links.sql header note).
 func newInvitationToken() (raw, hash string, err error) {
 	var b [32]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -76,6 +79,34 @@ func newInvitationToken() (raw, hash string, err error) {
 	}
 	raw = base64.RawURLEncoding.EncodeToString(b[:])
 	return raw, hashToken(raw), nil
+}
+
+// deriveInvitationToken is an invitation's raw token: base64url(HMAC-SHA256(
+// secret, invitation id)) (books.share_people Constraint 4). It is re-derivable
+// from the id, so the owner's listInvitations can carry an open invitation's
+// link again, while the registry stores only hashToken of it — a database read
+// alone still yields no link without ESTANTE_INVITATION_SECRET.
+func deriveInvitationToken(secret []byte, invitationID string) string {
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(invitationID))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+// relistedInvitationURL is the url listInvitations carries for one invitation:
+// the link, only while it can still let someone in — not withdrawn, not
+// expired, not used up — and only when the token derived from its id hashes to
+// the stored one, so a row minted before derivation (or under a rotated secret)
+// offers no link rather than a wrong one (books.share_people Constraint 4,
+// Decision 4).
+func relistedInvitationURL(base string, secret []byte, id, storedHash string, withdrawn bool, expiresAt *time.Time, usesRemaining *int, now time.Time) string {
+	if withdrawn || (expiresAt != nil && !expiresAt.After(now)) || (usesRemaining != nil && *usesRemaining <= 0) {
+		return ""
+	}
+	raw := deriveInvitationToken(secret, id)
+	if hmac.Equal([]byte(hashToken(raw)), []byte(storedHash)) {
+		return invitationURL(base, raw)
+	}
+	return ""
 }
 
 // hashToken reproduces the stored hash of a raw token so accept can look up the
@@ -115,8 +146,10 @@ func visibleMembers(callerRole string, members []memberEntry) []memberEntry {
 // --- JSON shapes (api/openapi.yaml Sharing schemas) --------------------------
 
 // memberJSON is one entry in a MemberList (api/openapi.yaml Member). displayName
-// is omitted: accounts hold no name, and authorship uses a no-real-email address
-// (DIRECTION §3.3 lines 164-169; service.sharing Decisions).
+// is the name the person gives their saves, read from their home book at
+// request time (accountNames) for the members the caller may see; omitted when
+// they have none. The service stores no name (DIRECTION §3.3;
+// books.share_people Constraint 1).
 type memberJSON struct {
 	UserID      string `json:"userId"`
 	Role        string `json:"role"`
@@ -130,15 +163,18 @@ type memberListJSON struct {
 }
 
 // joinerJSON is one joiner in an Invitation's "who joined" set (api/openapi.yaml
-// Joiner). displayName is omitted for the same reason as memberJSON.
+// Joiner). displayName is read as memberJSON's is, and appears only in the
+// owner-only listInvitations (books.share_people Constraint 2).
 type joinerJSON struct {
-	UserID   string    `json:"userId"`
-	JoinedAt time.Time `json:"joinedAt"`
+	UserID      string    `json:"userId"`
+	DisplayName string    `json:"displayName,omitempty"`
+	JoinedAt    time.Time `json:"joinedAt"`
 }
 
 // invitationJSON is one invitation (api/openapi.yaml Invitation). URL is present
-// only at creation — the raw token is unrecoverable afterwards — so it is
-// omitempty and left unset by listInvitations (service.sharing Decisions).
+// at creation, and in listInvitations while the invitation can still let
+// someone in and its token re-derives (relistedInvitationURL; books.share_people
+// Constraint 4); otherwise it is omitted.
 // ExpiresAt and UseLimit are nullable (null for until-withdrawn / unlimited).
 type invitationJSON struct {
 	ID          string       `json:"id"`
@@ -223,7 +259,9 @@ func (api *APIDeps) requireOwner(w http.ResponseWriter, r *http.Request, action 
 // handleCreateInvitation implements POST /api/books/{bookId}/invitations
 // (createInvitation, workflow 10 lines 40-61): owner only. It mints an
 // invitation for a role, a resolved expiry and an optional use-limit, stores the
-// token hashed, and returns 201 with the raw token carried once in the link.
+// token hashed, and returns 201 with the raw token carried in the link. The id
+// is drawn first so the token derived from it lands in the same insert
+// (books.share_people Constraint 4).
 // Creating an invitation on a full book is allowed — the link simply refuses
 // joins until the owner removes someone (service.sharing Decisions).
 func handleCreateInvitation(api *APIDeps) http.HandlerFunc {
@@ -259,20 +297,20 @@ func handleCreateInvitation(api *APIDeps) http.HandlerFunc {
 			return
 		}
 
-		raw, hash, err := newInvitationToken()
-		if err != nil {
+		var id string
+		if err := api.DB.QueryRow(ctx, `SELECT gen_random_uuid()::text`).Scan(&id); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal", "Could not create the invitation.")
 			return
 		}
+		raw := deriveInvitationToken(api.InvitationSecret, id)
 		expiresAt := resolveExpiry(req.Expiry, time.Now())
 
-		var id string
 		var createdAt time.Time
 		if err := api.DB.QueryRow(ctx,
-			`INSERT INTO invitations (token, book_id, role, expiry, expires_at, uses_remaining)
-			 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at`,
-			hash, bookID, req.Role, req.Expiry, expiresAt, req.UseLimit,
-		).Scan(&id, &createdAt); err != nil {
+			`INSERT INTO invitations (id, token, book_id, role, expiry, expires_at, uses_remaining)
+			 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING created_at`,
+			id, hashToken(raw), bookID, req.Role, req.Expiry, expiresAt, req.UseLimit,
+		).Scan(&createdAt); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal", "Could not create the invitation.")
 			return
 		}
@@ -293,17 +331,18 @@ func handleCreateInvitation(api *APIDeps) http.HandlerFunc {
 }
 
 // invitationURL composes the shareable link the owner sends (service.sharing
-// acceptance #1): <PublicBaseURL>/i/<raw-token>. It is the only time the raw
-// token is ever returned.
+// acceptance #1): <PublicBaseURL>/i/<raw-token>. Only the owner is ever given
+// it — at creation, and again from listInvitations.
 func invitationURL(base, raw string) string {
 	return strings.TrimRight(base, "/") + "/i/" + raw
 }
 
 // handleListInvitations implements GET /api/books/{bookId}/invitations
 // (listInvitations, workflow 10 lines 54-55, 71-72): owner only. Each invitation
-// carries its role, resolved expiry, remaining uses, who joined through it, and
-// its withdrawn flag — url is omitted, the raw token being unrecoverable by
-// design (service.sharing Decisions).
+// carries its role, resolved expiry, remaining uses, who joined through it —
+// each named by the name they give their saves (books.share_people) — its
+// withdrawn flag, and its url while it can still let someone in
+// (relistedInvitationURL). The response is never logged.
 func handleListInvitations(api *APIDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -313,7 +352,7 @@ func handleListInvitations(api *APIDeps) http.HandlerFunc {
 		}
 
 		rows, err := api.DB.Query(ctx,
-			`SELECT id, role::text, expiry::text, expires_at, uses_remaining, created_at, withdrawn_at
+			`SELECT id, token, role::text, expiry::text, expires_at, uses_remaining, created_at, withdrawn_at
 			 FROM invitations WHERE book_id = $1 ORDER BY created_at`, bookID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal", "Could not list the invitations.")
@@ -322,14 +361,17 @@ func handleListInvitations(api *APIDeps) http.HandlerFunc {
 		defer rows.Close()
 
 		list := invitationListJSON{Invitations: []invitationJSON{}}
+		now := time.Now()
 		for rows.Next() {
 			var inv invitationJSON
+			var storedHash string
 			var withdrawnAt *time.Time
-			if err := rows.Scan(&inv.ID, &inv.Role, &inv.Expiry, &inv.ExpiresAt, &inv.UseLimit, &inv.CreatedAt, &withdrawnAt); err != nil {
+			if err := rows.Scan(&inv.ID, &storedHash, &inv.Role, &inv.Expiry, &inv.ExpiresAt, &inv.UseLimit, &inv.CreatedAt, &withdrawnAt); err != nil {
 				writeError(w, http.StatusInternalServerError, "internal", "Could not list the invitations.")
 				return
 			}
 			inv.Withdrawn = withdrawnAt != nil
+			inv.URL = relistedInvitationURL(api.PublicBaseURL, api.InvitationSecret, inv.ID, storedHash, inv.Withdrawn, inv.ExpiresAt, inv.UseLimit, now)
 			inv.Joined = []joinerJSON{}
 			list.Invitations = append(list.Invitations, inv)
 		}
@@ -365,6 +407,25 @@ func handleListInvitations(api *APIDeps) http.HandlerFunc {
 				return
 			}
 			list.Invitations[i].JoinedCount = len(list.Invitations[i].Joined)
+			// The row keeps the uses remaining; useLimit is the cap the owner
+			// chose (api/openapi.yaml Invitation, minimum 1), and every join
+			// through the invitation consumed one use — so the cap is the two
+			// together, and a used-up invitation reads "1 use, used" rather than
+			// a limit of 0 (books.share_people, W10 #1).
+			if u := list.Invitations[i].UseLimit; u != nil {
+				limit := *u + list.Invitations[i].JoinedCount
+				list.Invitations[i].UseLimit = &limit
+			}
+		}
+
+		// Name each joiner, one home-book read per account, after every row is
+		// drained so the reads do not share a connection (books.share_people).
+		// A joiner since removed keeps their name: the list is history.
+		names := newAccountNames(api, book.Store{Root: api.BooksRoot})
+		for i := range list.Invitations {
+			for j := range list.Invitations[i].Joined {
+				list.Invitations[i].Joined[j].DisplayName = names.name(ctx, list.Invitations[i].Joined[j].UserID)
+			}
 		}
 
 		writeJSON(w, http.StatusOK, list)
@@ -648,7 +709,7 @@ func (api *APIDeps) composeBookJSON(ctx context.Context, store book.Store, id, r
 		}
 	}
 	if role != "owner" {
-		bj.OwnerName = newOwnerNames(api, store).name(ctx, ownerID)
+		bj.OwnerName = newAccountNames(api, store).name(ctx, ownerID)
 	}
 	return bj, nil
 }
@@ -716,10 +777,16 @@ func handleListMembers(api *APIDeps) http.HandlerFunc {
 			return
 		}
 
+		rows.Close() // free the connection before the home-book reads
+
+		// Each visible member is named from their home book; who-sees-whom is
+		// applied first, so no name is read for someone the caller may not see
+		// (books.share_people Constraint 2).
 		visible := visibleMembers(access.role, entries)
+		names := newAccountNames(api, book.Store{Root: api.BooksRoot})
 		out := memberListJSON{Members: make([]memberJSON, 0, len(visible)), Count: count, Limit: maxMembersPerBook}
 		for _, e := range visible {
-			out.Members = append(out.Members, memberJSON{UserID: e.userID, Role: e.role})
+			out.Members = append(out.Members, memberJSON{UserID: e.userID, Role: e.role, DisplayName: names.name(ctx, e.userID)})
 		}
 		writeJSON(w, http.StatusOK, out)
 	}

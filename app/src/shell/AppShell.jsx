@@ -38,7 +38,10 @@ import SetlistsScreen from '../books/SetlistsScreen.jsx';
 import SetlistView from '../books/SetlistView.jsx';
 import SetlistPlay from '../books/SetlistPlay.jsx';
 import AddToSetlist from '../books/AddToSetlist.jsx';
-import SharingScreen from '../books/SharingScreen.jsx';
+import ShareSheet from '../books/ShareSheet.jsx';
+import PeopleScreen from '../books/PeopleScreen.jsx';
+import NewInvitationScreen from '../books/NewInvitation.jsx';
+import SongSharePanel from '../books/SongSharePanel.jsx';
 import BookConflicts from '../books/BookConflicts.jsx';
 import SongConflict from '../songs/SongConflict.jsx';
 import { orderedBooks, titleFor, saveTargetFor } from '../books/book-display.js';
@@ -168,7 +171,7 @@ function resolvePlace({ place, checkItem, treeReady }, shelf, tree) {
   return place.song ? 'song' : 'setlist';
 }
 
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode, restore = {}, openSetlistView = null) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode, restore = {}, openSetlistView = null, onShareBook = () => {}) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key} className="shell-panel">
       {key === 'search' ? (
@@ -205,6 +208,7 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
           onOpenBook={onOpenBook}
           onByLink={onByLink}
           onSignIn={onSignIn}
+          onShareBook={onShareBook}
           mode={mode}
           restoreDismissed={restore.dismissed}
           onDismissRestored={restore.onDismiss}
@@ -332,9 +336,18 @@ export default function AppShell({
   const [openSong, setOpenSong] = useState(null);
   // The sharing surface over the open song (books.share): `{ bookId, path }` or
   // null, set by the reading toolbar's Share (the owner invites to this song, a
-  // member copies its address). A RAC Modal portaled into `.est`, so it sits over
-  // the reading view without replacing it. Ephemeral view state, no router.
+  // member copies its address). A panel beside the chart on a tablet or a
+  // computer, the Share sheet on a phone (books.share_people; workflow 10 **Where
+  // it sits**) — drawn by the reading view. Ephemeral view state, no router.
   const [sharing, setSharing] = useState(null);
+  // A book's sharing (books.share_people): the phone's Share sheet over the
+  // shell (`{ bookId }`), and the two screens it leads to — the people screen
+  // and the New invitation screen — each a full screen over the shell like the
+  // file view, with Back through `closers`. On a tablet or a computer *Share*
+  // opens the people screen directly. Ephemeral view state, no router.
+  const [shareSheet, setShareSheet] = useState(null);
+  const [people, setPeople] = useState(null);
+  const [newInvitation, setNewInvitation] = useState(null);
   // The song-history surface (songs.history), raised from the reading view's
   // `onOpenHistory` seam — the "see what changed" merge notice (sync.read_in_place)
   // and the existing History button both open it: `{ bookId, path, commit? }` or
@@ -404,6 +417,8 @@ export default function AppShell({
     songConflict && 'songConflict',
     history && 'history',
     openFile && 'files',
+    people && 'people',
+    newInvitation && 'newInvitation',
     editing && 'newSong',
     editingSong && 'editor',
     wizard && 'wizard',
@@ -423,6 +438,8 @@ export default function AppShell({
       setHistory(null);
     },
     files: () => setOpenFile(null),
+    people: () => setPeople(null),
+    newInvitation: () => setNewInvitation(null),
     newSong: () => {
       // A never-saved draft stays in the working copy, findable by its badge
       // (workflow 3 §Abandoning it L53-54); a pending re-target is dropped so a
@@ -534,6 +551,9 @@ export default function AppShell({
     setArranging(follow);
     setWizard(follow);
     setSharing(follow);
+    setShareSheet(follow);
+    setPeople(follow);
+    setNewInvitation(follow);
     setOpenSetlist(follow);
     setPlayingSetlist(follow);
     setOpenFile((prev) => (prev === previousBookId ? forkId : prev));
@@ -786,6 +806,30 @@ export default function AppShell({
   // reading *needs you* (sync.conflicts) — then engage the merge (OPEN_CONFLICTS
   // recomputes and materialises it) and show the paused panel instead (workflow
   // 9 §Meeting one). A book already being settled keeps its panel.
+  // What the sharing surfaces need of a book from the shelf: its title, the
+  // caller's role, and the owner's name (books.owner_name) a member reads.
+  const sharingFacts = (bookId) => {
+    const book = orderedBooks(shelf).find((e) => e.id === bookId)?.book ?? {};
+    const owner = book?.owner?.value;
+    return {
+      title: titleFor(book, bookId),
+      role: book?.role?.value ?? null,
+      ownerName: typeof owner === 'string' && owner !== '' ? owner : null,
+    };
+  };
+  // A book's Share: the sheet on a phone, the people screen on a tablet or a
+  // computer (workflow 10 **Where it sits**).
+  const shareBook = (bookId) => {
+    if (mode === 'wide') setPeople({ bookId });
+    else setShareSheet({ bookId });
+  };
+  // From a sheet (a book's or a song's): close it and open a screen.
+  const openPeopleFrom = (bookId) => {
+    setShareSheet(null);
+    setSharing(null);
+    setPeople({ bookId });
+  };
+
   const openBook = (bookId) => {
     if (conflictsBook === bookId || sync?.[bookId]?.phase === 'needs_you') {
       if (conflictsBook !== bookId) store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
@@ -873,6 +917,37 @@ export default function AppShell({
       </>
     );
   }
+
+  // A book's sharing screens (books.share_people; workflow 10 **Where it
+  // sits**): the New invitation screen (the phone's, W10 #2) over the people
+  // screen (W10 #3, #5, #6), each a full screen with Back through `closers`.
+  // Over the open song (a song's share led there) it replaces the reading view;
+  // over the shell it is drawn below with the shell kept, hidden, so Back
+  // returns to the book that was open.
+  let sharingScreen = null;
+  if (newInvitation) {
+    sharingScreen = (
+      <NewInvitationScreen
+        bookId={newInvitation.bookId}
+        title={sharingFacts(newInvitation.bookId).title}
+        onBack={() => back(closers.newInvitation)}
+      />
+    );
+  } else if (people) {
+    const facts = sharingFacts(people.bookId);
+    sharingScreen = (
+      <PeopleScreen
+        bookId={people.bookId}
+        title={facts.title}
+        role={facts.role}
+        ownerName={facts.ownerName}
+        mode={mode}
+        onBack={() => back(closers.people)}
+        onNewInvitation={() => setNewInvitation({ bookId: people.bookId })}
+      />
+    );
+  }
+  if (sharingScreen && openSong) return sharingScreen;
 
   // The file view is a full screen over the shell (books.file_view Decision 7),
   // exactly as the new-song editor host is; Back returns to the shell.
@@ -962,12 +1037,34 @@ export default function AppShell({
   // wired too — `onOpenHistory` opens SongHistory (checked above), so both the
   // merge notice and the History button land on history in-app.
   if (openSong) {
-    // The share surface hangs over the reading view (books.share Decision 4): the
-    // book's role/title come from the shelf, so the owner sees the invite form and
-    // a member only the song's address. A RAC Modal portaled into `.est`, a
-    // sibling of the reading view so it overlays rather than replaces it.
-    const shareEntry = sharing
-      ? orderedBooks(shelf).find((e) => e.id === sharing.bookId)
+    // A song's share (books.share_people): a panel beside the chart on a tablet
+    // or a computer, the Share sheet on a phone — drawn by the reading view,
+    // which knows the song's title. The book's role/title come from the shelf,
+    // so the owner sees the invite and a member the song's address.
+    const shareFacts = sharing ? sharingFacts(sharing.bookId) : null;
+    const songShare = sharing
+      ? ({ title: songTitle }) =>
+          mode === 'wide' ? (
+            <SongSharePanel
+              bookId={sharing.bookId}
+              title={shareFacts.title}
+              role={shareFacts.role}
+              songPath={sharing.path}
+              songTitle={songTitle}
+              onClose={() => setSharing(null)}
+              onManage={() => openPeopleFrom(sharing.bookId)}
+            />
+          ) : (
+            <ShareSheet
+              bookId={sharing.bookId}
+              title={shareFacts.title}
+              role={shareFacts.role}
+              songPath={sharing.path}
+              songTitle={songTitle}
+              onClose={() => setSharing(null)}
+              onOpenPeople={() => openPeopleFrom(sharing.bookId)}
+            />
+          )
       : null;
     return (
       <>
@@ -983,16 +1080,8 @@ export default function AppShell({
           onOpenHistory={setHistory}
           onShare={setSharing}
           onAddToSetlist={setAddingToSetlist}
+          sidePanel={songShare}
         />
-        {sharing ? (
-          <SharingScreen
-            bookId={sharing.bookId}
-            title={titleFor(shareEntry?.book ?? {}, sharing.bookId)}
-            role={shareEntry?.book?.role?.value ?? null}
-            songPath={sharing.path}
-            onClose={() => setSharing(null)}
-          />
-        ) : null}
         {addingToSetlist ? (
           <AddToSetlist
             store={store}
@@ -1078,7 +1167,8 @@ export default function AppShell({
   return (
     <>
       <Tabs
-        className="shell"
+        className={sharingScreen ? 'shell shell-covered' : 'shell'}
+        hidden={sharingScreen ? true : undefined}
         orientation={mode === 'wide' ? 'vertical' : 'horizontal'}
         selectedKey={selected}
         onSelectionChange={selectTab}
@@ -1104,7 +1194,7 @@ export default function AppShell({
                 opens over this destination once the device says it is here. */}
             <main className="pane main" aria-busy={resolving ? true : undefined}>
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore)}
+                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, null, shareBook)}
               </div>
             </main>
           </div>
@@ -1130,11 +1220,12 @@ export default function AppShell({
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className={setlistView ? 'scroll scroll-setlist' : 'scroll'} aria-busy={resolving ? true : undefined}>
-              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, setlistView)}
+              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, setlistView, shareBook)}
             </main>
           </div>
         )}
       </Tabs>
+      {sharingScreen}
       <InstrumentsOverlay
         store={store}
         isOpen={instrumentsOpen}
@@ -1145,6 +1236,21 @@ export default function AppShell({
           store={store}
           song={addingToSetlist}
           onClose={() => setAddingToSetlist(null)}
+        />
+      ) : null}
+      {/* A book's Share on a phone (books.share_people; W10 #1): the sheet over
+          the shell, leading to the people and New invitation screens. */}
+      {shareSheet ? (
+        <ShareSheet
+          bookId={shareSheet.bookId}
+          title={sharingFacts(shareSheet.bookId).title}
+          role={sharingFacts(shareSheet.bookId).role}
+          onClose={() => setShareSheet(null)}
+          onOpenPeople={() => openPeopleFrom(shareSheet.bookId)}
+          onNewInvitation={() => {
+            setShareSheet(null);
+            setNewInvitation({ bookId: shareSheet.bookId });
+          }}
         />
       ) : null}
       {/* A refused invitation link (books.invited_presentation; workflow 1

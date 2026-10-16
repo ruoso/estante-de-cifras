@@ -93,6 +93,11 @@ services:
       # real one.
       ESTANTE_WEBAUTHN_RP_ID: ${ESTANTE_WEBAUTHN_RP_ID:-localhost}
       ESTANTE_WEBAUTHN_STATE_SECRET: ${ESTANTE_WEBAUTHN_STATE_SECRET:-dev-insecure-webauthn-state-secret}
+      # The key an invitation's token is derived with from its id, so the owner
+      # can copy an open invitation's link again (books.share_people). A
+      # dev-only placeholder here (never a real credential); production injects
+      # a real ESTANTE_INVITATION_SECRET.
+      ESTANTE_INVITATION_SECRET: ${ESTANTE_INVITATION_SECRET:-dev-insecure-invitation-secret}
       # The books volume's root (service.books): one bare git repository per book
       # at <root>/<id>.git. It is the mount point of the `books` volume below;
       # the default matches, so this is explicit wiring, not a new value.

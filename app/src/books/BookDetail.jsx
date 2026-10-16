@@ -47,7 +47,6 @@ import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { titleFor, canSaveFor, orderedBooks, originalOf, broughtInOn } from './book-display.js';
 import { saveZip } from './download-zip.js';
-import SharingScreen from './SharingScreen.jsx';
 import MakeYourOwn from './MakeYourOwn.jsx';
 import LeaveDialog, { WarnIcon } from './LeaveDialog.jsx';
 import { useOnline } from '../account/use-online.js';
@@ -228,7 +227,9 @@ function DeleteDialog({ title, onDelete }) {
  * 'shared') is the shelf map it lives in; `mode` is the layout ('wide' |
  * 'narrow'); `onBack` closes the detail (the narrow back affordance and the
  * close after a remove/delete); `onReselect(id)` moves the open detail to a new
- * id (put-online adopts the service id — Decision 3).
+ * id (put-online adopts the service id — Decision 3); `onShare(bookId)` opens
+ * the book's sharing where the shell puts it — the Share sheet on a phone, the
+ * people screen on a tablet or a computer (books.share_people).
  */
 export default function BookDetail({
   store,
@@ -237,12 +238,12 @@ export default function BookDetail({
   mode = 'narrow',
   onBack = () => {},
   onReselect = () => {},
+  onShare = () => {},
 }) {
   const shelf = useSlice(store, 'shelf');
   const sync = useSlice(store, 'sync');
   const originals = useSlice(store, 'originals');
   const [failure, setFailure] = useState(null);
-  const [sharing, setSharing] = useState(false);
 
   const entry = orderedBooks(shelf).find((e) => e.id === bookId);
   const book = entry?.book ?? {};
@@ -522,14 +523,16 @@ export default function BookDetail({
           </div>
         ) : null}
 
-        {isOwner && !isLocal ? (
+        {(isOwner && !isLocal) || offersLeave ? (
+          // The owner shares the book; a member sees who shares it with them and
+          // who saves to it (workflow 10 §Who sees whom; W10 #6).
           <div className="card pad">
             <span className="t-h2">{t('books.share')}</span>
-            <p className="t-small">{t('books.shareBody')}</p>
+            <p className="t-small">{isOwner ? t('books.shareBody') : t('books.shareBodyMember')}</p>
             <Button
               className="btn"
               style={{ alignSelf: 'flex-start' }}
-              onPress={() => setSharing(true)}
+              onPress={() => onShare(bookId)}
             >
               {t('books.share')}
             </Button>
@@ -554,14 +557,6 @@ export default function BookDetail({
         following={forkSheet?.following ?? true}
       />
 
-      {sharing ? (
-        <SharingScreen
-          bookId={bookId}
-          title={title}
-          role={role}
-          onClose={() => setSharing(false)}
-        />
-      ) : null}
     </div>
   );
 }

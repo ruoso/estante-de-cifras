@@ -165,6 +165,14 @@ type Config struct {
 	// never logged.
 	WebAuthnStateSecret string
 
+	// InvitationSecret is the HMAC key an invitation's token is derived with
+	// from the invitation's id, so the owner can copy an open invitation's link
+	// again while the registry still stores only the token's hash
+	// (books.share_people Constraint 4). Read from ESTANTE_INVITATION_SECRET; it
+	// is required with no insecure default, a single-purpose key never shared
+	// with LinkSecret. It is a secret and is never logged.
+	InvitationSecret string
+
 	// TrustedProxies is how many proxy hops sit in front of the service, so the
 	// rate limiter keys on the real client IP and not the edge (service.rate_limits
 	// Constraint 3). It defaults to DefaultTrustedProxies (0) and is set via
@@ -277,6 +285,15 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		cfg.WebAuthnStateSecret = raw
 	} else {
 		return Config{}, fmt.Errorf("config: ESTANTE_WEBAUTHN_STATE_SECRET is required (the passkey state token's signing key; no insecure default)")
+	}
+
+	// ESTANTE_INVITATION_SECRET is required: the key an invitation's token is
+	// derived with, single-purpose and with no insecure default
+	// (books.share_people Constraint 4).
+	if raw, ok := lookup("ESTANTE_INVITATION_SECRET"); ok && raw != "" {
+		cfg.InvitationSecret = raw
+	} else {
+		return Config{}, fmt.Errorf("config: ESTANTE_INVITATION_SECRET is required (the invitation link's derivation key; no insecure default)")
 	}
 
 	if raw, ok := lookup("ESTANTE_TRUSTED_PROXIES"); ok && raw != "" {

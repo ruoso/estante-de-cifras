@@ -54,6 +54,9 @@ whole class, a band one link to the band.
 - A forwarded invitation lets in whoever it reaches, up to the book's limit.
   The list of who joined is how the owner notices, and removing someone is
   the remedy.
+- The owner can **copy an invitation's link** again from the sharing screen,
+  on any of their devices, for as long as it can still let someone in. A
+  withdrawn, expired or used-up invitation has no link to copy.
 
 Opening an invitation asks the person to sign in, or to make an account —
 a passkey, which takes seconds (workflow 7) — and then puts the book on their
@@ -73,6 +76,18 @@ Only the owner invites, in the first pass.
 The owner sees every member with their role, and every invitation with who
 joined through it. Members see who the owner and the editors are — their
 names are in the history anyway — but not the other readers.
+
+Each person is named by the name they give their saves (DIRECTION §3.3).
+Someone who has not given one yet reads *Unnamed reader* or *Unnamed editor*,
+never an account's id.
+
+**Where it sits.** *Share* on a book opens, on a phone, a sheet that sums the
+book's people up — *37 of 50*, the members counted by role, the invitations —
+and leads to the people screen and to a new invitation, each a screen of its
+own. On a tablet or a computer it opens the people screen itself, with a new
+invitation as a dialog over it. *Share* on a song is a panel beside the song
+on a tablet or a computer, and the same sheet on a phone. A member's *Share*
+opens the same places, showing what a member sees.
 
 ## Removing someone, or lowering their role
 

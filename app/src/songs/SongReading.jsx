@@ -145,6 +145,10 @@ export default function SongReading({
   onAddToSetlist = () => {},
   onShare = () => {},
   onOpenSong = () => {},
+  // A song's share (books.share_people), given the song's title: a panel beside
+  // the chart on a tablet or a computer (W10 #4), the Share sheet — a Modal —
+  // on a phone. Null when no share is open.
+  sidePanel = null,
 }) {
   // Bring the song in on mount (and when the open song changes): the text to
   // parse (OPEN_SOURCE), the reading state (OPEN_SONG), and a device-local recent
@@ -518,7 +522,7 @@ export default function SongReading({
   // items it also holds.
   const moreMenu = (
     <MenuTrigger>
-      <Button className="btn icon" aria-label={t('reading.more')}>
+      <Button className="btn icon" aria-label={t('reading.more')} data-share-return="">
         <MoreIcon />
       </Button>
       <Popover>
@@ -659,6 +663,18 @@ export default function SongReading({
     </Button>
   );
 
+  // The body with the side panel beside it, when one is open (wide); the phone
+  // draws the sheet over its screen instead.
+  const panel = typeof sidePanel === 'function' ? sidePanel({ title: baseModel?.title ?? null }) : sidePanel;
+  const wideBody = panel ? (
+    <div className="reading-with-panel">
+      {body}
+      {panel}
+    </div>
+  ) : (
+    body
+  );
+
   if (computer) {
     return (
       <>
@@ -687,12 +703,12 @@ export default function SongReading({
               <Button className="btn" onPress={() => window.print()}>
                 {t('reading.print')}
               </Button>
-              <Button className="btn" onPress={() => onShare({ bookId, path })}>
+              <Button className="btn" onPress={() => onShare({ bookId, path })} data-share-return="">
                 {t('reading.share')}
               </Button>
               {moreMenu}
             </div>
-            {body}
+            {wideBody}
           </div>
         </div>
         <InstrumentsOverlay store={store} isOpen={instrumentsOpen} onClose={() => setInstrumentsOpen(false)} />
@@ -716,7 +732,7 @@ export default function SongReading({
               {editButton}
               {moreMenu}
             </div>
-            {body}
+            {wideBody}
           </div>
         </div>
         <InstrumentsOverlay store={store} isOpen={instrumentsOpen} onClose={() => setInstrumentsOpen(false)} />
@@ -749,6 +765,7 @@ export default function SongReading({
           </Button>
         </div>
       </div>
+      {panel}
       <InstrumentsOverlay store={store} isOpen={instrumentsOpen} onClose={() => setInstrumentsOpen(false)} />
     </>
   );

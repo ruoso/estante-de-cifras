@@ -629,6 +629,9 @@ export default function BooksScreen({
   onOpenBook = () => {},
   onByLink = () => {},
   onSignIn = () => {},
+  // A book's Share (books.share_people): the shell opens the sheet or the
+  // people screen, by its layout.
+  onShareBook = () => {},
   mode = 'narrow',
   // The restore notice's dismissal, held by the shell so it outlives a tab
   // switch (account.new_device); a screen mounted alone keeps its own.
@@ -783,6 +786,7 @@ export default function BooksScreen({
         kind={detailKind}
         mode={splitMode}
         onBack={() => setOpenDetail(null)}
+        onShare={onShareBook}
         onReselect={(id) => {
           setSelected(id);
           setOpenDetail(id);

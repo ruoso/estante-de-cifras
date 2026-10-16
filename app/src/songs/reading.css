@@ -75,6 +75,26 @@
   gap: calc(var(--u) * 1.25);
 }
 
+/* A song's share panel beside the chart (books.share_people; W10 #4): the
+   reading body and the panel share the main pane's row. */
+.reading-with-panel {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.reading-with-panel > .reading-scroll {
+  flex: 1;
+  min-width: 0;
+}
+/* Narrowed by the panel, the shapes go below the chart rather than squeeze it
+   (the tablet's nowrap row would leave the chart no width). */
+.reading-split .reading-with-panel .reading-sheet {
+  flex-wrap: wrap;
+}
+.reading-split .reading-with-panel .reading-sheet .chart {
+  flex-basis: 240px;
+}
+
 /* The wide layouts: the computer's master-detail (search beside the song,
    W02#4) and the tablet's whole pane (.reading-tablet, W02#3), which shares the
    split's single main pane. */

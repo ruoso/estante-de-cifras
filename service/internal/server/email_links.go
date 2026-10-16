@@ -32,7 +32,11 @@ type APIDeps struct {
 	Mailer        mailer.Mailer
 	LinkSecret    []byte
 	PublicBaseURL string
-	Passkeys      *passkey.RP
+	// InvitationSecret is the HMAC key an invitation's token is derived with
+	// from its id (books.share_people Constraint 4), single-purpose — never
+	// LinkSecret. It is never logged.
+	InvitationSecret []byte
+	Passkeys         *passkey.RP
 	// BooksRoot is the volume directory the per-book bare repositories live
 	// under; the book handlers derive each repository's path from it and the
 	// book id (service.books; DIRECTION §3.3).

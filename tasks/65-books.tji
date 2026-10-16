@@ -149,8 +149,9 @@ task books "Books" {
   task share_people "Sharing names people, and reads as drawn" {
     effort 2d
     allocate team
+    complete 100
     depends !share, service.sharing
-    note "The Share sheet lists a member, and who joined through an invitation, by raw account id (1813458e-...) where the W10 board names them (workflow 10: members listed). Name people by their display name (the service's members/invitations responses carry it, or the contract gains it). Also from W10: the new invitation lacks the room-left callout, invitations lack Copy link, the owner's people screen and a song's share are sheets where the board draws a screen and a side panel. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (names, not ids; Copy link; axe); e2e-api (members and invitations carry names); e2e-web (two people, the owner sees the other by name; mockup W10#1-6)."
+    note "The Share sheet lists a member, and who joined through an invitation, by raw account id (1813458e-...) where the W10 board names them (workflow 10: members listed). Name people by their display name (the service's members/invitations responses carry it, or the contract gains it). Also from W10: the new invitation lacks the room-left callout, invitations lack Copy link, the owner's people screen and a song's share are sheets where the board draws a screen and a side panel. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (names, not ids; Copy link; axe); e2e-api (members and invitations carry names); e2e-web (two people, the owner sees the other by name; mockup W10#1-6). Refinement: tasks/refinements/books/share_people.md"
   }
   task add_book_chooser "Add a book as a four-way chooser" {
     effort 1d

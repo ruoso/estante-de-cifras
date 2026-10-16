@@ -1494,7 +1494,11 @@ components:
           $ref: '#/components/schemas/Role'
         displayName:
           type: string
-          description: A short display name, when the caller may see it.
+          description: >-
+            The name the person gives their saves (authorName in their home
+            book), read at request time for the members the caller may see
+            (workflow 10 §Who sees whom); absent when they have given none. The
+            service stores no name.
 
     MemberList:
       type: object
@@ -1528,6 +1532,10 @@ components:
           $ref: '#/components/schemas/Id'
         displayName:
           type: string
+          description: >-
+            The name the joiner gives their saves (authorName in their home
+            book), kept after they leave or are removed; absent when they have
+            given none. Only in the owner's listInvitations.
         joinedAt:
           type: string
           format: date-time
@@ -1556,7 +1564,12 @@ components:
         url:
           type: string
           format: uri
-          description: The invitation link to send; the owner sends it however they like.
+          description: >-
+            The invitation link to send; the owner sends it however they like.
+            Returned at creation, and in the owner's listInvitations while the
+            invitation can still let someone in (not withdrawn, expired or used
+            up), so it can be copied again from any device (workflow 10
+            §Invitations); absent otherwise.
         role:
           $ref: '#/components/schemas/InvitableRole'
         expiry:
@@ -1568,7 +1581,7 @@ components:
         useLimit:
           type: [integer, 'null']
           minimum: 1
-          description: The cap on uses, or null for unlimited.
+          description: The cap on uses, or null for unlimited (uses left are useLimit − joinedCount).
         joined:
           type: array
           description: Who has joined through this invitation (workflow 10).

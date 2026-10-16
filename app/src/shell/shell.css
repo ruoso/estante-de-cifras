@@ -80,6 +80,13 @@ body {
   flex-direction: column;
 }
 
+/* A book's sharing screen is open over the shell (books.share_people): the
+   shell stays mounted — the open book is still there on Back — but is not
+   shown, nor in the accessibility tree. */
+.shell.shell-covered {
+  display: none;
+}
+
 /* The destination tab panels (RAC `TabPanel`) join the flex chain, so the tab
    screen inside one (search, books, setlists) is bounded by the frame and
    scrolls itself — rather than the shell's `main.scroll` around it scrolling,

@@ -91,12 +91,14 @@ func run() error {
 	}
 
 	api := &server.APIDeps{
-		DB:            pool,
-		Mailer:        mail.NewSMTP(cfg.SMTPAddr, cfg.MailFrom),
-		LinkSecret:    []byte(cfg.LinkSecret),
-		PublicBaseURL: cfg.PublicBaseURL,
-		Passkeys:      rp,
-		BooksRoot:     cfg.BooksRoot,
+		DB:         pool,
+		Mailer:     mail.NewSMTP(cfg.SMTPAddr, cfg.MailFrom),
+		LinkSecret: []byte(cfg.LinkSecret),
+		// The invitation link's derivation key (books.share_people).
+		InvitationSecret: []byte(cfg.InvitationSecret),
+		PublicBaseURL:    cfg.PublicBaseURL,
+		Passkeys:         rp,
+		BooksRoot:        cfg.BooksRoot,
 		// Git over HTTP (service.git_http): the hooks directory git is pointed at
 		// on every push, the per-request deadline, and the request-body cap.
 		HooksDir:            cfg.HooksDir,

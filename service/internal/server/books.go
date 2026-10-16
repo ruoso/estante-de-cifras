@@ -59,33 +59,35 @@ type bookJSON struct {
 	OwnerName string `json:"ownerName,omitempty"`
 }
 
-// ownerNames reads, once per owner within one request, the name an owner gives
-// their saves: the authorName of the owner's home book (books.kind = 'home',
+// accountNames reads, once per account within one request, the name a person
+// gives their saves: the authorName of their home book (books.kind = 'home',
 // one per owner). The service stores no name (DIRECTION §3.3); a missing home
 // book or an unreadable or unset name is "" — never an error, and never logged.
-type ownerNames struct {
+// It names a book's owner to its members (books.owner_name), and the people on
+// the sharing surface within who-sees-whom (books.share_people).
+type accountNames struct {
 	api   *APIDeps
 	store book.Store
 	names map[string]string
 }
 
-func newOwnerNames(api *APIDeps, store book.Store) *ownerNames {
-	return &ownerNames{api: api, store: store, names: map[string]string{}}
+func newAccountNames(api *APIDeps, store book.Store) *accountNames {
+	return &accountNames{api: api, store: store, names: map[string]string{}}
 }
 
-func (o *ownerNames) name(ctx context.Context, ownerID string) string {
-	if name, seen := o.names[ownerID]; seen {
+func (o *accountNames) name(ctx context.Context, accountID string) string {
+	if name, seen := o.names[accountID]; seen {
 		return name
 	}
 	var name string
 	var homeID string
 	err := o.api.DB.QueryRow(ctx, `
 		SELECT id FROM books
-		WHERE owner_id = $1 AND kind = 'home' AND deleted_at IS NULL`, ownerID).Scan(&homeID)
+		WHERE owner_id = $1 AND kind = 'home' AND deleted_at IS NULL`, accountID).Scan(&homeID)
 	if err == nil {
 		name, _ = o.store.ReadAuthorName(ctx, homeID)
 	}
-	o.names[ownerID] = name
+	o.names[accountID] = name
 	return name
 }
 
@@ -273,7 +275,7 @@ func handleListBooks(api *APIDeps) http.HandlerFunc {
 		// A member is told who shares the book: the owner's name, read once per
 		// owner (books.owner_name). The owner's own books carry none. Read after
 		// the rows are drained, so the lookup does not share the connection.
-		owners := newOwnerNames(api, store)
+		owners := newAccountNames(api, store)
 		for _, b := range books {
 			if b.bj.Role != "owner" {
 				b.bj.OwnerName = owners.name(ctx, b.ownerID)

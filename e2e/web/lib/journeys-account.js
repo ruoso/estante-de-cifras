@@ -20,6 +20,7 @@ import { waitForMessage, extractSignInLink } from './mail.js';
 import { openDevice } from './devices.js';
 import { GitDevice } from './git-device.js';
 import { baseUrl } from './env.js';
+import { inviteThroughShare } from './journeys-share.js';
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -92,29 +93,10 @@ export async function signInByEmailWithPasskey(page, email) {
 
 // ---- sharing between two people (workflow 10) ----------------------------------
 
-// The owner's Share dialog for a book on the Books screen.
-export async function openSharing(page, bookTitle) {
-  // Right after putBookOnline the book's detail is still open (Share is there).
-  const share = page.getByRole('button', { name: 'Share', exact: true });
-  if (!(await share.isVisible().catch(() => false))) {
-    await gotoTab(page, 'Books');
-    await page.getByRole('button', { name: new RegExp(`^${escape(bookTitle)}`) }).click();
-  }
-  await share.click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog.getByRole('heading', { name: `Share ${bookTitle}` })).toBeVisible();
-  return dialog;
-}
-
-// Make an invitation link for `bookTitle` through the Share dialog.
+// Make an invitation link for `bookTitle` through the people screen
+// (books.share_people), and come back to the book.
 export async function inviteLink(page, bookTitle, role = 'Editor') {
-  const dialog = await openSharing(page, bookTitle);
-  await dialog.getByRole('button', { name: 'Invite people' }).click();
-  await dialog.getByRole('radio', { name: role }).click();
-  await dialog.getByRole('button', { name: 'Create link' }).click();
-  const link = await dialog.getByRole('textbox', { name: 'Invitation link' }).inputValue();
-  expect(link).toContain('/i/');
-  return link;
+  return inviteThroughShare(page, bookTitle, { role });
 }
 
 // A second PERSON: a fresh browser context with its own authenticator opens the

@@ -171,9 +171,11 @@ in its place, which the account's address replaces in the saves not yet
 pushed when the user signs in. The service stores no name for an
 account: the name a person gives their saves (`authorName` in their home
 book, `docs/home-book-format.md` §4.1) is already in the history of every
-book they save to. The service reads it from the owner's home book to tell a
-book's members who shares it (*shared by Ana*, *Ana can invite you again*,
-workflow 10 §Leaving a book), and to no one else. **One origin** for both: no CORS, a
+book they save to. The service reads it from a person's home book to name them to
+those workflow 10 §Who sees whom lets see them — the owner to the book's
+members (*shared by Ana*, *Ana can invite you again*, workflow 10 §Leaving a
+book); every member, and who joined through each invitation, to the owner;
+the editors to the members — and to no one else. **One origin** for both: no CORS, a
 session cookie that simply flows, and a passkey for the one domain.
 Moving the app to a CDN later is possible but not free, since a shelf
 belongs to the app's origin; it would keep the same domain.

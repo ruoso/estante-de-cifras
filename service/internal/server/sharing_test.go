@@ -85,6 +85,59 @@ func TestInvitationTokenHash(t *testing.T) {
 	}
 }
 
+// testInvitationSecret is the invitation derivation key newBooksEnv wires into
+// APIDeps (books.share_people Constraint 4).
+const testInvitationSecret = "test-invitation-secret"
+
+// TestInvitationTokenDerived pins books.share_people Constraint 4: the derived
+// token is stable for one id and secret, differs across ids and across
+// secrets, is high-entropy-length, and its hash is what the row stores — so a
+// relisted invitation carries a url only when it re-derives, and only while it
+// can still let someone in.
+func TestInvitationTokenDerived(t *testing.T) {
+	secret := []byte("one-secret")
+	id := "6f1c2a52-6d4e-4b0f-9a6e-2b9d6c3e8a10"
+	other := "0b7d1e2f-3a4b-4c5d-8e6f-7a8b9c0d1e2f"
+	a := deriveInvitationToken(secret, id)
+	if a != deriveInvitationToken(secret, id) {
+		t.Error("the derived token is not stable for one id and secret")
+	}
+	if len(a) < 32 {
+		t.Errorf("derived token too short (%d chars) for a high-entropy secret", len(a))
+	}
+	if a == deriveInvitationToken(secret, other) {
+		t.Error("two ids derived the same token")
+	}
+	if a == deriveInvitationToken([]byte("another-secret"), id) {
+		t.Error("two secrets derived the same token")
+	}
+	if strings.ContainsAny(a, "+/=") {
+		t.Errorf("derived token %q is not unpadded base64url", a)
+	}
+
+	stored := hashToken(a)
+	now := time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC)
+	if got, want := relistedInvitationURL("https://e.test/", secret, id, stored, false, nil, nil, now), "https://e.test/i/"+a; got != want {
+		t.Errorf("open invitation url = %q, want %q", got, want)
+	}
+	past, future := now.Add(-time.Hour), now.Add(time.Hour)
+	zero, one := 0, 1
+	if got := relistedInvitationURL("https://e.test", secret, id, stored, false, &future, &one, now); got == "" {
+		t.Error("an unexpired invitation with a use left carries no url")
+	}
+	for name, got := range map[string]string{
+		"withdrawn":      relistedInvitationURL("https://e.test", secret, id, stored, true, nil, nil, now),
+		"expired":        relistedInvitationURL("https://e.test", secret, id, stored, false, &past, nil, now),
+		"used up":        relistedInvitationURL("https://e.test", secret, id, stored, false, nil, &zero, now),
+		"random token":   relistedInvitationURL("https://e.test", secret, id, hashToken("not-derived"), false, nil, nil, now),
+		"rotated secret": relistedInvitationURL("https://e.test", []byte("rotated"), id, stored, false, nil, nil, now),
+	} {
+		if got != "" {
+			t.Errorf("%s invitation url = %q, want none", name, got)
+		}
+	}
+}
+
 // TestVisibleMembers pins who-sees-whom (workflow 10 lines 71-75; contract
 // listMembers): the owner sees everyone, any other caller sees the owner and
 // the editors but not the other readers.
@@ -272,7 +325,8 @@ func TestCreateInvitation(t *testing.T) {
 
 // TestListInvitations pins acceptance #2 (workflow 10 lines 54-55, 71-72;
 // contract listInvitations): the owner's list carries each invitation with its
-// joiners and withdrawn flag and omits the url; the gates answer as declared.
+// joiners and withdrawn flag, and — since books.share_people — the url of an
+// open one, the same the create returned; the gates answer as declared.
 func TestListInvitations(t *testing.T) {
 	e := newBooksEnv(t)
 	_, ownerCookie := e.registerNewAccount(t)
@@ -292,10 +346,6 @@ func TestListInvitations(t *testing.T) {
 	if err := e.contract.Validate("listInvitations", apicontract.Response, "200", body); err != nil {
 		t.Errorf("listInvitations response does not conform: %v", err)
 	}
-	// The url is unrecoverable once stored (Decisions): it never appears in the list.
-	if strings.Contains(string(body), "/i/") {
-		t.Errorf("listInvitations leaked a link: %s", body)
-	}
 	var list invitationListJSON
 	if err := json.Unmarshal(body, &list); err != nil {
 		t.Fatalf("decoding invitation list: %v", err)
@@ -304,8 +354,13 @@ func TestListInvitations(t *testing.T) {
 		t.Fatalf("invitations = %d, want 1", len(list.Invitations))
 	}
 	got := list.Invitations[0]
-	if got.URL != "" {
-		t.Errorf("listed invitation url = %q, want omitted", got.URL)
+	// One use is left, so the invitation can still let someone in: its link is
+	// re-derived (books.share_people Constraint 4).
+	if got.URL != inv.URL {
+		t.Errorf("listed invitation url = %q, want the create's %q", got.URL, inv.URL)
+	}
+	if got.UseLimit == nil || *got.UseLimit != 2 {
+		t.Errorf("listed useLimit = %v, want the cap 2", got.UseLimit)
 	}
 	if got.JoinedCount != 1 || len(got.Joined) != 1 || got.Joined[0].UserID != joinerID {
 		t.Errorf("joined = %+v (count %d), want the one joiner %s", got.Joined, got.JoinedCount, joinerID)
@@ -529,6 +584,151 @@ func TestFiftiethJoinsFiftyFirstRefused(t *testing.T) {
 	}
 }
 
+// listInvitationsOK GETs the owner's invitations, asserting 200 and contract
+// conformance.
+func (e *booksEnv) listInvitationsOK(t *testing.T, cookie, bookID string) invitationListJSON {
+	t.Helper()
+	resp, body := e.do(t, http.MethodGet, "/api/books/"+bookID+"/invitations", cookie, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list invitations: status = %d, want 200; body=%s", resp.StatusCode, body)
+	}
+	if err := e.contract.Validate("listInvitations", apicontract.Response, "200", body); err != nil {
+		t.Errorf("listInvitations response does not conform: %v", err)
+	}
+	var list invitationListJSON
+	if err := json.Unmarshal(body, &list); err != nil {
+		t.Fatalf("decoding invitation list: %v", err)
+	}
+	return list
+}
+
+func invitationByID(list invitationListJSON, id string) (invitationJSON, bool) {
+	for _, inv := range list.Invitations {
+		if inv.ID == id {
+			return inv, true
+		}
+	}
+	return invitationJSON{}, false
+}
+
+// namedPrefs is a home book's preferences.json giving authorName (the shape
+// docs/home-book-format.md §4.1 draws).
+func namedPrefs(name string) string {
+	return `{"authorName":{"value":"` + name + `","at":"2026-10-05T14:29:12.500Z"}}` + "\n"
+}
+
+// TestListInvitationsJoinerNames pins workflow 10 §Invitations ("who has joined
+// through it") with books.share_people: each joiner carries the name they give
+// their saves, an unnamed joiner none, and a joiner since removed keeps theirs.
+func TestListInvitationsJoinerNames(t *testing.T) {
+	e := newBooksEnv(t)
+	_, ownerCookie := e.registerNewAccount(t)
+	b := e.createBook(t, ownerCookie, "Choros da Ana")
+	inv := e.createInvitation(t, ownerCookie, b.ID, `{"role":"reader"}`)
+	token := tokenFromURL(t, inv.URL)
+
+	biaID, biaCookie := e.registerNewAccount(t)
+	e.seedHomeBookName(t, biaCookie, namedPrefs("Bia Rocha"))
+	unnamedID, unnamedCookie := e.registerNewAccount(t)
+	goneID, goneCookie := e.registerNewAccount(t)
+	e.seedHomeBookName(t, goneCookie, namedPrefs("Caio Nunes"))
+	for _, c := range []string{biaCookie, unnamedCookie, goneCookie} {
+		if resp, body := e.acceptInvitation(t, c, token); resp.StatusCode != http.StatusOK {
+			t.Fatalf("accept: status = %d, want 200; body=%s", resp.StatusCode, body)
+		}
+	}
+	if resp, body := e.do(t, http.MethodDelete, "/api/books/"+b.ID+"/members/"+goneID, ownerCookie, nil); resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("remove member: status = %d, want 204; body=%s", resp.StatusCode, body)
+	}
+
+	got, ok := invitationByID(e.listInvitationsOK(t, ownerCookie, b.ID), inv.ID)
+	if !ok {
+		t.Fatalf("invitation %s not listed", inv.ID)
+	}
+	names := map[string]string{}
+	for _, j := range got.Joined {
+		names[j.UserID] = j.DisplayName
+	}
+	if len(names) != 3 {
+		t.Fatalf("joined = %+v, want the three joiners", got.Joined)
+	}
+	if names[biaID] != "Bia Rocha" {
+		t.Errorf("named joiner displayName = %q, want Bia Rocha", names[biaID])
+	}
+	if names[unnamedID] != "" {
+		t.Errorf("unnamed joiner displayName = %q, want none", names[unnamedID])
+	}
+	if names[goneID] != "Caio Nunes" {
+		t.Errorf("removed joiner displayName = %q, want Caio Nunes kept", names[goneID])
+	}
+}
+
+// TestListInvitationsURL pins workflow 10 §Invitations (copy an invitation's
+// link again) and books.share_people Constraint 4: the owner's list carries an
+// open invitation's url — the create's, which joins whoever accepts through it
+// — and none for a withdrawn, an expired, a used-up invitation, nor one whose
+// stored hash does not re-derive (a row minted with a random token).
+func TestListInvitationsURL(t *testing.T) {
+	e := newBooksEnv(t)
+	_, ownerCookie := e.registerNewAccount(t)
+	b := e.createBook(t, ownerCookie, "Roda de rua")
+
+	open := e.createInvitation(t, ownerCookie, b.ID, `{"role":"reader","expiry":"until-withdrawn"}`)
+	withdrawn := e.createInvitation(t, ownerCookie, b.ID, `{"role":"reader"}`)
+	expired := e.createInvitation(t, ownerCookie, b.ID, `{"role":"reader"}`)
+	usedUp := e.createInvitation(t, ownerCookie, b.ID, `{"role":"editor","useLimit":1}`)
+	ctx := context.Background()
+	if resp, _ := e.do(t, http.MethodDelete, "/api/books/"+b.ID+"/invitations/"+withdrawn.ID, ownerCookie, nil); resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("withdraw: status = %d, want 204", resp.StatusCode)
+	}
+	if _, err := e.pool.Exec(ctx, `UPDATE invitations SET expires_at = now() - interval '1 hour' WHERE id = $1`, expired.ID); err != nil {
+		t.Fatalf("expire invitation: %v", err)
+	}
+	_, firstCookie := e.registerNewAccount(t)
+	if resp, body := e.acceptInvitation(t, firstCookie, tokenFromURL(t, usedUp.URL)); resp.StatusCode != http.StatusOK {
+		t.Fatalf("accept used-up: status = %d, want 200; body=%s", resp.StatusCode, body)
+	}
+	_, legacyHash, err := newInvitationToken()
+	if err != nil {
+		t.Fatalf("newInvitationToken: %v", err)
+	}
+	var legacyID string
+	if err := e.pool.QueryRow(ctx,
+		`INSERT INTO invitations (token, book_id, role) VALUES ($1, $2, 'reader') RETURNING id`, legacyHash, b.ID).Scan(&legacyID); err != nil {
+		t.Fatalf("seed a random-token invitation: %v", err)
+	}
+
+	list := e.listInvitationsOK(t, ownerCookie, b.ID)
+	got, _ := invitationByID(list, open.ID)
+	if got.URL == "" || got.URL != open.URL {
+		t.Errorf("open invitation url = %q, want the create's %q", got.URL, open.URL)
+	}
+	for name, id := range map[string]string{"withdrawn": withdrawn.ID, "expired": expired.ID, "used-up": usedUp.ID, "random-token": legacyID} {
+		inv, ok := invitationByID(list, id)
+		if !ok {
+			t.Errorf("%s invitation not listed", name)
+			continue
+		}
+		if inv.URL != "" {
+			t.Errorf("%s invitation url = %q, want none", name, inv.URL)
+		}
+	}
+	// The used-up invitation still reads its cap, not the uses left (contract
+	// Invitation.useLimit, minimum 1).
+	if inv, _ := invitationByID(list, usedUp.ID); inv.UseLimit == nil || *inv.UseLimit != 1 || inv.JoinedCount != 1 {
+		t.Errorf("used-up invitation useLimit/joinedCount = %v/%d, want 1/1", inv.UseLimit, inv.JoinedCount)
+	}
+
+	// The relisted link lets a new person in.
+	joinerID, joinerCookie := e.registerNewAccount(t)
+	if resp, body := e.acceptInvitation(t, joinerCookie, tokenFromURL(t, got.URL)); resp.StatusCode != http.StatusOK {
+		t.Fatalf("accept through the listed url: status = %d, want 200; body=%s", resp.StatusCode, body)
+	}
+	if n := e.countRows(t, `SELECT count(*) FROM memberships WHERE book_id = $1 AND account_id = $2`, b.ID, joinerID); n != 1 {
+		t.Errorf("membership through the listed url = %d, want 1", n)
+	}
+}
+
 // --- behavior: members -------------------------------------------------------
 
 // TestListMembersWhoSeesWhom pins acceptance #5 (workflow 10 lines 71-75;
@@ -596,6 +796,70 @@ func TestListMembersWhoSeesWhom(t *testing.T) {
 	}
 	if resp, _ := e.do(t, http.MethodGet, "/api/books/"+b.ID+"/members", "", nil); resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("no session list members: status = %d, want 401", resp.StatusCode)
+	}
+}
+
+// TestListMembersNames pins workflow 10 §Who sees whom with DIRECTION §3.3 (as
+// books.share_people revised it): the owner's list names every named member
+// and omits displayName for one with none; a reader's names the owner and the
+// editor, and carries no reader at all — names follow who-sees-whom exactly.
+func TestListMembersNames(t *testing.T) {
+	e := newBooksEnv(t)
+	ownerID, ownerCookie := e.registerNewAccount(t)
+	e.seedHomeBookName(t, ownerCookie, namedPrefs("Ana"))
+	b := e.createBook(t, ownerCookie, "Choros da Ana")
+
+	editorID, editorCookie := e.registerNewAccount(t)
+	e.seedHomeBookName(t, editorCookie, namedPrefs("Marina Costa"))
+	readerID, readerCookie := e.registerNewAccount(t)
+	e.seedHomeBookName(t, readerCookie, namedPrefs("Bia Rocha"))
+	unnamedID := e.insertAccount(t)
+	e.insertMembership(t, b.ID, editorID, "editor")
+	e.insertMembership(t, b.ID, readerID, "reader")
+	e.insertMembership(t, b.ID, unnamedID, "reader")
+
+	nameOf := func(ml memberListJSON, id string) (string, bool) {
+		for _, m := range ml.Members {
+			if m.UserID == id {
+				return m.DisplayName, true
+			}
+		}
+		return "", false
+	}
+
+	resp, body := e.do(t, http.MethodGet, "/api/books/"+b.ID+"/members", ownerCookie, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("owner list members: status = %d, want 200; body=%s", resp.StatusCode, body)
+	}
+	if err := e.contract.Validate("listMembers", apicontract.Response, "200", body); err != nil {
+		t.Errorf("listMembers (owner) does not conform: %v", err)
+	}
+	ownerView := decodeMemberList(t, body)
+	for id, want := range map[string]string{ownerID: "Ana", editorID: "Marina Costa", readerID: "Bia Rocha", unnamedID: ""} {
+		if got, ok := nameOf(ownerView, id); !ok || got != want {
+			t.Errorf("owner view: %s displayName = %q (listed %v), want %q", id, got, ok, want)
+		}
+	}
+	if strings.Contains(string(body), `"displayName":""`) {
+		t.Errorf("an unnamed member carries an empty displayName; want it omitted: %s", body)
+	}
+
+	resp, body = e.do(t, http.MethodGet, "/api/books/"+b.ID+"/members", readerCookie, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("reader list members: status = %d, want 200", resp.StatusCode)
+	}
+	if err := e.contract.Validate("listMembers", apicontract.Response, "200", body); err != nil {
+		t.Errorf("listMembers (reader) does not conform: %v", err)
+	}
+	readerView := decodeMemberList(t, body)
+	if got, _ := nameOf(readerView, ownerID); got != "Ana" {
+		t.Errorf("reader view: owner displayName = %q, want Ana", got)
+	}
+	if got, _ := nameOf(readerView, editorID); got != "Marina Costa" {
+		t.Errorf("reader view: editor displayName = %q, want Marina Costa", got)
+	}
+	if len(readerView.Members) != 2 || strings.Contains(string(body), "Bia Rocha") {
+		t.Errorf("reader view = %s, want the owner and the editor only, no reader", body)
 	}
 }
 

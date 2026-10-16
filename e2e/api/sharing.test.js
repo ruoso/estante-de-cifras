@@ -96,7 +96,29 @@ const namedPreferences =
   '  }\n' +
   '}\n';
 
+// preferences.json naming `name` (§4.1 authorName, canonical §6).
+function preferencesNaming(name) {
+  return `{\n  "authorName": {\n    "at": "2026-10-05T14:29:12.500Z",\n    "value": ${JSON.stringify(name)}\n  }\n}\n`;
+}
+
 const tempDirs = [];
+
+// The signed-in account's device brings its home book online with an
+// authorName, with the git CLI through the hook (as the ownerName case does).
+async function nameOnService(client, name) {
+  const homeResp = await client.get('/api/account/home-book');
+  expect(homeResp.status).toBe(200);
+  const home = await homeResp.json();
+  const dir = await tempDir('estante-e2e-home-');
+  const work = await GitCli.create(dir);
+  await work.init();
+  await writeFile(join(dir, 'README.md'), homeReadme);
+  await writeFile(join(dir, '.gitattributes'), homeGitattributes);
+  await writeFile(join(dir, 'preferences.json'), preferencesNaming(name));
+  await work.add('.');
+  await work.commit('Bring the home book online');
+  await work.pushHTTP(gitEndpoint(home), client.cookieHeader());
+}
 
 async function tempDir(prefix) {
   const dir = await makeTempDir(prefix);
@@ -307,5 +329,52 @@ describe('sharing (workflow 10)', () => {
     const ownList = await owner.getJson('/api/books');
     expect(findBook(ownList, book.id)).toBeTruthy();
     expect(ownList.books.every((b) => !('ownerName' in b))).toBe(true);
+  });
+
+  // books.share_people (workflow 10 §Who sees whom, §Invitations; DIRECTION
+  // §3.3): members and joiners are named by the name they give their saves,
+  // within who-sees-whom, and the owner's list carries an open invitation's
+  // link again — the same link, which still lets someone in — until withdrawn.
+  it("members and invitations carry the names people gave their saves, and the owner copies an open invitation's link again", async () => {
+    const owner = new HttpClient();
+    const ownerId = await registerNewAccount(owner);
+    await nameOnService(owner, 'Ana');
+    const book = await createBook(owner, 'Choros da Ana');
+    const inv = await createInvitation(owner, book.id, { role: 'reader', expiry: 'until-withdrawn' });
+
+    const bia = new HttpClient();
+    const biaId = await registerNewAccount(bia);
+    await nameOnService(bia, 'Bia Rocha');
+    expect((await acceptInvitation(bia, tokenFromUrl(inv.url))).status).toBe(200);
+
+    // The owner's members name Bia; the invitation names her as its joiner and
+    // carries the very link the create returned.
+    const members = await owner.getJson(`/api/books/${book.id}/members`);
+    expect(members.members.find((m) => m.userId === biaId)?.displayName).toBe('Bia Rocha');
+    expect(members.members.find((m) => m.userId === ownerId)?.displayName).toBe('Ana');
+    let listed = (await owner.getJson(`/api/books/${book.id}/invitations`)).invitations.find((i) => i.id === inv.id);
+    expect(listed.joined.map((j) => j.displayName)).toEqual(['Bia Rocha']);
+    expect(listed.url).toBe(inv.url);
+
+    // A third person joins through the listed link.
+    const third = new HttpClient();
+    const thirdId = await registerNewAccount(third);
+    expect((await acceptInvitation(third, tokenFromUrl(listed.url))).status).toBe(200);
+    expect(findBook(await third.getJson('/api/books'), book.id)).toBeTruthy();
+    listed = (await owner.getJson(`/api/books/${book.id}/invitations`)).invitations.find((i) => i.id === inv.id);
+    expect(listed.joined.map((j) => j.userId).sort()).toEqual([biaId, thirdId].sort());
+    // Someone with no name carries none — never an id in its place.
+    expect(listed.joined.find((j) => j.userId === thirdId).displayName).toBeUndefined();
+
+    // Withdrawn, the invitation has no link to copy.
+    expect((await owner.fetch(`/api/books/${book.id}/invitations/${inv.id}`, { method: 'DELETE' })).status).toBe(204);
+    listed = (await owner.getJson(`/api/books/${book.id}/invitations`)).invitations.find((i) => i.id === inv.id);
+    expect(listed.withdrawn).toBe(true);
+    expect(listed.url).toBeUndefined();
+
+    // A reader sees the owner, named, and no reader at all.
+    const asReader = await bia.getJson(`/api/books/${book.id}/members`);
+    expect(asReader.members).toEqual([{ userId: ownerId, role: 'owner', displayName: 'Ana' }]);
+    expect(asReader.count).toBe(2);
   });
 });

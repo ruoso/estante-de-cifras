@@ -632,3 +632,116 @@ describe('AppShell setlist chrome on a phone (behavior)', () => {
     expect(container.querySelector('.rail')).toBeNull();
   });
 });
+
+// behavior (books.share_people; workflow 10 §Who sees whom **Where it sits**) —
+// where each sharing surface sits by layout: on a phone *Share* on a book opens
+// the sheet, whose Members row opens the people screen full-screen, and Back
+// returns to the book; on a tablet or a computer *Share* opens the people
+// screen; *Share* on a song is a panel beside the chart, the reading view still
+// there and not aria-hidden. The sharing client's `fetch` is a loopback double.
+describe('AppShell share surfaces (behavior)', () => {
+  const OWNED = {
+    books: {
+      [BOOK]: {
+        label: { value: BOOK_LABEL, at: AT },
+        role: { value: 'owner', at: AT },
+        position: { value: 1, at: AT },
+      },
+    },
+    local: {},
+  };
+  const MEMBERS = {
+    members: [
+      { userId: '00000000-0000-4000-8000-000000000001', role: 'owner', displayName: 'Ana' },
+      { userId: '00000000-0000-4000-8000-000000000002', role: 'reader', displayName: 'Bia Rocha' },
+    ],
+    count: 1,
+    limit: 50,
+  };
+  let realFetch;
+  beforeEach(() => {
+    realFetch = globalThis.fetch;
+    globalThis.fetch = async (path) => {
+      const body = String(path).endsWith('/members') ? MEMBERS : { invitations: [] };
+      return { ok: true, status: 200, json: async () => body };
+    };
+  });
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  const wide = (computer = false) => {
+    globalThis.matchMedia = (media) => ({
+      media,
+      matches: media === WIDE_QUERY || (computer && media === READING_ACTIONS_WIDE_QUERY),
+      addEventListener() {},
+      removeEventListener() {},
+    });
+  };
+
+  function openBookDetail(emit) {
+    emit(event(EventKind.SHELF, OWNED));
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${BOOK_LABEL}`) }));
+    fireEvent.click(screen.getByRole('button', { name: 'Share', exact: true }));
+  }
+
+  it('narrow: Share on a book opens the sheet; Members opens the people screen full-screen; Back returns to the book', async () => {
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    openBookDetail(emit);
+
+    const sheet = await screen.findByRole('dialog', { name: `Share ${BOOK_LABEL}` });
+    fireEvent.click(await within(sheet).findByRole('button', { name: /^Members/ }));
+
+    const people = await screen.findByRole('region', { name: `${BOOK_LABEL} · People` });
+    expect(await within(people).findByText('Bia Rocha')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // A full screen: the shell is not shown beneath it.
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(history.state.layers).toEqual(['people']);
+
+    await traverse(() => fireEvent.click(within(people).getByRole('button', { name: 'Back' })));
+    expect(screen.queryByRole('region', { name: `${BOOK_LABEL} · People` })).toBeNull();
+    // Back on the book that was open, its Share still there.
+    expect(screen.getByRole('button', { name: 'Share', exact: true })).toBeInTheDocument();
+  });
+
+  it('wide: Share on a book opens the people screen', async () => {
+    wide();
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    openBookDetail(emit);
+
+    const people = await screen.findByRole('region', { name: `${BOOK_LABEL} · People` });
+    expect(await within(people).findByText('Ana (you)')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('wide: Share on a song opens the panel beside the chart, the reading view present and not aria-hidden', async () => {
+    wide(true);
+    const { store, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, OWNED));
+    act(() => {
+      fireEvent.change(screen.getAllByRole('searchbox')[0], { target: { value: 'tarde' } });
+    });
+    emit(
+      event(EventKind.SEARCH_RESULTS, {
+        query: 'tarde',
+        results: [{ bookId: BOOK, path: SONG_PATH, title: SONG_TITLE, artist: '', score: 3, unsaved: false }],
+      }),
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(SONG_TITLE) })[0]);
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Share', exact: true }));
+    const panel = screen.getByRole('complementary', { name: `Share ${SONG_TITLE}` });
+    expect(panel).toBeInTheDocument();
+    const song = screen.getByRole('group', { name: SONG_TITLE });
+    expect(song.closest('[aria-hidden="true"]')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await within(panel).findByText(/0 invitations/);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});

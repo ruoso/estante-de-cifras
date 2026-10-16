@@ -2,7 +2,8 @@
 // (workflow 1 §Invited, workflow 7 §By link). Group `share`; the coordinator
 // folds what is generally useful into journeys.js.
 //
-// Everything is the Share dialog, the invited screen and the Add-a-book sheet:
+// Everything is the Share sheet, the people and New invitation screens, the
+// invited screen and the Add-a-book sheet:
 // no API writes, no dev mounts. The only reads that go below the UI are the
 // book's id (GET /api/books), which the SQL capacity fill and the take-down
 // need, and which the app itself never prints.
@@ -122,7 +123,7 @@ export async function bookIdOf(page, title) {
   return book.id;
 }
 
-// ---- the Share dialog -------------------------------------------------------
+// ---- the sharing surfaces (books.share_people) ------------------------------
 
 // The Books list, from wherever the person is: with a book's detail open on a
 // narrow layout, or a song or the editor in front, the list is not showing, so
@@ -138,47 +139,90 @@ export async function booksList(page) {
   await gotoTab(page, 'Books');
 }
 
-// Books → the book → Share. Returns the dialog.
-export async function openSharing(page, bookTitle) {
+// The people screen of a book (books.share_people; W10 #3, #6): a full screen,
+// "{book} · People" for its owner, "{book} · Sharing" for a member.
+export function peopleScreen(page, bookTitle) {
+  return page.getByRole('region', { name: new RegExp(`^${escape(bookTitle)} · (People|Sharing)$`) });
+}
+
+// Books → the book → Share: the Share sheet on a phone, the people screen on a
+// tablet or a computer (workflow 10 **Where it sits**).
+async function pressShare(page, bookTitle) {
   await booksList(page);
   await page.getByRole('button', { name: row(bookTitle) }).click();
   await page.getByRole('button', { name: 'Share', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog.getByRole('heading', { name: `Share ${bookTitle}` })).toBeVisible();
-  return dialog;
 }
 
-// In an open Share dialog: Invite → role / expiry / use limit → Create link.
-// Returns the invitation URL (shown once) and leaves the dialog on the link
-// screen; `finishInvite` clicks Done.
-export async function createInvitationIn(dialog, { role = 'Reader', expiry, limit } = {}) {
-  await dialog.getByRole('button', { name: /^(Invite people|Invite someone to this song)$/ }).click();
-  await dialog.getByRole('radio', { name: role }).click();
-  if (expiry) await dialog.getByRole('radio', { name: expiry }).click();
+// The phone's Share sheet for a book (W10 #1). Returns the sheet.
+export async function openShareSheet(page, bookTitle) {
+  await pressShare(page, bookTitle);
+  const sheet = page.getByRole('dialog', { name: `Share ${bookTitle}` });
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
+// Books → the book → Share → the people screen: directly on a tablet or a
+// computer, through the sheet's Members row on a phone. Returns the screen.
+export async function openSharing(page, bookTitle) {
+  await pressShare(page, bookTitle);
+  const sheet = page.getByRole('dialog', { name: `Share ${bookTitle}` });
+  const people = peopleScreen(page, bookTitle);
+  await expect(sheet.or(people)).toBeVisible();
+  if (await sheet.isVisible()) await sheet.getByRole('button', { name: /^Members/ }).click();
+  await expect(people).toBeVisible();
+  return people;
+}
+
+// Back from the people screen to the book.
+export async function closeSharing(page) {
+  const people = page.getByRole('region', { name: / · (People|Sharing)$/ });
+  await people.getByRole('button', { name: 'Back' }).click();
+  await expect(people).toBeHidden();
+}
+
+// The new invitation: a screen of its own on a phone, a dialog on a tablet or
+// a computer.
+function newInvitationForm(page) {
+  return page
+    .getByRole('dialog', { name: 'New invitation' })
+    .or(page.getByRole('region', { name: 'New invitation' }));
+}
+
+// From the people screen (or the phone's sheet): New invitation → role / expiry
+// / use limit → Create link. Returns the invitation URL and leaves the made
+// link showing; `finishInvite` clicks Done.
+export async function createInvitationIn(scope, { role = 'Reader', expiry, limit } = {}) {
+  const page = scope.page();
+  await scope.getByRole('button', { name: /^(New invitation|Invite people)$/ }).click();
+  const form = newInvitationForm(page);
+  await expect(form).toBeVisible();
+  await form.getByRole('radio', { name: role }).click();
+  if (expiry) await form.getByRole('radio', { name: expiry }).click();
   if (limit) {
     // The visible label toggles it (the switch input itself sits under its track).
-    await dialog.getByText('Limit how many can use it', { exact: true }).click();
-    await dialog.getByRole('textbox', { name: 'Number of uses' }).fill(String(limit));
+    await form.getByText('Limit how many can use it', { exact: true }).click();
+    await form.getByRole('textbox', { name: 'Number of uses' }).fill(String(limit));
   }
-  await dialog.getByRole('button', { name: 'Create link' }).click();
-  const link = await dialog.getByRole('textbox', { name: 'Invitation link' }).inputValue();
+  await form.getByRole('button', { name: 'Create link' }).click();
+  const link = await form.getByRole('textbox', { name: 'Invitation link' }).inputValue();
   expect(link).toContain('/i/');
   return link;
 }
 
-export async function finishInvite(dialog) {
-  await dialog.getByRole('button', { name: 'Done' }).click();
+// Done on the made link: back to where the invitation was made from.
+export async function finishInvite(scope) {
+  await scope.page().getByRole('button', { name: 'Done' }).click();
 }
 
-// Books → book → Share → invitation → Done → close. Returns the URL.
+// Books → book → Share → people → New invitation → Done → Back. Returns the URL.
 //   role: 'Reader' | 'Editor'; expiry: 'A day' | 'A week' | 'A month' |
 //   'Until withdrawn'; limit: a number of uses.
 export async function inviteThroughShare(page, bookTitle, opts = {}) {
-  const dialog = await openSharing(page, bookTitle);
-  const link = await createInvitationIn(dialog, opts);
-  await finishInvite(dialog);
-  await dialog.getByRole('button', { name: 'Close' }).click();
-  await expect(dialog).toBeHidden();
+  const people = await openSharing(page, bookTitle);
+  const link = await createInvitationIn(people, opts);
+  await finishInvite(people);
+  await expect(people).toBeVisible();
+  await closeSharing(page);
   return link;
 }
 
@@ -194,20 +238,21 @@ export async function acceptInvitation(page, url, { signedIn = false } = {}) {
   await page.getByRole('button', { name: 'Use a passkey' }).click();
 }
 
-// In an open Share dialog: remove the first member row through the typed-name
-// confirm. Returns the member's label.
-export async function removeFirstMember(page, dialog) {
-  const memberRow = dialog
+// On the people screen: Remove on the first member row → the confirm, as W10
+// #3 draws it (no typed name) → *Remove {name}*, or *Remove* for someone with
+// no name. Returns the member's shown name.
+export async function removeFirstMember(page, people) {
+  const memberRow = people
     .locator('.est-sharing-member', { has: page.getByRole('button', { name: 'Remove' }) })
     .first();
   const label = (await memberRow.locator('.name').first().textContent())?.trim();
-  expect(label, 'the member row shows a label').toBeTruthy();
+  expect(label, 'the member row shows a name').toBeTruthy();
   await memberRow.getByRole('button', { name: 'Remove' }).click();
-  const confirm = page.getByRole('dialog').filter({ hasText: 'Remove' }).last();
-  const confirmButton = confirm.getByRole('button', { name: new RegExp(`^Remove ${escape(label)}`) });
-  await expect(confirmButton).toBeDisabled();
-  await confirm.getByRole('textbox').fill(label);
-  await confirmButton.click();
+  const confirm = page.getByRole('alertdialog');
+  await expect(confirm).toBeVisible();
+  const unnamed = /^Unnamed (reader|editor)$/.test(label);
+  await confirm.getByRole('button', { name: unnamed ? 'Remove' : `Remove ${label}`, exact: true }).click();
+  await expect(confirm).toBeHidden();
   return label;
 }
 

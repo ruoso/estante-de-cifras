@@ -1,14 +1,17 @@
 // share (e2e-web) — the sharing journeys against the compose stack, on the
 // phone/tablet/computer projects, with axe at WCAG 2.1 AA on every sharing
-// screen and overlay (books.share, workflow 10). Pure real UI, from `/`: the
-// owner writes a song in a new book, puts it online and makes invitations in
-// the Share dialog; a second PERSON (another browser context, its own account)
-// joins through `/i/<token>`; both edit the shared song and sync; the owner's
-// Share then reads the join, lowers the member to reader, withdraws the
-// invitation (the joined member stays) and removes the member (whose shelf reads
-// *no longer shared with you*). A second test shares from a song: the member
-// address, an invitation that opens on that song, and a non-member who gets the
-// "does not open" state. Book and song names are written for these tests.
+// surface (books.share, books.share_people; workflow 10). Pure real UI, from
+// `/`: the owner writes a song in a new book, puts it online and makes
+// invitations; a second PERSON (another browser context, its own account, a
+// name on the service) joins through `/i/<token>`; both edit the shared song
+// and sync; the owner's people screen then names the person, lowers them to
+// reader, withdraws the invitation (the joined member stays) and removes them
+// (whose shelf reads *no longer shared with you*). Where each surface sits
+// follows workflow 10 **Where it sits**: the phone's Share sheet leads to the
+// people and New invitation screens; a tablet's or computer's Share opens the
+// people screen; a song's Share is a panel beside it on wide. Further tests copy
+// an open invitation's link again, share from a song, and read a full book and
+// a member's view. Book, song and people are written for these tests.
 
 import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
 import {
@@ -24,18 +27,24 @@ import {
 import {
   hostedBookWithSong,
   openSharing,
+  openShareSheet,
   createInvitationIn,
   finishInvite,
+  inviteThroughShare,
   acceptInvitation,
-  removeFirstMember,
   addSectionAndSave,
+  ownerNameOnService,
+  bookIdOf,
 } from '../lib/journeys-share.js';
+import { fillBookToCapacity } from '../lib/db.js';
 import { openDevice } from '../lib/devices.js';
 import { mockup } from '../lib/mockup.js';
 
 const BOOK = 'Choros da Ana';
 const SONG_TITLE = 'Roda de rua';
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const onPhone = () => test.info().project.name === 'phone';
 
 // Sync (Books → Sync now), then reopen the song in the editor until it carries
 // every mark — the clean-merge assertion.
@@ -49,31 +58,59 @@ async function expectSongHasMarks(page, marks) {
   }).toPass({ timeout: 10000 });
 }
 
-test('the two-person sharing journey: invite, join, edit to a clean merge, lower a role, withdraw, remove', async ({
+// A second person on a fresh device: opens the link, makes an account, and
+// lands with the book on their shelf.
+async function joinThrough(browser, link) {
+  const joiner = await openDevice(browser);
+  await enableVirtualAuthenticator(joiner.page);
+  await acceptInvitation(joiner.page, link);
+  await expect(joiner.page.getByRole('button', { name: new RegExp(`^${escape(BOOK)}`) })).toBeVisible();
+  return joiner;
+}
+
+test('the two-person sharing journey: invite, join, edit to a clean merge, the person named, lower a role, withdraw, remove', async ({
   browser,
   page,
 }) => {
-
   // Owner: a signed-in device with a hosted book carrying one song.
   await hostedBookWithSong(page, BOOK, SONG_TITLE);
 
-  // 1) The owner opens Share, sees 0 of 50, and makes an editor invitation.
-  let dialog = await openSharing(page, BOOK);
-  await expect(dialog.getByText('0 of 50')).toBeVisible();
-  await expect(dialog.getByText('You', { exact: true })).toBeVisible();
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the owner Share surface
-  await mockup(page, 'W10-share', 1);
-
-  await dialog.getByRole('button', { name: 'Invite people' }).click();
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the new-invitation form
-  await mockup(page, 'W10-share', 2);
-  await dialog.getByRole('button', { name: 'Cancel' }).click();
-  const link = await createInvitationIn(dialog, { role: 'Editor' });
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the link-shown-once state
-  await finishInvite(dialog);
+  // 1) Share: on the phone the sheet (W10 #1) and its New invitation screen
+  // (#2); on a tablet or a computer the people screen, its New invitation a
+  // dialog. Both say how much room the book has.
+  let people;
+  if (onPhone()) {
+    const sheet = await openShareSheet(page, BOOK);
+    await expect(sheet.getByText('0 of 50')).toBeVisible();
+    await expect(sheet.getByText('Room for 50 more.')).toBeVisible();
+    expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the Share sheet
+    await mockup(page, 'W10-share', 1);
+    await sheet.getByRole('button', { name: 'Invite people' }).click();
+    const form = page.getByRole('region', { name: 'New invitation' });
+    await expect(form.getByText(/Choros da Ana has room for 50 more people/)).toBeVisible();
+    expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the New invitation screen
+    await mockup(page, 'W10-share', 2);
+    await form.getByRole('button', { name: 'Back' }).click();
+    people = await openSharing(page, BOOK);
+  } else {
+    people = await openSharing(page, BOOK);
+    await people.getByRole('button', { name: 'New invitation' }).click();
+    const form = page.getByRole('dialog', { name: 'New invitation' });
+    await expect(form.getByText(/Choros da Ana has room for 50 more people/)).toBeVisible();
+    expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the New invitation dialog
+    await form.getByRole('button', { name: 'Cancel' }).click();
+  }
+  await expect(people.getByText('0 of 50 people')).toBeVisible();
+  await expect(people.getByText(/^(You|.+ \(you\))$/)).toBeVisible();
+  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the people screen
+  const link = await createInvitationIn(people, { role: 'Editor' });
+  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the made link
+  await finishInvite(people);
+  await expect(people).toBeVisible();
 
   // 2) A second person opens the link, makes an account and joins as an editor;
-  // the book lands on their shelf as "can save".
+  // the book lands on their shelf as "can save". They give their saves a name
+  // on the service.
   const joiner = await openDevice(browser);
   try {
     await enableVirtualAuthenticator(joiner.page);
@@ -88,6 +125,7 @@ test('the two-person sharing journey: invite, join, edit to a clean merge, lower
     await joiner.page.getByRole('button', { name: 'Use a passkey' }).click();
     await expect(joiner.page.getByRole('button', { name: new RegExp(`^${escape(BOOK)}`) })).toBeVisible();
     await expect(joiner.page.getByText('On Estante · can save')).toBeVisible();
+    await ownerNameOnService(joiner.page, 'Bia Rocha');
 
     // 3) Both edit the shared song and sync to a clean merge. The joiner opens
     // the song, adds a section and saves; the owner syncs it down, adds its own
@@ -102,38 +140,44 @@ test('the two-person sharing journey: invite, join, edit to a clean merge, lower
     await expectSongHasMarks(joiner.page, ['JoinerPart', 'OwnerPart']);
     await expectSongHasMarks(page, ['JoinerPart', 'OwnerPart']);
 
-    // 4) The owner's Share now reads 1 of 50 and shows who joined through the
-    // invitation.
-    dialog = await openSharing(page, BOOK);
-    await expect(dialog.getByText('1 of 50')).toBeVisible();
-    await expect(dialog.getByText('Editor invitation')).toBeVisible();
-    await expect(dialog.getByText(/1 person/)).toBeVisible();
-    await mockup(page, 'W10-share', 3);
-
-    // 5) The owner lowers the member to reader (Make reader): the roster says
-    // Reader, and the member's shelf follows on its next sync.
-    const memberRow = dialog
+    // 4) The owner's people screen reads 1 of 50 and names the person — as a
+    // member and as who joined through the invitation — never by an id
+    // (books.share_people).
+    people = await openSharing(page, BOOK);
+    await expect(people.getByText('1 of 50 people')).toBeVisible();
+    await expect(people.getByText(/^Editor invitation/)).toBeVisible();
+    const memberRow = people
       .locator('.est-sharing-member', { has: page.getByRole('button', { name: 'Remove' }) })
       .first();
-    await memberRow.getByRole('button', { name: /’s role$/ }).click();
+    await expect(memberRow.locator('.name')).toHaveText('Bia Rocha');
+    await expect(people.getByText(/Joined through it:\s*Bia Rocha/)).toBeVisible();
+    expect(await people.textContent()).not.toMatch(UUID);
+
+    // 5) The owner lowers the member to reader (Make reader): the row's role
+    // says Reader, and the member's shelf follows on its next sync.
+    await memberRow.getByRole('button', { name: 'Change Bia Rocha’s role' }).click();
     await page.getByRole('menuitem', { name: 'Make reader' }).click();
-    await expect(memberRow.locator('.badge')).toHaveText('Reader');
-    await expect(memberRow.getByRole('button', { name: /’s role$/ })).toContainText('Reader');
-    expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the roster with a reader
+    await expect(memberRow.getByRole('button', { name: 'Change Bia Rocha’s role' })).toContainText('Reader');
+    expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the people screen with a reader
 
     // 6) The owner withdraws the invitation: nobody new can join; the joined
     // member stays (still 1 of 50).
-    await dialog.getByRole('button', { name: 'Withdraw' }).click();
-    await expect(dialog.getByText('withdrawn')).toBeVisible();
-    await expect(dialog.getByText('1 of 50')).toBeVisible();
+    await people.getByRole('button', { name: 'Withdraw' }).click();
+    await expect(people.getByText('withdrawn', { exact: true })).toBeVisible();
+    await expect(people.getByText('1 of 50 people')).toBeVisible();
     expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the withdrawn state
 
-    // 7) The owner removes the member through the typed-name confirm.
-    const removing = removeFirstMember(page, dialog);
-    await expect(page.getByRole('dialog').filter({ hasText: 'Remove' }).last()).toBeVisible();
+    // 7) The owner removes the member: the confirm as W10 #3 draws it, no typed
+    // name.
+    await memberRow.getByRole('button', { name: 'Remove' }).click();
+    const confirm = page.getByRole('alertdialog');
+    await expect(confirm.getByRole('heading', { name: 'Remove Bia Rocha?' })).toBeVisible();
+    await expect(confirm.getByText(/Removing them takes effect the next time their app reaches Estante/)).toBeVisible();
+    await expect(confirm.getByRole('textbox')).toHaveCount(0);
     expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the remove confirm
-    await removing;
-    await expect(dialog.getByText('0 of 50')).toBeVisible();
+    await mockup(page, 'W10-share', 3);
+    await confirm.getByRole('button', { name: 'Remove Bia Rocha', exact: true }).click();
+    await expect(people.getByText('0 of 50 people')).toBeVisible();
 
     // The removed member's next sync is refused, and their shelf reads
     // *no longer shared with you*.
@@ -147,10 +191,42 @@ test('the two-person sharing journey: invite, join, edit to a clean merge, lower
   }
 });
 
+// books.share_people (workflow 10 §Invitations): an open invitation's link can
+// be copied again, from the people screen, and still lets someone in; once
+// withdrawn there is nothing to copy.
+test("the owner copies an open invitation's link again, and a third person joins through it", async ({
+  browser,
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await hostedBookWithSong(page, BOOK, SONG_TITLE);
+  const made = await inviteThroughShare(page, BOOK, { role: 'Reader', expiry: 'Until withdrawn' });
+
+  const people = await openSharing(page, BOOK);
+  const card = people.locator('.est-sharing-invite').first();
+  await card.getByRole('button', { name: 'Copy link' }).click();
+  await expect(card.getByRole('button', { name: 'Copied' })).toBeVisible();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toBe(made);
+  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: Copied
+
+  const third = await joinThrough(browser, copied);
+  try {
+    await expect(third.page.getByText('On Estante · reader')).toBeVisible();
+  } finally {
+    await third.context.close();
+  }
+
+  await card.getByRole('button', { name: 'Withdraw' }).click();
+  await expect(card.getByText('withdrawn', { exact: true })).toBeVisible();
+  await expect(card.getByRole('button', { name: 'Copy link' })).toHaveCount(0);
+});
+
 // Owner → song → Share (an appbar button on the computer, the More menu on the
-// phone and the tablet — shell.narrow_fit Decision 7). Returns the song's plain
-// member address; leaves the dialog open.
-async function shareSongAddress(page) {
+// phone and the tablet — shell.narrow_fit Decision 7). Returns the song's share
+// surface — the phone's sheet, the wide panel — and the members' address.
+async function shareSong(page) {
   await openSongFromSearch(page, 'Roda', SONG_TITLE);
   const share = page.getByRole('button', { name: 'Share', exact: true });
   if (await share.isVisible().catch(() => false)) {
@@ -159,30 +235,39 @@ async function shareSongAddress(page) {
     await page.getByRole('button', { name: 'More', exact: true }).first().click();
     await page.getByRole('menuitem', { name: 'Share', exact: true }).click();
   }
-  return page.getByRole('dialog').getByRole('textbox', { name: 'Song address' }).inputValue();
+  const surface = page
+    .getByRole('dialog', { name: `Share ${SONG_TITLE}` })
+    .or(page.getByRole('complementary', { name: `Share ${SONG_TITLE}` }));
+  const address = await surface.getByRole('textbox', { name: 'Song address' }).inputValue();
+  return { surface, address };
 }
 
 test('share from a song: the member address, and an invitation that opens on the song', async ({
   browser,
   page,
 }) => {
-  test.setTimeout(10000);
+  test.setTimeout(30000);
   await hostedBookWithSong(page, BOOK, SONG_TITLE);
-  const address = await shareSongAddress(page);
+  const { surface, address } = await shareSong(page);
   expect(address).toMatch(/\/b\/[^/]+\/.+\.cifra\.md$/);
-  const dialog = page.getByRole('dialog');
+  if (onPhone()) {
+    await expect(page.getByRole('dialog', { name: `Share ${SONG_TITLE}` })).toBeVisible();
+  } else {
+    // A panel beside the chart: no scrim, the song still there.
+    await expect(page.getByRole('complementary', { name: `Share ${SONG_TITLE}` })).toBeVisible();
+    await expect(page.getByRole('group', { name: SONG_TITLE }).first()).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  }
   expect(await analyzeWcag21aa(page)).toEqual([]); // axe: share-on-a-song
   await mockup(page, 'W10-share', 4);
 
   // The song invitation: the link carries the song as a fragment.
-  await dialog.getByRole('button', { name: 'Invite someone to this song' }).click();
-  await mockup(page, 'W10-share', 5);
-  await dialog.getByRole('button', { name: 'Create link' }).click();
-  const link = await dialog.getByRole('textbox', { name: 'Invitation link' }).inputValue();
+  if (onPhone()) await surface.getByRole('button', { name: 'Invite someone to this song' }).click();
+  await surface.getByRole('button', { name: 'Create link' }).click();
+  const link = await surface.getByRole('textbox', { name: 'Invitation link' }).inputValue();
   expect(link).toContain('/i/');
   expect(link).toContain('#');
-  await mockup(page, 'W10-share', 6);
-  await finishInvite(dialog);
+  await finishInvite(surface);
 
   // A second person accepts and lands on the song, not just the shelf.
   const joiner = await openDevice(browser);
@@ -197,11 +282,49 @@ test('share from a song: the member address, and an invitation that opens on the
   } finally {
     await joiner.context.close();
   }
+
+  // On wide, the panel's Manage opens the people screen.
+  if (!onPhone()) {
+    await surface.getByRole('button', { name: 'Manage' }).click();
+    await expect(page.getByRole('region', { name: `${BOOK} · People` })).toBeVisible();
+  }
+});
+
+// W10 #5 and #6: a full book as its owner sees it, and the book's sharing as a
+// member sees it — the owner named, no other reader listed, no controls.
+test("a full book's people screen, and a member's view of the book's sharing", async ({ browser, page }) => {
+  test.setTimeout(30000);
+  await hostedBookWithSong(page, BOOK, SONG_TITLE);
+  await ownerNameOnService(page, 'Ana');
+  const link = await inviteThroughShare(page, BOOK, { role: 'Reader' });
+
+  const joiner = await joinThrough(browser, link);
+  try {
+    const sharing = await openSharing(joiner.page, BOOK);
+    await expect(sharing.getByText('You’re a reader')).toBeVisible();
+    await expect(sharing.locator('.est-sharing-member .name').first()).toHaveText('Ana');
+    await expect(sharing.getByText(/Other readers aren’t listed\./)).toBeVisible();
+    await expect(sharing.getByRole('button', { name: 'Remove' })).toHaveCount(0);
+    await expect(sharing.getByRole('button', { name: 'New invitation' })).toHaveCount(0);
+    expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: a member's view
+    await mockup(joiner.page, 'W10-share', 6);
+  } finally {
+    await joiner.context.close();
+  }
+
+  // The joiner is one of the fifty; the fill seeds the other forty-nine.
+  await fillBookToCapacity(await bookIdOf(page, BOOK), 49);
+  const people = await openSharing(page, BOOK);
+  await expect(people.getByText('50 of 50 people')).toBeVisible();
+  await expect(people.getByText('Full', { exact: true })).toBeVisible();
+  await expect(people.getByText(/Choros da Ana is full\./)).toBeVisible();
+  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the full book
+  await mockup(page, 'W10-share', 5);
 });
 
 test('a non-member opening a book address gets the "does not open" state', async ({ browser, page }) => {
   await hostedBookWithSong(page, BOOK, SONG_TITLE);
-  const address = await shareSongAddress(page);
+  const { address } = await shareSong(page);
 
   const outsider = await openDevice(browser);
   try {
