@@ -1388,6 +1388,7 @@ export default {
     keyOf: 'Key of {key}',
     shapes: 'Shapes',
     shapesInKey: 'Shapes in {key}',
+    shapesFor: 'Shapes · {instrument}',
     shapesCaption: "Hollow: the app's default. Filled in colour: your shape for that chord.",
     transposedCaptionKey:
       "The song's own shapes are for {key}, so transposed chords use your shapes, then the defaults.",

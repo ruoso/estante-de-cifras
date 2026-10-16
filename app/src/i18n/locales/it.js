@@ -1239,6 +1239,7 @@ export default {
     keyOf: 'Tonalità di {key}',
     shapes: 'Forme',
     shapesInKey: 'Forme in {key}',
+    shapesFor: 'Forme · {instrument}',
     shapesCaption: 'Vuota: la forma predefinita dell’app. Piena a colori: la tua forma per quell’accordo.',
     transposedCaptionKey:
       'Le forme proprie della canzone sono per {key}, quindi gli accordi trasposti usano le tue forme e poi quelle predefinite.',

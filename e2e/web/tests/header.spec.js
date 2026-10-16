@@ -107,15 +107,22 @@ test('one chip per screen: the rail beside a song and beside the explorer', asyn
   const wide = testInfo.project.name !== 'phone';
   await openExampleBook(page);
 
-  // A song open: on tablet and computer the search rail beside it is headed by
-  // the wordmark and the chip; on the phone the chip sits in the song's meta row.
+  // A song open: on the computer the search rail beside it is headed by the
+  // wordmark and the chip; the tablet reads without a rail, the chip in the
+  // reading app bar (W02#3, songs.reading_chrome Decision 1); on the phone the
+  // chip sits in the song's meta row.
   await openSongFromSearch(page, SONG.search, SONG.title);
   await expect(visibleChips(page)).toHaveCount(1);
   await expect(visibleChips(page)).toHaveText('Guitar');
-  if (wide) {
+  if (testInfo.project.name === 'computer') {
     const head = page.locator('.reading-side .rail-head');
     await expect(head.locator('.wordmark')).toHaveText('Estante');
     await expect(head.getByRole('button', { name: 'Guitar, change instrument' })).toBeVisible();
+  } else if (testInfo.project.name === 'tablet') {
+    await expect(page.locator('.rail-head')).toHaveCount(0);
+    await expect(
+      page.locator('.appbar.reading-chrome').getByRole('button', { name: 'Guitar, change instrument' }),
+    ).toBeVisible();
   }
   await mockup(page, 'W02-find-and-play', 4);
   await checkA11y();

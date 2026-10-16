@@ -220,8 +220,8 @@ export async function waitUntilSearchable(page, query, title, { timeout = 10000 
 // ---- songs (workflows 2, 4, 6) ---------------------------------------------
 
 // Search for a song and open it in the reading view. With a song already open
-// on a wide layout the search sits beside it (no tab bar); otherwise go to the
-// Search destination first.
+// on the computer the search sits beside it (no tab bar); otherwise (the phone,
+// the tablet's whole-pane reading) go to the Search destination first.
 export async function openSongFromSearch(page, query, title) {
   // Landed (a reload, a deep link) on an address: the shell shows its
   // destination, busy, while the address resolves, then opens what it names.

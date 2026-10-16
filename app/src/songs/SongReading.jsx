@@ -17,12 +17,15 @@
 // open state and full screen are ephemeral view state, never a Worker slice.
 //
 // No router, mirroring ChordExplorer: narrow is a full screen over the shell
-// with its own app bar and Back; wide is the computer's master-detail — search
-// in `.pane.side`, the reading view in `.pane.main` (Decision 5). Overlays
+// with its own app bar and Back; wide below READING_ACTIONS_WIDE_QUERY is the
+// tablet's whole-pane reading (W01#3, W02#3, W12#3 — no search rail, the chip
+// and Transpose in the app bar, the shapes in a card); at and above it, the
+// computer's master-detail — search in `.pane.side`, the reading view in
+// `.pane.main` (songs.reading_chrome Decision 1). Overlays
 // portal into the `.est` root through ThemeRoot's UNSAFE_PortalProvider
 // (shell.portal_provider), so RAC menus and popovers are themed and labelled.
 
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Button,
   Dialog,
@@ -65,12 +68,14 @@ const clampOffset = (n) => Math.max(-11, Math.min(11, n));
 
 const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
 
-// Whether the wide reading appbar has room for History, Add to setlist, Print
-// and Share as buttons beside Edit (shell.narrow_fit Decision 7; W02 computer
-// L172-178). Below READING_ACTIONS_WIDE_QUERY — the tablet included — they sit
-// in the ⋯ menu, as the W02 tablet frame and the narrow toolbar already draw
-// them. The same `matchMedia`/`useSyncExternalStore` seam the shell and the
-// shelf use; a missing `matchMedia` (jsdom) reads as not-wide.
+// Whether a wide reading view is the computer's (search beside the song, the
+// full row Edit · History · Add to setlist · Print · Share — W02 computer
+// L153, L172-178) rather than the tablet's whole pane (W02#3): the one
+// tablet/computer boundary, where shell.narrow_fit measured the full row to fit
+// (songs.reading_chrome Decision 1). The ⋯ menu holds every action on every
+// width; this only decides which shortcuts sit beside it (Decision 2). The same
+// `matchMedia`/`useSyncExternalStore` seam the shell and the shelf use; a
+// missing `matchMedia` (jsdom) reads as not-wide.
 function readingActionsQuery() {
   return typeof globalThis.matchMedia === 'function'
     ? globalThis.matchMedia(READING_ACTIONS_WIDE_QUERY)
@@ -154,6 +159,11 @@ export default function SongReading({
 
   const [fullScreen, setFullScreen] = useState(false);
   const actionsInline = useSyncExternalStore(subscribeReadingActions, readReadingActions, readReadingActions);
+  // The three reading chromes the boards draw (songs.reading_chrome): phone
+  // (narrow), tablet (wide, below the query) and computer (wide, at or above).
+  const computer = mode === 'wide' && actionsInline;
+  const tablet = mode === 'wide' && !actionsInline;
+  const shapesHeadingId = useId();
   const [instrumentsOpen, setInstrumentsOpen] = useState(false);
 
   // A background sync landed a new version of this song (sync.read_in_place,
@@ -353,8 +363,8 @@ export default function SongReading({
     </div>
   ) : null;
 
-  // The one transpose control renders as an app-bar icon (narrow) or a labelled
-  // button (wide meta row).
+  // The one transpose control renders as an app-bar icon (phone) or a labelled
+  // button (the tablet's app bar, the computer's meta row — Decision 3).
   const variant = mode === 'wide' ? 'button' : 'icon';
 
   // The Transpose control: a popover stepper (down / up a semitone, and the
@@ -435,14 +445,27 @@ export default function SongReading({
     caption = t('reading.shapesCaption');
   }
 
-  const shapesHeading = transposed && status?.keyName ? t('reading.shapesInKey', { key: status.keyName }) : t('reading.shapes');
+  // The shapes heading (Decision 4): *Shapes in {key}* while transposed (W02#4);
+  // otherwise the phone's plain *Shapes* (W02#2, the chip just above in the meta
+  // row) and, on tablet and computer, *Shapes · {instrument}* by the chip's short
+  // label (W01#3, W02#3; `.t-h3` uppercases it as the board does).
+  let shapesHeading;
+  if (transposed && status?.keyName) shapesHeading = t('reading.shapesInKey', { key: status.keyName });
+  else if (mode === 'wide') shapesHeading = t('reading.shapesFor', { instrument: instrumentLabel });
+  else shapesHeading = t('reading.shapes');
 
   const sheet = (
     <div className="reading-sheet">
       {model ? <Chart model={model} size={mode === 'wide' ? 20 : undefined} label={baseModel?.title ?? undefined} /> : null}
       {shapes.length ? (
-        <section className="reading-shapes" aria-label={shapesHeading}>
-          <h2 className="t-h3">{shapesHeading}</h2>
+        // The tablet's bordered card beside the chart (W02#3 L130-139); the
+        // computer's unbordered column (W02#4 L198-207); the phone's plain
+        // section (W02#2 L86-92). Named by its visible heading.
+        <section
+          className={tablet ? 'reading-shapes card pad' : 'reading-shapes'}
+          aria-labelledby={shapesHeadingId}
+        >
+          <h2 className="t-h3" id={shapesHeadingId}>{shapesHeading}</h2>
           <div className="shapes">
             {shapes.map((s) => (
               <ChordDiagram
@@ -489,8 +512,12 @@ export default function SongReading({
     );
   }
 
-  // The actions that collapse into "More" on narrow and sit inline on wide.
-  const moreMenu = (extra) => (
+  // The ⋯ menu, the same on every device (songs.reading_chrome Decision 2; the
+  // .tji note: it holds Edit, History, Add to setlist, Print, Share): every
+  // action of the reading view, keyboard-reachable the same way everywhere
+  // (workflow 2 L86-87). The buttons a device draws beside it are shortcuts to
+  // items it also holds.
+  const moreMenu = (
     <MenuTrigger>
       <Button className="btn icon" aria-label={t('reading.more')}>
         <MoreIcon />
@@ -500,7 +527,8 @@ export default function SongReading({
           className="menu"
           aria-label={t('reading.more')}
           onAction={(key) => {
-            if (key === 'history') onOpenHistory({ bookId, path });
+            if (key === 'edit') onEdit({ bookId, path, title: baseModel?.title });
+            else if (key === 'history') onOpenHistory({ bookId, path });
             else if (key === 'addToSetlist') onAddToSetlist({ bookId, path });
             else if (key === 'print') window.print();
             else if (key === 'share') onShare({ bookId, path });
@@ -508,7 +536,13 @@ export default function SongReading({
             else if (key === 'fullScreen') setFullScreen(true);
           }}
         >
-          {extra}
+          <MenuItem id="edit">{t('reading.edit')}</MenuItem>
+          <MenuItem id="history">{t('reading.history')}</MenuItem>
+          <MenuItem id="addToSetlist">{t('reading.addToSetlist')}</MenuItem>
+          <MenuItem id="print">{t('reading.print')}</MenuItem>
+          <MenuItem id="share">{t('reading.share')}</MenuItem>
+          {!transposed ? <MenuItem id="arrange">{t('reading.arrangeFor', { instrument: instrumentLabel })}</MenuItem> : null}
+          <MenuItem id="fullScreen">{t('reading.fullScreen')}</MenuItem>
         </Menu>
       </Popover>
     </MenuTrigger>
@@ -571,21 +605,59 @@ export default function SongReading({
     </div>
   ) : null;
 
+  // The meta row. The computer leads it with Transpose (where W02#4 draws the
+  // transposed state's controls, Decision 3); the tablet's Transpose and chip
+  // are in its app bar; the phone's chip is here (W02 phone 2) and its Transpose
+  // an app-bar icon. One chip per screen (shell.header_chrome Decision 7): the
+  // computer's heads the search rail.
   const metaRow = (
     <div className="reading-meta">
+      {computer ? transposeControl : null}
       <span className="t-small reading-byline">
         {artist ? t('reading.byline', { artist, book: bookLabel }) : bookLabel}
       </span>
-      {/* On wide the chip heads the search rail instead (one chip per screen,
-          shell.header_chrome Decision 7); on narrow it stays here (W02 phone 2). */}
       {mode === 'wide' ? null : <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />}
       {writtenKey && !transposed ? <span className="chip">{t('reading.keyOf', { key: writtenKey })}</span> : null}
-      {mode === 'wide' ? transposeControl : null}
       {variationPicker}
     </div>
   );
 
-  if (mode === 'wide') {
+  // The scroll body every device shares: the notices first, above the chart
+  // (the instrument prompt, the update notice, the transposed row, no voicings),
+  // then the sheet.
+  const body = (
+    <div className="scroll reading-scroll" ref={scrollRef}>
+      {instrumentPrompt}
+      {updateNotice}
+      {metaRow}
+      {statusRow}
+      {noVoicings ? (
+        <div className="notice accent">
+          <span>{t('reading.noVoicings', { instrument: instrumentLabel })}</span>
+          <Button className="act btn quiet" onPress={() => onArrange({ bookId, path })}>
+            {t('reading.arrangeFor', { instrument: instrumentLabel })}
+          </Button>
+        </div>
+      ) : null}
+      {sheet}
+    </div>
+  );
+
+  // Back to the destinations (Books, Setlists, Account): the shell is replaced
+  // while a song is open, on every layout.
+  const backButton = (
+    <Button className="btn icon" aria-label={t('reading.back')} onPress={onBack}>
+      <BackIcon />
+    </Button>
+  );
+  const titleSpan = <span className="title">{baseModel?.title ?? path}</span>;
+  const editButton = (
+    <Button className="btn" onPress={() => onEdit({ bookId, path, title: baseModel?.title })}>
+      {t('reading.edit')}
+    </Button>
+  );
+
+  if (computer) {
     return (
       <>
         <div className="split reading-split">
@@ -598,64 +670,51 @@ export default function SongReading({
             <SearchScreen store={store} onOpenSong={onOpenSong} />
           </div>
           <div className="pane main">
+            {/* The full row (W02 computer L172-179), shortcuts to items ⋯ also
+                holds; it fits from READING_ACTIONS_WIDE_QUERY (shell.narrow_fit). */}
             <div className="appbar reading-chrome">
-              {/* Back to the destinations (Books, Setlists, Account): the shell
-                  is replaced while a song is open, on every layout. */}
-              <Button className="btn icon" aria-label={t('reading.back')} onPress={onBack}>
-                <BackIcon />
+              {backButton}
+              {titleSpan}
+              {editButton}
+              <Button className="btn" onPress={() => onOpenHistory({ bookId, path })}>
+                {t('reading.history')}
               </Button>
-              <span className="title">{baseModel?.title ?? path}</span>
-              <Button className="btn" onPress={() => onEdit({ bookId, path, title: baseModel?.title })}>
-                {t('reading.edit')}
+              <Button className="btn" onPress={() => onAddToSetlist({ bookId, path })}>
+                {t('reading.addToSetlist')}
               </Button>
-              {/* The full row only where it fits (W02 computer); narrower, the
-                  four go in ⋯ as the W02 tablet frame draws (Decision 7). */}
-              {actionsInline ? (
-                <>
-                  <Button className="btn" onPress={() => onOpenHistory({ bookId, path })}>
-                    {t('reading.history')}
-                  </Button>
-                  <Button className="btn" onPress={() => onAddToSetlist({ bookId, path })}>
-                    {t('reading.addToSetlist')}
-                  </Button>
-                  <Button className="btn" onPress={() => window.print()}>
-                    {t('reading.print')}
-                  </Button>
-                  <Button className="btn" onPress={() => onShare({ bookId, path })}>
-                    {t('reading.share')}
-                  </Button>
-                </>
-              ) : null}
-              {moreMenu(
-                <>
-                  {!actionsInline ? (
-                    <>
-                      <MenuItem id="history">{t('reading.history')}</MenuItem>
-                      <MenuItem id="addToSetlist">{t('reading.addToSetlist')}</MenuItem>
-                      <MenuItem id="print">{t('reading.print')}</MenuItem>
-                      <MenuItem id="share">{t('reading.share')}</MenuItem>
-                    </>
-                  ) : null}
-                  {!transposed ? <MenuItem id="arrange">{t('reading.arrangeFor', { instrument: instrumentLabel })}</MenuItem> : null}
-                  <MenuItem id="fullScreen">{t('reading.fullScreen')}</MenuItem>
-                </>,
-              )}
+              <Button className="btn" onPress={() => window.print()}>
+                {t('reading.print')}
+              </Button>
+              <Button className="btn" onPress={() => onShare({ bookId, path })}>
+                {t('reading.share')}
+              </Button>
+              {moreMenu}
             </div>
-            <div className="scroll reading-scroll" ref={scrollRef}>
-              {instrumentPrompt}
-              {updateNotice}
-              {metaRow}
-              {statusRow}
-              {noVoicings ? (
-                <div className="notice accent">
-                  <span>{t('reading.noVoicings', { instrument: instrumentLabel })}</span>
-                  <Button className="act btn quiet" onPress={() => onArrange({ bookId, path })}>
-                    {t('reading.arrangeFor', { instrument: instrumentLabel })}
-                  </Button>
-                </div>
-              ) : null}
-              {sheet}
+            {body}
+          </div>
+        </div>
+        <InstrumentsOverlay store={store} isOpen={instrumentsOpen} onClose={() => setInstrumentsOpen(false)} />
+      </>
+    );
+  }
+
+  if (tablet) {
+    return (
+      <>
+        {/* The tablet reads the song on the whole pane, no search rail (W01#3,
+            W02#3, W12#3; Decision 1): Back · title · chip · Transpose · Edit · ⋯,
+            the chip here because there is no rail to head. */}
+        <div className="split reading-split reading-tablet">
+          <div className="pane main">
+            <div className="appbar reading-chrome">
+              {backButton}
+              {titleSpan}
+              <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />
+              {transposeControl}
+              {editButton}
+              {moreMenu}
             </div>
+            {body}
           </div>
         </div>
         <InstrumentsOverlay store={store} isOpen={instrumentsOpen} onClose={() => setInstrumentsOpen(false)} />
@@ -668,35 +727,12 @@ export default function SongReading({
     <>
       <div className="screen reading-screen">
         <div className="appbar reading-chrome">
-          <Button className="btn icon" aria-label={t('reading.back')} onPress={onBack}>
-            <BackIcon />
-          </Button>
-          <span className="title">{baseModel?.title ?? path}</span>
+          {backButton}
+          {titleSpan}
           {transposeControl}
-          {moreMenu(
-            <>
-              <MenuItem id="history">{t('reading.history')}</MenuItem>
-              <MenuItem id="addToSetlist">{t('reading.addToSetlist')}</MenuItem>
-              <MenuItem id="print">{t('reading.print')}</MenuItem>
-              <MenuItem id="share">{t('reading.share')}</MenuItem>
-            </>,
-          )}
+          {moreMenu}
         </div>
-        <div className="scroll reading-scroll" ref={scrollRef}>
-          {instrumentPrompt}
-          {updateNotice}
-          {metaRow}
-          {statusRow}
-          {noVoicings ? (
-            <div className="notice accent">
-              <span>{t('reading.noVoicings', { instrument: instrumentLabel })}</span>
-              <Button className="act btn quiet" onPress={() => onArrange({ bookId, path })}>
-                {t('reading.arrangeFor', { instrument: instrumentLabel })}
-              </Button>
-            </div>
-          ) : null}
-          {sheet}
-        </div>
+        {body}
         <div className="reading-actionbar reading-chrome">
           {!transposed ? (
             <Button className="btn grow" onPress={() => onArrange({ bookId, path })}>

@@ -4,7 +4,7 @@ import { createStore } from '../worker/store.js';
 import { command, event, EventKind, CommandKind } from '../worker/protocol.js';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { instrumentInstance, configFor } from '../core/instrument.js';
-import { WIDE_QUERY } from './layout-mode.js';
+import { WIDE_QUERY, READING_ACTIONS_WIDE_QUERY } from './layout-mode.js';
 import AppShell from './AppShell.jsx';
 
 // behavior (shell.routing) — the URL follows where you are: AppShell with its
@@ -282,10 +282,11 @@ describe('AppShell routing (behavior)', () => {
   });
 
   it('after a reload, a same-song step reached past another song is real', async () => {
-    // The wide layout: the search beside the song opens another song (a push).
+    // The computer layout: the search beside the song opens another song (a
+    // push). The tablet reads without the rail (songs.reading_chrome Decision 1).
     globalThis.matchMedia = (media) => ({
       media,
-      matches: media === WIDE_QUERY,
+      matches: media === WIDE_QUERY || media === READING_ACTIONS_WIDE_QUERY,
       addEventListener() {},
       removeEventListener() {},
     });

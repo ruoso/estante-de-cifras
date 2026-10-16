@@ -11,8 +11,8 @@ export const SONG = { search: 'Morning', title: 'Morning on the Porch' };
 
 // ---- navigation ----------------------------------------------------------------
 
-// Leave an open song / explorer for the search screen, on any viewport: the wide
-// layouts keep search beside it; on the phone it is a full screen, so Back.
+// Leave an open song / explorer for the search screen, on any viewport: where
+// search sits beside it (the computer's song, the wide explorer) stay; else Back.
 export async function toSearch(page) {
   const searchbox = page.getByRole('searchbox');
   const tab = page.getByRole('tab', { name: 'Search' });

@@ -32,6 +32,19 @@ function installMatchMedia(dark = false) {
   });
 }
 
+// The reading view's three chromes by width (songs.reading_chrome): the shell
+// passes `mode` (narrow / wide); the reading view itself asks
+// READING_ACTIONS_WIDE_QUERY whether a wide pane is the computer's. Answers that
+// query `computer`, and anything but the colour scheme true.
+const installWidths = (computer) => {
+  globalThis.matchMedia = (media) => ({
+    media,
+    matches: media === READING_ACTIONS_WIDE_QUERY ? computer : !media.includes('prefers-color-scheme'),
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  });
+};
+
 beforeEach(() => {
   installMatchMedia(false);
   setLocale('en');
@@ -559,6 +572,7 @@ describe('SongReading — a merge landing while open (sync.read_in_place, workfl
 
 describe('SongReading — the wide master-detail (shell.layout)', () => {
   it('places search beside the song on the computer', async () => {
+    installWidths(true);
     const { store } = makeStore({ text: song({}), entry: guitarEntry() });
     render(
       <ThemeRoot store={store}>
@@ -587,104 +601,214 @@ describe('SongReading — the wide master-detail (shell.layout)', () => {
   });
 });
 
-// The wide reading appbar's collapse (shell.narrow_fit item 7, Decision 7):
-// below READING_ACTIONS_WIDE_QUERY — the 712px tablet — the appbar keeps Edit
-// and ⋯, with History, Add to setlist, Print and Share as ⋯ menu items (the W02
-// tablet frame, L109-115); at and above it they are appbar buttons (W02
-// computer, L172-178). No action is lost on either width; workflow 2's actions.
-describe('SongReading — the wide reading toolbar collapses below READING_ACTIONS_WIDE_QUERY (shell.narrow_fit)', () => {
-  const FOUR = ['History', 'Add to setlist', 'Print', 'Share'];
-  // Answers the wide split (and anything but the reading-actions query) true;
-  // the reading-actions query answers `actionsWide`.
-  const installWidths = (actionsWide) => {
-    globalThis.matchMedia = (media) => ({
-      media,
-      matches: media === READING_ACTIONS_WIDE_QUERY ? actionsWide : !media.includes('prefers-color-scheme'),
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    });
-  };
-  const appbar = (container) => container.querySelector('.pane.main .appbar');
-
-  it('tablet width: the appbar holds Edit and ⋯ only; ⋯ opened by keyboard lists the four as menu items, axe clean', async () => {
-    installWidths(false);
-    const { store } = makeStore({ text: song({}), entry: guitarEntry() });
-    const { container } = await openAndWait(store, { mode: 'wide' });
-
-    const bar = within(appbar(container));
-    expect(bar.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
-    for (const name of FOUR) expect(bar.queryByRole('button', { name })).toBeNull();
-    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
-
-    const more = bar.getByRole('button', { name: 'More' });
-    act(() => more.focus());
-    await act(async () => {
-      fireEvent.keyDown(more, { key: 'Enter' });
-      fireEvent.keyUp(more, { key: 'Enter' });
-    });
-    const menu = await screen.findByRole('menu', { name: 'More' });
-    for (const name of FOUR) expect(within(menu).getByRole('menuitem', { name })).toBeInTheDocument();
-    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
-  });
-
-  it('tablet width: Print from the ⋯ menu prints', async () => {
-    installWidths(false);
-    const { store } = makeStore({ text: song({}), entry: guitarEntry() });
-    const { container } = await openAndWait(store, { mode: 'wide' });
-    await click(within(appbar(container)).getByRole('button', { name: 'More' }));
-    await click(await screen.findByRole('menuitem', { name: 'Print' }));
-    expect(globalThis.print).toHaveBeenCalled();
-  });
-
-  it('computer width: the four are appbar buttons, not menu items, axe clean', async () => {
-    installWidths(true);
-    const { store } = makeStore({ text: song({}), entry: guitarEntry() });
-    const { container } = await openAndWait(store, { mode: 'wide' });
-
-    const bar = within(appbar(container));
-    for (const name of ['Edit', ...FOUR]) expect(bar.getByRole('button', { name })).toBeInTheDocument();
-    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
-
-    await click(bar.getByRole('button', { name: 'More' }));
-    const menu = await screen.findByRole('menu', { name: 'More' });
-    for (const name of FOUR) expect(within(menu).queryByRole('menuitem', { name })).toBeNull();
-  });
-});
-
-// The header chrome around the reading view (shell.header_chrome): on wide the
-// search rail beside the song is headed by the wordmark and the chip, and the
-// meta row carries none — one chip per screen (Decision 7); on narrow the chip
-// stays in the meta row. The instrument is named by the chip's one short label
-// everywhere. Pins W02 phone 2 / computer and workflow 2.
-describe('SongReading header chrome (behavior)', () => {
+// The reading chrome as drawn (songs.reading_chrome): one ⋯ menu holding every
+// action on every device (the .tji note; workflow 2 L86-87), the phone's app bar
+// and bottom bar (W02#2), the tablet's whole pane with the chip and Transpose in
+// its app bar and the shapes in a card (W01#3, W02#3, W12#3), the computer's
+// search rail and full row (W02#4). One chip per screen (shell.header_chrome
+// Decision 7); the full row from READING_ACTIONS_WIDE_QUERY (shell.narrow_fit).
+describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', () => {
   // The standard-guitar fallback the Worker sends when nothing is set up.
   const standardEntry = () => ({ ...guitarEntry(), id: 'standard', label: null });
   const seen = { instrumentPromptSeen: register(true) };
-  const chips = () => screen.getAllByRole('button', { name: /, change instrument$/ });
+  const chips = () => screen.getAllByRole('button', { name: /change instrument/ });
+  const appbar = (container) => container.querySelector('.appbar.reading-chrome');
+  const SEVEN = ['Edit', 'History', 'Add to setlist', 'Print', 'Share', 'Arrange for Guitar', 'Full screen'];
+  const DEVICES = [
+    { device: 'phone', mode: 'narrow', computer: false },
+    { device: 'tablet', mode: 'wide', computer: false },
+    { device: 'computer', mode: 'wide', computer: true },
+  ];
 
-  it('wide: the rail head shows Estante and the chip, the meta row none, axe clean', async () => {
-    const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
-    const { container } = await openAndWait(store, { mode: 'wide' });
+  const keyPress = async (el, key) => {
+    await act(async () => {
+      fireEvent.keyDown(el, { key });
+      fireEvent.keyUp(el, { key });
+    });
+  };
+  // Focus ⋯ and open it with the keyboard; RAC focuses the first item.
+  const openMore = async (more) => {
+    act(() => more.focus());
+    await keyPress(more, 'Enter');
+    return screen.findByRole('menu', { name: 'More' });
+  };
+  const itemNames = (menu) => within(menu).getAllByRole('menuitem').map((i) => i.textContent);
 
-    const head = container.querySelector('.reading-side .rail-head');
-    expect(head).toHaveTextContent(/^Estante/);
-    await waitFor(() => expect(within(head).getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
-    expect(within(head).queryByRole('button', { name: 'Account' })).toBeNull();
-    expect(within(container.querySelector('.reading-meta')).queryByRole('button', { name: /change instrument/ })).toBeNull();
-    expect(chips()).toHaveLength(1);
+  for (const { device, mode, computer } of DEVICES) {
+    it(`⋯ holds every action, on the ${device}: in order, each by the keyboard, Escape back to More, axe clean`, async () => {
+      installWidths(computer);
+      const handlers = {
+        onEdit: vi.fn(),
+        onOpenHistory: vi.fn(),
+        onAddToSetlist: vi.fn(),
+        onShare: vi.fn(),
+      };
+      const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
+      const { container } = await openAndWait(store, { mode, ...handlers });
+      const more = within(appbar(container)).getByRole('button', { name: 'More' });
 
-    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
-  });
+      // The seven, in order, whatever the width (Decision 2); axe with it open.
+      let menu = await openMore(more);
+      expect(itemNames(menu)).toEqual(SEVEN);
+      expect(await checkWcag21aa(document.body)).toHaveNoViolations();
 
-  it('narrow: the chip sits in the meta row, with no wordmark', async () => {
+      // Escape closes it and returns focus to More.
+      await keyPress(document.activeElement, 'Escape');
+      await waitFor(() => expect(screen.queryByRole('menu', { name: 'More' })).toBeNull());
+      await waitFor(() => expect(document.activeElement).toBe(more));
+
+      // Arrow to each item and press Enter: it calls its existing seam.
+      const reach = async (name) => {
+        menu = await openMore(more);
+        const index = SEVEN.indexOf(name);
+        for (let i = 0; i < index; i += 1) await keyPress(document.activeElement, 'ArrowDown');
+        expect(document.activeElement).toHaveTextContent(name);
+        await keyPress(document.activeElement, 'Enter');
+        await waitFor(() => expect(screen.queryByRole('menu', { name: 'More' })).toBeNull());
+      };
+      await reach('Edit');
+      expect(handlers.onEdit).toHaveBeenCalledWith({ bookId: BOOK, path: PATH, title: 'Tarde Clara' });
+      await reach('History');
+      expect(handlers.onOpenHistory).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
+      await reach('Add to setlist');
+      expect(handlers.onAddToSetlist).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
+      await reach('Print');
+      expect(globalThis.print).toHaveBeenCalled();
+      await reach('Share');
+      expect(handlers.onShare).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
+    });
+
+    it(`⋯ on the ${device} while transposed: six items, no Arrange for`, async () => {
+      installWidths(computer);
+      const { store } = makeStore({
+        text: song({ props: ['key: G'] }),
+        entry: standardEntry(),
+        preferences: seen,
+        transposition: 2,
+      });
+      const { container } = await openAndWait(store, { mode });
+      const menu = await openMore(within(appbar(container)).getByRole('button', { name: 'More' }));
+      expect(itemNames(menu)).toEqual(SEVEN.filter((n) => n !== 'Arrange for Guitar'));
+    });
+  }
+
+  it('phone: Back, title, the Transpose icon and ⋯; the chip in the meta row; Arrange, Edit, Full screen below', async () => {
     const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
     const { container } = await openAndWait(store);
 
+    const bar = within(appbar(container));
+    expect(bar.getByRole('button', { name: 'Transpose' })).toBeInTheDocument();
+    expect(bar.getByRole('button', { name: 'More' })).toBeInTheDocument();
+    expect(bar.queryByRole('button', { name: 'Edit' })).toBeNull();
+    const actions = within(container.querySelector('.reading-actionbar'));
+    for (const name of ['Arrange', 'Edit', 'Full screen']) expect(actions.getByRole('button', { name })).toBeInTheDocument();
     const meta = container.querySelector('.reading-meta');
     await waitFor(() => expect(within(meta).getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
     expect(container.querySelector('.wordmark')).toBeNull();
     expect(chips()).toHaveLength(1);
   });
+
+  it('tablet: the chip and Transpose in the app bar, no rail, axe clean (W02#3, W01#3, W12#3)', async () => {
+    installWidths(false);
+    const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
+    const { container } = await openAndWait(store, { mode: 'wide' });
+
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(container.querySelector('.rail-head')).toBeNull();
+    const bar = within(appbar(container));
+    await waitFor(() => expect(bar.getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
+    for (const name of ['Back', 'Transpose', 'Edit', 'More']) expect(bar.getByRole('button', { name })).toBeInTheDocument();
+    for (const name of ['History', 'Add to setlist', 'Print', 'Share']) expect(bar.queryByRole('button', { name })).toBeNull();
+    const meta = within(container.querySelector('.reading-meta'));
+    expect(meta.queryByRole('button', { name: /change instrument/ })).toBeNull();
+    expect(meta.queryByRole('button', { name: 'Transpose' })).toBeNull();
+    expect(chips()).toHaveLength(1);
+
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('computer: the full row, the chip in the rail, Transpose heading the meta row, axe clean (W02#4)', async () => {
+    installWidths(true);
+    const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
+    const { container } = await openAndWait(store, { mode: 'wide' });
+
+    const bar = within(appbar(container));
+    for (const name of ['Edit', 'History', 'Add to setlist', 'Print', 'Share', 'More']) {
+      expect(bar.getByRole('button', { name })).toBeInTheDocument();
+    }
+    expect(bar.queryByRole('button', { name: /change instrument/ })).toBeNull();
+    expect(bar.queryByRole('button', { name: 'Transpose' })).toBeNull();
+
+    const head = container.querySelector('.reading-side .rail-head');
+    expect(head).toHaveTextContent(/^Estante/);
+    await waitFor(() => expect(within(head).getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
+    expect(within(head).queryByRole('button', { name: 'Account' })).toBeNull();
+    expect(chips()).toHaveLength(1);
+
+    const meta = container.querySelector('.reading-meta');
+    expect(meta.firstElementChild).toHaveAccessibleName('Transpose');
+    expect(within(meta).queryByRole('button', { name: /change instrument/ })).toBeNull();
+
+    // The row's buttons are shortcuts: the menu holds them too.
+    const menu = await openMore(bar.getByRole('button', { name: 'More' }));
+    for (const name of ['Edit', 'History', 'Add to setlist', 'Print', 'Share']) {
+      expect(within(menu).getByRole('menuitem', { name })).toBeInTheDocument();
+    }
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('the shapes: a card on the tablet, a plain section on the computer and the phone, named by the heading', async () => {
+    const shapesRegion = async (name) => screen.findByRole('region', { name });
+    const voiced = () =>
+      makeStore({
+        text: song({ props: ['key: G'], voicings: ['## Voicings: E2 A2 D3 G3 B3 E4', '- G: 320003'] }),
+        entry: standardEntry(),
+        preferences: seen,
+      });
+
+    // Tablet: *Shapes · Guitar* in a bordered card (W02#3 L130-139, W01#3 L124-134).
+    installWidths(false);
+    let { store } = voiced();
+    let utils = await openAndWait(store, { mode: 'wide' });
+    expect(await shapesRegion('Shapes · Guitar')).toHaveClass('card');
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    utils.unmount();
+
+    // Computer: the same heading, an unbordered column (W02#4 L198-207).
+    installWidths(true);
+    ({ store } = voiced());
+    utils = await openAndWait(store, { mode: 'wide' });
+    expect(await shapesRegion('Shapes · Guitar')).not.toHaveClass('card');
+    utils.unmount();
+
+    // Phone: plain *Shapes*, no card (W02#2 L86-92).
+    installWidths(false);
+    ({ store } = voiced());
+    utils = await openAndWait(store);
+    expect(await shapesRegion('Shapes')).not.toHaveClass('card');
+    utils.unmount();
+
+    // Transposed, any width: *Shapes in {key}* (W02#4).
+    for (const [computer, mode] of [[false, 'narrow'], [false, 'wide'], [true, 'wide']]) {
+      installWidths(computer);
+      const transposed = makeStore({
+        text: song({ props: ['key: G'], voicings: ['## Voicings: E2 A2 D3 G3 B3 E4', '- G: 320003'] }),
+        entry: standardEntry(),
+        preferences: seen,
+        transposition: 2,
+      });
+      utils = await openAndWait(transposed.store, { mode });
+      expect(await shapesRegion('Shapes in A')).toBeInTheDocument();
+      utils.unmount();
+    }
+  });
+});
+
+// The instrument named by the chip's one short label everywhere
+// (shell.header_chrome; workflow 15 L62-75).
+describe('SongReading header chrome (behavior)', () => {
+  const standardEntry = () => ({ ...guitarEntry(), id: 'standard', label: null });
+  const seen = { instrumentPromptSeen: register(true) };
 
   it('names the unlabelled standard fallback "Guitar" in the arrange offer, not "instrument"', async () => {
     const { store } = makeStore({ text: song({ chart: 'G  C  Am' }), entry: standardEntry(), preferences: seen });

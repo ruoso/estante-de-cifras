@@ -106,8 +106,9 @@ task songs "Songs" {
   task reading_chrome "The reading view chrome as drawn" {
     effort 1d
     allocate team
+    complete 100
     depends !reading, !edit_in_place
-    note "The W01, W02 and W12 boards put the instrument chip, Transpose and a ... menu in the reading header, with the shapes in a bordered SHAPES · <instrument> card; the app puts Edit, History, Add to setlist and Print in the header and the chip and Transpose in the body, and the shapes panel has no card or subtitle. Follow the boards (the menu holds Edit, History, Add to setlist, Print, Share), keeping every action keyboard-reachable. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (each action reachable from the menu, axe); e2e-web (reading on the three viewports, mockup W01#3, W02#2-4, W12#3)."
+    note "The W01, W02 and W12 boards put the instrument chip, Transpose and a ... menu in the reading header, with the shapes in a bordered SHAPES · <instrument> card; the app puts Edit, History, Add to setlist and Print in the header and the chip and Transpose in the body, and the shapes panel has no card or subtitle. Follow the boards (the menu holds Edit, History, Add to setlist, Print, Share), keeping every action keyboard-reachable. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (each action reachable from the menu, axe); e2e-web (reading on the three viewports, mockup W01#3, W02#2-4, W12#3). Refinement: tasks/refinements/songs/reading_chrome.md"
   }
   task arrange_polish "Arrange and the wizard as drawn" {
     effort 2d

@@ -1240,6 +1240,7 @@ export default {
     keyOf: 'Tono de {key}',
     shapes: 'Formas',
     shapesInKey: 'Formas en {key}',
+    shapesFor: 'Formas · {instrument}',
     shapesCaption: 'Hueca: la forma predeterminada del app. Rellena en color: tu forma para ese acorde.',
     transposedCaptionKey:
       'Las formas propias de la canción son para {key}, así que los acordes transpuestos usan tus formas y, luego, las predeterminadas.',

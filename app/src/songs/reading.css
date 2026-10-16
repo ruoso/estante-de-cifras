@@ -80,7 +80,9 @@
   gap: calc(var(--u) * 1.25);
 }
 
-/* The wide master-detail: search beside the song (the computer board). */
+/* The wide layouts: the computer's master-detail (search beside the song,
+   W02#4) and the tablet's whole pane (.reading-tablet, W02#3), which shares the
+   split's single main pane. */
 .reading-split .pane.side {
   overflow: hidden;
 }
@@ -93,9 +95,8 @@
   align-items: flex-start;
   gap: calc(var(--u) * 4);
 }
-/* Chart beside the fixed-width shapes on a wide pane; when the pane is too
-   narrow for both (the tablet's master-detail, where the 340px search side
-   leaves little room) the shapes wrap below and the chart keeps the full line
+/* Chart beside the fixed-width shapes on a wide pane; should the pane be too
+   narrow for both, the shapes wrap below and the chart keeps the full line
    rather than flex-shrinking to zero width (which reads as hidden). */
 .reading-split .reading-sheet .chart {
   flex: 1;
@@ -104,6 +105,20 @@
 .reading-split .reading-shapes {
   width: 300px;
   flex: none;
+}
+/* The tablet's shapes card beside the chart (W02#3 L130-139, W01#3
+   L124-134): about 230px, the diagrams in two columns, the caption under them.
+   With no search rail the chart and the card share the line. */
+.reading-tablet .reading-sheet {
+  flex-wrap: nowrap;
+}
+.reading-split .reading-shapes.card {
+  width: 230px;
+}
+.reading-shapes.card .shapes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(var(--u) * 1.5);
 }
 
 /* The narrow bottom action bar (Arrange · Edit · Full screen). */
@@ -186,5 +201,11 @@
   }
   .reading-split .reading-sheet {
     flex-direction: column;
+  }
+  /* Print the shapes, not the tablet's card around them. */
+  .reading-shapes.card {
+    border: none;
+    background: none;
+    padding: 0;
   }
 }

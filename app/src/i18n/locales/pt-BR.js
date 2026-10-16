@@ -1239,6 +1239,7 @@ export default {
     keyOf: 'Tom de {key}',
     shapes: 'Formas',
     shapesInKey: 'Formas em {key}',
+    shapesFor: 'Formas · {instrument}',
     shapesCaption: 'Vazado: a forma padrão do app. Preenchido em cor: a sua forma para esse acorde.',
     transposedCaptionKey:
       'As formas da própria música são para {key}, então acordes transpostos usam as suas formas e, depois, as padrão.',
