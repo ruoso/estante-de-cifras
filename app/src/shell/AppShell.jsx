@@ -168,7 +168,7 @@ function resolvePlace({ place, checkItem, treeReady }, shelf, tree) {
   return place.song ? 'song' : 'setlist';
 }
 
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode, restore = {}) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode, restore = {}, openSetlistView = null) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key} className="shell-panel">
       {key === 'search' ? (
@@ -210,7 +210,9 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
           onDismissRestored={restore.onDismiss}
         />
       ) : key === 'setlists' ? (
-        <SetlistsScreen store={store} onOpenSetlist={onOpenSetlist} />
+        // On the phone an open setlist sits in this panel, the tab bar below it
+        // (books.setlist_chrome; W12 phone #1); otherwise the Setlists list.
+        openSetlistView ?? <SetlistsScreen store={store} onOpenSetlist={onOpenSetlist} />
       ) : (
         <h1 className="t-h1">{t(`shell.${key}`)}</h1>
       )}
@@ -440,7 +442,9 @@ export default function AppShell({
   // Set the place's slots: the tab, the one-book scope (on search), the open
   // song and setlist.
   const applyPlace = (next) => {
-    setSelected(next.tab);
+    // A setlist is always on the Setlists tab (books.setlist_chrome Decision 3),
+    // as place.js reads a setlist's address.
+    setSelected(next.setlist ? 'setlists' : next.tab);
     if (next.tab === 'search') {
       setScope((prev) => {
         if (next.book) return bookOfScope(prev) === next.book ? prev : { bookId: next.book };
@@ -1015,21 +1019,23 @@ export default function AppShell({
     );
   }
 
-  // The opened setlist (books.setlists, workflow 12): a full-screen surface over
-  // the shell / master-detail, like the open song. Play (books.play) enters the
-  // player above; Back returns to the Setlists destination.
-  if (openSetlist) {
-    return (
-      <SetlistView
-        store={store}
-        bookId={openSetlist.bookId}
-        path={openSetlist.path}
-        mode={mode}
-        onBack={() => back(() => setOpenSetlist(null))}
-        onPlay={({ bookId, path }) => setPlayingSetlist({ bookId, path })}
-      />
-    );
-  }
+  // The opened setlist (books.setlists, workflow 12). Play (books.play) enters
+  // the player above; Back returns to where it was opened from. On tablet and
+  // computer it is a full-screen surface over the master-detail, no rail beside
+  // it (W12 #3, #4); on the phone it sits in the Setlists tab panel with the tab
+  // bar below it and no header row above (books.setlist_chrome; W12 phone #1;
+  // header_chrome Decision 8).
+  const setlistView = openSetlist ? (
+    <SetlistView
+      store={store}
+      bookId={openSetlist.bookId}
+      path={openSetlist.path}
+      mode={mode}
+      onBack={() => back(() => setOpenSetlist(null))}
+      onPlay={({ bookId, path }) => setPlayingSetlist({ bookId, path })}
+    />
+  ) : null;
+  if (setlistView && mode === 'wide') return setlistView;
 
   // The chord explorer (music.explorer, workflow 16): a full screen over the
   // shell, reached from search's chord row, carrying the typed symbol. Back
@@ -1047,6 +1053,20 @@ export default function AppShell({
   }
 
   const openInstruments = () => setInstrumentsOpen(true);
+  // Opening a setlist, from any destination, selects the Setlists tab
+  // (books.setlist_chrome Decision 3); a search hit still pushes, so Back lands
+  // on search again.
+  const openSetlistOnTab = (next) => {
+    setSelected('setlists');
+    setOpenSetlist(next);
+  };
+  // A destination tab pressed under an open setlist (the phone) leaves it: a tab
+  // switch plus a close, so the entry is replaced (routing Decision 4;
+  // books.setlist_chrome Decision 4).
+  const selectTab = (key) => {
+    if (openSetlist) setOpenSetlist(null);
+    setSelected(key);
+  };
   const search = {
     query: searchQuery,
     onQueryChange: setSearchQuery,
@@ -1061,7 +1081,7 @@ export default function AppShell({
         className="shell"
         orientation={mode === 'wide' ? 'vertical' : 'horizontal'}
         selectedKey={selected}
-        onSelectionChange={setSelected}
+        onSelectionChange={selectTab}
       >
         {mode === 'wide' ? (
           <div className="split">
@@ -1084,7 +1104,7 @@ export default function AppShell({
                 opens over this destination once the device says it is here. */}
             <main className="pane main" aria-busy={resolving ? true : undefined}>
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, setOpenSetlist, setAddingToSetlist, search, mode, restore)}
+                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore)}
               </div>
             </main>
           </div>
@@ -1092,13 +1112,16 @@ export default function AppShell({
           <div className="screen">
             {/* The phone's header row above every destination
                 (shell.header_chrome; W01/W02 phone 1): wordmark, chip, account;
-                `order: -1` keeps it above the scrolling detail. */}
-            <HeaderChrome
-              store={store}
-              className="instr-top"
-              onInstruments={openInstruments}
-              onAccount={() => setAccount(true)}
-            />
+                `order: -1` keeps it above the scrolling detail. Not over an
+                open setlist, whose own app bar is the first row (W12 phone #1). */}
+            {setlistView ? null : (
+              <HeaderChrome
+                store={store}
+                className="instr-top"
+                onInstruments={openInstruments}
+                onAccount={() => setAccount(true)}
+              />
+            )}
             {/* The TabList renders before the TabPanels so RAC can register the
                 tab ids the panels reference (react-aria tabs link panel↔tab by a
                 shared base id set when the list mounts); the tab bar is placed
@@ -1106,8 +1129,8 @@ export default function AppShell({
             <TabList className="tabbar" aria-label={t('shell.nav')}>
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
-            <main className="scroll" aria-busy={resolving ? true : undefined}>
-              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, setOpenSetlist, setAddingToSetlist, search, mode, restore)}
+            <main className={setlistView ? 'scroll scroll-setlist' : 'scroll'} aria-busy={resolving ? true : undefined}>
+              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, setlistView)}
             </main>
           </div>
         )}

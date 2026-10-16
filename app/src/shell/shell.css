@@ -148,6 +148,13 @@ body {
   order: 1;
 }
 
+/* An open setlist in the phone's Setlists panel (books.setlist_chrome; W12
+   phone #1) brings its own app bar and scroller: the shell's scroll frame around
+   it drops its padding, so the app bar spans the screen's width. */
+.screen > .scroll.scroll-setlist {
+  padding: 0;
+}
+
 /* Print releases the frame: the window-height cap and the scroll bodies are a
    screen affair, so the reading view prints the whole song in flow rather than
    the slice that fits the window (workflow 2 L85, L100). */

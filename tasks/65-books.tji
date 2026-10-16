@@ -142,8 +142,9 @@ task books "Books" {
   task setlist_chrome "The setlist view keeps the tab bar on a phone" {
     effort 0.5d
     allocate team
+    complete 100
     depends !setlists
-    note "The W12 board keeps Search, Books and Setlists visible under an open setlist on a phone; the app hides the tab bar there. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (the tab bar under an open setlist on narrow); e2e-web (a setlist opened from the Setlists tab on a phone, the tab bar reaches Search; mockup W12#1-2)."
+    note "The W12 board keeps Search, Books and Setlists visible under an open setlist on a phone; the app hides the tab bar there. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (the tab bar under an open setlist on narrow); e2e-web (a setlist opened from the Setlists tab on a phone, the tab bar reaches Search; mockup W12#1-2). Refinement: tasks/refinements/books/setlist_chrome.md"
   }
   task share_people "Sharing names people, and reads as drawn" {
     effort 2d

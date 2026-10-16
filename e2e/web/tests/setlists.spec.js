@@ -233,3 +233,39 @@ test('renaming a song a setlist uses keeps the setlist pointing at it (audit P2 
   await page.getByRole('button', { name: 'Next song' }).click();
   await expect(page.getByRole('group', { name: 'The Ferry Line' })).toBeVisible();
 });
+
+// books.setlist_chrome — W12 phone #1 keeps the tab bar (Search · Books ·
+// Setlists, Setlists on) under an open setlist; a tab press replaces the entry
+// (routing Decision 4). Tablet and computer draw no rail or tab bar under it
+// (W12 #3, #4): Back to the Setlists destination, whose rail reaches Search.
+test('the tab bar stays under an open setlist on a phone; Search is a tap away', async ({
+  page,
+  checkA11y,
+}, testInfo) => {
+  await openExampleBook(page);
+  await openSetlist(page, 'A Short Set');
+  const heading = page.getByRole('heading', { level: 2, name: 'A Short Set' });
+
+  if (testInfo.project.name === 'phone') {
+    const tablist = page.getByRole('tablist', { name: 'Destinations' });
+    await expect(tablist).toBeVisible();
+    await expect(tablist).toBeInViewport();
+    await expect(page.getByRole('tab', { name: 'Setlists' })).toHaveAttribute('aria-selected', 'true');
+    await mockup(page, 'W12-setlists', 1, { note: 'tab bar' });
+    await checkA11y();
+
+    await page.getByRole('tab', { name: 'Search' }).click();
+    await expect(page.getByRole('searchbox')).toBeVisible();
+    await expect(heading).toBeHidden();
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/');
+  } else {
+    await expect(heading).toBeVisible();
+    await expect(page.getByRole('tablist')).toHaveCount(0);
+    await checkA11y();
+
+    await page.getByRole('button', { name: 'Back' }).first().click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Setlists' })).toBeVisible();
+    await gotoTab(page, 'Search');
+    await expect(page.getByRole('searchbox')).toBeVisible();
+  }
+});

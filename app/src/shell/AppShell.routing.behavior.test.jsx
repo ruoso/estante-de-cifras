@@ -510,3 +510,124 @@ describe('AppShell routing (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });
+
+// behavior (books.setlist_chrome) — on a phone an open setlist sits in the
+// Setlists tab panel with the tab bar below it and no wordmark row above (W12
+// phone #1, L28-67, tab bar L62-66; header_chrome Decision 8); a destination tab
+// leaves it and replaces the entry (routing Decision 4); tablet and computer are
+// unchanged (W12 #3, #4). Reuses the setlist fixture of the deep-link case.
+describe('AppShell setlist chrome on a phone (behavior)', () => {
+  const SETLIST_TITLE = 'Sábado no bar';
+  const SETLIST_URL = `/b/b1/${SETLIST_PATH}`;
+
+  // Setlists tab → the listed setlist → its read view.
+  function openSetlistFromDestination(emit, entries = ENTRIES) {
+    emit(event(EventKind.SHELF, SHELF));
+    fireEvent.click(screen.getByRole('tab', { name: 'Setlists' }));
+    emit(
+      event(EventKind.SETLISTS, {
+        setlists: [{ bookId: BOOK, path: SETLIST_PATH, title: SETLIST_TITLE, count: 1 }],
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(SETLIST_TITLE) }));
+    emit(event(EventKind.TREE, { bookId: BOOK, entries }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SETLIST_PATH, text: SETLIST_TEXT }));
+    expect(screen.getByRole('heading', { level: 2, name: SETLIST_TITLE })).toBeInTheDocument();
+  }
+
+  it('narrow, a setlist opened from the Setlists destination keeps the tab bar, Setlists on, no wordmark row, axe-clean', async () => {
+    const { store, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    openSetlistFromDestination(emit);
+    expect(location.pathname).toBe(SETLIST_URL);
+
+    const tablist = screen.getByRole('tablist', { name: 'Destinations' });
+    expect(tablist).toHaveClass('tabbar');
+    expect(within(tablist).getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Search',
+      'Books',
+      'Setlists',
+    ]);
+    expect(screen.getByRole('tab', { name: 'Setlists' })).toHaveAttribute('aria-selected', 'true');
+    const panel = screen.getByRole('tabpanel', { name: 'Setlists' });
+    expect(within(panel).getByRole('heading', { level: 2, name: SETLIST_TITLE })).toBeInTheDocument();
+    // The setlist's own app bar is the first row: no wordmark, no chip.
+    expect(container.querySelector('.header-chrome')).toBeNull();
+    expect(container.querySelector('.wordmark')).toBeNull();
+    expect(screen.queryByRole('button', { name: /change instrument/ })).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('narrow, the Search tab leaves the setlist and replaces the entry', () => {
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    openSetlistFromDestination(emit);
+    const before = history.length;
+    fireEvent.click(screen.getByRole('tab', { name: 'Search' }));
+    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: SETLIST_TITLE })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
+    expect(location.pathname).toBe('/');
+    expect(history.length).toBe(before);
+  });
+
+  it('narrow, a setlist opened from search is on the Setlists tab; Back lands on Search', async () => {
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, SHELF));
+    act(() => {
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'sabado' } });
+    });
+    emit(
+      event(EventKind.SEARCH_RESULTS, {
+        query: 'sabado',
+        results: [
+          { bookId: BOOK, path: SETLIST_PATH, title: SETLIST_TITLE, kind: 'setlist', score: 3, unsaved: false },
+        ],
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(SETLIST_TITLE) }));
+    emit(event(EventKind.TREE, { bookId: BOOK, entries: ENTRIES }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SETLIST_PATH, text: SETLIST_TEXT }));
+    const panel = screen.getByRole('tabpanel', { name: 'Setlists' });
+    expect(within(panel).getByRole('heading', { level: 2, name: SETLIST_TITLE })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Setlists' })).toHaveAttribute('aria-selected', 'true');
+    expect(location.pathname).toBe(SETLIST_URL);
+
+    await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    expect(screen.queryByRole('heading', { level: 2, name: SETLIST_TITLE })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+    expect(location.pathname).toBe('/');
+  });
+
+  it('narrow, the editor keeps the tab bar', () => {
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    // The setlist already carries an unsaved edit, so the editor offers Discard.
+    openSetlistFromDestination(emit, [
+      { path: SONG_PATH, status: null },
+      { path: SETLIST_PATH, status: 'unsaved' },
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Discard' })).toBeInTheDocument();
+    expect(screen.getByRole('tablist', { name: 'Destinations' })).toHaveClass('tabbar');
+    expect(screen.getByRole('tab', { name: 'Setlists' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('wide, unchanged: an open setlist has no tab bar and no rail', () => {
+    globalThis.matchMedia = (media) => ({
+      media,
+      matches: media === WIDE_QUERY,
+      addEventListener() {},
+      removeEventListener() {},
+    });
+    const { store, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    openSetlistFromDestination(emit);
+    expect(screen.queryByRole('tablist')).toBeNull();
+    expect(container.querySelector('.tabbar')).toBeNull();
+    expect(container.querySelector('.rail')).toBeNull();
+  });
+});
