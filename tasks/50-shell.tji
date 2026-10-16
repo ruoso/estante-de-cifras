@@ -114,7 +114,8 @@ task shell "Shell" {
     effort 1d
     allocate team
     depends !layout, music.instruments
-    note "The instrument chip shows the full tuning (Guitar (6-string) · E2 A2 D3 G3 B3 E4) and is clipped by the account button on a phone; the boards and workflow 1 (The instrument) draw a short chip (Guitar), and its copy varies between screens (W16). The phone shelf is titled Search where the boards put the Estante wordmark, and the computer search rail lacks the wordmark and the chip (W02 desktop). One chip label everywhere, the full tuning as its accessible description. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: unit (the chip label for each instrument); behavior (the chip and wordmark on each destination, axe); e2e-web (the header on the three viewports with no clipping, mockup W01#1, W02#1, W02#4)."
+    complete 100
+    note "The instrument chip shows the full tuning (Guitar (6-string) · E2 A2 D3 G3 B3 E4) and is clipped by the account button on a phone; the boards and workflow 1 (The instrument) draw a short chip (Guitar), and its copy varies between screens (W16). The phone shelf is titled Search where the boards put the Estante wordmark, and the computer search rail lacks the wordmark and the chip (W02 desktop). One chip label everywhere, the full tuning as its accessible description. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: unit (the chip label for each instrument); behavior (the chip and wordmark on each destination, axe); e2e-web (the header on the three viewports with no clipping, mockup W01#1, W02#1, W02#4). Refinement: tasks/refinements/shell/header_chrome.md"
   }
   task narrow_fit "Nothing clipped, overflowing or wrapped word by word at phone and tablet widths" {
     effort 2d

@@ -12,7 +12,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
+import { render, screen, within, waitFor, act, fireEvent } from '@testing-library/react';
 import { createFileSystem } from '../worker/fs.js';
 import { createGitLayer } from '../worker/git.js';
 import { createGitHttpClient } from '../worker/git-http.js';
@@ -33,6 +33,9 @@ const T_EARLY = Date.UTC(2026, 9, 5, 14, 0, 0);
 const GUITAR_TUNING = 'E2 A2 D3 G3 B3 E4';
 const CAVAQUINHO_TUNING = 'D4 G4 B4 D5';
 const SLOW = { timeout: 5000 };
+// A real Worker, a git remote and axe over a page of diagrams: past Vitest's 5 s
+// default when the full suite loads the machine.
+const HEAVY = 20000;
 const rand = () => Math.random().toString(36).slice(2);
 
 function installMatchMedia(dark = false) {
@@ -161,7 +164,7 @@ describe('the chord explorer (behavior)', () => {
     } finally {
       await remote.stop();
     }
-  });
+  }, HEAVY);
 
   it('shows the ranked groups with difficulty words and accessible diagram names, axe clean', async () => {
     const remote = await startGitHttpRemote();
@@ -321,6 +324,8 @@ describe('the chord explorer (behavior)', () => {
       act(() => store.open());
 
       await screen.findByRole('heading', { name: 'No shape fits the rules' }, SLOW);
+      // The instrument is named by the chip's one short label (shell.header_chrome).
+      expect(screen.getByText(/^C13 asks for more notes than Cavaquinho can sound/)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Voicing rules' })).toBeInTheDocument();
       expect(await checkWcag21aa(document.body)).toHaveNoViolations();
     } finally {
@@ -349,4 +354,51 @@ describe('the chord explorer (behavior)', () => {
       await remote.stop();
     }
   });
+});
+
+// The header chrome around the explorer (shell.header_chrome): on wide the search
+// rail is headed by the wordmark and the chip and the app bar carries none — one
+// chip per screen, reachable above both scrollers (Decision 7); on narrow the
+// chip sits in the app bar. Pins workflow 16 L29-31 (as amended) and L154-156.
+describe('the chord explorer header chrome (behavior)', () => {
+  const chips = () => screen.getAllByRole('button', { name: /, change instrument$/ });
+
+  it('wide: the rail head carries Estante and the chip, the app bar none, axe clean', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await seedRemote(remote, instrumentSeed('g1', { catalogId: '6guitar', tuning: GUITAR_TUNING, fretCount: 22 }));
+      const { store } = await makeSeededWorker(remote, 'wide-head');
+      const { container } = renderExplorer(store, 'A', { mode: 'wide' });
+      act(() => store.open());
+      await screen.findByText('Open', {}, SLOW);
+
+      const head = container.querySelector('.explorer-side .rail-head');
+      expect(head).toHaveTextContent(/^Estante/);
+      await waitFor(() => expect(within(head).getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
+      expect(within(container.querySelector('.pane.main .appbar')).queryByRole('button', { name: /change instrument/ })).toBeNull();
+      expect(chips()).toHaveLength(1);
+
+      expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    } finally {
+      await remote.stop();
+    }
+  }, HEAVY);
+
+  it('narrow: the chip sits in the app bar', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await seedRemote(remote, instrumentSeed('g1', { catalogId: '6guitar', tuning: GUITAR_TUNING, fretCount: 22 }));
+      const { store } = await makeSeededWorker(remote, 'narrow-head');
+      const { container } = renderExplorer(store, 'A');
+      act(() => store.open());
+      await screen.findByText('Open', {}, SLOW);
+
+      const appbar = container.querySelector('.appbar');
+      await waitFor(() => expect(within(appbar).getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
+      expect(container.querySelector('.wordmark')).toBeNull();
+      expect(chips()).toHaveLength(1);
+    } finally {
+      await remote.stop();
+    }
+  }, HEAVY);
 });

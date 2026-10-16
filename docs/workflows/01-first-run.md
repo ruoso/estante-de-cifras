@@ -71,7 +71,9 @@ Explore Chords made the instrument the app's identity and set it up before
 anything else. Here the song comes first, so:
 
 - The instrument in use defaults to a **standard guitar**, shown as a chip in
-  the header, and changed from there.
+  the header, and changed from there. The header reads *Estante* (the wordmark),
+  the chip (*Guitar*) and the account affordance — on a phone above every
+  destination, on a tablet or computer at the head of the side rail.
 - **The first time a song is opened**, the reading view says *playing on
   guitar — change?* once. That is the moment the choice shows, so it is the
   moment to ask. Dismissing it, or changing the instrument, means it is not

@@ -20,7 +20,7 @@
 // task) fill them. The shell is usable with no account and no book (Workflow 1).
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Button, Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
+import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { getAppStore } from '../worker/store.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
@@ -49,7 +49,7 @@ import AccountScreen from '../account/AccountScreen.jsx';
 import MySongsChoice from '../account/MySongsChoice.jsx';
 import FileView from '../files/FileView.jsx';
 import ChordExplorer from '../music/ChordExplorer.jsx';
-import InstrumentChip from '../instruments/InstrumentChip.jsx';
+import HeaderChrome from './HeaderChrome.jsx';
 import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
 import { DESTINATIONS, WIDE_QUERY, layoutMode } from './layout-mode.js';
 import { bookFileSet } from '../books/setlist-display.js';
@@ -100,33 +100,6 @@ const ICONS = {
   books: <path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z" />,
   setlists: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
 };
-
-// The header account affordance (account.account_screen acceptance 1; DIRECTION
-// §6 line 545; mockup Theme-picker — "reached from the header"). Shell chrome
-// present on every destination, signed in or not; pressing it opens the account
-// surface. An icon button with an accessible name that says what it does — the
-// person glyph is decorative.
-function AccountButton({ onOpen }) {
-  return (
-    <Button className="btn icon account-open" aria-label={t('account.open')} onPress={onOpen}>
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
-      </svg>
-    </Button>
-  );
-}
 
 function DestinationIcon({ name }) {
   return (
@@ -1095,15 +1068,16 @@ export default function AppShell({
         {mode === 'wide' ? (
           <div className="split">
             <div className="pane side">
-              <div className="side-head">
-                <span className="t-h1">{t('app.name')}</span>
-                {/* The instrument chip, the one shared piece of shell chrome
-                    (music.instruments Decision 1): the computer board draws it in
-                    the side header. The account affordance sits beside it
-                    (account.account_screen). */}
-                <InstrumentChip store={store} onOpen={openInstruments} />
-                <AccountButton onOpen={() => setAccount(true)} />
-              </div>
+              {/* The side header (shell.header_chrome; W01/W02 computer): the
+                  wordmark, the instrument chip — the one shared piece of shell
+                  chrome (music.instruments Decision 1) — and the account
+                  affordance (account.account_screen). */}
+              <HeaderChrome
+                store={store}
+                className="side-head"
+                onInstruments={openInstruments}
+                onAccount={() => setAccount(true)}
+              />
               <TabList className="rail" aria-label={t('shell.nav')}>
                 {DESTINATIONS.map((key) => destinationTab(key, 'rail'))}
               </TabList>
@@ -1118,13 +1092,15 @@ export default function AppShell({
           </div>
         ) : (
           <div className="screen">
-            {/* The narrow top strip holds only the instrument chip (the board's
-                minimal header on the phone); `order: -1` keeps it above the
-                scrolling detail. */}
-            <div className="instr-top">
-              <InstrumentChip store={store} onOpen={openInstruments} />
-              <AccountButton onOpen={() => setAccount(true)} />
-            </div>
+            {/* The phone's header row above every destination
+                (shell.header_chrome; W01/W02 phone 1): wordmark, chip, account;
+                `order: -1` keeps it above the scrolling detail. */}
+            <HeaderChrome
+              store={store}
+              className="instr-top"
+              onInstruments={openInstruments}
+              onAccount={() => setAccount(true)}
+            />
             {/* The TabList renders before the TabPanels so RAC can register the
                 tab ids the panels reference (react-aria tabs link panel↔tab by a
                 shared base id set when the list mounts); the tab bar is placed

@@ -60,7 +60,13 @@ tuning and a song written for that tuning spell it the same way, and match.
 ## The roster, and switching
 
 The **instrument in use** is shown as a chip in the header, everywhere
-(workflow 1 lines 65–66; workflow 16 line 29): *Guitar · E A D G B E*. Tapping
+(workflow 1 lines 65–66; workflow 16 line 29), with **one short label on every
+screen**: the user's own name for the instrument if they gave it one, else the
+instrument's short name — *Guitar*, *Cavaquinho* — followed by the tuning's
+name when it is not the instrument's standard one (*Guitar · Drop D*, *Guitar ·
+Custom*). The full identity — the catalogue entry, the tuning's name and its
+pitches (*Guitar (6-string), Standard tuning: E2 A2 D3 G3 B3 E4*) — is the
+chip's accessible description, and the roster spells it out. Tapping
 it opens the **roster** — the user's instruments, the one in use **marked with a
 word** (*in use*, never colour alone), and *+ Add instrument* at the foot.
 Choosing another switches to it, and everything on screen **re-derives at once**:

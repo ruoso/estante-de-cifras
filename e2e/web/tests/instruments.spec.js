@@ -74,8 +74,11 @@ test('set up instruments from the header chip, switch, and edit the rules', asyn
 
   // Close the overlay (Escape dismisses it) and confirm the chip updated — it is
   // aria-hidden behind the open overlay, so it is read once the overlay closes.
+  // The chip shows the one short label — a custom tuning reads "· Custom" — and
+  // carries the pitches as its accessible description (shell.header_chrome).
   await page.keyboard.press('Escape');
-  await expect(chip(page)).toContainText('D4 G4 B4 D5');
+  await expect(chip(page)).toHaveText('Guitar · Custom');
+  await expect(chip(page)).toHaveAccessibleDescription(/D4 G4 B4 D5/);
 });
 
 test('removing the instrument in use asks first, and the app falls back to guitar (workflow 15 §Removing)', async ({

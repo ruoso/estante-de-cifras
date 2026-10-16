@@ -5,7 +5,7 @@
  * Plurals are written as `{ one, other }` and chosen by `count`.
  */
 export default {
-  app: { name: 'Estante de Cifras' },
+  app: { name: 'Estante de Cifras', wordmark: 'Estante' },
 
   ordinal: { one: '{n}st', two: '{n}nd', few: '{n}rd', other: '{n}th' },
 
@@ -1502,6 +1502,20 @@ export default {
     tenorbanjo: 'Tenor banjo',
   },
 
+  // The short name the header chip shows (shell.header_chrome; workflow 15
+  // §The roster, and switching): the catalogue name without its string count
+  // when the standard instrument is meant.
+  catalogShort: {
+    '6guitar': 'Guitar',
+    '7guitar': '7-string guitar',
+    '4bass': 'Bass',
+    '5bass': '5-string bass',
+    ukulele: 'Ukulele',
+    cavaquinho: 'Cavaquinho',
+    mandolin: 'Mandolin',
+    tenorbanjo: 'Tenor banjo',
+  },
+
   tuning: {
     Standard: 'Standard',
     'Drop D': 'Drop D',
@@ -2436,6 +2450,8 @@ export default {
   instr: {
     chip: {
       change: '{label}, change instrument',
+      description: '{catalogue}, {tuning} tuning: {pitches}',
+      descriptionCustom: '{catalogue}, custom tuning: {pitches}',
     },
     roster: {
       title: 'Instruments',

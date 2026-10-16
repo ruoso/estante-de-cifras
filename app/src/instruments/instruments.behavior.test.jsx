@@ -133,8 +133,10 @@ describe('the instrument surface (behavior)', () => {
     renderSurface(store);
     act(() => store.open());
 
-    // The chip shows the standard-guitar default before anything is set up.
-    await waitFor(() => expect(chip()).toHaveTextContent(/Guitar/));
+    // The chip shows the standard-guitar default before anything is set up: the
+    // one short label, the full identity as its description (shell.header_chrome).
+    await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar$/));
+    expect(chip()).toHaveAccessibleDescription('Guitar (6-string), Standard tuning: E2 A2 D3 G3 B3 E4');
 
     // Open the roster and add an instrument on its default (Standard) tuning.
     openOverlay();
@@ -198,12 +200,60 @@ describe('the instrument surface (behavior)', () => {
       expect(within(row).getByText('in use')).toBeInTheDocument();
     });
 
-    // Close the overlay and confirm the chip now reflects the in-use instrument.
+    // Close the overlay and confirm the chip now reflects the in-use instrument:
+    // a custom tuning reads "· Custom", its pitches in the description
+    // (shell.header_chrome; workflow 15 §The roster, and switching).
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Close' })));
-    await waitFor(() => expect(chip()).toHaveTextContent(/G4 C4 E4 A4/));
+    await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar · Custom$/));
+    expect(chip()).toHaveAccessibleDescription(/custom tuning: G4 C4 E4 A4/);
 
     const prefs = await readHome(idb, name, 'preferences.json');
     expect(typeof prefs.instrumentInUse.value).toBe('string');
+  });
+
+  it('names the instrument in use by its one short label: a default label shortened, a user name kept (shell.header_chrome)', async () => {
+    const { store } = makeFreshWorker('chip');
+    renderSurface(store);
+    act(() => store.open());
+    await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar$/));
+
+    // Add a guitar in Drop D without renaming it: the form stores its default
+    // label, which the chip shortens; the roster keeps the full one.
+    openOverlay();
+    await screen.findByRole('heading', { name: 'Instruments' });
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Add instrument' })));
+    await screen.findByRole('heading', { name: 'Add instrument' });
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Drop D' })));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Add instrument' })));
+    await waitFor(() => {
+      const row = screen.getByRole('button', { name: /^Open Guitar \(6-string\) · Drop D/ });
+      expect(within(row).getByText('in use')).toBeInTheDocument();
+    }, SLOW);
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Close' })));
+    await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar · Drop D$/));
+    expect(chip()).toHaveAccessibleName('Guitar · Drop D, change instrument');
+    expect(chip()).toHaveAccessibleDescription('Guitar (6-string), Drop D tuning: D2 A2 D3 G3 B3 E4');
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+    // Add one the user names, and switch to it: the chip shows the name.
+    openOverlay();
+    await screen.findByRole('heading', { name: 'Instruments' });
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Add instrument' })));
+    await screen.findByRole('heading', { name: 'Add instrument' });
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Open G' })));
+    act(() => fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'Slide guitar' } }));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Add instrument' })));
+    const slideRow = await screen.findByRole('button', { name: /^Open Slide guitar/ }, SLOW);
+    act(() => fireEvent.click(slideRow));
+    const useSlide = await screen.findByRole('button', { name: 'Use this instrument' });
+    act(() => fireEvent.click(useSlide));
+    await waitFor(() => {
+      const row = screen.getByRole('button', { name: /^Open Slide guitar/ });
+      expect(within(row).getByText('in use')).toBeInTheDocument();
+    });
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Close' })));
+    await waitFor(() => expect(chip()).toHaveTextContent(/^Slide guitar$/));
+    expect(chip()).toHaveAccessibleDescription('Guitar (6-string), Open G tuning: D2 G2 D3 G3 B3 D4');
   });
 
   it('shows the roster with the in-use marked by the word "in use"', async () => {

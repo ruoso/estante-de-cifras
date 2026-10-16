@@ -20,7 +20,8 @@ import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import InstrumentChip, { inUseEntry } from '../instruments/InstrumentChip.jsx';
 import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
-import { displayLabel } from '../instruments/instrument-helpers.js';
+import { chipLabel } from '../instruments/instrument-helpers.js';
+import HeaderChrome from '../shell/HeaderChrome.jsx';
 import { instrumentInstance } from '../core/instrument.js';
 import { parseChord } from '../core/notation/parse.js';
 import { formatChord } from '../core/notation/format.js';
@@ -211,7 +212,7 @@ export default function ChordExplorer({
       <div className="card pad explorer-empty">
         <h2 className="t-h2">{t('explorer.empty.title')}</h2>
         <p className="t-body">
-          {t('explorer.empty.body', { chord: chordSymbol, instrument: displayLabel(entry) })}
+          {t('explorer.empty.body', { chord: chordSymbol, instrument: chipLabel(entry) })}
         </p>
         <Button className="btn block" onPress={() => setInstrumentsOpen(true)}>
           {t('explorer.empty.rules')}
@@ -225,7 +226,8 @@ export default function ChordExplorer({
 
   // The chord input sits above the scrolling results, so it stays reachable
   // while they scroll (workflow 16 §Scrolling and moving through it); the chip
-  // is in the app bar above both.
+  // is in the app bar above both on narrow, at the head of the search rail on
+  // wide (one chip per screen, shell.header_chrome Decision 7).
   const detail = (
     <>
       <div className="explorer-head">
@@ -256,7 +258,7 @@ export default function ChordExplorer({
         <BackIcon />
       </Button>
       <span className="title">{t('explorer.title')}</span>
-      <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />
+      {mode === 'wide' ? null : <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />}
     </div>
   );
 
@@ -265,6 +267,7 @@ export default function ChordExplorer({
       {mode === 'wide' ? (
         <div className="split explorer-split">
           <div className="pane side explorer-side">
+            <HeaderChrome store={store} className="rail-head" onInstruments={() => setInstrumentsOpen(true)} />
             <SearchScreen
               store={store}
               query={text}

@@ -158,6 +158,21 @@ describe('SongArrange — tappable chords and the strip', () => {
   });
 });
 
+// The mode chip names the instrument by the chip's one short label
+// (shell.header_chrome): the copy no longer varies between screens, and the
+// unlabelled standard fallback reads "Guitar", not "instrument". Pins workflow
+// 5's mode chip naming the instrument.
+describe('SongArrange — the mode chip', () => {
+  it('reads "Arranging · Guitar" with the standard fallback (no label)', async () => {
+    const { store } = makeStore({
+      text: song({ chart: 'G | C' }),
+      entry: { ...guitarEntry(), id: 'standard', label: null },
+    });
+    await openArrange(store);
+    expect(await screen.findByText('Arranging · Guitar')).toBeInTheDocument();
+  });
+});
+
 // The picker renders a fretboard diagram per candidate, and axe walks all of
 // them: deterministic work (no waiting) that runs past Vitest's 5 s default
 // when the full suite loads the machine, as the other axe-over-diagram tests do.

@@ -5,7 +5,7 @@
  * digitación, cifrado. "Voicing" se queda en inglés, como se usa en la práctica.
  */
 export default {
-  app: { name: 'Estante de Cifras' },
+  app: { name: 'Estante de Cifras', wordmark: 'Estante' },
 
   ordinal: { other: '{n}ª' },
 
@@ -1343,6 +1343,19 @@ export default {
     tenorbanjo: 'Banjo tenor',
   },
 
+  // El nombre corto que muestra el chip del encabezado (shell.header_chrome,
+  // flujo 15): el nombre del catálogo sin la cantidad de cuerdas del estándar.
+  catalogShort: {
+    '6guitar': 'Guitarra',
+    '7guitar': 'Guitarra de 7 cuerdas',
+    '4bass': 'Bajo',
+    '5bass': 'Bajo de 5 cuerdas',
+    ukulele: 'Ukelele',
+    cavaquinho: 'Cavaquinho',
+    mandolin: 'Mandolina',
+    tenorbanjo: 'Banjo tenor',
+  },
+
   tuning: {
     Standard: 'Estándar',
     'Drop D': 'Drop D',
@@ -2284,6 +2297,8 @@ export default {
   instr: {
     chip: {
       change: '{label}, cambiar de instrumento',
+      description: '{catalogue}, afinación {tuning}: {pitches}',
+      descriptionCustom: '{catalogue}, afinación personalizada: {pitches}',
     },
     roster: {
       title: 'Instrumentos',

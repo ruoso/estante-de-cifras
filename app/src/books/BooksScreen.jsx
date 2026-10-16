@@ -51,7 +51,7 @@ import {
   elsewhereCopyFor,
 } from './book-display.js';
 import { inUseEntry } from '../instruments/InstrumentChip.jsx';
-import { displayLabel } from '../instruments/instrument-helpers.js';
+import { chipLabel } from '../instruments/instrument-helpers.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
 import { syncDisplayFor, anyOutOfStep } from '../sync-display.js';
 import BookDetail from './BookDetail.jsx';
@@ -309,7 +309,7 @@ function RenameDialog({ bookId, currentName, onRename }) {
 // language, each read from the surfaced slices — until dismissed or the next
 // start. Announced politely (`role="status"`); the dismiss is a RAC Button.
 function RestoreNotice({ preferences, instruments, onDismiss }) {
-  const instrument = displayLabel(inUseEntry(instruments));
+  const instrument = chipLabel(inUseEntry(instruments));
   const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
   const notation = ['brazilian', 'american', 'realbook'].includes(dialect)
     ? t(['newDevice', 'notation', dialect])

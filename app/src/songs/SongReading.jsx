@@ -42,6 +42,8 @@ import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import InstrumentChip, { inUseEntry } from '../instruments/InstrumentChip.jsx';
+import { chipLabel } from '../instruments/instrument-helpers.js';
+import HeaderChrome from '../shell/HeaderChrome.jsx';
 import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
 import { instrumentInstance, openMidis } from '../core/instrument.js';
 import { resolveSongVoicings, unvoiceableKeys } from '../core/voicings.js';
@@ -298,7 +300,7 @@ export default function SongReading({
   // Only at the written key — while transposed the shapes are deliberately not
   // the song's, which a different caption explains.
   const noVoicings = offset === 0 && Boolean(model) && chordList.length > 0 && variations.length === 0;
-  const instrumentLabel = entry?.label ?? t('search.instrument');
+  const instrumentLabel = chipLabel(entry) || t('search.instrument');
 
   const status = transposeStatus(writtenKey, offset, dialect);
   const transposed = offset !== 0;
@@ -551,7 +553,9 @@ export default function SongReading({
       <span className="t-small reading-byline">
         {artist ? t('reading.byline', { artist, book: bookLabel }) : bookLabel}
       </span>
-      <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />
+      {/* On wide the chip heads the search rail instead (one chip per screen,
+          shell.header_chrome Decision 7); on narrow it stays here (W02 phone 2). */}
+      {mode === 'wide' ? null : <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />}
       {writtenKey && !transposed ? <span className="chip">{t('reading.keyOf', { key: writtenKey })}</span> : null}
       {mode === 'wide' ? transposeControl : null}
       {variationPicker}
@@ -565,7 +569,9 @@ export default function SongReading({
           <div className="pane side reading-side">
             {/* Search beside the song (the computer's master-detail): a result
                 tapped here switches the open song through the same seam. Left
-                uncontrolled so it holds and edits its own query. */}
+                uncontrolled so it holds and edits its own query. Its head carries
+                the wordmark and the chip outside the scroller (W02 computer). */}
+            <HeaderChrome store={store} className="rail-head" onInstruments={() => setInstrumentsOpen(true)} />
             <SearchScreen store={store} onOpenSong={onOpenSong} />
           </div>
           <div className="pane main">

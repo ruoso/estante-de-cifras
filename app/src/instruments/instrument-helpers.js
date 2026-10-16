@@ -50,7 +50,8 @@ export function presetLabel(presetId) {
   return presetId === 'custom' ? t('rules.custom') : t(['rules', 'presets', presetId]);
 }
 
-// The label shown in the chip and the roster: the user's own label, else the
+// The label shown in the roster and the instrument detail, where instruments
+// are told apart in full (the chip uses `chipLabel`): the user's own label, else the
 // default "catalogue · tuning" (workflow 15 L94). The standard-guitar fallback
 // (no stored label) reads as its catalogue name and §6 tuning text.
 export function displayLabel(entry) {
@@ -64,6 +65,70 @@ export function displayLabel(entry) {
 // §6 text" for a custom one.
 export function defaultLabel(catalogId, tuningLabel) {
   return `${catalogName(catalogId)} · ${tuningLabel}`;
+}
+
+// The tuning preset an entry's tuning matches, compared as pitch lists through
+// `tuningText` (so "E2, A2" and "E2 A2" are one tuning), or null for a custom
+// tuning — and whether it is the catalogue's first (its standard).
+function matchPreset(entry) {
+  const tunings = catalogEntry(entry?.catalogId)?.tunings ?? [];
+  let own;
+  try {
+    own = tuningText(entry?.tuning ?? '');
+  } catch {
+    return { preset: null, standard: false };
+  }
+  const index = tunings.findIndex((tn) => tuningText(tn.strings) === own);
+  return { preset: index < 0 ? null : tunings[index], standard: index === 0, text: own };
+}
+
+// The short instrument name (`catalogShort.<id>`), else the catalogue name.
+function shortName(catalogId) {
+  if (catalogId && hasMessage(['catalogShort', catalogId])) return t(['catalogShort', catalogId]);
+  return catalogName(catalogId);
+}
+
+// Whether a stored label is the default the add form suggested (workflow 15
+// L94) rather than a name the user typed: "catalogue · tuning" in the current
+// locale or in the catalogue's raw (English) names (shell.header_chrome
+// Decision 3 — recognised, never migrated).
+function isDefaultLabel(entry, label, { preset, text }) {
+  const raw = catalogEntry(entry.catalogId)?.name ?? entry.catalogId;
+  const candidates = preset
+    ? [defaultLabel(entry.catalogId, tuningName(preset.name)), `${raw} · ${preset.name}`]
+    : [];
+  for (const tuning of [entry.tuning, text]) {
+    if (tuning) candidates.push(defaultLabel(entry.catalogId, tuning), `${raw} · ${tuning}`);
+  }
+  return candidates.includes(label);
+}
+
+// The one short label the header chip and every passing mention of the
+// instrument in use show (shell.header_chrome; workflow 15 §The roster, and
+// switching): the user's own name, else the short name, followed by the
+// tuning's name when it is not the catalogue's standard (*Guitar · Drop D*,
+// *Guitar · Custom*).
+export function chipLabel(entry) {
+  if (!entry) return '';
+  const match = matchPreset(entry);
+  const label = typeof entry.label === 'string' ? entry.label.trim() : '';
+  if (label && !isDefaultLabel(entry, label, match)) return label;
+  const name = shortName(entry.catalogId);
+  if (match.standard) return name;
+  return `${name} · ${match.preset ? tuningName(match.preset.name) : t('tuning.custom')}`;
+}
+
+// The full identity the chip carries as its accessible description: catalogue,
+// tuning name and pitches (*Guitar (6-string), Standard tuning: E2 A2 D3 G3 B3
+// E4*); a custom tuning reads "custom tuning". The same for a user-named entry
+// — it is what the name stands for.
+export function chipDescription(entry) {
+  if (!entry) return '';
+  const { preset, text } = matchPreset(entry);
+  const params = { catalogue: catalogName(entry.catalogId), pitches: text ?? entry.tuning };
+  return preset
+    ? t('instr.chip.description', { ...params, tuning: tuningName(preset.name) })
+    : t('instr.chip.descriptionCustom', params);
 }
 
 // Reconstruct a saved my-shape into a drawable `{ fingering, context }` for

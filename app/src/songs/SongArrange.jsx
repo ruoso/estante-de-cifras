@@ -44,6 +44,7 @@ import { t } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import { inUseEntry } from '../instruments/InstrumentChip.jsx';
+import { chipLabel } from '../instruments/instrument-helpers.js';
 import { instrumentInstance, openMidis } from '../core/instrument.js';
 import { resolveSongVoicings } from '../core/voicings.js';
 import { songVariations } from '../core/song-variations.js';
@@ -133,7 +134,7 @@ export default function SongArrange({
   const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
   const entry = inUseEntry(instrumentsSlice);
   const config = entry?.config ?? null;
-  const instrumentLabel = entry?.label ?? t('search.instrument');
+  const instrumentLabel = chipLabel(entry) || t('search.instrument');
 
   let instrument = null;
   if (entry) {

@@ -27,7 +27,8 @@ the same symbol: arriving from search fills it in, and *back* returns to search
 with it still typed, songs and all. There is one symbol, read two ways.
 
 The **instrument in use** is shown as the header chip, as everywhere else
-(workflow 1): *Guitar · E A D G B E*. It is a preference in the home book, and
+(workflow 1), with the one short label it has everywhere (workflow 15, The
+roster): *Guitar*, the full tuning as its accessible description. It is a preference in the home book, and
 changing it from the chip re-derives the shapes for the new tuning — a chord on
 the cavaquinho is a different search from the same chord on the guitar. The
 explorer reads the instrument, its tuning and its voicing rules; it does not

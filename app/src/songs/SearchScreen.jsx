@@ -43,6 +43,8 @@ import {
 import FirstRun from './FirstRun.jsx';
 import SaveSheet from './SaveSheet.jsx';
 import { showsFirstRun, bookLabelFor as resolveBookLabel } from './first-run.js';
+import { inUseEntry } from '../instruments/InstrumentChip.jsx';
+import { chipLabel } from '../instruments/instrument-helpers.js';
 import './search.css';
 
 // Results narrow "on every keystroke" (workflow 2 L22), but a SEARCH per
@@ -405,11 +407,12 @@ export default function SearchScreen({
   const shelf = useSlice(store, 'shelf');
 
   // Chord recognition reads the user's notation dialect (Decision 4), falling
-  // back to the app default when none is surfaced. The instrument-in-use label
-  // (owned by the music tasks) fills `{instrument}` when present; until then the
-  // copy reads the generic "on your instrument" (workflow 2 L28).
+  // back to the app default when none is surfaced. The instrument in use fills
+  // `{instrument}` with the chip's one short label (shell.header_chrome; workflow
+  // 2 L28), the generic "on your instrument" only while no slice has arrived.
   const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
-  const instrument = preferences?.instrument?.value || t('search.instrument');
+  const instrumentsSlice = useSlice(store, 'instruments');
+  const instrument = chipLabel(inUseEntry(instrumentsSlice)) || t('search.instrument');
 
   // The query is controllable: the chord explorer lifts it so the search box and
   // the explorer's chord input hold the one symbol, and *back* returns to search
@@ -521,7 +524,10 @@ export default function SearchScreen({
 
   return (
     <div className="search-screen">
-      <h1 className="t-h1">{t('shell.search')}</h1>
+      {/* The page heading stays for the outline and screen readers, visually
+          hidden: the header's wordmark row is what the boards draw here
+          (shell.header_chrome Decision 6). */}
+      <h1 className="t-h1 visually-hidden">{t('shell.search')}</h1>
 
       <Group className="search" aria-label={t('search.label')}>
         <SearchIcon />

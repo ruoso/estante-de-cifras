@@ -4,11 +4,9 @@
    .btn, .dialog, .scrim); nothing here hard-codes a colour (mockups README). */
 
 /* The header chip — the one shared piece of shell chrome. In the wide side pane
-   it sits beside the app name; in the narrow top strip it is the only control. */
+   and the narrow header row it sits beside the wordmark and the account button
+   (shell.header_chrome; the row's flex layout is `.header-chrome`). */
 .instr-top {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
   padding: calc(var(--u) * 1) calc(var(--u) * 2);
   border-bottom: 1px solid var(--line);
   background: var(--surface);

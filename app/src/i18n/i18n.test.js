@@ -110,6 +110,15 @@ describe('lookup', () => {
     expect(tr('nav')).toBeTruthy();
   });
 
+  it('names the wordmark Estante in every language (shell.header_chrome)', () => {
+    // The header's wordmark is the proper noun's short form, like the PWA's
+    // short_name; the document title keeps app.name.
+    for (const id of LOCALE_IDS) {
+      setLocale(id);
+      expect(t('app.wordmark'), id).toBe('Estante');
+    }
+  });
+
   it('leaves an unknown placeholder visible', () => {
     expect(t('results.none', {})).toBe('No fingerings for this chord on {label}.');
   });

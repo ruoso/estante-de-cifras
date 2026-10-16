@@ -5,7 +5,7 @@
  * diteggiatura, battuta. "Voicing" resta in inglese, come si usa davvero.
  */
 export default {
-  app: { name: 'Estante de Cifras' },
+  app: { name: 'Estante de Cifras', wordmark: 'Estante' },
 
   ordinal: { other: '{n}ª' },
 
@@ -1343,6 +1343,19 @@ export default {
     tenorbanjo: 'Banjo tenore',
   },
 
+  // Il nome breve del chip dell'intestazione (shell.header_chrome, flusso 15):
+  // il nome del catalogo senza il numero di corde dello strumento standard.
+  catalogShort: {
+    '6guitar': 'Chitarra',
+    '7guitar': 'Chitarra a 7 corde',
+    '4bass': 'Basso',
+    '5bass': 'Basso a 5 corde',
+    ukulele: 'Ukulele',
+    cavaquinho: 'Cavaquinho',
+    mandolin: 'Mandolino',
+    tenorbanjo: 'Banjo tenore',
+  },
+
   tuning: {
     Standard: 'Standard',
     'Drop D': 'Drop D',
@@ -2285,6 +2298,8 @@ export default {
   instr: {
     chip: {
       change: '{label}, cambia strumento',
+      description: '{catalogue}, accordatura {tuning}: {pitches}',
+      descriptionCustom: '{catalogue}, accordatura personalizzata: {pitches}',
     },
     roster: {
       title: 'Strumenti',

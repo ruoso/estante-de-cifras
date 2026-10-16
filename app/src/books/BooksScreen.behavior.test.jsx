@@ -462,7 +462,8 @@ describe('BooksScreen on a new device (account.new_device, behavior)', () => {
     expect(status).toHaveTextContent('Home book restored. Your instrument, notation and language are set.');
     expect(within(status).getByText('Brazilian notation')).toBeInTheDocument();
     expect(within(status).getByText('English')).toBeInTheDocument();
-    expect(within(status).getByText(/E2 A2 D3 G3 B3 E4/)).toBeInTheDocument();
+    // The instrument by the chip's one short label (shell.header_chrome).
+    expect(within(status).getByText('Guitar')).toBeInTheDocument();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss the home book notice' }));

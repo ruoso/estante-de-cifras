@@ -198,9 +198,13 @@ describe('SearchScreen (behavior)', () => {
     const { store, emit } = makeStore();
     const { container } = render(<SearchScreen store={store} />);
 
+    // The instrument in use, named by the chip's one short label
+    // (shell.header_chrome): the standard-guitar fallback reads "Guitar".
     emit(
-      event(EventKind.PREFERENCES, {
-        instrument: { value: 'guitar', at: '2026-10-05T00:00:00.000Z' },
+      event(EventKind.INSTRUMENTS, {
+        instruments: [],
+        inUseId: null,
+        standard: { id: 'standard', catalogId: '6guitar', label: null, tuning: 'E2 A2 D3 G3 B3 E4' },
       }),
     );
     type('tarde');
@@ -222,7 +226,7 @@ describe('SearchScreen (behavior)', () => {
       }),
     );
 
-    expect(screen.getByText('voiced for guitar')).toBeInTheDocument();
+    expect(screen.getByText('voiced for Guitar')).toBeInTheDocument();
     expect(screen.getByText('unsaved')).toBeInTheDocument();
     expect(screen.getByText('conflict')).toBeInTheDocument();
 
@@ -338,6 +342,33 @@ describe('SearchScreen (behavior)', () => {
       fireEvent.keyUp(explore, { key: 'Enter' });
     });
     expect(chosen).toHaveLength(2);
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('names the instrument in use in the Explore row by the chip label (shell.header_chrome; workflow 2 L28)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = render(<SearchScreen store={store} onExploreChord={() => {}} />);
+    // The standard-guitar fallback (no instrument set up).
+    emit(
+      event(EventKind.INSTRUMENTS, {
+        instruments: [],
+        inUseId: null,
+        standard: { id: 'standard', catalogId: '6guitar', label: null, tuning: 'E2 A2 D3 G3 B3 E4' },
+      }),
+    );
+    type('A');
+    expect(screen.getByRole('button', { name: /Explore A on your Guitar/ })).toBeInTheDocument();
+
+    // A cavaquinho in use, added on its standard tuning under its default label.
+    const cavaquinho = {
+      id: 'c1',
+      catalogId: 'cavaquinho',
+      label: 'Cavaquinho · Standard (Brazil)',
+      tuning: 'D4 G4 B4 D5',
+    };
+    emit(event(EventKind.INSTRUMENTS, { instruments: [cavaquinho], inUseId: 'c1', standard: null }));
+    expect(screen.getByRole('button', { name: /Explore A on your Cavaquinho/ })).toBeInTheDocument();
 
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });

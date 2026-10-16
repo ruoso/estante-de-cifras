@@ -1,6 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { checkWcag21aa } from '../a11y/axe.js';
+import { createStore } from '../worker/store.js';
+import { event, EventKind } from '../worker/protocol.js';
 import AppShell from './AppShell.jsx';
 import { WIDE_QUERY } from './layout-mode.js';
 
@@ -149,4 +151,65 @@ describe('AppShell (behavior)', () => {
       .map((tab) => tab.getAttribute('aria-selected'));
     expect(selected).toEqual(['true', 'false', 'false']);
   });
+});
+
+// The header as drawn (shell.header_chrome): the *Estante* wordmark, the one
+// short instrument chip carrying the full identity as its description, and the
+// account button — above every destination on a phone, in the side header on a
+// tablet or computer. Pins workflow 1 §The instrument (as amended) and W01 phone
+// 1 / computer.
+describe('AppShell header chrome (behavior)', () => {
+  // The standard-guitar fallback the Worker sends when no instrument is set up
+  // (label null; worker/instruments.js standardEntry).
+  const STANDARD = {
+    id: 'standard',
+    catalogId: '6guitar',
+    label: null,
+    tuning: 'E2 A2 D3 G3 B3 E4',
+    fretCount: 22,
+    shapes: [],
+  };
+
+  function renderWithStandard() {
+    const endpoint = { postMessage() {}, onmessage: null };
+    const store = createStore(endpoint);
+    const view = render(<AppShell store={store} />);
+    act(() =>
+      endpoint.onmessage({
+        data: event(EventKind.INSTRUMENTS, { instruments: [], inUseId: null, standard: STANDARD }),
+      }),
+    );
+    return view;
+  }
+
+  function expectHeader(header) {
+    expect(header).toHaveTextContent(/^Estante/);
+    expect(header).not.toHaveTextContent('Estante de Cifras');
+    const chip = within(header).getByRole('button', { name: 'Guitar, change instrument' });
+    expect(chip).toHaveTextContent(/^Guitar$/);
+    expect(chip).toHaveAccessibleDescription('Guitar (6-string), Standard tuning: E2 A2 D3 G3 B3 E4');
+    expect(within(header).getByRole('button', { name: 'Account' })).toBeInTheDocument();
+    // One chip on the screen: two identically named buttons would be ambiguous.
+    expect(screen.getAllByRole('button', { name: /change instrument/ })).toHaveLength(1);
+  }
+
+  for (const [layout, wide, headClass] of [
+    ['narrow', false, '.instr-top'],
+    ['wide', true, '.side-head'],
+  ]) {
+    it(`${layout}: wordmark, chip and account on Search, Books and Setlists, axe-clean`, async () => {
+      installMatchMedia(wide);
+      const { container } = renderWithStandard();
+      for (const destination of DESTINATION_LABELS) {
+        fireEvent.click(screen.getByRole('tab', { name: destination }));
+        const header = container.querySelector(headClass);
+        expect(header).toBeInTheDocument();
+        expectHeader(header);
+        // The destination keeps its own page heading — Search's is visually
+        // hidden behind the wordmark row, but still the level-1 heading.
+        expect(screen.getByRole('heading', { level: 1, name: destination })).toBeInTheDocument();
+        expect(await checkWcag21aa(container)).toHaveNoViolations();
+      }
+    });
+  }
 });

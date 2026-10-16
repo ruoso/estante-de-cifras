@@ -88,20 +88,36 @@ body {
   flex-direction: column;
 }
 
-/* The wide sidebar's wordmark area and the destination rail (a column of
-   `.row`s styled by theme.css; `.row.sel` carries the selected background). */
-.side-head {
+/* The header chrome (shell.header_chrome; W01/W02): the *Estante* wordmark,
+   the instrument chip and the account button in one row. The wordmark takes the
+   free space and never shrinks; the chip's short label fits beside it, its
+   ellipsis only a last resort; the account button keeps its size. */
+.header-chrome {
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 1.5);
+}
+.header-chrome > .wordmark {
+  flex: 1 0 auto;
+}
+.header-chrome > .instrument-chip {
+  min-width: 0;
+}
+.header-chrome > .account-open {
+  flex: none;
+}
+
+/* The wide sidebar's header and the destination rail (a column of `.row`s
+   styled by theme.css; `.row.sel` carries the selected background). */
+.side-head {
   padding: calc(var(--u) * 2) calc(var(--u) * 2) calc(var(--u) * 1.5);
 }
 
-/* The app name yields its row to the instrument chip (music.instruments mounts
-   it here, the one shared piece of shell chrome). */
-.side-head .t-h1 {
-  flex: 1;
-  min-width: 0;
+/* The head of the search rail beside an open song or the chord explorer (W02
+   computer): wordmark and chip above the search, outside its scroller. */
+.rail-head {
+  flex: none;
+  padding: calc(var(--u) * 2) calc(var(--u) * 2) calc(var(--u) * 1.5);
 }
 
 .rail {

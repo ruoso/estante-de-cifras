@@ -585,3 +585,48 @@ describe('SongReading — the wide master-detail (shell.layout)', () => {
     expect(onBack).toHaveBeenCalled();
   });
 });
+
+// The header chrome around the reading view (shell.header_chrome): on wide the
+// search rail beside the song is headed by the wordmark and the chip, and the
+// meta row carries none — one chip per screen (Decision 7); on narrow the chip
+// stays in the meta row. The instrument is named by the chip's one short label
+// everywhere. Pins W02 phone 2 / computer and workflow 2.
+describe('SongReading header chrome (behavior)', () => {
+  // The standard-guitar fallback the Worker sends when nothing is set up.
+  const standardEntry = () => ({ ...guitarEntry(), id: 'standard', label: null });
+  const seen = { instrumentPromptSeen: register(true) };
+  const chips = () => screen.getAllByRole('button', { name: /, change instrument$/ });
+
+  it('wide: the rail head shows Estante and the chip, the meta row none, axe clean', async () => {
+    const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
+    const { container } = await openAndWait(store, { mode: 'wide' });
+
+    const head = container.querySelector('.reading-side .rail-head');
+    expect(head).toHaveTextContent(/^Estante/);
+    await waitFor(() => expect(within(head).getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
+    expect(within(head).queryByRole('button', { name: 'Account' })).toBeNull();
+    expect(within(container.querySelector('.reading-meta')).queryByRole('button', { name: /change instrument/ })).toBeNull();
+    expect(chips()).toHaveLength(1);
+
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('narrow: the chip sits in the meta row, with no wordmark', async () => {
+    const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
+    const { container } = await openAndWait(store);
+
+    const meta = container.querySelector('.reading-meta');
+    await waitFor(() => expect(within(meta).getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
+    expect(container.querySelector('.wordmark')).toBeNull();
+    expect(chips()).toHaveLength(1);
+  });
+
+  it('names the unlabelled standard fallback "Guitar" in the arrange offer, not "instrument"', async () => {
+    const { store } = makeStore({ text: song({ chart: 'G  C  Am' }), entry: standardEntry(), preferences: seen });
+    await openAndWait(store);
+
+    expect(await screen.findByRole('button', { name: 'Arrange for Guitar' })).toBeInTheDocument();
+    expect(screen.getByText(/Nobody has chosen shapes for Guitar in this song yet/)).toBeInTheDocument();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+});
