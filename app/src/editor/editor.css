@@ -77,6 +77,10 @@
 
 .est .cm-editor {
   flex: 1;
+  /* A flex item's min-width defaults to its content, so a long source line
+     would widen the editor past its pane and under the preview; the
+     scroller scrolls it instead. */
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);

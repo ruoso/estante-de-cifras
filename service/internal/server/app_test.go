@@ -30,6 +30,10 @@ const testShell = "<!doctype html><html><body><div id=\"root\" data-shell=\"esta
 // content-hashed assets/index-<hash>.js.
 const testAsset = "assets/app-abc123.js"
 
+// a hashed font in the fixture, standing in for Vite's fingerprinted
+// assets/<family>-<hash>.woff2 (shell.fonts).
+const testFont = "assets/font-abc123.woff2"
+
 // newTestAppRoot writes a minimal app-root fixture (the files service.serve_app
 // must serve: the shell, a hashed asset, the service worker, a workbox chunk
 // and the manifest) to a temp dir and returns its path. Shared by the app and
@@ -52,6 +56,7 @@ func newTestAppRoot(t *testing.T) string {
 	write("workbox-deadbeef.js", "/* workbox runtime */\n")
 	write("manifest.webmanifest", `{"name":"Estante de Cifras"}`)
 	write("icon-192.png", "\x89PNG\r\n\x1a\n fixture icon bytes")
+	write(testFont, "wOF2 fixture font bytes")
 	return dir
 }
 
@@ -205,6 +210,25 @@ func TestIconContentType(t *testing.T) {
 	}
 	if got := resp.Header.Get("Cache-Control"); got != cacheRevalidate {
 		t.Errorf("GET /icon-192.png Cache-Control = %q, want %q", got, cacheRevalidate)
+	}
+}
+
+// TestFontContentType pins that a self-hosted face is served as a font and
+// cached forever under its hash (shell.fonts Constraints, the service.serve_app
+// content-type rule), not as octet-stream left to sniffing.
+func TestFontContentType(t *testing.T) {
+	ts := httptest.NewServer(newTestHandler(t))
+	defer ts.Close()
+
+	resp, _ := get(t, ts.URL, "/"+testFont)
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("GET /%s status = %d, want 200", testFont, resp.StatusCode)
+	}
+	if got := resp.Header.Get("Content-Type"); got != "font/woff2" {
+		t.Errorf("GET /%s Content-Type = %q, want font/woff2", testFont, got)
+	}
+	if got := resp.Header.Get("Cache-Control"); got != cacheImmutable {
+		t.Errorf("GET /%s Cache-Control = %q, want %q", testFont, got, cacheImmutable)
 	}
 }
 

@@ -204,6 +204,10 @@ func contentType(name string) string {
 		// knows .png, but the content type is pinned here with the rest so the
 		// bundle's types are not left to content sniffing.
 		return "image/png"
+	case strings.HasSuffix(name, ".woff2"):
+		// The themes' self-hosted typefaces, emitted by Vite as hashed
+		// assets/*.woff2 (shell.fonts). Go's mime table does not know .woff2.
+		return "font/woff2"
 	}
 	return "application/octet-stream"
 }

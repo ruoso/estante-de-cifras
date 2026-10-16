@@ -85,8 +85,9 @@ task shell "Shell" {
   task fonts "Self-host the designed typefaces" {
     effort 1d
     allocate team
+    complete 100
     depends !tokens, !pwa
-    note "Commit woff2 subsets of Figtree, Fraunces, Source Sans 3, JetBrains Mono, IBM Plex Mono and Atkinson Hyperlegible (+ Mono) with each family's license file beside it (SIL OFL 1.1; confirm each — Atkinson Hyperlegible's original release has its own Braille Institute license — and stop if any forbids redistribution); @font-face in theme.css with the current system stacks as fallbacks and font-display: swap; the PWA precache extended so the fonts work offline. Source: tasks/parking-lot.md 2026-10-14 (Font licensing). Tests: behavior (the theme resolves each family to its @font-face); e2e-web (fonts load from the origin and, offline after a reload, from the precache; axe)."
+    note "Commit woff2 subsets of Figtree, Fraunces, Source Sans 3, JetBrains Mono, IBM Plex Mono and Atkinson Hyperlegible (+ Mono) with each family's license file beside it (SIL OFL 1.1; confirm each — Atkinson Hyperlegible's original release has its own Braille Institute license — and stop if any forbids redistribution); @font-face in theme.css with the current system stacks as fallbacks and font-display: swap; the PWA precache extended so the fonts work offline. Source: tasks/parking-lot.md 2026-10-14 (Font licensing). Tests: behavior (the theme resolves each family to its @font-face); e2e-web (fonts load from the origin and, offline after a reload, from the precache; axe). Refinement: tasks/refinements/shell/fonts.md"
   }
   task display_preferences "Density and chord-diagram display" {
     effort 2d
