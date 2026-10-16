@@ -158,6 +158,18 @@ its songs are now in the account's.
   marked *Confirmed*, with **change**. The address is shown here, to its
   owner, and nowhere else in the app. Shown only when signed in.
 
+Who is signed in sits with **sign out of this device**: the account's name
+and *Signed in on this device*, and the button beside it, rather than on this
+device's row of the devices list. On a phone and a tablet the screen is one
+column in the order above. On a computer it is drawn in
+[Theme-picker](../mockups/Theme-picker.dc.html) and
+[W13](../mockups/W13-new-device.dc.html): a rail at the left holds the
+screen's title, who is signed in and *sign out of this device* (or, not signed
+in, the way to sign in); beside it, Preferences in two columns — theme beside
+density, chord diagrams beside language — and below them, full width, the
+devices, passkeys, recovery email and Leaving Estante. The reading order stays
+the order above.
+
 ## Signing out
 
 Signing out asks whether to **remove this account's books from this device**

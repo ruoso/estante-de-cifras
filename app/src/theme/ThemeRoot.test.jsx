@@ -8,6 +8,7 @@ import { fromCatalog } from '../core/instrument.js';
 import { fingeringFromFrets } from '../core/search.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import ThemeRoot from './ThemeRoot.jsx';
+import { themeClasses } from './resolve.js';
 
 // behavior — the theme root on a sample surface (shell.tokens). Each theme and
 // each density (a `density` register in the preferences slice —
@@ -101,6 +102,34 @@ describe('ThemeRoot (behavior)', () => {
         // The status word survives (never colour alone).
         expect(screen.getByRole('status')).toHaveTextContent('Salvo');
         expect(await checkWcag21aa(container)).toHaveNoViolations();
+      });
+    }
+  }
+
+  // The one window-height frame (account.preferences_layout Decision 1): the
+  // wrapper carries `est-frame` beside the boards' exact `est theme-<x>
+  // density-<y>` (themeClasses is unchanged), so shell.full_height's frame
+  // still applies to the app root and to nothing else that borrows `.est`.
+  for (const density of ['compact', 'comfortable', 'roomy']) {
+    for (const { chosen, applied } of CASES) {
+      it(`frames the root with est-frame in ${applied} at density ${density}`, () => {
+        installMatchMedia(false);
+        const { store, emit } = manualStore();
+        const preferences = { density: { value: density, at: 't' } };
+        if (chosen) preferences.theme = { value: chosen, at: 't' };
+        emit(event(EventKind.PREFERENCES, preferences));
+
+        const { container } = render(
+          <ThemeRoot store={store}>
+            <Surface />
+          </ThemeRoot>,
+        );
+
+        expect([...root(container).classList].sort()).toEqual(
+          ['density-' + density, 'est', 'est-frame', `theme-${applied}`].sort(),
+        );
+        expect(themeClasses(applied, density)).toBe(`est theme-${applied} density-${density}`);
+        expect(container.querySelectorAll('.est-frame')).toHaveLength(1);
       });
     }
   }

@@ -43,6 +43,17 @@ export const BOOKS_WIDE_QUERY = '(min-width: 1080px)';
 // Share are never pushed past the edge.
 export const READING_ACTIONS_WIDE_QUERY = '(min-width: 1080px)';
 
+// The account screen's computer split (account.preferences_layout Decision 3;
+// Theme-picker #4, W13 #4): a 300px rail holding the title, who is signed in and
+// sign-out, beside Preferences drawn in two columns (Theme | Density, Chord
+// diagrams | Language at 320px) inside 32px padding. `300 (rail) + 64 (padding)
+// + ~360 (Theme: swatch, name, meta, the Selected badge) + 28 (gap) + 320
+// (Language) ≈ 1072px`. On the 712px tablet that leaves the Theme column under
+// 300px and squeezes its meta a word per line (the failure shell.narrow_fit
+// pins), so below here — the tablet included — the screen keeps the one column
+// the phone draws. Computer (1280px) splits; tablet (712px) does not.
+export const ACCOUNT_WIDE_QUERY = '(min-width: 1080px)';
+
 // The three destinations, in the drawn order — Search · Books · Setlists
 // (docs/mockups/GUIDE.md line 34; W02-find-and-play.dc.html lines 55-59). This
 // array's order is the tab order; the visible labels come from i18n, keyed by

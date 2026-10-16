@@ -26,8 +26,11 @@ body {
    bar, the instrument chip and the phone tab bar stay put, and the page itself
    never scrolls. `dvh` follows the phone's collapsing URL bar. Not
    `overflow: hidden`: the frame bounds its content, it does not clip it. This
-   is the running-app equivalent of the mockups' fixed `.dev` device box. */
-.est {
+   is the running-app equivalent of the mockups' fixed `.dev` device box.
+   Scoped to ThemeRoot's own `est-frame` class, not to `.est`: a swatch or
+   preview that carries `est theme-<x>` only to borrow a theme's tokens is never
+   framed (account.preferences_layout Decision 1). */
+.est-frame {
   height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -149,7 +152,7 @@ body {
    screen affair, so the reading view prints the whole song in flow rather than
    the slice that fits the window (workflow 2 L85, L100). */
 @media print {
-  .est {
+  .est-frame {
     height: auto;
   }
   .est .scroll {

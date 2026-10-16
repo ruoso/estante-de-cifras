@@ -26,7 +26,8 @@ import { checkWcag21aa } from '../a11y/axe.js';
 import { setLocale } from '../i18n/index.js';
 import { createStore } from '../worker/store.js';
 import { createWorkerLogic } from '../worker/logic.js';
-import { command, CommandKind, EventKind } from '../worker/protocol.js';
+import { command, event, CommandKind, EventKind } from '../worker/protocol.js';
+import { ACCOUNT_WIDE_QUERY } from '../shell/layout-mode.js';
 import { createFileSystem } from '../worker/fs.js';
 import { createGitLayer } from '../worker/git.js';
 import { createGitHttpClient } from '../worker/git-http.js';
@@ -991,5 +992,195 @@ describe('Recovery email', () => {
       );
       expect(calls.filter((c) => c.path === '/api/account/recovery-email' && c.method === 'GET')).toHaveLength(2);
     });
+  });
+});
+
+// account.preferences_layout — the account screen as drawn: compact theme rows,
+// sign-out with who is signed in, two columns on a computer (workflow 13 §The
+// account screen, as amended; Theme-picker #1-4, W13 #4). jsdom computes no
+// layout, so this level pins the structure that decides the height and the
+// arrangement (Decision 2); e2e-web (account-layout.spec.js) measures them.
+describe('The account screen as drawn (account.preferences_layout)', () => {
+  const sharingDouble = { listMembers: async () => ({ members: [], count: 0, limit: 50 }) };
+  const SESSION = { id: 's1', current: true, lastUsedAt: '2026-10-12T10:00:00.000Z', device: 'Chrome on Linux' };
+  const OTHER = { id: 's2', current: false, lastUsedAt: '2026-10-11T09:00:00.000Z', device: 'Edge on Windows' };
+
+  function signedInClient() {
+    return makeAuthClient({
+      'GET /api/account/sessions': () => ({ body: { sessions: [SESSION, OTHER] } }),
+      'GET /api/account/passkeys': () => ({ body: { passkeys: [] } }),
+      'GET /api/account/recovery-email': () => ({ body: { email: null, pending: null } }),
+    });
+  }
+
+  // The computer: ACCOUNT_WIDE_QUERY matches, everything else (the device's
+  // dark mode) stays as the default stub answers.
+  function installComputer() {
+    globalThis.matchMedia = (media) => ({
+      media,
+      matches: media === ACCOUNT_WIDE_QUERY,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+  }
+
+  const follows = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+  const signOutButtons = () => screen.queryAllByRole('button', { name: 'Sign out of this device' });
+
+  it('each theme row is a swatch row, not a frame: one est-frame, the swatches token-scoped only, axe clean', async () => {
+    const { client } = signedOut();
+    const { container } = renderAccount(bareStore(), { client });
+    await screen.findByText('Not signed in');
+
+    // Exactly one window-height frame: ThemeRoot's wrapper (the note's defect was
+    // every `.est` swatch matching the frame rule).
+    const frames = container.querySelectorAll('.est-frame');
+    expect(frames).toHaveLength(1);
+    expect(frames[0]).toBe(rootOf(container));
+
+    const themeGroup = screen.getByRole('radiogroup', { name: 'Theme' });
+    for (const [name, id] of [['Automatic', 'automatic'], ['Estante', 'estante'], ['Caderno', 'caderno'], ['Palco', 'palco']]) {
+      const label = within(themeGroup).getByRole('radio', { name: nameMatch(name) }).closest('label');
+      const swatch = label.querySelector(':scope > .account-swatch');
+      expect(swatch).toHaveAttribute('aria-hidden', 'true');
+      expect(swatch).not.toHaveClass('est-frame');
+      if (id === 'automatic') {
+        const halves = swatch.querySelectorAll('.account-swatch-half');
+        expect(halves).toHaveLength(2);
+        expect(halves[0]).toHaveClass('est', 'theme-estante');
+        expect(halves[1]).toHaveClass('est', 'theme-palco');
+        for (const half of halves) expect(half).not.toHaveClass('est-frame');
+      } else {
+        expect(swatch).toHaveClass('est', `theme-${id}`, 'account-swatch');
+      }
+    }
+    // The chosen row is still marked by the word (workflow 13 "each chosen one
+    // marked by a word").
+    const automatic = within(themeGroup).getByRole('radio', { name: /Automatic/ }).closest('label');
+    expect(within(automatic).getByText('Selected')).toBeInTheDocument();
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('signed in: one "Sign out of this device", beside who is signed in, not on the This device row; it opens the dialog, axe clean', async () => {
+    const { client } = signedInClient();
+    const { container } = renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+
+    const status = await screen.findByText('Signed in on this device');
+    await screen.findByText('This device');
+    const buttons = signOutButtons();
+    expect(buttons).toHaveLength(1);
+    const identity = status.closest('.account-identity');
+    expect(identity).not.toBeNull();
+    expect(identity).toContainElement(buttons[0]);
+
+    // This device's row keeps its name and "In use now" but carries no button.
+    const thisRow = screen.getByText('This device').closest('.row');
+    expect(within(thisRow).getByText(/in use now/i)).toBeInTheDocument();
+    expect(within(thisRow).queryByRole('button')).toBeNull();
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.click(buttons[0]);
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Sign out of this device?')).toBeInTheDocument();
+  });
+
+  it('offline, signed in: the identity block, the offline note and the one sign-out; no devices list, axe clean', async () => {
+    // The probe fails for want of a connection (a 503 reads as network) while
+    // this device holds an account's book: account.sign_out's local teardown
+    // stays reachable.
+    const { client } = makeAuthClient({ 'GET /api/account/sessions': () => ({ status: 503 }) });
+    const endpoint = { postMessage: () => {}, onmessage: null };
+    const store = createStore(endpoint);
+    act(() =>
+      endpoint.onmessage({
+        data: event(EventKind.SHELF, { books: { b1: { title: { value: 'Banda', at: 't' } } }, local: {} }),
+      }),
+    );
+    const { container } = renderAccount(store, { client });
+
+    const status = await screen.findByText('Signed in on this device');
+    expect(screen.getByText(/offline/i, { selector: '[role="status"].account-note' })).toBeInTheDocument();
+    const buttons = signOutButtons();
+    expect(buttons).toHaveLength(1);
+    expect(status.closest('.account-identity')).toContainElement(buttons[0]);
+    expect(screen.queryByText('Signed-in devices')).toBeNull();
+    expect(screen.queryByText('This device')).toBeNull();
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('computer, signed in: the rail (back, Account, identity, sign-out) first, then the preferences in pairs and the regions in workflow 13 order, axe clean', async () => {
+    installComputer();
+    const { client } = signedInClient();
+    const { container } = renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+
+    const status = await screen.findByText('Signed in on this device');
+    await screen.findByText('Leaving Estante');
+    expect(container.querySelector('.account-split')).not.toBeNull();
+    const rail = container.querySelector('.account-rail');
+
+    const back = screen.getByRole('button', { name: 'Back' });
+    const title = screen.getByText('Account', { selector: '.account-rail-title' });
+    const [signOut] = signOutButtons();
+    expect(signOutButtons()).toHaveLength(1);
+    for (const el of [back, title, status, signOut]) expect(rail).toContainElement(el);
+    expect(signOut).toHaveClass('block');
+
+    const theme = screen.getByRole('radiogroup', { name: 'Theme' });
+    const density = screen.getByRole('radiogroup', { name: 'Density' });
+    const hand = screen.getByRole('radiogroup', { name: 'Hand' });
+    const neck = screen.getByRole('radiogroup', { name: 'Neck' });
+    const language = screen.getByRole('radiogroup', { name: 'Language' });
+    const devices = screen.getByText('Signed-in devices');
+    const passkeys = screen.getByText('Passkeys');
+    const recovery = screen.getByRole('region', { name: 'Recovery email' });
+    const leaving = screen.getByText('Leaving Estante');
+    const order = [back, title, status, signOut, theme, density, hand, neck, language, devices, passkeys, recovery, leaving];
+    for (let i = 1; i < order.length; i += 1) expect(follows(order[i - 1], order[i])).toBe(true);
+
+    // Theme beside Density, Chord diagrams beside Language (Theme-picker #4).
+    const rows = container.querySelectorAll('.account-pref-row');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContainElement(theme);
+    expect(rows[0]).toContainElement(density);
+    expect(rows[1]).toContainElement(hand);
+    expect(rows[1]).toContainElement(neck);
+    expect(rows[1]).toContainElement(language);
+    // The account's regions are full width, outside the pairs.
+    for (const row of rows) expect(row).not.toContainElement(devices);
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('computer, not signed in: the Use a passkey / Email me a link card is in the rail, before the Theme picker, axe clean', async () => {
+    installComputer();
+    const { client } = signedOut();
+    const { container } = renderAccount(bareStore(), { client });
+
+    const passkey = await screen.findByRole('button', { name: 'Use a passkey' });
+    const email = screen.getByRole('button', { name: 'Email me a link' });
+    const rail = container.querySelector('.account-rail');
+    expect(rail).toContainElement(passkey);
+    expect(rail).toContainElement(email);
+    const theme = screen.getByRole('radiogroup', { name: 'Theme' });
+    expect(follows(passkey, theme)).toBe(true);
+    expect(follows(email, theme)).toBe(true);
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('phone and tablet: one column, Preferences before the identity block, no split', async () => {
+    const { client } = signedInClient();
+    const { container } = renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+
+    const status = await screen.findByText('Signed in on this device');
+    expect(container.querySelector('.account-split')).toBeNull();
+    expect(container.querySelector('.account-rail')).toBeNull();
+    const language = screen.getByRole('radiogroup', { name: 'Language' });
+    expect(follows(screen.getByRole('radiogroup', { name: 'Theme' }), status)).toBe(true);
+    expect(follows(language, status)).toBe(true);
+    expect(follows(status, screen.getByText('Signed-in devices'))).toBe(true);
   });
 });

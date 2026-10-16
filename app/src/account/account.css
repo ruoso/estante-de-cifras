@@ -11,13 +11,18 @@
   min-height: 0;
 }
 
+/* The theme's .scroll is a flex column, so the column is centred across with
+   align-items and down with justify-content; `safe` keeps a column taller than
+   the window starting at the top, where all of it can be scrolled to (an unsafe
+   centre pushes its head above the scroll origin, out of reach —
+   account.preferences_layout found the Theme picker's first rows clipped). */
 .account-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  justify-content: safe center;
+  align-items: center;
   padding: calc(var(--u) * 4) calc(var(--u) * 2) calc(var(--u) * 3);
 }
 
@@ -145,6 +150,7 @@ label.account-row > span:first-child input {
 /* The theme preview swatch: a token-scoped box showing a chord-coloured "G" in
    the theme it previews; Automatic shows a split estante/palco box. Decorative. */
 .account-swatch {
+  box-sizing: border-box;
   width: 52px;
   height: 40px;
   border-radius: 8px;
@@ -163,6 +169,18 @@ label.account-row > span:first-child input {
 
 .account-swatch-split {
   padding: 0;
+}
+
+/* Tablet and computer draw the swatch 60x44 (Theme-picker #3/#4). */
+@media (min-width: 600px) {
+  .account-swatch {
+    width: 60px;
+    height: 44px;
+    font-size: 18px;
+  }
+  .account-swatch-half {
+    font-size: 15px;
+  }
 }
 
 .account-swatch-half {
@@ -188,11 +206,25 @@ label.account-row > span:first-child input {
   gap: calc(var(--u) * 1.25);
 }
 
-/* The signed-in identity row: an avatar bubble beside the name and status. */
+/* The signed-in identity row: an avatar bubble beside the name and status, and
+   *Sign out of this device* at the row's end (Theme-picker #3), wrapping below
+   the text when the row is too narrow rather than being clipped. */
 .account-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+}
+
+.account-identity-who {
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 1.5);
+  min-width: 0;
+}
+
+.account-identity > .btn {
+  margin-left: auto;
 }
 
 .account-avatar {
@@ -210,6 +242,88 @@ label.account-row > span:first-child input {
 .account-identity-text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* One Preferences region (Theme, Density, Chord diagrams, Language): its
+   sub-heading, picker and note, spaced as the one-column card spaces them. */
+.account-pref {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.75);
+  min-width: 0;
+}
+
+/* The computer split (account.preferences_layout; Theme-picker #4, W13 #4): a
+   300px rail holding the title and who is signed in, beside a main pane with
+   Preferences in two columns and the account's regions full width below. The
+   shared .split/.pane do the frame; this sets the board's measures. */
+.account-rail {
+  width: 300px;
+}
+
+.account-rail-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.account-rail-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+}
+
+.account-rail-title {
+  min-width: 0;
+}
+
+/* In the rail the identity stacks: avatar and name, then a block sign-out. */
+.account-rail .account-identity {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.account-rail .account-identity > .btn {
+  margin-left: 0;
+}
+
+.account-rail .account-avatar {
+  width: 44px;
+  height: 44px;
+}
+
+.account-main {
+  padding: 24px 32px;
+  gap: 16px;
+}
+
+/* Two consecutive Preferences regions side by side (Theme | Density, Chord
+   diagrams | Language at 320px), in DOM order. */
+.account-pref-row {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+.account-pref-row > .account-pref {
+  flex: 1;
+}
+
+.account-pref-row > .account-pref-language {
+  width: 320px;
+  flex: none;
+}
+
+/* A column is narrower than the one-column card, so a description wraps inside
+   it rather than running past the window (Roomy's long density lines). */
+.account-pref-row .account-row .meta {
+  white-space: normal;
 }
 
 .account-add-passkey {

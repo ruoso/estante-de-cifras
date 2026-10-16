@@ -64,7 +64,8 @@ task account "First run and the account" {
   task preferences_layout "The account screen as drawn: compact theme rows, two columns on a computer" {
     effort 1d
     allocate team
+    complete 100
     depends !account_screen
-    note "The Estante, Caderno and Palco rows of the theme picker grow to about 850px each (the Theme list is about 2600px on a phone): the non-split swatch carries the theme root classes and stretches to the row (app/src/account/AccountScreen.jsx:145-159, account.css:147-150); the board draws 56px rows with a 52x40 swatch. On a computer the screen is one narrow column; the Theme-picker and W13 boards lay identity and sign-out in a left rail and Theme and Language beside devices and passkeys. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (each theme row the swatch height, axe); e2e-web (the account screen on the three viewports, mockup Theme-picker#1-4 and W13#4)."
+    note "The Estante, Caderno and Palco rows of the theme picker grow to about 850px each (the Theme list is about 2600px on a phone): the non-split swatch carries the theme root classes and stretches to the row (app/src/account/AccountScreen.jsx:145-159, account.css:147-150); the board draws 56px rows with a 52x40 swatch. On a computer the screen is one narrow column; the Theme-picker and W13 boards lay identity and sign-out in a left rail and Theme and Language beside devices and passkeys. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (each theme row the swatch height, axe); e2e-web (the account screen on the three viewports, mockup Theme-picker#1-4 and W13#4). Refinement: tasks/refinements/account/preferences_layout.md"
   }
 }

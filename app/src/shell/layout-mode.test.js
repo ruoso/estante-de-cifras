@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DESTINATIONS, READING_ACTIONS_WIDE_QUERY, WIDE_QUERY, layoutMode } from './layout-mode.js';
+import { ACCOUNT_WIDE_QUERY, DESTINATIONS, READING_ACTIONS_WIDE_QUERY, WIDE_QUERY, layoutMode } from './layout-mode.js';
 
 // unit — the pure layout-mode policy (shell.layout). Framework-free, like the
 // theme resolver's unit test: the breakpoint decision and the drawn destination
@@ -25,6 +25,12 @@ describe('layout-mode', () => {
     expect(minWidth(READING_ACTIONS_WIDE_QUERY)).toBeGreaterThan(minWidth(WIDE_QUERY));
     expect(minWidth(READING_ACTIONS_WIDE_QUERY)).toBeGreaterThan(712);
     expect(minWidth(READING_ACTIONS_WIDE_QUERY)).toBeLessThanOrEqual(1280);
+  });
+
+  it('splits the account screen on the computer, not on the 712px tablet (workflow 13 §The account screen)', () => {
+    // The rail beside two preference columns needs a computer's width
+    // (account.preferences_layout Decision 3); the tablet keeps the one column.
+    expect(ACCOUNT_WIDE_QUERY).toBe('(min-width: 1080px)');
   });
 
   it('has exactly the three destinations in the drawn order Search · Books · Setlists', () => {

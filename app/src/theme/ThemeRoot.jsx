@@ -72,8 +72,12 @@ export default function ThemeRoot({ store, children }) {
   const { handed, orientation } = resolveDiagramDisplay(preferences);
   const diagramDisplay = useMemo(() => ({ handed, orientation }), [handed, orientation]);
   const rootRef = useRef(null);
+  // `est-frame` marks this wrapper as the one window-height frame (shell.css);
+  // themeClasses stays the boards' exact class set, which token-scoped previews
+  // (the account screen's theme swatches) also carry without being framed
+  // (account.preferences_layout Decision 1).
   return (
-    <div ref={rootRef} className={themeClasses(applied, density)}>
+    <div ref={rootRef} className={`${themeClasses(applied, density)} est-frame`}>
       <DiagramDisplayContext.Provider value={diagramDisplay}>
         <UNSAFE_PortalProvider getContainer={() => rootRef.current}>
           {children}

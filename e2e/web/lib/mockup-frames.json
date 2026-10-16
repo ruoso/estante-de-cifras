@@ -39,13 +39,13 @@
   "board": "Theme-picker",
   "index": 3,
   "kind": "tablet",
-  "label": "Tablet · signed in with Caderno chosen — Preferences beside devices and passkeys"
+  "label": "Tablet · signed in with Caderno and Roomy chosen, the frame drawn Roomy — Preferences in two columns, devices and passkeys below"
  },
  {
   "board": "Theme-picker",
   "index": 4,
   "kind": "desktop",
-  "label": "Computer · the W13 Account surface, with Preferences above devices and passkeys"
+  "label": "Computer · the W13 Account surface, with Preferences in two columns, devices and passkeys below"
  },
  {
   "board": "W01-first-run",

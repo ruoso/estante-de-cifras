@@ -77,7 +77,7 @@ function SignOutChoice({ value, label, meta }) {
   );
 }
 
-export default function SignOutDialog({ store, authClient, onSignedOut = () => {} }) {
+export default function SignOutDialog({ store, authClient, onSignedOut = () => {}, block = false }) {
   const [survey, setSurvey] = useState(null);
   const [mode, setMode] = useState('remove');
   const [offline, setOffline] = useState(false);
@@ -127,7 +127,7 @@ export default function SignOutDialog({ store, authClient, onSignedOut = () => {
 
   return (
     <DialogTrigger onOpenChange={openSurvey}>
-      <Button className="btn">{t('account.signOutThis')}</Button>
+      <Button className={block ? 'btn block' : 'btn'}>{t('account.signOutThis')}</Button>
       <ModalOverlay className="scrim center">
         <Modal className="dialog">
           <Dialog>

@@ -142,3 +142,7 @@ Append one `###` block per item, newest at the bottom:
 ### 2026-10-15 — Flake: `leave-book.spec.js` Mine-on-Estante-row Leave fails once on phone (from `books.owner_name`)
 - **What**: in the driver's gate run "a book removed from the shelf is left from its Mine on Estante row" timed out (30s, `leave-book.spec.js:161`) on the first phone attempt and passed on retry #1; tablet and computer passed first time. The same run flaked `online.spec.js:90` on tablet. Log: `orchestrator/logs/iter-0040-verify-gate.log`.
 - **Why parked**: judging whether the wait is an app race or a helper race needs a person.
+
+### 2026-10-15 — Theme-picker tablet board draws two preference columns the 712px tablet cannot fit (from `account.preferences_layout`)
+- **What**: Theme-picker #3 draws two preference columns and devices beside passkeys at 792px; the app keeps the tablet as one column (refinement Decision 3) because the 712px test tablet cannot fit it.
+- **Decide**: redraw the board as one column, or choose a tablet breakpoint for the two-column layout.

@@ -110,7 +110,11 @@ test('account: the account screen scrolls inside itself', async ({ page, checkA1
   await startApp(page);
   await openAccount(page);
   await shortenViewport(page);
-  await expectScrollsInside(page, { stayInView: [appBar(page)] });
+  // The screen's chrome stays put: the app bar on a phone and tablet, the rail
+  // head on a computer (account.preferences_layout) — both carry Back.
+  await expectScrollsInside(page, {
+    stayInView: [page.getByRole('button', { name: 'Back', exact: true }).first()],
+  });
   await checkA11y();
 });
 

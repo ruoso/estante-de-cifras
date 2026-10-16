@@ -14,8 +14,9 @@
 //      is the absent register (Decision 3), so choosing it clears the register.
 //   2. Signed-in devices (additive, when signed in) — the account's sessions,
 //      the current one marked, with sign out for any *other* device (revokes its
-//      session). The current device's sign-out delegates to an `onSignOut` seam
-//      account.sign_out fills (Decision 4).
+//      session). The current device's sign-out sits with who is signed in (the
+//      identity block), not on its row (account.preferences_layout Decision 5),
+//      and delegates to an `onSignOut` seam account.sign_out fills (Decision 4).
 //   3. Passkeys (additive, when signed in) — listed, removable, and "add a
 //      passkey to this device" reusing the authed register flow. While the
 //      account has no confirmed email, its only passkey is its last way in and
@@ -23,6 +24,10 @@
 //   4. Recovery email (additive, when signed in; account.recovery_email) — the
 //      RecoveryEmailRegion, read after the passkeys. It also tells Leaving how a
 //      deletion is confirmed (`confirmBy`: the typed email, or a passkey).
+//
+// Phone and tablet draw one column, Preferences first; a computer
+// (ACCOUNT_WIDE_QUERY) draws a rail with the title and who is signed in beside
+// Preferences in two columns (account.preferences_layout; Theme-picker #4).
 //
 // "Signed in" is known only from a response (the session is a cookie the app
 // never reads — DIRECTION §3.3): listSessions returns 200 under a session and
@@ -38,7 +43,7 @@
 // address, to its owner (account.recovery_email, superseding Decision 5 for that
 // region alone); Account itself is only `{ id }`.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Button,
   Dialog,
@@ -62,6 +67,7 @@ import { fromCatalog } from '../core/instrument.js';
 import { fingeringFromFrets } from '../core/search.js';
 import { orderedBooks } from '../books/book-display.js';
 import { useSlice } from '../worker/useStore.js';
+import { ACCOUNT_WIDE_QUERY } from '../shell/layout-mode.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import { createSharingClient } from '../books/sharing-client.js';
 import { createAuthClient, AuthError } from './auth-client.js';
@@ -81,6 +87,32 @@ const DEFAULT_CLIENT = createAuthClient();
 // (listMembers). Bound to the browser's fetch; the behavior level injects a
 // loopback double.
 const DEFAULT_SHARING_CLIENT = createSharingClient();
+
+// The account screen's computer split (account.preferences_layout Decision 3;
+// see `ACCOUNT_WIDE_QUERY` in layout-mode.js for why it is a computer line, not
+// the shell's 600px). The same `matchMedia`/`useSyncExternalStore` seam the
+// shell and the shelf use; a missing `matchMedia` (jsdom) reads as not-wide, so a
+// behavior render defaults to the one column.
+function accountWideQuery() {
+  return typeof globalThis.matchMedia === 'function'
+    ? globalThis.matchMedia(ACCOUNT_WIDE_QUERY)
+    : null;
+}
+
+function subscribeAccountWide(onChange) {
+  const query = accountWideQuery();
+  if (!query?.addEventListener) return () => {};
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+function readAccountWide() {
+  return accountWideQuery()?.matches ?? false;
+}
+
+function useAccountWide() {
+  return useSyncExternalStore(subscribeAccountWide, readAccountWide, readAccountWide);
+}
 
 // The four theme choices, in mockup order: Automatic (the absent register) then
 // the three drawn themes. `id` is what SET_THEME carries (CHOSEN_THEMES).
@@ -394,6 +426,7 @@ export default function AccountScreen({
   const [recoveryError, setRecoveryError] = useState(null);
   const addInFlight = useRef(false);
   const online = useOnline();
+  const wide = useAccountWide();
 
   // Hold the client in a ref (the SharingScreen pattern): a stable value so the
   // load effect's setState-past-await is not read as a synchronous cascade, and
@@ -506,10 +539,14 @@ export default function AccountScreen({
     }
   };
 
-  const preferencesRegion = (
-    <>
-      <div className="t-h3">{t('account.preferences')}</div>
+  // Preferences as four regions in workflow 13's order — Theme, Density, Chord
+  // diagrams, Language — each its own column so the computer split can pair
+  // consecutive ones (Theme | Density, Chord diagrams | Language; Theme-picker
+  // #4) without reordering anything (account.preferences_layout Decision 4).
+  const preferencesHeading = <div className="t-h3">{t('account.preferences')}</div>;
 
+  const themeRegion = (
+    <div className="account-pref">
       <div className="t-h3 account-subhead">{t('account.theme')}</div>
       <RadioGroup
         className="list account-list"
@@ -524,7 +561,11 @@ export default function AccountScreen({
         ))}
       </RadioGroup>
       <p className="t-small account-note">{t('account.themeNote')}</p>
+    </div>
+  );
 
+  const densityRegion = (
+    <div className="account-pref">
       <div className="t-h3 account-subhead">{t('account.density')}</div>
       <RadioGroup
         className="list account-list"
@@ -543,7 +584,11 @@ export default function AccountScreen({
           </PickerRow>
         ))}
       </RadioGroup>
+    </div>
+  );
 
+  const diagramsRegion = (
+    <div className="account-pref">
       <div className="t-h3 account-subhead">{t('account.diagrams')}</div>
       <div className="account-diagram-sample">
         <div className="card account-diagram-sample-card">
@@ -591,7 +636,11 @@ export default function AccountScreen({
           ))}
         </RadioGroup>
       </div>
+    </div>
+  );
 
+  const languageRegion = (
+    <div className="account-pref account-pref-language">
       <div className="t-h3 account-subhead">{t('account.language')}</div>
       <RadioGroup
         className="list account-list"
@@ -604,7 +653,7 @@ export default function AccountScreen({
         ))}
       </RadioGroup>
       <p className="t-small account-note">{t('account.languageNote')}</p>
-    </>
+    </div>
   );
 
   const notSignedInCard = (
@@ -621,24 +670,31 @@ export default function AccountScreen({
     </div>
   );
 
-  const identityRow = (
+  // Who is signed in, with *Sign out of this device* beside it (workflow 13 §The
+  // account screen, as amended; Theme-picker #3/#4, W13 #4): one button on every
+  // viewport — at the end of the row on a phone and tablet, a block button under
+  // the identity in the computer rail (account.preferences_layout Decision 5).
+  const identityBlock = (
     <div className="account-identity">
-      <span className="account-avatar" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" focusable="false">
-          <circle cx="12" cy="8" r="4" />
-          <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
-        </svg>
-      </span>
-      <span className="account-identity-text">
-        {authorName ? (
-          <span className="t-h2">{authorName}</span>
-        ) : (
-          <span className="t-h2">{t('account.signedIn')}</span>
-        )}
-        <span className="t-small" role="status">
-          {t('account.signedInStatus')}
+      <span className="account-identity-who">
+        <span className="account-avatar" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" focusable="false">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+          </svg>
+        </span>
+        <span className="account-identity-text">
+          {authorName ? (
+            <span className="t-h2">{authorName}</span>
+          ) : (
+            <span className="t-h2">{t('account.signedIn')}</span>
+          )}
+          <span className="t-small" role="status">
+            {t('account.signedInStatus')}
+          </span>
         </span>
       </span>
+      <SignOutDialog store={store} authClient={authClient} onSignedOut={onSignOut} block={wide} />
     </div>
   );
 
@@ -658,9 +714,7 @@ export default function AccountScreen({
                     : t('account.lastUsed', { time: formatDateTime(session.lastUsedAt, true) })}
                 </span>
               </span>
-              {session.current ? (
-                <SignOutDialog store={store} authClient={authClient} onSignedOut={onSignOut} />
-              ) : (
+              {session.current ? null : (
                 <ConfirmDialog
                   trigger={
                     <Button className="btn" aria-label={t('account.signOutLabel', { device: label })}>
@@ -753,44 +807,38 @@ export default function AccountScreen({
   // account's book to leave; a worded status says what offline withholds.
   const offlineSignedOutRegion = (
     <>
-      {identityRow}
+      {identityBlock}
       <p className="t-small account-note" role="status">
         {t('account.offlineManage')}
       </p>
-      <div className="t-h3 account-section">{t('account.devices')}</div>
-      <div className="list account-list">
-        <div className="row account-row">
-          <span className="grow">
-            <span className="name">{t('account.thisDevice')}</span>
-          </span>
-          <SignOutDialog store={store} authClient={authClient} onSignedOut={onSignOut} />
-        </div>
-      </div>
     </>
   );
 
   const probeWasOffline = probeError instanceof AuthError && probeError.kind === 'network';
 
-  let signedInRegions = null;
+  // Each signed-in state as its who-block (what the computer rail holds) and the
+  // regions that follow Preferences (only when signed in).
+  let whoBlock = null;
+  let accountRegions = null;
   if (auth === 'loading') {
-    signedInRegions = (
+    whoBlock = (
       <p className="t-small account-note" role="status">
         {t('account.loading')}
       </p>
     );
   } else if (auth === 'error') {
-    signedInRegions =
+    whoBlock =
       probeWasOffline && hasAccountBooks ? (
         offlineSignedOutRegion
       ) : (
         <ErrorNotice message={errorCopy(probeError ?? actionError)} onRetry={probe} />
       );
   } else if (auth === 'out') {
-    signedInRegions = notSignedInCard;
+    whoBlock = notSignedInCard;
   } else {
-    signedInRegions = (
+    whoBlock = identityBlock;
+    accountRegions = (
       <>
-        {identityRow}
         {actionError ? <ErrorNotice message={errorCopy(actionError)} onRetry={() => setActionError(null)} /> : null}
         {devicesRegion}
         {passkeysRegion}
@@ -813,18 +861,65 @@ export default function AccountScreen({
     );
   }
 
+  const backButton = (
+    <Button className="btn icon" aria-label={t('account.back')} onPress={onClose}>
+      <BackIcon />
+    </Button>
+  );
+
+  // On a computer: the rail (title, who is signed in, sign-out — or the way to
+  // sign in) beside Preferences in two columns, the account's regions full width
+  // below (Theme-picker #4, W13 #4). The rail comes first in the DOM and each
+  // row pairs consecutive regions, so reading and focus order stay workflow
+  // 13's order with no CSS reordering (account.preferences_layout Decision 6).
+  if (wide) {
+    return (
+      <div className="screen account-screen">
+        <div className="split account-split">
+          <div className="pane side account-rail">
+            <div className="account-rail-body">
+              <div className="account-rail-head">
+                {backButton}
+                <span className="t-h1 account-rail-title">{t('account.title')}</span>
+              </div>
+              {whoBlock}
+            </div>
+          </div>
+          <div className="pane main">
+            <div className="scroll account-main">
+              {preferencesHeading}
+              <div className="account-pref-row">
+                {themeRegion}
+                {densityRegion}
+              </div>
+              <div className="account-pref-row">
+                {diagramsRegion}
+                {languageRegion}
+              </div>
+              {accountRegions}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // On a phone and a tablet: one column, Preferences first (Theme-picker #1/#2).
   return (
     <div className="screen account-screen">
       <div className="appbar">
-        <Button className="btn icon" aria-label={t('account.back')} onPress={onClose}>
-          <BackIcon />
-        </Button>
+        {backButton}
         <span className="title">{t('account.title')}</span>
       </div>
       <div className="scroll account-scroll">
         <div className="account-card account-screen-card">
-          {preferencesRegion}
-          {signedInRegions}
+          {preferencesHeading}
+          {themeRegion}
+          {densityRegion}
+          {diagramsRegion}
+          {languageRegion}
+          {whoBlock}
+          {accountRegions}
         </div>
       </div>
     </div>
