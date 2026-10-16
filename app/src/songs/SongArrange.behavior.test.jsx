@@ -15,6 +15,8 @@ import { createLoopbackEndpoint } from '../test/loopback.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { instrumentInstance, configFor } from '../core/instrument.js';
+import { parseChord } from '../core/notation/parse.js';
+import { defaultVoicing } from '../core/voicings.js';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
@@ -40,11 +42,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// A purpose-written song: a chord-only chart, optional voicing lines after the
-// `---` rule.
-const song = ({ title = 'Tarde Clara', chart = 'Cm | G | Cm | Fm', voicings = [] }) =>
+// A purpose-written song: a chord-only chart, an optional property list,
+// optional voicing lines after the `---` rule.
+const song = ({ title = 'Tarde Clara', props = [], chart = 'Cm | G | Cm | Fm', voicings = [] }) =>
   [
     `# ${title}`,
+    ...(props.length ? ['', ...props.map((p) => `- ${p}`)] : []),
     '',
     '## Primeira Parte',
     FENCE,
@@ -69,10 +72,10 @@ function guitarEntry(shapes = []) {
 // The loopback-backed stub Worker: seeds the slices on OPEN, answers the reads,
 // records every command, and re-surfaces SONG on SET_VARIATION. WRITE is silent
 // (durability only), so it is recorded but surfaces no event.
-function makeStore({ text, entry, variations = {} }) {
+function makeStore({ text, entry, variations = {}, preferences }) {
   const commands = [];
   const state = { variations: { ...variations } };
-  const prefs = { instrumentInUse: register(entry.id) };
+  const prefs = { ...(preferences ?? { instrumentInUse: register(entry.id) }) };
   const endpoint = createLoopbackEndpoint((port) => ({
     handle(message) {
       commands.push(message);
@@ -285,6 +288,41 @@ describe('SongArrange — choose these for every unchosen chord', () => {
     const symbols = block.voicings.map((v) => v.symbol).sort();
     // G (already chosen) stays; C (a default) is now written too.
     expect(symbols).toEqual(['C', 'G']);
+  });
+
+  it('writes an american song\'s unchosen chords as the song reads them (cifra.md §5.6)', async () => {
+    // A brazilian preference over an american song: unchosenPlan reads the
+    // chart in the song's notation, so C7+ is written at the sharp-fifth
+    // default and C7(4) at the added-fourth one — not C7M's and C7sus4's.
+    const entry = guitarEntry();
+    const { store, commands } = makeStore({
+      text: song({ props: ['notation: american'], chart: 'C7+ | C7(4)' }),
+      entry,
+      preferences: { instrumentInUse: register(entry.id), notation: register('brazilian') },
+    });
+    await openArrange(store);
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+    const instrument = instrumentInstance({
+      catalogId: entry.catalogId,
+      label: entry.label,
+      strings: entry.tuning,
+      fretCount: entry.fretCount,
+      heuristics: entry.config,
+    });
+    const fretsOf = (symbol, dialect) => defaultVoicing(parseChord(symbol, dialect).chord, instrument).frets;
+    expect(fretsOf('C7#5', 'american')).not.toEqual(fretsOf('C7M', 'brazilian'));
+    expect(fretsOf('C7add4', 'american')).not.toEqual(fretsOf('C7sus4', 'brazilian'));
+
+    await click(screen.getByRole('button', { name: 'Choose these for every unchosen chord' }));
+
+    const write = lastCommand(commands, CommandKind.WRITE);
+    const block = blockOf(write.payload.text);
+    const fretsBySymbol = Object.fromEntries(block.voicings.map((v) => [v.symbol, v.frets]));
+    expect(fretsBySymbol['C7+']).toEqual(fretsOf('C7#5', 'american'));
+    expect(fretsBySymbol['C7(4)']).toEqual(fretsOf('C7add4', 'american'));
+    // The song's text keeps its notation and its symbols as written (§8).
+    expect(parse(write.payload.text).properties).toContainEqual({ key: 'notation', value: 'american' });
   });
 });
 

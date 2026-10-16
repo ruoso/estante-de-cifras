@@ -65,8 +65,9 @@ task music "Music" {
   task voicings_song_dialect "A song's chords are voiced in the song's own notation" {
     effort 0.5d
     allocate team
+    complete 100
     depends !fourth_with_seventh_spelling
-    note "resolveSongVoicings (app/src/core/voicings.js) parses every chart symbol in the default (Brazilian) dialect, not the song's notation property (cifra.md section 5.6), so an american or realbook song that writes C7(4) is voiced as a C7sus4 and a C7+ as a major seventh. Thread the song's dialect (the one transpose is given) into resolveSongVoicings and unvoiceableKeys. Source-of-debt: tasks/refinements/music/fourth_with_seventh_spelling.md. Tests: unit (voicings.test.js: an american song's C7(4) and C7+ resolve the added-fourth and sharp-fifth default voicings; a brazilian one the suspension and the major seventh; my shape still matched by chord across dialects)."
+    note "resolveSongVoicings (app/src/core/voicings.js) parses every chart symbol in the default (Brazilian) dialect, not the song's notation property (cifra.md section 5.6), so an american or realbook song that writes C7(4) is voiced as a C7sus4 and a C7+ as a major seventh. Thread the song's dialect (the one transpose is given) into resolveSongVoicings and unvoiceableKeys. Source-of-debt: tasks/refinements/music/fourth_with_seventh_spelling.md. Tests: unit (voicings.test.js: an american song's C7(4) and C7+ resolve the added-fourth and sharp-fifth default voicings; a brazilian one the suspension and the major seventh; my shape still matched by chord across dialects). Refinement: tasks/refinements/music/voicings_song_dialect.md"
   }
   task instruments_roster_default "The roster lists the instrument in use from the first run" {
     effort 0.5d

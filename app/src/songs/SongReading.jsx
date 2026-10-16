@@ -53,7 +53,7 @@ import { resolveSongVoicings, unvoiceableKeys } from '../core/voicings.js';
 import { transpose } from '../core/transpose.js';
 import { songVariations } from '../core/song-variations.js';
 import { parseChord } from '../core/notation/parse.js';
-import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
+import { DEFAULT_DIALECT, songDialect } from '../core/notation/dialects.js';
 import Chart from '../chart/Chart.jsx';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import SearchScreen from './SearchScreen.jsx';
@@ -302,8 +302,13 @@ export default function SongReading({
   // written). The written key — for the chip's destination and the "Back to"
   // label — is read from the untransposed song (its `key` is left as written,
   // cifra.md §8.6).
-  const baseModel = text ? parse(text, dialect) : null;
-  const model = baseModel ? transpose(baseModel, offset, { dialect }) : null;
+  //
+  // The chart is read, transposed and voiced in the song's own notation
+  // (cifra.md §5.6; workflow 2 §Reading a song, "The song's notation reads its
+  // chords"); `dialect`, the preference, only spells chords for this user.
+  const baseModel = text ? parse(text) : null;
+  const notation = songDialect(baseModel);
+  const model = baseModel ? transpose(baseModel, offset, { dialect: notation }) : null;
   const writtenKey = songProperty(baseModel, 'key');
   const artist = songProperty(baseModel, 'artist');
   const bookLabel = bookLabelFor(shelf, bookId);
@@ -320,6 +325,7 @@ export default function SongReading({
           variation,
           shapes: entry?.shapes ?? [],
           ignoreSongVoicings: offset !== 0,
+          dialect: notation,
         })
       : new Map();
   const chordList = model ? chartChordList(model) : [];
@@ -330,7 +336,7 @@ export default function SongReading({
     source: v.source,
     fingering: v.fingering,
   }));
-  const unvoiced = model ? unvoiceableKeys(model, resolved) : [];
+  const unvoiced = model ? unvoiceableKeys(model, resolved, { dialect: notation }) : [];
 
   // The accent notice: nobody has chosen shapes for this tuning in this song, so
   // every chord takes a default and the page offers arrange (workflow 2 L75-77).
@@ -475,7 +481,7 @@ export default function SongReading({
                 key={s.key}
                 fingering={s.fingering}
                 kind={s.source}
-                context={{ chord: parseChord(s.symbol, dialect).chord, dialect, instrument }}
+                context={{ chord: parseChord(s.symbol, notation).chord, dialect, instrument }}
               />
             ))}
           </div>

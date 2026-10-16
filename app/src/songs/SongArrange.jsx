@@ -50,7 +50,7 @@ import { resolveSongVoicings } from '../core/voicings.js';
 import { songVariations } from '../core/song-variations.js';
 import { parseChord } from '../core/notation/parse.js';
 import { speakChord } from '../render/chord-speech.js';
-import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
+import { DEFAULT_DIALECT, songDialect } from '../core/notation/dialects.js';
 import { searchFingerings } from '../core/search.js';
 import Chart from '../chart/Chart.jsx';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
@@ -158,15 +158,18 @@ export default function SongArrange({
   const tuningText = entry?.tuning ?? '';
 
   // The written model at offset 0 (no transpose, Decision 8) and the three-level
-  // resolution of every chord, honouring the song's own voicings.
-  const model = text ? parse(text, dialect) : null;
+  // resolution of every chord, honouring the song's own voicings. The chart is
+  // read in the song's own notation (cifra.md §5.6); `dialect`, the preference,
+  // only spells chords for this user (the picker, the diagram, speech).
+  const model = text ? parse(text) : null;
+  const notation = songDialect(model);
   const reading = songSlice?.[bookId]?.[path] ?? { variations: {} };
   const variation = reading.variations?.[tuningId] ?? '';
   const variations = model && tuningId ? songVariations(model, tuningId) : [];
 
   const resolved =
     instrument && model
-      ? resolveSongVoicings(model, instrument, { variation, shapes: entry?.shapes ?? [] })
+      ? resolveSongVoicings(model, instrument, { variation, shapes: entry?.shapes ?? [], dialect: notation })
       : new Map();
   const chordList = model ? chartChordList(model) : [];
   const symbolByKey = new Map(chordList.map((c) => [c.key, c.symbol]));
@@ -207,7 +210,7 @@ export default function SongArrange({
   const applyChoice = (fingering) => {
     if (!model || !picker) return;
     const shape = toShape(fingering);
-    const doc = parse(text, dialect);
+    const doc = parse(text);
     const next =
       scope === 'here'
         ? chooseShapeForOccurrence(doc, picker.occurrence, tuningText, variation, shape)
@@ -220,9 +223,9 @@ export default function SongArrange({
   // occurrence at its shown fallback shape (Workflow 5 L52-61).
   const chooseEveryUnchosen = () => {
     if (!model) return;
-    const plan = unchosenPlan(model, resolved, dialect);
+    const plan = unchosenPlan(model, resolved, notation);
     if (!plan.length) return;
-    persist(chooseShapes(parse(text, dialect), plan, tuningText, variation));
+    persist(chooseShapes(parse(text), plan, tuningText, variation));
   };
 
   const selectVariation = (next) =>
@@ -257,7 +260,7 @@ export default function SongArrange({
     const copyFrom = varCopy && variations.includes(variation) ? variation : undefined;
     let next;
     try {
-      next = addVariation(parse(text, dialect), tuningText, name, copyFrom);
+      next = addVariation(parse(text), tuningText, name, copyFrom);
     } catch {
       setVarError(t('arrange.variationTaken', { name }));
       return;
@@ -271,7 +274,7 @@ export default function SongArrange({
 
   // The picker's candidate shapes: the search, ranked and grouped by the core,
   // never re-sorted here (Decision 6).
-  const pickerChord = picker ? parseChord(picker.symbol, dialect).chord : null;
+  const pickerChord = picker ? parseChord(picker.symbol, notation).chord : null;
   const pickerResult = pickerChord && instrument ? searchFingerings(pickerChord, instrument, config, {}) : null;
   const pickerGroups = pickerResult ? groupViewModel(pickerResult, { chord: pickerChord, shapes: tuningShapes }) : null;
   const pickerContext = pickerChord && instrument ? { chord: pickerChord, dialect, instrument } : null;
@@ -316,7 +319,7 @@ export default function SongArrange({
   // docs/screen-reader.md §3), so a keyboard user hears "E minor", not the glyph
   // spelled out. Routed through the same `speakChord` the reading chart uses.
   const chordLabel = (token) => {
-    const parsed = parseChord(token.symbol, dialect).chord;
+    const parsed = parseChord(token.symbol, notation).chord;
     return parsed ? speakChord(parsed, { notation: dialect, t }) : token.symbol;
   };
 
@@ -350,7 +353,7 @@ export default function SongArrange({
             key={s.key}
             fingering={s.fingering}
             kind={s.source}
-            context={{ chord: parseChord(s.symbol, dialect).chord, dialect, instrument }}
+            context={{ chord: parseChord(s.symbol, notation).chord, dialect, instrument }}
           />
         ))}
       </div>

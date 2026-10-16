@@ -82,6 +82,13 @@ does: the chart, then the shapes, a page at a time on a phone.
 - **A song that does not fully parse** is shown anyway, with what was not
   understood marked where it is (cifra.md: a reader never discards what it
   did not understand).
+- **The song's notation reads its chords.** An ambiguous symbol (cifra.md
+  §5.6) in a song is read in the dialect the song declares in `notation`
+  (Brazilian when it declares none), not in the reader's own preference —
+  that is what a new song writes the property for (workflow 3). So `C7+` in
+  an American song is the sharp-fifth chord for everyone: its shape, its
+  default and its transposition are that chord's. The preference is how the
+  user reads a symbol they type (the search box, the explorer).
 
 From the reading view the song can be edited (workflow 4), its history
 opened (workflow 6), transposed (below), and printed.

@@ -13,6 +13,9 @@ import { createLoopbackEndpoint } from '../test/loopback.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { instrumentInstance, configFor } from '../core/instrument.js';
+import { parseChord } from '../core/notation/parse.js';
+import { defaultVoicing } from '../core/voicings.js';
+import { describeFingering } from '../render/diagram.js';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
@@ -266,6 +269,71 @@ describe('SongReading — the chart and the shapes (workflow 2 L69-77, L88-108)'
     const { store } = makeStore({ text: song({ chart: 'C  C13#11' }), entry: ukeEntry() });
     await openAndWait(store);
     expect(screen.getByText(/No playable shape for C13#11\./)).toBeInTheDocument();
+  });
+});
+
+describe("SongReading — the song's own notation (workflow 2 §Reading a song)", () => {
+  // An american song's C7+ and C7(4) (cifra.md §5.6), read by a user whose
+  // preference is brazilian. A chart written for the purpose.
+  const american = song({ props: ['notation: american', 'key: C'], chart: 'C7+  C7(4)' });
+  const preferences = { instrumentInUse: register('g1'), notation: register('brazilian') };
+
+  // The accessible name the renderer gives `symbol`'s (read in `dialect`)
+  // default shape on this guitar, spelled in the user's preference.
+  const defaultName = (symbol, dialect) => {
+    const entry = guitarEntry();
+    const instrument = instrumentInstance({
+      catalogId: entry.catalogId,
+      label: entry.label,
+      strings: entry.tuning,
+      fretCount: entry.fretCount,
+      heuristics: entry.config,
+    });
+    const chord = parseChord(symbol, dialect).chord;
+    return describeFingering(defaultVoicing(chord, instrument), { chord, dialect: 'brazilian', instrument });
+  };
+  const diagramNames = () =>
+    within(screen.getByRole('region', { name: /^Shapes/ }))
+      .getAllByRole('img')
+      .map((img) => img.getAttribute('aria-label'));
+
+  it('an american song\'s C7+ and C7(4) show the sharp-fifth and added-fourth shapes', async () => {
+    const { store } = makeStore({ text: american, entry: guitarEntry(), preferences });
+    await openAndWait(store);
+
+    const sharpFifth = defaultName('C7#5', 'american');
+    const addedFourth = defaultName('C7add4', 'american');
+    // The brazilian reading would draw other shapes, so this can fail.
+    expect(sharpFifth).not.toBe(defaultName('C7M', 'brazilian'));
+    expect(addedFourth).not.toBe(defaultName('C7sus4', 'brazilian'));
+
+    expect(diagramNames()).toEqual([sharpFifth, addedFourth]);
+    const shapes = screen.getByRole('region', { name: 'Shapes' });
+    expect(within(shapes).getAllByText('default')).toHaveLength(2);
+
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('transposed up a tone, they stay the sharp-fifth and added-fourth chords', async () => {
+    // transpose re-spells each symbol in the song's dialect (transpose.js L203),
+    // and the resolver reads it back in that same dialect.
+    const { store } = makeStore({ text: american, entry: guitarEntry(), preferences });
+    await openAndWait(store);
+
+    await click(screen.getByRole('button', { name: 'Transpose' }));
+    await click(await screen.findByRole('button', { name: 'Up a semitone' }));
+    await click(await screen.findByRole('button', { name: 'Up a semitone' }));
+    await waitFor(() => expect(screen.getByText('Transposed to D (+2)')).toBeInTheDocument());
+    // The open popover hides the page behind its modal; Escape closes it.
+    await act(async () => {
+      fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+      fireEvent.keyUp(document.activeElement, { key: 'Escape' });
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    const expected = [defaultName('D7#5', 'american'), defaultName('D7add4', 'american')];
+    expect(expected).not.toEqual([defaultName('D7M', 'brazilian'), defaultName('D7sus4', 'brazilian')]);
+    await waitFor(() => expect(diagramNames()).toEqual(expected));
   });
 });
 

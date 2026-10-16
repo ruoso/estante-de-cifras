@@ -76,6 +76,23 @@ export function getDialect(id) {
 }
 
 /**
+ * The dialect a parsed song's chart is written in, resolved exactly as the
+ * cifra.md reader resolves it (§1.4.3, §5.6 Rules): the `notation` property,
+ * compared case-insensitively (ASCII) after trimming its spaces, if it names a
+ * known dialect; otherwise `DEFAULT_DIALECT` (the reader's `bad-notation`
+ * fallback). Pure: reads `model.properties` only.
+ *
+ * @param {{properties?: {key:string, value:string}[]}|null|undefined} model
+ * @returns {string} a dialect id
+ */
+export function songDialect(model) {
+  const value = (model?.properties ?? []).find((p) => p.key === 'notation')?.value;
+  if (!value) return DEFAULT_DIALECT;
+  const id = value.replace(/^ +| +$/g, '').replace(/[A-Z]/g, (c) => c.toLowerCase());
+  return Object.hasOwn(DIALECTS, id) ? id : DEFAULT_DIALECT;
+}
+
+/**
  * Human-readable descriptions of the two competing readings, used by the
  * disambiguation chip in the UI (§2.2) so the user sees which was taken.
  */

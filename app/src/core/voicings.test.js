@@ -198,3 +198,96 @@ describe("resolveSongVoicings — the song's choice, then my shape, then the def
     expect(resolveSongVoicings(parsed, guitar, { ignoreSongVoicings: true }).get('C').source).toBe('default');
   });
 });
+
+describe("resolveSongVoicings — the song's own notation (cifra.md §5.6)", () => {
+  // A song that declares its notation (§1.4.3), or none. The chart is two of
+  // §5.6's ambiguous spellings, written for the purpose.
+  const songIn = (notation, chart = 'C7+  C7(4)') =>
+    [
+      '# Song',
+      ...(notation ? [`- notation: ${notation}`] : []),
+      '## A',
+      FENCE,
+      chart,
+      FENCE,
+    ].join('\n') + '\n';
+  const defaultOf = (symbol) => defaultVoicing(parseChord(symbol).chord, guitar).shorthand;
+
+  const SHARP_FIFTH = defaultOf('C7#5');
+  const ADDED_FOURTH = defaultOf('C7add4');
+  const MAJOR_SEVENTH = defaultOf('C7M');
+  const SUSPENSION = defaultOf('C7sus4');
+
+  it('the two readings have different defaults, so the cases below can fail', () => {
+    expect(SHARP_FIFTH).not.toBe(MAJOR_SEVENTH);
+    expect(ADDED_FOURTH).not.toBe(SUSPENSION);
+    // The spellings the cases compare against are the ones the dialects name.
+    expect(SHARP_FIFTH).toBe(defaultVoicing(parseChord('C7#5', 'american').chord, guitar).shorthand);
+    expect(ADDED_FOURTH).toBe(defaultVoicing(parseChord('C7add4', 'american').chord, guitar).shorthand);
+  });
+
+  it('an american song voices C7+ as the sharp fifth and C7(4) as the added fourth', () => {
+    const r = resolveSongVoicings(parse(songIn('american')), guitar, { dialect: 'american' });
+    expect(r.get('C7+')).toMatchObject({ source: 'default' });
+    expect(r.get('C7+').fingering.shorthand).toBe(SHARP_FIFTH);
+    expect(r.get('C7(4)')).toMatchObject({ source: 'default' });
+    expect(r.get('C7(4)').fingering.shorthand).toBe(ADDED_FOURTH);
+  });
+
+  it('a brazilian song voices them as the major seventh and the suspension', () => {
+    const r = resolveSongVoicings(parse(songIn(null)), guitar);
+    expect(r.get('C7+')).toMatchObject({ source: 'default' });
+    expect(r.get('C7+').fingering.shorthand).toBe(MAJOR_SEVENTH);
+    expect(r.get('C7(4)')).toMatchObject({ source: 'default' });
+    expect(r.get('C7(4)').fingering.shorthand).toBe(SUSPENSION);
+  });
+
+  it('a realbook song reads them as american does', () => {
+    const r = resolveSongVoicings(parse(songIn('realbook')), guitar, { dialect: 'realbook' });
+    expect(r.get('C7+').fingering.shorthand).toBe(SHARP_FIFTH);
+    expect(r.get('C7(4)').fingering.shorthand).toBe(ADDED_FOURTH);
+  });
+
+  it('matches my shape by chord across dialects (wf2 L112-113; home-book format §4.4)', () => {
+    // `shapes.json` keys are written in the default dialect: the added fourth
+    // is `C7(add4)` there, the suspension `C7(4)`. Neither shorthand is a
+    // default, so a hit can only be the star.
+    const american = parse(songIn('american', 'C7(4)'));
+    const brazilian = parse(songIn(null, 'C7(4)'));
+    const addedFourthStar = [shape('C7(add4)', 'x33311')];
+    const suspensionStar = [shape('C7(4)', 'x35363')];
+    expect('x33311').not.toBe(ADDED_FOURTH);
+    expect('x35363').not.toBe(SUSPENSION);
+
+    const a1 = resolveSongVoicings(american, guitar, { dialect: 'american', shapes: addedFourthStar });
+    expect(a1.get('C7(4)')).toMatchObject({ source: 'yours' });
+    expect(a1.get('C7(4)').fingering.shorthand).toBe('x33311');
+    const b1 = resolveSongVoicings(brazilian, guitar, { shapes: addedFourthStar });
+    expect(b1.get('C7(4)')).toMatchObject({ source: 'default' });
+    expect(b1.get('C7(4)').fingering.shorthand).toBe(SUSPENSION);
+
+    const b2 = resolveSongVoicings(brazilian, guitar, { shapes: suspensionStar });
+    expect(b2.get('C7(4)')).toMatchObject({ source: 'yours' });
+    expect(b2.get('C7(4)').fingering.shorthand).toBe('x35363');
+    const a2 = resolveSongVoicings(american, guitar, { dialect: 'american', shapes: suspensionStar });
+    expect(a2.get('C7(4)')).toMatchObject({ source: 'default' });
+    expect(a2.get('C7(4)').fingering.shorthand).toBe(ADDED_FOURTH);
+  });
+
+  it('unvoiceableKeys reads in the same dialect as the resolver', () => {
+    // On a ukulele the american C7+(9) — a sharp-fifth ninth — has no shape;
+    // the brazilian one, a major-seventh ninth, has.
+    const chart = 'C7+  C7(4)  C7+(9)';
+    const american = parse(songIn('american', chart));
+    const brazilian = parse(songIn(null, chart));
+
+    const ra = resolveSongVoicings(american, uke, { dialect: 'american' });
+    expect([...ra.keys()]).toEqual(['C7+', 'C7(4)']);
+    expect(unvoiceableKeys(american, ra, { dialect: 'american' })).toEqual(['C7+(9)']);
+
+    const rb = resolveSongVoicings(brazilian, uke);
+    expect([...rb.keys()]).toEqual(['C7+', 'C7(4)', 'C7+(9)']);
+    expect(unvoiceableKeys(brazilian, rb)).toEqual([]);
+    expect(unvoiceableKeys(brazilian, rb, { dialect: 'brazilian' })).toEqual([]);
+  });
+});

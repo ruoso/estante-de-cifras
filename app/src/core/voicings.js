@@ -24,6 +24,7 @@
  */
 
 import { parseChord } from './notation/parse.js';
+import { DEFAULT_DIALECT } from './notation/dialects.js';
 import { sameChord } from './chord.js';
 import { searchFingerings, fingeringFromFrets } from './search.js';
 import { parseShorthand } from './fretstring.js';
@@ -140,12 +141,17 @@ function withSongFingers(fingering, songFingers) {
  * @param {boolean} [options.ignoreSongVoicings]  suppress step 1, so a chord the
  *   song voices still takes my shape or the default — the seam music.transpose
  *   uses for "a transposed song has no chosen shapes" (workflow 2 lines 120–125)
+ * @param {string} [options.dialect]  the dialect the chart's symbols are read in
+ *   — the song's own (cifra.md §5.6; `songDialect`), the one the caller parsed
+ *   and transposed it in. My shapes' chord keys are always read in
+ *   `DEFAULT_DIALECT`, the dialect `shapes.json` writes them in (home-book
+ *   format §4.4), so a star matches by chord whatever the song's dialect.
  * @returns {Map<string, ResolvedVoicing>}  key → resolution, in chart order
  */
 export function resolveSongVoicings(
   parsed,
   instrument,
-  { variation = '', shapes = [], ignoreSongVoicings = false } = {}
+  { variation = '', shapes = [], ignoreSongVoicings = false, dialect = DEFAULT_DIALECT } = {}
 ) {
   const tuningId = instrumentTuningId(instrument);
   const block = ignoreSongVoicings ? null : selectBlock(parsed, tuningId, variation);
@@ -165,7 +171,7 @@ export function resolveSongVoicings(
 
   for (const item of chartChords(parsed)) {
     if (out.has(item.key)) continue;
-    const chord = parseChord(item.symbol).chord;
+    const chord = parseChord(item.symbol, dialect).chord;
     if (!chord) continue;
 
     // 1. The song's choice.
@@ -182,7 +188,7 @@ export function resolveSongVoicings(
     // 2. My shape — matched by chord, not spelling, so a Cmaj7 star serves a C7M
     //    song (workflow 2 line 106).
     const mine = myShapes.find((s) => {
-      const theirs = parseChord(s.chord)?.chord;
+      const theirs = parseChord(s.chord, DEFAULT_DIALECT)?.chord;
       return theirs && sameChord(theirs, chord);
     });
     if (mine) {
@@ -210,13 +216,14 @@ export function resolveSongVoicings(
  *
  * Walks the cifra.md model's chart chord items (keyed by §2.4 `key`) and lists,
  * once and in chart order, every parseable chord the resolver left unresolved.
+ * `dialect` is the one the resolver was given, so both read the same chords.
  */
-export function unvoiceableKeys(parsed, resolved) {
+export function unvoiceableKeys(parsed, resolved, { dialect = DEFAULT_DIALECT } = {}) {
   const seen = new Set();
   const out = [];
   for (const item of chartChords(parsed)) {
     if (seen.has(item.key) || resolved.has(item.key)) continue;
-    if (!parseChord(item.symbol).chord) continue; // not a chord the app can voice
+    if (!parseChord(item.symbol, dialect).chord) continue; // not a chord the app can voice
     seen.add(item.key);
     out.push(item.key);
   }

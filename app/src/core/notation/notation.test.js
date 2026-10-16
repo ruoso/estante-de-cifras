@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import { parse } from 'cifra-md';
 import { parseNote } from '../pitch.js';
 import { chord, describeChordTones, sameChord } from '../chord.js';
 import { parseChord } from './parse.js';
 import { formatChord } from './format.js';
-import { DEFAULT_DIALECT, DIALECT_IDS } from './dialects.js';
+import { DEFAULT_DIALECT, DIALECT_IDS, songDialect } from './dialects.js';
 
 const n = parseNote;
 /** Parse and return the tones, for readable assertions. */
@@ -488,5 +489,44 @@ describe('reading overrides', () => {
     expect(describeChordTones(flipped.chord)).toBe('C E F G Bb');
     expect(flipped.ambiguities[0].chosen).toBe('addedFourth');
     expect(flipped.ambiguities[0].alternatives).toEqual(['suspendedFourth']);
+  });
+});
+
+describe('songDialect', () => {
+  // The dialect a song's chart is written in: its `notation` property, or
+  // brazilian (cifra.md §1.4.3, §5.6 Rules), resolved as the reader resolves it
+  // (cifra.md/js/src/parse.js L401-405). A chart written for the purpose.
+  const songWith = (notation) =>
+    ['# Song', ...(notation == null ? [] : [`- notation: ${notation}`]), '## A', '```', 'C7+', '```'].join('\n') + '\n';
+  // The reading the cifra.md reader took for the song's `C7+`.
+  const readerReading = (model) => {
+    const item = model.sections[0].body[0].lines[0].measures[0].items[0];
+    expect(item.symbol).toBe('C7+');
+    return item.ambiguities[0].chosen;
+  };
+
+  it.each([
+    ['american', 'american'],
+    ['realbook', 'realbook'],
+    ['brazilian', 'brazilian'],
+    // §1.4.3: compared case-insensitively, the value's own spaces trimmed.
+    ['American', 'american'],
+    ['RealBook', 'realbook'],
+    // Not a dialect name: the reader falls back to brazilian (bad-notation),
+    // and so does songDialect — a space inside the name is not removed.
+    ['Real Book', 'brazilian'],
+    ['klingon', 'brazilian'],
+    // No property at all.
+    [null, 'brazilian'],
+  ])('notation: %s → %s, the same reading the reader takes', (notation, expected) => {
+    const model = parse(songWith(notation));
+    const dialect = songDialect(model);
+    expect(dialect).toBe(expected);
+    expect(DIALECT_IDS).toContain(dialect);
+    expect(parseChord('C7+', dialect).ambiguities[0].chosen).toBe(readerReading(model));
+  });
+
+  it('is the default for no model', () => {
+    expect(songDialect(null)).toBe(DEFAULT_DIALECT);
   });
 });
