@@ -42,6 +42,10 @@ export default function FileView({ store, bookId, mode, onBack = () => {}, onOpe
   const [tab, setTab] = useState('files');
   const [selected, setSelected] = useState(null); // { path, kind, isNew } | null
   const [editorRef] = useState(() => ({ current: null }));
+  // The editor's flush: Delete on a never-saved file opens the discard confirm
+  // from outside the editor, so a still-debounced edit is sent first and the
+  // confirm previews it (songs.discard_summary Constraint 4).
+  const [flushRef] = useState(() => ({ current: null }));
 
   // The sheets and dialogs (ephemeral). `save` carries the paths and new-song
   // context the SaveSheet needs; `discard` / `rename` / `del` the file in hand.
@@ -187,14 +191,18 @@ export default function FileView({ store, bookId, mode, onBack = () => {}, onOpe
       file={selected}
       mode={mode}
       editorRef={editorRef}
+      flushRef={flushRef}
       onSave={onEditorSave}
       onOpenHistory={onOpenHistory}
       onRename={() => setRename({ path: selected.path, kind: selected.kind })}
-      onDelete={() =>
-        selected.isNew
-          ? setDiscard({ paths: [selected.path] })
-          : setDel({ path: selected.path, kind: selected.kind })
-      }
+      onDelete={() => {
+        if (selected.isNew) {
+          flushRef.current?.();
+          setDiscard({ paths: [selected.path] });
+        } else {
+          setDel({ path: selected.path, kind: selected.kind });
+        }
+      }}
     />
   ) : (
     <p className="t-small file-view-empty" role="status">

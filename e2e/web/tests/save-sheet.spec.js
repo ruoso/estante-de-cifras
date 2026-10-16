@@ -62,12 +62,25 @@ test('Discard shows what would be lost, always asks, and reverts the song; axe-c
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText(/This would be lost/)).toBeVisible();
+  // Tapped at once, inside the editor's write debounce: the confirm still lists
+  // the edit — the same summary as save (songs.discard_summary).
+  const row = dialog.locator('.diff .d').filter({ hasText: 'ThrowawayCoda' });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText('section added');
   await mockup(page, 'W04-edit-and-save', 3); // discard shows what would be lost
   await checkA11y();
 
   // The danger action reverts the working copy; the editor reloads it.
   await dialog.getByRole('button', { name: 'Discard changes' }).click();
   await expect(dialog).toBeHidden();
+  await expect(page.locator('.cm-content')).not.toContainText('ThrowawayCoda');
+  await expect(page.locator('.cm-content')).toContainText('## Intro');
+
+  // Nothing wrote the discarded text back: a reopened editor still lacks it.
+  await page.getByRole('button', { name: 'Back' }).first().click();
+  await openSongFromSearch(page, 'Morning', SONG_TITLE);
+  await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+  await expect(page.locator('.cm-content')).toContainText('## Intro');
   await expect(page.locator('.cm-content')).not.toContainText('ThrowawayCoda');
 });
 

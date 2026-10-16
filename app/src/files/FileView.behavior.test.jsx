@@ -6,9 +6,10 @@
 // codemirror-jsdom-getclientrects). Fixtures are purpose-written.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act, waitFor, within } from '@testing-library/react';
+import { EditorView } from '@codemirror/view';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { createStore } from '../worker/store.js';
-import { event, EventKind } from '../worker/protocol.js';
+import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { t } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import FileView from './FileView.jsx';
@@ -141,6 +142,35 @@ describe('the file view (behavior)', () => {
     // The Worker would now report it deleted; the row reads the word.
     seedTree(emit, [{ path: 'valsa.cifra.md', status: 'deleted' }]);
     expect(screen.getByText('deleted')).toBeInTheDocument();
+  });
+
+  // songs.discard_summary Constraint 4: Delete on a never-saved file opens the
+  // discard confirm from outside the editor, so the still-debounced edit is sent
+  // before the confirm's PREVIEW_SAVE (workflow 4 §Discarding).
+  it('Delete on a never-saved file flushes before the discard confirm previews', async () => {
+    const { store, sent, emit } = makeStore();
+    renderView(store);
+    seedTree(emit, []);
+    emit(event(EventKind.NEW_SONG_READY, { bookId: BOOK, path: 'tide.cifra.md' }));
+    // The raw editor mounted on the new song's template.
+    expect(screen.getByRole('button', { name: t('editor.source.save') })).toBeInTheDocument();
+    const view = EditorView.findFromDOM(document.querySelector('.cm-editor'));
+    act(() => view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '# Tide\n' } }));
+
+    // Delete at once — well inside the editor's write debounce.
+    act(() =>
+      fireEvent.click(screen.getByRole('button', { name: t('fileView.deleteLabel', { name: 'tide.cifra.md' }) })),
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('button', { name: t('saveSheet.discard') })).toBeInTheDocument();
+    const order = sent
+      .filter((c) => c.kind === CommandKind.WRITE || c.kind === CommandKind.PREVIEW_SAVE)
+      .map((c) => c.kind);
+    expect(order).toEqual([CommandKind.WRITE, CommandKind.PREVIEW_SAVE]);
+    expect(kind(sent, CommandKind.WRITE)[0].payload).toMatchObject({ bookId: BOOK, path: 'tide.cifra.md', text: '# Tide\n' });
+    expect(kind(sent, CommandKind.PREVIEW_SAVE)[0].payload).toMatchObject({ bookId: BOOK, paths: ['tide.cifra.md'] });
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
   });
 
   it('the change list shows each change checked and Save… opens the sheet for them (workflow 14 L152-159)', async () => {

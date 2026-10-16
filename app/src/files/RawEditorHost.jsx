@@ -16,6 +16,7 @@ export default function RawEditorHost({
   file,
   mode,
   editorRef,
+  flushRef,
   onSave,
   onOpenHistory,
   onRename,
@@ -51,6 +52,7 @@ export default function RawEditorHost({
         isNew={file.isNew}
         layoutMode={mode}
         editorRef={editorRef}
+        flushRef={flushRef}
         onSave={onSave}
         onOpenHistory={onOpenHistory}
       />

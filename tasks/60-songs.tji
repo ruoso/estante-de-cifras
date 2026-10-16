@@ -131,8 +131,9 @@ task songs "Songs" {
   task discard_summary "Discard says what would be lost" {
     effort 0.5d
     allocate team
+    complete 100
     depends !save_sheet, !edit_in_place
-    note "The discard confirm reads This would be lost: and then lists nothing (W04 tablet), where workflow 4 §Discarding shows the same musical summary as the save sheet (the save sheet for the same edit does list it). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the confirm lists the changes from the preview; axe); e2e-web (edit, Discard: the change is listed; mockup W04#3)."
+    note "The discard confirm reads This would be lost: and then lists nothing (W04 tablet), where workflow 4 §Discarding shows the same musical summary as the save sheet (the save sheet for the same edit does list it). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the confirm lists the changes from the preview; axe); e2e-web (edit, Discard: the change is listed; mockup W04#3). Refinement: tasks/refinements/songs/discard_summary.md"
   }
   task transpose_chrome "Transposed reading names the key, once" {
     effort 0.5d

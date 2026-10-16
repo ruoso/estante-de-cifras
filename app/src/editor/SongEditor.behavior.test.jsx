@@ -347,6 +347,34 @@ describe('SongEditor', () => {
     expect(writesAtSave[0].payload.text).toBe('# Tide\n- key: G\n');
   });
 
+  // songs.discard_summary Constraint 2: the host's flush (an outside Discard)
+  // sends the pending edit and disarms the timer, so nothing can follow a DISCARD.
+  it('a host flush sends the still-debounced edit once, and nothing after', async () => {
+    const { store, sent, emit } = makeStore();
+    const editorRef = { current: null };
+    const flushRef = { current: null };
+    const { unmount } = render(
+      <SongEditor store={store} bookId={BOOK} path={PATH} editorRef={editorRef} flushRef={flushRef} onSave={() => {}} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: '# Tide\n' }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe('# Tide\n'));
+    expect(typeof flushRef.current).toBe('function');
+
+    act(() => editorRef.current.dispatch({ changes: { from: 7, insert: '- key: G\n' } }));
+    act(() => flushRef.current());
+
+    const writes = () => sent.filter((c) => c.kind === CommandKind.WRITE);
+    expect(writes()).toHaveLength(1);
+    expect(writes()[0].payload).toMatchObject({ bookId: BOOK, path: PATH, text: '# Tide\n- key: G\n' });
+
+    // Past the editor's 400 ms write debounce, then unmount: no second WRITE.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 500)));
+    unmount();
+    expect(writes()).toHaveLength(1);
+    // The editor clears the host's ref on unmount, so a later call is a no-op.
+    expect(flushRef.current).toBeNull();
+  });
+
   it('stops the save on a conflict-marker buffer', async () => {
     const { store, emit } = makeStore();
     const onSave = vi.fn();

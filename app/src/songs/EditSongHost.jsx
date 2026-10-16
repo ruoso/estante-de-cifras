@@ -11,7 +11,7 @@
 // this host on SAVED or Back. A discard reverts the working copy, so the editor
 // is remounted to re-read the reverted text, as the dev mount does.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
@@ -52,6 +52,14 @@ export default function EditSongHost({
   const { bookId, path, songTitle } = editing;
   const [saveOpen, setSaveOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
+  // The editor's flush: Discard sits outside the editor, so it sends a
+  // still-debounced edit before the confirm previews what would be lost
+  // (workflow 4 §Discarding; songs.discard_summary).
+  const flushRef = useRef(null);
+  const openDiscard = () => {
+    flushRef.current?.();
+    setDiscardOpen(true);
+  };
   const [reloadKey, setReloadKey] = useState(0);
   const title = songTitle || path;
   // Whether a save can go to this book (books.fork Constraint 7): a reader's
@@ -66,7 +74,7 @@ export default function EditSongHost({
           <BackIcon />
         </Button>
         <span className="title">{title}</span>
-        <Button className="btn" onPress={() => setDiscardOpen(true)}>
+        <Button className="btn" onPress={openDiscard}>
           {t('saveSheet.discard')}
         </Button>
       </div>
@@ -80,6 +88,7 @@ export default function EditSongHost({
         onSave={() => setSaveOpen(true)}
         onOpenHistory={onOpenHistory}
         editorRef={editorRef}
+        flushRef={flushRef}
       />
       <SaveSheet
         store={store}

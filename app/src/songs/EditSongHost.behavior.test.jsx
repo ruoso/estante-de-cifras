@@ -8,7 +8,7 @@
 // copyrighted words.
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup, within, waitFor } from '@testing-library/react';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { checkWcag21aa } from '../a11y/axe.js';
@@ -48,7 +48,7 @@ function makeStore() {
 
 const commandsOf = (sent, kind) => sent.filter((c) => c.kind === kind);
 
-function renderHost(store, bookId) {
+function renderHost(store, bookId, editorRef = { current: null }) {
   return render(
     <ThemeRoot store={store}>
       <EditSongHost
@@ -57,7 +57,7 @@ function renderHost(store, bookId) {
         mode="narrow"
         onBack={() => {}}
         onOpenHistory={() => {}}
-        editorRef={{ current: null }}
+        editorRef={editorRef}
       />
     </ThemeRoot>,
   );
@@ -103,5 +103,69 @@ describe('edit → Save (books.fork Constraint 7; workflow 4 §A book the user c
       bookId: 'srv-e',
       paths: [PATH],
     });
+  });
+});
+
+describe('edit → Discard (workflow 4 §Discarding)', () => {
+  const CODA = '\n## Coda\n```\nG | C\n```\n';
+  const EDITED = TEXT + CODA;
+  // The section-added record the Worker's preview reports for that edit.
+  const ADDED = { kind: 'section', op: 'added', where: { section: 'Coda' }, before: null, after: 'Coda' };
+
+  async function editThenDiscard() {
+    const env = makeStore();
+    const editorRef = { current: null };
+    renderHost(env.store, 'srv-e', editorRef);
+    env.emit(SHELF);
+    env.emit(event(EventKind.SOURCE, { bookId: 'srv-e', path: PATH, text: TEXT }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(TEXT));
+    // An edit, then the appbar's Discard at once — inside the write debounce.
+    act(() => editorRef.current.dispatch({ changes: { from: TEXT.length, insert: CODA } }));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Discard changes' })));
+    return { ...env, editorRef };
+  }
+
+  it('Discard right after an edit previews the edit', async () => {
+    const { sent, emit } = await editThenDiscard();
+
+    // The edit reaches the Worker before the confirm asks for its preview.
+    const kinds = sent.map((c) => c.kind);
+    const write = kinds.lastIndexOf(CommandKind.WRITE);
+    const previewAt = kinds.indexOf(CommandKind.PREVIEW_SAVE);
+    expect(write).toBeGreaterThanOrEqual(0);
+    expect(sent[write].payload).toMatchObject({ bookId: 'srv-e', path: PATH, text: EDITED });
+    expect(write).toBeLessThan(previewAt);
+    expect(sent[previewAt].payload).toMatchObject({ bookId: 'srv-e', paths: [PATH] });
+
+    emit(
+      event(EventKind.SAVE_PREVIEW, {
+        bookId: 'srv-e',
+        previews: [{ path: PATH, title: 'Tarde Clara', changes: [ADDED], summary: 'Coda: section added', isNew: false }],
+      }),
+    );
+
+    // What would be lost lists the edit — the same rows the save sheet shows.
+    const dialog = screen.getByRole('dialog', { name: 'Discard changes to Tarde Clara?' });
+    expect(within(dialog).getByText(/This would be lost/)).toBeInTheDocument();
+    expect(within(dialog).getByText('Coda')).toBeInTheDocument();
+    expect(within(dialog).getByText('section added')).toBeInTheDocument();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+  });
+
+  it('a confirmed discard writes nothing back', async () => {
+    const { sent, emit } = await editThenDiscard();
+    const dialog = screen.getByRole('dialog', { name: 'Discard changes to Tarde Clara?' });
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Discard changes' })));
+    const discardAt = sent.findIndex((c) => c.kind === CommandKind.DISCARD);
+    expect(sent[discardAt].payload).toMatchObject({ bookId: 'srv-e', paths: [PATH] });
+
+    const opensBefore = commandsOf(sent, CommandKind.OPEN_SOURCE).length;
+    emit(event(EventKind.DISCARDED, { bookId: 'srv-e', paths: [PATH] }));
+    // The editor remounted to re-read the reverted text.
+    expect(commandsOf(sent, CommandKind.OPEN_SOURCE).length).toBe(opensBefore + 1);
+
+    // Past the editor's 400 ms write debounce: no WRITE after the DISCARD.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 500)));
+    expect(sent.slice(discardAt + 1).filter((c) => c.kind === CommandKind.WRITE)).toEqual([]);
   });
 });

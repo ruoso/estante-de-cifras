@@ -14,7 +14,7 @@
 // them and routes presses back through callbacks. The unsaved badge carries the
 // word "unsaved" (never colour alone, mockups README L26).
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import SongEditor from '../editor/SongEditor.jsx';
@@ -57,6 +57,14 @@ export default function NewSongHost({
   // Discard is the host's own destructive affordance, which always asks.
   const [saveOpen, setSaveOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
+  // The editor's flush: Discard sits outside the editor, so it sends a
+  // still-debounced edit before the confirm previews what would be lost
+  // (workflow 4 §Discarding; songs.discard_summary).
+  const flushRef = useRef(null);
+  const openDiscard = () => {
+    flushRef.current?.();
+    setDiscardOpen(true);
+  };
   return (
     <div className="screen new-song">
       <div className="appbar">
@@ -65,7 +73,7 @@ export default function NewSongHost({
         </Button>
         <span className="title">{songTitle || t('newSong.untitled')}</span>
         <span className="badge unsaved dot">{t('newSong.unsaved')}</span>
-        <Button className="btn" onPress={() => setDiscardOpen(true)}>
+        <Button className="btn" onPress={openDiscard}>
           {t('saveSheet.discard')}
         </Button>
       </div>
@@ -83,6 +91,7 @@ export default function NewSongHost({
         onSave={() => setSaveOpen(true)}
         onOpenHistory={onOpenHistory}
         editorRef={editorRef}
+        flushRef={flushRef}
       />
       <p className="t-small new-song-note">{t('newSong.notationNote')}</p>
       <SaveSheet

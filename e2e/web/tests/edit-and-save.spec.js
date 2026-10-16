@@ -63,6 +63,11 @@ test('Back from the editor keeps the unsaved edit, and Discard reverts it (workf
   await page.getByRole('button', { name: 'Discard changes' }).click();
   const confirm = page.getByRole('dialog');
   await expect(confirm.getByText(/This would be lost/)).toBeVisible();
+  // The confirm lists the typed change (flushed by Back's unmount): the added
+  // chord reads at its section (render-change.js; songs.discard_summary).
+  const row = confirm.locator('.diff .d').filter({ hasText: 'Em added' });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText('Intro');
   await mockup(page, 'W04-edit-and-save', 3);
   await confirm.getByRole('button', { name: 'Discard changes' }).click();
   await expect(confirm).toBeHidden();

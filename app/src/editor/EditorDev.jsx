@@ -14,7 +14,7 @@
 // no book) has nowhere to commit, so it keeps a lightweight confirmation — the
 // editor's pre-save gate is what that case exercises.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from 'react-aria-components';
 import SongEditor from './SongEditor.jsx';
 import SaveSheet from '../songs/SaveSheet.jsx';
@@ -41,6 +41,8 @@ export default function EditorDev({ store = getAppStore() }) {
   const [saved, setSaved] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
+  // Send a still-debounced edit before the confirm previews (songs.discard_summary).
+  const flushRef = useRef(null);
   // A discard reverts the working copy; bump the key so the editor remounts and
   // re-reads the reverted text from the working copy (OPEN_SOURCE).
   const [reloadKey, setReloadKey] = useState(0);
@@ -53,7 +55,13 @@ export default function EditorDev({ store = getAppStore() }) {
       <h1 className="t-h1">Source editor (dev)</h1>
       {saved && <p role="status">Ready to save.</p>}
       {hasSong && (
-        <Button className="btn" onPress={() => setDiscardOpen(true)}>
+        <Button
+          className="btn"
+          onPress={() => {
+            flushRef.current?.();
+            setDiscardOpen(true);
+          }}
+        >
           {t('saveSheet.discard')}
         </Button>
       )}
@@ -63,6 +71,7 @@ export default function EditorDev({ store = getAppStore() }) {
         bookId={bookId}
         path={path}
         isNew={isNew}
+        flushRef={flushRef}
         onSave={() => (hasSong ? setSaveOpen(true) : setSaved(true))}
       />
       {hasSong && (

@@ -106,6 +106,7 @@ export default function SongEditor({
   onOpenHistory = () => {},
   layoutMode,
   editorRef,
+  flushRef,
 }) {
   const preferences = useSlice(store, 'preferences');
   const sourceSlice = useSlice(store, 'source');
@@ -172,6 +173,22 @@ export default function SongEditor({
     },
     [store, bookId, path],
   );
+
+  // Send a still-debounced edit now and disarm the timer — the one flush that
+  // Save, the unmount cleanup and the host (through `flushRef`) all go through
+  // (songs.discard_summary Constraint 2). The Worker handles commands in order,
+  // so a preview sent after this reads the text as typed; clearing the timer
+  // means nothing can land after a DISCARD that follows.
+  const flushWrite = useCallback(() => {
+    if (writeTimer.current) {
+      clearTimeout(writeTimer.current);
+      writeTimer.current = null;
+    }
+    if (pendingWrite.current != null && bookId && path) {
+      store.send(command(CommandKind.WRITE, { bookId, path, text: pendingWrite.current }));
+    }
+    pendingWrite.current = null;
+  }, [store, bookId, path]);
 
   // CodeMirror's extensions are built once but must call the latest handlers
   // (they close over the current dialect and props). The refs are updated in an
@@ -258,18 +275,17 @@ export default function SongEditor({
     });
     viewRef.current = view;
     if (editorRef) editorRef.current = view;
+    // The host's flush (an outside Discard sends the pending edit before its
+    // confirm previews — songs.discard_summary Decision 1).
+    if (flushRef) flushRef.current = flushWrite;
 
     return () => {
       // Flush a pending write so closing the editor loses nothing.
-      if (writeTimer.current) {
-        clearTimeout(writeTimer.current);
-        if (pendingWrite.current != null && bookId && path) {
-          store.send(command(CommandKind.WRITE, { bookId, path, text: pendingWrite.current }));
-        }
-      }
+      flushWrite();
       view.destroy();
       viewRef.current = null;
       if (editorRef) editorRef.current = null;
+      if (flushRef) flushRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -389,14 +405,7 @@ export default function SongEditor({
     // Send a still-debounced edit now: the Worker handles commands in order,
     // so the save sheet's preview (sent once it opens) reads the text as typed
     // — a Save pressed within the debounce otherwise previews the older text.
-    if (writeTimer.current) {
-      clearTimeout(writeTimer.current);
-      writeTimer.current = null;
-      if (pendingWrite.current != null && bookId && path) {
-        store.send(command(CommandKind.WRITE, { bookId, path, text: pendingWrite.current }));
-      }
-      pendingWrite.current = null;
-    }
+    flushWrite();
     onSave?.();
   };
 
