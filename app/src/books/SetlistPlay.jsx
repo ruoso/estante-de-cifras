@@ -183,13 +183,25 @@ export default function SetlistPlay({
   const ownOffset = reading?.transposition ?? 0;
 
   // The setlist's target key, when the item carries one, as a signed offset —
-  // null (shown as a note, untransposed) when the song has no written key.
+  // null (shown as a note, untransposed) when the song has no written key, a
+  // key is not a key, or the two keys differ in mode (cifra.md §10.7.1).
   const itemKeyOffset = current?.key ? playKeyOffset(writtenKey, current.key) : null;
   const noteOnly = Boolean(current?.key) && itemKeyOffset == null;
   const offset = current?.key ? (itemKeyOffset ?? 0) : ownOffset;
   // The transposed model (React Compiler memoizes this derivation).
   const model = baseModel ? transpose(baseModel, offset, { dialect }) : null;
-  const currentKeyName = offset ? transposedKeyName(writtenKey, offset, dialect) : null;
+  // The chip names the key the chart is played in: whenever a setlist key is
+  // in force — offset 0 included, so a band key equal to the written one is
+  // still named — and, with no item key, only when the user's own
+  // transposition moves the chart. A key shown as a note claims none.
+  const showChip = current?.key ? !noteOnly : Boolean(offset);
+  const currentKeyName = showChip ? transposedKeyName(writtenKey, offset, dialect) : null;
+  // "written in" only when the setlist key actually moved the chart.
+  const setlistLine = !current?.key
+    ? null
+    : !noteOnly && offset
+      ? t('play.setlistKey', { key: current.key, songKey: writtenKey })
+      : t('play.setlistKeyNote', { key: current.key });
 
   const title = current ? (baseModel?.title ?? current.title) : '';
   const total = playable.length;
@@ -229,14 +241,7 @@ export default function SetlistPlay({
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
       >
-        {current?.key && !noteOnly ? (
-          <span className="t-small">
-            {t('play.setlistKey', { key: current.key, songKey: writtenKey })}
-          </span>
-        ) : null}
-        {current?.key && noteOnly ? (
-          <span className="t-small">{t('play.setlistKeyNote', { key: current.key })}</span>
-        ) : null}
+        {setlistLine ? <span className="t-small">{setlistLine}</span> : null}
 
         {model ? (
           <Chart model={model} size={mode === 'wide' ? 20 : 21} label={title || undefined} />

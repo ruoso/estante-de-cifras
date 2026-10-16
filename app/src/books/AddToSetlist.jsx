@@ -136,7 +136,7 @@ export default function AddToSetlist({ store, song, onClose }) {
       }}
     >
       <Modal className="dialog setlist-dialog">
-        <Dialog aria-label={t('setlists.addToSetlistTitle')}>
+        <Dialog className="setlist-dialog-body" aria-label={t('setlists.addToSetlistTitle')}>
           {({ close }) => (
             <>
               <Heading slot="title" className="t-h1">
@@ -256,6 +256,7 @@ function NewSetlistDialog({ onCancel, onCreate }) {
         <Dialog>
           {({ close }) => (
             <form
+              className="setlist-name-form"
               onSubmit={(event) => {
                 event.preventDefault();
                 const trimmed = name.trim();

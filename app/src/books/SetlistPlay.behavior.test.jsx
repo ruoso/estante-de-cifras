@@ -12,7 +12,7 @@
 // keyDown/keyUp pairs.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, act, fireEvent } from '@testing-library/react';
+import { render, screen, act, fireEvent, within } from '@testing-library/react';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
@@ -34,6 +34,10 @@ const SETLIST_TEXT = [
   '   - note: gentle',
   '3. [Gone Song](../gone.cifra.md)',
   '4. [Own Tune](../own.cifra.md)',
+  '5. [Band Key Song](../band-key.cifra.md)',
+  '   - key: G',
+  '6. [Minor Song](../minor.cifra.md)',
+  '   - key: C',
   '',
 ].join('\n');
 
@@ -42,12 +46,18 @@ const SETLIST_TEXT = [
 const IN_G = ['# In G Song', '- key: G', '', '## Verse', '```', 'G | C | D | G', '```', ''].join('\n');
 const NO_KEY = ['# No Key Song', '', '## Verse', '```', 'C | F | G | C', '```', ''].join('\n');
 const OWN = ['# Own Tune', '- key: G', '', '## Verse', '```', 'G | C | D | G', '```', ''].join('\n');
+// Written in G under a setlist key of G: the band's key is the written one.
+const BAND_KEY = ['# Band Key Song', '- key: G', '', '## Verse', '```', 'G | C | D | G', '```', ''].join('\n');
+// Written in Am under a setlist key of C: the modes differ (§10.7.1).
+const MINOR = ['# Minor Song', '- key: Am', '', '## Verse', '```', 'Am | Dm | E | Am', '```', ''].join('\n');
 
 const TEXT_BY_PATH = {
   [SETLIST_PATH]: SETLIST_TEXT,
   'in-g.cifra.md': IN_G,
   'no-key.cifra.md': NO_KEY,
   'own.cifra.md': OWN,
+  'band-key.cifra.md': BAND_KEY,
+  'minor.cifra.md': MINOR,
 };
 
 // Gone Song is referenced by the setlist but absent from the tree → missing.
@@ -55,6 +65,8 @@ const ENTRIES = [
   { path: 'in-g.cifra.md', status: 'clean' },
   { path: 'no-key.cifra.md', status: 'clean' },
   { path: 'own.cifra.md', status: 'clean' },
+  { path: 'band-key.cifra.md', status: 'clean' },
+  { path: 'minor.cifra.md', status: 'clean' },
   { path: SETLIST_PATH, status: 'clean' },
 ];
 
@@ -119,6 +131,20 @@ function renderPlayer(store, props = {}) {
   return { ...utils, wakeLock, onStop };
 }
 
+// The chord names the chart draws, in order (sung `.c` and bar-line `.g` glyphs).
+function chartChords(container) {
+  return Array.from(container.querySelectorAll('.chart .c, .chart .g')).map((el) => el.textContent);
+}
+
+// Step forward through the playable list to the song titled `title`.
+async function playTo(title) {
+  await screen.findByRole('group', { name: 'In G Song' });
+  for (let i = 0; i < 5 && !screen.queryByRole('group', { name: title }); i += 1) {
+    await pressKey('ArrowRight');
+  }
+  await screen.findByRole('group', { name: title });
+}
+
 // Drive the pedal: a page key on the focused surface (it bubbles to the
 // surface's keydown binding). One keyDown/keyUp gesture.
 async function pressKey(key) {
@@ -138,6 +164,42 @@ describe('SetlistPlay — the setlist player', () => {
     // the written one.
     expect(screen.getByText('In A')).toBeInTheDocument();
     expect(screen.getByText('Setlist key A · written in G')).toBeInTheDocument();
+  });
+
+  it('puts the chip in the bar beside Stop, and the setlist line in the sheet (W12 phone #2 L78, L81)', async () => {
+    const store = makeStore();
+    renderPlayer(store);
+    await screen.findByRole('group', { name: 'In G Song' });
+    const bar = screen.getByRole('button', { name: 'Stop playing' }).closest('.play-bar');
+    expect(within(bar).getByText('In A')).toBeInTheDocument();
+    const sheet = screen.getByRole('region', { name: 'In G Song' });
+    expect(within(sheet).getByText('Setlist key A · written in G')).toBeInTheDocument();
+  });
+
+  it('names a setlist key equal to the written key, untransposed (§The key; cifra.md §10.7.1 L335-337)', async () => {
+    const store = makeStore();
+    const { container } = renderPlayer(store);
+    await playTo('Band Key Song');
+    const bar = screen.getByRole('button', { name: 'Stop playing' }).closest('.play-bar');
+    expect(within(bar).getByText('In G')).toBeInTheDocument();
+    expect(screen.getByText('Setlist key G')).toBeInTheDocument();
+    expect(screen.queryByText(/written in/)).not.toBeInTheDocument();
+    // Not moved: the chords are as written.
+    const chords = chartChords(container);
+    expect(chords).toEqual(expect.arrayContaining(['G', 'C', 'D']));
+    expect(chords).not.toContain('A');
+  });
+
+  it('shows a setlist key in another mode as a note, untransposed, with no chip (cifra.md §10.7.1 L342-347)', async () => {
+    const store = makeStore();
+    const { container } = renderPlayer(store);
+    await playTo('Minor Song');
+    expect(screen.getByText('Setlist key C')).toBeInTheDocument();
+    expect(screen.queryByText(/written in/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^In /)).not.toBeInTheDocument();
+    const chords = chartChords(container);
+    expect(chords).toEqual(expect.arrayContaining(['Am', 'Dm', 'E']));
+    expect(chords).not.toContain('Cm');
   });
 
   it('shows a keyless song under an item key as a note, untransposed (AC 3; §The key L52-54)', async () => {
@@ -172,7 +234,7 @@ describe('SetlistPlay — the setlist player', () => {
     expect(screen.getByText('2. No Key Song')).toBeInTheDocument();
     expect(screen.getByText('Note: gentle')).toBeInTheDocument();
     // Position of three playable songs (Gone Song is skipped, never counted).
-    expect(screen.getByText('1 of 3 · screen kept awake')).toBeInTheDocument();
+    expect(screen.getByText('1 of 5 · screen kept awake')).toBeInTheDocument();
     await pressKey('ArrowRight'); // No Key Song
     await screen.findByRole('group', { name: 'No Key Song' });
     // From here the Next card points straight at Own Tune — Gone Song is gone.
@@ -225,7 +287,7 @@ describe('SetlistPlay — the setlist player', () => {
     expect(onStop).toHaveBeenCalled();
   });
 
-  it('is axe-clean on the transposed, note-only and own-transposition states', async () => {
+  it('is axe-clean on the transposed, note-only, own-transposition, equal-key and mode-mismatch states', async () => {
     const store = makeStore();
     const { container } = renderPlayer(store);
     await screen.findByRole('group', { name: 'In G Song' });
@@ -235,6 +297,12 @@ describe('SetlistPlay — the setlist player', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
     await pressKey('ArrowRight');
     await screen.findByRole('group', { name: 'Own Tune' });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    await pressKey('ArrowRight');
+    await screen.findByRole('group', { name: 'Band Key Song' });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    await pressKey('ArrowRight');
+    await screen.findByRole('group', { name: 'Minor Song' });
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });

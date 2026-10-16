@@ -9,9 +9,13 @@ import { parseNote, pitchClass } from '../core/pitch.js';
 
 // A §10.7.1 key as the setlist writes it — a root, an optional accidental
 // (ASCII or the unicode ♯/♭), an optional `m` for minor. `parseNote` reads a
-// bare note with ASCII accidentals, so drop the mode and fold the glyphs: the
-// offset is the same whatever the mode, which is why a minor key transposes
-// like its relative-letter major root.
+// bare note with ASCII accidentals, so drop the mode and fold the glyphs. The
+// mode itself is compared separately (isMinor): two keys that differ in mode
+// are not transposed between (§10.7.1).
+function isMinor(key) {
+  return /m$/.test(String(key).trim());
+}
+
 function noteOf(key) {
   return String(key)
     .trim()
@@ -23,15 +27,17 @@ function noteOf(key) {
 /**
  * The signed semitone offset (0–11, up to the target) from a song's written
  * `key` to a setlist item's target `key` — `playKeyOffset('G', 'A')` → `2`.
- * Returns `null` when the song has no written key or either key is
- * unparseable, so the caller shows the setlist key as a note, untransposed
- * (workflow 12 §The key L52-54).
+ * Returns `null` when the song has no written key, either key is unparseable,
+ * or the two keys differ in mode (`Am` under `C`), so the caller shows the
+ * setlist key as a note, untransposed (workflow 12 §The key L52-54; cifra.md
+ * §10.7.1). Enharmonic spellings are the same key: `A#` → `Bb` is `0`.
  * @param {string|null|undefined} songKey the song's written `key` property
  * @param {string|null|undefined} targetKey the setlist item's target `key`
  * @returns {number|null}
  */
 export function playKeyOffset(songKey, targetKey) {
   if (!songKey || !targetKey) return null;
+  if (isMinor(songKey) !== isMinor(targetKey)) return null;
   let from;
   let to;
   try {

@@ -36,6 +36,17 @@ import {
 
 const seedExample = openExampleBook;
 
+// W12 tablet #3: a dialog's parts are spaced by the dialog's gap (16px at the
+// default density). jsdom has no layout, so the gap is measured here, between
+// each part's bottom and the next part's top, in the order given.
+async function expectSpacedParts(parts) {
+  const boxes = [];
+  for (const part of parts) boxes.push(await part.boundingBox());
+  for (let i = 1; i < boxes.length; i += 1) {
+    expect(boxes[i].y - (boxes[i - 1].y + boxes[i - 1].height)).toBeGreaterThanOrEqual(12);
+  }
+}
+
 test('build a setlist from songs, add a second, edit key and note, and save', async ({
   page,
   checkA11y,
@@ -46,6 +57,13 @@ test('build a setlist from songs, add a second, edit key and note, and save', as
   await addToSetlistFromSearch(page, 'Morning', 'Morning on the Porch');
   await checkA11y();
   await page.getByRole('button', { name: 'New setlist…' }).click();
+  // The New-setlist dialog spaces its heading, field and actions (W12#3).
+  const nameForm = page.locator('form.setlist-name-form');
+  await expectSpacedParts([
+    nameForm.getByRole('heading', { name: 'New setlist' }),
+    nameForm.locator('.field'),
+    nameForm.locator('.actions'),
+  ]);
   await page.getByRole('textbox', { name: 'Setlist name' }).fill('Gig Night');
   await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.getByRole('heading', { name: 'Add to setlist' })).toBeHidden();
@@ -159,7 +177,18 @@ test('copy a song from another book into a setlist (Copy and add), saved', async
   await page.getByRole('button', { name: /Gig Night/ }).click();
   await expect(page.getByText(/This song will be copied into/)).toBeVisible();
   await checkA11y(); // the copy notice
-  await mockup(page, 'W12-setlists', 3); // Add to setlist, a song from another book (tablet)
+  // The dialog breathes: heading, list, notice, line and actions are spaced by
+  // the dialog's gap (W12 tablet #3 L134-151).
+  const dialog = page.getByRole('dialog', { name: 'Add to setlist' });
+  await expectSpacedParts([
+    dialog.getByRole('heading', { name: 'Add to setlist' }),
+    dialog.getByRole('group', { name: 'Add to setlist' }),
+    dialog.locator('.setlist-copy-notice'),
+    dialog.getByText(/The copy and the setlist change are then unsaved changes/),
+    dialog.locator('.actions'),
+  ]);
+  // Add to setlist, a song from another book (tablet)
+  await mockup(page, 'W12-setlists', 3, { note: 'dialog spacing' });
   await page.getByRole('button', { name: 'Copy and add' }).click();
   await expect(page.getByRole('heading', { name: 'Add to setlist' })).toBeHidden();
 

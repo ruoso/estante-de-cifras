@@ -169,6 +169,30 @@
 .setlist-dialog {
   width: min(580px, 92vw);
 }
+/* RAC puts the Dialog between the `.dialog` box and its content, so the box's
+   column and gap land on the Modal's one child. The Dialog and the New-setlist
+   form carry them for their own children (W12 tablet #3; as
+   `.arrange-addvar-dialog`). */
+.setlist-dialog-body,
+.setlist-name-form {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+.setlist-dialog-body {
+  outline: none;
+}
+/* The copy notice stacks its sentence over the path (board: a 6px column).
+   The first span's zero flex basis (theme `.notice > span:first-child`) would
+   collapse it in a column, so it keeps its content's height. */
+.setlist-copy-notice {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+.setlist-copy-notice > span:first-child {
+  flex: none;
+}
 .setlist-new-row .name {
   font-weight: 600;
 }

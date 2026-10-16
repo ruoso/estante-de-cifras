@@ -25,6 +25,19 @@ describe('playKeyOffset — target key → signed semitone offset (workflow 12 �
     expect(playKeyOffset('G', 'A♭')).toBe(1);
   });
 
+  // cifra.md §10.7.1 L342-347: keys that differ in mode are not applied.
+  it('is null when the two keys differ in mode', () => {
+    expect(playKeyOffset('Am', 'C')).toBeNull();
+    expect(playKeyOffset('C', 'Am')).toBeNull();
+  });
+
+  // cifra.md §10.7.1 L335-337: the interval is between pitch classes, so the
+  // same key — or an enharmonic respelling — is offset 0.
+  it('is 0 for the same pitch class, enharmonic spellings included', () => {
+    expect(playKeyOffset('G', 'G')).toBe(0);
+    expect(playKeyOffset('A#', 'Bb')).toBe(0);
+  });
+
   it('is null when the song has no written key', () => {
     expect(playKeyOffset(null, 'A')).toBeNull();
     expect(playKeyOffset(undefined, 'A')).toBeNull();

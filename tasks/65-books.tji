@@ -161,8 +161,9 @@ task books "Books" {
   task setlist_play_chrome "Playing a setlist shows its key" {
     effort 0.5d
     allocate team
+    complete 100
     depends !play
-    note "The W12 board's player carries the song's key chip (In A) and the setlist's key line; the app's player has neither. The Add to setlist dialog is cramped (list, title and buttons with no gaps). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the key chip and line; axe); e2e-web (play a setlist with a key on the three viewports, mockup W12#2-3)."
+    note "The W12 board's player carries the song's key chip (In A) and the setlist's key line; the app's player has neither. The Add to setlist dialog is cramped (list, title and buttons with no gaps). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the key chip and line; axe); e2e-web (play a setlist with a key on the three viewports, mockup W12#2-3). Refinement: tasks/refinements/books/setlist_play_chrome.md"
   }
   task file_view_history_polish "The file view's history and rename as drawn" {
     effort 1d

@@ -7,7 +7,7 @@
 // e2e (Decision 4). All setlist/song text is written for this test.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, act, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, act, fireEvent, waitFor, within } from '@testing-library/react';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
@@ -326,6 +326,18 @@ describe('AddToSetlist dialog', () => {
     await screen.findByRole('button', { name: /Bar do Zé, 10 October/ });
     await act(async () => fireEvent.click(screen.getByRole('button', { name: /Bar do Zé, 10 October/ })));
     expect(screen.getByText(/This song will be copied into Banda do Bairro first\./)).toBeInTheDocument();
+    // W12 tablet #3 L134-151: the Dialog carries the column-and-gap layout
+    // class, and holds heading, list, notice, line and actions in the board's
+    // order (jsdom has no layout; the gap itself is measured at e2e).
+    const dialog = screen.getByRole('dialog', { name: 'Add to setlist' });
+    expect(dialog).toHaveClass('setlist-dialog-body');
+    const parts = Array.from(dialog.children);
+    expect(parts).toHaveLength(5);
+    expect(parts[0]).toBe(screen.getByRole('heading', { name: 'Add to setlist' }));
+    expect(parts[1]).toBe(within(dialog).getByRole('group', { name: 'Add to setlist' }));
+    expect(parts[2]).toHaveClass('notice', 'setlist-copy-notice');
+    expect(parts[3].tagName).toBe('P');
+    expect(parts[4]).toHaveClass('actions');
     expect(await checkWcag21aa(container)).toHaveNoViolations();
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy and add' })));
     const add = commands.find((c) => c.kind === CommandKind.ADD_TO_SETLIST);
@@ -333,10 +345,13 @@ describe('AddToSetlist dialog', () => {
   });
 
   it('creates a new setlist (New setlist…)', async () => {
-    const { commands } = renderDialog({ bookId: 'band', path: 'bossa/garota.cifra.md', title: 'Garota' });
+    const { commands, container } = renderDialog({ bookId: 'band', path: 'bossa/garota.cifra.md', title: 'Garota' });
     await screen.findByRole('button', { name: 'New setlist…' });
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'New setlist…' })));
     const nameField = await screen.findByRole('textbox', { name: 'Setlist name' });
+    // W12 tablet #3: the form spaces its heading, field and actions.
+    expect(nameField.closest('form')).toHaveClass('setlist-name-form');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
     await act(async () => fireEvent.change(nameField, { target: { value: 'Sábado à noite' } }));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Create' })));
     const add = commands.find((c) => c.kind === CommandKind.ADD_TO_SETLIST);

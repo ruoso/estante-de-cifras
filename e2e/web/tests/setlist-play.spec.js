@@ -90,17 +90,25 @@ test('plays a setlist through, in the setlist key, skipping a missing song', asy
   await expect(page.getByText('3. Walking to the Market')).toBeVisible();
   await expect(page.getByText(/screen kept awake/)).toBeVisible();
   await checkA11y(); // the player, first song
-  await mockup(page, 'W12-setlists', 2); // playing through it (phone)
 
   // Next and previous by the on-screen edge buttons (the keyboard/AT path).
   await page.getByRole('button', { name: 'Next song' }).click();
   await expect(page.getByRole('group', { name: 'Walking to the Market' })).toBeVisible();
-  // Walking to the Market is written in G and played in A — transposed, named.
-  await expect(page.getByText('In A')).toBeVisible();
-  await expect(page.getByText('Setlist key A · written in G')).toBeVisible();
+  // Walking to the Market is written in G and played in A — transposed, named:
+  // the chip in the bar beside Stop, the setlist line atop the sheet (W12 L78,
+  // L81; workflow 12 §The key).
+  const bar = page.locator('.play-bar').filter({
+    has: page.getByRole('button', { name: 'Stop playing' }),
+  });
+  await expect(bar.getByText('In A')).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Walking to the Market' }).getByText('Setlist key A · written in G'),
+  ).toBeVisible();
   // The Ferry Line never shows — it was skipped.
   await expect(page.getByText(/Ferry Line/)).toHaveCount(0);
   await checkA11y(); // the transposed song
+  // Playing the second song of the set, in the setlist key — the board's state.
+  await mockup(page, 'W12-setlists', 2, { note: 'setlist key' });
   await page.getByRole('button', { name: 'Previous song' }).click();
   await expect(page.getByRole('group', { name: 'Morning on the Porch' })).toBeVisible();
 
