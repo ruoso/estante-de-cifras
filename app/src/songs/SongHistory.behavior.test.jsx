@@ -278,6 +278,50 @@ describe('SongHistory', () => {
     }
   });
 
+  it('on a phone a version\'s actions sit in a bar after the scrolling content, the title names the song and the date; axe (§A version, §Restoring; W06#2)', async () => {
+    // songs.history_phone_actions: the phone (mediaMatches=false) version screen
+    // is app bar → one scroller → the action bar, the bar a sibling after the
+    // scroller (W06 L91-94), never inside it. Geometry is the e2e level's job.
+    const ctx = await setup(BOOK);
+    try {
+      await seedTwoVersions(ctx);
+      const { container } = renderHistory(ctx.store);
+
+      fireEvent.click(await screen.findByRole('button', { name: /Darker turn/ }));
+      await screen.findByRole('group', { name: 'The song as it was' });
+      await screen.findByText('C → C7');
+
+      const root = container.querySelector('.est-history-phone');
+      const appbar = root.querySelector('.est-history-appbar');
+      const scroller = root.querySelector('.scroll');
+      const bar = root.querySelector('.est-history-footer');
+      const compare = screen.getByRole('button', { name: 'Compare with now' });
+      const restore = screen.getByRole('button', { name: 'Restore this version' });
+
+      // One scroller; both actions in the one bar that follows it.
+      expect(root.querySelectorAll('.scroll')).toHaveLength(1);
+      expect(bar).toContainElement(compare);
+      expect(bar).toContainElement(restore);
+      expect(scroller.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(scroller).not.toContainElement(bar);
+      expect(scroller).not.toContainElement(compare);
+      expect(scroller).not.toContainElement(restore);
+
+      // The scroller holds the version: what changed and the song as it was.
+      expect(scroller).toContainElement(screen.getByText('What changed from the version before'));
+      expect(scroller).toContainElement(screen.getByRole('group', { name: 'The song as it was' }));
+
+      // The app bar's title is `{song} · {date}`, outside the scroller.
+      const title = appbar.querySelector('.title');
+      expect(title.textContent).toMatch(/^Rua do Porto · \S.*$/);
+      expect(scroller).not.toContainElement(title);
+
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
   it('compare with now re-diffs against the working copy (§A version L46-50)', async () => {
     const ctx = await setup(BOOK);
     try {

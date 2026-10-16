@@ -1,7 +1,7 @@
 /* song-history.css — layout for the history surface (songs.history, W06 board).
    The list, split, pane, appbar, card, editor, toggle, badge and diff
    scaffolding is the theme's (theme.css); this adds only the glue the three
-   layouts need — the stacked phone screens with a sticky footer, the tablet's
+   layouts need — the stacked phone screens with a pinned footer, the tablet's
    single column, the computer's two-pane split — plus the row-as-button reset
    and the RAC Switch's on-state. Tokens only, never hard-coded colour
    (DIRECTION / mockups README L26). */
@@ -9,6 +9,11 @@
 .est-history {
   display: flex;
   flex-direction: column;
+  /* Bounded by the shell's frame like the theme's .screen and .reading-screen,
+     so the surface never grows to the version's height: the version scrolls
+     inside its .scroll and the phone's action bar after it stays in view
+     (songs.history_phone_actions Decision 1). */
+  flex: 1;
   min-height: 0;
   height: 100%;
 }
@@ -162,7 +167,9 @@
   min-width: 0;
 }
 
-/* The phone's sticky action footer (W06 phone). */
+/* The phone's action bar, pinned by the bounded column it ends rather than by
+   sticky or fixed positioning (W06 phone L91-94; songs.history_phone_actions
+   Decision 1). */
 /* The two actions wrap onto two rows when a phone cannot fit both labels side
    by side: a footer wider than the window would widen the phone's layout
    viewport, and the frame with it (shell.full_height). */
@@ -176,6 +183,35 @@
 }
 .est-history-footer .btn {
   flex: 1;
+}
+/* The actions wrapper fills the bar, so Compare with now and Restore this
+   version share its width equally (W06 L93-94; Decision 3); the pair wraps onto
+   two full-width rows only when one row cannot hold both labels. The board's
+   10px gap and a slimmer side padding keep both labels on one row at its 370px
+   frame. */
+.est-history-footer .est-history-actions {
+  flex: 1;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 1.25);
+  margin-left: 0;
+  min-width: 0;
+}
+.est-history-footer .est-history-actions .btn {
+  padding: 0 calc(var(--u) * 1.5);
+}
+
+/* The phone version's title `{song} · {date}` wraps onto further lines rather
+   than ellipsizing (Decision 2); scoped here, the theme's .appbar .title rule
+   stays as shell.narrow_fit left it. The back button keeps to the first line. */
+.est-history-phone .est-history-appbar {
+  align-items: flex-start;
+}
+.est-history-phone .est-history-appbar .title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  overflow: visible;
+  align-self: center;
 }
 
 /* The restore dialog's "what would be lost" card (W06 restore dialog). */

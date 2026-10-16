@@ -11,6 +11,7 @@
 // whole flow once more after a reload with the network cut.
 
 import { test, expect } from '../lib/axe.js';
+import { expectFits } from '../lib/fit.js';
 import { mockup } from '../lib/mockup.js';
 import { runOffline } from '../lib/offline.js';
 import {
@@ -50,6 +51,45 @@ test('a song’s history: list, read a version, compare with now, show the text;
   await page.getByRole('switch', { name: 'Show the text' }).click();
   await expect(page.locator('.est-history-text')).toBeVisible();
   await mockup(page, 'W06-history', 4); // the list beside a version, text shown
+});
+
+// songs.history_phone_actions: a version's two actions (workflow 6 §A version,
+// §Restoring) in reach with no scrolling on every viewport — the phone's bar
+// pinned after the scrolling version (W06#2 L91-94), the app bar on tablet and
+// computer (W06#4) — and the version title readable whole. On the phone the
+// checks run again at the board's frame width (GUIDE L30), with the two buttons
+// sharing one row at equal width.
+test('a version’s actions in reach without scrolling, its title whole (W06#2)', async ({
+  page,
+  checkA11y,
+}, testInfo) => {
+  test.setTimeout(90000);
+  await buildHistory(page, ['Coda', 'Bridge', 'Interlude', 'Outro']); // runs past the fold
+  await historyFromReading(page);
+  await openFirstVersion(page);
+
+  const compare = page.getByRole('button', { name: 'Compare with now' });
+  const restore = page.getByRole('button', { name: 'Restore this version' });
+  const title = page.locator('.est-history-appbar .title').filter({ visible: true });
+  const inReach = async () => {
+    await expect(compare).toBeInViewport({ ratio: 1 });
+    await expect(restore).toBeInViewport({ ratio: 1 });
+    await expectFits(page, { whole: [title] });
+  };
+  await inReach();
+
+  if (testInfo.project.name === 'phone') {
+    await page.setViewportSize({ width: 370, height: 824 });
+    await inReach();
+    // One row, two equal buttons (W06 L93-94).
+    const a = await compare.boundingBox();
+    const b = await restore.boundingBox();
+    expect(Math.abs(a.y - b.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(a.width - b.width)).toBeLessThanOrEqual(2);
+  }
+
+  await mockup(page, 'W06-history', 2); // one old version
+  await checkA11y(); // the version view
 });
 
 test('after a save, reading -> History lists the new version with its note, also after a reload', async ({

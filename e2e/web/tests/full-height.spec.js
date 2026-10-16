@@ -137,7 +137,7 @@ test('wizard: the plan scrolls under the app bar', async ({ page, checkA11y }) =
   await checkA11y();
 });
 
-test('song history: a version scrolls under the app bar (beside the list on the computer)', async ({
+test('song history: a version scrolls under the app bar, its actions in view (beside the list on the computer)', async ({
   page,
   checkA11y,
 }) => {
@@ -146,7 +146,15 @@ test('song history: a version scrolls under the app bar (beside the list on the 
   await openHistory(page);
   await openFirstVersion(page);
   await shortenViewport(page);
-  await expectScrollsInside(page, { stayInView: [appBar(page)] });
+  // The version's actions stay in view too: the phone's bar after the scroller,
+  // the app bar on tablet and computer (songs.history_phone_actions; W06#2).
+  await expectScrollsInside(page, {
+    stayInView: [
+      appBar(page),
+      page.getByRole('button', { name: 'Compare with now' }),
+      page.getByRole('button', { name: 'Restore this version' }),
+    ],
+  });
   await checkA11y(); // the version view (and, on the computer, the list beside it)
 });
 

@@ -119,8 +119,9 @@ task songs "Songs" {
   task history_phone_actions "A version's actions in reach on a phone" {
     effort 0.5d
     allocate team
+    complete 100
     depends !history
-    note "On a phone the version view runs past the fold and its Compare with now / Restore this version bar is not visible (workflow 6 A version, Restoring; the W06 board pins it at the bottom). Pin the bar, and keep the title readable. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (the bar outside the scrolling content); e2e-web (a version on a phone: both actions visible without scrolling, mockup W06#2)."
+    note "On a phone the version view runs past the fold and its Compare with now / Restore this version bar is not visible (workflow 6 A version, Restoring; the W06 board pins it at the bottom). Pin the bar, and keep the title readable. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (the bar outside the scrolling content); e2e-web (a version on a phone: both actions visible without scrolling, mockup W06#2). Refinement: tasks/refinements/songs/history_phone_actions.md"
   }
   task show_the_file "Show the file from the reading view" {
     effort 1d

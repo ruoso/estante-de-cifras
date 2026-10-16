@@ -139,15 +139,12 @@ test('the raw editor from Edit: Save and Add section in reach (W04 phone toolbar
 test('the version view: the version title is whole beside its actions (W06#2, W06#4)', async ({
   page,
   checkA11y,
-}, testInfo) => {
+}) => {
   test.setTimeout(60000);
   await buildHistory(page, ['Coda']);
   await openHistory(page);
   await openFirstVersion(page);
-  // On the phone the title and the pinned action bar are
-  // songs.history_phone_actions; the generic checks hold there too.
-  const whole = isPhone(testInfo) ? [] : [page.locator('.est-history-appbar .title').filter({ visible: true })];
-  await expectFits(page, { whole });
+  await expectFits(page, { whole: [page.locator('.est-history-appbar .title').filter({ visible: true })] });
   await checkA11y();
 });
 

@@ -590,7 +590,7 @@ export default function SongHistory({
   }
 
   // ---- The phone: stacked full screens — the list, then the version with a
-  // sticky action footer.
+  // pinned action bar after the scroller (W06 L91-94).
   return (
     <div className="est-history est-history-phone">
       {openRow ? (
