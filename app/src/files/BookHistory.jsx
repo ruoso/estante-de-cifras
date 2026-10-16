@@ -29,6 +29,23 @@ function dateLabel(timestamp) {
   }
 }
 
+// The open commit's full date and time, in the current locale (W14 computer #4
+// L202: "2 October 2026, 21:14"); the rows keep their short day-month date.
+// English reads day-first, as the board draws.
+const FULL_DATE = { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+
+function fullDateLabel(timestamp) {
+  if (timestamp == null) return '';
+  const locale = currentLocale();
+  try {
+    return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : locale, FULL_DATE).format(
+      new Date(timestamp * 1000),
+    );
+  } catch {
+    return '';
+  }
+}
+
 function ChangeList({ changes, checked, onToggle }) {
   return (
     <div className="list change-list" role="group" aria-label={t('fileView.changesTitle')}>
@@ -135,13 +152,13 @@ export default function BookHistory({
     [commits, openCommit],
   );
   const meta = openEntry
-    ? t('fileView.commitMeta', {
+    ? {
         author: openEntry.author?.name ?? '',
-        date: dateLabel(openEntry.timestamp),
+        date: fullDateLabel(openEntry.timestamp),
         hash: openEntry.short,
         files: t('fileView.commitFiles', { count: openEntry.files?.length ?? 0 }),
-      })
-    : '';
+      }
+    : null;
 
   const changeSection = (
     <>
@@ -183,6 +200,7 @@ export default function BookHistory({
   const diffPane =
     diff && diff.commit === openCommit ? (
       <CommitDiff
+        message={openEntry?.message ?? ''}
         meta={meta}
         files={diff.files}
         onRestore={(file) => onRestore(file.path, openCommit)}

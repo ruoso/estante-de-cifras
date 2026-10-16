@@ -1127,6 +1127,7 @@ export default {
     renameHintSong: 'Una canción conserva .cifra.md, así que sigue siendo una canción. El título dentro de ella no cambia.',
     renameHintSetlist: 'Un repertorio conserva .setlist.md, así que sigue siendo un repertorio.',
     linkNotice: 'Los enlaces a ella se actualizan en el mismo guardado',
+    linkItem: '{path} · elemento {item}',
     renameCancel: 'Cancelar',
     renameConfirm: 'Renombrar',
     deleteLabel: 'Eliminar {name}',

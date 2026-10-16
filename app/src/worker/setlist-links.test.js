@@ -3,7 +3,7 @@
 // purpose-written setlists, never anyone's words.
 import { describe, it, expect } from 'vitest';
 import { parseSetlist, writeSetlist } from 'cifra-md';
-import { relinkSetlists } from './setlist-links.js';
+import { relinkSetlists, linksTo } from './setlist-links.js';
 
 // The folder-relative link destination of the one song item in a setlist text.
 function itemDest(text) {
@@ -65,5 +65,58 @@ describe('relinkSetlists', () => {
       toPath: 'mpb/valsa-da-esquina.cifra.md',
     });
     expect(changed).toEqual([]);
+  });
+});
+
+// linksTo — the items a rename will update, listed in the rename dialog
+// (books.file_view_history_polish Decision 1; workflow 14 L151-153; workflow 12:
+// an item's link is relative to its setlist's folder).
+describe('linksTo', () => {
+  it('a song linked from two setlists: each item, with book-root setlist paths and 1-based items', () => {
+    const ENSAIO = ['# Ensaio', '', '1. [Outra](../mpb/outra.cifra.md)', '2. [Valsa](../mpb/valsa.cifra.md)', ''].join('\n');
+    const FERIAS = ['# Ferias', '', '1. [Valsa](../mpb/valsa.cifra.md)', ''].join('\n');
+    expect(
+      linksTo({
+        setlists: [
+          { path: 'gigs/ferias.setlist.md', text: FERIAS },
+          { path: 'gigs/ensaio.setlist.md', text: ENSAIO },
+        ],
+        path: 'mpb/valsa.cifra.md',
+      }),
+    ).toEqual([
+      { setlist: 'gigs/ensaio.setlist.md', item: 2 },
+      { setlist: 'gigs/ferias.setlist.md', item: 1 },
+    ]);
+  });
+
+  it('folder-relative links: ../mpb/valsa matches mpb/valsa, a same-named song elsewhere does not', () => {
+    const GIG = ['# Gig', '', '1. [Valsa](../mpb/valsa.cifra.md)', '2. [Valsa](valsa.cifra.md)', ''].join('\n');
+    const setlists = [{ path: 'gigs/gig.setlist.md', text: GIG }];
+    expect(linksTo({ setlists, path: 'mpb/valsa.cifra.md' })).toEqual([
+      { setlist: 'gigs/gig.setlist.md', item: 1 },
+    ]);
+    // `valsa.cifra.md` at the book root is not the gig's item 2 (gigs/valsa.cifra.md).
+    expect(linksTo({ setlists, path: 'valsa.cifra.md' })).toEqual([]);
+  });
+
+  it('unlinked items count: after an unlinked first item, the linked song is item 2', () => {
+    const SET = ['# Set', '', '1. Something not yet written', '2. [Valsa](valsa.cifra.md)', ''].join('\n');
+    expect(parseSetlist(SET).body.filter((el) => el.type === 'unlinked')).toHaveLength(1);
+    expect(linksTo({ setlists: [{ path: 'set.setlist.md', text: SET }], path: 'valsa.cifra.md' })).toEqual([
+      { setlist: 'set.setlist.md', item: 2 },
+    ]);
+  });
+
+  it('the same song twice in one setlist: both items are listed', () => {
+    const SET = ['# Set', '', '1. [Valsa](valsa.cifra.md)', '2. [Outra](outra.cifra.md)', '3. [Valsa](valsa.cifra.md)', ''].join('\n');
+    expect(linksTo({ setlists: [{ path: 'set.setlist.md', text: SET }], path: 'valsa.cifra.md' })).toEqual([
+      { setlist: 'set.setlist.md', item: 1 },
+      { setlist: 'set.setlist.md', item: 3 },
+    ]);
+  });
+
+  it('no links: []', () => {
+    expect(linksTo({ setlists: [{ path: 'other.setlist.md', text: OTHER_SET }], path: 'valsa.cifra.md' })).toEqual([]);
+    expect(linksTo({ setlists: [], path: 'valsa.cifra.md' })).toEqual([]);
   });
 });

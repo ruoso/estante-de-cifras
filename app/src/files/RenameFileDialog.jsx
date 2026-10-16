@@ -2,7 +2,9 @@
 // L144-146; W14 tablet board). The dialog pins the kind's extension beside an
 // editable base-name field — a song keeps `.cifra.md`, so it stays a song — and
 // carries the notice that the book's setlist links to the song are rewritten in
-// the same save (the Worker's `move` does the relink; workflow 12). Submitting
+// the same save, listing each linking item (`links`, the Worker's FILE_LINKS
+// reply — the same rule `move` relinks by; workflow 12;
+// books.file_view_history_polish). No notice without a link. Submitting
 // sends the new book-root path to the host, which issues MOVE_FILE.
 
 import { useState } from 'react';
@@ -11,7 +13,7 @@ import { t } from '../i18n/index.js';
 import { splitPath, kindSuffix, baseWithoutSuffix } from './file-tree.js';
 import { LockIcon } from './icons.jsx';
 
-export default function RenameFileDialog({ isOpen, onClose, file, onRename }) {
+export default function RenameFileDialog({ isOpen, onClose, file, links, onRename }) {
   if (!file) return null;
   const suffix = kindSuffix(file.kind);
   const { folder, base } = splitPath(file.path);
@@ -34,6 +36,7 @@ export default function RenameFileDialog({ isOpen, onClose, file, onRename }) {
               onClose={onClose}
               onRename={onRename}
               file={file}
+              links={links}
               folder={folder}
               suffix={suffix}
               initial={initial}
@@ -45,7 +48,7 @@ export default function RenameFileDialog({ isOpen, onClose, file, onRename }) {
   );
 }
 
-function RenameForm({ close, onClose, onRename, file, folder, suffix, initial }) {
+function RenameForm({ close, onClose, onRename, file, links, folder, suffix, initial }) {
   const [name, setName] = useState(initial);
   const title = file.kind === 'setlist' ? t('fileView.renameSetlist') : t('fileView.renameSong');
   const hint = file.kind === 'setlist' ? t('fileView.renameHintSetlist') : t('fileView.renameHintSong');
@@ -80,11 +83,20 @@ function RenameForm({ close, onClose, onRename, file, folder, suffix, initial })
         </div>
         <span className="t-small">{hint}</span>
       </TextField>
-      <div className="notice accent file-rename-notice">
-        <span>
-          <b>{t('fileView.linkNotice')}</b>
-        </span>
-      </div>
+      {links?.length ? (
+        <div className="notice accent file-rename-notice">
+          <span>
+            <b>{t('fileView.linkNotice')}</b>
+          </span>
+          <ul className="file-rename-links">
+            {links.map((link) => (
+              <li key={`${link.setlist}#${link.item}`} className="t-mono">
+                {t('fileView.linkItem', { path: link.setlist, item: link.item })}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div className="actions">
         <Button className="btn" onPress={close}>
           {t('fileView.renameCancel')}

@@ -1126,6 +1126,7 @@ export default {
     renameHintSong: 'Un brano mantiene .cifra.md, quindi resta un brano. Il titolo al suo interno non cambia.',
     renameHintSetlist: 'Una scaletta mantiene .setlist.md, quindi resta una scaletta.',
     linkNotice: 'I collegamenti ad esso vengono aggiornati nello stesso salvataggio',
+    linkItem: '{path} · voce {item}',
     renameCancel: 'Annulla',
     renameConfirm: 'Rinomina',
     deleteLabel: 'Elimina {name}',

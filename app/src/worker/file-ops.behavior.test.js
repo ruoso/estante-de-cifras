@@ -293,6 +293,43 @@ describe('the file view Worker seams (behavior)', () => {
     }
   });
 
+  it('FILE_LINKS lists the setlist items linking to a song, skips a deleted setlist, writes nothing (workflow 14 L151-158; books.file_view_history_polish)', async () => {
+    const ctx = await setup('book-links');
+    try {
+      await ctx.seed(async ({ g, w }) => {
+        w('mpb/valsa.cifra.md', VALSA);
+        w('mpb/outra.cifra.md', OUTRA);
+        w(
+          'gigs/ensaio.setlist.md',
+          ['# Ensaio', '', '1. [Outra](../mpb/outra.cifra.md)', '2. Something not yet written', '3. [Valsa](../mpb/valsa.cifra.md)', ''].join('\n'),
+        );
+        w('old.setlist.md', ['# Old', '', '1. [Valsa](mpb/valsa.cifra.md)', ''].join('\n'));
+        await g('add', '.');
+        await g('commit', '-qm', 'Scaffold');
+      });
+      // A setlist deleted in the working copy but not yet saved: no longer linking.
+      ctx.store.send(command(CommandKind.DELETE_FILE, { bookId: ctx.bookId, path: 'old.setlist.md' }));
+      await ctx.waitEvent(EventKind.FILE_DELETED);
+      const statusBefore = await ctx.tree();
+      const before = await ctx.head();
+
+      const reply = ctx.waitEvent(EventKind.FILE_LINKS);
+      ctx.store.send(command(CommandKind.FILE_LINKS, { bookId: ctx.bookId, path: 'mpb/valsa.cifra.md' }));
+      expect(await reply).toEqual({
+        bookId: ctx.bookId,
+        path: 'mpb/valsa.cifra.md',
+        links: [{ setlist: 'gigs/ensaio.setlist.md', item: 3 }],
+      });
+
+      // Read-only: the working tree's status and HEAD are unchanged.
+      expect(await ctx.tree()).toEqual(statusBefore);
+      expect(statusBefore['old.setlist.md']).toBe('deleted');
+      expect(await ctx.head()).toBe(before);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
   it('MOVE_FILE across kinds is refused (workflow 14 L146)', async () => {
     const ctx = await setup('book-kind');
     try {

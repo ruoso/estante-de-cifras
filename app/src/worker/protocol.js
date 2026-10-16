@@ -297,12 +297,16 @@ export const CommandKind = Object.freeze({
   // working copy (a committed file shown deleted until save; a never-saved file
   // unlinked), replying with FILE_DELETED. COMMIT_DIFF `{ bookId, commit }`
   // reads each file a commit touched with its before/after text, replying with a
-  // COMMIT_DIFF event the view line-diffs. All local, offline; BOOK_LOG,
+  // COMMIT_DIFF event the view line-diffs. FILE_LINKS `{ bookId, path }` lists
+  // the setlist items linking to a song — what a rename of it will update — and
+  // replies with a FILE_LINKS event, writing nothing
+  // (books.file_view_history_polish). All local, offline; BOOK_LOG,
   // RESTORE_VERSION, OPEN_SOURCE, WRITE, SAVE and PREVIEW_SAVE are reused.
   BOOK_TREE: 'book_tree',
   MOVE_FILE: 'move_file',
   DELETE_FILE: 'delete_file',
   COMMIT_DIFF: 'commit_diff',
+  FILE_LINKS: 'file_links',
   // Setlists (books.setlists, workflow 12). LIST_SETLISTS `{}` walks every
   // loaded book's working tree for its `*.setlist.md` files and replies with a
   // SETLISTS event (each setlist's book, path, title and song count) — a local,
@@ -620,11 +624,15 @@ export const EventKind = Object.freeze({
   // in reply to the COMMIT_DIFF command: `{ bookId, commit, files: [{ path,
   // status, before, after }] }`; the view runs the pure `lineDiff` over
   // before/after (songs.history Decision 6) — also transient, folded into the
-  // open commit's view state.
+  // open commit's view state. FILE_LINKS `{ bookId, path, links: [{ setlist,
+  // item }] }` answers the FILE_LINKS command: each setlist item (book-root
+  // setlist path, 1-based item number) linking to the song at `path` — transient,
+  // folded into the rename dialog's state (books.file_view_history_polish).
   TREE: 'tree',
   FILE_MOVED: 'file_moved',
   FILE_DELETED: 'file_deleted',
   COMMIT_DIFF: 'commit_diff',
+  FILE_LINKS: 'file_links',
   // Setlists (books.setlists, workflow 12). SETLISTS carries every loaded book's
   // setlists in reply to LIST_SETLISTS: `{ setlists: [{ bookId, path, title,
   // count }] }`, folded into the `setlists` slice the Setlists destination

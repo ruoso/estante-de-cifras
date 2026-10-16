@@ -39,7 +39,7 @@ import {
   textForSong,
 } from 'cifra-md';
 import { canonicaliseFile } from './canonicalise.js';
-import { relinkSetlists } from './setlist-links.js';
+import { relinkSetlists, linksTo } from './setlist-links.js';
 
 const SETLIST_SUFFIX = '.setlist.md';
 
@@ -354,6 +354,18 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
     });
   }
 
+  // The book's setlist items that link to a song, for the rename dialog to list
+  // before the move (books.file_view_history_polish, workflow 14 L151-153;
+  // Decision 2). The same rule `move` relinks by (`linksTo`). Read-only, under
+  // the book's lock so it never interleaves with a write or a move; writes
+  // nothing and logs nothing of a setlist's text.
+  function links({ bookId, path }) {
+    return locks.withLock(bookId, async () => {
+      const dir = git.bookDir(bookId);
+      return linksTo({ setlists: await readSetlists(dir), path });
+    });
+  }
+
   // Remove a file from the working copy (books.file_view, workflow 14 L147). A
   // committed file is unlinked from the working tree and reads as `deleted`
   // until a SAVE commits the removal; a never-saved file simply disappears. No
@@ -427,5 +439,5 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
     });
   }
 
-  return { write, save, nameAndSave, discard, move, remove, addToSetlist };
+  return { write, save, nameAndSave, discard, move, links, remove, addToSetlist };
 }

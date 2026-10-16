@@ -170,8 +170,9 @@ task books "Books" {
   task file_view_history_polish "The file view's history and rename as drawn" {
     effort 1d
     allocate team
+    complete 100
     depends !file_view
-    note "From W14: the rename dialog does not list the links it will update (workflow 14 rename keeps setlists pointing at the song); the computer history detail has no commit heading or message line. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (rename lists the setlists it updates; the commit heading; axe); e2e-web (mockup W14#3-4)."
+    note "From W14: the rename dialog does not list the links it will update (workflow 14 rename keeps setlists pointing at the song); the computer history detail has no commit heading or message line. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (rename lists the setlists it updates; the commit heading; axe); e2e-web (mockup W14#3-4). Refinement: tasks/refinements/books/file_view_history_polish.md"
   }
   task save_readme_verbatim "Save README.md and .gitattributes as written" {
     effort 0.5d

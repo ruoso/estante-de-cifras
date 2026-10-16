@@ -9,7 +9,9 @@
 // the log, saved as a new version; delete a song, save, and recover it from
 // history; rename offline; edit README.md (no musical summary) and restore it;
 // and the second way in, a song's *Show the file* from its reading view
-// (songs.show_the_file), back to the song. Axe runs at WCAG 2.1 AA on the tree, the editor,
+// (songs.show_the_file), back to the song. The rename dialog lists the setlist
+// items it relinks (none for a setlist), and an open commit is headed by its
+// message (books.file_view_history_polish). Axe runs at WCAG 2.1 AA on the tree, the editor,
 // the rename dialog, the change list, the history and an open commit. Fixtures
 // are purpose-written songs — never anyone's words.
 
@@ -31,6 +33,7 @@ import {
 
 const MORNING = 'morning-on-the-porch.cifra.md';
 const FERRY = 'the-ferry-line.cifra.md';
+const SHORT_SET = 'a-short-set.setlist.md';
 
 // A full, canonicalisable new song to write from the file view.
 const JETTY = [
@@ -93,14 +96,28 @@ test('the file view: a new song, a raw edit and a rename saved together; axe-cle
   await editOpenSong(page, 'Coda');
   await backToTree(page);
 
-  // …and rename another, keeping its kind (.cifra.md pinned).
+  // A setlist relinks nothing when renamed, so its dialog promises no links
+  // (books.file_view_history_polish Decision 3).
+  await fileRow(page, SHORT_SET).click();
+  await page.getByRole('button', { name: `Rename ${SHORT_SET}` }).click();
+  const setlistDialog = page.getByRole('dialog');
+  await expect(setlistDialog.getByRole('heading', { name: 'Rename setlist' })).toBeVisible();
+  await expect(setlistDialog.getByText('Links to it are updated in the same save')).toHaveCount(0);
+  await setlistDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(setlistDialog).toBeHidden();
+  await backToTree(page);
+
+  // …and rename another, keeping its kind (.cifra.md pinned). The dialog lists
+  // the setlist item linking to it, rewritten in the same save (workflow 14
+  // L151-153; W14 tablet #3 L144-147).
   await fileRow(page, FERRY).click();
   await page.getByRole('button', { name: `Rename ${FERRY}` }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Links to it are updated in the same save')).toBeVisible();
-  await checkA11y(); // the rename dialog
-  await mockup(page, 'W14-file-view', 3); // tree and file side by side, renaming (tablet)
+  await expect(dialog.getByText(`${SHORT_SET} · item 2`)).toBeVisible();
+  await checkA11y(); // the rename dialog, its links listed
+  await mockup(page, 'W14-file-view', 3, { note: 'links listed' }); // tree and file side by side, renaming (tablet)
   await dialog.getByRole('textbox').fill('ferry-crossing');
   await dialog.getByRole('button', { name: 'Rename', exact: true }).click();
   await expect(dialog).toBeHidden();
@@ -155,8 +172,12 @@ test('restoring an earlier version from the book’s history saves it as a new v
     .locator('.commit-file', { has: page.locator('.commit-file-name', { hasText: MORNING }) })
     .getByRole('button', { name: 'Restore this version' });
   await expect(restore).toBeVisible();
+  // The open commit is headed by its message, then author · date (with its
+  // year) · hash · files (workflow 14 L169-172; W14 computer #4 L201-202).
+  await expect(page.getByRole('heading', { name: 'Open example book' })).toBeVisible();
+  await expect(page.locator('.commit-meta')).toContainText(/\b\d{4}\b/);
   await checkA11y(); // an open commit
-  await mockup(page, 'W14-file-view', 4); // history, one commit open (computer)
+  await mockup(page, 'W14-file-view', 4, { note: 'commit heading' }); // history, one commit open (computer)
   await restore.click();
 
   // The restored version opens the save sheet; saving makes a new version.

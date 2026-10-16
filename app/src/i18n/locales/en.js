@@ -1262,6 +1262,7 @@ export default {
     renameHintSong: 'A song keeps .cifra.md, so it stays a song. The title inside it does not change.',
     renameHintSetlist: 'A setlist keeps .setlist.md, so it stays a setlist.',
     linkNotice: 'Links to it are updated in the same save',
+    linkItem: '{path} · item {item}',
     renameCancel: 'Cancel',
     renameConfirm: 'Rename',
     deleteLabel: 'Delete {name}',

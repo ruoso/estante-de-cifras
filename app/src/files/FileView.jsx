@@ -60,6 +60,10 @@ export default function FileView({ store, bookId, mode, initialPath = null, onBa
   const [save, setSave] = useState(null); // { paths, isNew, fromPath } | null
   const [discard, setDiscard] = useState(null); // { paths } | null
   const [rename, setRename] = useState(null); // { path, kind } | null
+  // The setlist items linking to the song being renamed, from the Worker's
+  // FILE_LINKS reply (books.file_view_history_polish Decision 2): null until it
+  // arrives, so no notice is drawn before it is known.
+  const [renameLinks, setRenameLinks] = useState(null); // { path, links } | null
   const [del, setDel] = useState(null); // { path, kind } | null
 
   const refreshTree = useCallback(() => {
@@ -112,6 +116,11 @@ export default function FileView({ store, bookId, mode, initialPath = null, onBa
     refreshTree();
   });
 
+  useWorkerEvent(store, EventKind.FILE_LINKS, ({ bookId: linksBook, path, links }) => {
+    if (linksBook !== bookId) return;
+    setRenameLinks({ path, links: links ?? [] });
+  });
+
   useWorkerEvent(store, EventKind.FILE_DELETED, ({ bookId: delBook, path }) => {
     if (delBook !== bookId) return;
     setSelected((prev) => (prev && prev.path === path ? null : prev));
@@ -145,6 +154,15 @@ export default function FileView({ store, bookId, mode, initialPath = null, onBa
     });
   };
 
+  // Only a song has links to it (a moved setlist relinks nothing), so only a
+  // song's rename asks the Worker which setlist items it will update.
+  const openRename = (file) => {
+    setRenameLinks(null);
+    setRename(file);
+    if (file.kind === 'song') {
+      store.send(command(CommandKind.FILE_LINKS, { bookId, path: file.path }));
+    }
+  };
   const doRename = (fromPath, toPath) => {
     store.send(command(CommandKind.MOVE_FILE, { bookId, fromPath, toPath }));
   };
@@ -204,7 +222,7 @@ export default function FileView({ store, bookId, mode, initialPath = null, onBa
       flushRef={flushRef}
       onSave={onEditorSave}
       onOpenHistory={onOpenHistory}
-      onRename={() => setRename({ path: selected.path, kind: selected.kind })}
+      onRename={() => openRename({ path: selected.path, kind: selected.kind })}
       onDelete={() => {
         if (selected.isNew) {
           flushRef.current?.();
@@ -333,6 +351,7 @@ export default function FileView({ store, bookId, mode, initialPath = null, onBa
         isOpen={Boolean(rename)}
         onClose={() => setRename(null)}
         file={rename}
+        links={rename && renameLinks?.path === rename.path ? renameLinks.links : null}
         onRename={doRename}
       />
       <DeleteFileConfirm

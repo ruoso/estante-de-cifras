@@ -100,17 +100,40 @@ describe('the file view (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
-  it('rename pins the kind and shows the link notice; submit sends MOVE_FILE (workflow 14 L144-146)', async () => {
+  // Open the rename dialog on a file of the tree.
+  const openRenameOn = (path) => {
+    const name = path.split('/').at(-1);
+    act(() => fireEvent.click(screen.getByRole('button', { name: new RegExp(name.replace(/\./g, '\\.')) })));
+    act(() => fireEvent.click(screen.getByRole('button', { name: t('fileView.renameLabel', { name: path }) })));
+    return screen.getByRole('dialog');
+  };
+
+  it('rename pins the kind and lists the setlist links it updates; submit sends MOVE_FILE (workflow 14 L151-153; W14 tablet #3 L144-147)', async () => {
     const { store, sent, emit } = makeStore();
     renderView(store);
     seedTree(emit, [{ path: 'valsa.cifra.md', status: null }]);
-    act(() => fireEvent.click(screen.getByRole('button', { name: /valsa\.cifra\.md/ })));
-    act(() => fireEvent.click(screen.getByRole('button', { name: t('fileView.renameLabel', { name: 'valsa.cifra.md' }) })));
+    const dialog = openRenameOn('valsa.cifra.md');
 
-    const dialog = screen.getByRole('dialog');
-    // The extension is pinned beside the field, and the link notice shows.
+    // The extension is pinned beside the field.
     expect(within(dialog).getAllByText(/\.cifra\.md/).length).toBeGreaterThan(0);
+    // Opening it on a song asks the Worker which setlist items link to it; until
+    // the reply, no notice is drawn.
+    expect(kind(sent, 'file_links').at(-1).payload).toEqual({ bookId: BOOK, path: 'valsa.cifra.md' });
+    expect(within(dialog).queryByText(t('fileView.linkNotice'))).toBeNull();
+
+    emit(
+      event(EventKind.FILE_LINKS, {
+        bookId: BOOK,
+        path: 'valsa.cifra.md',
+        links: [
+          { setlist: 'gigs/ensaio.setlist.md', item: 3 },
+          { setlist: 'gigs/ferias.setlist.md', item: 1 },
+        ],
+      }),
+    );
     expect(within(dialog).getByText(t('fileView.linkNotice'))).toBeInTheDocument();
+    const lines = within(dialog).getAllByRole('listitem').map((li) => li.textContent);
+    expect(lines).toEqual(['gigs/ensaio.setlist.md · item 3', 'gigs/ferias.setlist.md · item 1']);
     expect(await checkWcag21aa(dialog)).toHaveNoViolations();
 
     const field = within(dialog).getByRole('textbox');
@@ -122,6 +145,27 @@ describe('the file view (behavior)', () => {
         payload: { bookId: BOOK, fromPath: 'valsa.cifra.md', toPath: 'nova-valsa.cifra.md' },
       }),
     );
+  });
+
+  it('a song with no links shows no link notice (books.file_view_history_polish Decision 3)', async () => {
+    const { store, emit } = makeStore();
+    renderView(store);
+    seedTree(emit, [{ path: 'valsa.cifra.md', status: null }]);
+    const dialog = openRenameOn('valsa.cifra.md');
+    emit(event(EventKind.FILE_LINKS, { bookId: BOOK, path: 'valsa.cifra.md', links: [] }));
+    expect(within(dialog).queryByText(t('fileView.linkNotice'))).toBeNull();
+    expect(within(dialog).queryByRole('list')).toBeNull();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+  });
+
+  it('a setlist rename asks for no links and shows no notice (a moved setlist relinks nothing)', async () => {
+    const { store, sent, emit } = makeStore();
+    renderView(store);
+    seedTree(emit, [{ path: 'gigs/ensaio.setlist.md', status: null }]);
+    const dialog = openRenameOn('gigs/ensaio.setlist.md');
+    expect(within(dialog).getByRole('heading', { name: t('fileView.renameSetlist') })).toBeInTheDocument();
+    expect(kind(sent, 'file_links')).toEqual([]);
+    expect(within(dialog).queryByText(t('fileView.linkNotice'))).toBeNull();
   });
 
   it('delete asks once, sends DELETE_FILE, and the row then reads deleted (workflow 14 L147)', async () => {
@@ -266,6 +310,13 @@ describe('the file view (behavior)', () => {
     );
     await waitFor(() => expect(container.querySelector('.ln.add')).toBeTruthy());
     expect(container.querySelector('.ln.del')).toBeTruthy();
+    // The open commit is headed by its message, then author · full date · hash ·
+    // files (W14 computer #4 L201-202; workflow 14 L169-172).
+    expect(screen.getByRole('heading', { level: 2, name: 'Edit Valsa' })).toBeInTheDocument();
+    const metaLine = container.querySelector('.commit-meta');
+    expect(metaLine.textContent).toContain('Rafael');
+    expect(metaLine.textContent).toContain(String(new Date(1696000000 * 1000).getFullYear()));
+    expect(within(metaLine).getByText('c222222')).toHaveClass('t-mono');
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     // Restore writes that version into the working copy.
@@ -275,6 +326,57 @@ describe('the file view (behavior)', () => {
         payload: expect.objectContaining({ bookId: BOOK, path: 'valsa.cifra.md', commit: 'c2222222aaaa' }),
       }),
     );
+  });
+
+  // A two-line commit message: the subject heads the open commit, the rest of the
+  // message follows under it (books.file_view_history_polish Decision 4).
+  const TWO_LINE = {
+    commit: 'c3333333cccc',
+    short: 'c333333',
+    parents: ['c2222222aaaa'],
+    isMerge: false,
+    author: { name: 'Rafael' },
+    timestamp: 1696000000,
+    message: 'Edit Valsa\n\nThe bridge moves to Em7.\n',
+    files: [{ path: 'valsa.cifra.md', status: 'modified' }],
+  };
+  const DIFF = {
+    bookId: BOOK,
+    commit: 'c3333333cccc',
+    files: [{ path: 'valsa.cifra.md', status: 'modified', before: '# Valsa\n\nold\n', after: '# Valsa\n\nnew\n' }],
+  };
+
+  it('the open commit carries its message: the subject as heading, the body under it (workflow 14 L169-172; W14 computer #4 L201)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderView(store);
+    seedTree(emit, []);
+    act(() => fireEvent.click(screen.getByRole('button', { name: t('fileView.historyTab') })));
+    emit(event(EventKind.BOOK_LOG, { bookId: BOOK, commits: [TWO_LINE] }));
+    act(() => fireEvent.click(screen.getByRole('button', { name: /Edit Valsa/ })));
+    emit(event(EventKind.COMMIT_DIFF, DIFF));
+
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Edit Valsa' });
+    expect(heading.textContent).toBe('Edit Valsa');
+    const body = screen.getByText('The bridge moves to Em7.');
+    // The body sits under the heading, before the meta line.
+    expect(heading.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(body.compareDocumentPosition(container.querySelector('.commit-meta')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('the heading on narrow: the one-at-a-time commit detail is headed by its message (workflow 14 L137-138)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderView(store, { mode: 'narrow' });
+    seedTree(emit, []);
+    act(() => fireEvent.click(screen.getByRole('button', { name: t('fileView.historyTab') })));
+    emit(event(EventKind.BOOK_LOG, { bookId: BOOK, commits: [TWO_LINE] }));
+    act(() => fireEvent.click(screen.getByRole('button', { name: /Edit Valsa/ })));
+    emit(event(EventKind.COMMIT_DIFF, DIFF));
+
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Edit Valsa' });
+    await waitFor(() => expect(container.querySelector('.ln.add')).toBeTruthy());
+    expect(heading.compareDocumentPosition(container.querySelector('.ln.add')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
   // songs.show_the_file — the reading view's *Show the file* opens the view at

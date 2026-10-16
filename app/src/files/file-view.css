@@ -86,6 +86,32 @@
   gap: 4px;
 }
 
+/* Each linking setlist item, one mono line (W14 tablet #3). */
+.file-rename-links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+/* An open commit's heading, message body and meta line (W14 computer #4). */
+.commit-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.commit-head > * {
+  margin: 0;
+}
+
+.commit-head .commit-body {
+  white-space: pre-wrap;
+}
+
 /* An open commit's per-file blocks (W14 desktop board). */
 .commit-file {
   display: flex;

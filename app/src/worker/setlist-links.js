@@ -28,6 +28,47 @@ function resolveToBookRoot(dirSegments, relPath) {
   return kept.join('/');
 }
 
+// The 0-based item positions (song + unlinked, in document order) of a parsed
+// setlist whose song link resolves to `songPath` — the one rule both the
+// dialog's dry read (`linksTo`) and the move's rewrite (`relinkSetlists`) use,
+// so what the rename dialog lists is what the save rewrites (Decision 1).
+function linkedPositions(parsed, dirSegments, songPath) {
+  const positions = [];
+  let itemPos = -1;
+  for (const el of parsed.body) {
+    if (el.type !== 'song' && el.type !== 'unlinked') continue;
+    itemPos += 1;
+    if (el.type === 'song' && resolveToBookRoot(dirSegments, el.path) === songPath) {
+      positions.push(itemPos);
+    }
+  }
+  return positions;
+}
+
+/**
+ * The setlist items that link to a song (books.file_view_history_polish,
+ * workflow 14 L151-153; W14 tablet #3): what a rename of it will update.
+ *
+ * @param {object} args
+ * @param {{ path: string, text: string }[]} args.setlists the book's setlists,
+ *   each with its book-root `path` and current working-copy `text`.
+ * @param {string} args.path the song's book-root path.
+ * @returns {{ setlist: string, item: number }[]} each linking item, with its
+ *   setlist's book-root path and its 1-based number among the setlist's items
+ *   (the number the setlist shows), in setlist-path then item order.
+ */
+export function linksTo({ setlists, path }) {
+  const links = [];
+  const sorted = [...setlists].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  for (const { path: setlist, text } of sorted) {
+    const dirSegments = setlist.split('/').slice(0, -1);
+    for (const at of linkedPositions(parseSetlist(text), dirSegments, path)) {
+      links.push({ setlist, item: at + 1 });
+    }
+  }
+  return links;
+}
+
 /**
  * Rewrite the setlists that reference a moved song.
  *
@@ -45,17 +86,7 @@ export function relinkSetlists({ setlists, fromPath, toPath }) {
   for (const { path, text } of setlists) {
     const dirSegments = path.split('/').slice(0, -1);
     const parsed = parseSetlist(text);
-    // The 0-based item positions (song + unlinked, in document order) whose
-    // song link resolves to the moved song.
-    const positions = [];
-    let itemPos = -1;
-    for (const el of parsed.body) {
-      if (el.type !== 'song' && el.type !== 'unlinked') continue;
-      itemPos += 1;
-      if (el.type === 'song' && resolveToBookRoot(dirSegments, el.path) === fromPath) {
-        positions.push(itemPos);
-      }
-    }
+    const positions = linkedPositions(parsed, dirSegments, fromPath);
     if (positions.length === 0) continue;
     const newDest = pathFromSetlistToSong(dirSegments, toSegments);
     let model = parsed;

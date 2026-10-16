@@ -2042,6 +2042,16 @@ export function createWorkerLogic(port, options = {}) {
             port.postMessage(event(EventKind.FILE_MOVED, { bookId, fromPath, toPath }));
             break;
           }
+          case CommandKind.FILE_LINKS: {
+            // The setlist items linking to a song, listed in the rename dialog
+            // before the move rewrites them (workflow 14 L151-153;
+            // books.file_view_history_polish Decision 2): a local, offline read
+            // that writes nothing.
+            const { bookId, path } = message.payload;
+            const links = await ensureWorkingCopy().links({ bookId, path });
+            port.postMessage(event(EventKind.FILE_LINKS, { bookId, path, links }));
+            break;
+          }
           case CommandKind.DELETE_FILE: {
             // Remove a file from the working copy (workflow 14 L147): a committed
             // file reads as deleted until a save commits the removal, a
