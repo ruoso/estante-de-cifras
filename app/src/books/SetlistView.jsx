@@ -12,7 +12,7 @@
 // applies cifra-md's pure §10.10 editing ops in the view, then `writeSetlist` +
 // WRITE (Decision 3). The Worker owns no setlist model.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import {
   Button,
   GridList,
@@ -135,6 +135,7 @@ export default function SetlistView({
   const shelf = useSlice(store, 'shelf');
   const [model, setModel] = useState(null); // null → show the source as-is
   const [editing, setEditing] = useState(false);
+  const rawNameId = useId();
   const [touched, setTouched] = useState(false);
   const [addingSong, setAddingSong] = useState(false);
   const [repointAt, setRepointAt] = useState(null);
@@ -448,8 +449,18 @@ export default function SetlistView({
     mode === 'wide' ? (
       <div className="pane side setlist-side">
         <div className="scroll">
-          <span className="t-mono setlist-filename">{path}</span>
-          <div className="editor setlist-raw">
+          <span className="t-mono setlist-filename" id={rawNameId}>{path}</span>
+          {/* Raw lines keep their breaks: a line longer than the pane scrolls
+              sideways inside this box, which takes focus so the keyboard can
+              scroll it (shell.narrow_fit Decision 8; axe
+              scrollable-region-focusable). Named by the file name above. */}
+          <div
+            className="editor setlist-raw"
+            role="region"
+            aria-labelledby={rawNameId}
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+            tabIndex={0}
+          >
             {writeSetlist(current).split('\n').map((line, i) => (
               <div className="ln" key={i}>{line}</div>
             ))}

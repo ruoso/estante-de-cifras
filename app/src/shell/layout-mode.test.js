@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DESTINATIONS, WIDE_QUERY, layoutMode } from './layout-mode.js';
+import { DESTINATIONS, READING_ACTIONS_WIDE_QUERY, WIDE_QUERY, layoutMode } from './layout-mode.js';
 
 // unit — the pure layout-mode policy (shell.layout). Framework-free, like the
 // theme resolver's unit test: the breakpoint decision and the drawn destination
@@ -16,6 +16,15 @@ describe('layout-mode', () => {
     // split as the design intends, not the phone tab bar a 768 breakpoint would
     // have given it (see layout-mode.js for why the refinement's 768 is adjusted).
     expect(WIDE_QUERY).toBe('(min-width: 600px)');
+  });
+
+  it('collapses the reading actions on a min-width query wider than the shell split (shell.narrow_fit item 7)', () => {
+    // The reading appbar's full row needs more than the wide split: the 712px
+    // tablet sits between the two and gets Edit + ⋯ (W02 tablet L109-115).
+    const minWidth = (q) => Number(/^\(min-width: (\d+)px\)$/.exec(q)?.[1]);
+    expect(minWidth(READING_ACTIONS_WIDE_QUERY)).toBeGreaterThan(minWidth(WIDE_QUERY));
+    expect(minWidth(READING_ACTIONS_WIDE_QUERY)).toBeGreaterThan(712);
+    expect(minWidth(READING_ACTIONS_WIDE_QUERY)).toBeLessThanOrEqual(1280);
   });
 
   it('has exactly the three destinations in the drawn order Search · Books · Setlists', () => {

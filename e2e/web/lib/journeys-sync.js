@@ -18,14 +18,17 @@ export async function hostedBookWithSongs(page, bookName, files, { query, title,
   return { ...hosted, device };
 }
 
-// The song's History from the reading view: an app-bar button on tablet and
-// computer, the More menu on the phone.
-export async function historyFromReadingAnyViewport(page, narrow) {
-  if (narrow) {
-    await page.getByRole('button', { name: 'More' }).click();
-    await page.getByRole('menuitem', { name: 'History' }).click();
+// The song's History from the reading view: an app-bar button on the computer,
+// the More menu on the phone and the tablet (shell.narrow_fit Decision 7 — the
+// wide appbar collapses History, Add to setlist, Print and Share into ⋯ below
+// 1080px), so the button's presence decides.
+export async function historyFromReadingAnyViewport(page) {
+  const button = page.getByRole('button', { name: 'History', exact: true }).first();
+  if (await button.isVisible().catch(() => false)) {
+    await button.click();
   } else {
-    await page.getByRole('button', { name: 'History', exact: true }).first().click();
+    await page.getByRole('button', { name: 'More', exact: true }).first().click();
+    await page.getByRole('menuitem', { name: 'History', exact: true }).click();
   }
 }
 

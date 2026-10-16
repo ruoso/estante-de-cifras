@@ -53,13 +53,12 @@
   margin-left: auto;
 }
 
-/* The first-open instrument prompt (W01 L104-108): the question takes the line,
-   the Change and dismiss controls sit at the end. An inline notice, not a modal. */
+/* The first-open instrument prompt (W01 L104-108): the question takes the line
+   (the theme's `.notice > span:first-child`), the Change and dismiss controls
+   sit at the end, or beneath it when both do not fit. An inline notice, not a
+   modal. */
 .reading-instrument-prompt {
   align-items: center;
-}
-.reading-instrument-prompt > span {
-  flex: 1;
 }
 
 /* The merge-landed notice (sync.read_in_place; W08 L65): the message takes the

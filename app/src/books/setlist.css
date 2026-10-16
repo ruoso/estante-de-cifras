@@ -154,9 +154,15 @@
 .setlist-filename {
   font-size: 14px;
   font-weight: 600;
+  /* A long file name breaks inside the pane rather than run past it. */
+  overflow-wrap: anywhere;
 }
 .setlist-raw {
   font-size: 12px;
+  /* A long raw line scrolls sideways in its own box, never soft-wrapped and
+     never clipped by the pane (shell.narrow_fit Decision 8). */
+  overflow-x: auto;
+  flex: none;
 }
 
 /* The Add-to-setlist dialog is a touch wider than the default dialog (board). */

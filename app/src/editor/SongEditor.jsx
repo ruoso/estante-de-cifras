@@ -425,13 +425,17 @@ export default function SongEditor({
             <ToggleButton id="preview">{t('editor.source.preview')}</ToggleButton>
           </ToggleButtonGroup>
         )}
-        <span className="est-editor-bar-spacer" />
-        <Button className="btn" onPress={addSection}>
-          {t('editor.source.addSection')}
-        </Button>
-        <Button className="btn primary" onPress={onSavePress}>
-          {t('editor.source.save')}
-        </Button>
+        {/* The actions wrap beneath the switch as a unit when they do not fit
+            beside it, Save last and right-aligned (shell.narrow_fit
+            Decision 5; W14#2, W04 phone). */}
+        <div className="est-editor-bar-actions">
+          <Button className="btn" onPress={addSection}>
+            {t('editor.source.addSection')}
+          </Button>
+          <Button className="btn primary" onPress={onSavePress}>
+            {t('editor.source.save')}
+          </Button>
+        </div>
       </div>
 
       {pasteNotice && (

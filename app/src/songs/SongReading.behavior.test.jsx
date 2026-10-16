@@ -17,6 +17,7 @@ import { checkWcag21aa } from '../a11y/axe.js';
 import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SongReading from './SongReading.jsx';
+import { READING_ACTIONS_WIDE_QUERY } from '../shell/layout-mode.js';
 
 const GUITAR_TUNING = 'E2 A2 D3 G3 B3 E4';
 const UKE_TUNING = 'G4 C4 E4 A4';
@@ -583,6 +584,70 @@ describe('SongReading — the wide master-detail (shell.layout)', () => {
     await waitFor(() => expect(screen.getByRole('group', { name: 'Tarde Clara' })).toBeInTheDocument());
     await click(screen.getByRole('button', { name: 'Back' }));
     expect(onBack).toHaveBeenCalled();
+  });
+});
+
+// The wide reading appbar's collapse (shell.narrow_fit item 7, Decision 7):
+// below READING_ACTIONS_WIDE_QUERY — the 712px tablet — the appbar keeps Edit
+// and ⋯, with History, Add to setlist, Print and Share as ⋯ menu items (the W02
+// tablet frame, L109-115); at and above it they are appbar buttons (W02
+// computer, L172-178). No action is lost on either width; workflow 2's actions.
+describe('SongReading — the wide reading toolbar collapses below READING_ACTIONS_WIDE_QUERY (shell.narrow_fit)', () => {
+  const FOUR = ['History', 'Add to setlist', 'Print', 'Share'];
+  // Answers the wide split (and anything but the reading-actions query) true;
+  // the reading-actions query answers `actionsWide`.
+  const installWidths = (actionsWide) => {
+    globalThis.matchMedia = (media) => ({
+      media,
+      matches: media === READING_ACTIONS_WIDE_QUERY ? actionsWide : !media.includes('prefers-color-scheme'),
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+  };
+  const appbar = (container) => container.querySelector('.pane.main .appbar');
+
+  it('tablet width: the appbar holds Edit and ⋯ only; ⋯ opened by keyboard lists the four as menu items, axe clean', async () => {
+    installWidths(false);
+    const { store } = makeStore({ text: song({}), entry: guitarEntry() });
+    const { container } = await openAndWait(store, { mode: 'wide' });
+
+    const bar = within(appbar(container));
+    expect(bar.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    for (const name of FOUR) expect(bar.queryByRole('button', { name })).toBeNull();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+    const more = bar.getByRole('button', { name: 'More' });
+    act(() => more.focus());
+    await act(async () => {
+      fireEvent.keyDown(more, { key: 'Enter' });
+      fireEvent.keyUp(more, { key: 'Enter' });
+    });
+    const menu = await screen.findByRole('menu', { name: 'More' });
+    for (const name of FOUR) expect(within(menu).getByRole('menuitem', { name })).toBeInTheDocument();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('tablet width: Print from the ⋯ menu prints', async () => {
+    installWidths(false);
+    const { store } = makeStore({ text: song({}), entry: guitarEntry() });
+    const { container } = await openAndWait(store, { mode: 'wide' });
+    await click(within(appbar(container)).getByRole('button', { name: 'More' }));
+    await click(await screen.findByRole('menuitem', { name: 'Print' }));
+    expect(globalThis.print).toHaveBeenCalled();
+  });
+
+  it('computer width: the four are appbar buttons, not menu items, axe clean', async () => {
+    installWidths(true);
+    const { store } = makeStore({ text: song({}), entry: guitarEntry() });
+    const { container } = await openAndWait(store, { mode: 'wide' });
+
+    const bar = within(appbar(container));
+    for (const name of ['Edit', ...FOUR]) expect(bar.getByRole('button', { name })).toBeInTheDocument();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+    await click(bar.getByRole('button', { name: 'More' }));
+    const menu = await screen.findByRole('menu', { name: 'More' });
+    for (const name of FOUR) expect(within(menu).queryByRole('menuitem', { name })).toBeNull();
   });
 });
 

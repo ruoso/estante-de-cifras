@@ -257,7 +257,7 @@ export default function ChordExplorer({
       <Button className="btn icon" aria-label={t('explorer.back')} onPress={onBack}>
         <BackIcon />
       </Button>
-      <span className="title">{t('explorer.title')}</span>
+      <span className="title explorer-title">{t('explorer.title')}</span>
       {mode === 'wide' ? null : <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />}
     </div>
   );

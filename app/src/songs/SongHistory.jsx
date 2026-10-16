@@ -489,15 +489,17 @@ export default function SongHistory({
   ) : null;
 
   const compareLabel = comparingNow ? t('history.compareBefore') : t('history.compareNow');
+  // One unit, so when the title, badge and both do not fit in the appbar the
+  // pair wraps onto a second row together (shell.narrow_fit Decision 6).
   const actionButtons = openRow ? (
-    <>
+    <div className="est-history-actions">
       <Button className="btn" onPress={toggleCompare}>
         {compareLabel}
       </Button>
       <Button className="btn primary" onPress={() => onRestoreClick(openRow)}>
         {t('history.restore')}
       </Button>
-    </>
+    </div>
   ) : null;
 
   const detailHeader = openRow ? (

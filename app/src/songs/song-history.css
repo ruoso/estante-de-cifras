@@ -13,9 +13,22 @@
   height: 100%;
 }
 
-/* The appbar's title takes the slack so the actions sit at the end (W06). */
+/* The appbar's title takes the slack so the actions sit at the end (W06). The
+   title's basis is its whole text, so when title, badge and actions do not fit
+   in one row the actions wrap onto a second row, right-aligned, rather than
+   ellipsizing the title (shell.narrow_fit Decision 6); a title longer than the
+   whole row still ellipsizes as a last resort. */
+.est-history-appbar {
+  flex-wrap: wrap;
+}
 .est-history-appbar .title {
-  flex: 1;
+  flex: 1 1 auto;
+}
+.est-history-actions {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  margin-left: auto;
 }
 
 .est-history-body,

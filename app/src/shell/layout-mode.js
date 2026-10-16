@@ -35,6 +35,14 @@ export const WIDE_QUERY = '(min-width: 600px)';
 // comfortably. Computer (1280px) stays side-by-side; tablet (712px) does not.
 export const BOOKS_WIDE_QUERY = '(min-width: 1080px)';
 
+// The wide reading appbar's full row — Back, title, Edit, History, Add to
+// setlist, Print, Share, ⋯ (W02 computer L172-178) — only fits from here at the
+// computer's type size (shell.narrow_fit Decision 7). Below it, on the 712px
+// tablet included, the reading view keeps Back, title, Edit and ⋯ and moves the
+// other four into the ⋯ menu (the W02 tablet frame, L109-115), so Print and
+// Share are never pushed past the edge.
+export const READING_ACTIONS_WIDE_QUERY = '(min-width: 1080px)';
+
 // The three destinations, in the drawn order — Search · Books · Setlists
 // (docs/mockups/GUIDE.md line 34; W02-find-and-play.dc.html lines 55-59). This
 // array's order is the tab order; the visible labels come from i18n, keyed by

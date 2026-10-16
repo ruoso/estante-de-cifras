@@ -15,8 +15,15 @@
 }
 .instrument-chip {
   max-width: 100%;
+  box-sizing: border-box;
+}
+/* The short label shows whole; its ellipsis is a last resort for a long custom
+   name (shell.header_chrome; shell.narrow_fit Decision 4). */
+.instrument-chip-label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* The full-screen overlay: a panel filling the phone, a centred card on wide. */

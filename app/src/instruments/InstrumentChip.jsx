@@ -39,7 +39,9 @@ export default function InstrumentChip({ store, onOpen }) {
         aria-describedby={descriptionId}
         onPress={onOpen}
       >
-        {label}
+        {/* The ellipsis lives on the label's own box, so a long custom name
+            actually renders one (an inline-flex chip's bare text cannot). */}
+        <span className="instrument-chip-label">{label}</span>
       </Button>
       <span id={descriptionId} className="visually-hidden">
         {chipDescription(entry)}

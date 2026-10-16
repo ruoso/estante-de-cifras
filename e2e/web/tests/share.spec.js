@@ -147,15 +147,17 @@ test('the two-person sharing journey: invite, join, edit to a clean merge, lower
   }
 });
 
-// Owner → song → Share (the More menu on the phone). Returns the song's plain
+// Owner → song → Share (an appbar button on the computer, the More menu on the
+// phone and the tablet — shell.narrow_fit Decision 7). Returns the song's plain
 // member address; leaves the dialog open.
-async function shareSongAddress(page, narrow) {
+async function shareSongAddress(page) {
   await openSongFromSearch(page, 'Roda', SONG_TITLE);
-  if (narrow) {
-    await page.getByRole('button', { name: 'More' }).click();
-    await page.getByRole('menuitem', { name: 'Share' }).click();
+  const share = page.getByRole('button', { name: 'Share', exact: true });
+  if (await share.isVisible().catch(() => false)) {
+    await share.click();
   } else {
-    await page.getByRole('button', { name: 'Share' }).click();
+    await page.getByRole('button', { name: 'More', exact: true }).first().click();
+    await page.getByRole('menuitem', { name: 'Share', exact: true }).click();
   }
   return page.getByRole('dialog').getByRole('textbox', { name: 'Song address' }).inputValue();
 }
@@ -163,12 +165,10 @@ async function shareSongAddress(page, narrow) {
 test('share from a song: the member address, and an invitation that opens on the song', async ({
   browser,
   page,
-}, testInfo) => {
+}) => {
   test.setTimeout(10000);
-  const narrow = testInfo.project.name === 'phone';
-
   await hostedBookWithSong(page, BOOK, SONG_TITLE);
-  const address = await shareSongAddress(page, narrow);
+  const address = await shareSongAddress(page);
   expect(address).toMatch(/\/b\/[^/]+\/.+\.cifra\.md$/);
   const dialog = page.getByRole('dialog');
   expect(await analyzeWcag21aa(page)).toEqual([]); // axe: share-on-a-song
@@ -199,11 +199,9 @@ test('share from a song: the member address, and an invitation that opens on the
   }
 });
 
-test('a non-member opening a book address gets the "does not open" state', async ({ browser, page }, testInfo) => {
-  const narrow = testInfo.project.name === 'phone';
-
+test('a non-member opening a book address gets the "does not open" state', async ({ browser, page }) => {
   await hostedBookWithSong(page, BOOK, SONG_TITLE);
-  const address = await shareSongAddress(page, narrow);
+  const address = await shareSongAddress(page);
 
   const outsider = await openDevice(browser);
   try {

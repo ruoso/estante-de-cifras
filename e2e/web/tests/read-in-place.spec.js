@@ -209,9 +209,7 @@ test('full screen holds the update back until the reader leaves it (acceptance 4
 test('the reading toolbar opens the song’s history in-app and returns (acceptance 5; the notice shares this seam)', async ({
   page,
   checkA11y,
-}, testInfo) => {
-  const narrow = testInfo.project.name === 'phone';
-
+}) => {
   // No hosted book needed — the bundled example book reaches the reading view,
   // and the History toolbar control shares the onOpenHistory seam the merge
   // notice uses.
@@ -219,7 +217,7 @@ test('the reading toolbar opens the song’s history in-app and returns (accepta
   await openSongFromSearch(page, 'Morning', 'Morning on the Porch');
   await expect(page.locator('.reading-sheet')).toBeVisible();
 
-  await historyFromReadingAnyViewport(page, narrow);
+  await historyFromReadingAnyViewport(page);
 
   // The bundled first version is a row.
   await expect(page.locator('.est-history-row').first()).toBeVisible();

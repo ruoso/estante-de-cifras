@@ -243,3 +243,13 @@
   justify-content: center;
   min-height: 1px;
 }
+
+/* The explorer's title is fixed copy the boards draw whole (W16#1-2): it keeps
+   its width, and on a phone the chip beside it is what yields (its ellipsis a
+   last resort for a long custom name; shell.narrow_fit Decision 4). */
+.appbar .explorer-title {
+  flex-shrink: 0;
+}
+.appbar .instrument-chip {
+  min-width: 0;
+}

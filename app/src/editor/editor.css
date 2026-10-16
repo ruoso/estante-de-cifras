@@ -16,12 +16,20 @@
 
 .est .est-editor-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: calc(var(--u));
 }
 
-.est .est-editor-bar-spacer {
-  flex: 1;
+/* Add section and Save stay together at the bar's end; on a phone where the
+ * Text/Preview switch and both do not fit in one row, they wrap onto a second
+ * row as a unit, still right-aligned, so Save is always in reach
+ * (shell.narrow_fit Decision 5). */
+.est .est-editor-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u));
+  margin-left: auto;
 }
 
 .est .est-editor-notice {

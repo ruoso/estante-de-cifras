@@ -45,11 +45,14 @@
 }
 
 /* The RAC SearchField sits inside the pill and carries the input + its clear
-   button; it has no box of its own. */
+   button; it has no box of its own. It shares the theme's `.field` class, whose
+   label-over-input column would stack the ✕ under the typed text, so the
+   direction is reset to a row here (shell.narrow_fit Decision 1). */
 .search .field {
   flex: 1;
   min-width: 0;
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 8px;
 }
@@ -232,6 +235,16 @@
 .first-run .way-icon {
   flex: none;
   color: var(--accent);
+}
+
+/* The ways-in descriptions are whole sentences the boards draw in full (W01):
+   they wrap onto a second line rather than ellipsize the theme's `.row .meta`
+   does, on every viewport; the names stay single-line (shell.narrow_fit
+   Decision 3). */
+.first-run-ways .meta {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 /* On a wide screen the four ways-in lay out as a two-column grid (W01 computer),

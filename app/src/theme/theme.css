@@ -348,11 +348,17 @@
 .section-label { display: flex; align-items: center; justify-content: space-between; padding: 0 2px; }
 
 /* Notices inline on a screen */
-.notice { display: flex; gap: 12px; align-items: flex-start; padding: calc(var(--u) * 1.5) calc(var(--u) * 2); border-radius: var(--radius); background: var(--surface-2); font-size: 15px; line-height: 1.4; }
+.notice { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; padding: calc(var(--u) * 1.5) calc(var(--u) * 2); border-radius: var(--radius); background: var(--surface-2); font-size: 15px; line-height: 1.4; }
 .notice.accent { background: var(--accent-soft); color: var(--ink); }
 .notice.unsaved { background: var(--unsaved-soft); }
 .notice.conflict { background: var(--conflict-soft); }
 .notice .act { margin-left: auto; font-weight: 700; color: var(--accent); white-space: nowrap; }
+/* The notice's sentence takes the row; when it and the action do not both fit,
+   the action wraps beneath it rather than squeezing the text to one word per
+   line (shell.narrow_fit Decision 2). The 16em floor is what the row breaks on
+   (never wider than the notice); a zero basis keeps a column notice's height
+   its content's. */
+.notice > span:first-child { flex: 1 1 0; min-width: min(16em, 100%); }
 
 /* Bottom sheet and dialogs over a dimmed screen */
 .scrim { position: absolute; inset: 0; background: rgba(10, 12, 14, 0.45); display: flex; flex-direction: column; justify-content: flex-end; }

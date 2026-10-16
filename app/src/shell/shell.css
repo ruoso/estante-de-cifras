@@ -90,17 +90,24 @@ body {
 
 /* The header chrome (shell.header_chrome; W01/W02): the *Estante* wordmark,
    the instrument chip and the account button in one row. The wordmark takes the
-   free space and never shrinks; the chip's short label fits beside it, its
-   ellipsis only a last resort; the account button keeps its size. */
+   free space and, where the row is short (the 340px side pane), yields first —
+   its outsized shrink factor spends it before the chip gives a pixel — so the
+   chip's short label stays whole, its ellipsis only a last resort; the account
+   button keeps its size (shell.narrow_fit Decision 4). */
 .header-chrome {
   display: flex;
   align-items: center;
   gap: calc(var(--u) * 1.5);
 }
 .header-chrome > .wordmark {
-  flex: 1 0 auto;
+  flex: 1 1000 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .header-chrome > .instrument-chip {
+  flex: 0 1 auto;
   min-width: 0;
 }
 .header-chrome > .account-open {

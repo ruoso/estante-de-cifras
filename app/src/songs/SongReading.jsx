@@ -22,7 +22,7 @@
 // portal into the `.est` root through ThemeRoot's UNSAFE_PortalProvider
 // (shell.portal_provider), so RAC menus and popovers are themed and labelled.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Button,
   Dialog,
@@ -56,6 +56,7 @@ import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import SearchScreen from './SearchScreen.jsx';
 import { bookLabelFor } from './first-run.js';
 import { transposeStatus, chartChordList } from './reading-view.js';
+import { READING_ACTIONS_WIDE_QUERY } from '../shell/layout-mode.js';
 import './reading.css';
 
 // Keep an offset inside an octave: beyond ±11 is a redundant re-spelling of a
@@ -63,6 +64,27 @@ import './reading.css';
 const clampOffset = (n) => Math.max(-11, Math.min(11, n));
 
 const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
+
+// Whether the wide reading appbar has room for History, Add to setlist, Print
+// and Share as buttons beside Edit (shell.narrow_fit Decision 7; W02 computer
+// L172-178). Below READING_ACTIONS_WIDE_QUERY — the tablet included — they sit
+// in the ⋯ menu, as the W02 tablet frame and the narrow toolbar already draw
+// them. The same `matchMedia`/`useSyncExternalStore` seam the shell and the
+// shelf use; a missing `matchMedia` (jsdom) reads as not-wide.
+function readingActionsQuery() {
+  return typeof globalThis.matchMedia === 'function'
+    ? globalThis.matchMedia(READING_ACTIONS_WIDE_QUERY)
+    : null;
+}
+function subscribeReadingActions(onChange) {
+  const query = readingActionsQuery();
+  if (!query?.addEventListener) return () => {};
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+function readReadingActions() {
+  return readingActionsQuery()?.matches ?? false;
+}
 
 function songProperty(parsed, name) {
   return parsed?.properties?.find((p) => p?.key === name)?.value ?? null;
@@ -131,6 +153,7 @@ export default function SongReading({
   }, [store, bookId, path]);
 
   const [fullScreen, setFullScreen] = useState(false);
+  const actionsInline = useSyncExternalStore(subscribeReadingActions, readReadingActions, readReadingActions);
   const [instrumentsOpen, setInstrumentsOpen] = useState(false);
 
   // A background sync landed a new version of this song (sync.read_in_place,
@@ -585,20 +608,34 @@ export default function SongReading({
               <Button className="btn" onPress={() => onEdit({ bookId, path, title: baseModel?.title })}>
                 {t('reading.edit')}
               </Button>
-              <Button className="btn" onPress={() => onOpenHistory({ bookId, path })}>
-                {t('reading.history')}
-              </Button>
-              <Button className="btn" onPress={() => onAddToSetlist({ bookId, path })}>
-                {t('reading.addToSetlist')}
-              </Button>
-              <Button className="btn" onPress={() => window.print()}>
-                {t('reading.print')}
-              </Button>
-              <Button className="btn" onPress={() => onShare({ bookId, path })}>
-                {t('reading.share')}
-              </Button>
+              {/* The full row only where it fits (W02 computer); narrower, the
+                  four go in ⋯ as the W02 tablet frame draws (Decision 7). */}
+              {actionsInline ? (
+                <>
+                  <Button className="btn" onPress={() => onOpenHistory({ bookId, path })}>
+                    {t('reading.history')}
+                  </Button>
+                  <Button className="btn" onPress={() => onAddToSetlist({ bookId, path })}>
+                    {t('reading.addToSetlist')}
+                  </Button>
+                  <Button className="btn" onPress={() => window.print()}>
+                    {t('reading.print')}
+                  </Button>
+                  <Button className="btn" onPress={() => onShare({ bookId, path })}>
+                    {t('reading.share')}
+                  </Button>
+                </>
+              ) : null}
               {moreMenu(
                 <>
+                  {!actionsInline ? (
+                    <>
+                      <MenuItem id="history">{t('reading.history')}</MenuItem>
+                      <MenuItem id="addToSetlist">{t('reading.addToSetlist')}</MenuItem>
+                      <MenuItem id="print">{t('reading.print')}</MenuItem>
+                      <MenuItem id="share">{t('reading.share')}</MenuItem>
+                    </>
+                  ) : null}
                   {!transposed ? <MenuItem id="arrange">{t('reading.arrangeFor', { instrument: instrumentLabel })}</MenuItem> : null}
                   <MenuItem id="fullScreen">{t('reading.fullScreen')}</MenuItem>
                 </>,

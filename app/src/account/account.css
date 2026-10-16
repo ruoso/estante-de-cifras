@@ -318,6 +318,20 @@ label.signout-card > span:first-child input {
   padding: calc(var(--u) * 2);
   border: 1px solid var(--conflict);
   border-radius: var(--radius);
+  /* Its padding and border sit inside the column's 100%, so on a phone the card
+     ends at the column's edge rather than past the viewport (W17#1;
+     shell.narrow_fit Decision 9). */
+  box-sizing: border-box;
+}
+
+/* The two full-width buttons wrap their label in a narrow column rather than
+   run past the card (shell.narrow_fit Decision 9). */
+.account-leave-card .btn.block {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+  padding-top: calc(var(--u) * 1);
+  padding-bottom: calc(var(--u) * 1);
 }
 
 .account-leave-head {
