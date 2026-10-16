@@ -213,7 +213,9 @@ test('chord explorer: the results scroll, the chord input and the chip stay (wor
   checkA11y,
 }) => {
   await startApp(page);
-  await addInstrument(page, { listed: 'Guitar' });
+  // The built-in guitar is listed too (music.instruments_roster_default), so wait
+  // on the added one's own row.
+  await addInstrument(page, { listed: 'Guitar (6-string) · Standard' });
   await closeInstruments(page);
   await openExplorerFor(page, 'A');
   await shortenViewport(page);

@@ -1,6 +1,15 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { DEFAULT_LOCALE, setLocale } from '../i18n/index.js';
-import { CATALOG, chipDescription, chipLabel, defaultLabel, tuningName, tuningText } from './instrument-helpers.js';
+import {
+  CATALOG,
+  chipDescription,
+  chipLabel,
+  defaultLabel,
+  inUseEntry,
+  rosterEntries,
+  tuningName,
+  tuningText,
+} from './instrument-helpers.js';
 
 // unit — the header chip's one short label and its full-identity description
 // (shell.header_chrome). Pins workflow 15 §The roster, and switching (as
@@ -95,5 +104,56 @@ describe('in Brazilian Portuguese', () => {
     expect(chipLabel(standard)).toBe('Violão');
     expect(chipDescription(standard)).toBe('Violão (6 cordas), afinação Padrão: E2 A2 D3 G3 B3 E4');
     expect(chipLabel(entry('6guitar', 'D2 G2 D3 G3 B3 E4'))).toBe('Violão · Personalizada');
+  });
+});
+
+// unit — the roster's rows and in-use marking (music.instruments_roster_default).
+// Pins workflow 15 §The roster, and switching: the built-in standard guitar is a
+// roster row from the first run, *in use* while nothing else is, and stays listed
+// beside the instruments the user adds; once stored it is one ordinary row.
+describe('rosterEntries', () => {
+  const standard = { id: 'standard', catalogId: '6guitar', label: null, tuning: 'E2 A2 D3 G3 B3 E4' };
+  const dropD = { id: 'g1', catalogId: '6guitar', label: 'My Drop D', tuning: 'D2 A2 D3 G3 B3 E4' };
+  const uke = { id: 'u1', catalogId: 'ukulele', label: null, tuning: 'G4 C4 E4 A4' };
+
+  it('lists only the built-in standard, in use, when nothing is stored', () => {
+    const slice = { instruments: [], inUseId: null, standard };
+    expect(rosterEntries(slice)).toEqual({ entries: [standard], inUseId: 'standard' });
+  });
+
+  it('lists the standard first, then the stored entries, with the stored in-use marked', () => {
+    const slice = { instruments: [dropD, uke], inUseId: 'g1', standard };
+    expect(rosterEntries(slice)).toEqual({ entries: [standard, dropD, uke], inUseId: 'g1' });
+  });
+
+  it('marks the standard in use when the in-use id is absent or dangling', () => {
+    expect(rosterEntries({ instruments: [dropD], inUseId: null, standard }).inUseId).toBe('standard');
+    expect(rosterEntries({ instruments: [dropD], inUseId: 'gone', standard }).inUseId).toBe('standard');
+  });
+
+  it('lists a materialized standard once, as its stored entry', () => {
+    const stored = { ...standard, presetId: 'jazz' };
+    const slice = { instruments: [stored, dropD], inUseId: 'standard', standard: null };
+    const { entries, inUseId } = rosterEntries(slice);
+    expect(entries).toEqual([stored, dropD]);
+    expect(entries.filter((e) => e.id === 'standard')).toHaveLength(1);
+    expect(inUseId).toBe('standard');
+  });
+
+  it('does not throw on an empty or null slice', () => {
+    expect(rosterEntries(null)).toEqual({ entries: [], inUseId: null });
+    expect(rosterEntries(undefined)).toEqual({ entries: [], inUseId: null });
+    expect(rosterEntries({})).toEqual({ entries: [], inUseId: null });
+  });
+
+  it('agrees with inUseEntry', () => {
+    for (const slice of [
+      { instruments: [], inUseId: null, standard },
+      { instruments: [dropD], inUseId: 'g1', standard },
+      { instruments: [dropD], inUseId: 'gone', standard },
+      { instruments: [standard], inUseId: 'standard', standard: null },
+    ]) {
+      expect(rosterEntries(slice).inUseId).toBe(inUseEntry(slice)?.id);
+    }
   });
 });

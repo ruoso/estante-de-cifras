@@ -37,6 +37,12 @@ test('set up instruments from the header chip, switch, and edit the rules', asyn
   // Open the roster, and add an instrument on a tuning preset with a rename.
   await chip(page).click();
   await expect(page.getByRole('heading', { name: 'Instruments' })).toBeVisible();
+  // The built-in standard guitar is listed from the first run, marked *in use* by
+  // a word (workflow 15 §The roster, and switching; board W15 #1;
+  // music.instruments_roster_default).
+  const builtIn = page.getByRole('button', { name: /^Open Guitar/ });
+  await expect(builtIn).toHaveCount(1);
+  await expect(builtIn.getByText('in use', { exact: true })).toBeVisible();
   await mockup(page, 'W15-set-up-an-instrument', 1);
   await checkA11y(); // the roster
 
@@ -94,6 +100,9 @@ test('removing the instrument in use asks first, and the app falls back to guita
   await page.getByRole('button', { name: 'Remove instrument' }).click();
   const confirm = page.getByRole('alertdialog');
   await expect(confirm.getByRole('heading', { name: /^Remove My Drop D\?/ })).toBeVisible();
+  // With no shapes saved it names only the variations (workflow 15 §Removing).
+  await expect(confirm).toContainText('The song variations in use for');
+  await expect(confirm).not.toContainText('0 saved shape');
   await mockup(page, 'W15-set-up-an-instrument', 4);
   await checkA11y(); // the remove confirmation
 
@@ -106,6 +115,10 @@ test('removing the instrument in use asks first, and the app falls back to guita
   await page.getByRole('button', { name: 'Remove instrument' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Remove', exact: true }).click();
   await expect(page.getByRole('button', { name: /^Open My Drop D/ })).toHaveCount(0);
+  // The fallback is listed: the built-in guitar's row, *in use*.
+  const fallback = page.getByRole('button', { name: /^Open Guitar/ });
+  await expect(fallback).toHaveCount(1);
+  await expect(fallback.getByText('in use', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(chip(page)).toContainText('Guitar');
   await expect(chip(page)).not.toContainText('My Drop D');

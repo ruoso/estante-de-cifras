@@ -16,6 +16,34 @@ import { t, hasMessage } from '../i18n/index.js';
 
 export { CATALOG, catalogEntry };
 
+// The in-use instrument from the slice: the entry whose id is `inUseId`, else
+// the standard-guitar fallback the Worker always sends (absent in-use → the
+// built-in default, workflow 1 L72-78). The chip, the explorer, search and the
+// roster all read it, so they cannot disagree on what is in use.
+export function inUseEntry(slice) {
+  const { instruments = [], inUseId = null, standard = null } = slice ?? {};
+  if (inUseId) {
+    const found = instruments.find((e) => e.id === inUseId);
+    if (found) return found;
+  }
+  return standard;
+}
+
+// The roster's rows and which one is in use (workflow 15 §The roster, and
+// switching; music.instruments_roster_default Decision 1): the built-in standard
+// guitar first while it is synthesized (`slice.standard`), then the stored
+// instruments — so a fresh device lists the guitar the chip names, and switching
+// back to it stays one tap. Once the standard is stored, `standard` is null and
+// its stored entry is the one row. In use is `inUseEntry(slice)?.id`.
+export function rosterEntries(slice) {
+  const instruments = slice?.instruments ?? [];
+  const standard = slice?.standard ?? null;
+  return {
+    entries: standard ? [standard, ...instruments] : [...instruments],
+    inUseId: inUseEntry(slice)?.id ?? null,
+  };
+}
+
 // The preset order the catalogue carries (music core), shown as the "How you
 // play" choices and the rules segmented control — no "Standard" (workflow 15
 // L113-120). Re-derived from the core's PRESET_IDS via a static list so the view

@@ -2481,6 +2481,8 @@ export default {
       shapes: { one: 'La sua {count} forma salvata', other: 'Le sue {count} forme salvate' },
       body:
         '{shapes} e le variazioni in uso per {tuning} vengono rimosse con esso. Le tue canzoni mantengono i propri voicing — se ne vanno solo le impostazioni di questo strumento.',
+      bodyNoShapes:
+        'Le variazioni in uso per {tuning} vengono rimosse con esso. Le tue canzoni mantengono i propri voicing — se ne vanno solo le impostazioni di questo strumento.',
       cancel: 'Annulla',
       confirm: 'Rimuovi',
     },

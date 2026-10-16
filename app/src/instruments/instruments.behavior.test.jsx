@@ -369,6 +369,8 @@ describe('the instrument surface (behavior)', () => {
       act(() => fireEvent.click(screen.getByRole('button', { name: 'Remove instrument' })));
       const dialog = await screen.findByRole('alertdialog');
       expect(within(dialog).getByText(new RegExp(GUITAR_TUNING))).toBeInTheDocument();
+      // With shapes saved, it names them (workflow 15 §Removing; the N-shapes copy).
+      expect(dialog).toHaveTextContent(/Its 1 saved shape and the song variations in use for/);
       act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' })));
       await waitFor(async () => {
         const model = await readHome(idb, name, 'instruments.json');
@@ -378,6 +380,195 @@ describe('the instrument surface (behavior)', () => {
     } finally {
       await remote.stop();
     }
+  });
+
+  // music.instruments_roster_default — the built-in standard guitar is a roster
+  // row from the first run (workflow 15 §The roster, and switching; board W15 #1).
+  const BUILT_IN = /^Open Guitar \(6-string\) · E2 A2 D3 G3 B3 E4/;
+
+  // Add a guitar in Drop D named "My Drop D" from the open roster.
+  async function addMyDropD() {
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Add instrument' })));
+    await screen.findByRole('heading', { name: 'Add instrument' });
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Drop D' })));
+    act(() =>
+      fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'My Drop D' } }),
+    );
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Add instrument' })));
+    return screen.findByRole('button', { name: /^Open My Drop D/ }, SLOW);
+  }
+
+  it('lists the built-in guitar, in use, on a fresh roster — and writes nothing (AC 1)', async () => {
+    const { store, idb, name } = makeFreshWorker('fresh');
+    renderSurface(store);
+    act(() => store.open());
+    await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar$/));
+
+    openOverlay();
+    await screen.findByRole('heading', { name: 'Instruments' });
+    const row = await screen.findByRole('button', { name: BUILT_IN });
+    expect(within(row).getByText('in use')).toBeInTheDocument();
+    expect(within(row).getByText('Strumming · 6 strings')).toBeInTheDocument();
+    // One instrument row: the built-in (the add row is not an "Open …" row).
+    expect(screen.getAllByRole('button', { name: /^Open / })).toHaveLength(1);
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+    // Listing it is not a write (home-book §2.1 lazy writes).
+    expect(await readHome(idb, name, 'instruments.json')).toEqual({});
+    const prefs = await readHome(idb, name, 'preferences.json');
+    expect(prefs.instrumentInUse).toBeUndefined();
+  });
+
+  it('switches back to the built-in guitar after an add (AC 2)', async () => {
+    const { store, idb, name } = makeFreshWorker('back');
+    renderSurface(store);
+    act(() => store.open());
+    await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar$/));
+    openOverlay();
+    await screen.findByRole('heading', { name: 'Instruments' });
+
+    // The first add goes into use; the built-in stays listed first, unmarked.
+    await addMyDropD();
+    await waitFor(() => {
+      const mine = screen.getByRole('button', { name: /^Open My Drop D/ });
+      expect(within(mine).getByText('in use')).toBeInTheDocument();
+    }, SLOW);
+    const rows = screen.getAllByRole('button', { name: /^Open / });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveAccessibleName(BUILT_IN);
+    expect(within(rows[0]).queryByText('in use')).toBeNull();
+
+    // Open the guitar and use it: one tap back to the default.
+    act(() => fireEvent.click(rows[0]));
+    const useBtn = await screen.findByRole('button', { name: 'Use this instrument' });
+    act(() => fireEvent.click(useBtn));
+    await waitFor(() => {
+      const guitar = screen.getByRole('button', { name: BUILT_IN });
+      expect(within(guitar).getByText('in use')).toBeInTheDocument();
+    }, SLOW);
+    const mine = screen.getByRole('button', { name: /^Open My Drop D/ });
+    expect(within(mine).queryByText('in use')).toBeNull();
+    await waitFor(async () => {
+      const prefs = await readHome(idb, name, 'preferences.json');
+      expect(prefs.instrumentInUse.value).toBe('standard');
+    }, SLOW);
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Close' })));
+    await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar$/));
+  });
+
+  it("shows the built-in's screen without Remove, stores it on a rules change, and falls back when it is removed (AC 3, AC 4)", async () => {
+    const { store, idb, name } = makeFreshWorker('builtin');
+    renderSurface(store);
+    act(() => store.open());
+    await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar$/));
+    openOverlay();
+    act(() => fireEvent.click(screen.getByRole('button', { name: BUILT_IN })));
+
+    // Its screen: definition, rules, my shapes — and no Remove until stored.
+    await screen.findByRole('heading', { name: 'Guitar (6-string) · E2 A2 D3 G3 B3 E4' });
+    expect(screen.getByText('Definition')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit rules' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove instrument' })).toBeNull();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    expect(await readHome(idb, name, 'instruments.json')).toEqual({});
+
+    // A rules change stores it under the reserved id, definition beside rules.
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Edit rules' })));
+    await screen.findByRole('heading', { name: 'Voicing rules' });
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Fingerstyle' })));
+    await waitFor(async () => {
+      const model = await readHome(idb, name, 'instruments.json');
+      expect(model.standard.definition.value).toMatchObject({
+        catalogId: '6guitar',
+        tuning: GUITAR_TUNING,
+        fretCount: 22,
+      });
+      expect(model.standard.rules.value).toEqual({ preset: 'fingerstyle' });
+    }, SLOW);
+
+    // Stored, it is an ordinary entry: Remove is offered, and one guitar row remains.
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    expect(await screen.findByRole('button', { name: 'Remove instrument' })).toBeInTheDocument();
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    await screen.findByRole('heading', { name: 'Instruments' });
+    await waitFor(() => {
+      const rows = screen.getAllByRole('button', { name: BUILT_IN });
+      expect(rows).toHaveLength(1);
+      expect(within(rows[0]).getByText(/Fingerstyle · 6 strings/)).toBeInTheDocument();
+    });
+
+    // Removing the stored standard falls back to the built-in, listed, in use.
+    act(() => fireEvent.click(screen.getByRole('button', { name: BUILT_IN })));
+    const removeStored = await screen.findByRole('button', { name: 'Remove instrument' });
+    act(() => fireEvent.click(removeStored));
+    const dialog = await screen.findByRole('alertdialog');
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' })));
+    await waitFor(async () => {
+      const model = await readHome(idb, name, 'instruments.json');
+      expect(model.standard.definition.value).toBeNull();
+    }, SLOW);
+    await waitFor(() => {
+      const row = screen.getByRole('button', { name: BUILT_IN });
+      expect(within(row).getByText('in use')).toBeInTheDocument();
+      expect(within(row).getByText('Strumming · 6 strings')).toBeInTheDocument();
+    });
+  });
+
+  it("stores the built-in under its reserved id when its definition is edited, without switching (AC 3)", async () => {
+    const { store, idb, name } = makeFreshWorker('builtin-edit');
+    renderSurface(store);
+    act(() => store.open());
+    await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar$/));
+    openOverlay();
+    await screen.findByRole('heading', { name: 'Instruments' });
+    await addMyDropD();
+    await waitFor(async () => {
+      const prefs = await readHome(idb, name, 'preferences.json');
+      expect(typeof prefs.instrumentInUse.value).toBe('string');
+    }, SLOW);
+    const mineId = (await readHome(idb, name, 'preferences.json')).instrumentInUse.value;
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: BUILT_IN })));
+    const editDefinition = await screen.findByRole('button', { name: 'Edit' });
+    act(() => fireEvent.click(editDefinition));
+    await screen.findByRole('heading', { name: 'Edit' });
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Open G' })));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Add instrument' })));
+    await waitFor(async () => {
+      const model = await readHome(idb, name, 'instruments.json');
+      expect(model.standard.definition.value).toMatchObject({ tuning: 'D2 G2 D3 G3 B3 D4' });
+      expect(model.standard.rules.value).toEqual({ preset: 'strumming' });
+    }, SLOW);
+    // Materializing never switches away from the one in use.
+    const prefs = await readHome(idb, name, 'preferences.json');
+    expect(prefs.instrumentInUse.value).toBe(mineId);
+  });
+
+  it('names only the song variations when removing an instrument with no saved shapes (AC 5)', async () => {
+    const { store } = makeFreshWorker('noshapes');
+    renderSurface(store);
+    act(() => store.open());
+    await waitFor(() => expect(chip()).toHaveTextContent(/^Guitar$/));
+    openOverlay();
+    await screen.findByRole('heading', { name: 'Instruments' });
+    const mine = await addMyDropD();
+    act(() => fireEvent.click(mine));
+
+    const removeMine = await screen.findByRole('button', { name: 'Remove instrument' });
+    act(() => fireEvent.click(removeMine));
+    const dialog = await screen.findByRole('alertdialog');
+    const body = dialog.querySelector('.instr-remove-body');
+    expect(body.textContent).toMatch(/^The song variations in use for D2 A2 D3 G3 B3 E4 are removed with it\./);
+    expect(dialog).not.toHaveTextContent(/0 saved shape/);
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' })));
+
+    // The removal falls back to the built-in guitar, listed and in use.
+    await waitFor(() => {
+      const row = screen.getByRole('button', { name: BUILT_IN });
+      expect(within(row).getByText('in use')).toBeInTheDocument();
+    }, SLOW);
+    expect(screen.queryByRole('button', { name: /^Open My Drop D/ })).toBeNull();
   });
 
   it('activates the add flow from the roster by keyboard', async () => {

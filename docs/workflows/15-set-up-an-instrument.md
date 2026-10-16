@@ -69,6 +69,14 @@ pitches (*Guitar (6-string), Standard tuning: E2 A2 D3 G3 B3 E4*) — is the
 chip's accessible description, and the roster spells it out. Tapping
 it opens the **roster** — the user's instruments, the one in use **marked with a
 word** (*in use*, never colour alone), and *+ Add instrument* at the foot.
+The **built-in standard guitar** is a row of the roster from the first run: on
+a fresh device, before anything is set up, the roster lists it, *in use* — the
+instrument the chip already names — rather than an empty list under the chip's
+*Guitar*. It stays listed beside the instruments the user adds, so switching
+back to it is the same one tap; it has its own screen like any other (its rules,
+its shapes), and changing its rules or its definition stores it, under its
+reserved id, as the first star does (music.explorer_standard_shapes). Until it
+is stored it has nothing to remove, so its screen offers no *Remove*.
 Choosing another switches to it, and everything on screen **re-derives at once**:
 the reading view's shapes, the explorer's results, the arrange picker's ranking
 — a chord on the cavaquinho is a different search from the same chord on the
@@ -191,7 +199,9 @@ property of the instrument — so the instrument screen does not repeat it.
 Removing an instrument **asks first**, and the confirmation **names what goes
 with it**: the shapes saved for it (`shapes.json`) and the per-tuning
 variations-in-use for its tunings (`songs.json`) are removed too, each as a
-tombstone on its register (home-book §4.3, §5.3). Removing the **in-use**
+tombstone on its register (home-book §4.3, §5.3). With no shapes saved for it,
+the confirmation names only the variations (*The song variations in use for
+D2 A2 D3 G3 B3 E4 are removed with it…*), never *its 0 saved shapes*. Removing the **in-use**
 instrument, or the **last** one, **falls back to the standard guitar** — the
 same built-in default an absent in-use register means (workflow 1). The songs'
 own voicing blocks are untouched: they belong to the song, not the home book, so

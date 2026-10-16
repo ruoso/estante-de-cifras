@@ -72,8 +72,9 @@ task music "Music" {
   task instruments_roster_default "The roster lists the instrument in use from the first run" {
     effort 0.5d
     allocate team
+    complete 100
     depends !instruments
-    note "On a fresh device the Instruments roster shows only Add instrument, while the header chip already says Guitar: the built-in standard guitar the app plays by default is not listed or marked in use (workflow 15; W15 phone). Also the remove confirm says Its 0 saved shapes when there are none. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: unit (the roster with no stored instrument lists the default, in use); behavior (axe); e2e-web (first run → Instruments lists Guitar in use; mockup W15#1)."
+    note "On a fresh device the Instruments roster shows only Add instrument, while the header chip already says Guitar: the built-in standard guitar the app plays by default is not listed or marked in use (workflow 15; W15 phone). Also the remove confirm says Its 0 saved shapes when there are none. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: unit (the roster with no stored instrument lists the default, in use); behavior (axe); e2e-web (first run → Instruments lists Guitar in use; mockup W15#1). Refinement: tasks/refinements/music/instruments_roster_default.md"
   }
   task instruments_layout "Instruments and voicing rules as drawn" {
     effort 1.5d

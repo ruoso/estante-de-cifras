@@ -12,19 +12,11 @@ import { useId } from 'react';
 import { Button } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
-import { chipDescription, chipLabel } from './instrument-helpers.js';
+import { chipDescription, chipLabel, inUseEntry } from './instrument-helpers.js';
 
-// The in-use instrument from the slice: the entry whose id is `inUseId`, else
-// the standard-guitar fallback the Worker always sends (absent in-use → the
-// built-in default, workflow 1 L72-78).
-export function inUseEntry(slice) {
-  const { instruments = [], inUseId = null, standard = null } = slice ?? {};
-  if (inUseId) {
-    const found = instruments.find((e) => e.id === inUseId);
-    if (found) return found;
-  }
-  return standard;
-}
+// `inUseEntry` lives with the pure helpers (the roster shares it); re-exported
+// here for the call sites that read the in-use instrument beside the chip.
+export { inUseEntry };
 
 export default function InstrumentChip({ store, onOpen }) {
   const slice = useSlice(store, 'instruments');

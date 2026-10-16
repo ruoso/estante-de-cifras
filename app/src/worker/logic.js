@@ -1147,6 +1147,38 @@ export function createWorkerLogic(port, options = {}) {
     );
   }
 
+  // Materialize the synthesized standard guitar under its reserved id before a
+  // write that touches only one of its registers (home-book §2.1 lazy write;
+  // music.explorer_standard_shapes, music.instruments_roster_default): a star's
+  // shape leaf, a rules edit or a definition edit on the built-in. Writes its
+  // definition + rules and, only when the in-use register is absent, sets it in
+  // use — so editing the built-in's rules while another instrument is in use
+  // does not switch. Idempotent (a live entry yields empty change-sets). Each
+  // file under its own lock, never nested; auto-committed, never pushed.
+  async function materializeStandard(home, author) {
+    const [instruments, preferences] = await Promise.all([
+      home.read({ bookId: HOME_BOOK_ID, file: 'instruments.json' }),
+      home.read({ bookId: HOME_BOOK_ID, file: 'preferences.json' }),
+    ]);
+    const materialize = standardMaterialization({ instruments, preferences });
+    if (materialize.instruments.length) {
+      await home.set({
+        bookId: HOME_BOOK_ID,
+        file: 'instruments.json',
+        changes: materialize.instruments,
+        author,
+      });
+    }
+    if (materialize.preferences.length) {
+      await home.set({
+        bookId: HOME_BOOK_ID,
+        file: 'preferences.json',
+        changes: materialize.preferences,
+        author,
+      });
+    }
+  }
+
   // Re-surface every home-book-derived slice after a home-book sync (the
   // SYNC_HOME path): preferences, the shelf and the instrument roster, in the
   // same order OPEN surfaces them. The sync engine calls this after routing the
@@ -3233,6 +3265,10 @@ export function createWorkerLogic(port, options = {}) {
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
             if (id) {
+              // Editing the built-in standard guitar stores it first (its rules
+              // register too), so the definition below never leaves a
+              // rules-less 'standard' entry (music.instruments_roster_default).
+              if (id === STANDARD_INSTRUMENT_ID) await materializeStandard(home, author);
               await home.set({
                 bookId: HOME_BOOK_ID,
                 file: 'instruments.json',
@@ -3279,6 +3315,10 @@ export function createWorkerLogic(port, options = {}) {
             const author = await resolveAuthor();
             const home = ensureHomeBook();
             await home.ensureLocal({ author });
+            // A rules change on the built-in standard guitar stores it first, so
+            // the stored 'standard' entry carries a definition beside its rules
+            // (music.instruments_roster_default; workflow 15 §The roster).
+            if (id === STANDARD_INSTRUMENT_ID) await materializeStandard(home, author);
             await home.set({
               bookId: HOME_BOOK_ID,
               file: 'instruments.json',
@@ -3384,29 +3424,7 @@ export function createWorkerLogic(port, options = {}) {
             // Mirrors the SAVE_INSTRUMENT add branch; idempotent (a later star
             // finds a live entry and adds only its leaf). Each register file under
             // its own lock, auto-committed, never pushed.
-            if (id === STANDARD_INSTRUMENT_ID) {
-              const [instruments, preferences] = await Promise.all([
-                home.read({ bookId: HOME_BOOK_ID, file: 'instruments.json' }),
-                home.read({ bookId: HOME_BOOK_ID, file: 'preferences.json' }),
-              ]);
-              const materialize = standardMaterialization({ instruments, preferences });
-              if (materialize.instruments.length) {
-                await home.set({
-                  bookId: HOME_BOOK_ID,
-                  file: 'instruments.json',
-                  changes: materialize.instruments,
-                  author,
-                });
-              }
-              if (materialize.preferences.length) {
-                await home.set({
-                  bookId: HOME_BOOK_ID,
-                  file: 'preferences.json',
-                  changes: materialize.preferences,
-                  author,
-                });
-              }
-            }
+            if (id === STANDARD_INSTRUMENT_ID) await materializeStandard(home, author);
             await home.set({
               bookId: HOME_BOOK_ID,
               file: 'shapes.json',

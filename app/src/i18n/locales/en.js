@@ -2634,6 +2634,8 @@ export default {
       shapes: { one: 'Its {count} saved shape', other: 'Its {count} saved shapes' },
       body:
         '{shapes} and the song variations in use for {tuning} are removed with it. Your songs keep their own voicings — only this instrument’s own settings go.',
+      bodyNoShapes:
+        'The song variations in use for {tuning} are removed with it. Your songs keep their own voicings — only this instrument’s own settings go.',
       cancel: 'Cancel',
       confirm: 'Remove',
     },

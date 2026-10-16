@@ -27,7 +27,9 @@ import {
 const EXPLORE_ROW = /Explore A on your/;
 
 const addGuitar = async (page) => {
-  await addInstrument(page, { listed: 'Guitar' });
+  // The built-in guitar is listed too (music.instruments_roster_default), so wait
+  // on the added one's own row.
+  await addInstrument(page, { listed: 'Guitar (6-string) · Standard' });
   await closeInstruments(page);
 };
 const openExplorer = (page) => openExplorerFor(page, 'A');
@@ -59,7 +61,8 @@ test('search’s chord row opens the explorer; a shape is starred as my shape an
 
   // The star is reviewable in the instrument's my-shapes (music.instruments).
   await chip(page).click();
-  await page.getByRole('button', { name: /^Open Guitar/ }).click();
+  // The added guitar, in use — not the built-in row listed beside it.
+  await page.getByRole('button', { name: /^Open Guitar \(6-string\) · Standard/ }).click();
   await expect(page.getByText('your shape').first()).toBeVisible();
 });
 

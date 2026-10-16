@@ -22,7 +22,7 @@ import AddInstrumentForm from './AddInstrumentForm.jsx';
 import VoicingRules from './VoicingRules.jsx';
 import MyShapes from './MyShapes.jsx';
 import { BackIcon, CloseIcon, PlusIcon } from './icons.jsx';
-import { catalogName, displayLabel, presetLabel } from './instrument-helpers.js';
+import { catalogName, displayLabel, presetLabel, rosterEntries } from './instrument-helpers.js';
 import './instruments.css';
 
 // One instrument on the roster: opens its detail; shows the preset and string
@@ -50,8 +50,11 @@ function RosterRow({ entry, inUse, onOpen }) {
 
 export default function InstrumentsOverlay({ store, isOpen, onClose }) {
   const slice = useSlice(store, 'instruments');
-  const instruments = slice?.instruments ?? [];
-  const inUseId = slice?.inUseId ?? null;
+  // The roster's rows: the built-in standard guitar (while it is not stored)
+  // first, then the stored instruments; in use as the chip resolves it
+  // (music.instruments_roster_default Decision 1).
+  const { entries: instruments, inUseId } = rosterEntries(slice);
+  const builtIn = slice?.standard ?? null;
   const [view, setView] = useState({ name: 'roster', id: null });
 
   const send = (kind, payload) =>
@@ -197,6 +200,9 @@ export default function InstrumentsOverlay({ store, isOpen, onClose }) {
     const entry = current;
     const inUse = entry.id === inUseId;
     const shapeCount = entry.shapes.length;
+    // The built-in standard guitar, not yet stored, has nothing to remove — it
+    // is what removal falls back to (Decision 3). Once stored it is ordinary.
+    const removable = !(builtIn && entry.id === builtIn.id);
     body = (
       <>
         <div className="appbar">
@@ -262,42 +268,49 @@ export default function InstrumentsOverlay({ store, isOpen, onClose }) {
 
           <MyShapes entry={entry} onRemoveShape={removeShape} />
 
-          <DialogTrigger>
-            <Button className="btn danger instr-remove">{t('instr.detail.remove')}</Button>
-            <ModalOverlay className="scrim center" isDismissable>
-              <Modal className="dialog">
-                <Dialog role="alertdialog">
-                  {({ close: closeConfirm }) => (
-                    <>
-                      <Heading slot="title" className="t-h2">
-                        {t('instr.remove.title', { label: displayLabel(entry) })}
-                      </Heading>
-                      <p className="t-body instr-remove-body">
-                        {t('instr.remove.body', {
-                          shapes: t('instr.remove.shapes', { count: shapeCount }),
-                          tuning: entry.tuning,
-                        })}
-                      </p>
-                      <div className="actions">
-                        <Button className="btn" onPress={closeConfirm}>
-                          {t('instr.remove.cancel')}
-                        </Button>
-                        <Button
-                          className="btn danger"
-                          onPress={() => {
-                            closeConfirm();
-                            removeInstrument(entry.id);
-                          }}
-                        >
-                          {t('instr.remove.confirm')}
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </Dialog>
-              </Modal>
-            </ModalOverlay>
-          </DialogTrigger>
+          {removable ? (
+            <DialogTrigger>
+              <Button className="btn danger instr-remove">{t('instr.detail.remove')}</Button>
+              <ModalOverlay className="scrim center" isDismissable>
+                <Modal className="dialog">
+                  <Dialog role="alertdialog">
+                    {({ close: closeConfirm }) => (
+                      <>
+                        <Heading slot="title" className="t-h2">
+                          {t('instr.remove.title', { label: displayLabel(entry) })}
+                        </Heading>
+                        <p className="t-body instr-remove-body">
+                          {/* With no shapes the confirm names only the variations
+                              (workflow 15 §Removing) — a separate key, since the
+                              plural rules never select `zero` for 0 (Decision 5). */}
+                          {shapeCount === 0
+                            ? t('instr.remove.bodyNoShapes', { tuning: entry.tuning })
+                            : t('instr.remove.body', {
+                                shapes: t('instr.remove.shapes', { count: shapeCount }),
+                                tuning: entry.tuning,
+                              })}
+                        </p>
+                        <div className="actions">
+                          <Button className="btn" onPress={closeConfirm}>
+                            {t('instr.remove.cancel')}
+                          </Button>
+                          <Button
+                            className="btn danger"
+                            onPress={() => {
+                              closeConfirm();
+                              removeInstrument(entry.id);
+                            }}
+                          >
+                            {t('instr.remove.confirm')}
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </Dialog>
+                </Modal>
+              </ModalOverlay>
+            </DialogTrigger>
+          ) : null}
         </div>
       </>
     );

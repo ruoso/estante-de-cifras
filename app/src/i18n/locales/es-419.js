@@ -2480,6 +2480,8 @@ export default {
       shapes: { one: 'Su {count} forma guardada', other: 'Sus {count} formas guardadas' },
       body:
         '{shapes} y las variaciones en uso para {tuning} se quitan con él. Tus canciones conservan sus propios voicings — solo se van los ajustes de este instrumento.',
+      bodyNoShapes:
+        'Las variaciones en uso para {tuning} se quitan con él. Tus canciones conservan sus propios voicings — solo se van los ajustes de este instrumento.',
       cancel: 'Cancelar',
       confirm: 'Quitar',
     },
