@@ -12,6 +12,12 @@
   font: 400 15px/1.4 var(--font-ui);
 }
 
+/* A new song's Book and File name (W03#4 L179-187): shown, not edited — the
+   board's read-only look on the second surface (songs.first_save_fields). */
+.est-save-readonly {
+  background: var(--surface-2);
+}
+
 /* The Worker's backstop refusal, if it ever fires (editor gate catches first). */
 .est-save-refused {
   margin: 0;

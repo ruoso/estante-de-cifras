@@ -109,6 +109,11 @@ describe('save sheet — what changed and the note (§Saving)', () => {
     withName(emit);
     emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
 
+    // A saved song's save shows neither first-save field (songs.first_save_fields
+    // Constraint 4): its file was named at its first save.
+    expect(screen.queryByRole('textbox', { name: 'Book' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'File name' })).not.toBeInTheDocument();
+
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
     const cmd = lastCommand(sent, CommandKind.SAVE);
     expect(cmd.payload).toMatchObject({
@@ -180,6 +185,75 @@ describe('save sheet — a titleless new song is named (acceptance 7)', () => {
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
 
     expect(lastCommand(sent, CommandKind.NAME_AND_SAVE).payload.title).toBe('Nova');
+  });
+});
+
+// songs.first_save_fields — W03#4 L179-187: the first save names the book and
+// the file, read-only, with *Named once, from the title…*.
+describe('save sheet — the first save names the book and the file (W03#4)', () => {
+  const HINT = 'Named once, from the title. Changing the title later edits its heading, not the file.';
+
+  it("a new song's first save shows Book and the previewed File name, with the hint", async () => {
+    const { store, emit } = makeStore();
+    renderSheet(
+      { paths: ['untitled.cifra.md'], isNew: true, fromPath: 'untitled.cifra.md', bookLabel: 'My songs' },
+      store,
+    );
+    withName(emit);
+    emit(
+      event(EventKind.SAVE_PREVIEW, {
+        bookId: BOOK,
+        previews: [
+          preview({
+            path: 'untitled.cifra.md',
+            isNew: true,
+            fileName: 'tarde-clara-2.cifra.md',
+            taken: ['tarde-clara.cifra.md'],
+          }),
+        ],
+      }),
+    );
+
+    const book = screen.getByRole('textbox', { name: 'Book' });
+    expect(book).toHaveValue('My songs');
+    expect(book).toHaveAttribute('readonly');
+    const file = screen.getByRole('textbox', { name: 'File name' });
+    expect(file).toHaveValue('tarde-clara-2.cifra.md');
+    expect(file).toHaveAttribute('readonly');
+    expect(file).toHaveAccessibleDescription(HINT);
+    expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
+  });
+
+  it('the file name follows the typed name', async () => {
+    const { store, emit } = makeStore();
+    renderSheet(
+      { paths: ['untitled.cifra.md'], isNew: true, fromPath: 'untitled.cifra.md', bookLabel: 'My songs' },
+      store,
+    );
+    withName(emit);
+    emit(
+      event(EventKind.SAVE_PREVIEW, {
+        bookId: BOOK,
+        previews: [
+          preview({
+            path: 'untitled.cifra.md',
+            title: '',
+            isNew: true,
+            fileName: 'untitled.cifra.md',
+            taken: ['mare-mansa.cifra.md'],
+          }),
+        ],
+      }),
+    );
+
+    const file = screen.getByRole('textbox', { name: 'File name' });
+    expect(file).toHaveValue('untitled.cifra.md');
+    // saveSheet.songNameHelp: the typed name becomes the file name, folded
+    // against the folder's names the preview carried — no Worker round trip.
+    const name = screen.getByRole('textbox', { name: 'Name this song' });
+    act(() => fireEvent.change(name, { target: { value: 'Maré Mansa' } }));
+    expect(file).toHaveValue('mare-mansa-2.cifra.md');
+    expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
   });
 });
 

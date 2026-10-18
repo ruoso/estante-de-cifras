@@ -154,8 +154,9 @@ task songs "Songs" {
   task first_save_fields "The first-save dialog names the book and the file" {
     effort 0.5d
     allocate team
+    complete 100
     depends !editor_chrome
-    note "W03#4 draws Book and a read-only File name (Named once, from the title. Changing the title later edits its heading, not the file.) in the first-save dialog; SAVE_PREVIEW for a new song must carry the filename NAME_AND_SAVE would take (deriveSongFilename with the folder's collision suffix), and the dialog shows it with the book. Source-of-debt: tasks/refinements/songs/editor_chrome.md (Decision 9; workflow 3 The first save; W03 board frame 4). Tests: unit (the Worker's preview filename, with a collision); behavior (the dialog shows Book and File name, the name follows the title); e2e-web (W03#4 with the fields)."
+    note "W03#4 draws Book and a read-only File name (Named once, from the title. Changing the title later edits its heading, not the file.) in the first-save dialog; SAVE_PREVIEW for a new song must carry the filename NAME_AND_SAVE would take (deriveSongFilename with the folder's collision suffix), and the dialog shows it with the book. Source-of-debt: tasks/refinements/songs/editor_chrome.md (Decision 9; workflow 3 The first save; W03 board frame 4). Tests: unit (the Worker's preview filename, with a collision); behavior (the dialog shows Book and File name, the name follows the title); e2e-web (W03#4 with the fields). Refinement: tasks/refinements/songs/first_save_fields.md"
   }
   task song_notation_views "Every view reads a song in its own notation" {
     effort 0.5d

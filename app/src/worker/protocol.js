@@ -244,7 +244,9 @@ export const CommandKind = Object.freeze({
   // (HEAD) and the working copy, parses both and runs the semantic `diff`,
   // replying with a SAVE_PREVIEW event carrying `{ path, title, changes, summary,
   // isNew }` per path — one reply serving a single save and *save all* alike. A
-  // read only: no canonicalise, no commit, no push. The Worker owns HEAD and the
+  // read only: no canonicalise, no commit, no push. A never-saved path's entry
+  // also carries `fileName` and `taken` (songs.first_save_fields), read from the
+  // folder listing. The Worker owns HEAD and the
   // working copy (DIRECTION §3.7); the view renders what it returns.
   PREVIEW_SAVE: 'preview_save',
   // Persist the author's display name to the home book (songs.save_sheet,
@@ -614,7 +616,11 @@ export const EventKind = Object.freeze({
   // Decision 2): `{ bookId, previews: [{ path, title, changes, summary, isNew }] }`.
   // `changes` is the diff's ordered record list and `summary` its neutral-English
   // one-liner (cifra_js.diff); `title` is the working copy's title and `isNew`
-  // whether the path has no committed version yet. The `savePreview` slice keeps
+  // whether the path has no committed version yet. An `isNew` entry also carries
+  // `fileName` — the bare name NAME_AND_SAVE would give it, collision suffix and
+  // all — and `taken`, the folder's names it must not clash with, so the save
+  // sheet can fold a typed name the same way (songs.first_save_fields Decision
+  // 1); a saved path's entry has neither. The `savePreview` slice keeps
   // it per book for the save sheet and the discard confirm to render.
   SAVE_PREVIEW: 'save_preview',
   // A new song's target book and placeholder path are ready, in reply to

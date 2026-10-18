@@ -50,7 +50,7 @@ import { createBringIn } from './bring-in.js';
 import { createBooks } from './books.js';
 import { createExampleBook } from './example-book.js';
 import { createMySongs, MY_SONGS_ID } from './my-songs.js';
-import { deriveSongFilename } from '../songs/song-filename.js';
+import { deriveSongFilename, firstSaveName } from '../songs/song-filename.js';
 import { defaultSaveMessage } from '../songs/save-note.js';
 import { createSearchIndex } from './search-index.js';
 import { createRecents } from './recents.js';
@@ -1786,8 +1786,24 @@ export function createWorkerLogic(port, options = {}) {
             // confirm and *save all* (songs.save_sheet Decision 2): read HEAD and
             // the working copy for each path and run the semantic diff. A read —
             // no commit, no push. The preview itself is not logged (song text).
+            // A never-saved song's entry also carries the name its first save
+            // will take and the folder's collision set (songs.first_save_fields
+            // Constraint 2), from the same `firstSaveName` NAME_AND_SAVE calls,
+            // so the dialog shows exactly the name the save gives the file.
             const { bookId, paths } = message.payload;
             const { previews } = await ensureSavePreview().preview({ bookId, paths });
+            for (const entry of previews) {
+              if (!entry.isNew) continue;
+              const slash = entry.path.lastIndexOf('/');
+              const folder = slash > 0 ? entry.path.slice(0, slash) : '';
+              const { fileName, taken } = firstSaveName({
+                fromPath: entry.path,
+                title: entry.title,
+                folderNames: await folderNames(bookId, folder),
+              });
+              entry.fileName = fileName;
+              entry.taken = taken;
+            }
             port.postMessage(event(EventKind.SAVE_PREVIEW, { bookId, previews }));
             break;
           }
@@ -3226,15 +3242,16 @@ export function createWorkerLogic(port, options = {}) {
               // which feeds both the slug filename and the default commit message.
               const title =
                 (parseSong(bytes)?.title ?? '').trim() || (promptedTitle ?? '').trim();
-              // Collision set: the folder's names minus the placeholder itself, so
-              // a title whose slug equals the placeholder does not gain a suffix
-              // against it.
+              // The name the preview showed (songs.first_save_fields Constraint
+              // 1): the folder's names minus the placeholder itself, so a title
+              // whose slug equals the placeholder does not gain a suffix against it.
               const slash = fromPath.lastIndexOf('/');
               const folder = slash > 0 ? fromPath.slice(0, slash) : '';
-              const fromName = slash >= 0 ? fromPath.slice(slash + 1) : fromPath;
-              const prefix = folder ? `${folder}/` : '';
-              const names = (await folderNames(bookId, folder)).filter((n) => n !== fromName);
-              toPath = `${prefix}${deriveSongFilename(title, names)}`;
+              ({ path: toPath } = firstSaveName({
+                fromPath,
+                title,
+                folderNames: await folderNames(bookId, folder),
+              }));
               outcome = await ensureWorkingCopy().nameAndSave({
                 bookId,
                 fromPath,

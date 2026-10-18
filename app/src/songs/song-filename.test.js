@@ -5,7 +5,7 @@
 // `-2`/`-3`. Fixtures are the titles the workflow and the W03 board name.
 
 import { describe, it, expect } from 'vitest';
-import { deriveSongFilename, slugify, siblingFilename } from './song-filename.js';
+import { deriveSongFilename, firstSaveName, slugify, siblingFilename } from './song-filename.js';
 
 describe('deriveSongFilename', () => {
   it('folds accents and lower-cases the title (workflow 3 §Its file name L43-45)', () => {
@@ -90,5 +90,52 @@ describe('siblingFilename', () => {
         new Set(['roda-de-rua-ana.cifra.md', 'roda-de-rua-ana-2.cifra.md']),
       ),
     ).toBe('roda-de-rua-ana-3.cifra.md');
+  });
+});
+
+// songs.first_save_fields Constraint 1: the one computation PREVIEW_SAVE shows
+// and NAME_AND_SAVE takes — the folder's names minus the placeholder's own.
+describe('firstSaveName', () => {
+  it('names a root song from its title, ignoring its own placeholder (workflow 3 §Its file name L37-45)', () => {
+    expect(
+      firstSaveName({
+        fromPath: 'untitled.cifra.md',
+        title: 'Maré Mansa',
+        folderNames: ['untitled.cifra.md'],
+      }),
+    ).toEqual({ path: 'mare-mansa.cifra.md', fileName: 'mare-mansa.cifra.md', taken: [] });
+  });
+
+  it('suffixes a name taken in the same folder (workflow 3 L48)', () => {
+    const once = firstSaveName({
+      fromPath: 'untitled.cifra.md',
+      title: 'Maré Mansa',
+      folderNames: ['untitled.cifra.md', 'mare-mansa.cifra.md'],
+    });
+    expect(once.fileName).toBe('mare-mansa-2.cifra.md');
+    expect(once.taken).toEqual(['mare-mansa.cifra.md']);
+    expect(
+      firstSaveName({
+        fromPath: 'untitled.cifra.md',
+        title: 'Maré Mansa',
+        folderNames: ['untitled.cifra.md', 'mare-mansa.cifra.md', 'mare-mansa-2.cifra.md'],
+      }).fileName,
+    ).toBe('mare-mansa-3.cifra.md');
+  });
+
+  it('keeps the folder prefix (workflow 3 L32-33)', () => {
+    const named = firstSaveName({
+      fromPath: 'ensaios/untitled-2.cifra.md',
+      title: 'Maré Mansa',
+      folderNames: ['untitled.cifra.md', 'untitled-2.cifra.md'],
+    });
+    expect(named.path).toBe('ensaios/mare-mansa.cifra.md');
+    expect(named.fileName).toBe('mare-mansa.cifra.md');
+  });
+
+  it("a title whose slug is the placeholder's gains no suffix against it", () => {
+    expect(
+      firstSaveName({ fromPath: 'untitled.cifra.md', title: '', folderNames: ['untitled.cifra.md'] }),
+    ).toEqual({ path: 'untitled.cifra.md', fileName: 'untitled.cifra.md', taken: [] });
   });
 });

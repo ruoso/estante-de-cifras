@@ -183,6 +183,9 @@ const MARE_MANSA = [
   '',
 ].join('\n');
 
+const FILE_NAME_HINT =
+  'Named once, from the title. Changing the title later edits its heading, not the file.';
+
 // songs.editor_chrome: the header names the song by its first heading as typed,
 // and the first save sits where the device puts it (W03#3-4; workflow 3 §The
 // first save; Decision 3).
@@ -211,6 +214,12 @@ test('the header follows the first heading, and the first save is a dialog on ta
     await expect(page.locator('.sheet')).toHaveCount(0);
   }
   await expect(dialog.getByRole('heading', { name: 'Save Maré Mansa' })).toBeVisible();
+  // songs.first_save_fields: the first save names the book and the file it
+  // takes, read-only, with the hint (W03#4 L179-187) — before the frame.
+  await expect(dialog.getByRole('textbox', { name: 'Book' })).toHaveValue('My songs');
+  const fileName = dialog.getByRole('textbox', { name: 'File name' });
+  await expect(fileName).toHaveValue('mare-mansa.cifra.md');
+  await expect(fileName).toHaveAccessibleDescription(FILE_NAME_HINT);
   await mockup(page, 'W03-write-a-new-song', 4);
   await checkA11y(); // the first save open
   const nameField = dialog.getByRole('textbox', { name: /Your name/ });
@@ -220,4 +229,35 @@ test('the header follows the first heading, and the first save is a dialog on ta
 
   await page.getByRole('searchbox').fill('Maré Mansa');
   await expect(page.getByRole('button', { name: /Maré Mansa/ }).first()).toBeVisible();
+});
+
+// songs.first_save_fields — workflow 3 §Its file name L48: a name taken in the
+// same folder gains -2, and the first save shows it before it is fixed.
+test('a second song with a taken title is named with -2', async ({ page, checkA11y }) => {
+  await startApp(page);
+  const searchbox = page.getByRole('searchbox');
+
+  await searchbox.fill('Primeira Maré');
+  await page.getByRole('button', { name: /Create .Primeira Maré./ }).click();
+  await replaceSong(page, MARE_MANSA);
+  await saveThroughSheet(page, {
+    onSheet: async (sheet) => {
+      await expect(sheet.getByRole('textbox', { name: 'File name' })).toHaveValue('mare-mansa.cifra.md');
+    },
+  });
+
+  await searchbox.fill('Segunda Maré');
+  await page.getByRole('button', { name: /Create .Segunda Maré./ }).click();
+  await replaceSong(page, MARE_MANSA);
+  await saveThroughSheet(page, {
+    onSheet: async (sheet) => {
+      await expect(sheet.getByRole('textbox', { name: 'Book' })).toHaveValue('My songs');
+      await expect(sheet.getByRole('textbox', { name: 'File name' })).toHaveValue('mare-mansa-2.cifra.md');
+      await checkA11y(); // the first save open, with the fields
+    },
+  });
+
+  // Both are kept, under the one title.
+  await searchbox.fill('Maré Mansa');
+  await expect(page.getByRole('button', { name: /^Maré Mansa My songs/ })).toHaveCount(2);
 });

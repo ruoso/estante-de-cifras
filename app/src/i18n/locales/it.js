@@ -929,6 +929,10 @@ export default {
     saveAllLabel: 'Salva tutte le modifiche in {book}',
     songNameLabel: 'Dai un nome alla canzone',
     songNameHelp: 'Usato come titolo e nome del file.',
+    bookLabel: 'Libro',
+    fileNameLabel: 'Nome del file',
+    fileNameHelp:
+      'Nominato una volta sola, dal titolo. Cambiare il titolo in seguito ne modifica l’intestazione, non il file.',
     nameLabel: 'Il tuo nome, come apparirà nella cronologia di una canzone',
     nameHelp: 'Chiesto una volta. Dopo l’accesso, viene offerto il nome del tuo account al suo posto.',
     refused: 'Non salvato. La riga {line} non è leggibile. Correggila nell’editor e salva di nuovo.',

@@ -24,6 +24,8 @@
 
 import { useRef, useState } from 'react';
 import { t } from '../i18n/index.js';
+import { useSlice } from '../worker/useStore.js';
+import { bookLabelFor } from './first-run.js';
 import SongEditor from '../editor/SongEditor.jsx';
 import EditorChrome from './EditorChrome.jsx';
 import WhichBook from './WhichBook.jsx';
@@ -42,6 +44,9 @@ export default function NewSongHost({
 }) {
   const { bookId, path, isNew, songTitle } = editing;
   const phone = mode === 'narrow';
+  // The first save names the book the song goes into (songs.first_save_fields
+  // Constraint 4), labelled as the which-book line names it.
+  const shelf = useSlice(store, 'shelf');
   // The editor owns Save and its pre-save gate; the host owns what Save does
   // (editor Decision 10) — it opens the save sheet (songs.save_sheet Decision 1).
   // Discard is the host's own destructive affordance, which always asks.
@@ -99,6 +104,7 @@ export default function NewSongHost({
         isNew
         fromPath={path}
         titleHint={liveTitle || songTitle}
+        bookLabel={bookLabelFor(shelf, bookId)}
         presentation={phone ? 'sheet' : 'dialog'}
       />
       <DiscardConfirm

@@ -929,6 +929,10 @@ export default {
     saveAllLabel: 'Salvar todas as mudanças em {book}',
     songNameLabel: 'Dê um nome à música',
     songNameHelp: 'Usado como título e nome do arquivo.',
+    bookLabel: 'Livro',
+    fileNameLabel: 'Nome do arquivo',
+    fileNameHelp:
+      'Nomeado uma vez, a partir do título. Mudar o título depois edita o cabeçalho, não o arquivo.',
     nameLabel: 'Seu nome, como aparecerá no histórico de uma música',
     nameHelp: 'Perguntado uma vez. Depois de entrar, o nome da sua conta é oferecido no lugar.',
     refused: 'Não salvo. A linha {line} não pôde ser lida. Corrija no editor e salve de novo.',

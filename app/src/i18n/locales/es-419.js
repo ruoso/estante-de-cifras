@@ -930,6 +930,10 @@ export default {
     saveAllLabel: 'Guardar todos los cambios en {book}',
     songNameLabel: 'Ponle nombre a la canción',
     songNameHelp: 'Se usa como título y nombre de archivo.',
+    bookLabel: 'Libro',
+    fileNameLabel: 'Nombre de archivo',
+    fileNameHelp:
+      'Se nombra una sola vez, a partir del título. Cambiar el título después edita su encabezado, no el archivo.',
     nameLabel: 'Tu nombre, tal como aparecerá en el historial de una canción',
     nameHelp: 'Se pregunta una vez. Al iniciar sesión, se ofrece el nombre de tu cuenta en su lugar.',
     refused: 'No guardado. La línea {line} no se pudo leer. Corrígela en el editor y guarda de nuevo.',

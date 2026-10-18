@@ -24,6 +24,7 @@ const AUTHOR = { id: 'local', name: 'Me' };
 // diff is exactly one change (an unsung song, so it numbers bars).
 const V1 = ['# Tarde Clara', '- notation: brazilian', '', '## Parte', '```', 'D | Em', '```', ''].join('\n');
 const V2 = ['# Tarde Clara', '- notation: brazilian', '', '## Parte', '```', 'D7 | Em', '```', ''].join('\n');
+const MARE = ['# Maré Mansa', '- notation: brazilian', '', '## Parte', '```', 'G | C', '```', ''].join('\n');
 const NOVA = ['# Nova', '- notation: brazilian', '', '## Parte', '```', 'Am | G', '```', ''].join('\n');
 
 let restoreLocks;
@@ -117,6 +118,48 @@ describe('PREVIEW_SAVE — what changed, in musical terms (§Saving)', () => {
     const p = w.lastEvent(EventKind.SAVE_PREVIEW).payload.previews[0];
     expect(p).toMatchObject({ path: 'nova.cifra.md', title: 'Nova', isNew: true });
     expect(p.changes.length).toBeGreaterThan(0); // all added
+  });
+
+  // songs.first_save_fields Constraint 2 — the note's "SAVE_PREVIEW carries the
+  // filename NAME_AND_SAVE would take"; workflow 3 §Its file name L48.
+  it("a never-saved song's preview carries the file name the first save will take, with the folder's suffix", async () => {
+    const w = makeWorker();
+    const bookId = await seedBookWithSong(w);
+
+    // A song already named mare-mansa.cifra.md at the book root.
+    w.store.send(command(CommandKind.WRITE, { bookId, path: 'mare-mansa.cifra.md', text: MARE }));
+    await w.settled(bookId);
+    w.store.send(
+      command(CommandKind.SAVE, { bookId, paths: ['mare-mansa.cifra.md'], message: 'Add Maré Mansa', author: AUTHOR }),
+    );
+    await until(() =>
+      expect(w.events.filter((e) => e.kind === EventKind.SAVED)).toHaveLength(2),
+    );
+
+    // A new song into the same book, headed the same.
+    w.store.send(command(CommandKind.NEW_SONG, { targetBookId: bookId }));
+    await until(() => expect(w.lastEvent(EventKind.NEW_SONG_READY)).toBeTruthy());
+    const { path: fromPath } = w.lastEvent(EventKind.NEW_SONG_READY).payload;
+    w.store.send(command(CommandKind.WRITE, { bookId, path: fromPath, text: MARE }));
+    await w.settled(bookId);
+
+    w.store.send(command(CommandKind.PREVIEW_SAVE, { bookId, paths: [fromPath, 'tarde.cifra.md'] }));
+    await until(() => expect(w.lastEvent(EventKind.SAVE_PREVIEW)).toBeTruthy());
+    const [fresh, saved] = w.lastEvent(EventKind.SAVE_PREVIEW).payload.previews;
+    expect(fresh).toMatchObject({ path: fromPath, isNew: true, fileName: 'mare-mansa-2.cifra.md' });
+    expect(fresh.taken).toContain('mare-mansa.cifra.md');
+    expect(fresh.taken).not.toContain(fromPath);
+    // A saved path's entry is the plain diff, with no name to take.
+    expect(saved.isNew).toBe(false);
+    expect(saved).not.toHaveProperty('fileName');
+    expect(saved).not.toHaveProperty('taken');
+
+    // The first save takes exactly the previewed name.
+    w.store.send(command(CommandKind.NAME_AND_SAVE, { bookId, fromPath, author: AUTHOR }));
+    await until(() =>
+      expect(w.events.filter((e) => e.kind === EventKind.SAVED)).toHaveLength(3),
+    );
+    expect(w.lastEvent(EventKind.SAVED).payload.path).toBe(fresh.fileName);
   });
 });
 

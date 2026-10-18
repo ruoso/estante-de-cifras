@@ -1022,6 +1022,12 @@ export default {
     // first save ever asks for the author's name (§Who made the change).
     songNameLabel: 'Name this song',
     songNameHelp: 'Used for its title and its file name.',
+    // A new song's first save names the book and the file it takes
+    // (songs.first_save_fields, W03#4); the file name itself is never translated.
+    bookLabel: 'Book',
+    fileNameLabel: 'File name',
+    fileNameHelp:
+      'Named once, from the title. Changing the title later edits its heading, not the file.',
     nameLabel: 'Your name, as it will appear in a song’s history',
     nameHelp: 'Asked once. After you sign in, your account’s name is offered instead.',
     // The Worker's backstop refusal surfaced (a marked/unreadable file); the

@@ -81,6 +81,29 @@ export function deriveSongFilename(title, existing = []) {
 }
 
 /**
+ * The name a never-saved song takes at its first save (songs.first_save_fields,
+ * workflow 3 §Its file name): the title folded by `deriveSongFilename` against
+ * the names already in the placeholder's folder — minus the placeholder's own
+ * name, so a title whose slug is the placeholder's gains no suffix against it —
+ * kept in that folder. NAME_AND_SAVE takes `path`; PREVIEW_SAVE shows
+ * `fileName` and hands the view `taken`, so the save sheet can fold a typed
+ * name the same way (Decisions 1-2): one computation, both sides.
+ *
+ * @param {{ fromPath: string, title?: string, folderNames?: Iterable<string> }} args
+ *   the placeholder's book-relative path, the song's title, and the file names
+ *   directly in its folder
+ * @returns {{ path: string, fileName: string, taken: string[] }}
+ */
+export function firstSaveName({ fromPath, title = '', folderNames = [] }) {
+  const slash = fromPath.lastIndexOf('/');
+  const prefix = slash >= 0 ? fromPath.slice(0, slash + 1) : '';
+  const fromName = fromPath.slice(slash + 1);
+  const taken = [...folderNames].filter((n) => n !== fromName);
+  const fileName = deriveSongFilename(title, taken);
+  return { path: `${prefix}${fileName}`, fileName, taken };
+}
+
+/**
  * The file name a *keep both, for a song* resolution writes beside a kept song,
  * named for the other writer: `<stem>-<slug of author>.cifra.md` (workflow 9
  * §Keep both, for a song; sync.keep_both Decision 4). So *Roda de rua* kept by

@@ -100,3 +100,8 @@ title, under the same message.
 and from then on the song is an ordinary one: editing it is workflow 4. Like
 every save, it commits and then pushes — at once if there is a network, at the
 next sync if not (workflow 4, §Save pushes).
+
+Before it does, the save says where the song goes: the book, and the file
+name it will take — with its `-2` if the name is taken — shown, not editable,
+with *Named once, from the title. Changing the title later edits its heading,
+not the file.* The book is changed from the line above the editor, not here.

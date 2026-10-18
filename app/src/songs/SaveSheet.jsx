@@ -39,6 +39,7 @@ import {
   Label,
   Modal,
   ModalOverlay,
+  Text,
   TextArea,
   TextField,
 } from 'react-aria-components';
@@ -48,10 +49,24 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import DiffRows from './DiffRows.jsx';
 import { MakeYourOwnBody } from '../books/MakeYourOwn.jsx';
 import { buildSaveNote } from './save-note.js';
+import { deriveSongFilename } from './song-filename.js';
 import './save-sheet.css';
 
 // The editable commit form, mounted only while the sheet is open.
-function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, titleHint, revision, panel, beforeSave }) {
+function SaveForm({
+  store,
+  close,
+  onClose,
+  bookId,
+  bookLabel,
+  paths,
+  isNew,
+  fromPath,
+  titleHint,
+  revision,
+  panel,
+  beforeSave,
+}) {
   const savePreview = useSlice(store, 'savePreview');
   const preferences = useSlice(store, 'preferences');
 
@@ -97,6 +112,15 @@ function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, title
   const [authorName, setAuthorName] = useState('');
   const [songName, setSongName] = useState('');
   const noteValue = note ?? defaultNote;
+
+  // The name the first save gives the file (songs.first_save_fields Constraint
+  // 3): the Worker's, unless the user is naming a title-less song here — then
+  // the typed name folded against the folder's names the preview carried, the
+  // same pure function the Worker runs, so it follows each keystroke.
+  const fileName =
+    needsSongName && songName.trim()
+      ? deriveSongFilename(songName, firstPreview?.taken ?? [])
+      : (firstPreview?.fileName ?? '');
 
   const nameMissing = needsName && !authorName.trim();
   const songNameMissing = needsSongName && !songName.trim();
@@ -155,6 +179,24 @@ function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, title
           <Input className="input" />
           <span className="t-small">{t('saveSheet.songNameHelp')}</span>
         </TextField>
+      )}
+
+      {isNew && (
+        // Where the song goes, shown, not chosen (W03#4 L179-187; Decision 3):
+        // the book is changed from the line above the editor.
+        <>
+          <TextField className="field" value={bookLabel} isReadOnly>
+            <Label>{t('saveSheet.bookLabel')}</Label>
+            <Input className="input est-save-readonly" />
+          </TextField>
+          <TextField className="field" value={fileName} isReadOnly>
+            <Label>{t('saveSheet.fileNameLabel')}</Label>
+            <Input className="input t-mono est-save-readonly" />
+            <Text slot="description" className="t-small">
+              {t('saveSheet.fileNameHelp')}
+            </Text>
+          </TextField>
+        </>
       )}
 
       <div className="t-h3">{t('saveSheet.whatChanged')}</div>
@@ -264,6 +306,7 @@ function SheetContent({
         close={close}
         onClose={onClose}
         bookId={forkedTo ?? bookId}
+        bookLabel={bookLabel}
         titleHint={titleHint}
         {...form}
       />
