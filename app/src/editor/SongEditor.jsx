@@ -88,6 +88,18 @@ export default function SongEditor({
   layoutMode,
   editorRef,
   flushRef,
+  // A host-owned chrome (songs.editor_chrome Constraints 2-4, 8): the host
+  // draws Save in its own header and calls the editor's gate through
+  // `saveRef`; on a phone it draws Add section in its bottom bar and calls it
+  // through `addSectionRef`. With either ref the editor draws no button of its
+  // own for it. `onTitleChange` hears the parsed `#` title (null when the text
+  // has none), `onWrite` each WRITE the editor sends, and `showPreview={false}`
+  // hides the wide preview (the computer's save panel sits there instead).
+  saveRef,
+  addSectionRef,
+  onTitleChange,
+  onWrite,
+  showPreview: previewAllowed = true,
 }) {
   const preferences = useSlice(store, 'preferences');
   const sourceSlice = useSlice(store, 'source');
@@ -98,7 +110,7 @@ export default function SongEditor({
   // from the live buffer (Decision 2). CodeMirror owns the editable truth; this
   // follows it through the update listener.
   const [text, setText] = useState('');
-  const [showPreview, setShowPreview] = useState(false);
+  const [previewTab, setPreviewTab] = useState(false);
   const [saveError, setSaveError] = useState(null); // { line, code } | null
   const [pasteNotice, setPasteNotice] = useState(null); // { titled } | null
   // A background sync merged a new version under the unsaved buffer (sync.unsaved
@@ -131,6 +143,7 @@ export default function SongEditor({
   const changeHandlerRef = useRef(() => {});
   const pasteHandlerRef = useRef(() => false);
   const writeTimer = useRef(null);
+  const onWriteRef = useRef(onWrite);
   const pendingWrite = useRef(null);
   const loadedKey = useRef(null);
   // Whether the buffer holds its first document yet (the mirrored `text` is ''
@@ -150,6 +163,7 @@ export default function SongEditor({
         writeTimer.current = null;
         pendingWrite.current = null;
         store.send(command(CommandKind.WRITE, { bookId, path, text: value }));
+        onWriteRef.current?.();
       }, WRITE_DEBOUNCE_MS);
     },
     [store, bookId, path],
@@ -167,14 +181,16 @@ export default function SongEditor({
     }
     if (pendingWrite.current != null && bookId && path) {
       store.send(command(CommandKind.WRITE, { bookId, path, text: pendingWrite.current }));
+      pendingWrite.current = null;
+      onWriteRef.current?.();
     }
-    pendingWrite.current = null;
   }, [store, bookId, path]);
 
   // CodeMirror's extensions are built once but must call the latest handlers
   // (they close over the current props). The refs are updated in an
   // effect — never during render — and read lazily when an edit or paste fires.
   useEffect(() => {
+    onWriteRef.current = onWrite;
     changeHandlerRef.current = (value) => {
       setText(value);
       // Any edit clears a stale save-stop notice and a stale paste notice; a
@@ -351,6 +367,15 @@ export default function SongEditor({
   // is happy to normalise.
   const blockers = useMemo(() => saveBlockers(parsed.diagnostics, path), [parsed, path]);
 
+  // The host's header names the song by its title as the text has it now
+  // (songs.editor_chrome Constraint 4; workflow 4 §Editing). Reported from the
+  // parse the preview already makes (Decision 6); nothing until the buffer
+  // holds its document, so the host shows its own title meanwhile.
+  const parsedTitle = loaded ? (parsed.title ?? null) : undefined;
+  useEffect(() => {
+    if (parsedTitle !== undefined) onTitleChange?.(parsedTitle);
+  }, [onTitleChange, parsedTitle]);
+
   const addSection = () => {
     const view = viewRef.current;
     if (!view) return;
@@ -384,10 +409,12 @@ export default function SongEditor({
     view.focus();
   };
 
+  // The gate: true when the save may go ahead (a host's panel confirms only
+  // then — songs.editor_chrome Constraint 2).
   const onSavePress = () => {
     if (blockers.length > 0) {
       setSaveError({ line: blockers[0].line, code: blockers[0].code });
-      return;
+      return false;
     }
     setSaveError(null);
     // Send a still-debounced edit now: the Worker handles commands in order,
@@ -395,7 +422,20 @@ export default function SongEditor({
     // — a Save pressed within the debounce otherwise previews the older text.
     flushWrite();
     onSave?.();
+    return true;
   };
+
+  // Publish the gate and Add section to a host that draws them (Decision 7, as
+  // `flushRef` is published): re-read every render, so the gate reads the
+  // blockers of the text as it is now.
+  useEffect(() => {
+    if (saveRef) saveRef.current = onSavePress;
+    if (addSectionRef) addSectionRef.current = addSection;
+    return () => {
+      if (saveRef) saveRef.current = null;
+      if (addSectionRef) addSectionRef.current = null;
+    };
+  });
 
   const showStop = Boolean(saveError) && blockers.length > 0;
   let stopMessage = '';
@@ -403,8 +443,11 @@ export default function SongEditor({
     stopMessage = t(stopMessageKey(saveError.code), { line: saveError.line });
   }
 
-  const showEditorPane = !(mode === 'narrow' && showPreview);
-  const showPreviewPane = mode === 'wide' || showPreview;
+  const narrow = mode === 'narrow';
+  const showEditorPane = !(narrow && previewTab);
+  const showPreviewPane = narrow ? previewTab : previewAllowed;
+  const hostSave = saveRef !== undefined;
+  const hostAddSection = addSectionRef !== undefined;
 
   return (
     <div className="est-editor">
@@ -415,8 +458,8 @@ export default function SongEditor({
             aria-label={t('editor.source.viewToggle')}
             selectionMode="single"
             disallowEmptySelection
-            selectedKeys={[showPreview ? 'preview' : 'text']}
-            onSelectionChange={(keys) => setShowPreview(keys.has('preview'))}
+            selectedKeys={[previewTab ? 'preview' : 'text']}
+            onSelectionChange={(keys) => setPreviewTab(keys.has('preview'))}
           >
             <ToggleButton id="text">{t('editor.source.text')}</ToggleButton>
             <ToggleButton id="preview">{t('editor.source.preview')}</ToggleButton>
@@ -425,14 +468,20 @@ export default function SongEditor({
         {/* The actions wrap beneath the switch as a unit when they do not fit
             beside it, Save last and right-aligned (shell.narrow_fit
             Decision 5; W14#2, W04 phone). */}
-        <div className="est-editor-bar-actions">
-          <Button className="btn" onPress={addSection}>
-            {t('editor.source.addSection')}
-          </Button>
-          <Button className="btn primary" onPress={onSavePress}>
-            {t('editor.source.save')}
-          </Button>
-        </div>
+        {hostSave && hostAddSection ? null : (
+          <div className="est-editor-bar-actions">
+            {hostAddSection ? null : (
+              <Button className="btn" onPress={addSection}>
+                {t('editor.source.addSection')}
+              </Button>
+            )}
+            {hostSave ? null : (
+              <Button className="btn primary" onPress={onSavePress}>
+                {t('editor.source.save')}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {pasteNotice && (
@@ -491,7 +540,7 @@ export default function SongEditor({
         </div>
       )}
 
-      <div className={`est-editor-body${mode === 'wide' ? ' split' : ''}`}>
+      <div className={`est-editor-body${!narrow && previewAllowed ? ' split' : ''}`}>
         <div className="est-editor-pane" hidden={!showEditorPane}>
           <div ref={containerRef} className="est-cm" />
         </div>

@@ -280,6 +280,14 @@ export async function settleEdits(page) {
   await page.waitForTimeout(800);
 }
 
+// Where the save opens (songs.editor_chrome Constraint 7): a bottom sheet on a
+// phone and a centred dialog on a tablet (both `role="dialog"`), and for a saved
+// song on a computer an inline panel beside it — a region named *Save {title}*,
+// or the make-it-your-own offer in that same panel. Whichever opened.
+export function saveSurface(page) {
+  return page.getByRole('dialog').or(page.getByRole('region', { name: /^Save / })).or(page.locator('.est-save-panel'));
+}
+
 // The editor's Save → the save sheet → its Save, with an optional note. The
 // first save on a device asks for the author's name (workflow 4 §Who made the
 // change); `name` answers it. Waits for the sheet to close (the commit landed).
@@ -287,7 +295,7 @@ export async function settleEdits(page) {
 // axe, a mockup() snapshot).
 export async function saveThroughSheet(page, { note, name = 'Marina Souza', onSheet } = {}) {
   await page.getByRole('button', { name: 'Save', exact: true }).first().click();
-  const sheet = page.getByRole('dialog');
+  const sheet = saveSurface(page);
   await expect(sheet).toBeVisible();
   const nameField = sheet.getByRole('textbox', { name: /Your name/ });
   if (await nameField.count()) await nameField.fill(name);

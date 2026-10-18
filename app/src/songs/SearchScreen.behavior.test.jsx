@@ -372,4 +372,31 @@ describe('SearchScreen (behavior)', () => {
 
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
+
+  it('nothing matched: what was searched, Create, and the paste hint (W03#1 L40-46; workflow 3 §Ways in L15-17)', async () => {
+    const { store, emit } = makeStore();
+    const AT = '2026-10-18T00:00:00.000Z';
+    emit(
+      event(EventKind.SHELF, {
+        books: { 'srv-b': { label: { value: 'Banda do Bairro', at: AT }, position: { value: 1, at: AT } } },
+        local: { 'local-my-songs': { title: { value: 'My songs', at: AT }, position: { value: 0, at: AT } } },
+      }),
+    );
+    const { container } = render(<SearchScreen store={store} />);
+
+    type('Brisa de Março');
+    emit(event(EventKind.SEARCH_RESULTS, { query: 'Brisa de Março', results: [] }));
+
+    expect(screen.getByRole('heading', { level: 2, name: 'No songs match' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Searched titles, artists, sections, words and chords in My songs and Banda do Bairro.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create .Brisa de Março./ })).toBeInTheDocument();
+    expect(screen.getByText('Or paste a whole song, copied from anywhere, into a new one.')).toBeInTheDocument();
+    // The paste hint is plain text, not a control.
+    expect(screen.queryByRole('button', { name: /paste/i })).toBeNull();
+    // The status line still announces the miss.
+    expect(screen.getByRole('status')).toHaveTextContent('No songs match “Brisa de Março”.');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
 });

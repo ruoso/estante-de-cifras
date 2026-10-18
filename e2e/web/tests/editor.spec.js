@@ -85,7 +85,9 @@ test('pasting a cifra outside a fence wraps it in a fence, with an Undo (real cl
   await page.keyboard.press('Control+End');
   await page.keyboard.press('Control+v');
 
-  await expect(page.getByRole('status')).toBeVisible();
+  // The paste notice — on a phone the new song's unsaved strip is a status too
+  // (songs.editor_chrome).
+  await expect(page.getByRole('status').filter({ hasText: 'inside a fence' })).toBeVisible();
   await expect(content).toContainText('```');
   await expect(content).toContainText('Am  G  F  E7');
   await mockup(page, 'W03-write-a-new-song', 3); // pasted cifra, fenced, with Undo

@@ -11,7 +11,9 @@ when someone else changed it too is workflows 8 and 9.
 A song opens to be read; *edit* opens the editor on its text (workflow 3
 describes the editor). Every change goes to the working copy as it is made,
 and the song shows *unsaved changes* — in its own header, and as a badge in
-search — until it is saved or the changes are discarded. Leaving the song,
+search — until it is saved or the changes are discarded; on a phone the
+header says it on a line of its own, *unsaved changes · Kept on this device*.
+The header names the song by its title as the text has it now. Leaving the song,
 closing the tab or turning off the phone loses nothing, and so asks nothing.
 
 **There is one kind of unsaved change, whatever made it.** Typing in the
@@ -34,6 +36,14 @@ with the file it saves instead: *Update README.md*. A note the user clears
 commits with that same line; a save is never left without a message. A save
 that cannot be made says so on the sheet — *Not saved* — and keeps the
 changes in the working copy, so the user can save again.
+
+Where the sheet sits follows the device. On a phone it is a sheet from the
+bottom; on a tablet, and for a new song's first save on a computer (workflow
+3), a dialog in the middle of the screen; on a computer, a panel beside the
+song, so the text stays in reach while the save is looked at — what it shows
+follows the text as it is edited, and a note the user typed is kept. Beside
+the song on a computer is also the list of every song with unsaved changes,
+on any book of the shelf, a step away from each other.
 
 Confirming commits the one file, with the note as the commit message. Two
 taps rather than one, because a save is a version the user chose to keep,

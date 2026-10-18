@@ -628,3 +628,114 @@ describe('SongEditor', () => {
     expect(sent.filter((m) => m.kind === CommandKind.OPEN_SOURCE).length).toBe(openSourceBefore);
   });
 });
+
+// songs.editor_chrome Constraints 2-4, 8; editor Decision 10: the seams a host
+// that draws its own header uses.
+describe('SongEditor under a host-owned chrome', () => {
+  const SONG = '# Tarde Clara\n\n## A\n```\nC | G\n```\n';
+
+  async function mountSong(props = {}) {
+    const env = makeStore();
+    const editorRef = { current: null };
+    const utils = render(
+      <SongEditor store={env.store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} {...props} />,
+    );
+    env.emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: SONG }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(SONG));
+    return { ...env, ...utils, editorRef };
+  }
+
+  it('reports the parsed title as it changes', async () => {
+    const onTitleChange = vi.fn();
+    const { editorRef } = await mountSong({ onTitleChange, onSave: () => {} });
+    // On mount, once the text is in.
+    expect(onTitleChange).toHaveBeenLastCalledWith('Tarde Clara');
+
+    const heading = () => editorRef.current.state.doc.line(1);
+    act(() => editorRef.current.dispatch({ changes: { from: heading().from, to: heading().to, insert: '# Maré Mansa' } }));
+    expect(onTitleChange).toHaveBeenLastCalledWith('Maré Mansa');
+
+    // The heading gone: null, so the host falls back to its own title.
+    act(() => editorRef.current.dispatch({ changes: { from: heading().from, to: heading().to, insert: '' } }));
+    expect(onTitleChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it('a host-owned Save: the gate through saveRef, Add section through addSectionRef, onWrite, showPreview', async () => {
+    const onSave = vi.fn();
+    const onWrite = vi.fn();
+    const saveRef = { current: null };
+    const addSectionRef = { current: null };
+    const { container, editorRef, sent, rerender, store } = await mountSong({
+      onSave,
+      onWrite,
+      saveRef,
+      addSectionRef,
+    });
+
+    // The bar draws neither: the host does.
+    const bar = container.querySelector('.est-editor-bar');
+    expect(within(bar).queryByRole('button', { name: t('editor.source.save') })).toBeNull();
+    expect(within(bar).queryByRole('button', { name: t('editor.source.addSection') })).toBeNull();
+
+    // The published Add section inserts a section.
+    act(() => addSectionRef.current());
+    expect(editorRef.current.state.doc.toString()).toMatch(/## \n```\n\n```\n?$/);
+
+    // A debounced write fires onWrite after the WRITE is sent.
+    const writes = () => sent.filter((m) => m.kind === CommandKind.WRITE).length;
+    const before = writes();
+    await waitFor(() => expect(onWrite).toHaveBeenCalled(), { timeout: 2000 });
+    expect(writes()).toBe(before + 1);
+
+    // The gate: clean text calls onSave and says so.
+    let passed;
+    act(() => {
+      passed = saveRef.current();
+    });
+    expect(passed).toBe(true);
+    expect(onSave).toHaveBeenCalledTimes(1);
+
+    // A voicing the reader cannot read: the stop, no onSave.
+    act(() =>
+      editorRef.current.dispatch({
+        changes: {
+          from: editorRef.current.state.doc.length,
+          insert: '\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- Em: 02200\n',
+        },
+      }),
+    );
+    act(() => {
+      passed = saveRef.current();
+    });
+    expect(passed).toBe(false);
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('alert')).toHaveTextContent(t('editor.source.notSaved'));
+
+    // The wide preview shows by default and hides with showPreview={false}.
+    expect(screen.getByRole('region', { name: t('editor.source.preview') })).toBeInTheDocument();
+    rerender(
+      <SongEditor
+        store={store}
+        bookId={BOOK}
+        path={PATH}
+        layoutMode="wide"
+        editorRef={editorRef}
+        onSave={onSave}
+        onWrite={onWrite}
+        saveRef={saveRef}
+        addSectionRef={addSectionRef}
+        showPreview={false}
+      />,
+    );
+    expect(screen.queryByRole('region', { name: t('editor.source.preview') })).toBeNull();
+    expect(container.querySelector('.est-editor-body')).not.toHaveClass('split');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('without the refs the bar keeps its own Add section and Save', async () => {
+    const { container } = await mountSong({ onSave: () => {} });
+    const bar = container.querySelector('.est-editor-bar');
+    expect(within(bar).getByRole('button', { name: t('editor.source.save') })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: t('editor.source.addSection') })).toBeInTheDocument();
+  });
+});

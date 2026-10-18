@@ -147,8 +147,15 @@ task songs "Songs" {
   task editor_chrome "The editor host as drawn" {
     effort 2d
     allocate team
+    complete 100
     depends !editor, !new_song, !save_sheet
-    note "From the W03 and W04 boards: on a phone the editor header truncates the title to a letter and carries Discard changes, where the board has the title and Save; the header keeps Untitled song after the first heading already names the song; the unsaved strip (unsaved changes · Kept on this device) is missing; on a computer the editor is one column without the board's unsaved list and save panel, and the first-save sheet is a bottom sheet where the board centres a dialog; the no-match search state lacks the paste hint (workflow 3 Ways in). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the title follows the heading; the unsaved strip; axe); e2e-web (writing and editing on the three viewports, mockup W03#1-4, W04#1-4)."
+    note "From the W03 and W04 boards: on a phone the editor header truncates the title to a letter and carries Discard changes, where the board has the title and Save; the header keeps Untitled song after the first heading already names the song; the unsaved strip (unsaved changes · Kept on this device) is missing; on a computer the editor is one column without the board's unsaved list and save panel, and the first-save sheet is a bottom sheet where the board centres a dialog; the no-match search state lacks the paste hint (workflow 3 Ways in). Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the title follows the heading; the unsaved strip; axe); e2e-web (writing and editing on the three viewports, mockup W03#1-4, W04#1-4). Refinement: tasks/refinements/songs/editor_chrome.md"
+  }
+  task first_save_fields "The first-save dialog names the book and the file" {
+    effort 0.5d
+    allocate team
+    depends !editor_chrome
+    note "W03#4 draws Book and a read-only File name (Named once, from the title. Changing the title later edits its heading, not the file.) in the first-save dialog; SAVE_PREVIEW for a new song must carry the filename NAME_AND_SAVE would take (deriveSongFilename with the folder's collision suffix), and the dialog shows it with the book. Source-of-debt: tasks/refinements/songs/editor_chrome.md (Decision 9; workflow 3 The first save; W03 board frame 4). Tests: unit (the Worker's preview filename, with a collision); behavior (the dialog shows Book and File name, the name follows the title); e2e-web (W03#4 with the fields)."
   }
   task song_notation_views "Every view reads a song in its own notation" {
     effort 0.5d

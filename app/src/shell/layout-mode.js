@@ -62,6 +62,13 @@ export const ACCOUNT_WIDE_QUERY = '(min-width: 1080px)';
 // frame (#3) draws no split.
 export const INSTRUMENTS_WIDE_QUERY = '(min-width: 1080px)';
 
+// The song editor's computer columns (songs.editor_chrome Decision 8; W04#4
+// L162-207): a 300px *Unsaved* pane, the text, and on Save a 360px panel beside
+// it. `300 (pane) + ~420 (text) + 360 (panel) ≈ 1080px` — the computer's width,
+// the app's line for a second column. Below it — the 712px tablet included —
+// the editor keeps one column and the save is a centred dialog (W04#3).
+export const EDITOR_WIDE_QUERY = '(min-width: 1080px)';
+
 // The three destinations, in the drawn order — Search · Books · Setlists
 // (docs/mockups/GUIDE.md line 34; W02-find-and-play.dc.html lines 55-59). This
 // array's order is the tab order; the visible labels come from i18n, keyed by

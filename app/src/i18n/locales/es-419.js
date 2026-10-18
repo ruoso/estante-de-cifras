@@ -430,6 +430,11 @@ export default {
     recent: 'Recientes',
     books: 'Libros',
     empty: 'Ninguna canción coincide con “{query}”.',
+    // The no-match state (songs.editor_chrome; W03#1 L40-46; workflow 3 §Ways in):
+    // `{books}` is the books searched, as a list in the active locale.
+    noMatch: 'Ninguna canción coincide',
+    searchedIn: 'Se buscó en títulos, artistas, secciones, letras y acordes de {books}.',
+    pasteHint: 'O pega una canción entera, copiada de cualquier lugar, en una nueva.',
     songCount: { one: '{count} canción', other: '{count} canciones' },
     stillLoading: 'cargando aún',
     voicedFor: 'con digitaciones para {instrument}',
@@ -1688,6 +1693,10 @@ export default {
     // The editor app bar's word mark while the working text differs from the last
     // saved version (sync.in_place_notices; W08#3 L96, W04 L107/L158).
     unsaved: 'cambios sin guardar',
+    // The phone's unsaved strip and the computer's Unsaved pane (songs.editor_chrome;
+    // W04#1 L35-38, W04#4 L163-168).
+    keptOnDevice: 'Guardado en este dispositivo',
+    unsavedList: 'Sin guardar',
     variationInUse: 'Variación:',
     variationLabel: 'Qué variación usar',
     variationDefault: 'Predeterminado',

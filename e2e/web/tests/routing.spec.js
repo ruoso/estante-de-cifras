@@ -6,6 +6,7 @@ import {
   editFromReading,
   scopeToBook,
   gotoTab,
+  saveSurface,
 } from '../lib/journeys.js';
 import { SONG, enterArrange } from '../lib/journeys-core.js';
 import { hostedBookWithSong } from '../lib/journeys-share.js';
@@ -140,10 +141,13 @@ test('back after a fork and a reload lands on the fork', async ({ browser, page 
     await openSongInEditor(bia.page, QUERY, SONG_TITLE);
     await addSection(bia.page, 'LeoPart');
     await bia.page.getByRole('button', { name: 'Save', exact: true }).first().click();
-    const sheet = bia.page.getByRole('dialog', { name: forkSheetTitle(BOOK) });
+    // The offer in a dialog, or in the computer's save panel (songs.editor_chrome).
+    const sheet = bia.page
+      .getByRole('dialog', { name: forkSheetTitle(BOOK) })
+      .or(bia.page.getByRole('region', { name: forkSheetTitle(BOOK) }));
     await expect(sheet).toBeVisible();
     await sheet.getByRole('button', { name: 'Make it my own' }).click();
-    const form = bia.page.getByRole('dialog');
+    const form = saveSurface(bia.page);
     await expect(form.getByRole('button', { name: 'Save', exact: true })).toBeVisible({ timeout: 15000 });
     const nameField = form.getByRole('textbox', { name: /Your name/ });
     if (await nameField.count()) await nameField.fill('Bia');

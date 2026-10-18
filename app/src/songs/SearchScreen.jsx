@@ -28,11 +28,11 @@ import {
   DisclosurePanel,
   Heading,
 } from 'react-aria-components';
-import { t } from '../i18n/index.js';
+import { t, currentLocale } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
-import { canSaveFor, saveTargetFor } from '../books/book-display.js';
+import { canSaveFor, orderedBooks, saveTargetFor } from '../books/book-display.js';
 import {
   recognizeChord,
   scopePayload,
@@ -375,6 +375,27 @@ function BookSection({
 // gave it on their shelf (storage.shelf_surface, workflow 7 L14-21), resolved
 // through `bookLabelFor` and falling back to the `bookId`; a folder scope reads
 // `book/prefix`.
+// The books a search looked in, as the locale lists them (*A, B and C*) — the
+// no-match state's *Searched … in {books}.* (W03#1 L41): the scope's books, or
+// every book on the shelf in its order — My songs alone on an empty shelf, where
+// it is listed from the start (workflow 1 §My songs). Falls back to commas where
+// Intl.ListFormat is missing.
+function searchedBooks(scope, shelf, bookIds, bookLabelFor) {
+  let ids;
+  if (Array.isArray(scope?.books)) ids = scope.books;
+  else if (scope?.bookId) ids = [scope.bookId];
+  else {
+    ids = orderedBooks(shelf).map((b) => b.id);
+    if (!ids.length) ids = bookIds;
+  }
+  const names = ids.length ? ids.map(bookLabelFor) : [t('firstRun.mySongs')];
+  try {
+    return new Intl.ListFormat(currentLocale(), { type: 'conjunction' }).format(names);
+  } catch {
+    return names.join(', ');
+  }
+}
+
 function scopeChipLabel(scope, bookLabelFor) {
   if (!scope) return '';
   if (Array.isArray(scope.books)) return scope.books.map(bookLabelFor).join(', ');
@@ -577,13 +598,13 @@ export default function SearchScreen({
                 </Button>
               </div>
             )}
-            <section className="search-section" aria-labelledby="search-matching">
-              <div className="section-label">
-                <h2 className="t-h3" id="search-matching">
-                  {t('search.matching', { query: typedQuery })}
-                </h2>
-              </div>
-              {results.length ? (
+            {results.length ? (
+              <section className="search-section" aria-labelledby="search-matching">
+                <div className="section-label">
+                  <h2 className="t-h3" id="search-matching">
+                    {t('search.matching', { query: typedQuery })}
+                  </h2>
+                </div>
                 <div className="list">
                   {results.map((r) =>
                     r.kind === 'setlist' ? (
@@ -605,34 +626,47 @@ export default function SearchScreen({
                     ),
                   )}
                 </div>
-              ) : (
-                <>
-                  {/* Nothing matched, so create it — the query becomes the title,
-                      the song goes into My songs (workflow 3 §Ways in L10-11; W03
-                      Create row, "A new song in My songs"). A primary row, like
-                      the explore row above it. */}
-                  <div className="list">
-                    <Button
-                      className="row explore"
-                      onPress={() => onWriteSong({ title: typedQuery })}
-                    >
-                      <CreateIcon />
-                      <span className="grow">
-                        <span className="name">
-                          {t('newSong.create', { query: typedQuery })}
-                        </span>
-                        <span className="meta">
-                          {t('newSong.createMeta', { book: t('firstRun.mySongs') })}
-                        </span>
-                      </span>
-                    </Button>
-                  </div>
-                  <p className="t-small empty" role="status">
-                    {t('search.empty', { query: typedQuery })}
+              </section>
+            ) : (
+              // Nothing matched (W03#1 L39-46): what was searched where, the
+              // Create row, and pasting as a way in of its own (workflow 3
+              // §Ways in L15-17). The status line announces it; the heading
+              // says it to the eye.
+              <section className="search-section search-no-match" aria-labelledby="search-no-match">
+                <div className="search-no-match-head">
+                  <h2 className="t-h2" id="search-no-match">
+                    {t('search.noMatch')}
+                  </h2>
+                  <p className="t-small">
+                    {t('search.searchedIn', { books: searchedBooks(scope, shelf, bookIds, bookLabelFor) })}
                   </p>
-                </>
-              )}
-            </section>
+                </div>
+                {/* Nothing matched, so create it — the query becomes the title,
+                    the song goes into My songs (workflow 3 §Ways in L10-11; W03
+                    Create row, "A new song in My songs"). A primary row, like
+                    the explore row above it. */}
+                <div className="list">
+                  <Button
+                    className="row explore"
+                    onPress={() => onWriteSong({ title: typedQuery })}
+                  >
+                    <CreateIcon />
+                    <span className="grow">
+                      <span className="name">
+                        {t('newSong.create', { query: typedQuery })}
+                      </span>
+                      <span className="meta">
+                        {t('newSong.createMeta', { book: t('firstRun.mySongs') })}
+                      </span>
+                    </span>
+                  </Button>
+                </div>
+                <p className="t-small empty">{t('search.pasteHint')}</p>
+                <p className="visually-hidden" role="status">
+                  {t('search.empty', { query: typedQuery })}
+                </p>
+              </section>
+            )}
           </>
         ) : showsFirstRun(bookIds, recentItems) ? (
           // The cold door: an empty shelf and no recents (account.first_run,

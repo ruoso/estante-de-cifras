@@ -1199,6 +1199,7 @@ export default function AppShell({
         mode={mode}
         onBack={() => back(closers.editor)}
         onOpenHistory={setHistory}
+        onEdit={({ bookId, path, title }) => setEditingSong({ bookId, path, songTitle: title ?? '' })}
         editorRef={editorRef}
       />
     );

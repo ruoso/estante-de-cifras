@@ -28,3 +28,29 @@
   font-weight: 700;
   color: var(--ink);
 }
+
+/* The centred dialog (the tablet, and a new song's first save on a computer —
+   W03#4 L176-197): the theme's `.dialog`, kept inside a short screen. */
+.est-save-dialog {
+  max-width: calc(100vw - var(--u) * 4);
+  max-height: calc(100vh - var(--u) * 4);
+  overflow: auto;
+}
+
+/* The computer's inline save panel beside the song (W04#4 L186-207): a 360px
+   column with a hairline on its left, the form stacked in it, scrolling on its
+   own. */
+.est-save-panel {
+  width: 360px;
+  border-right: 0;
+  border-left: 1px solid var(--line);
+  padding: calc(var(--u) * 2.5);
+  gap: calc(var(--u) * 1.75);
+  overflow: auto;
+}
+
+.est-save-panel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+}

@@ -2,7 +2,7 @@
 // Built on lib/journeys.js; real-UI only.
 
 import { expect } from '@playwright/test';
-import { openExampleBook, openSongFromSearch, openSongInEditor, saveThroughSheet } from './journeys.js';
+import { openExampleBook, openSongFromSearch, openSongInEditor, saveSurface, saveThroughSheet } from './journeys.js';
 
 // Add a new section before the song's FIRST section heading — a clean,
 // canonicalisable change ("section added"). `mark` names it. Uses insertText
@@ -24,10 +24,11 @@ export async function replaceSong(page, text) {
   await page.keyboard.insertText(text);
 }
 
-// The editor's Save -> the open save sheet (not confirmed).
+// The editor's Save -> the open save surface (not confirmed): the sheet, the
+// dialog or the computer's panel, whichever opened (saveSurface).
 export async function openSaveSheet(page) {
   await page.getByRole('button', { name: 'Save', exact: true }).first().click();
-  const sheet = page.getByRole('dialog');
+  const sheet = saveSurface(page);
   await expect(sheet).toBeVisible();
   return sheet;
 }
@@ -35,7 +36,7 @@ export async function openSaveSheet(page) {
 // Confirm an open save sheet: answer the one-time name prompt if asked, an
 // optional note, then Save, and wait for it to close.
 export async function confirmSheet(page, { note, name = 'Marina Souza' } = {}) {
-  const sheet = page.getByRole('dialog');
+  const sheet = saveSurface(page);
   const nameField = sheet.getByRole('textbox', { name: /Your name/ });
   if (await nameField.count()) await nameField.fill(name);
   if (note !== undefined) await sheet.getByRole('textbox', { name: 'Note' }).fill(note);

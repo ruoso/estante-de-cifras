@@ -15,17 +15,26 @@
 // interactive part is a React Aria Component with a keyboard path and a label;
 // the diff rows are localized (Decision 3), the saved note stays neutral English.
 //
+// Where it sits follows the device (songs.editor_chrome Constraint 7; workflow 4
+// §Saving): `presentation="sheet"` a bottom sheet (the phone, W04#2), `"dialog"`
+// a centred dialog (the tablet, and a new song's first save on a computer,
+// W03#4), `"panel"` a labelled region beside the song with no overlay (a saved
+// song on a computer, W04#4) — one `SaveForm` in all three. The panel sits
+// beside text still being edited, so a new `revision` re-asks the preview; an
+// untouched note follows it, a typed one is kept.
+//
 // The editable form lives in an inner component mounted only while the sheet is
 // open (RAC renders the Dialog's children only when the overlay is open), so its
 // state is fresh each time — no reset effect. RAC overlays portal into the `.est`
 // token root app-wide (shell.portal_provider), so the sheet carries the theme
 // with no per-screen portal (memory: rac-overlays-portal-outside-est-theme-root).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Dialog,
   Heading,
+  HeadingContext,
   Input,
   Label,
   Modal,
@@ -42,7 +51,7 @@ import { buildSaveNote } from './save-note.js';
 import './save-sheet.css';
 
 // The editable commit form, mounted only while the sheet is open.
-function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, titleHint }) {
+function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, titleHint, revision, panel, beforeSave }) {
   const savePreview = useSlice(store, 'savePreview');
   const preferences = useSlice(store, 'preferences');
 
@@ -51,12 +60,13 @@ function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, title
     [isNew, fromPath, paths],
   );
 
-  // Ask the Worker for the preview once, on open (this body mounts on open).
+  // Ask the Worker for the preview on open (this body mounts on open), and again
+  // on each new `revision` — the text moved under an open panel (Constraint 8).
   useEffect(() => {
     if (previewPaths.length) {
       store.send(command(CommandKind.PREVIEW_SAVE, { bookId, paths: previewPaths }));
     }
-  }, [store, bookId, previewPaths]);
+  }, [store, bookId, previewPaths, revision]);
 
   // The save landed: close (filtered to this book, so another book's save never
   // closes it). SAVE_REFUSED is the Worker's backstop — surface it, stay open; a
@@ -94,6 +104,9 @@ function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, title
 
   const confirm = () => {
     if (!canConfirm) return;
+    // The editor's gate, again: beside an open panel the text may have moved
+    // to something that cannot be saved (songs.editor_chrome Constraint 2).
+    if (beforeSave && !beforeSave()) return;
     const name = (storedName ?? authorName.trim()) || '';
     if (needsName) {
       store.send(command(CommandKind.SET_IDENTITY_NAME, { name }));
@@ -179,14 +192,27 @@ function SaveForm({ store, close, onClose, bookId, paths, isNew, fromPath, title
 
       <p className="t-small">{t('saveSheet.pushCaption')}</p>
 
-      <div className="actions">
-        <Button className="btn" onPress={close}>
-          {t('saveSheet.cancel')}
-        </Button>
-        <Button className="btn primary" isDisabled={!canConfirm} onPress={confirm}>
-          {t('saveSheet.save')}
-        </Button>
-      </div>
+      {panel ? (
+        // W04#4 L206: the panel's one full-width Save; it closes with Escape
+        // or the quiet Cancel under it, the text stays in reach beside it.
+        <div className="est-save-panel-actions">
+          <Button className="btn primary block" isDisabled={!canConfirm} onPress={confirm}>
+            {t('saveSheet.save')}
+          </Button>
+          <Button className="btn quiet block" onPress={close}>
+            {t('saveSheet.cancel')}
+          </Button>
+        </div>
+      ) : (
+        <div className="actions">
+          <Button className="btn" onPress={close}>
+            {t('saveSheet.cancel')}
+          </Button>
+          <Button className="btn primary" isDisabled={!canConfirm} onPress={confirm}>
+            {t('saveSheet.save')}
+          </Button>
+        </div>
+      )}
     </>
   );
 }
@@ -207,14 +233,16 @@ function SheetContent({
   bookLabel,
   titleHint,
   onMakeYourOwn,
+  grip,
   ...form
 }) {
   const [mustFork] = useState(canSave === false);
   const [forkedTo, setForkedTo] = useState(null);
+  const gripMark = grip ? <div className="grip" aria-hidden="true" /> : null;
   if (mustFork && !forkedTo) {
     return (
       <>
-        <div className="grip" aria-hidden="true" />
+        {gripMark}
         <MakeYourOwnBody
           store={store}
           bookId={bookId}
@@ -230,7 +258,7 @@ function SheetContent({
   }
   return (
     <>
-      <div className="grip" aria-hidden="true" />
+      {gripMark}
       <SaveForm
         store={store}
         close={close}
@@ -240,6 +268,39 @@ function SheetContent({
         {...form}
       />
     </>
+  );
+}
+
+// The computer's inline panel (W04#4 L186-207): a region named by its heading,
+// not a dialog — the editor beside it stays editable. Opening it moves focus to
+// its heading; Escape inside it closes it (the host returns focus to its Save).
+function SavePanel({ onClose, ...content }) {
+  const headingId = useId();
+  const sectionRef = useRef(null);
+  useEffect(() => {
+    sectionRef.current?.querySelector(`[id="${headingId}"]`)?.focus();
+  }, [headingId]);
+  return (
+    // The Escape is a shortcut on the region the panel's own controls sit in;
+    // every control inside is a RAC control with its own keyboard path.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+    <section
+      ref={sectionRef}
+      className="pane side est-save-panel"
+      aria-labelledby={headingId}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
+    >
+      {/* Both bodies head themselves with a `slot="title"` Heading; outside a
+          Dialog the slot is filled here, so the region is named by it. */}
+      <HeadingContext.Provider value={{ slots: { title: { id: headingId, tabIndex: -1 } } }}>
+        <SheetContent close={onClose} onClose={onClose} {...content} />
+      </HeadingContext.Provider>
+    </section>
   );
 }
 
@@ -260,6 +321,9 @@ export default function SaveSheet({
   bookLabel = '',
   canSave = true,
   onMakeYourOwn = () => {},
+  presentation = 'sheet',
+  revision = 0,
+  beforeSave,
 }) {
   // A stable accessible name for the overlay, independent of the preview
   // arriving; the make-it-your-own offer is named by its own heading.
@@ -270,32 +334,37 @@ export default function SaveSheet({
         ? t('saveSheet.titleAll', { count: paths.length })
         : t('saveSheet.title', { title: titleHint || t('newSong.untitled') });
 
+  const content = {
+    store,
+    bookId,
+    canSave,
+    bookLabel,
+    titleHint,
+    onMakeYourOwn,
+    paths,
+    isNew,
+    fromPath,
+    revision,
+    beforeSave,
+  };
+
+  if (presentation === 'panel') {
+    return isOpen ? <SavePanel onClose={onClose} {...content} panel /> : null;
+  }
+
+  const sheet = presentation !== 'dialog';
   return (
     <ModalOverlay
-      className="scrim"
+      className={sheet ? 'scrim' : 'scrim center'}
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
       isDismissable
     >
-      <Modal className="sheet est-save-sheet">
+      <Modal className={sheet ? 'sheet est-save-sheet' : 'dialog est-save-sheet est-save-dialog'}>
         <Dialog aria-label={label}>
-          {({ close }) => (
-            <SheetContent
-              store={store}
-              close={close}
-              onClose={onClose}
-              bookId={bookId}
-              canSave={canSave}
-              bookLabel={bookLabel}
-              titleHint={titleHint}
-              onMakeYourOwn={onMakeYourOwn}
-              paths={paths}
-              isNew={isNew}
-              fromPath={fromPath}
-            />
-          )}
+          {({ close }) => <SheetContent close={close} onClose={onClose} grip={sheet} {...content} />}
         </Dialog>
       </Modal>
     </ModalOverlay>

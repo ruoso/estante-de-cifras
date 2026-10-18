@@ -13,6 +13,7 @@ import { test, expect } from '../lib/axe.js';
 import { runOffline } from '../lib/offline.js';
 import { mockup } from '../lib/mockup.js';
 import { startApp, openExampleBook, saveThroughSheet } from '../lib/journeys.js';
+import { replaceSong } from '../lib/journeys-edit.js';
 
 // A full, canonicalisable song to type in place of the template.
 const HARBOUR = [
@@ -29,8 +30,9 @@ const HARBOUR = [
 
 // Replace the editor's template with `lines`, then save through the save sheet
 // (the first save ever asks once for the author's name; a typed title means no
-// song-name prompt, and the note prefills from the preview).
-async function typeAndSave(page, lines, { frame } = {}) {
+// song-name prompt, and the note prefills from the preview). W03#4 — the first
+// save on a computer — is framed by the header-follows-the-heading test below.
+async function typeAndSave(page, lines) {
   const content = page.locator('.cm-content');
   await expect(content).toBeVisible();
   await content.click();
@@ -40,7 +42,6 @@ async function typeAndSave(page, lines, { frame } = {}) {
   await saveThroughSheet(page, {
     onSheet: async (sheet) => {
       await expect(sheet.getByRole('textbox', { name: 'Note' })).not.toHaveValue('');
-      if (frame) await mockup(page, 'W03-write-a-new-song', frame);
     },
   });
 }
@@ -60,7 +61,7 @@ test('from the empty shelf: Write a song opens the editor on My songs, the first
   await expect(page.getByText(/In My songs/)).toBeVisible();
   await checkA11y();
 
-  await typeAndSave(page, HARBOUR, { frame: 4 });
+  await typeAndSave(page, HARBOUR);
 
   // Back on search, the song is on the shelf and findable without an unsaved
   // badge; My songs now exists as a book.
@@ -77,19 +78,35 @@ test('from the empty shelf: Write a song opens the editor on My songs, the first
 
 test('from search (no match): Create "{query}" opens the template titled with the query', async ({
   page,
-}) => {
+  checkA11y,
+}, testInfo) => {
   await startApp(page);
 
   await page.getByRole('searchbox').fill('Moonlit Pier');
+  // W03#1 (songs.editor_chrome): what was searched where, Create, and pasting
+  // as a way in of its own (workflow 3 §Ways in).
+  await expect(page.getByRole('heading', { name: 'No songs match' })).toBeVisible();
+  await expect(page.getByText(/^Searched titles, artists, sections, words and chords in /)).toBeVisible();
+  await expect(page.getByText('Or paste a whole song, copied from anywhere, into a new one.')).toBeVisible();
   await expect(page.getByRole('button', { name: /Create .Moonlit Pier./ })).toBeVisible();
   await mockup(page, 'W03-write-a-new-song', 1);
+  await checkA11y(); // the no-match state
   await page.getByRole('button', { name: /Create .Moonlit Pier./ }).click();
 
-  // The template is titled with the query.
+  // The template is titled with the query, and so is the header.
   const content = page.locator('.cm-content');
   await expect(content).toBeVisible();
   await expect(content).toContainText('Moonlit Pier');
+  const bar = page.locator('.editor-chrome > .appbar');
+  await expect(bar.locator('.title')).toHaveText('Moonlit Pier');
+  await expect(bar.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+  if (testInfo.project.name === 'phone') {
+    // Unsaved from the start: the strip under the header (Decision 2).
+    const strip = page.getByRole('status').filter({ hasText: 'Kept on this device' });
+    await expect(strip).toContainText('unsaved changes');
+  }
   await mockup(page, 'W03-write-a-new-song', 2);
+  await checkA11y(); // the new song's editor
 
   // Put a chord in the empty fence and save; the song is then findable.
   await content.click();
@@ -152,4 +169,55 @@ test('offline: a new song can be written and saved, and persists', async ({ page
       await expect(offlinePage.getByText('Harbour Lights')).toBeVisible();
     },
   });
+});
+
+// A song written for the purpose, with its own heading.
+const MARE_MANSA = [
+  '# Maré Mansa',
+  '- notation: brazilian',
+  '',
+  '## Intro',
+  '```',
+  'Am | Dm | G7 | C7M',
+  '```',
+  '',
+].join('\n');
+
+// songs.editor_chrome: the header names the song by its first heading as typed,
+// and the first save sits where the device puts it (W03#3-4; workflow 3 §The
+// first save; Decision 3).
+test('the header follows the first heading, and the first save is a dialog on tablet and computer', async ({
+  page,
+  checkA11y,
+}, testInfo) => {
+  const device = testInfo.project.name;
+  await startApp(page);
+  await page.getByRole('searchbox').fill('Brisa Leve');
+  await page.getByRole('button', { name: /Create .Brisa Leve./ }).click();
+  const bar = page.locator('.editor-chrome > .appbar');
+  await expect(bar.locator('.title')).toHaveText('Brisa Leve');
+
+  await replaceSong(page, MARE_MANSA);
+  await expect(bar.locator('.title')).toHaveText('Maré Mansa');
+  await mockup(page, 'W03-write-a-new-song', 3, { note: 'header follows the heading' });
+
+  await bar.getByRole('button', { name: 'Save', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  if (device === 'phone') {
+    await expect(page.locator('.sheet')).toBeVisible();
+  } else {
+    await expect(page.locator('.scrim.center .dialog')).toBeVisible();
+    await expect(page.locator('.sheet')).toHaveCount(0);
+  }
+  await expect(dialog.getByRole('heading', { name: 'Save Maré Mansa' })).toBeVisible();
+  await mockup(page, 'W03-write-a-new-song', 4);
+  await checkA11y(); // the first save open
+  const nameField = dialog.getByRole('textbox', { name: /Your name/ });
+  if (await nameField.count()) await nameField.fill('Marina Souza');
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog).toBeHidden();
+
+  await page.getByRole('searchbox').fill('Maré Mansa');
+  await expect(page.getByRole('button', { name: /Maré Mansa/ }).first()).toBeVisible();
 });

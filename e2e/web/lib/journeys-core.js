@@ -3,7 +3,7 @@
 // lib/journeys.js does not have. Real UI only, like journeys.js.
 
 import { expect } from '@playwright/test';
-import { settleEdits, saveThroughSheet } from './journeys.js';
+import { settleEdits, saveSurface, saveThroughSheet } from './journeys.js';
 
 export const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -78,7 +78,7 @@ export async function saveArrangementThroughSheet(page, { note, name = 'Marina S
   await expect(page.locator('.cm-content')).toBeVisible();
   await settleEdits(page);
   await page.getByRole('button', { name: 'Save', exact: true }).first().click();
-  const sheet = page.getByRole('dialog');
+  const sheet = saveSurface(page);
   await expect(sheet).toBeVisible();
   const nameField = sheet.getByRole('textbox', { name: /Your name/ });
   if (await nameField.count()) await nameField.fill(name);

@@ -17,6 +17,7 @@ import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
 import { GitDevice } from '../lib/git-device.js';
 import { mockup } from '../lib/mockup.js';
 import {
+  saveSurface,
   signedInDevice,
   makeLocalBook,
   putBookOnline,
@@ -301,7 +302,7 @@ test('a save is refused while the book needs you, and the panel says so (workflo
   await openSongInEditor(page, 'Cantiga', OTHER_TITLE);
   await typeAtEndOfLine(page, 'G | D | Em | C', ' | Am');
   await page.getByRole('button', { name: 'Save', exact: true }).first().click();
-  const sheet = page.getByRole('dialog');
+  const sheet = saveSurface(page); // the sheet, the dialog or the computer's panel
   await expect(sheet).toBeVisible();
   await sheet.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText(/Settle the conflicts in this book first/)).toBeVisible();

@@ -1,0 +1,68 @@
+/* The editor hosts' one chrome (songs.editor_chrome; W03, W04 boards). Layout
+   plumbing only: the `.appbar`, `.badge`, `.btn`, `.pane` classes are the
+   theme's (theme.css); colours are tokens, never hard-coded. Spacing is in the
+   `--u` density token. */
+
+/* The app bar's buttons keep their size; the title takes what is left and
+   ellipsizes only after they fit (shell.narrow_fit; Constraint 5). */
+.editor-chrome .appbar > .btn,
+.editor-chrome .appbar > .badge {
+  flex: none;
+}
+
+/* The phone's unsaved strip under the app bar (W04#1 L35-38): the word mark and
+   *Kept on this device*, on the unsaved tint. */
+.editor-chrome-strip {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.25);
+  padding: calc(var(--u) * 1.25) calc(var(--u) * 2);
+  background: var(--unsaved-soft);
+}
+
+.editor-chrome-strip .t-small {
+  flex: 1;
+}
+
+/* The phone's bottom bar (W04#1 L47-50): Add section and Discard changes, each
+   half the row, on the surface with a hairline over it. */
+.editor-chrome-bottom {
+  display: flex;
+  gap: calc(var(--u) * 1.25);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2) calc(var(--u) * 2.75);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.editor-chrome-bottom > .btn {
+  flex: 1;
+}
+
+/* The saved-song host's body: one column below the computer, three on it —
+   the Unsaved pane, the editor, and on Save the panel (W04#4 L162-207). */
+.edit-song-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.edit-song-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-song-main > .est-editor {
+  flex: 1;
+  min-height: 0;
+}
+
+/* The computer's Unsaved pane (W04#4 L163-168): 300px, on the surface. */
+.unsaved-pane {
+  width: 300px;
+  padding: calc(var(--u) * 2);
+  gap: calc(var(--u) * 1.5);
+  overflow: auto;
+}

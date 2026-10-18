@@ -155,7 +155,7 @@ test('Search only in a book narrows the results to it, and a reload resets the f
   await page.getByRole('searchbox').fill('Morning');
   await expect(page.getByRole('button', { name: /Morning on the Porch/ }).first()).toBeVisible();
   await page.getByRole('searchbox').fill('Moonlit');
-  await expect(page.getByText(/No songs match/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No songs match' })).toBeVisible();
 
   // Narrow to the other book instead: the same query now finds the other song
   // and the example book's is out of reach.
@@ -165,7 +165,7 @@ test('Search only in a book narrows the results to it, and a reload resets the f
   await page.getByRole('button', { name: `Search only in ${OTHER}` }).click();
   await expect(page.locator('.scope')).toContainText(OTHER);
   await page.getByRole('searchbox').fill('Morning');
-  await expect(page.getByText(/No songs match/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No songs match' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Morning on the Porch/ })).toHaveCount(0);
   await checkA11y(); // a filtered search with no result
   await page.getByRole('searchbox').fill('Moonlit');

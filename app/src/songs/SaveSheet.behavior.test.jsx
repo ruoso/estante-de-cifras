@@ -7,7 +7,7 @@
 // anyone's copyrighted words.
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { checkWcag21aa } from '../a11y/axe.js';
@@ -363,5 +363,64 @@ describe('save sheet — no summary, a cleared note, a failed save (§Saving)', 
 
     act(() => fireEvent.click(save));
     expect(commandsOf(sent, CommandKind.SAVE)).toHaveLength(2);
+  });
+});
+
+// songs.editor_chrome Constraint 7; workflow 4 §Saving (as edited): where the
+// save sits follows the device — W04#2 (sheet), W03#4 (dialog), W04#4 (panel).
+describe('save surface — one form, three presentations', () => {
+  const PROPS = { paths: ['tarde-clara.cifra.md'], titleHint: 'Tarde Clara' };
+  const fill = (emit) => {
+    withName(emit);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
+  };
+  // The parts every presentation carries: what changed, the note, Save.
+  const expectForm = (root) => {
+    expect(root).toHaveTextContent('What changed');
+    expect(root).toHaveTextContent('Primeira Parte bar 2');
+    expect(within(root).getByRole('textbox', { name: 'Note' })).toHaveValue(SUMMARY);
+    expect(within(root).getByRole('button', { name: 'Save' })).toBeInTheDocument();
+  };
+
+  it('presentation="sheet" is a bottom sheet with a grip', async () => {
+    const { store, emit } = makeStore();
+    renderSheet({ ...PROPS, presentation: 'sheet' }, store);
+    fill(emit);
+    const dialog = screen.getByRole('dialog');
+    const sheet = dialog.closest('.sheet');
+    expect(sheet).not.toBeNull();
+    expect(sheet.querySelector('.grip')).not.toBeNull();
+    expectForm(dialog);
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+  });
+
+  it('presentation="dialog" is a centred dialog, no grip', async () => {
+    const { store, emit } = makeStore();
+    renderSheet({ ...PROPS, presentation: 'dialog' }, store);
+    fill(emit);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.closest('.dialog')).not.toBeNull();
+    expect(dialog.closest('.scrim.center')).not.toBeNull();
+    expect(dialog.closest('.sheet')).toBeNull();
+    expect(dialog.querySelector('.grip')).toBeNull();
+    expectForm(dialog);
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+  });
+
+  it('presentation="panel" is a labelled region without an overlay; a new revision re-asks the preview', async () => {
+    const { store, emit, sent } = makeStore();
+    const { container, rerender } = renderSheet({ ...PROPS, presentation: 'panel' }, store);
+    fill(emit);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(container.querySelector('.scrim')).toBeNull();
+    expect(document.querySelector('.scrim')).toBeNull();
+    const panel = screen.getByRole('region', { name: 'Save Tarde Clara' });
+    expect(panel.querySelector('.grip')).toBeNull();
+    expectForm(panel);
+    expect(await checkWcag21aa(panel)).toHaveNoViolations();
+
+    const asked = commandsOf(sent, CommandKind.PREVIEW_SAVE).length;
+    rerender(<Harness store={store} open props={{ ...PROPS, presentation: 'panel', revision: 1 }} />);
+    expect(commandsOf(sent, CommandKind.PREVIEW_SAVE)).toHaveLength(asked + 1);
   });
 });

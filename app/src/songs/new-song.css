@@ -42,13 +42,3 @@
 .new-song-note {
   padding: var(--u) calc(var(--u) * 2) calc(var(--u) * 2);
 }
-
-/* The phone's unsaved strip under the edit host's app bar (W04 L35-36;
-   sync.in_place_notices): the mark alone, on the unsaved tint. */
-.edit-song-unsaved-strip {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 1.25);
-  padding: calc(var(--u) * 1.25) calc(var(--u) * 2);
-  background: var(--unsaved-soft);
-}

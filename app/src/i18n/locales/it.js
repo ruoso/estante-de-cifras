@@ -430,6 +430,11 @@ export default {
     recent: 'Recenti',
     books: 'Libri',
     empty: 'Nessun brano corrisponde a “{query}”.',
+    // The no-match state (songs.editor_chrome; W03#1 L40-46; workflow 3 §Ways in):
+    // `{books}` is the books searched, as a list in the active locale.
+    noMatch: 'Nessun brano corrisponde',
+    searchedIn: 'Cercato tra titoli, artisti, sezioni, parole e accordi in {books}.',
+    pasteHint: 'Oppure incolla un brano intero, copiato da qualsiasi parte, in uno nuovo.',
     songCount: { one: '{count} brano', other: '{count} brani' },
     stillLoading: 'ancora in caricamento',
     voicedFor: 'con diteggiature per {instrument}',
@@ -1688,6 +1693,10 @@ export default {
     // The editor app bar's word mark while the working text differs from the last
     // saved version (sync.in_place_notices; W08#3 L96, W04 L107/L158).
     unsaved: 'modifiche non salvate',
+    // The phone's unsaved strip and the computer's Unsaved pane (songs.editor_chrome;
+    // W04#1 L35-38, W04#4 L163-168).
+    keptOnDevice: 'Conservate su questo dispositivo',
+    unsavedList: 'Non salvati',
     variationInUse: 'Variazione:',
     variationLabel: 'Quale variazione usare',
     variationDefault: 'Predefinito',

@@ -6,13 +6,15 @@
 // control. Fixtures are purpose-written — never anyone's copyrighted words.
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup, within, waitFor } from '@testing-library/react';
+import { EditorView } from '@codemirror/view';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { MY_SONGS_ID } from '../worker/my-songs.js';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { WIDE_QUERY } from '../shell/layout-mode.js';
 import AppShell from '../shell/AppShell.jsx';
+import { DEVICES, installWidths } from '../test/widths.js';
 
 // CodeMirror measures geometry jsdom lacks; stub it so the host's editor mounts
 // (real geometry is covered at e2e). Mirrors SongEditor.behavior.test.jsx.
@@ -32,7 +34,11 @@ globalThis.matchMedia = (media) => ({
   removeEventListener() {},
 });
 
-afterEach(() => cleanup());
+const pinNarrow = globalThis.matchMedia;
+afterEach(() => {
+  cleanup();
+  globalThis.matchMedia = pinNarrow;
+});
 
 const AT = '2026-10-06T00:00:00.000Z';
 
@@ -227,4 +233,70 @@ describe('the first save', () => {
     );
     expect(screen.queryByRole('button', { name: 'Change book' })).not.toBeInTheDocument();
   });
+});
+
+describe('the editor chrome on a new song (songs.editor_chrome; W03 board)', () => {
+  // Start a song from the empty shelf's Write a song, into My songs.
+  function startSong() {
+    const env = makeStore();
+    const utils = render(<AppShell store={env.store} />);
+    act(() => fireEvent.click(screen.getByRole('button', { name: /Write a song/ })));
+    env.emit(event(EventKind.SHELF, SHELF));
+    env.emit(event(EventKind.NEW_SONG_READY, { bookId: MY_SONGS_ID, path: 'untitled.cifra.md' }));
+    const view = () => EditorView.findFromDOM(utils.container.querySelector('.cm-editor'));
+    return { ...env, ...utils, view };
+  }
+  const appbarOf = (container) => container.querySelector('.appbar');
+
+  it('the header follows the first heading (the .tji note; W03#3 L91-97)', async () => {
+    const { container, view } = startSong();
+    const title = () => appbarOf(container).querySelector('.title');
+    expect(title()).toHaveTextContent('Untitled song');
+    await waitFor(() => expect(view().state.doc.toString()).toMatch(/^# \n/));
+
+    // Type the title into the template's heading.
+    act(() => {
+      const first = view().state.doc.line(1);
+      view().dispatch({ changes: { from: first.to, insert: 'Maré Mansa' } });
+    });
+    await waitFor(() => expect(title()).toHaveTextContent('Maré Mansa'));
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // Discard's question names it.
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Discard changes' })));
+    expect(screen.getByRole('dialog', { name: 'Discard changes to Maré Mansa?' })).toBeInTheDocument();
+  });
+
+  for (const device of DEVICES) {
+    it(`${device}: the first save is ${device === 'phone' ? 'a bottom sheet' : 'a centred dialog'} (W03#2 L56-82, W03#4 L176-197)`, async () => {
+      installWidths(device);
+      const { container } = startSong();
+      const appbar = appbarOf(container);
+      const strip = screen.queryByRole('status');
+      if (device === 'phone') {
+        // Unsaved from the start: the strip, above the which-book bar.
+        expect(strip).toHaveTextContent('unsaved changes');
+        expect(strip).toHaveTextContent('Kept on this device');
+        const inBook = screen.getByText(/In My songs/);
+        expect(strip.compareDocumentPosition(inBook) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(within(appbar).queryByRole('button', { name: 'Discard changes' })).toBeNull();
+      } else {
+        expect(strip).toBeNull();
+        expect(appbar).toHaveTextContent('unsaved changes');
+        expect(within(appbar).getByRole('button', { name: 'Discard changes' })).toBeInTheDocument();
+      }
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+      act(() => fireEvent.click(within(appbar).getByRole('button', { name: 'Save' })));
+      const dialog = screen.getByRole('dialog');
+      if (device === 'phone') {
+        expect(dialog.closest('.sheet')).not.toBeNull();
+      } else {
+        expect(dialog.closest('.sheet')).toBeNull();
+        expect(dialog.closest('.dialog')).not.toBeNull();
+        expect(dialog.closest('.scrim.center')).not.toBeNull();
+      }
+      expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+    });
+  }
 });

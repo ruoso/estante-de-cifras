@@ -14,7 +14,7 @@
 // (no-song-text rule).
 
 import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
-import { openSongFromSearch, openSongInEditor, syncNow, gotoTab } from '../lib/journeys.js';
+import { openSongFromSearch, openSongInEditor, saveSurface, syncNow, gotoTab } from '../lib/journeys.js';
 import {
   hostedBookWithSong,
   openSharing,
@@ -121,7 +121,10 @@ test('saving where one cannot: Save in a reader’s book offers the fork, and th
     await openSongInEditor(bia.page, QUERY, SONG_TITLE);
     await addSection(bia.page, MARK);
     await bia.page.getByRole('button', { name: 'Save', exact: true }).first().click();
-    const sheet = bia.page.getByRole('dialog', { name: SHEET_TITLE });
+    // The offer in a dialog, or in the computer's save panel (songs.editor_chrome).
+    const sheet = bia.page
+      .getByRole('dialog', { name: SHEET_TITLE })
+      .or(bia.page.getByRole('region', { name: SHEET_TITLE }));
     await expect(sheet).toBeVisible();
     await expect(sheet.getByText(`You can read ${BOOK}, but not save to it.`, { exact: false })).toBeVisible();
     expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the cannot-save sheet
@@ -129,7 +132,7 @@ test('saving where one cannot: Save in a reader’s book offers the fork, and th
 
     // Make it my own → the ordinary save form, for the fork → Save.
     await sheet.getByRole('button', { name: 'Make it my own' }).click();
-    const form = bia.page.getByRole('dialog');
+    const form = saveSurface(bia.page);
     await expect(form.getByRole('button', { name: 'Save', exact: true })).toBeVisible({ timeout: 15000 });
     const nameField = form.getByRole('textbox', { name: /Your name/ });
     if (await nameField.count()) await nameField.fill('Bia');

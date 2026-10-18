@@ -256,3 +256,16 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* The no-match state (W03#1 L39-46): the heading and what was searched, close
+   together above the Create row and the paste hint. */
+.search-no-match {
+  gap: calc(var(--u) * 1.5);
+}
+
+.search-no-match-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 2px;
+}
