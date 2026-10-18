@@ -655,7 +655,7 @@ def parse_codex_reset(text: str) -> Optional[datetime]:
         hour += 12
     elif m.group(3).lower() == "am" and hour == 12:
         hour = 0
-    now = datetime.now().astimezone()
+    now = datetime.now()
     reset = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
     if reset <= now:
         reset += timedelta(days=1)
@@ -1620,6 +1620,74 @@ def append_context_failure(block: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _docker_lines(argv: list[str]) -> list[str]:
+    """Run a docker query and return its non-empty output lines; [] if docker
+    is missing or the query fails."""
+    try:
+        proc = subprocess.run(
+            ["docker", *argv],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return []
+    if proc.returncode != 0:
+        return []
+    return [line for line in proc.stdout.splitlines() if line.strip()]
+
+
+def teardown_estante_stacks() -> None:
+    """Bring down every `estante-*` compose stack an agent left up in this
+    worktree, before the gate needs the host's network address pools.
+
+    Agents start stacks by hand (`docker compose -p estante-manual-… up`) and
+    don't always take them down; each one holds a network, and once Docker's
+    default pools run out the gate's own stack can't come up. Only stacks
+    whose compose working directory is exactly this worktree's root are
+    touched — sibling worktrees (under .claude/worktrees/) run their own
+    drivers and gates concurrently. Every `estante-*` network no container
+    uses is removed too. Failures are reported and otherwise ignored."""
+    root = str(REPO_ROOT.resolve())
+    projects = sorted({
+        project
+        for line in _docker_lines([
+            "ps", "-a", "--filter", "label=com.docker.compose.project",
+            "--format",
+            '{{.Label "com.docker.compose.project"}}\t'
+            '{{.Label "com.docker.compose.project.working_dir"}}',
+        ])
+        for project, _, working_dir in [line.partition("\t")]
+        if project.startswith("estante-") and working_dir == root
+    })
+    for project in projects:
+        print_wrapped(f"  {YELLOW}▸ tearing down leftover compose stack {project}{RESET}")
+        proc = subprocess.run(
+            ["docker", "compose", "-p", project, "down", "--volumes", "--remove-orphans"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+        if proc.returncode != 0:
+            print_wrapped(f"    {RED}✗ could not tear down {project}: {proc.stdout.strip()}{RESET}")
+
+    # Docker refuses to remove a network a container still uses, so trying
+    # every estante-* network frees only the leftovers.
+    for network in _docker_lines([
+        "network", "ls", "--filter", "name=^estante-", "--format", "{{.Name}}",
+    ]):
+        proc = subprocess.run(
+            ["docker", "network", "rm", network],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if proc.returncode == 0:
+            print_wrapped(f"  {YELLOW}▸ removed leftover network {network}{RESET}")
+
+
 def run_verification_step(name: str, argv: list[str], log_path: Path) -> int:
     """Run one verification command, teeing stdout+stderr to log_path.
     Returns the process return code. Does not raise on non-zero rc."""
@@ -1675,6 +1743,9 @@ def run_post_implementer_chain(
     while True:
         # --- verification chain ----------------------------------------------
         print_wrapped(banner(f"iter {iteration} · verification"))
+        # The implementer (or the fixer, on a loop back) may have left
+        # compose stacks up; free their networks before the gate needs one.
+        teardown_estante_stacks()
         results: list[tuple[str, int, Path]] = []
         failing: Optional[tuple[str, list[str], Path]] = None
         for name, argv in VERIFICATION_STEPS:

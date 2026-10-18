@@ -20,7 +20,10 @@ that the driver owns:
    dispatch whose `refinement_path` already exists (non-empty) on disk is
    skipped by the driver — the orchestrator gets a `(driver notice)` return
    telling it to dispatch the implementer next, and no sub-agent runs.
-3. **(implementer only) deterministic tail** — the driver runs
+3. **(implementer only) deterministic tail** — the driver first brings
+   down every `estante-*` compose stack an agent left up in this worktree
+   (and removes unused `estante-*` networks), so leaked stacks can't
+   exhaust Docker's address pools; then it runs
    `scripts/gate` (output tee'd to `logs/iter-NNNN-verify-gate.log`). On
    failure it dispatches the `fixer` sub-agent against the failing log and
    loops (cap: `MAX_FIXER_ATTEMPTS`). Once green, the driver dispatches the
