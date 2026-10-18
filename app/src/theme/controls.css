@@ -1,0 +1,56 @@
+/* Estante de Cifras — the app's own layer under the drawn visual language
+   (shell.palco_contrast). theme.css is the mockups' stylesheet verbatim; this
+   file holds what a running browser adds and a board does not, and is imported
+   once, right after theme.css (App.jsx).
+
+   1. color-scheme per theme, so the user agent's own surfaces (scrollbars,
+      native checkboxes, autofill, any unstyled control) follow the theme. It is
+      a property keyed on the theme class, not a prefers-color-scheme query:
+      light vs dark stays which theme class is applied (shell.tokens).
+   2. The boards draw rows as <div>/<label>/<a>; a React Aria `Button
+      className="row"` is a native <button>, which keeps the UA's ButtonFace
+      fill, outset border and button font. Reset every one inside .est back to
+      the .row look. All but its `button` is wrapped in :where(), so its
+      specificity is a type selector's (0,0,1): it beats the user agent (any
+      author rule does, and so does it against a page-wide `button` rule), while the
+      theme's .row / .row.sel / .row.explore and every screen's own row rules
+      (a pressed fill, a focus border, a row that draws no line of its own) keep
+      winning as they did: the selected and explore rows keep their
+      --accent-soft fill from the theme. The fill is reset by its longhands
+      (the UA sets only background-color), so it never competes with a
+      `background` shorthand drawn on the same row. Focus rings are left as each
+      screen draws them; nothing here removes an outline. */
+
+.est.theme-estante, .est.theme-current, .est.theme-caderno { color-scheme: light; }
+.est.theme-palco { color-scheme: dark; }
+
+:where(.est) button:where(.row) {
+  width: 100%;
+  background-color: transparent;
+  background-image: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+:where(.est) button:where(.row:last-child) { border-bottom: 0; }
+
+/* 3. The boards draw a notice's act (`.notice .act`: Download, Fix it, …) as a
+      word; as a React Aria Button it is a native <button> with the UA's fill,
+      border and padding — a dark ButtonFace grey under Palco's color-scheme,
+      which the amber word does not read on. Reset it to the drawn word; the
+      theme's `.notice .act` keeps its weight, colour and placement. */
+:where(.est) button:where(.act) {
+  padding: 0;
+  background-color: transparent;
+  background-image: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}

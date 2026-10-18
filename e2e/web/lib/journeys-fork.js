@@ -6,7 +6,7 @@
 // writes, no dev mounts.
 
 import { expect } from '@playwright/test';
-import { analyzeWcag21aa } from './axe.js';
+import { analyzeBothThemes } from './axe.js';
 import { enableVirtualAuthenticator, waitUntilSearchable } from './journeys.js';
 import { inviteThroughShare, acceptInvitation } from './journeys-share.js';
 import { openDevice } from './devices.js';
@@ -36,7 +36,7 @@ export async function biaJoins(browser, page, { book, role, query, songTitle }) 
 export async function makeItMyOwn(page, book) {
   const sheet = page.getByRole('dialog', { name: forkSheetTitle(book) });
   await expect(sheet).toBeVisible();
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the sheet
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the sheet
   await sheet.getByRole('button', { name: 'Make it my own' }).click();
   await expect(sheet).toBeHidden({ timeout: 15000 });
 }

@@ -13,6 +13,7 @@ import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { t } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import FileView from './FileView.jsx';
+import { injectStyles } from '../test/theme-styles.js';
 
 Range.prototype.getClientRects = function getClientRects() {
   return [];
@@ -691,5 +692,67 @@ describe('the New menu and the phone bars (books.file_view_create_menu)', () => 
       press(screen.getByRole('button', { name: t('fileView.more') }));
       expect(within(screen.getByRole('menu')).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Delete']);
     });
+  });
+});
+
+// shell.palco_contrast — in Palco the tree rows and the history's commit rows
+// kept the UA's light button fill under Palco's light ink (UI audit 2026-10-14,
+// W14). With the real stylesheets in the cascade, each `button.row` shows the
+// `.list` surface (no fill of its own) and the selected one the theme's
+// --accent-soft. Pins workflow 14 §The view, W14. The matchMedia stub matches
+// dark, so the automatic theme is Palco.
+describe('the file view in Palco (shell.palco_contrast)', () => {
+  let removeStyles;
+  beforeEach(() => {
+    removeStyles = injectStyles('files/file-view.css');
+    return () => removeStyles();
+  });
+
+  it('in Palco the tree and history rows reset the native button', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderView(store);
+    expect(container.querySelector('.est')).toHaveClass('theme-palco');
+    seedTree(emit, [
+      { path: 'mpb/valsa.cifra.md', status: null },
+      { path: 'mpb/choro.cifra.md', status: 'unsaved' },
+      { path: 'README.md', status: null },
+    ]);
+    act(() => fireEvent.click(screen.getByRole('button', { name: /valsa\.cifra\.md/ })));
+
+    const tree = container.querySelector('.file-tree');
+    const treeRows = tree.querySelectorAll('button.row');
+    expect(treeRows.length).toBeGreaterThan(2);
+    for (const row of treeRows) {
+      if (row.classList.contains('sel')) continue;
+      expect(getComputedStyle(row).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+      expect(getComputedStyle(row).borderTopStyle).toBe('none');
+    }
+    const selectedTree = within(tree).getByRole('button', { name: /valsa\.cifra\.md/ });
+    expect(selectedTree).toHaveClass('sel');
+    expect(getComputedStyle(selectedTree).background).toContain('var(--accent-soft)');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: t('fileView.historyTab') })));
+    emit(
+      event(EventKind.BOOK_LOG, {
+        bookId: BOOK,
+        commits: [
+          { commit: 'c2222222aaaa', short: 'c222222', parents: ['p1'], isMerge: false, author: { name: 'Rafael' },
+            timestamp: 1696000000, message: 'Edit Valsa', files: [{ path: 'mpb/valsa.cifra.md', status: 'modified' }] },
+          { commit: 'c1111111bbbb', short: 'c111111', parents: [], isMerge: false, author: { name: 'Bea' },
+            timestamp: 1695000000, message: 'Add Choro', files: [{ path: 'mpb/choro.cifra.md', status: 'added' }] },
+        ],
+      }),
+    );
+    act(() => fireEvent.click(screen.getByRole('button', { name: /Edit Valsa/ })));
+
+    const commitRows = container.querySelectorAll('button.row.commit-row');
+    expect(commitRows).toHaveLength(2);
+    const [opened, other] = commitRows;
+    expect(opened).toHaveClass('sel');
+    expect(getComputedStyle(opened).background).toContain('var(--accent-soft)');
+    expect(getComputedStyle(other).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    for (const row of commitRows) expect(getComputedStyle(row).borderTopStyle).toBe('none');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });

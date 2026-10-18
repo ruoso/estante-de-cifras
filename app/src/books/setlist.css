@@ -196,3 +196,11 @@
 .setlist-new-row .name {
   font-weight: 600;
 }
+
+/* The amber of the New setlist… row and of the picked row's check (W12): in a
+   stylesheet, not inline, so every colour is a theme token here. */
+.setlist-new-row .name,
+.setlist-new-row svg,
+.setlist-pick-check {
+  color: var(--accent);
+}

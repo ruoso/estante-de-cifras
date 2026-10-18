@@ -146,3 +146,7 @@ Append one `###` block per item, newest at the bottom:
 ### 2026-10-15 — Theme-picker tablet board draws two preference columns the 712px tablet cannot fit (from `account.preferences_layout`)
 - **What**: Theme-picker #3 draws two preference columns and devices beside passkeys at 792px; the app keeps the tablet as one column (refinement Decision 3) because the 712px test tablet cannot fit it.
 - **Decide**: redraw the board as one column, or choose a tablet breakpoint for the two-column layout.
+
+### 2026-10-18 — Slow test: `EnterShape.behavior.test.jsx` "opens, places…" times out at 5s in about half the full-suite runs (from `shell.palco_contrast`)
+- **What**: the implementer saw it take 4.8s (3.5s on HEAD) and time out at the 5s default about 1 run in 2 under the full app suite, stopping two gate runs before e2e. Nothing it imports changed; it passed in the driver's final gate run.
+- **Why parked**: whether to raise the case's timeout or speed up the component is a judgment call for a person.

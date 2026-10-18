@@ -12,7 +12,7 @@
 // know A's settings have gone up before the other device signs in. Book and
 // song names are written for the test (no-song-text rule).
 
-import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
+import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
 import {
   signedInDevice,
@@ -92,7 +92,7 @@ test('a second device signs in: the home book first, then the shelf fills (workf
     await expect(bookRow(b.page, 'Banda do Bairro')).toBeVisible();
     await expect(bookRow(b.page, 'Valsas')).toBeVisible();
     await mockup(b.page, 'W13-new-device', 2, { note: 'the shelf filling' });
-    expect(await analyzeWcag21aa(b.page)).toEqual([]); // axe: the filling shelf
+    expect(await analyzeBothThemes(b.page)).toEqual([]); // axe: the filling shelf
     await expect(bookRow(b.page, 'Banda do Bairro').getByText('ready', { exact: true })).toBeVisible({ timeout: 30000 });
     await expect(bookRow(b.page, 'Valsas').getByText('ready', { exact: true })).toBeVisible({ timeout: 30000 });
 
@@ -101,7 +101,7 @@ test('a second device signs in: the home book first, then the shelf fills (workf
     const onlyOnA = b.page.locator('.elsewhere-row').filter({ hasText: `Only on your ${kind}: Rascunhos` });
     await expect(onlyOnA).toBeVisible();
     await expect(onlyOnA.getByText('Put it online there to have it here.')).toBeVisible();
-    expect(await analyzeWcag21aa(b.page)).toEqual([]); // axe: the filled shelf
+    expect(await analyzeBothThemes(b.page)).toEqual([]); // axe: the filled shelf
 
     // Their songs are found in search.
     await gotoTab(b.page, 'Search');
@@ -164,7 +164,7 @@ test('a device used before signing in merges its My songs into the account’s (
     await expect(c.page.getByRole('heading', { name: /has its own My songs/ })).toBeVisible();
     const merge = c.page.getByRole('button', { name: /^Merge/ });
     await expect(merge).toBeEnabled({ timeout: 30000 });
-    expect(await analyzeWcag21aa(c.page)).toEqual([]); // axe: the choice
+    expect(await analyzeBothThemes(c.page)).toEqual([]); // axe: the choice
     await mockup(c.page, 'W13-new-device', 3, { note: 'two My songs' });
 
     // Merge: the preview — one conflict, one added.
@@ -174,7 +174,7 @@ test('a device used before signing in merges its My songs into the account’s (
     await expect(rows).toHaveCount(2);
     await expect(rows.filter({ hasText: 'Tarde Clara' }).getByText('conflict', { exact: true })).toBeVisible();
     await expect(rows.filter({ hasText: 'Noite de Lua' }).getByText('added', { exact: true })).toBeVisible();
-    expect(await analyzeWcag21aa(c.page)).toEqual([]); // axe: the preview
+    expect(await analyzeBothThemes(c.page)).toEqual([]); // axe: the preview
 
     // Merge and save: the song in both is chosen between, then it lands.
     await c.page.getByRole('button', { name: 'Merge and save' }).click({ timeout: 15000 });

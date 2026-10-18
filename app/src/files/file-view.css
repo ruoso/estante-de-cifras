@@ -134,26 +134,10 @@
   margin-top: calc(var(--u) * 1);
 }
 
-/* The tree's rows are RAC buttons — files, and now folders too, which are
- * choosable (books.file_view_create_menu Decision 5): reset the native button
- * back to the .row look, as books.css does for its rows. Kept to the border so
- * the row line stays; the theme's .row.sel marks the pressed one. */
-.file-tree button.row {
-  width: 100%;
-  background: none;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.file-tree button.row.sel {
-  background: var(--accent-soft);
-}
+/* The tree's rows are RAC buttons — files, and folders too, which are
+ * choosable (books.file_view_create_menu Decision 5). The app-wide button.row
+ * reset (theme/controls.css) draws them as the .row look, row line included;
+ * the theme's .row.sel marks the pressed one. */
 
 .file-tree .file-folder .file-folder-name {
   font-size: 13px;

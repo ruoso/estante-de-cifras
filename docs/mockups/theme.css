@@ -35,6 +35,7 @@
   --unsaved-soft: #FBEBD9;
   --conflict: #A1271B;
   --conflict-soft: #F8E1DE;
+  --conflict-ink: #FFFFFF;
   --ok: #24663D;
   --ok-soft: #DDF0E3;
   --default-dot: #FFFFFF;
@@ -62,6 +63,7 @@
   --unsaved-soft: #F7E8C8;
   --conflict: #8E1F2A;
   --conflict-soft: #F5DCDD;
+  --conflict-ink: #FFFFFF;
   --ok: #2F5E3A;
   --ok-soft: #DDEBD9;
   --default-dot: #FFFCF6;
@@ -91,6 +93,7 @@
   --unsaved-soft: #3B2A16;
   --conflict: #FF8A7A;
   --conflict-soft: #3D1F1B;
+  --conflict-ink: #1A1300;
   --ok: #7FD69B;
   --ok-soft: #1B3324;
   --default-dot: #181B1F;
@@ -152,7 +155,7 @@
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 calc(var(--u) * 2); border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 600 15px/1 var(--font-ui); white-space: nowrap; text-decoration: none; box-sizing: border-box; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.quiet { background: transparent; border-color: transparent; color: var(--accent); }
-.btn.danger { background: var(--conflict); border-color: var(--conflict); color: #FFFFFF; }
+.btn.danger { background: var(--conflict); border-color: var(--conflict); color: var(--conflict-ink); }
 .btn.icon { width: 44px; padding: 0; border-color: transparent; background: transparent; }
 .btn.block { width: 100%; }
 .field { display: flex; flex-direction: column; gap: 6px; }

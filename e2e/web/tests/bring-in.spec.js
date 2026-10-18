@@ -10,7 +10,7 @@
 // the real *unreachable* path, no network mocking. Book and song names are
 // written for these tests (no-song-text rule).
 
-import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
+import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import { openSongFromSearch, openSongInEditor, syncNow } from '../lib/journeys.js';
 import {
   hostedBookWithSong,
@@ -61,7 +61,7 @@ test('Ana’s new save brought in: offline says so and changes nothing; online i
       await expect(bia.page.getByText(`${BOOK} has 1 new save.`)).toBeVisible({ timeout: 3000 });
     }).toPass({ timeout: 30000 });
     await expect(bia.page.getByRole('button', { name: BRING_IN })).toBeVisible();
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the shelf with the button
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the shelf with the button
     await mockup(bia.page, 'W11-fork', 2);
 
     // Offline: the preview says so plainly, offers no Bring them in, and Not now
@@ -73,7 +73,7 @@ test('Ana’s new save brought in: offline says so and changes nothing; online i
       bia.page.getByText('Bringing them in needs the network. Nothing changed: connect, then try again.'),
     ).toBeVisible({ timeout: 15000 });
     await expect(bia.page.getByRole('button', { name: 'Bring them in', exact: true })).toHaveCount(0);
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the offline reply
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the offline reply
     await bia.page.getByRole('button', { name: 'Not now' }).click();
     await expect(bia.page.getByRole('heading', { name: SCREEN_TITLE })).toBeHidden();
     await expect(bia.page.getByText(`${BOOK} has 1 new save.`)).toBeVisible();
@@ -90,7 +90,7 @@ test('Ana’s new save brought in: offline says so and changes nothing; online i
     await expect(bia.page.getByRole('textbox', { name: 'Note' })).toHaveValue(
       `Bring in changes from ${BOOK}: ${SONG_TITLE}`,
     );
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the bring-in preview
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the bring-in preview
     await mockup(bia.page, 'W11-fork', 3);
 
     // Bring them in → the shelf, the count gone once it is on Estante.
@@ -103,7 +103,7 @@ test('Ana’s new save brought in: offline says so and changes nothing; online i
     // Bia's song carries Ana's section.
     await openSongFromSearch(bia.page, QUERY, SONG_TITLE);
     await expect(bia.page.locator('.reading-sheet')).toContainText(MARK);
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: reading the fork
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: reading the fork
   } finally {
     await bia.context.close();
   }
@@ -138,7 +138,7 @@ test('Bia removed from the original: the shelf badge, and the book says so with 
     await expect(
       bia.page.getByText(`This book stops following ${BOOK}; it was last brought in on ${today}.`, { exact: false }),
     ).toBeVisible();
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the detail with the notice
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the detail with the notice
     await mockup(bia.page, 'W11-fork', 4);
   } finally {
     await bia.context.close();

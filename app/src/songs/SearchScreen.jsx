@@ -127,7 +127,7 @@ function CreateIcon() {
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
-      style={{ color: 'var(--accent)', flex: 'none' }}
+      className="search-create-icon"
     >
       <path d="M12 5v14M5 12h14" />
     </svg>

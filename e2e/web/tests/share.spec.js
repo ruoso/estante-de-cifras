@@ -13,7 +13,7 @@
 // an open invitation's link again, share from a song, and read a full book and
 // a member's view. Book, song and people are written for these tests.
 
-import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
+import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import {
   startApp,
   gotoTab,
@@ -83,12 +83,12 @@ test('the two-person sharing journey: invite, join, edit to a clean merge, the p
     const sheet = await openShareSheet(page, BOOK);
     await expect(sheet.getByText('0 of 50')).toBeVisible();
     await expect(sheet.getByText('Room for 50 more.')).toBeVisible();
-    expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the Share sheet
+    expect(await analyzeBothThemes(page)).toEqual([]); // axe: the Share sheet
     await mockup(page, 'W10-share', 1);
     await sheet.getByRole('button', { name: 'Invite people' }).click();
     const form = page.getByRole('region', { name: 'New invitation' });
     await expect(form.getByText(/Choros da Ana has room for 50 more people/)).toBeVisible();
-    expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the New invitation screen
+    expect(await analyzeBothThemes(page)).toEqual([]); // axe: the New invitation screen
     await mockup(page, 'W10-share', 2);
     await form.getByRole('button', { name: 'Back' }).click();
     people = await openSharing(page, BOOK);
@@ -97,14 +97,14 @@ test('the two-person sharing journey: invite, join, edit to a clean merge, the p
     await people.getByRole('button', { name: 'New invitation' }).click();
     const form = page.getByRole('dialog', { name: 'New invitation' });
     await expect(form.getByText(/Choros da Ana has room for 50 more people/)).toBeVisible();
-    expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the New invitation dialog
+    expect(await analyzeBothThemes(page)).toEqual([]); // axe: the New invitation dialog
     await form.getByRole('button', { name: 'Cancel' }).click();
   }
   await expect(people.getByText('0 of 50 people')).toBeVisible();
   await expect(people.getByText(/^(You|.+ \(you\))$/)).toBeVisible();
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the people screen
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the people screen
   const link = await createInvitationIn(people, { role: 'Editor' });
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the made link
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the made link
   await finishInvite(people);
   await expect(people).toBeVisible();
 
@@ -118,7 +118,7 @@ test('the two-person sharing journey: invite, join, edit to a clean merge, the p
     await expect(
       joiner.page.getByRole('heading', { name: /invited to a book on Estante/i }),
     ).toBeVisible();
-    expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the invited screen
+    expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the invited screen
     await mockup(joiner.page, 'W01-first-run', 2);
     await joiner.page.getByRole('button', { name: 'Make an account' }).click();
     await expect(joiner.page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
@@ -158,14 +158,14 @@ test('the two-person sharing journey: invite, join, edit to a clean merge, the p
     await memberRow.getByRole('button', { name: 'Change Bia Rocha’s role' }).click();
     await page.getByRole('menuitem', { name: 'Make reader' }).click();
     await expect(memberRow.getByRole('button', { name: 'Change Bia Rocha’s role' })).toContainText('Reader');
-    expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the people screen with a reader
+    expect(await analyzeBothThemes(page)).toEqual([]); // axe: the people screen with a reader
 
     // 6) The owner withdraws the invitation: nobody new can join; the joined
     // member stays (still 1 of 50).
     await people.getByRole('button', { name: 'Withdraw' }).click();
     await expect(people.getByText('withdrawn', { exact: true })).toBeVisible();
     await expect(people.getByText('1 of 50 people')).toBeVisible();
-    expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the withdrawn state
+    expect(await analyzeBothThemes(page)).toEqual([]); // axe: the withdrawn state
 
     // 7) The owner removes the member: the confirm as W10 #3 draws it, no typed
     // name.
@@ -174,7 +174,7 @@ test('the two-person sharing journey: invite, join, edit to a clean merge, the p
     await expect(confirm.getByRole('heading', { name: 'Remove Bia Rocha?' })).toBeVisible();
     await expect(confirm.getByText(/Removing them takes effect the next time their app reaches Estante/)).toBeVisible();
     await expect(confirm.getByRole('textbox')).toHaveCount(0);
-    expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the remove confirm
+    expect(await analyzeBothThemes(page)).toEqual([]); // axe: the remove confirm
     await mockup(page, 'W10-share', 3);
     await confirm.getByRole('button', { name: 'Remove Bia Rocha', exact: true }).click();
     await expect(people.getByText('0 of 50 people')).toBeVisible();
@@ -209,7 +209,7 @@ test("the owner copies an open invitation's link again, and a third person joins
   await expect(card.getByRole('button', { name: 'Copied' })).toBeVisible();
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   expect(copied).toBe(made);
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: Copied
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: Copied
 
   const third = await joinThrough(browser, copied);
   try {
@@ -258,7 +258,7 @@ test('share from a song: the member address, and an invitation that opens on the
     await expect(page.getByRole('group', { name: SONG_TITLE }).first()).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(0);
   }
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: share-on-a-song
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: share-on-a-song
   await mockup(page, 'W10-share', 4);
 
   // The song invitation: the link carries the song as a fragment.
@@ -306,7 +306,7 @@ test("a full book's people screen, and a member's view of the book's sharing", a
     await expect(sharing.getByText(/Other readers aren’t listed\./)).toBeVisible();
     await expect(sharing.getByRole('button', { name: 'Remove' })).toHaveCount(0);
     await expect(sharing.getByRole('button', { name: 'New invitation' })).toHaveCount(0);
-    expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: a member's view
+    expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: a member's view
     await mockup(joiner.page, 'W10-share', 6);
   } finally {
     await joiner.context.close();
@@ -318,7 +318,7 @@ test("a full book's people screen, and a member's view of the book's sharing", a
   await expect(people.getByText('50 of 50 people')).toBeVisible();
   await expect(people.getByText('Full', { exact: true })).toBeVisible();
   await expect(people.getByText(/Choros da Ana is full\./)).toBeVisible();
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the full book
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the full book
   await mockup(page, 'W10-share', 5);
 });
 
@@ -332,7 +332,7 @@ test('a non-member opening a book address gets the "does not open" state', async
     await outsider.page.goto(address);
     await expect(outsider.page.getByText(/does not open|doesn’t open|can’t open/i).first()).toBeVisible();
     await expect(outsider.page.getByRole('group', { name: SONG_TITLE })).toHaveCount(0);
-    expect(await analyzeWcag21aa(outsider.page)).toEqual([]); // axe: the non-member state
+    expect(await analyzeBothThemes(outsider.page)).toEqual([]); // axe: the non-member state
     await mockup(outsider.page, 'W01-first-run', 4);
   } finally {
     await outsider.context.close();

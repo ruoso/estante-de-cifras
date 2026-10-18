@@ -104,14 +104,13 @@
 }
 
 /* The rows are RAC Buttons (and the explore row, and the book disclosure
-   triggers), so reset the native button chrome back to the `.row` look. */
-.search-screen button.row {
-  width: 100%;
-  background: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  appearance: none;
+   triggers); the app-wide button.row reset (theme/controls.css) draws them as
+   the `.row` look. */
+
+/* The create row's plus icon, amber like the explore row's name. */
+.search-create-icon {
+  flex: none;
+  color: var(--accent);
 }
 
 .search-screen .empty {

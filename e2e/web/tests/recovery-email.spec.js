@@ -17,7 +17,7 @@
 //   4. Offline: the region's buttons wait, with the When offline note.
 // Addresses are under @estante.test, written for this test.
 
-import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
+import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import { signedInDevice, hasSessionCookie } from '../lib/journeys.js';
 import { openDevice } from '../lib/devices.js';
 import { waitForMessage } from '../lib/mail.js';
@@ -39,7 +39,7 @@ const TAKEN = 'This address is the recovery email of another Estante account —
 
 // Axe on a page other than the fixture's own (a fresh context's).
 async function expectAxeClean(page) {
-  expect(await analyzeWcag21aa(page)).toEqual([]);
+  expect(await analyzeBothThemes(page)).toEqual([]);
 }
 
 test('an email set and verified via the mail catcher, opened on a fresh device (workflow 13 §Setting it, §Confirming it, §The last way in)', async ({

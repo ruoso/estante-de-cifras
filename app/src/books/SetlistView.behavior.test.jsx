@@ -16,6 +16,7 @@ import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SetlistView from './SetlistView.jsx';
 import AddToSetlist from './AddToSetlist.jsx';
+import { injectStyles } from '../test/theme-styles.js';
 
 function installMatchMedia(matches) {
   globalThis.matchMedia = (query) => ({
@@ -279,18 +280,19 @@ describe('SetlistView — editor', () => {
   });
 });
 
-describe('AddToSetlist dialog', () => {
-  const SHELF = {
-    local: {
-      band: { title: { value: 'Banda do Bairro' }, position: { value: 1 } },
-      ana: { title: { value: 'Choros da Ana' }, position: { value: 2 } },
-    },
-  };
-  const SETLISTS = [
-    { bookId: 'band', path: 'gigs/bar-do-ze.setlist.md', title: 'Bar do Zé, 10 October', count: 5 },
-    { bookId: 'ana', path: 'aula.setlist.md', title: 'Aula de terça', count: 4 },
-  ];
+// The shelf and setlists the Add to setlist dialog tests offer.
+const SHELF = {
+  local: {
+    band: { title: { value: 'Banda do Bairro' }, position: { value: 1 } },
+    ana: { title: { value: 'Choros da Ana' }, position: { value: 2 } },
+  },
+};
+const SETLISTS = [
+  { bookId: 'band', path: 'gigs/bar-do-ze.setlist.md', title: 'Bar do Zé, 10 October', count: 5 },
+  { bookId: 'ana', path: 'aula.setlist.md', title: 'Aula de terça', count: 4 },
+];
 
+describe('AddToSetlist dialog', () => {
   function renderDialog(song) {
     const made = makeStore({ setlists: SETLISTS, shelf: SHELF });
     const onClose = vi.fn();
@@ -357,5 +359,83 @@ describe('AddToSetlist dialog', () => {
     const add = commands.find((c) => c.kind === CommandKind.ADD_TO_SETLIST);
     expect(add.payload).toMatchObject({ targetBookId: 'band', newTitle: 'Sábado à noite' });
     expect(add.payload.setlistPath).toBe('sabado-a-noite.setlist.md');
+  });
+});
+
+// shell.palco_contrast — in Palco the in-book picker's results and the Add to
+// setlist list kept the UA's light button fill under Palco's light ink, and the
+// amber New setlist… row was an inline style (UI audit 2026-10-14, W12). With
+// the real stylesheets in the cascade, each `button.row` shows the list surface
+// (no fill of its own), the picked one the theme's --accent-soft, and the amber
+// comes from setlist.css. A dark device makes the automatic theme Palco.
+describe('setlists in Palco (shell.palco_contrast)', () => {
+  let removeStyles;
+  beforeEach(() => {
+    installMatchMedia(true);
+    removeStyles = injectStyles('books/setlist.css');
+    return () => removeStyles();
+  });
+
+  const expectTransparent = (row) => {
+    expect(getComputedStyle(row).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    expect(getComputedStyle(row).borderTopStyle).toBe('none');
+  };
+
+  it('in Palco the in-book picker results reset the native button (workflow 12 §Songs moved, W12)', async () => {
+    const { store } = makeStore();
+    const { container } = renderSetlist(store);
+    expect(container.querySelector('.est')).toHaveClass('theme-palco');
+    await screen.findByText('Garota de Ipanema');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Edit' })));
+    await screen.findByRole('grid', { name: 'Songs · drag to reorder' });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Point it at a song' })));
+    const searchField = await screen.findByRole('searchbox', { name: 'Search for a song' });
+    await act(async () => fireEvent.change(searchField, { target: { value: 'a' } }));
+    const pick = await screen.findByRole('button', { name: /forro\/asa-branca\.cifra\.md/ });
+
+    const results = container.querySelector('.setlist-repoint').querySelectorAll('button.row');
+    expect(results).toHaveLength(RESULTS.length);
+    results.forEach(expectTransparent);
+
+    await act(async () => fireEvent.click(pick));
+    expect(pick).toHaveAttribute('aria-pressed', 'true');
+    expect(getComputedStyle(pick).background).toContain('var(--accent-soft)');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('in Palco the Add to setlist rows reset the native button and the New setlist row is amber through a class (W12)', async () => {
+    const made = makeStore({ setlists: SETLISTS, shelf: SHELF });
+    const { container } = render(
+      <ThemeRoot store={made.store}>
+        <AddToSetlist
+          store={made.store}
+          song={{ bookId: 'band', path: 'bossa/garota.cifra.md', title: 'Garota' }}
+          onClose={() => {}}
+        />
+      </ThemeRoot>,
+    );
+    expect(container.querySelector('.est')).toHaveClass('theme-palco');
+    const row = await screen.findByRole('button', { name: /Bar do Zé, 10 October/ });
+    const newRow = screen.getByRole('button', { name: 'New setlist…' });
+    const dialog = screen.getByRole('dialog', { name: 'Add to setlist' });
+    const rows = within(dialog).getByRole('group', { name: 'Add to setlist' }).querySelectorAll('button.row');
+    expect(rows.length).toBeGreaterThan(1);
+    rows.forEach(expectTransparent);
+
+    // The amber lives in setlist.css, not inline.
+    const newName = newRow.querySelector('.name');
+    expect(newName).not.toHaveAttribute('style');
+    expect(newRow).toHaveClass('setlist-new-row');
+    expect(getComputedStyle(newName).color).toBe('var(--accent)');
+    expect(newRow.querySelector('svg')).not.toHaveAttribute('style');
+    expect(getComputedStyle(newRow.querySelector('svg')).color).toBe('var(--accent)');
+
+    await act(async () => fireEvent.click(row));
+    expect(row).toHaveAttribute('aria-pressed', 'true');
+    expect(getComputedStyle(row).background).toContain('var(--accent-soft)');
+    const check = row.querySelector('svg');
+    expect(check).toHaveClass('setlist-pick-check');
+    expect(check).not.toHaveAttribute('style');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });

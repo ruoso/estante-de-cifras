@@ -41,3 +41,51 @@ test('the axe fixture catches a planted WCAG 2.1 AA violation', async ({
   // so the detected violation is the expected outcome, not a failing test.
   await expect(checkA11y()).rejects.toThrow();
 });
+
+// shell.palco_contrast — the fixture holds every screen to AA in Palco as well
+// as Estante: it flips the device scheme (the automatic theme follows it live,
+// workflow 1 §The theme), axes again and restores the scheme it found. This page
+// is readable on a light device and unreadable on a dark one, so only the dark
+// (Palco) pass can catch it. The words are written for this test.
+const darkOnlyFaultHtml = `<!doctype html>
+<html lang="en">
+  <head>
+    <title>A page that fails only in the dark</title>
+    <style>
+      body { background: #ffffff; color: #111111; }
+      @media (prefers-color-scheme: dark) {
+        body { background: #181b1f; color: #2a2e33; }
+      }
+    </style>
+  </head>
+  <body>
+    <main><p>Twelve bars and a turnaround, written for this check.</p></main>
+  </body>
+</html>`;
+
+const isDark = (page) => page.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches);
+
+test('the axe fixture catches a violation only Palco shows', async ({ page, checkA11y }) => {
+  await page.setContent(darkOnlyFaultHtml);
+  expect(await isDark(page)).toBe(false);
+
+  // The Estante (light) pass alone is clean…
+  expect(await analyzeWcag21aa(page)).toEqual([]);
+
+  // …and the fixture still fails, naming the rule and the dark theme.
+  await expect(checkA11y()).rejects.toThrow(/color-contrast \[Palco \(dark\)\]/);
+});
+
+test('the axe fixture restores the colour scheme it found', async ({ page, checkA11y }) => {
+  await page.goto('/');
+  await expect(page.getByRole('main')).toBeVisible();
+
+  expect(await isDark(page)).toBe(false);
+  await checkA11y();
+  expect(await isDark(page)).toBe(false);
+
+  await page.emulateMedia({ colorScheme: 'dark' });
+  expect(await isDark(page)).toBe(true);
+  await checkA11y();
+  expect(await isDark(page)).toBe(true);
+});

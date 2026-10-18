@@ -65,18 +65,11 @@
   border-bottom: 0;
 }
 
-/* Reset the native button RAC renders a row as, back to the .row look (mirrors
-   search.css's `.search-screen button.row`). */
+/* The native button RAC renders a row as is reset to the .row look app-wide
+   (theme/controls.css); on this screen the rows carry no line of their own —
+   the .book-row around the open control draws the divider. */
 .books-screen button.row {
-  width: 100%;
-  background: none;
   border: 0;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
 }
 
 .book-row .caret {
@@ -238,4 +231,11 @@
   flex-direction: column;
   align-items: flex-start;
   gap: calc(var(--u) * 0.5);
+}
+
+/* The Leave verb's warning icon (LeaveDialog), in the unsaved colour beside its
+   words. */
+.leave-warn {
+  flex: none;
+  color: var(--unsaved);
 }

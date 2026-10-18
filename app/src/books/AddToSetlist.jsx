@@ -25,12 +25,13 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { orderedBooks, canSaveFor, titleFor } from './book-display.js';
 import { setlistFilename } from './setlist-display.js';
 import { useLoadSong } from './use-load-song.js';
+import './setlist.css';
 
 function CheckIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
-      style={{ color: 'var(--accent)' }}>
+      className="setlist-pick-check">
       <path d="M5 12l5 5 9-10" />
     </svg>
   );
@@ -39,7 +40,7 @@ function CheckIcon() {
 function PlusIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={{ color: 'var(--accent)' }}>
+      strokeWidth="2" strokeLinecap="round" aria-hidden="true">
       <path d="M12 5v14M5 12h14" />
     </svg>
   );
@@ -178,7 +179,7 @@ export default function AddToSetlist({ store, song, onClose }) {
                 >
                   <PlusIcon />
                   <span className="grow">
-                    <span className="name" style={{ color: 'var(--accent)' }}>
+                    <span className="name">
                       {t('setlists.newSetlist')}
                     </span>
                   </span>

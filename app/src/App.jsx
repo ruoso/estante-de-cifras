@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import './theme/theme.css';
+import './theme/controls.css';
 import ThemeRoot from './theme/ThemeRoot.jsx';
 import LocaleRoot from './i18n/LocaleRoot.jsx';
 import AppShell from './shell/AppShell.jsx';

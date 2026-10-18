@@ -221,6 +221,8 @@ test('a deleted song becomes a missing item, pointed at another song and saved',
   // Point it at a present song via the in-book search.
   await page.getByRole('button', { name: 'Point it at a song' }).first().click();
   await page.getByRole('searchbox', { name: 'Search for a song' }).fill('Walking');
+  await expect(page.getByRole('button', { name: /walking-to-the-market/ }).first()).toBeVisible();
+  await checkA11y(); // the in-book picker, its results listed (Estante and Palco, shell.palco_contrast)
   await mockup(page, 'W12-setlists', 4); // a missing link being repointed (computer)
   await page.getByRole('button', { name: /walking-to-the-market/ }).first().click();
   await page.getByRole('button', { name: 'Point here' }).click();

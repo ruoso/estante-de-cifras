@@ -29,7 +29,7 @@
 // Server seeding kept on purpose: fillBookToCapacity inserts 50 accounts and
 // memberships in SQL -- a full book cannot be reached through the UI.
 
-import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
+import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import {
   enableVirtualAuthenticator,
   hasSessionCookie,
@@ -142,7 +142,7 @@ test.describe('add by link', () => {
       await expect(invitedHeading).toBeVisible();
       await expect(joiner.page.getByText('Choros da Ana')).toHaveCount(0);
       await expectInvitedScreenAsDrawn(joiner.page, invitedHeading);
-      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the invited screen
+      expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the invited screen
       await mockup(joiner.page, 'W01-first-run', 2);
 
       await joiner.page.getByRole('button', { name: 'Make an account' }).click();
@@ -151,7 +151,7 @@ test.describe('add by link', () => {
 
       await expect(joiner.page.getByRole('button', { name: /^Choros da Ana/ })).toBeVisible();
       await expect(joiner.page.getByText('On Estante · can save')).toBeVisible();
-      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the shelf
+      expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the shelf
       await mockup(joiner.page, 'W07-add-a-book', 1);
 
       // 2) The reader invitation: already signed in, clones as reader.
@@ -165,7 +165,7 @@ test.describe('add by link', () => {
       let refusal = joiner.page.getByRole('alertdialog', { name: /doesn.t open a book/i });
       await expect(refusal).toBeVisible();
       await expect(joiner.page.getByText('Roda de choro')).toHaveCount(0);
-      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the dead-link refusal
+      expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the dead-link refusal
       await mockup(joiner.page, 'W01-first-run', 4);
       await refusal.getByRole('button', { name: 'OK', exact: true }).click();
       await expect(refusal).toHaveCount(0);
@@ -177,7 +177,7 @@ test.describe('add by link', () => {
       await expect(refusal).toBeVisible();
       await expect(refusal.getByRole('button', { name: 'Add a book by its link' })).toHaveCount(0);
       await expect(joiner.page.getByText('Sarau da sexta')).toHaveCount(0);
-      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the full-book refusal
+      expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the full-book refusal
       await mockup(joiner.page, 'W01-first-run', 4, { note: 'full book' });
       await refusal.getByRole('button', { name: 'OK', exact: true }).click();
       await expect(refusal).toHaveCount(0);
@@ -217,13 +217,13 @@ test.describe('add by link', () => {
       await expect(joiner.page.getByText('Roda de choro')).toHaveCount(0);
       // The empty front door is behind it (the modal aria-hides it, so by text).
       await expect(joiner.page.getByText('Your shelf is empty')).toBeVisible();
-      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the refusal over the empty shelf
+      expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the refusal over the empty shelf
       await mockup(joiner.page, 'W01-first-run', 4, { note: 'a new account, an empty shelf' });
 
       await refusal.getByRole('button', { name: 'OK', exact: true }).click();
       await expect(refusal).toHaveCount(0);
       await expect(joiner.page.getByRole('heading', { name: 'Your shelf is empty' })).toBeVisible();
-      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the empty shelf after it
+      expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the empty shelf after it
     } finally {
       await joiner.context.close();
     }
@@ -288,13 +288,13 @@ test.describe('add by link', () => {
       await joiner.page.getByRole('button', { name: 'Add a book' }).click();
       const sheet = joiner.page.getByRole('dialog', { name: 'Add a book' });
       await expect(sheet).toBeVisible();
-      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the chooser
+      expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the chooser
 
       // The By link row opens its step in the sheet (books.add_book_chooser).
       await sheet.getByRole('button', { name: 'By link' }).click();
       await expect(sheet.getByRole('heading', { name: 'By link' })).toBeVisible();
       await expect(sheet.getByRole('textbox', { name: 'Book link' })).toBeFocused();
-      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the By link step
+      expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the By link step
       await mockup(joiner.page, 'W07-add-a-book', 2, { note: 'by link' });
 
       // Something that is not a book link is refused in place.
@@ -350,7 +350,7 @@ test.describe('add by link', () => {
       await startApp(other.page);
       await signInFromMine(other.page, 'passkey', {
         onChooser: async () => {
-          expect(await analyzeWcag21aa(other.page)).toEqual([]); // axe: the signed-out chooser
+          expect(await analyzeBothThemes(other.page)).toEqual([]); // axe: the signed-out chooser
         },
       });
       await other.page.getByRole('button', { name: 'Use a passkey' }).click();
@@ -363,7 +363,7 @@ test.describe('add by link', () => {
       await expect(sheet).toBeVisible();
       const mine = sheet.getByRole('group', { name: 'Mine on Estante' });
       await expect(mine.getByText('All your books are already on this shelf.')).toBeVisible({ timeout: 10000 });
-      expect(await analyzeWcag21aa(other.page)).toEqual([]); // axe: the signed-in chooser
+      expect(await analyzeBothThemes(other.page)).toEqual([]); // axe: the signed-in chooser
     } finally {
       await other.context.close();
     }
@@ -392,7 +392,7 @@ test.describe('add by link', () => {
     try {
       await startApp(fresh.page);
       await signInFromMine(fresh.page, 'email');
-      expect(await analyzeWcag21aa(fresh.page)).toEqual([]); // axe: the email step
+      expect(await analyzeBothThemes(fresh.page)).toEqual([]); // axe: the email step
       await fresh.page.getByRole('textbox', { name: 'Your email' }).fill(email);
       await fresh.page.getByRole('button', { name: 'Send the link' }).click();
       await expect(fresh.page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
@@ -437,7 +437,7 @@ test.describe('add by link', () => {
       await expect(
         sheet.getByRole('group', { name: 'Mine on Estante' }).getByText('Minhas cifras'),
       ).toBeVisible({ timeout: 10000 });
-      expect(await analyzeWcag21aa(other.page)).toEqual([]); // axe: the Add-a-book sheet with the list
+      expect(await analyzeBothThemes(other.page)).toEqual([]); // axe: the Add-a-book sheet with the list
       await sheet.getByRole('button', { name: 'Add Minhas cifras' }).click();
 
       // It clones onto the shelf, On Estante (the add lands on Search).

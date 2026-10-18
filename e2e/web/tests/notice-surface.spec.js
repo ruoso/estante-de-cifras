@@ -17,7 +17,7 @@
 // Book name, song and take-down reason are written for this test -- never
 // anyone's copyrighted words or a real notice (no-song-text rule).
 
-import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
+import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import { syncNow } from '../lib/journeys.js';
 import { hostedBookWithSong, bookIdOf } from '../lib/journeys-share.js';
 import { takeDownBook } from '../lib/db.js';
@@ -47,7 +47,7 @@ test('a taken-down book shows the operator reason on its detail, beside Download
   // *no longer shared with you*, like any gone book (workflow 10 L113).
   await syncNow(page);
   await expect(page.getByText('no longer shared with you')).toBeVisible({ timeout: 10000 });
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the shelf with the gone badge
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the shelf with the gone badge
 
   // The book detail carries the take-down notice with the operator's reason,
   // beside Download -- distinct from the lost-access notice (acceptance 5).
@@ -61,5 +61,5 @@ test('a taken-down book shows the operator reason on its detail, beside Download
   await expect(page.getByRole('button', { name: 'Make this book your own' })).toHaveCount(0);
   // Download stays available -- the book is still readable and exportable.
   await expect(page.getByRole('button', { name: 'Download' })).toBeVisible();
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the taken-down book detail
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the taken-down book detail
 });

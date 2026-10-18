@@ -13,7 +13,7 @@
 // is hers on Estante. Book and song names are written for these tests
 // (no-song-text rule).
 
-import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
+import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import { openSongFromSearch, openSongInEditor, saveSurface, syncNow, gotoTab } from '../lib/journeys.js';
 import {
   hostedBookWithSong,
@@ -90,7 +90,7 @@ test('deliberately: a reader forks from the book detail, and a new save of the o
     // one-time note (W11 board #2).
     await expectOneForkRow(bia.page);
     await expect(bia.page.getByText(/is your own now/)).toBeVisible();
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the shelf after forking
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the shelf after forking
     await mockup(bia.page, 'W11-fork', 2);
     await expectSongOnce(bia.page);
 
@@ -101,7 +101,7 @@ test('deliberately: a reader forks from the book detail, and a new save of the o
       await syncNow(bia.page);
       await expect(bia.page.getByText(`${BOOK} has 1 new save.`)).toBeVisible({ timeout: 3000 });
     }).toPass({ timeout: 30000 });
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the shelf with the count
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the shelf with the count
   } finally {
     await bia.context.close();
   }
@@ -127,7 +127,7 @@ test('saving where one cannot: Save in a reader’s book offers the fork, and th
       .or(bia.page.getByRole('region', { name: SHEET_TITLE }));
     await expect(sheet).toBeVisible();
     await expect(sheet.getByText(`You can read ${BOOK}, but not save to it.`, { exact: false })).toBeVisible();
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the cannot-save sheet
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the cannot-save sheet
     await mockup(bia.page, 'W11-fork', 1);
 
     // Make it my own → the ordinary save form, for the fork → Save.
@@ -144,7 +144,7 @@ test('saving where one cannot: Save in a reader’s book offers the fork, and th
     await openSongFromSearch(bia.page, QUERY, SONG_TITLE);
     await expect(bia.page.locator('.reading-sheet')).toContainText(MARK);
     await expectOneForkRow(bia.page);
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the shelf after forking
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the shelf after forking
 
     // Ana's song does not have it after her sync.
     await syncNow(page);
@@ -187,7 +187,7 @@ test('after losing access: the unpushed save arrives on Estante in Bia’s own b
     // L41-46).
     await expectOneForkRow(bia.page);
     await expect(bia.page.getByText('original no longer shared', { exact: true })).toBeVisible();
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the shelf with the badge
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the shelf with the badge
 
     // After a sync the row is in step (no waiting or refusal word), the section
     // is in the song, and the fork is Bia's on Estante.
@@ -197,7 +197,7 @@ test('after losing access: the unpushed save arrives on Estante in Bia’s own b
     await expectForkOwnedOnEstante(bia.page);
     await openSongFromSearch(bia.page, QUERY, SONG_TITLE);
     await expect(bia.page.locator('.reading-sheet')).toContainText(MARK);
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: reading the fork
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: reading the fork
   } finally {
     await bia.context.close();
   }
@@ -228,13 +228,13 @@ test('lowered to reader with a save not yet pushed: can’t save here, then the 
     // Sync now → *can't save here* → the book says why → make it her own.
     await syncNow(bia.page);
     await expect(bia.page.getByText('can’t save here')).toBeVisible({ timeout: 15000 });
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the shelf with the refusal
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the shelf with the refusal
     await bia.page.getByRole('button', { name: bookRow }).click();
     await expect(
       bia.page.getByText(`1 save can no longer go to ${BOOK}: you can read it, but no longer save to it.`),
     ).toBeVisible();
     await expect(bia.page.getByRole('button', { name: 'Download' })).toBeVisible();
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the cannot-save detail
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the cannot-save detail
     await bia.page.getByRole('button', { name: 'Make this book your own' }).click();
     await makeItMyOwn(bia.page);
 
@@ -246,7 +246,7 @@ test('lowered to reader with a save not yet pushed: can’t save here, then the 
     await expectForkOwnedOnEstante(bia.page);
     await openSongFromSearch(bia.page, QUERY, SONG_TITLE);
     await expect(bia.page.locator('.reading-sheet')).toContainText(MARK);
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: reading the fork
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: reading the fork
   } finally {
     await bia.context.close();
   }

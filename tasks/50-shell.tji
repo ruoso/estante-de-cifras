@@ -127,7 +127,8 @@ task shell "Shell" {
   task palco_contrast "Palco everywhere: no light rows, every label readable" {
     effort 1d
     allocate team
+    complete 100
     depends !tokens
-    note "In Palco the file view tree rows, its history cards, the Add to setlist list and the setlist point-at results keep a light fill with light text, so titles are near invisible (W14, W12; the amber New setlist row is low contrast on it). Those components set a surface colour outside the theme tokens. The e2e axe checks run in the automatic theme on a light device, i.e. Estante only, which is why none caught it: make the axe fixture also check under Palco (emulateMedia dark) on every screen it visits. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the listed rows take the theme surface; axe in Palco); e2e-web (axe under both themes on every visited screen, three viewports)."
+    note "In Palco the file view tree rows, its history cards, the Add to setlist list and the setlist point-at results keep a light fill with light text, so titles are near invisible (W14, W12; the amber New setlist row is low contrast on it). Those components set a surface colour outside the theme tokens. The e2e axe checks run in the automatic theme on a light device, i.e. Estante only, which is why none caught it: make the axe fixture also check under Palco (emulateMedia dark) on every screen it visits. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the listed rows take the theme surface; axe in Palco); e2e-web (axe under both themes on every visited screen, three viewports). Refinement: tasks/refinements/shell/palco_contrast.md"
   }
 }

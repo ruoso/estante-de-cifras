@@ -13,7 +13,7 @@
 // needs you. Book and song names are written for these tests (no-song-text
 // rule). A git CLI device appears only to read what is on the server.
 
-import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
+import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import { GitDevice } from '../lib/git-device.js';
 import { mockup } from '../lib/mockup.js';
 import {
@@ -130,7 +130,7 @@ async function reachNeedsYou(browser, page) {
 }
 
 async function openResolver(page) {
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the paused book panel
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the paused book panel
   await page.getByRole('button', { name: new RegExp(`^Settle ${SONG_TITLE}`) }).click();
   await expect(page.getByText(/Conflict \d+ of \d+/)).toBeVisible();
   await expect(page.getByText('Yours', { exact: true })).toBeVisible();
@@ -147,7 +147,7 @@ async function openResolver(page) {
   await expect(yours.getByRole('img')).toHaveCount(1);
   await expect(anas.getByRole('img', { name: /^E7\b/ })).toHaveCount(1);
   await expect(anas.getByRole('img')).toHaveCount(1);
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the per-song resolver
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the per-song resolver
 }
 
 // The paused panel as W09#4 draws it (sync.conflicts_polish constraints 4-5):
@@ -256,7 +256,7 @@ test('edit opens the marked text in the source editor, markers named for the peo
   await expect(editor).toContainText('<<<<<<< yours');
   await expect(editor).toContainText('>>>>>>> Ana’s');
   await mockup(page, 'W09-conflicts', 3);
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the edit view
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the edit view
 
   // Saving with the markers still there is refused, pointing at the line.
   await page.getByRole('button', { name: 'Save' }).click();
@@ -265,7 +265,7 @@ test('edit opens the marked text in the source editor, markers named for the peo
   await expect(goTo).toBeVisible();
   await goTo.click();
   await expect(editor).toBeFocused();
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the refusal
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the refusal
 
   // Edit the markers away through the editor, keeping the owner's line.
   const resolved = (await editor.locator('.cm-line').allTextContents())
@@ -328,7 +328,7 @@ test('a song one person deleted while the other edited it asks to keep it with t
   // The owner, who has not synced, edits the same song and saves.
   await ownerCollidesAndEngages(page, { query: 'Roda', title: SONG_TITLE, oldLine: BAR_BASE, newLine: BAR_OWNER, deleted: true });
   await expect(page.getByText(/deleted this song\. You had edited it\./)).toBeVisible();
-  expect(await analyzeWcag21aa(page)).toEqual([]); // axe: deleted vs edited
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: deleted vs edited
 
   await page.getByRole('button', { name: 'Keep the song, with the edits' }).click();
   await expectSettledWithBar(page, BAR_OWNER);
@@ -387,13 +387,13 @@ test('keep both a voicing: the owner keeps their shape and Ana’s lands in a va
   });
 
   // Open the resolver; axe on the paused panel and the per-song resolver.
-  expect(await analyzeWcag21aa(page)).toEqual([]);
+  expect(await analyzeBothThemes(page)).toEqual([]);
   await page.getByRole('button', { name: new RegExp(`^Settle ${VSONG_TITLE}`) }).click();
   await expect(page.getByText('The shape for Cm')).toBeVisible();
   await expect(page.getByText('Yours', { exact: true })).toBeVisible();
   await expect(page.getByText('Ana’s', { exact: true })).toBeVisible();
   await mockup(page, 'W09-conflicts', 2);
-  expect(await analyzeWcag21aa(page)).toEqual([]);
+  expect(await analyzeBothThemes(page)).toEqual([]);
 
   // Keep both: ours stays in use, Ana's goes into a variation named for her.
   await page.getByRole('button', { name: 'Keep both', exact: true }).click();
@@ -417,7 +417,7 @@ test('keep both a voicing: the owner keeps their shape and Ana’s lands in a va
   await openSongFromSearch(page, 'Toada', VSONG_TITLE);
   const variationPicker = page.getByRole('button', { name: /Variation/ });
   await expect(variationPicker).toBeVisible({ timeout: 10000 });
-  expect(await analyzeWcag21aa(page)).toEqual([]);
+  expect(await analyzeBothThemes(page)).toEqual([]);
   await variationPicker.click();
   await expect(page.getByRole('option', { name: 'Ana' })).toBeVisible();
 });

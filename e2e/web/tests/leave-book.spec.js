@@ -18,7 +18,7 @@
 // the web app does not yet bring its home book online on its own, so the owner's
 // account has no `authorName` on the service until something pushes one.
 
-import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
+import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import { enableVirtualAuthenticator, gotoTab } from '../lib/journeys.js';
 import {
   hostedBookWithSong,
@@ -86,7 +86,7 @@ test('a reader leaves from book management: gone from the shelf, from Mine on Es
     await expect(joiner.page.getByText('You own it', { exact: true })).toHaveCount(0);
     const leave = joiner.page.getByRole('button', { name: 'Leave this book' });
     await expect(leave).toBeVisible();
-    expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: book management with the chip and the Leave card
+    expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: book management with the chip and the Leave card
 
     // The confirmation: nothing to lose, so the sentence — naming the owner
     // (board L73; workflow 10 L103-105) — and two buttons.
@@ -98,7 +98,7 @@ test('a reader leaves from book management: gone from the shelf, from Mine on Es
         `You will no longer open or sync it, on any of your devices, and it is removed from this one. ${OWNER} can invite you again.`,
       ),
     ).toBeVisible();
-    expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the open confirmation
+    expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the open confirmation
     await confirm.getByRole('button', { name: 'Leave the book' }).click();
 
     // The book's row is gone from the shelf.
@@ -136,7 +136,7 @@ test('a book removed from the shelf is left from its Mine on Estante row (L99-10
     let sheet = await openMineOnEstante(joiner.page);
     const rowLeave = sheet.getByRole('button', { name: `Leave ${BOOK}` });
     await expect(rowLeave).toBeVisible();
-    expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the sheet with Leave on the row
+    expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the sheet with Leave on the row
 
     // The row's confirmation is the sentence alone: nothing here to lose. It
     // names the owner from the row (books.owner_name; board L198; L116-117).
@@ -145,7 +145,7 @@ test('a book removed from the shelf is left from its Mine on Estante row (L99-10
     await expect(
       confirm.getByText(`You will no longer open or sync it, on any of your devices. ${OWNER} can invite you again.`),
     ).toBeVisible();
-    expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the row's confirmation
+    expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the row's confirmation
     await confirm.getByRole('button', { name: 'Leave the book' }).click();
 
     // The row is gone…
@@ -178,7 +178,7 @@ test('offline, Leave says it needs a connection and nothing changes; back online
       await expect(joiner.page.getByText('Leaving needs a connection.')).toBeVisible();
       await expect(joiner.page.getByText('Nothing has changed; you are still a member.')).toBeVisible();
       await expect(leave).toBeDisabled();
-      expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the offline Leave card
+      expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the offline Leave card
 
       // The book is still on the shelf.
       await gotoTab(joiner.page, 'Books');

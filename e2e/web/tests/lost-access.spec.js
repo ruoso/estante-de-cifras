@@ -17,7 +17,7 @@
 // journey is books.fork's e2e; here the fork offer is asserted present and
 // reachable, not clicked through to a completed fork.
 
-import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
+import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import {
   enableVirtualAuthenticator,
   openSongFromSearch,
@@ -79,7 +79,7 @@ test('losing access: the owner removes an editor; the member sees no longer shar
     // *no longer shared with you* (states.md; workflow 8 L34).
     await syncNow(joiner.page);
     await expect(joiner.page.getByText('no longer shared with you')).toBeVisible({ timeout: 10000 });
-    expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the shelf with the gone badge
+    expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the shelf with the gone badge
 
     // The book detail shows the losing-access notice and both escape offers
     // (acceptance 2, 4).
@@ -93,7 +93,7 @@ test('losing access: the owner removes an editor; the member sees no longer shar
     const forkOffer = joiner.page.getByRole('button', { name: 'Make this book your own' });
     await expect(forkOffer).toBeVisible();
     await expect(forkOffer).toBeEnabled(); // offered and reachable (not clicked through)
-    expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the gone book detail
+    expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the gone book detail
 
     // Download produces a zip of the repository as it is on the device
     // (acceptance 4; the existing BOOK_DOWNLOAD path).
@@ -109,7 +109,7 @@ test('losing access: the owner removes an editor; the member sees no longer shar
     await openSongFromSearch(joiner.page, 'Roda', SONG_TITLE);
     await expect(joiner.page.locator('.reading-sheet')).toBeVisible();
     await expect(joiner.page.locator('.reading-sheet')).toContainText(SAVED_MARK);
-    expect(await analyzeWcag21aa(joiner.page)).toEqual([]); // axe: the reading view of the gone book
+    expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the reading view of the gone book
   } finally {
     await joiner.context.close();
   }

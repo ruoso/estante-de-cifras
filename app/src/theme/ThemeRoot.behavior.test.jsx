@@ -23,6 +23,7 @@ import {
 import { createStore } from '../worker/store.js';
 import { checkWcag21aa } from '../a11y/axe.js';
 import ThemeRoot from './ThemeRoot.jsx';
+import { injectStyles } from '../test/theme-styles.js';
 
 // A manual endpoint lets the test build a real store with no DB, the way the
 // other theme behavior test does; no PREFERENCES is emitted, so the applied
@@ -96,4 +97,64 @@ describe('ThemeRoot portal provider (behavior)', () => {
     expect(dialog).toBeInTheDocument();
     expect(document.querySelector('.est')).toBeNull();
   });
+});
+
+// behavior — the app-wide button.row reset (shell.palco_contrast; theme/
+// controls.css). A RAC `Button className="row"` is a native <button>; without
+// the reset it kept the UA's light ButtonFace fill, border and font, so Palco's
+// light ink sat on a light row. This pins the baseline every Button.row screen
+// relies on (ShareSheet, SetlistsScreen, FirstRun, EnterShape, SongArrange, …)
+// in each of the three themes, with the real stylesheets in the cascade.
+describe('the button.row baseline (shell.palco_contrast)', () => {
+  let removeStyles;
+  afterEach(() => removeStyles?.());
+
+  for (const theme of ['estante', 'caderno', 'palco']) {
+    it(`a bare RAC Button.row inside .est resets to the row look in every theme — ${theme}`, async () => {
+      removeStyles = injectStyles();
+      const { container } = render(
+        <div className={`est theme-${theme}`}>
+          <div className="list" role="group" aria-label="Rows written for this test">
+            <Button className="row">A plain row</Button>
+            <Button className="row sel" aria-pressed>
+              A selected row
+            </Button>
+          </div>
+        </div>,
+      );
+      const root = container.querySelector('.est');
+      const plain = screen.getByRole('button', { name: 'A plain row' });
+      const sel = screen.getByRole('button', { name: 'A selected row' });
+
+      // No UA fill: the row shows the .list surface behind it.
+      expect(getComputedStyle(plain).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+      // The selected row keeps the theme's accent-soft fill.
+      expect(getComputedStyle(sel).background).toContain('var(--accent-soft)');
+      for (const row of [plain, sel]) {
+        const style = getComputedStyle(row);
+        // No UA border: only the row line at the bottom (last row: none).
+        expect(style.borderTopStyle).toBe('none');
+        // The font is inherited from the theme root, not the UA button font.
+        expect(style.font).not.toContain('depends on user agent');
+        expect(style.fontFamily).toBe(getComputedStyle(root).fontFamily);
+      }
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    });
+
+    it(`a notice's RAC Button.act reads as the drawn word, not a native button — ${theme}`, () => {
+      removeStyles = injectStyles();
+      render(
+        <div className={`est theme-${theme}`}>
+          <div className="notice">
+            <span>A notice written for this test.</span>
+            <Button className="act">Do it</Button>
+          </div>
+        </div>,
+      );
+      const act = getComputedStyle(screen.getByRole('button', { name: 'Do it' }));
+      expect(act.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+      expect(act.borderTopStyle).toBe('none');
+      expect(act.font).not.toContain('depends on user agent');
+    });
+  }
 });

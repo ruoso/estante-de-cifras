@@ -1,4 +1,4 @@
-import { test, expect, analyzeWcag21aa } from '../lib/axe.js';
+import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import {
   openExampleBook,
   openSongFromSearch,
@@ -165,7 +165,7 @@ test('back after a fork and a reload lands on the fork', async ({ browser, page 
     expect(bia.page.url()).not.toBe(originalUrl);
     await expect(bia.page.getByRole('heading', { name: /This link doesn’t open a book/ })).toHaveCount(0);
     await expect(bia.page.locator('.scope')).toContainText(BOOK);
-    expect(await analyzeWcag21aa(bia.page)).toEqual([]); // axe: the fork's songs
+    expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the fork's songs
   } finally {
     await bia.context.close();
   }

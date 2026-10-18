@@ -50,22 +50,9 @@
   min-width: 0;
 }
 
-/* A list row rendered as a React Aria Button: strip the UA button chrome so it
-   reads as a `.row`, keep a visible focus ring for the keyboard path. */
-.est-history-row {
-  appearance: none;
-  width: 100%;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  font: inherit;
-  color: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-.est-history-row:last-child {
-  border-bottom: 0;
-}
+/* A list row rendered as a React Aria Button (`row est-history-row`): the
+   app-wide button.row reset (theme/controls.css) strips the UA button chrome so
+   it reads as a `.row`; this keeps a visible focus ring for the keyboard path. */
 .est-history-row[data-focus-visible] {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -224,7 +211,7 @@
    old to read in blocks (songs.restore_part, behaviours 4 and 5). */
 .est-history-note {
   margin-top: calc(var(--u) * 1.25);
-  color: var(--ink-soft);
+  color: var(--ink-2);
 }
 
 /* Per-block restore (songs.restore_part): each restorable block the version
