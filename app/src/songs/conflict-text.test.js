@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { parse, isMarkerLine } from 'cifra-md';
-import { labelMarkers, conflictPlace } from './conflict-text.js';
+import { labelMarkers, conflictPlace, differingMeasures } from './conflict-text.js';
 
 const MARKED = [
   '## Parte',
@@ -99,5 +99,22 @@ describe('conflictPlace', () => {
     // A region missing from the model cannot be placed.
     expect(conflictPlace(model, { kind: 'chart', ours: ['Am | Am | E7 | E7'], theirs: ['Am | Am | E7 | A7'] }))
       .toBeNull();
+  });
+});
+
+describe('differingMeasures', () => {
+  it('lists the measures of a side that differ from the other, position by position (sync.conflicts_polish constraint 1)', () => {
+    const item = { kind: 'chart', ours: ['C | G7 | F | F'], theirs: ['C | Db7 | F | F'] };
+    expect(differingMeasures(item, 'ours')).toEqual(['G7']);
+    expect(differingMeasures(item, 'theirs')).toEqual(['Db7']);
+    // A measure past the other side's end counts as different; a line only one
+    // side has is wholly different.
+    const longer = { kind: 'chart', ours: ['C | G', 'Am | F'], theirs: ['C | G | E7'] };
+    expect(differingMeasures(longer, 'theirs')).toEqual(['E7']);
+    expect(differingMeasures(longer, 'ours')).toEqual(['Am', 'F']);
+    // An absent side, a sections item and other kinds have none.
+    expect(differingMeasures({ kind: 'chart', ours: ['C | G'], theirs: null }, 'theirs')).toEqual([]);
+    expect(differingMeasures({ kind: 'sections', ours: ['## A\n```\nC\n```'], theirs: [] }, 'ours')).toEqual([]);
+    expect(differingMeasures({ kind: 'voicing', ours: '320001', theirs: 'x43424' }, 'ours')).toEqual([]);
   });
 });

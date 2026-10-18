@@ -44,9 +44,16 @@
   }
 }
 
+/* The in-conflict and came-in lists: theme rows (padding, dividing line, 44px
+   minimum) in a reset list, so a title begins at the row's own padding with no
+   browser indent (W09#4 L222; sync.conflicts_polish Decision 6). */
+.est-bookconf-list,
+.est-bookconf-incoming {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
 .est-bookconf-row {
-  display: flex;
-  align-items: center;
   gap: var(--u);
 }
 

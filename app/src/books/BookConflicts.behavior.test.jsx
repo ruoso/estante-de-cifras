@@ -5,7 +5,7 @@
 // the purpose (no-song-text rule).
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { checkWcag21aa } from '../a11y/axe.js';
@@ -118,4 +118,47 @@ describe('BookConflicts (behavior)', () => {
     });
     expect(lastCommand(sent, CommandKind.ABANDON_MERGE).payload).toMatchObject({ bookId: BOOK });
   });
+
+  it('the in-conflict and came-in rows are theme rows in a reset list (W09#4 L222)', async () => {
+    const { store, emit } = makeStore();
+    emit(event(EventKind.CONFLICTS, PAYLOAD));
+    const { container } = renderPanel(store);
+
+    const inConflict = screen.getByRole('list', { name: 'In conflict' });
+    const cameIn = screen.getByRole('list', { name: 'Came in, already here' });
+    // Both lists keep the class the reset rule (list-style, margin, padding)
+    // targets; jsdom has no layout, so the absent indent is pinned in e2e-web.
+    expect(inConflict.tagName).toBe('UL');
+    expect(inConflict).toHaveClass('est-bookconf-list');
+    expect(cameIn.tagName).toBe('UL');
+    expect(cameIn).toHaveClass('est-bookconf-incoming');
+    const rows = within(inConflict).getAllByRole('listitem');
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row).toHaveClass('row');
+    for (const row of within(cameIn).getAllByRole('listitem')) expect(row).toHaveClass('row');
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('embedded, it renders as pane content, not a screen, keeping its app bar', async () => {
+    const { store, emit } = makeStore();
+    emit(event(EventKind.CONFLICTS, PAYLOAD));
+    let closed = 0;
+    const { container } = render(
+      <ThemeRoot store={store}>
+        <BookConflicts store={store} bookId={BOOK} title="Choros da Ana" embedded onClose={() => { closed += 1; }} />
+      </ThemeRoot>,
+    );
+
+    expect(container.querySelector('.screen')).toBeNull();
+    expect(container.querySelector('.est-bookconf-embedded')).toBeTruthy();
+    expect(screen.getByText('Choros da Ana')).toBeInTheDocument();
+    expect(screen.getByText('needs you')).toBeInTheDocument();
+    expect(screen.getByText('In conflict')).toBeInTheDocument();
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    expect(closed).toBe(1);
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
 });
+

@@ -8,6 +8,10 @@
 // The view only sends RESOLVE_CONFLICT (keep / delete a deleted-vs-edited song)
 // and ABANDON_MERGE, and mirrors the Worker through the `conflicts` slice. React
 // Aria Components, keyboard reachable, every status carried by a word.
+//
+// On a phone it is a full screen over the shell; `embedded` (a tablet or a
+// computer) draws it as the content of the shell's main pane, the rail beside it,
+// keeping its app bar (sync.conflicts_polish constraint 5; W09#4 L205-254).
 
 import { useEffect, useRef } from 'react';
 import { Button } from 'react-aria-components';
@@ -16,7 +20,7 @@ import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import './book-conflicts.css';
 
-export default function BookConflicts({ store, bookId, title, onSettle, onClose }) {
+export default function BookConflicts({ store, bookId, title, embedded = false, onSettle, onClose }) {
   const conflicts = useSlice(store, 'conflicts');
   const book = conflicts?.[bookId] ?? null;
   // The recomputed model arrives just after OPEN_CONFLICTS engages the book, so
@@ -42,7 +46,7 @@ export default function BookConflicts({ store, bookId, title, onSettle, onClose 
   const abandon = () => store.send(command(CommandKind.ABANDON_MERGE, { bookId }));
 
   return (
-    <div className="screen est-bookconf-screen">
+    <div className={embedded ? 'est-bookconf-embedded' : 'screen est-bookconf-screen'}>
       <div className="appbar">
         {onClose && (
           <Button className="btn icon" aria-label={t('songConflict.back')} onPress={() => onClose()}>
@@ -54,7 +58,7 @@ export default function BookConflicts({ store, bookId, title, onSettle, onClose 
       </div>
 
       {book && (
-      <div className="scroll est-bookconf-scroll">
+      <div className={embedded ? 'est-bookconf-scroll' : 'scroll est-bookconf-scroll'}>
         <div className="notice conflict est-bookconf-needsyou" role="status">
           <span>
             <b>{t('bookConflicts.needsYou', { count: pending })}</b> {t('bookConflicts.needsYouBody')}
@@ -68,7 +72,7 @@ export default function BookConflicts({ store, bookId, title, onSettle, onClose 
                 <div className="t-h3">{t('bookConflicts.inConflict')}</div>
                 <ul className="list est-bookconf-list" aria-label={t('bookConflicts.inConflict')}>
                   {songs.map((s) => (
-                    <li key={s.path} className="est-bookconf-row">
+                    <li key={s.path} className="row est-bookconf-row">
                       <span className="grow">
                         <span className="name">{s.title}</span>
                       </span>
@@ -104,7 +108,7 @@ export default function BookConflicts({ store, bookId, title, onSettle, onClose 
                 <div className="t-h3">{t('bookConflicts.cameIn')}</div>
                 <ul className="list est-bookconf-incoming" aria-label={t('bookConflicts.cameIn')}>
                   {incoming.map((i) => (
-                    <li key={i.path} className="est-bookconf-row">
+                    <li key={i.path} className="row est-bookconf-row">
                       <span className="grow">
                         <span className="name">{i.title}</span>
                         <span className="meta">

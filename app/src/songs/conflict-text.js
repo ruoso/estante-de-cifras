@@ -126,3 +126,29 @@ export function conflictPlace(model, item) {
   if (item.kind === 'sections') return sectionsPlace(model, item);
   return null;
 }
+
+/**
+ * The measures of one side of a chart conflict that differ from the other side,
+ * position by position — the comparison `conflictPlace` names the bars by, so
+ * the title and the diagrams under each side agree (sync.conflicts_polish
+ * Decision 1). A measure past the other side's end counts as different. Only a
+ * `chart` item has measures; any other kind, or an absent side, has none.
+ *
+ * @param {object} item  one conflict of the song (conflict-model.js)
+ * @param {'ours'|'theirs'} side
+ * @returns {string[]}  the differing measures' text, in order
+ */
+export function differingMeasures(item, side) {
+  if (item?.kind !== 'chart') return [];
+  const mine = sideLines(side === 'ours' ? item.ours : item.theirs);
+  const other = sideLines(side === 'ours' ? item.theirs : item.ours);
+  const out = [];
+  mine.forEach((line, j) => {
+    const theirs = other[j] != null ? other[j].split(' | ') : [];
+    line.split(' | ').forEach((measure, m) => {
+      if (!measure.trim()) return;
+      if (m >= theirs.length || theirs[m] !== measure) out.push(measure);
+    });
+  });
+  return out;
+}

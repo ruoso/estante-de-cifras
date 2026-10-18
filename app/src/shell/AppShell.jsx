@@ -172,7 +172,7 @@ function resolvePlace({ place, checkItem, treeReady }, shelf, tree) {
   return place.song ? 'song' : 'setlist';
 }
 
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode, restore = {}, openSetlistView = null, onShareBook = () => {}, onSignInMine = () => {}, onUpload = () => {}) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode, restore = {}, openSetlistView = null, onShareBook = () => {}, onSignInMine = () => {}, onUpload = () => {}, openBookView = null) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key} className="shell-panel">
       {key === 'search' ? (
@@ -205,18 +205,22 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
         // wired here: `onByLink` starts the invited flow, `onSignInMine` opens the
         // sign-in surface for an existing account at the step it names
         // (books.add_book_chooser Decision 4), and `onUpload` opens the
-        // full-screen upload preview (Decision 5).
-        <BooksScreen
-          store={store}
-          onOpenBook={onOpenBook}
-          onByLink={onByLink}
-          onSignIn={onSignInMine}
-          onUpload={onUpload}
-          onShareBook={onShareBook}
-          mode={mode}
-          restoreDismissed={restore.dismissed}
-          onDismissRestored={restore.onDismiss}
-        />
+        // full-screen upload preview (Decision 5). On a wide layout a book that
+        // needs you opens its paused panel here, the rail beside it
+        // (sync.conflicts_polish constraint 5; W09#4).
+        openBookView ?? (
+          <BooksScreen
+            store={store}
+            onOpenBook={onOpenBook}
+            onByLink={onByLink}
+            onSignIn={onSignInMine}
+            onUpload={onUpload}
+            onShareBook={onShareBook}
+            mode={mode}
+            restoreDismissed={restore.dismissed}
+            onDismissRestored={restore.onDismiss}
+          />
+        )
       ) : key === 'setlists' ? (
         // On the phone an open setlist sits in this panel, the tab bar below it
         // (books.setlist_chrome; W12 phone #1); otherwise the Setlists list.
@@ -867,10 +871,17 @@ export default function AppShell({
   // The file view, from either way in (workflow 14 §The view): *Files in
   // {book}* (no path) and a song's *Show the file* (its path). One rule for both:
   // a book needing the user opens its conflicts instead (workflow 9).
+  // The paused book panel is a view of a book: on a wide layout it sits in the
+  // Books destination, so opening it selects that tab (sync.conflicts_polish
+  // Decision 3).
+  const openConflicts = (bookId) => {
+    if (mode === 'wide') setSelected('books');
+    setConflictsBook(bookId);
+  };
   const openBook = (bookId, path = null) => {
     if (conflictsBook === bookId || sync?.[bookId]?.phase === 'needs_you') {
       if (conflictsBook !== bookId) store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
-      setConflictsBook(bookId);
+      openConflicts(bookId);
     } else {
       setOpenFile({ bookId, path });
     }
@@ -890,7 +901,7 @@ export default function AppShell({
         onNeedsYou={(bookId) => {
           setMySongsLater(true);
           store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
-          setConflictsBook(bookId);
+          openConflicts(bookId);
         }}
       />
     );
@@ -916,6 +927,141 @@ export default function AppShell({
     );
   }
 
+  const openInstruments = () => setInstrumentsOpen(true);
+  // Opening a setlist, from any destination, selects the Setlists tab
+  // (books.setlist_chrome Decision 3); a search hit still pushes, so Back lands
+  // on search again.
+  const openSetlistOnTab = (next) => {
+    setSelected('setlists');
+    setOpenSetlist(next);
+  };
+  // A destination tab pressed under an open setlist (the phone) leaves it: a tab
+  // switch plus a close, so the entry is replaced (routing Decision 4;
+  // books.setlist_chrome Decision 4). So does a rail tab beside the paused book
+  // panel (a tablet or a computer), through the panel's own close
+  // (sync.conflicts_polish constraint 5).
+  const selectTab = (key) => {
+    if (openSetlist) setOpenSetlist(null);
+    if (conflictsBook) closers.conflicts();
+    setSelected(key);
+  };
+  const search = {
+    query: searchQuery,
+    onQueryChange: setSearchQuery,
+    onExploreChord: (_chord, typedQuery) => setExploring({ text: typedQuery ?? searchQuery }),
+    scope,
+    onScopeChange: setScope,
+  };
+
+  // The shell itself: the destinations under their tab bar (phone) or beside the
+  // rail (tablet, computer). `booksView` takes the Books panel's place — the
+  // paused book panel on a wide layout (sync.conflicts_polish constraint 5;
+  // W09#4) — as `setlistView` takes the Setlists panel's on the phone.
+  const renderShell = ({ booksView = null, setlistView = null, sharingScreen = null } = {}) => (
+    <>
+      <Tabs
+        className={sharingScreen ? 'shell shell-covered' : 'shell'}
+        hidden={sharingScreen ? true : undefined}
+        orientation={mode === 'wide' ? 'vertical' : 'horizontal'}
+        selectedKey={selected}
+        onSelectionChange={selectTab}
+      >
+        {mode === 'wide' ? (
+          <div className="split">
+            <div className="pane side">
+              {/* The side header (shell.header_chrome; W01/W02 computer): the
+                  wordmark, the instrument chip — the one shared piece of shell
+                  chrome (music.instruments Decision 1) — and the account
+                  affordance (account.account_screen). */}
+              <HeaderChrome
+                store={store}
+                className="side-head"
+                onInstruments={openInstruments}
+                onAccount={() => setAccount(true)}
+              />
+              <TabList className="rail" aria-label={t('shell.nav')}>
+                {DESTINATIONS.map((key) => destinationTab(key, 'rail'))}
+              </TabList>
+            </div>
+            {/* Busy while an address resolves (shell.routing): what it names
+                opens over this destination once the device says it is here. */}
+            <main className="pane main" aria-busy={resolving ? true : undefined}>
+              <div className="scroll">
+                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, null, shareBook, signInMine, setUpload, booksView)}
+              </div>
+            </main>
+          </div>
+        ) : (
+          <div className="screen">
+            {/* The phone's header row above every destination
+                (shell.header_chrome; W01/W02 phone 1): wordmark, chip, account;
+                `order: -1` keeps it above the scrolling detail. Not over an
+                open setlist, whose own app bar is the first row (W12 phone #1). */}
+            {setlistView ? null : (
+              <HeaderChrome
+                store={store}
+                className="instr-top"
+                onInstruments={openInstruments}
+                onAccount={() => setAccount(true)}
+              />
+            )}
+            {/* The TabList renders before the TabPanels so RAC can register the
+                tab ids the panels reference (react-aria tabs link panel↔tab by a
+                shared base id set when the list mounts); the tab bar is placed
+                back at the foot of the screen with `order` in shell.css. */}
+            <TabList className="tabbar" aria-label={t('shell.nav')}>
+              {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
+            </TabList>
+            <main className={setlistView ? 'scroll scroll-setlist' : 'scroll'} aria-busy={resolving ? true : undefined}>
+              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, setlistView, shareBook, signInMine, setUpload)}
+            </main>
+          </div>
+        )}
+      </Tabs>
+      {sharingScreen}
+      <InstrumentsOverlay
+        store={store}
+        isOpen={instrumentsOpen}
+        onClose={() => setInstrumentsOpen(false)}
+      />
+      {addingToSetlist ? (
+        <AddToSetlist
+          store={store}
+          song={addingToSetlist}
+          onClose={() => setAddingToSetlist(null)}
+        />
+      ) : null}
+      {/* A book's Share on a phone (books.share_people; W10 #1): the sheet over
+          the shell, leading to the people and New invitation screens. */}
+      {shareSheet ? (
+        <ShareSheet
+          bookId={shareSheet.bookId}
+          title={sharingFacts(shareSheet.bookId).title}
+          role={sharingFacts(shareSheet.bookId).role}
+          onClose={() => setShareSheet(null)}
+          onOpenPeople={() => openPeopleFrom(shareSheet.bookId)}
+          onNewInvitation={() => {
+            setShareSheet(null);
+            setNewInvitation({ bookId: shareSheet.bookId });
+          }}
+        />
+      ) : null}
+      {/* A refused invitation link (books.invited_presentation; workflow 1
+          §Invited; W01 #4): an alert dialog over the person's shelf — the empty
+          front door for a fresh account — and dismissing it leaves them there. */}
+      {invited?.phase === 'refused' ? (
+        <InvitedRefusal
+          reason={invited.reason}
+          onAddByLink={() => {
+            setInvited(null);
+            setSelected('books');
+          }}
+          onClose={() => setInvited(null)}
+        />
+      ) : null}
+    </>
+  );
+
   // The per-song conflict resolver (sync.conflicts, workflow 9 §Settling one): a
   // full screen over the paused panel, raised by its *Settle*. Checked first so
   // it sits over the panel; Back returns to it.
@@ -930,20 +1076,25 @@ export default function AppShell({
     );
   }
 
-  // The book-level paused panel (sync.conflicts, workflow 9 §The rest): a full
-  // screen over the shell for a book with an in-progress merge. *Settle* opens the
-  // per-song resolver above; Back returns to the shell.
+  // The book-level paused panel (sync.conflicts, workflow 9 §The rest) for a
+  // book with an in-progress merge. On a phone, a full screen over the shell; on
+  // a tablet or a computer, the Books destination's content in the main pane,
+  // the header chrome and the rail beside it — "the book needs you; the rest of
+  // it carries on" (sync.conflicts_polish constraint 5; W09#4 L184-205).
+  // *Settle* opens the per-song resolver above; Back returns to the shell.
   if (conflictsBook) {
     const entry = orderedBooks(shelf).find((e) => e.id === conflictsBook);
-    return (
+    const panel = (
       <BookConflicts
         store={store}
         bookId={conflictsBook}
         title={titleFor(entry?.book ?? {}, conflictsBook)}
+        embedded={mode === 'wide'}
         onSettle={(path) => setSongConflict({ bookId: conflictsBook, path })}
         onClose={() => back(closers.conflicts)}
       />
     );
+    return mode === 'wide' ? renderShell({ booksView: panel }) : panel;
   }
 
   // A song's history is a full screen over whatever opened it (songs.history),
@@ -1206,131 +1357,5 @@ export default function AppShell({
     );
   }
 
-  const openInstruments = () => setInstrumentsOpen(true);
-  // Opening a setlist, from any destination, selects the Setlists tab
-  // (books.setlist_chrome Decision 3); a search hit still pushes, so Back lands
-  // on search again.
-  const openSetlistOnTab = (next) => {
-    setSelected('setlists');
-    setOpenSetlist(next);
-  };
-  // A destination tab pressed under an open setlist (the phone) leaves it: a tab
-  // switch plus a close, so the entry is replaced (routing Decision 4;
-  // books.setlist_chrome Decision 4).
-  const selectTab = (key) => {
-    if (openSetlist) setOpenSetlist(null);
-    setSelected(key);
-  };
-  const search = {
-    query: searchQuery,
-    onQueryChange: setSearchQuery,
-    onExploreChord: (_chord, typedQuery) => setExploring({ text: typedQuery ?? searchQuery }),
-    scope,
-    onScopeChange: setScope,
-  };
-
-  return (
-    <>
-      <Tabs
-        className={sharingScreen ? 'shell shell-covered' : 'shell'}
-        hidden={sharingScreen ? true : undefined}
-        orientation={mode === 'wide' ? 'vertical' : 'horizontal'}
-        selectedKey={selected}
-        onSelectionChange={selectTab}
-      >
-        {mode === 'wide' ? (
-          <div className="split">
-            <div className="pane side">
-              {/* The side header (shell.header_chrome; W01/W02 computer): the
-                  wordmark, the instrument chip — the one shared piece of shell
-                  chrome (music.instruments Decision 1) — and the account
-                  affordance (account.account_screen). */}
-              <HeaderChrome
-                store={store}
-                className="side-head"
-                onInstruments={openInstruments}
-                onAccount={() => setAccount(true)}
-              />
-              <TabList className="rail" aria-label={t('shell.nav')}>
-                {DESTINATIONS.map((key) => destinationTab(key, 'rail'))}
-              </TabList>
-            </div>
-            {/* Busy while an address resolves (shell.routing): what it names
-                opens over this destination once the device says it is here. */}
-            <main className="pane main" aria-busy={resolving ? true : undefined}>
-              <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, null, shareBook, signInMine, setUpload)}
-              </div>
-            </main>
-          </div>
-        ) : (
-          <div className="screen">
-            {/* The phone's header row above every destination
-                (shell.header_chrome; W01/W02 phone 1): wordmark, chip, account;
-                `order: -1` keeps it above the scrolling detail. Not over an
-                open setlist, whose own app bar is the first row (W12 phone #1). */}
-            {setlistView ? null : (
-              <HeaderChrome
-                store={store}
-                className="instr-top"
-                onInstruments={openInstruments}
-                onAccount={() => setAccount(true)}
-              />
-            )}
-            {/* The TabList renders before the TabPanels so RAC can register the
-                tab ids the panels reference (react-aria tabs link panel↔tab by a
-                shared base id set when the list mounts); the tab bar is placed
-                back at the foot of the screen with `order` in shell.css. */}
-            <TabList className="tabbar" aria-label={t('shell.nav')}>
-              {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
-            </TabList>
-            <main className={setlistView ? 'scroll scroll-setlist' : 'scroll'} aria-busy={resolving ? true : undefined}>
-              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, setlistView, shareBook, signInMine, setUpload)}
-            </main>
-          </div>
-        )}
-      </Tabs>
-      {sharingScreen}
-      <InstrumentsOverlay
-        store={store}
-        isOpen={instrumentsOpen}
-        onClose={() => setInstrumentsOpen(false)}
-      />
-      {addingToSetlist ? (
-        <AddToSetlist
-          store={store}
-          song={addingToSetlist}
-          onClose={() => setAddingToSetlist(null)}
-        />
-      ) : null}
-      {/* A book's Share on a phone (books.share_people; W10 #1): the sheet over
-          the shell, leading to the people and New invitation screens. */}
-      {shareSheet ? (
-        <ShareSheet
-          bookId={shareSheet.bookId}
-          title={sharingFacts(shareSheet.bookId).title}
-          role={sharingFacts(shareSheet.bookId).role}
-          onClose={() => setShareSheet(null)}
-          onOpenPeople={() => openPeopleFrom(shareSheet.bookId)}
-          onNewInvitation={() => {
-            setShareSheet(null);
-            setNewInvitation({ bookId: shareSheet.bookId });
-          }}
-        />
-      ) : null}
-      {/* A refused invitation link (books.invited_presentation; workflow 1
-          §Invited; W01 #4): an alert dialog over the person's shelf — the empty
-          front door for a fresh account — and dismissing it leaves them there. */}
-      {invited?.phase === 'refused' ? (
-        <InvitedRefusal
-          reason={invited.reason}
-          onAddByLink={() => {
-            setInvited(null);
-            setSelected('books');
-          }}
-          onClose={() => setInvited(null)}
-        />
-      ) : null}
-    </>
-  );
+  return renderShell({ setlistView, sharingScreen });
 }

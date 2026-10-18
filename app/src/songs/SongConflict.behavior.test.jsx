@@ -5,7 +5,7 @@
 // written for the purpose (no-song-text rule).
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react';
 import { EditorView } from '@codemirror/view';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
@@ -13,6 +13,12 @@ import { checkWcag21aa } from '../a11y/axe.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SongConflict from './SongConflict.jsx';
 import { labelMarkers } from './conflict-text.js';
+import { instrumentInstance, configFor } from '../core/instrument.js';
+import { defaultVoicing } from '../core/voicings.js';
+import { parseChord } from '../core/notation/parse.js';
+import { fingeringFromFrets } from '../core/search.js';
+import { parseShorthand } from '../core/fretstring.js';
+import { describeFingering } from '../render/index.js';
 
 globalThis.matchMedia = (media) => ({ media, matches: false, addEventListener() {}, removeEventListener() {} });
 afterEach(() => cleanup());
@@ -262,4 +268,130 @@ describe('SongConflict (behavior)', () => {
     emit(event(EventKind.CONFLICTS, { bookId: BOOK, inProgress: false }));
     expect(closed).toBe(true);
   });
+
+  // --- sync.conflicts_polish: the two diagrams beside each choice (workflow 9
+  // §Settling one L49-51, "two bars rendered, two diagrams"; W09#1 L45-77).
+
+  const GUITAR = 'E2 A2 D3 G3 B3 E4';
+  const guitar = instrumentInstance({ catalogId: '6guitar', strings: GUITAR, fretCount: 22 });
+  // The built-in guitar, as the INSTRUMENTS surface carries it on a first run.
+  const GUITAR_ENTRY = {
+    id: 'g1',
+    catalogId: '6guitar',
+    label: 'Guitar',
+    tuning: GUITAR,
+    fretCount: 22,
+    config: configFor(guitar, 'strumming'),
+    shapes: [],
+  };
+  const seedGuitar = (emit) =>
+    emit(event(EventKind.INSTRUMENTS, { instruments: [GUITAR_ENTRY], inUseId: GUITAR_ENTRY.id, standard: GUITAR_ENTRY }));
+
+  // A bar conflict on the fourth bar's neighbour: ours wrote G7, Ana D♭7.
+  const barMarked = (tail = '') => `# Roda de rua
+
+## Parte
+\`\`\`
+<<<<<<< ours
+C | G7 | F | F
+=======
+C | Db7 | F | F
+>>>>>>> theirs
+\`\`\`
+${tail}`;
+  const barSong = (marked) => ({
+    path: PATH,
+    title: 'Roda de rua',
+    count: 1,
+    author: 'Ana',
+    marked,
+    markedLines: ['C | G7 | F | F'],
+    items: [{ kind: 'chart', line: 5, base: ['C | G | F | F'], ours: ['C | G7 | F | F'], theirs: ['C | Db7 | F | F'] }],
+  });
+  const seedBar = (emit, marked) =>
+    emit(event(EventKind.CONFLICTS, { bookId: BOOK, inProgress: true, songs: [barSong(marked)], deleted: [], incoming: [], savesHeld: [] }));
+
+  const card = (container, name) => container.querySelector(`.est-conflict-side[aria-label="${name}"]`);
+  const sentence = (symbol, fingering) =>
+    describeFingering(fingering, { chord: parseChord(symbol).chord, instrument: guitar });
+
+  it('a bar conflict draws, beside each choice, the diagram of each chord that side wrote in the differing bars (workflow 9 §Settling one L49-51; W09#1 L45-77)', async () => {
+    const { store, emit } = makeStore();
+    seedGuitar(emit);
+    seedBar(emit, barMarked());
+    const { container } = renderScreen(store);
+
+    const yours = card(container, 'Yours');
+    const anas = card(container, 'Ana’s');
+    // The bars are still drawn (the side as a bar), with the diagrams under them.
+    expect(yours.querySelector('.chart .barline')).toBeTruthy();
+    expect(anas.querySelector('.chart .barline')).toBeTruthy();
+
+    const g7 = defaultVoicing(parseChord('G7').chord, guitar);
+    const db7 = defaultVoicing(parseChord('Db7').chord, guitar);
+    const yourImgs = within(yours).getAllByRole('img');
+    const theirImgs = within(anas).getAllByRole('img');
+    expect(yourImgs).toHaveLength(1);
+    expect(theirImgs).toHaveLength(1);
+    expect(yourImgs[0].getAttribute('aria-label').startsWith(sentence('G7', g7))).toBe(true);
+    expect(theirImgs[0].getAttribute('aria-label').startsWith(sentence('Db7', db7))).toBe(true);
+    // No diagram for C or F, the unchanged measures.
+    for (const img of [...yourImgs, ...theirImgs]) {
+      expect(img.getAttribute('aria-label')).not.toMatch(/^(C|F)\b/);
+    }
+    // Each carries its kind as a visible word: neither song voices them, so the default.
+    expect(within(yours).getByText('default')).toBeInTheDocument();
+    expect(within(anas).getByText('default')).toBeInTheDocument();
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it("a side's diagram is the song's own voicing when the song holds one for this tuning (§7.6 order; mockups README L26)", async () => {
+    const { store, emit } = makeStore();
+    seedGuitar(emit);
+    seedBar(emit, barMarked(`\n---\n\n## Voicings: ${GUITAR}\n- G7: 353433\n`));
+    const { container } = renderScreen(store);
+
+    const yours = card(container, 'Yours');
+    const anas = card(container, 'Ana’s');
+    const own = fingeringFromFrets(parseShorthand('353433'), parseChord('G7').chord, guitar);
+    const [g7] = within(yours).getAllByRole('img');
+    expect(g7.getAttribute('aria-label').startsWith(sentence('G7', own))).toBe(true);
+    // The song's own shape is drawn in ink with no word (kind song).
+    expect(yours.querySelector('.chord-diagram--song')).toBeTruthy();
+    expect(within(yours).queryByText('default')).toBeNull();
+    // Ana's D♭7 is not in the block, so it falls back to the default.
+    expect(anas.querySelector('.chord-diagram--default')).toBeTruthy();
+    expect(within(anas).getByText('default')).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('an unvoiceable chord shows its name without a diagram, and never throws', async () => {
+    // C13#11 has no shape on a ukulele (voicings.test).
+    const uke = 'G4 C4 E4 A4';
+    const ukeInst = instrumentInstance({ catalogId: 'ukulele', strings: uke, fretCount: 15 });
+    const UKE = { id: 'u1', catalogId: 'ukulele', label: 'Ukulele', tuning: uke, fretCount: 15, config: configFor(ukeInst, 'strumming'), shapes: [] };
+    const { store, emit } = makeStore();
+    emit(event(EventKind.INSTRUMENTS, { instruments: [UKE], inUseId: UKE.id, standard: GUITAR_ENTRY }));
+    const marked = barMarked().replace('C | Db7 | F | F', 'C | C13#11 | F | F');
+    emit(
+      event(EventKind.CONFLICTS, {
+        bookId: BOOK,
+        inProgress: true,
+        songs: [{ ...barSong(marked), items: [{ kind: 'chart', line: 5, base: ['C | G | F | F'], ours: ['C | G7 | F | F'], theirs: ['C | C13#11 | F | F'] }] }],
+        deleted: [],
+        incoming: [],
+        savesHeld: [],
+      }),
+    );
+    const { container } = renderScreen(store);
+
+    const anas = card(container, 'Ana’s');
+    expect(within(anas).queryAllByRole('img')).toHaveLength(0);
+    expect(anas.querySelector('.est-conflict-unvoiced')).toHaveTextContent('C13#11');
+    // Yours still draws its G7.
+    expect(within(card(container, 'Yours')).getAllByRole('img')).toHaveLength(1);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
 });
+

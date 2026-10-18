@@ -137,7 +137,38 @@ async function openResolver(page) {
   // The conflict is titled by where it is: its section and the differing bar,
   // the fourth of Parte (W09#1 L42; sync.conflicts_editing).
   await expect(page.getByRole('heading', { name: 'Parte, bar 4' })).toBeVisible();
+  // Under each side's bar, the diagram of the chord that side wrote in the bar
+  // that differs (workflow 9 §Settling one L49-51; W09#1 L45-77;
+  // sync.conflicts_polish): Dm under *Yours*, E7 under *Ana's*.
+  const yours = page.locator('.est-conflict-side[aria-label="Yours"]');
+  const anas = page.locator('.est-conflict-side[aria-label="Ana’s"]');
+  await expect(yours.getByRole('img', { name: /^Dm\b/ })).toHaveCount(1);
+  await expect(yours.getByRole('img')).toHaveCount(1);
+  await expect(anas.getByRole('img', { name: /^E7\b/ })).toHaveCount(1);
+  await expect(anas.getByRole('img')).toHaveCount(1);
   expect(await analyzeWcag21aa(page)).toEqual([]); // axe: the per-song resolver
+}
+
+// The paused panel as W09#4 draws it (sync.conflicts_polish constraints 4-5):
+// on a tablet or a computer it sits in the main pane with the rail beside it,
+// on a phone it is the full screen; and the in-conflict row's title starts at
+// the row's own padding, with no list indent.
+async function expectPanelAsDrawn(page, testInfo) {
+  const list = page.getByRole('list', { name: 'In conflict' });
+  await expect(list).toBeVisible();
+  const rail = page.getByRole('tablist', { name: 'Destinations' });
+  if (testInfo.project.name === 'phone') {
+    await expect(rail).toBeHidden();
+  } else {
+    await expect(rail).toBeVisible();
+    const railBox = await rail.boundingBox();
+    const listBox = await list.boundingBox();
+    expect(railBox.x + railBox.width).toBeLessThanOrEqual(listBox.x); // beside it
+  }
+  const listBox = await list.boundingBox();
+  const title = list.getByRole('listitem').filter({ hasText: SONG_TITLE }).getByText(SONG_TITLE, { exact: true });
+  const titleBox = await title.boundingBox();
+  expect(titleBox.x - listBox.x).toBeLessThanOrEqual(24);
 }
 
 // After settling, the book leaves *needs you* and the song reads `bar`.
@@ -168,8 +199,9 @@ async function syncUntilSongReads(page, bar) {
 test('take theirs settles the conflict, and the resolved merge is pushed, fetched back, and reaches the other person', async ({
   browser,
   page,
-}) => {
+}, testInfo) => {
   const { ana, url, cookie } = await reachNeedsYou(browser, page);
+  await expectPanelAsDrawn(page, testInfo);
   await mockup(page, 'W09-conflicts', 4);
   await openResolver(page);
   await mockup(page, 'W09-conflicts', 1);

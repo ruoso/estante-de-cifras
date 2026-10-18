@@ -23,11 +23,14 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import Chart from '../chart/Chart.jsx';
 import { chartRows } from '../chart/layout.js';
 import MarkedTextEditor from '../editor/MarkedTextEditor.jsx';
-import { labelMarkers, conflictPlace, rowText } from './conflict-text.js';
+import { labelMarkers, conflictPlace, differingMeasures, rowText } from './conflict-text.js';
+import { chartChordList } from './reading-view.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
+import { inUseEntry } from '../instruments/InstrumentChip.jsx';
 import { parseChord } from '../core/notation/parse.js';
-import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
+import { DEFAULT_DIALECT, songDialect } from '../core/notation/dialects.js';
 import { instrumentInstance } from '../core/instrument.js';
+import { resolveSongVoicings } from '../core/voicings.js';
 import { parseShorthand } from '../core/fretstring.js';
 import { fingeringFromFrets } from '../core/search.js';
 import './song-conflict.css';
@@ -67,6 +70,54 @@ function snippetModel(lines, { fence = false } = {}) {
   }
 }
 
+// The in-use instrument as the reader builds it (SongReading), or null when the
+// slice has not arrived or the entry will not build.
+function readerInstrument(entry) {
+  if (!entry) return null;
+  try {
+    return instrumentInstance({
+      catalogId: entry.catalogId,
+      label: entry.label ?? undefined,
+      strings: entry.tuning,
+      fretCount: entry.fretCount,
+      heuristics: entry.config,
+    });
+  } catch {
+    return null;
+  }
+}
+
+// The chords one side of a chart conflict wrote in the bars that differ, each
+// voiced as this device's reader would draw it (sync.conflicts_polish
+// Decisions 1-2; workflow 9 §Settling one, "two bars rendered, two diagrams"):
+// resolved in the §7.6 order against that side's whole song, so a voicing block
+// in it governs its own chords, then my shapes, then the default. Distinct, in
+// order of appearance; a chord the instrument cannot voice comes back with no
+// fingering (its name is shown instead). Never throws.
+function sideChords(item, side, sideModel, instrument, entry) {
+  if (!instrument || !sideModel) return [];
+  try {
+    const notation = songDialect(sideModel);
+    const resolved = resolveSongVoicings(sideModel, instrument, { shapes: entry?.shapes ?? [], dialect: notation });
+    const seen = new Set();
+    const out = [];
+    for (const measure of differingMeasures(item, side)) {
+      const model = snippetModel([measure], { fence: true });
+      for (const { key, symbol } of model ? chartChordList(model) : []) {
+        if (seen.has(key)) continue;
+        const chord = parseChord(symbol, notation).chord;
+        if (!chord) continue; // not a chord at all: nothing to voice or name
+        seen.add(key);
+        const voiced = resolved.get(key);
+        out.push({ key, symbol, chord, source: voiced?.source ?? null, fingering: voiced?.fingering ?? null });
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 // The line addresses a conflicted song's reading view marks → the §7
 // musical-terms phrase for each: the rows of ours whose text is one of the
 // disputed lines (workflow 9 §Meeting one), keyed `section:part:line`, with the
@@ -90,13 +141,37 @@ function markedAddresses(model, markedLines) {
 }
 
 // One side of one conflict, in musical terms.
-function SideCard({ item, side, heading }) {
+// `voicing` is { chords, dialect, instrument } for a chart side: the diagrams
+// sit under the side's bar (W09#1 L45-77).
+function SideCard({ item, side, heading, voicing }) {
   const value = side === 'ours' ? item.ours : item.theirs;
   let body;
   if (item.kind === 'chart' || item.kind === 'sections' || item.kind === 'block-notes') {
     const model = snippetModel(value, { fence: item.kind !== 'sections' });
+    const chords = model && item.kind === 'chart' ? voicing?.chords ?? [] : [];
+    const voiced = chords.filter((c) => c.fingering);
+    const unvoiced = chords.filter((c) => !c.fingering);
     body = model ? (
-      <Chart model={model} label={heading} />
+      <>
+        <Chart model={model} label={heading} />
+        {voiced.length > 0 && (
+          <div className="shapes est-conflict-diagrams">
+            {voiced.map((c) => (
+              <ChordDiagram
+                key={c.key}
+                fingering={c.fingering}
+                kind={c.source}
+                context={{ chord: c.chord, dialect: voicing.dialect, instrument: voicing.instrument }}
+              />
+            ))}
+          </div>
+        )}
+        {unvoiced.length > 0 && (
+          <p className="t-small est-conflict-unvoiced">
+            {t('reading.unvoiced', { list: unvoiced.map((c) => c.symbol).join(', ') })}
+          </p>
+        )}
+      </>
     ) : (
       <p className="t-small est-conflict-absent">{t('songConflict.absent')}</p>
     );
@@ -173,6 +248,8 @@ function describe(item, author, model) {
 
 export default function SongConflict({ store, bookId, path, onClose }) {
   const conflicts = useSlice(store, 'conflicts');
+  const instrumentsSlice = useSlice(store, 'instruments');
+  const preferences = useSlice(store, 'preferences');
   const song = conflicts?.[bookId]?.songs?.find((s) => s.path === path) ?? null;
   const author = song?.author ?? null;
   const authorLabel = author ? t('songConflict.theirs', { author }) : t('songConflict.theirsFallback');
@@ -205,6 +282,11 @@ export default function SongConflict({ store, bookId, path, onClose }) {
   // (The React compiler memoises these; they are cheap one-snippet parses.)
   const previewModel = song?.marked ? snippetModel(resolveMarked(song.marked, 'ours').split('\n')) : null;
   const markedKeys = markedAddresses(previewModel, song?.markedLines);
+  // theirs, whole, for voicing the chords their side wrote against their song.
+  const theirsModel = song?.marked ? snippetModel(resolveMarked(song.marked, 'theirs').split('\n')) : null;
+  const entry = inUseEntry(instrumentsSlice);
+  const instrument = readerInstrument(entry);
+  const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
   // The chart marks a conflicted line and, for a screen reader, names what
   // conflicts in musical terms (§7.1) — the phrase Chart bounds the region with.
   const markOf = (a) => {
@@ -342,8 +424,18 @@ export default function SongConflict({ store, bookId, path, onClose }) {
         </div>
 
         <div className="est-conflict-sides">
-          <SideCard item={item} side="ours" heading={t('songConflict.yours')} />
-          <SideCard item={item} side="theirs" heading={authorLabel} />
+          <SideCard
+            item={item}
+            side="ours"
+            heading={t('songConflict.yours')}
+            voicing={{ chords: sideChords(item, 'ours', previewModel, instrument, entry), dialect, instrument }}
+          />
+          <SideCard
+            item={item}
+            side="theirs"
+            heading={authorLabel}
+            voicing={{ chords: sideChords(item, 'theirs', theirsModel, instrument, entry), dialect, instrument }}
+          />
         </div>
 
         <div className="actions est-conflict-actions">

@@ -42,6 +42,18 @@
 .est-conflict-side .t-h3 {
   align-self: flex-start;
 }
+/* The chords each side wrote in the differing bars, as the reader would voice
+   them, centred under that side's bar and wrapping on a narrow card (W09#1
+   L58/L72; sync.conflicts_polish constraint 3). */
+.est-conflict-diagrams {
+  justify-content: center;
+  max-width: 100%;
+}
+.est-conflict-unvoiced {
+  color: var(--ink-2);
+  margin: 0;
+  text-align: center;
+}
 .est-conflict-value {
   color: var(--ink);
   margin: 0;

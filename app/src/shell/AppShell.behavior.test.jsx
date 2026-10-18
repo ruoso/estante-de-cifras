@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act, within } from '@testing-library/react';
+import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind } from '../worker/protocol.js';
@@ -213,3 +213,99 @@ describe('AppShell header chrome (behavior)', () => {
     });
   }
 });
+
+describe('AppShell paused book panel (behavior)', () => {
+  // --- sync.conflicts_polish constraint 5: the paused book panel beside the
+  // rail on a wide layout (W09#4 L184-205), a full screen on the phone.
+  const CONFLICT_BOOK = 'b1';
+  const CONFLICT_AT = '2026-10-16T00:00:00.000Z';
+  const CONFLICT_SHELF = {
+    books: {
+      [CONFLICT_BOOK]: {
+        label: { value: 'Choros da Ana', at: CONFLICT_AT },
+        role: { value: 'owner', at: CONFLICT_AT },
+        position: { value: 1, at: CONFLICT_AT },
+      },
+    },
+    local: {},
+  };
+  const CONFLICTS_PAYLOAD = {
+    bookId: CONFLICT_BOOK,
+    inProgress: true,
+    songs: [{ path: 'roda-de-rua.cifra.md', title: 'Roda de rua', count: 1, author: 'Ana' }],
+    deleted: [],
+    incoming: [],
+    savesHeld: [],
+  };
+  function conflictStore() {
+    const sent = [];
+    const endpoint = { postMessage: (m) => sent.push(m), onmessage: null };
+    const store = createStore(endpoint);
+    const emit = (ev) => act(() => endpoint.onmessage({ data: ev }));
+    return { store, sent, emit };
+  }
+  // Books → the book's Files on a book needing you → OPEN_CONFLICTS, whose model
+  // the Worker then emits (workflow 9 §Meeting one).
+  function openNeedsYouBook(emit) {
+    emit(event(EventKind.SHELF, CONFLICT_SHELF));
+    emit(event(EventKind.SYNC, { bookId: CONFLICT_BOOK, phase: 'needs_you', at: CONFLICT_AT }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Files in Choros da Ana' }));
+    emit(event(EventKind.CONFLICTS, CONFLICTS_PAYLOAD));
+  }
+
+  it('wide: a book needing you opens its panel in the main pane, the rail beside it; a rail tab leaves it (constraint 5; W09#4 L184-205)', async () => {
+    installMatchMedia(true);
+    const { store, emit } = conflictStore();
+    const { container } = render(<AppShell store={store} />);
+    // Start elsewhere, so opening the panel is seen to select Books.
+    openNeedsYouBook(emit);
+
+    const main = screen.getByRole('main');
+    const list = within(main).getByRole('list', { name: 'In conflict' });
+    expect(list).toBeInTheDocument();
+    expect(within(main).getByText('needs you')).toBeInTheDocument();
+    // The rail stays beside it, Books selected, in the side pane.
+    const rail = screen.getByRole('tablist', { name: 'Destinations' });
+    expect(rail.closest('.pane.side')).toBeTruthy();
+    expect(within(rail).getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
+    // Not a second screen over the shell.
+    expect(container.querySelector('.est-bookconf-screen')).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // A rail tab leaves the panel.
+    fireEvent.click(within(rail).getByRole('tab', { name: 'Search' }));
+    expect(screen.queryByRole('list', { name: 'In conflict' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('wide: the panel’s Back returns to the Books destination beside the rail (Decision 3)', async () => {
+    installMatchMedia(true);
+    const { store, emit } = conflictStore();
+    render(<AppShell store={store} />);
+    openNeedsYouBook(emit);
+    fireEvent.click(screen.getByRole('tab', { name: 'Setlists' }));
+    // Re-open from Books, then the panel's Back returns to the Books destination.
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Files in Choros da Ana' }));
+    expect(screen.getByRole('list', { name: 'In conflict' })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Back' }));
+    // Back is the history's (above depth 0, a popstate jsdom fires on a task).
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'In conflict' })).not.toBeInTheDocument());
+    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('narrow: the panel is a full screen over the shell (no tab bar), as before', async () => {
+    installMatchMedia(false);
+    const { store, emit } = conflictStore();
+    const { container } = render(<AppShell store={store} />);
+    openNeedsYouBook(emit);
+
+    expect(screen.getByRole('list', { name: 'In conflict' })).toBeInTheDocument();
+    expect(container.querySelector('.est-bookconf-screen')).toBeTruthy();
+    expect(screen.queryByRole('tablist', { name: 'Destinations' })).not.toBeInTheDocument();
+    expect(container.querySelector('.tabbar')).not.toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+

@@ -77,8 +77,15 @@ task sync "Sync" {
   task conflicts_polish "The conflict resolver as drawn" {
     effort 1d
     allocate team
+    complete 100
     depends !conflicts, !keep_both
     note "Workflow 9 (Settling one) shows the two bars with their chord diagrams; the app resolver shows no diagrams for yours and theirs. Also from the W09 board: a blank indent before the conflicted title in the IN CONFLICT row, and on a computer the book panel without the shell sidebar. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (both diagrams beside each choice, axe); e2e-web (a conflict settled on the three viewports, mockup W09#1-4)."
+  }
+  task conflicts_row_summary "The In conflict row's summary line" {
+    effort 0.5d
+    allocate team
+    depends !conflicts_polish
+    note "W09#4 draws a .meta summary line under the title in the In conflict row; the app row has none. It needs the conflict titles moved into a shared pure module. Source of debt: tasks/refinements/sync/conflicts_polish.md (sync.conflicts_polish). Governing: workflow 9, mockup W09#4. Tests: unit (the shared conflict-title module); behavior (the row's summary line, axe)."
   }
   task in_place_notices "Full-screen and editor merge notices as drawn" {
     effort 1d
