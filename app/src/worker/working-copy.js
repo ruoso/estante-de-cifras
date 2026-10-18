@@ -40,6 +40,7 @@ import {
 } from 'cifra-md';
 import { canonicaliseFile } from './canonicalise.js';
 import { relinkSetlists, linksTo } from './setlist-links.js';
+import { newSetlistPath, setlistTemplate, readmeTemplate } from '../files/new-file.js';
 
 const SETLIST_SUFFIX = '.setlist.md';
 
@@ -72,6 +73,8 @@ function kindOfPath(path) {
  *   discard: (opts: { bookId: string, paths: string[] }) => Promise<void>,
  *   move: (opts: { bookId: string, fromPath: string, toPath: string }) => Promise<void>,
  *   remove: (opts: { bookId: string, path: string }) => Promise<void>,
+ *   createFile: (opts: { bookId: string, kind: 'setlist'|'readme', folder?: string|null, title: string }) =>
+ *     Promise<{ path: string } | { refused: 'exists' }>,
  * }}
  */
 export function createWorkingCopy({ fs, git, locks } = {}) {
@@ -439,5 +442,49 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
     });
   }
 
-  return { write, save, nameAndSave, discard, move, links, remove, addToSetlist };
+  // Create a setlist or the README from the file view's *New* menu
+  // (books.file_view_create_menu, workflow 14 §What can be done to a file) as
+  // ONE locked, uncommitted working-copy change. The final name is decided here,
+  // under the lock, against the real folder (new_song Decision 2), so a stale
+  // tree in the view never overwrites a file: a setlist takes its title's slug
+  // with `-2`, `-3`… when taken; the README is root-only and refused, not
+  // overwritten, when one is there. The bytes are the shared templates
+  // (new-file.js), already canonical. Nothing is staged or committed.
+  function createFile({ bookId, kind, folder, title }) {
+    return locks.withLock(bookId, async () => {
+      const dir = git.bookDir(bookId);
+      let path;
+      let text;
+      if (kind === 'setlist') {
+        const trimmed = folder ? folder.replace(/\/+$/, '') : '';
+        let names = [];
+        try {
+          names = await fs.promises.readdir(trimmed ? at(dir, trimmed) : dir);
+        } catch (err) {
+          if (err?.code !== 'ENOENT') throw err;
+        }
+        path = newSetlistPath(trimmed, title, names);
+        text = setlistTemplate(title);
+      } else if (kind === 'readme') {
+        path = 'README.md';
+        try {
+          await fs.promises.stat(at(dir, path));
+          return { refused: 'exists' };
+        } catch (err) {
+          if (err?.code !== 'ENOENT') throw err;
+        }
+        text = readmeTemplate(title);
+      } else {
+        throw new Error(`createFile: unknown kind ${kind}`);
+      }
+      const full = at(dir, path);
+      const slash = full.lastIndexOf('/');
+      if (slash > 0) await mkdirp(full.slice(0, slash));
+      await fs.promises.writeFile(full, text);
+      await fs.flush();
+      return { path };
+    });
+  }
+
+  return { write, save, nameAndSave, discard, move, links, remove, addToSetlist, createFile };
 }

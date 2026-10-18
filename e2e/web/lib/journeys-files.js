@@ -67,11 +67,32 @@ export async function confirmSaveSheet(page, name = 'Marina Souza') {
   await expect(sheet).toBeHidden();
 }
 
+// In the file view with a file open: one of its actions (`Rename` / `Delete`).
+// On a phone they sit in the open file's one bar under *More* (⋯); on the wider
+// layouts they are the header's `Rename {name}` / `Delete {name}` buttons
+// (books.file_view_create_menu Decision 6). Waits for whichever the layout draws.
+async function openFileAction(page, action, fileName) {
+  const more = page.locator('.est-file-view').getByRole('button', { name: 'More', exact: true });
+  const button = page.getByRole('button', { name: `${action} ${fileName}` });
+  await expect(more.or(button).first()).toBeVisible();
+  if (await button.first().isVisible()) {
+    await button.first().click();
+    return;
+  }
+  await more.click();
+  await page.getByRole('menuitem', { name: action, exact: true }).click();
+}
+
+// In the file view with a file open: open its rename dialog, on any layout.
+export async function openRenameDialog(page, fileName) {
+  await openFileAction(page, 'Rename', fileName);
+  await expect(page.getByRole('dialog')).toBeVisible();
+}
+
 // In the file view with a file open: rename it (keeping its kind).
 export async function renameOpenFile(page, fileName, newBase) {
-  await page.getByRole('button', { name: `Rename ${fileName}` }).click();
+  await openRenameDialog(page, fileName);
   const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
   await dialog.getByRole('textbox').fill(newBase);
   await dialog.getByRole('button', { name: 'Rename', exact: true }).click();
   await expect(dialog).toBeHidden();
@@ -79,11 +100,37 @@ export async function renameOpenFile(page, fileName, newBase) {
 
 // In the file view with a file open: delete it (asked once).
 export async function deleteOpenFile(page, fileName) {
-  await page.getByRole('button', { name: `Delete ${fileName}` }).click();
+  await openFileAction(page, 'Delete', fileName);
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(dialog).toBeHidden();
+}
+
+// In the file view's tree: *New* → `kind` (Song, Setlist, Folder or README.md),
+// in the folder being looked at (books.file_view_create_menu). Setlist and
+// Folder open a name dialog: `name` is typed and *Create* pressed — after
+// `checkA11y`, when given, runs on the filled dialog.
+export async function createInFiles(page, kind, name, checkA11y) {
+  await page.getByRole('button', { name: 'New', exact: true }).click();
+  await page.getByRole('menuitem', { name: kind, exact: true }).click();
+  if (kind !== 'Setlist' && kind !== 'Folder') return;
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('textbox').fill(name);
+  if (checkA11y) await checkA11y(); // the name dialog
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(dialog).toBeHidden();
+}
+
+// A tree folder row: named `{name}/` (then *empty* while the view holds it).
+export const folderRow = (page, name) => page.getByRole('button', { name: new RegExp(`^${escape(name)}/`) });
+
+// Choose a folder in the tree, so *New* goes in it.
+export async function chooseFolder(page, name) {
+  const row = folderRow(page, name);
+  await row.click();
+  await expect(row).toHaveAttribute('aria-pressed', 'true');
 }
 
 // File view history tab (from the tree's bar).

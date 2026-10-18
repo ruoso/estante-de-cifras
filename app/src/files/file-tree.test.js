@@ -44,6 +44,20 @@ describe('buildTree', () => {
     expect(valsa).toMatchObject({ type: 'file', depth: 1, status: 'unsaved', kind: 'song' });
     expect(nodes.find((n) => n.path === 'mpb').depth).toBe(0);
   });
+
+  it('adds the view-held folders, empty until a file is under them (books.file_view_create_menu Decision 3; workflow 14 §Statuses)', () => {
+    const nodes = buildTree([{ path: 'mpb/valsa.cifra.md', status: null }], ['ensaios', 'mpb', 'a/b']);
+    expect(nodes.map((n) => `${n.type}:${n.path}:${n.empty ?? ''}`)).toEqual([
+      'folder:a:true',
+      'folder:a/b:true',
+      'folder:ensaios:true',
+      'folder:mpb:false',
+      'file:mpb/valsa.cifra.md:',
+    ]);
+    // Once a file is in it, it is the tree's own folder row.
+    const later = buildTree([{ path: 'ensaios/x.setlist.md', status: 'new' }], ['ensaios']);
+    expect(later.find((n) => n.path === 'ensaios').empty).toBe(false);
+  });
 });
 
 describe('statusWord', () => {
@@ -52,6 +66,7 @@ describe('statusWord', () => {
     expect(statusWord('new')).toBe('fileView.status.new');
     expect(statusWord('deleted')).toBe('fileView.status.deleted');
     expect(statusWord('conflict')).toBe('fileView.status.conflict');
+    expect(statusWord('empty')).toBe('fileView.status.empty');
     expect(statusWord(null)).toBeNull();
     expect(statusWord(undefined)).toBeNull();
   });

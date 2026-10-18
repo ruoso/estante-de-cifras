@@ -75,3 +75,13 @@ export const LockIcon = () => (
     <path d="M8 11V8a4 4 0 0 1 8 0v3" />
   </svg>
 );
+
+// The ⋯ of the open file's *More* menu on a phone (W14 #2 L68-72; the same
+// three dots as the reading view's).
+export const MoreIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+    <circle cx="5" cy="12" r="1.8" />
+    <circle cx="12" cy="12" r="1.8" />
+    <circle cx="19" cy="12" r="1.8" />
+  </svg>
+);

@@ -307,6 +307,15 @@ export const CommandKind = Object.freeze({
   DELETE_FILE: 'delete_file',
   COMMIT_DIFF: 'commit_diff',
   FILE_LINKS: 'file_links',
+  // The file view's *New* menu (books.file_view_create_menu, workflow 14 §What
+  // can be done to a file). CREATE_FILE `{ bookId, kind: 'setlist' | 'readme',
+  // folder?, title }` writes a new setlist (named from `title` against the real
+  // `folder`, `-2` when taken, holding only its title) or the root README.md
+  // (holding `# {title}`) into the working copy, under the book lock, uncommitted
+  // and indexed as unsaved; it replies with FILE_CREATED then a refreshed TREE,
+  // or CREATE_REFUSED when a README is already there (nothing is overwritten).
+  // A song keeps NEW_SONG; a folder never reaches the Worker. Local, offline.
+  CREATE_FILE: 'create_file',
   // Setlists (books.setlists, workflow 12). LIST_SETLISTS `{}` walks every
   // loaded book's working tree for its `*.setlist.md` files and replies with a
   // SETLISTS event (each setlist's book, path, title and song count) — a local,
@@ -637,6 +646,13 @@ export const EventKind = Object.freeze({
   FILE_DELETED: 'file_deleted',
   COMMIT_DIFF: 'commit_diff',
   FILE_LINKS: 'file_links',
+  // The *New* menu's replies (books.file_view_create_menu), in answer to
+  // CREATE_FILE: FILE_CREATED `{ bookId, path }` names the file written, and
+  // CREATE_REFUSED `{ bookId, kind, reason: 'exists' }` says nothing was written.
+  // Both TRANSIENT, like FILE_MOVED: the view selects the new file or shows the
+  // notice; no reducer slice.
+  FILE_CREATED: 'file_created',
+  CREATE_REFUSED: 'create_refused',
   // Setlists (books.setlists, workflow 12). SETLISTS carries every loaded book's
   // setlists in reply to LIST_SETLISTS: `{ setlists: [{ bookId, path, title,
   // count }] }`, folded into the `setlists` slice the Setlists destination

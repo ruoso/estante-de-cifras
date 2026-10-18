@@ -418,8 +418,11 @@ describe('the file view (behavior)', () => {
       const { container } = renderView(store, { initialPath: LANTERN, mode: 'narrow' });
       seedTree(emit, ENTRIES);
 
-      // One pane at a time: the file, under its own Back to files.
-      expect(container.querySelector('.file-view-narrow-editor .file-view-bar')).toHaveTextContent(LANTERN);
+      // One pane at a time: the file, under its own Back to files — its base
+      // name in the one bar, its folder on the meta line under it
+      // (books.file_view_create_menu Acceptance 8: the path is not shown twice).
+      expect(container.querySelector('.file-view-narrow-editor .file-view-bar')).toHaveTextContent('lantern-road.cifra.md');
+      expect(container.querySelector('.file-view-meta')).toHaveTextContent('sets/evening/');
       expect(screen.queryByRole('group', { name: t('fileView.tree', { book: BOOK }) })).toBeNull();
       expect(kind(sent, 'open_source').some((c) => c.payload.path === LANTERN)).toBe(true);
       emit(event(EventKind.SOURCE, { bookId: BOOK, path: LANTERN, text: LANTERN_TEXT }));
@@ -443,6 +446,250 @@ describe('the file view (behavior)', () => {
       expect(row('quiet-harbour.cifra.md')).toHaveAttribute('aria-pressed', 'false');
       expect(kind(sent, 'open_source')).toEqual([]);
       expect(screen.getByText(t('fileView.emptyEditor'))).toBeInTheDocument();
+    });
+  });
+});
+
+// books.file_view_create_menu — the *New* menu (workflow 14 §What can be done to
+// a file L147-171; W14 #1 L58-63), choosable folder rows (Decision 5) and the
+// phone's one-bar open file with its *More* menu (W14 #2 L68-74; Decision 6).
+// Purpose-written names (*Rehearsal set*, `ensaios/`, `choro/`).
+describe('the New menu and the phone bars (books.file_view_create_menu)', () => {
+  const ENTRIES = [
+    { path: 'choro/lamento.cifra.md', status: null },
+    { path: 'valsa.cifra.md', status: null },
+    { path: 'README.md', status: null },
+  ];
+  const press = (el) => act(() => fireEvent.click(el));
+  const tree = () => screen.getByRole('group', { name: t('fileView.tree', { book: BOOK }) });
+  const row = (re) => within(tree()).getByRole('button', { name: re });
+  const openNew = () => press(screen.getByRole('button', { name: t('fileView.new') }));
+  const pick = (name) => press(screen.getByRole('menuitem', { name }));
+  const typeName = (dialog, value) =>
+    act(() => fireEvent.change(within(dialog).getByRole('textbox'), { target: { value } }));
+  const createButton = (dialog) => within(dialog).getByRole('button', { name: t('fileView.createConfirm') });
+
+  it('New opens Song, Setlist, Folder and the disabled README.md already exists (W14 #1 L58-63; Acceptance 1)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderView(store);
+    seedTree(emit, ENTRIES);
+    openNew();
+    const menu = screen.getByRole('menu');
+    const items = within(menu).getAllByRole('menuitem');
+    // In the board's order, each named by its kind.
+    ['Song', 'Setlist', 'Folder', 'README.md already exists'].forEach((name, i) => {
+      expect(items[i]).toBe(within(menu).getByRole('menuitem', { name }));
+    });
+    expect(items).toHaveLength(4);
+    expect(within(menu).getByText('*.cifra.md')).toBeInTheDocument();
+    expect(within(menu).getByText('*.setlist.md')).toBeInTheDocument();
+    expect(within(menu).getByText('exists once a file is in it')).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: 'README.md already exists' })).toHaveAttribute('aria-disabled', 'true');
+    expect(await checkWcag21aa(container.ownerDocument.body)).toHaveNoViolations();
+  });
+
+  it('Song goes in the selected file’s folder, or the root with nothing selected (workflow 3 L32-33)', () => {
+    const { store, sent, emit } = makeStore();
+    renderView(store);
+    seedTree(emit, ENTRIES);
+    openNew();
+    pick('Song');
+    expect(kind(sent, CommandKind.NEW_SONG).at(-1).payload).toMatchObject({ targetBookId: BOOK, folder: null });
+
+    press(row(/lamento\.cifra\.md/));
+    openNew();
+    pick('Song');
+    expect(kind(sent, CommandKind.NEW_SONG).at(-1).payload).toMatchObject({ targetBookId: BOOK, folder: 'choro' });
+  });
+
+  it('Setlist is named in a dialog, sent as CREATE_FILE, and opens new once created (workflow 14 L147-171; Acceptance 3)', async () => {
+    const { store, sent, emit } = makeStore();
+    renderView(store);
+    seedTree(emit, ENTRIES);
+    press(row(/lamento\.cifra\.md/));
+    openNew();
+    pick('Setlist');
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('heading', { name: t('fileView.newSetlistTitle') })).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: 'Name, in choro/' })).toBeInTheDocument();
+    expect(createButton(dialog)).toBeDisabled();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+
+    typeName(dialog, 'Rehearsal set');
+    expect(createButton(dialog)).toBeEnabled();
+    press(createButton(dialog));
+    expect(kind(sent, CommandKind.CREATE_FILE).at(-1).payload).toEqual({
+      bookId: BOOK,
+      kind: 'setlist',
+      folder: 'choro',
+      title: 'Rehearsal set',
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    emit(event(EventKind.FILE_CREATED, { bookId: BOOK, path: 'choro/rehearsal-set.setlist.md' }));
+    seedTree(emit, [...ENTRIES, { path: 'choro/rehearsal-set.setlist.md', status: 'new' }]);
+    // Selected, and the raw editor opened on it; its row reads *new*.
+    expect(row(/rehearsal-set\.setlist\.md/)).toHaveAttribute('aria-pressed', 'true');
+    expect(within(row(/rehearsal-set\.setlist\.md/)).getByText('new')).toBeInTheDocument();
+    expect(kind(sent, 'open_source').some((c) => c.payload.path === 'choro/rehearsal-set.setlist.md')).toBe(true);
+    expect(screen.getByRole('button', { name: t('editor.source.save') })).toBeInTheDocument();
+  });
+
+  it('Folder: a bad name keeps Create disabled with its reason; a good one is an empty, chosen row the next Song goes in (Acceptance 4; Decision 3, 4)', async () => {
+    const { store, sent, emit } = makeStore();
+    const { container } = renderView(store);
+    seedTree(emit, ENTRIES);
+    openNew();
+    pick('Folder');
+
+    let dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('heading', { name: t('fileView.newFolderTitle') })).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: 'Name, in the book' })).toBeInTheDocument();
+    typeName(dialog, '..');
+    expect(within(dialog).getByText(t('fileView.folderProblem.dots'))).toBeInTheDocument();
+    expect(createButton(dialog)).toBeDisabled();
+    typeName(dialog, 'choro');
+    expect(within(dialog).getByText(t('fileView.folderProblem.taken'))).toBeInTheDocument();
+    expect(createButton(dialog)).toBeDisabled();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+
+    typeName(dialog, 'ensaios');
+    press(createButton(dialog));
+    dialog = screen.queryByRole('dialog');
+    expect(dialog).toBeNull();
+    // Nothing reaches the Worker for a folder.
+    expect(kind(sent, CommandKind.CREATE_FILE)).toEqual([]);
+
+    const folderRow = row(/^ensaios\//);
+    expect(folderRow).toHaveAttribute('aria-pressed', 'true');
+    expect(within(folderRow).getByText('empty')).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    openNew();
+    pick('Song');
+    expect(kind(sent, CommandKind.NEW_SONG).at(-1).payload).toMatchObject({ folder: 'ensaios' });
+
+    // Once a file is in it, it is the tree's own folder row: no *empty*.
+    seedTree(emit, [...ENTRIES, { path: 'ensaios/untitled.cifra.md', status: 'new' }]);
+    expect(within(row(/^ensaios\//)).queryByText('empty')).toBeNull();
+  });
+
+  it('README.md is offered without one, sent with the book name; a refusal shows the notice (Acceptance 5; Decision 7, 8)', () => {
+    const { store, sent, emit } = makeStore();
+    renderView(store);
+    seedTree(emit, [{ path: 'valsa.cifra.md', status: null }, { path: 'choro/README.md', status: null }]);
+    openNew();
+    const readme = screen.getByRole('menuitem', { name: 'README.md' });
+    expect(readme).not.toHaveAttribute('aria-disabled', 'true');
+    press(readme);
+    expect(kind(sent, CommandKind.CREATE_FILE).at(-1).payload).toEqual({ bookId: BOOK, kind: 'readme', title: BOOK });
+
+    emit(event(EventKind.CREATE_REFUSED, { bookId: BOOK, kind: 'readme', reason: 'exists' }));
+    const notice = screen.getByText('README.md already exists');
+    expect(notice).toHaveAttribute('role', 'status');
+  });
+
+  it('a folder row is choosable and opens no editor; pressing a file clears it (Acceptance 6; Decision 5)', () => {
+    const { store, sent, emit } = makeStore();
+    renderView(store, { mode: 'narrow' });
+    seedTree(emit, ENTRIES);
+    press(row(/^choro\//));
+    expect(row(/^choro\//)).toHaveAttribute('aria-pressed', 'true');
+    expect(kind(sent, 'open_source')).toEqual([]);
+    // The tree stays on a phone.
+    expect(tree()).toBeInTheDocument();
+
+    press(row(/valsa\.cifra\.md/));
+    // A file opened (one pane on a phone); back on the tree the folder is not chosen.
+    press(screen.getByRole('button', { name: t('fileView.backToFiles') }));
+    expect(row(/^choro\//)).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  describe('on a phone (mode="narrow")', () => {
+    const LAMENTO = 'choro/lamento.cifra.md';
+
+    it('the tree bar has the Files title and icon buttons History and New (W14 #1 L30-35; Acceptance 7)', () => {
+      const { store, emit } = makeStore();
+      const { container } = renderView(store, { mode: 'narrow' });
+      seedTree(emit, ENTRIES);
+      const bar = container.querySelector('.file-view-bar');
+      expect(bar.querySelector('.title')).toHaveTextContent(/^Files$/);
+      for (const name of [t('fileView.historyTab'), t('fileView.new')]) {
+        const button = within(bar).getByRole('button', { name });
+        expect(button).toHaveClass('icon');
+        expect(button.textContent).toBe('');
+      }
+    });
+
+    it('an open file has one bar — Back to files, its base name, More — and the path once (W14 #2 L68-74; Acceptance 8)', async () => {
+      const { store, emit } = makeStore();
+      const { container } = renderView(store, { mode: 'narrow' });
+      seedTree(emit, ENTRIES);
+      press(row(/lamento\.cifra\.md/));
+
+      const bars = container.querySelectorAll('.appbar');
+      expect(bars).toHaveLength(1);
+      expect(container.querySelector('.raw-editor-head')).toBeNull();
+      const bar = bars[0];
+      expect(within(bar).getByRole('button', { name: t('fileView.backToFiles') })).toBeInTheDocument();
+      expect(bar.querySelector('.title')).toHaveTextContent(/^lamento\.cifra\.md$/);
+      expect(within(bar).getByRole('button', { name: t('fileView.more') })).toBeInTheDocument();
+      // The path appears once: the folder on the meta line, the name in the bar.
+      expect(container.textContent.split(LAMENTO)).toHaveLength(1);
+      expect(container.querySelector('.file-view-meta')).toHaveTextContent(`${BOOK} · choro/`);
+
+      press(within(bar).getByRole('button', { name: t('fileView.more') }));
+      const menu = screen.getByRole('menu');
+      expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Rename', 'Delete']);
+      expect(await checkWcag21aa(container.ownerDocument.body)).toHaveNoViolations();
+    });
+
+    it('More → Rename opens the rename dialog; More → Delete the delete confirm', () => {
+      const { store, emit } = makeStore();
+      renderView(store, { mode: 'narrow' });
+      seedTree(emit, ENTRIES);
+      press(row(/lamento\.cifra\.md/));
+
+      press(screen.getByRole('button', { name: t('fileView.more') }));
+      press(screen.getByRole('menuitem', { name: 'Rename' }));
+      let dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByRole('heading', { name: t('fileView.renameSong') })).toBeInTheDocument();
+      press(within(dialog).getByRole('button', { name: t('fileView.renameCancel') }));
+
+      press(screen.getByRole('button', { name: t('fileView.more') }));
+      press(screen.getByRole('menuitem', { name: 'Delete' }));
+      dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByRole('button', { name: t('fileView.deleteConfirm') })).toBeInTheDocument();
+    });
+
+    it('More → Delete on a new song flushes, then opens the discard confirm', () => {
+      const { store, sent, emit } = makeStore();
+      renderView(store, { mode: 'narrow' });
+      seedTree(emit, []);
+      emit(event(EventKind.NEW_SONG_READY, { bookId: BOOK, path: 'tide.cifra.md' }));
+      const view = EditorView.findFromDOM(document.querySelector('.cm-editor'));
+      act(() => view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '# Tide\n' } }));
+
+      press(screen.getByRole('button', { name: t('fileView.more') }));
+      // A new song is not renamed here (it is named at its first save).
+      expect(screen.queryByRole('menuitem', { name: 'Rename' })).toBeNull();
+      press(screen.getByRole('menuitem', { name: 'Delete' }));
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByRole('button', { name: t('saveSheet.discard') })).toBeInTheDocument();
+      const order = sent
+        .filter((c) => c.kind === CommandKind.WRITE || c.kind === CommandKind.PREVIEW_SAVE)
+        .map((c) => c.kind);
+      expect(order).toEqual([CommandKind.WRITE, CommandKind.PREVIEW_SAVE]);
+    });
+
+    it('on README, More holds only Delete', () => {
+      const { store, emit } = makeStore();
+      renderView(store, { mode: 'narrow' });
+      seedTree(emit, ENTRIES);
+      press(row(/README\.md/));
+      press(screen.getByRole('button', { name: t('fileView.more') }));
+      expect(within(screen.getByRole('menu')).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Delete']);
     });
   });
 });

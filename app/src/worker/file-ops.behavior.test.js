@@ -12,6 +12,7 @@ import { createWorkerLogic } from './logic.js';
 import { createStore } from './store.js';
 import { command, CommandKind, EventKind, EVENT } from './protocol.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
+import { setlistTemplate, readmeTemplate } from '../files/new-file.js';
 import { startGitHttpRemote } from '../test/git-http-remote.js';
 import { installWebLocks } from '../test/web-locks.js';
 
@@ -462,6 +463,111 @@ describe('the file view Worker seams (behavior)', () => {
       // The whole local sequence (restore + a tree read) touched no network.
       await ctx.tree();
       expect(ctx.network()).toBe(0);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+  // books.file_view_create_menu — the *New* menu's CREATE_FILE: a setlist named
+  // as it is made and holding only its title, the README holding the book's
+  // title, each a working-copy change saved like any other (workflow 14
+  // L147-171, L170-171; Constraint 5: named under the lock, nothing overwritten).
+  // Every event the Worker posts, in order, until `until` has arrived.
+  function eventsUntil(store, last) {
+    const seen = [];
+    return new Promise((resolve) => {
+      const unsub = store.subscribeEvents((message) => {
+        if (message?.dir !== EVENT) return;
+        seen.push({ kind: message.kind, payload: message.payload });
+        if (message.kind === last) {
+          unsub();
+          resolve(seen);
+        }
+      });
+    });
+  }
+
+  it('CREATE_FILE writes a setlist holding only its title, uncommitted, -2 when taken, listed at once, saved unchanged (workflow 14 L147-171)', async () => {
+    const ctx = await setup('book-create-setlist');
+    try {
+      await ctx.seed(async ({ g, w }) => {
+        w('valsa.cifra.md', VALSA);
+        w('README.md', '# Banda\n');
+        await g('add', '.');
+        await g('commit', '-qm', 'Scaffold');
+      });
+      const before = await ctx.head();
+
+      const events = eventsUntil(ctx.store, EventKind.TREE);
+      ctx.store.send(command(CommandKind.CREATE_FILE, {
+        bookId: ctx.bookId,
+        kind: 'setlist',
+        folder: 'ensaios',
+        title: 'Rehearsal set',
+      }));
+      const seen = (await events).filter((e) => e.kind === EventKind.FILE_CREATED || e.kind === EventKind.TREE);
+      // FILE_CREATED first, then the refreshed TREE listing the path as new.
+      expect(seen.map((e) => e.kind)).toEqual([EventKind.FILE_CREATED, EventKind.TREE]);
+      expect(seen[0].payload).toEqual({ bookId: ctx.bookId, path: 'ensaios/rehearsal-set.setlist.md' });
+      expect(seen[1].payload.entries).toContainEqual({ path: 'ensaios/rehearsal-set.setlist.md', status: 'new' });
+      expect(await ctx.read('ensaios/rehearsal-set.setlist.md')).toBe(setlistTemplate('Rehearsal set'));
+      // No commit.
+      expect(await ctx.head()).toBe(before);
+
+      // The same title again takes -2; the first is not overwritten.
+      const again = ctx.waitEvent(EventKind.FILE_CREATED);
+      ctx.store.send(command(CommandKind.CREATE_FILE, {
+        bookId: ctx.bookId,
+        kind: 'setlist',
+        folder: 'ensaios',
+        title: 'Rehearsal set',
+      }));
+      expect((await again).path).toBe('ensaios/rehearsal-set-2.setlist.md');
+
+      // LIST_SETLISTS lists it at once (the Setlists tab), before any save.
+      const listed = ctx.waitEvent(EventKind.SETLISTS);
+      ctx.store.send(command(CommandKind.LIST_SETLISTS, {}));
+      const { setlists } = await listed;
+      expect(setlists).toContainEqual(
+        expect.objectContaining({ bookId: ctx.bookId, path: 'ensaios/rehearsal-set.setlist.md', title: 'Rehearsal set', count: 0 }),
+      );
+
+      // A following SAVE commits it unchanged: it is already canonical.
+      ctx.store.send(command(CommandKind.SAVE, {
+        bookId: ctx.bookId,
+        paths: ['ensaios/rehearsal-set.setlist.md'],
+        message: 'Add Rehearsal set',
+        author: IDENTITY,
+      }));
+      await until(() => expect(ctx.store.slice('save')[ctx.bookId]?.status).toBe('saved'));
+      expect(await ctx.show('main', 'ensaios/rehearsal-set.setlist.md')).toBe(setlistTemplate('Rehearsal set'));
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('CREATE_FILE writes the README with the book title, and refuses when one exists, overwriting nothing (workflow 14 L147-171; Constraint 5)', async () => {
+    const ctx = await setup('book-create-readme');
+    try {
+      await ctx.seed(async ({ g, w }) => {
+        w('valsa.cifra.md', VALSA);
+        await g('add', '.');
+        await g('commit', '-qm', 'Scaffold');
+      });
+      const before = await ctx.head();
+
+      const created = ctx.waitEvent(EventKind.FILE_CREATED);
+      ctx.store.send(command(CommandKind.CREATE_FILE, { bookId: ctx.bookId, kind: 'readme', title: 'Banda do Bairro' }));
+      expect((await created).path).toBe('README.md');
+      expect(await ctx.read('README.md')).toBe(readmeTemplate('Banda do Bairro'));
+      expect(await ctx.read('README.md')).toBe('# Banda do Bairro\n');
+      expect(await ctx.head()).toBe(before);
+      expect((await ctx.tree())['README.md']).toBe('new');
+
+      // Now one is there: refused, the file unchanged.
+      const refused = ctx.waitEvent(EventKind.CREATE_REFUSED);
+      ctx.store.send(command(CommandKind.CREATE_FILE, { bookId: ctx.bookId, kind: 'readme', title: 'Another' }));
+      expect(await refused).toEqual({ bookId: ctx.bookId, kind: 'readme', reason: 'exists' });
+      expect(await ctx.read('README.md')).toBe('# Banda do Bairro\n');
     } finally {
       await ctx.cleanup();
     }

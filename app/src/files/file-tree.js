@@ -43,6 +43,10 @@ export function statusWord(status) {
       return 'fileView.status.deleted';
     case 'conflict':
       return 'fileView.status.conflict';
+    // A folder just made, held by the view until a file is in it
+    // (books.file_view_create_menu; workflow 14 §Statuses).
+    case 'empty':
+      return 'fileView.status.empty';
     default:
       return null;
   }
@@ -57,37 +61,54 @@ const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
  * each group alphabetical, depth-first (a folder is immediately followed by its
  * contents). Anything not an allowed kind is dropped (workflow 14 L24-29).
  *
+ * `emptyFolders` are the folders the view holds before a file is in them
+ * (books.file_view_create_menu Decision 3): each gets its row, marked `empty`
+ * while no file sits under it; once one does it is the tree's own folder row.
+ *
  * @param {{ path: string, status?: string|null }[]} entries
+ * @param {string[]} [emptyFolders] book-root folder paths, no trailing slash
  * @returns {Array<
- *   { type: 'folder', name: string, path: string, depth: number } |
+ *   { type: 'folder', name: string, path: string, depth: number, empty: boolean } |
  *   { type: 'file', name: string, path: string, depth: number, status: string|null, kind: string }
  * >}
  */
-export function buildTree(entries = []) {
+export function buildTree(entries = [], emptyFolders = []) {
   const root = { dirs: new Map(), files: [] };
-  for (const entry of entries) {
-    const segments = String(entry?.path ?? '').split('/').filter(Boolean);
-    if (segments.length === 0) continue;
-    const name = segments[segments.length - 1];
-    const kind = fileKind(name);
-    if (!kind) continue;
+  const folderNode = (segments) => {
     let node = root;
     let prefix = '';
-    for (const seg of segments.slice(0, -1)) {
+    for (const seg of segments) {
       prefix = prefix ? `${prefix}/${seg}` : seg;
       if (!node.dirs.has(seg)) {
         node.dirs.set(seg, { name: seg, path: prefix, dirs: new Map(), files: [] });
       }
       node = node.dirs.get(seg);
     }
+    return node;
+  };
+  for (const entry of entries) {
+    const segments = String(entry?.path ?? '').split('/').filter(Boolean);
+    if (segments.length === 0) continue;
+    const name = segments[segments.length - 1];
+    const kind = fileKind(name);
+    if (!kind) continue;
+    const node = folderNode(segments.slice(0, -1));
     node.files.push({ name, path: segments.join('/'), status: entry?.status ?? null, kind });
   }
+
+  for (const folder of emptyFolders) {
+    const segments = String(folder ?? '').split('/').filter(Boolean);
+    if (segments.length) folderNode(segments);
+  }
+
+  // A folder is empty while no file sits anywhere under it.
+  const holdsFile = (node) => node.files.length > 0 || [...node.dirs.values()].some(holdsFile);
 
   const out = [];
   const walk = (node, depth) => {
     const folders = [...node.dirs.values()].sort((a, b) => compare(a.name, b.name));
     for (const folder of folders) {
-      out.push({ type: 'folder', name: folder.name, path: folder.path, depth });
+      out.push({ type: 'folder', name: folder.name, path: folder.path, depth, empty: !holdsFile(folder) });
       walk(folder, depth + 1);
     }
     const files = [...node.files].sort((a, b) => compare(a.name, b.name));

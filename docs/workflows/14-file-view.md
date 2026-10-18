@@ -141,13 +141,25 @@ and the file side by side, collapsing to one at a time on a phone.
 
 Git's are more than a user needs. A file shows *unsaved changes*, *new*
 (never saved), *deleted* (deleted but not yet saved), *conflict* (workflow
-9), or nothing when it is in step.
+9), or nothing when it is in step. A folder just made shows *empty* until a
+file is in it.
 
 ### What can be done to a file
 
 - **Create** a song (as workflow 3 has it), a setlist, a folder, or the
   README if there is none — what a book may hold, and nothing else. A folder
   exists once a file is in it, since git has no empty folders.
+  *New* opens one menu of the four, and each goes in the folder being looked
+  at — the folder of the open file, or a folder chosen in the tree, else the
+  root:
+  - a *song* opens the editor on the template, named at its first save;
+  - a *setlist* is named as it is made (`<name>.setlist.md`, `-2` when taken)
+    and starts empty, holding only its title;
+  - a *folder* is named, shown as *empty* and chosen, until a song or a
+    setlist is made in it; one left empty is gone when the view is left;
+  - the *README* holds the book's title as a level-1 heading, as a new book's
+    does, and is offered only when the book has none (*README.md already
+    exists* otherwise).
 - **Rename** and **move**, which update the links to a song in the book's
   setlists (workflow 12). A name keeps its kind: a song cannot be renamed out
   of `.cifra.md`.

@@ -149,6 +149,31 @@ describe('NEW_SONG — My songs under the reserved id', () => {
   });
 });
 
+// books.file_view_create_menu — the file view's *New* → *Song* goes "in the
+// folder being looked at" (workflow 3 L32-33): NEW_SONG `{ folder }` allocates
+// the placeholder in that folder, against its own names.
+describe('NEW_SONG — in a folder', () => {
+  it('allocates ensaios/untitled.cifra.md, then ensaios/untitled-2.cifra.md once it exists (workflow 3 L32-33)', async () => {
+    const w = makeWorker();
+    w.send(command(CommandKind.NEW_SONG, { folder: 'ensaios', mySongsTitle: MY_SONGS_LABEL, author: IDENTITY }));
+    await until(() =>
+      expect(w.events.filter((e) => e.kind === EventKind.NEW_SONG_READY)).toHaveLength(1),
+    );
+    expect(w.ready().payload).toEqual({ bookId: MY_SONGS_ID, path: 'ensaios/untitled.cifra.md' });
+
+    // The editor's first WRITE creates it (and the folder).
+    w.send(command(CommandKind.WRITE, { bookId: MY_SONGS_ID, path: 'ensaios/untitled.cifra.md', text: CORACAO }));
+    await settled(MY_SONGS_ID);
+
+    w.send(command(CommandKind.NEW_SONG, { folder: 'ensaios', mySongsTitle: MY_SONGS_LABEL, author: IDENTITY }));
+    await until(() =>
+      expect(w.events.filter((e) => e.kind === EventKind.NEW_SONG_READY)).toHaveLength(2),
+    );
+    expect(w.ready().payload.path).toBe('ensaios/untitled-2.cifra.md');
+    expect(w.fetchCalls).toHaveLength(0);
+  });
+});
+
 describe('NEW_SONG — findable before the first save', () => {
   it('a written placeholder shows in search with unsaved: true (workflow 3 L20-23)', async () => {
     const w = makeWorker();

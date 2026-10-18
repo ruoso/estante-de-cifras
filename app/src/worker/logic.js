@@ -2069,6 +2069,27 @@ export function createWorkerLogic(port, options = {}) {
             port.postMessage(event(EventKind.FILE_DELETED, { bookId, path }));
             break;
           }
+          case CommandKind.CREATE_FILE: {
+            // A setlist or the README from the file view's *New* menu
+            // (books.file_view_create_menu, workflow 14 §What can be done to a
+            // file): written into the working copy under the book lock, named
+            // there against the real folder, uncommitted. Index it as unsaved,
+            // as WRITE does, so a new setlist is listed at once; then confirm
+            // and re-surface the tree so it reads *new*.
+            const { bookId, kind, folder, title } = message.payload;
+            const result = await ensureWorkingCopy().createFile({ bookId, kind, folder, title });
+            if (result.refused) {
+              port.postMessage(event(EventKind.CREATE_REFUSED, { bookId, kind, reason: result.refused }));
+              break;
+            }
+            await ensureIndexHydrated();
+            const changes = await ensureSearchIndex().reindexPath({ bookId, path: result.path, unsaved: true });
+            await persistIndexChanges(changes);
+            port.postMessage(event(EventKind.FILE_CREATED, { bookId, path: result.path }));
+            const { entries } = await ensureBookTree().tree({ bookId });
+            port.postMessage(event(EventKind.TREE, { bookId, entries }));
+            break;
+          }
           case CommandKind.COMMIT_DIFF: {
             // One commit's per-file before/after texts for the history pane's
             // line diff (workflow 14 L161-167): a local, offline read.

@@ -136,8 +136,9 @@ task books "Books" {
   task file_view_create_menu "Create a song, a setlist, a folder or a README in the file view" {
     effort 2d
     allocate team
+    complete 100
     depends !file_view
-    note "Workflow 14 (What can be done to a file, first bullet) lets the file view create a song, a setlist, a folder or a README; the app offers only New song. Add the create menu the W14 board draws, and on a phone the board top bar (icon actions, the title not collapsed) and the open file header with a ... menu holding Rename and Delete. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: unit (the new file names and their templates); behavior (each create kind, axe); e2e-web (Books → Files → create each kind, then it appears in the tree and opens; mockup W14#1-2)."
+    note "Workflow 14 (What can be done to a file, first bullet) lets the file view create a song, a setlist, a folder or a README; the app offers only New song. Add the create menu the W14 board draws, and on a phone the board top bar (icon actions, the title not collapsed) and the open file header with a ... menu holding Rename and Delete. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: unit (the new file names and their templates); behavior (each create kind, axe); e2e-web (Books → Files → create each kind, then it appears in the tree and opens; mockup W14#1-2). Refinement: tasks/refinements/books/file_view_create_menu.md"
   }
   task setlist_chrome "The setlist view keeps the tab bar on a phone" {
     effort 0.5d

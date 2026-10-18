@@ -26,6 +26,8 @@ import {
   confirmSaveSheet,
   renameOpenFile,
   deleteOpenFile,
+  openRenameDialog,
+  createInFiles,
   openFilesHistory,
   filesTab,
   saveAllChanges,
@@ -80,8 +82,9 @@ test('the file view: a new song, a raw edit and a rename saved together; axe-cle
   await checkA11y(); // the tree
   await mockup(page, 'W14-file-view', 1); // the book's files (phone)
 
-  // Write a new song from the file view (the folder-aware NEW_SONG entry).
-  await page.getByRole('button', { name: 'New song' }).click();
+  // Write a new song from the file view (New → Song, the folder-aware NEW_SONG
+  // entry; books.file_view_create_menu).
+  await createInFiles(page, 'Song');
   await expect(page.locator('.cm-content')).toBeVisible();
   await checkA11y(); // the raw editor
   await mockup(page, 'W14-file-view', 2); // one file in the raw editor (phone)
@@ -99,7 +102,7 @@ test('the file view: a new song, a raw edit and a rename saved together; axe-cle
   // A setlist relinks nothing when renamed, so its dialog promises no links
   // (books.file_view_history_polish Decision 3).
   await fileRow(page, SHORT_SET).click();
-  await page.getByRole('button', { name: `Rename ${SHORT_SET}` }).click();
+  await openRenameDialog(page, SHORT_SET);
   const setlistDialog = page.getByRole('dialog');
   await expect(setlistDialog.getByRole('heading', { name: 'Rename setlist' })).toBeVisible();
   await expect(setlistDialog.getByText('Links to it are updated in the same save')).toHaveCount(0);
@@ -111,7 +114,7 @@ test('the file view: a new song, a raw edit and a rename saved together; axe-cle
   // the setlist item linking to it, rewritten in the same save (workflow 14
   // L151-153; W14 tablet #3 L144-147).
   await fileRow(page, FERRY).click();
-  await page.getByRole('button', { name: `Rename ${FERRY}` }).click();
+  await openRenameDialog(page, FERRY);
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Links to it are updated in the same save')).toBeVisible();
