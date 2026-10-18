@@ -100,7 +100,8 @@ describe('EnterShape (behavior)', () => {
     act(() => fireEvent.click(screen.getByRole('radio', { name: 'Mute string 1' })));
     expect(within(row('E4 · high E')).getByText('muted')).toBeInTheDocument();
     expect(within(row('E4 · high E')).getByText('—')).toBeInTheDocument();
-  });
+    // Five re-renders and an axe pass: ~2s alone, past the 5s default under the full suite's load.
+  }, 20000);
 
   it('reports an unplayable shape without blocking', async () => {
     renderEnter();

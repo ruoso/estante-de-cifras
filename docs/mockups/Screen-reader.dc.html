@@ -186,7 +186,7 @@
               <div class="t-h3">The same conflict in the source editor — read verbatim, never in the chart</div>
               <div class="editor">
                 <sc-for list="{{editorLines}}" as="ln" hint-placeholder-count="6">
-                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                  <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
                 </sc-for>
               </div>
               <p class="t-small">The <span class="t-mono">&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span>, <span class="t-mono">=======</span> and <span class="t-mono">&gt;&gt;&gt;&gt;&gt;&gt;&gt;</span> markers are plain text here (CodeMirror 6), so a screen reader reads them as written. They never appear in the rendered reading chart, where the conflict is announced in musical terms instead.</p>
@@ -201,6 +201,7 @@
 <script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
 class Component extends DCLogic {
   renderVals() {
+    const numbered = (ls) => ls.map((ln, i) => ({ cls: ln.cls, text: ln.text, n: String(i + 1) }));
     const segsOf = (chords, words) => {
       const toks = []; const re = /\S+/g; let m;
       while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
@@ -280,14 +281,14 @@ class Component extends DCLogic {
         note('end of conflict'),
         note('then your own version carries on'),
       ],
-      editorLines: [
+      editorLines: numbered([
         { cls: 'ch', text: 'F | F | C7 | C7' },
         { cls: 'mk', text: '<<<<<<< yours' },
         { cls: 'ch', text: 'G7 | C7 | F | F' },
         { cls: 'mk', text: '=======' },
         { cls: 'ch', text: 'D♭7 | C7 | F | F' },
         { cls: 'mk', text: ">>>>>>> Ana" },
-      ],
+      ]),
     };
   }
 }

@@ -74,7 +74,7 @@
               <div style="display: flex; align-items: center; gap: 8px"><span class="t-small" style="flex: 1">Banda do Bairro · mpb/</span><span class="badge unsaved dot">unsaved changes</span></div>
               <div class="editor" style="font-size: 13px">
                 <sc-for list="{{rawTarde}}" as="ln" hint-placeholder-count="12">
-                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                  <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
                 </sc-for>
               </div>
             </div>
@@ -124,7 +124,7 @@
             <div class="scroll" style="padding: 16px 18px">
               <div class="editor">
                 <sc-for list="{{rawValsa}}" as="ln" hint-placeholder-count="12">
-                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                  <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
                 </sc-for>
               </div>
             </div>
@@ -235,6 +235,7 @@
 <script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
 class Component extends DCLogic {
   renderVals() {
+    const numbered = (ls) => ls.map((ln, i) => ({ cls: ln.cls, text: ln.text, n: String(i + 1) }));
     const F = (name, depth, opts) => {
       const o = opts || {};
       return {
@@ -272,7 +273,7 @@ class Component extends DCLogic {
       density: this.props.density ?? 'comfortable',
       tree: tree,
       treeTablet: treeTablet,
-      rawTarde: [
+      rawTarde: numbered([
         { cls: 'md', text: '# Tarde Clara' },
         { cls: 'md', text: '- artist: Pedro Araújo' },
         { cls: 'md', text: '- key: G' },
@@ -295,8 +296,8 @@ class Component extends DCLogic {
         { cls: '', text: '- D: xx0232' },
         { cls: 'cur', text: '- Em7: 022030' },
         { cls: '', text: '- C: x32010' },
-      ],
-      rawValsa: [
+      ]),
+      rawValsa: numbered([
         { cls: 'md', text: '# Valsa da Esquina' },
         { cls: 'md', text: '- artist: Pedro Araújo' },
         { cls: 'md', text: '- key: C' },
@@ -318,7 +319,7 @@ class Component extends DCLogic {
         { cls: '', text: '- Am: x02210' },
         { cls: '', text: '- Dm: xx0231' },
         { cls: '', text: '- G7: 320001' },
-      ],
+      ]),
       changes: [
         { path: 'mpb/tarde-clara.cifra.md', status: 'unsaved changes', badge: 'unsaved', on: 'on', vis: 'visible' },
         { path: 'gigs/bar-do-ze.setlist.md', status: 'new', badge: 'ok', on: 'on', vis: 'visible' },

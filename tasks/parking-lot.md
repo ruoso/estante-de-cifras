@@ -100,6 +100,7 @@ Append one `###` block per item, newest at the bottom:
 - **Updated** (2026-10-15, closer for `design.leave_book`): `docs/mockups/Leave-book.dc.html` is drawn and registered in `canvas.json` (y 34820); it was not rendered, so check it on publishing.
 - **Updated** (2026-10-15, closer for `design.w07_remove_board`): `docs/mockups/Remove-from-shelf.dc.html` is drawn and registered in `canvas.json` (y 36440); it was not rendered, so check it on publishing.
 - **Updated** (2026-10-15, closer for `design.display_preferences`): `docs/mockups/Theme-picker.dc.html` gained the Density and Chord diagrams groups on all four frames; it was not rendered, so check it on publishing.
+- **Updated** (2026-10-18, closer for `design.boards_refresh`): redrawn and not rendered, so check on publishing: W01 (invited screen), W03 (line numbers), W04, W05 (*Default*), W08, W09 (*Default*, Keep both, line numbers), W12, W14, W16 (tablet split, line numbers), Screen-reader and Theme-picker (one wording per theme). `canvas.json` unchanged.
 
 ### 2026-10-13 — Handing ownership of a book to a successor on leaving
 - **Source**: closer for `design.leaving` (tasks/refinements/design/leaving.md), surfaced by implementer's return summary and workflow 10 §Later (line 120).
@@ -150,3 +151,8 @@ Append one `###` block per item, newest at the bottom:
 ### 2026-10-18 — Slow test: `EnterShape.behavior.test.jsx` "opens, places…" times out at 5s in about half the full-suite runs (from `shell.palco_contrast`)
 - **What**: the implementer saw it take 4.8s (3.5s on HEAD) and time out at the 5s default about 1 run in 2 under the full app suite, stopping two gate runs before e2e. Nothing it imports changed; it passed in the driver's final gate run.
 - **Why parked**: whether to raise the case's timeout or speed up the component is a judgment call for a person.
+
+### 2026-10-18 — Shared timeout for axe-heavy app behavior tests
+- **Source**: fixer for `design.boards_refresh` (`app/src/music/EnterShape.behavior.test.jsx` timed out at 5.5 s against the 5 s default under full-suite load).
+- **Question**: Several behavior tests (EnterShape, SongWizard, StandardShapeStar) carry hand-set 20 s per-test timeouts for axe-heavy renders. Should the app's Vitest config get a shared timeout for them instead?
+- **Why parked**: test-infrastructure only — tests are never WBS tech-debt leaves; a human decides whether to raise the global `testTimeout` or keep per-test timeouts.

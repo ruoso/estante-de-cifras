@@ -40,7 +40,7 @@
               <div class="seg" style="align-self: flex-start"><button class="on">Text</button><button>Preview</button></div>
               <div class="editor">
                 <sc-for list="{{edPhone}}" as="ln" hint-placeholder-count="20">
-                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                  <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
                 </sc-for>
               </div>
             </div>
@@ -112,7 +112,7 @@
             <div style="display: flex; gap: 20px; align-items: flex-start">
               <div class="editor" style="flex: 1; min-width: 0">
                 <sc-for list="{{edPhone}}" as="ln" hint-placeholder-count="20">
-                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                  <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
                 </sc-for>
               </div>
               <div class="card pad" style="width: 330px; flex: none">
@@ -180,7 +180,7 @@
               </div>
               <div class="editor">
                 <sc-for list="{{edDesk}}" as="ln" hint-placeholder-count="24">
-                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                  <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
                 </sc-for>
               </div>
             </div>
@@ -212,6 +212,7 @@
 <script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
 class Component extends DCLogic {
   renderVals() {
+    const numbered = (ls) => ls.map((ln, i) => ({ cls: ln.cls, text: ln.text, n: String(i + 1) }));
     const segsOf = (chords, words) => {
       const toks = []; const re = /\S+/g; let m;
       while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
@@ -267,8 +268,8 @@ class Component extends DCLogic {
     return {
       theme: this.props.theme ?? 'current',
       density: this.props.density ?? 'comfortable',
-      edPhone: phone,
-      edDesk: source.map((ln, i) => ({ cls: ln.cls, text: String(i + 1).padStart(2, ' ') + '  ' + ln.text })),
+      edPhone: numbered(phone),
+      edDesk: numbered(source),
       tarde: [
         L.sec('Primeira Parte'),
         L.sung('G           D7', 'Quando eu te vi passar'),

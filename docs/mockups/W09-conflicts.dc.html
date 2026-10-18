@@ -77,6 +77,11 @@
                 <button class="btn" style="flex: 1; padding: 0 8px">Take theirs</button>
                 <button class="btn" style="flex: 1; padding: 0 8px">Edit</button>
               </div>
+              <div class="card pad" style="gap: 6px">
+                <span class="t-h3">Two songs?</span>
+                <p class="t-small">Keep yours as it is and save Ana’s version beside it, as its own song, for when you have really made two songs.</p>
+                <button class="btn">Keep both, as two songs</button>
+              </div>
               <div class="notice"><span class="t-small" style="color: var(--ink)">Until you settle it, Carinhoso reads as your version, with the places in conflict marked.</span></div>
               <div class="chart" style="--chart-size: 13px">
   <sc-for list="{{chartMine}}" as="l" hint-placeholder-count="5">
@@ -107,7 +112,7 @@
               </div>
               <div>
                 <p class="t-h2">The shape for G7</p>
-                <p class="t-small">Guitar · E A D G B E · main variation. You and Ana each chose a different shape.</p>
+                <p class="t-small">Guitar · E A D G B E · Default. You and Ana each chose a different shape.</p>
               </div>
               <div style="display: flex; gap: 10px">
                 <div class="card pad" style="flex: 1; min-width: 0; align-items: center; padding-top: 18px; padding-bottom: 18px">
@@ -219,7 +224,7 @@
                 <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px">
                   <div class="t-h3">In conflict</div>
                   <div class="list">
-                    <a class="row" href="#"><span class="grow"><span class="name">Carinhoso</span><span class="meta">Primeira parte, bar 5 · the shape for G7 on guitar</span></span><span class="badge conflict dot">2 conflicts</span><span class="btn quiet" style="min-height: 36px">Settle</span></a>
+                    <div class="row"><span class="grow"><span class="name">Carinhoso</span><span class="meta">Primeira parte, bar 5 · the shape for G7 on guitar</span></span><span class="badge conflict dot">2 conflicts</span><button class="btn quiet" style="min-height: 36px" aria-label="Settle Carinhoso">Settle</button><button class="btn quiet" style="min-height: 36px" aria-label="Keep both versions of Carinhoso as two songs">Keep both</button></div>
                   </div>
                   <div class="card pad">
                     <div style="display: flex; align-items: center; gap: 10px"><span class="t-h2" style="flex: 1">Brejeiro</span><span class="badge conflict dot">conflict</span></div>

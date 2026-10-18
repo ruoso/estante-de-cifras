@@ -96,6 +96,8 @@ tablet it takes the screen. Its step back to the planners reads *Back*.
 
 As Explore Chords had them (its DESIGN §2.13):
 
+- the song's unnamed variation — its plain *Voicings* block for the
+  tuning — reads *Default* wherever a variation is named;
 - adding one starts empty, or as a copy of the one in use;
 - a name already in use is refused;
 - the selector appears only when a tuning has more than one, above the

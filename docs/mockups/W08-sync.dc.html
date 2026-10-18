@@ -107,7 +107,7 @@
             </div>
             <div class="editor">
               <sc-for list="{{source}}" as="ln" hint-placeholder-count="30">
-                <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
               </sc-for>
             </div>
           </div>
@@ -196,6 +196,7 @@
 <script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
 class Component extends DCLogic {
   renderVals() {
+    const numbered = (ls) => ls.map((ln, i) => ({ cls: ln.cls, text: ln.text, n: String(i + 1) }));
     const segsOf = (chords, words) => {
       const toks = []; const re = /\S+/g; let m;
       while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
@@ -252,7 +253,7 @@ class Component extends DCLogic {
       chartFullA: first,
       chartFullB: second,
       chartCrop: first.slice(0, 3),
-      source: [
+      source: numbered([
         { cls: 'md', text: '# Rua do Porto' },
         { cls: 'md', text: '- artist: Pedro Araújo' },
         { cls: 'md', text: '- language: pt-BR' },
@@ -290,7 +291,7 @@ class Component extends DCLogic {
         { cls: '', text: '- C: 0003' },
         { cls: '', text: '- Dm: 2210' },
         { cls: '', text: '- F: 2010' },
-      ],
+      ]),
     };
   }
 }

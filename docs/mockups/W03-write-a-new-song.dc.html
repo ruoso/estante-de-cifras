@@ -69,7 +69,7 @@
               <div class="seg" style="align-self: flex-start"><button class="on">Text</button><button>Preview</button></div>
               <div class="editor">
                 <sc-for list="{{edTemplate}}" as="ln" hint-placeholder-count="8">
-                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                  <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
                 </sc-for>
               </div>
               <p class="t-small">The notation comes from your preference, so the song reads the same to everyone.</p>
@@ -107,7 +107,7 @@
             <div style="display: flex; gap: 20px; align-items: flex-start">
               <div class="editor" style="flex: 1; min-width: 0">
                 <sc-for list="{{edPaste}}" as="ln" hint-placeholder-count="18">
-                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                  <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
                 </sc-for>
               </div>
               <div class="card pad" style="width: 340px; flex: none">
@@ -152,7 +152,7 @@
             <div class="pane main" style="padding: 16px 20px; border-right: 1px solid var(--line)">
               <div class="editor" style="flex: 1">
                 <sc-for list="{{edCoracao}}" as="ln" hint-placeholder-count="20">
-                  <div class="ln {{ln.cls}}">{{ln.text}}</div>
+                  <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
                 </sc-for>
               </div>
             </div>
@@ -203,6 +203,7 @@
 <script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
 class Component extends DCLogic {
   renderVals() {
+    const numbered = (ls) => ls.map((ln, i) => ({ cls: ln.cls, text: ln.text, n: String(i + 1) }));
     const segsOf = (chords, words) => {
       const toks = []; const re = /\S+/g; let m;
       while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
@@ -227,7 +228,7 @@ class Component extends DCLogic {
     return {
       theme: this.props.theme ?? 'current',
       density: this.props.density ?? 'comfortable',
-      edTemplate: [
+      edTemplate: numbered([
         { cls: 'md', text: '# Garota de Ipanema' },
         { cls: 'md', text: '- artist: ' },
         { cls: 'md', text: '- notation: brazilian' },
@@ -236,8 +237,8 @@ class Component extends DCLogic {
         { cls: 'md', text: F },
         { cls: 'cur', text: '' },
         { cls: 'md', text: F },
-      ],
-      edPaste: [
+      ]),
+      edPaste: numbered([
         { cls: 'md', text: '# Maré Mansa' },
         { cls: 'md', text: '- artist:' },
         { cls: 'md', text: '- notation: brazilian' },
@@ -256,7 +257,7 @@ class Component extends DCLogic {
         { cls: 'ch', text: 'F      E7     Am' },
         { cls: '', text: 'o nome que eu disse' },
         { cls: 'md add', text: F },
-      ],
+      ]),
       pastePreview: [
         L.sec('Intro'),
         L.run('Am G F E7'),
@@ -267,7 +268,7 @@ class Component extends DCLogic {
         L.sung('Am        G', 'e a areia guardou'),
         L.sung('F      E7     Am', 'o nome que eu disse'),
       ],
-      edCoracao: [
+      edCoracao: numbered([
         { cls: 'md', text: '# Coração de Estrada' },
         { cls: 'md', text: '- artist: Pedro Araújo' },
         { cls: 'md', text: '- notation: brazilian' },
@@ -288,7 +289,7 @@ class Component extends DCLogic {
         { cls: 'ch', text: '  Dm      Am' },
         { cls: 'cur', text: 'e deixa o luar' },
         { cls: 'md', text: F },
-      ],
+      ]),
       coracaoPreview: [
         L.sec('Intro'),
         L.bars('Am | Dm | G7 | C7M'),
