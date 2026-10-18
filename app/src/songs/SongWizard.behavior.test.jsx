@@ -23,6 +23,7 @@ import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SongWizard from './SongWizard.jsx';
 import SongArrange from './SongArrange.jsx';
+import { installWidths } from '../test/widths.js';
 
 const GUITAR_TUNING = 'E2 A2 D3 G3 B3 E4';
 const UKULELE_TUNING = 'G4 C4 E4 A4';
@@ -284,6 +285,80 @@ describe('SongWizard — into a new variation first', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/already a variation called/);
     expect(lastCommand(commands, CommandKind.WRITE)).toBeUndefined();
   });
+});
+
+// The computer split (songs.arrange_polish Decision 6-8; W05#4 L164-231): at
+// ARRANGE_WIDE_QUERY the wizard sits in a 380px side pane beside a main pane
+// dressed as arrange, whose chart previews the plan; below it the full-screen
+// layout stays. The step back reads **Back** in both. Pins the workflow 5 delta
+// lines 91-93 and W05#4.
+describe('SongWizard — the computer split', () => {
+  const sidePane = (container) => container.querySelector('.pane.side');
+  const mainPane = (container) => container.querySelector('.pane.main');
+
+  it('on a computer: the plan step and its actions in the side pane, the preview chart beside it; Done closes with no WRITE; axe clean', async () => {
+    installWidths('computer');
+    const onDone = vi.fn();
+    const onBack = vi.fn();
+    const { store, commands } = makeStore({ text: song({ voicings: OPEN_BLOCK }), entry: guitarEntry() });
+    const { container } = await openWizard(store, { mode: 'wide', onDone, onBack });
+    expect(sidePane(container)).toBeTruthy();
+    const side = within(sidePane(container));
+    const main = within(mainPane(container));
+
+    // The policy step: the main pane shows the chart with the variation's
+    // current shapes.
+    expect(side.getByRole('group', { name: 'Choose a policy' })).toBeInTheDocument();
+    expect(side.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    expect(side.getByText('Voicing wizard')).toBeInTheDocument();
+    expect(main.getByRole('group', { name: 'Tarde Clara' })).toBeInTheDocument();
+    expect(main.getByRole('heading', { name: 'Shapes · Default' })).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    await toPreview('The smoothest path');
+    expect(side.getByRole('radiogroup', { name: 'Where to put the plan' })).toBeInTheDocument();
+    expect(side.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(side.getByRole('button', { name: 'Write the plan' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Other ways/ })).toBeNull();
+
+    expect(main.getByText('Tarde Clara')).toBeInTheDocument();
+    expect(main.getByText('Arranging · Guitar')).toBeInTheDocument();
+    // A mention, not a switch: no instrument chip button in the wizard.
+    expect(screen.queryByRole('button', { name: /change instrument/ })).toBeNull();
+    expect(main.getByRole('button', { name: 'Done' })).toBeInTheDocument();
+    expect(main.getByText('Preview of the plan')).toBeInTheDocument();
+    expect(main.getByRole('group', { name: 'Tarde Clara' })).toBeInTheDocument();
+    fireEvent.change(side.getByRole('textbox', { name: 'Name for this variation' }), {
+      target: { value: 'Up the neck' },
+    });
+    const column = main.getByRole('region', { name: 'Shapes · Up the neck' });
+    expect(column.querySelectorAll('.chord-diagram').length).toBeGreaterThan(0);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // Back (not Other ways) returns to the policy step.
+    await click(side.getByRole('button', { name: 'Back' }));
+    expect(side.getByRole('group', { name: 'Choose a policy' })).toBeInTheDocument();
+
+    // Done closes the wizard and arrange together; nothing is written.
+    await click(main.getByRole('button', { name: 'Done' }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onBack).not.toHaveBeenCalled();
+    expect(lastCommand(commands, CommandKind.WRITE)).toBeUndefined();
+  }, 20000);
+
+  it('at 700px (the tablet) the existing full-screen layout stays, and Back returns to the policy step; axe clean', async () => {
+    installWidths('tablet');
+    const { store } = makeStore({ text: song({ voicings: OPEN_BLOCK }), entry: guitarEntry() });
+    const { container } = await openWizard(store, { mode: 'wide' });
+    expect(sidePane(container)).toBeNull();
+    expect(container.querySelector('.wizard-wide')).toBeTruthy();
+
+    await toPreview('The smoothest path');
+    expect(screen.queryByText('Preview of the plan')).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    await click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('group', { name: 'Choose a policy' })).toBeInTheDocument();
+  }, 20000);
 });
 
 describe('SongWizard — over this one, and the no-choices shortcut', () => {

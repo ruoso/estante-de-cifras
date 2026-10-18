@@ -2,6 +2,7 @@ import { test, expect } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
 import { runOffline, waitForServiceWorker } from '../lib/offline.js';
 import { openExampleBook, openSongFromSearch, startApp, settleEdits } from '../lib/journeys.js';
+import { overlaps } from '../lib/fit.js';
 import {
   SONG,
   enterArrange,
@@ -12,6 +13,9 @@ import {
   countUnchosen,
   addEmptyVariation,
   saveArrangementThroughSheet,
+  chip,
+  addInstrument,
+  closeInstruments,
 } from '../lib/journeys-core.js';
 
 // e2e-web — arranging a song end to end on the three viewports (songs.arrange,
@@ -52,12 +56,27 @@ test('arranges a song for guitar: tap a chord, choose a shape', async ({ page, c
   await candidate(picker(page)).click();
   await expect(picker(page)).toBeHidden();
   await expect(arrangeChord(page)).toBeVisible();
+
+  // The header's one chip is the instrument chip carrying the mode
+  // (songs.arrange_polish Decision 1; workflow 15 L62-69, workflow 5 L28-33):
+  // it reads *Arranging · Guitar* and opens the instruments. A cavaquinho added
+  // from it becomes the one in use, and the chip follows.
+  await expect(chip(page)).toHaveCount(1);
+  await expect(chip(page)).toHaveText('Arranging · Guitar');
+  await addInstrument(page, { catalogue: 'Cavaquinho', listed: 'Cavaquinho' });
+  await closeInstruments(page);
+  await expect(chip(page)).toHaveCount(1);
+  await expect(chip(page)).toHaveText('Arranging · Cavaquinho');
+  await expect(arrangeChord(page)).toBeVisible();
 });
 
-test('only here warns, and a shape by hand can be chosen', async ({ page, checkA11y }) => {
+test('only here warns, and a shape by hand can be chosen', async ({ page, checkA11y }, testInfo) => {
   await openExampleBook(page);
   await openSong(page);
   await enterArrange(page);
+  const strip = page.locator('.arrange-shapes .chord-diagram');
+  await expect(strip.first()).toBeVisible();
+  const shapesBefore = await strip.count();
 
   await arrangeChord(page).click();
   await expect(picker(page)).toBeVisible();
@@ -66,15 +85,49 @@ test('only here warns, and a shape by hand can be chosen', async ({ page, checkA
   await picker(page).getByRole('button', { name: 'Only here' }).click();
   await expect(page.getByText(/marks this bar in the chart/)).toBeVisible();
 
-  // Enter a shape by hand: place a finger and choose it.
+  // Enter a shape by hand: a screen of arrange, not a dialog over the picker
+  // (songs.arrange_polish Decision 2; W05#3; workflow 5 L43-51).
   await picker(page).getByRole('button', { name: 'Enter a shape' }).click();
-  const dialog = page.getByRole('dialog', { name: /^Enter a shape for/ });
-  await expect(dialog).toBeVisible();
+  const heading = page.getByRole('heading', { level: 1, name: 'Enter a shape for G' });
+  await expect(heading).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.arrange-enter-place')).toHaveText(/· only here\.$/);
+
+  // G with an F on the high E string, 3 2 0 x x 1 — root, major third,
+  // fifth, and a note not in G.
+  await page.getByRole('radio', { name: 'String 6, fret 3' }).click();
+  await page.getByRole('radio', { name: 'String 5, fret 2' }).click();
+  await page.getByRole('radio', { name: 'Open string 4' }).click();
+  await page.getByRole('radio', { name: 'String 1, fret 1' }).click();
+  const readout = page.getByRole('region', { name: 'Notes it holds' });
+  const row = (name) => readout.getByRole('listitem').filter({ has: page.locator('.name', { hasText: name }) });
+  await expect(row('E2 · low E')).toContainText('root');
+  await expect(row('A2')).toContainText('major third');
+  await expect(row('D3')).toContainText('fifth');
+  await expect(row('E4 · high E')).toContainText('not in G');
+  await expect(readout.getByText('G · B · D · F')).toBeVisible();
+  await expect(
+    page.getByText('The F on the high E string is not in G, which is G, B and D. You can still choose this shape.'),
+  ).toBeVisible();
+
+  // On the tablet the diagram card and the read-out sit side by side (W05#3).
+  if (testInfo.project.name === 'tablet') {
+    const card = await page.locator('.enter-shape-card').boundingBox();
+    const list = await readout.boundingBox();
+    expect(overlaps(card, list), 'the diagram card and the read-out overlap').toBe(false);
+    expect(list.x, 'the read-out sits beside the card').toBeGreaterThanOrEqual(card.x + card.width - 1);
+  }
   await mockup(page, 'W05-arrange', 3);
-  await checkA11y(); // the enter-a-shape dialog
-  await dialog.getByRole('radio', { name: 'String 1, fret 4' }).click();
-  await candidate(dialog).click();
-  await expect(dialog).toBeHidden();
+  await checkA11y(); // the enter-a-shape screen with the notice
+
+  // Choose it: written as a listed candidate is, back to arrange.
+  await page.getByRole('button', { name: /^Choose G,/ }).click();
+  await expect(heading).toBeHidden();
+  await expect(picker(page)).toBeHidden();
+  await expect(arrangeChord(page)).toBeVisible();
+  // G was chosen at the key, so *only here* gave this bar its own footnoted
+  // shape (§8.5.1 branch 4): one more shape in the strip.
+  await expect(strip).toHaveCount(shapesBefore + 1);
 });
 
 test('runs the whole arrange journey by keyboard on the computer', async ({ page }, testInfo) => {

@@ -146,12 +146,14 @@ explicit act in workflow 5.
 
 ### Entering a shape by hand
 
-*Enter a shape* sits at the top of the results, the same by-hand dialog the
-song picker offers (Explore Chords' DESIGN §2.11, the shared affordance): a big
-diagram where tapping a string at a fret places a finger and tapping again
-lifts it, tapping above the nut mutes or opens the string, with a per-string
-read-out of the notes it sounds and any that are foreign to the chord marked by
-a word. It is **offered here too**, and what it produces can be starred — the
+*Enter a shape* sits at the top of the results, the same by-hand builder the
+song picker offers (Explore Chords' DESIGN §2.11, the shared affordance) — here
+a dialog over the results, in a song a screen of arrange (workflow 5, Choosing
+a shape): a big diagram where tapping a string at a fret places a finger and
+tapping again lifts it, tapping above the nut mutes or opens the string, with a
+per-string read-out of the notes it sounds, each named by its part in the chord
+(*root*, *minor third*, *fifth*), and any that are foreign to the chord marked
+by a word (*not in Cm*). It is **offered here too**, and what it produces can be starred — the
 natural way to record *how I actually play it* when the search did not surface
 that shape. A half-finished or unusual shape is drawn as it is entered and is
 not rejected (cifra.md: nothing is discarded); an unplayable one says so

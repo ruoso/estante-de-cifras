@@ -69,6 +69,13 @@ export const INSTRUMENTS_WIDE_QUERY = '(min-width: 1080px)';
 // the editor keeps one column and the save is a centred dialog (W04#3).
 export const EDITOR_WIDE_QUERY = '(min-width: 1080px)';
 
+// The voicing wizard's computer split (songs.arrange_polish Decision 6; W05#4
+// L164-231): a 380px side pane holding the wizard beside arrange's chart, which
+// previews the plan. `380 (pane) + 64 (padding) + ~300 (chart) + 40 (gap) + 300
+// (the Shapes column) ≈ 1080px` — the app's line for a second column. Below it —
+// the 712px tablet included — the wizard keeps its full screen.
+export const ARRANGE_WIDE_QUERY = '(min-width: 1080px)';
+
 // The three destinations, in the drawn order — Search · Books · Setlists
 // (docs/mockups/GUIDE.md line 34; W02-find-and-play.dc.html lines 55-59). This
 // array's order is the tab order; the visible labels come from i18n, keyed by

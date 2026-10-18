@@ -113,8 +113,9 @@ task songs "Songs" {
   task arrange_polish "Arrange and the wizard as drawn" {
     effort 2d
     allocate team
+    complete 100
     depends !arrange, !wizard_ui
-    note "Arrange shows a generic instrument word in its mode chip and no instrument chip (workflow 15: the chip in the header everywhere; the locale string Arranging · {instrument} is not filled, app/src/i18n/locales/en.js:1200). Enter a shape is a modal over arrange, where the W05 board draws it inline, and its note list lacks chord-tone roles; its help text differs from the board. On a computer the wizard takes the whole screen where the board sits it beside the arrange chart; its back control reads Other ways where the board says Back. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (the chip names the instrument; enter a shape inline with chord-tone roles; axe); e2e-web (arrange and the wizard on the three viewports, mockup W05#1-4)."
+    note "Arrange shows a generic instrument word in its mode chip and no instrument chip (workflow 15: the chip in the header everywhere; the locale string Arranging · {instrument} is not filled, app/src/i18n/locales/en.js:1200). Enter a shape is a modal over arrange, where the W05 board draws it inline, and its note list lacks chord-tone roles; its help text differs from the board. On a computer the wizard takes the whole screen where the board sits it beside the arrange chart; its back control reads Other ways where the board says Back. Source: UI audit 2026-10-14 (app screens vs rendered boards; e2e/web/lib/mockup.js). Tests: behavior (the chip names the instrument; enter a shape inline with chord-tone roles; axe); e2e-web (arrange and the wizard on the three viewports, mockup W05#1-4). Refinement: tasks/refinements/songs/arrange_polish.md"
   }
   task history_phone_actions "A version's actions in reach on a phone" {
     effort 0.5d

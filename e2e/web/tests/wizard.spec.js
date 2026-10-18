@@ -36,7 +36,6 @@ test('runs the wizard into a new variation; the variation reads back in arrange'
   // The example song's guitar block already has choices, so the plan is offered
   // into a new variation first.
   await expect(page.getByRole('radio', { name: /Into a new variation/ })).toBeChecked();
-  await mockup(page, 'W05-arrange', 4);
   await checkA11y(); // the wizard, at its preview + plan-ready state
 
   await page.getByRole('textbox', { name: 'Name for this variation' }).fill('Up the neck');
@@ -123,4 +122,53 @@ test('runs the wizard offline; the plan is in the working copy after an offline 
       await expect(unchosenWords(offlinePage)).toHaveCount(0);
     },
   });
+});
+
+// On a computer the wizard sits in a 380px pane beside arrange's chart, which
+// previews the plan; on a phone or a tablet it keeps the whole screen
+// (songs.arrange_polish Decisions 6-8; W05#4; workflow 5 L91-93). Its step back
+// reads **Back** on all three.
+test('on a computer the wizard sits beside the chart', async ({ page, checkA11y }, testInfo) => {
+  await openExampleBook(page);
+  await openSong(page);
+  await enterArrange(page);
+  await toPreview(page);
+  await expect(page.getByRole('radio', { name: /Into a new variation/ })).toBeChecked();
+  await page.getByRole('textbox', { name: 'Name for this variation' }).fill('Up the neck');
+
+  const split = page.locator('.wizard-split');
+  if (testInfo.project.name === 'computer') {
+    const side = split.locator('.pane.side');
+    const main = split.locator('.pane.main');
+    const chart = main.locator('.chart');
+    await expect(side).toBeVisible();
+    await expect(chart).toBeVisible();
+    // Side by side, both on screen without scrolling.
+    const sideBox = await side.boundingBox();
+    const chartBox = await chart.boundingBox();
+    expect(sideBox.x + sideBox.width, 'the wizard pane ends before the chart begins').toBeLessThanOrEqual(chartBox.x + 1);
+    await expect(side.getByRole('button', { name: 'Write the plan' })).toBeInViewport();
+    await expect(chart).toBeInViewport();
+    // The main pane is dressed as arrange and previews the plan.
+    await expect(main.getByText('Arranging · Guitar')).toBeVisible();
+    await expect(main.getByText('Preview of the plan')).toBeVisible();
+    await expect(main.getByRole('heading', { name: 'Shapes · Up the neck' })).toBeVisible();
+  } else {
+    await expect(split).toHaveCount(0);
+    await expect(page.locator('.wizard-screen')).toBeVisible();
+  }
+  await mockup(page, 'W05-arrange', 4);
+  await checkA11y(); // the wizard's plan step, split on the computer
+
+  // Back (not "Other ways") returns to the planners.
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await expect(page.getByRole('group', { name: 'Choose a policy' })).toBeVisible();
+
+  // On the computer, Done leaves the wizard and arrange together, to reading.
+  if (testInfo.project.name === 'computer') {
+    await page.getByRole('button', { name: 'Done', exact: true }).click();
+    await expect(page.locator('.wizard-screen')).toHaveCount(0);
+    await expect(page.locator('.arrange-screen')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Edit', exact: true }).first()).toBeVisible();
+  }
 });

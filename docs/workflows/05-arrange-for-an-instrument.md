@@ -25,6 +25,13 @@ what they fall back to (workflow 2), marked *your shape* or *default*.
 Arranging is not offered while the song is transposed (workflow 2): it writes
 voicings for the chords as written.
 
+The mode is named in the header by the instrument chip itself, which reads
+*Arranging · Guitar* — the chip's one short label (workflow 15, The roster)
+after the mode — and opens the instruments as it does everywhere, so arranging
+for another instrument is a switch away. A step inside the mode that works on
+one tuning's strings (entering a shape by hand, the wizard's plan) names the
+instrument the same way but does not switch it.
+
 ## Choosing a shape
 
 Tapping a chord opens the picker, as Explore Chords had it: the shapes the
@@ -32,6 +39,16 @@ search finds for that chord on this instrument, ranked easiest first and
 grouped by position, with *enter a shape* at the top (its DESIGN §2.11).
 Choosing one writes `- Cm: x35543` into the block for this tuning and the
 variation in use, creating the block if there is none.
+
+*Enter a shape* opens a screen of the mode, not a dialog over the picker
+(board W05, the tablet): *Enter a shape for Cm*, a line saying where and how
+far it applies (*Choro da Chuva · Primeira Parte, bar 3 · only here*), the big
+diagram, and beside it *Notes it holds* — the notes it sounds, then one row per
+string with its fret, its note and that note's part in the chord (*root*,
+*minor third*, *fifth*), or *not in Cm* for a foreign one, which a notice spells
+out and does not block (*You can still choose this shape*). *Cancel* or *Back*
+returns to the picker as it was; *Choose this shape* writes it as any other
+choice does.
 
 ### Every Cm, or only this one
 
@@ -70,6 +87,10 @@ chose, and discard undoes it.
 A variation is the way to keep a plan beside an existing arrangement rather
 than over it. So when the variation in use already has choices, the wizard
 offers **into a new variation** first, and *over this one* second.
+
+On a computer the wizard sits in a pane beside the song's chart, which
+previews the plan's shapes as they would read in arrange; on a phone or a
+tablet it takes the screen. Its step back to the planners reads *Back*.
 
 ## Variations
 

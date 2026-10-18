@@ -471,7 +471,9 @@ export default function AppShell({
     editor: () => setEditingSong(null),
     wizard: () => {
       setWizard(null);
-      setWizardReturn(true);
+      // Focus goes back to Run the wizard only when arrange is still there to
+      // re-mount (the computer split's Done closes it too).
+      if (arranging) setWizardReturn(true);
     },
     arrange: () => setArranging(null),
     play: () => setPlayingSetlist(null),
@@ -1217,6 +1219,17 @@ export default function AppShell({
         path={wizard.path}
         mode={mode}
         onBack={() => back(closers.wizard)}
+        onDone={() => {
+          // The computer split's **Done** keeps arrange's meaning: back to
+          // reading, leaving the wizard and arrange together (songs.arrange_polish
+          // Decision 8; nothing was written — the plan lives in memory). The
+          // wizard's entry is stepped back as its Back does; arrange closes at
+          // once, so the entry back lands on is the reading view's and the
+          // history hook steps over it.
+          back(closers.wizard);
+          setArranging(null);
+          setWizardReturn(false);
+        }}
       />
     );
   }

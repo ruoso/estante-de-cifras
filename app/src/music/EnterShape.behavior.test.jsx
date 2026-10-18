@@ -4,9 +4,11 @@
 // `onStar`, which the explorer turns into SAVE_SHAPE (covered in the explorer's own
 // behavior test). Fixtures are shapes written for this test (no-song-text rule).
 //
-// Pins workflow 16 L136-146: place/lift/mute a string, the per-string read-out with
-// foreign notes marked by a word, an unplayable shape reported without blocking,
-// the result starred; axe clean.
+// Pins workflow 16 §Entering a shape by hand (L147-160; the shared builder,
+// L149-156 — songs.arrange_polish): place/lift/mute a string, the read-out naming
+// each note's part in the chord and a foreign one *not in C*, the board's help
+// copy, an unplayable shape reported without blocking, the result starred; axe
+// clean.
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, within, act, fireEvent } from '@testing-library/react';
@@ -55,37 +57,49 @@ function renderEnter(onStar = () => {}) {
 const open = () => act(() => fireEvent.click(screen.getByRole('button', { name: /Enter a shape/ })));
 
 describe('EnterShape (behavior)', () => {
-  it('opens, places / lifts / mutes a string, reads the notes out, and marks a foreign one, axe clean', async () => {
+  it('opens, places / lifts / mutes a string, names each note\'s part and marks a foreign one, axe clean', async () => {
     renderEnter();
     open();
     await screen.findByRole('heading', { name: 'Enter a shape' });
+    // The board's help copy, shared with arrange's screen.
+    expect(
+      screen.getByText('Tap a string at a fret to place a finger; tap above the nut to mute or open it.'),
+    ).toBeInTheDocument();
 
-    // Place a finger: string 1 (the highest) at fret 1 — an F, foreign to C major.
+    const readout = screen.getByRole('region', { name: 'Notes it holds' });
+    const row = (name) =>
+      within(readout)
+        .getAllByRole('listitem')
+        .find((li) => li.querySelector('.name')?.textContent === name);
+
+    // The open C shape x32010: each string's note named by its part in C.
+    act(() => fireEvent.click(screen.getByRole('radio', { name: 'String 5, fret 3' })));
+    act(() => fireEvent.click(screen.getByRole('radio', { name: 'String 4, fret 2' })));
+    act(() => fireEvent.click(screen.getByRole('radio', { name: 'Open string 3' })));
+    act(() => fireEvent.click(screen.getByRole('radio', { name: 'String 2, fret 1' })));
     act(() => fireEvent.click(screen.getByRole('radio', { name: 'String 1, fret 1' })));
-    const notes = screen.getByText('What it sounds').parentElement;
-    const foreignRow = within(notes)
-      .getAllByRole('listitem')
-      .find((li) => /fret 1/.test(li.textContent));
-    expect(foreignRow).toBeTruthy();
-    expect(within(foreignRow).getByText('not in the chord')).toBeInTheDocument();
-
-    // Lift it: the string reads open again (its note, no fret).
-    act(() => fireEvent.click(screen.getByRole('radio', { name: 'Open string 1' })));
+    expect(within(row('A2')).getByText('root')).toBeInTheDocument();
+    expect(within(row('D3')).getByText('major third')).toBeInTheDocument();
+    expect(within(row('G3')).getByText('fifth')).toBeInTheDocument();
+    expect(within(row('G3')).getByText('open')).toBeInTheDocument();
+    // String 1 at fret 1 is an F, foreign to C major: a word, and the notice.
+    expect(within(row('E4 · high E')).getByText('not in C')).toHaveClass('badge', 'conflict');
+    expect(within(readout).getByText('C · E · G · F')).toBeInTheDocument();
     expect(
-      within(notes)
-        .getAllByRole('listitem')
-        .some((li) => /String 1: open/.test(li.textContent)),
-    ).toBe(true);
-
-    // Mute it: the string reads muted.
-    act(() => fireEvent.click(screen.getByRole('radio', { name: 'Mute string 1' })));
-    expect(
-      within(notes)
-        .getAllByRole('listitem')
-        .some((li) => /String 1: muted/.test(li.textContent)),
-    ).toBe(true);
-
+      screen.getByText('The F on the high E string is not in C, which is C, E and G. You can still choose this shape.'),
+    ).toBeInTheDocument();
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+    // Lift it: the string reads open again, its E the chord's major third.
+    act(() => fireEvent.click(screen.getByRole('radio', { name: 'Open string 1' })));
+    expect(within(row('E4 · high E')).getByText('open')).toBeInTheDocument();
+    expect(within(row('E4 · high E')).getByText('major third')).toBeInTheDocument();
+    expect(screen.queryByText(/You can still choose this shape/)).toBeNull();
+
+    // Mute it: the string reads muted, no note.
+    act(() => fireEvent.click(screen.getByRole('radio', { name: 'Mute string 1' })));
+    expect(within(row('E4 · high E')).getByText('muted')).toBeInTheDocument();
+    expect(within(row('E4 · high E')).getByText('—')).toBeInTheDocument();
   });
 
   it('reports an unplayable shape without blocking', async () => {

@@ -222,20 +222,70 @@
   outline-offset: 2px;
 }
 
+/* The diagram card and the read-out (W05#3): stacked in the explorer's dialog
+   and on a phone; side by side on a wider screen of arrange (see
+   `.enter-shape-screen` below). */
+.enter-shape-main {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+
+.enter-shape-card {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  min-width: 0;
+}
+
 .enter-shape-readout {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: calc(var(--u) * 1.5);
+  min-width: 0;
+}
+
+.enter-shape-readout > h2,
+.enter-shape-readout > h3 {
+  margin: 0;
+}
+
+.enter-shape-summary {
+  margin: 0;
 }
 
 .enter-shape-notes {
   margin: 0;
-  padding-left: 1.2em;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 14px;
-  color: var(--ink-2);
+  padding: 0;
+  list-style: none;
+}
+
+.enter-shape-notename {
+  min-width: 2.2em;
+  text-align: right;
+}
+
+.enter-shape-notice .enter-shape-warn {
+  color: var(--conflict);
+  flex: none;
+  margin-top: 1px;
+}
+
+/* On a screen of arrange wide enough for both, the card keeps its content's
+   width (the string×fret grid, which must not wrap) and the read-out takes the
+   rest (W05#3: the diagram card beside the list). */
+@media (min-width: 600px) {
+  .enter-shape-screen .enter-shape-main {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: calc(var(--u) * 4);
+  }
+  .enter-shape-screen .enter-shape-card {
+    flex: 0 0 auto;
+  }
+  .enter-shape-screen .enter-shape-readout {
+    flex: 1;
+  }
 }
 
 .enter-shape-preview {

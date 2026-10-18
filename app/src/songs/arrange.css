@@ -190,3 +190,36 @@
   background: var(--accent);
   border-color: var(--accent);
 }
+
+/* Arrange's own chrome and body, kept mounted while a shape is entered by hand
+   (songs.arrange_polish Decision 2) so the chord that opened the picker can take
+   focus back: transparent to the screen's flex column when shown, gone when the
+   enter-a-shape screen replaces it. */
+.arrange-mode {
+  display: contents;
+}
+.arrange-mode[hidden] {
+  display: none;
+}
+
+/* The enter-a-shape screen (W05#3): its app bar's title is the screen's h1; the
+   instrument is named in chip styling, not a switch (Decision 3). */
+.arrange-enter-title {
+  margin: 0;
+}
+.arrange-enter-title:focus {
+  outline: none;
+}
+.arrange-mention {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arrange-enter-scroll {
+  overflow-y: auto;
+  gap: calc(var(--u) * 3);
+}
+.arrange-enter-context {
+  margin: 0;
+}

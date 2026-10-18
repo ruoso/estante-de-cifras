@@ -266,3 +266,60 @@
 .wizard-actionbar .btn.grow {
   flex: 1;
 }
+
+/* The computer split (songs.arrange_polish Decision 6; W05#4 L164-231): the
+   wizard in a 380px side pane, its action bar at the pane's foot, beside a main
+   pane dressed as arrange whose chart previews the plan. */
+.wizard-split .pane.side.wizard-side {
+  width: 380px;
+}
+.wizard-side-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2) 0;
+}
+.wizard-side-scroll {
+  overflow-y: auto;
+  padding: calc(var(--u) * 2) calc(var(--u) * 3);
+  gap: calc(var(--u) * 1.75);
+}
+.wizard-main-scroll {
+  overflow-y: auto;
+  padding: calc(var(--u) * 2.5) calc(var(--u) * 4);
+  gap: calc(var(--u) * 2.25);
+}
+.wizard-mention {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wizard-main-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  flex-wrap: wrap;
+}
+.wizard-main-row p {
+  margin: 0;
+}
+.wizard-main-body {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--u) * 5);
+}
+.wizard-main-body .chart {
+  flex: 1;
+  min-width: 0;
+}
+.wizard-main-shapes {
+  width: 300px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+}
+.wizard-main-shapes h2 {
+  margin: 0;
+}

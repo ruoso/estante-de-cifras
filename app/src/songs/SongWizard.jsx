@@ -22,14 +22,28 @@
 // Worker owns durability; the view never touches IndexedDB or git (DIRECTION
 // §3.7). WRITE is silent, so arrange re-reads the working copy when it re-mounts
 // on close and shows the new variation.
+//
+// On a computer (ARRANGE_WIDE_QUERY; songs.arrange_polish Decision 6, W05#4) the
+// wizard sits in a 380px side pane beside a main pane dressed as arrange — the
+// song's title, the instrument named after the mode (a mention, not a switch:
+// Decision 3) and **Done** — whose chart previews the plan, its shapes in a
+// *Shapes · {variation}* column (no variation selector: the target does not
+// exist until written, Decision 7). **Done** leaves the wizard and arrange
+// together (Decision 8). Below it the wizard keeps its full screen.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Button, Disclosure, DisclosurePanel, Heading, Input, Label, Radio, RadioGroup, TextField } from 'react-aria-components';
 import { parse, write } from 'cifra-md';
 import { t, tr } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import { inUseEntry } from '../instruments/InstrumentChip.jsx';
+import { chipLabel } from '../instruments/instrument-helpers.js';
+import { resolveSongVoicings } from '../core/voicings.js';
+import { ARRANGE_WIDE_QUERY } from '../shell/layout-mode.js';
+import Chart from '../chart/Chart.jsx';
+import { chartChordList } from './reading-view.js';
+import { parseChord } from '../core/notation/parse.js';
 import { instrumentInstance, openMidis } from '../core/instrument.js';
 import { fingeringFromFrets } from '../core/search.js';
 import { DEFAULT_DIALECT, songDialect } from '../core/notation/dialects.js';
@@ -39,6 +53,31 @@ import { sourcesFor, citation } from '../data/sources.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import { inUseHasChoices, existingFor } from './wizard-choices.js';
 import './wizard.css';
+
+// The computer split (see ARRANGE_WIDE_QUERY): the same `matchMedia` /
+// `useSyncExternalStore` seam the reading view uses; a missing `matchMedia`
+// (jsdom) reads as not-wide.
+function arrangeWideQuery() {
+  return typeof globalThis.matchMedia === 'function' ? globalThis.matchMedia(ARRANGE_WIDE_QUERY) : null;
+}
+function subscribeArrangeWide(onChange) {
+  const query = arrangeWideQuery();
+  if (!query?.addEventListener) return () => {};
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+function readArrangeWide() {
+  return arrangeWideQuery()?.matches ?? false;
+}
+
+// A chord symbol from the chart, parsed in the song's notation (null if not a chord).
+function parseChordSafe(symbol, notation) {
+  try {
+    return parseChord(symbol, notation).chord;
+  } catch {
+    return null;
+  }
+}
 
 function CloseIcon() {
   return (
@@ -71,7 +110,8 @@ function Sources({ ids }) {
   );
 }
 
-export default function SongWizard({ store, bookId, path, mode = 'narrow', onBack = () => {} }) {
+export default function SongWizard({ store, bookId, path, mode = 'narrow', onBack = () => {}, onDone = onBack }) {
+  const split = useSyncExternalStore(subscribeArrangeWide, readArrangeWide, readArrangeWide);
   // Bring the song in on mount (idempotent — arrange already opened it): the text
   // to parse (OPEN_SOURCE) and the reading state for the variation in use
   // (OPEN_SONG), so the surface stands alone at its dev mount too (Decision 1).
@@ -232,7 +272,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
 
   const header = (
     <div className="wizard-head">
-      <span className="t-h3 wizard-eyebrow">{t('wizard.open')}</span>
+      {split ? null : <span className="t-h3 wizard-eyebrow">{t('wizard.open')}</span>}
       {stage === 'policy' ? (
         <>
           <h1 className="t-h1">{t('wizard.title')}</h1>
@@ -334,24 +374,29 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
 
   // The preview: the diagrams the song will carry, a "{n} of {m} would change"
   // line (or the nothing-changes state), and the chords it could not voice.
+  const previewNotes = (
+    <>
+      {total > 0 && changed === 0 ? (
+        <p className="t-small wizard-summary" role="status">
+          {t('wizard.nothing')}
+        </p>
+      ) : null}
+      {changed > 0 ? (
+        <p className="t-small wizard-summary" role="status">
+          {t('wizard.summary', { count: changed, total })}
+        </p>
+      ) : null}
+      {missingList.length ? (
+        <p className="t-small wizard-missing" role="status">
+          {t('wizard.missing', { list: missingList.join(', ') })}
+        </p>
+      ) : null}
+    </>
+  );
   const previewSection =
     stage === 'preview' ? (
       <section className="wizard-preview" aria-label={t('wizard.previewTitle')}>
-        {total > 0 && changed === 0 ? (
-          <p className="t-small wizard-summary" role="status">
-            {t('wizard.nothing')}
-          </p>
-        ) : null}
-        {changed > 0 ? (
-          <p className="t-small wizard-summary" role="status">
-            {t('wizard.summary', { count: changed, total })}
-          </p>
-        ) : null}
-        {missingList.length ? (
-          <p className="t-small wizard-missing" role="status">
-            {t('wizard.missing', { list: missingList.join(', ') })}
-          </p>
-        ) : null}
+        {previewNotes}
         <div className="shapes wizard-shapes">
           {previewShapes.map((s) => (
             <ChordDiagram
@@ -434,6 +479,97 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
       )}
     </div>
   );
+
+  if (split) {
+    // The main pane's preview: the plan's shapes once planned, the variation's
+    // current shapes while a policy is being chosen; the column names the
+    // variation they land in (the typed name for *into a new variation*).
+    let columnShapes = previewShapes;
+    let target = variationName(variation);
+    if (stage === 'preview') {
+      if (needsChoice && choice === 'new') target = varName.trim() || variationName(variation);
+    } else {
+      const current =
+        instrument && model
+          ? resolveSongVoicings(model, instrument, { variation, shapes: entry?.shapes ?? [], dialect: notation })
+          : new Map();
+      const symbols = new Map((model ? chartChordList(model) : []).map((c) => [c.key, c.symbol]));
+      columnShapes = [...current.entries()].map(([key, v]) => ({
+        key,
+        chord: parseChordSafe(symbols.get(key) ?? key, notation),
+        fingering: v.fingering,
+        kind: v.source,
+      }));
+    }
+    return (
+      <div className="screen wizard-screen wizard-split">
+        <div className="split">
+          <div className="pane side wizard-side">
+            <div className="wizard-side-head">
+              <Button className="btn icon" aria-label={t('wizard.cancel')} onPress={onBack}>
+                <CloseIcon />
+              </Button>
+              <span className="t-h3 wizard-eyebrow">{t('wizard.open')}</span>
+            </div>
+            <div className="scroll wizard-side-scroll">
+              {header}
+              {stage === 'policy' ? policyStep : choiceSection}
+              {stage === 'preview' ? <p className="t-small wizard-editnote">{t('wizard.editNote')}</p> : null}
+            </div>
+            {actions}
+          </div>
+          <div className="pane main wizard-main">
+            <div className="appbar wizard-main-bar">
+              <span className="title">{model?.title ?? path}</span>
+              {entry ? (
+                <span className="chip accent wizard-mention">
+                  {t('arrange.modeChip', { instrument: chipLabel(entry) })}
+                </span>
+              ) : null}
+              <Button className="btn primary" onPress={onDone}>
+                {t('arrange.done')}
+              </Button>
+            </div>
+            {/* The preview scrolls and holds no control, so it takes focus itself:
+                a named region the keyboard can reach and scroll (axe
+                scrollable-region-focusable). */}
+            <div
+              className="scroll wizard-main-scroll"
+              role="region"
+              aria-label={t('wizard.previewOfPlan')}
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+              tabIndex={0}
+            >
+              {stage === 'preview' ? (
+                <div className="wizard-main-row">
+                  <span className="t-small">{t('wizard.previewOfPlan')}</span>
+                  {previewNotes}
+                </div>
+              ) : null}
+              <div className="wizard-main-body">
+                {model ? <Chart model={model} size={20} label={model.title ?? undefined} /> : null}
+                <section className="wizard-main-shapes" aria-labelledby="wizard-shapes-heading">
+                  <h2 id="wizard-shapes-heading" className="t-h3">
+                    {t('wizard.shapesFor', { variation: target })}
+                  </h2>
+                  <div className="shapes">
+                    {columnShapes.map((sh) => (
+                      <ChordDiagram
+                        key={sh.key}
+                        fingering={sh.fingering}
+                        kind={sh.kind ?? 'song'}
+                        context={{ chord: sh.chord, dialect, instrument }}
+                      />
+                    ))}
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`screen wizard-screen${mode === 'wide' ? ' wizard-wide' : ''}`}>

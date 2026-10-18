@@ -19,8 +19,17 @@
 // Decision 8). *Which variation is in use* is personal state (SET_VARIATION, the
 // home book); a shape chosen into the song is shared content (WRITE, the book
 // working copy) — the two writes land in different stores by design (§3.2).
+//
+// As drawn (songs.arrange_polish; board W05): the header's one chip is the
+// instrument chip carrying the mode (*Arranging · Guitar*, Decision 1), opening
+// the instruments as reading's does; *Enter a shape* is a screen of the mode —
+// not a dialog over the picker — that replaces arrange's body under its own app
+// bar (Decision 2), with the shared `ShapeBuilder` naming each note's part in the
+// chord. Back and Cancel return to the picker as it was; *Choose this shape*
+// writes as a listed candidate does and returns focus to the chord.
 
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
   Button,
   Checkbox,
@@ -43,7 +52,8 @@ import {
 import { t } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
-import { inUseEntry } from '../instruments/InstrumentChip.jsx';
+import InstrumentChip, { inUseEntry } from '../instruments/InstrumentChip.jsx';
+import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
 import { chipLabel } from '../instruments/instrument-helpers.js';
 import { instrumentInstance, openMidis } from '../core/instrument.js';
 import { resolveSongVoicings } from '../core/voicings.js';
@@ -55,11 +65,19 @@ import { searchFingerings } from '../core/search.js';
 import Chart from '../chart/Chart.jsx';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import FingeringGroups from '../music/FingeringGroups.jsx';
-import EnterShape from '../music/EnterShape.jsx';
+import { ShapeBuilder } from '../music/EnterShape.jsx';
+import { PlusIcon } from '../music/icons.jsx';
 import { groupViewModel, spokenShorthand } from '../music/fingering-groups.js';
 import { chartChordList } from './reading-view.js';
 import { occurrenceAt, unchosenPlan, toShape } from './arrange-choices.js';
 import './arrange.css';
+
+// The bar an occurrence sits in, as the chart numbers it (cifra.md's measure
+// `number`), for the enter-a-shape screen's context line.
+function barNumber(model, occurrence) {
+  const { section, part, line, measure } = occurrence;
+  return model?.sections?.[section]?.body?.[part]?.lines?.[line]?.measures?.[measure]?.number ?? null;
+}
 
 function BackIcon() {
   return (
@@ -76,6 +94,38 @@ function WarnIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" className="arrange-warn-icon">
       <path d="M12 3l10 18H2zM12 10v5M12 18h.01" />
     </svg>
+  );
+}
+
+// The enter-a-shape screen's frame (W05#3): its own app bar — Back, the title as
+// the screen's heading, and the instrument named in chip styling but not a
+// switch (Decision 3) — the context line and the board's help, then the builder.
+// The heading takes focus on arrival so the screen announces itself.
+function EnterShapeScreen({ title, instrumentLabel, context, onBack, children }) {
+  const headingRef = useRef(null);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
+  return (
+    <>
+      <div className="appbar arrange-chrome">
+        <Button className="btn icon" aria-label={t('arrange.back')} onPress={onBack}>
+          <BackIcon />
+        </Button>
+        <h1 ref={headingRef} tabIndex={-1} className="title arrange-enter-title">
+          {title}
+        </h1>
+        <span className="chip accent arrange-mention">{instrumentLabel}</span>
+      </div>
+      <div className="scroll arrange-enter-scroll">
+        <p className="t-small arrange-enter-context">
+          <span className="arrange-enter-place">{context}.</span>
+          {' '}
+          <span>{t('explorer.enter.help')}</span>
+        </p>
+        {children}
+      </div>
+    </>
   );
 }
 
@@ -130,11 +180,28 @@ export default function SongArrange({
   const [varName, setVarName] = useState('');
   const [varCopy, setVarCopy] = useState(true);
   const [varError, setVarError] = useState(null);
+  // The enter-a-shape screen (Decision 2): the picker's occurrence and scope it
+  // was opened from, so Back / Cancel reopen the picker as it was.
+  const [entering, setEntering] = useState(null); // { picker, scope } | null
+  // Focus goes to the *Enter a shape* row when the picker reopens from the screen.
+  const [focusEnterRow, setFocusEnterRow] = useState(false);
+  const [instrumentsOpen, setInstrumentsOpen] = useState(false);
+  // The chord that opened the picker: focus returns to it from the screen (its
+  // node stays mounted, hidden, while the screen shows).
+  const chordRef = useRef(null);
+  const enterRowRef = useRef(null);
+  // Reopened from the screen, the picker puts focus on the *Enter a shape* row
+  // (after the dialog's own autofocus, which runs first as a child effect).
+  useEffect(() => {
+    if (focusEnterRow && picker) enterRowRef.current?.focus();
+  }, [focusEnterRow, picker]);
 
   const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
   const entry = inUseEntry(instrumentsSlice);
   const config = entry?.config ?? null;
-  const instrumentLabel = chipLabel(entry) || t('search.instrument');
+  // The Worker always sends the standard entry, so once the slice is loaded
+  // there is an instrument to name; the chip renders only then.
+  const instrumentLabel = chipLabel(entry);
 
   let instrument = null;
   if (entry) {
@@ -201,22 +268,54 @@ export default function SongArrange({
   const openPicker = (address) => {
     const info = occurrenceAt(model, address);
     if (!info) return;
+    const active = globalThis.document?.activeElement;
+    chordRef.current = active && active !== globalThis.document.body ? active : null;
     setScope('key');
+    setFocusEnterRow(false);
     setPicker(info);
   };
 
   // Choose a shape for the picker's chord, at the current scope: a key choice
   // sets every occurrence (§8.5.2), "only here" just this one (§8.5.1).
-  const applyChoice = (fingering) => {
-    if (!model || !picker) return;
+  const applyChoice = (fingering, target = picker, at = scope) => {
+    if (!model || !target) return;
     const shape = toShape(fingering);
     const doc = parse(text);
     const next =
-      scope === 'here'
-        ? chooseShapeForOccurrence(doc, picker.occurrence, tuningText, variation, shape)
-        : chooseShapeForKey(doc, { symbol: picker.symbol, index: picker.index }, tuningText, variation, shape);
+      at === 'here'
+        ? chooseShapeForOccurrence(doc, target.occurrence, tuningText, variation, shape)
+        : chooseShapeForKey(doc, { symbol: target.symbol, index: target.index }, tuningText, variation, shape);
     persist(next);
     setPicker(null);
+  };
+
+  // *Enter a shape*: close the picker and open the screen on the same occurrence
+  // and scope.
+  const enterShape = () => {
+    setEntering({ picker, scope });
+    setFocusEnterRow(false);
+    setPicker(null);
+  };
+
+  // Back / Cancel: arrange again, the picker reopened as it was. The chord is
+  // focused first (synchronously, once visible) so the reopened picker returns
+  // focus to it when it closes; inside the picker focus lands on the row.
+  const leaveEntering = () => {
+    const back = entering;
+    flushSync(() => setEntering(null));
+    chordRef.current?.focus?.();
+    setScope(back.scope);
+    setFocusEnterRow(true);
+    setPicker(back.picker);
+  };
+
+  // *Choose this shape*: write it as a listed candidate is written, at the scope
+  // the picker had, then arrange with the picker closed and focus on the chord.
+  const chooseEntered = (fingering) => {
+    const { picker: target, scope: at } = entering;
+    applyChoice(fingering, target, at);
+    flushSync(() => setEntering(null));
+    chordRef.current?.focus?.();
   };
 
   // Choose these for every unchosen chord: one §8.5.4 batch of every unchosen
@@ -296,22 +395,19 @@ export default function SongArrange({
     </Button>
   );
 
-  // Enter a shape by hand, reused with its primary action configured to "Choose
-  // this shape" (not the explorer's star — Decision 6); it writes at the picker's
-  // current scope.
-  const enterPrimary = picker
+  // The shared builder's primary action on the screen: "Choose this shape" (not
+  // the explorer's star — songs.arrange Decision 6), labelled with the chord and
+  // the shape.
+  const enterPrimary = entering
     ? {
         label: t('arrange.chooseShape'),
         icon: null,
         ariaLabel: (fingering) =>
           t('arrange.chooseShapeLabel', {
-            chord: picker.symbol,
+            chord: entering.picker.symbol,
             shorthand: fingering ? spokenShorthand(fingering.shorthand) : '',
           }),
-        onChoose: (fingering) => applyChoice(fingering),
-        triggerName: t('arrange.enterShape'),
-        triggerMeta: null,
-        title: t('arrange.enterShapeTitle', { chord: picker.symbol }),
+        onChoose: chooseEntered,
       }
     : null;
 
@@ -361,49 +457,95 @@ export default function SongArrange({
     </section>
   ) : null;
 
+  // The enter-a-shape screen's context line (W05#3 L130): where it applies and
+  // how far — *Choro da Chuva · Primeira Parte, bar 3 · only here*.
+  const enterContext = (() => {
+    if (!entering) return '';
+    const { picker: at, scope: how } = entering;
+    const params = {
+      song: model?.title ?? path,
+      section: model?.sections?.[at.occurrence.section]?.name ?? '',
+      bar: barNumber(model, at.occurrence) ?? at.occurrence.measure + 1,
+      scope: how === 'here' ? t('arrange.scopeHere') : t('arrange.scopeKey', { chord: at.symbol }),
+    };
+    return params.section ? t('arrange.enterContext', params) : t('arrange.enterContextNoSection', params);
+  })();
+  const enteringChord = entering ? parseChord(entering.picker.symbol, notation).chord : null;
+
   return (
     <div className={`screen arrange-screen${mode === 'wide' ? ' arrange-wide' : ''}`}>
-      <div className="appbar arrange-chrome">
-        {mode === 'wide' ? null : (
-          <Button className="btn icon" aria-label={t('arrange.back')} onPress={onBack}>
-            <BackIcon />
-          </Button>
-        )}
-        <span className="title">{model?.title ?? path}</span>
-        <span className="chip accent">{t('arrange.modeChip', { instrument: instrumentLabel })}</span>
-        <Button className="btn primary" onPress={onBack}>
-          {t('arrange.done')}
-        </Button>
-      </div>
+      {entering && enteringChord && instrument ? (
+        <EnterShapeScreen
+          title={t('arrange.enterShapeTitle', { chord: entering.picker.symbol })}
+          instrumentLabel={instrumentLabel}
+          context={enterContext}
+          onBack={leaveEntering}
+        >
+          <ShapeBuilder
+            className="enter-shape-screen"
+            instrument={instrument}
+            chord={enteringChord}
+            chordSymbol={entering.picker.symbol}
+            dialect={dialect}
+            primary={enterPrimary}
+            onCancel={leaveEntering}
+            showHelp={false}
+            headingLevel={2}
+          />
+        </EnterShapeScreen>
+      ) : null}
 
-      <div className="scroll arrange-scroll">
-        <p className="t-small arrange-hint">{t('arrange.modeHint')}</p>
-        {variationSelector}
-        <div className="arrange-body">
-          {model ? (
-            <Chart
-              model={model}
-              size={mode === 'wide' ? 20 : undefined}
-              label={model.title ?? undefined}
-              markOf={() => 'tap'}
-              onChordPress={openPicker}
-              chordLabel={chordLabel}
+      {/* Arrange itself — kept mounted (hidden) while a shape is entered, so the
+          chord that opened the picker is there to take focus back. */}
+      <div className="arrange-mode" hidden={entering != null}>
+        <div className="appbar arrange-chrome">
+          {mode === 'wide' ? null : (
+            <Button className="btn icon" aria-label={t('arrange.back')} onPress={onBack}>
+              <BackIcon />
+            </Button>
+          )}
+          <span className="title">{model?.title ?? path}</span>
+          {entry ? (
+            <InstrumentChip
+              store={store}
+              onOpen={() => setInstrumentsOpen(true)}
+              labelFor={(label) => t('arrange.modeChip', { instrument: label })}
             />
           ) : null}
-          {shapesStrip}
+          <Button className="btn primary" onPress={onBack}>
+            {t('arrange.done')}
+          </Button>
         </div>
-        <Button className="btn block" isDisabled={!anyUnchosen} onPress={chooseEveryUnchosen}>
-          {t('arrange.chooseEveryUnchosen')}
-        </Button>
-      </div>
 
-      <div className="arrange-actionbar arrange-chrome">
-        <Button ref={wizardButtonRef} className="btn grow" onPress={() => onRunWizard({ bookId, path })}>
-          {t('arrange.runWizard')}
-        </Button>
-        <Button className="btn grow" onPress={() => setAddVarOpen(true)}>
-          {t('arrange.variations')}
-        </Button>
+        <div className="scroll arrange-scroll">
+          <p className="t-small arrange-hint">{t('arrange.modeHint')}</p>
+          {variationSelector}
+          <div className="arrange-body">
+            {model ? (
+              <Chart
+                model={model}
+                size={mode === 'wide' ? 20 : undefined}
+                label={model.title ?? undefined}
+                markOf={() => 'tap'}
+                onChordPress={openPicker}
+                chordLabel={chordLabel}
+              />
+            ) : null}
+            {shapesStrip}
+          </div>
+          <Button className="btn block" isDisabled={!anyUnchosen} onPress={chooseEveryUnchosen}>
+            {t('arrange.chooseEveryUnchosen')}
+          </Button>
+        </div>
+
+        <div className="arrange-actionbar arrange-chrome">
+          <Button ref={wizardButtonRef} className="btn grow" onPress={() => onRunWizard({ bookId, path })}>
+            {t('arrange.runWizard')}
+          </Button>
+          <Button className="btn grow" onPress={() => setAddVarOpen(true)}>
+            {t('arrange.variations')}
+          </Button>
+        </div>
       </div>
 
       {/* The picker — a bottom sheet (narrow) or a centred panel (wide). Controlled
@@ -413,7 +555,10 @@ export default function SongArrange({
         className={`scrim${mode === 'wide' ? ' center' : ''}`}
         isOpen={picker != null}
         onOpenChange={(open) => {
-          if (!open) setPicker(null);
+          if (!open) {
+            setPicker(null);
+            setFocusEnterRow(false);
+          }
         }}
         isDismissable
       >
@@ -451,13 +596,19 @@ export default function SongArrange({
                   </div>
                 ) : null}
                 <div className="list">
-                  <EnterShape
-                    instrument={instrument}
-                    chord={pickerChord}
-                    chordSymbol={picker.symbol}
-                    dialect={dialect}
-                    primary={enterPrimary}
-                  />
+                  {/* Arrange's host for the shared builder: a plain row that
+                      leaves the picker for the enter-a-shape screen. */}
+                  <Button
+                    className="row explore enter-shape-trigger"
+                    isDisabled={!pickerChord || !instrument}
+                    ref={enterRowRef}
+                    onPress={enterShape}
+                  >
+                    <PlusIcon />
+                    <span className="grow">
+                      <span className="name">{t('arrange.enterShape')}</span>
+                    </span>
+                  </Button>
                 </div>
                 {pickerGroups && pickerGroups.length ? (
                   <FingeringGroups groups={pickerGroups} context={pickerContext} renderAction={chooseAction} />
@@ -471,6 +622,8 @@ export default function SongArrange({
           </Dialog>
         </Modal>
       </ModalOverlay>
+
+      <InstrumentsOverlay store={store} isOpen={instrumentsOpen} onClose={() => setInstrumentsOpen(false)} />
 
       {/* Add a variation (Decision 7). */}
       <ModalOverlay

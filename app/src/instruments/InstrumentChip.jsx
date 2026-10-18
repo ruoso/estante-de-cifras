@@ -6,7 +6,9 @@
 // tuning, pitches — as its accessible description (shell.header_chrome);
 // pressing it asks the shell to open the overlay. A React Aria `Button` with an
 // accessible name that says what it does; the chip carries the instrument as a
-// word, never colour alone.
+// word, never colour alone. A screen in a mode names the mode on the chip itself
+// through `labelFor` (arrange: *Arranging · Guitar* — songs.arrange_polish
+// Decision 1), so it stays the one chip on the screen.
 
 import { useId } from 'react';
 import { Button } from 'react-aria-components';
@@ -18,10 +20,10 @@ import { chipDescription, chipLabel, inUseEntry } from './instrument-helpers.js'
 // here for the call sites that read the in-use instrument beside the chip.
 export { inUseEntry };
 
-export default function InstrumentChip({ store, onOpen }) {
+export default function InstrumentChip({ store, onOpen, labelFor = (label) => label }) {
   const slice = useSlice(store, 'instruments');
   const entry = inUseEntry(slice);
-  const label = chipLabel(entry);
+  const label = labelFor(chipLabel(entry));
   const descriptionId = useId();
   return (
     <>

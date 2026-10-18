@@ -1,13 +1,17 @@
-// EnterShape — the by-hand shape dialog (music.explorer, workflow 16 L136-146;
-// the shared affordance songs.arrange will reuse). A grid where each string is
-// set to muted, open or a fret; a per-string read-out of the notes it sounds
-// with any foreign to the chord marked by a word; the shape drawn as entered and
-// never rejected — a half-finished or unusual one is kept, an unplayable one says
-// so without blocking — and what it produces can be starred. React Aria
+// EnterShape — the by-hand shape dialog (music.explorer, workflow 16 §Entering a
+// shape by hand) and the shared `ShapeBuilder` inside it. A grid where each
+// string is set to muted, open or a fret; the read-out of what the shape holds —
+// *Notes it holds*, one row per string naming the note's part in the chord
+// (*root*, *minor third*) or *not in Cm*, and a notice spelling the foreign notes
+// out (songs.arrange_polish, the pure shape-readout.js); the shape drawn as
+// entered and never rejected — a half-finished or unusual one is kept, an
+// unplayable one says so without blocking. The explorer hosts the builder in this
+// dialog and stars what it produces; arrange hosts the same builder as a screen
+// of the mode (its Decision 4), so the two never disagree on a shape. React Aria
 // throughout; the overlay portals into the `.est` token root via ThemeRoot
 // ([[rac-overlays-portal-outside-est-theme-root]]).
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -19,52 +23,47 @@ import {
   RadioGroup,
 } from 'react-aria-components';
 import { t } from '../i18n/index.js';
-import { note, formatNote } from '../core/pitch.js';
-import { chordTones } from '../core/chord.js';
-import { openMidis, fingeringFromFrets } from '../core/search.js';
+import { fingeringFromFrets } from '../core/search.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import { PlusIcon, StarIcon } from './icons.jsx';
+import { shapeReadout } from './shape-readout.js';
 
 // Frets offered on the by-hand grid: muted, open, and the first frets — enough to
 // place the shapes a player records by hand near the nut.
 const FRET_WINDOW = 7;
-// A chromatic sharp spelling for a note foreign to the chord, which has no
-// functional spelling to borrow (mirrors core/chord.js's own fallback).
-const SHARP = [
-  ['C', 0], ['C', 1], ['D', 0], ['D', 1], ['E', 0], ['F', 0],
-  ['F', 1], ['G', 0], ['G', 1], ['A', 0], ['A', 1], ['B', 0],
-];
 
-// What one string sounds for the current chord: its state, the note name, and
-// whether that note is foreign to the chord (home-book/§5.6 is not involved — this
-// is which note it is and whether the chord asks for it).
-function stringNote(chord, openMidi, value) {
-  if (value === 'x') return { muted: true };
-  const fret = Number(value);
-  const pc = (((openMidi + fret) % 12) + 12) % 12;
-  const toneByPc = new Map(chordTones(chord).map((tone) => [tone.pitchClass, tone.spelled]));
-  const spelled = toneByPc.get(pc) ?? note(SHARP[pc][0], SHARP[pc][1]);
-  return { muted: false, open: fret === 0, fret, name: formatNote(spelled), foreign: !toneByPc.has(pc) };
+// The warning triangle on the foreign-note notice (aria-hidden; the words carry
+// the status — mockups README line 26).
+function WarnIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" className="enter-shape-warn">
+      <path d="M12 3l10 18H2zM12 10v5M12 18h.01" />
+    </svg>
+  );
 }
 
-function readoutLabel(chord, openMidi, value, index, stringCount) {
-  const n = stringCount - index; // 1 is the highest-pitched string, as spoken
-  const info = stringNote(chord, openMidi, value);
-  if (info.muted) return { text: t('explorer.enter.muted', { n }), foreign: false };
-  if (info.open) return { text: t('explorer.enter.openNote', { n, note: info.name }), foreign: info.foreign };
-  return {
-    text: t('explorer.enter.frettedNote', { n, fret: info.fret, note: info.name }),
-    foreign: info.foreign,
-  };
-}
-
-// The grid + read-out + preview, mounted fresh each time the dialog opens so its
-// entered state starts empty. The primary action is configurable (Decision 6):
-// the explorer passes its star, arrange passes "Choose this shape".
-function ShapeBuilder({ instrument, chord, dialect, primary, close }) {
+// The grid + preview card, the read-out and the actions, mounted fresh each time
+// a host opens it so its entered state starts empty. The primary action is
+// configurable (songs.arrange Decision 6): the explorer passes its star, arrange
+// passes "Choose this shape". `onCancel` is the host's way back; `onChosen` runs
+// after the primary action (the dialog closes; arrange navigates in onChoose).
+// A host that shows the help elsewhere (arrange's context line) passes
+// `showHelp={false}`; `headingLevel` fits the read-out's heading under the host's.
+export function ShapeBuilder({
+  instrument,
+  chord,
+  chordSymbol,
+  dialect,
+  primary,
+  onCancel,
+  onChosen = () => {},
+  showHelp = true,
+  headingLevel = 3,
+  className = '',
+}) {
   const stringCount = instrument.strings.length;
-  const opens = openMidis(instrument);
   const [frets, setFrets] = useState(() => Array.from({ length: stringCount }, () => 'x'));
+  const readoutId = useId();
 
   const setString = (index, value) =>
     setFrets((prev) => prev.map((f, i) => (i === index ? value : f)));
@@ -74,73 +73,92 @@ function ShapeBuilder({ instrument, chord, dialect, primary, close }) {
   const fingering = anySounding
     ? fingeringFromFrets(numericFrets, chord, instrument, instrument.heuristics)
     : null;
+  const readout = shapeReadout(chord, chordSymbol, instrument.strings, numericFrets);
+  const ReadoutHeading = `h${headingLevel}`;
 
   return (
-    <div className="enter-shape-body">
-      <p className="t-small enter-shape-help">{t('explorer.enter.help')}</p>
+    <div className={`enter-shape-body${className ? ` ${className}` : ''}`}>
+      {showHelp ? <p className="t-small enter-shape-help">{t('explorer.enter.help')}</p> : null}
 
-      <div className="enter-shape-grid">
-        {frets.map((value, index) => {
-          const n = stringCount - index;
-          return (
-            <RadioGroup
-              key={index}
-              className="enter-shape-string"
-              orientation="horizontal"
-              value={String(value)}
-              onChange={(next) => setString(index, next)}
-              aria-label={t('explorer.enter.nut', { n })}
-            >
-              <span className="enter-shape-stringname t-small">{n}</span>
-              <Radio className="enter-shape-fret" value="x" aria-label={t('explorer.enter.muteString', { n })}>
-                ✕
-              </Radio>
-              {Array.from({ length: FRET_WINDOW + 1 }, (_, fret) => (
-                <Radio
-                  key={fret}
-                  className="enter-shape-fret"
-                  value={String(fret)}
-                  aria-label={
-                    fret === 0
-                      ? t('explorer.enter.openString', { n })
-                      : t('explorer.enter.setFret', { n, fret })
-                  }
+      <div className="enter-shape-main">
+        <div className="card pad enter-shape-card">
+          <div className="enter-shape-grid">
+            {frets.map((value, index) => {
+              const n = stringCount - index;
+              return (
+                <RadioGroup
+                  key={index}
+                  className="enter-shape-string"
+                  orientation="horizontal"
+                  value={String(value)}
+                  onChange={(next) => setString(index, next)}
+                  aria-label={t('explorer.enter.nut', { n })}
                 >
-                  {fret === 0 ? '○' : fret}
-                </Radio>
-              ))}
-            </RadioGroup>
-          );
-        })}
-      </div>
+                  <span className="enter-shape-stringname t-small">{n}</span>
+                  <Radio className="enter-shape-fret" value="x" aria-label={t('explorer.enter.muteString', { n })}>
+                    ✕
+                  </Radio>
+                  {Array.from({ length: FRET_WINDOW + 1 }, (_, fret) => (
+                    <Radio
+                      key={fret}
+                      className="enter-shape-fret"
+                      value={String(fret)}
+                      aria-label={
+                        fret === 0
+                          ? t('explorer.enter.openString', { n })
+                          : t('explorer.enter.setFret', { n, fret })
+                      }
+                    >
+                      {fret === 0 ? '○' : fret}
+                    </Radio>
+                  ))}
+                </RadioGroup>
+              );
+            })}
+          </div>
 
-      <div className="enter-shape-readout">
-        <span className="t-h3">{t('explorer.enter.readout')}</span>
-        <ul className="enter-shape-notes">
-          {frets.map((value, index) => {
-            const { text, foreign } = readoutLabel(chord, opens[index], value, index, stringCount);
-            return (
-              <li key={index}>
-                {text}
-                {foreign ? <span className="badge warn enter-shape-foreign"> {t('explorer.enter.foreign')}</span> : null}
+          <div className="enter-shape-preview">
+            {fingering ? (
+              <ChordDiagram fingering={fingering} context={{ chord, dialect, instrument }} kind="default" />
+            ) : anySounding ? (
+              <p className="notice warn" role="status">
+                {t('explorer.enter.unplayable')}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <section className="enter-shape-readout" aria-labelledby={readoutId}>
+          <ReadoutHeading id={readoutId} className="t-h3">
+            {t('explorer.enter.readout')}
+          </ReadoutHeading>
+          {readout.summary ? <p className="t-h2 enter-shape-summary">{readout.summary}</p> : null}
+          <ul className="list enter-shape-notes">
+            {readout.rows.map((row, index) => (
+              <li key={index} className="row enter-shape-note">
+                <span className="grow">
+                  <span className="name">{row.string}</span>
+                  <span className="meta">{row.fret}</span>
+                </span>
+                <span className="t-h2 enter-shape-notename">{row.note}</span>
+                {row.badge ? (
+                  <span className={`badge${row.foreign ? ' conflict' : ''}`}>{row.badge}</span>
+                ) : null}
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        </section>
       </div>
 
-      <div className="enter-shape-preview">
-        {fingering ? (
-          <ChordDiagram fingering={fingering} context={{ chord, dialect, instrument }} kind="default" />
-        ) : anySounding ? (
-          <p className="notice warn" role="status">
-            {t('explorer.enter.unplayable')}
-          </p>
-        ) : null}
-      </div>
+      {readout.notice ? (
+        <div className="notice conflict enter-shape-notice" role="status">
+          <WarnIcon />
+          <span>{readout.notice}</span>
+        </div>
+      ) : null}
 
       <div className="actions">
-        <Button className="btn" onPress={close}>
+        <Button className="btn" onPress={onCancel}>
           {t('explorer.enter.cancel')}
         </Button>
         <Button
@@ -150,7 +168,7 @@ function ShapeBuilder({ instrument, chord, dialect, primary, close }) {
           onPress={() => {
             if (!fingering) return;
             primary.onChoose(fingering);
-            close();
+            onChosen();
           }}
         >
           {primary.icon}
@@ -199,9 +217,11 @@ export default function EnterShape({ instrument, chord, chordSymbol, dialect, on
                   <ShapeBuilder
                     instrument={instrument}
                     chord={chord}
+                    chordSymbol={chordSymbol}
                     dialect={dialect}
                     primary={action}
-                    close={close}
+                    onCancel={close}
+                    onChosen={close}
                   />
                 ) : null}
               </>

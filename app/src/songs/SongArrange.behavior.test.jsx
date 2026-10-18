@@ -132,6 +132,30 @@ const pressKey = async (el, key) => {
   });
 };
 
+// jsdom moves no focus on Tab: step to the next tabbable control in document
+// order (a roving radio group exposes only its selected radio), as a browser does.
+const tabbables = () =>
+  [...document.querySelectorAll('button, input, [tabindex]')].filter(
+    (el) => el.tabIndex >= 0 && !el.disabled && !el.closest('[hidden], [aria-hidden="true"], [inert]'),
+  );
+const tab = async () => {
+  const list = tabbables();
+  const from = document.activeElement;
+  await act(async () => {
+    fireEvent.keyDown(from, { key: 'Tab' });
+    const at = list.indexOf(from);
+    const next = at < 0 ? list.find((el) => from.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) : list[at + 1];
+    next?.focus();
+    fireEvent.keyUp(next ?? from, { key: 'Tab' });
+  });
+};
+const arrow = async (key) => {
+  await act(async () => {
+    fireEvent.keyDown(document.activeElement, { key });
+    fireEvent.keyUp(document.activeElement, { key });
+  });
+};
+
 // Reparse a WRITE's text and return the voicing block for a label ('' default).
 function blockOf(text, label = '') {
   return parse(text).blocks.find((b) => (b.label ?? '') === label);
@@ -161,18 +185,50 @@ describe('SongArrange — tappable chords and the strip', () => {
   });
 });
 
-// The mode chip names the instrument by the chip's one short label
-// (shell.header_chrome): the copy no longer varies between screens, and the
-// unlabelled standard fallback reads "Guitar", not "instrument". Pins workflow
-// 5's mode chip naming the instrument.
+// The mode chip is the instrument chip carrying the mode (songs.arrange_polish
+// Decision 1): one /change instrument/ button per screen (header_chrome D7),
+// named by the chip's one short label after the mode, the full identity as its
+// description, opening the instruments as reading's chip does. Pins workflow 15
+// lines 62-69 and the workflow 5 delta lines 28-33.
 describe('SongArrange — the mode chip', () => {
-  it('reads "Arranging · Guitar" with the standard fallback (no label)', async () => {
+  it('is the one instrument chip, "Arranging · Guitar", described by the full identity; axe clean', async () => {
     const { store } = makeStore({
       text: song({ chart: 'G | C' }),
       entry: { ...guitarEntry(), id: 'standard', label: null },
     });
+    const { container } = await openArrange(store);
+    const chips = await screen.findAllByRole('button', { name: /change instrument/ });
+    expect(chips).toHaveLength(1);
+    expect(chips[0]).toHaveAccessibleName('Arranging · Guitar, change instrument');
+    expect(chips[0]).toHaveAccessibleDescription('Guitar (6-string), Standard tuning: E2 A2 D3 G3 B3 E4');
+    expect(chips[0]).toHaveTextContent('Arranging · Guitar');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('reads "Arranging · Cavaquinho" with a cavaquinho in use', async () => {
+    const tuning = 'D4 G4 B4 D5';
+    const inst = instrumentInstance({ catalogId: 'cavaquinho', strings: tuning, fretCount: 17 });
+    const entry = {
+      id: 'c1',
+      catalogId: 'cavaquinho',
+      label: null,
+      tuning,
+      fretCount: 17,
+      config: configFor(inst, 'strumming'),
+      shapes: [],
+    };
+    const { store } = makeStore({ text: song({ chart: 'G | C' }), entry });
     await openArrange(store);
-    expect(await screen.findByText('Arranging · Guitar')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Arranging · Cavaquinho, change instrument' })).toBeInTheDocument();
+  });
+
+  it('pressing it opens the instruments overlay; axe clean', async () => {
+    const { store } = makeStore({ text: song({ chart: 'G | C' }), entry: guitarEntry() });
+    await openArrange(store);
+    await click(await screen.findByRole('button', { name: 'Arranging · Guitar, change instrument' }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Instruments' })).toBeInTheDocument();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 });
 
@@ -229,24 +285,6 @@ describe('SongArrange — the picker', () => {
     expect(block.voicings.filter((v) => v.symbol === 'Cm')).toHaveLength(2);
   });
 
-  it('Enter a shape chooses a hand-built shape with a non-chord tone; axe clean over the dialog', async () => {
-    const { store, commands } = makeStore({ text: song({}), entry: guitarEntry() });
-    const { container } = await openArrange(store);
-
-    await click(screen.getAllByRole('button', { name: 'C minor' })[0]);
-    await click(screen.getByRole('button', { name: 'Enter a shape' }));
-
-    const dialog = screen.getByRole('dialog', { name: 'Enter a shape for Cm' });
-    // Place the high E string at fret 4 — an A♭, not in Cm — a non-chord tone.
-    await click(within(dialog).getByRole('radio', { name: 'String 1, fret 4' }));
-    expect(within(dialog).getByText('not in the chord')).toBeInTheDocument();
-    expect(await checkWcag21aa(container)).toHaveNoViolations();
-
-    // The shape is still choosable (a shape can be right and unusual).
-    await click(within(dialog).getByRole('button', { name: /^Choose Cm,/ }));
-    expect(lastCommand(commands, CommandKind.WRITE)).toBeTruthy();
-  }, AXE_OVER_PICKER);
-
   it('a keyboard path opens the picker, works the segment and a candidate, and returns focus to the chord', async () => {
     const { store, commands } = makeStore({ text: song({}), entry: guitarEntry() });
     await openArrange(store);
@@ -270,6 +308,155 @@ describe('SongArrange — the picker', () => {
     await waitFor(() =>
       expect(document.activeElement?.getAttribute('aria-label')).toBe('C minor'),
     );
+  });
+});
+
+// Entering a shape is a screen of arrange, not a dialog over the picker
+// (songs.arrange_polish Decision 2; board W05#3): its own app bar, the context
+// line and the help, the shared builder naming each note's part in the chord,
+// the foreign-note notice; Back reopens the picker as it was, *Choose this
+// shape* writes as a listed candidate does. Pins the workflow 5 delta lines
+// 43-51 and W05#3.
+describe('SongArrange — entering a shape inline', () => {
+  // Cm already chosen at the key, so *Only here* writes a footnote (§8.5.1
+  // branch 4 — [[only-here-needs-prechosen-key]]).
+  const CHOSEN = song({ chart: 'Cm | G | Cm | Fm', voicings: [`## Voicings: ${GUITAR_TUNING}`, '- Cm: 8-10-10-8-8-8'] });
+
+  // Open the picker on the first Cm from the keyboard (focus on the chord), set
+  // *Only here*, and enter the screen.
+  async function toScreen() {
+    const chord = screen.getAllByRole('button', { name: 'C minor' })[0];
+    act(() => chord.focus());
+    await pressKey(chord, 'Enter');
+    await click(screen.getByRole('button', { name: 'Only here' }));
+    await click(screen.getByRole('button', { name: 'Enter a shape' }));
+    return chord;
+  }
+
+  // x35544, string by string (low → high is string 6 → 1).
+  async function enterX35544() {
+    await click(screen.getByRole('radio', { name: 'String 5, fret 3' }));
+    await click(screen.getByRole('radio', { name: 'String 4, fret 5' }));
+    await click(screen.getByRole('radio', { name: 'String 3, fret 5' }));
+    await click(screen.getByRole('radio', { name: 'String 2, fret 4' }));
+    await click(screen.getByRole('radio', { name: 'String 1, fret 4' }));
+  }
+
+  const rowOf = (name) =>
+    within(screen.getByRole('region', { name: 'Notes it holds' }))
+      .getAllByRole('listitem')
+      .find((li) => li.querySelector('.name')?.textContent === name);
+  const rowText = (name) =>
+    [...rowOf(name).querySelectorAll('.name, .meta, .enter-shape-notename, .badge')].map((n) => n.textContent).join(' · ');
+
+  it('opens a screen — no dialog — reads the roles, the summary and the notice; axe clean', async () => {
+    const { store } = makeStore({ text: CHOSEN, entry: guitarEntry() });
+    const { container } = await openArrange(store);
+    await toScreen();
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Enter a shape for Cm' })).toBeInTheDocument();
+    expect(container.querySelector('.arrange-enter-place').textContent).toMatch(
+      /^Tarde Clara · Primeira Parte, bar 1 · only here\.?$/,
+    );
+    expect(
+      screen.getByText('Tap a string at a fret to place a finger; tap above the nut to mute or open it.'),
+    ).toBeInTheDocument();
+    // The instrument is named, not a switch (Decision 3): no chip button here.
+    expect(screen.queryByRole('button', { name: /change instrument/ })).toBeNull();
+    expect(screen.getByText('Guitar')).toBeInTheDocument();
+
+    await enterX35544();
+    expect(rowText('A2')).toBe('A2 · fret 3 · C · root');
+    expect(rowText('D3')).toBe('D3 · fret 5 · G · fifth');
+    expect(rowText('B3')).toBe('B3 · fret 4 · E♭ · minor third');
+    expect(rowText('E4 · high E')).toBe('E4 · high E · fret 4 · A♭ · not in Cm');
+    expect(rowOf('E4 · high E').querySelector('.badge.conflict')).toBeTruthy();
+    expect(screen.getByText('C · E♭ · G · A♭')).toBeInTheDocument();
+    expect(
+      screen.getByText('The A♭ on the high E string is not in Cm, which is C, E♭ and G. You can still choose this shape.'),
+    ).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  }, AXE_OVER_PICKER);
+
+  it('Back reopens the picker on Cm with Only here still on, focus on Enter a shape', async () => {
+    const { store } = makeStore({ text: CHOSEN, entry: guitarEntry() });
+    await openArrange(store);
+    await toScreen();
+
+    await click(screen.getByRole('button', { name: 'Back' }));
+    const picker = await screen.findByRole('dialog', { name: 'Shapes for Cm' });
+    expect(within(picker).getByRole('button', { name: 'Only here' })).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(within(picker).getByRole('button', { name: 'Enter a shape' })).toHaveFocus());
+  });
+
+  it('Cancel returns to the picker as well', async () => {
+    const { store } = makeStore({ text: CHOSEN, entry: guitarEntry() });
+    await openArrange(store);
+    await toScreen();
+    await click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(await screen.findByRole('dialog', { name: 'Shapes for Cm' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Enter a shape for Cm' })).toBeNull();
+  });
+
+  it('Choose this shape sends one WRITE carrying the shape (only here: its footnote) and focus lands on the chord', async () => {
+    const { store, commands } = makeStore({ text: CHOSEN, entry: guitarEntry() });
+    await openArrange(store);
+    await toScreen();
+    await enterX35544();
+    // x35544 is read out as drawn but the hand model finds no fingering for it
+    // (*can't be played as entered*); muting the high E leaves x3554x to choose.
+    expect(screen.getByRole('button', { name: /^Choose Cm,/ })).toBeDisabled();
+    await click(screen.getByRole('radio', { name: 'Mute string 1' }));
+
+    const before = commands.filter((c) => c.kind === CommandKind.WRITE).length;
+    await click(screen.getByRole('button', { name: /^Choose Cm,/ }));
+    const writes = commands.filter((c) => c.kind === CommandKind.WRITE);
+    expect(writes).toHaveLength(before + 1);
+    const text = writes.at(-1).payload.text;
+    expect(text).toMatch(/Cm\[\d\]/);
+    expect(blockOf(text).voicings.some((v) => v.symbol === 'Cm' && v.frets.join('') === 'x3554x')).toBe(true);
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Enter a shape for Cm' })).toBeNull();
+    await waitFor(() => expect(document.activeElement?.getAttribute('aria-label')).toBe('C minor'));
+  });
+
+  it('a keyboard-only pass: Tab to the grid, arrows across a string, Enter on Choose', async () => {
+    const { store, commands } = makeStore({ text: song({}), entry: guitarEntry() });
+    await openArrange(store);
+    const chord = screen.getAllByRole('button', { name: 'C minor' })[0];
+    act(() => chord.focus());
+    await pressKey(chord, 'Enter');
+    const row = screen.getByRole('button', { name: 'Enter a shape' });
+    act(() => row.focus());
+    await pressKey(row, 'Enter');
+
+    // The screen's heading has focus on arrival (Back sits before it); Tab goes
+    // into the grid.
+    const heading = screen.getByRole('heading', { level: 1, name: 'Enter a shape for Cm' });
+    await waitFor(() => expect(heading).toHaveFocus());
+    await tab();
+    expect(document.activeElement).toHaveAttribute('aria-label', 'Mute string 6');
+    // Tab to string 5's group, arrow across it to fret 3.
+    await tab();
+    expect(document.activeElement).toHaveAttribute('aria-label', 'Mute string 5');
+    for (let i = 0; i < 4; i += 1) await arrow('ArrowRight');
+    expect(document.activeElement).toHaveAttribute('aria-label', 'String 5, fret 3');
+    expect(screen.getByRole('radio', { name: 'String 5, fret 3' })).toBeChecked();
+    for (const n of [4, 3, 2, 1]) {
+      await tab();
+      expect(document.activeElement).toHaveAttribute('aria-label', `Mute string ${n}`);
+    }
+    // String 5 at fret 3 alone is a playable fragment; Tab past the grid to
+    // Cancel, then Choose, and press it with Enter.
+    await tab();
+    expect(document.activeElement).toHaveTextContent('Cancel');
+    await tab();
+    expect(document.activeElement.getAttribute('aria-label')).toMatch(/^Choose Cm,/);
+    await pressKey(document.activeElement, 'Enter');
+    expect(lastCommand(commands, CommandKind.WRITE)).toBeTruthy();
+    await waitFor(() => expect(document.activeElement?.getAttribute('aria-label')).toBe('C minor'));
   });
 });
 
