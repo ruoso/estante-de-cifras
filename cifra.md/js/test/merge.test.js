@@ -17,10 +17,12 @@ import {
   align,
   conflictsJson,
   keyedOrder,
+  OpenRegionError,
   merge,
   mergeSequence,
   mergeValue,
   pairsOf,
+  resolveMarked,
   sideChanges,
 } from "../src/merge.js";
 
@@ -291,6 +293,39 @@ describe("§11.4 marked inputs", () => {
     const data = JSON.parse(conflictsJson(merge(MARKED, MARKED, MARKED)));
     expect(data).toEqual({ conflicts: [{ kind: "unresolved", base: 3, ours: 3, theirs: 3 }] });
     expect(Object.keys(data.conflicts[0])).toEqual(["kind", "base", "ours", "theirs"]);
+  });
+});
+
+// --- §11.12.4 resolving ---
+
+const CLOSED = "<<<<<<< ours\nC | G\n=======\nC | Em\n>>>>>>> theirs\nF | C";
+
+describe("§11.12.4 resolving", () => {
+  // An open region has no side to take: the resolver refuses it and points at
+  // its `<<<<<<< ours` line, never loops (a hang fails on Vitest's timeout).
+  test.each(
+    [
+      ["no =======", "## A\n<<<<<<< ours\nC | G\n", 2],
+      ["no >>>>>>> theirs", "## A\n\n<<<<<<< ours\nC | G\n=======\nC | Em\n", 3],
+      ["a closed region, then an open one", `${CLOSED}\n<<<<<<< ours\nG | D\n=======\n`, 7],
+    ].flatMap(([name, text, line]) => ["ours", "theirs"].map((side) => [name, side, text, line])),
+  )("an open region is refused (%s, by %s)", (_name, side, text, line) => {
+    let err;
+    try {
+      resolveMarked(text, side);
+    } catch (e) {
+      err = e;
+    }
+    expect(err).toBeInstanceOf(OpenRegionError);
+    expect(err.name).toBe("OpenRegionError");
+    expect(err.line).toBe(line);
+    expect(err.message).toBe(`line ${line} opens a conflict region that is never closed`);
+  });
+
+  test("a closed region still resolves", () => {
+    const text = `## A\n${CLOSED}\n<<<<<<< ours\nG\n=======\n>>>>>>> theirs\n`;
+    expect(resolveMarked(text, "ours")).toBe("## A\nC | G\nF | C\nG\n");
+    expect(resolveMarked(text, "theirs")).toBe("## A\nC | Em\nF | C\n");
   });
 });
 

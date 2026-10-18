@@ -594,6 +594,17 @@ export function finishMarked(blocks, conflicts) {
 
 // --- resolving a marked text (§11.12.4) ---------------------------------------
 
+// A `<<<<<<< ours` line with no `=======` and then `>>>>>>> theirs` after it: an
+// open region, which has no side to take (§11.12.4). `line` is the 1-based
+// number of its `<<<<<<< ours` line.
+export class OpenRegionError extends Error {
+  constructor(line) {
+    super(`line ${line} opens a conflict region that is never closed`);
+    this.name = "OpenRegionError";
+    this.line = line;
+  }
+}
+
 function regionsOf(marked) {
   const out = [];
   const lines = marked.split("\n");
@@ -601,7 +612,8 @@ function regionsOf(marked) {
   while (k < lines.length) {
     if (lines[k] === "<<<<<<< ours") {
       const m = lines.indexOf(MID, k);
-      const e = lines.indexOf(END, m);
+      const e = m < 0 ? -1 : lines.indexOf(END, m);
+      if (e < 0) throw new OpenRegionError(k + 1);
       out.push([lines.slice(k + 1, m), lines.slice(m + 1, e)]);
       k = e + 1;
     } else {
@@ -612,6 +624,8 @@ function regionsOf(marked) {
   return out;
 }
 
+// Resolve every region by one side; a text with an open region is refused with
+// OpenRegionError (§11.12.4).
 export function resolveMarked(marked, side) {
   const out = [];
   for (const el of regionsOf(marked)) {

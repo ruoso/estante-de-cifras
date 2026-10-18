@@ -1070,6 +1070,14 @@ input itself, removing its marker lines by editing or by taking one side
 of each, and merging again; for a marked ours, the text left in place is
 that input.
 
+A region is **open** when its `<<<<<<< ours` line is not followed, further
+down the text, by a `=======` line and after that a `>>>>>>> theirs` line.
+A merger never writes one, but a marked text cut short or edited by hand
+can hold one, and an open region has no side to take. A program that
+resolves a text by one side MUST refuse a text with an open region, and
+point at that region's `<<<<<<< ours` line; it MUST NOT take the rest of
+the text as a side, nor leave the region in place.
+
 An application presents conflicts one at a time, from the conflict
 model, and offers *keep mine* and *take theirs* as resolution by one side
 and *edit* as resolution by editing the marked text, since a region it

@@ -157,25 +157,6 @@ export function differingMeasures(item, side) {
   return out;
 }
 
-// Every `<<<<<<< ours` line is followed by a `=======` and then a
-// `>>>>>>> theirs` — the regions resolveMarked walks. A truncated region is
-// refused here rather than handed to it (it does not terminate on one).
-function wellFormedRegions(lines) {
-  let k = 0;
-  while (k < lines.length) {
-    if (lines[k] === OURS_MARKER) {
-      const mid = lines.indexOf('=======', k + 1);
-      if (mid < 0) return false;
-      const end = lines.indexOf(THEIRS_MARKER, mid + 1);
-      if (end < 0) return false;
-      k = end + 1;
-    } else {
-      k += 1;
-    }
-  }
-  return true;
-}
-
 /**
  * The ours side of a marked text, parsed — the model `conflictPlace` names a
  * chart conflict's place over (the resolver's preview) — or null when there is
@@ -185,7 +166,7 @@ function wellFormedRegions(lines) {
  * @returns {object|null}
  */
 export function oursModel(marked) {
-  if (!marked || !wellFormedRegions(String(marked).split('\n'))) return null;
+  if (!marked) return null;
   try {
     return parse(resolveMarked(marked, 'ours'));
   } catch {

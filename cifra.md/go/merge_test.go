@@ -11,6 +11,8 @@ package cifra
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -328,6 +330,42 @@ func TestResolveMarked(t *testing.T) {
 		txt := canonicalSongText(string(res))
 		if canonicalSongText(txt) != txt {
 			t.Errorf("resolve %s is not a canonical fixed point", side)
+		}
+	}
+}
+
+// §11.12.4 — an open region (a `<<<<<<< ours` with no `=======` and then
+// `>>>>>>> theirs` after it) has no side to take: ResolveMarked refuses it with
+// *OpenRegionError naming its opener line, by either side, and never panics.
+func TestResolveMarkedOpenRegion(t *testing.T) {
+	closed := "<<<<<<< ours\nC | G\n=======\nC | Em\n>>>>>>> theirs\nF | C"
+	cases := []struct {
+		name, text string
+		line       int
+	}{
+		{"no =======", "## A\n<<<<<<< ours\nC | G\n", 2},
+		{"no >>>>>>> theirs", "## A\n\n<<<<<<< ours\nC | G\n=======\nC | Em\n", 3},
+		{"a closed region, then an open one", closed + "\n<<<<<<< ours\nG | D\n=======\n", 7},
+	}
+	for _, c := range cases {
+		for _, side := range []string{"ours", "theirs"} {
+			t.Run(c.name+"/"+side, func(t *testing.T) {
+				res, err := ResolveMarked([]byte(c.text), side)
+				var open *OpenRegionError
+				if !errors.As(err, &open) {
+					t.Fatalf("want *OpenRegionError, got %v (%q)", err, res)
+				}
+				if res != nil {
+					t.Errorf("want no text with the refusal, got %q", res)
+				}
+				if open.Line != c.line {
+					t.Errorf("Line = %d, want %d", open.Line, c.line)
+				}
+				want := fmt.Sprintf("line %d opens a conflict region that is never closed", c.line)
+				if err.Error() != want {
+					t.Errorf("Error() = %q, want %q", err.Error(), want)
+				}
+			})
 		}
 	}
 }

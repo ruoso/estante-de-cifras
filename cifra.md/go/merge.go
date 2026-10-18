@@ -1053,9 +1053,18 @@ func finishMarked(blocks [][]any, conflicts []map[string]any) string {
 
 // --- resolving a marked text (§11.12.4) ---------------------------------------
 
+// OpenRegionError refuses a marked text with an open region: a `<<<<<<< ours`
+// line not followed by a `=======` and then a `>>>>>>> theirs` line, which has
+// no side to take (§11.12.4). Line is the 1-based number of its `<<<<<<< ours`.
+type OpenRegionError struct{ Line int }
+
+func (e *OpenRegionError) Error() string {
+	return fmt.Sprintf("line %d opens a conflict region that is never closed", e.Line)
+}
+
 // markedRegions splits a marked text into plain lines (string) and
-// [ours, theirs] regions ([2][]string).
-func markedRegions(marked string) []any {
+// [ours, theirs] regions ([2][]string), refusing the first open region.
+func markedRegions(marked string) ([]any, error) {
 	var out []any
 	lines := strings.Split(marked, "\n")
 	indexOf := func(target string, from int) int {
@@ -1070,7 +1079,13 @@ func markedRegions(marked string) []any {
 	for k < len(lines) {
 		if lines[k] == "<<<<<<< ours" {
 			m := indexOf(markMid, k)
-			e := indexOf(markEnd, m)
+			e := -1
+			if m >= 0 {
+				e = indexOf(markEnd, m)
+			}
+			if e < 0 {
+				return nil, &OpenRegionError{Line: k + 1}
+			}
 			out = append(out, [2][]string{append([]string{}, lines[k+1:m]...), append([]string{}, lines[m+1:e]...)})
 			k = e + 1
 		} else {
@@ -1078,13 +1093,18 @@ func markedRegions(marked string) []any {
 			k++
 		}
 	}
-	return out
+	return out, nil
 }
 
-// ResolveMarked resolves every region of a marked text by one side (§11.12.4).
+// ResolveMarked resolves every region of a marked text by one side (§11.12.4);
+// a text with an open region is refused with *OpenRegionError.
 func ResolveMarked(marked []byte, side string) ([]byte, error) {
+	regions, err := markedRegions(string(marked))
+	if err != nil {
+		return nil, err
+	}
 	var out []string
-	for _, el := range markedRegions(string(marked)) {
+	for _, el := range regions {
 		if reg, ok := el.([2][]string); ok {
 			if side == ours {
 				out = append(out, reg[0]...)

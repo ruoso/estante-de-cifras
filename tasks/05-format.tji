@@ -62,8 +62,9 @@ task format "The format" {
   task resolve_marked_unterminated "resolveMarked stops on an unterminated region" {
     effort 0.5d
     allocate team
+    complete 100
     depends !merge
-    note "cifra.md: resolveMarked (cifra.md/js/src/merge.js) never returns on a marked text whose <<<<<<< ours region has no closing markers; the app works around it in app/src/songs/conflict-text.js oursModel. Make it refuse or stop (and check the reference and go). Source of debt: tasks/refinements/sync/conflicts_row_summary.md (sync.conflicts_row_summary). Governing: chapter 11 (§11.12 marked text). Tests: unit (js: an unterminated region is refused; pytest and go test if they share the behavior)."
+    note "cifra.md: resolveMarked (cifra.md/js/src/merge.js) never returns on a marked text whose <<<<<<< ours region has no closing markers; the app works around it in app/src/songs/conflict-text.js oursModel. Make it refuse or stop (and check the reference and go). Source of debt: tasks/refinements/sync/conflicts_row_summary.md (sync.conflicts_row_summary). Governing: chapter 11 (§11.12 marked text). Tests: unit (js: an unterminated region is refused; pytest and go test if they share the behavior). Refinement: tasks/refinements/format/resolve_marked_unterminated.md"
   }
   task cross_check "Cross-implementation comparison in CI" {
     effort 2d

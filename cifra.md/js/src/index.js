@@ -115,4 +115,4 @@ export { diff } from "./diff.js";
 // setlist layer; it knows nothing of git, the Worker, storage or the network —
 // the Worker that wires it as isomorphic-git's merge driver is elsewhere
 // (cifra_js.merge refinement §Deferred work).
-export { merge, conflictsJson, mergeOutputs, resolveMarked } from "./merge.js";
+export { merge, conflictsJson, mergeOutputs, resolveMarked, OpenRegionError } from "./merge.js";
