@@ -18,6 +18,7 @@ import { Button } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
+import { conflictSummary } from '../songs/conflict-text.js';
 import './book-conflicts.css';
 
 export default function BookConflicts({ store, bookId, title, embedded = false, onSettle, onClose }) {
@@ -71,10 +72,15 @@ export default function BookConflicts({ store, bookId, title, embedded = false, 
               <>
                 <div className="t-h3">{t('bookConflicts.inConflict')}</div>
                 <ul className="list est-bookconf-list" aria-label={t('bookConflicts.inConflict')}>
-                  {songs.map((s) => (
+                  {songs.map((s) => {
+                    // The song's conflicts named by place, as the resolver titles
+                    // them (W09#4 L222; sync.conflicts_row_summary).
+                    const summary = conflictSummary(s, t);
+                    return (
                     <li key={s.path} className="row est-bookconf-row">
                       <span className="grow">
                         <span className="name">{s.title}</span>
+                        {summary && <span className="meta">{summary}</span>}
                       </span>
                       <span className="badge conflict dot">{t('bookConflicts.conflictsCount', { count: s.count })}</span>
                       <Button className="btn quiet" aria-label={t('bookConflicts.settleSong', { title: s.title })} onPress={() => onSettle?.(s.path)}>
@@ -84,7 +90,8 @@ export default function BookConflicts({ store, bookId, title, embedded = false, 
                         {t('bookConflicts.keepBothSong')}
                       </Button>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               </>
             )}

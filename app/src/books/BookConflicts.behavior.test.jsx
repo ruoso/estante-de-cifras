@@ -160,5 +160,62 @@ describe('BookConflicts (behavior)', () => {
 
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
-});
 
+  // sync.conflicts_row_summary: the row's .meta line names the song's conflicts
+  // as the resolver titles them (W09#4 L222). The song is the resolver's
+  // fixture (SongConflict.behavior.test.jsx): a chart region in Primeira parte
+  // whose third measure differs, and a G7 voicing.
+  it('the in-conflict row carries a summary line naming its conflicts by place (W09#4 L222), axe clean', async () => {
+    const marked = [
+      '## Primeira parte',
+      '```',
+      'C | G | Am | F',
+      '<<<<<<< ours',
+      'C | G7 | F | F',
+      '=======',
+      'C | G7 | D7 | F',
+      '>>>>>>> theirs',
+      '```',
+      '',
+    ].join('\n');
+    const song = {
+      path: 'choro-teste.cifra.md',
+      title: 'Choro Teste',
+      count: 2,
+      author: 'Ana',
+      marked,
+      markedLines: ['C | G7 | F | F'],
+      items: [
+        { kind: 'chart', line: 4, base: ['C | G7 | C | F'], ours: ['C | G7 | F | F'], theirs: ['C | G7 | D7 | F'] },
+        { kind: 'voicing', line: 10, tuning: 'E2 A2 D3 G3 B3 E4', variation: '', key: 'G7', chord: 'G7', base: null, ours: '320001', theirs: '353433' },
+      ],
+    };
+    const { store, emit } = makeStore();
+    emit(event(EventKind.CONFLICTS, { ...PAYLOAD, songs: [song] }));
+    const { container } = renderPanel(store);
+
+    const list = screen.getByRole('list', { name: 'In conflict' });
+    const row = within(list).getByRole('listitem');
+    const grow = row.querySelector('.grow');
+    expect(grow.children).toHaveLength(2);
+    expect(grow.children[0]).toHaveClass('name');
+    expect(grow.children[0]).toHaveTextContent('Choro Teste');
+    expect(grow.children[1]).toHaveClass('meta');
+    expect(grow.children[1].textContent).toBe('Primeira parte, bar 7 · The shape for G7');
+    // The badge and the actions are unchanged.
+    expect(within(row).getByText('2 conflicts')).toBeInTheDocument();
+    expect(within(row).getByRole('button', { name: 'Settle Choro Teste' })).toBeInTheDocument();
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('a row whose song has no items shows the title alone', () => {
+    const { store, emit } = makeStore();
+    emit(event(EventKind.CONFLICTS, PAYLOAD));
+    renderPanel(store);
+
+    const row = within(screen.getByRole('list', { name: 'In conflict' })).getByRole('listitem');
+    expect(within(row).getByText('Carinhoso')).toBeInTheDocument();
+    expect(row.querySelector('.meta')).toBeNull();
+  });
+});

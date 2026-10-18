@@ -84,8 +84,9 @@ task sync "Sync" {
   task conflicts_row_summary "The In conflict row's summary line" {
     effort 0.5d
     allocate team
+    complete 100
     depends !conflicts_polish
-    note "W09#4 draws a .meta summary line under the title in the In conflict row; the app row has none. It needs the conflict titles moved into a shared pure module. Source of debt: tasks/refinements/sync/conflicts_polish.md (sync.conflicts_polish). Governing: workflow 9, mockup W09#4. Tests: unit (the shared conflict-title module); behavior (the row's summary line, axe)."
+    note "W09#4 draws a .meta summary line under the title in the In conflict row; the app row has none. It needs the conflict titles moved into a shared pure module. Source of debt: tasks/refinements/sync/conflicts_polish.md (sync.conflicts_polish). Governing: workflow 9, mockup W09#4. Tests: unit (the shared conflict-title module); behavior (the row's summary line, axe). Refinement: tasks/refinements/sync/conflicts_row_summary.md"
   }
   task in_place_notices "Full-screen and editor merge notices as drawn" {
     effort 1d

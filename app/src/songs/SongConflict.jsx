@@ -23,7 +23,7 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import Chart from '../chart/Chart.jsx';
 import { chartRows } from '../chart/layout.js';
 import MarkedTextEditor from '../editor/MarkedTextEditor.jsx';
-import { labelMarkers, conflictPlace, differingMeasures, rowText } from './conflict-text.js';
+import { labelMarkers, conflictTitle, differingMeasures, rowText } from './conflict-text.js';
 import { chartChordList } from './reading-view.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import { inUseEntry } from '../instruments/InstrumentChip.jsx';
@@ -197,18 +197,6 @@ function SideCard({ item, side, heading, voicing }) {
   );
 }
 
-// A chart conflict's title by where it is (W09#1 L42; DIRECTION §4): the
-// section, and the bar or bars that differ — or the generic title when the
-// place cannot be named.
-function placeTitle(place) {
-  if (!place) return t('songConflict.chartTitleFallback');
-  const { section, bars } = place;
-  if (bars.length === 0) return t('songConflict.chartTitle', { section });
-  if (bars.length === 1) return t('songConflict.chartTitleBar', { section, bar: bars[0] });
-  if (bars.length === 2) return t('songConflict.chartTitleBars', { section, first: bars[0], second: bars[1] });
-  return t('songConflict.chartTitleBarRange', { section, first: bars[0], last: bars[bars.length - 1] });
-}
-
 // The heading and subline for a conflict, in musical terms. `model` is ours,
 // parsed (the preview), from which a chart conflict's place is named.
 function describe(item, author, model) {
@@ -216,7 +204,7 @@ function describe(item, author, model) {
   if (item.kind === 'voicing') {
     const variation = item.variation ? item.variation : t('songConflict.mainVariation');
     return {
-      title: t('songConflict.voicingTitle', { chord: item.chord ?? item.key ?? '' }),
+      title: conflictTitle(item, model, t),
       body: theirs
         ? t('songConflict.voicingBody', { tuning: item.tuning ?? '', variation, author: theirs })
         : t('songConflict.voicingBodyFallback', { tuning: item.tuning ?? '', variation }),
@@ -224,24 +212,24 @@ function describe(item, author, model) {
   }
   if (item.kind === 'property') {
     return {
-      title: t('songConflict.propertyTitle', { key: item.key ?? '' }),
+      title: conflictTitle(item, model, t),
       body: theirs ? t('songConflict.propertyBody', { author: theirs }) : t('songConflict.propertyBodyFallback'),
     };
   }
   if (item.kind === 'title') {
     return {
-      title: t('songConflict.titleTitle'),
+      title: conflictTitle(item, model, t),
       body: theirs ? t('songConflict.titleBody', { author: theirs }) : t('songConflict.titleBodyFallback'),
     };
   }
   if (item.kind === 'chart' || item.kind === 'sections') {
     return {
-      title: placeTitle(conflictPlace(model, item)),
+      title: conflictTitle(item, model, t),
       body: theirs ? t('songConflict.chartBody', { author: theirs }) : t('songConflict.chartBodyFallback'),
     };
   }
   return {
-    title: t('songConflict.genericTitle'),
+    title: conflictTitle(item, model, t),
     body: theirs ? t('songConflict.genericBody', { author: theirs }) : t('songConflict.genericBodyFallback'),
   };
 }

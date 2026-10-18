@@ -152,7 +152,7 @@ async function openResolver(page) {
 // The paused panel as W09#4 draws it (sync.conflicts_polish constraints 4-5):
 // on a tablet or a computer it sits in the main pane with the rail beside it,
 // on a phone it is the full screen; and the in-conflict row's title starts at
-// the row's own padding, with no list indent.
+// the row's own padding, with no list indent, its summary line under it.
 async function expectPanelAsDrawn(page, testInfo) {
   const list = page.getByRole('list', { name: 'In conflict' });
   await expect(list).toBeVisible();
@@ -169,6 +169,9 @@ async function expectPanelAsDrawn(page, testInfo) {
   const title = list.getByRole('listitem').filter({ hasText: SONG_TITLE }).getByText(SONG_TITLE, { exact: true });
   const titleBox = await title.boundingBox();
   expect(titleBox.x - listBox.x).toBeLessThanOrEqual(24);
+  // Under the title, the row's summary line names the song's conflict by place,
+  // as the resolver titles it (W09#4 L222; sync.conflicts_row_summary).
+  await expect(list.getByRole('listitem').filter({ hasText: SONG_TITLE })).toContainText('Parte, bar 4');
 }
 
 // After settling, the book leaves *needs you* and the song reads `bar`.

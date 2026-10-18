@@ -4,7 +4,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { parse, isMarkerLine } from 'cifra-md';
-import { labelMarkers, conflictPlace, differingMeasures } from './conflict-text.js';
+import { labelMarkers, conflictPlace, differingMeasures, conflictTitle, conflictSummary } from './conflict-text.js';
+import { t } from '../i18n/index.js';
 
 const MARKED = [
   '## Parte',
@@ -116,5 +117,62 @@ describe('differingMeasures', () => {
     expect(differingMeasures({ kind: 'chart', ours: ['C | G'], theirs: null }, 'theirs')).toEqual([]);
     expect(differingMeasures({ kind: 'sections', ours: ['## A\n```\nC\n```'], theirs: [] }, 'ours')).toEqual([]);
     expect(differingMeasures({ kind: 'voicing', ours: '320001', theirs: 'x43424' }, 'ours')).toEqual([]);
+  });
+});
+
+// sync.conflicts_row_summary: the titles the resolver heading and the book
+// panel's *In conflict* row share, with `t` at the default (en) locale.
+describe('conflictTitle', () => {
+  it('conflictTitle names each kind as the resolver heading does (workflow 9 §Settling one; W09#1 L42)', () => {
+    const model = parse(OURS_SONG);
+    const chart = (theirs) => ({ kind: 'chart', ours: ['Db7 | C7 | F | F'], theirs: [theirs] });
+    expect(conflictTitle(chart('G7 | C7 | F | F'), model, t)).toBe('Primeira parte, bar 5');
+    expect(conflictTitle(chart('G7 | C7 | Bb | F'), model, t)).toBe('Primeira parte, bars 5 and 7');
+    expect(conflictTitle(chart('G7 | D7 | Bb | F'), model, t)).toBe('Primeira parte, bars 5–7');
+    expect(conflictTitle({ kind: 'sections', ours: ['## Primeira parte\n```\nF | F | C7 | C7\n```'] }, model, t))
+      .toBe('Primeira parte');
+    // Unplaceable: a line not in the song, or no model at all.
+    expect(conflictTitle({ kind: 'chart', ours: ['A | B | C | D'], theirs: ['A | B | C | E'] }, model, t))
+      .toBe('A bar you both changed');
+    expect(conflictTitle(chart('G7 | C7 | F | F'), null, t)).toBe('A bar you both changed');
+    expect(conflictTitle({ kind: 'voicing', chord: 'G7' }, model, t)).toBe('The shape for G7');
+    expect(conflictTitle({ kind: 'property', key: 'key' }, model, t)).toBe('The key');
+    expect(conflictTitle({ kind: 'title' }, model, t)).toBe('The title');
+    expect(conflictTitle({ kind: 'something-else' }, model, t)).toBe('A change you both made');
+  });
+});
+
+// A marked text whose ours side is OURS_SONG: the second line of Primeira parte
+// is the disputed region (bars 5-8).
+const SUMMARY_MARKED = [
+  '## Primeira parte',
+  '```',
+  'F | F | C7 | C7',
+  '<<<<<<< ours',
+  'Db7 | C7 | F | F',
+  '=======',
+  'G7 | C7 | F | F',
+  '>>>>>>> theirs',
+  '```',
+  '',
+].join('\n');
+const CHART_ITEM = { kind: 'chart', ours: ['Db7 | C7 | F | F'], theirs: ['G7 | C7 | F | F'] };
+const VOICING_ITEM = { kind: 'voicing', chord: 'G7', key: 'G7', tuning: 'E2 A2 D3 G3 B3 E4', ours: '320001', theirs: '353433' };
+
+describe('conflictSummary', () => {
+  it('conflictSummary joins the distinct titles of a song\'s conflicts with ` · ` (W09#4 L222)', () => {
+    expect(conflictSummary({ marked: SUMMARY_MARKED, items: [CHART_ITEM, VOICING_ITEM] }, t))
+      .toBe('Primeira parte, bar 5 · The shape for G7');
+    // Two items with the same title appear once, in item order.
+    expect(conflictSummary({ marked: SUMMARY_MARKED, items: [VOICING_ITEM, CHART_ITEM, { ...VOICING_ITEM, variation: 'B' }] }, t))
+      .toBe('The shape for G7 · Primeira parte, bar 5');
+    expect(conflictSummary({ marked: SUMMARY_MARKED, items: [] }, t)).toBeNull();
+  });
+
+  it('conflictSummary falls back without throwing when marked is absent or unreadable', () => {
+    for (const marked of [null, '<<<<<<< ours\nDb7 | C7']) {
+      expect(conflictSummary({ marked, items: [CHART_ITEM, VOICING_ITEM] }, t))
+        .toBe('A bar you both changed · The shape for G7');
+    }
   });
 });

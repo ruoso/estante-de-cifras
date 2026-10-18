@@ -9,8 +9,12 @@
 // - conflictPlace: where a chart conflict is, in musical terms — its section
 //   and the running numbers of the bars that differ (cifra.md §2.8; DIRECTION
 //   §4), for a title like *Primeira parte, bar 5* (Decision 3).
+// - conflictTitle / conflictSummary: a conflict's title, shared by the
+//   resolver's heading and the book panel's *In conflict* row, and the row's
+//   summary line (sync.conflicts_row_summary; W09#4). `t` is passed in, as
+//   render-change.js takes it.
 
-import { parse } from 'cifra-md';
+import { parse, resolveMarked } from 'cifra-md';
 import { chartRows } from '../chart/layout.js';
 
 const OURS_MARKER = '<<<<<<< ours';
@@ -151,4 +155,94 @@ export function differingMeasures(item, side) {
     });
   });
   return out;
+}
+
+// Every `<<<<<<< ours` line is followed by a `=======` and then a
+// `>>>>>>> theirs` — the regions resolveMarked walks. A truncated region is
+// refused here rather than handed to it (it does not terminate on one).
+function wellFormedRegions(lines) {
+  let k = 0;
+  while (k < lines.length) {
+    if (lines[k] === OURS_MARKER) {
+      const mid = lines.indexOf('=======', k + 1);
+      if (mid < 0) return false;
+      const end = lines.indexOf(THEIRS_MARKER, mid + 1);
+      if (end < 0) return false;
+      k = end + 1;
+    } else {
+      k += 1;
+    }
+  }
+  return true;
+}
+
+/**
+ * The ours side of a marked text, parsed — the model `conflictPlace` names a
+ * chart conflict's place over (the resolver's preview) — or null when there is
+ * no marked text, a conflict region is left open, or it will not parse.
+ *
+ * @param {string|null|undefined} marked  the marked text (§11.12.2)
+ * @returns {object|null}
+ */
+export function oursModel(marked) {
+  if (!marked || !wellFormedRegions(String(marked).split('\n'))) return null;
+  try {
+    return parse(resolveMarked(marked, 'ours'));
+  } catch {
+    return null;
+  }
+}
+
+// A chart conflict's title by where it is (W09#1 L42; DIRECTION §4): the
+// section, and the bar or bars that differ — or the generic title when the
+// place cannot be named.
+function placeTitle(place, t) {
+  if (!place) return t('songConflict.chartTitleFallback');
+  const { section, bars } = place;
+  if (bars.length === 0) return t('songConflict.chartTitle', { section });
+  if (bars.length === 1) return t('songConflict.chartTitleBar', { section, bar: bars[0] });
+  if (bars.length === 2) return t('songConflict.chartTitleBars', { section, first: bars[0], second: bars[1] });
+  return t('songConflict.chartTitleBarRange', { section, first: bars[0], last: bars[bars.length - 1] });
+}
+
+/**
+ * A conflict's title in musical terms — the resolver's heading for it and the
+ * name the book panel's *In conflict* row gives it (workflow 9 §Settling one;
+ * W09#1 L42, W09#4 L222). Musical tokens (section names, chord symbols,
+ * property keys) pass through as data; only the words around them are
+ * translated.
+ *
+ * @param {object} item         one conflict of the song (conflict-model.js)
+ * @param {object|null} model   the parsed ours song (`oursModel`)
+ * @param {(key: string, params?: object) => string} t  the i18n lookup
+ * @returns {string}
+ */
+export function conflictTitle(item, model, t) {
+  if (item?.kind === 'voicing') return t('songConflict.voicingTitle', { chord: item.chord ?? item.key ?? '' });
+  if (item?.kind === 'property') return t('songConflict.propertyTitle', { key: item.key ?? '' });
+  if (item?.kind === 'title') return t('songConflict.titleTitle');
+  if (item?.kind === 'chart' || item?.kind === 'sections') return placeTitle(conflictPlace(model, item), t);
+  return t('songConflict.genericTitle');
+}
+
+/**
+ * The *In conflict* row's summary line (W09#4 L222): the distinct titles of a
+ * song's conflicts, in item order, joined by ` · ` — or null when it has none.
+ * Never throws: an absent or unreadable marked text names chart conflicts by
+ * the generic title.
+ *
+ * @param {{ marked?: string|null, items?: object[] }} song  a `conflicts` slice song
+ * @param {(key: string, params?: object) => string} t  the i18n lookup
+ * @returns {string|null}
+ */
+export function conflictSummary(song, t) {
+  const items = Array.isArray(song?.items) ? song.items : [];
+  if (items.length === 0) return null;
+  const model = oursModel(song.marked);
+  const titles = [];
+  for (const item of items) {
+    const title = conflictTitle(item, model, t);
+    if (!titles.includes(title)) titles.push(title);
+  }
+  return titles.join(' · ');
 }
