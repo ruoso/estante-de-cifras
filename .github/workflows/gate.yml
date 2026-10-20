@@ -22,13 +22,13 @@ jobs:
       # One checkout: cifra.md lives in the repository as the cifra.md/
       # subtree.
       - name: Check out estante-de-cifras
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: estante-de-cifras
 
       # Node, pinned by .node-version; npm cache keyed on the lockfiles.
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version-file: estante-de-cifras/.node-version
           cache: npm
@@ -39,7 +39,7 @@ jobs:
 
       # Go, pinned by service/go.mod; module/build cache keyed on go.mod/go.sum.
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: estante-de-cifras/service/go.mod
           cache-dependency-path: |
@@ -48,7 +48,7 @@ jobs:
 
       # Python 3 for scripts/unblocked.py and the cifra.md reference's venv.
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3"
 
