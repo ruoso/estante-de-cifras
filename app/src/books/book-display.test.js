@@ -13,6 +13,7 @@ import {
   thisDeviceFor,
   bookMetaFor,
   mySongsIdFor,
+  putOnlineFailureKey,
 } from './book-display.js';
 import { t, setLocale } from '../i18n/index.js';
 
@@ -376,5 +377,23 @@ describe('book-display: mySongsIdFor (My songs by id — home-book-format §4.2 
       local: { band: { title: reg('My songs') } },
     };
     expect(mySongsIdFor(shelf)).toBe(null);
+  });
+});
+
+// books.share_needs_online Constraint 6: a refused put-online (books.online
+// Decision 4) is worded once, for the book detail and the song's Share.
+describe('putOnlineFailureKey', () => {
+  it('words each refusal reason by its key', () => {
+    expect(putOnlineFailureKey('quota')).toBe('books.putOnlineQuota');
+    expect(putOnlineFailureKey('signed_out')).toBe('books.putOnlineSignedOut');
+    expect(putOnlineFailureKey('offline')).toBe('books.putOnlineOffline');
+  });
+  it('words any other reason as the general error', () => {
+    expect(putOnlineFailureKey('server')).toBe('books.putOnlineError');
+    expect(putOnlineFailureKey('conflict')).toBe('books.putOnlineError');
+  });
+  it('has no key when there is no refusal', () => {
+    expect(putOnlineFailureKey(null)).toBeNull();
+    expect(putOnlineFailureKey(undefined)).toBeNull();
   });
 });

@@ -347,6 +347,9 @@ export default {
       'Un link, per quante persone vuoi inviarlo. Ognuna accede, o crea un account, e il libro va sul suo scaffale.',
     songShareIntro:
       'Un brano si condivide con il suo libro, {book}. Solo chi inviti può aprirlo, ognuno con il proprio account.',
+    needsOnline: '{book} è solo su questo dispositivo. Mettilo online per invitare altre persone.',
+    needsOnlineSignIn: 'Accedi per metterlo online',
+    needsOnlinePutting: 'Lo sto mettendo online…',
     songInviteBody: 'L’invito la porta in {book} e apre su {song} una volta che ha effettuato l’accesso.',
     role: 'Ruolo',
     roleHelp: 'I lettori leggono il libro e lo tengono sullo scaffale. Gli editori vi salvano anche.',

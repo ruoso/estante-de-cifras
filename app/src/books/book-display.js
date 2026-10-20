@@ -357,3 +357,20 @@ export function elsewhereCopyFor(entry, { t }) {
 export function thisDeviceFor(kind, { t }) {
   return t(['newDevice', 'thisKind', DEVICE_KIND_TOKENS.has(kind) ? kind : 'other']);
 }
+
+/**
+ * The i18n key wording a refused put-online (books.online Decision 4): the
+ * Worker's `BOOK_ONLINE_REFUSED` reason — `quota`, `signed_out`, `offline`, or
+ * any other — as the key the book detail and the song's Share both show, or
+ * `null` when there is no refusal (books.share_needs_online Constraint 6).
+ *
+ * @param {string | null | undefined} reason
+ * @returns {string | null}
+ */
+export function putOnlineFailureKey(reason) {
+  if (!reason) return null;
+  if (reason === 'quota') return 'books.putOnlineQuota';
+  if (reason === 'signed_out') return 'books.putOnlineSignedOut';
+  if (reason === 'offline') return 'books.putOnlineOffline';
+  return 'books.putOnlineError';
+}

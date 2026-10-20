@@ -10,6 +10,11 @@
 // member's sheet shows what a member sees: their role in a word, the count, and
 // who shares the book and saves to it.
 //
+// A song in a book only on this device has no one to share it with yet: the
+// sheet holds ShareNeedsOnline instead, and asks Estante nothing until the book
+// is put online (books.share_needs_online Constraint 2) — the loads live in the
+// hosted body, mounted only for a book on Estante.
+//
 // A RAC Modal sheet, portaled into the `.est` token root by the app-wide
 // provider (books.share Decision 4).
 
@@ -19,6 +24,7 @@ import { Button, Dialog, Heading, Input, Modal, ModalOverlay, TextField } from '
 import { currentLocale, t } from '../i18n/index.js';
 import { bookSongPath } from './book-route.js';
 import { invitationShort, invitationTitle, memberSummary, personLabel } from './people.js';
+import ShareNeedsOnline from './ShareNeedsOnline.jsx';
 import { CreatedLink, InvitationForm, useCreateInvitation } from './NewInvitation.jsx';
 import { ChevronIcon, CloseIcon, CopyLinkButton, LoadState, PeopleBar, errorCopy, useSharing } from './sharing-parts.jsx';
 import './sharing.css';
@@ -70,9 +76,12 @@ export function SongAddress({ songAddress, songTitle }) {
  * closes the sheet and opens that screen.
  */
 export default function ShareSheet({
+  store = null,
   bookId,
   title,
   role = null,
+  isLocal = false,
+  accountStatus = 'unknown',
   songPath = null,
   songTitle = null,
   sharingClient,
@@ -80,14 +89,64 @@ export default function ShareSheet({
   onClose = () => {},
   onOpenPeople = () => {},
   onNewInvitation = () => {},
+  onSignIn = () => {},
 }) {
+  const isOwner = role === 'owner';
+  const songName = songTitle ?? songPath;
+  const body = isLocal ? (
+    <ShareNeedsOnline store={store} bookId={bookId} bookTitle={title} accountStatus={accountStatus} onSignIn={onSignIn} />
+  ) : (
+    <HostedShareBody
+      bookId={bookId}
+      title={title}
+      role={role}
+      songPath={songPath}
+      songName={songName}
+      sharingClient={sharingClient}
+      origin={origin}
+      onOpenPeople={onOpenPeople}
+      onNewInvitation={onNewInvitation}
+    />
+  );
+
+  const roleChip =
+    !isOwner && role ? (
+      <span className="chip">{role === 'editor' ? t('sharing.youAreEditor') : t('sharing.youAreReader')}</span>
+    ) : null;
+
+  return (
+    <ModalOverlay className="scrim" isOpen onOpenChange={(open) => !open && onClose()} isDismissable>
+      <Modal className="sheet est-sharing">
+        <Dialog>
+          <div className="grip" aria-hidden="true" />
+          <div className="est-sharing-head">
+            <Heading slot="title" className="t-h2 grow">
+              {t('sharing.shareTitle', { name: songPath ? songName : title })}
+            </Heading>
+            {roleChip}
+            <Button className="btn icon" aria-label={t('sharing.close')} onPress={onClose}>
+              <CloseIcon />
+            </Button>
+          </div>
+          <div className="scroll est-sharing-scroll">
+            <div className="est-sharing-body">{body}</div>
+          </div>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  );
+}
+
+// The sheet's body for a book on Estante: the people and invitations, loaded on
+// mount — so only ever mounted for a hosted book (a put-online mounts it fresh
+// under the book's new id) — and, on a song's sheet, the song's part.
+function HostedShareBody({ bookId, title, role, songPath, songName, sharingClient, origin, onOpenPeople, onNewInvitation }) {
   const isOwner = role === 'owner';
   const locale = currentLocale();
   const { client, members, invitations, loadError, reload } = useSharing({ client: sharingClient, bookId, isOwner });
   const [songInviting, setSongInviting] = useState(false);
   const creating = useCreateInvitation({ client, bookId, songPath, onCreated: () => reload() });
   const base = origin ?? (typeof window !== 'undefined' ? window.location.origin : '');
-  const songName = songTitle ?? songPath;
 
   const list = members?.members ?? [];
   const invs = invitations?.invitations ?? [];
@@ -181,30 +240,5 @@ export default function ShareSheet({
     );
   }
 
-  const roleChip =
-    !isOwner && role ? (
-      <span className="chip">{role === 'editor' ? t('sharing.youAreEditor') : t('sharing.youAreReader')}</span>
-    ) : null;
-
-  return (
-    <ModalOverlay className="scrim" isOpen onOpenChange={(open) => !open && onClose()} isDismissable>
-      <Modal className="sheet est-sharing">
-        <Dialog>
-          <div className="grip" aria-hidden="true" />
-          <div className="est-sharing-head">
-            <Heading slot="title" className="t-h2 grow">
-              {t('sharing.shareTitle', { name: songPath ? songName : title })}
-            </Heading>
-            {roleChip}
-            <Button className="btn icon" aria-label={t('sharing.close')} onPress={onClose}>
-              <CloseIcon />
-            </Button>
-          </div>
-          <div className="scroll est-sharing-scroll">
-            <div className="est-sharing-body">{body}</div>
-          </div>
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
-  );
+  return body;
 }

@@ -48,7 +48,7 @@ import {
 import { t, currentLocale } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
-import { titleFor, canSaveFor, orderedBooks, originalOf, broughtInOn } from './book-display.js';
+import { titleFor, canSaveFor, orderedBooks, originalOf, broughtInOn, putOnlineFailureKey } from './book-display.js';
 import { saveZip } from './download-zip.js';
 import MakeYourOwn from './MakeYourOwn.jsx';
 import LeaveDialog, { WarnIcon } from './LeaveDialog.jsx';
@@ -422,16 +422,8 @@ export default function BookDetail({
     store.send(command(CommandKind.DELETE_BOOK, { bookId }));
   const renameBook = (id, name) => store.send(command(CommandKind.RENAME_BOOK, { bookId: id, name }));
 
-  const failureCopy =
-    failure === 'quota'
-      ? t('books.putOnlineQuota')
-      : failure === 'signed_out'
-        ? t('books.putOnlineSignedOut')
-        : failure === 'offline'
-          ? t('books.putOnlineOffline')
-          : failure
-            ? t('books.putOnlineError')
-            : null;
+  const failureKey = putOnlineFailureKey(failure);
+  const failureCopy = failureKey ? t(failureKey) : null;
 
   return (
     <div className="book-detail">

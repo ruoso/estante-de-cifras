@@ -57,12 +57,19 @@ function ownerClient(over = {}) {
   });
 }
 
-const renderSheet = (client, props = {}) =>
-  render(
-    <ThemeRoot store={makeStore()}>
+// The sheet opens into a ThemeRoot already on screen, as in the app: the
+// portal container (ThemeRoot's `.est` ref) is only there once the root has
+// mounted, and the sheet's own frame does not re-render once its body loads.
+const renderSheet = (client, props = {}) => {
+  const store = makeStore();
+  const view = render(<ThemeRoot store={store} />);
+  view.rerender(
+    <ThemeRoot store={store}>
       <ShareSheet bookId={BOOK} title={BOOK_TITLE} role={OWNER_ROLE} sharingClient={client} {...props} />
     </ThemeRoot>,
   );
+  return view;
+};
 
 // The caller's role, the book's owner (a prop, not an ARIA role).
 const OWNER_ROLE = 'owner';
@@ -168,5 +175,34 @@ describe('a song’s Share sheet on a phone (workflow 10 §Sharing a song)', () 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://estante.app/b/bk/choro/carinhoso.cifra.md'));
     expect(await within(sheet).findByRole('button', { name: 'Copied' })).toBeInTheDocument();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
+// books.share_needs_online (workflow 10 §Sharing a song): a song's sheet on a
+// book only on this device says so and offers signing in, then Put online; it
+// asks Estante nothing before Put online is pressed.
+describe('a song’s Share sheet on a book only on this device', () => {
+  it('shows the needs-online body under Share <song>, no Song address, and makes no call', async () => {
+    const { client, calls } = makeClient({});
+    const { container } = renderSheet(client, {
+      store: makeStore(),
+      bookId: 'local-1',
+      title: 'My songs',
+      role: null,
+      isLocal: true,
+      accountStatus: 'out',
+      songPath: SONG_PATH,
+      songTitle: 'Carinhoso',
+      origin: 'https://estante.app',
+    });
+
+    const sheet = await screen.findByRole('dialog', { name: 'Share Carinhoso' });
+    expect(within(sheet).getByText('My songs is only on this device. Put it online to invite people.')).toBeInTheDocument();
+    expect(within(sheet).getByText(/Putting it online creates it on Estante, private/)).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Sign in to put it online' })).toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: 'Put online' })).toBeNull();
+    expect(within(sheet).queryByRole('textbox', { name: 'Song address' })).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    expect(calls).toEqual([]);
   });
 });

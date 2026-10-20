@@ -166,3 +166,35 @@ describe('a song’s share panel (W10 #4)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });
+
+// books.share_needs_online (workflow 10 §Sharing a song): a song in a book only
+// on this device — the panel says so and offers Put online, and nothing asks
+// Estante before Put online is pressed.
+describe('a song’s share panel on a book only on this device', () => {
+  it('shows the needs-online body under Share <song>, no Song address, and makes no call', async () => {
+    const { client, calls } = makeClient({});
+    const { container } = render(
+      <ThemeRoot store={makeStore()}>
+        <SongSharePanel
+          store={makeStore()}
+          bookId="local-1"
+          title="My songs"
+          isLocal
+          accountStatus="in"
+          songPath={SONG_PATH}
+          songTitle="Carinhoso"
+          origin="https://estante.app"
+          sharingClient={client}
+        />
+      </ThemeRoot>,
+    );
+
+    const panel = screen.getByRole('complementary', { name: 'Share Carinhoso' });
+    expect(within(panel).getByText('My songs is only on this device. Put it online to invite people.')).toBeInTheDocument();
+    expect(within(panel).getByText(/Putting it online creates it on Estante, private/)).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Put online' })).toBeInTheDocument();
+    expect(within(panel).queryByRole('textbox', { name: 'Song address' })).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    expect(calls).toEqual([]);
+  });
+});

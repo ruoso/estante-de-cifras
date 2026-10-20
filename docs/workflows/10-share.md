@@ -169,6 +169,18 @@ once accepted. For someone already a member, the link is just the song's
 address, `…/b/<book>/<path>`. There is no sharing one song apart from its
 book.
 
+A song in a book that is only on this device — *My songs* before it goes
+online, or any book made here — has no one to share it with yet. Its
+*Share* opens the same panel or sheet, and says so in words: *this book is
+only on this device; put it online to invite people*, with the same line
+*Put online* carries in the book's detail (workflow 7 §Putting a book
+online: it goes online private). It offers *Put online* there; signed out,
+it offers *Sign in to put it online* first, which opens the one sign-in
+surface (workflow 13 §Signing in, or making an account) and comes back to
+the same panel, where *Put online* is then one more press. Once the book is
+online, the panel is the owner's ordinary song share, ready to invite.
+Nothing in it asks Estante anything until *Put online* is pressed.
+
 Explore Chords' link, which carried the song in the link itself, is not
 brought over.
 

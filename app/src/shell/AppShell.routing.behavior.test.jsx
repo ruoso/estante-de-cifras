@@ -836,6 +836,117 @@ describe('AppShell share surfaces (behavior)', () => {
     await within(panel).findByText(/0 invitations/);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
+
+  // books.share_needs_online (workflow 10 §Sharing a song): a song in a book only
+  // on this device — *My songs* before it goes online.
+  const LOCAL = 'local-1';
+  const SERVICE = 'srv-1';
+  const LOCAL_SHELF = {
+    books: {},
+    local: { [LOCAL]: { title: { value: 'My songs', at: AT }, position: { value: 0, at: AT } } },
+  };
+  const ONLINE_SHELF = {
+    books: {
+      [SERVICE]: {
+        label: { value: 'My songs', at: AT },
+        role: { value: 'owner', at: AT },
+        position: { value: 0, at: AT },
+      },
+    },
+    local: {},
+  };
+  // The account probe's answer: signed in (200) or signed out (401).
+  const authAs = (signedIn) =>
+    createAuthClient({
+      fetch: async (path) => {
+        if (String(path) === '/api/account/recovery-email') {
+          return signedIn
+            ? { ok: true, status: 200, json: async () => ({ email: null, pending: null }) }
+            : { ok: false, status: 401, json: async () => ({}) };
+        }
+        throw new TypeError(`no route for ${path}`);
+      },
+    });
+  // Every request the sharing client makes for a book.
+  const bookCalls = [];
+  const recordBookCalls = () => {
+    bookCalls.length = 0;
+    const answer = globalThis.fetch;
+    globalThis.fetch = async (path, init) => {
+      if (String(path).startsWith('/api/books/')) bookCalls.push(String(path));
+      return answer(path, init);
+    };
+  };
+  function openLocalSongShare(emit) {
+    emit(event(EventKind.SHELF, LOCAL_SHELF));
+    act(() => {
+      fireEvent.change(screen.getAllByRole('searchbox')[0], { target: { value: 'tarde' } });
+    });
+    emit(
+      event(EventKind.SEARCH_RESULTS, {
+        query: 'tarde',
+        results: [{ bookId: LOCAL, path: SONG_PATH, title: SONG_TITLE, artist: '', score: 3, unsaved: false }],
+      }),
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(SONG_TITLE) })[0]);
+    emit(event(EventKind.SOURCE, { bookId: LOCAL, path: SONG_PATH, text: SONG_TEXT }));
+    fireEvent.click(screen.getByRole('button', { name: 'Share', exact: true }));
+    return screen.getByRole('complementary', { name: `Share ${SONG_TITLE}` });
+  }
+
+  it('a local book’s song: Share says it is only on this device, asks Estante nothing, and after Put online is the owner’s invite (Constraint 5)', async () => {
+    wide(true);
+    recordBookCalls();
+    const { store, sent, emit } = makeStore();
+    const { container } = render(<AppShell store={store} authClient={authAs(true)} />);
+
+    const panel = openLocalSongShare(emit);
+    expect(within(panel).getByText('My songs is only on this device. Put it online to invite people.')).toBeInTheDocument();
+    expect(within(panel).queryByRole('textbox', { name: 'Song address' })).toBeNull();
+    const put = await within(panel).findByRole('button', { name: 'Put online' });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    expect(bookCalls).toEqual([]);
+
+    fireEvent.click(put);
+    const putCommands = sent.filter((m) => m.kind === CommandKind.PUT_ONLINE);
+    expect(putCommands.map((m) => m.payload)).toEqual([{ bookId: LOCAL }]);
+    expect(within(panel).getByRole('status')).toHaveTextContent('Putting it online…');
+
+    // The Worker surfaces the shelf, then announces the adopted id (logic.js
+    // PUT_ONLINE): nothing is asked under the old id in between.
+    emit(event(EventKind.SHELF, ONLINE_SHELF));
+    expect(within(panel).getByRole('status')).toHaveTextContent('Putting it online…');
+    expect(bookCalls).toEqual([]);
+    emit(event(EventKind.BOOK_ONLINE, { previousBookId: LOCAL, bookId: SERVICE }));
+    // The open song follows to the adopted id and reads its source there.
+    emit(event(EventKind.SOURCE, { bookId: SERVICE, path: SONG_PATH, text: SONG_TEXT }));
+
+    const same = screen.getByRole('complementary', { name: `Share ${SONG_TITLE}` });
+    expect(await within(same).findByRole('button', { name: 'Create link' })).toBeInTheDocument();
+    expect(within(same).getByText('Invite someone to this song')).toBeInTheDocument();
+    await waitFor(() => expect(bookCalls).toContain(`/api/books/${SERVICE}/members`));
+    expect(bookCalls.every((p) => p.startsWith(`/api/books/${SERVICE}/`))).toBe(true);
+  });
+
+  it('a local book’s song, signed out: Sign in to put it online opens the sign-in surface, and closing it returns to the song with the share open (Constraint 4)', async () => {
+    wide(true);
+    recordBookCalls();
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} authClient={authAs(false)} />);
+
+    const panel = openLocalSongShare(emit);
+    const signIn = await within(panel).findByRole('button', { name: 'Sign in to put it online' });
+    expect(within(panel).queryByRole('button', { name: 'Put online' })).toBeNull();
+
+    fireEvent.click(signIn);
+    expect(screen.getByRole('heading', { name: 'Sign in or make an account' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+    const again = screen.getByRole('complementary', { name: `Share ${SONG_TITLE}` });
+    expect(within(again).getByRole('button', { name: 'Sign in to put it online' })).toBeInTheDocument();
+    expect(bookCalls).toEqual([]);
+  });
 });
 
 // behavior (books.add_book_chooser) — the Add-a-book chooser's seams into the

@@ -942,13 +942,20 @@ export default function AppShell({
 
   // What the sharing surfaces need of a book from the shelf: its title, the
   // caller's role, and the owner's name (books.owner_name) a member reads.
+  // A book only on this device (`isLocal`) has no one to share with yet
+  // (books.share_needs_online Constraint 1). A put-online surfaces the shelf
+  // without the local entry just before BOOK_ONLINE moves the surface to the
+  // new id: in that gap the book is still treated as local, so the song's Share
+  // keeps saying *Putting it online…* and asks Estante nothing under the old id.
   const sharingFacts = (bookId) => {
-    const book = orderedBooks(shelf).find((e) => e.id === bookId)?.book ?? {};
+    const entry = orderedBooks(shelf).find((e) => e.id === bookId);
+    const book = entry?.book ?? {};
     const owner = book?.owner?.value;
     return {
       title: titleFor(book, t('books.untitled')),
       role: book?.role?.value ?? null,
       ownerName: typeof owner === 'string' && owner !== '' ? owner : null,
+      isLocal: !entry || entry.kind === 'local',
     };
   };
   // A book's Share: the sheet on a phone, the people screen on a tablet or a
@@ -1471,15 +1478,22 @@ export default function AppShell({
     // A song's share (books.share_people): a panel beside the chart on a tablet
     // or a computer, the Share sheet on a phone — drawn by the reading view,
     // which knows the song's title. The book's role/title come from the shelf,
-    // so the owner sees the invite and a member the song's address.
+    // so the owner sees the invite and a member the song's address. A song in a
+    // book only on this device offers Put online instead, or signing in first —
+    // the SignIn surface's onDone comes back to this same surface
+    // (books.share_needs_online Constraint 4).
     const shareFacts = sharing ? sharingFacts(sharing.bookId) : null;
     const songShare = sharing
       ? ({ title: songTitle }) =>
           mode === 'wide' ? (
             <SongSharePanel
+              store={store}
               bookId={sharing.bookId}
               title={shareFacts.title}
               role={shareFacts.role}
+              isLocal={shareFacts.isLocal}
+              accountStatus={accountStatus.status}
+              onSignIn={() => setSignIn({})}
               songPath={sharing.path}
               songTitle={songTitle}
               onClose={() => setSharing(null)}
@@ -1487,9 +1501,13 @@ export default function AppShell({
             />
           ) : (
             <ShareSheet
+              store={store}
               bookId={sharing.bookId}
               title={shareFacts.title}
               role={shareFacts.role}
+              isLocal={shareFacts.isLocal}
+              accountStatus={accountStatus.status}
+              onSignIn={() => setSignIn({})}
               songPath={sharing.path}
               songTitle={songTitle}
               onClose={() => setSharing(null)}
