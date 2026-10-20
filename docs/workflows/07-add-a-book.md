@@ -18,7 +18,23 @@ It lists the books on the shelf, each with:
   kept in the home book that changes nothing in the repository;
 - **where it lives**: *on this device*, or *on Estante*;
 - whether the user **can save** to it;
-- its **sync state** (workflow 8).
+- **how many songs** it holds (*14 songs*), or *still loading* while the
+  device has not finished reading it, as its section in search says
+  (workflow 2);
+- its **sync state** (workflow 8), and the words of anything waiting on the
+  user: *needs you*, or a fork's *Choros da Ana has 3 new saves.*
+  (workflow 11).
+
+**Pressing a book opens its songs**: search scoped to that book, at its
+address `…/b/<book>` (below, *Links to books*), the same place a link to it
+opens. That is the row's one action. Everything else about the book —
+renaming it on the shelf, where it lives, putting it online, sharing,
+downloading, its files, making it one's own, leaving, removing, deleting — is
+on the book's **detail**, reached from the book's songs (*A book's songs*,
+below). A book that *needs you* opens on its songs too.
+
+On a tablet and a computer the screen is the same one list, in a column; it
+has no detail pane beside it, since pressing a book leaves for its songs.
 
 *Add a book* offers four ways in:
 
@@ -38,6 +54,45 @@ account, and *No passkey here? Email me a link*, which reaches an account
 only through its recovery email (workflow 13).
 
 Cloning shows its progress and can be cancelled.
+
+## A book's songs
+
+A book open is search scoped to it (workflow 2 §Scope): the scope in the
+box, and above the results a bar naming the book —
+
+- its **title**, and the row's meta line: where it lives, whether one can
+  save, how many songs;
+- its **sync state** in words, when it is not in step (workflow 8);
+- **Manage**, a button whose accessible name is *Manage {book}*: it opens
+  the book's detail.
+
+The bar shows whenever the scope is one book or a folder in it — from the
+book's address, a row on this screen, or the *Search only in {book}* filter
+on a book's section in search — and stays while typing. Clearing the scope
+(the chip's ✕) is the whole shelf again, and the bar goes; going back
+returns to where the book was opened from.
+
+Two things that wait on the user sit in the bar as a notice, with their one
+action:
+
+- **A book that needs you** (workflow 9): *2 songs need you.* with
+  **Settle**, which opens the book's conflicts one song at a time; the songs
+  in conflict carry their *conflict* badge in the list below. The book opens
+  on its songs rather than straight into the conflicts: a conflict can wait
+  (workflow 9 §Leaving one), and the person may have come to play.
+- **A fork whose original has new saves** (workflow 11): *Choros da Ana has
+  3 new saves.* with **Bring them in**.
+
+**The detail** opens over the book's songs: on a phone it takes the screen,
+with *Back to {book}*; on a tablet and a computer it takes the main pane,
+beside the book's songs in the side pane, as a song does. It is not an
+address of its own: reloading lands on the book's songs. Its title carries
+**Rename**, the label on this shelf only. Below come the book's state and
+its acts, as they are drawn: put online, the notices of lost access, *can't
+save here* and taken down, **Download**, then **Files** — *Every file in the
+book, as it is stored.* — opening the file view (workflow 14), then fork,
+remove, leave, share and delete. Removing or leaving the book from its
+detail returns to Books, since its songs are no longer here.
 
 ## Signing in
 

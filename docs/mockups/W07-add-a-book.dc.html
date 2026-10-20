@@ -37,7 +37,7 @@
                   <a class="row" href="#">
                     <span class="grow">
                       <span class="name">{{b.title}}</span>
-                      <span class="meta">{{b.where}} · {{b.role}}</span>
+                      <span class="meta">{{b.where}} · {{b.role}} · {{b.count}}</span>
                       <sc-if value="{{b.hasState}}" hint-placeholder-val="{{ true }}"><span class="badges"><span class="badge {{b.stateCls}}">{{b.state}}</span></span></sc-if>
                     </span>
                     <span class="t-small" aria-hidden="true">▸</span>
@@ -179,26 +179,30 @@
       <div class="dev desktop">
         <div class="split">
           <div class="pane side">
-            <div style="padding: 18px 16px 12px; display: flex; align-items: center; gap: 8px">
-              <span class="t-h1" style="flex: 1">Books</span>
-              <button class="btn">Add a book</button>
-            </div>
-            <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 12px; overflow: hidden">
-              <div class="list">
-                <sc-for list="{{booksDesk}}" as="b" hint-placeholder-count="4">
-                  <a class="row {{b.cls}}" href="#"><span class="grow"><span class="name">{{b.title}}</span><span class="meta">{{b.where}} · {{b.role}}</span></span></a>
-                </sc-for>
+            <div style="padding: 18px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; align-items: center; gap: 8px"><span class="t-h1" style="flex: 1">Estante</span><span class="chip accent">Guitar</span></div>
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span class="scope">My songs</span><span style="flex: 1"></span><button class="btn icon" aria-label="Clear filter" style="min-height: 32px; min-width: 32px; padding: 4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+              <div class="card pad" style="gap: 8px">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <span style="display: flex; flex-direction: column; flex: 1; min-width: 0"><span class="t-h2">My songs</span><span class="t-small">On Estante · can save · 14 songs</span></span>
+                  <button class="btn" aria-label="Manage My songs">Manage</button>
+                </div>
               </div>
-              <div class="card pad">
-                <span class="t-h2">Exercícios de violão</span>
-                <p class="t-small">Only on this device. Putting it online creates it on Estante, private: only you can open it, until you invite people to it, at most 50.</p>
-                <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V8M7 13l5-5 5 5M4 4h16"></path></svg>Put online</button>
+            </div>
+            <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+              <div class="list">
+                <sc-for list="{{mySongs}}" as="s" hint-placeholder-count="5">
+                  <a class="row" href="#"><span class="grow"><span class="name">{{s.title}}</span><span class="meta">{{s.meta}}</span></span></a>
+                </sc-for>
               </div>
             </div>
           </div>
           <div class="pane main">
             <div class="appbar" style="padding: 14px 24px">
+              <button class="btn icon" aria-label="Back to My songs"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
               <span class="title">My songs</span>
+              <button class="btn quiet" aria-label="Rename My songs"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg>Rename</button>
+              <span style="flex: 1"></span>
               <button class="btn">Share</button>
             </div>
             <div class="scroll" style="padding: 24px 32px; gap: 18px">
@@ -207,10 +211,17 @@
                 <span class="chip">You own it</span>
                 <span class="chip">You can save</span>
               </div>
-              <div class="card pad">
-                <span class="t-h2">Download</span>
-                <p class="t-small">A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.</p>
-                <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"></path></svg>Download</button>
+              <div style="display: flex; gap: 16px">
+                <div class="card pad" style="flex: 1">
+                  <span class="t-h2">Download</span>
+                  <p class="t-small">A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.</p>
+                  <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"></path></svg>Download</button>
+                </div>
+                <div class="card pad" style="flex: 1">
+                  <span class="t-h2">Files</span>
+                  <p class="t-small">Every file in the book, as it is stored.</p>
+                  <button class="btn" style="align-self: flex-start" aria-label="Files in My songs"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path></svg>Files</button>
+                </div>
               </div>
               <div style="display: flex; gap: 16px">
                 <div class="card pad" style="flex: 1">
@@ -250,19 +261,23 @@
 class Component extends DCLogic {
   renderVals() {
     var books = [
-      { title: 'My songs', where: 'On Estante', role: 'can save', hasState: false, state: '', stateCls: '' },
-      { title: 'Choros da Ana', where: 'On Estante', role: 'reader', hasState: true, state: 'syncing', stateCls: '' },
-      { title: 'Banda do Bairro', where: 'On Estante', role: 'can save', hasState: true, state: '2 saves waiting to go up', stateCls: 'unsaved' },
-      { title: 'Exercícios de violão', where: 'On this device', role: 'can save', hasState: false, state: '', stateCls: '' },
+      { title: 'My songs', where: 'On Estante', role: 'can save', count: '14 songs', hasState: false, state: '', stateCls: '' },
+      { title: 'Choros da Ana', where: 'On Estante', role: 'reader', count: '32 songs', hasState: true, state: 'syncing', stateCls: '' },
+      { title: 'Banda do Bairro', where: 'On Estante', role: 'can save', count: '21 songs', hasState: true, state: '2 saves waiting to go up', stateCls: 'unsaved' },
+      { title: 'Exercícios de violão', where: 'On this device', role: 'can save', count: '6 songs', hasState: false, state: '', stateCls: '' },
     ];
-    var booksDesk = books.map(function (b) {
-      return { title: b.title, where: b.where, role: b.role, cls: b.title === 'My songs' ? 'sel' : '' };
-    });
+    var mySongs = [
+      { title: 'Tarde Clara', meta: 'Pedro Araújo' },
+      { title: 'Rua do Porto', meta: 'Pedro Araújo · aulas/' },
+      { title: 'Noite de São João', meta: 'Pedro Araújo' },
+      { title: 'Valsa da Varanda', meta: 'aulas/' },
+      { title: 'Canção do Quintal', meta: 'Pedro Araújo' },
+    ];
     return {
       theme: this.props.theme ?? 'current',
       density: this.props.density ?? 'comfortable',
       books: books,
-      booksDesk: booksDesk,
+      mySongs: mySongs,
       preview: [
         { title: 'Rua do Porto', detail: 'Primeira Parte bar 2: Am → Am7', state: 'changed', cls: 'voiced' },
         { title: 'Asa Branca', detail: 'Voicings for G4 C4 E4 A4: added F, G7', state: 'changed', cls: 'voiced' },

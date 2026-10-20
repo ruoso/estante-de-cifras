@@ -64,7 +64,12 @@ one, and **resets at the start of each session**: a scope you have forgotten
 about hides results without saying so. While a filter is on, it is shown in
 the box, not tucked behind a button. The one exception is a session that
 starts from a book's address (`…/b/<book>`, workflow 7): it opens on that
-book's songs, the scope shown in the box like any other.
+book's songs, the scope shown in the box like any other. Pressing a book on
+the book-management screen opens the same place.
+
+While the scope is one book or a folder in it, a bar above the results names
+the book, its state, and *Manage* for its detail (workflow 7 §A book's
+songs).
 
 ## Reading a song
 

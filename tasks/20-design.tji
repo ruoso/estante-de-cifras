@@ -87,6 +87,7 @@ task design "Design gaps" {
   task book_row_songs "A book on the shelf opens on its songs" {
     effort 0.5d
     allocate team
+    complete 100
     note "Decided 2026-10-19 (launch smoke test): pressing a book in the book-management screen opens its songs — search scoped to that book, the address workflow 7 already gives it (…/b/<book>, L52-54) — not its management detail; today the row opens the detail and its one visible button is Files (app/src/books/BooksScreen.jsx:195-219), so the plain way into a book's songs is missing from where books are listed and the advanced one is the default. The row carries one action: managing the book (where it lives, put online, share, download, make it my own, remove — BookDetail) is reached from the book once open, an entry to its detail on the book's songs view (decided 2026-10-19), and Files moves off the row into that detail: the file view is advanced use (workflow 14 §The view says advanced users find it, others never need to). Decide the detail entry's form, name and place on the book's songs view, what the row shows of its songs (a count?), what a book that needs you (workflow 9) opens on, and how it lays out on a tablet and a computer. Workflows 7 (The book-management screen), 14 (The view: where it is reached), 2 if the scoped search changes. Tests: none — design deliverable (workflow 7 and 14 edits and the W07 and W14 boards). Refinement: tasks/refinements/design/book_row_songs.md"
   }
   task format_help "How the song format is explained in the editor" {

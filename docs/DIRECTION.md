@@ -637,6 +637,15 @@ workflows do not yet cover, and work that comes before building:
   for its recovery email at once, skippable; and, while a signed-in account
   has no confirmed recovery email, a banner on every screen that is not
   dismissed, only answered. No new workflow.
+- **Opening a book**, decided (workflow 7 §The book-management screen, §A
+  book's songs; workflow 14 §The view; workflow 2 §Scope; workflow 9 §Meeting
+  one) and drawn on [mockups/Open-a-book.dc.html](mockups/Open-a-book.dc.html)
+  and [mockups/W07-add-a-book.dc.html](mockups/W07-add-a-book.dc.html) —
+  pressing a book on the shelf opens its songs (`…/b/<book>`), the row's one
+  action, and shows its song count; the book's songs carry a bar naming the
+  book with *Manage*, which opens the book's detail, where renaming and
+  *Files* now live; a book that needs you opens on its songs with *Settle*.
+  No new workflow.
 
 ## 7. Workflows
 

@@ -129,9 +129,10 @@ history the two share, which is unaffected.
 
 ## The view
 
-**Where it is reached**: *files* on each book in the book-management screen,
-and *show the file* on a song's reading view, which opens the tree at that
-file. Not hidden behind a setting: advanced users find it, and others never
+**Where it is reached**: **Files** on a book's detail, itself reached by
+*Manage* on the book's songs (workflow 7 §A book's songs), and *show the
+file* on a song's reading view, which opens the tree at that file. Its Back
+returns to where it was opened from. Not hidden behind a setting: advanced users find it, and others never
 need to.
 
 **On a phone** it works, but it is laid out for a wide screen first: the tree

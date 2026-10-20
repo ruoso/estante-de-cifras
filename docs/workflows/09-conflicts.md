@@ -29,7 +29,8 @@ the change that collided in front of them. Nobody else is told, beyond the
 resolved merge appearing in the history (workflow 6).
 
 The book shows *needs you* (workflow 8), and each song in conflict carries a
-*conflict* badge in search.
+*conflict* badge in search. Pressing the book opens its songs, with
+*2 songs need you.* and **Settle** above them (workflow 7 §A book's songs).
 
 **Until it is settled, the song shows the user's own version**, with the
 conflicted places marked, so that someone who opens it to play mid-lesson

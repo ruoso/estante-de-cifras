@@ -102,6 +102,7 @@ Append one `###` block per item, newest at the bottom:
 - **Updated** (2026-10-15, closer for `design.display_preferences`): `docs/mockups/Theme-picker.dc.html` gained the Density and Chord diagrams groups on all four frames; it was not rendered, so check it on publishing.
 - **Updated** (2026-10-18, closer for `design.boards_refresh`): redrawn and not rendered, so check on publishing: W01 (invited screen), W03 (line numbers), W04, W05 (*Default*), W08, W09 (*Default*, Keep both, line numbers), W12, W14, W16 (tablet split, line numbers), Screen-reader and Theme-picker (one wording per theme). `canvas.json` unchanged.
 - **Updated** (2026-10-19, closer for `design.sign_in_two_doors`): `docs/mockups/Sign-in.dc.html` is new and registered in `canvas.json` (y 38060); W01 (frames 1, 2, 4) and W13 (frames 1, 2) are redrawn. None rendered, so check on publishing.
+- **Updated** (2026-10-20, closer for `design.book_row_songs`): `docs/mockups/Open-a-book.dc.html` is new and registered in `canvas.json` (y 39680); W07 (Phone 1's rows, the Computer frame) is redrawn. None rendered, so check on publishing.
 
 ### 2026-10-13 — Handing ownership of a book to a successor on leaving
 - **Source**: closer for `design.leaving` (tasks/refinements/design/leaving.md), surfaced by implementer's return summary and workflow 10 §Later (line 120).

@@ -184,6 +184,13 @@
    "w": 3208,
    "h": 1500,
    "title": "1 & 13. Signing in, or making an account"
+  },
+  "Open-a-book.dc.html": {
+   "x": 0,
+   "y": 39680,
+   "w": 3208,
+   "h": 1500,
+   "title": "7 & 14. A book opens on its songs"
   }
  },
  "order": [
@@ -211,7 +218,8 @@
   "Recovery-email.dc.html",
   "Leave-book.dc.html",
   "Remove-from-shelf.dc.html",
-  "Sign-in.dc.html"
+  "Sign-in.dc.html",
+  "Open-a-book.dc.html"
  ],
  "notes": {
   "workflows": {
