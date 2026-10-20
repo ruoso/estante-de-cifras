@@ -13,19 +13,21 @@ task launch "Launch" {
   task domain "Domain and HTTPS" {
     effort 0.5d
     allocate team
-    complete 50
+    complete 100
     depends !railway
     note "estantedecifras.app is registered at GoDaddy, whose DNS keeps it: www is a CNAME to Railway and serves the app, the apex forwards to https://www (301), as a-conversa.org does. Pointing it at Railway remains. DIRECTION §3.3. Tests: none — DNS and certificates; checked by HTTPS answering at the domain."
   }
   task email "Email provider" {
     effort 1d
     allocate team
+    complete 100
     depends !domain
     note "A transactional provider sending from the domain, with the records that keep sign-in links out of spam folders. DIRECTION §3.3. Tests: none in code — provider configuration; service.email_links' tests use the mail catcher, and a link sent from the domain is checked once by hand."
   }
   task deploy "Deploy pipeline" {
     effort 1d
     allocate team
+    complete 100
     depends !railway, foundation.ci, service.serve_app
     note "Merges to main that pass deploy the service, with the app built into it. Tests: the pipeline deploys only when scripts/gate (every level) is green, and checks the health check after deploying."
   }
