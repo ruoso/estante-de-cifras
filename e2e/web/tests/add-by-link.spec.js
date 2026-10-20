@@ -39,6 +39,7 @@ import {
   sharePasskeys,
   signedInDevice,
   startApp,
+  makeAccount,
 } from '../lib/journeys.js';
 import {
   acceptInvitation,
@@ -145,9 +146,9 @@ test.describe('add by link', () => {
       expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the invited screen
       await mockup(joiner.page, 'W01-first-run', 2);
 
-      await joiner.page.getByRole('button', { name: 'Make an account' }).click();
-      await expect(joiner.page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-      await joiner.page.getByRole('button', { name: 'Use a passkey' }).click();
+      // The invitation's sections are the sign-in surface's: Make an account in
+      // place, then Not now on Add a recovery email.
+      await makeAccount(joiner.page);
 
       await expect(joiner.page.getByRole('button', { name: /^Choros da Ana/ })).toBeVisible();
       await expect(joiner.page.getByText('On Estante · can save')).toBeVisible();
@@ -208,9 +209,9 @@ test.describe('add by link', () => {
       await enableVirtualAuthenticator(joiner.page);
       await joiner.page.goto(deadLink);
       await expect(joiner.page.getByRole('heading', { name: /invited to a book on Estante/i })).toBeVisible();
-      await joiner.page.getByRole('button', { name: 'Make an account' }).click();
-      await expect(joiner.page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-      await joiner.page.getByRole('button', { name: 'Use a passkey' }).click();
+      // The invitation's sections are the sign-in surface's: Make an account in
+      // place, then Not now on Add a recovery email.
+      await makeAccount(joiner.page);
 
       const refusal = joiner.page.getByRole('alertdialog', { name: /doesn.t open a book/i });
       await expect(refusal).toBeVisible();
@@ -443,7 +444,7 @@ test.describe('add by link', () => {
       // It clones onto the shelf, On Estante (the add lands on Search).
       await gotoTab(other.page, 'Books');
       await expect(other.page.getByRole('button', { name: rowFor('Minhas cifras') })).toBeVisible();
-      await expect(other.page.getByText('On Estante')).toBeVisible();
+      await expect(other.page.getByText('On Estante', { exact: true })).toBeVisible();
     } finally {
       await other.context.close();
     }

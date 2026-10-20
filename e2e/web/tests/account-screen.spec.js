@@ -113,7 +113,7 @@ test('signs another device out from here, and that device’s session stops', as
     // B's next request 401s (lazy revocation), so B's account screen reads
     // "Not signed in".
     await startApp(deviceB.page);
-    await deviceB.page.getByRole('button', { name: 'Account' }).click();
+    await deviceB.page.getByRole('button', { name: 'Account', exact: true }).click();
     await expect(deviceB.page.getByText('Not signed in')).toBeVisible();
   } finally {
     await deviceB.context.close();

@@ -6,6 +6,7 @@ import { checkWcag21aa } from '../a11y/axe.js';
 import { instrumentInstance, configFor } from '../core/instrument.js';
 import { WIDE_QUERY, READING_ACTIONS_WIDE_QUERY } from './layout-mode.js';
 import AppShell from './AppShell.jsx';
+import { createAuthClient } from '../account/auth-client.js';
 
 // behavior (shell.routing) — the URL follows where you are: AppShell with its
 // real screens over a synchronous fake Worker port, in jsdom's real History.
@@ -833,14 +834,10 @@ describe('AppShell share surfaces (behavior)', () => {
 });
 
 // behavior (books.add_book_chooser) — the Add-a-book chooser's seams into the
-// shell. Mine on Estante signs in an EXISTING account (Decision 4; workflow 7
-// L32-38): its "Sign in with a passkey" opens SignIn in sign-in intent and its
-// "No passkey here? Email me a link" at the email step, while the empty shelf's
-// first-run Sign in keeps create intent (account.first_run). The intent is read
-// off the one request "Use a passkey" makes: authenticate/begin for sign-in,
-// register/begin for create. And the upload preview is a full-screen surface
-// (Decision 5; W07 #3; upload_ui Decision 1): no rail beside it, Cancel returns
-// to Books with the rail back.
+// shell: the upload preview is a full-screen surface (Decision 5; W07 #3;
+// upload_ui Decision 1): no rail beside it, Cancel returns to Books with the rail
+// back. Its sign-in seams are pinned below, with every other entry into the one
+// sign-in surface.
 describe('AppShell and the Add-a-book chooser (behavior)', () => {
   let realFetch;
   let requests;
@@ -862,43 +859,6 @@ describe('AppShell and the Add-a-book chooser (behavior)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add a book' }));
     return screen.getByRole('dialog', { name: 'Add a book' });
   }
-
-  it('Mine’s sign-in is for an existing account: the passkey at the method step, the emailed link at the email step; the empty shelf’s Sign in still creates', async () => {
-    const { store, emit } = makeStore();
-    render(<AppShell store={store} />);
-
-    // "Sign in with a passkey" → the Sign in surface, in sign-in intent.
-    let dialog = openSheetOnBooks(emit);
-    emit(event(EventKind.MINE, { status: 'signed_out', books: [] }));
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Sign in with a passkey' }));
-    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Use a passkey' }));
-    await waitFor(() => expect(requests).toContain('/api/auth/passkey/authenticate/begin'));
-    expect(requests.some((p) => p.includes('/register/'))).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-
-    // "No passkey here? Email me a link" → the same surface at the email step.
-    dialog = openSheetOnBooks(emit);
-    emit(event(EventKind.MINE, { status: 'signed_out', books: [] }));
-    fireEvent.click(within(dialog).getByRole('button', { name: 'No passkey here? Email me a link' }));
-    expect(screen.getByRole('heading', { name: 'Email me a link' })).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Your email' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Sign in' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    cleanup();
-
-    // The empty shelf's first-run Sign in keeps create intent (on Search: the
-    // address followed the Books tab, so start again from the root).
-    history.replaceState(null, '', '/');
-    requests.length = 0;
-    const fresh = makeStore();
-    render(<AppShell store={fresh.store} />);
-    fireEvent.click(screen.getByRole('button', { name: /^Sign in/ }));
-    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Use a passkey' }));
-    await waitFor(() => expect(requests).toContain('/api/auth/passkey/register/begin'));
-    expect(requests.some((p) => p.includes('/authenticate/'))).toBe(false);
-  });
 
   it('the upload preview is a full-screen surface: no rail beside it, and Cancel returns to Books with the rail back (W07 #3)', async () => {
     globalThis.matchMedia = (media) => ({
@@ -933,5 +893,171 @@ describe('AppShell and the Add-a-book chooser (behavior)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel the upload' }));
     expect(screen.getByRole('tablist', { name: 'Destinations' })).toHaveClass('rail');
     expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
+  });
+});
+
+// behavior (account.sign_in_two_doors) — every entry opens the one sign-in
+// surface at its two sections; only *Mine*'s emailed link names a step. Making
+// an account attaches the home book (and accepts an invitation) while *Add a
+// recovery email* still shows — nothing waits on it — and signing in never
+// registers. Pins workflow 13 L10-39 and §Asked when the account is made, and
+// workflow 1 §Invited. The auth client is a loopback double injected into the
+// shell, which shares it with the surface and the account screen.
+describe('Every entry opens both sections', () => {
+  const OPTIONS = { publicKey: { challenge: 'c', rp: { id: '127.0.0.1' } }, state: 's' };
+
+  function makeAuth(routes = {}) {
+    const calls = [];
+    const fetch = async (path, init = {}) => {
+      const method = init.method ?? 'GET';
+      calls.push({ method, path });
+      const handler = {
+        'GET /api/account/recovery-email': () => ({ status: 401 }),
+        'GET /api/account/sessions': () => ({ status: 401 }),
+        'POST /api/auth/passkey/register/begin': () => ({ body: OPTIONS }),
+        'POST /api/auth/passkey/register/finish': () => ({ body: { id: 'u_new' } }),
+        'POST /api/auth/passkey/authenticate/begin': () => ({ body: OPTIONS }),
+        'POST /api/auth/passkey/authenticate/finish': () => ({ body: { id: 'u_old' } }),
+        ...routes,
+      }[`${method} ${path}`];
+      if (!handler) throw new TypeError(`no route for ${method} ${path}`);
+      const result = handler();
+      const status = result.status ?? 200;
+      return { ok: status >= 200 && status < 300, status, json: async () => result.body };
+    };
+    return { client: createAuthClient({ fetch }), calls };
+  }
+
+  // jsdom has no WebAuthn: a platform authenticator stand-in.
+  beforeEach(() => {
+    const PublicKeyCredential = function PublicKeyCredential() {};
+    PublicKeyCredential.parseCreationOptionsFromJSON = (json) => json;
+    PublicKeyCredential.parseRequestOptionsFromJSON = (json) => json;
+    globalThis.PublicKeyCredential = PublicKeyCredential;
+    const cred = () => ({
+      id: 'c1',
+      type: 'public-key',
+      authenticatorAttachment: 'platform',
+      toJSON: () => ({ id: 'c1', rawId: 'c1', type: 'public-key', response: {}, clientExtensionResults: {} }),
+    });
+    Object.defineProperty(globalThis.navigator, 'credentials', {
+      configurable: true,
+      value: { create: async () => cred(), get: async () => cred() },
+    });
+  });
+  afterEach(() => {
+    delete globalThis.PublicKeyCredential;
+    delete globalThis.navigator.credentials;
+  });
+
+  function expectBothSections() {
+    expect(screen.getByRole('group', { name: 'Already have an account?' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'New here?' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use a passkey' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Make an account' })).toBeInTheDocument();
+  }
+
+  it('the first-run row opens the surface at both sections', async () => {
+    const { client } = makeAuth();
+    const { store } = makeStore();
+    render(<AppShell store={store} authClient={client} />);
+    fireEvent.click(screen.getByRole('button', { name: /^Sign in or make an account/ }));
+    expect(screen.getByRole('heading', { name: 'Sign in or make an account' })).toBeInTheDocument();
+    expectBothSections();
+  });
+
+  it('the account card opens the surface at both sections', async () => {
+    const { client } = makeAuth();
+    const { store } = makeStore();
+    render(<AppShell store={store} authClient={client} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Account' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign in or make an account' }));
+    expect(screen.getByRole('heading', { name: 'Sign in or make an account' })).toBeInTheDocument();
+    expectBothSections();
+  });
+
+  it('Mine on Estante’s passkey button opens both sections; its emailed link opens the email step with the field focused', async () => {
+    const { client } = makeAuth();
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} authClient={client} />);
+
+    emit(event(EventKind.SHELF, SHELF));
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add a book' }));
+    let dialog = screen.getByRole('dialog', { name: 'Add a book' });
+    emit(event(EventKind.MINE, { status: 'signed_out', books: [] }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sign in with a passkey' }));
+    expect(screen.getByRole('heading', { name: 'Sign in or make an account' })).toBeInTheDocument();
+    expectBothSections();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add a book' }));
+    dialog = screen.getByRole('dialog', { name: 'Add a book' });
+    emit(event(EventKind.MINE, { status: 'signed_out', books: [] }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'No passkey here? Email me a link' }));
+    expect(screen.getByRole('heading', { name: 'Email me a link' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Your email' })).toHaveFocus());
+    expect(screen.queryByRole('group', { name: 'New here?' })).toBeNull();
+  });
+
+  it('an invitation in its prompt phase shows the invitation heading and both sections', () => {
+    const { client } = makeAuth();
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} authClient={client} inviteToken="tok_inv" />);
+    emit(event(EventKind.NEED_ACCOUNT, { token: 'tok_inv' }));
+    expect(screen.getByRole('heading', { name: 'You’re invited to a book on Estante' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Sign in or make an account' })).toBeNull();
+    expectBothSections();
+  });
+
+  it('Make an account from the first-run row attaches the home book while Add a recovery email still shows; Not now closes the surface', async () => {
+    const { client, calls } = makeAuth();
+    const { store, sent } = makeStore();
+    render(<AppShell store={store} authClient={client} />);
+    fireEvent.click(screen.getByRole('button', { name: /^Sign in or make an account/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Make an account' }));
+
+    await screen.findByRole('heading', { name: 'Add a recovery email' });
+    const attach = sent.find((m) => m.kind === CommandKind.ATTACH_HOME);
+    expect(attach).toBeTruthy();
+    expect(attach.payload).toMatchObject({ accountId: 'u_new' });
+    expect(calls.some((c) => c.path.includes('/authenticate/'))).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(screen.queryByRole('heading', { name: 'Add a recovery email' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'New here?' })).toBeNull();
+    expect(screen.getByRole('tablist', { name: 'Destinations' })).toBeInTheDocument();
+  });
+
+  it('Make an account from an invitation re-sends the accept while the step shows; Not now leaves the step', async () => {
+    const { client } = makeAuth();
+    const { store, emit, sent } = makeStore();
+    render(<AppShell store={store} authClient={client} inviteToken="tok_inv" />);
+    emit(event(EventKind.NEED_ACCOUNT, { token: 'tok_inv' }));
+    const accepts = () => sent.filter((m) => m.kind === CommandKind.ADD_BY_LINK).length;
+    expect(accepts()).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Make an account' }));
+    await screen.findByRole('heading', { name: 'Add a recovery email' });
+    expect(accepts()).toBe(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(screen.queryByRole('heading', { name: 'Add a recovery email' })).toBeNull();
+    // Behind it, the invitation is being opened.
+    expect(screen.getByRole('heading', { name: 'Opening the invitation' })).toBeInTheDocument();
+  });
+
+  it('Use a passkey from the first-run row signs in: authenticate, never register, and no recovery step', async () => {
+    const { client, calls } = makeAuth();
+    const { store, sent } = makeStore();
+    render(<AppShell store={store} authClient={client} />);
+    fireEvent.click(screen.getByRole('button', { name: /^Sign in or make an account/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use a passkey' }));
+
+    await waitFor(() => expect(sent.some((m) => m.kind === CommandKind.ATTACH_HOME)).toBe(true));
+    expect(calls.some((c) => c.path === '/api/auth/passkey/authenticate/finish')).toBe(true);
+    expect(calls.some((c) => c.path.includes('/register/'))).toBe(false);
+    await waitFor(() => expect(screen.queryByRole('group', { name: 'New here?' })).toBeNull());
+    expect(screen.queryByRole('heading', { name: 'Add a recovery email' })).toBeNull();
   });
 });

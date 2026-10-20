@@ -21,7 +21,7 @@ import { toSearch } from '../lib/journeys-core.js';
 const WAYS = [
   'Write a song',
   'Add a book by its link',
-  'Sign in',
+  'Sign in or make an account',
   'Open the example book',
 ];
 

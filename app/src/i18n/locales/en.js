@@ -724,8 +724,8 @@ export default {
     writeSongMeta: 'It goes into My songs',
     addByLink: 'Add a book by its link',
     addByLinkMeta: 'From a teacher or a bandmate',
-    signIn: 'Sign in',
-    signInMeta: 'Bring back your shelf from another device',
+    signIn: 'Sign in or make an account',
+    signInMeta: 'Bring back your shelf, or start one on Estante.',
     openExample: 'Open the example book',
     openExampleMeta: 'Songs that come with the app, put on your shelf; remove it any time',
     mySongs: 'My songs',
@@ -762,8 +762,6 @@ export default {
       'To open it, sign in, or make an account first — no book can be read without one.',
     passkeyTitle: 'An account is a passkey',
     passkeyBody: 'No password to choose. Your phone makes it, and it takes seconds.',
-    makeAccount: 'Make an account',
-    signIn: 'I have an account: sign in',
     promptFooter: 'Then the book goes on your shelf, and opens on its songs.',
     deadTitle: 'This link doesn’t open a book',
     deadBody:
@@ -785,11 +783,18 @@ export default {
     brand: 'Estante',
     close: 'Close',
     // The method screen (W13 §Signing in).
-    heading: 'Sign in',
-    body: 'Bring your books, instruments and preferences to this phone.',
+    heading: 'Sign in or make an account',
     usePasskey: 'Use a passkey',
     emailLink: 'Email me a link',
     note: 'No passkey here? The link signs you in on this phone, and recovers your account if every device with a passkey is lost.',
+    // The two sections (workflow 13 §Signing in, or making an account; W13 #1).
+    haveAccount: 'Already have an account?',
+    newHere: 'New here?',
+    makeAccount: 'Make an account',
+    newHereNote: 'Makes a new account with a passkey. Already have one? Sign in above. This would be a second, separate account.',
+    // Asked right after Make an account (workflow 13 §Asked when the account is made).
+    recoveryHeading: 'Add a recovery email',
+    recoverySend: 'Send link',
     // The emailed-link request step.
     emailHeading: 'Email me a link',
     emailBody: 'We’ll send a sign-in link to your email. Open it on this device to sign in.',
@@ -867,10 +872,12 @@ export default {
     languageNote: 'Uses your browser’s language until you choose one.',
     // Not signed in.
     notSignedIn: 'Not signed in',
-    notSignedInBody:
-      'These preferences are saved on this device now. Sign in to keep your books and carry theme and language to your other devices.',
-    usePasskey: 'Use a passkey',
-    emailLink: 'Email me a link',
+    notSignedInBody: 'Bring your books to this device, or start keeping them on Estante.',
+    signInOrMake: 'Sign in or make an account',
+    // The banner while the account has no confirmed recovery email (workflow 13 §The banner).
+    bannerTitle: 'No recovery email yet.',
+    bannerBody: 'If you lose your passkeys, you lose this account and your books on Estante.',
+    bannerAdd: 'Add one',
     // Signed in.
     signedIn: 'Signed in',
     signedInStatus: 'Signed in on this device',

@@ -42,7 +42,7 @@ const rowFor = (title) => new RegExp('^' + escapeRegExp(title));
 // session — a reload would reconcile every song as saved).
 async function openAccount(page) {
   await leaveFiles(page);
-  await page.getByRole('button', { name: 'Account' }).click();
+  await page.getByRole('button', { name: 'Account', exact: true }).click();
   await expect(page.getByRole('radiogroup', { name: 'Theme' })).toBeVisible();
 }
 

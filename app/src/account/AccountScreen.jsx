@@ -76,6 +76,8 @@ import LeaveDialogs from './LeaveDialogs.jsx';
 import RecoveryEmailRegion from './RecoveryEmailRegion.jsx';
 import { isLastWayIn } from './recovery-email.js';
 import { useOnline } from './use-online.js';
+import RecoveryBanner from '../shell/RecoveryBanner.jsx';
+import { showsRecoveryBanner } from '../shell/account-status.js';
 import { createCredential, isCancellation } from './webauthn-json.js';
 import './account.css';
 
@@ -366,9 +368,12 @@ export default function AccountScreen({
   store,
   authClient = DEFAULT_CLIENT,
   onClose = () => {},
-  // The not-signed-in card's ways in (open the SignIn surface); `method` is
-  // 'passkey' | 'email' for the caller to route. AppShell opens SignIn either way.
+  // The not-signed-in card's one way in: AppShell opens the sign-in surface at
+  // its two sections (account.sign_in_two_doors).
   onSignIn = () => {},
+  // Opened from the banner's *Add one*: bring the Recovery email region into
+  // view with focus in it, once it has been read.
+  focusRecovery = false,
   // Return the surface to the not-signed-in state after the current-device
   // sign-out has torn down locally and cleared the session (account.sign_out).
   // The SignOutDialog owns the remove/keep-books prompt and the teardown; this
@@ -424,6 +429,9 @@ export default function AccountScreen({
   // The recovery email `{ email, pending }` (null until read) and its read error.
   const [recovery, setRecovery] = useState(null);
   const [recoveryError, setRecoveryError] = useState(null);
+  // Each request to bring the Recovery email region into focus (the banner's
+  // *Add one*, here or from the shell); 0 is none.
+  const [recoveryFocus, setRecoveryFocus] = useState(focusRecovery ? 1 : 0);
   const addInFlight = useRef(false);
   const online = useOnline();
   const wide = useAccountWide();
@@ -660,12 +668,8 @@ export default function AccountScreen({
     <div className="card pad account-signin-card">
       <span className="t-h2">{t('account.notSignedIn')}</span>
       <span className="t-small">{t('account.notSignedInBody')}</span>
-      <Button className="btn primary block" onPress={() => onSignIn('passkey')}>
-        <PasskeyIcon />
-        {t('account.usePasskey')}
-      </Button>
-      <Button className="btn block" onPress={() => onSignIn('email')}>
-        {t('account.emailLink')}
+      <Button className="btn primary block" onPress={() => onSignIn()}>
+        {t('account.signInOrMake')}
       </Button>
     </div>
   );
@@ -848,6 +852,7 @@ export default function AccountScreen({
           authClient={authClient}
           online={online}
           onReload={loadRecovery}
+          focusRequest={recoveryFocus}
         />
         <LeaveDialogs
           store={store}
@@ -860,6 +865,13 @@ export default function AccountScreen({
       </>
     );
   }
+
+  // While the account has no confirmed recovery email the banner is here too,
+  // from this screen's own read, so it follows the region as it reloads
+  // (workflow 13 §The banner). Its *Add one* asks for the region in place.
+  const banner = showsRecoveryBanner({ status: auth, recovery }) ? (
+    <RecoveryBanner onAddOne={() => setRecoveryFocus((n) => n + 1)} />
+  ) : null;
 
   const backButton = (
     <Button className="btn icon" aria-label={t('account.back')} onPress={onClose}>
@@ -886,6 +898,7 @@ export default function AccountScreen({
             </div>
           </div>
           <div className="pane main">
+            {banner}
             <div className="scroll account-main">
               {preferencesHeading}
               <div className="account-pref-row">
@@ -911,6 +924,7 @@ export default function AccountScreen({
         {backButton}
         <span className="title">{t('account.title')}</span>
       </div>
+      {banner}
       <div className="scroll account-scroll">
         <div className="account-card account-screen-card">
           {preferencesHeading}

@@ -24,7 +24,7 @@ const lastCommand = (sent, kind) => [...sent].reverse().find((m) => m.kind === k
 
 // Render SearchScreen on a cold store with spy seams for the three routed ways;
 // the fourth (open the example book) goes through the store, so we read `sent`.
-function renderFirstRun() {
+function renderFirstRun(props = {}) {
   const { store, sent } = makeStore();
   const calls = { write: 0, add: 0, signIn: 0 };
   const utils = render(
@@ -33,6 +33,7 @@ function renderFirstRun() {
       onWriteSong={() => (calls.write += 1)}
       onAddBook={() => (calls.add += 1)}
       onSignIn={() => (calls.signIn += 1)}
+      {...props}
     />,
   );
   return { ...utils, sent, calls };
@@ -52,7 +53,9 @@ describe('FirstRun (behavior)', () => {
     expect(ways[0].textContent).toContain('Write a song');
     expect(ways[0].textContent).toContain('It goes into My songs');
     expect(ways[1].textContent).toContain('Add a book by its link');
-    expect(ways[2].textContent).toContain('Sign in');
+    // One door for both: sign in, or make an account (account.sign_in_two_doors).
+    expect(ways[2].textContent).toContain('Sign in or make an account');
+    expect(ways[2].textContent).toContain('Bring back your shelf, or start one on Estante.');
     expect(ways[3].textContent).toContain('Open the example book');
 
     // My songs is listed from the start — a plain entry, not a control — with its
@@ -100,5 +103,20 @@ describe('FirstRun (behavior)', () => {
     act(() => fireEvent.keyDown(ways[3], { key: 'Enter' }));
     act(() => fireEvent.keyUp(ways[3], { key: 'Enter' }));
     expect(lastCommand(sent, CommandKind.OPEN_EXAMPLE_BOOK)).toBeTruthy();
+  });
+
+  // account.sign_in_two_doors; workflow 1 §Cold L25-29 (offered only while no
+  // one is signed in); W01 #1.
+  it('with offerSignIn={false} (signed in) there are three ways in and no sign-in row, axe clean', async () => {
+    const { container } = renderFirstRun({ offerSignIn: false });
+    const region = screen.getByRole('region', { name: 'Your shelf is empty' });
+    const ways = within(region).getAllByRole('button');
+    expect(ways.map((w) => w.querySelector('.name').textContent)).toEqual([
+      'Write a song',
+      'Add a book by its link',
+      'Open the example book',
+    ]);
+    expect(within(region).queryByRole('button', { name: /Sign in or make an account/ })).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });

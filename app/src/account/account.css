@@ -65,6 +65,33 @@
   margin: 0;
 }
 
+/* The sign-in surface's two sections (account.sign_in_two_doors; W13 #1):
+   *Already have an account?* then *New here?*, each a labelled group, the
+   second set off by a rule above it. */
+.account-door {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+  margin-top: calc(var(--u) * 1.5);
+}
+
+.account-door > h3 {
+  margin: 0;
+}
+
+.account-door-new {
+  margin-top: var(--u);
+  padding-top: calc(var(--u) * 2.25);
+  border-top: 1px solid var(--line);
+}
+
+/* The invitation heading the surface (InvitedLead, W01 #2): its own column. */
+.account-lead {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}
+
 /* The invited door's "An account is a passkey" card head (books.add_by_link;
    W01 L76-78): the key glyph beside its title, on one row. The card itself is
    the shared .card.pad. */

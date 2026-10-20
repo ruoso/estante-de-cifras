@@ -23,6 +23,7 @@ import {
   openSongInEditor,
   waitUntilSearchable,
   syncNow,
+  makeAccount,
 } from '../lib/journeys.js';
 import {
   hostedBookWithSong,
@@ -120,9 +121,9 @@ test('the two-person sharing journey: invite, join, edit to a clean merge, the p
     ).toBeVisible();
     expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the invited screen
     await mockup(joiner.page, 'W01-first-run', 2);
-    await joiner.page.getByRole('button', { name: 'Make an account' }).click();
-    await expect(joiner.page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-    await joiner.page.getByRole('button', { name: 'Use a passkey' }).click();
+    // The invitation's sections are the sign-in surface's: Make an account in
+    // place, then Not now on Add a recovery email.
+    await makeAccount(joiner.page);
     await expect(joiner.page.getByRole('button', { name: new RegExp(`^${escape(BOOK)}`) })).toBeVisible();
     await expect(joiner.page.getByText('On Estante · can save')).toBeVisible();
     await ownerNameOnService(joiner.page, 'Bia Rocha');

@@ -48,7 +48,8 @@ import { orderedBooks, titleFor, saveTargetFor } from '../books/book-display.js'
 import SignIn from '../account/SignIn.jsx';
 import UploadPreview from '../books/UploadPreview.jsx';
 import RecoveryEmailConfirm from '../account/RecoveryEmailConfirm.jsx';
-import InvitedScreen from '../account/InvitedScreen.jsx';
+import InvitedScreen, { InvitedLead, InvitedFooter } from '../account/InvitedScreen.jsx';
+import { createAuthClient } from '../account/auth-client.js';
 import InvitedRefusal from '../account/InvitedRefusal.jsx';
 import AccountScreen from '../account/AccountScreen.jsx';
 import MySongsChoice from '../account/MySongsChoice.jsx';
@@ -60,6 +61,9 @@ import { DESTINATIONS, WIDE_QUERY, layoutMode } from './layout-mode.js';
 import { bookFileSet } from '../books/setlist-display.js';
 import { initialState } from '../worker/reducer.js';
 import NotHere from './NotHere.jsx';
+import RecoveryBanner from './RecoveryBanner.jsx';
+import { useAccountStatus } from './use-account-status.js';
+import { offersFirstRunSignIn, showsRecoveryBanner } from './account-status.js';
 import { bookOfScope, sameItem } from './place.js';
 import { bootEntry, usePlaceHistory } from './use-place-history.js';
 import './shell.css';
@@ -172,7 +176,11 @@ function resolvePlace({ place, checkItem, treeReady }, shelf, tree) {
   return place.song ? 'song' : 'setlist';
 }
 
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode, restore = {}, openSetlistView = null, onShareBook = () => {}, onSignInMine = () => {}, onUpload = () => {}, openBookView = null) {
+// The shell's auth client (the account-status probe), shared with the sign-in
+// surface and the account screen; the behavior level injects a loopback double.
+const DEFAULT_AUTH_CLIENT = createAuthClient();
+
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode, restore = {}, openSetlistView = null, onShareBook = () => {}, onSignInMine = () => {}, onUpload = () => {}, openBookView = null, offerSignIn = true) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key} className="shell-panel">
       {key === 'search' ? (
@@ -191,6 +199,7 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
           onWriteSong={onWriteSong}
           onOpenSong={onOpenSong}
           onSignIn={onSignIn}
+          offerSignIn={offerSignIn}
           query={search.query}
           onQueryChange={search.onQueryChange}
           onExploreChord={search.onExploreChord}
@@ -238,8 +247,16 @@ export default function AppShell({
   recoveryToken = null,
   inviteToken = null,
   inviteSongAnchor = null,
+  authClient = DEFAULT_AUTH_CLIENT,
 }) {
   const mode = useLayoutMode();
+  // What the shell knows of the account, from the service's answer
+  // (account.sign_in_two_doors): whether the cold row offers signing in, and
+  // whether the recovery-email banner shows. The client is read once: one
+  // stable value for the probe (which holds it in a ref) and the surfaces.
+  const [auth] = useState(authClient);
+  const accountStatus = useAccountStatus(auth);
+  const refreshAccount = accountStatus.refresh;
   const shelf = useSlice(store, 'shelf');
   const tree = useSlice(store, 'tree');
   const sync = useSlice(store, 'sync');
@@ -271,26 +288,21 @@ export default function AppShell({
   // sign-in (accept is idempotent on repeat — no double join).
   const [invited, setInvited] = useState(inviteToken ? { phase: 'working', token: inviteToken } : null);
 
-  // The sign-in surface (account.sign_in): a full-screen surface over the shell,
-  // like `openSong`/`openFile`. It is opened by the empty shelf's "Sign in" row
-  // (the `onSignIn` seam account.first_run wired) in create intent — the cold
-  // device's primary account-creation path, "An account is a passkey" (workflow
-  // 7; the e2e journey makes an account here) — or, when the app booted at
-  // `/sign-in/<token>` (App.jsx), straight into redeem mode. The returning-device
-  // authenticate path and its "I have an account: sign in" entry are
-  // books.add_by_link's, which opens this same surface in sign-in intent.
-  // `null` is closed; otherwise `{ intent, token }`. Closing (cancel, or after a
-  // successful `onSignedIn`) returns to where it was opened from. The account
-  // itself is handed to `onSignedIn`, which hands its id to the Worker's attach
-  // (account.commit_author Decision 1) and closes the surface.
-  const [signIn, setSignIn] = useState(
-    redeemToken ? { intent: 'signIn', token: redeemToken } : null,
-  );
-  // Mine on Estante's sign-in (books.add_book_chooser Decision 4): someone with
-  // books on Estante has an account, so the surface opens in sign-in intent —
-  // never create — at the method step, or at the email step for "No passkey
-  // here? Email me a link". The empty shelf's Sign in keeps create intent.
-  const signInMine = (step) => setSignIn({ intent: 'signIn', step: step === 'email' ? 'email' : 'method' });
+  // The one sign-in surface (account.sign_in, account.sign_in_two_doors;
+  // workflow 13 §Signing in, or making an account): a full-screen surface over
+  // the shell, like `openSong`/`openFile`, opened the same way from every entry
+  // — the cold row, the account card, *Mine on Estante* and an invitation (with
+  // the invitation as its lead) — at its two sections; no entry picks a door.
+  // When the app booted at `/sign-in/<token>` (App.jsx) it opens straight into
+  // redeem mode. `null` is closed; otherwise `{ step?, token?, forInvite? }`.
+  // `onSignedIn` attaches the home book (and accepts the invitation) the moment
+  // the session exists; `onDone` closes it once its last step — the offer, or
+  // *Add a recovery email* after *Make an account* — has ended.
+  const [signIn, setSignIn] = useState(redeemToken ? { token: redeemToken } : null);
+  // Mine on Estante's sign-in (books.add_book_chooser Decision 4): its passkey
+  // button opens the two sections; "No passkey here? Email me a link" names a
+  // step, so it lands on the email step.
+  const signInMine = (step) => setSignIn(step === 'email' ? { step: 'email' } : {});
 
   // The upload preview (books.upload_ui Decision 1; books.add_book_chooser
   // Decision 5): a full-screen surface over the shell on every viewport, with no
@@ -305,7 +317,13 @@ export default function AppShell({
   // from a 200/401 probe (Decision 3), writes theme/language through the Worker,
   // and its not-signed-in card opens the SignIn surface above it; closing returns
   // to where it was opened from (the selected destination is held in `selected`).
+  // `{ focus: 'recovery' }` opens it from the banner's *Add one*, at the
+  // Recovery email region (account.sign_in_two_doors).
   const [account, setAccount] = useState(false);
+  const openRecoveryEmail = () => setAccount({ focus: 'recovery' });
+  // A song read full screen drops the banner with the rest of the chrome
+  // (workflow 13 §The banner, *Full screen*); SongReading reports it.
+  const [readingFull, setReadingFull] = useState(false);
 
   // A new device (account.new_device): the shelf's *Home book restored* notice
   // is dismissed for the rest of this start (it outlives a tab switch, so it is
@@ -451,7 +469,12 @@ export default function AppShell({
   // and what `popstate` does to a surface the entry it lands on does not name.
   // The editor's unsaved edit stays in the working copy either way.
   const closers = {
-    account: () => setAccount(false),
+    // Closing the account screen asks again: the address may have been set or
+    // confirmed there.
+    account: () => {
+      setAccount(false);
+      refreshAccount();
+    },
     conflicts: () => setConflictsBook(null),
     songConflict: () => setSongConflict(null),
     history: () => {
@@ -666,8 +689,13 @@ export default function AppShell({
   // The account-first gate: the accept answered 401, so show the generic invited
   // screen (names nothing about the book) with the account-first prompt. The
   // token to retry is kept in the ref.
+  // The prompt is the one sign-in surface with the invitation as its lead
+  // (account.sign_in_two_doors Decision *The invitation's prompt is the sign-in
+  // surface*), so its sections are pressed in place and its recovery step
+  // survives the accept moving the invitation on behind it.
   useWorkerEvent(store, EventKind.NEED_ACCOUNT, ({ token }) => {
     setInvited((prev) => ({ phase: 'prompt', token: token ?? prev?.token ?? null }));
+    setSignIn({ forInvite: true });
   });
 
   // The book was cloned and recorded on the shelf. Only the invited flow lands on
@@ -754,16 +782,22 @@ export default function AppShell({
 
   // The sign-in surface is a full screen over the shell (account.sign_in
   // Decision 3), checked first so a `/sign-in/<token>` boot shows it even with
-  // no shelf yet behind it. `onSignedIn` hands the account's id to the Worker's
-  // attach, which fills the shelf and switches the commit author
-  // (account.new_device; account.commit_author), then closes. Cancel closes the
-  // same way.
+  // no shelf yet behind it, and so an invitation's prompt is this one element in
+  // this one place from its sections to its last step. `onSignedIn` hands the
+  // account's id to the Worker's attach, which fills the shelf and switches the
+  // commit author (account.new_device; account.commit_author), and re-sends an
+  // invitation's accept — all while the surface's last step still shows
+  // (workflow 13 §Asked when the account is made: nothing waits on it). `onDone`
+  // closes it onto where the person was headed. Closing before a session
+  // returns to where it was opened from; an invitation's closes the invitation.
   if (signIn) {
     return (
       <SignIn
-        intent={signIn.intent}
+        authClient={auth}
         initialStep={signIn.step ?? 'method'}
         redeemToken={signIn.token ?? null}
+        lead={signIn.forInvite ? <InvitedLead /> : null}
+        leadFooter={signIn.forInvite ? <InvitedFooter /> : null}
         onSignedIn={(account) => {
           // Signing in makes this device the account's (account.new_device):
           // the Worker attaches the home book — its settings first — and fills
@@ -775,20 +809,44 @@ export default function AppShell({
           // session (idempotent on repeat — no double join), showing the working
           // surface again while it clones.
           const token = invited?.token;
-          setSignIn(null);
           if (signIn.forInvite && token) {
             openByLink(token);
           }
+          refreshAccount();
         }}
-        onClose={() => setSignIn(null)}
+        onDone={() => setSignIn(null)}
+        onClose={() => {
+          if (signIn.forInvite) setInvited(null);
+          setSignIn(null);
+        }}
       />
     );
   }
 
+  // The recovery-email banner (workflow 13 §The banner): shown on the service's
+  // answer while the signed-in account has no confirmed address. The shell
+  // draws it below the header chrome; every other surface that replaces the
+  // shell gets it at the top of the window, above its own bar, through
+  // `framed` (*Screens without the header chrome*). Not on the sign-in surface
+  // or the verification-link page (above), the setlist's Play, reading full
+  // screen, or the account screen, which draws its own.
+  const showBanner = showsRecoveryBanner(accountStatus);
+  const banner = showBanner ? <RecoveryBanner onAddOne={openRecoveryEmail} /> : null;
+  // The frame is always there, the banner in it or not, so a surface is never
+  // re-mounted when the banner comes or goes.
+  const framed = (surface, { withBanner = true } = {}) => (
+    <div className="recovery-frame">
+      {withBanner ? banner : null}
+      {surface}
+    </div>
+  );
+
   // The account screen (account.account_screen): a full screen over the shell,
-  // checked after SignIn so the not-signed-in card's "Use a passkey" / "Email me
-  // a link" open the SignIn surface above it and return here on close (the
-  // account surface stays open behind it). `onSignOut` returns the surface to the
+  // checked after SignIn so the not-signed-in card's *Sign in or make an account*
+  // opens the SignIn surface above it and returns here on close (the account
+  // surface stays open behind it). It draws the recovery-email banner itself,
+  // from its own read; opened from the banner's *Add one* it focuses the
+  // Recovery email region. `onSignOut` returns the surface to the
   // not-signed-in state once account.sign_out's dialog has torn the account down
   // on this device: close the account screen onto the shelf (which the Worker has
   // already emptied, in remove mode, or left as local books, in keep mode).
@@ -796,27 +854,24 @@ export default function AppShell({
     return (
       <AccountScreen
         store={store}
+        authClient={auth}
+        focusRecovery={account?.focus === 'recovery'}
         onClose={() => back(closers.account)}
-        onSignIn={() => setSignIn({ intent: 'signIn' })}
-        onSignOut={() => setAccount(false)}
+        onSignIn={() => setSignIn({})}
+        onSignOut={() => {
+          setAccount(false);
+          refreshAccount();
+        }}
       />
     );
   }
 
-  // The invited door (books.add_by_link, workflow 1 §Invited): checked after
-  // SignIn so pressing "Make an account" / "I have an account: sign in" opens the
-  // passkey surface over it and returns here, and before the shell so it shows
-  // even with no shelf behind it. A refused link is not this screen: the shell
+  // The invited door's working phase (books.add_by_link, workflow 1 §Invited):
+  // before the shell so it shows even with no shelf behind it. Its prompt is
+  // the sign-in surface above. A refused link is not this screen: the shell
   // renders, with InvitedRefusal over it (books.invited_presentation).
   if (invited && (invited.phase === 'working' || invited.phase === 'prompt')) {
-    return (
-      <InvitedScreen
-        phase={invited.phase}
-        onMakeAccount={() => setSignIn({ intent: 'create', forInvite: true })}
-        onSignIn={() => setSignIn({ intent: 'signIn', forInvite: true })}
-        onClose={() => setInvited(null)}
-      />
-    );
+    return framed(<InvitedScreen onClose={() => setInvited(null)} />);
   }
 
   // An address for something not on this device (shell.routing; workflow 7
@@ -831,14 +886,14 @@ export default function AppShell({
       setResolving(null);
       applyPlace(next);
     };
-    return (
-      <NotHere
-        kind={verdict}
-        bookLabel={verdict === 'book' ? '' : titleFor(entry?.book ?? {}, notHereBook)}
-        onBack={() => back(() => leave({ tab: 'search' }))}
-        onGoToBooks={() => leave({ tab: 'books' })}
-        onOpenBook={() => leave({ tab: 'search', book: notHereBook })}
-      />
+    return framed(
+        <NotHere
+          kind={verdict}
+          bookLabel={verdict === 'book' ? '' : titleFor(entry?.book ?? {}, notHereBook)}
+          onBack={() => back(() => leave({ tab: 'search' }))}
+          onGoToBooks={() => leave({ tab: 'books' })}
+          onOpenBook={() => leave({ tab: 'search', book: notHereBook })}
+        />,
     );
   }
 
@@ -895,17 +950,17 @@ export default function AppShell({
   // full screen over the shell. *Later* puts it away until the next start. A
   // merge that collides hands the account's *My songs* to the conflict panel.
   if (mySongsChoice?.offered && !mySongsLater) {
-    return (
-      <MySongsChoice
-        store={store}
-        choice={mySongsChoice}
-        onClose={() => setMySongsLater(true)}
-        onNeedsYou={(bookId) => {
-          setMySongsLater(true);
-          store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
-          openConflicts(bookId);
-        }}
-      />
+    return framed(
+        <MySongsChoice
+          store={store}
+          choice={mySongsChoice}
+          onClose={() => setMySongsLater(true)}
+          onNeedsYou={(bookId) => {
+            setMySongsLater(true);
+            store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
+            openConflicts(bookId);
+          }}
+        />,
     );
   }
 
@@ -915,21 +970,24 @@ export default function AppShell({
   // merge opens the book's conflict surface through `openBook` (books.upload_ui
   // Decision 2).
   if (upload) {
-    return (
-      <UploadPreview
-        store={store}
-        bytes={upload.bytes}
-        fileName={upload.fileName}
-        onClose={() => setUpload(null)}
-        onNeedsYou={(bookId) => {
-          setUpload(null);
-          openBook(bookId);
-        }}
-      />
+    return framed(
+        <UploadPreview
+          store={store}
+          bytes={upload.bytes}
+          fileName={upload.fileName}
+          onClose={() => setUpload(null)}
+          onNeedsYou={(bookId) => {
+            setUpload(null);
+            openBook(bookId);
+          }}
+        />,
     );
   }
 
   const openInstruments = () => setInstrumentsOpen(true);
+  // The cold row's *Sign in or make an account*, only while no one is signed in
+  // (workflow 1 §Cold).
+  const offerSignIn = offersFirstRunSignIn(accountStatus);
   // Opening a setlist, from any destination, selects the Setlists tab
   // (books.setlist_chrome Decision 3); a search hit still pushes, so Back lands
   // on search again.
@@ -988,8 +1046,9 @@ export default function AppShell({
             {/* Busy while an address resolves (shell.routing): what it names
                 opens over this destination once the device says it is here. */}
             <main className="pane main" aria-busy={resolving ? true : undefined}>
+              {banner}
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, null, shareBook, signInMine, setUpload, booksView)}
+                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({}), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, null, shareBook, signInMine, setUpload, booksView, offerSignIn)}
               </div>
             </main>
           </div>
@@ -1007,6 +1066,7 @@ export default function AppShell({
                 onAccount={() => setAccount(true)}
               />
             )}
+            {banner}
             {/* The TabList renders before the TabPanels so RAC can register the
                 tab ids the panels reference (react-aria tabs link panel↔tab by a
                 shared base id set when the list mounts); the tab bar is placed
@@ -1015,11 +1075,12 @@ export default function AppShell({
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className={setlistView ? 'scroll scroll-setlist' : 'scroll'} aria-busy={resolving ? true : undefined}>
-              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({ intent: 'create' }), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, setlistView, shareBook, signInMine, setUpload)}
+              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({}), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, setlistView, shareBook, signInMine, setUpload, null, offerSignIn)}
             </main>
           </div>
         )}
       </Tabs>
+      {sharingScreen ? banner : null}
       {sharingScreen}
       <InstrumentsOverlay
         store={store}
@@ -1068,13 +1129,13 @@ export default function AppShell({
   // full screen over the paused panel, raised by its *Settle*. Checked first so
   // it sits over the panel; Back returns to it.
   if (songConflict) {
-    return (
-      <SongConflict
-        store={store}
-        bookId={songConflict.bookId}
-        path={songConflict.path}
-        onClose={() => back(closers.songConflict)}
-      />
+    return framed(
+        <SongConflict
+          store={store}
+          bookId={songConflict.bookId}
+          path={songConflict.path}
+          onClose={() => back(closers.songConflict)}
+        />,
     );
   }
 
@@ -1096,7 +1157,7 @@ export default function AppShell({
         onClose={() => back(closers.conflicts)}
       />
     );
-    return mode === 'wide' ? renderShell({ booksView: panel }) : panel;
+    return mode === 'wide' ? renderShell({ booksView: panel }) : framed(panel);
   }
 
   // A song's history is a full screen over whatever opened it (songs.history),
@@ -1106,7 +1167,7 @@ export default function AppShell({
   // History button (sync.read_in_place) and the editor's merge notice
   // (songs.edit_in_place) reach it through `onOpenHistory`.
   if (history) {
-    return (
+    return framed(
       <>
         <SongHistory
           store={store}
@@ -1124,7 +1185,7 @@ export default function AppShell({
           bookLabel={saveTargetFor(shelf, history.bookId).label}
           canSave={saveTargetFor(shelf, history.bookId).canSave}
         />
-      </>
+      </>,
     );
   }
 
@@ -1157,20 +1218,20 @@ export default function AppShell({
       />
     );
   }
-  if (sharingScreen && openSong) return sharingScreen;
+  if (sharingScreen && openSong) return framed(sharingScreen);
 
   // The file view is a full screen over the shell (books.file_view Decision 7),
   // exactly as the new-song editor host is; Back returns to the shell.
   if (openFile) {
-    return (
-      <FileView
-        store={store}
-        bookId={openFile.bookId}
-        initialPath={openFile.path}
-        mode={mode}
-        onBack={() => back(closers.files)}
-        onOpenHistory={setHistory}
-      />
+    return framed(
+        <FileView
+          store={store}
+          bookId={openFile.bookId}
+          initialPath={openFile.path}
+          mode={mode}
+          onBack={() => back(closers.files)}
+          onOpenHistory={setHistory}
+        />,
     );
   }
 
@@ -1178,32 +1239,32 @@ export default function AppShell({
   // screen over the shell (W03 board: a Back affordance on every viewport, the
   // editor's own text/preview split as the wide layout).
   if (editing?.bookId && editing?.path) {
-    return (
-      <NewSongHost
-        store={store}
-        editing={editing}
-        mode={mode}
-        onBack={exitEditing}
-        onChangeBook={changeBook}
-        onOpenHistory={setHistory}
-        editorRef={editorRef}
-      />
+    return framed(
+        <NewSongHost
+          store={store}
+          editing={editing}
+          mode={mode}
+          onBack={exitEditing}
+          onChangeBook={changeBook}
+          onOpenHistory={setHistory}
+          editorRef={editorRef}
+        />,
     );
   }
 
   // Editing an existing song (workflow 4): a full screen over the reading view;
   // Back and a save return to it (the unsaved edit stays in the working copy).
   if (editingSong) {
-    return (
-      <EditSongHost
-        store={store}
-        editing={editingSong}
-        mode={mode}
-        onBack={() => back(closers.editor)}
-        onOpenHistory={setHistory}
-        onEdit={({ bookId, path, title }) => setEditingSong({ bookId, path, songTitle: title ?? '' })}
-        editorRef={editorRef}
-      />
+    return framed(
+        <EditSongHost
+          store={store}
+          editing={editingSong}
+          mode={mode}
+          onBack={() => back(closers.editor)}
+          onOpenHistory={setHistory}
+          onEdit={({ bookId, path, title }) => setEditingSong({ bookId, path, songTitle: title ?? '' })}
+          editorRef={editorRef}
+        />,
     );
   }
 
@@ -1212,25 +1273,25 @@ export default function AppShell({
   // `arranging` so it sits over it; **Back** / **Write the plan** close it and
   // flag arrange to send focus back to its Run-the-wizard button as it re-mounts.
   if (wizard) {
-    return (
-      <SongWizard
-        store={store}
-        bookId={wizard.bookId}
-        path={wizard.path}
-        mode={mode}
-        onBack={() => back(closers.wizard)}
-        onDone={() => {
-          // The computer split's **Done** keeps arrange's meaning: back to
-          // reading, leaving the wizard and arrange together (songs.arrange_polish
-          // Decision 8; nothing was written — the plan lives in memory). The
-          // wizard's entry is stepped back as its Back does; arrange closes at
-          // once, so the entry back lands on is the reading view's and the
-          // history hook steps over it.
-          back(closers.wizard);
-          setArranging(null);
-          setWizardReturn(false);
-        }}
-      />
+    return framed(
+        <SongWizard
+          store={store}
+          bookId={wizard.bookId}
+          path={wizard.path}
+          mode={mode}
+          onBack={() => back(closers.wizard)}
+          onDone={() => {
+            // The computer split's **Done** keeps arrange's meaning: back to
+            // reading, leaving the wizard and arrange together (songs.arrange_polish
+            // Decision 8; nothing was written — the plan lives in memory). The
+            // wizard's entry is stepped back as its Back does; arrange closes at
+            // once, so the entry back lands on is the reading view's and the
+            // history hook steps over it.
+            back(closers.wizard);
+            setArranging(null);
+            setWizardReturn(false);
+          }}
+        />,
     );
   }
 
@@ -1241,17 +1302,17 @@ export default function AppShell({
   // wizard surface above (songs.wizard_ui); on its close arrange re-mounts and
   // `autoFocusWizard` returns focus to the button that opened it.
   if (arranging) {
-    return (
-      <SongArrange
-        store={store}
-        bookId={arranging.bookId}
-        path={arranging.path}
-        mode={mode}
-        onBack={() => back(closers.arrange)}
-        onRunWizard={(args) => setWizard(args)}
-        autoFocusWizard={wizardReturn}
-        onWizardFocusReturned={() => setWizardReturn(false)}
-      />
+    return framed(
+        <SongArrange
+          store={store}
+          bookId={arranging.bookId}
+          path={arranging.path}
+          mode={mode}
+          onBack={() => back(closers.arrange)}
+          onRunWizard={(args) => setWizard(args)}
+          autoFocusWizard={wizardReturn}
+          onWizardFocusReturned={() => setWizardReturn(false)}
+        />,
     );
   }
 
@@ -1295,7 +1356,7 @@ export default function AppShell({
             />
           )
       : null;
-    return (
+    return framed(
       <>
         <SongReading
           store={store}
@@ -1311,6 +1372,7 @@ export default function AppShell({
           onShowFile={({ bookId, path }) => openBook(bookId, path)}
           onAddToSetlist={setAddingToSetlist}
           sidePanel={songShare}
+          onFullScreenChange={setReadingFull}
         />
         {addingToSetlist ? (
           <AddToSetlist
@@ -1319,7 +1381,8 @@ export default function AppShell({
             onClose={() => setAddingToSetlist(null)}
           />
         ) : null}
-      </>
+      </>,
+      { withBanner: !readingFull },
     );
   }
 
@@ -1354,20 +1417,20 @@ export default function AppShell({
       onPlay={({ bookId, path }) => setPlayingSetlist({ bookId, path })}
     />
   ) : null;
-  if (setlistView && mode === 'wide') return setlistView;
+  if (setlistView && mode === 'wide') return framed(setlistView);
 
   // The chord explorer (music.explorer, workflow 16): a full screen over the
   // shell, reached from search's chord row, carrying the typed symbol. Back
   // returns to search with the query still typed (it is lifted above).
   if (exploring) {
-    return (
-      <ChordExplorer
-        store={store}
-        initialText={exploring.text}
-        mode={mode}
-        onBack={() => back(closers.explorer)}
-        onTextChange={setSearchQuery}
-      />
+    return framed(
+        <ChordExplorer
+          store={store}
+          initialText={exploring.text}
+          mode={mode}
+          onBack={() => back(closers.explorer)}
+          onTextChange={setSearchQuery}
+        />,
     );
   }
 

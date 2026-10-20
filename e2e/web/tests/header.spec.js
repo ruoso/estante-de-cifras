@@ -31,7 +31,7 @@ async function expectUnclipped(page, header) {
   const parts = [
     header.locator('.wordmark'),
     header.getByRole('button', { name: /change instrument/ }),
-    header.getByRole('button', { name: 'Account' }),
+    header.getByRole('button', { name: 'Account', exact: true }),
   ];
   const boxes = [];
   for (const part of parts) {
@@ -71,7 +71,7 @@ async function expectHeader(page, label) {
   await expect(header.locator('.wordmark')).toHaveText('Estante');
   const headerChip = header.getByRole('button', { name: `${label}, change instrument` });
   await expect(headerChip).toHaveText(label);
-  await expect(header.getByRole('button', { name: 'Account' })).toBeVisible();
+  await expect(header.getByRole('button', { name: 'Account', exact: true })).toBeVisible();
   await expect(visibleChips(page)).toHaveCount(1);
   return headerChip;
 }

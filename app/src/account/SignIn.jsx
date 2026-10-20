@@ -1,29 +1,38 @@
-// SignIn — the app's authentication surface (account.sign_in; workflow 13
-// §Signing in on another device, workflow 7 §Signing in; mockup W13). One
-// multi-step, full-screen surface (Decision 3), mounted by AppShell via the
-// same `openSong`/`openFile` useState + early-return pattern, reached from the
-// empty shelf's "Sign in" row (the `onSignIn` seam account.first_run wired) and,
-// in redeem mode, from the emailed-link boot route in App.jsx.
+// SignIn — the app's one sign-in surface (account.sign_in,
+// account.sign_in_two_doors; workflow 13 §Signing in, or making an account;
+// mockup W13 #1). One multi-step, full-screen surface (Decision 3), mounted by
+// AppShell via the same useState + early-return pattern as `openSong`, and
+// opened the same way from every entry: the empty shelf's row, the account
+// card, *Mine on Estante*, an invitation (with the invitation as its `lead`) and,
+// in redeem mode, the emailed-link boot route in App.jsx.
 //
-// It offers the three ceremonies that make the service set (or first mint) the
-// `estante_session` cookie — sign in with a passkey, make an account with a
-// passkey, and the emailed-link fallback — and, after a sign-in that left no
-// passkey resident here, offers to add one (Decision 5). On success it hands the
-// resulting `Account { id }` to `onSignedIn` and closes; it never reads the
-// cookie, stores no token, and logs nothing (Constraints). Everything the user
-// does elsewhere stays offline; this surface is the one online exception, and
-// when it cannot reach the service it says so in words and lets the user retry.
+// Its first step is two labelled sections, in this order: *Already have an
+// account?* (Use a passkey — authenticate; Email me a link) and *New here?*
+// (Make an account — register, which always makes a new, separate account, as
+// its line says). No entry picks a door; only a press that names a step lands
+// on it (`initialStep="email"`).
+//
+// Two outcomes, two callbacks: `onSignedIn(account)` fires once, the moment a
+// session exists (a finish, or a redeemed link), so the caller attaches the
+// home book and accepts an invitation at once; the surface then stays open
+// until its last step ends and calls `onDone()` — at once after a sign-in, after
+// the offer to add a passkey (Decision 5), or after *Add a recovery email*, which
+// follows *Make an account* and nothing else. It never reads the cookie, stores
+// no token, and logs nothing (Constraints). Everything the user does elsewhere
+// stays offline; this surface is the one online exception, and when it cannot
+// reach the service it says so in words and lets the user retry.
 //
 // Presentational throughout with React Aria Components, a managed focus across
 // steps, and every status carried by a word (never colour). The platform passkey
 // prompt is the browser's own — outside our axe surface.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Button, Input, Label, TextField } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { createAuthClient } from './auth-client.js';
 import { createCredential, getCredential, isCancellation } from './webauthn-json.js';
 import { shouldOfferPasskey } from './offer-passkey.js';
+import RecoveryEmailStep from './RecoveryEmailStep.jsx';
 import './account.css';
 
 // The real client, bound to the browser's fetch; the behavior level injects a
@@ -91,10 +100,6 @@ function BusyStatus({ busy }) {
 }
 
 export default function SignIn({
-  // 'signIn' (the returning user: authenticate) or 'create' (a brand-new user:
-  // register). The empty-shelf row opens 'signIn'; books.add_by_link's invited
-  // door will open 'create' (that caller lands with its own task).
-  intent = 'signIn',
   // When set, the surface boots in redeem mode and redeems this emailed-link
   // token on mount (App.jsx captures it from `/sign-in/<token>`).
   redeemToken = null,
@@ -102,10 +107,20 @@ export default function SignIn({
   // Add-a-book sheet's "No passkey here? Email me a link" lands straight on the
   // emailed-link step (books.add_book_chooser Decision 4; workflow 13 L25-30).
   initialStep = 'method',
+  // What heads the method step in place of its own heading: the invitation's
+  // (InvitedLead, workflow 1 §Invited), whose `h1` takes the step's focus. The
+  // two sections are drawn unchanged below it.
+  lead = null,
+  // What follows the two sections under a lead (the invitation's footer, W01 #2).
+  leadFooter = null,
   authClient = DEFAULT_CLIENT,
   // An optional human label for a newly registered passkey (device name).
   label = undefined,
+  // A session now exists: called once, with the `Account`.
   onSignedIn = () => {},
+  // The surface's last step has ended (after onSignedIn).
+  onDone = () => {},
+  // Closed before any session exists.
   onClose = () => {},
 }) {
   const [step, setStep] = useState(redeemToken ? 'redeeming' : initialStep);
@@ -113,7 +128,7 @@ export default function SignIn({
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
 
-  const accountRef = useRef(null); // the Account held between a finish/redeem and the offer step
+  const accountRef = useRef(null); // the Account, once a session exists
   const inFlight = useRef(false); // a second press does not start two ceremonies (Constraints)
   const headingRef = useRef(null);
   const redeemStarted = useRef(false);
@@ -121,6 +136,9 @@ export default function SignIn({
   // Opened at the email step, the field takes focus on arrival (there is no
   // step before it to come from); only that first arrival.
   const focusEmailFirst = useRef(!redeemToken && initialStep === 'email');
+  const leadRef = useRef(null);
+  const haveId = useId();
+  const newId = useId();
 
   // Move focus to each step's heading as it appears, so the keyboard and a
   // screen reader land on the new step (focus management across steps).
@@ -130,20 +148,27 @@ export default function SignIn({
       emailRef.current.focus();
       return;
     }
-    headingRef.current?.focus();
+    // With a lead, its own heading is the method step's (the invitation's h1).
+    const lead = step === 'method' ? leadRef.current?.querySelector('h1, h2') : null;
+    (lead ?? headingRef.current)?.focus();
   }, [step]);
 
-  // On a successful sign-in: either offer a passkey here (then close), or close
-  // now by handing the account out.
+  // A session exists: hand the account out at once (the caller attaches the
+  // home book, accepts an invitation), then go on to what follows it — the
+  // recovery step after Make an account, the offer after a sign-in that left no
+  // passkey here (Decision 5), or nothing.
   function finishSignIn(account, outcome) {
     accountRef.current = account;
     inFlight.current = false;
     setBusy(false);
-    if (shouldOfferPasskey(outcome)) {
-      setError(null);
+    setError(null);
+    onSignedIn(account);
+    if (outcome.method === 'register') {
+      setStep('recovery');
+    } else if (shouldOfferPasskey(outcome)) {
       setStep('offer');
     } else {
-      onSignedIn(account);
+      onDone();
     }
   }
 
@@ -165,14 +190,15 @@ export default function SignIn({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [redeemToken]);
 
-  // "Use a passkey" — authenticate (sign-in intent) or register (create intent).
-  async function usePasskey() {
+  // "Use a passkey" (Already have an account?) authenticates; "Make an account"
+  // (New here?) registers, which the service always answers with a new account.
+  async function runCeremony(create) {
     if (inFlight.current) return;
     inFlight.current = true;
     setBusy(true);
     setError(null);
     try {
-      if (intent === 'create') {
+      if (create) {
         const begin = await authClient.registerBegin(label);
         const { credential } = await createCredential(begin.publicKey);
         const account = await authClient.registerFinish({ state: begin.state, credential, label });
@@ -217,7 +243,8 @@ export default function SignIn({
   }
 
   // The offer step: register a passkey here with the session now set. Declining
-  // or succeeding both close to onSignedIn (acceptance 6).
+  // or succeeding both end the surface (onDone); the account was handed out
+  // already.
   async function addPasskeyHere() {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -229,7 +256,7 @@ export default function SignIn({
       await authClient.registerFinish({ state: begin.state, credential, label });
       inFlight.current = false;
       setBusy(false);
-      onSignedIn(accountRef.current);
+      onDone();
     } catch (err) {
       inFlight.current = false;
       setBusy(false);
@@ -238,19 +265,19 @@ export default function SignIn({
     }
   }
 
-  // Declining the offer closes to onSignedIn with the account already signed in.
-  const skipOffer = () => onSignedIn(accountRef.current);
+  // Declining the offer ends the surface, the account already signed in.
+  const skipOffer = () => onDone();
 
   const goMethod = () => {
     setError(null);
     setStep('method');
   };
 
-  // The app-bar close returns to where the surface was opened; at the offer step
-  // the user is already signed in, so closing hands the account out instead.
+  // The app-bar close returns to where the surface was opened; once a session
+  // exists (the offer, the recovery step) closing ends the surface instead.
   const handleClose = () => {
-    if (step === 'offer' && accountRef.current) {
-      onSignedIn(accountRef.current);
+    if (accountRef.current) {
+      onDone();
     } else {
       onClose();
     }
@@ -260,26 +287,46 @@ export default function SignIn({
   if (step === 'method') {
     content = (
       <>
-        <h2 className="t-display account-heading" ref={headingRef} tabIndex={-1}>
-          {t('signIn.heading')}
-        </h2>
-        <p className="t-body account-sub">{t('signIn.body')}</p>
+        {lead ? (
+          <div className="account-lead" ref={leadRef}>
+            {lead}
+          </div>
+        ) : (
+          <h2 className="t-display account-heading" ref={headingRef} tabIndex={-1}>
+            {t('signIn.heading')}
+          </h2>
+        )}
         {error ? <ErrorNotice messageKey={error} /> : null}
-        <Button className="btn primary block" onPress={usePasskey} isDisabled={busy}>
-          <PasskeyIcon />
-          {t('signIn.usePasskey')}
-        </Button>
-        <Button
-          className="btn block"
-          onPress={() => {
-            setError(null);
-            setStep('email');
-          }}
-          isDisabled={busy}
-        >
-          {t('signIn.emailLink')}
-        </Button>
-        <p className="t-small account-note">{t('signIn.note')}</p>
+        <div className="account-door" role="group" aria-labelledby={haveId}>
+          <h3 className="t-h2" id={haveId}>
+            {t('signIn.haveAccount')}
+          </h3>
+          <Button className="btn primary block" onPress={() => runCeremony(false)} isDisabled={busy}>
+            <PasskeyIcon />
+            {t('signIn.usePasskey')}
+          </Button>
+          <Button
+            className="btn block"
+            onPress={() => {
+              setError(null);
+              setStep('email');
+            }}
+            isDisabled={busy}
+          >
+            {t('signIn.emailLink')}
+          </Button>
+          <p className="t-small account-note">{t('signIn.note')}</p>
+        </div>
+        <div className="account-door account-door-new" role="group" aria-labelledby={newId}>
+          <h3 className="t-h2" id={newId}>
+            {t('signIn.newHere')}
+          </h3>
+          <Button className="btn block" onPress={() => runCeremony(true)} isDisabled={busy}>
+            {t('signIn.makeAccount')}
+          </Button>
+          <p className="t-small account-note">{t('signIn.newHereNote')}</p>
+        </div>
+        {lead ? leadFooter : null}
         <BusyStatus busy={busy} />
       </>
     );
@@ -358,6 +405,8 @@ export default function SignIn({
         <BusyStatus busy={busy} />
       </>
     );
+  } else if (step === 'recovery') {
+    content = <RecoveryEmailStep ref={headingRef} authClient={authClient} onDone={onDone} />;
   }
 
   return (
@@ -368,7 +417,7 @@ export default function SignIn({
         </Button>
         <span className="title">{t('signIn.brand')}</span>
       </div>
-      <div className="scroll account-scroll">
+      <div className={lead ? 'scroll account-scroll invited-scroll' : 'scroll account-scroll'}>
         <div className="account-card">{content}</div>
       </div>
     </div>

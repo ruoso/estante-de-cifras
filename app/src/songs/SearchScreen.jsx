@@ -414,6 +414,8 @@ export default function SearchScreen({
   onWriteSong = () => {},
   onAddBook = () => {},
   onSignIn = () => {},
+  // Whether the cold first run offers its sign-in row (offersFirstRunSignIn).
+  offerSignIn = true,
   onAddToSetlist = null,
   query: controlledQuery,
   onQueryChange,
@@ -677,6 +679,7 @@ export default function SearchScreen({
             onWriteSong={onWriteSong}
             onAddBook={onAddBook}
             onSignIn={onSignIn}
+            offerSignIn={offerSignIn}
             onOpenExampleBook={() =>
               store.send(
                 command(CommandKind.OPEN_EXAMPLE_BOOK, {

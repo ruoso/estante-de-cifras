@@ -115,14 +115,46 @@ export async function sessionCookie(page) {
   return `estante_session=${c.value}`;
 }
 
-// Sign in (or create the account) with a passkey, from the shell's Sign in
-// button. Needs enableVirtualAuthenticator first.
+// Open the one sign-in surface (account.sign_in_two_doors; workflow 13
+// §Signing in, or making an account): the cold first run's row when the shelf
+// offers it, else the account screen's card. Lands on its two sections.
+export async function openSignInSurface(page) {
+  const row = page.getByRole('button', { name: /^Sign in or make an account/ });
+  if (!(await row.first().isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Account', exact: true }).click();
+  }
+  await row.first().click();
+  await expect(page.getByRole('heading', { name: 'Sign in or make an account' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'New here?' })).toBeVisible();
+}
+
+// On the open surface (its own heading, or an invitation's): *Make an account*
+// (a new account with a passkey — needs enableVirtualAuthenticator), then the
+// step it is followed by, *Add a recovery email*: `recovery: 'not now'` skips
+// it; an address sends the verification link and waits for the words that name
+// it, then *Done*. Resolves once the surface is gone.
+export async function makeAccount(page, { recovery = 'not now' } = {}) {
+  await page.getByRole('group', { name: 'New here?' }).getByRole('button', { name: 'Make an account' }).click();
+  await expect(page.getByRole('heading', { name: 'Add a recovery email' })).toBeVisible();
+  await expect.poll(() => hasSessionCookie(page)).toBe(true);
+  if (recovery === 'not now') {
+    await page.getByRole('button', { name: 'Not now' }).click();
+  } else {
+    await page.getByRole('textbox', { name: 'Recovery email' }).fill(recovery);
+    await page.getByRole('button', { name: 'Send link' }).click();
+    await expect(page.getByText(/We sent a verification link to/)).toBeVisible();
+    await expect(page.getByText(recovery, { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Done' }).click();
+  }
+  await expect(page.getByRole('heading', { name: 'Add a recovery email' })).toBeHidden();
+}
+
+// Make a new account with a passkey from the cold first run, skipping the
+// recovery email (*Not now*). Needs enableVirtualAuthenticator first.
 export async function signInWithPasskey(page) {
   await startApp(page);
-  await page.getByRole('button', { name: /Sign in/ }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  await page.getByRole('button', { name: 'Use a passkey' }).click();
-  await expect.poll(() => hasSessionCookie(page)).toBe(true);
+  await openSignInSurface(page);
+  await makeAccount(page);
 }
 
 // A fresh device with its own authenticator, signed in to a new account.

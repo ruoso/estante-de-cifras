@@ -105,7 +105,7 @@ test('the explorer: its title and the chip are whole, the chip clear of the word
   const row = page.locator('.header-chrome').filter({ has: headerChip });
   if (await row.count()) {
     const chipBox = await headerChip.boundingBox();
-    const neighbours = [row.locator('.wordmark'), row.getByRole('button', { name: 'Account' })];
+    const neighbours = [row.locator('.wordmark'), row.getByRole('button', { name: 'Account', exact: true })];
     for (const neighbour of neighbours) {
       if (!(await neighbour.count())) continue;
       expect(overlaps(chipBox, await neighbour.boundingBox()), 'the chip overlaps its header neighbour').toBe(false);

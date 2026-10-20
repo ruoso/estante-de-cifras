@@ -162,6 +162,10 @@ export default function SongReading({
   // the chart on a tablet or a computer (W10 #4), the Share sheet — a Modal —
   // on a phone. Null when no share is open.
   sidePanel = null,
+  // Told whether the song is read full screen (and false as it closes), so the
+  // shell drops the recovery-email banner with the rest of the chrome
+  // (workflow 13 §The banner, *Full screen*; account.sign_in_two_doors).
+  onFullScreenChange = () => {},
 }) {
   // Bring the song in on mount (and when the open song changes): the text to
   // parse (OPEN_SOURCE), the reading state (OPEN_SONG), and a device-local recent
@@ -175,6 +179,10 @@ export default function SongReading({
   }, [store, bookId, path]);
 
   const [fullScreen, setFullScreen] = useState(false);
+  useEffect(() => {
+    onFullScreenChange(fullScreen);
+    return () => onFullScreenChange(false);
+  }, [fullScreen, onFullScreenChange]);
   const actionsInline = useSyncExternalStore(subscribeReadingActions, readReadingActions, readReadingActions);
   // The three reading chromes the boards draw (songs.reading_chrome): phone
   // (narrow), tablet (wide, below the query) and computer (wide, at or above).

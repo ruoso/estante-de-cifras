@@ -146,6 +146,15 @@ in the shell on every screen:
   goes with the rest of the chrome and is back when the person leaves full
   screen: the middle of a performance is the worst moment for anything to
   appear (DIRECTION §3.7).
+- **Screens without the header chrome.** A screen that takes the whole window
+  in place of the destinations — a song being read, the editor, a book's
+  history, its people — has no header row to sit below; there the banner sits
+  at the top of the window, above the screen's own bar, taking its room the
+  same way. The account screen draws it across the head of its main pane, as
+  the destinations do. The only screens without it are the sign-in surface
+  (whose *Add a recovery email* step asks the same thing), the page a
+  verification link opens (it may be opened on a device that is not the
+  person's), and reading full screen.
 - **How it reads.** It is a notice in the warning tone the region's *No
   recovery email* badge uses, in each theme's own tokens — in Palco, the
   dark stage's warning tint with light text — and it says its state in words,

@@ -170,7 +170,7 @@ const PASSKEY_NOTICE = 'This account has no email. Confirm with one of your pass
 // knows it has no email (the region reads "No recovery email").
 async function openPasskeyDelete(page) {
   await openAccount(page);
-  await expect(page.getByRole('region', { name: 'Recovery email' }).getByText('No recovery email')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Recovery email', exact: true }).getByText('No recovery email')).toBeVisible();
   await page.getByRole('button', { name: 'Delete my account' }).click();
   const del = page.getByRole('dialog');
   await expect(del.getByText(PASSKEY_NOTICE)).toBeVisible();

@@ -1,7 +1,10 @@
 // InvitedScreen — the pre-account door into a shared book (books.add_by_link,
 // workflow 1 §Invited; mockup W01 #2). A full-screen surface mounted by AppShell
-// when the app boots on an invitation link (`/i/<token>`) while the accept runs
-// and when the Worker reports it needs an account (NEED_ACCOUNT). A dead or full
+// when the app boots on an invitation link (`/i/<token>`) while the accept runs.
+// When the Worker reports it needs an account (NEED_ACCOUNT) the door is the one
+// sign-in surface with the invitation as its lead — `InvitedLead` and
+// `InvitedFooter` below, around SignIn's two sections (account.sign_in_two_doors
+// Decision *The invitation's prompt is the sign-in surface*). A dead or full
 // link (BOOK_REFUSED) is not this screen but InvitedRefusal, a dialog over the
 // shelf (books.invited_presentation).
 //
@@ -16,8 +19,7 @@
 // Presentational with React Aria Components, managed focus on each phase's
 // heading — which takes focus without drawing a ring, since it is not operable
 // (books.invited_presentation Decision 2) — every status a word. The passkey
-// ceremony itself is the SignIn surface, opened through `onMakeAccount` /
-// `onSignIn`.
+// ceremonies are the SignIn surface's own, pressed in place.
 
 import { useEffect, useRef } from 'react';
 import { Button } from 'react-aria-components';
@@ -87,58 +89,55 @@ function BookMark() {
   );
 }
 
-export default function InvitedScreen({
-  // 'working' (accepting / cloning) or 'prompt' (needs an account). A refusal
-  // is not this screen: it is InvitedRefusal, a dialog over the shelf.
-  phase = 'working',
-  onMakeAccount = () => {},
-  onSignIn = () => {},
-  onClose = () => {},
-}) {
+// The account-first ask that heads the sign-in surface on an invitation
+// (workflow 1 §Invited; W01 #2): the book mark, the heading — which SignIn
+// focuses as the step appears — the body and the *An account is a passkey*
+// card. Generic: it names only "a book on Estante", never the book.
+export function InvitedLead() {
+  return (
+    <>
+      <BookMark />
+      <h2 className="t-h1 invited-heading" tabIndex={-1}>
+        {t('invited.promptHeading')}
+      </h2>
+      <p className="t-body account-sub">{t('invited.promptBody')}</p>
+      <div className="card pad">
+        <div className="invited-passkey-head">
+          <PasskeyIcon />
+          <span className="invited-passkey-title">{t('invited.passkeyTitle')}</span>
+        </div>
+        <span className="t-small">{t('invited.passkeyBody')}</span>
+      </div>
+    </>
+  );
+}
+
+// What follows the two sections on an invitation (W01 #2).
+export function InvitedFooter() {
+  return <p className="t-small account-note">{t('invited.promptFooter')}</p>;
+}
+
+// The working phase: the accept (and the clone) running, after sign-in or on a
+// device already signed in. A refusal is not this screen: it is InvitedRefusal,
+// a dialog over the shelf.
+export default function InvitedScreen({ onClose = () => {} }) {
   const headingRef = useRef(null);
 
-  // Land the keyboard and a screen reader on each phase's heading as it appears.
+  // Land the keyboard and a screen reader on the heading as it appears.
   useEffect(() => {
     headingRef.current?.focus();
-  }, [phase]);
+  }, []);
 
-  let content;
-  if (phase === 'working') {
-    content = (
-      <>
-        <h2 className="t-h1 invited-heading" ref={headingRef} tabIndex={-1}>
-          {t('invited.workingHeading')}
-        </h2>
-        <p className="t-body account-sub" role="status">
-          {t('invited.working')}
-        </p>
-      </>
-    );
-  } else {
-    // 'prompt' — the account-first ask. Generic: names only "a book on Estante".
-    content = (
-      <>
-        <h2 className="t-h1 invited-heading" ref={headingRef} tabIndex={-1}>
-          {t('invited.promptHeading')}
-        </h2>
-        <p className="t-body account-sub">{t('invited.promptBody')}</p>
-        <div className="card pad">
-          <div className="invited-passkey-head">
-            <PasskeyIcon />
-            <span className="invited-passkey-title">{t('invited.passkeyTitle')}</span>
-          </div>
-          <span className="t-small">{t('invited.passkeyBody')}</span>
-        </div>
-        <Button className="btn primary block" onPress={onMakeAccount}>
-          {t('invited.makeAccount')}
-        </Button>
-        <Button className="btn block" onPress={onSignIn}>
-          {t('invited.signIn')}
-        </Button>
-        <p className="t-small account-note">{t('invited.promptFooter')}</p>
-      </>
-    );
-  }
+  const content = (
+    <>
+      <h2 className="t-h1 invited-heading" ref={headingRef} tabIndex={-1}>
+        {t('invited.workingHeading')}
+      </h2>
+      <p className="t-body account-sub" role="status">
+        {t('invited.working')}
+      </p>
+    </>
+  );
 
   return (
     <div className="screen account-screen">

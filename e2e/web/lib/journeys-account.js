@@ -16,6 +16,8 @@ import {
   sessionCookie,
   bookGitUrl,
   signedInDevice,
+  openSignInSurface,
+  makeAccount,
 } from './journeys.js';
 import { waitForMessage, extractSignInLink, extractRecoveryEmailLink } from './mail.js';
 import { openDevice } from './devices.js';
@@ -31,7 +33,7 @@ export function uniqueEmail(prefix = 'account') {
 
 // Open the account screen from the header affordance.
 export async function openAccount(page) {
-  await page.getByRole('button', { name: 'Account' }).click();
+  await page.getByRole('button', { name: 'Account', exact: true }).click();
   await expect(page.getByRole('radiogroup', { name: 'Theme' })).toBeVisible();
 }
 
@@ -43,8 +45,7 @@ export async function openAccount(page) {
 // had a verification mail just before.
 export async function openEmailedLink(page, email) {
   await startApp(page);
-  await page.getByRole('button', { name: /Sign in/ }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await openSignInSurface(page);
   await page.getByRole('button', { name: 'Email me a link' }).click();
   await page.getByRole('textbox', { name: 'Your email' }).fill(email);
   await page.getByRole('button', { name: 'Send the link' }).click();
@@ -60,7 +61,7 @@ export async function openEmailedLink(page, email) {
 
 // The account screen's Recovery email region (account.recovery_email).
 export function recoveryRegion(page) {
-  return page.getByRole('region', { name: 'Recovery email' });
+  return page.getByRole('region', { name: 'Recovery email', exact: true });
 }
 
 // Set (or change) the recovery email from the account screen, which must be
@@ -133,7 +134,7 @@ export async function accountWithConfirmed(page, browser, email) {
 
 // From the Add-a-book chooser's Mine on Estante row, signed out
 // (books.add_book_chooser Decision 4): open the sign-in surface for an EXISTING
-// account — `'passkey'` lands on its method step ("Sign in"), `'email'` on its
+// account — `'passkey'` lands on its two sections, `'email'` on its
 // email step ("Email me a link", "Your email"). Starts from the Books
 // destination; `onChooser(sheet)` runs on the chooser once Mine has answered.
 export async function signInFromMine(page, how, { onChooser } = {}) {
@@ -152,7 +153,8 @@ export async function signInFromMine(page, how, { onChooser } = {}) {
     await expect(page.getByRole('textbox', { name: 'Your email' })).toBeFocused();
   } else {
     await passkey.click();
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sign in or make an account' })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Already have an account?' })).toBeVisible();
   }
 }
 
@@ -181,30 +183,30 @@ export async function joinByInvite(browser, link, bookTitle) {
   const authenticator = await enableVirtualAuthenticator(page);
   await page.goto(link);
   await expect(page.getByRole('heading', { name: /invited to a book on Estante/i })).toBeVisible();
-  await page.getByRole('button', { name: 'Make an account' }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  await page.getByRole('button', { name: 'Use a passkey' }).click();
+  // The invitation's sections are the sign-in surface's: Make an account in place.
+  await makeAccount(page);
   await expect(page.getByRole('button', { name: new RegExp(`^${escape(bookTitle)}`) })).toBeVisible();
   return { context, page, authenticator };
 }
 
 // ---- a second device of the same person (workflow 13) -------------------------
 
-// Sign an EXISTING account in on a fresh device with a (synced) passkey. The
-// shell's first-run Sign in makes a NEW account (create intent); signing in to
-// an existing one is the account screen's not-signed-in card -> Use a passkey
-// -> the sign-in surface's Use a passkey. Needs an authenticator holding the
-// account's credential (journeys.sharePasskeys).
+// Sign an EXISTING account in on a fresh device with a (synced) passkey: the
+// account screen's not-signed-in card -> the one sign-in surface -> *Already
+// have an account?*'s Use a passkey (never *Make an account*, which makes a new
+// one). Needs an authenticator holding the account's credential
+// (journeys.sharePasskeys).
 // `onSurface(page)` runs on the sign-in surface before the passkey is used (a
 // mockup() of it, say).
 export async function signInExistingWithPasskey(page, { onSurface } = {}) {
   await startApp(page);
-  await page.getByRole('button', { name: 'Account' }).click();
-  await page.getByRole('button', { name: 'Use a passkey' }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await page.getByRole('button', { name: 'Account', exact: true }).click();
+  await page.getByRole('button', { name: 'Sign in or make an account' }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in or make an account' })).toBeVisible();
   if (onSurface) await onSurface(page);
-  await page.getByRole('button', { name: 'Use a passkey' }).click();
+  await page.getByRole('group', { name: 'Already have an account?' }).getByRole('button', { name: 'Use a passkey' }).click();
   await expect.poll(() => hasSessionCookie(page)).toBe(true);
+  await expect(page.getByRole('heading', { name: 'Sign in or make an account' })).toBeHidden();
 }
 
 // ---- a new device (workflow 13 §What comes down) ---------------------------------
@@ -269,6 +271,16 @@ export async function chooseDiagramNeck(page, name) {
   await expect(diagramSample(page).locator('svg')).toHaveClass(
     new RegExp(`ec-diagram-${name.toLowerCase()}`),
   );
+}
+
+// Read-only: the id of the signed-in account's home book (`GET
+// /api/account/home-book`) — two devices signed in to one account share it;
+// a second account has its own.
+export async function homeBookId(page) {
+  const resp = await page.request.get('/api/account/home-book');
+  expect(resp.ok()).toBeTruthy();
+  const home = await resp.json();
+  return home.id;
 }
 
 // Read-only: the account's home book's shelf.json as the service holds it (a

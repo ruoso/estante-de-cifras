@@ -18,7 +18,7 @@
 // is a word, never colour alone; errors are worded from the AuthError kind, never
 // the server's message. It logs nothing.
 
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Button, Input, Label, Text, TextField } from 'react-aria-components';
 
 import { t } from '../i18n/index.js';
@@ -104,14 +104,60 @@ function OfflineIcon() {
 }
 
 // Word a failed request (a role="alert"): a malformed address, too many tries
-// (DIRECTION §3.3), or the connection. Nothing names the address.
-function requestErrorCopy(error) {
+// (DIRECTION §3.3), or the connection. Nothing names the address. Shared with
+// the sign-in surface's *Add a recovery email* step (account.sign_in_two_doors).
+export function requestErrorCopy(error) {
   if (error instanceof AuthError) {
     if (error.kind === 'bad_request') return t('account.recoveryInvalid');
     if (error.kind === 'rate_limited') return t('account.rateLimited');
     if (error.kind === 'network') return t('account.errNetwork');
   }
   return t('account.errGeneric');
+}
+
+// A failed request in words (a role="alert"), with Try again when the
+// connection was the cause.
+export function RequestErrorNotice({ error, retryDisabled, onRetry }) {
+  if (!error) return null;
+  return (
+    <div className="account-error-row">
+      <p className="notice warn" role="alert">
+        {requestErrorCopy(error)}
+      </p>
+      {error instanceof AuthError && error.kind === 'network' ? (
+        <Button className="btn" isDisabled={retryDisabled} onPress={onRetry}>
+          {t('account.retry')}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+// The recovery address field — its label, the hint below it and a failed
+// request's alert — shared by this region and the sign-in surface's *Add a
+// recovery email* step, which bring their own buttons (account.sign_in_two_doors
+// Decision *The recovery step shares the region's request and field*).
+export function RecoveryEmailField({ value, onChange, inputRef, error, retryDisabled, onRetry }) {
+  return (
+    <>
+      <TextField className="field" value={value} onChange={onChange} type="email" isRequired>
+        <Label>{t('account.recoveryLabel')}</Label>
+        <Input
+          ref={inputRef}
+          className="input"
+          autoComplete="email"
+          inputMode="email"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+        <Text slot="description" className="t-small">
+          {t('account.recoveryHint')}
+        </Text>
+      </TextField>
+      <RequestErrorNotice error={error} retryDisabled={retryDisabled} onRetry={onRetry} />
+    </>
+  );
 }
 
 /**
@@ -121,13 +167,20 @@ function requestErrorCopy(error) {
  *   authClient: { requestRecoveryEmail: (email: string) => Promise<void> },
  *   online: boolean,
  *   onReload: () => void,
+ *   focusRequest?: number,
  * }} props
  *   `recovery` is null until the screen has read it; `loadError` is the read's
  *   failure (worded, with Retry → `onReload`). `onReload` re-reads it after a
- *   request is accepted.
+ *   request is accepted. `focusRequest` asks for the region (the banner's *Add
+ *   one*, account.sign_in_two_doors): each new non-zero value scrolls it into
+ *   view and focuses its field in the none state, or the region otherwise, once
+ *   the address has been read.
  */
-export default function RecoveryEmailRegion({ recovery, loadError, authClient, online, onReload }) {
+export default function RecoveryEmailRegion({ recovery, loadError, authClient, online, onReload, focusRequest = 0 }) {
   const headingId = useId();
+  const sectionRef = useRef(null);
+  const fieldRef = useRef(null);
+  const focusedRequest = useRef(0);
   // Whether the field is open over a waiting or confirmed state (Use a different
   // address / Change). In the none state it is always open.
   const [editing, setEditing] = useState(false);
@@ -138,6 +191,19 @@ export default function RecoveryEmailRegion({ recovery, loadError, authClient, o
   const inFlight = useRef(false);
 
   const disabled = !online || busy;
+
+  // The banner's *Add one*: bring the region into view and put focus where the
+  // person can act — the field when there is none, the region otherwise. Held
+  // until the address is read, so a request made as the screen opens lands too.
+  const loaded = recovery != null || loadError != null;
+  const none = !loadError && recovery != null && recoveryEmailState(recovery) === 'none';
+  useEffect(() => {
+    if (!focusRequest || focusedRequest.current === focusRequest || !loaded) return;
+    focusedRequest.current = focusRequest;
+    sectionRef.current?.scrollIntoView?.({ block: 'start' });
+    if (none && fieldRef.current) fieldRef.current.focus();
+    else sectionRef.current?.focus();
+  }, [focusRequest, loaded, none]);
 
   const request = async (value) => {
     const target = value.trim();
@@ -170,18 +236,13 @@ export default function RecoveryEmailRegion({ recovery, loadError, authClient, o
     setError(null);
   };
 
-  const errorNotice = error ? (
-    <div className="account-error-row">
-      <p className="notice warn" role="alert">
-        {requestErrorCopy(error)}
-      </p>
-      {error instanceof AuthError && error.kind === 'network' ? (
-        <Button className="btn" isDisabled={disabled} onPress={() => request(lastRequest.current ?? '')}>
-          {t('account.retry')}
-        </Button>
-      ) : null}
-    </div>
-  ) : null;
+  const errorNotice = (
+    <RequestErrorNotice
+      error={error}
+      retryDisabled={disabled}
+      onRetry={() => request(lastRequest.current ?? '')}
+    />
+  );
 
   let body;
   if (loadError) {
@@ -211,21 +272,14 @@ export default function RecoveryEmailRegion({ recovery, loadError, authClient, o
 
     const field = (
       <form className="account-form account-recovery-form" onSubmit={submit}>
-        <TextField className="field" value={address} onChange={setAddress} type="email" isRequired>
-          <Label>{t('account.recoveryLabel')}</Label>
-          <Input
-            className="input"
-            autoComplete="email"
-            inputMode="email"
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck={false}
-          />
-          <Text slot="description" className="t-small">
-            {t('account.recoveryHint')}
-          </Text>
-        </TextField>
-        {errorNotice}
+        <RecoveryEmailField
+          value={address}
+          onChange={setAddress}
+          inputRef={fieldRef}
+          error={error}
+          retryDisabled={disabled}
+          onRetry={() => request(lastRequest.current ?? '')}
+        />
         <Button type="submit" className="btn primary block" isDisabled={disabled}>
           {t('account.recoverySend')}
         </Button>
@@ -323,7 +377,7 @@ export default function RecoveryEmailRegion({ recovery, loadError, authClient, o
   }
 
   return (
-    <section className="account-recovery" aria-labelledby={headingId}>
+    <section className="account-recovery" aria-labelledby={headingId} ref={sectionRef} tabIndex={-1}>
       <h3 className="t-h3 account-section" id={headingId}>
         {t('account.recoveryHeading')}
       </h3>

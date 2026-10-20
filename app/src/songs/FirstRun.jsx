@@ -121,6 +121,9 @@ export default function FirstRun({
   onAddBook = () => {},
   onSignIn = () => {},
   onOpenExampleBook = () => {},
+  // Whether *Sign in or make an account* is offered: only while no one is
+  // signed in (workflow 1 §Cold; account.sign_in_two_doors).
+  offerSignIn = true,
 }) {
   return (
     <div className="first-run">
@@ -144,12 +147,14 @@ export default function FirstRun({
             meta={t('firstRun.addByLinkMeta')}
             onPress={onAddBook}
           />
-          <Way
-            icon={<SignInIcon />}
-            name={t('firstRun.signIn')}
-            meta={t('firstRun.signInMeta')}
-            onPress={onSignIn}
-          />
+          {offerSignIn ? (
+            <Way
+              icon={<SignInIcon />}
+              name={t('firstRun.signIn')}
+              meta={t('firstRun.signInMeta')}
+              onPress={onSignIn}
+            />
+          ) : null}
           <Way
             icon={<BooksIcon />}
             name={t('firstRun.openExample')}

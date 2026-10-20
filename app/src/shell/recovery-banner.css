@@ -1,0 +1,57 @@
+/* The recovery-email banner (account.sign_in_two_doors; workflow 13 §The
+   banner; W13 #2, W01 #4, Sign-in Tablet). The tone is the theme's
+   `.notice.unsaved`; these rules only place it: in flow, taking its own room
+   above the destination (or the screen without header chrome), never inside a
+   scroller and never over anything — `flex: none` keeps its height whole while
+   what is below it takes the rest. */
+.recovery-banner {
+  flex: none;
+  flex-wrap: nowrap;
+  margin: 0 calc(var(--u) * 2) var(--u);
+  padding: calc(var(--u) * 1.25) calc(var(--u) * 1.5);
+  gap: calc(var(--u) * 1.25);
+  align-items: flex-start;
+  font-size: 14px;
+}
+
+/* The shell-wide wrapper and the wide main pane start the banner at the top
+   edge: it has no header row above it there. */
+.recovery-frame > .recovery-banner,
+.pane.main > .recovery-banner,
+.account-main-head > .recovery-banner {
+  margin-top: calc(var(--u) * 1.5);
+}
+
+.recovery-banner-icon {
+  flex: none;
+  color: var(--unsaved);
+}
+
+/* The sentence, then *Add one* under it, as the boards draw it. */
+.recovery-banner > .recovery-banner-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--u);
+}
+
+/* A screen without header chrome (a song being read, the editor, history…):
+   the banner on top, the screen in the remaining height (workflow 13 §The
+   banner, *Screens without the header chrome*). The frame is a column like
+   the themed root it sits in, so the surface (a `.screen` or `.split`,
+   `flex: 1`) fills what the banner leaves. */
+.recovery-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* On a phone the banner follows the header row (`order: -1`, as the row is),
+   above the scrolling destination and the foot tab bar. */
+.screen > .recovery-banner {
+  order: -1;
+  margin-top: var(--u);
+}

@@ -5,6 +5,8 @@ import { createStore } from '../worker/store.js';
 import { event, EventKind } from '../worker/protocol.js';
 import AppShell from './AppShell.jsx';
 import { WIDE_QUERY } from './layout-mode.js';
+import { createAuthClient } from '../account/auth-client.js';
+import ThemeRoot from '../theme/ThemeRoot.jsx';
 
 // behavior — the navigation shell with its real collaborators (React Aria
 // Components, i18n, the themed classes). Pins the .tji note ("tab bar and splits
@@ -309,3 +311,197 @@ describe('AppShell paused book panel (behavior)', () => {
   });
 });
 
+
+// behavior (account.sign_in_two_doors) — the recovery-email banner in the shell,
+// with an injected loopback auth client answering `GET
+// /api/account/recovery-email`. Pins workflow 13 §The banner (placement, full
+// screen, *Screens without the header chrome*, *How it reads*, *What the device
+// knows*) and boards W13 #2, W01 #4 and Sign-in Tablet.
+describe('Recovery-email banner', () => {
+  const BANNER = 'No recovery email yet.';
+  const banner = () => screen.queryByRole('region', { name: BANNER });
+  const follows = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+  const AT = '2026-10-15T00:00:00.000Z';
+  const SHELF = {
+    books: { b1: { label: { value: 'Banda do Bairro', at: AT }, role: { value: 'editor', at: AT }, position: { value: 1, at: AT } } },
+    local: {},
+  };
+  const SONG_PATH = 'choro/tarde-clara.cifra.md';
+  const SONG_TEXT = ['# Tarde Clara', '', '## Verse', '```', 'G  C | Am  D', '```', ''].join('\n');
+
+  // `answer` is what the next probe gets: a body, a status, or 'offline'.
+  function makeAuth(initial) {
+    const box = { answer: initial };
+    const fetch = async (path, init = {}) => {
+      const method = init.method ?? 'GET';
+      if (method === 'GET' && path === '/api/account/recovery-email') {
+        if (box.answer === 'offline') throw new TypeError('offline');
+        if (typeof box.answer === 'number') {
+          return { ok: false, status: box.answer, json: async () => ({}) };
+        }
+        return { ok: true, status: 200, json: async () => box.answer };
+      }
+      if (method === 'GET' && path === '/api/account/sessions') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ sessions: [{ id: 's1', current: true, lastUsedAt: AT, device: 'Chrome on Linux' }] }),
+        };
+      }
+      if (method === 'GET' && path === '/api/account/passkeys') {
+        return { ok: true, status: 200, json: async () => ({ passkeys: [] }) };
+      }
+      throw new TypeError(`no route for ${method} ${path}`);
+    };
+    return { client: createAuthClient({ fetch }), box };
+  }
+
+  function renderShell(answer, { wide = false } = {}) {
+    installMatchMedia(wide);
+    const auth = makeAuth(answer);
+    const endpoint = { postMessage() {}, onmessage: null };
+    const store = createStore(endpoint);
+    const emit = (ev) => act(() => endpoint.onmessage({ data: ev }));
+    const view = render(<AppShell store={store} authClient={auth.client} />);
+    return { ...view, ...auth, emit };
+  }
+
+  for (const [layout, wide] of [
+    ['narrow', false],
+    ['wide', true],
+  ]) {
+    it(`${layout}: below the header chrome and before the destination, on every destination, axe clean`, async () => {
+      const { container } = renderShell({ email: null, pending: null }, { wide });
+      const shown = await screen.findByRole('region', { name: BANNER });
+      const header = container.querySelector(wide ? '.side-head' : '.instr-top');
+      if (wide) {
+        expect(shown.closest('.pane.main')).toBeTruthy();
+        expect(shown.closest('.pane.side')).toBeNull();
+      } else {
+        expect(follows(header, shown)).toBe(true);
+      }
+      for (const destination of ['Search', 'Books', 'Setlists']) {
+        fireEvent.click(screen.getByRole('tab', { name: destination }));
+        const now = banner();
+        expect(now, destination).toBeInTheDocument();
+        expect(follows(now, screen.getByRole('heading', { level: 1, name: destination }))).toBe(true);
+      }
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    });
+  }
+
+  it('reads in words, is not dismissible and is not a live region: one button, Add one', async () => {
+    renderShell({ email: null, pending: null });
+    const shown = await screen.findByRole('region', { name: BANNER });
+    expect(shown).toHaveTextContent(
+      'No recovery email yet. If you lose your passkeys, you lose this account and your books on Estante.',
+    );
+    expect(within(shown).getAllByRole('button').map((b) => b.textContent)).toEqual(['Add one']);
+    expect(['status', 'alert']).not.toContain(shown.getAttribute('role'));
+    expect(shown).not.toHaveAttribute('aria-live');
+    expect(shown.querySelector('[aria-live], [role="status"], [role="alert"]')).toBeNull();
+    // A tab change re-renders the same strip, not a new announcement.
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    expect(banner()).not.toHaveAttribute('aria-live');
+  });
+
+  it('a pending address keeps it; signed in, the first-run row is not offered', async () => {
+    renderShell({ email: null, pending: 'ana@example.com' });
+    expect(await screen.findByRole('region', { name: BANNER })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Sign in or make an account/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /Write a song/ })).toBeInTheDocument();
+  });
+
+  it('a confirmed address shows none', async () => {
+    const { box } = renderShell({ email: 'ana@example.com', pending: null });
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Sign in or make an account/ })).toBeNull());
+    expect(box.answer.email).toBe('ana@example.com');
+    expect(banner()).toBeNull();
+  });
+
+  it('signed out (401) shows none, and the first-run row is offered', async () => {
+    renderShell(401);
+    // Let the probe answer.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(banner()).toBeNull();
+    expect(screen.getByRole('button', { name: /^Sign in or make an account/ })).toBeInTheDocument();
+  });
+
+  it('offline before any answer: no banner', async () => {
+    renderShell('offline');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(banner()).toBeNull();
+    expect(screen.getByRole('button', { name: /^Sign in or make an account/ })).toBeInTheDocument();
+  });
+
+  it('Add one opens the account screen focused on the region; closing it asks again, and a confirmed answer clears the banner', async () => {
+    const { box } = renderShell({ email: null, pending: null });
+    fireEvent.click(within(await screen.findByRole('region', { name: BANNER })).getByRole('button', { name: 'Add one' }));
+
+    const field = await screen.findByRole('textbox', { name: 'Recovery email' });
+    await waitFor(() => expect(field).toHaveFocus());
+
+    box.answer = { email: 'ana@example.com', pending: null };
+    fireEvent.click(screen.getAllByRole('button', { name: 'Back' })[0]);
+    await waitFor(() => expect(screen.getByRole('tablist', { name: 'Destinations' })).toBeInTheDocument());
+    await waitFor(() => expect(banner()).toBeNull());
+  });
+
+  it('above a song opened from search, before its own bar; gone while it is read full screen, back after', async () => {
+    const { emit } = renderShell({ email: null, pending: null });
+    await screen.findByRole('region', { name: BANNER });
+    emit(event(EventKind.SHELF, SHELF));
+    act(() => {
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'tarde' } });
+    });
+    emit(
+      event(EventKind.SEARCH_RESULTS, {
+        query: 'tarde',
+        results: [{ bookId: 'b1', path: SONG_PATH, title: 'Tarde Clara', artist: '', score: 3, unsaved: false }],
+      }),
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: /Tarde Clara/ })[0]);
+    emit(event(EventKind.SOURCE, { bookId: 'b1', path: SONG_PATH, text: SONG_TEXT }));
+
+    const shown = banner();
+    expect(shown).toBeInTheDocument();
+    expect(screen.queryByRole('tablist', { name: 'Destinations' })).toBeNull();
+    expect(follows(shown, screen.getAllByRole('button', { name: 'Back' })[0])).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Full screen' }));
+    await screen.findByRole('button', { name: 'Leave full screen' });
+    expect(banner()).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Leave full screen' }));
+    await waitFor(() => expect(banner()).toBeInTheDocument());
+  });
+
+  // The themed root decides the tokens; with the scheme dark, Automatic is Palco.
+  for (const [theme, dark] of [
+    ['estante', false],
+    ['palco', true],
+  ]) {
+    it(`axe clean with the banner in ${theme}`, async () => {
+      globalThis.matchMedia = (media) => ({
+        media,
+        matches: media.includes('prefers-color-scheme: dark') ? dark : false,
+        addEventListener() {},
+        removeEventListener() {},
+      });
+      const { client } = makeAuth({ email: null, pending: null });
+      const store = createStore({ postMessage() {}, onmessage: null });
+      const { container } = render(
+        <ThemeRoot store={store}>
+          <AppShell store={store} authClient={client} />
+        </ThemeRoot>,
+      );
+      await screen.findByRole('region', { name: BANNER });
+      expect(container.querySelector('.est')).toHaveClass(`theme-${theme}`);
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    });
+  }
+});

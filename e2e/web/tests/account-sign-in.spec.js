@@ -17,8 +17,8 @@
 //       succeeds (workflow 13 lines 23-24).
 //
 // A fresh Playwright context is a fresh device: IndexedDB, the shelf and the
-// cookie jar all start empty. The surface opens from the empty shelf's "Sign in"
-// row (the cold device's account-creation path). Reuses lib/devices-style
+// cookie jar all start empty. The surface opens from the empty shelf's *Sign in
+// or make an account* row, at its two sections (account.sign_in_two_doors). Reuses lib/devices-style
 // context isolation, lib/axe's checkA11y and the new lib/mail reader — never a
 // parallel harness.
 
@@ -28,11 +28,11 @@ import { waitForMessageTo, extractSignInLink } from '../lib/mail.js';
 import { seedAccount } from '../lib/db.js';
 import { uniqueEmail } from '../lib/journeys-account.js';
 
-// Open the sign-in surface from the empty shelf's "Sign in" row.
+// Open the sign-in surface from the empty shelf's row.
 async function openSignIn(page) {
   await startApp(page);
-  await page.getByRole('button', { name: /Sign in/ }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  await page.getByRole('button', { name: /^Sign in or make an account/ }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in or make an account' })).toBeVisible();
 }
 
 test('makes an account with a passkey (virtual authenticator) and lands signed in', async ({
@@ -42,18 +42,25 @@ test('makes an account with a passkey (virtual authenticator) and lands signed i
   await enableVirtualAuthenticator(page);
   await openSignIn(page);
 
-  // The workflow-13 screen: the two methods and the no-passkey note, axe clean.
-  await expect(page.getByRole('button', { name: 'Use a passkey' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Email me a link' })).toBeVisible();
-  await expect(page.getByText(/No passkey here\?/)).toBeVisible();
+  // The workflow-13 screen: the two sections — the two ways back in with the
+  // no-passkey note, then making an account with its line — axe clean.
+  const have = page.getByRole('group', { name: 'Already have an account?' });
+  await expect(have.getByRole('button', { name: 'Use a passkey' })).toBeVisible();
+  await expect(have.getByRole('button', { name: 'Email me a link' })).toBeVisible();
+  await expect(have.getByText(/No passkey here\?/)).toBeVisible();
+  const fresh = page.getByRole('group', { name: 'New here?' });
+  await expect(fresh.getByText(/This would be a second, separate account\./)).toBeVisible();
   await checkA11y(); // the sign-in screen, this viewport
 
-  await page.getByRole('button', { name: 'Use a passkey' }).click();
+  await fresh.getByRole('button', { name: 'Make an account' }).click();
 
-  // A fresh platform passkey leaves one resident here, so there is no offer: the
-  // surface closes back to the empty shelf, and the session cookie is set.
-  await expect(page.getByRole('heading', { name: 'Your shelf is empty' })).toBeVisible();
+  // A fresh platform passkey leaves one resident here, so there is no offer;
+  // making an account is followed by Add a recovery email, with the session
+  // already set. Not now goes on to the empty shelf.
+  await expect(page.getByRole('heading', { name: 'Add a recovery email' })).toBeVisible();
   await expect.poll(() => hasSessionCookie(page)).toBe(true);
+  await page.getByRole('button', { name: 'Not now' }).click();
+  await expect(page.getByRole('heading', { name: 'Your shelf is empty' })).toBeVisible();
 });
 
 test('signs in from an emailed link and then offers a passkey on this device', async ({

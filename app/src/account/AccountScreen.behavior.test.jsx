@@ -310,14 +310,28 @@ describe('Density and Chord diagrams (shell.display_preferences)', () => {
 });
 
 describe('Not signed in (workflow 13 L74; acceptance 4)', () => {
-  it('the card’s "Use a passkey" / "Email me a link" open the SignIn surface', async () => {
+  // account.sign_in_two_doors; workflow 13 L30-33; Sign-in board Phone 1: the
+  // card is one entry into the shared surface, not a passkey / email pair.
+  it('the card is *Not signed in*, its line, and one *Sign in or make an account*, which calls onSignIn with no argument, axe clean', async () => {
     const { client } = signedOut();
     const opened = [];
-    renderAccount(bareStore(), { client, onSignIn: (method) => opened.push(method) });
+    const { container } = renderAccount(bareStore(), { client, onSignIn: (...args) => opened.push(args) });
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Use a passkey' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Email me a link' }));
-    expect(opened).toEqual(['passkey', 'email']);
+    const button = await screen.findByRole('button', { name: 'Sign in or make an account' });
+    const card = button.closest('.account-signin-card');
+    expect(within(card).getByText('Not signed in')).toBeInTheDocument();
+    expect(
+      within(card).getByText('Bring your books to this device, or start keeping them on Estante.'),
+    ).toBeInTheDocument();
+    expect(within(card).getAllByRole('button')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Use a passkey' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Email me a link' })).toBeNull();
+    // No banner signed out.
+    expect(screen.queryByRole('region', { name: 'No recovery email yet.' })).toBeNull();
+
+    fireEvent.click(button);
+    expect(opened).toEqual([[]]);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });
 
@@ -687,7 +701,7 @@ describe('A full keyboard path (acceptance; standing a11y rule)', () => {
     renderAccount(bareStore(), { client });
 
     await screen.findByText('Not signed in');
-    for (const name of ['Back', 'Use a passkey', 'Email me a link']) {
+    for (const name of ['Back', 'Sign in or make an account']) {
       const el = screen.getByRole('button', { name });
       el.focus();
       expect(el).toHaveFocus();
@@ -993,6 +1007,85 @@ describe('Recovery email', () => {
       expect(calls.filter((c) => c.path === '/api/account/recovery-email' && c.method === 'GET')).toHaveLength(2);
     });
   });
+
+  // account.sign_in_two_doors — the banner on the account screen too (workflow
+  // 13 §The banner: *Add one*, on the account screen as on the destinations;
+  // Sign-in board Computer).
+  describe('the banner', () => {
+    const banner = () => screen.queryByRole('region', { name: 'No recovery email yet.' });
+    const follows = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+    it('with no address: the banner is before the account sections, with exactly one button, Add one, axe clean', async () => {
+      const { client } = recoveryClient();
+      const { container } = renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+      await screen.findByText('No recovery email');
+      const shown = banner();
+      expect(shown).toBeInTheDocument();
+      expect(within(shown).getAllByRole('button').map((b) => b.textContent)).toEqual(['Add one']);
+      expect(shown).toHaveTextContent(
+        'No recovery email yet. If you lose your passkeys, you lose this account and your books on Estante.',
+      );
+      expect(shown).not.toHaveAttribute('role', 'status');
+      expect(shown).not.toHaveAttribute('aria-live');
+      expect(follows(shown, screen.getByText('Signed-in devices'))).toBe(true);
+      expect(follows(shown, region())).toBe(true);
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    });
+
+    it('a pending address keeps it, axe clean', async () => {
+      const { client } = recoveryClient({ pending: 'ana@example.com' });
+      const { container } = renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+      await screen.findByText('Waiting for you to confirm');
+      expect(banner()).toBeInTheDocument();
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    });
+
+    it('a confirmed address has none', async () => {
+      const { client } = recoveryClient({ email: 'ana@example.com' });
+      renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+      await screen.findByText('Confirmed');
+      expect(banner()).toBeNull();
+    });
+
+    it('Add one in the none state moves focus to the region’s Recovery email field', async () => {
+      const { client } = recoveryClient();
+      renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+      await screen.findByText('No recovery email');
+      fireEvent.click(within(banner()).getByRole('button', { name: 'Add one' }));
+      await waitFor(() =>
+        expect(within(region()).getByRole('textbox', { name: 'Recovery email' })).toHaveFocus(),
+      );
+    });
+
+    it('Add one while waiting moves focus to the region', async () => {
+      const { client } = recoveryClient({ pending: 'ana@example.com' });
+      renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+      await screen.findByText('Waiting for you to confirm');
+      fireEvent.click(within(banner()).getByRole('button', { name: 'Add one' }));
+      await waitFor(() => expect(region()).toHaveFocus());
+    });
+
+    it('opened with focusRecovery, focus lands in the region once it is read', async () => {
+      const { client } = recoveryClient();
+      renderAccount(bareStore(), { client, sharingClient: sharingDouble, focusRecovery: true });
+      await screen.findByText('No recovery email');
+      await waitFor(() =>
+        expect(within(region()).getByRole('textbox', { name: 'Recovery email' })).toHaveFocus(),
+      );
+    });
+
+    it('the region’s Send → waiting keeps the banner', async () => {
+      const { client } = recoveryClient();
+      renderAccount(bareStore(), { client, sharingClient: sharingDouble });
+      await screen.findByText('No recovery email');
+      fireEvent.change(within(region()).getByRole('textbox', { name: 'Recovery email' }), {
+        target: { value: 'ana@example.com' },
+      });
+      fireEvent.click(within(region()).getByRole('button', { name: 'Send a verification link' }));
+      await screen.findByText('Waiting for you to confirm');
+      expect(banner()).toBeInTheDocument();
+    });
+  });
 });
 
 // account.preferences_layout — the account screen as drawn: compact theme rows,
@@ -1154,19 +1247,16 @@ describe('The account screen as drawn (account.preferences_layout)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
-  it('computer, not signed in: the Use a passkey / Email me a link card is in the rail, before the Theme picker, axe clean', async () => {
+  it('computer, not signed in: the Sign in or make an account card is in the rail, before the Theme picker, axe clean', async () => {
     installComputer();
     const { client } = signedOut();
     const { container } = renderAccount(bareStore(), { client });
 
-    const passkey = await screen.findByRole('button', { name: 'Use a passkey' });
-    const email = screen.getByRole('button', { name: 'Email me a link' });
+    const entry = await screen.findByRole('button', { name: 'Sign in or make an account' });
     const rail = container.querySelector('.account-rail');
-    expect(rail).toContainElement(passkey);
-    expect(rail).toContainElement(email);
+    expect(rail).toContainElement(entry);
     const theme = screen.getByRole('radiogroup', { name: 'Theme' });
-    expect(follows(passkey, theme)).toBe(true);
-    expect(follows(email, theme)).toBe(true);
+    expect(follows(entry, theme)).toBe(true);
 
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });

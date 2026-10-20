@@ -11,7 +11,7 @@
 import { expect } from '@playwright/test';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { gotoTab, saveThroughSheet, signedInDevice, makeLocalBook, putBookOnline, startApp, sessionCookie } from './journeys.js';
+import { gotoTab, saveThroughSheet, signedInDevice, makeLocalBook, putBookOnline, startApp, sessionCookie, makeAccount } from './journeys.js';
 import { GitDevice } from './git-device.js';
 import { baseUrl } from './env.js';
 
@@ -233,9 +233,9 @@ export async function acceptInvitation(page, url, { signedIn = false } = {}) {
   await page.goto(url);
   if (signedIn) return;
   await expect(page.getByRole('heading', { name: /invited to a book on Estante/i })).toBeVisible();
-  await page.getByRole('button', { name: 'Make an account' }).click();
-  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  await page.getByRole('button', { name: 'Use a passkey' }).click();
+  // The invitation's sections are the sign-in surface's: Make an account in
+  // place, then *Not now* on the recovery step it is followed by.
+  await makeAccount(page);
 }
 
 // On the people screen: Remove on the first member row → the confirm, as W10
