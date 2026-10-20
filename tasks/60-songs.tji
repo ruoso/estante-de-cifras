@@ -176,8 +176,9 @@ task songs "Songs" {
   task unsaved_after_discard "Discarding or saving clears the unsaved badge where one returns" {
     effort 0.5d
     allocate team
+    complete 100
     depends !save_sheet
-    note "L3: an unsaved badge persisted after discarding. Worker commands run concurrently (worker/attach-worker.js:18); DISCARD posts DISCARDED before re-indexing (logic.js:1948 vs 1952-1964) and never posts INDEX_STATUS after, so the screen returned to browses the stale unsaved flag and nothing re-browses; SAVE has the same order (1749 vs 1762-1775). WRITE already posts INDEX_STATUS for exactly this hazard (logic.js:1684-1691) — do the same after DISCARD and SAVE re-index. Recents are never pruned (worker/recents.js), so a discarded draft row lingers: drop recents for paths that no longer exist. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (recents pruning); behavior (discard then back to search: no badge; save likewise); e2e-web (a draft discarded and the search screen shows no unsaved badge on the three viewports)."
+    note "L3: an unsaved badge persisted after discarding. Worker commands run concurrently (worker/attach-worker.js:18); DISCARD posts DISCARDED before re-indexing (logic.js:1948 vs 1952-1964) and never posts INDEX_STATUS after, so the screen returned to browses the stale unsaved flag and nothing re-browses; SAVE has the same order (1749 vs 1762-1775). WRITE already posts INDEX_STATUS for exactly this hazard (logic.js:1684-1691) — do the same after DISCARD and SAVE re-index. Recents are never pruned (worker/recents.js), so a discarded draft row lingers: drop recents for paths that no longer exist. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (recents pruning); behavior (discard then back to search: no badge; save likewise); e2e-web (a draft discarded and the search screen shows no unsaved badge on the three viewports). Refinement: tasks/refinements/songs/unsaved_after_discard.md"
   }
   task no_raw_ids "No raw book ids and no file-name titles in lists" {
     effort 1d

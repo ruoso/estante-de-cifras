@@ -46,13 +46,35 @@ export function promoteRecent(list, entry, cap = DEFAULT_RECENTS_CAP) {
 }
 
 /**
+ * Pure list move: drop every entry whose `{ bookId, path }` is among
+ * `locations` (a song a command removed from its book — a discarded draft, a
+ * deleted or moved file), keeping the rest in order. Returns the SAME array
+ * when nothing matched, so the caller can tell "changed" without diffing
+ * (songs.unsaved_after_discard Constraint 5; workflow 2 L13-15 — a recent is a
+ * way back, and a way back to nothing is not one).
+ *
+ * @param {Array<{ bookId: string, path: string, at: string }>} list
+ * @param {Array<{ bookId: string, path: string }>} locations
+ * @returns {Array<{ bookId: string, path: string, at: string }>}
+ */
+export function dropRecents(list, locations) {
+  const prev = Array.isArray(list) ? list : [];
+  const gone = (r) =>
+    (locations ?? []).some((l) => l.bookId === r.bookId && l.path === r.path);
+  if (!prev.some(gone)) return prev;
+  return prev.filter((r) => !gone(r));
+}
+
+/**
  * The device-local recents store over the Worker's open `meta` database. Both
  * operations run in one `meta`-store transaction, resolved on completion so the
  * write is durable before it is reported.
  *
  * @param {{ cap?: number }} [opts]
  * @returns {{ read: (db: IDBDatabase) => Promise<Array>,
- *   record: (db: IDBDatabase, entry: { bookId: string, path: string, now?: number }) => Promise<Array> }}
+ *   record: (db: IDBDatabase, entry: { bookId: string, path: string, now?: number }) => Promise<Array>,
+ *   forget: (db: IDBDatabase, locations: Array<{ bookId: string, path: string }>)
+ *     => Promise<{ recents: Array, changed: boolean }> }}
  */
 export function createRecents({ cap = DEFAULT_RECENTS_CAP } = {}) {
   // Serialise writes. A RECORD_RECENT is a read-modify-write on the single
@@ -79,6 +101,17 @@ export function createRecents({ cap = DEFAULT_RECENTS_CAP } = {}) {
     });
   }
 
+  // Chain `run` after the previous write; a failed write still lets the next
+  // run.
+  function enqueue(run) {
+    const result = writeQueue.then(run, run);
+    writeQueue = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
+
   // Record a song as just-opened: promote it to the front of the capped list
   // and persist. Returns the new list so the caller can emit it straight to the
   // `recents` slice. No commit, no push — device-local only (Decision 2).
@@ -102,14 +135,36 @@ export function createRecents({ cap = DEFAULT_RECENTS_CAP } = {}) {
         tx.onerror = () => reject(tx.error);
         tx.onabort = () => reject(tx.error);
       });
-    // Queue after the previous write; a failed write still lets the next run.
-    const result = writeQueue.then(run, run);
-    writeQueue = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
+    return enqueue(run);
   }
 
-  return { read, record };
+  // Forget the locations a command removed from their book (a discarded draft,
+  // a deleted or moved file): drop them from the list and persist, on the same
+  // queue as `record` — both read-modify-write the one key, and a separate
+  // path would lose an entry to the race above (songs.unsaved_after_discard
+  // Constraint 4, Decision 5). `changed` says whether anything was dropped, so
+  // the caller posts RECENTS only when the slice must move. Writes nothing
+  // when nothing matched.
+  function forget(db, locations) {
+    const run = () =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(META_STORE, 'readwrite');
+        const store = tx.objectStore(META_STORE);
+        const request = store.get(RECENTS_META_KEY);
+        let next = [];
+        let changed = false;
+        request.onsuccess = () => {
+          const prev = Array.isArray(request.result) ? request.result : [];
+          next = dropRecents(prev, locations);
+          changed = next !== prev;
+          if (changed) store.put(next, RECENTS_META_KEY);
+        };
+        tx.oncomplete = () => resolve({ recents: next, changed });
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
+    return enqueue(run);
+  }
+
+  return { read, record, forget };
 }

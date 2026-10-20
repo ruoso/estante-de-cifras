@@ -21,7 +21,7 @@ import { createGitLayer } from './git.js';
 import { createGitHttpClient } from './git-http.js';
 import { createWorkerLogic } from './logic.js';
 import { createStore } from './store.js';
-import { command, CommandKind } from './protocol.js';
+import { command, CommandKind, EventKind } from './protocol.js';
 import {
   MIGRATIONS,
   INDEX_DOCS_STORE,
@@ -323,6 +323,170 @@ describe('search index (behavior)', () => {
     } finally {
       await ctx.cleanup();
     }
+  });
+
+  // songs.unsaved_after_discard — the event AFTER the reply. SAVE and DISCARD
+  // answer (SAVED / DISCARDED) before they re-index, and BROWSE takes no lock,
+  // so a listing browsed on the reply can read the index before the re-index
+  // lands. The Worker posts a ready INDEX_STATUS after it, which is what makes
+  // a listing re-browse (workflow 4 L11-14: the badge lasts "until it is saved
+  // or the changes are discarded"; Constraints 1-2).
+  describe('an INDEX_STATUS after the reply (songs.unsaved_after_discard)', () => {
+    const PATH = 'cancao.cifra.md';
+    const SAVED_TEXT = song(['# Cancao de Teste', '## A', FENCE, 'C   G', 'linha', FENCE]);
+    const EDITED_TEXT = song(['# Cancao de Teste', '## A', FENCE, 'C   G   Am', 'linha', FENCE]);
+
+    // Every event in arrival order, so a test can say "X came after Y".
+    function recordEvents(store) {
+      const seen = [];
+      store.subscribeEvents((m) => seen.push(m));
+      return seen;
+    }
+    // Whether a ready INDEX_STATUS for `bookId` arrived after the first `kind`.
+    function readyAfter(seen, kind, bookId) {
+      const i = seen.findIndex((m) => m.kind === kind);
+      return (
+        i >= 0 &&
+        seen
+          .slice(i + 1)
+          .some(
+            (m) =>
+              m.kind === EventKind.INDEX_STATUS &&
+              m.payload.bookId === bookId &&
+              m.payload.state === 'ready',
+          )
+      );
+    }
+    const browsed = (store, bookId, path) =>
+      store
+        .slice('browse')
+        .books.find((b) => b.bookId === bookId)
+        ?.songs.find((r) => r.path === path);
+
+    // Open the book and commit one song through the real WRITE + SAVE.
+    async function openWithSavedSong(ctx) {
+      const { store } = ctx.makeStore();
+      store.open();
+      await until(() => expect(store.slice('index')[ctx.bookId]).toBe('ready'));
+      store.send(command(CommandKind.WRITE, { bookId: ctx.bookId, path: PATH, text: SAVED_TEXT }));
+      store.send(
+        command(CommandKind.SAVE, { bookId: ctx.bookId, paths: [PATH], message: 'add song', author: IDENTITY }),
+      );
+      await until(() => expect(store.slice('save')[ctx.bookId]?.status).toBe('saved'));
+      return store;
+    }
+
+    // Edit the saved song and see it browse as unsaved.
+    async function editUnsaved(ctx, store) {
+      store.send(command(CommandKind.WRITE, { bookId: ctx.bookId, path: PATH, text: EDITED_TEXT }));
+      await until(() => {
+        store.send(command(CommandKind.BROWSE, {}));
+        expect(browsed(store, ctx.bookId, PATH)?.unsaved).toBe(true);
+      });
+    }
+
+    it('DISCARD posts a ready INDEX_STATUS after DISCARDED, and a BROWSE sent then lists the song without unsaved (workflow 4 L11-14; Constraints 1-2)', async () => {
+      const ctx = await setup();
+      try {
+        const store = await openWithSavedSong(ctx);
+        await editUnsaved(ctx, store);
+
+        const seen = recordEvents(store);
+        store.send(command(CommandKind.DISCARD, { bookId: ctx.bookId, paths: [PATH] }));
+        await until(() => expect(readyAfter(seen, EventKind.DISCARDED, ctx.bookId)).toBe(true));
+
+        store.send(command(CommandKind.BROWSE, {}));
+        await until(() => expect(browsed(store, ctx.bookId, PATH)?.unsaved).toBe(false));
+      } finally {
+        await ctx.cleanup();
+      }
+    });
+
+    it('a BROWSE racing DISCARD is followed by an INDEX_STATUS, and a BROWSE sent on it reports unsaved false (the L3 race, attach-worker.js:18)', async () => {
+      const ctx = await setup();
+      try {
+        const store = await openWithSavedSong(ctx);
+        await editUnsaved(ctx, store);
+
+        // What the search screen does: browse on the INDEX_STATUS that follows
+        // the reply.
+        const seen = [];
+        let rebrowsed = false;
+        store.subscribeEvents((m) => {
+          seen.push(m);
+          if (!rebrowsed && readyAfter(seen, EventKind.DISCARDED, ctx.bookId)) {
+            rebrowsed = true;
+            store.send(command(CommandKind.BROWSE, {}));
+          }
+        });
+        // The confirm closes on DISCARDED and the search screen mounts and
+        // browses at once: DISCARD and BROWSE without awaiting between them.
+        store.send(command(CommandKind.DISCARD, { bookId: ctx.bookId, paths: [PATH] }));
+        store.send(command(CommandKind.BROWSE, {}));
+
+        await until(() => expect(rebrowsed).toBe(true));
+        await until(() => expect(browsed(store, ctx.bookId, PATH)?.unsaved).toBe(false));
+      } finally {
+        await ctx.cleanup();
+      }
+    });
+
+    it('SAVE posts a ready INDEX_STATUS after SAVED, and BROWSE lists the song saved (workflow 4 L11-14; save_feedback\'s early SAVED)', async () => {
+      const ctx = await setup();
+      try {
+        const store = await openWithSavedSong(ctx);
+        await editUnsaved(ctx, store);
+
+        const seen = recordEvents(store);
+        store.send(
+          command(CommandKind.SAVE, { bookId: ctx.bookId, paths: [PATH], message: 'edit', author: IDENTITY }),
+        );
+        await until(() => expect(readyAfter(seen, EventKind.SAVED, ctx.bookId)).toBe(true));
+
+        store.send(command(CommandKind.BROWSE, {}));
+        await until(() => expect(browsed(store, ctx.bookId, PATH)?.unsaved).toBe(false));
+      } finally {
+        await ctx.cleanup();
+      }
+    });
+
+    it('DELETE_FILE posts a ready INDEX_STATUS, and BROWSE no longer lists the file (Constraint 2)', async () => {
+      const ctx = await setup();
+      try {
+        const store = await openWithSavedSong(ctx);
+        await until(() => {
+          store.send(command(CommandKind.BROWSE, {}));
+          expect(browsed(store, ctx.bookId, PATH)).toBeDefined();
+        });
+        const seen = recordEvents(store);
+        store.send(command(CommandKind.DELETE_FILE, { bookId: ctx.bookId, path: PATH }));
+        await until(() => expect(readyAfter(seen, EventKind.FILE_DELETED, ctx.bookId)).toBe(true));
+
+        store.send(command(CommandKind.BROWSE, {}));
+        await until(() => expect(browsed(store, ctx.bookId, PATH)).toBeUndefined());
+      } finally {
+        await ctx.cleanup();
+      }
+    });
+
+    it('MOVE_FILE posts a ready INDEX_STATUS, and BROWSE lists the song at its new path only (Constraint 2)', async () => {
+      const ctx = await setup();
+      try {
+        const store = await openWithSavedSong(ctx);
+        const toPath = 'movida.cifra.md';
+        const seen = recordEvents(store);
+        store.send(command(CommandKind.MOVE_FILE, { bookId: ctx.bookId, fromPath: PATH, toPath }));
+        await until(() => expect(readyAfter(seen, EventKind.FILE_MOVED, ctx.bookId)).toBe(true));
+
+        store.send(command(CommandKind.BROWSE, {}));
+        await until(() => {
+          expect(browsed(store, ctx.bookId, toPath)).toBeDefined();
+          expect(browsed(store, ctx.bookId, PATH)).toBeUndefined();
+        });
+      } finally {
+        await ctx.cleanup();
+      }
+    });
   });
 
   it('keeps the index across a restart without re-parsing an unchanged file', async () => {

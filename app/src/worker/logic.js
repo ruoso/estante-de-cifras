@@ -949,6 +949,34 @@ export function createWorkerLogic(port, options = {}) {
     return ensureSearchIndex().reindexPath({ bookId, path, unsaved });
   }
 
+  // Tell every listing to re-read after a command's re-index landed: BROWSE
+  // takes no lock and may have been answered before it (the search screen
+  // mounts on DISCARDED/SAVED and browses at once), and the reducer gives
+  // `index` a new reference on each INDEX_STATUS, which re-sends it
+  // (songs.unsaved_after_discard Constraint 2; WRITE's precedent). Posted
+  // AFTER the reply, never instead of moving it (Constraint 1).
+  function postIndexReady(bookId) {
+    port.postMessage(
+      event(EventKind.INDEX_STATUS, { bookId, state: 'ready', songs: songCountOf(bookId) }),
+    );
+  }
+
+  // Drop from the device-local recents the paths a command removed from the
+  // book (those `reindexOrRemove` answered with a removal), and post RECENTS
+  // when the list changed — a recent pointing at a file that no longer exists
+  // is a way back to nothing (songs.unsaved_after_discard Constraint 3,
+  // workflow 2 L13-15). Not hooked into `persistIndexChanges`: `removeBook`
+  // runs there for books merely loading or re-keying (Decision 3).
+  async function forgetRemovedRecents(bookId, removedPaths) {
+    if (removedPaths.length === 0) return;
+    const db = await ensureOpen();
+    const { recents: list, changed } = await ensureRecents().forget(
+      db,
+      removedPaths.map((path) => ({ bookId, path })),
+    );
+    if (changed) port.postMessage(event(EventKind.RECENTS, { recents: list }));
+  }
+
   // The file names directly in a book's folder (`folder` within the book, or the
   // book root when absent) — the set a new song's placeholder/slug must not
   // collide with (songs.new_song, workflow 3 §Its file name). A folder that does
@@ -1774,13 +1802,15 @@ export function createWorkerLogic(port, options = {}) {
                 putLocations: [],
                 deleteLocations: [],
               };
+              const removed = [];
               for (const path of paths) {
-                mergeIndexChanges(
-                  changes,
-                  await reindexOrRemove({ bookId, path, unsaved: false }),
-                );
+                const one = await reindexOrRemove({ bookId, path, unsaved: false });
+                if (one.deleteLocations.length > 0) removed.push(path);
+                mergeIndexChanges(changes, one);
               }
               await persistIndexChanges(changes);
+              postIndexReady(bookId);
+              await forgetRemovedRecents(bookId, removed);
               // After a save, run a sync pass: it is what pushes the save — at
               // once with a network, at the next sync without (songs.save_feedback
               // Constraint 1; workflow 4 §Save pushes, workflow 8 L18). Coalesced
@@ -1963,13 +1993,17 @@ export function createWorkerLogic(port, options = {}) {
               putLocations: [],
               deleteLocations: [],
             };
+            const removed = [];
             for (const path of paths) {
-              mergeIndexChanges(
-                changes,
-                await reindexOrRemove({ bookId, path, unsaved: false }),
-              );
+              const one = await reindexOrRemove({ bookId, path, unsaved: false });
+              // A never-saved file discard deleted; a saved song's discard only
+              // reverts it and keeps its recent (Constraint 3).
+              if (one.deleteLocations.length > 0) removed.push(path);
+              mergeIndexChanges(changes, one);
             }
             await persistIndexChanges(changes);
+            postIndexReady(bookId);
+            await forgetRemovedRecents(bookId, removed);
             break;
           }
           case CommandKind.SONG_LOG: {
@@ -2057,16 +2091,20 @@ export function createWorkerLogic(port, options = {}) {
             await ensureWorkingCopy().move({ bookId, fromPath, toPath });
             await ensureIndexHydrated();
             const changes = { putDocs: [], putLocations: [], deleteLocations: [] };
-            mergeIndexChanges(
-              changes,
-              await reindexOrRemove({ bookId, path: fromPath, unsaved: true }),
-            );
+            const fromChanges = await reindexOrRemove({ bookId, path: fromPath, unsaved: true });
+            mergeIndexChanges(changes, fromChanges);
             mergeIndexChanges(
               changes,
               await reindexOrRemove({ bookId, path: toPath, unsaved: true }),
             );
             await persistIndexChanges(changes);
             port.postMessage(event(EventKind.FILE_MOVED, { bookId, fromPath, toPath }));
+            postIndexReady(bookId);
+            // The old path's recent is dropped, not re-pointed (Decision 4).
+            await forgetRemovedRecents(
+              bookId,
+              fromChanges.deleteLocations.length > 0 ? [fromPath] : [],
+            );
             break;
           }
           case CommandKind.FILE_LINKS: {
@@ -2087,10 +2125,14 @@ export function createWorkerLogic(port, options = {}) {
             const { bookId, path } = message.payload;
             await ensureWorkingCopy().remove({ bookId, path });
             await ensureIndexHydrated();
-            await persistIndexChanges(
-              await reindexOrRemove({ bookId, path, unsaved: true }),
-            );
+            const changes = await reindexOrRemove({ bookId, path, unsaved: true });
+            await persistIndexChanges(changes);
             port.postMessage(event(EventKind.FILE_DELETED, { bookId, path }));
+            postIndexReady(bookId);
+            await forgetRemovedRecents(
+              bookId,
+              changes.deleteLocations.length > 0 ? [path] : [],
+            );
             break;
           }
           case CommandKind.CREATE_FILE: {

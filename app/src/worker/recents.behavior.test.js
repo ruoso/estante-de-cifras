@@ -3,7 +3,10 @@
 // IndexedDB, the shared lightning-fs, a real git-HTTP remote for the home book.
 // Pins workflow 2 L17-20 and Decision 2: recents are kept on the device, in the
 // Worker's `meta` store, and recording one makes NO home-book commit — "what
-// you played on the phone is not something the laptop needs."
+// you played on the phone is not something the laptop needs." And
+// songs.unsaved_after_discard: a command that removes a song from its book
+// (a discarded draft, a deleted file) drops its recent — workflow 2 L13-15,
+// recents are the way back, and a way back to nothing is not one.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
@@ -13,7 +16,7 @@ import { createGitLayer } from './git.js';
 import { createGitHttpClient } from './git-http.js';
 import { createWorkerLogic } from './logic.js';
 import { createStore } from './store.js';
-import { command, CommandKind } from './protocol.js';
+import { command, CommandKind, EventKind } from './protocol.js';
 import { HOME_BOOK_ID } from './home-book.js';
 import { DEFAULT_RECENTS_CAP } from './recents.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
@@ -30,6 +33,10 @@ afterEach(() => {
 
 const until = (fn) => vi.waitFor(fn, { timeout: 8000, interval: 25 });
 const paths = (store) => store.slice('recents').map((r) => r.path);
+const FENCE = '```';
+const song = (lines) => lines.join('\n') + '\n';
+const IDENTITY = { id: 'u_8f3a21', name: 'A Tester' };
+const BOOK = 'book-1';
 
 async function setup() {
   const remote = await startGitHttpRemote();
@@ -44,6 +51,8 @@ async function setup() {
   // leaves its git history untouched (no commit, no push).
   const homeDir = git.bookDir(HOME_BOOK_ID);
   await git.clone({ dir: homeDir, url: remote.url });
+  // A song book, so a draft can be written, discarded and deleted for real.
+  await git.clone({ dir: git.bookDir(BOOK), url: remote.url });
 
   // A fresh Worker logic + store over the shared idb/name; a second one is a
   // "restart" over the same backing store (to prove persistence in `meta`).
@@ -132,5 +141,124 @@ describe('recents (behavior)', () => {
     } finally {
       await ctx.cleanup();
     }
+  });
+
+  describe('a removed song leaves the recents (songs.unsaved_after_discard)', () => {
+    const DRAFT = 'rascunho.cifra.md';
+    const SAVED = 'guardada.cifra.md';
+    const text = (title, chords = 'C   G') => song([`# ${title}`, '## A', FENCE, chords, 'linha', FENCE]);
+
+    async function opened(ctx) {
+      const store = ctx.makeStore();
+      store.open();
+      await until(() => expect(store.slice('index')[BOOK]).toBe('ready'));
+      return store;
+    }
+    async function writeAndRecord(store, path, body) {
+      // Wait for the WRITE's re-index (its INDEX_STATUS) so the draft is on
+      // disk before anything discards it.
+      const seen = recordEvents(store);
+      store.send(command(CommandKind.WRITE, { bookId: BOOK, path, text: body }));
+      await until(() =>
+        expect(seen.some((m) => m.kind === EventKind.INDEX_STATUS && m.payload.bookId === BOOK)).toBe(true),
+      );
+      store.send(command(CommandKind.RECORD_RECENT, { bookId: BOOK, path }));
+      await until(() => expect(paths(store)).toContain(path));
+    }
+    async function saveAndRecord(store, path) {
+      store.send(command(CommandKind.WRITE, { bookId: BOOK, path, text: text('Guardada') }));
+      store.send(command(CommandKind.SAVE, { bookId: BOOK, paths: [path], message: 'add song', author: IDENTITY }));
+      await until(() => expect(store.slice('save')[BOOK]?.status).toBe('saved'));
+      store.send(command(CommandKind.RECORD_RECENT, { bookId: BOOK, path }));
+      await until(() => expect(paths(store)).toContain(path));
+    }
+    function recordEvents(store) {
+      const seen = [];
+      store.subscribeEvents((m) => seen.push(m));
+      return seen;
+    }
+
+    it('discarding a never-saved draft drops it from the recents and emits RECENTS, and a restart still lacks it (workflow 3 L52-54; Constraints 3-4)', async () => {
+      const ctx = await setup();
+      try {
+        const store = await opened(ctx);
+        store.send(command(CommandKind.RECORD_RECENT, { bookId: BOOK, path: 'outra.cifra.md' }));
+        await until(() => expect(paths(store)).toEqual(['outra.cifra.md']));
+        await writeAndRecord(store, DRAFT, text('Rascunho'));
+        expect(paths(store)).toEqual([DRAFT, 'outra.cifra.md']);
+
+        const seen = recordEvents(store);
+        store.send(command(CommandKind.DISCARD, { bookId: BOOK, paths: [DRAFT] }));
+        await until(() => {
+          const last = seen.filter((m) => m.kind === EventKind.RECENTS).at(-1);
+          expect(last?.payload.recents.map((r) => r.path)).toEqual(['outra.cifra.md']);
+        });
+        expect(paths(store)).toEqual(['outra.cifra.md']);
+
+        // Persisted in `meta`: a restart reads the pruned list.
+        const restarted = ctx.makeStore();
+        restarted.open();
+        await until(() => expect(paths(restarted)).toEqual(['outra.cifra.md']));
+      } finally {
+        await ctx.cleanup();
+      }
+    });
+
+    it('discarding a saved song\'s edits keeps its recent — no RECENTS change (Constraint 3)', async () => {
+      const ctx = await setup();
+      try {
+        const store = await opened(ctx);
+        await saveAndRecord(store, SAVED);
+        store.send(command(CommandKind.WRITE, { bookId: BOOK, path: SAVED, text: text('Guardada', 'C   G   Am') }));
+
+        const seen = recordEvents(store);
+        store.send(command(CommandKind.DISCARD, { bookId: BOOK, paths: [SAVED] }));
+        await until(() => {
+          const i = seen.findIndex((m) => m.kind === EventKind.DISCARDED);
+          expect(i).toBeGreaterThanOrEqual(0);
+          expect(seen.slice(i).some((m) => m.kind === EventKind.INDEX_STATUS && m.payload.bookId === BOOK)).toBe(true);
+        });
+        // A record after it shares the recents write queue, so any forget the
+        // discard had queued has landed by the time its RECENTS arrives.
+        store.send(command(CommandKind.RECORD_RECENT, { bookId: BOOK, path: 'depois.cifra.md' }));
+        await until(() => expect(paths(store)).toEqual(['depois.cifra.md', SAVED]));
+        const recentsEvents = seen.filter((m) => m.kind === EventKind.RECENTS);
+        expect(recentsEvents).toHaveLength(1);
+      } finally {
+        await ctx.cleanup();
+      }
+    });
+
+    it('DELETE_FILE of a recent drops it (Constraint 3)', async () => {
+      const ctx = await setup();
+      try {
+        const store = await opened(ctx);
+        await saveAndRecord(store, SAVED);
+        store.send(command(CommandKind.DELETE_FILE, { bookId: BOOK, path: SAVED }));
+        await until(() => expect(paths(store)).toEqual([]));
+      } finally {
+        await ctx.cleanup();
+      }
+    });
+
+    it('a forget racing a record loses neither: the result holds the new song and not the draft (Constraint 4)', async () => {
+      const ctx = await setup();
+      try {
+        const store = await opened(ctx);
+        await writeAndRecord(store, DRAFT, text('Rascunho'));
+
+        // Sent together, without awaiting between them.
+        store.send(command(CommandKind.RECORD_RECENT, { bookId: BOOK, path: 'nova.cifra.md' }));
+        store.send(command(CommandKind.DISCARD, { bookId: BOOK, paths: [DRAFT] }));
+        await until(() => expect(paths(store)).toEqual(['nova.cifra.md']));
+
+        // And so it was written: a restart reads the same list.
+        const restarted = ctx.makeStore();
+        restarted.open();
+        await until(() => expect(paths(restarted)).toEqual(['nova.cifra.md']));
+      } finally {
+        await ctx.cleanup();
+      }
+    });
   });
 });
