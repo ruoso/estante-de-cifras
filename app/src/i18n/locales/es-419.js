@@ -1471,6 +1471,8 @@ export default {
   },
 
   reading: {
+    emptySong: 'Todavía no hay nada escrito en esta canción.',
+    emptySection: 'Todavía no hay nada escrito aquí.',
     back: 'Atrás',
     byline: '{artist} · {book}',
     keyOf: 'Tono de {key}',

@@ -221,8 +221,9 @@ task songs "Songs" {
   task empty_states "An empty song or section says so and offers Edit" {
     effort 0.5d
     allocate team
+    complete 100
     depends design.review_polish, !render_notes
-    note "L6: the reading view has no empty state (SongReading.jsx), so a song saved from the template reads as a blank section; only the arrange chart has one (en.js Nothing written yet.). As design.review_polish decides. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (an empty song and an empty section, Edit reachable; axe); e2e-web (a song saved untouched reads its empty state on the three viewports; axe)."
+    note "L6: the reading view has no empty state (SongReading.jsx), so a song saved from the template reads as a blank section; only the arrange chart has one (en.js Nothing written yet.). As design.review_polish decides. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (an empty song and an empty section, Edit reachable; axe); e2e-web (a song saved untouched reads its empty state on the three viewports; axe). Refinement: tasks/refinements/songs/empty_states.md"
   }
   task menu_grouping "The song menu grouped" {
     effort 0.25d

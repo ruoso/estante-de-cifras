@@ -55,6 +55,7 @@ import { songVariations } from '../core/song-variations.js';
 import { parseChord } from '../core/notation/parse.js';
 import { DEFAULT_DIALECT, songDialect } from '../core/notation/dialects.js';
 import Chart from '../chart/Chart.jsx';
+import { isEmptySong } from '../chart/layout.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import SearchScreen from './SearchScreen.jsx';
 import { bookLabelFor } from './first-run.js';
@@ -120,6 +121,16 @@ function BackIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
+
+// The pencil on the empty song's Edit (Review-polish board, Phone 2;
+// aria-hidden — the word Edit names the button).
+function PencilIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M4 20h4L19 9l-4-4L4 16z" />
     </svg>
   );
 }
@@ -506,9 +517,31 @@ export default function SongReading({
   else if (mode === 'wide') shapesHeading = t('reading.shapesFor', { instrument: instrumentLabel });
   else shapesHeading = t('reading.shapes');
 
+  // Nothing written yet (workflow 2 L116-126; songs.empty_states): an empty song
+  // reads as a notice with Edit in place of the chart, inside a group carrying
+  // the chart's name (Decision 2); an empty section in a song with content says
+  // so under its name (the chart's `markEmpty`, the reading view only).
+  const empty = Boolean(model) && isEmptySong(model);
+  let chart = null;
+  if (empty) {
+    chart = (
+      <div role="group" aria-label={displayTitle}>
+        <div className="notice reading-empty">
+          <span className="t-body">{t('reading.emptySong')}</span>
+          <Button className="btn primary" onPress={() => onEdit({ bookId, path, title: baseModel?.title })}>
+            <PencilIcon />
+            {t('reading.edit')}
+          </Button>
+        </div>
+      </div>
+    );
+  } else if (model) {
+    chart = <Chart model={model} size={mode === 'wide' ? 20 : undefined} label={displayTitle} markEmpty />;
+  }
+
   const sheet = (
     <div className="reading-sheet">
-      {model ? <Chart model={model} size={mode === 'wide' ? 20 : undefined} label={displayTitle} /> : null}
+      {chart}
       {shapes.length ? (
         // The tablet's bordered card beside the chart (W02#3 L130-139); the
         // computer's unbordered column (W02#4 L198-207); the phone's plain

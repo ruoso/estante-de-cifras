@@ -245,3 +245,17 @@
     padding: 0;
   }
 }
+
+/* Nothing written yet (songs.empty_states; Review-polish board, Phone 2 and
+   Computer): the empty song's notice stacks its sentence over the Edit, and an
+   empty section's muted line reads in the interface face under its name. */
+.reading-empty {
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+}
+.reading-empty .btn {
+  align-self: flex-start;
+}
+.reading-sheet .chart .chart-empty {
+  font-family: var(--font-ui);
+}

@@ -22,6 +22,7 @@ import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SongReading from './SongReading.jsx';
 import { READING_ACTIONS_WIDE_QUERY } from '../shell/layout-mode.js';
+import { template } from '../editor/template.js';
 
 const GUITAR_TUNING = 'E2 A2 D3 G3 B3 E4';
 const UKE_TUNING = 'G4 C4 E4 A4';
@@ -389,6 +390,81 @@ describe('SongReading — notes and a tab block (songs.render_notes)', () => {
     expect(note.textContent).toBe(NOTE);
     expect(tab.textContent).toBe(TAB);
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+});
+
+// songs.empty_states — workflow 2 §Nothing written yet (L116-126) and the
+// Review-polish board (Phone 2: the notice with Edit; Computer: the muted line
+// under an empty section). Fixtures are songs written for the purpose.
+describe('nothing written yet', () => {
+  const EMPTY_SONG = 'Nothing written in this song yet.';
+  const EMPTY_SECTION = 'Nothing written here yet.';
+
+  it('an empty song (the untouched template) reads as the notice with Edit, no section name, no shapes (L118-123; Phone 2)', async () => {
+    const onEdit = vi.fn();
+    const { store } = makeStore({ text: template(undefined, { title: 'Tarde Clara' }).text, entry: guitarEntry() });
+    await openAndWait(store, { onEdit });
+
+    const sheet = screen.getByRole('group', { name: 'Tarde Clara' });
+    expect(within(sheet).getByText(EMPTY_SONG)).toBeInTheDocument();
+    expect(screen.queryByText('Intro')).not.toBeInTheDocument();
+    expect(document.querySelector('.sec-name')).toBeNull();
+    expect(screen.queryByRole('region', { name: /Shapes/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nobody has chosen shapes/)).not.toBeInTheDocument();
+
+    // The notice's own Edit, by a click…
+    const edit = within(sheet).getByRole('button', { name: 'Edit' });
+    await click(edit);
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit).toHaveBeenLastCalledWith({ bookId: BOOK, path: PATH, title: 'Tarde Clara' });
+
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it("an empty song's Edit is reached by the keyboard and pressed with Enter (L120-123)", async () => {
+    const onEdit = vi.fn();
+    const { store } = makeStore({ text: template(undefined, { title: 'Tarde Clara' }).text, entry: guitarEntry() });
+    await openAndWait(store, { onEdit });
+
+    const edit = within(screen.getByRole('group', { name: 'Tarde Clara' })).getByRole('button', { name: 'Edit' });
+    act(() => edit.focus());
+    expect(edit).toHaveFocus();
+    await act(async () => {
+      fireEvent.keyDown(edit, { key: 'Enter' });
+      fireEvent.keyUp(edit, { key: 'Enter' });
+    });
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit).toHaveBeenLastCalledWith({ bookId: BOOK, path: PATH, title: 'Tarde Clara' });
+  });
+
+  it('an empty section says so under its name, with no button, the rest drawn (L124-126; Computer)', async () => {
+    const text = ['# Tarde Clara', '', '## Verse', FENCE, 'G  C | Am  D', FENCE, '', '## Chorus', ''].join('\n');
+    const { store } = makeStore({ text, entry: guitarEntry() });
+    await openAndWait(store);
+
+    const chart = screen.getByRole('group', { name: 'Tarde Clara' });
+    const chorus = within(chart).getByText('Chorus');
+    const line = within(chart).getByText(EMPTY_SECTION);
+    expect(chorus.nextElementSibling).toBe(line);
+    expect(line.nextElementSibling).toBeNull();
+    expect(line).not.toHaveAttribute('role');
+    expect(within(chart).getAllByText(EMPTY_SECTION)).toHaveLength(1);
+    expect(screen.queryByText(EMPTY_SONG)).not.toBeInTheDocument();
+    // No Edit in the sheet: the only Edit is the toolbar's.
+    expect(within(chart).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(1);
+    // The Verse's bars and the shapes are drawn as usual.
+    expect(chartFirstLineGlyphs()).toBe('G C');
+    expect(screen.getByRole('region', { name: 'Shapes' })).toBeInTheDocument();
+
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('a song with content shows neither sentence (Constraint 1)', async () => {
+    const { store } = makeStore({ text: song({}), entry: guitarEntry() });
+    await openAndWait(store);
+    expect(screen.queryByText(EMPTY_SONG)).not.toBeInTheDocument();
+    expect(screen.queryByText(EMPTY_SECTION)).not.toBeInTheDocument();
   });
 });
 

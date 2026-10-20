@@ -1627,6 +1627,8 @@ export default {
   // instrument in use, `{artist}`/`{book}` the song's artist and its book,
   // `{list}` a comma-joined chord list.
   reading: {
+    emptySong: 'Nothing written in this song yet.',
+    emptySection: 'Nothing written here yet.',
     back: 'Back',
     byline: '{artist} · {book}',
     keyOf: 'Key of {key}',

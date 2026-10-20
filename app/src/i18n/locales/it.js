@@ -1470,6 +1470,8 @@ export default {
   },
 
   reading: {
+    emptySong: 'Ancora niente di scritto in questa canzone.',
+    emptySection: 'Ancora niente di scritto qui.',
     back: 'Indietro',
     byline: '{artist} · {book}',
     keyOf: 'Tonalità di {key}',

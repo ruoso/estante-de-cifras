@@ -228,14 +228,21 @@ function notesParagraphs(text) {
  * §1.9), and a `verbatim` fence yields one verbatim row of its text whole, both
  * addressed `{ section, part }`.
  *
+ * With `markEmpty` (the reading view only, songs.empty_states Decision 3), a
+ * named section whose body draws nothing but gaps is followed by one `empty`
+ * row, right after its section-name row (workflow 2 §Nothing written yet); the
+ * unnamed leading section never gets one.
+ *
  * @param {object} [model]  the reader's plain-object model
+ * @param {{ markEmpty?: boolean }} [options]
  * @returns {Array<object>} render rows in document order
  */
-export function chartRows(model) {
+export function chartRows(model, { markEmpty = false } = {}) {
   const rows = [];
   const sections = model?.sections ?? [];
   sections.forEach((section, sectionIndex) => {
     if (section.name) rows.push({ type: 'section', name: section.name });
+    const start = rows.length;
     (section.body ?? []).forEach((part, partIndex) => {
       if (part.type === 'notes') {
         const paragraphs = notesParagraphs(part.text);
@@ -251,6 +258,27 @@ export function chartRows(model) {
         rows.push(rowForLine(line, { section: sectionIndex, part: partIndex, line: lineIndex }));
       });
     });
+    if (markEmpty && section.name && !hasContent(rows.slice(start))) {
+      rows.splice(start, 0, { type: 'empty' });
+    }
   });
   return rows;
+}
+
+// Whether any of these rows draws something besides a section name or a gap.
+function hasContent(rows) {
+  return rows.some((row) => row.type !== 'section' && row.type !== 'gap' && row.type !== 'empty');
+}
+
+/**
+ * Whether a song has nothing written to read (workflow 2 §Nothing written yet,
+ * L118-120): no section holds a bar, a sung line or a note, and nothing comes
+ * before its first section — the chart would draw only section names and gaps.
+ * The title and properties are not content.
+ *
+ * @param {object} [model]  the reader's plain-object model
+ * @returns {boolean}
+ */
+export function isEmptySong(model) {
+  return !hasContent(chartRows(model));
 }

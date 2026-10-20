@@ -1470,6 +1470,8 @@ export default {
   },
 
   reading: {
+    emptySong: 'Nada escrito nesta música ainda.',
+    emptySection: 'Nada escrito aqui ainda.',
     back: 'Voltar',
     byline: '{artist} · {book}',
     keyOf: 'Tom de {key}',

@@ -158,6 +158,11 @@ function Row({ row, mark, ctx }) {
       return <div className={`words${markCls}`}>{row.text}</div>;
     case 'gap':
       return <div className="gap" />;
+    case 'empty':
+      // A named section with nothing written under it, in the reading view only
+      // (workflow 2 §Nothing written yet; songs.empty_states Decision 3): plain
+      // muted text, content of the sheet rather than a status.
+      return <p className="t-small chart-empty">{t('reading.emptySection')}</p>;
     case 'notes':
       // A section's notes, in their place among its music (cifra.md §1.9): one
       // paragraph per blank-line-separated run, shown as written — React text
@@ -222,9 +227,11 @@ function renderUnits(rows, markOf) {
  *   item: number }) => void} [props.onChordPress]  the opt-in arrange seam
  * @param {(token: { symbol: string, key: string }) => string} [props.chordLabel]
  *   the accessible name of a pressable chord; default the §3 spoken chord name
+ * @param {boolean} [props.markEmpty]  say *Nothing written here yet.* under a
+ *   named section with nothing in it — the reading view only (songs.empty_states)
  */
-export default function Chart({ model, markOf, size, label, className, onChordPress, chordLabel }) {
-  const rows = chartRows(model);
+export default function Chart({ model, markOf, size, label, className, onChordPress, chordLabel, markEmpty }) {
+  const rows = chartRows(model, { markEmpty });
   const speak = (chord, opts) => speakChord(chord, { t, ...opts });
   const speakSlot = (voice) => speakVoice(voice, { speak, t });
   const ctx = { onChordPress, chordLabel, speakSlot };

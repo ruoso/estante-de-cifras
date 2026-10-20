@@ -10,7 +10,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { parse } from 'cifra-md';
-import { chartRows } from './layout.js';
+import { chartRows, isEmptySong } from './layout.js';
+import { template } from '../editor/template.js';
 
 // A chord item in the reader's shape; the chart reads `symbol`, `column` and
 // `words` (the rest is present in the real model and ignored here).
@@ -482,5 +483,90 @@ describe('chartRows — a chord past the end of the words', () => {
     expect(firstEmpty.segments.map((s) => s.tail)).toEqual([false, false]);
     const lead = sungLine([{ bar: null, items: [{ type: 'lead', column: 0, words: 'Oh ' }, chord('G', 3, 'yes')] }]);
     expect(lead.segments.map((s) => s.tail)).toEqual([false, false]);
+  });
+});
+
+// songs.empty_states — workflow 2 §Nothing written yet (L118-120: when a song
+// is empty; L124-126: an empty section in a song with content). Emptiness is
+// judged from the chart's own rows (Decision 1).
+describe('isEmptySong — workflow 2 L118-120', () => {
+  const lines = (...ls) => ['# Pebble Road', '- artist:', '- notation: brazilian', '', ...ls, ''].join('\n');
+
+  it('is true for the untouched new-song template', () => {
+    const { text } = template(undefined, { title: 'Pebble Road' });
+    expect(isEmptySong(parse(text))).toBe(true);
+  });
+
+  it('is true for a song of headings only (bodies [])', () => {
+    const m = model([section('A', []), section('B', [])]);
+    expect(isEmptySong(m)).toBe(true);
+    expect(isEmptySong(parse(lines('## A', '', '## B')))).toBe(true);
+  });
+
+  it('is true for an empty fence plus a blank notes part', () => {
+    expect(isEmptySong(model([section('Intro', [music([]), { type: 'notes', text: '  \n ' }])]))).toBe(true);
+  });
+
+  it('is true for a fence holding only blank lines (gap rows)', () => {
+    // The reader drops a fence's blank lines (an empty `lines`); a break line in
+    // the model is what draws a gap, so both shapes are pinned.
+    expect(isEmptySong(parse(lines('## Intro', '```', '', '', '```')))).toBe(true);
+    const m = model([section('Intro', [music([{ kind: 'break' }, { kind: 'break' }])])]);
+    expect(chartRows(m).map((r) => r.type)).toEqual(['section', 'gap', 'gap']);
+    expect(isEmptySong(m)).toBe(true);
+  });
+
+  it('is false for a single bar', () => {
+    expect(isEmptySong(parse(lines('## Intro', '```', '| G |', '```')))).toBe(false);
+  });
+
+  it('is false for a single sung line', () => {
+    expect(isEmptySong(parse(lines('## Verse', '```', 'G      C', 'Down by the water', '```')))).toBe(false);
+  });
+
+  it('is false for a lyric-only line', () => {
+    expect(isEmptySong(model([section('Verse', [music([{ kind: 'lyric', text: 'Down by the water' }])])]))).toBe(false);
+  });
+
+  it('is false for a notes paragraph before the first heading', () => {
+    expect(isEmptySong(parse(lines('Play it gently.', '', '## Intro', '```', '', '```')))).toBe(false);
+  });
+
+  it('is false for a verbatim fence', () => {
+    expect(isEmptySong(parse(lines('## Intro', '```tab', 'e|--3--|', '```')))).toBe(false);
+  });
+
+  it('is true for no model at all (nothing to draw)', () => {
+    expect(isEmptySong(model([]))).toBe(true);
+  });
+});
+
+describe('chartRows — markEmpty (workflow 2 L124-126; Decision 3)', () => {
+  const bars = { kind: 'chart', measures: [{ items: [chord('G')] }] };
+  const gapLine = { kind: 'break' };
+  const mixed = () =>
+    model([
+      section('', [music([gapLine])]),
+      section('Verse', [music([bars])]),
+      section('Chorus', [music([gapLine, gapLine])]),
+      section('Bridge', []),
+    ]);
+
+  it('yields an empty row right after the section row of each named section with only gaps', () => {
+    const rows = chartRows(mixed(), { markEmpty: true });
+    expect(rows.map((r) => r.type)).toEqual(['gap', 'section', 'bars', 'section', 'empty', 'gap', 'gap', 'section', 'empty']);
+    expect(rows[4]).toEqual({ type: 'empty' });
+    expect(rows[3]).toEqual({ type: 'section', name: 'Chorus' });
+    expect(rows[7]).toEqual({ type: 'section', name: 'Bridge' });
+  });
+
+  it('never marks the unnamed leading section, nor a section with content', () => {
+    const rows = chartRows(model([section('', []), section('Verse', [music([bars])])]), { markEmpty: true });
+    expect(rows.some((r) => r.type === 'empty')).toBe(false);
+  });
+
+  it('without the option, the rows are unchanged', () => {
+    expect(chartRows(mixed()).map((r) => r.type)).toEqual(['gap', 'section', 'bars', 'section', 'gap', 'gap', 'section']);
+    expect(chartRows(mixed(), {})).toEqual(chartRows(mixed()));
   });
 });
