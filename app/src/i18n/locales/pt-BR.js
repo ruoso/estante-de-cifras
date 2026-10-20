@@ -1514,6 +1514,11 @@ export default {
     more: 'Mais',
     fullScreen: 'Tela cheia',
     leaveFullScreen: 'Sair da tela cheia',
+    // Os títulos dos grupos do menu ⋯ (songs.menu_grouping; fluxo 2): cada
+    // título é o nome que o leitor de tela dá ao grupo.
+    menuThisSong: 'Esta música',
+    menuTakeAlong: 'Levar junto',
+    menuView: 'Exibir',
     // Uma sincronização em segundo plano trouxe uma nova versão com a música
     // aberta (sync.read_in_place, fluxo 8; W08). `{name}` é quem fez a mudança.
     updatedBy: 'Atualizado por {name}',

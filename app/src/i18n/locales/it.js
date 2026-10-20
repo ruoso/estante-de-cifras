@@ -1514,6 +1514,11 @@ export default {
     more: 'Altro',
     fullScreen: 'Schermo intero',
     leaveFullScreen: 'Esci da schermo intero',
+    // I titoli dei gruppi del menu ⋯ (songs.menu_grouping; flusso 2): ogni
+    // titolo è il nome che lo screen reader dà al gruppo.
+    menuThisSong: 'Questo brano',
+    menuTakeAlong: 'Da portare',
+    menuView: 'Vista',
     // Una sincronizzazione in background ha portato una nuova versione con il
     // brano aperto (sync.read_in_place, flusso 8; W08). `{name}` è chi l'ha
     // cambiato.

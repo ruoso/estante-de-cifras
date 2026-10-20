@@ -30,15 +30,18 @@ import {
   Button,
   Dialog,
   DialogTrigger,
+  Header,
   Label,
   ListBox,
   ListBoxItem,
   Menu,
   MenuItem,
+  MenuSection,
   MenuTrigger,
   Popover,
   Select,
   SelectValue,
+  Separator,
 } from 'react-aria-components';
 import { parse } from 'cifra-md';
 import { t } from '../i18n/index.js';
@@ -640,14 +643,28 @@ export default function SongReading({
             else if (key === 'fullScreen') setFullScreen(true);
           }}
         >
-          <MenuItem id="edit">{t('reading.edit')}</MenuItem>
-          <MenuItem id="history">{t('reading.history')}</MenuItem>
-          <MenuItem id="addToSetlist">{t('reading.addToSetlist')}</MenuItem>
-          <MenuItem id="print">{t('reading.print')}</MenuItem>
-          <MenuItem id="share">{t('reading.share')}</MenuItem>
-          <MenuItem id="showFile">{t('reading.showFile')}</MenuItem>
-          {!transposed ? <MenuItem id="arrange">{t('reading.arrangeFor', { instrument: instrumentLabel })}</MenuItem> : null}
-          <MenuItem id="fullScreen">{t('reading.fullScreen')}</MenuItem>
+          {/* Three named groups in the workflow's order (songs.menu_grouping;
+              workflow 2 §The song's menu; review_polish item 5): each visible
+              Header names its group for a screen reader, a Separator between. */}
+          <MenuSection>
+            <Header className="t-h3">{t('reading.menuThisSong')}</Header>
+            <MenuItem id="edit">{t('reading.edit')}</MenuItem>
+            {!transposed ? <MenuItem id="arrange">{t('reading.arrangeFor', { instrument: instrumentLabel })}</MenuItem> : null}
+            <MenuItem id="history">{t('reading.history')}</MenuItem>
+            <MenuItem id="showFile">{t('reading.showFile')}</MenuItem>
+          </MenuSection>
+          <Separator />
+          <MenuSection>
+            <Header className="t-h3">{t('reading.menuTakeAlong')}</Header>
+            <MenuItem id="addToSetlist">{t('reading.addToSetlist')}</MenuItem>
+            <MenuItem id="share">{t('reading.share')}</MenuItem>
+            <MenuItem id="print">{t('reading.print')}</MenuItem>
+          </MenuSection>
+          <Separator />
+          <MenuSection>
+            <Header className="t-h3">{t('reading.menuView')}</Header>
+            <MenuItem id="fullScreen">{t('reading.fullScreen')}</MenuItem>
+          </MenuSection>
         </Menu>
       </Popover>
     </MenuTrigger>

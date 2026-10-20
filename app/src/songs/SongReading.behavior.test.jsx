@@ -1084,8 +1084,14 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
   const seen = { instrumentPromptSeen: register(true) };
   const chips = () => screen.getAllByRole('button', { name: /change instrument/ });
   const appbar = (container) => container.querySelector('.appbar.reading-chrome');
-  // songs.show_the_file adds Show the file after Share (its Decision 5).
-  const EIGHT = ['Edit', 'History', 'Add to setlist', 'Print', 'Share', 'Show the file', 'Arrange for Guitar', 'Full screen'];
+  // The grouped order (songs.menu_grouping; workflow 2 §The song's menu;
+  // review_polish item 5): This song, Take it along, View.
+  const EIGHT = ['Edit', 'Arrange for Guitar', 'History', 'Show the file', 'Add to setlist', 'Share', 'Print', 'Full screen'];
+  const GROUPS = [
+    ['This song', ['Edit', 'Arrange for Guitar', 'History', 'Show the file']],
+    ['Take it along', ['Add to setlist', 'Share', 'Print']],
+    ['View', ['Full screen']],
+  ];
   const DEVICES = [
     { device: 'phone', mode: 'narrow', computer: false },
     { device: 'tablet', mode: 'wide', computer: false },
@@ -1105,12 +1111,24 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
     return screen.findByRole('menu', { name: 'More' });
   };
   const itemNames = (menu) => within(menu).getAllByRole('menuitem').map((i) => i.textContent);
+  // Exactly these groups in order, each named by its visible header (by
+  // accessible name) and holding its items in order.
+  const expectGroups = (menu, expected) => {
+    const groups = within(menu).getAllByRole('group');
+    expect(groups).toHaveLength(expected.length);
+    expected.forEach(([name, items], i) => {
+      expect(groups[i]).toHaveAccessibleName(name);
+      expect(within(menu).getByRole('group', { name })).toBe(groups[i]);
+      expect(itemNames(groups[i])).toEqual(items);
+    });
+  };
 
   for (const { device, mode, computer } of DEVICES) {
-    it(`⋯ holds every action, on the ${device}: in order, each by the keyboard, Escape back to More, axe clean`, async () => {
+    it(`⋯ holds every action, on the ${device}: three named groups in order, each item by the keyboard, Escape back to More, axe clean`, async () => {
       installWidths(computer);
       const handlers = {
         onEdit: vi.fn(),
+        onArrange: vi.fn(),
         onOpenHistory: vi.fn(),
         onAddToSetlist: vi.fn(),
         onShare: vi.fn(),
@@ -1120,10 +1138,22 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
       const { container } = await openAndWait(store, { mode, ...handlers });
       const more = within(appbar(container)).getByRole('button', { name: 'More' });
 
-      // The eight, in order, whatever the width (Decision 2); axe with it open.
+      // The eight, in order, whatever the width (Decision 2), in three groups
+      // each named by its header, two separators between; axe with it open.
       let menu = await openMore(more);
       expect(itemNames(menu)).toEqual(EIGHT);
+      expectGroups(menu, GROUPS);
+      expect(within(menu).getAllByRole('separator')).toHaveLength(2);
       expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+      // ArrowDown from Edit walks every item in the grouped order, crossing the
+      // group boundaries without stopping on a header or a separator.
+      expect(document.activeElement).toHaveTextContent('Edit');
+      for (const name of EIGHT.slice(1)) {
+        await keyPress(document.activeElement, 'ArrowDown');
+        expect(document.activeElement).toHaveAttribute('role', 'menuitem');
+        expect(document.activeElement).toHaveTextContent(name);
+      }
 
       // Escape closes it and returns focus to More.
       await keyPress(document.activeElement, 'Escape');
@@ -1141,6 +1171,8 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
       };
       await reach('Edit');
       expect(handlers.onEdit).toHaveBeenCalledWith({ bookId: BOOK, path: PATH, title: 'Tarde Clara' });
+      await reach('Arrange for Guitar');
+      expect(handlers.onArrange).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
       await reach('History');
       expect(handlers.onOpenHistory).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
       await reach('Add to setlist');
@@ -1151,9 +1183,12 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
       expect(handlers.onShare).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
       await reach('Show the file');
       expect(handlers.onShowFile).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
+      // Last, since full screen hides the app bar.
+      await reach('Full screen');
+      await screen.findByRole('button', { name: 'Leave full screen' });
     });
 
-    it(`⋯ on the ${device} while transposed: seven items, no Arrange for`, async () => {
+    it(`⋯ on the ${device} while transposed: still three groups, no Arrange for in This song`, async () => {
       installWidths(computer);
       const { store } = makeStore({
         text: song({ props: ['key: G'] }),
@@ -1164,6 +1199,7 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
       const { container } = await openAndWait(store, { mode });
       const menu = await openMore(within(appbar(container)).getByRole('button', { name: 'More' }));
       expect(itemNames(menu)).toEqual(EIGHT.filter((n) => n !== 'Arrange for Guitar'));
+      expectGroups(menu, [['This song', ['Edit', 'History', 'Show the file']], GROUPS[1], GROUPS[2]]);
     });
   }
 

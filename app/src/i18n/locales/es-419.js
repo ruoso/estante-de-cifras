@@ -1515,6 +1515,11 @@ export default {
     more: 'Más',
     fullScreen: 'Pantalla completa',
     leaveFullScreen: 'Salir de pantalla completa',
+    // Los títulos de los grupos del menú ⋯ (songs.menu_grouping; flujo 2): cada
+    // título es el nombre que el lector de pantalla da al grupo.
+    menuThisSong: 'Esta canción',
+    menuTakeAlong: 'Para llevar',
+    menuView: 'Ver',
     // Una sincronización en segundo plano trajo una versión nueva con la canción
     // abierta (sync.read_in_place, flujo 8; W08). `{name}` es quien la cambió.
     updatedBy: 'Actualizado por {name}',

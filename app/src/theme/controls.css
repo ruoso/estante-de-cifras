@@ -105,6 +105,21 @@
   cursor: default;
   color: var(--ink-2);
 }
+/* A grouped menu (songs.menu_grouping; Review-polish board): each section's
+   visible header in the small heading type, inset to the row padding — the
+   word that names the group — and a 1px rule between sections. */
+:where(.popover) :where([role='menu']) :where([role='group']) {
+  display: flex;
+  flex-direction: column;
+}
+:where(.popover) :where([role='menu']) :where(header) {
+  padding: calc(var(--u) * 0.75) calc(var(--u) * 2) calc(var(--u) * 0.25);
+}
+:where(.popover) :where([role='menu']) :where([role='separator']) {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: calc(var(--u) * 0.75) 0;
+}
 /* A selected option is marked by weight and a check, never colour alone. */
 :where(.popover) :where([role='option'])[data-selected] {
   font-weight: 700;

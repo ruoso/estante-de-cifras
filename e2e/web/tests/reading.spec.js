@@ -65,8 +65,14 @@ test('opens and reads a song; the chart and the shapes render', async ({ page, c
 // chart), computer W02#4 (the chip in the rail head; the full row). The ⋯ menu
 // holds every action on every device, keyboard-reachable (workflow 2 L86-87;
 // workflow 15 L62-75). Print and Share are not activated here (Decision 6).
-// songs.show_the_file adds Show the file after Share (its Decision 5).
-const MENU = ['Edit', 'History', 'Add to setlist', 'Print', 'Share', 'Show the file', 'Arrange for Guitar', 'Full screen'];
+// songs.menu_grouping: three named groups in workflow 2's order (§The song's
+// menu; review_polish item 5) — This song, Take it along, View.
+const MENU = ['Edit', 'Arrange for Guitar', 'History', 'Show the file', 'Add to setlist', 'Share', 'Print', 'Full screen'];
+const MENU_GROUPS = [
+  ['This song', ['Edit', 'Arrange for Guitar', 'History', 'Show the file']],
+  ['Take it along', ['Add to setlist', 'Share', 'Print']],
+  ['View', ['Full screen']],
+];
 
 test('the reading chrome as drawn: the header, the ⋯ menu and the shapes', async ({ page, checkA11y }, testInfo) => {
   const device = testInfo.project.name;
@@ -104,11 +110,21 @@ test('the reading chrome as drawn: the header, the ⋯ menu and the shapes', asy
   // that ellipsizes (shell.narrow_fit).
   await expectFits(page, { whole: [more] });
 
-  // ⋯ by the keyboard: the seven, in order; Escape back to More.
+  // ⋯ by the keyboard: the eight, in order, in three groups each named by its
+  // header; axe with the menu open; Escape back to More.
   await more.focus();
   await page.keyboard.press('Enter');
   const menu = page.getByRole('menu', { name: 'More' });
   await expect(menu.getByRole('menuitem')).toHaveText(MENU);
+  await expect(menu.getByRole('group')).toHaveCount(MENU_GROUPS.length);
+  for (const [i, [name, items]] of MENU_GROUPS.entries()) {
+    const group = menu.getByRole('group', { name, exact: true });
+    await expect(group).toBeVisible();
+    await expect(menu.getByRole('group').nth(i)).toHaveAccessibleName(name);
+    await expect(group.getByRole('menuitem')).toHaveText(items);
+  }
+  await expect(menu.getByRole('separator')).toHaveCount(2);
+  await checkA11y();
   await page.keyboard.press('Escape');
   await expect(menu).toBeHidden();
   await expect(more).toBeFocused();

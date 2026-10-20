@@ -228,8 +228,9 @@ task songs "Songs" {
   task menu_grouping "The song menu grouped" {
     effort 0.25d
     allocate team
+    complete 100
     depends design.review_polish
-    note "L7: the song ⋯ menu is eight flat items (SongReading.jsx:580-587). Its duplicating the toolbar stays as decided (tasks/refinements/songs/reading_chrome.md). Group it with RAC Section and Separator as design.review_polish draws it. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (groups named for a screen reader, keyboard order; axe)."
+    note "L7: the song ⋯ menu is eight flat items (SongReading.jsx:580-587). Its duplicating the toolbar stays as decided (tasks/refinements/songs/reading_chrome.md). Group it with RAC Section and Separator as design.review_polish draws it. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (groups named for a screen reader, keyboard order; axe). Refinement: tasks/refinements/songs/menu_grouping.md"
   }
   task trailing_chord_gap "A chord after the last lyric keeps its distance" {
     effort 0.5d

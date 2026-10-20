@@ -1676,6 +1676,11 @@ export default {
     more: 'More',
     fullScreen: 'Full screen',
     leaveFullScreen: 'Leave full screen',
+    // The ⋯ menu's group headers (songs.menu_grouping; workflow 2 §The song's
+    // menu): each header is the visible name a screen reader gives the group.
+    menuThisSong: 'This song',
+    menuTakeAlong: 'Take it along',
+    menuView: 'View',
     // A background sync brought a new version while the song was open
     // (sync.read_in_place, workflow 8 §"A song open while it changes"; W08). The
     // non-modal notice names who changed it and opens the song's history.
