@@ -118,16 +118,18 @@ describe('the display preference writes (behavior)', () => {
         store.send(command(kind, { [field]: chosen, author: IDENTITY }));
         await waitFor(() => expect(prefs(store)[register]?.value).toBe(chosen));
 
+        // Not pushed by the command: a fresh clone of the remote never sees it.
+        // Checked before the reload, whose OPEN starts a sync pass that may
+        // rightly push the commit (as preferences-theme-language does).
+        const { home } = await makeHomeDevice(remote, 'check');
+        const remoteModel = await home.read({ bookId: HOME_BOOK_ID, file: 'preferences.json' });
+        expect(remoteModel[register]).toBeUndefined();
+
         // Committed to the home book: a fresh worker over the same database
         // (a reload) re-surfaces it.
         const reloaded = workerStore(idb, name);
         reloaded.open();
         await waitFor(() => expect(prefs(reloaded)[register]?.value).toBe(chosen));
-
-        // Not pushed by the command: a fresh clone of the remote never sees it.
-        const { home } = await makeHomeDevice(remote, 'check');
-        const remoteModel = await home.read({ bookId: HOME_BOOK_ID, file: 'preferences.json' });
-        expect(remoteModel[register]).toBeUndefined();
 
         // Choosing the default afterwards writes the tombstone (value null),
         // never the literal default.

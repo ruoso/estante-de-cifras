@@ -17,7 +17,11 @@ on:
 
 jobs:
   gate:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: Railway deploys only on a green gate, so a
+    # runner-image move (ubuntu-latest → 26.04 from 2026-10-19) must not stall
+    # a deploy on setup-ruby, setup-python or Playwright's --with-deps lagging
+    # the new image. Move it on a branch, deliberately.
+    runs-on: ubuntu-24.04
     steps:
       # One checkout: cifra.md lives in the repository as the cifra.md/
       # subtree.
