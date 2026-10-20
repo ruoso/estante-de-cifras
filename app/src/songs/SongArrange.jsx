@@ -50,6 +50,7 @@ import {
   chooseShapes,
 } from 'cifra-md';
 import { t } from '../i18n/index.js';
+import { songTitle } from './search-query.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import InstrumentChip, { inUseEntry } from '../instruments/InstrumentChip.jsx';
@@ -463,7 +464,7 @@ export default function SongArrange({
     if (!entering) return '';
     const { picker: at, scope: how } = entering;
     const params = {
-      song: model?.title ?? path,
+      song: songTitle(model?.title, t('newSong.untitled')),
       section: model?.sections?.[at.occurrence.section]?.name ?? '',
       bar: barNumber(model, at.occurrence) ?? at.occurrence.measure + 1,
       scope: how === 'here' ? t('arrange.scopeHere') : t('arrange.scopeKey', { chord: at.symbol }),
@@ -504,7 +505,7 @@ export default function SongArrange({
               <BackIcon />
             </Button>
           )}
-          <span className="title">{model?.title ?? path}</span>
+          <span className="title">{songTitle(model?.title, t('newSong.untitled'))}</span>
           {entry ? (
             <InstrumentChip
               store={store}

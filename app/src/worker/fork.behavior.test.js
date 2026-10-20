@@ -18,7 +18,7 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { resolveRef } from 'isomorphic-git';
+import { resolveRef, log as gitLog } from 'isomorphic-git';
 
 import { createFileSystem } from './fs.js';
 import { createGitLayer } from './git.js';
@@ -84,11 +84,12 @@ const remoteFile = (remote, file) =>
   run('git', ['--git-dir', remote.repoDir, 'show', `main:${file}`]);
 
 // Seed an empty remote with Ana's one song commit on `main`.
-async function seedOriginal(remote, scratch) {
+async function seedOriginal(remote, scratch, extra = {}) {
   const work = mkdtempSync(path.join(tmpdir(), 'estante-ana-'));
   scratch.push(work);
   await run('git', ['init', '-q', '-b', 'main', work]);
   writeFileSync(path.join(work, SONG_PATH), SONG);
+  for (const [file, text] of Object.entries(extra)) writeFileSync(path.join(work, file), text);
   await run('git', ['-C', work, 'add', '.']);
   await run('git', ['-C', work, 'commit', '-q', '-m', 'add song']);
   await run('git', ['-C', work, 'push', '-q', remote.repoDir, 'main:main']);
@@ -316,6 +317,42 @@ describe('fork — the service copies it (workflow 11 L27-34; Constraints 2-5)',
     const pushed = await remoteFile(forkRemote, SONG_PATH);
     expect(pushed).toMatch(/G7/); // the save that never reached the original
     expect(pushed).not.toMatch(/olá/); // the unsaved edit stays on the device
+  }, 60000);
+});
+
+// songs.no_raw_ids Constraint 5 — the Worker never writes an id as a label: a
+// hosted entry with no label forks under the book's README heading.
+describe('fork — a book with no shelf label (songs.no_raw_ids Constraint 5)', () => {
+  it('forks under its README heading, never the id', async () => {
+    const HEADING = 'Cadernos da Turma';
+    const original = await startRemote();
+    const forkRemote = await startRemote();
+    await seedOriginal(original, scratch, { 'README.md': `# ${HEADING}\n` });
+    await copyRemote(original, forkRemote);
+    const origId = `srv-orig-${rand()}`;
+    const forkId = `srv-fork-${rand()}`;
+    const api = {
+      // The service names the book with nothing: its shelf entry has no label.
+      accept: () => book(origId, '', original, 'editor'),
+      fork: async () => ({ status: 201, body: book(forkId, HEADING, forkRemote, 'owner', { bookId: origId, title: HEADING }) }),
+      create: async () => ({ status: 500 }),
+    };
+    const w = await makeWorker(api);
+    const mark = w.events.length;
+    w.send(command(CommandKind.ADD_BY_LINK, { token: 'tok', author: IDENTITY }));
+    await next(w, mark, [EventKind.BOOK_CLONED]);
+    const label = (await w.shelf()).books[origId].label?.value;
+    expect(label === undefined || label === null || label === '').toBe(true);
+
+    const done = await forkBook(w, origId);
+    expect(done.kind).toBe(EventKind.BOOK_FORKED);
+
+    const entry = (await w.shelf()).books[forkId];
+    expect(entry.label.value).toBe(HEADING);
+    expect(entry.label.value).not.toBe(origId);
+    expect(entry.original.value.title).toBe(HEADING);
+    const [marker] = await gitLog({ fs: w.fs, dir: w.git.bookDir(forkId), ref: 'main', depth: 1 });
+    expect(marker.commit.message.trim()).toBe(`Made your own from ${HEADING}`);
   }, 60000);
 });
 

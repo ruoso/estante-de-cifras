@@ -43,7 +43,7 @@ export default function FileView({ store, bookId, mode, initialPath = null, onBa
   const changes = useMemo(() => changedFiles(nodes), [nodes]);
 
   const book = useMemo(() => orderedBooks(shelf).find((b) => b.id === bookId), [shelf, bookId]);
-  const bookLabel = titleFor(book?.book, bookId);
+  const bookLabel = titleFor(book?.book, t('books.untitled'));
   const savable = canSaveFor(book?.kind ?? 'local', book?.book) !== false;
 
   const [tab, setTab] = useState('files');

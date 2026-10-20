@@ -242,6 +242,29 @@ describe('SongHistory', () => {
     }
   });
 
+  // songs.no_raw_ids Constraint 4 — with no `bookLabel` from the host and no
+  // title anywhere, the chrome names neither the book by its id nor the song by
+  // its path: *Untitled book* and *Untitled song* (workflow 3 L37-41; workflow
+  // 2 L180-185, amended).
+  it('with no bookLabel and no title, the chrome reads Untitled book and Untitled song, never the id or path; axe clean (songs.no_raw_ids)', async () => {
+    const ctx = await setup(BOOK);
+    try {
+      const untitled = (chord) => ['## Primeira Parte', '```', chord, 'desci a rua', '```', ''].join('\n');
+      await seedPair(ctx, untitled('C'), untitled('C7'));
+      const { container } = renderHistory(ctx.store, { songTitle: '' });
+
+      await screen.findByRole('button', { name: /Darker turn/ });
+      expect(screen.getAllByText('Untitled song').length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Untitled book/).length).toBeGreaterThan(0);
+      expect(container.textContent).not.toContain(BOOK);
+      expect(container.textContent).not.toContain(SONG);
+      expect(container.textContent).not.toContain('rua-do-porto');
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
   it('pins the unsaved changes first with the *unsaved* word badge (§The list L23-26)', async () => {
     const ctx = await setup(BOOK);
     try {

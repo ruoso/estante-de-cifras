@@ -43,6 +43,7 @@ import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { orderedBooks, titleFor } from './book-display.js';
 import { setlistRows, bookFileSet, folderOf } from './setlist-display.js';
+import { songTitle } from '../songs/search-query.js';
 import './setlist.css';
 
 // A `key` as §10.7.1 writes it — a root then `m` for minor; mirrored locally so
@@ -104,7 +105,7 @@ function InBookPicker({ store, bookId, onPick, onCancel, titleText, confirmLabel
                 onPress={() => setPicked(r)}
               >
                 <span className="grow">
-                  <span className="name">{r.title || r.path}</span>
+                  <span className="name">{songTitle(r.title, t('newSong.untitled'))}</span>
                   <span className="meta t-mono">{r.path}</span>
                 </span>
               </Button>
@@ -168,7 +169,7 @@ export default function SetlistView({
     [current, path, present],
   );
 
-  const bookTitle = titleFor(orderedBooks(shelf).find((e) => e.id === bookId)?.book ?? {}, bookId);
+  const bookTitle = titleFor(orderedBooks(shelf).find((e) => e.id === bookId)?.book ?? {}, t('books.untitled'));
   const folder = folderOf(path);
   const songCount = t('setlists.songCount', { count: rows.length });
   const unsaved = touched || statusByPath[path] === 'unsaved' || statusByPath[path] === 'new';

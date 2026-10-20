@@ -104,7 +104,7 @@ export default function NewSongHost({
         isNew
         fromPath={path}
         titleHint={liveTitle || songTitle}
-        bookLabel={bookLabelFor(shelf, bookId)}
+        bookLabel={bookLabelFor(shelf, bookId, t('books.untitled'))}
         presentation={phone ? 'sheet' : 'dialog'}
       />
       <DiscardConfirm

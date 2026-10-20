@@ -16,8 +16,6 @@
 import { parseChord } from '../core/notation/parse.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
 
-const SONG_SUFFIX = '.cifra.md';
-
 /**
  * Does the query parse as a chord symbol in the given notation dialect? Returns
  * the parsed chord and any ambiguities (cifra.md §5.6, read in that dialect) so
@@ -68,18 +66,18 @@ export function scopePayload(scope) {
 }
 
 /**
- * A song's display title: its own title, or — for "a song with no title" — its
- * file name without the `.cifra.md` suffix (workflow 2 L163-164). Search never
- * shows a filename when a title exists (DIRECTION §4 L437).
+ * A song's display title: its own title, or — for "a song with no title" — the
+ * caller's localized `untitled` (*Untitled song*). The placeholder file name
+ * (`untitled-2.cifra.md`) shows only in the file view (workflow 3 L37-41;
+ * workflow 2 L180-182; songs.no_raw_ids Constraint 1). Search never shows a
+ * filename (DIRECTION §4 L437).
  *
  * @param {string} title the indexed title (may be empty)
- * @param {string} path the song's path within its book
+ * @param {string} untitled the localized fallback
  * @returns {string}
  */
-export function songTitle(title, path) {
-  if (title && title.trim()) return title;
-  const base = (path ?? '').split('/').pop() ?? path ?? '';
-  return base.endsWith(SONG_SUFFIX) ? base.slice(0, -SONG_SUFFIX.length) : base;
+export function songTitle(title, untitled) {
+  return typeof title === 'string' && title.trim() ? title : untitled;
 }
 
 /**

@@ -24,23 +24,39 @@ import { t, setLocale } from '../i18n/index.js';
 const AT = '2026-10-05T14:00:00.000Z';
 const reg = (value) => ({ value, at: AT });
 
-describe('book-display: titleFor (title or label — workflow 7 L16-18; §5.3)', () => {
+// songs.no_raw_ids Constraint 1 — a book with no name reads the caller's
+// localized *Untitled book*, never its id (workflow 7 L16-21, amended).
+describe('book-display: titleFor (title or label, else Untitled book — workflow 7 L16-21; §5.3)', () => {
+  const UNTITLED = 'Untitled book';
+
   it('returns a shared book’s label when present and non-tombstone', () => {
-    expect(titleFor({ label: reg('Choros da Ana') }, 'b-1')).toBe('Choros da Ana');
+    expect(titleFor({ label: reg('Choros da Ana') }, UNTITLED)).toBe('Choros da Ana');
   });
 
   it('returns a local book’s title when present and non-tombstone', () => {
-    expect(titleFor({ title: reg('Exercícios de violão') }, 'l-1')).toBe('Exercícios de violão');
+    expect(titleFor({ title: reg('Exercícios de violão') }, UNTITLED)).toBe('Exercícios de violão');
   });
 
-  it('falls back to the bookId for an absent register', () => {
-    expect(titleFor({}, 'b-9')).toBe('b-9');
-    expect(titleFor(undefined, 'b-9')).toBe('b-9');
+  it('prefers the label over the title', () => {
+    expect(titleFor({ label: reg('Rótulo'), title: reg('Título') }, UNTITLED)).toBe('Rótulo');
   });
 
-  it('falls back to the bookId for a tombstoned (value: null) or empty register (§5.3)', () => {
-    expect(titleFor({ label: reg(null) }, 'b-1')).toBe('b-1');
-    expect(titleFor({ title: reg('') }, 'l-1')).toBe('l-1');
+  it('falls through a blank, whitespace or tombstoned label to the title', () => {
+    for (const label of [reg(''), reg('   '), reg(null)]) {
+      expect(titleFor({ label, title: reg('Título') }, UNTITLED)).toBe('Título');
+    }
+  });
+
+  it('returns the passed fallback for an empty or missing book', () => {
+    expect(titleFor({}, UNTITLED)).toBe(UNTITLED);
+    expect(titleFor(undefined, UNTITLED)).toBe(UNTITLED);
+  });
+
+  it('returns the fallback, never the id, for a tombstoned, empty or blank register (§5.3)', () => {
+    expect(titleFor({ label: reg(null) }, UNTITLED)).toBe(UNTITLED);
+    expect(titleFor({ title: reg('') }, UNTITLED)).toBe(UNTITLED);
+    expect(titleFor({ title: reg(' \t ') }, UNTITLED)).toBe(UNTITLED);
+    expect(titleFor({ title: reg(null), label: reg('') }, 'Livro sem título')).toBe('Livro sem título');
   });
 });
 
@@ -188,12 +204,15 @@ describe('book-display: saveTargetFor (books.fork Constraint 7)', () => {
     local: { 'l-1': { title: reg('My songs') } },
   };
   it('is false for a reader’s book, with its label', () => {
-    expect(saveTargetFor(shelf, 'srv-r')).toEqual({ canSave: false, label: 'Turma de quarta' });
+    expect(saveTargetFor(shelf, 'srv-r', 'Untitled book')).toEqual({ canSave: false, label: 'Turma de quarta' });
   });
   it('is true for an editor’s or a local book, and for a book with no shelf entry', () => {
     expect(saveTargetFor(shelf, 'srv-e').canSave).toBe(true);
     expect(saveTargetFor(shelf, 'l-1').canSave).toBe(true);
-    expect(saveTargetFor(shelf, 'nowhere')).toEqual({ canSave: true, label: 'nowhere' });
+    expect(saveTargetFor(shelf, 'nowhere', 'Untitled book')).toEqual({
+      canSave: true,
+      label: 'Untitled book',
+    });
   });
 });
 

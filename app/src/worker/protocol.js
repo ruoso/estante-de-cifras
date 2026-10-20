@@ -152,7 +152,7 @@ export const CommandKind = Object.freeze({
   // count the per-book warnings the delete dialog shows.
   LEAVE_ESTANTE: 'leave_estante',
   // Make a book the user's own copy (books.fork, workflow 11). FORK_BOOK
-  // `{ bookId }` is dispatched by every *make it your own* offer: Save in
+  // `{ bookId, untitledTitle? }` is dispatched by every *make it your own* offer: Save in
   // a book the user cannot push to (the save sheet), a book refused as a
   // reader's push (`cannot_save`), a book the user lost access to (`gone`), and
   // the book detail's **Fork** card. The Worker asks the service to copy the
@@ -410,7 +410,10 @@ export const CommandKind = Object.freeze({
   // commit). A new book replies BOOK_CREATED; a clean merge/replace commits, pushes
   // and emits a SYNC fact; a colliding merge leaves the book `needs_you` (SYNC) for
   // the existing conflict session. CANCEL_UPLOAD `{ uploadId }` removes the scratch
-  // repo. Nothing in the zip is executed; only repository paths are read.
+  // repo. Nothing in the zip is executed; only repository paths are read. A new
+  // book's IMPORT_UPLOAD carries `untitledTitle`, the localized *Untitled book*
+  // a zip with no README is scaffolded under (songs.no_raw_ids Constraint 9; the
+  // `mySongsTitle` precedent); a README with no heading leaves the book untitled.
   PREVIEW_UPLOAD: 'preview_upload',
   IMPORT_UPLOAD: 'import_upload',
   CANCEL_UPLOAD: 'cancel_upload',

@@ -15,21 +15,27 @@ function registerValue(register) {
   return value === null || value === undefined || value === '' ? undefined : value;
 }
 
+// A register's value as a name: a non-blank string, else nothing — `''`,
+// whitespace, a tombstone (`null`) and an absent register are *no name*
+// (songs.no_raw_ids Constraint 1).
+function nameValue(register) {
+  const value = register?.value;
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
 /**
  * A book's displayed title: the shelf label (a shared book's `label` register)
- * or title (a local book's `title` register) when present and non-tombstone,
- * else the opaque `bookId` — the same fallback the search screen uses
- * (SearchScreen.jsx:335), extended to local titles (Decision 3). A README-heading
- * fallback for a label-less shared book is deferred to when shared books exist
- * (Decision 4); in M2 a local book always carries a `title`. Pins workflow 7
- * L16-18; home-book-format §5.3.
+ * or title (a local book's `title` register) when present and named, else the
+ * caller's localized `untitled` (*Untitled book*) — never the opaque book id
+ * (songs.no_raw_ids Constraints 1-2). The module stays i18n-free: the view
+ * passes `t('books.untitled')`. Pins workflow 7 L16-21; home-book-format §5.3.
  *
  * @param {Object} book one book's register map from the `shelf` slice
- * @param {string} bookId the opaque id, the fallback
+ * @param {string} untitled the localized fallback
  * @returns {string}
  */
-export function titleFor(book, bookId) {
-  return registerValue(book?.label) ?? registerValue(book?.title) ?? bookId;
+export function titleFor(book, untitled) {
+  return nameValue(book?.label) ?? nameValue(book?.title) ?? untitled;
 }
 
 /**
@@ -200,15 +206,17 @@ export function originalOf(book) {
  * @param {Object} book one book's register map
  * @param {{ newSaves?: number, gone?: boolean } | undefined} counted the fork's
  *   entry in the `originals` slice
+ * @param {string} untitled the localized *Untitled book*, for an original with
+ *   no title — never its id (songs.no_raw_ids)
  * @returns {{ from: string, newSaves: number, gone: boolean } | null}
  */
-export function forkLineFor(book, counted) {
+export function forkLineFor(book, counted, untitled) {
   const original = originalOf(book);
   if (!original) return null;
   const gone = Boolean(original.goneAt) || counted?.gone === true;
   const n = counted?.newSaves;
   return {
-    from: original.title || original.bookId,
+    from: typeof original.title === 'string' && original.title.trim() ? original.title : untitled,
     newSaves: !gone && Number.isInteger(n) && n > 0 ? n : 0,
     gone,
   };
@@ -219,17 +227,20 @@ export function forkLineFor(book, counted) {
  * save sheet host passes (books.fork Constraint 7): `canSave` is `canSaveFor`
  * over the book's shelf entry (`false` for a reader's book, which opens the
  * make-it-your-own sheet), and a book with no shelf entry is a device book the
- * user can save to. Pins workflow 4 §A book the user cannot push to.
+ * user can save to. The label falls back to the caller's localized `untitled`
+ * (songs.no_raw_ids Constraint 2). Pins workflow 4 §A book the user cannot push
+ * to.
  *
  * @param {{ books?: Object, local?: Object }} shelf the `shelf` slice
  * @param {string} bookId
+ * @param {string} untitled the localized *Untitled book*
  * @returns {{ canSave: boolean | null, label: string }}
  */
-export function saveTargetFor(shelf, bookId) {
+export function saveTargetFor(shelf, bookId, untitled) {
   const entry = orderedBooks(shelf).find((e) => e.id === bookId);
   return {
     canSave: entry ? canSaveFor(entry.kind, entry.book) : true,
-    label: titleFor(entry?.book, bookId),
+    label: titleFor(entry?.book, untitled),
   };
 }
 

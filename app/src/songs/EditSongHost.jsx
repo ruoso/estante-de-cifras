@@ -79,7 +79,11 @@ export default function EditSongHost({
   const [unsaved, setUnsaved] = useState(false);
   // The `#` title as the text has it now (Constraint 4), else the host's.
   const [liveTitle, setLiveTitle] = useState(null);
-  const title = liveTitle || songTitle || path;
+  const named = liveTitle || songTitle || '';
+  // A titleless song is *Untitled song* in the header, never its path
+  // (songs.no_raw_ids; workflow 3 L37-41) — the Unsaved list and the save
+  // sheet get the bare name and fall back themselves.
+  const title = named || t('newSong.untitled');
   // The panel follows the text (Constraint 8): each WRITE bumps the revision.
   const [revision, setRevision] = useState(0);
   const onWrite = useCallback(() => setRevision((r) => r + 1), []);
@@ -87,7 +91,7 @@ export default function EditSongHost({
   // book opens the make-it-your-own offer, not the form. The host's own id
   // follows BOOK_FORKED (AppShell), so the editor re-reads the fork.
   const shelf = useSlice(store, 'shelf');
-  const target = saveTargetFor(shelf, bookId);
+  const target = saveTargetFor(shelf, bookId, t('books.untitled'));
   const panelOpen = computer && saveOpen;
   const closeSave = () => {
     setSaveOpen(false);
@@ -101,7 +105,7 @@ export default function EditSongHost({
     setLiveTitle(null);
     onEdit(song);
   };
-  const current = useMemo(() => ({ bookId, path, title, unsaved }), [bookId, path, title, unsaved]);
+  const current = useMemo(() => ({ bookId, path, title: named, unsaved }), [bookId, path, named, unsaved]);
 
   return (
     <EditorChrome
@@ -143,7 +147,7 @@ export default function EditSongHost({
           onClose={closeSave}
           bookId={bookId}
           paths={[path]}
-          titleHint={title}
+          titleHint={named}
           bookLabel={target.label}
           canSave={target.canSave}
           onMakeYourOwn={onMakeYourOwn}
@@ -162,7 +166,7 @@ export default function EditSongHost({
         }}
         bookId={bookId}
         paths={[path]}
-        titleHint={title}
+        titleHint={named}
       />
     </EditorChrome>
   );

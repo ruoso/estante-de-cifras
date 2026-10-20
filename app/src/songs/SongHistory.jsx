@@ -252,10 +252,10 @@ export default function SongHistory({
 
   // The song's title and the book's label for the chrome: the props when the
   // host knows them, else the working copy's parsed title (carried on the save
-  // preview) and the book id — so the surface is labelled even before a host
-  // threads them (the dev mount, songs.reading later).
-  const displayTitle = songTitle || preview?.title || path;
-  const displayBook = bookLabel || bookId;
+  // preview), and else *Untitled song* / *Untitled book* — never the path or
+  // the book id (songs.no_raw_ids Constraint 4).
+  const displayTitle = songTitle || preview?.title || t('newSong.untitled');
+  const displayBook = bookLabel || t('books.untitled');
 
   // The version texts read back so far, flattened by commit. A version is cached
   // under the historical path it was read at (SONG_LOG follows renames), so it is

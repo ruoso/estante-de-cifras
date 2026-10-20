@@ -60,13 +60,13 @@ export default function BookBar({ store, bookId, onManage = () => {}, onSettle =
 
   const entry = orderedBooks(shelf).find((e) => e.id === bookId);
   const book = entry?.book;
-  const title = titleFor(book ?? {}, bookId);
+  const title = titleFor(book ?? {}, t('books.untitled'));
   const meta = bookMetaFor(entry?.kind ?? 'local', book, {
     count: songCounts?.[bookId],
     building: index?.[bookId] === 'building',
     t,
   });
-  const fork = forkLineFor(book, originals?.[bookId]);
+  const fork = forkLineFor(book, originals?.[bookId], t('books.untitled'));
   const needsYou = sync?.[bookId]?.phase === 'needs_you';
 
   // The engaged merge's model counts the songs that wait on the person.

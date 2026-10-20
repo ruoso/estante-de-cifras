@@ -23,6 +23,9 @@ Range.prototype.getBoundingClientRect = function getBoundingClientRect() {
 };
 
 const BOOK = 'local-example-book';
+// No shelf is seeded, so the book is named *Untitled book* — never its id
+// (songs.no_raw_ids Constraint 1).
+const UNTITLED_BOOK = t('books.untitled');
 
 // jsdom has no matchMedia; a stub keeps SongEditor's useLayoutMode happy.
 beforeEach(() => {
@@ -392,7 +395,7 @@ describe('the file view (behavior)', () => {
     ];
     const LANTERN_TEXT = '# Lantern Road\n\nA road lit by lanterns';
     // A row of the tree (the raw editor's own controls name the file too).
-    const tree = () => screen.getByRole('group', { name: t('fileView.tree', { book: BOOK }) });
+    const tree = () => screen.getByRole('group', { name: t('fileView.tree', { book: UNTITLED_BOOK }) });
     const row = (name) => within(tree()).getByRole('button', { name: new RegExp(name.replaceAll('.', '\\.')) });
 
     it('opened at a file: the tree shows it selected and the raw editor holds it (workflow 14 L133; Constraint 3)', async () => {
@@ -402,7 +405,7 @@ describe('the file view (behavior)', () => {
 
       // The Files tab: the tree and its History switch, not the history title.
       expect(screen.getByRole('button', { name: t('fileView.historyTab') })).toBeInTheDocument();
-      expect(screen.queryByText(t('fileView.historyTitle', { book: BOOK }))).toBeNull();
+      expect(screen.queryByText(t('fileView.historyTitle', { book: UNTITLED_BOOK }))).toBeNull();
       // The row is marked selected by its state, not colour alone.
       expect(row('lantern-road.cifra.md')).toHaveAttribute('aria-pressed', 'true');
       expect(row('quiet-harbour.cifra.md')).toHaveAttribute('aria-pressed', 'false');
@@ -424,7 +427,7 @@ describe('the file view (behavior)', () => {
       // (books.file_view_create_menu Acceptance 8: the path is not shown twice).
       expect(container.querySelector('.file-view-narrow-editor .file-view-bar')).toHaveTextContent('lantern-road.cifra.md');
       expect(container.querySelector('.file-view-meta')).toHaveTextContent('sets/evening/');
-      expect(screen.queryByRole('group', { name: t('fileView.tree', { book: BOOK }) })).toBeNull();
+      expect(screen.queryByRole('group', { name: t('fileView.tree', { book: UNTITLED_BOOK }) })).toBeNull();
       expect(kind(sent, 'open_source').some((c) => c.payload.path === LANTERN)).toBe(true);
       emit(event(EventKind.SOURCE, { bookId: BOOK, path: LANTERN, text: LANTERN_TEXT }));
       await waitFor(() => expect(container.textContent).toContain('A road lit by lanterns'));
@@ -462,7 +465,7 @@ describe('the New menu and the phone bars (books.file_view_create_menu)', () => 
     { path: 'README.md', status: null },
   ];
   const press = (el) => act(() => fireEvent.click(el));
-  const tree = () => screen.getByRole('group', { name: t('fileView.tree', { book: BOOK }) });
+  const tree = () => screen.getByRole('group', { name: t('fileView.tree', { book: UNTITLED_BOOK }) });
   const row = (re) => within(tree()).getByRole('button', { name: re });
   const openNew = () => press(screen.getByRole('button', { name: t('fileView.new') }));
   const pick = (name) => press(screen.getByRole('menuitem', { name }));
@@ -587,7 +590,7 @@ describe('the New menu and the phone bars (books.file_view_create_menu)', () => 
     const readme = screen.getByRole('menuitem', { name: 'README.md' });
     expect(readme).not.toHaveAttribute('aria-disabled', 'true');
     press(readme);
-    expect(kind(sent, CommandKind.CREATE_FILE).at(-1).payload).toEqual({ bookId: BOOK, kind: 'readme', title: BOOK });
+    expect(kind(sent, CommandKind.CREATE_FILE).at(-1).payload).toEqual({ bookId: BOOK, kind: 'readme', title: UNTITLED_BOOK });
 
     emit(event(EventKind.CREATE_REFUSED, { bookId: BOOK, kind: 'readme', reason: 'exists' }));
     const notice = screen.getByText('README.md already exists');
@@ -641,7 +644,7 @@ describe('the New menu and the phone bars (books.file_view_create_menu)', () => 
       expect(within(bar).getByRole('button', { name: t('fileView.more') })).toBeInTheDocument();
       // The path appears once: the folder on the meta line, the name in the bar.
       expect(container.textContent.split(LAMENTO)).toHaveLength(1);
-      expect(container.querySelector('.file-view-meta')).toHaveTextContent(`${BOOK} · choro/`);
+      expect(container.querySelector('.file-view-meta')).toHaveTextContent(`${UNTITLED_BOOK} · choro/`);
 
       press(within(bar).getByRole('button', { name: t('fileView.more') }));
       const menu = screen.getByRole('menu');

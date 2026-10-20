@@ -138,7 +138,7 @@ export default function LeaveDialogs({
   // Every reachable book, for the data-out list: the shelf's books (owned and
   // member) plus the home book (it holds the preferences, shelf and shapes).
   const dataOutBooks = [
-    ...orderedBooks(shelf).map(({ id, book }) => ({ id, title: titleFor(book, id) })),
+    ...orderedBooks(shelf).map(({ id, book }) => ({ id, title: titleFor(book, t('books.untitled')) })),
     { id: HOME_BOOK_ID, title: t('account.leaveHomeBook') },
   ];
 

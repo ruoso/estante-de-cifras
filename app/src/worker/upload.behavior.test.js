@@ -266,6 +266,55 @@ describe('upload — import as a new book (workflow 7 §Ends one of two ways, sp
   });
 });
 
+// songs.no_raw_ids Constraint 9 — the upload stops writing English: a README with
+// no level-1 heading leaves the book untitled on the shelf (the view says
+// *Untitled book* in the user's language), and a zip with no README is
+// scaffolded under the main thread's localized `untitledTitle`.
+describe('upload — a book with no title (songs.no_raw_ids Constraint 9)', () => {
+  it('a zip whose README has no heading lands with a position and no shelf title, its README as written', async () => {
+    const README = 'Só uma linha de prosa, sem título.\n';
+    const bytes = await folderZip({ 'README.md': README, 'partida.cifra.md': SONG_S });
+
+    const w = await makeWorker();
+    const preview = await previewUpload(w, { kind: 'new' }, bytes);
+    w.send(
+      command(CommandKind.IMPORT_UPLOAD, {
+        uploadId: preview.uploadId,
+        choice: 'new_book',
+        untitledTitle: 'Livro sem título',
+        author: IDENTITY,
+      }),
+    );
+    const { bookId } = await awaitEvent(w, EventKind.BOOK_CREATED);
+
+    const entry = [...w.events].reverse().find((e) => e.kind === EventKind.SHELF).payload.local[bookId];
+    expect(typeof entry.position.value).toBe('number');
+    expect(entry.title).toBeUndefined();
+    expect(await w.fs.promises.readFile(`${w.git.bookDir(bookId)}/README.md`, 'utf8')).toBe(README);
+  });
+
+  it('a zip with no README is scaffolded under the payload’s untitledTitle, and that is its shelf title', async () => {
+    const bytes = await folderZip({ 'partida.cifra.md': SONG_S });
+
+    const w = await makeWorker();
+    const preview = await previewUpload(w, { kind: 'new' }, bytes);
+    w.send(
+      command(CommandKind.IMPORT_UPLOAD, {
+        uploadId: preview.uploadId,
+        choice: 'new_book',
+        untitledTitle: 'Livro sem título',
+        author: IDENTITY,
+      }),
+    );
+    const { bookId } = await awaitEvent(w, EventKind.BOOK_CREATED);
+
+    const entry = [...w.events].reverse().find((e) => e.kind === EventKind.SHELF).payload.local[bookId];
+    expect(entry.title.value).toBe('Livro sem título');
+    expect(await w.fs.promises.readFile(`${w.git.bookDir(bookId)}/README.md`, 'utf8')).toBe('# Livro sem título\n');
+    expect(await w.fs.promises.readFile(`${w.git.bookDir(bookId)}/README.md`, 'utf8')).not.toMatch(/Untitled/);
+  });
+});
+
 describe('upload — edits never committed (workflow 7 §Edits never committed, acceptance 2)', () => {
   it('brings an uncommitted working-tree edit in via the synthetic commit', async () => {
     const src = newFs();

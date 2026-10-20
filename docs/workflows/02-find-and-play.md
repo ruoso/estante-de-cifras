@@ -177,6 +177,10 @@ status (workflow 8) may say the shelf has not been brought up to date.
 - **A book still cloning, or an index still building**, contributes results
   as they become available. The book's section says it is still loading,
   rather than looking empty.
-- **A song with no title** is listed by its file name, without the
-  `.cifra.md`.
+- **A song with no title** is listed as *Untitled song*, in every list and
+  header; its placeholder file name (`untitled-2.cifra.md`) shows only in the
+  file view (workflow 3 §Its file name).
+- **A book with no title** — no label on the shelf and no level-1 heading in
+  its README — is listed as *Untitled book*. A book's internal id is never
+  shown as its name.
 - **A song open while sync brings a new version of it** — see workflow 8.

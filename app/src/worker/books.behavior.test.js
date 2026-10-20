@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { waitFor } from '@testing-library/react';
-import { log, listFiles, resolveRef, readBlob } from 'isomorphic-git';
+import { log, listFiles, resolveRef, readBlob, add as gitAdd, commit as gitCommit } from 'isomorphic-git';
 import { createFileSystem } from './fs.js';
 import { createGitLayer } from './git.js';
 import { createGitHttpClient } from './git-http.js';
@@ -297,5 +297,160 @@ describe('the shelf write path (behavior)', () => {
     expect(shelf.local[w.deviceId][bookId].title.value).toBe('Quinta');
     // A shared book's new name (its `label` register) survives the cold open.
     expect(shelf.books['b-shared'].label.value).toBe('Choros');
+  });
+});
+
+// behavior — the shelf heal at OPEN (songs.no_raw_ids Constraints 6-8;
+// workflow 7 L16-21, amended). A `local-…` book on the device whose entry in
+// THIS device's shelf namespace is gone — a device id minted afresh, or a reload
+// between the book's repository and its shelf write (the refinement's causes
+// 1-2) — is put back under its README's heading when the app opens. Each case
+// edits the device's storage the way a cold tab would see it (a fresh
+// filesystem over the same IndexedDB), then starts a new Worker over it and
+// sends OPEN, as a reload does.
+describe('the shelf heal at OPEN (behavior; songs.no_raw_ids)', () => {
+  const offline = () => Promise.reject(new Error('offline: no network in this test'));
+
+  // A cold view of the device's filesystem (a new lightning-fs instance over the
+  // same backing store) with its own git layer and home book.
+  function cold(w) {
+    const fs = createFileSystem(`${w.name}-fs`, { indexedDB: w.idb });
+    const git = createGitLayer({ fs, http: createGitHttpClient({ fetch: offline }) });
+    const home = createHomeBook({ fs, git, locks: createBookLocks({ navigator }) });
+    return { fs, git, home };
+  }
+
+  // A new Worker over the same IndexedDB (a reload), sent OPEN. Resolves once
+  // its first SHELF event is out — the heal runs before it — and the book
+  // `waitFor` names has been indexed (OPEN's sweep is done with it).
+  async function reopen(w, indexed) {
+    const events = [];
+    const endpoint = createLoopbackEndpoint((port) =>
+      createWorkerLogic(port, { indexedDB: w.idb, name: w.name, fetch: offline }),
+    );
+    endpoint.onmessage = (ev) => events.push(ev.data);
+    endpoint.postMessage(command(CommandKind.OPEN, {}));
+    await waitFor(() => {
+      expect(lastEvent(events, EventKind.SHELF)).toBeTruthy();
+      expect(
+        events.some((e) => e.kind === EventKind.INDEX_STATUS && e.payload.bookId === indexed && e.payload.state === 'ready'),
+      ).toBe(true);
+    });
+    return events;
+  }
+
+  const homeHead = (w) => {
+    const { fs, git } = cold(w);
+    return resolveRef({ fs, dir: git.bookDir(HOME_BOOK_ID), ref: 'main' });
+  };
+  const readShelf = async (w) => {
+    const { fs, git } = cold(w);
+    return JSON.parse(await fs.promises.readFile(`${git.bookDir(HOME_BOOK_ID)}/shelf.json`, 'utf8'));
+  };
+
+  async function createBook(w, title) {
+    w.send(command(CommandKind.CREATE_BOOK, { title, author: IDENTITY }));
+    let created;
+    await waitFor(() => {
+      created = w.events.find((e) => e.kind === EventKind.BOOK_CREATED);
+      expect(created).toBeTruthy();
+    });
+    return created.payload.bookId;
+  }
+
+  // Drop the book's entry from this device's namespace in shelf.json (absent,
+  // not tombstoned) and commit, as if the shelf write had never landed.
+  async function dropEntry(w, bookId) {
+    const { fs, git } = cold(w);
+    const dir = git.bookDir(HOME_BOOK_ID);
+    const shelf = JSON.parse(await fs.promises.readFile(`${dir}/shelf.json`, 'utf8'));
+    delete shelf.local[w.deviceId][bookId];
+    await fs.promises.writeFile(`${dir}/shelf.json`, `${JSON.stringify(shelf, null, 2)}\n`);
+    await gitAdd({ fs, dir, filepath: 'shelf.json' });
+    const who = { name: IDENTITY.name, email: `${IDENTITY.id}@example.test`, timestamp: 1760000000, timezoneOffset: 0 };
+    await gitCommit({ fs, dir, ref: 'refs/heads/main', message: 'Update shelf.json', author: who, committer: who });
+    await fs.flush();
+  }
+
+  it('OPEN puts a local book with no shelf entry back under its README heading (workflow 7 L16-21; causes 1-2)', async () => {
+    const w = await makeWorker('heal');
+    const kept = await createBook(w, 'Rascunhos');
+    w.events.length = 0;
+    const lost = await createBook(w, 'Cadernos da Praça');
+    await dropEntry(w, lost);
+    expect((await readShelf(w)).local[w.deviceId][lost]).toBeUndefined();
+
+    const events = await reopen(w, lost);
+
+    const surfaced = lastEvent(events, EventKind.SHELF).payload.local;
+    expect(surfaced[lost].title.value).toBe('Cadernos da Praça');
+    expect(typeof surfaced[lost].position.value).toBe('number');
+    // Past every position on the shelf, so it does not collide with the kept one.
+    expect(surfaced[lost].position.value).toBeGreaterThan(surfaced[kept].position.value);
+    // Durable: the home book holds it in this device's namespace.
+    expect((await readShelf(w)).local[w.deviceId][lost].title.value).toBe('Cadernos da Praça');
+    expect(w.fetchCalls).toHaveLength(0);
+  });
+
+  it('a second OPEN writes nothing — the home book’s main is unchanged (Constraint 6)', async () => {
+    const w = await makeWorker('heal-twice');
+    const lost = await createBook(w, 'Cadernos da Praça');
+    await dropEntry(w, lost);
+    await reopen(w, lost);
+    const healed = await homeHead(w);
+
+    const events = await reopen(w, lost);
+
+    expect(await homeHead(w)).toBe(healed);
+    expect(lastEvent(events, EventKind.SHELF).payload.local[lost].title.value).toBe('Cadernos da Praça');
+  });
+
+  it('a removed book is not resurrected — its tombstoned entry stays (Constraint 8; §5.3)', async () => {
+    const w = await makeWorker('heal-removed');
+    const removed = await createBook(w, 'Antigo');
+    // Tombstone the entry as removeFromShelf does, leaving the directory.
+    const { fs, home } = cold(w);
+    await home.set({
+      bookId: HOME_BOOK_ID,
+      file: 'shelf.json',
+      changes: [
+        { path: ['local', w.deviceId, removed, 'title'], value: null },
+        { path: ['local', w.deviceId, removed, 'position'], value: null },
+      ],
+      author: IDENTITY,
+    });
+    await fs.flush();
+    const before = await homeHead(w);
+
+    const events = await reopen(w, removed);
+
+    const surfaced = lastEvent(events, EventKind.SHELF).payload.local[removed];
+    expect(surfaced.title.value).toBeNull();
+    expect(surfaced.position.value).toBeNull();
+    expect(await homeHead(w)).toBe(before);
+  });
+
+  it('a hosted clone with no books entry is not adopted as local (Constraint 8; Decision 4)', async () => {
+    const w = await makeWorker('heal-hosted');
+    await createBook(w, 'Rascunhos');
+    // A hosted book's clone (a service id, not `local-…`) on the device with no
+    // shelf entry at all.
+    const HOSTED = 'b7c1e2d3-0000-4000-8000-000000000001';
+    const { fs, git } = cold(w);
+    const dir = git.bookDir(HOSTED);
+    await git.init({ dir });
+    await fs.promises.writeFile(`${dir}/README.md`, '# Clone da Turma\n');
+    await gitAdd({ fs, dir, filepath: 'README.md' });
+    const who = { name: IDENTITY.name, email: `${IDENTITY.id}@example.test`, timestamp: 1760000000, timezoneOffset: 0 };
+    await gitCommit({ fs, dir, ref: 'refs/heads/main', message: 'Create book', author: who, committer: who });
+    await fs.flush();
+    const before = await homeHead(w);
+
+    const events = await reopen(w, HOSTED);
+
+    const shelf = lastEvent(events, EventKind.SHELF).payload;
+    expect(shelf.local[HOSTED]).toBeUndefined();
+    expect(shelf.books[HOSTED]).toBeUndefined();
+    expect(await homeHead(w)).toBe(before);
   });
 });

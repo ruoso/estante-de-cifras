@@ -932,7 +932,7 @@ export default function AppShell({
     return framed(
         <NotHere
           kind={verdict}
-          bookLabel={verdict === 'book' ? '' : titleFor(entry?.book ?? {}, notHereBook)}
+          bookLabel={verdict === 'book' ? '' : titleFor(entry?.book ?? {}, t('books.untitled'))}
           onBack={() => back(() => leave({ tab: 'search' }))}
           onGoToBooks={() => leave({ tab: 'books' })}
           onOpenBook={() => leave({ tab: 'search', book: notHereBook })}
@@ -946,7 +946,7 @@ export default function AppShell({
     const book = orderedBooks(shelf).find((e) => e.id === bookId)?.book ?? {};
     const owner = book?.owner?.value;
     return {
-      title: titleFor(book, bookId),
+      title: titleFor(book, t('books.untitled')),
       role: book?.role?.value ?? null,
       ownerName: typeof owner === 'string' && owner !== '' ? owner : null,
     };
@@ -1220,7 +1220,7 @@ export default function AppShell({
       <BookConflicts
         store={store}
         bookId={conflictsBook}
-        title={titleFor(entry?.book ?? {}, conflictsBook)}
+        title={titleFor(entry?.book ?? {}, t('books.untitled'))}
         embedded={mode === 'wide'}
         onSettle={(path) => setSongConflict({ bookId: conflictsBook, path })}
         onClose={() => back(closers.conflicts)}
@@ -1242,6 +1242,9 @@ export default function AppShell({
           store={store}
           bookId={history.bookId}
           path={history.path}
+          // The book's shelf name (via titleFor), never its id (songs.no_raw_ids
+          // Constraint 4).
+          bookLabel={saveTargetFor(shelf, history.bookId, t('books.untitled')).label}
           onBack={() => back(closers.history)}
           onRestored={() => setRestoredSaveOpen(true)}
         />
@@ -1251,8 +1254,8 @@ export default function AppShell({
           onClose={() => setRestoredSaveOpen(false)}
           bookId={history.bookId}
           paths={[history.path]}
-          bookLabel={saveTargetFor(shelf, history.bookId).label}
-          canSave={saveTargetFor(shelf, history.bookId).canSave}
+          bookLabel={saveTargetFor(shelf, history.bookId, t('books.untitled')).label}
+          canSave={saveTargetFor(shelf, history.bookId, t('books.untitled')).canSave}
         />
       </>,
     );

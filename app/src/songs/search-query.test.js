@@ -73,11 +73,21 @@ describe('scopePayload — the scope → command mapping (workflow 2 L60-65)', (
   });
 });
 
-describe('songTitle / folderOf — where a result lives (workflow 2 L49, L163-164)', () => {
-  it('falls back to the file name without .cifra.md for a titleless song', () => {
-    expect(songTitle('Tarde Clara', 'bossa/tarde.cifra.md')).toBe('Tarde Clara');
-    expect(songTitle('', 'bossa/tarde-clara.cifra.md')).toBe('tarde-clara');
-    expect(songTitle('   ', 'sem-titulo.cifra.md')).toBe('sem-titulo');
+// songs.no_raw_ids — a titleless song is the caller's *Untitled song*; its
+// placeholder file name shows only in the file view (workflow 3 L37-41;
+// workflow 2 L180-182, amended).
+describe('songTitle / folderOf — where a result lives (workflow 2 L49, L180-182)', () => {
+  it('keeps a song’s own title', () => {
+    expect(songTitle('Tarde Clara', 'Untitled song')).toBe('Tarde Clara');
+  });
+
+  it('returns the passed fallback for an empty, blank or missing title, never the file name', () => {
+    for (const title of ['', '   ', undefined, null]) {
+      const shown = songTitle(title, 'Untitled song');
+      expect(shown).toBe('Untitled song');
+      expect(shown).not.toMatch(/untitled-\d/);
+    }
+    expect(songTitle('', 'Música sem título')).toBe('Música sem título');
   });
 
   it('reports the folder only when the song is not at the root', () => {

@@ -26,21 +26,24 @@ export function showsFirstRun(bookIds, recentItems) {
 /**
  * A book's display label on the shelf, resolved from the surfaced `shelf` slice
  * (storage.shelf_surface). A local book shows its `title` register, a shared
- * book its `label` register, and anything else falls back to the opaque book id
- * (refinement Decision 5; home-book-format §4.2). `local` is already narrowed to
- * this device by `surfaceShelf`, so `shelf.local[id]` is this device's marker.
- * A cleared tombstone or empty value falls through to the next source, the same
- * way the shared-label resolver did before this widening (home-book-format §5.3).
+ * book its `label` register, and anything else — a blank value, a tombstone, no
+ * entry — the caller's localized `untitled` (*Untitled book*), never the opaque
+ * book id (songs.no_raw_ids Constraints 1-2; home-book-format §4.2, §5.3).
+ * `local` is already narrowed to this device by `surfaceShelf`, so
+ * `shelf.local[id]` is this device's marker.
  *
  * @param {{ books?: Object, local?: Object }} shelf the `shelf` slice
  * @param {string} bookId
+ * @param {string} untitled the localized fallback
  * @returns {string}
  */
-export function bookLabelFor(shelf, bookId) {
+export function bookLabelFor(shelf, bookId, untitled) {
+  const named = (register) => {
+    const value = register?.value;
+    return typeof value === 'string' && value.trim() ? value : undefined;
+  };
   return (
-    shelf?.local?.[bookId]?.title?.value ||
-    shelf?.books?.[bookId]?.label?.value ||
-    bookId
+    named(shelf?.local?.[bookId]?.title) ?? named(shelf?.books?.[bookId]?.label) ?? untitled
   );
 }
 

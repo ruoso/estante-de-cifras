@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { surfaceShelf } from './shelf.js';
+import { surfaceShelf, planShelfBackfill } from './shelf.js';
 
 // unit — the pure projection from a shelf.json model to the SHELF event payload
 // (storage.shelf_surface; the .tji's "shelf.json → the shelf event payload; an
@@ -199,5 +199,98 @@ describe('surfaceShelf elsewhere and mySongs (unit)', () => {
     expect('mySongs' in surfaceShelf(model, THIS_DEVICE)).toBe(false);
     // A malformed one is dropped like any malformed leaf.
     expect('mySongs' in surfaceShelf({ mySongs: 'srv-x' }, THIS_DEVICE)).toBe(false);
+  });
+});
+
+// unit — the shelf heal's plan at OPEN (songs.no_raw_ids Constraints 6-8): a
+// `local-…` book on the device with no entry in THIS device's namespace is put
+// back under its README heading; never resurrect, never adopt, never another
+// device's namespace (home-book-format §4.2, §5.3, §7).
+describe('planShelfBackfill (unit)', () => {
+  const reg = (value, at = AT1) => ({ value, at });
+  const ORPHAN = 'local-0f0f0f0f-aaaa-4bbb-8ccc-dddddddddddd';
+
+  it('puts an absent local book back with the next position past every position and its README title', () => {
+    const model = {
+      books: { 'srv-1': { label: reg('Turma de quarta'), position: reg(4) } },
+      local: {
+        [THIS_DEVICE]: { 'local-a': { title: reg('Rascunhos'), position: reg(2) } },
+        [OTHER_DEVICE]: { 'local-z': { title: reg('Lá'), position: reg(1) } },
+      },
+    };
+    const changes = planShelfBackfill(model, THIS_DEVICE, [
+      { id: 'local-a', readmeTitle: 'Rascunhos' },
+      { id: ORPHAN, readmeTitle: 'Cadernos da Praça' },
+    ]);
+    expect(changes).toEqual([
+      { path: ['local', THIS_DEVICE, ORPHAN, 'position'], value: 5 },
+      { path: ['local', THIS_DEVICE, ORPHAN, 'title'], value: 'Cadernos da Praça' },
+    ]);
+  });
+
+  it('gives two orphans successive positions, and a heading-less one its position only', () => {
+    const changes = planShelfBackfill({}, THIS_DEVICE, [
+      { id: 'local-1', readmeTitle: null },
+      { id: 'local-2', readmeTitle: 'Rodas' },
+    ]);
+    expect(changes).toEqual([
+      { path: ['local', THIS_DEVICE, 'local-1', 'position'], value: 0 },
+      { path: ['local', THIS_DEVICE, 'local-2', 'position'], value: 1 },
+      { path: ['local', THIS_DEVICE, 'local-2', 'title'], value: 'Rodas' },
+    ]);
+  });
+
+  it('names an entry with a live position and no title from its README', () => {
+    for (const title of [undefined, reg(''), reg('  '), reg(null)]) {
+      const entry = { position: reg(3), ...(title ? { title } : {}) };
+      const model = { local: { [THIS_DEVICE]: { [ORPHAN]: entry } } };
+      expect(planShelfBackfill(model, THIS_DEVICE, [{ id: ORPHAN, readmeTitle: 'Cadernos' }])).toEqual([
+        { path: ['local', THIS_DEVICE, ORPHAN, 'title'], value: 'Cadernos' },
+      ]);
+      // With no heading to give, nothing.
+      expect(planShelfBackfill(model, THIS_DEVICE, [{ id: ORPHAN, readmeTitle: null }])).toEqual([]);
+    }
+  });
+
+  it('never resurrects a tombstoned entry (removed, or put online — §5.3)', () => {
+    const model = {
+      local: { [THIS_DEVICE]: { [ORPHAN]: { title: reg(null, AT2), position: reg(null, AT2) } } },
+    };
+    expect(planShelfBackfill(model, THIS_DEVICE, [{ id: ORPHAN, readmeTitle: 'Cadernos' }])).toEqual([]);
+  });
+
+  it('never adopts a shared book or a non-local id as local (Decision 4)', () => {
+    const model = {
+      books: {
+        'local-in-books': { label: reg('Banda'), position: reg(0) },
+        'local-gone': { label: reg(null), position: reg(null) },
+      },
+    };
+    const books = [
+      { id: 'local-in-books', readmeTitle: 'Banda' },
+      { id: 'local-gone', readmeTitle: 'Antiga' },
+      { id: 'srv-1234', readmeTitle: 'Clone' },
+      { id: '6467d4de-hosted', readmeTitle: null },
+    ];
+    expect(planShelfBackfill(model, THIS_DEVICE, books)).toEqual([]);
+  });
+
+  it('never writes into another device’s namespace, even when the id is there (§7)', () => {
+    const model = {
+      local: { [OTHER_DEVICE]: { 'local-my-songs': { title: reg('My songs'), position: reg(0) } } },
+    };
+    const changes = planShelfBackfill(model, THIS_DEVICE, [{ id: 'local-my-songs', readmeTitle: null }]);
+    expect(changes).toEqual([{ path: ['local', THIS_DEVICE, 'local-my-songs', 'position'], value: 0 }]);
+    expect(changes.every((c) => c.path[0] === 'local' && c.path[1] === THIS_DEVICE)).toBe(true);
+  });
+
+  it('is empty for a healthy shelf', () => {
+    const model = {
+      books: { 'srv-1': { label: reg('Turma'), position: reg(0) } },
+      local: { [THIS_DEVICE]: { 'local-a': { title: reg('Rascunhos'), position: reg(1) } } },
+    };
+    expect(planShelfBackfill(model, THIS_DEVICE, [{ id: 'local-a', readmeTitle: 'Outro título' }])).toEqual([]);
+    expect(planShelfBackfill(model, THIS_DEVICE, [])).toEqual([]);
+    expect(planShelfBackfill({}, THIS_DEVICE, [])).toEqual([]);
   });
 });

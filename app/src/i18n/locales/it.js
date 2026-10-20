@@ -26,6 +26,9 @@ export default {
   // La schermata di gestione dei libri (books.shelf, flusso 7). `{name}` è il
   // titolo di un libro; `{count}` il numero di salvataggi in attesa di sincronia.
   books: {
+    // A book with no shelf label and no README heading — never its id
+    // (songs.no_raw_ids Constraint 3).
+    untitled: 'Libro senza titolo',
     back: 'Indietro',
     add: 'Aggiungi libro',
     addTitle: 'Aggiungi un libro',

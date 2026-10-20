@@ -206,7 +206,7 @@ function SongRow({ item, bookLabel, instrument, onOpen, onAddToSetlist }) {
   // only when not at the root (workflow 2 L46-49). The artist leads the meta
   // line, then the location.
   const meta = [item.artist, where].filter(Boolean).join(' · ');
-  const title = songTitle(item.title, item.path);
+  const title = songTitle(item.title, t('newSong.untitled'));
   // Add-to-setlist is on every song (workflow 12 §Building one): a trailing icon
   // button beside the open action. A button cannot nest inside a RAC Button, so
   // the row is a flex container with the open Button and this one as siblings
@@ -252,7 +252,7 @@ function SetlistRow({ item, bookLabel, onOpen }) {
   const where = folder
     ? t('search.where', { book: bookLabel, folder })
     : bookLabel;
-  const title = songTitle(item.title, item.path);
+  const title = songTitle(item.title, t('newSong.untitled'));
   return (
     <div className="row search-row">
       <Button
@@ -391,7 +391,8 @@ function BookSection({
 
 // The display label for a scope chip. A book is shown by the label the user
 // gave it on their shelf (storage.shelf_surface, workflow 7 L14-21), resolved
-// through `bookLabelFor` and falling back to the `bookId`; a folder scope reads
+// through `bookLabelFor` and falling back to *Untitled book*, never the id
+// (songs.no_raw_ids); a folder scope reads
 // `book/prefix`.
 // The books a search looked in, as the locale lists them (*A, B and C*) — the
 // no-match state's *Searched … in {books}.* (W03#1 L41): the scope's books, or
@@ -582,10 +583,11 @@ export default function SearchScreen({
 
   // A book's label is the name the user gave it on their shelf, surfaced from the
   // home book's shelf.json (storage.shelf_surface, resolving songs.search
-  // Decision 6): a local book's `title`, then a shared book's `label`, then the
-  // opaque `bookId` when neither is present or it is a cleared tombstone / empty
-  // (account.first_run Decision 5; home-book-format §4.2, §5.3).
-  const bookLabelFor = (bookId) => resolveBookLabel(shelf, bookId);
+  // Decision 6): a local book's `title`, then a shared book's `label`, then
+  // *Untitled book* when neither is present or it is a cleared tombstone / blank
+  // — never the opaque `bookId` (songs.no_raw_ids Constraint 1; home-book-format
+  // §4.2, §5.3).
+  const bookLabelFor = (bookId) => resolveBookLabel(shelf, bookId, t('books.untitled'));
 
   const recognized = typed ? recognizeChord(query, dialect) : null;
   // A song whose merge waits on the person reads *conflict* (workflow 9
@@ -839,7 +841,7 @@ export default function SearchScreen({
         paths={saveAll?.paths ?? []}
         titleHint={saveAll?.bookLabel ?? ''}
         bookLabel={saveAll?.bookLabel ?? ''}
-        canSave={saveAll ? saveTargetFor(shelf, saveAll.bookId).canSave : true}
+        canSave={saveAll ? saveTargetFor(shelf, saveAll.bookId, t('books.untitled')).canSave : true}
       />
     </div>
   );

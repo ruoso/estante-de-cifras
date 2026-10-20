@@ -45,11 +45,13 @@ const BROWSE = {
   ],
 };
 
+const FALLBACKS = { untitledBook: 'Untitled book', untitledSong: 'Untitled song' };
+
 const CURRENT = { bookId: 'local-my-songs', path: 'tarde-clara.cifra.md', title: 'Tarde Clara' };
 
 describe('unsavedRows (W04#4 L163-168; workflow 4 §Saving)', () => {
   it('lists only unsaved songs, the current one first even before the index caught up', () => {
-    const rows = unsavedRows(BROWSE, SHELF, CURRENT);
+    const rows = unsavedRows(BROWSE, SHELF, CURRENT, FALLBACKS);
     expect(rows[0]).toMatchObject({
       bookId: 'local-my-songs',
       path: 'tarde-clara.cifra.md',
@@ -61,7 +63,7 @@ describe('unsavedRows (W04#4 L163-168; workflow 4 §Saving)', () => {
   });
 
   it('orders the rest by shelf position, then by title', () => {
-    const rows = unsavedRows(BROWSE, SHELF, CURRENT);
+    const rows = unsavedRows(BROWSE, SHELF, CURRENT, FALLBACKS);
     expect(rows.map((r) => r.title)).toEqual([
       'Tarde Clara',
       'Pé de Vento',
@@ -72,21 +74,21 @@ describe('unsavedRows (W04#4 L163-168; workflow 4 §Saving)', () => {
   });
 
   it('says the book at its root, and book · folder/ below it', () => {
-    const rows = unsavedRows(BROWSE, SHELF, CURRENT);
+    const rows = unsavedRows(BROWSE, SHELF, CURRENT, FALLBACKS);
     expect(rows.find((r) => r.title === 'Pé de Vento').meta).toBe('My songs');
     expect(rows.find((r) => r.title === 'Lua de Vidro').meta).toBe('Choros da Lia · choro/');
   });
 
   it('leaves out a book no longer on the shelf', () => {
-    const rows = unsavedRows(BROWSE, SHELF, CURRENT);
+    const rows = unsavedRows(BROWSE, SHELF, CURRENT, FALLBACKS);
     expect(rows.find((r) => r.bookId === 'srv-gone')).toBeUndefined();
   });
 
   it('marks every other row unsaved, and the current one by the host’s live flag', () => {
-    const rows = unsavedRows(BROWSE, SHELF, { ...CURRENT, unsaved: false });
+    const rows = unsavedRows(BROWSE, SHELF, { ...CURRENT, unsaved: false }, FALLBACKS);
     expect(rows[0].unsaved).toBe(false);
     expect(rows.slice(1).every((r) => r.unsaved)).toBe(true);
-    expect(unsavedRows(BROWSE, SHELF, { ...CURRENT, unsaved: true })[0].unsaved).toBe(true);
+    expect(unsavedRows(BROWSE, SHELF, { ...CURRENT, unsaved: true }, FALLBACKS)[0].unsaved).toBe(true);
   });
 
   it('does not list the current song twice once the index marks it unsaved', () => {
@@ -97,13 +99,34 @@ describe('unsavedRows (W04#4 L163-168; workflow 4 §Saving)', () => {
           : b,
       ),
     };
-    const rows = unsavedRows(browse, SHELF, CURRENT);
+    const rows = unsavedRows(browse, SHELF, CURRENT, FALLBACKS);
     expect(rows.filter((r) => r.path === 'tarde-clara.cifra.md')).toHaveLength(1);
     expect(rows[0].current).toBe(true);
   });
 
   it('with no current song, lists the unsaved ones alone; an empty slice lists nothing', () => {
-    expect(unsavedRows(BROWSE, SHELF, null).every((r) => !r.current)).toBe(true);
-    expect(unsavedRows({ books: [] }, SHELF, null)).toEqual([]);
+    expect(unsavedRows(BROWSE, SHELF, null, FALLBACKS).every((r) => !r.current)).toBe(true);
+    expect(unsavedRows({ books: [] }, SHELF, null, FALLBACKS)).toEqual([]);
+  });
+
+  // songs.no_raw_ids Constraints 1-2 — no row names a book by its id or a song
+  // by its file name.
+  it('gives a current row whose book is not on the shelf the Untitled book meta, not the id', () => {
+    const current = { bookId: 'local-6467d4de-0000', path: 'sets/tarde.cifra.md', title: 'Tarde' };
+    const [row] = unsavedRows({ books: [] }, SHELF, current, FALLBACKS);
+    expect(row.meta).toBe('Untitled book · sets/');
+    expect(row.meta).not.toContain('local-6467d4de');
+  });
+
+  it('reads a titleless row as the passed song fallback, a folder still following the book', () => {
+    const shelf = { local: { 'local-1': { position: reg(0) } } };
+    const browse = {
+      books: [{ bookId: 'local-1', songs: [{ path: 'sets/untitled-2.cifra.md', title: '', unsaved: true }] }],
+    };
+    const current = { bookId: 'local-1', path: 'untitled.cifra.md', title: '' };
+    const rows = unsavedRows(browse, shelf, current, FALLBACKS);
+    expect(rows.map((r) => r.title)).toEqual(['Untitled song', 'Untitled song']);
+    expect(rows.map((r) => r.meta)).toEqual(['Untitled book', 'Untitled book · sets/']);
+    expect(rows.some((r) => /untitled-\d|untitled$/.test(r.title))).toBe(false);
   });
 });

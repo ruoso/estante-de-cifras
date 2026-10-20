@@ -110,7 +110,7 @@ describe('BooksScreen (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
-  it('title or label: a register shows, a tombstoned/absent register falls back to the id (workflow 7 L16-18; §5.3)', () => {
+  it('title or label: a register shows, a tombstoned register reads Untitled book, never the id (workflow 7 L16-21 amended; §5.3; songs.no_raw_ids)', () => {
     const { store, emit } = makeStore();
     renderScreen(store);
 
@@ -125,8 +125,32 @@ describe('BooksScreen (behavior)', () => {
     );
 
     expect(screen.getByText('Turma de quarta')).toBeInTheDocument();
-    // A cleared label falls back to the opaque id.
-    expect(screen.getByText('b-tombstoned')).toBeInTheDocument();
+    // A cleared label falls back to *Untitled book*, not the opaque id.
+    expect(screen.getByText('Untitled book')).toBeInTheDocument();
+    expect(screen.queryByText(/b-tombstoned/)).toBeNull();
+  });
+
+  // songs.no_raw_ids acceptance — a `local` entry with a position and no title
+  // (the heal's heading-less book, a heading-less upload) is a row named
+  // *Untitled book*, never its id; axe clean (workflow 7 L16-21, amended).
+  it('a local entry with a position and no title is a row named Untitled book; axe clean (songs.no_raw_ids)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderScreen(store);
+
+    emit(
+      event(EventKind.SHELF, {
+        books: {},
+        local: {
+          'local-6467d4de-1111-4222-8333-944455556666': { position: reg(0) },
+          'local-aaaa': { title: reg('Cadernos da Praça'), position: reg(1) },
+        },
+      }),
+    );
+
+    expect(screen.getByText('Untitled book')).toBeInTheDocument();
+    expect(screen.getByText('Cadernos da Praça')).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/local-[0-9a-f]{4}/);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
   // The shelf of three local books the sync tests seed; the `sync` facts are

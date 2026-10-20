@@ -112,11 +112,11 @@ function SyncGlyph() {
 // has N new saves.* in words; its *Bring them in* is on the bar above the book's
 // songs (workflow 7 L83-85).
 function BookRow({ id, book, kind, syncEntry, fillEntry, original, songCount, building, selected, onOpen, rowRef }) {
-  const title = titleFor(book, id);
+  const title = titleFor(book, t('books.untitled'));
   // While the shelf fills on a new device (account.new_device; W13 frame 2):
   // the state as a word, its meta line, and a labelled bar while cloning.
   const fill = fillDisplayFor(fillEntry, { t });
-  const fork = forkLineFor(book, original);
+  const fork = forkLineFor(book, original, t('books.untitled'));
   const meta = bookMetaFor(kind, book, { count: songCount, building, t });
   return (
     <div className={`book-row${selected ? ' sel' : ''}`}>
@@ -692,8 +692,8 @@ export default function BooksScreen({
   // one-time note saying what happened (W11 #2).
   const noteFor = (forkId) => {
     const book = ordered.find((e) => e.id === forkId)?.book;
-    const original = forkLineFor(book, undefined)?.from ?? titleFor(book, forkId);
-    return { book: titleFor(book, forkId), original };
+    const original = forkLineFor(book, undefined, t('books.untitled'))?.from ?? titleFor(book, t('books.untitled'));
+    return { book: titleFor(book, t('books.untitled')), original };
   };
   const [forkedNote, setForkedNote] = useState(() => (forked?.bookId ? noteFor(forked.bookId) : null));
   useWorkerEvent(store, EventKind.BOOK_FORKED, ({ previousBookId, bookId: forkId }) => {

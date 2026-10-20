@@ -54,6 +54,7 @@ import { canonicaliseFile } from './canonicalise.js';
 import { authorFrom } from './author.js';
 import { createMergePath, basename, titleOf, diffRow, readBlobBytes } from './bring-in.js';
 import { readZip } from './book-zip.js';
+import { readmeTitle } from './readme-title.js';
 import { GITATTRIBUTES_BYTES } from './books.js';
 
 const SONG_SUFFIX = '.cifra.md';
@@ -66,14 +67,6 @@ const decoder = new TextDecoder();
 // cancel or abandon.
 const scratchDirOf = (uploadId) => `/uploads/${uploadId}`;
 const uploadRefOf = (uploadId) => `refs/upload/${uploadId}`;
-
-// The level-1 heading of a README's bytes (DIRECTION §2.1), or null.
-function titleFromReadme(bytes) {
-  if (bytes == null) return null;
-  const text = typeof bytes === 'string' ? bytes : decoder.decode(bytes);
-  const m = text.match(/^#\s+(.+?)\s*$/m);
-  return m ? m[1].trim() : null;
-}
 
 /**
  * Validate one zip entry name against zip-slip (Constraints): reject an absolute
@@ -516,8 +509,12 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
   // Make a fresh local book whose single first commit holds `files` — the folder
   // / unrelated / escape-hatch path (Decision 5, 6). Songs are canonicalised (the
   // §8 writer; a marked one is skipped), prose copied verbatim; `.gitattributes`
-  // is ensured and a README gives the title (DIRECTION §2.1). Returns the book.
-  async function createFirstCommitBook(files, identity) {
+  // is ensured and a README gives the title (DIRECTION §2.1). A zip with no
+  // README gets one scaffolded under `untitledTitle` (the main thread's
+  // localized *Untitled book*); a README with no level-1 heading is kept as
+  // written and the book has no title (`null` — songs.no_raw_ids Constraint 9).
+  // Returns the book.
+  async function createFirstCommitBook(files, identity, untitledTitle) {
     const bookId = `local-${globalThis.crypto.randomUUID()}`;
     let title = null;
     await locks.withLock(bookId, async () => {
@@ -530,7 +527,7 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
         if (path === '.gitattributes') hasAttributes = true;
         if (path === 'README.md') {
           hasReadme = true;
-          title = titleFromReadme(bytes);
+          title = readmeTitle(bytes);
         }
         let out = bytes;
         if (isMergeable(path)) {
@@ -547,15 +544,15 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
         await fs.promises.writeFile(`${dir}/.gitattributes`, GITATTRIBUTES_BYTES);
         await gitAdd({ fs, dir, filepath: '.gitattributes' });
       }
-      if (!hasReadme) {
-        title = title ?? 'Untitled';
+      if (!hasReadme && untitledTitle) {
+        title = untitledTitle;
         await fs.promises.writeFile(`${dir}/README.md`, `# ${title}\n`);
         await gitAdd({ fs, dir, filepath: 'README.md' });
       }
       await gitCommit({ fs, dir, message: 'Create book', author: identity, committer: identity });
       await fs.flush?.();
     });
-    return { bookId, title: title ?? 'Untitled' };
+    return { bookId, title };
   }
 
   // Import the zip's history verbatim as a fresh local book (Decision 5): copy
@@ -580,10 +577,10 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
       // `checkout` can leave HEAD detached at the oid; re-attach it to `main` so a
       // later save commits onto the branch (advancing `main`, not a stray HEAD).
       await writeRef({ fs, dir, ref: 'HEAD', value: 'refs/heads/main', symbolic: true, force: true });
-      title = titleFromReadme(await blobBytes(dir, headForMerge, 'README.md'));
+      title = readmeTitle(await blobBytes(dir, headForMerge, 'README.md'));
       await fs.flush?.();
     });
-    return { bookId, title: title ?? 'Untitled' };
+    return { bookId, title };
   }
 
   // A no-history zip into an existing book is a REPLACE, not a merge (Decision 6;
@@ -635,14 +632,15 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
    * Land a previewed upload on confirm (workflow 7 §Ends one of two ways). The
    * scratch repo named by `uploadId` is read from disk; `choice` chooses the
    * landing. Returns a discriminated result logic.js maps to an event:
-   *   - `{ kind: 'new_book', bookId, title }`
+   *   - `{ kind: 'new_book', bookId, title }` — `title` is the README's heading,
+   *     `untitledTitle` for a scaffolded README, else `null` (no title)
    *   - `{ kind: 'merged' | 'replaced', bookId, pushed }`
    *   - `{ kind: 'needs_you', bookId }`
    *
    * @param {{ uploadId: string, choice: 'new_book'|'latest_without_history'|'merge'|'replace',
-   *   target?: { bookId?: string }, perFile?: string[] }} opts
+   *   target?: { bookId?: string }, perFile?: string[], untitledTitle?: string }} opts
    */
-  async function import_({ uploadId, choice, target, perFile }) {
+  async function import_({ uploadId, choice, target, perFile, untitledTitle }) {
     const scratchDir = scratchDirOf(uploadId);
     const identity = authorFrom(await author(), clock());
     const headForMerge = await oidAt(scratchDir, uploadRefOf(uploadId));
@@ -652,7 +650,7 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
       if (headForMerge) {
         out = await importVerbatim(scratchDir, uploadId, headForMerge);
       } else {
-        out = await createFirstCommitBook(await workingFiles(scratchDir), identity);
+        out = await createFirstCommitBook(await workingFiles(scratchDir), identity, untitledTitle);
       }
       await removeTree(scratchDir);
       return { kind: 'new_book', bookId: out.bookId, title: out.title };
@@ -661,7 +659,11 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
     if (choice === 'latest_without_history') {
       // The escape hatch (workflow 7 §A merge left half done, in the zip's
       // history): the latest clean tree as one canonical first commit.
-      const out = await createFirstCommitBook(await treeFiles(scratchDir, headForMerge), identity);
+      const out = await createFirstCommitBook(
+        await treeFiles(scratchDir, headForMerge),
+        identity,
+        untitledTitle,
+      );
       await removeTree(scratchDir);
       return { kind: 'new_book', bookId: out.bookId, title: out.title };
     }

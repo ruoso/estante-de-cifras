@@ -45,14 +45,14 @@ function BookIcon() {
 
 export default function WhichBook({ store, bookId, onChangeBook }) {
   const shelf = useSlice(store, 'shelf');
-  const book = bookLabelFor(shelf, bookId);
+  const book = bookLabelFor(shelf, bookId, t('books.untitled'));
 
   // The books the song may move to: every shelf book the user can push to
   // (`canSaveFor` true), in shelf order. Local books (including *My songs*) are
   // always savable; a shared reader-role book is dropped.
   const offered = orderedBooks(shelf)
     .filter((entry) => canSaveFor(entry.kind, entry.book) === true)
-    .map((entry) => ({ id: entry.id, label: titleFor(entry.book, entry.id) }));
+    .map((entry) => ({ id: entry.id, label: titleFor(entry.book, t('books.untitled')) }));
 
   return (
     <div className="new-song-book">

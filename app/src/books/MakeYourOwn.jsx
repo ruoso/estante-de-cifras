@@ -90,7 +90,9 @@ export function MakeYourOwnBody({
   const makeIt = () => {
     if (status.busy) return;
     setStatus({ busy: true, code: null });
-    store.send(command(CommandKind.FORK_BOOK, { bookId }));
+    // The localized *Untitled book* names the service copy only when the book
+    // has neither a shelf label nor a README heading (songs.no_raw_ids).
+    store.send(command(CommandKind.FORK_BOOK, { bookId, untitledTitle: t('books.untitled') }));
   };
 
   const points = [

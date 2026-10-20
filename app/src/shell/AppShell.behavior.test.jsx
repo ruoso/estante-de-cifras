@@ -691,3 +691,53 @@ describe('Recovery-email banner', () => {
     });
   }
 });
+
+// songs.no_raw_ids Constraint 4 — the shell threads the book's shelf name into
+// SongHistory (it passed none, so history always showed the id).
+describe('AppShell — history names the book (songs.no_raw_ids)', () => {
+  const AT = '2026-10-19T00:00:00.000Z';
+  const BOOK = 'srv-hist-7c1e';
+  const BOOK_LABEL = 'Banda do Bairro';
+  const SONG_PATH = 'choro/tarde-clara.cifra.md';
+  const SONG_TITLE = 'Tarde Clara';
+  const SONG_TEXT = [`# ${SONG_TITLE}`, '', '## Verse', '```', 'G  C | Am  D', '```', ''].join('\n');
+
+  it('history opened from a song in a labelled book shows the book’s label, not its id', async () => {
+    installMatchMedia(false);
+    const endpoint = { postMessage: () => {}, onmessage: null };
+    const store = createStore(endpoint);
+    const emit = (ev) => act(() => endpoint.onmessage({ data: ev }));
+    render(<AppShell store={store} />);
+
+    emit(
+      event(EventKind.SHELF, {
+        books: {
+          [BOOK]: {
+            label: { value: BOOK_LABEL, at: AT },
+            role: { value: 'editor', at: AT },
+            position: { value: 0, at: AT },
+          },
+        },
+        local: {},
+      }),
+    );
+    act(() => {
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'tarde' } });
+    });
+    emit(
+      event(EventKind.SEARCH_RESULTS, {
+        query: 'tarde',
+        results: [{ bookId: BOOK, path: SONG_PATH, title: SONG_TITLE, artist: '', score: 3, unsaved: false }],
+      }),
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(SONG_TITLE) })[0]);
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
+    await screen.findByRole('group', { name: SONG_TITLE });
+
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'History' }));
+
+    await waitFor(() => expect(screen.getByText(`${BOOK_LABEL} · newest first`)).toBeInTheDocument());
+    expect(document.body.textContent).not.toContain(BOOK);
+  });
+});

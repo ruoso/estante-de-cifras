@@ -23,15 +23,19 @@ describe('showsFirstRun', () => {
   });
 });
 
+// songs.no_raw_ids Constraint 1 — the same rule as titleFor over the `shelf`
+// slice: a book with no name is the caller's *Untitled book*, never its id.
 describe('bookLabelFor', () => {
+  const UNTITLED = 'Untitled book';
+
   it('reads a local book’s title first', () => {
     const shelf = { books: {}, local: { ex: { title: reg('Example Book') } } };
-    expect(bookLabelFor(shelf, 'ex')).toBe('Example Book');
+    expect(bookLabelFor(shelf, 'ex', UNTITLED)).toBe('Example Book');
   });
 
   it('falls back to a shared book’s label', () => {
     const shelf = { books: { b: { label: reg('Choros da Ana') } }, local: {} };
-    expect(bookLabelFor(shelf, 'b')).toBe('Choros da Ana');
+    expect(bookLabelFor(shelf, 'b', UNTITLED)).toBe('Choros da Ana');
   });
 
   it('prefers a local title over a shared label for the same id', () => {
@@ -39,18 +43,25 @@ describe('bookLabelFor', () => {
       books: { x: { label: reg('shared') } },
       local: { x: { title: reg('local') } },
     };
-    expect(bookLabelFor(shelf, 'x')).toBe('local');
+    expect(bookLabelFor(shelf, 'x', UNTITLED)).toBe('local');
   });
 
-  it('falls back to the opaque id when no label register is present', () => {
-    expect(bookLabelFor({ books: {}, local: {} }, 'local-123')).toBe('local-123');
-    expect(bookLabelFor({}, 'local-123')).toBe('local-123');
-    expect(bookLabelFor(undefined, 'local-123')).toBe('local-123');
+  it('returns the passed fallback, never the id, when no label register is present', () => {
+    expect(bookLabelFor({ books: {}, local: {} }, 'local-123', UNTITLED)).toBe(UNTITLED);
+    expect(bookLabelFor({}, 'local-123', UNTITLED)).toBe(UNTITLED);
+    expect(bookLabelFor(undefined, 'local-123', UNTITLED)).toBe(UNTITLED);
   });
 
-  it('falls through a cleared tombstone or empty value to the id', () => {
-    const shelf = { books: {}, local: { ex: { title: reg(null) } } };
-    expect(bookLabelFor(shelf, 'ex')).toBe('ex');
+  it('falls through a tombstone, empty or blank value to the next source, then the fallback', () => {
+    for (const title of [reg(null), reg(''), reg('   ')]) {
+      expect(bookLabelFor({ books: {}, local: { ex: { title } } }, 'ex', UNTITLED)).toBe(UNTITLED);
+      expect(
+        bookLabelFor({ books: { ex: { label: reg('Banda') } }, local: { ex: { title } } }, 'ex', UNTITLED),
+      ).toBe('Banda');
+    }
+    expect(bookLabelFor({ books: { b: { label: reg(null) } } }, 'b', 'Libro sin título')).toBe(
+      'Libro sin título',
+    );
   });
 });
 

@@ -24,14 +24,17 @@ const keyOf = (bookId, path) => `${bookId}\u0000${path}`;
  * @param {{ books?: Array<{ bookId: string, songs?: Array<{ path: string, title?: string, unsaved?: boolean }> }> }} browse
  * @param {{ books?: Object, local?: Object }} shelf
  * @param {{ bookId: string, path: string, title?: string, unsaved?: boolean } | null} current
+ * @param {{ untitledBook: string, untitledSong: string }} fallbacks the
+ *   localized *Untitled book* / *Untitled song* — never an id or a file name
+ *   (songs.no_raw_ids Constraints 1-2)
  * @returns {Array<{ id: string, bookId: string, path: string, title: string, meta: string, current: boolean, unsaved: boolean }>}
  */
-export function unsavedRows(browse, shelf, current) {
+export function unsavedRows(browse, shelf, current, { untitledBook, untitledSong } = {}) {
   const books = orderedBooks(shelf);
   const order = new Map(books.map((b, i) => [b.id, i]));
-  const labels = new Map(books.map((b) => [b.id, titleFor(b.book, b.id)]));
+  const labels = new Map(books.map((b) => [b.id, titleFor(b.book, untitledBook)]));
   const metaOf = (bookId, path) => {
-    const book = labels.get(bookId) ?? bookId;
+    const book = labels.get(bookId) ?? untitledBook;
     const folder = folderOf(path);
     return folder ? `${book} · ${folder}/` : book;
   };
@@ -50,7 +53,7 @@ export function unsavedRows(browse, shelf, current) {
       id,
       bookId: current.bookId,
       path: current.path,
-      title: songTitle(current.title || indexed?.title || '', current.path),
+      title: songTitle(current.title || indexed?.title || '', untitledSong),
       meta: metaOf(current.bookId, current.path),
       current: true,
       unsaved: current.unsaved ?? Boolean(indexed?.unsaved),
@@ -68,7 +71,7 @@ export function unsavedRows(browse, shelf, current) {
         id,
         bookId: book.bookId,
         path: song.path,
-        title: songTitle(song.title, song.path),
+        title: songTitle(song.title, untitledSong),
         meta: metaOf(book.bookId, song.path),
         current: false,
         unsaved: true,

@@ -26,6 +26,17 @@ function makeStore() {
   return { store, sent, emit };
 }
 
+// A shelf naming the given books, so a test about something else reads names,
+// not ids (a book with no name reads *Untitled book* — songs.no_raw_ids).
+const AT = '2026-10-05T14:00:00.000Z';
+const labelled = (labels) =>
+  event(EventKind.SHELF, {
+    books: Object.fromEntries(
+      Object.entries(labels).map(([id, label], i) => [id, { label: { value: label, at: AT }, position: { value: i, at: AT } }]),
+    ),
+    local: {},
+  });
+
 const lastCommand = (sent, kind) =>
   [...sent].reverse().find((m) => m.kind === kind);
 
@@ -35,9 +46,10 @@ const type = (value) =>
   });
 
 describe('SearchScreen (behavior)', () => {
-  it('results by book: ranked results with title, artist and where; two same-title songs are two rows; a titleless song shows its file name (workflow 2 L22-24, L44-58, L163)', async () => {
+  it('results by book: ranked results with title, artist and where; two same-title songs are two rows; a titleless song reads Untitled song (workflow 2 L22-24, L44-58, L180-182 amended)', async () => {
     const { store, emit } = makeStore();
     const { container } = render(<SearchScreen store={store} />);
+    emit(labelled({ 'book-1': 'Choros da Lia', 'book-2': 'Banda do Bairro' }));
 
     type('canção');
     emit(
@@ -54,10 +66,12 @@ describe('SearchScreen (behavior)', () => {
     // Two same-title songs are two rows — not grouped (the book tells them apart).
     expect(screen.getAllByText('Canção')).toHaveLength(2);
     // Title, artist and where it lives: book, and folder only when not at root.
-    expect(screen.getByText('Ana · book-1 · bossa/')).toBeInTheDocument();
-    expect(screen.getByText('Bruno · book-2')).toBeInTheDocument();
-    // A titleless song is listed by its file name without .cifra.md.
-    expect(screen.getByText('sem-titulo')).toBeInTheDocument();
+    expect(screen.getByText('Ana · Choros da Lia · bossa/')).toBeInTheDocument();
+    expect(screen.getByText('Bruno · Banda do Bairro')).toBeInTheDocument();
+    // A titleless song is listed as *Untitled song*, never by its file name
+    // (workflow 3 L37-41).
+    expect(screen.getByText('Untitled song')).toBeInTheDocument();
+    expect(screen.queryByText(/sem-titulo/)).toBeNull();
 
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
@@ -73,6 +87,7 @@ describe('SearchScreen (behavior)', () => {
         onAddToSetlist={(x) => added.push(x)}
       />,
     );
+    emit(labelled({ 'book-1': 'Choros da Lia' }));
 
     type('noite');
     emit(
@@ -89,7 +104,7 @@ describe('SearchScreen (behavior)', () => {
     expect(screen.getByText('Setlist')).toBeInTheDocument();
     // Title and where it lives — never the *.setlist.md file name (DIRECTION §4 L470).
     expect(screen.getByText('Minha Noite')).toBeInTheDocument();
-    expect(screen.getByText('book-1 · shows/')).toBeInTheDocument();
+    expect(screen.getByText('Choros da Lia · shows/')).toBeInTheDocument();
     expect(screen.queryByText(/minha-noite\.setlist\.md/)).toBeNull();
 
     // No Add-to-setlist on the setlist row; the song row keeps it.
@@ -200,18 +215,28 @@ describe('SearchScreen (behavior)', () => {
     const { container } = render(<SearchScreen store={store} />);
 
     // Two books of the shelf fill, nothing indexed for either.
+    // Named as this device's books, so either can take a new song once it lands.
+    emit(
+      event(EventKind.SHELF, {
+        books: {},
+        local: {
+          'book-a': { title: { value: 'Roda A', at: AT }, position: { value: 0, at: AT } },
+          'book-b': { title: { value: 'Roda B', at: AT }, position: { value: 1, at: AT } },
+        },
+      }),
+    );
     emit(event(EventKind.SHELF_FILL, { bookId: 'book-a', state: 'waiting', progress: 0 }));
     emit(event(EventKind.SHELF_FILL, { bookId: 'book-b', state: 'cloning', progress: 40 }));
 
     // Both are listed, by the shelf's word.
-    expect(screen.getByRole('button', { name: /book-a.*waiting/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /book-b.*cloning 40%/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Roda A.*waiting/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Roda B.*cloning 40%/ })).toBeInTheDocument();
     expect(screen.getByText('waiting')).toBeInTheDocument();
     expect(screen.getByText('cloning 40%')).toBeInTheDocument();
     expect(screen.queryByText(/\b0 songs/)).not.toBeInTheDocument();
     // Nothing is there to write into yet: no New song, no Save all.
-    expect(screen.queryByRole('button', { name: 'New song in book-a' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'New song in book-b' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New song in Roda A' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New song in Roda B' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Save all/ })).not.toBeInTheDocument();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
@@ -232,9 +257,9 @@ describe('SearchScreen (behavior)', () => {
         ],
       }),
     );
-    expect(screen.getByRole('button', { name: /book-b.*2 songs/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Roda B.*2 songs/ })).toBeInTheDocument();
     expect(screen.queryByText('cloning 40%')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'New song in book-b' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New song in Roda B' })).toBeInTheDocument();
     // book-a is still waiting.
     expect(screen.getByText('waiting')).toBeInTheDocument();
     expect(screen.queryByText(/\b0 songs/)).not.toBeInTheDocument();
@@ -283,6 +308,7 @@ describe('SearchScreen (behavior)', () => {
   it('scope: applying a book scope narrows the command and shows the chip in the box; a fresh mount has no scope (workflow 2 L60-65)', () => {
     const { store, sent, emit } = makeStore();
     const { unmount } = render(<SearchScreen store={store} />);
+    emit(labelled({ 'book-1': 'Choros da Lia', 'book-2': 'Banda do Bairro' }));
 
     emit(
       event(EventKind.BROWSE_RESULTS, {
@@ -297,11 +323,11 @@ describe('SearchScreen (behavior)', () => {
     expect(lastCommand(sent, CommandKind.BROWSE).payload.scope).toBeUndefined();
 
     // Apply the scope from a book's "search only here" button.
-    act(() => fireEvent.click(screen.getByRole('button', { name: 'Search only in book-1' })));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Search only in Choros da Lia' })));
 
     // The chip shows inside the box, and the next BROWSE narrows to that book.
     const box = document.querySelector('.search');
-    expect(within(box).getByText('book-1')).toBeInTheDocument();
+    expect(within(box).getByText('Choros da Lia')).toBeInTheDocument();
     expect(lastCommand(sent, CommandKind.BROWSE).payload.scope).toEqual({ books: ['book-1'] });
 
     // Typing now searches within the scope.
@@ -315,7 +341,7 @@ describe('SearchScreen (behavior)', () => {
     expect(document.querySelector('.search .scope')).toBeNull();
   });
 
-  it('book labels: a shelf label names a book and its scope chip, falling back to the bookId when absent (songs.search Decision 6; workflow 2 L11, workflow 7 L14-21)', async () => {
+  it('book labels: a shelf label names a book and its scope chip, falling back to Untitled book — never the bookId — when absent (songs.search Decision 6; workflow 2 L11, workflow 7 L14-21; songs.no_raw_ids)', async () => {
     const { store, emit } = makeStore();
     const { container } = render(<SearchScreen store={store} />);
 
@@ -340,15 +366,67 @@ describe('SearchScreen (behavior)', () => {
     // The section disclosure trigger's name is the label followed by its count.
     expect(screen.getByRole('button', { name: /Turma de quarta.*song/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Search only in Turma de quarta' })).toBeInTheDocument();
-    // b-2 has no label register, so it falls back to the bookId (Decision 6's
-    // fallback preserved).
-    expect(screen.getByRole('button', { name: 'Search only in b-2' })).toBeInTheDocument();
+    // b-2 has no label register, so it reads *Untitled book*, never its id
+    // (songs.no_raw_ids Constraint 1).
+    expect(screen.getByRole('button', { name: 'Search only in Untitled book' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /b-2/ })).toBeNull();
 
     // Applying b-1's scope shows the label as the chip in the box, not the id.
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Search only in Turma de quarta' })));
     const box = document.querySelector('.search');
     expect(within(box).getByText('Turma de quarta')).toBeInTheDocument();
 
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  // songs.no_raw_ids acceptance — a book absent from the `shelf` slice (the
+  // orphan the OPEN heal targets, or a hosted clone it never adopts) is
+  // *Untitled book* in its section, a song row's meta, a recent and the scope
+  // chip, and nowhere its id; a titleless song is *Untitled song*, not its
+  // placeholder file name. Pins workflow 2 L180-185 (amended), workflow 3 L37-41.
+  it('a book with no shelf entry reads Untitled book everywhere, never its id; a titleless song reads Untitled song; axe clean (songs.no_raw_ids; workflow 2 L180-185)', async () => {
+    const ORPHAN = 'local-6467d4de-1111-4222-8333-944455556666';
+    const { store, emit } = makeStore();
+    const { container } = render(<SearchScreen store={store} />);
+    emit(event(EventKind.SHELF, { books: {}, local: {} }));
+    emit(
+      event(EventKind.BROWSE_RESULTS, {
+        books: [
+          {
+            bookId: ORPHAN,
+            count: 2,
+            songs: [
+              { path: 'sets/untitled-2.cifra.md', title: '', artist: '', unsaved: false },
+              { path: 'lua.cifra.md', title: 'Lua de Vidro', artist: '', unsaved: false },
+            ],
+          },
+        ],
+      }),
+    );
+    emit(event(EventKind.INDEX_STATUS, { bookId: ORPHAN, state: 'ready', songs: 2 }));
+    emit(
+      event(EventKind.RECENTS, {
+        recents: [{ bookId: ORPHAN, path: 'lua.cifra.md', at: '2026-10-05T10:00:00.000Z' }],
+      }),
+    );
+
+    // The section and the recent name the book *Untitled book*.
+    expect(screen.getByRole('button', { name: /Untitled book.*2 songs/ })).toBeInTheDocument();
+    const recent = screen.getByRole('region', { name: 'Recent' });
+    expect(within(recent).getByText(/Untitled book/)).toBeInTheDocument();
+    // The titleless song row reads *Untitled song*, its meta the book and folder.
+    expect(screen.getAllByText('Untitled song').length).toBeGreaterThan(0);
+    expect(screen.getByText('Untitled book · sets/')).toBeInTheDocument();
+    expect(screen.queryByText(/untitled-\d|untitled$/)).toBeNull();
+    expect(container.textContent).not.toContain(ORPHAN);
+    expect(container.textContent).not.toMatch(/local-[0-9a-f]{8}/);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // The scope chip names it the same way.
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Search only in Untitled book' })));
+    const box = document.querySelector('.search');
+    expect(within(box).getByText('Untitled book')).toBeInTheDocument();
+    expect(container.textContent).not.toContain(ORPHAN);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 

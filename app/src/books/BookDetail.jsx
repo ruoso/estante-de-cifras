@@ -327,7 +327,7 @@ export default function BookDetail({
   const book = entry?.book ?? {};
   const bookKind = entry?.kind ?? kind ?? 'local';
   const isLocal = bookKind === 'local';
-  const title = titleFor(book, bookId);
+  const title = titleFor(book, t('books.untitled'));
   const role = book?.role?.value ?? null;
   const isOwner = isLocal || role === 'owner';
   // Who shares a member's book with them (books.owner_name): the shelf's `owner`

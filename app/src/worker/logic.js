@@ -56,7 +56,8 @@ import { defaultSaveMessage } from '../songs/save-note.js';
 import { createSearchIndex } from './search-index.js';
 import { createRecents } from './recents.js';
 import { surfacePreferences } from './preferences.js';
-import { surfaceShelf } from './shelf.js';
+import { surfaceShelf, nextShelfPosition, planShelfBackfill } from './shelf.js';
+import { readmeTitle } from './readme-title.js';
 import {
   surfaceInstruments,
   instrumentRemoval,
@@ -293,25 +294,6 @@ async function listBookIds(fs, homeBookId) {
     throw err;
   }
   return entries.filter((id) => id !== homeBookId);
-}
-
-// The next shelf position for a new book: one past the greatest `position`
-// register across the shared books and this device's local books — the shelf is
-// shown ascending by `position` (home-book-format §4.2, books.shelf acceptance
-// 6). A book with no position, or an empty shelf, does not raise the max, so a
-// first book lands at 0 and each later one increments.
-function nextShelfPosition(model, deviceId) {
-  let max = -1;
-  const scan = (map) => {
-    if (!map || typeof map !== 'object') return;
-    for (const id of Object.keys(map)) {
-      const position = map[id]?.position?.value;
-      if (typeof position === 'number' && position > max) max = position;
-    }
-  };
-  scan(model?.books);
-  scan(model?.local?.[deviceId]);
-  return max + 1;
 }
 
 // Word a failed invitation accept for the view (books.add_by_link), never naming
@@ -1048,12 +1030,52 @@ export function createWorkerLogic(port, options = {}) {
     port.postMessage(event(EventKind.PREFERENCES, surfacePreferences(model)));
   }
 
+  // A book's title from the level-1 heading of its working copy's README
+  // (DIRECTION §2.1), or null — no README, or no heading. Never logged: a
+  // heading is the user's words.
+  async function readmeTitleOf(bookId) {
+    try {
+      return readmeTitle(await ensureFs().promises.readFile(`${ensureGit().bookDir(bookId)}/README.md`));
+    } catch {
+      return null;
+    }
+  }
+
+  // The shelf heal at OPEN (songs.no_raw_ids Constraints 6-8): a `local-…` book
+  // on the device with a commit but no entry in THIS device's shelf namespace —
+  // a device id minted afresh while the books stayed, or a reload between a new
+  // book's repository and its shelf write — is put back on the shelf under its
+  // README's heading, and an entry with a place but no title gets the heading.
+  // The plan is `planShelfBackfill` (pure); everything goes in one home-book
+  // write and one flush, and a healthy shelf writes nothing. A removed book
+  // (tombstoned) is never resurrected, a hosted clone never adopted as local.
+  // Local only; logs nothing.
+  async function healShelf() {
+    const ids = (await listBookIds(ensureFs(), HOME_BOOK_ID)).filter((id) => id.startsWith('local-'));
+    if (!ids.length) return;
+    const books = [];
+    for (const id of ids) {
+      if (!(await hasCommits(id))) continue;
+      books.push({ id, readmeTitle: await readmeTitleOf(id) });
+    }
+    if (!books.length) return;
+    const home = ensureHomeBook();
+    const deviceId = await home.ensureDeviceId({ idb, name, version });
+    const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+    const changes = planShelfBackfill(shelf, deviceId, books);
+    if (!changes.length) return;
+    const author = await resolveAuthor();
+    await home.ensureLocal({ author });
+    await home.set({ bookId: HOME_BOOK_ID, file: 'shelf.json', changes, author });
+    await ensureFs().flush();
+  }
+
   // Read the home book's shelf.json, project it (narrowing `local` to this
   // device's namespace, §7), and post the SHELF event — the labels and links the
   // search screen and the future book-management screen read (home-book-format
   // §4.2; reducer replaces the slice). A read before any home book exists returns
   // `{}` (ENOENT, home-book.js), so the payload is `{ books: {}, local: {} }` and
-  // every book stays labelled by its id — never an error, never a crash. The
+  // every book reads *Untitled book* — never an error, never a crash. The
   // device id comes from the same `idb`/`name`/`version` the closure holds —
   // the version so `ensureDeviceId` attaches at the schema already on disk and
   // never triggers an upgrade this session (opened at that version) would block.
@@ -1602,7 +1624,10 @@ export function createWorkerLogic(port, options = {}) {
     // screen can label each book by the name the user gave it (and the future
     // book-management screen read the same slice) as soon as the Worker is up.
     // The read is local and offline-first, and emits `{ books: {}, local: {} }`
-    // when no home book exists yet.
+    // when no home book exists yet. First, the shelf heal puts back a local
+    // book this device's namespace lost (songs.no_raw_ids), so the surfaced
+    // shelf already lists it under its README heading.
+    await healShelf();
     await surfaceHomeBookShelf();
     // Surface the instrument roster right after the shelf, so the header chip
     // shows the in-use instrument (or the standard-guitar default) as soon as
@@ -2335,9 +2360,9 @@ export function createWorkerLogic(port, options = {}) {
             // ways). The upload engine reads the scratch repo named by `uploadId`
             // and lands it; this handler maps the result to the existing events
             // and (for a new book) writes the shelf register as CREATE_BOOK does.
-            const { uploadId, choice, target, perFile, fromMySongs } = message.payload;
+            const { uploadId, choice, target, perFile, fromMySongs, untitledTitle } = message.payload;
             const author = await resolveAuthor();
-            const result = await ensureUpload().import_({ uploadId, choice, target, perFile });
+            const result = await ensureUpload().import_({ uploadId, choice, target, perFile, untitledTitle });
             if (fromMySongs && choice === 'merge') {
               // *Merge and save* of this device's *My songs* into the account's
               // (account.new_device acceptance 7): a clean merge retires this
@@ -2352,8 +2377,10 @@ export function createWorkerLogic(port, options = {}) {
             }
             if (result.kind === 'new_book') {
               // A fresh local book: write its `shelf.local` entry (title from the
-              // imported README), re-surface SHELF, index it and announce it —
-              // the CREATE_BOOK / OPEN_EXAMPLE_BOOK tail.
+              // imported README, written only when it has one — the view then
+              // says *Untitled book*, songs.no_raw_ids Constraint 9), re-surface
+              // SHELF, index it and announce it — the CREATE_BOOK /
+              // OPEN_EXAMPLE_BOOK tail.
               const home = ensureHomeBook();
               await home.ensureLocal({ author });
               const deviceId = await home.ensureDeviceId({ idb, name, version });
@@ -2363,7 +2390,9 @@ export function createWorkerLogic(port, options = {}) {
                 bookId: HOME_BOOK_ID,
                 file: 'shelf.json',
                 changes: [
-                  { path: ['local', deviceId, result.bookId, 'title'], value: result.title },
+                  ...(result.title
+                    ? [{ path: ['local', deviceId, result.bookId, 'title'], value: result.title }]
+                    : []),
                   { path: ['local', deviceId, result.bookId, 'position'], value: position },
                 ],
                 author,
@@ -2672,7 +2701,15 @@ export function createWorkerLogic(port, options = {}) {
               );
               break;
             }
-            const label = entry?.label?.value ?? bookId;
+            // The shelf label, else the book's README heading, else no label
+            // at all — never the id (songs.no_raw_ids Constraint 5); the view
+            // then says *Untitled book*. The service copy still needs a name:
+            // the main thread's localized `untitledTitle`.
+            const shelfLabel = entry?.label?.value;
+            const label =
+              (typeof shelfLabel === 'string' && shelfLabel.trim() ? shelfLabel : null) ??
+              (await readmeTitleOf(bookId));
+            const forkTitle = label ?? message.payload?.untitledTitle ?? '';
             const originalLink = entry?.link?.value ?? null;
             const position =
               typeof entry?.position?.value === 'number'
@@ -2680,7 +2717,7 @@ export function createWorkerLogic(port, options = {}) {
                 : nextShelfPosition(shelf, deviceId);
             let result;
             try {
-              result = await ensureFork().fork({ bookId, title: label, author: await resolveAuthor() });
+              result = await ensureFork().fork({ bookId, title: forkTitle, author: await resolveAuthor() });
             } catch (err) {
               // Refused or unreachable before any device write: word it for the
               // view — over the limit (413), no session (401), offline (no
@@ -2709,7 +2746,7 @@ export function createWorkerLogic(port, options = {}) {
             // access, following has already ended (workflow 11 L41-46).
             const original = {
               bookId,
-              title: label,
+              title: label ?? '',
               link: originalLink,
               followedAt,
               ...(result.via === 'own' ? { goneAt: followedAt } : {}),
@@ -2727,7 +2764,7 @@ export function createWorkerLogic(port, options = {}) {
                 ...(entry.original ? [{ path: ['books', bookId, 'original'], value: null }] : []),
                 ...ownerTombstone(shelf, bookId),
                 // The fork in its place: the same label and position, owned.
-                { path: ['books', forkId, 'label'], value: label },
+                ...(label ? [{ path: ['books', forkId, 'label'], value: label }] : []),
                 { path: ['books', forkId, 'link'], value: result.gitUrl },
                 { path: ['books', forkId, 'position'], value: position },
                 { path: ['books', forkId, 'role'], value: 'owner' },

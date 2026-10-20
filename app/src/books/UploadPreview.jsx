@@ -209,7 +209,15 @@ export default function UploadPreview({
     const uploadId = preview.uploadId;
     if (choice === 'new') {
       awaitingRef.current = 'new';
-      store.send(command(CommandKind.IMPORT_UPLOAD, { uploadId, choice: 'new_book' }));
+      // A zip with no README gets one under the localized *Untitled book*
+      // (songs.no_raw_ids Constraint 9).
+      store.send(
+        command(CommandKind.IMPORT_UPLOAD, {
+          uploadId,
+          choice: 'new_book',
+          untitledTitle: t('books.untitled'),
+        }),
+      );
       return;
     }
     awaitingRef.current = targetId;
@@ -243,6 +251,7 @@ export default function UploadPreview({
       command(CommandKind.IMPORT_UPLOAD, {
         uploadId: preview.uploadId,
         choice: 'latest_without_history',
+        untitledTitle: t('books.untitled'),
       }),
     );
   };
@@ -300,7 +309,7 @@ export default function UploadPreview({
                     {({ isSelected }) => (
                       <>
                         <span className="grow">
-                          <span className="name">{titleFor(e.book, e.id)}</span>
+                          <span className="name">{titleFor(e.book, t('books.untitled'))}</span>
                         </span>
                         {isSelected ? <span className="badge ok">{t('account.selected')}</span> : null}
                       </>

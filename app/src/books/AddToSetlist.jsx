@@ -70,7 +70,7 @@ export default function AddToSetlist({ store, song, onClose }) {
     const map = new Map();
     for (const entry of orderedBooks(shelf)) {
       if (canSaveFor(entry.kind, entry.book) === true) {
-        map.set(entry.id, titleFor(entry.book, entry.id));
+        map.set(entry.id, titleFor(entry.book, t('books.untitled')));
       }
     }
     return map;
@@ -201,7 +201,7 @@ export default function AddToSetlist({ store, song, onClose }) {
                       title,
                       other: titleFor(
                         orderedBooks(shelf).find((e) => e.id === song.bookId)?.book ?? {},
-                        song.bookId,
+                        t('books.untitled'),
                       ),
                     })}
                   </span>

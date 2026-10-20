@@ -135,3 +135,79 @@ export function surfaceShelf(model, deviceId) {
   if (isRegister(model.mySongs)) out.mySongs = model.mySongs;
   return out;
 }
+
+// The next shelf position for a new book: one past the greatest `position`
+// register across the shared books and this device's local books — the shelf is
+// shown ascending by `position` (home-book-format §4.2, books.shelf acceptance
+// 6). A book with no position, or an empty shelf, does not raise the max, so a
+// first book lands at 0 and each later one increments.
+export function nextShelfPosition(model, deviceId) {
+  let max = -1;
+  const scan = (map) => {
+    if (!map || typeof map !== 'object') return;
+    for (const id of Object.keys(map)) {
+      const position = map[id]?.position?.value;
+      if (typeof position === 'number' && position > max) max = position;
+    }
+  };
+  scan(model?.books);
+  scan(model?.local?.[deviceId]);
+  return max + 1;
+}
+
+// Whether a register is live — present and not a tombstone (§5.3).
+const isLive = (register) => isRegister(register) && register.value !== null;
+// Whether a register holds a name — a live, non-blank string.
+const isNamed = (register) =>
+  isLive(register) && typeof register.value === 'string' && register.value.trim() !== '';
+
+/**
+ * The shelf heal at OPEN (songs.no_raw_ids Constraints 6-8): the `home.set`
+ * change list that puts back on THIS device's shelf a local book found on the
+ * device with no entry in its namespace, and names an entry that has a place
+ * but no title. `books` lists the repositories on the device that have a
+ * commit, each with its README's level-1 heading (`readmeTitle`, or `null`).
+ *
+ * - a `local-…` id absent from both `model.books` and `model.local[deviceId]`
+ *   gets a `position` one past every position (`nextShelfPosition`), and a
+ *   `title` when its README has a heading;
+ * - an entry in this namespace with a live `position` and no named `title` gets
+ *   the README heading, when there is one;
+ * - never resurrect: an entry with a tombstoned register (removed, put online)
+ *   is left alone; never adopt: an id in `model.books` (any state) or one that
+ *   does not start with `local-` (a hosted clone) is never written into
+ *   `local`; never another device's namespace (§7).
+ *
+ * Pure: no I/O, no logging. Empty when there is nothing to heal.
+ *
+ * @param {Object} model the parsed shelf.json (an absent file is `{}`)
+ * @param {string} deviceId this device's id, the only namespace written
+ * @param {Array<{ id: string, readmeTitle: string | null }>} books
+ * @returns {Array<{ path: string[], value: any }>}
+ */
+export function planShelfBackfill(model, deviceId, books) {
+  const changes = [];
+  const shared = isPlainObject(model?.books) ? model.books : {};
+  const local = isPlainObject(model?.local) ? model.local : {};
+  const mine = isPlainObject(local[deviceId]) ? local[deviceId] : {};
+  let next = nextShelfPosition(model, deviceId);
+  for (const { id, readmeTitle } of books ?? []) {
+    if (typeof id !== 'string' || !id.startsWith('local-')) continue;
+    if (Object.prototype.hasOwnProperty.call(shared, id)) continue;
+    const title = typeof readmeTitle === 'string' && readmeTitle.trim() ? readmeTitle.trim() : null;
+    const entry = mine[id];
+    const hasRegisters =
+      isPlainObject(entry) && Object.keys(entry).some((key) => isRegister(entry[key]));
+    if (!hasRegisters) {
+      changes.push({ path: ['local', deviceId, id, 'position'], value: next });
+      next += 1;
+      if (title) changes.push({ path: ['local', deviceId, id, 'title'], value: title });
+      continue;
+    }
+    if (!isLive(entry.position) || typeof entry.position.value !== 'number') continue;
+    if (!isNamed(entry.title) && title) {
+      changes.push({ path: ['local', deviceId, id, 'title'], value: title });
+    }
+  }
+  return changes;
+}

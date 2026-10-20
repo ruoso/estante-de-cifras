@@ -35,6 +35,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Button, Disclosure, DisclosurePanel, Heading, Input, Label, Radio, RadioGroup, TextField } from 'react-aria-components';
 import { parse, write } from 'cifra-md';
 import { t, tr } from '../i18n/index.js';
+import { songTitle } from './search-query.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import { inUseEntry } from '../instruments/InstrumentChip.jsx';
@@ -520,7 +521,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
           </div>
           <div className="pane main wizard-main">
             <div className="appbar wizard-main-bar">
-              <span className="title">{model?.title ?? path}</span>
+              <span className="title">{songTitle(model?.title, t('newSong.untitled'))}</span>
               {entry ? (
                 <span className="chip accent wizard-mention">
                   {t('arrange.modeChip', { instrument: chipLabel(entry) })}
@@ -577,7 +578,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
         <Button className="btn icon" aria-label={t('wizard.cancel')} onPress={onBack}>
           <CloseIcon />
         </Button>
-        <span className="title">{model?.title ?? path}</span>
+        <span className="title">{songTitle(model?.title, t('newSong.untitled'))}</span>
       </div>
       <div className="scroll wizard-scroll">
         <div className="wizard-body">

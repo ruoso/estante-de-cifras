@@ -1091,6 +1091,39 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
 
 // The instrument named by the chip's one short label everywhere
 // (shell.header_chrome; workflow 15 L62-75).
+// songs.no_raw_ids — the reading names neither the book by its id nor the
+// song by its path: a book with no shelf label reads *Untitled book* in the
+// header meta, a titleless song *Untitled song* in its heading (workflow 3
+// L37-41; workflow 2 L180-185, amended).
+describe('SongReading — no raw ids (songs.no_raw_ids)', () => {
+  const standardEntry = () => ({ ...guitarEntry(), id: 'standard', label: null });
+  const seen = { instrumentInUse: register('standard'), instrumentPromptSeen: register(true) };
+  const UNTITLED_PATH = 'untitled-2.cifra.md';
+
+  it('a song in a book with no shelf label: the header meta reads Untitled book, never the id; axe clean', async () => {
+    const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
+    const { container } = await openAndWait(store);
+
+    const meta = container.querySelector('.reading-meta');
+    expect(meta).toHaveTextContent('Untitled book');
+    expect(container.textContent).not.toContain(BOOK);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('a titleless song’s heading reads Untitled song, not its path; axe clean', async () => {
+    const text = ['## Verse', FENCE, 'G  C | Am  D', FENCE].join('\n') + '\n';
+    const { store } = makeStore({ text, entry: standardEntry(), preferences: seen });
+    const { container } = renderReading(store, { path: UNTITLED_PATH });
+    act(() => store.open());
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Untitled song' })).toBeInTheDocument());
+
+    expect(container.querySelector('.title')).toHaveTextContent('Untitled song');
+    expect(screen.queryByText(/untitled-\d|untitled$/)).toBeNull();
+    expect(container.textContent).not.toContain(UNTITLED_PATH);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
 describe('SongReading header chrome (behavior)', () => {
   const standardEntry = () => ({ ...guitarEntry(), id: 'standard', label: null });
   const seen = { instrumentPromptSeen: register(true) };

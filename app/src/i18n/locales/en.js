@@ -26,6 +26,9 @@ export default {
   // The book-management screen (books.shelf, workflow 7). `{name}` is a book's
   // title; `{count}` the number of saves waiting to sync.
   books: {
+    // A book with no shelf label and no README heading — never its id
+    // (songs.no_raw_ids Constraint 3).
+    untitled: 'Untitled book',
     back: 'Back',
     add: 'Add a book',
     addTitle: 'Add a book',

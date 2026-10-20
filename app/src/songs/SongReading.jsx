@@ -58,6 +58,7 @@ import Chart from '../chart/Chart.jsx';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import SearchScreen from './SearchScreen.jsx';
 import { bookLabelFor } from './first-run.js';
+import { songTitle } from './search-query.js';
 import { transposeStatus, chartChordList } from './reading-view.js';
 import { READING_ACTIONS_WIDE_QUERY } from '../shell/layout-mode.js';
 import './reading.css';
@@ -332,7 +333,10 @@ export default function SongReading({
   const model = baseModel ? transpose(baseModel, offset, { dialect: notation }) : null;
   const writtenKey = songProperty(baseModel, 'key');
   const artist = songProperty(baseModel, 'artist');
-  const bookLabel = bookLabelFor(shelf, bookId);
+  const bookLabel = bookLabelFor(shelf, bookId, t('books.untitled'));
+  // A titleless song is *Untitled song*, never its path (songs.no_raw_ids;
+  // workflow 3 L37-41).
+  const displayTitle = songTitle(baseModel?.title, t('newSong.untitled'));
 
   const variation = reading.variations?.[tuningId] ?? '';
   const variations = baseModel && tuningId ? songVariations(baseModel, tuningId) : [];
@@ -486,7 +490,7 @@ export default function SongReading({
 
   const sheet = (
     <div className="reading-sheet">
-      {model ? <Chart model={model} size={mode === 'wide' ? 20 : undefined} label={baseModel?.title ?? undefined} /> : null}
+      {model ? <Chart model={model} size={mode === 'wide' ? 20 : undefined} label={displayTitle} /> : null}
       {shapes.length ? (
         // The tablet's bordered card beside the chart (W02#3 L130-139); the
         // computer's unbordered column (W02#4 L198-207); the phone's plain
@@ -527,7 +531,7 @@ export default function SongReading({
             heading-styled span, not a second landmark — the region below is
             already named by it. */}
         <div className="reading-fullscreen-top">
-          <span className="t-h2 reading-fullscreen-title">{baseModel?.title ?? path}</span>
+          <span className="t-h2 reading-fullscreen-title">{displayTitle}</span>
           <Button className="btn quiet reading-exit-full" onPress={leaveFullScreen}>
             {t('reading.leaveFullScreen')}
           </Button>
@@ -539,7 +543,7 @@ export default function SongReading({
           className="scroll reading-fullscreen-scroll"
           ref={scrollRef}
           role="region"
-          aria-label={baseModel?.title ?? path}
+          aria-label={displayTitle}
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
           tabIndex={0}
         >
@@ -703,7 +707,7 @@ export default function SongReading({
       <BackIcon />
     </Button>
   );
-  const titleSpan = <span className="title">{baseModel?.title ?? path}</span>;
+  const titleSpan = <span className="title">{displayTitle}</span>;
   const editButton = (
     <Button className="btn" onPress={() => onEdit({ bookId, path, title: baseModel?.title })}>
       {t('reading.edit')}

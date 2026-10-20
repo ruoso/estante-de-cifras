@@ -15,7 +15,10 @@ It lists the books on the shelf, each with:
 
 - its **title**: the README's level-1 heading, or the repository name
   (DIRECTION §2.1), unless the user has renamed it on their shelf — a label
-  kept in the home book that changes nothing in the repository;
+  kept in the home book that changes nothing in the repository. A book with
+  none of these is *Untitled book*, never its internal id; a book found on the
+  device with no shelf entry is put back on the shelf under its README's
+  heading when the app opens;
 - **where it lives**: *on this device*, or *on Estante*;
 - whether the user **can save** to it;
 - **how many songs** it holds (*14 songs*), or *still loading* while the

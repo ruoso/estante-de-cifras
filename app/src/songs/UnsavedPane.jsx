@@ -33,7 +33,14 @@ export default function UnsavedPane({ store, current, onEdit }) {
     store.send(command(CommandKind.BROWSE, { scope: undefined }));
   }, [store, currentBook, currentPath]);
 
-  const rows = useMemo(() => unsavedRows(browse, shelf, current), [browse, shelf, current]);
+  const rows = useMemo(
+    () =>
+      unsavedRows(browse, shelf, current, {
+        untitledBook: t('books.untitled'),
+        untitledSong: t('newSong.untitled'),
+      }),
+    [browse, shelf, current],
+  );
   const items = rows.map((row) => ({ id: row.id, row }));
   const currentIds = rows.filter((r) => r.current).map((r) => r.id);
 

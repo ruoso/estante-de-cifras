@@ -62,7 +62,7 @@ export default function SetlistsScreen({ store, onOpenSetlist = () => {} }) {
   });
 
   const nameFor = (bookId) =>
-    titleFor(orderedBooks(shelf).find((e) => e.id === bookId)?.book ?? {}, bookId);
+    titleFor(orderedBooks(shelf).find((e) => e.id === bookId)?.book ?? {}, t('books.untitled'));
 
   return (
     <div className="setlists-screen">
