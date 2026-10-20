@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# Exploratory sessions against a local stack (e2e/web/explore/README.md).
+#
+# An agent (or a person) plays a persona and drives the app in a real browser
+# with playwright-cli, starting from a seed — a state reached through the real
+# UI and paused there. This script owns the stack and the seeds; it never runs
+# the suite and is never run by the gate.
+#
+#   scripts/explore up                     build and start the stack
+#   scripts/explore seed <seed> <viewport> <outdir>
+#                                          start a seed paused for playwright-cli;
+#                                          prints its session name (tw-…)
+#   scripts/explore stop <outdir>          stop the seed started into <outdir>
+#   scripts/explore down                   take the stack down, volumes and all
+#   scripts/explore env                    print the environment, for sourcing
+#
+# <seed> is a substring of a test name in e2e/web/explore/seeds.spec.js
+# ("cold device", "hosted book"); <viewport> is phone, tablet or computer.
+#
+# The stack's compose project is never named estante-*: the orchestrator tears
+# down every estante-* stack started from the main checkout before each gate
+# (orchestrator/driver.py, teardown_estante_stacks), and the gate's own stacks
+# are estante-gate-*. Ports are fixed so a session's URLs stay stable; override
+# them with the EXPLORE_* variables below if they are taken.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WEB="$ROOT/e2e/web"
+
+EXPLORE_PROJECT="${EXPLORE_PROJECT:-explore-estante}"
+EXPLORE_HTTP_PORT="${EXPLORE_HTTP_PORT:-18080}"
+EXPLORE_PG_PORT="${EXPLORE_PG_PORT:-15433}"
+EXPLORE_MAIL_PORT="${EXPLORE_MAIL_PORT:-18025}"
+
+[[ "$EXPLORE_PROJECT" == estante-* ]] \
+  && { echo "explore: EXPLORE_PROJECT must not start with estante- (the orchestrator tears those down)" >&2; exit 2; }
+
+# The same variables scripts/gate exports for its stack, on fixed ports and
+# fixed throwaway secrets. The origin's host is localhost, not 127.0.0.1: a
+# browser refuses WebAuthn on an IP-literal origin (see scripts/gate).
+env_exports() {
+  cat <<EOF
+export ESTANTE_HTTP_PORT=$EXPLORE_HTTP_PORT ESTANTE_PG_PORT=$EXPLORE_PG_PORT ESTANTE_MAIL_PORT=$EXPLORE_MAIL_PORT
+export ESTANTE_PG_USER=estante ESTANTE_PG_PASSWORD=estante ESTANTE_PG_DB=estante
+export ESTANTE_E2E_BASE_URL=http://localhost:$EXPLORE_HTTP_PORT
+export ESTANTE_E2E_MAIL_URL=http://127.0.0.1:$EXPLORE_MAIL_PORT
+export ESTANTE_TEST_DATABASE_URL="postgres://estante:estante@127.0.0.1:$EXPLORE_PG_PORT/estante?sslmode=disable"
+export ESTANTE_LINK_SECRET=explore-link-secret
+export ESTANTE_WEBAUTHN_STATE_SECRET=explore-webauthn-state-secret
+export ESTANTE_INVITATION_SECRET=explore-invitation-secret
+export ESTANTE_WEBAUTHN_RP_ID=localhost
+export ESTANTE_COMPOSE_PROJECT=$EXPLORE_PROJECT
+EOF
+}
+eval "$(env_exports)"
+
+compose() { docker compose -p "$EXPLORE_PROJECT" -f "$ROOT/compose.yaml" "$@"; }
+
+usage() { sed -n '9,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+
+case "${1:-}" in
+  up)
+    compose up --build --detach --wait --wait-timeout 300
+    echo "explore: stack $EXPLORE_PROJECT up at $ESTANTE_E2E_BASE_URL (mail at $ESTANTE_E2E_MAIL_URL)"
+    ;;
+  down)
+    compose down --volumes --remove-orphans --rmi local
+    ;;
+  env)
+    env_exports
+    ;;
+  seed)
+    [[ $# -eq 4 ]] || usage
+    seed="$2" viewport="$3" out="$4"
+    mkdir -p "$out"
+    curl -fsS -o /dev/null "$ESTANTE_E2E_BASE_URL/healthz" \
+      || { echo "explore: no stack at $ESTANTE_E2E_BASE_URL — run scripts/explore up" >&2; exit 1; }
+    # Fully detached (setsid -f, no inherited stdio), so a caller capturing this
+    # command's output with $(…) gets the session name back instead of waiting
+    # on the seed. The wrapper shell leads a session and process group of its
+    # own and records its pid, which `stop` kills as a group — the seed, its
+    # runner and its browser together.
+    rm -f "$out/seed.log"
+    (cd "$WEB" && PLAYWRIGHT_HTML_OPEN=never setsid -f bash -c \
+        'echo $$ >"$0/seed.pid"; exec npx --no-install playwright test -c explore.config.js -g "$1" --project "$2" --debug=cli --output "$0/test-results"' \
+        "$out" "$seed" "$viewport" </dev/null >"$out/seed.log" 2>&1)
+    for _ in $(seq 1 60); do
+      session="$(grep -o 'attach tw-[a-z0-9]*' "$out/seed.log" | head -1 | cut -d' ' -f2 || true)"
+      if [[ -n "$session" ]]; then
+        echo "$session"
+        exit 0
+      fi
+      sleep 1
+    done
+    echo "explore: the seed did not start; see $out/seed.log" >&2
+    exit 1
+    ;;
+  stop)
+    [[ $# -eq 2 ]] || usage
+    pid="$(cat "$2/seed.pid" 2>/dev/null || true)"
+    [[ -n "$pid" ]] && kill -- "-$pid" 2>/dev/null || true
+    rm -f "$2/seed.pid"
+    ;;
+  *)
+    usage
+    ;;
+esac

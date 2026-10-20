@@ -4,6 +4,8 @@ coverage/
 .vite/
 test-results/
 playwright-report/
+# playwright-cli's session logs and page snapshots (e2e/web/explore).
+.playwright-cli/
 *.log
 /test-results/
 /playwright-report/

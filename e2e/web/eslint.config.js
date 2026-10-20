@@ -13,6 +13,7 @@ export default [
       'test-results/**',
       'playwright-report/**',
       'blob-report/**',
+      '.playwright-cli/**',
     ],
   },
   js.configs.recommended,
