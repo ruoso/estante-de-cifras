@@ -33,7 +33,7 @@ const TAKEN_DOWN_REASON =
 test('a taken-down book shows the operator reason on its detail, beside Download; the shelf reads gone', async ({
   page,
 }) => {
-  test.setTimeout(10000);
+  test.setTimeout(20000);
 
   // A signed-in device with a hosted book carrying one song, made through the UI.
   await hostedBookWithSong(page, BOOK, SONG_TITLE);

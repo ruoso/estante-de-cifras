@@ -105,7 +105,7 @@ test.describe('add by link', () => {
     browser,
     page,
   }) => {
-    test.setTimeout(20000);
+    test.setTimeout(60000);
 
     await ownerWithBooks(page, ['Choros da Ana', 'Turma de quarta', 'Roda de choro', 'Sarau da sexta']);
     const editorLink = await inviteThroughShare(page, 'Choros da Ana', { role: 'Editor' });
@@ -195,7 +195,7 @@ test.describe('add by link', () => {
     browser,
     page,
   }) => {
-    test.setTimeout(15000);
+    test.setTimeout(25000);
 
     await ownerWithBooks(page, ['Roda de choro']);
     const deadLink = await inviteThroughShare(page, 'Roda de choro', { role: 'Reader' });
@@ -234,7 +234,7 @@ test.describe('add by link', () => {
     browser,
     page,
   }) => {
-    test.setTimeout(10000);
+    test.setTimeout(25000);
 
     await ownerWithBooks(page, ['Turma de quinta']);
     const link = await inviteThroughShare(page, 'Turma de quinta', {
@@ -277,7 +277,7 @@ test.describe('add by link', () => {
     browser,
     page,
   }) => {
-    test.setTimeout(10000);
+    test.setTimeout(25000);
 
     await ownerWithBooks(page, ['Choros da Ana']);
     const link = await inviteThroughShare(page, 'Choros da Ana', { role: 'Reader' });

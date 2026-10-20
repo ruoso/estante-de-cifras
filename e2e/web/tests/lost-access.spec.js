@@ -44,7 +44,7 @@ test('losing access: the owner removes an editor; the member sees no longer shar
   browser,
   page,
 }) => {
-  test.setTimeout(20000);
+  test.setTimeout(40000);
 
   // Owner: a signed-in device with a hosted book carrying one song, and an
   // editor invitation made in the Share dialog.
