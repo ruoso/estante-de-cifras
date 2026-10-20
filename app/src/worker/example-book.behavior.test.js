@@ -155,6 +155,31 @@ describe('opening the example book (behavior)', () => {
     expect(results.some((r) => r.bookId === EXAMPLE_BOOK_ID)).toBe(true);
   });
 
+  // books.row_opens_songs Decision *The count rides on INDEX_STATUS*: the
+  // shelf row's *N songs* comes from the Worker's index (workflow 7 L21-23).
+  it('carries the song count on the ready INDEX_STATUS, and the count plus one after a new song is written', async () => {
+    const w = await makeWorker('count');
+    open(w);
+    const songs = EXAMPLE_BOOK_FILES.filter((f) => f.name.endsWith('.cifra.md')).length;
+    const readyFor = () =>
+      w.events.filter(
+        (e) => e.kind === EventKind.INDEX_STATUS && e.payload.bookId === EXAMPLE_BOOK_ID && e.payload.state === 'ready',
+      );
+    await waitFor(() => expect(readyFor().length).toBeGreaterThan(0));
+    expect(readyFor().at(-1).payload.songs).toBe(songs);
+
+    const seen = readyFor().length;
+    w.send(
+      command(CommandKind.WRITE, {
+        bookId: EXAMPLE_BOOK_ID,
+        path: 'a-tune-for-the-count.cifra.md',
+        text: '# A Tune for the Count\n\n## A\n```\nC | F | G | C\n```\n',
+      }),
+    );
+    await waitFor(() => expect(readyFor().length).toBeGreaterThan(seen));
+    expect(readyFor().at(-1).payload.songs).toBe(songs + 1);
+  });
+
   it('makes no network call and no push (offline-first)', async () => {
     const w = await makeWorker('offline');
     open(w);

@@ -77,18 +77,33 @@ test('search: the results scroll, the field and the tab bar stay (DIRECTION §4)
   await checkA11y();
 });
 
-test('books: the book scrolls inside the Books destination, the tab bar stays (DIRECTION §4)', async ({
+test('books: a book’s songs scroll inside the destination under its bar, the tab bar stays (DIRECTION §4)', async ({
   page,
   checkA11y,
 }) => {
   await openExampleBook(page);
   await gotoTab(page, 'Books');
-  // The book's detail: beside the list on the wide layout, in its place on the
-  // narrow ones.
+  // Pressing the book opens its songs, the bar naming it above them
+  // (books.row_opens_songs; workflow 7 §A book's songs).
   await page.getByRole('button', { name: new RegExp(`^${escape(EXAMPLE_BOOK)}`) }).first().click();
-  await expect(page.locator('.book-detail')).toBeVisible();
+  await expect(page.locator('.book-bar')).toBeVisible();
   await shortenViewport(page);
-  await expectScrollsInside(page, { stayInView: [tabBar(page)] });
+  await expectScrollsInside(page, { stayInView: [page.getByRole('searchbox'), tabBar(page)] });
+  await checkA11y();
+});
+
+test('books: a book’s detail scrolls inside itself (DIRECTION §4)', async ({ page, checkA11y }) => {
+  await openExampleBook(page);
+  await gotoTab(page, 'Books');
+  // Books → the book's songs → Manage: the detail, a layer over them.
+  await page.getByRole('button', { name: new RegExp(`^${escape(EXAMPLE_BOOK)}`) }).first().click();
+  await page.getByRole('button', { name: `Manage ${EXAMPLE_BOOK}` }).first().click();
+  const detail = page.locator('.book-detail');
+  await expect(detail).toBeVisible();
+  await shortenViewport(page);
+  await expectScrollsInside(page, {
+    stayInView: [detail.getByRole('button', { name: `Back to ${EXAMPLE_BOOK}` })],
+  });
   await checkA11y();
 });
 

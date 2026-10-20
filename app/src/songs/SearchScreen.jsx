@@ -14,9 +14,12 @@
 // ADDITION to the song results (workflow 2 L26-40, Decision 4). A scope filter
 // narrows the search to a book and shows as a chip inside the box; it is
 // ephemeral view state, so it resets each session (workflow 2 L60-65, Decision
-// 8). Every interactive part is a React Aria Component with a keyboard path and
-// an accessible name; every badge and the "still loading" state carry a word,
-// never colour alone (mockups README L26).
+// 8). While the scope is one book (or a folder in it), the bar naming the book
+// sits between the box and the results — its meta, its state in words,
+// *Manage*, and what waits on the person (books.row_opens_songs; workflow 7
+// §A book's songs). Every interactive part is a React Aria Component with a
+// keyboard path and an accessible name; every badge and the "still loading"
+// state carry a word, never colour alone (mockups README L26).
 
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -41,6 +44,9 @@ import {
   folderOf,
 } from './search-query.js';
 import FirstRun from './FirstRun.jsx';
+import BookBar from '../books/BookBar.jsx';
+import BringIn from '../books/BringIn.jsx';
+import { bookOfScope } from '../shell/place.js';
 import SaveSheet from './SaveSheet.jsx';
 import { showsFirstRun, bookLabelFor as resolveBookLabel } from './first-run.js';
 import { inUseEntry } from '../instruments/InstrumentChip.jsx';
@@ -292,6 +298,10 @@ function BookSection({
   onSaveAll,
   canWrite,
   onAddToSetlist,
+  markConflict = (item) => item,
+  // The book's songs (books.row_opens_songs): a scope of this one book opens its
+  // section, so its songs list under the bar (the Open-a-book board, Phone 2).
+  defaultExpanded = false,
 }) {
   const count = book?.count ?? 0;
   const songs = book?.songs ?? [];
@@ -302,7 +312,7 @@ function BookSection({
     ? t('search.stillLoading')
     : t('search.songCount', { count });
   return (
-    <Disclosure className="book">
+    <Disclosure className="book" defaultExpanded={defaultExpanded}>
       {({ isExpanded }) => (
         <>
           <div className="book-head">
@@ -356,7 +366,7 @@ function BookSection({
               {songs.map((s) => (
                 <SongRow
                   key={keyOf(bookId, s.path)}
-                  item={{ ...s, bookId }}
+                  item={markConflict({ ...s, bookId })}
                   bookLabel={bookLabel}
                   instrument={instrument}
                   onOpen={onOpen}
@@ -396,6 +406,13 @@ function searchedBooks(scope, shelf, bookIds, bookLabelFor) {
   }
 }
 
+// The book the bar names: the scope's one book (`bookOfScope`), or the book a
+// folder scope `{ bookId, prefix }` is in (workflow 7 L69-73). A several-book
+// scope, or none, has no bar.
+function barBookOf(scope) {
+  return bookOfScope(scope) ?? (scope?.bookId && scope.prefix ? scope.bookId : null);
+}
+
 function scopeChipLabel(scope, bookLabelFor) {
   if (!scope) return '';
   if (Array.isArray(scope.books)) return scope.books.map(bookLabelFor).join(', ');
@@ -421,6 +438,12 @@ export default function SearchScreen({
   onQueryChange,
   scope: controlledScope,
   onScopeChange,
+  // The bar's acts (books.row_opens_songs): *Manage* opens the book's detail,
+  // *Settle* its conflicts; a bring-in that meets the person's own edits hands
+  // the book to the conflicts (workflow 11).
+  onManageBook = () => {},
+  onSettleBook = () => {},
+  onNeedsYou = () => {},
 }) {
   const searchSlice = useSlice(store, 'search');
   const indexSlice = useSlice(store, 'index');
@@ -428,6 +451,7 @@ export default function SearchScreen({
   const recentsSlice = useSlice(store, 'recents');
   const preferences = useSlice(store, 'preferences');
   const shelf = useSlice(store, 'shelf');
+  const conflicts = useSlice(store, 'conflicts');
 
   // Chord recognition reads the user's notation dialect (Decision 4), falling
   // back to the app default when none is surfaced. The instrument in use fills
@@ -454,6 +478,9 @@ export default function SearchScreen({
   // Save all opens the one save sheet over a book's changed songs (workflow 4
   // §Several songs at once). Ephemeral view state: `{ bookId, paths, bookLabel }`.
   const [saveAll, setSaveAll] = useState(null);
+  // The bring-in screen (books.bring_in, Decision 3), opened from a fork's bar:
+  // `{ bookId, book, original }` while open, in place of the search screen.
+  const [bringIn, setBringIn] = useState(null);
   // A book became its fork (books.fork): the scope and an open save-all follow
   // the new id, so the save lands in the fork and the search stays narrowed to
   // the same book.
@@ -543,7 +570,36 @@ export default function SearchScreen({
   const bookLabelFor = (bookId) => resolveBookLabel(shelf, bookId);
 
   const recognized = typed ? recognizeChord(query, dialect) : null;
-  const results = searchSlice.results;
+  // A song whose merge waits on the person reads *conflict* (workflow 9
+  // §Meeting one): the engaged book's model names its paths.
+  const inConflict = (item) => {
+    const model = conflicts?.[item.bookId];
+    if (!model) return item;
+    const hit = [...(model.songs ?? []), ...(model.deleted ?? [])].some((c) => c.path === item.path);
+    return hit ? { ...item, conflict: true } : item;
+  };
+  const results = searchSlice.results.map(inConflict);
+  const barBook = barBookOf(scope);
+
+  // A fork's bring-in takes the screen (Decision 3; W11 board #3): a merge or
+  // *Not now* returns to the book's songs; a collision hands off to conflicts.
+  if (bringIn) {
+    return (
+      <div className="search-screen">
+        <BringIn
+          store={store}
+          bookId={bringIn.bookId}
+          book={bringIn.book}
+          original={bringIn.original}
+          onClose={() => setBringIn(null)}
+          onNeedsYou={(bookId) => {
+            setBringIn(null);
+            onNeedsYou(bookId);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="search-screen">
@@ -578,6 +634,16 @@ export default function SearchScreen({
           </Button>
         </SearchField>
       </Group>
+
+      {barBook ? (
+        <BookBar
+          store={store}
+          bookId={barBook}
+          onManage={onManageBook}
+          onSettle={onSettleBook}
+          onBringIn={(bookId, names) => setBringIn({ bookId, ...names })}
+        />
+      ) : null}
 
       {/* The results scroll under the heading and the search pill, which stay
           in view (shell.full_height). */}
@@ -701,7 +767,7 @@ export default function SearchScreen({
                   {recentItems.map((item, i) => (
                     <SongRow
                       key={`recent-${keyOf(item.bookId, item.path)}-${i}`}
-                      item={item}
+                      item={inConflict(item)}
                       bookLabel={bookLabelFor(item.bookId)}
                       instrument={instrument}
                       onOpen={onOpenSong}
@@ -733,6 +799,8 @@ export default function SearchScreen({
                       onSaveAll={setSaveAll}
                       canWrite={canWriteTo(shelf, id)}
                       onAddToSetlist={onAddToSetlist}
+                      markConflict={inConflict}
+                      defaultExpanded={id === barBook}
                     />
                   ))}
                 </div>

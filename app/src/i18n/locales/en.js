@@ -174,9 +174,15 @@ export default {
     onlyOn: 'Only on your {device}: {title}',
     onlyOnOther: 'Only on another device: {title}',
     onlyOnHelp: 'Put it online there to have it here.',
-    // The per-book detail (books.online, workflow 7 L46-63, L128-137; W07 board).
-    detailBack: 'Back to books',
-    pickBook: 'Pick a book to see its details.',
+    // A book's songs (books.row_opens_songs; workflow 7 §A book's songs): the
+    // bar's Manage and Settle, and the detail's Back, Rename and Files card.
+    manage: 'Manage',
+    manageLabel: 'Manage {book}',
+    settle: 'Settle',
+    settleLabel: 'Settle conflicts in {book}',
+    backToBook: 'Back to {book}',
+    rename: 'Rename',
+    filesBody: 'Every file in the book, as it is stored.',
     private: 'private',
     sharedBy: 'shared by {owner}',
     shared: 'shared',

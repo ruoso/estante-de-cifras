@@ -57,7 +57,7 @@ import {
   untilAccountShelf,
 } from '../lib/journeys-account.js';
 import { waitForMessage, extractSignInLink } from '../lib/mail.js';
-import { openBookRow } from '../lib/journeys-sync.js';
+import { openBookDetail } from '../lib/journeys-sync.js';
 import { fillBookToCapacity } from '../lib/db.js';
 import { openDevice } from '../lib/devices.js';
 import { mockup } from '../lib/mockup.js';
@@ -426,7 +426,7 @@ test.describe('add by link', () => {
     try {
       // It came down on its own; taken off this shelf, the account still has it.
       await expect(other.page.getByRole('button', { name: rowFor('Minhas cifras') })).toBeVisible({ timeout: 30000 });
-      await openBookRow(other.page, 'Minhas cifras');
+      await openBookDetail(other.page, 'Minhas cifras');
       await other.page.getByRole('button', { name: 'Remove from my shelf' }).click();
       await other.page.getByRole('dialog').getByRole('button', { name: 'Remove from my shelf' }).click();
       await gotoTab(other.page, 'Books');
@@ -444,7 +444,9 @@ test.describe('add by link', () => {
       // It clones onto the shelf, On Estante (the add lands on Search).
       await gotoTab(other.page, 'Books');
       await expect(other.page.getByRole('button', { name: rowFor('Minhas cifras') })).toBeVisible();
-      await expect(other.page.getByText('On Estante', { exact: true })).toBeVisible();
+      // The row's meta leads with where it lives, then its song count
+      // (books.row_opens_songs; workflow 7 L19-23).
+      await expect(other.page.getByText(/^On Estante · (\d+ songs?|still loading)$/)).toBeVisible();
     } finally {
       await other.context.close();
     }

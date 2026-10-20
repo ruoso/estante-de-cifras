@@ -5,8 +5,6 @@ import { expect } from '@playwright/test';
 import { GitDevice } from './git-device.js';
 import { hostedBook, waitUntilSearchable, gotoTab, startApp } from './journeys.js';
 
-const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 // Sign in, host an (empty) book, push `files` ({ path: text }) into it from a
 // git CLI second device, and wait until the app has synced and indexed a song
 // (`query` finds `title`). Returns what hostedBook returns plus the GitDevice.
@@ -70,8 +68,5 @@ export async function replaceLine(page, oldLine, newLine) {
   await page.keyboard.insertText(newLine);
 }
 
-// Books → the book's row (opens its detail).
-export async function openBookRow(page, name) {
-  await gotoTab(page, 'Books');
-  await page.getByRole('button', { name: new RegExp(`^${escape(name)}`) }).click();
-}
+// Books → the book → Manage: its detail (books.row_opens_songs).
+export { openBookDetail } from './journeys.js';

@@ -43,8 +43,9 @@
   color: var(--ink-2);
 }
 
-/* A book row is the open control plus the rename control; the list draws the
-   divider between rows, so the inner .row carries none of its own. */
+/* A book row is its one open control (and, while cloning, a progress bar); the
+   list draws the divider between rows, so the inner .row carries none of its
+   own. */
 .book-row {
   display: flex;
   align-items: center;
@@ -75,22 +76,6 @@
 .book-row .caret {
   flex: none;
   color: var(--ink-2);
-}
-
-/* The rename control: an icon button beside the row, accent-tinted (named by its
-   aria-label, never colour alone). */
-.book-row .rename-btn {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  min-height: 44px;
-  padding: 0;
-  background: none;
-  border: 0;
-  color: var(--accent);
-  cursor: pointer;
 }
 
 /* The rename dialog's shared `.dialog` box is a fixed 520px (theme.css, the

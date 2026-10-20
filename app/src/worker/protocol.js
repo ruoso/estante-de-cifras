@@ -497,9 +497,11 @@ export const EventKind = Object.freeze({
   // unsaved, voicedFor?, conflict? }] }`; `unsaved` is wired from the index's
   // location records now, `voicedFor`/`conflict` are the seam their owning
   // tasks (music / sync) fill (songs.search Decision 7). INDEX_STATUS carries a
-  // per-book build state — `{ bookId, state }` where state is 'building' |
-  // 'ready' — so the search screen can say a book is still loading (workflow 2
-  // L159-162). Two kinds, not one, so results and status update their slices at
+  // per-book build state — `{ bookId, state, songs? }` where state is
+  // 'building' | 'ready' (or null, the book's index dropped) — so the search
+  // screen can say a book is still loading (workflow 2 L159-162); a `ready`
+  // status also carries `songs`, the book's song count (books.row_opens_songs).
+  // Two kinds, not one, so results and status update their slices at
   // their own cadence (Decision 4).
   SEARCH_RESULTS: 'search_results',
   INDEX_STATUS: 'index_status',

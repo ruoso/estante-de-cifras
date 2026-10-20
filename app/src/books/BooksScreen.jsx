@@ -5,13 +5,16 @@
 // never runs git, never reads the home book directly (DIRECTION §3.7 L407-414).
 // The Worker owns the data; this view is the only React layer over it.
 //
-// It is the shelf LIST plus NEW and RENAME. Each book row shows its title, where
-// it lives, whether the user can save, and — only when a book is not in step —
-// its sync state (workflow 7 L14-21; W07 board). *Add a book* opens a sheet that
-// chooses between the four ways in (books.add_book_chooser); the upload preview
-// a zip leads to is the shell's full-screen surface, not this screen's. Rename writes a label kept in the home book that
-// changes nothing in the repository (workflow 7 L16-18; Decision 3). Putting a
-// book online, removing, deleting and the per-book detail are books.online's.
+// It is the shelf LIST plus NEW. Each book row shows its title, where it lives,
+// whether the user can save, how many songs it holds, and — only when a book is
+// not in step — its sync state (workflow 7 L14-23; W07 board). Pressing a row
+// opens the book's songs — search scoped to it, at `…/b/<book>` — and that is
+// the row's one action (books.row_opens_songs; workflow 7 L28-34): Rename and
+// Files live on the book's detail, reached from *Manage* on the bar above its
+// songs, and a fork's *Bring them in* sits on that bar. One list at every width.
+// *Add a book* opens a sheet that chooses between the four ways in
+// (books.add_book_chooser); the upload preview a zip leads to is the shell's
+// full-screen surface, not this screen's.
 //
 // Selection and the open sheet/dialog are ephemeral view state (useState), like
 // the shell's destination selection — there is no router and nothing to persist
@@ -22,7 +25,7 @@
 // RAC overlays portal into the `.est` token root app-wide via the
 // UNSAFE_PortalProvider in ThemeRoot (shell.portal_provider) — no per-screen
 // portal container is threaded through here any more.
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -40,52 +43,21 @@ import { t, LOCALES, resolveLocale } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { tokenFromLink } from '../account/invitation-route.js';
-import { BOOKS_WIDE_QUERY } from '../shell/layout-mode.js';
 import {
   titleFor,
-  whereFor,
-  canSaveFor,
   orderedBooks,
   forkLineFor,
   fillDisplayFor,
   elsewhereCopyFor,
+  bookMetaFor,
 } from './book-display.js';
 import { inUseEntry } from '../instruments/InstrumentChip.jsx';
 import { chipLabel } from '../instruments/instrument-helpers.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
-import { syncDisplayFor, anyOutOfStep } from '../sync-display.js';
-import BookDetail from './BookDetail.jsx';
-import BringIn from './BringIn.jsx';
+import { anyOutOfStep } from '../sync-display.js';
+import { SyncBadge } from './BookBar.jsx';
 import LeaveDialog from './LeaveDialog.jsx';
 import './books.css';
-
-// Whether the shelf has room for its OWN side-by-side master-detail
-// (books.online Decision 2). This is a SECOND sidebar nested inside the shell's
-// wide main pane, so it needs a wider budget than the shell split — see
-// `BOOKS_WIDE_QUERY` (layout-mode.js) for the nested-rail math. The same
-// `matchMedia`/`useSyncExternalStore` seam the shell and ThemeRoot use; a missing
-// `matchMedia` (jsdom) reads as not-wide, so a behavior render defaults to the
-// narrow detail-over-list.
-function booksWideQuery() {
-  return typeof globalThis.matchMedia === 'function'
-    ? globalThis.matchMedia(BOOKS_WIDE_QUERY)
-    : null;
-}
-
-function subscribeBooksWide(onChange) {
-  const query = booksWideQuery();
-  if (!query?.addEventListener) return () => {};
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
-}
-
-function readBooksWide() {
-  return booksWideQuery()?.matches ?? false;
-}
-
-function useBooksWide() {
-  return useSyncExternalStore(subscribeBooksWide, readBooksWide, readBooksWide);
-}
 
 // The "+" on the Add-a-book trigger (W07 line 32); decorative, named by the
 // button's text.
@@ -104,47 +76,6 @@ function PlusIcon() {
     >
       <path d="M12 5v14M5 12h14" />
     </svg>
-  );
-}
-
-// The pencil on a book's rename control; decorative, named by the button's
-// aria-label.
-function PencilIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z" />
-      <path d="M13.5 6.5l3 3" />
-    </svg>
-  );
-}
-
-// The sync-state badge, shown only when the engine's `sync` fact for the book is
-// not *in step* — the absence of the badge is "in step with Estante" (workflow 8
-// L28; mockup L48). The word (never colour alone, mockups README L26) and its
-// class come from the one sync-word authority, `syncDisplayFor` (sync.states);
-// this view never derives the word itself.
-// A fork whose original is no longer shared carries a second badge, *original
-// no longer shared* (books.fork; W11 board #4 :153) — a word, beside the sync
-// word when there is one.
-function SyncBadge({ entry, originalGone = false }) {
-  const atom = syncDisplayFor(entry, { t });
-  if (!atom && !originalGone) return null;
-  return (
-    <span className="badges">
-      {atom ? <span className={`badge ${atom.cls}`.trim()}>{atom.word}</span> : null}
-      {originalGone ? <span className="badge">{t('books.originalNoLongerShared')}</span> : null}
-    </span>
   );
 }
 
@@ -170,27 +101,23 @@ function SyncGlyph() {
   );
 }
 
-// One book on the shelf: a row that opens the book (the detail/reader is a later
-// task's seam, `onOpen`) and a rename control beside it. The row carries the
-// title, the `{where} · {role}` meta line, and the sync badge when present; it
-// reads `.sel` when it is the selected book (W07 desktop master-detail).
+// One book on the shelf: a single button that opens the book's songs
+// (books.row_opens_songs; workflow 7 L28-34 — the row's one action). It carries
+// the title, the `{where} · {role} · {count} songs` meta line (or *still
+// loading*), and the sync badge when present; it reads `.sel` when it is the
+// book last opened from here.
 //
 // A fork (books.fork, workflow 11; W11 board #2) also says where it came from —
 // *from {original}* — and, when its original has saves it does not, *{original}
-// has N new saves.*, with the *Bring them in* button beside the count
-// (books.bring_in Constraint 6) — a sibling of the row's open button, never
-// nested in it, named for the original (WCAG 2.5.3: the name holds the word).
-function BookRow({ id, book, kind, syncEntry, fillEntry, original, selected, onOpen, onFiles, onRename, onBringIn, rowRef }) {
+// has N new saves.* in words; its *Bring them in* is on the bar above the book's
+// songs (workflow 7 L83-85).
+function BookRow({ id, book, kind, syncEntry, fillEntry, original, songCount, building, selected, onOpen, rowRef }) {
   const title = titleFor(book, id);
   // While the shelf fills on a new device (account.new_device; W13 frame 2):
   // the state as a word, its meta line, and a labelled bar while cloning.
   const fill = fillDisplayFor(fillEntry, { t });
   const fork = forkLineFor(book, original);
-  const where = t(`books.${whereFor(kind)}`);
-  const canSave = canSaveFor(kind, book);
-  const role =
-    canSave === true ? t('books.canSave') : canSave === false ? t('books.reader') : null;
-  const meta = [where, role].filter(Boolean).join(' · ');
+  const meta = bookMetaFor(kind, book, { count: songCount, building, t });
   return (
     <div className={`book-row${selected ? ' sel' : ''}`}>
       <Button className="row book-open" ref={rowRef} onPress={() => onOpen(id)}>
@@ -199,6 +126,11 @@ function BookRow({ id, book, kind, syncEntry, fillEntry, original, selected, onO
           {fork ? <span className="meta">{t('books.fromOriginal', { original: fork.from })}</span> : null}
           <span className="meta">{meta}</span>
           {fill?.meta ? <span className="meta fill-meta">{fill.meta}</span> : null}
+          {fork?.newSaves ? (
+            <span className="meta new-saves">
+              {t('books.originalNewSaves', { original: fork.from, count: fork.newSaves })}
+            </span>
+          ) : null}
           <SyncBadge entry={syncEntry} originalGone={Boolean(fork?.gone)} />
           {fill ? (
             <span className="badges">
@@ -210,14 +142,6 @@ function BookRow({ id, book, kind, syncEntry, fillEntry, original, selected, onO
           ▸
         </span>
       </Button>
-      <Button
-        className="btn files-btn"
-        aria-label={t('fileView.filesFor', { name: title })}
-        onPress={() => onFiles(id)}
-      >
-        {t('fileView.filesEntry')}
-      </Button>
-      <RenameDialog bookId={id} currentName={title} onRename={onRename} />
       {fill?.state === 'cloning' ? (
         <ProgressBar
           className="fill-progress"
@@ -231,74 +155,7 @@ function BookRow({ id, book, kind, syncEntry, fillEntry, original, selected, onO
           )}
         </ProgressBar>
       ) : null}
-      {fork?.newSaves ? (
-        <div className="notice accent bring-in-notice">
-          <span className="new-saves">
-            {t('books.originalNewSaves', { original: fork.from, count: fork.newSaves })}
-          </span>
-          <Button
-            className="btn primary"
-            aria-label={t('books.bringInLabel', { original: fork.from })}
-            onPress={() => onBringIn(id, { book: title, original: fork.from })}
-          >
-            {t('books.bringIn')}
-          </Button>
-        </div>
-      ) : null}
     </div>
-  );
-}
-
-// The rename control and its dialog (Decision 3; no rename control is drawn on
-// the W07 board — this task introduces it). The trigger restores focus on close
-// (RAC); the field opens pre-filled with the current name and, on submit, sends
-// RENAME_BOOK and closes. The repository is never touched — only the shelf label.
-function RenameDialog({ bookId, currentName, onRename }) {
-  const [name, setName] = useState(currentName);
-  return (
-    <DialogTrigger
-      onOpenChange={(open) => {
-        if (open) setName(currentName);
-      }}
-    >
-      <Button className="rename-btn" aria-label={t('books.renameLabel', { name: currentName })}>
-        <PencilIcon />
-      </Button>
-      <ModalOverlay className="scrim center">
-        <Modal className="dialog">
-          <Dialog>
-            {({ close }) => (
-              <form
-                className="book-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const trimmed = name.trim();
-                  if (!trimmed) return;
-                  onRename(bookId, trimmed);
-                  close();
-                }}
-              >
-                <Heading slot="title" className="t-h2">
-                  {t('books.renameTitle', { name: currentName })}
-                </Heading>
-                <TextField className="field" value={name} onChange={setName}>
-                  <Label>{t('books.renameField')}</Label>
-                  <Input className="input" />
-                </TextField>
-                <div className="actions">
-                  <Button className="btn" onPress={close}>
-                    {t('books.cancel')}
-                  </Button>
-                  <Button type="submit" className="btn primary">
-                    {t('books.save')}
-                  </Button>
-                </div>
-              </form>
-            )}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
   );
 }
 
@@ -766,7 +623,12 @@ function AddBookSheet({ store, onCreate, onByLink, onSignIn, onAddMine, onListMi
 
 export default function BooksScreen({
   store,
-  onOpenBook = () => {},
+  // Pressing a book (books.row_opens_songs): the shell opens its songs, search
+  // scoped to it at `…/b/<book>`, for every sync phase.
+  onOpenBookSongs = () => {},
+  // A fork made from the book's detail, which lands here (the BOOK_FORKED
+  // payload): the screen opens with the fork selected and its one-time note.
+  forked = null,
   onByLink = () => {},
   // Mine on Estante's sign-in (books.add_book_chooser Decision 4), called with
   // the sign-in step to open at: 'method' or 'email'.
@@ -774,10 +636,6 @@ export default function BooksScreen({
   // A zip picked from the sheet's Upload row, `{ bytes, fileName }`: the shell
   // opens the full-screen upload preview (books.add_book_chooser Decision 5).
   onUpload = () => {},
-  // A book's Share (books.share_people): the shell opens the sheet or the
-  // people screen, by its layout.
-  onShareBook = () => {},
-  mode = 'narrow',
   // The restore notice's dismissal, held by the shell so it outlives a tab
   // switch (account.new_device); a screen mounted alone keeps its own.
   restoreDismissed,
@@ -795,37 +653,17 @@ export default function BooksScreen({
   const sync = useSlice(store, 'sync');
   const originals = useSlice(store, 'originals');
   const mine = useSlice(store, 'mine');
+  const index = useSlice(store, 'index');
+  const songCounts = useSlice(store, 'songCounts');
   const ordered = useMemo(() => orderedBooks(shelf), [shelf]);
-
-  // The shelf's own layout: side-by-side only when the shell is wide AND there
-  // is room for a second nested sidebar (the computer, not the 712px tablet —
-  // see `useBooksWide`/`BOOKS_WIDE_QUERY`). Below that the shelf uses the same
-  // full-pane detail-over-list the phone does, so the detail and its acts get the
-  // whole pane rather than a squeezed-to-nothing column (books.online Decision 2).
-  const booksWide = useBooksWide();
-  const splitMode = mode === 'wide' && booksWide ? 'wide' : 'narrow';
 
   // The header's one quiet mark: present when any shelf book is out of step
   // (the home book excluded), nothing when all are in step (workflow 8 L36-37).
   const outOfStep = anyOutOfStep(sync);
 
-  // Selection is ephemeral (Decision 7): it highlights the open book (`.sel`),
-  // and a new book takes it to move focus (acceptance 6). The per-book detail
-  // is a SEPARATE ephemeral state (`openDetail`), so a freshly created book is
-  // highlighted and focused without its detail springing open (books.online,
-  // Decision 2): the detail opens only when a row is pressed.
-  const [selected, setSelected] = useState(null);
-  const [openDetail, setOpenDetail] = useState(null);
-  // The bring-in screen (books.bring_in, Decision 3): full screen over the shelf,
-  // `{ bookId, book, original }` while open. Closing it returns
-  // focus to the fork's row (Constraint 8), once the shelf is drawn again.
-  const [bringIn, setBringIn] = useState(null);
-  const focusRowAfter = useRef(null);
-  useEffect(() => {
-    if (bringIn || !focusRowAfter.current) return;
-    rowRefs.current.get(focusRowAfter.current)?.focus();
-    focusRowAfter.current = null;
-  }, [bringIn]);
+  // Selection is ephemeral (Decision 7): it highlights the book last opened
+  // from here (`.sel`), and a new book takes it to move focus (acceptance 6).
+  const [selected, setSelected] = useState(forked?.bookId ?? null);
 
   // A new book's row takes focus once it appears on the shelf (acceptance 6).
   // The create re-surfaces SHELF, growing `ordered`; when a create is pending
@@ -850,28 +688,22 @@ export default function BooksScreen({
   }, [idsKey]);
 
   // A book became its fork (books.fork, workflow 11 §What a fork is): the fork
-  // took the original's place, so the selection follows the new id. On a wide
-  // shelf its detail stays open; on a narrow one the shelf comes back, as the
-  // board draws it (W11 #2), with the one-time note saying what happened.
-  const [forkedNote, setForkedNote] = useState(null);
-  useWorkerEvent(store, EventKind.BOOK_FORKED, ({ previousBookId, bookId: forkId }) => {
+  // took the original's place, so the selection follows the new id, with the
+  // one-time note saying what happened (W11 #2).
+  const noteFor = (forkId) => {
     const book = ordered.find((e) => e.id === forkId)?.book;
     const original = forkLineFor(book, undefined)?.from ?? titleFor(book, forkId);
-    setForkedNote({ book: titleFor(book, forkId), original });
+    return { book: titleFor(book, forkId), original };
+  };
+  const [forkedNote, setForkedNote] = useState(() => (forked?.bookId ? noteFor(forked.bookId) : null));
+  useWorkerEvent(store, EventKind.BOOK_FORKED, ({ previousBookId, bookId: forkId }) => {
+    setForkedNote(noteFor(forkId));
     setSelected((prev) => (prev === previousBookId ? forkId : prev));
-    setOpenDetail((prev) => {
-      if (prev !== previousBookId) return prev;
-      return splitMode === 'wide' ? forkId : null;
-    });
   });
 
   const createBook = (title) => {
     wantFocus.current = true;
     store.send(command(CommandKind.CREATE_BOOK, { title }));
-  };
-
-  const renameBook = (bookId, name) => {
-    store.send(command(CommandKind.RENAME_BOOK, { bookId, name }));
   };
 
   // Ask the Worker for the account's off-shelf books when the sheet opens
@@ -903,37 +735,13 @@ export default function BooksScreen({
     store.send(command(CommandKind.SYNC, { reason: 'sync-now' }));
   };
 
-  // Pressing a row opens its detail (and highlights it); the Files button opens
-  // the file view, as before. The one exception: a book the engine left *needs
-  // you* engages its in-progress merge instead (sync.conflicts, workflow 9
-  // §Meeting one) — opening a paused book shows the conflict panel, not its
-  // detail. That branch lives in the shell's `onOpenBook`, so route the press
-  // there when the live sync phase says the book needs the user.
-  const openBookDetail = (bookId) => {
+  // Pressing a row opens the book's songs (workflow 7 L28-34), whatever its
+  // sync phase: a book that needs you opens on its songs too, its notice and
+  // *Settle* on the bar above them (workflow 9 §Meeting one).
+  const openBookSongs = (bookId) => {
     setSelected(bookId);
-    if (sync[bookId]?.phase === 'needs_you') {
-      onOpenBook(bookId);
-      return;
-    }
-    setOpenDetail(bookId);
+    onOpenBookSongs(bookId);
   };
-
-  const detailKind = ordered.find((e) => e.id === openDetail)?.kind;
-  const detail =
-    openDetail != null ? (
-      <BookDetail
-        store={store}
-        bookId={openDetail}
-        kind={detailKind}
-        mode={splitMode}
-        onBack={() => setOpenDetail(null)}
-        onShare={onShareBook}
-        onReselect={(id) => {
-          setSelected(id);
-          setOpenDetail(id);
-        }}
-      />
-    ) : null;
 
   const listView = (
     <>
@@ -990,14 +798,10 @@ export default function BooksScreen({
               syncEntry={sync[id]}
               fillEntry={fill?.[id]}
               original={originals[id]}
+              songCount={songCounts?.[id]}
+              building={index?.[id] === 'building'}
               selected={selected === id}
-              onOpen={openBookDetail}
-              onFiles={(bookId) => {
-                setSelected(bookId);
-                onOpenBook(bookId);
-              }}
-              onRename={renameBook}
-              onBringIn={(bookId, names) => setBringIn({ bookId, ...names })}
+              onOpen={openBookSongs}
               rowRef={(node) => {
                 if (node) rowRefs.current.set(id, node);
                 else rowRefs.current.delete(id);
@@ -1021,54 +825,7 @@ export default function BooksScreen({
     </>
   );
 
-  // The bring-in screen takes the whole screen (Decision 3; W11 board #3). A
-  // merge closes it (the count clears through ORIGINAL); a collision hands off
-  // to the conflict surface via the shell's `onOpenBook`.
-  if (bringIn) {
-    return (
-      <div className="books-screen">
-        <BringIn
-          store={store}
-          bookId={bringIn.bookId}
-          book={bringIn.book}
-          original={bringIn.original}
-          onClose={() => {
-            focusRowAfter.current = bringIn.bookId;
-            setBringIn(null);
-          }}
-          onNeedsYou={(bookId) => {
-            setBringIn(null);
-            setSelected(bookId);
-            onOpenBook(bookId);
-          }}
-        />
-      </div>
-    );
-  }
-
-  // Wide (computer): the shelf list on the side, the selected book's detail in
-  // the main pane (Decision 2; W07 desktop frame). Narrow (phone and tablet — the
-  // tablet has no room for a second nested sidebar, see `splitMode`): the list,
-  // with a book's detail as a full-pane view over it, a back affordance in its
-  // app bar returning to the list.
-  if (splitMode === 'wide') {
-    return (
-      <div className="books-screen">
-        <div className="split books-split">
-          <div className="pane side">
-            <div className="scroll">{listView}</div>
-          </div>
-          <div className="pane main">
-            {detail ?? (
-              <p className="t-small detail-empty" role="status">
-                {t('books.pickBook')}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return <div className="books-screen">{detail ?? listView}</div>;
+  // One list at every width (workflow 7 L36-37): a book's detail is reached
+  // from its songs, never beside the shelf.
+  return <div className="books-screen">{listView}</div>;
 }

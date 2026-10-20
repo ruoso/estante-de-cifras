@@ -62,6 +62,27 @@ export function canSaveFor(kind, book) {
   return null;
 }
 
+/**
+ * A book's meta line, the same on its shelf row and on the bar above its songs
+ * (books.row_opens_songs): `{where} · {role} · {count} songs`, or `… · still
+ * loading` while the book's index is building or no count has arrived yet. The
+ * role is left out when it is unknown. Pins workflow 7 L19-23.
+ *
+ * @param {'local' | 'shared'} kind
+ * @param {Object} book one book's register map
+ * @param {{ count?: number, building?: boolean, t: Function }} opts the
+ *   `songCounts` entry, whether the `index` says *building*, and the translator
+ * @returns {string}
+ */
+export function bookMetaFor(kind, book, { count, building = false, t }) {
+  const where = t(`books.${whereFor(kind)}`);
+  const canSave = canSaveFor(kind, book);
+  const role = canSave === true ? t('books.canSave') : canSave === false ? t('books.reader') : null;
+  const songs =
+    building || typeof count !== 'number' ? t('search.stillLoading') : t('search.songCount', { count });
+  return [where, role, songs].filter(Boolean).join(' · ');
+}
+
 // A book's sync state is no longer read from the `shelf` slice: it was a
 // placeholder over a `book.sync.value` register `shelf_surface` never populated.
 // The live source is the engine's `sync` reducer slice, derived to a word by

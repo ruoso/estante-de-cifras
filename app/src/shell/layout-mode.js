@@ -21,20 +21,6 @@
 // computer (1280px) → wide, as designed. (Flagged in the return summary.)
 export const WIDE_QUERY = '(min-width: 600px)';
 
-// The book-management screen's OWN master-detail (books.online Decision 2) needs
-// a wider budget than the shell split, because it lives INSIDE the shell's wide
-// main pane: a side-by-side detail there is a SECOND 340px sidebar nested beside
-// the shell's own 340px rail. Two 340px rails plus a usable detail pane only fit
-// on a true computer viewport — on the 712px tablet the shell rail already
-// leaves the shelf ~372px, so a nested 340px list squeezes the detail to nothing
-// and its acts become unclickable (the e2e tablet projects proved this). So the
-// shelf's split engages here, not at WIDE_QUERY: `340 (rail) + 32 (shell scroll
-// padding) + 340 (shelf list) + ~360 (detail) ≈ 1072px`. Below it — the tablet
-// included — the shelf uses the same full-pane detail-over-list the phone does
-// (Decision 2's narrow presentation), which the tall tablet viewport shows
-// comfortably. Computer (1280px) stays side-by-side; tablet (712px) does not.
-export const BOOKS_WIDE_QUERY = '(min-width: 1080px)';
-
 // The wide reading appbar's full row — Back, title, Edit, History, Add to
 // setlist, Print, Share, ⋯ (W02 computer L172-178) — only fits from here at the
 // computer's type size (shell.narrow_fit Decision 7). Below it, on the 712px

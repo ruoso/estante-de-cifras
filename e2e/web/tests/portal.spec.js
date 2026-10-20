@@ -86,7 +86,10 @@ test('RAC overlays portal into `.est` and inherit tokens on this viewport (shell
   await createAction.click();
   await expect(page.getByRole('button', { name: new RegExp(`^${NAME}`) })).toBeVisible();
 
-  // ---- The rename dialog (a `.dialog` overlay) ----
+  // ---- The rename dialog (a `.dialog` overlay), on the book's detail ----
+  // Books → the book's songs → Manage → Rename (books.row_opens_songs).
+  await page.getByRole('button', { name: new RegExp(`^${NAME}`) }).click();
+  await page.getByRole('button', { name: `Manage ${NAME}` }).first().click();
   await page.getByRole('button', { name: `Rename ${NAME}` }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
 

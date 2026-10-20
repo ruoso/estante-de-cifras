@@ -34,6 +34,7 @@ import SongWizard from '../songs/SongWizard.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import EditSongHost from '../songs/EditSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
+import BookDetail from '../books/BookDetail.jsx';
 import SetlistsScreen from '../books/SetlistsScreen.jsx';
 import SetlistView from '../books/SetlistView.jsx';
 import SetlistPlay from '../books/SetlistPlay.jsx';
@@ -57,7 +58,7 @@ import FileView from '../files/FileView.jsx';
 import ChordExplorer from '../music/ChordExplorer.jsx';
 import HeaderChrome from './HeaderChrome.jsx';
 import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
-import { DESTINATIONS, WIDE_QUERY, layoutMode } from './layout-mode.js';
+import { DESTINATIONS, READING_ACTIONS_WIDE_QUERY, WIDE_QUERY, layoutMode } from './layout-mode.js';
 import { bookFileSet } from '../books/setlist-display.js';
 import { initialState } from '../worker/reducer.js';
 import NotHere from './NotHere.jsx';
@@ -86,6 +87,26 @@ function subscribeViewport(onChange) {
 
 function readWide() {
   return wideQuery()?.matches ?? false;
+}
+
+// Whether a wide layout is the computer's (READING_ACTIONS_WIDE_QUERY), where a
+// book's detail takes the main pane beside its songs as a song does
+// (books.row_opens_songs Decision *The detail splits where a song does*).
+function computerQuery() {
+  return typeof globalThis.matchMedia === 'function'
+    ? globalThis.matchMedia(READING_ACTIONS_WIDE_QUERY)
+    : null;
+}
+
+function subscribeComputer(onChange) {
+  const query = computerQuery();
+  if (!query?.addEventListener) return () => {};
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+function readComputer() {
+  return computerQuery()?.matches ?? false;
 }
 
 // The current layout mode, re-read live whenever the viewport crosses the
@@ -180,7 +201,7 @@ function resolvePlace({ place, checkItem, treeReady }, shelf, tree) {
 // surface and the account screen; the behavior level injects a loopback double.
 const DEFAULT_AUTH_CLIENT = createAuthClient();
 
-function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, mode, restore = {}, openSetlistView = null, onShareBook = () => {}, onSignInMine = () => {}, onUpload = () => {}, openBookView = null, offerSignIn = true) {
+function destinationPanels(store, onNavigate, onWriteSong, onOpenBookSongs, onOpenSong, onSignIn, onByLink, onOpenSetlist, onAddToSetlist, search, restore = {}, openSetlistView = null, bookActs = {}, onSignInMine = () => {}, onUpload = () => {}, openBookView = null, offerSignIn = true) {
   return DESTINATIONS.map((key) => (
     <TabPanel key={key} id={key} className="shell-panel">
       {key === 'search' ? (
@@ -207,6 +228,9 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
           onScopeChange={search.onScopeChange}
           onAddToSetlist={onAddToSetlist}
           onOpenSetlist={onOpenSetlist}
+          onManageBook={bookActs.onManage}
+          onSettleBook={bookActs.onSettle}
+          onNeedsYou={bookActs.onNeedsYou}
         />
       ) : key === 'books' ? (
         // The Add-a-book sheet's "By link" (paste a link → the invited flow) and
@@ -214,18 +238,18 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBook, onOpenSon
         // wired here: `onByLink` starts the invited flow, `onSignInMine` opens the
         // sign-in surface for an existing account at the step it names
         // (books.add_book_chooser Decision 4), and `onUpload` opens the
-        // full-screen upload preview (Decision 5). On a wide layout a book that
-        // needs you opens its paused panel here, the rail beside it
+        // full-screen upload preview (Decision 5). Pressing a book opens its
+        // songs (books.row_opens_songs). On a wide layout a book that needs
+        // you opens its paused panel here, the rail beside it
         // (sync.conflicts_polish constraint 5; W09#4).
         openBookView ?? (
           <BooksScreen
             store={store}
-            onOpenBook={onOpenBook}
+            onOpenBookSongs={onOpenBookSongs}
+            forked={bookActs.forkLanding}
             onByLink={onByLink}
             onSignIn={onSignInMine}
             onUpload={onUpload}
-            onShareBook={onShareBook}
-            mode={mode}
             restoreDismissed={restore.dismissed}
             onDismissRestored={restore.onDismiss}
           />
@@ -250,6 +274,7 @@ export default function AppShell({
   authClient = DEFAULT_AUTH_CLIENT,
 }) {
   const mode = useLayoutMode();
+  const computer = useSyncExternalStore(subscribeComputer, readComputer, readComputer) && mode === 'wide';
   // What the shell knows of the account, from the service's answer
   // (account.sign_in_two_doors): whether the cold row offers signing in, and
   // whether the recovery-email banner shows. The client is read once: one
@@ -353,10 +378,18 @@ export default function AppShell({
   const [editingSong, setEditingSong] = useState(null);
   // The open book's file view (books.file_view): `{ bookId, path }` or null —
   // `path` the file it opened at (the reading view's *Show the file*,
-  // songs.show_the_file) or null (the per-book Files control on the
-  // book-management screen). Like `editing`, a full-screen host over the shell
+  // songs.show_the_file) or null (*Files* on the book's detail,
+  // books.row_opens_songs). Like `editing`, a full-screen host over the shell
   // and ephemeral view state (no router).
   const [openFile, setOpenFile] = useState(null);
+  // A book's detail (books.row_opens_songs; workflow 7 L86-95): `{ bookId }` or
+  // null, opened by *Manage* on the bar above the book's songs. A layer over
+  // them, never an address: a reload lands on `…/b/<book>`.
+  const [bookDetail, setBookDetail] = useState(null);
+  // A fork made from the book's detail lands on the shelf, the fork in the
+  // original's place with its one-time note (books.fork; W11 #2): the
+  // BOOK_FORKED payload the Books screen opens with, or null.
+  const [forkLanding, setForkLanding] = useState(null);
   // The instrument surface (music.instruments Decision 1): the header chip is
   // shell chrome present on every destination; pressing it opens the roster
   // overlay. Open-state is ephemeral view state, like the destination selection.
@@ -452,6 +485,7 @@ export default function AppShell({
   };
   const layers = [
     account && 'account',
+    bookDetail && 'bookDetail',
     conflictsBook && 'conflicts',
     songConflict && 'songConflict',
     history && 'history',
@@ -475,6 +509,7 @@ export default function AppShell({
       setAccount(false);
       refreshAccount();
     },
+    bookDetail: () => setBookDetail(null),
     conflicts: () => setConflictsBook(null),
     songConflict: () => setSongConflict(null),
     history: () => {
@@ -536,7 +571,7 @@ export default function AppShell({
       applyPlace(next);
     }
   };
-  const { back, renameBook, followSong } = usePlaceHistory({
+  const { back, renameBook, followSong, pushNext } = usePlaceHistory({
     boot,
     place,
     layers,
@@ -603,8 +638,16 @@ export default function AppShell({
     setOpenSetlist(follow);
     setPlayingSetlist(follow);
     setOpenFile(follow);
+    setBookDetail(follow);
   };
   useWorkerEvent(store, EventKind.BOOK_FORKED, followBookId);
+  useWorkerEvent(store, EventKind.BOOK_FORKED, (payload) => {
+    if (!bookDetail || bookDetail.bookId !== payload?.previousBookId) return;
+    setBookDetail(null);
+    setScope(null);
+    setForkLanding(payload);
+    setSelected('books');
+  });
   useWorkerEvent(store, EventKind.BOOK_ONLINE, followBookId);
 
   // The open song's file renamed, moved or deleted in the file view opened over
@@ -897,10 +940,6 @@ export default function AppShell({
     );
   }
 
-  // Opening a book (shell.layout): its Files view, unless the sync engine left it
-  // reading *needs you* (sync.conflicts) — then engage the merge (OPEN_CONFLICTS
-  // recomputes and materialises it) and show the paused panel instead (workflow
-  // 9 §Meeting one). A book already being settled keeps its panel.
   // What the sharing surfaces need of a book from the shelf: its title, the
   // caller's role, and the owner's name (books.owner_name) a member reads.
   const sharingFacts = (bookId) => {
@@ -925,9 +964,6 @@ export default function AppShell({
     setPeople({ bookId });
   };
 
-  // The file view, from either way in (workflow 14 §The view): *Files in
-  // {book}* (no path) and a song's *Show the file* (its path). One rule for both:
-  // a book needing the user opens its conflicts instead (workflow 9).
   // The paused book panel is a view of a book: on a wide layout it sits in the
   // Books destination, so opening it selects that tab (sync.conflicts_polish
   // Decision 3).
@@ -935,13 +971,45 @@ export default function AppShell({
     if (mode === 'wide') setSelected('books');
     setConflictsBook(bookId);
   };
-  const openBook = (bookId, path = null) => {
-    if (conflictsBook === bookId || sync?.[bookId]?.phase === 'needs_you') {
-      if (conflictsBook !== bookId) store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
-      openConflicts(bookId);
-    } else {
-      setOpenFile({ bookId, path });
+  // A book's conflicts, from *Settle* on its bar or a bring-in or upload that
+  // met the person's own edits (books.upload_ui Decision 2): engage the merge
+  // (OPEN_CONFLICTS recomputes and materialises it) and show the paused panel
+  // (workflow 9 §Meeting one). A book already being settled keeps its panel.
+  const engageConflicts = (bookId) => {
+    if (conflictsBook !== bookId) store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
+    openConflicts(bookId);
+  };
+  // The file view, from either way in (workflow 14 §The view): *Files in
+  // {book}* on the book's detail (no path) and a song's *Show the file* (its
+  // path).
+  const openFiles = (bookId, path = null) => setOpenFile({ bookId, path });
+  // A book pressed on the Books tab opens its songs: search scoped to it, at
+  // `…/b/<book>`, a pushed step so Back returns to Books (workflow 7 L28-34).
+  // A book that needs you is engaged as it opens, as pressing it always did
+  // (OPEN_CONFLICTS; workflow 9 §Meeting one), so its bar counts the songs that
+  // wait on the person; its panel opens only from *Settle*.
+  const openBookSongs = (bookId) => {
+    setForkLanding(null);
+    if (sync?.[bookId]?.phase === 'needs_you' && conflictsBook !== bookId) {
+      store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
     }
+    pushNext();
+    setSelected('search');
+    setScope({ bookId });
+  };
+  // The bar's acts on a book's songs (books.row_opens_songs).
+  const bookActs = {
+    onManage: (bookId) => setBookDetail({ bookId }),
+    onSettle: engageConflicts,
+    onNeedsYou: engageConflicts,
+    forkLanding,
+  };
+  // The book left the shelf from its detail (removed, left or deleted): there
+  // are no songs to return to, so the shelf shows (workflow 7 L94-95).
+  const leaveGoneBook = () => {
+    setBookDetail(null);
+    setScope(null);
+    setSelected('books');
   };
 
   // A device used before signing in, with songs in its own *My songs*, whose
@@ -967,7 +1035,7 @@ export default function AppShell({
   // The upload preview takes the whole screen (books.add_book_chooser Decision
   // 5): it is the thing being previewed, not yet a book on the shelf. Cancel and
   // a finished import return to the Books destination behind it; a colliding
-  // merge opens the book's conflict surface through `openBook` (books.upload_ui
+  // merge opens the book's conflict surface through `engageConflicts` (books.upload_ui
   // Decision 2).
   if (upload) {
     return framed(
@@ -978,7 +1046,7 @@ export default function AppShell({
           onClose={() => setUpload(null)}
           onNeedsYou={(bookId) => {
             setUpload(null);
-            openBook(bookId);
+            engageConflicts(bookId);
           }}
         />,
     );
@@ -1001,6 +1069,7 @@ export default function AppShell({
   // panel (a tablet or a computer), through the panel's own close
   // (sync.conflicts_polish constraint 5).
   const selectTab = (key) => {
+    setForkLanding(null);
     if (openSetlist) setOpenSetlist(null);
     if (conflictsBook) closers.conflicts();
     setSelected(key);
@@ -1048,7 +1117,7 @@ export default function AppShell({
             <main className="pane main" aria-busy={resolving ? true : undefined}>
               {banner}
               <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({}), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, null, shareBook, signInMine, setUpload, booksView, offerSignIn)}
+                {destinationPanels(store, setSelected, startNewSong, openBookSongs, setOpenSong, () => setSignIn({}), openByLink, openSetlistOnTab, setAddingToSetlist, search, restore, null, bookActs, signInMine, setUpload, booksView, offerSignIn)}
               </div>
             </main>
           </div>
@@ -1075,7 +1144,7 @@ export default function AppShell({
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className={setlistView ? 'scroll scroll-setlist' : 'scroll'} aria-busy={resolving ? true : undefined}>
-              {destinationPanels(store, setSelected, startNewSong, openBook, setOpenSong, () => setSignIn({}), openByLink, openSetlistOnTab, setAddingToSetlist, search, mode, restore, setlistView, shareBook, signInMine, setUpload, null, offerSignIn)}
+              {destinationPanels(store, setSelected, startNewSong, openBookSongs, setOpenSong, () => setSignIn({}), openByLink, openSetlistOnTab, setAddingToSetlist, search, restore, setlistView, bookActs, signInMine, setUpload, null, offerSignIn)}
             </main>
           </div>
         )}
@@ -1218,7 +1287,7 @@ export default function AppShell({
       />
     );
   }
-  if (sharingScreen && openSong) return framed(sharingScreen);
+  if (sharingScreen && (openSong || bookDetail)) return framed(sharingScreen);
 
   // The file view is a full screen over the shell (books.file_view Decision 7),
   // exactly as the new-song editor host is; Back returns to the shell.
@@ -1232,6 +1301,75 @@ export default function AppShell({
           onBack={() => back(closers.files)}
           onOpenHistory={setHistory}
         />,
+    );
+  }
+
+  // A book's detail (books.row_opens_songs; workflow 7 L86-95): a layer over the
+  // book's songs. On a computer it takes the main pane beside them, as a song
+  // does (SongReading's split); below that it is a full screen with *Back to
+  // {book}*. Files opens over it (above), and its Back returns here; Back from
+  // the detail returns to the book's songs.
+  if (bookDetail) {
+    const detailEntry = orderedBooks(shelf).find((e) => e.id === bookDetail.bookId);
+    const detail = (
+      <BookDetail
+        store={store}
+        bookId={bookDetail.bookId}
+        kind={detailEntry?.kind}
+        onBack={() => back(closers.bookDetail)}
+        onGone={leaveGoneBook}
+        onShare={shareBook}
+        onFiles={(bookId) => openFiles(bookId)}
+        onReselect={(bookId) => setBookDetail({ bookId })}
+      />
+    );
+    // A book's Share on a phone: the sheet over the detail.
+    const shareOverlay = shareSheet ? (
+      <ShareSheet
+        bookId={shareSheet.bookId}
+        title={sharingFacts(shareSheet.bookId).title}
+        role={sharingFacts(shareSheet.bookId).role}
+        onClose={() => setShareSheet(null)}
+        onOpenPeople={() => openPeopleFrom(shareSheet.bookId)}
+        onNewInvitation={() => {
+          setShareSheet(null);
+          setNewInvitation({ bookId: shareSheet.bookId });
+        }}
+      />
+    ) : null;
+    if (computer) {
+      return framed(
+        <>
+          <div className="split book-detail-split">
+            <div className="pane side">
+              <HeaderChrome store={store} className="rail-head" onInstruments={openInstruments} />
+              <SearchScreen
+                store={store}
+                onOpenSong={(song) => {
+                  setBookDetail(null);
+                  setOpenSong(song);
+                }}
+                onWriteSong={startNewSong}
+                query={searchQuery}
+                onQueryChange={setSearchQuery}
+                scope={scope}
+                onScopeChange={setScope}
+                onManageBook={bookActs.onManage}
+                onSettleBook={bookActs.onSettle}
+                onNeedsYou={bookActs.onNeedsYou}
+              />
+            </div>
+            <div className="pane main">{detail}</div>
+          </div>
+          <InstrumentsOverlay store={store} isOpen={instrumentsOpen} onClose={() => setInstrumentsOpen(false)} />
+        </>,
+      );
+    }
+    return framed(
+      <>
+        <div className="book-detail-layer">{detail}</div>
+        {shareOverlay}
+      </>,
     );
   }
 
@@ -1369,7 +1507,7 @@ export default function AppShell({
           onArrange={setArranging}
           onOpenHistory={setHistory}
           onShare={setSharing}
-          onShowFile={({ bookId, path }) => openBook(bookId, path)}
+          onShowFile={({ bookId, path }) => openFiles(bookId, path)}
           onAddToSetlist={setAddingToSetlist}
           sidePanel={songShare}
           onFullScreenChange={setReadingFull}

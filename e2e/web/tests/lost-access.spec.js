@@ -83,7 +83,9 @@ test('losing access: the owner removes an editor; the member sees no longer shar
 
     // The book detail shows the losing-access notice and both escape offers
     // (acceptance 2, 4).
+    // Books → the book's songs → Manage (books.row_opens_songs).
     await joiner.page.getByRole('button', { name: bookRow }).click();
+    await joiner.page.getByRole('button', { name: `Manage ${BOOK}` }).first().click();
     await expect(
       joiner.page.getByText('No longer shared with you', { exact: true }),
     ).toBeVisible();

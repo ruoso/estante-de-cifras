@@ -31,19 +31,21 @@ export async function startApp(page, path = '/') {
 // One of the three destinations (phone tab bar; the same tabs on the wide
 // layouts' rail). Waits for the destination's heading.
 export async function gotoTab(page, name) {
-  await page.getByRole('tab', { name }).click();
-  // On a phone or tablet a book's detail replaces the Books list: step back.
-  // The detail may close on its own meanwhile (a removed book's does, once the
-  // shelf drops it), so a Back that is gone by the time of the click is fine.
-  const backToBooks = page.getByRole('button', { name: 'Back to books' }).filter({ visible: true });
-  if (name === 'Books' && (await backToBooks.count())) {
-    await backToBooks
+  // A book's detail is a layer over its songs, with no tabs beside it
+  // (books.row_opens_songs): step back through *Back to {book}* first. The
+  // detail may close on its own meanwhile (a removed book's does, landing on
+  // Books), so a Back that is gone by the time of the click is fine.
+  const backToBook = page.locator('.book-detail').getByRole('button', { name: /^Back to / });
+  if (await backToBook.count()) {
+    await backToBook
       .first()
       .click({ timeout: 3000 })
       .catch(async (err) => {
-        if (await backToBooks.count()) throw err;
+        if (await backToBook.count()) throw err;
       });
+    await expect(page.locator('.book-detail')).toHaveCount(0);
   }
+  await page.getByRole('tab', { name }).click();
   if (name !== 'Search') {
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
   }
@@ -178,10 +180,26 @@ export async function makeLocalBook(page, name) {
   await expect(page.getByRole('button', { name: new RegExp(`^${escape(name)}`) })).toBeVisible();
 }
 
-// Put a book online from its row on the Books screen (signed in).
-export async function putBookOnline(page, name) {
+// Books → the book's row: its songs, search scoped to it at `…/b/<book>`, the
+// bar naming it above them (books.row_opens_songs; workflow 7 L28-34).
+export async function openBookSongs(page, name) {
   await gotoTab(page, 'Books');
   await page.getByRole('button', { name: new RegExp(`^${escape(name)}`) }).click();
+  await expect(page).toHaveURL(/\/b\/[^/]+$/);
+  await expect(page.getByRole('button', { name: `Manage ${name}` }).first()).toBeVisible();
+}
+
+// Books → the book → *Manage*: the book's detail, a layer over its songs
+// (workflow 7 L86-95).
+export async function openBookDetail(page, name) {
+  await openBookSongs(page, name);
+  await page.getByRole('button', { name: `Manage ${name}` }).first().click();
+  await expect(page.locator('.book-detail')).toBeVisible();
+}
+
+// Put a book online from its detail (signed in).
+export async function putBookOnline(page, name) {
+  await openBookDetail(page, name);
   await page.getByRole('button', { name: 'Put online' }).click();
   await expect(page.getByText('On Estante · private')).toBeVisible();
 }
@@ -227,8 +245,11 @@ export async function toDestinations(page) {
     await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 1000 }).catch(() => {});
   }
   const tab = page.getByRole('tab', { name: 'Books' });
-  if (!(await tab.isVisible().catch(() => false))) {
+  // A surface may sit over another (the people screen over a book's detail,
+  // the detail over the book's songs): step back until the tabs show.
+  for (let i = 0; i < 4 && !(await tab.isVisible().catch(() => false)); i++) {
     await page.getByRole('button', { name: /^Back/ }).filter({ visible: true }).first().click();
+    await tab.waitFor({ state: 'visible', timeout: 1500 }).catch(() => {});
   }
   await expect(tab).toBeVisible();
 }
@@ -364,9 +385,10 @@ export async function showFileFromReading(page, checkA11y) {
 
 // ---- the file view (workflow 14) ---------------------------------------------
 
-// Books → the book's Files control: the file view on that book.
+// Books → the book → Manage → Files: the file view on that book (workflow 14
+// §The view).
 export async function openFiles(page, bookTitle) {
-  await gotoTab(page, 'Books');
+  await openBookDetail(page, bookTitle);
   await page.getByRole('button', { name: `Files in ${bookTitle}` }).click();
 }
 

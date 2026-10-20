@@ -25,6 +25,10 @@
 //     naming only layers the reload dropped, is a dead step and keeps going
 //     back (reload-step.js) — any other entry, a scope-only or tab-only step
 //     among them, is a real step;
+//   - `pushNext` makes the next change a pushed step even when it is not an
+//     opening by place.js's reading — a book pressed on the Books tab opens
+//     its songs on search, a tab change that is still a step Back undoes
+//     (books.row_opens_songs);
 //   - `renameBook` follows a book whose id changed (a fork, a put-online): the
 //     current entry is replaced, and an entry below naming the old id is read
 //     as naming the new one when `popstate` lands on it. The record of renames
@@ -102,6 +106,8 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
   // The next change replaces the entry whatever it is (a book's id changing
   // under the open place — a fork or a put-online).
   const forceReplaceRef = useRef(false);
+  // The next change pushes an entry whatever it is (`pushNext`).
+  const forcePushRef = useRef(false);
   // What the reload this session booted from dropped (reload-step.js), until
   // back lands on a real step or the hook writes an entry.
   const reloadedRef = useRef(null);
@@ -145,11 +151,13 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
     const force = forceReplaceRef.current;
     forceReplaceRef.current = false;
     if (sameEntry(cur, place, layers)) return;
+    const push = forcePushRef.current;
+    forcePushRef.current = false;
     // The person moved on: no entry below is a dead step of the reload anymore.
     reloadedRef.current = null;
     const stack = stackRef.current;
     const adds = layers.some((kind) => !cur.layers.includes(kind));
-    if (!force && (isOpening(cur.place, place) || adds)) {
+    if (!force && (push || isOpening(cur.place, place) || adds)) {
       const state = { place, layers, depth: cur.depth + 1 };
       history.pushState(state, '', urlFromPlace(place));
       stack.length = state.depth;
@@ -217,6 +225,11 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
     }
   }, []);
 
+  // The next change is a step of its own (a pushed entry), even a tab change.
+  const pushNext = useCallback(() => {
+    forcePushRef.current = true;
+  }, []);
+
   // A book's id changed under the open place (a fork or a put-online): the next
   // change replaces the current entry, and every entry below that names the old
   // id opens the new one when back lands on it.
@@ -244,7 +257,7 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
     );
   }, []);
 
-  return { back, renameBook, followSong };
+  return { back, renameBook, followSong, pushNext };
 }
 
 function songKey(bookId, path) {

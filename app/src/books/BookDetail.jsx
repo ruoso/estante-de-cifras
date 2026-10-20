@@ -2,11 +2,14 @@
 // The four acts that turn a book from a device-only thing into a hosted one,
 // carry it away, or take it off: Put online (a local book), Download (any),
 // Remove from my shelf (any), Delete the book (owner only) — and, for a member,
-// Leave this book (books.leave, workflow 10 §Leaving a book). Opened by selecting
-// a book row on the book-management screen (the shelf's `selected` seam); laid
-// out by BooksScreen as a detail pane beside the list on a wide viewport and a
-// full-screen detail over the list on a phone (Decision 2). This component is
-// the detail pane only — the chips, the act cards and their confirmations.
+// Leave this book (books.leave, workflow 10 §Leaving a book). Opened by *Manage*
+// on the bar above the book's songs (books.row_opens_songs; workflow 7 L86-95):
+// the shell lays it out as a layer over them — the main pane beside the book's
+// songs on a computer, full screen with *Back to {book}* below that. Its title
+// carries **Rename** (a label kept in the home book that changes nothing in the
+// repository, workflow 7 L16-18), and a **Files** card after Download opens the
+// file view (workflow 14 §The view). This component is the detail only — the
+// title row, the chips, the act cards and their confirmations.
 //
 // When the book's live `sync` phase is `gone` — the device is no longer a member
 // (sync.lost_access, workflow 8 §Losing access) — it also shows a *no longer
@@ -67,6 +70,24 @@ function ForkIcon() {
       <circle cx="18" cy="5" r="2" />
       <circle cx="12" cy="19" r="2" />
       <path d="M6 7v2a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V7M12 12v5" />
+    </svg>
+  );
+}
+
+function FilesIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
+    </svg>
+  );
+}
+
+// The pencil on Rename; decorative, the button is named by its aria-label.
+function PencilIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z" />
+      <path d="M13.5 6.5l3 3" />
     </svg>
   );
 }
@@ -173,6 +194,61 @@ function RemoveDialog({ store, bookId, title, isLocal, savesWaiting: syncWaiting
   );
 }
 
+// Rename (books.shelf Decision 3; moved from the shelf row to the detail's title
+// by books.row_opens_songs): the trigger restores focus on close (RAC); the
+// field opens pre-filled with the current name and, on submit, sends
+// RENAME_BOOK and closes. The repository is never touched — only the shelf
+// label.
+function RenameDialog({ bookId, currentName, onRename }) {
+  const [name, setName] = useState(currentName);
+  return (
+    <DialogTrigger
+      onOpenChange={(open) => {
+        if (open) setName(currentName);
+      }}
+    >
+      <Button className="btn quiet rename-btn" aria-label={t('books.renameLabel', { name: currentName })}>
+        <PencilIcon />
+        {t('books.rename')}
+      </Button>
+      <ModalOverlay className="scrim center">
+        <Modal className="dialog">
+          <Dialog>
+            {({ close }) => (
+              <form
+                className="book-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const trimmed = name.trim();
+                  if (!trimmed) return;
+                  onRename(bookId, trimmed);
+                  close();
+                }}
+              >
+                <Heading slot="title" className="t-h2">
+                  {t('books.renameTitle', { name: currentName })}
+                </Heading>
+                <TextField className="field" value={name} onChange={setName}>
+                  <Label>{t('books.renameField')}</Label>
+                  <Input className="input" />
+                </TextField>
+                <div className="actions">
+                  <Button className="btn" onPress={close}>
+                    {t('books.cancel')}
+                  </Button>
+                  <Button type="submit" className="btn primary">
+                    {t('books.save')}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
+  );
+}
+
 // The Delete confirmation (owner only): the destructive action is enabled only
 // when the typed text matches the book's displayed name exactly — the app's
 // type-the-name guard, since DELETE /api/books/{id} takes no name (service.books
@@ -223,22 +299,24 @@ function DeleteDialog({ title, onDelete }) {
 }
 
 /**
- * The per-book detail pane. `bookId` is the book shown; `kind` ('local' |
- * 'shared') is the shelf map it lives in; `mode` is the layout ('wide' |
- * 'narrow'); `onBack` closes the detail (the narrow back affordance and the
- * close after a remove/delete); `onReselect(id)` moves the open detail to a new
- * id (put-online adopts the service id — Decision 3); `onShare(bookId)` opens
- * the book's sharing where the shell puts it — the Share sheet on a phone, the
- * people screen on a tablet or a computer (books.share_people).
+ * The per-book detail. `bookId` is the book shown; `kind` ('local' | 'shared')
+ * is the shelf map it lives in; `onBack` closes the detail (*Back to {book}*);
+ * `onGone` closes it once the book left the shelf (removed, left or deleted —
+ * defaults to `onBack`); `onReselect(id)` moves the open detail to a new id
+ * (put-online adopts the service id — Decision 3); `onShare(bookId)` opens the
+ * book's sharing where the shell puts it — the Share sheet on a phone, the
+ * people screen on a tablet or a computer (books.share_people); `onFiles(bookId)`
+ * opens the book's file view (workflow 14 §The view).
  */
 export default function BookDetail({
   store,
   bookId,
   kind,
-  mode = 'narrow',
   onBack = () => {},
+  onGone,
   onReselect = () => {},
   onShare = () => {},
+  onFiles = () => {},
 }) {
   const shelf = useSlice(store, 'shelf');
   const sync = useSlice(store, 'sync');
@@ -317,12 +395,13 @@ export default function BookDetail({
   });
   // A remove or delete finished: close the detail (the SHELF re-surface drops
   // the row).
+  const gone = onGone ?? onBack;
   useWorkerEvent(store, EventKind.BOOK_REMOVED, ({ bookId: id }) => {
-    if (id === bookId) onBack();
+    if (id === bookId) gone();
   });
   // A leave finished (books.leave): the book is gone from this shelf; close.
   useWorkerEvent(store, EventKind.BOOK_LEFT, ({ bookId: id }) => {
-    if (id === bookId) onBack();
+    if (id === bookId) gone();
   });
   // The Worker produced the download zip: save it as a file.
   useWorkerEvent(store, EventKind.BOOK_DOWNLOAD, ({ bookId: id, bytes }) => {
@@ -335,12 +414,13 @@ export default function BookDetail({
   };
   const download = () => store.send(command(CommandKind.DOWNLOAD_BOOK, { bookId }));
   // Every fork offer opens the one sheet; the Worker makes the fork on its
-  // confirm (MakeYourOwn sends FORK_BOOK). BooksScreen follows BOOK_FORKED.
+  // confirm (MakeYourOwn sends FORK_BOOK); the shell follows BOOK_FORKED.
   const makeYourOwn = (following) => setForkSheet({ following });
   const remove = () =>
     store.send(command(CommandKind.REMOVE_BOOK, { bookId }));
   const deleteBook = () =>
     store.send(command(CommandKind.DELETE_BOOK, { bookId }));
+  const renameBook = (id, name) => store.send(command(CommandKind.RENAME_BOOK, { bookId: id, name }));
 
   const failureCopy =
     failure === 'quota'
@@ -356,14 +436,13 @@ export default function BookDetail({
   return (
     <div className="book-detail">
       <div className="appbar">
-        {mode === 'narrow' ? (
-          <Button className="btn icon back" aria-label={t('books.detailBack')} onPress={onBack}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </Button>
-        ) : null}
+        <Button className="btn icon back" aria-label={t('books.backToBook', { book: title })} onPress={onBack}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </Button>
         <span className="title t-h2">{title}</span>
+        <RenameDialog bookId={bookId} currentName={title} onRename={renameBook} />
       </div>
 
       <div className="scroll book-detail-body">
@@ -469,6 +548,20 @@ export default function BookDetail({
           <Button className="btn" style={{ alignSelf: 'flex-start' }} onPress={download}>
             <DownloadIcon />
             {t('books.download')}
+          </Button>
+        </div>
+
+        <div className="card pad">
+          <span className="t-h2">{t('fileView.filesEntry')}</span>
+          <p className="t-small">{t('books.filesBody')}</p>
+          <Button
+            className="btn"
+            style={{ alignSelf: 'flex-start' }}
+            aria-label={t('fileView.filesFor', { name: title })}
+            onPress={() => onFiles(bookId)}
+          >
+            <FilesIcon />
+            {t('fileView.filesEntry')}
           </Button>
         </div>
 

@@ -78,6 +78,12 @@ export const initialState = {
   // loading" rather than looking empty (workflow 2 L159-162). A book an event
   // does not touch keeps its reference. Starts empty: no book indexed yet.
   index: {},
+  // The per-book song count (books.row_opens_songs), keyed by `bookId`: the
+  // `songs` a `ready` INDEX_STATUS carries — songs only, unsaved included, the
+  // number a book's search section shows — so the shelf row and the book's bar
+  // say *N songs* (workflow 7 L21-23). A book with no count yet is absent (the
+  // row says *still loading*); a `null` status drops the book's entry.
+  songCounts: {},
   // The pre-typing browse: every indexed song grouped by book (songs.search,
   // BROWSE_RESULTS): `{ books: [{ bookId, count, songs: [{ path, title,
   // artist, unsaved }] }] }`. A separate slice from `search` so the pre-typing
@@ -387,9 +393,22 @@ export function reduce(state, message) {
       // view watching one book does not re-render on another's progress.
       const bookId = message.payload?.bookId;
       if (!bookId) return state;
+      const next = message.payload?.state ?? null;
+      let songCounts = state.songCounts;
+      if (next === null) {
+        if (bookId in songCounts) {
+          songCounts = { ...songCounts };
+          delete songCounts[bookId];
+        }
+      } else if (next === 'ready' && typeof message.payload?.songs === 'number') {
+        if (songCounts[bookId] !== message.payload.songs) {
+          songCounts = { ...songCounts, [bookId]: message.payload.songs };
+        }
+      }
       return {
         ...state,
-        index: { ...state.index, [bookId]: message.payload?.state ?? null },
+        index: { ...state.index, [bookId]: next },
+        songCounts,
       };
     }
 

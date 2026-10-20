@@ -306,6 +306,36 @@ describe('worker store reducer', () => {
     expect(b.recents[0]).toEqual({ bookId: 'fork', path: 'roda.cifra.md' });
   });
 
+  // books.row_opens_songs Decision *The count rides on INDEX_STATUS*: the shelf
+  // row's and the book's bar's *N songs* (workflow 7 L21-23).
+  it('keeps a ready INDEX_STATUS song count in songCounts per book, and drops it on a null status', () => {
+    const a = [
+      event(EventKind.INDEX_STATUS, { bookId: 'a', state: 'ready', songs: 2 }),
+      event(EventKind.INDEX_STATUS, { bookId: 'b', state: 'ready', songs: 5 }),
+    ].reduce(reduce, initialState);
+    expect(a.songCounts).toEqual({ a: 2, b: 5 });
+    expect(a.index).toEqual({ a: 'ready', b: 'ready' });
+
+    // Only the book the status names moves; the others keep their entries.
+    const b = reduce(a, event(EventKind.INDEX_STATUS, { bookId: 'a', state: 'ready', songs: 3 }));
+    expect(b.songCounts).toEqual({ a: 3, b: 5 });
+    expect(b.songCounts).not.toBe(a.songCounts);
+
+    // A building status keeps the last count; the same count does not churn.
+    const c = reduce(b, event(EventKind.INDEX_STATUS, { bookId: 'a', state: 'building' }));
+    expect(c.songCounts).toBe(b.songCounts);
+    expect(c.index.a).toBe('building');
+    expect(reduce(b, event(EventKind.INDEX_STATUS, { bookId: 'a', state: 'ready', songs: 3 })).songCounts).toBe(
+      b.songCounts,
+    );
+
+    // A null status (the book left the shelf) removes its entry.
+    const d = reduce(b, event(EventKind.INDEX_STATUS, { bookId: 'a', state: null }));
+    expect(d.songCounts).toEqual({ b: 5 });
+    expect('a' in d.songCounts).toBe(false);
+    expect(initialState.songCounts).toEqual({});
+  });
+
   it('returns the same state reference for a command, a malformed message, or an unknown event kind', () => {
     expect(reduce(initialState, command(CommandKind.OPEN))).toBe(initialState);
     expect(reduce(initialState, null)).toBe(initialState);

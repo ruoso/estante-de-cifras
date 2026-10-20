@@ -31,11 +31,12 @@ import {
   sessionCookie,
   typeAtEndOfLine,
   syncNow,
+  openBookSongs,
 } from '../lib/journeys.js';
 import { writeSongInBook, inviteThroughShare } from '../lib/journeys-share.js';
 import { joinByInvite } from '../lib/journeys-account.js';
 import { deleteSongInFiles, saveAllChanges } from '../lib/journeys-files.js';
-import { replaceLine, gotoTabFromSong, openBookRow } from '../lib/journeys-sync.js';
+import { replaceLine, gotoTabFromSong } from '../lib/journeys-sync.js';
 
 const BOOK = 'Choros da Ana';
 const SONG_TITLE = 'Roda de rua';
@@ -102,7 +103,9 @@ async function waitForRemote(url, cookie, file, text) {
 }
 
 // The owner (who has not synced since) changes the same line and saves, then a
-// sync pass runs; the shelf reads *needs you*; engage the book → paused panel.
+// sync pass runs; the shelf reads *needs you*; pressing the book opens its songs
+// with the notice and the *conflict* word on the song, and *Settle* engages
+// the paused panel (workflow 9 §Meeting one; books.row_opens_songs).
 async function ownerCollidesAndEngages(page, { query, title, oldLine, newLine, deleted = false }) {
   await openSongInEditor(page, query, title);
   await replaceLine(page, oldLine, newLine);
@@ -110,8 +113,17 @@ async function ownerCollidesAndEngages(page, { query, title, oldLine, newLine, d
   await page.context().setOffline(false); // back online: the sync pass meets the collision
   await gotoTabFromSong(page, 'Books');
   await expect(page.getByText('needs you').first()).toBeVisible({ timeout: 10000 });
-  await openBookRow(page, BOOK);
-  await expect(page.getByText(/songs? need you|song needs you/i)).toBeVisible();
+  await openBookSongs(page, BOOK);
+  const bar = page.locator('.book-bar');
+  await expect(bar.getByText(/^\d+ songs? needs? you\.$/)).toBeVisible({ timeout: 10000 });
+  if (!deleted) {
+    await expect(
+      page.locator('.search-row-open', { hasText: title }).first().getByText('conflict', { exact: true }),
+    ).toBeVisible();
+  }
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the book's songs with the notice
+  await bar.getByRole('button', { name: `Settle conflicts in ${BOOK}` }).click();
+  await expect(page.getByText(/songs? need you|song needs you/i).first()).toBeVisible();
   // A song deleted on one side has no "In conflict" group: its choice is inline.
   if (!deleted) await expect(page.getByText('In conflict')).toBeVisible();
 }
@@ -284,9 +296,11 @@ test('abandon puts the book back as it was before the sync', async ({ browser, p
 
   await page.getByRole('button', { name: 'Abandon the merge' }).click();
 
-  // The panel closes back to the shell; the book is no longer paused (the
-  // incoming change waits to be merged at the next sync — workflow 9 L77-78).
-  await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible({ timeout: 10000 });
+  // The panel closes back to where Settle was pressed — the book's songs
+  // (books.row_opens_songs); the merge is no longer engaged (the incoming change
+  // waits to be merged at the next sync — workflow 9 L77-78).
+  await expect(page.getByRole('list', { name: 'In conflict' })).toBeHidden({ timeout: 10000 });
+  await expect(page.getByRole('button', { name: `Manage ${BOOK}` }).first()).toBeVisible();
 });
 
 test('a save is refused while the book needs you, and the panel says so (workflow 9 L42-43)', async ({ browser, page }) => {

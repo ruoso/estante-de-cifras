@@ -26,6 +26,7 @@ import {
   openFileInFiles,
   gotoTab,
   hasSessionCookie,
+  toDestinations,
 } from '../lib/journeys.js';
 import { confirmSaveSheet, leaveFiles, editSong } from '../lib/journeys-files.js';
 import { GitDevice } from '../lib/git-device.js';
@@ -42,7 +43,10 @@ const rowFor = (title) => new RegExp('^' + escapeRegExp(title));
 // session — a reload would reconcile every song as saved).
 async function openAccount(page) {
   await leaveFiles(page);
-  await page.getByRole('button', { name: 'Account', exact: true }).click();
+  // Files was opened from the book's detail, so Back lands there: step back to
+  // the destinations (books.row_opens_songs).
+  await toDestinations(page);
+  await page.getByRole('button', { name: 'Account', exact: true }).first().click();
   await expect(page.getByRole('radiogroup', { name: 'Theme' })).toBeVisible();
 }
 
@@ -73,7 +77,7 @@ test('Remove counts this device’s local-only work and empties the account’s 
 
   // One save made offline (a commit not yet pushed), then a further unsaved edit.
   // (The wide layouts' reading view has no way back to the shell, so the song
-  // is edited through Books → Files, whose Back returns to the Books screen.)
+  // is edited through Books → the book → Manage → Files.)
   await openFileInFiles(page, HOSTED, SONG_FILE);
   await editSong(page, 'Ponte');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -137,6 +141,9 @@ test('Keep turns the account’s books into local books and clears the session; 
   // "On Estante").
   await gotoTab(page, 'Books');
   await expect(page.getByRole('button', { name: rowFor(HOSTED) })).toBeVisible();
+  // Its detail (Books → the book's songs → Manage, books.row_opens_songs).
   await page.getByRole('button', { name: rowFor(HOSTED) }).click();
+  await page.getByRole('button', { name: `Manage ${HOSTED}` }).first().click();
+  await expect(page.locator('.book-detail').getByText('On this device', { exact: true })).toBeVisible();
   await expect(page.getByText('On Estante · private')).toHaveCount(0);
 });

@@ -125,9 +125,9 @@ export async function bookIdOf(page, title) {
 
 // ---- the sharing surfaces (books.share_people) ------------------------------
 
-// The Books list, from wherever the person is: with a book's detail open on a
-// narrow layout, or a song or the editor in front, the list is not showing, so
-// start again from the shell.
+// The Books list, from wherever the person is: with a book's detail open, or a
+// song or the editor in front, the list is not showing, so start again from the
+// shell.
 export async function booksList(page) {
   const tab = page.getByRole('tab', { name: 'Books' });
   const heading = page.getByRole('heading', { level: 1, name: 'Books' });
@@ -145,11 +145,12 @@ export function peopleScreen(page, bookTitle) {
   return page.getByRole('region', { name: new RegExp(`^${escape(bookTitle)} · (People|Sharing)$`) });
 }
 
-// Books → the book → Share: the Share sheet on a phone, the people screen on a
-// tablet or a computer (workflow 10 **Where it sits**).
+// Books → the book → Manage → Share: the Share sheet on a phone, the people
+// screen on a tablet or a computer (workflow 10 **Where it sits**).
 async function pressShare(page, bookTitle) {
   await booksList(page);
   await page.getByRole('button', { name: row(bookTitle) }).click();
+  await page.getByRole('button', { name: `Manage ${bookTitle}` }).first().click();
   await page.getByRole('button', { name: 'Share', exact: true }).click();
 }
 

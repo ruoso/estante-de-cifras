@@ -31,7 +31,7 @@ const lastCommand = (sent, kind) => [...sent].reverse().find((m) => m.kind === k
 const renderDetail = (store, props) =>
   render(
     <ThemeRoot store={store}>
-      <BookDetail store={store} mode="wide" {...props} />
+      <BookDetail store={store} {...props} />
     </ThemeRoot>,
   );
 
@@ -756,5 +756,83 @@ describe('The owner\'s name on a shared book (books.owner_name)', () => {
     ).toBeInTheDocument();
     expect(within(dialog).queryByText(/The owner can invite you again/)).toBeNull();
     expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+  });
+});
+
+// books.row_opens_songs — the detail reached by *Manage* on the book's songs
+// gains Rename in its title and a Files card after Download, and its Back
+// reads *Back to {book}* (workflow 7 L86-95; workflow 14 §The view; the
+// Open-a-book board's computer frame).
+describe('Rename, Files and Back on the detail (books.row_opens_songs)', () => {
+  it('Rename in the title opens with the current name, sends RENAME_BOOK, and the title re-labels (workflow 7 L89); axe clean', async () => {
+    const { store, sent, emit } = makeStore();
+    renderDetail(store, { bookId: 'local-1', kind: 'local' });
+    emit(localShelf());
+
+    const rename = screen.getByRole('button', { name: 'Rename Exercícios de violão' });
+    expect(rename).toHaveTextContent('Rename');
+    act(() => fireEvent.click(rename));
+    const dialog = screen.getByRole('dialog');
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+    const field = within(dialog).getByRole('textbox', { name: 'Name on your shelf' });
+    expect(field).toHaveValue('Exercícios de violão');
+
+    act(() => fireEvent.change(field, { target: { value: 'Quinta' } }));
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Save' })));
+    expect(lastCommand(sent, CommandKind.RENAME_BOOK).payload).toEqual({ bookId: 'local-1', name: 'Quinta' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    // The SHELF re-surface re-labels the title, its Back and its Rename.
+    emit(
+      event(EventKind.SHELF, { books: {}, local: { 'local-1': { title: reg('Quinta'), position: reg(0) } } }),
+    );
+    expect(screen.getByText('Quinta', { selector: '.title' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rename Quinta' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to Quinta' })).toBeInTheDocument();
+  });
+
+  it('the Files card follows Download with its line, and its button (*Files in {name}*) calls onFiles (workflow 7 L91-93; workflow 14 §The view)', async () => {
+    const files = [];
+    const { store, emit } = makeStore();
+    const { container } = renderDetail(store, {
+      bookId: 'srv-1',
+      kind: 'shared',
+      onFiles: (id) => files.push(id),
+    });
+    emit(hostedShelf());
+
+    const headings = [...container.querySelectorAll('.card > .t-h2')].map((h) => h.textContent);
+    expect(headings.indexOf('Files')).toBe(headings.indexOf('Download') + 1);
+    const card = [...container.querySelectorAll('.card')].find((c) => c.querySelector('.t-h2')?.textContent === 'Files');
+    expect(within(card).getByText('Every file in the book, as it is stored.')).toBeInTheDocument();
+    const button = within(card).getByRole('button', { name: 'Files in Choros da Ana' });
+    expect(button).toHaveTextContent('Files');
+
+    // By keyboard, as by pointer.
+    act(() => button.focus());
+    act(() => {
+      fireEvent.keyDown(button, { key: 'Enter' });
+      fireEvent.keyUp(button, { key: 'Enter' });
+    });
+    expect(files).toEqual(['srv-1']);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('Back reads *Back to {book}* and calls onBack; a removed book calls onGone instead', () => {
+    const calls = [];
+    const { store, emit } = makeStore();
+    renderDetail(store, {
+      bookId: 'srv-1',
+      kind: 'shared',
+      onBack: () => calls.push('back'),
+      onGone: () => calls.push('gone'),
+    });
+    emit(hostedShelf());
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Back to Choros da Ana' })));
+    expect(calls).toEqual(['back']);
+    emit(event(EventKind.BOOK_REMOVED, { bookId: 'srv-1' }));
+    expect(calls).toEqual(['back', 'gone']);
+    expect(screen.queryByRole('button', { name: 'Back to books' })).toBeNull();
   });
 });

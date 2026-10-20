@@ -1,0 +1,39 @@
+/* book-bar.css — the bar above a book's songs (books.row_opens_songs; the
+   Open-a-book board). The card, notice, badge and button vocabulary lives in
+   theme.css; this file only lays the pieces out. No colours of its own. */
+
+.book-bar {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+  flex-shrink: 0;
+}
+
+/* The title, meta and badge in a column, Manage beside them (board L105-108). */
+.book-bar-head {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--u) * 1.25);
+}
+
+.book-bar-text {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+  flex: 1;
+  min-width: 0;
+}
+
+.book-bar-text h2 {
+  margin: 0;
+}
+
+/* The notice's words, its one button at the end of the line (board L109). */
+.book-bar-notice {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.book-bar-notice > .btn {
+  margin-left: auto;
+}

@@ -993,7 +993,11 @@ export function createWorkerLogic(port, options = {}) {
       event(EventKind.INDEX_STATUS, { bookId, state: 'building' }),
     );
     await persistIndexChanges(await ensureSearchIndex().reconcile(bookId));
-    port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: 'ready' }));
+    // A `ready` status carries the book's song count, so the shelf row and the
+    // book's bar say *N songs* (books.row_opens_songs; workflow 7 L21-23).
+    port.postMessage(
+      event(EventKind.INDEX_STATUS, { bookId, state: 'ready', songs: songCountOf(bookId) }),
+    );
   }
 
   // Read the home book's preferences.json, project it to the flat map of
@@ -1687,7 +1691,9 @@ export function createWorkerLogic(port, options = {}) {
             // answered before this re-index lands, so asking again after it is
             // what keeps the listing true.
             if (changes.visibleChange) {
-              port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: 'ready' }));
+              port.postMessage(
+                event(EventKind.INDEX_STATUS, { bookId, state: 'ready', songs: songCountOf(bookId) }),
+              );
             }
             break;
           }

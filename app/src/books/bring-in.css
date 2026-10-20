@@ -20,17 +20,3 @@
   max-width: 640px;
 }
 
-/* The fork's shelf row with the original's new saves (W11 board #2 :78-83): the
-   count and the *Bring them in* button sit under the row, in an accent notice. */
-.book-row {
-  flex-wrap: wrap;
-}
-.book-row > .bring-in-notice {
-  flex: 1 1 100%;
-  margin: 0 16px 14px;
-  flex-direction: column;
-  gap: 10px;
-}
-.bring-in-notice > .btn {
-  align-self: flex-start;
-}

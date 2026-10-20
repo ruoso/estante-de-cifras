@@ -252,16 +252,19 @@ describe('AppShell routing (behavior)', () => {
     expect(screen.getByRole('searchbox')).toBeInTheDocument();
   });
 
-  it('show the file on a book needing you opens its conflicts (Constraint 5; workflow 9)', () => {
+  // books.row_opens_songs Decision *`openBook` splits into its two meanings*:
+  // the file opener no longer diverts a book that needs you to its conflicts —
+  // those are reached by *Settle* on the book's bar.
+  it('show the file on a book needing you opens the file view, not its conflicts (books.row_opens_songs)', () => {
     const { store, sent, emit } = makeStore();
     render(<AppShell store={store} />);
     openSongFromSearch(emit);
     emit(event(EventKind.SYNC, { bookId: BOOK, phase: 'needs_you', at: AT }));
+    const before = sent.filter((m) => m.kind === CommandKind.OPEN_CONFLICTS).length;
     showTheFile();
-    expect(sent.some((m) => m.kind === CommandKind.OPEN_CONFLICTS && m.payload.bookId === BOOK)).toBe(true);
-    expect(history.state.layers).toEqual(['conflicts']);
-    expect(screen.queryByRole('button', { name: 'Back to files' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: `Files in ${BOOK_LABEL}` })).not.toBeInTheDocument();
+    expect(sent.filter((m) => m.kind === CommandKind.OPEN_CONFLICTS).length).toBe(before);
+    expect(history.state.layers).toEqual(['files']);
+    expect(screen.getByRole('button', { name: 'Back to files' })).toBeInTheDocument();
   });
 
   it('forward does not reopen a closed layer', async () => {
@@ -766,10 +769,12 @@ describe('AppShell share surfaces (behavior)', () => {
     });
   };
 
+  // Books → the book's songs → Manage → Share (books.row_opens_songs).
   function openBookDetail(emit) {
     emit(event(EventKind.SHELF, OWNED));
     fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${BOOK_LABEL}`) }));
+    fireEvent.click(screen.getByRole('button', { name: `Manage ${BOOK_LABEL}` }));
     fireEvent.click(screen.getByRole('button', { name: 'Share', exact: true }));
   }
 
@@ -786,7 +791,7 @@ describe('AppShell share surfaces (behavior)', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     // A full screen: the shell is not shown beneath it.
     expect(screen.queryByRole('tablist')).toBeNull();
-    expect(history.state.layers).toEqual(['people']);
+    expect(history.state.layers).toEqual(['bookDetail', 'people']);
 
     await traverse(() => fireEvent.click(within(people).getByRole('button', { name: 'Back' })));
     expect(screen.queryByRole('region', { name: `${BOOK_LABEL} · People` })).toBeNull();

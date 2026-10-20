@@ -26,20 +26,29 @@
   color: var(--conflict);
 }
 
-/* The book-management screen's wide master-detail: the shelf list on the side,
-   the selected book's detail in the main pane (Decision 2; W07 desktop frame).
-   The side pane scrolls its own list. */
-.books-split {
+/* The detail's title row: the book's name and its Rename (the Open-a-book
+   board's computer frame L178-181). */
+.book-detail .appbar .rename-btn {
+  flex: none;
+}
+
+/* The detail as a layer over the book's songs (books.row_opens_songs): on a
+   computer it takes the main pane beside the book's songs, as a song does
+   (SongReading's split); the side pane holds the scoped search. */
+.book-detail-split {
   flex: 1;
   min-height: 0;
 }
 
-.books-split > .pane.side > .scroll {
-  gap: calc(var(--u) * 2);
+.book-detail-split .pane.side {
+  overflow: hidden;
 }
 
-/* The main pane's empty hint before a book is picked. */
-.books-split .pane.main .detail-empty {
-  margin: auto;
-  color: var(--ink-2);
+/* Below the computer the detail is a full screen of its own (the phone and the
+   tablet), its Back returning to the book's songs. */
+.book-detail-layer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }

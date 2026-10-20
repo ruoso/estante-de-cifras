@@ -51,7 +51,9 @@ test('a taken-down book shows the operator reason on its detail, beside Download
 
   // The book detail carries the take-down notice with the operator's reason,
   // beside Download -- distinct from the lost-access notice (acceptance 5).
+  // Books → the book's songs → Manage (books.row_opens_songs).
   await page.getByRole('button', { name: new RegExp(`^${BOOK}`) }).click();
+  await page.getByRole('button', { name: `Manage ${BOOK}` }).first().click();
   await expect(page.getByText('This book has been taken down', { exact: true })).toBeVisible();
   await expect(page.getByText(TAKEN_DOWN_REASON)).toBeVisible();
   // Not the lost-access card, and no fork offer (Decision 3).

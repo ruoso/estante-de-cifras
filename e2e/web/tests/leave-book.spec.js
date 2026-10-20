@@ -27,7 +27,7 @@ import {
   acceptInvitation,
   ownerNameOnService,
 } from '../lib/journeys-share.js';
-import { openBookRow } from '../lib/journeys-sync.js';
+import { openBookDetail } from '../lib/journeys-sync.js';
 import { openDevice } from '../lib/devices.js';
 
 const BOOK = 'Roda de Saída';
@@ -73,7 +73,7 @@ test('a reader leaves from book management: gone from the shelf, from Mine on Es
   try {
     // The owner's own book management offers Delete, never Leave (L97-98), and
     // its chips are the owner's: private, You own it (board L166-167).
-    await openBookRow(page, BOOK);
+    await openBookDetail(page, BOOK);
     await expect(page.getByText('On Estante · private', { exact: true })).toBeVisible();
     await expect(page.getByText('You own it', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Delete the book' })).toBeVisible();
@@ -81,7 +81,7 @@ test('a reader leaves from book management: gone from the shelf, from Mine on Es
 
     // The joiner's book management names who shares the book (books.owner_name;
     // board L36) and carries Leave this book.
-    await openBookRow(joiner.page, BOOK);
+    await openBookDetail(joiner.page, BOOK);
     await expect(joiner.page.getByText(`On Estante · shared by ${OWNER}`, { exact: true })).toBeVisible();
     await expect(joiner.page.getByText('You own it', { exact: true })).toHaveCount(0);
     const leave = joiner.page.getByRole('button', { name: 'Leave this book' });
@@ -126,7 +126,7 @@ test('a book removed from the shelf is left from its Mine on Estante row (L99-10
   const joiner = await ownerAndReader(browser, page);
   try {
     // Remove from my shelf keeps the membership: Mine on Estante offers it back.
-    await openBookRow(joiner.page, BOOK);
+    await openBookDetail(joiner.page, BOOK);
     await joiner.page.getByRole('button', { name: 'Remove from my shelf' }).click();
     const remove = joiner.page.getByRole('dialog');
     await remove.getByRole('button', { name: 'Remove from my shelf' }).click();
@@ -169,7 +169,7 @@ test('offline, Leave says it needs a connection and nothing changes; back online
   test.setTimeout(30000);
   const joiner = await ownerAndReader(browser, page);
   try {
-    await openBookRow(joiner.page, BOOK);
+    await openBookDetail(joiner.page, BOOK);
     const leave = joiner.page.getByRole('button', { name: 'Leave this book' });
     await expect(leave).toBeEnabled();
 
@@ -188,7 +188,7 @@ test('offline, Leave says it needs a connection and nothing changes; back online
     }
 
     // Back online, the leave goes through.
-    await openBookRow(joiner.page, BOOK);
+    await openBookDetail(joiner.page, BOOK);
     await expect(leave).toBeEnabled();
     await expect(joiner.page.getByText('Leaving needs a connection.')).toHaveCount(0);
     await leave.click();

@@ -3,20 +3,22 @@
 // driven through a loopback endpoint whose events we inject (the way the Worker
 // would post them). Injecting SHELF events is what lets us seed the shelf — a
 // label, a tombstone, the role/sync render-when-present seams (Decision 5) — and
-// the re-surface a create/rename produces, deterministically; the Worker side of
-// CREATE_BOOK / RENAME_BOOK is pinned separately in books.behavior.test.js. Axe
-// (role/name/structure — the rules that run under jsdom) covers the list, the
-// open sheet, the rename dialog and the empty state; contrast is pinned at
-// e2e-web. All names are written for this test (no-song-text rule).
+// the re-surface a create produces, deterministically; the Worker side of
+// CREATE_BOOK is pinned separately in books.behavior.test.js. Axe (role/name/
+// structure — the rules that run under jsdom) covers the list, the open sheet
+// and the empty state; contrast is pinned at e2e-web. Rename moved to the
+// book's detail (BookDetail.behavior.test.jsx) and a fork's *Bring them in* to
+// the book's bar (BookBar.behavior.test.jsx) with books.row_opens_songs. All
+// names are written for this test (no-song-text rule).
 //
 // The screen is rendered inside ThemeRoot, as the app mounts it (App.jsx): the
-// per-screen portal workaround is gone (shell.portal_provider), so the sheet and
-// the rename dialog portal into the `.est` token root through ThemeRoot's
+// per-screen portal workaround is gone (shell.portal_provider), so the sheet
+// portals into the `.est` token root through ThemeRoot's
 // UNSAFE_PortalProvider — the overlays still open, submit and close, and stay
 // axe-clean, now via the app-wide provider.
 
-import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent, act, within, cleanup, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
@@ -79,9 +81,11 @@ describe('BooksScreen (behavior)', () => {
     // Both rows render with their title and meta line.
     expect(screen.getByText('Choros da Ana')).toBeInTheDocument();
     expect(screen.getByText('Exercícios de violão')).toBeInTheDocument();
-    // Where it lives and can save are words, never colour alone.
-    expect(screen.getByText('On this device · can save')).toBeInTheDocument();
-    expect(screen.getByText('On Estante · can save')).toBeInTheDocument();
+    // Where it lives and can save are words, never colour alone; with no count
+    // yet the meta says *still loading* (books.row_opens_songs; workflow 7
+    // L21-23).
+    expect(screen.getByText('On this device · can save · still loading')).toBeInTheDocument();
+    expect(screen.getByText('On Estante · can save · still loading')).toBeInTheDocument();
 
     // Ordered by position: the local book (0) before the shared book (1).
     const titles = [...container.querySelectorAll('.book-row .name')].map((n) => n.textContent);
@@ -254,7 +258,7 @@ describe('BooksScreen (behavior)', () => {
         local: { 'local-new': { title: reg('Quarta à noite'), position: reg(0) } },
       }),
     );
-    // The open row (not the "Rename …" button) takes focus.
+    // The new book's row takes focus.
     const row = screen.getByRole('button', { name: /^Quarta à noite/ });
     expect(row).toHaveFocus();
   });
@@ -376,42 +380,95 @@ describe('BooksScreen (behavior)', () => {
     expect(within(dialog).getByRole('button', { name: 'By link' })).toHaveFocus();
   });
 
-  it('Rename: opens with the current name, submits RENAME_BOOK and the row re-labels (workflow 7 L16-18)', async () => {
-    const { store, sent, emit } = makeStore();
-    renderScreen(store);
+  // books.row_opens_songs — the row says how many songs the book holds, from
+  // the Worker's count on INDEX_STATUS (workflow 7 L21-23).
+  it('the row reads *On this device · can save · 2 songs*, and *still loading* while the book builds (workflow 7 L21-23)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderScreen(store);
+    emit(event(EventKind.SHELF, { books: {}, local: { 'l-1': { title: reg('Exercícios'), position: reg(0) } } }));
 
+    emit(event(EventKind.INDEX_STATUS, { bookId: 'l-1', state: 'ready', songs: 2 }));
+    expect(screen.getByText('On this device · can save · 2 songs')).toBeInTheDocument();
+
+    emit(event(EventKind.INDEX_STATUS, { bookId: 'l-1', state: 'building' }));
+    expect(screen.getByText('On this device · can save · still loading')).toBeInTheDocument();
+
+    emit(event(EventKind.INDEX_STATUS, { bookId: 'l-1', state: 'ready', songs: 1 }));
+    expect(screen.getByText('On this device · can save · 1 song')).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  // books.row_opens_songs — pressing a book opens its songs, for every sync
+  // phase: a book that needs you opens on its songs too (workflow 7 L28-34;
+  // workflow 9 §Meeting one).
+  it('pressing the row calls onOpenBookSongs for an in-step book and for a book that needs you (workflow 7 L28-34; workflow 9 §Meeting one)', () => {
+    const opened = [];
+    const { store, sent, emit } = makeStore();
+    renderScreen(store, { onOpenBookSongs: (id) => opened.push(id) });
     emit(
       event(EventKind.SHELF, {
-        books: {},
+        books: { 'b-1': { label: reg('Choros da Ana'), position: reg(1), role: reg('editor') } },
         local: { 'l-1': { title: reg('Exercícios'), position: reg(0) } },
       }),
     );
+    emit(event(EventKind.SYNC, { bookId: 'l-1', phase: 'in_step', at: AT }));
+    emit(event(EventKind.SYNC, { bookId: 'b-1', phase: 'needs_you', at: AT }));
 
-    act(() => fireEvent.click(screen.getByRole('button', { name: 'Rename Exercícios' })));
-    const dialog = screen.getByRole('dialog');
-    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+    act(() => fireEvent.click(screen.getByRole('button', { name: /^Exercícios/ })));
+    act(() => fireEvent.click(screen.getByRole('button', { name: /^Choros da Ana/ })));
+    expect(opened).toEqual(['l-1', 'b-1']);
+    // The needs-you book's words stay on its row; its press engages nothing.
+    expect(screen.getByText('needs you')).toBeInTheDocument();
+    expect(sent.some((m) => m.kind === CommandKind.OPEN_CONFLICTS)).toBe(false);
+  });
 
-    // The field opens pre-filled with the current name.
-    const field = within(dialog).getByRole('textbox', { name: 'Name on your shelf' });
-    expect(field).toHaveValue('Exercícios');
+  it('keyboard: the row is one tab stop, Enter opens its songs, and the row holds no Files, pencil or Bring them in (workflow 7 L32)', async () => {
+    const opened = [];
+    const { store, emit } = makeStore();
+    const { container } = renderScreen(store, { onOpenBookSongs: (id) => opened.push(id) });
+    emit(event(EventKind.SHELF, { books: {}, local: { 'l-1': { title: reg('Exercícios'), position: reg(0) } } }));
 
-    act(() => fireEvent.change(field, { target: { value: 'Quinta' } }));
-    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Save' })));
+    const bookRow = container.querySelector('.book-row');
+    const focusable = bookRow.querySelectorAll('button, [tabindex]:not([tabindex="-1"]), a[href], input');
+    expect(focusable).toHaveLength(1);
+    const row = within(bookRow).getByRole('button');
+    expect(row).toHaveAccessibleName(/^Exercícios/);
+    expect(screen.queryByRole('button', { name: /^Files in/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Rename/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Bring them in/ })).toBeNull();
 
-    // RENAME_BOOK carries the book id and the new name.
-    const cmd = lastCommand(sent, CommandKind.RENAME_BOOK);
-    expect(cmd.payload.bookId).toBe('l-1');
-    expect(cmd.payload.name).toBe('Quinta');
+    act(() => row.focus());
+    expect(row).toHaveFocus();
+    act(() => {
+      fireEvent.keyDown(row, { key: 'Enter' });
+      fireEvent.keyUp(row, { key: 'Enter' });
+    });
+    expect(opened).toEqual(['l-1']);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
 
-    // The re-surface re-labels the row.
-    emit(
-      event(EventKind.SHELF, {
-        books: {},
-        local: { 'l-1': { title: reg('Quinta'), position: reg(0) } },
-      }),
-    );
-    expect(screen.getByText('Quinta')).toBeInTheDocument();
-    expect(screen.queryByText('Exercícios')).toBeNull();
+  describe('on a wide viewport', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('is one list: no *Pick a book* pane and no split beside it (workflow 7 L36-37)', async () => {
+      vi.stubGlobal('matchMedia', (media) => ({
+        media,
+        matches: !media.includes('prefers-color-scheme'),
+        addEventListener() {},
+        removeEventListener() {},
+      }));
+      const { store, emit } = makeStore();
+      const { container } = renderScreen(store);
+      emit(event(EventKind.SHELF, { books: {}, local: { 'l-1': { title: reg('Exercícios'), position: reg(0) } } }));
+
+      expect(container.querySelector('.books-split')).toBeNull();
+      expect(container.querySelector('.split')).toBeNull();
+      expect(screen.queryByText('Pick a book to see its details.')).toBeNull();
+      act(() => fireEvent.click(screen.getByRole('button', { name: /^Exercícios/ })));
+      // Pressing a row draws no detail beside the list.
+      expect(screen.queryByRole('button', { name: /^Back to/ })).toBeNull();
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    });
   });
 
   it('empty shelf: a role=status line and the Add a book affordance, never a blank pane (Decision 7)', async () => {
@@ -462,74 +519,25 @@ describe('BooksScreen (behavior)', () => {
 
       emit(event(EventKind.ORIGINAL, { bookId: 'srv-fork', newSaves: 3, gone: false }));
       expect(screen.getByText('Choros da Ana has 3 new saves.')).toBeInTheDocument();
-      // The *Bring them in* button sits beside the count (books.bring_in
-      // Constraint 6), named for the original.
-      expect(screen.getByRole('button', { name: 'Bring them in from Choros da Ana' })).toHaveTextContent(
-        'Bring them in',
-      );
+      // The words stay on the row; *Bring them in* is on the book's bar now
+      // (books.row_opens_songs; workflow 7 L83-85), not on the row.
+      expect(screen.queryByRole('button', { name: /^Bring them in/ })).toBeNull();
       emit(event(EventKind.ORIGINAL, { bookId: 'srv-fork', newSaves: 1, gone: false }));
       expect(screen.getByText('Choros da Ana has 1 new save.')).toBeInTheDocument();
 
       expect(await checkWcag21aa(container)).toHaveNoViolations();
     });
 
-    // books.bring_in Constraint 6 (W11 board #2 :78-83): the button opens the
-    // bring-in screen; it is a sibling of the row's open button, which still
-    // opens the book.
-    it('*Bring them in from {original}* beside the count opens the bring-in screen and sends PREVIEW_BRING_IN; axe clean', async () => {
+    it('no *Bring them in* on the row whatever the count; the row opens the book’s songs (books.row_opens_songs)', () => {
+      const opened = [];
       const { store, sent, emit } = makeStore();
-      const { container } = renderScreen(store);
+      renderScreen(store, { onOpenBookSongs: (id) => opened.push(id) });
       emit(forkShelf());
-      emit(event(EventKind.ORIGINAL, { bookId: 'srv-fork', newSaves: 3, gone: false }));
-
-      const bring = screen.getByRole('button', { name: 'Bring them in from Choros da Ana' });
-      const open = screen.getByRole('button', { name: /^Choros da Ana/ });
-      expect(open.contains(bring)).toBe(false); // never nested in the open button
-      expect(await checkWcag21aa(container)).toHaveNoViolations();
-
-      act(() => fireEvent.click(bring));
-      expect(screen.getByRole('heading', { name: 'Bring in saves from Choros da Ana' })).toBeInTheDocument();
-      expect(lastCommand(sent, CommandKind.PREVIEW_BRING_IN).payload).toEqual({ bookId: 'srv-fork' });
-
-      // Not now returns to the shelf, focus on the fork's row.
-      act(() => fireEvent.click(screen.getByRole('button', { name: 'Not now' })));
-      expect(screen.queryByRole('heading', { name: 'Bring in saves from Choros da Ana' })).toBeNull();
-      expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Choros da Ana/ }));
-    });
-
-    it('Enter on *Bring them in* opens the screen too', () => {
-      const { store, sent, emit } = makeStore();
-      renderScreen(store);
-      emit(forkShelf());
-      emit(event(EventKind.ORIGINAL, { bookId: 'srv-fork', newSaves: 2, gone: false }));
-      const bring = screen.getByRole('button', { name: 'Bring them in from Choros da Ana' });
-      act(() => {
-        fireEvent.keyDown(bring, { key: 'Enter' });
-        fireEvent.keyUp(bring, { key: 'Enter' });
-      });
-      expect(screen.getByRole('heading', { name: 'Bring in saves from Choros da Ana' })).toBeInTheDocument();
-      expect(lastCommand(sent, CommandKind.PREVIEW_BRING_IN).payload).toEqual({ bookId: 'srv-fork' });
-    });
-
-    it('no *Bring them in* for a count of 0 or a gone original; the row still opens the book', () => {
-      const { store, sent, emit } = makeStore();
-      renderScreen(store);
-      emit(forkShelf());
-      emit(event(EventKind.ORIGINAL, { bookId: 'srv-fork', newSaves: 0, gone: false }));
-      expect(screen.queryByRole('button', { name: /^Bring them in/ })).toBeNull();
-      emit(event(EventKind.ORIGINAL, { bookId: 'srv-fork', newSaves: 4, gone: true }));
-      expect(screen.queryByRole('button', { name: /^Bring them in/ })).toBeNull();
-      cleanup();
-
-      const gone = makeStore();
-      renderScreen(gone.store);
-      gone.emit(forkShelf({ ...ORIGINAL, goneAt: AT }));
-      gone.emit(event(EventKind.ORIGINAL, { bookId: 'srv-fork', newSaves: 4, gone: false }));
+      emit(event(EventKind.ORIGINAL, { bookId: 'srv-fork', newSaves: 4, gone: false }));
       expect(screen.queryByRole('button', { name: /^Bring them in/ })).toBeNull();
 
-      // The row's open button still opens the book's detail.
       act(() => fireEvent.click(screen.getByRole('button', { name: /^Choros da Ana/ })));
-      expect(screen.getByRole('button', { name: 'Back to books' })).toBeInTheDocument();
+      expect(opened).toEqual(['srv-fork']);
       expect(sent.some((m) => m.kind === CommandKind.PREVIEW_BRING_IN)).toBe(false);
     });
 

@@ -12,7 +12,7 @@ import { statSync } from 'node:fs';
 
 import { test, expect } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
-import { signedInDevice, makeLocalBook, openFileInFiles, gotoTab } from '../lib/journeys.js';
+import { signedInDevice, makeLocalBook, openFileInFiles, openBookDetail, gotoTab } from '../lib/journeys.js';
 import { hostedBookWithSong } from '../lib/journeys-share.js';
 import { editSong, leaveFiles } from '../lib/journeys-files.js';
 
@@ -27,8 +27,9 @@ test('put a local book online, download it, then delete it as owner (workflow 7)
   await mockup(page, 'W07-add-a-book', 1);
   await checkA11y(); // the shelf with the new local book
 
-  // Open its detail by pressing the row.
-  await page.getByRole('button', { name: new RegExp(`^${NAME}`) }).click();
+  // Open its detail: the row opens the book's songs, Manage the detail over
+  // them (books.row_opens_songs; workflow 7 L86-95).
+  await openBookDetail(page, NAME);
   await expect(page.getByRole('button', { name: 'Put online' })).toBeVisible();
   await checkA11y(); // the per-book detail
 
@@ -67,7 +68,7 @@ test('remove a device-only book from the shelf through its confirmation (workflo
   const NAME = 'Só neste aparelho';
   await makeLocalBook(page, NAME);
 
-  await page.getByRole('button', { name: new RegExp(`^${NAME}`) }).click();
+  await openBookDetail(page, NAME);
   await expect(page.getByRole('button', { name: 'Remove from my shelf' })).toBeVisible();
 
   // Remove it: a device-only book warns it will be gone for good and offers
@@ -102,8 +103,7 @@ test('remove a hosted book with an unsaved song: the confirmation names it (work
 
   // Back to the shell in the same session, then the book's detail.
   await leaveFiles(page);
-  await gotoTab(page, 'Books');
-  await page.getByRole('button', { name: new RegExp(`^${BOOK}`) }).click();
+  await openBookDetail(page, BOOK);
 
   await page.getByRole('button', { name: 'Remove from my shelf' }).click();
   const confirm = page.getByRole('dialog');

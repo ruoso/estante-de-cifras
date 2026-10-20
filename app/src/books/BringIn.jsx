@@ -177,7 +177,7 @@ export default function BringIn({ store, bookId, book, original, onClose = () =>
   return (
     <div className="screen upload-preview bring-in">
       <div className="appbar">
-        <Button className="btn icon" aria-label={t('books.detailBack')} onPress={notNow} isDisabled={busy}>
+        <Button className="btn icon" aria-label={t('books.backToBook', { book })} onPress={notNow} isDisabled={busy}>
           <BackIcon />
         </Button>
         <h1 className="title" tabIndex={-1} ref={headingRef}>

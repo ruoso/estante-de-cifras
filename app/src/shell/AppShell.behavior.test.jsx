@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { createStore } from '../worker/store.js';
-import { event, EventKind } from '../worker/protocol.js';
+import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import AppShell from './AppShell.jsx';
 import { WIDE_QUERY } from './layout-mode.js';
 import { createAuthClient } from '../account/auth-client.js';
@@ -246,15 +246,48 @@ describe('AppShell paused book panel (behavior)', () => {
     const emit = (ev) => act(() => endpoint.onmessage({ data: ev }));
     return { store, sent, emit };
   }
-  // Books → the book's Files on a book needing you → OPEN_CONFLICTS, whose model
-  // the Worker then emits (workflow 9 §Meeting one).
+  // Books → the book needing you → its songs, the bar's notice → *Settle*,
+  // which sends OPEN_CONFLICTS, whose model the Worker then emits (workflow 9
+  // §Meeting one; books.row_opens_songs).
+  function settleFromBooks(emit) {
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Choros da Ana/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Settle conflicts in Choros da Ana' }));
+    emit(event(EventKind.CONFLICTS, CONFLICTS_PAYLOAD));
+  }
   function openNeedsYouBook(emit) {
     emit(event(EventKind.SHELF, CONFLICT_SHELF));
     emit(event(EventKind.SYNC, { bookId: CONFLICT_BOOK, phase: 'needs_you', at: CONFLICT_AT }));
-    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Files in Choros da Ana' }));
-    emit(event(EventKind.CONFLICTS, CONFLICTS_PAYLOAD));
+    settleFromBooks(emit);
   }
+
+  // books.row_opens_songs (replaces *Files on a book needing you*): pressing the
+  // book opens its songs with the notice, and Settle engages the merge and
+  // shows the panel (workflow 9 §Meeting one).
+  it('Settle on a book that needs you sends OPEN_CONFLICTS and shows the conflicts panel; the press itself opened the book’s songs', () => {
+    installMatchMedia(false);
+    const { store, sent, emit } = conflictStore();
+    render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, CONFLICT_SHELF));
+    emit(event(EventKind.SYNC, { bookId: CONFLICT_BOOK, phase: 'needs_you', at: CONFLICT_AT }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Choros da Ana/ }));
+    // The book's songs, not the panel: Search scoped to the book, its bar's notice.
+    expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
+    expect(location.pathname).toBe(`/b/${CONFLICT_BOOK}`);
+    expect(screen.queryByRole('list', { name: 'In conflict' })).not.toBeInTheDocument();
+    // The press engaged the merge, as it always did, so the bar can count.
+    const before = sent.filter((m) => m.kind === CommandKind.OPEN_CONFLICTS).length;
+    expect(before).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settle conflicts in Choros da Ana' }));
+    expect(sent.filter((m) => m.kind === CommandKind.OPEN_CONFLICTS).length).toBe(before + 1);
+    expect([...sent].reverse().find((m) => m.kind === CommandKind.OPEN_CONFLICTS).payload).toEqual({
+      bookId: CONFLICT_BOOK,
+    });
+    emit(event(EventKind.CONFLICTS, CONFLICTS_PAYLOAD));
+    expect(screen.getByRole('list', { name: 'In conflict' })).toBeInTheDocument();
+  });
 
   it('wide: a book needing you opens its panel in the main pane, the rail beside it; a rail tab leaves it (constraint 5; W09#4 L184-205)', async () => {
     installMatchMedia(true);
@@ -281,20 +314,20 @@ describe('AppShell paused book panel (behavior)', () => {
     expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('wide: the panel’s Back returns to the Books destination beside the rail (Decision 3)', async () => {
+  it('wide: the panel’s Back returns to the book’s songs it was settled from (books.row_opens_songs Decision *Settle opens the existing conflicts surface*)', async () => {
     installMatchMedia(true);
     const { store, emit } = conflictStore();
     render(<AppShell store={store} />);
     openNeedsYouBook(emit);
     fireEvent.click(screen.getByRole('tab', { name: 'Setlists' }));
-    // Re-open from Books, then the panel's Back returns to the Books destination.
-    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Files in Choros da Ana' }));
+    // Re-open from Books, then the panel's Back returns to the book's songs.
+    settleFromBooks(emit);
     expect(screen.getByRole('list', { name: 'In conflict' })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Back' }));
     // Back is the history's (above depth 0, a popstate jsdom fires on a task).
     await waitFor(() => expect(screen.queryByRole('list', { name: 'In conflict' })).not.toBeInTheDocument());
-    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('button', { name: 'Manage Choros da Ana' })).toBeInTheDocument();
   });
 
   it('narrow: the panel is a full screen over the shell (no tab bar), as before', async () => {
@@ -311,6 +344,159 @@ describe('AppShell paused book panel (behavior)', () => {
   });
 });
 
+
+// behavior (books.row_opens_songs) — a book on the shelf opens on its songs: the
+// row's press is the place `{ tab: 'search', book }`, pushed; *Manage* on the
+// bar opens the detail as a layer; Files opens over the detail; removing the
+// book lands on Books. Pins workflow 7 L28-34 and L86-95, workflow 14 L132-134.
+describe('AppShell — a book opens on its songs (books.row_opens_songs)', () => {
+  const AT = '2026-10-20T00:00:00.000Z';
+  const BOOK = 'l-ex';
+  const SHELF = {
+    books: {},
+    local: { [BOOK]: { title: { value: 'Exercícios', at: AT }, position: { value: 0, at: AT } } },
+  };
+  function bookStore() {
+    const sent = [];
+    const endpoint = { postMessage: (m) => sent.push(m), onmessage: null };
+    const store = createStore(endpoint);
+    const emit = (ev) => act(() => endpoint.onmessage({ data: ev }));
+    return { store, sent, emit };
+  }
+  function openBookSongs(emit) {
+    emit(event(EventKind.SHELF, SHELF));
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Exercícios/ }));
+  }
+
+  it('pressing a Books row selects Search scoped to the book at /b/<book>; Back returns to Books (workflow 7 L28-34)', async () => {
+    installMatchMedia(false);
+    const { store, sent, emit } = bookStore();
+    const { container } = render(<AppShell store={store} />);
+    openBookSongs(emit);
+
+    expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
+    expect(location.pathname).toBe(`/b/${BOOK}`);
+    expect(history.state.place).toEqual({ tab: 'search', book: BOOK });
+    expect(container.querySelector('.search .scope')).toHaveTextContent('Exercícios');
+    expect(screen.getByRole('button', { name: 'Manage Exercícios' })).toBeInTheDocument();
+    expect([...sent].reverse().find((m) => m.kind === CommandKind.BROWSE).payload.scope).toEqual({ books: [BOOK] });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // A pushed step: the browser's Back returns to Books.
+    act(() => history.back());
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true'));
+    expect(location.pathname).toBe('/books');
+  });
+
+  it('Manage opens the detail as a layer over the book’s songs, and its Back returns to them (workflow 7 L86-95)', async () => {
+    installMatchMedia(false);
+    const { store, emit } = bookStore();
+    const { container } = render(<AppShell store={store} />);
+    openBookSongs(emit);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Exercícios' }));
+    expect(screen.getByRole('button', { name: 'Back to Exercícios' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rename Exercícios' })).toBeInTheDocument();
+    // A layer, not an address: the URL stays the book's songs.
+    expect(location.pathname).toBe(`/b/${BOOK}`);
+    expect(history.state.layers).toEqual(['bookDetail']);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Exercícios' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Back to Exercícios' })).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Manage Exercícios' })).toBeInTheDocument();
+    expect(history.state.layers).toEqual([]);
+  });
+
+  it('Files on the detail opens the file view on the book, and its Back returns to the detail (workflow 14 L132-134)', async () => {
+    installMatchMedia(false);
+    const { store, emit } = bookStore();
+    render(<AppShell store={store} />);
+    openBookSongs(emit);
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Exercícios' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Files in Exercícios' }));
+    expect(screen.getByRole('group', { name: 'Files in Exercícios' })).toBeInTheDocument();
+    expect(history.state.layers).toEqual(['bookDetail', 'files']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => expect(screen.queryByRole('group', { name: 'Files in Exercícios' })).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Back to Exercícios' })).toBeInTheDocument();
+    expect(history.state.layers).toEqual(['bookDetail']);
+  });
+
+  it('on a computer the detail takes the main pane beside the book’s songs (Decision *The detail splits where a song does*)', () => {
+    let wide = true;
+    globalThis.matchMedia = (media) => ({
+      media,
+      get matches() {
+        return wide && !media.includes('prefers-color-scheme');
+      },
+      addEventListener() {},
+      removeEventListener() {},
+    });
+    const { store, emit } = bookStore();
+    const { container } = render(<AppShell store={store} />);
+    openBookSongs(emit);
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Exercícios' }));
+
+    const split = container.querySelector('.book-detail-split');
+    expect(split).toBeTruthy();
+    expect(within(split.querySelector('.pane.main')).getByRole('button', { name: 'Back to Exercícios' })).toBeInTheDocument();
+    const side = split.querySelector('.pane.side');
+    expect(within(side).getByRole('button', { name: 'Manage Exercícios' })).toBeInTheDocument();
+    expect(side.querySelector('.search .scope')).toHaveTextContent('Exercícios');
+    wide = false;
+  });
+
+  it('a fork made from the detail lands on the shelf, the fork selected with its one-time note (books.fork; W11 #2)', () => {
+    installMatchMedia(false);
+    const { store, emit } = bookStore();
+    render(<AppShell store={store} />);
+    openBookSongs(emit);
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Exercícios' }));
+
+    emit(
+      event(EventKind.SHELF, {
+        books: {
+          'srv-fork': {
+            label: { value: 'Exercícios', at: AT },
+            position: { value: 0, at: AT },
+            role: { value: 'owner', at: AT },
+            original: { value: { bookId: BOOK, title: 'Exercícios', followedAt: AT }, at: AT },
+          },
+        },
+        local: {},
+      }),
+    );
+    emit(event(EventKind.BOOK_FORKED, { previousBookId: BOOK, bookId: 'srv-fork', via: 'service' }));
+
+    expect(screen.queryByRole('button', { name: 'Back to Exercícios' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText(/Exercícios is your own now/)).toHaveAttribute('role', 'status');
+  });
+
+  it('removing the book from its detail lands on Books (workflow 7 L94-95)', () => {
+    installMatchMedia(false);
+    const { store, sent, emit } = bookStore();
+    render(<AppShell store={store} />);
+    openBookSongs(emit);
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Exercícios' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove from my shelf' }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove from my shelf' }));
+    expect([...sent].reverse().find((m) => m.kind === CommandKind.REMOVE_BOOK).payload).toEqual({ bookId: BOOK });
+    emit(event(EventKind.BOOK_REMOVED, { bookId: BOOK }));
+    emit(event(EventKind.SHELF, { books: {}, local: {} }));
+
+    expect(screen.queryByRole('button', { name: 'Back to Exercícios' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { level: 1, name: 'Books' })).toBeInTheDocument();
+    expect(location.pathname).toBe('/books');
+  });
+});
 
 // behavior (account.sign_in_two_doors) — the recovery-email banner in the shell,
 // with an injected loopback auth client answering `GET

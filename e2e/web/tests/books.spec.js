@@ -1,16 +1,18 @@
 import { test, expect } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
-import { startApp } from '../lib/journeys.js';
+import { startApp, gotoTab } from '../lib/journeys.js';
 
 // e2e-web — the book-management screen against the compose stack, on the three
 // viewports (the phone/tablet/computer projects auto-run every spec). Making and
 // renaming a book is entirely in-app — a new book is an empty local repository
 // created on the device with no account (workflow 7 L25) — so no song-seeding
-// seam is needed and the journey is fully implementable now. Axe at WCAG 2.1 AA
-// covers the shelf, the Add-a-book chooser and its New book step, and the rename dialog on every
-// viewport (contrast included — the real browser gives axe the layout jsdom
-// lacks). Pins workflow 7 L14-25; DIRECTION §4 L434. The book name is written
-// for this test (no-song-text rule).
+// seam is needed and the journey is fully implementable now. Rename lives on
+// the book's detail, reached from *Manage* on the bar above the book's songs
+// (books.row_opens_songs; workflow 7 L86-95). Axe at WCAG 2.1 AA covers the
+// shelf, the Add-a-book chooser and its New book step, and the rename dialog on
+// every viewport (contrast included — the real browser gives axe the layout
+// jsdom lacks). Pins workflow 7 L14-25; DIRECTION §4 L434. The book name is
+// written for this test (no-song-text rule).
 
 const NAME = 'Quarta à noite';
 const RENAMED = 'Quinta à noite';
@@ -62,11 +64,14 @@ test('a new book is made and renamed on the shelf, axe-clean on this viewport (w
   await sheet.getByRole('button', { name: 'New book' }).click();
   await expect(sheet).toBeHidden();
 
-  // It appears on the shelf (the open row, not the "Rename …" button).
+  // It appears on the shelf, a row with no rename control of its own.
   await expect(page.getByRole('button', { name: new RegExp(`^${NAME}`) })).toBeVisible();
+  await expect(page.getByRole('button', { name: `Rename ${NAME}` })).toHaveCount(0);
 
-  // Rename it on the shelf — a label that changes nothing in the repository
-  // (workflow 7 L16-18).
+  // Rename it from its detail — Books → the book's songs → Manage → Rename, a
+  // label that changes nothing in the repository (workflow 7 L16-18, L89).
+  await page.getByRole('button', { name: new RegExp(`^${NAME}`) }).click();
+  await page.getByRole('button', { name: `Manage ${NAME}` }).first().click();
   await page.getByRole('button', { name: `Rename ${NAME}` }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
@@ -75,7 +80,9 @@ test('a new book is made and renamed on the shelf, axe-clean on this viewport (w
   await field.fill(RENAMED);
   await dialog.getByRole('button', { name: 'Save' }).click();
 
-  // The row shows the new name.
+  // The detail's title follows; back on the shelf the row shows the new name.
+  await expect(page.getByRole('button', { name: `Rename ${RENAMED}` })).toBeVisible();
+  await gotoTab(page, 'Books');
   await expect(page.getByRole('button', { name: new RegExp(`^${RENAMED}`) })).toBeVisible();
   await checkA11y(); // the shelf after the rename
 });

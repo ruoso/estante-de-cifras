@@ -37,6 +37,13 @@ const biaJoins = (browser, page, role) => joins(browser, page, { book: BOOK, rol
 // The make-it-your-own sheet is open: axe it, then confirm.
 const makeItMyOwn = (page) => confirmSheet(page, BOOK);
 
+// The shelf's row → the book's songs → Manage: the book's detail
+// (books.row_opens_songs; workflow 7 L86-95).
+async function openDetailFromRow(page) {
+  await page.getByRole('button', { name: bookRow }).click();
+  await page.getByRole('button', { name: `Manage ${BOOK}` }).first().click();
+}
+
 // The shelf shows one row for the book, reading *from {book}*.
 async function expectOneForkRow(page) {
   await booksList(page);
@@ -77,9 +84,9 @@ test('deliberately: a reader forks from the book detail, and a new save of the o
   await hostedBookWithSong(page, BOOK, SONG_TITLE);
   const bia = await biaJoins(browser, page, 'Reader');
   try {
-    // Books → the book → Fork (workflow 11 §Ways in, deliberately).
+    // Books → the book → Manage → Fork (workflow 11 §Ways in, deliberately).
     await booksList(bia.page);
-    await bia.page.getByRole('button', { name: bookRow }).click();
+    await openDetailFromRow(bia.page);
     await expect(
       bia.page.getByText(`Your own copy of ${BOOK}, with its history, that keeps following it.`),
     ).toBeVisible();
@@ -177,7 +184,7 @@ test('after losing access: the unpushed save arrives on Estante in Bia’s own b
     // Sync now → no longer shared with you → the book → Make this book your own.
     await syncNow(bia.page);
     await expect(bia.page.getByText('no longer shared with you')).toBeVisible({ timeout: 15000 });
-    await bia.page.getByRole('button', { name: bookRow }).click();
+    await openDetailFromRow(bia.page);
     await bia.page.getByRole('button', { name: 'Make this book your own' }).click();
     // Following has already ended: no *keeps following* point.
     await expect(bia.page.getByRole('dialog').getByText(/keeps following/)).toHaveCount(0);
@@ -229,7 +236,7 @@ test('lowered to reader with a save not yet pushed: can’t save here, then the 
     await syncNow(bia.page);
     await expect(bia.page.getByText('can’t save here')).toBeVisible({ timeout: 15000 });
     expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the shelf with the refusal
-    await bia.page.getByRole('button', { name: bookRow }).click();
+    await openDetailFromRow(bia.page);
     await expect(
       bia.page.getByText(`1 save can no longer go to ${BOOK}: you can read it, but no longer save to it.`),
     ).toBeVisible();

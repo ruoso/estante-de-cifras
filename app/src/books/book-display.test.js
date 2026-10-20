@@ -11,6 +11,7 @@ import {
   fillDisplayFor,
   elsewhereCopyFor,
   thisDeviceFor,
+  bookMetaFor,
 } from './book-display.js';
 import { t, setLocale } from '../i18n/index.js';
 
@@ -278,5 +279,20 @@ describe('book-display: a new device (account.new_device)', () => {
   it('is nothing for a book that is not filling', () => {
     expect(fillDisplayFor(undefined, { t })).toBeNull();
     expect(fillDisplayFor({ state: 'something' }, { t })).toBeNull();
+  });
+});
+
+// books.row_opens_songs: the row's and the bar's meta line (workflow 7 L19-23).
+describe('book-display: bookMetaFor (where · role · count — workflow 7 L19-23)', () => {
+  beforeAll(() => setLocale('en'));
+
+  it('says where, the role and the song count', () => {
+    expect(bookMetaFor('local', {}, { count: 2, t })).toBe('On this device · can save · 2 songs');
+    expect(bookMetaFor('shared', { role: reg('reader') }, { count: 1, t })).toBe('On Estante · reader · 1 song');
+  });
+
+  it('says still loading while the index builds or before a count arrives, and leaves out an unknown role', () => {
+    expect(bookMetaFor('local', {}, { count: 2, building: true, t })).toBe('On this device · can save · still loading');
+    expect(bookMetaFor('shared', {}, { t })).toBe('On Estante · still loading');
   });
 });

@@ -161,8 +161,15 @@ export default {
     onlyOnOther: 'Solo su un altro dispositivo: {title}',
     onlyOnHelp: 'Mettilo online lì per averlo qui.',
     // Il dettaglio di ogni libro (books.online, workflow 7 L46-63, L128-137; W07).
-    detailBack: 'Torna ai libri',
-    pickBook: 'Scegli un libro per vederne i dettagli.',
+    // A book's songs (books.row_opens_songs; workflow 7 §A book's songs): the
+    // bar's Manage and Settle, and the detail's Back, Rename and Files card.
+    manage: 'Gestisci',
+    manageLabel: 'Gestisci {book}',
+    settle: 'Risolvi',
+    settleLabel: 'Risolvi i conflitti in {book}',
+    backToBook: 'Torna a {book}',
+    rename: 'Rinomina',
+    filesBody: 'Tutti i file del libro, così come sono salvati.',
     private: 'privato',
     sharedBy: 'condiviso da {owner}',
     shared: 'condiviso',
