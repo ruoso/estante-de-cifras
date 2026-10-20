@@ -1701,7 +1701,7 @@ export function createWorkerLogic(port, options = {}) {
             break;
           }
           case CommandKind.SAVE: {
-            // Canonicalise, commit one file or several, then push — the author
+            // Canonicalise and commit one file or several — the author
             // from the one resolver (account.commit_author Constraint 2), the
             // save sheet's typed `name` over the stored one.
             const { bookId, paths, message: note, name: typedName } = message.payload;
@@ -1763,7 +1763,6 @@ export function createWorkerLogic(port, options = {}) {
                   // changes* mark (sync.in_place_notices; W08#3 L96).
                   paths: paths ?? [],
                   commit: outcome.commit,
-                  pushed: outcome.pushed,
                 }),
               );
               // Re-index the saved paths — now canonical and committed, so no
@@ -1782,9 +1781,9 @@ export function createWorkerLogic(port, options = {}) {
                 );
               }
               await persistIndexChanges(changes);
-              // After a save, run a sync pass so the push the save left
-              // best-effort (working-copy.js Decision 8) goes up as soon as a
-              // push can — the after-save trigger (workflow 8 L18). Coalesced
+              // After a save, run a sync pass: it is what pushes the save — at
+              // once with a network, at the next sync without (songs.save_feedback
+              // Constraint 1; workflow 4 §Save pushes, workflow 8 L18). Coalesced
               // and fire-and-forget: the save's reply already went out.
               ensureSyncScheduler().trigger();
             }
@@ -3289,7 +3288,6 @@ export function createWorkerLogic(port, options = {}) {
                   bookId,
                   path: outcome.path,
                   commit: outcome.commit,
-                  pushed: outcome.pushed,
                 }),
               );
               // Re-index: the final path is now canonical and committed (no
@@ -3306,6 +3304,9 @@ export function createWorkerLogic(port, options = {}) {
                 await reindexOrRemove({ bookId, path: fromPath, unsaved: false }),
               );
               await persistIndexChanges(changes);
+              // The after-save sync pass pushes the first save, as SAVE's does
+              // (songs.save_feedback Constraint 1; workflow 8 L18).
+              ensureSyncScheduler().trigger();
             }
             break;
           }

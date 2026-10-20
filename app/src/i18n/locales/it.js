@@ -1001,6 +1001,9 @@ export default {
       'Nominato una volta sola, dal titolo. Cambiare il titolo in seguito ne modifica l’intestazione, non il file.',
     nameLabel: 'Il tuo nome, come apparirà nella cronologia di una canzone',
     nameHelp: 'Chiesto una volta. Dopo l’accesso, viene offerto il nome del tuo account al suo posto.',
+    nameMissing: 'Inserisci il tuo nome per salvare.',
+    songNameMissing: 'Dai un nome al brano per salvare.',
+    saving: 'Salvataggio…',
     refused: 'Non salvato. La riga {line} non è leggibile. Correggila nell’editor e salva di nuovo.',
     refusedMerge:
       'Non salvato. Risolvi prima i conflitti di questo libro — un salvataggio ora verrebbe fuso nell’unione.',

@@ -1,7 +1,8 @@
 // working-copy.js — the working copy, save and discard (storage.working_copy).
 // DIRECTION §3 L108-111: "What the user is editing is the working copy, written
 // to storage as they type, so closing the tab loses nothing"; "Saving is a
-// commit, and then a push." This module is the Worker's mechanism for that: it
+// commit, and then a push." This module is the Worker's mechanism for the commit
+// (the push is the after-save sync pass's — songs.save_feedback Constraint 1): it
 // composes the git transport (git.js), the per-book lock (locks.js) and the
 // filesystem (fs.js) into the three operations the editor drives — write, save,
 // discard.
@@ -14,7 +15,7 @@
 // clone wrote `remote.origin.url` into the book's config, and push reads it.
 //
 // COMPOSITION RULE (locks.md Decision 1): one lock per logical operation. A save
-// is canonicalise -> write back -> add -> commit -> push, all inside ONE
+// is canonicalise -> write back -> add -> commit -> flush, all inside ONE
 // `withLock`; a write and a discard each run under one. Never reacquired per git
 // call, never nested (Web Locks are non-reentrant). A write is locked too
 // (Decision 3): a keystroke-write and a sync's merge both mutate the working
@@ -57,7 +58,7 @@ function kindOfPath(path) {
 /**
  * Build the working-copy operations over the composed primitives. `fs` is the
  * shared filesystem (fs.js), `git` the transport layer (git.js) — used for its
- * `bookDir` and `push` — and `locks` the per-book lock registry (locks.js).
+ * `bookDir` — and `locks` the per-book lock registry (locks.js).
  *
  * @param {{
  *   fs: import('./fs.js').FileSystem,
@@ -67,9 +68,9 @@ function kindOfPath(path) {
  * @returns {{
  *   write: (opts: { bookId: string, path: string, text: string|Uint8Array }) => Promise<void>,
  *   save: (opts: { bookId: string, paths: string[], message: string, author: object|(() => Promise<object>) }) =>
- *     Promise<{ commit: string, pushed: boolean } | { refused: { path: string, reason: string, marker?: string, line?: number } }>,
+ *     Promise<{ commit: string } | { refused: { path: string, reason: string, marker?: string, line?: number } }>,
  *   nameAndSave: (opts: { bookId: string, fromPath: string, toPath: string, message: string, author: object|(() => Promise<object>) }) =>
- *     Promise<{ commit: string, pushed: boolean, path: string } | { refused: { path: string, reason: string, marker?: string, line?: number } }>,
+ *     Promise<{ commit: string, path: string } | { refused: { path: string, reason: string, marker?: string, line?: number } }>,
  *   discard: (opts: { bookId: string, paths: string[] }) => Promise<void>,
  *   move: (opts: { bookId: string, fromPath: string, toPath: string }) => Promise<void>,
  *   remove: (opts: { bookId: string, path: string }) => Promise<void>,
@@ -127,10 +128,11 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
   }
 
   // Save the named paths as ONE commit, authored by the per-user no-reply
-  // address, then push (workflow 4 L24-65, workflow 14 L154-158). Canonicalise
-  // every file first; a single marked or unreadable file aborts the whole save
-  // before any commit (Decision 5). Offline-first: a failed push keeps the
-  // local commit and resolves `pushed: false` (Decision 8).
+  // address (workflow 4 L24-65, workflow 14 L154-158). Canonicalise every file
+  // first; a single marked or unreadable file aborts the whole save before any
+  // commit (Decision 5). The save never waits on the network: it returns once
+  // the commit is durable, and the caller's after-save sync pass pushes it
+  // (songs.save_feedback Constraint 1; workflow 4 §Save pushes).
   function save({ bookId, paths, message, author }) {
     return locks.withLock(bookId, async () => {
       const dir = git.bookDir(bookId);
@@ -181,33 +183,21 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
 
       // Force the inode table out now (fs.js Decision 6), still inside the save's
       // single lock: the commit the user chose to keep is the durable artifact,
-      // and a reload moments later must not read it back as ENOENT. Runs before
-      // the best-effort push so the commit's durability never waits on the
-      // network (DIRECTION §3 L111-113; workflow 4 §Saving).
+      // and a reload moments later must not read it back as ENOENT. Nothing
+      // after it touches the network (DIRECTION §1, §3 L111-113): the push is
+      // the sync engine's — fetch, merge, push, retried (DIRECTION §3.1).
       await fs.flush();
-
-      // The commit is durable locally; the push is best-effort. A push that
-      // fails (no network, or a ref the server would not fast-forward) does not
-      // roll back the commit — the sync engine retries it (Decision 8). The
-      // outcome carries whether it landed.
-      let pushed = false;
-      try {
-        await git.push({ dir });
-        pushed = true;
-      } catch {
-        pushed = false;
-      }
-      return { commit, pushed };
+      return { commit };
     });
   }
 
   // The first save of a new song (songs.new_song, workflow 3 §The first save):
   // rename the uncommitted placeholder (`fromPath`) to its title's slug
-  // (`toPath`), then the same canonical commit-and-push a SAVE does — all under
+  // (`toPath`), then the same canonical commit a SAVE makes — all under
   // ONE lock (Decision 1). The placeholder was never committed (a `WRITE`-only
   // file, no HEAD blob), so no `git mv` is needed: writing the canonical text at
   // `toPath` and unlinking `fromPath` is the whole rename. Canonicality and the
-  // offline-push behavior are exactly the SAVE path's; the naming is a thin step
+  // push left to the after-save sync are exactly the SAVE path's; the naming is a thin step
   // in front of it (Decision 4). A marked/unreadable file refuses before any
   // commit, like SAVE (Decision 5) — though the editor's pre-save gate blocks
   // that for a new song (editor.md Decision 3).
@@ -248,22 +238,11 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
       const who = await identityOf(author);
       const commit = await gitCommit({ fs, dir, message, author: who, committer: who });
 
-      // Force the inode table out now (fs.js Decision 6), inside the one lock and
-      // before the best-effort push, so the commit the user chose to keep is
-      // durable without waiting on the network (mirrors `save`).
+      // Force the inode table out now (fs.js Decision 6), inside the one lock,
+      // so the commit the user chose to keep is durable; the push is the
+      // after-save sync pass's, never waited on here (mirrors `save`).
       await fs.flush();
-
-      // The commit is durable locally; the push is best-effort (offline-first).
-      // A local book has no remote, so push throws and resolves `pushed: false`;
-      // an online book pushes, or queues (`pushed: false`) with the commit kept.
-      let pushed = false;
-      try {
-        await git.push({ dir });
-        pushed = true;
-      } catch {
-        pushed = false;
-      }
-      return { commit, pushed, path: toPath };
+      return { commit, path: toPath };
     });
   }
 

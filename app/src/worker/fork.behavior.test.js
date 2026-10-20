@@ -206,7 +206,9 @@ async function joinSaveAndEdit(w, origId, stopOriginal) {
   w.send(command(CommandKind.SAVE, { bookId: origId, paths: [SONG_PATH], message: SAVE_NOTE, author: IDENTITY }));
   const saved = await next(w, mark, [EventKind.SAVED, EventKind.SAVE_REFUSED]);
   expect(saved.kind).toBe(EventKind.SAVED);
-  expect(saved.payload.pushed).toBe(false); // the save cannot go up
+  // The save cannot go up; SAVED claims no push outcome either way
+  // (songs.save_feedback Constraint 2).
+  expect(saved.payload).not.toHaveProperty('pushed');
 
   w.send(command(CommandKind.WRITE, { bookId: origId, path: SONG_PATH, text: SONG_UNSAVED }));
   await waitFor(async () => {

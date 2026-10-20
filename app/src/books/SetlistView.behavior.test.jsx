@@ -88,7 +88,7 @@ function makeStore({ text = SETLIST_TEXT, entries = ENTRIES, results = RESULTS, 
           current = p.text;
           break;
         case CommandKind.SAVE:
-          port.postMessage(event(EventKind.SAVED, { bookId: p.bookId, commit: 'c1', pushed: false }));
+          port.postMessage(event(EventKind.SAVED, { bookId: p.bookId, commit: 'c1' }));
           break;
         case CommandKind.DISCARD:
           port.postMessage(event(EventKind.DISCARDED, { bookId: p.bookId, paths: p.paths }));

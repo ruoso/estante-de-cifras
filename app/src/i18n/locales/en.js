@@ -1095,6 +1095,11 @@ export default {
       'Named once, from the title. Changing the title later edits its heading, not the file.',
     nameLabel: 'Your name, as it will appear in a song’s history',
     nameHelp: 'Asked once. After you sign in, your account’s name is offered instead.',
+    // A field the save needs and does not have says so under it, and the
+    // pending Save says it in a word (songs.save_feedback Constraints 3-4).
+    nameMissing: 'Enter your name to save.',
+    songNameMissing: 'Name the song to save.',
+    saving: 'Saving…',
     // The Worker's backstop refusal surfaced (a marked/unreadable file); the
     // editor's gate catches it first, so this is rare (Constraints).
     refused: 'Not saved. Line {line} could not be read. Fix it in the editor, then save again.',

@@ -229,9 +229,9 @@ export const CommandKind = Object.freeze({
   // NAME_AND_SAVE `{ bookId, fromPath, name?, message?, title? }`: the Worker
   // parses the working-copy file for its title, derives the title's ASCII slug
   // filename (`deriveSongFilename`, with a collision suffix against the folder),
-  // renames the placeholder to it, then canonicalises, commits and pushes (a
-  // local book commits only; an online book pushes, or queues offline), and
-  // replies with the existing SAVED event carrying the final `path`. The app
+  // renames the placeholder to it, then canonicalises and commits, and replies
+  // with the existing SAVED event carrying the final `path`; the after-save
+  // sync pass pushes it (songs.save_feedback Constraint 1). The app
   // never renames it afterwards (DIRECTION §4 L446-448). `message` is the save
   // sheet's note — the commit message (songs.save_sheet Decision 5); absent, it
   // falls back to the W03 *Add {title}*. `title` is the name the save sheet
@@ -459,8 +459,10 @@ export const CommandKind = Object.freeze({
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
 // `ERROR` carries a message and a code. The working-copy outcomes
-// (storage.working_copy): `SAVED` (commit + whether the push landed, and the
-// saved `paths` — or, for NAME_AND_SAVE, the final `path`),
+// (storage.working_copy): `SAVED` (the commit, posted once it is durable on
+// this device — never after a push, whose outcome is the `SYNC` facts'
+// (songs.save_feedback Constraint 2) — and the saved `paths` — or, for
+// NAME_AND_SAVE, the final `path`),
 // `DISCARDED`, and `SAVE_REFUSED` (a marked or unreadable file named, with the
 // first marker line). `PREFERENCES` carries the home book's preferences.json as
 // a flat map of `{value, at}` registers (shell.tokens defines the consumer; the

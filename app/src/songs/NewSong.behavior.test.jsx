@@ -290,7 +290,6 @@ describe('the first save', () => {
         bookId: MY_SONGS_ID,
         path: 'untitled.cifra.md',
         commit: 'abc123',
-        pushed: false,
       }),
     );
     expect(screen.queryByRole('button', { name: 'Change book' })).not.toBeInTheDocument();

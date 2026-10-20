@@ -8,6 +8,7 @@
 // Fixtures are songs written for the purpose — never anyone's copyrighted words.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import nodeFs from 'node:fs';
 import { IDBFactory } from 'fake-indexeddb';
 import { log, listFiles, resolveRef } from 'isomorphic-git';
 import { createFileSystem } from './fs.js';
@@ -217,7 +218,9 @@ describe('NAME_AND_SAVE — the first save names and commits', () => {
 
     const saved = w.saved().payload;
     expect(saved.path).toBe('coracao-de-estrada.cifra.md');
-    expect(saved.pushed).toBe(false); // local book, no remote
+    // SAVED claims no push outcome (songs.save_feedback Constraint 2); a local
+    // book has no remote, so the after-save pass touches no network (below).
+    expect(saved).not.toHaveProperty('pushed');
 
     const [entry] = await log({ fs: w.fs, dir, ref: 'main', depth: 1 });
     expect(entry.commit.message.trim()).toBe('Add Coração de Estrada');
@@ -235,10 +238,16 @@ describe('NAME_AND_SAVE — the first save names and commits', () => {
   });
 });
 
-describe('NAME_AND_SAVE — online pushes; offline keeps the commit', () => {
-  it('pushes the first save to an online book, and resolves pushed: false offline with the commit kept', async () => {
-    // Online: the Worker rides the real remote. Clone a book into its fs, write
-    // a placeholder, and name-and-save it — the push lands on the remote.
+// The remote's main, read straight off the bare repo (node fs) — the device's
+// own `main` says nothing about what went up.
+const remoteMain = (remote) =>
+  resolveRef({ fs: nodeFs, gitdir: remote.repoDir, ref: 'refs/heads/main' });
+
+describe('NAME_AND_SAVE — online goes up after the save; offline keeps the commit', () => {
+  // songs.save_feedback Constraint 1: NAME_AND_SAVE posts SAVED once the commit
+  // is durable and triggers the after-save sync pass, which pushes it — no other
+  // trigger is sent here (workflow 4 §Save pushes; workflow 8 L18).
+  it('a first save goes up at the after-save sync', async () => {
     const remote = await startGitHttpRemote();
     try {
       const online = makeWorker({ fetch: globalThis.fetch });
@@ -253,13 +262,23 @@ describe('NAME_AND_SAVE — online pushes; offline keeps the commit', () => {
       await until(() => expect(online.store.slice('save')[bookId]?.status).toBe('saved'));
       const saved = online.saved().payload;
       expect(saved.path).toBe('coracao-de-estrada.cifra.md');
-      expect(saved.pushed).toBe(true);
-      const remoteHead = await resolveRef({ fs: online.fs, dir, ref: 'main' });
-      expect(remoteHead).toBe(saved.commit);
+      expect(saved).not.toHaveProperty('pushed');
+      await vi.waitFor(async () => expect(await remoteMain(remote)).toBe(saved.commit), {
+        timeout: 8000,
+        interval: 50,
+      });
+    } finally {
+      await remote.stop();
+    }
+  });
 
-      // Offline: clone the same remote into an OFFLINE Worker's fs (so the book
-      // has a remote url), then name-and-save — the push fails, pushed: false,
-      // and the local commit is kept.
+  it('offline, the first save keeps its commit on this device', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      const seed = await remoteMain(remote);
+      // Clone the remote into an OFFLINE Worker's fs (so the book has a remote
+      // url), then name-and-save — the commit is kept, the remote untouched.
+      const bookId = 'book-online';
       const offline = makeWorker();
       const offDir = offline.git.bookDir(bookId);
       const cloner = createGitLayer({
@@ -274,11 +293,11 @@ describe('NAME_AND_SAVE — online pushes; offline keeps the commit', () => {
       );
       await until(() => expect(offline.store.slice('save')[bookId]?.status).toBe('saved'));
       const offSaved = offline.saved().payload;
-      expect(offSaved.pushed).toBe(false);
-      // The commit is durable locally despite the failed push.
+      // The commit is durable locally though nothing can go up.
       await expect(resolveRef({ fs: offline.fs, dir: offDir, ref: 'main' })).resolves.toBe(
         offSaved.commit,
       );
+      expect(await remoteMain(remote)).toBe(seed);
     } finally {
       await remote.stop();
     }

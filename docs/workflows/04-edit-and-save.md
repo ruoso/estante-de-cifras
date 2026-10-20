@@ -58,10 +58,20 @@ taps rather than one, because a save is a version the user chose to keep,
 and seeing what is in it is part of choosing. It also catches the change
 made by accident.
 
+While the commit is being made the button reads *Saving…* and cannot be
+pressed again, so one tap makes one version. The sheet closes as soon as the
+version is kept on this device; it never waits on the network. A field the
+save needs and does not have — the author's name on a first save, a new
+song's name — leaves *Save* pressable: pressing it says, under the field,
+what is missing, and puts the cursor there. A button that is grey with no
+reason given is never how a save says no.
+
 ### Save pushes
 
 Save commits and then pushes: at once if there is a network, at the next
-sync if not (workflow 8). This settles the question left open in DIRECTION
+sync if not (workflow 8). The push happens after the sheet has closed, as
+sync does; a save that has not gone up yet shows as *saves waiting to go up*
+on the book (workflow 8), not on the sheet. This settles the question left open in DIRECTION
 §6. The user has two states to think about, unsaved and saved, and *saved*
 means *shared with whoever shares the book*.
 
@@ -99,8 +109,11 @@ one commit.
 
 A commit has an author. The first save asks once for a name, *as it will
 appear in a song's history*, and keeps it in the home book. After sign-in,
-the host account supplies the email, and its name is offered in place of the
-one given.
+the host account supplies the email, and the account's name — the one its
+home book keeps, since the service stores none (DIRECTION §3.3) — is used in
+place of the one given: it comes down with the home book to every device
+signed in to the account, and a device that has it never asks. A sheet open
+when it arrives stops asking and saves under it.
 
 ## Discarding
 

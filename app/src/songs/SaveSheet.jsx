@@ -3,9 +3,13 @@
 // musical terms (the semantic diff between the last-saved version and the
 // working copy) and a note prefilled from that summary which the user may edit;
 // confirming commits the one file — or, for *save all*, every changed song in
-// the book in one commit — with the note as the commit message, and pushes
-// (workflow 4 §Save pushes). The first save ever asks once for the author's
-// name; a never-saved song with no title line is named here too.
+// the book in one commit — with the note as the commit message; the push is the
+// after-save sync pass's, once the sheet has closed (workflow 4 §Save pushes;
+// songs.save_feedback Constraint 1). The first save ever asks once for the
+// author's name; a never-saved song with no title line is named here too.
+// Save is never grey for a missing field: pressing it says, under the field,
+// what is missing and puts the cursor there; while the commit is being made it
+// reads *Saving…* and a second press sends nothing (songs.save_feedback).
 //
 // The view is the only React layer (DIRECTION §3.7): it reads the `savePreview`
 // and `preferences` slices through `useSlice`, sends PREVIEW_SAVE / SAVE /
@@ -33,6 +37,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Dialog,
+  FieldError,
   Heading,
   HeadingContext,
   Input,
@@ -43,6 +48,7 @@ import {
   TextArea,
   TextField,
 } from 'react-aria-components';
+import { announce, clearAnnouncer } from 'react-aria/private/live-announcer/LiveAnnouncer';
 import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
@@ -86,13 +92,34 @@ function SaveForm({
   // The save landed: close (filtered to this book, so another book's save never
   // closes it). SAVE_REFUSED is the Worker's backstop — surface it, stay open; a
   // save that failed outright (reason 'failed') is surfaced the same way, with
-  // Save still enabled for another try (songs.save_empty_message).
+  // Save still enabled for another try (songs.save_empty_message). Between the
+  // press and either event the save is pending: one tap, one version
+  // (songs.save_feedback Constraint 3) — the ref guards a second press landing
+  // before the re-render.
   const [refused, setRefused] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  // A pending Save announces itself through RAC's live region as a node labelled
+  // by the button's id; the sheet closing on SAVED unmounts that button, so the
+  // node would dangle (role="img" with no name) until RAC's timeout. The
+  // announcement has been made by then — drop it with the sheet. RAC defers the
+  // very first announcement 100ms while it creates the region, which a quick
+  // save outlives; an empty one on open creates the region now, so the pending
+  // announcement is synchronous and the clear on close catches it.
+  useEffect(() => {
+    announce('', 'assertive');
+    return () => {
+      if (savingRef.current) clearAnnouncer('assertive');
+    };
+  }, []);
   useWorkerEvent(store, EventKind.SAVED, (payload) => {
     if (payload?.bookId === bookId) onClose();
   });
   useWorkerEvent(store, EventKind.SAVE_REFUSED, (payload) => {
-    if (payload?.bookId === bookId) setRefused({ line: payload?.line ?? null, reason: payload?.reason ?? null });
+    if (payload?.bookId !== bookId) return;
+    savingRef.current = false;
+    setSaving(false);
+    setRefused({ line: payload?.line ?? null, reason: payload?.reason ?? null });
   });
 
   const previews = useMemo(
@@ -102,6 +129,9 @@ function SaveForm({
   const firstPreview = previews[0];
   const defaultNote = useMemo(() => buildSaveNote(previews), [previews]);
 
+  // The account's name is the account home book's `authorName` (DIRECTION
+  // §3.3); read live, so a register arriving while the sheet is open takes the
+  // field's place (songs.save_feedback Constraint 5).
   const storedName = preferences?.authorName?.value;
   const needsName = !storedName;
   const needsSongName = isNew && !(firstPreview?.title ?? '').trim();
@@ -124,13 +154,28 @@ function SaveForm({
 
   const nameMissing = needsName && !authorName.trim();
   const songNameMissing = needsSongName && !songName.trim();
-  const canConfirm = !nameMissing && !songNameMissing;
+
+  // A missing field never greys Save (songs.save_feedback Constraint 4): once a
+  // press found one missing, it is marked invalid with its error under it until
+  // it holds text, and the cursor goes to the first missing one in visual order.
+  const [attempted, setAttempted] = useState(false);
+  const nameRef = useRef(null);
+  const songNameRef = useRef(null);
+  const showNameError = attempted && nameMissing;
+  const showSongNameError = attempted && songNameMissing;
 
   const confirm = () => {
-    if (!canConfirm) return;
+    if (savingRef.current) return;
+    if (nameMissing || songNameMissing) {
+      setAttempted(true);
+      (nameMissing ? nameRef : songNameRef).current?.focus();
+      return;
+    }
     // The editor's gate, again: beside an open panel the text may have moved
     // to something that cannot be saved (songs.editor_chrome Constraint 2).
     if (beforeSave && !beforeSave()) return;
+    savingRef.current = true;
+    setSaving(true);
     const name = (storedName ?? authorName.trim()) || '';
     if (needsName) {
       store.send(command(CommandKind.SET_IDENTITY_NAME, { name }));
@@ -154,6 +199,9 @@ function SaveForm({
     }
   };
 
+  // Pending says so in a word, never a spinner alone (Decision 3).
+  const saveLabel = saving ? t('saveSheet.saving') : t('saveSheet.save');
+
   const multi = !isNew && (paths?.length ?? 0) > 1;
   const headerTitle = multi
     ? t('saveSheet.titleAll', { count: paths.length })
@@ -166,18 +214,38 @@ function SaveForm({
       </Heading>
 
       {needsName && (
-        <TextField className="field" value={authorName} onChange={setAuthorName} isRequired>
+        <TextField
+          className="field"
+          value={authorName}
+          onChange={setAuthorName}
+          isRequired
+          isInvalid={showNameError}
+          validationBehavior="aria"
+        >
           <Label>{t('saveSheet.nameLabel')}</Label>
-          <Input className="input" />
+          <Input className="input" ref={nameRef} />
           <span className="t-small">{t('saveSheet.nameHelp')}</span>
+          <FieldError className="t-small est-save-field-error" role="alert">
+            {t('saveSheet.nameMissing')}
+          </FieldError>
         </TextField>
       )}
 
       {needsSongName && (
-        <TextField className="field" value={songName} onChange={setSongName} isRequired>
+        <TextField
+          className="field"
+          value={songName}
+          onChange={setSongName}
+          isRequired
+          isInvalid={showSongNameError}
+          validationBehavior="aria"
+        >
           <Label>{t('saveSheet.songNameLabel')}</Label>
-          <Input className="input" />
+          <Input className="input" ref={songNameRef} />
           <span className="t-small">{t('saveSheet.songNameHelp')}</span>
+          <FieldError className="t-small est-save-field-error" role="alert">
+            {t('saveSheet.songNameMissing')}
+          </FieldError>
         </TextField>
       )}
 
@@ -238,8 +306,8 @@ function SaveForm({
         // W04#4 L206: the panel's one full-width Save; it closes with Escape
         // or the quiet Cancel under it, the text stays in reach beside it.
         <div className="est-save-panel-actions">
-          <Button className="btn primary block" isDisabled={!canConfirm} onPress={confirm}>
-            {t('saveSheet.save')}
+          <Button className="btn primary block" isPending={saving} onPress={confirm}>
+            {saveLabel}
           </Button>
           <Button className="btn quiet block" onPress={close}>
             {t('saveSheet.cancel')}
@@ -250,8 +318,8 @@ function SaveForm({
           <Button className="btn" onPress={close}>
             {t('saveSheet.cancel')}
           </Button>
-          <Button className="btn primary" isDisabled={!canConfirm} onPress={confirm}>
-            {t('saveSheet.save')}
+          <Button className="btn primary" isPending={saving} onPress={confirm}>
+            {saveLabel}
           </Button>
         </div>
       )}

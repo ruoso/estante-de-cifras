@@ -64,6 +64,15 @@ function run(cmd, args) {
 const gitRemote = (repoDir, ...args) =>
   run('git', ['--git-dir', repoDir, ...args]).then((s) => s.trim());
 
+// Wait for the remote's main to reach `commit` — the after-save sync pass
+// pushes a save, after SAVED (songs.save_feedback Constraint 1). Reads the bare
+// repo with the git CLI, never the shared lightning-fs, so polling is safe.
+const remoteReaches = (repoDir, commit) =>
+  vi.waitFor(
+    async () => expect(await gitRemote(repoDir, 'rev-parse', 'refs/heads/main')).toBe(commit),
+    { timeout: 8000, interval: 50 },
+  );
+
 // The author identity a SAVE command carries (id + display name). The Worker
 // forms the no-reply address from the id (DIRECTION §3.2).
 const IDENTITY = { id: 'u_8f3a21', name: 'A Tester' };
@@ -125,7 +134,7 @@ afterEach(() => {
 // fs/git window cloned onto the seeded book. A unique FS name per test keeps the
 // backing stores isolated; the Worker's fs (`${name}-fs`) and the test's share
 // the name so they see one working copy.
-async function setup(bookId) {
+async function setup(bookId, { fetch: workerFetch = globalThis.fetch } = {}) {
   const remote = await startGitHttpRemote();
   const idb = new IDBFactory();
   const name = `wc-${Math.random().toString(36).slice(2)}`;
@@ -135,7 +144,7 @@ async function setup(bookId) {
   await git.clone({ dir, url: remote.url });
 
   const endpoint = createLoopbackEndpoint((port) =>
-    createWorkerLogic(port, { indexedDB: idb, name, fetch: globalThis.fetch }),
+    createWorkerLogic(port, { indexedDB: idb, name, fetch: workerFetch }),
   );
   const store = createStore(endpoint);
 
@@ -237,9 +246,12 @@ describe('the working copy, save and discard (behavior)', () => {
       await until(() => expect(ctx.status()).toBe('saved'));
 
       const outcome = ctx.store.slice('save')[ctx.bookId];
-      expect(outcome.pushed).toBe(true);
+      // SAVED claims no push outcome (songs.save_feedback Constraint 2).
+      expect(outcome).not.toHaveProperty('pushed');
 
-      // The remote's main advanced to the saved commit (push to the local remote).
+      // The after-save sync pass moves the remote's main to the saved commit
+      // (push to the local remote; songs.save_feedback Constraint 1).
+      await remoteReaches(ctx.remote.repoDir, outcome.commit);
       const remoteHead = await gitRemote(ctx.remote.repoDir, 'rev-parse', 'refs/heads/main');
       expect(remoteHead).not.toBe(seed);
       expect(remoteHead).toBe(outcome.commit);
@@ -265,6 +277,54 @@ describe('the working copy, save and discard (behavior)', () => {
       // The working file now agrees with the committed blob (both canonical).
       expect(await ctx.read('rainy-window.cifra.md')).toBe(CANONICAL_SONG);
     } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  // songs.save_feedback Constraint 1 (workflow 4 §Save pushes; DIRECTION §1):
+  // the save never waits on the network. The Worker's receive-pack requests are
+  // held open; SAVED still arrives with the commit while the remote is the
+  // seed, and releasing the gate lets the after-save sync pass push it.
+  it('SAVED comes before the push', async () => {
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    let held = 0;
+    const gatedFetch = async (url, init) => {
+      if (String(url).includes('git-receive-pack')) {
+        held += 1;
+        await gate;
+      }
+      return globalThis.fetch(url, init);
+    };
+    const ctx = await setup('book-save-before-push', { fetch: gatedFetch });
+    try {
+      const seed = await gitRemote(ctx.remote.repoDir, 'rev-parse', 'refs/heads/main');
+      ctx.store.send(
+        command(CommandKind.WRITE, { bookId: ctx.bookId, path: 'rainy-window.cifra.md', text: TYPED_SONG }),
+      );
+      ctx.store.send(
+        command(CommandKind.SAVE, {
+          bookId: ctx.bookId,
+          paths: ['rainy-window.cifra.md'],
+          message: 'Add Rainy Window',
+          author: IDENTITY,
+        }),
+      );
+      await until(() => expect(ctx.status()).toBe('saved'));
+      const { commit } = ctx.store.slice('save')[ctx.bookId];
+      expect(commit).toMatch(/^[0-9a-f]{40}$/);
+
+      // The after-save pass has reached the push and is held there; the remote
+      // is still the seed — SAVED did not wait on it.
+      await until(() => expect(held).toBeGreaterThan(0));
+      expect(await gitRemote(ctx.remote.repoDir, 'rev-parse', 'refs/heads/main')).toBe(seed);
+
+      release();
+      await remoteReaches(ctx.remote.repoDir, commit);
+    } finally {
+      release();
       await ctx.cleanup();
     }
   });
@@ -325,6 +385,7 @@ describe('the working copy, save and discard (behavior)', () => {
       await until(() => expect(ctx.status()).toBe('saved'));
 
       const commit = ctx.store.slice('save')[ctx.bookId].commit;
+      await remoteReaches(ctx.remote.repoDir, commit);
       // Exactly one parent — one commit, not two — and that parent is the seed.
       expect(await gitRemote(ctx.remote.repoDir, 'log', '-1', '--format=%P', commit)).toBe(seed);
       // Both files changed in the single commit.
@@ -557,6 +618,7 @@ describe('the working copy, save and discard (behavior)', () => {
         }),
       );
       await until(() => expect(ctx.status()).toBe('saved'));
+      await remoteReaches(ctx.remote.repoDir, ctx.store.slice('save')[ctx.bookId].commit);
 
       // The pushed commit holds the README byte for byte (read untrimmed).
       const blob = await run('git', ['--git-dir', ctx.remote.repoDir, 'show', 'main:README.md']);
@@ -624,6 +686,7 @@ describe('a save with no message, a save that fails (behavior)', () => {
       );
       await until(() => expect(ctx.status()).toBe('saved'));
       const first = ctx.store.slice('save')[ctx.bookId].commit;
+      await remoteReaches(ctx.remote.repoDir, first);
       expect(await gitRemote(ctx.remote.repoDir, 'log', '-1', '--format=%s', 'main')).toBe(
         'Update README.md',
       );
@@ -645,6 +708,7 @@ describe('a save with no message, a save that fails (behavior)', () => {
         }),
       );
       await until(() => expect(ctx.store.slice('save')[ctx.bookId].commit).not.toBe(first));
+      await remoteReaches(ctx.remote.repoDir, ctx.store.slice('save')[ctx.bookId].commit);
       expect(await gitRemote(ctx.remote.repoDir, 'log', '-1', '--format=%s', 'main')).toBe(
         'Update rainy-window.cifra.md',
       );

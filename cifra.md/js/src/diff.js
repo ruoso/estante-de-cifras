@@ -110,13 +110,22 @@ function diffTitle(before, after, out) {
 }
 
 // Properties align by `key` (last value wins on a duplicate key, as the reader
-// resolves them). Iterated in model order: before's keys first, then after's
-// new keys. "key: G → A", "capo added: 2", "capo removed".
+// resolves them). An empty or whitespace-only value (§1.4.2 allows one) is
+// absent: a blank `artist:` line is no `artist added: `, and a last empty value
+// leaves the key absent. Iterated in model order: before's keys first, then
+// after's new keys. "key: G → A", "capo added: 2", "capo removed".
+function propertyMap(properties) {
+  const map = new Map();
+  for (const { key, value } of properties) {
+    if (value == null || value.trim() === "") map.delete(key);
+    else map.set(key, value);
+  }
+  return map;
+}
+
 function diffProperties(before, after, out) {
-  const bmap = new Map();
-  for (const { key, value } of before.properties) bmap.set(key, value);
-  const amap = new Map();
-  for (const { key, value } of after.properties) amap.set(key, value);
+  const bmap = propertyMap(before.properties);
+  const amap = propertyMap(after.properties);
 
   const order = [];
   const seen = new Set();

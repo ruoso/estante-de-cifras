@@ -1002,6 +1002,9 @@ export default {
       'Se nombra una sola vez, a partir del título. Cambiar el título después edita su encabezado, no el archivo.',
     nameLabel: 'Tu nombre, tal como aparecerá en el historial de una canción',
     nameHelp: 'Se pregunta una vez. Al iniciar sesión, se ofrece el nombre de tu cuenta en su lugar.',
+    nameMissing: 'Escribe tu nombre para guardar.',
+    songNameMissing: 'Ponle un nombre a la canción para guardar.',
+    saving: 'Guardando…',
     refused: 'No guardado. La línea {line} no se pudo leer. Corrígela en el editor y guarda de nuevo.',
     refusedMerge:
       'No guardado. Resuelve primero los conflictos de este libro — guardar ahora se fundiría con la combinación.',

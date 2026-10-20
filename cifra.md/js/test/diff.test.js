@@ -211,6 +211,40 @@ describe("properties", () => {
       { kind: "property", op: "removed", where: { key: "capo" }, before: "2", after: null, text: "capo removed" },
     ]);
   });
+
+  // spec §1.4.2 allows an empty value; to the diff it is absent, so a blank
+  // `artist:` line never writes `artist added: ` into a save's note.
+  test("an empty value is absent", () => {
+    const body = "\n## Verse\n```\nC\n```\n";
+    const none = "# My Song\n- key: G\n" + body;
+    const empty = "# My Song\n- key: G\n- artist:\n" + body;
+    const blank = "# My Song\n- key: G\n- artist:   \n" + body;
+    const ana = "# My Song\n- key: G\n- artist: Ana\n" + body;
+
+    expect(diff(parse(none), parse(empty)).changes).toEqual([]);
+    expect(diff(parse(none), parse(blank)).changes).toEqual([]);
+    expect(diff(parse(empty), parse(empty)).changes).toEqual([]);
+
+    const added = diff(parse(empty), parse(ana));
+    expect(added.changes).toEqual([
+      { kind: "property", op: "added", where: { key: "artist" }, before: null, after: "Ana", text: "artist added: Ana" },
+    ]);
+    expect(added.summary).toBe("artist added: Ana");
+
+    const removed = diff(parse(ana), parse(empty));
+    expect(removed.changes).toEqual([
+      { kind: "property", op: "removed", where: { key: "artist" }, before: "Ana", after: null, text: "artist removed" },
+    ]);
+
+    // A duplicate key whose last value is empty is absent.
+    const lastEmpty = "# My Song\n- key: G\n- artist: Ana\n- artist:\n" + body;
+    expect(diff(parse(none), parse(lastEmpty)).changes).toEqual([]);
+
+    // A new song's head with a blank line: no `added: ` followed by nothing.
+    const fresh = diff(parse(body), parse(empty));
+    expect(fresh.summary).not.toMatch(/added: (;|$)/);
+    expect(fresh.summary).not.toMatch(/artist/);
+  });
 });
 
 // --- title -------------------------------------------------------------------

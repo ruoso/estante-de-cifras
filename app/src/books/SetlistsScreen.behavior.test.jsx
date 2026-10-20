@@ -146,7 +146,7 @@ describe('SetlistsScreen — never Loading forever (books.setlists_resilient)', 
     expect(await screen.findByText('Ensaio de sábado')).toBeInTheDocument();
 
     state.reply = 'error';
-    await emit(EventKind.SAVED, { bookId: 'band', commit: 'c1', pushed: false });
+    await emit(EventKind.SAVED, { bookId: 'band', commit: 'c1' });
     await waitFor(() => expect(lists()).toBe(2));
     expect(screen.getByText('Ensaio de sábado')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();

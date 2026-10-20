@@ -213,8 +213,10 @@ A flat map of singleton preferences, each a register:
 - `authorName` — the author's display name, as it will appear in a song's
   history (workflow 4 §Who made the change). The first save asks for it once and
   keeps it here; it is the commit author's name, distinct from the no-reply
-  address the id forms (§3.2). Absent until the first save; after sign-in the
-  account's name is offered in its place.
+  address the id forms (§3.2). Absent until the first save. The account's name
+  is this register in the account's home book — the service stores none
+  (DIRECTION §3.3) — so the account's home book brings its `authorName` to every
+  device signed in to it, and a device that has it never asks.
 - `density` — how much fits on a screen: `"compact"`, `"comfortable"` or
   `"roomy"` (workflow 1 §Density). Absent until the user chooses; while absent
   the density is comfortable. Choosing comfortable again writes the tombstone,

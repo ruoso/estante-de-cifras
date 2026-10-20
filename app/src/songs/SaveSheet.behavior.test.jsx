@@ -498,3 +498,152 @@ describe('save surface — one form, three presentations', () => {
     expect(commandsOf(sent, CommandKind.PREVIEW_SAVE)).toHaveLength(asked + 1);
   });
 });
+
+// songs.save_feedback — workflow 4 §Saving (the pending and missing-field
+// paragraph) and §Who made the change: Save is never grey for a missing field,
+// one tap makes one version, and the account's name takes the field's place.
+describe('save sheet — saving says what it is doing and why it cannot (songs.save_feedback)', () => {
+  const PROPS = { paths: ['tarde-clara.cifra.md'], titleHint: 'Tarde Clara' };
+  // The form's root in each presentation: the dialog, or the panel's region.
+  const formRoot = (presentation) =>
+    presentation === 'panel'
+      ? screen.getByRole('region', { name: 'Save Tarde Clara' })
+      : screen.getByRole('dialog');
+
+  describe.each(['sheet', 'dialog', 'panel'])('presentation="%s"', (presentation) => {
+    it('a blank name keeps Save pressable and says why', async () => {
+      const { store, sent, emit } = makeStore();
+      renderSheet({ ...PROPS, presentation }, store); // no PREFERENCES → no stored name
+      emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
+
+      const field = screen.getByRole('textbox', { name: /Your name/ });
+      const save = screen.getByRole('button', { name: 'Save' });
+      expect(save).toBeEnabled();
+      act(() => fireEvent.click(save));
+
+      // Nothing sent; the error under the field, described-by its input; the
+      // cursor in the field.
+      expect(commandsOf(sent, CommandKind.SET_IDENTITY_NAME)).toHaveLength(0);
+      expect(commandsOf(sent, CommandKind.SAVE)).toHaveLength(0);
+      const error = screen.getByText('Enter your name to save.');
+      expect(field).toHaveAttribute('aria-invalid', 'true');
+      expect(field.getAttribute('aria-describedby')?.split(' ')).toContain(error.id);
+      expect(field).toHaveAccessibleDescription(/Enter your name to save\./);
+      expect(field).toHaveFocus();
+      expect(await checkWcag21aa(formRoot(presentation))).toHaveNoViolations();
+
+      // A name typed: the error goes, and Save sends the name then the save.
+      act(() => fireEvent.change(field, { target: { value: 'Ana' } }));
+      expect(screen.queryByText('Enter your name to save.')).not.toBeInTheDocument();
+      expect(field).not.toHaveAttribute('aria-invalid', 'true');
+      act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+      const kinds = sent
+        .map((c) => c.kind)
+        .filter((k) => k === CommandKind.SET_IDENTITY_NAME || k === CommandKind.SAVE);
+      expect(kinds).toEqual([CommandKind.SET_IDENTITY_NAME, CommandKind.SAVE]);
+      expect(lastCommand(sent, CommandKind.SET_IDENTITY_NAME).payload.name).toBe('Ana');
+      expect(lastCommand(sent, CommandKind.SAVE).payload.name).toBe('Ana');
+    });
+  });
+
+  it('a whitespace-only name is blank too', () => {
+    const { store, sent, emit } = makeStore();
+    renderSheet(PROPS, store);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
+    const field = screen.getByRole('textbox', { name: /Your name/ });
+    act(() => fireEvent.change(field, { target: { value: '   ' } }));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+    expect(commandsOf(sent, CommandKind.SAVE)).toHaveLength(0);
+    expect(screen.getByText('Enter your name to save.')).toBeInTheDocument();
+  });
+
+  it('a blank song name says why', async () => {
+    const { store, sent, emit } = makeStore();
+    renderSheet({ paths: ['untitled.cifra.md'], isNew: true, fromPath: 'untitled.cifra.md' }, store);
+    // No stored name either: both fields blank.
+    emit(
+      event(EventKind.SAVE_PREVIEW, {
+        bookId: BOOK,
+        previews: [preview({ path: 'untitled.cifra.md', title: '', isNew: true })],
+      }),
+    );
+    const nameField = screen.getByRole('textbox', { name: /Your name/ });
+    const songField = screen.getByRole('textbox', { name: 'Name this song' });
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+
+    // Both say why; the cursor goes to the name first (the visual order).
+    expect(commandsOf(sent, CommandKind.NAME_AND_SAVE)).toHaveLength(0);
+    expect(commandsOf(sent, CommandKind.SET_IDENTITY_NAME)).toHaveLength(0);
+    expect(nameField).toHaveAccessibleDescription(/Enter your name to save\./);
+    expect(songField).toHaveAccessibleDescription(/Name the song to save\./);
+    expect(nameField).toHaveFocus();
+
+    // The name given, the song still unnamed: the cursor goes to the song name.
+    act(() => fireEvent.change(nameField, { target: { value: 'Ana' } }));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+    expect(commandsOf(sent, CommandKind.NAME_AND_SAVE)).toHaveLength(0);
+    expect(screen.queryByText('Enter your name to save.')).not.toBeInTheDocument();
+    expect(songField).toHaveAttribute('aria-invalid', 'true');
+    expect(songField).toHaveFocus();
+    expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
+
+    // Named: the error goes and NAME_AND_SAVE is sent with the title.
+    act(() => fireEvent.change(songField, { target: { value: 'Nova' } }));
+    expect(screen.queryByText('Name the song to save.')).not.toBeInTheDocument();
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+    expect(commandsOf(sent, CommandKind.NAME_AND_SAVE)).toHaveLength(1);
+    expect(lastCommand(sent, CommandKind.NAME_AND_SAVE).payload.title).toBe('Nova');
+  });
+
+  it('saving shows Saving… and a second press sends nothing', async () => {
+    const { store, sent, emit } = makeStore();
+    renderSheet(PROPS, store);
+    withName(emit);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
+
+    const save = screen.getByRole('button', { name: 'Save' });
+    act(() => fireEvent.click(save));
+    act(() => fireEvent.click(save));
+    act(() => fireEvent.click(screen.getByRole('button', { name: /Saving…/ })));
+    expect(commandsOf(sent, CommandKind.SAVE)).toHaveLength(1);
+
+    // Pending, said in a word; it keeps focus rather than going disabled.
+    const pending = screen.getByRole('button', { name: 'Saving…' });
+    expect(pending).toHaveAttribute('data-pending', 'true');
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    // Cancel stays available while saving.
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
+    expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
+
+    // Another book's refusal leaves this one pending.
+    emit(event(EventKind.SAVE_REFUSED, { bookId: 'book-2', reason: 'failed' }));
+    expect(screen.getByRole('button', { name: 'Saving…' })).toBeInTheDocument();
+
+    // This book's refusal: Save again, pressable.
+    emit(event(EventKind.SAVE_REFUSED, { bookId: BOOK, path: 'tarde-clara.cifra.md', reason: 'failed' }));
+    const again = screen.getByRole('button', { name: 'Save' });
+    expect(again).not.toHaveAttribute('data-pending');
+    act(() => fireEvent.click(again));
+    expect(commandsOf(sent, CommandKind.SAVE)).toHaveLength(2);
+  });
+
+  it("the account's name arriving takes the field's place", async () => {
+    const { store, sent, emit } = makeStore();
+    renderSheet(PROPS, store); // opened with no authorName
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
+    expect(screen.getByRole('textbox', { name: /Your name/ })).toBeInTheDocument();
+    // Pressed blank first: the error shows, then the name arrives and both go.
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+    expect(screen.getByText('Enter your name to save.')).toBeInTheDocument();
+
+    // The attach after sign-in brings the account home book's authorName.
+    emit(event(EventKind.PREFERENCES, { authorName: { value: 'Marina', at: AT } }));
+    expect(screen.queryByRole('textbox', { name: /Your name/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Enter your name to save.')).not.toBeInTheDocument();
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+    expect(lastCommand(sent, CommandKind.SAVE).payload.name).toBe('Marina');
+    expect(commandsOf(sent, CommandKind.SET_IDENTITY_NAME)).toHaveLength(0);
+    expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
+  });
+});

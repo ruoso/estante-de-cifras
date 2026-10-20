@@ -6,14 +6,29 @@
 // unsaved. Discard shows what would be lost and always asks. The first save ever
 // asks once for a name; the second does not, nor does a save after a reload. A
 // save made offline commits locally and persists. Axe runs at WCAG 2.1 AA on the
-// sheet and the discard dialog.
+// sheet and the discard dialog. songs.save_feedback: a blank name leaves Save
+// pressable and says why under the field, and a save on a hosted book with the
+// network gone closes at once and goes up at the next sync.
 // Every test starts at `/`: search -> song -> Edit, all through the real UI.
 // Fixtures are the bundled example book — purpose-written songs.
 
 import { test, expect } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
 import { runOffline } from '../lib/offline.js';
-import { openExampleBook, openSongInEditor, startApp, openSongFromSearch } from '../lib/journeys.js';
+import { GitDevice } from '../lib/git-device.js';
+import {
+  openExampleBook,
+  openSongInEditor,
+  startApp,
+  openSongFromSearch,
+  hostedBook,
+  waitUntilSearchable,
+  typeAtEndOfLine,
+  saveThroughSheet,
+  syncNow,
+  gotoTab,
+} from '../lib/journeys.js';
+import { gotoTabFromSong } from '../lib/journeys-sync.js';
 import { addSection, openSaveSheet, confirmSheet, backToSearch, editAgain } from '../lib/journeys-edit.js';
 
 const SONG_TITLE = 'Morning on the Porch';
@@ -188,4 +203,86 @@ test('a save made offline commits locally and persists', async ({ page }) => {
   await openSongFromSearch(page, 'Morning', SONG_TITLE);
   await editAgain(page);
   await expect(page.locator('.cm-content')).toContainText('OfflineEdit');
+});
+
+// songs.save_feedback — workflow 4 §Saving (the missing-field paragraph): Save
+// is never grey for a missing field; pressing it says what is missing, under the
+// field, and puts the cursor there.
+test('a blank name says why and puts the cursor there', async ({ page, checkA11y }) => {
+  await openExampleBook(page);
+  await openMorning(page);
+  await addSection(page, 'BlankNameCoda');
+
+  const sheet = await openSaveSheet(page);
+  const nameField = sheet.getByRole('textbox', { name: /Your name/ });
+  await expect(nameField).toHaveValue('');
+  const save = sheet.getByRole('button', { name: 'Save', exact: true });
+  await expect(save).toBeEnabled();
+  await save.click();
+
+  // The reason, in words, under the field; the cursor in it; the sheet open.
+  await expect(sheet.getByText('Enter your name to save.')).toBeVisible();
+  await expect(nameField).toBeFocused();
+  await expect(nameField).toHaveAttribute('aria-invalid', 'true');
+  await expect(sheet).toBeVisible();
+  await checkA11y(); // the sheet in the error state
+
+  // A name typed: the error goes and the save goes through.
+  await nameField.fill('Marina Souza');
+  await expect(sheet.getByText('Enter your name to save.')).toHaveCount(0);
+  await save.click();
+  await expect(sheet).toBeHidden();
+});
+
+// songs.save_feedback Constraint 1 — workflow 4 §Save pushes, workflow 8 L18 and
+// L31: the save never waits on the network. With it gone the sheet closes as
+// soon as the commit is kept, the book reads *1 save waiting to go up*, and the
+// next sync takes it up. The network is cut with setOffline (no route mocking).
+test('a save with the network gone closes at once and goes up at the next sync', async ({
+  page,
+  checkA11y,
+}) => {
+  const HOSTED = 'Caderno do Cais';
+  const TITLE = 'Vento Sul';
+  const FILE = 'vento-sul.cifra.md';
+  const LINE = 'D | A | Bm | G';
+  const song = ['# ' + TITLE, '- language: en', '', '## Parte', '```', LINE, '```'].join('\n') + '\n';
+
+  const { url, cookie } = await hostedBook(page, HOSTED);
+  const seeder = new GitDevice({ url, cookie });
+  try {
+    await seeder.pushFiles({ [FILE]: song }, 'Add a song');
+  } finally {
+    seeder.cleanup();
+  }
+  await waitUntilSearchable(page, 'Vento', TITLE);
+
+  await page.context().setOffline(true);
+  await openSongInEditor(page, 'Vento', TITLE);
+  await typeAtEndOfLine(page, LINE, ' | E7');
+  // Waits for the sheet to close — the commit kept on this device, no network.
+  await saveThroughSheet(page, { note: 'Saved with the network gone' });
+
+  await gotoTabFromSong(page, 'Books');
+  const row = page.locator('.book-row', { hasText: HOSTED });
+  await expect(row.getByText('1 save waiting to go up')).toBeVisible({ timeout: 10000 });
+  await checkA11y(); // the Books screen with the waiting state
+
+  // The network is back: the next sync takes the save up.
+  await page.context().setOffline(false);
+  await syncNow(page);
+  await gotoTab(page, 'Books');
+  await expect(row.getByText(/saves? waiting/)).toHaveCount(0, { timeout: 10000 });
+  // "syncing" also hides the waiting words, before the push lands: wait for the
+  // book in step — no badge on its row, no header mark.
+  await expect(row.locator('.badge')).toHaveCount(0, { timeout: 10000 });
+  await expect(page.getByRole('img', { name: 'Some books are not in step' })).toHaveCount(0);
+
+  const reader = new GitDevice({ url, cookie });
+  try {
+    await reader.clone();
+    expect(reader.read(FILE)).toContain(`${LINE} | E7`);
+  } finally {
+    reader.cleanup();
+  }
 });

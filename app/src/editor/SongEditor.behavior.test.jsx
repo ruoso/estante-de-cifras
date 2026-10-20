@@ -545,9 +545,9 @@ describe('SongEditor', () => {
     await waitFor(() => expect(last()).toBe(true));
 
     // Saved: cleared. A SAVED for another path leaves it alone first.
-    emit(event(EventKind.SAVED, { bookId: BOOK, paths: ['other.cifra.md'], commit: 'c0', pushed: true }));
+    emit(event(EventKind.SAVED, { bookId: BOOK, paths: ['other.cifra.md'], commit: 'c0' }));
     expect(last()).toBe(true);
-    emit(event(EventKind.SAVED, { bookId: BOOK, paths: [PATH], commit: 'c2', pushed: true }));
+    emit(event(EventKind.SAVED, { bookId: BOOK, paths: [PATH], commit: 'c2' }));
     await waitFor(() => expect(last()).toBe(false));
 
     // A SOURCE whose working text differs from HEAD: unsaved again.

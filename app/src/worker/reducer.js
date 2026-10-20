@@ -218,8 +218,8 @@ export function reduce(state, message) {
       };
 
     case EventKind.SAVED: {
-      // A save landed: record the commit and whether the push landed, under the
-      // book's key. Only this book's entry moves; the rest of `save` keeps its
+      // A save landed: record the commit under the book's key — whether it went
+      // up is the SYNC facts' to say (songs.save_feedback Constraint 2). Only this book's entry moves; the rest of `save` keeps its
       // references (DIRECTION §3.7 "only what shows it moves").
       const bookId = message.payload?.bookId;
       if (!bookId) return state;
@@ -230,7 +230,6 @@ export function reduce(state, message) {
           [bookId]: {
             status: 'saved',
             commit: message.payload?.commit ?? null,
-            pushed: message.payload?.pushed ?? null,
           },
         },
       };

@@ -60,3 +60,10 @@
   flex-direction: column;
   gap: var(--u);
 }
+
+/* A field the save needs and does not have says so under it, in a word and in
+   the conflict ink (songs.save_feedback Constraint 4; W04's *Not saved*). */
+.est-save-field-error {
+  color: var(--conflict);
+  font-weight: 600;
+}

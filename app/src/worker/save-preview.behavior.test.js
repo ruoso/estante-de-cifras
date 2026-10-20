@@ -7,7 +7,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
-import { log as gitLog } from 'isomorphic-git';
+import nodeFs from 'node:fs';
+import { log as gitLog, resolveRef } from 'isomorphic-git';
 import { createFileSystem } from './fs.js';
 import { createGitLayer } from './git.js';
 import { createGitHttpClient } from './git-http.js';
@@ -214,8 +215,8 @@ describe('SAVE with the sheet note, and the first-save author name', () => {
   });
 });
 
-describe('an offline save keeps the commit and reports it did not push (§Save pushes)', () => {
-  it('a save with no network commits locally with pushed:false', async () => {
+describe('an offline save keeps the commit and leaves the push waiting (§Save pushes)', () => {
+  it('a save with no network commits locally and the remote stays where it was', async () => {
     const remote = await startGitHttpRemote();
     const idb = new IDBFactory();
     const name = `spo-${Math.random().toString(36).slice(2)}`;
@@ -227,6 +228,9 @@ describe('an offline save keeps the commit and reports it did not push (§Save p
     const bookId = 'book-online';
     try {
       await git.clone({ dir: git.bookDir(bookId), url: remote.url });
+      const remoteMain = () =>
+        resolveRef({ fs: nodeFs, gitdir: remote.repoDir, ref: 'refs/heads/main' });
+      const seed = await remoteMain();
 
       const endpoint = createLoopbackEndpoint((port) =>
         createWorkerLogic(port, { indexedDB: idb, name, fetch: fetchImpl }),
@@ -249,7 +253,10 @@ describe('an offline save keeps the commit and reports it did not push (§Save p
         }),
       );
       await until(() => expect(store.slice('save')[bookId]?.status).toBe('saved'));
-      expect(store.slice('save')[bookId].pushed).toBe(false);
+      // SAVED claims no push outcome (songs.save_feedback Constraint 2); the
+      // after-save sync pass cannot reach the remote, so it is still the seed.
+      expect(store.slice('save')[bookId]).not.toHaveProperty('pushed');
+      expect(await remoteMain()).toBe(seed);
       expect(store.slice('save')[bookId].commit).toBeTruthy();
 
       // The commit is durable: HEAD holds it on the shared fs.

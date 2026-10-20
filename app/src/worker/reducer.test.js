@@ -54,13 +54,11 @@ describe('worker store reducer', () => {
   it('folds a save outcome into the save slice under its book, as a word (storage.working_copy)', () => {
     const saved = reduce(
       initialState,
-      event(EventKind.SAVED, { bookId: 'book-1', commit: 'abc123', pushed: true }),
+      event(EventKind.SAVED, { bookId: 'book-1', commit: 'abc123' }),
     );
-    expect(saved.save['book-1']).toEqual({
-      status: 'saved',
-      commit: 'abc123',
-      pushed: true,
-    });
+    // No push outcome: whether it went up is the SYNC facts' (songs.save_feedback
+    // Constraint 2).
+    expect(saved.save['book-1']).toEqual({ status: 'saved', commit: 'abc123' });
 
     // A discard and a refusal carry their own words; a refusal names the file,
     // reason and first marker line (spec §11.12.3).
@@ -89,12 +87,12 @@ describe('worker store reducer', () => {
   it('keeps an untouched book’s save entry referentially equal (only what shows it moves)', () => {
     const a = reduce(
       initialState,
-      event(EventKind.SAVED, { bookId: 'book-a', commit: 'a1', pushed: true }),
+      event(EventKind.SAVED, { bookId: 'book-a', commit: 'a1' }),
     );
     const entryA = a.save['book-a'];
     // A save in a different book moves only that book's entry.
-    const b = reduce(a, event(EventKind.SAVED, { bookId: 'book-b', commit: 'b1', pushed: false }));
-    expect(b.save['book-b']).toEqual({ status: 'saved', commit: 'b1', pushed: false });
+    const b = reduce(a, event(EventKind.SAVED, { bookId: 'book-b', commit: 'b1' }));
+    expect(b.save['book-b']).toEqual({ status: 'saved', commit: 'b1' });
     // book-a's entry keeps its exact reference (the Object.is bail-out), as do
     // the unrelated connection/meta slices.
     expect(Object.is(b.save['book-a'], entryA)).toBe(true);
@@ -138,7 +136,7 @@ describe('worker store reducer', () => {
     );
     const after = reduce(
       withPrefs,
-      event(EventKind.SAVED, { bookId: 'book-1', commit: 'c1', pushed: true }),
+      event(EventKind.SAVED, { bookId: 'book-1', commit: 'c1' }),
     );
     expect(Object.is(after.preferences, withPrefs.preferences)).toBe(true);
   });

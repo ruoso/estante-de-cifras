@@ -1001,6 +1001,9 @@ export default {
       'Nomeado uma vez, a partir do título. Mudar o título depois edita o cabeçalho, não o arquivo.',
     nameLabel: 'Seu nome, como aparecerá no histórico de uma música',
     nameHelp: 'Perguntado uma vez. Depois de entrar, o nome da sua conta é oferecido no lugar.',
+    nameMissing: 'Digite seu nome para salvar.',
+    songNameMissing: 'Dê um nome à música para salvar.',
+    saving: 'Salvando…',
     refused: 'Não salvo. A linha {line} não pôde ser lida. Corrija no editor e salve de novo.',
     refusedMerge:
       'Não salvo. Resolva primeiro os conflitos deste livro — um save agora seria incorporado à mesclagem.',
