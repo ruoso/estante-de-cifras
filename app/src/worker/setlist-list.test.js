@@ -6,12 +6,15 @@
 //   - a `HEAD` → `refs/heads/main` with no `main` is not a book yet (M8);
 //   - a book whose read throws (any error) is skipped, the other listed;
 //   - the row shape (title, song + unlinked count), subfolder paths, and that
-//     `.git` is never walked.
+//     `.git` is never walked;
+//   - each row's status from its blob at `main` — new / unsaved / null — and a
+//     status read that throws leaves the row listed, null (books.setlist_done
+//     Constraint 4).
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { init, add, commit, resolveRef } from 'isomorphic-git';
 import { createFileSystem } from './fs.js';
-import { listSetlists } from './setlist-list.js';
+import { listSetlists, statusAtMain } from './setlist-list.js';
 import { installWebLocks } from '../test/web-locks.js';
 
 let restoreLocks;
@@ -97,7 +100,7 @@ describe('listSetlists (unit)', () => {
       hasCommits: hasCommitsOn(fs),
     });
     expect(rows).toEqual([
-      { bookId: 'band', path: 'ensaio.setlist.md', title: 'Ensaio de sábado', count: 2 },
+      { bookId: 'band', path: 'ensaio.setlist.md', title: 'Ensaio de sábado', count: 2, status: null },
     ]);
   });
 
@@ -180,10 +183,58 @@ describe('listSetlists (unit)', () => {
       hasCommits: hasCommitsOn(fs),
     });
     expect(rows).toEqual([
-      { bookId: 'band', path: 'ensaio.setlist.md', title: 'Ensaio de sábado', count: 2 },
-      { bookId: 'band', path: 'gigs/aula.setlist.md', title: 'Aula de terça', count: 1 },
-      { bookId: 'band', path: 'nova.setlist.md', title: 'Lista perdida', count: 1 },
-      { bookId: 'ana', path: 'aula.setlist.md', title: 'Aula de terça', count: 1 },
+      { bookId: 'band', path: 'ensaio.setlist.md', title: 'Ensaio de sábado', count: 2, status: null },
+      { bookId: 'band', path: 'gigs/aula.setlist.md', title: 'Aula de terça', count: 1, status: null },
+      { bookId: 'band', path: 'nova.setlist.md', title: 'Lista perdida', count: 1, status: null },
+      { bookId: 'ana', path: 'aula.setlist.md', title: 'Aula de terça', count: 1, status: null },
+    ]);
+  });
+
+  it('rows carry the setlist\'s status: new for a file never committed, unsaved for one changed since main, null when clean (books.setlist_done Constraint 4)', async () => {
+    const fs = freshFs();
+    await makeBook(fs, 'band', {
+      'ensaio.setlist.md': ENSAIO,
+      'gigs/aula.setlist.md': AULA,
+    });
+    // One committed setlist edited in the working tree, one left clean, one
+    // written and never committed.
+    await writeFile(fs, '/books/band/ensaio.setlist.md', `${ENSAIO}3. Mais uma\n`);
+    await writeFile(fs, '/books/band/nova.setlist.md', STRAY);
+
+    const rows = await listSetlists({
+      fs,
+      bookDir,
+      bookIds: ['band'],
+      hasCommits: hasCommitsOn(fs),
+      statusOf: statusAtMain({ fs, bookDir }),
+    });
+    expect(rows.map((r) => [r.path, r.status])).toEqual([
+      ['ensaio.setlist.md', 'unsaved'],
+      ['gigs/aula.setlist.md', null],
+      ['nova.setlist.md', 'new'],
+    ]);
+  });
+
+  it('a status read that throws leaves the row listed with status null (books.setlist_done Constraint 4; setlists_resilient Constraint 2)', async () => {
+    const fs = freshFs();
+    await makeBook(fs, 'band', { 'ensaio.setlist.md': ENSAIO });
+    await writeFile(fs, '/books/band/nova.setlist.md', STRAY);
+    const failing = new Error('the store is unreadable');
+    failing.code = 'EIO';
+
+    const rows = await listSetlists({
+      fs,
+      bookDir,
+      bookIds: ['band'],
+      hasCommits: hasCommitsOn(fs),
+      statusOf: async (bookId, path) => {
+        if (path === 'nova.setlist.md') throw failing;
+        return 'unsaved';
+      },
+    });
+    expect(rows).toEqual([
+      { bookId: 'band', path: 'ensaio.setlist.md', title: 'Ensaio de sábado', count: 2, status: 'unsaved' },
+      { bookId: 'band', path: 'nova.setlist.md', title: 'Lista perdida', count: 1, status: null },
     ]);
   });
 });

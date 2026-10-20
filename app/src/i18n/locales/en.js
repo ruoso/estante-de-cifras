@@ -521,6 +521,7 @@ export default {
     saveMessage: 'Edit setlist',
     discard: 'Discard',
     unsaved: 'unsaved changes',
+    notSavedYet: 'not saved yet',
     songsLabel: 'Songs · drag to reorder',
     keyNoteHint: 'Key and note apply in this setlist only',
     dragToReorder: 'Drag to reorder',

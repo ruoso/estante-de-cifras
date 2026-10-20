@@ -12,7 +12,9 @@
  *     reload;
  *   - rename a song a setlist uses in the file view: the setlist still opens it;
  *   - Add song in the editor marks a song already in the setlist, in words with
- *     its places, and still adds it (books.setlist_picker_fixes).
+ *     its places, and still adds it (books.setlist_picker_fixes);
+ *   - a new setlist reads *not saved yet* until saved, and Done leaves editing
+ *     keeping the change (books.setlist_done).
  * axe (WCAG 2.1 AA, contrast in a real browser) runs on each screen and overlay.
  *
  * Pins workflow 12 §Building one (L57-61), §Songs from another book (L38-40),
@@ -79,14 +81,14 @@ test('build a setlist from songs, add a second, edit key and note, and save', as
   await checkA11y();
   await editSetlist(page);
 
-  // Edit the first item's key and note, then save; the unsaved word appears and
-  // clears.
+  // Edit the first item's key and note, then save; the status word — *not saved
+  // yet*, the setlist never having been saved (books.setlist_done) — clears.
   await page.getByRole('textbox', { name: 'Key for Morning on the Porch' }).fill('G');
   await page.getByRole('textbox', { name: 'Note for Morning on the Porch' }).fill('start gently');
-  await expect(page.getByText('unsaved changes')).toBeVisible();
+  await expect(page.getByText('not saved yet')).toBeVisible();
   await checkA11y(); // the editor
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('unsaved changes')).toBeHidden();
+  await expect(page.getByText('not saved yet')).toBeHidden();
 });
 
 // A two-song setlist open in the editor: Morning on the Porch, The Ferry Line.
@@ -134,9 +136,9 @@ test('Add song in the editor marks a song already in the setlist', async ({ page
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(names()).toHaveText(['Morning on the Porch', 'The Ferry Line', 'Morning on the Porch']);
   await expect(page.locator('.setlist-edit-row .setlist-num')).toHaveText(['1', '2', '3']);
-  await expect(page.getByText('unsaved changes')).toBeVisible();
+  await expect(page.getByText('not saved yet')).toBeVisible();
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('unsaved changes')).toBeHidden();
+  await expect(page.getByText('not saved yet')).toBeHidden();
 });
 
 test('reorder a setlist by keyboard on the computer', async ({ page }, testInfo) => {
@@ -164,9 +166,9 @@ test('removing an item in the setlist editor and saving drops it for good (audit
 
   await page.getByRole('button', { name: 'Remove The Ferry Line from setlist' }).click();
   await expect(names()).toHaveText(['Morning on the Porch']);
-  await expect(page.getByText('unsaved changes')).toBeVisible();
+  await expect(page.getByText('not saved yet')).toBeVisible();
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('unsaved changes')).toBeHidden();
+  await expect(page.getByText('not saved yet')).toBeHidden();
 
   // Durable: after a reload the setlist has only the one song.
   await startApp(page);
@@ -221,9 +223,9 @@ test('copy a song from another book into a setlist (Copy and add), saved', async
   // Open the setlist and save: the copy and the setlist change commit together.
   await openSetlist(page, 'Gig Night');
   await page.getByRole('button', { name: 'Edit' }).click();
-  await expect(page.getByText('unsaved changes')).toBeVisible();
+  await expect(page.getByText('not saved yet')).toBeVisible();
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('unsaved changes')).toBeHidden();
+  await expect(page.getByText('not saved yet')).toBeHidden();
   // Harbour Lights is now a song in the setlist.
   await expect(page.locator('.setlist-edit-row .name', { hasText: 'Harbour Lights' })).toBeVisible();
 });
@@ -325,4 +327,72 @@ test('the tab bar stays under an open setlist on a phone; Search is a tap away',
     await gotoTab(page, 'Search');
     await expect(page.getByRole('searchbox')).toBeVisible();
   }
+});
+
+// books.setlist_done — workflow 12 §Building one: a setlist never saved reads
+// *not saved yet* (its row in Setlists, its read view, the editor bar) until its
+// first save; an edited saved one reads *unsaved changes*. The editor's bar
+// starts with **Done**, which leaves editing keeping every change, focus on Edit.
+test('a setlist made from Add to setlist says not saved yet until saved, and Done leaves editing keeping the change (workflow 12 §Building one)', async ({
+  page,
+  checkA11y,
+}) => {
+  await seedExample(page);
+  await addToNewSetlist(page, 'Morning', 'Morning on the Porch', 'Gig Night');
+
+  // The Setlists destination: the row says it, in the row's own name.
+  await gotoTab(page, 'Setlists');
+  const row = page.getByRole('button', { name: /Gig Night/ });
+  await expect(row).toContainText('not saved yet');
+  await expect(row).not.toContainText('unsaved changes');
+  await checkA11y();
+
+  // The read view: under its title, never *unsaved changes*.
+  await openSetlist(page, 'Gig Night');
+  const head = page.locator('.setlist-head');
+  await expect(head.getByText('not saved yet', { exact: true })).toBeVisible();
+  await expect(page.getByText('unsaved changes')).toHaveCount(0);
+  await checkA11y();
+
+  // The editor bar says the same, before and after an edit.
+  await editSetlist(page);
+  const bar = page.locator('.setlist-edit-bar');
+  await expect(bar.getByText('not saved yet', { exact: true })).toBeVisible();
+  const key = page.getByRole('textbox', { name: 'Key for Morning on the Porch' });
+  await key.fill('G');
+  await expect(bar.getByText('not saved yet', { exact: true })).toBeVisible();
+  await expect(page.getByText('unsaved changes')).toHaveCount(0);
+  await checkA11y();
+
+  // Done: back in the read view with the key kept, still not saved, Edit focused.
+  await bar.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(page.getByText('in G', { exact: true })).toBeVisible();
+  await expect(head.getByText('not saved yet', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeFocused();
+  await checkA11y();
+
+  // Edit again: the key is still there. Save clears the word everywhere.
+  await editSetlist(page);
+  await expect(key).toHaveValue('G');
+  await bar.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(bar.getByText('not saved yet', { exact: true })).toBeHidden();
+  await expect(bar.locator('.badge')).toHaveCount(0);
+  await checkA11y();
+  await bar.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(page.getByText('in G', { exact: true })).toBeVisible();
+  await expect(head.locator('.badge')).toHaveCount(0);
+  await checkA11y();
+  // The read view's own Back (unchanged) to the Setlists destination.
+  await page.getByRole('button', { name: 'Back', exact: true }).first().click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Setlists' })).toBeVisible();
+  await expect(row).toBeVisible();
+  await expect(row.locator('.badge')).toHaveCount(0);
+  await checkA11y();
+
+  // An edit to the saved setlist reads *unsaved changes* in the bar.
+  await openSetlist(page, 'Gig Night');
+  await editSetlist(page);
+  await page.getByRole('textbox', { name: 'Note for Morning on the Porch' }).fill('start gently');
+  await expect(bar.getByText('unsaved changes', { exact: true })).toBeVisible();
+  await expect(page.getByText('not saved yet')).toHaveCount(0);
 });

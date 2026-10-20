@@ -29,7 +29,7 @@ import { createWorkingCopy } from './working-copy.js';
 import { createSavePreview } from './save-preview.js';
 import { createHistory } from './history.js';
 import { createBookTree } from './book-tree.js';
-import { listSetlists } from './setlist-list.js';
+import { listSetlists, statusAtMain } from './setlist-list.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createChangeCheckClient } from './change-check-client.js';
 import { createBooksClient } from './books-client.js';
@@ -2202,12 +2202,16 @@ export function createWorkerLogic(port, options = {}) {
             // or one that cannot be read is skipped, and the rest are listed
             // (books.setlists_resilient Constraints 1-3). The home-state book
             // holds no setlists, so it is excluded exactly as the index sweep
-            // excludes it.
+            // excludes it. Each row's status word (`new` / `unsaved` / null)
+            // comes from its blob at `main`, still lock-free
+            // (books.setlist_done Constraint 4).
+            const setlistBookDir = (bookId) => ensureGit().bookDir(bookId);
             const setlists = await listSetlists({
               fs: ensureFs(),
-              bookDir: (bookId) => ensureGit().bookDir(bookId),
+              bookDir: setlistBookDir,
               bookIds: await listBookIds(ensureFs(), HOME_BOOK_ID),
               hasCommits,
+              statusOf: statusAtMain({ fs: ensureFs(), bookDir: setlistBookDir }),
             });
             port.postMessage(event(EventKind.SETLISTS, { setlists }));
             break;

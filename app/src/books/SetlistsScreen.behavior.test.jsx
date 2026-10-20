@@ -7,7 +7,7 @@
 // file L34. All setlist text is written for this test.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, act, fireEvent, waitFor, within } from '@testing-library/react';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
@@ -37,8 +37,12 @@ afterEach(() => {
   delete globalThis.matchMedia;
 });
 
+// One clean, one never saved, one saved and edited (books.setlist_done
+// Constraint 3: each row's status).
 const SETLISTS = [
-  { bookId: 'band', path: 'ensaio.setlist.md', title: 'Ensaio de sábado', count: 3 },
+  { bookId: 'band', path: 'ensaio.setlist.md', title: 'Ensaio de sábado', count: 3, status: null },
+  { bookId: 'band', path: 'nova.setlist.md', title: 'Roda de domingo', count: 1, status: 'new' },
+  { bookId: 'band', path: 'aula.setlist.md', title: 'Aula de terça', count: 2, status: 'unsaved' },
 ];
 
 // A fake Worker whose LIST_SETLISTS reply is chosen per test: `list` answers
@@ -170,6 +174,29 @@ describe('SetlistsScreen — never Loading forever (books.setlists_resilient)', 
     const { store } = makeStore({ reply: 'list' });
     const { container } = renderScreen(store);
     expect(await screen.findByText('Ensaio de sábado')).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
+describe('SetlistsScreen — each row says its status (books.setlist_done)', () => {
+  it('a row reads "not saved yet" for a new setlist, "unsaved changes" for an edited one, and nothing for a clean one; the word is in the row button\'s name; axe clean (Constraint 3; workflow 12 §Building one)', async () => {
+    const { store } = makeStore();
+    const { container } = renderScreen(store);
+    const fresh = await screen.findByRole('button', { name: /Roda de domingo/ });
+    expect(fresh).toHaveAccessibleName(expect.stringContaining('not saved yet'));
+    expect(fresh).not.toHaveAccessibleName(expect.stringContaining('unsaved changes'));
+
+    const edited = screen.getByRole('button', { name: /Aula de terça/ });
+    expect(edited).toHaveAccessibleName(expect.stringContaining('unsaved changes'));
+    expect(edited).not.toHaveAccessibleName(expect.stringContaining('not saved yet'));
+
+    const clean = screen.getByRole('button', { name: /Ensaio de sábado/ });
+    expect(clean).not.toHaveAccessibleName(expect.stringContaining('not saved yet'));
+    expect(clean).not.toHaveAccessibleName(expect.stringContaining('unsaved changes'));
+
+    // The same badge as the setlist's own; the word, not a colour, differs.
+    expect(within(fresh).getByText('not saved yet')).toHaveClass('badge', 'unsaved', 'dot');
+    expect(within(edited).getByText('unsaved changes')).toHaveClass('badge', 'unsaved', 'dot');
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });

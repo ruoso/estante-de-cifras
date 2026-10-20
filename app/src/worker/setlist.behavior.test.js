@@ -237,7 +237,7 @@ describe('the setlist Worker seams (behavior)', () => {
       unsub();
 
       expect(setlists).toEqual([
-        { bookId: 'band', path: 'gigs/ensaio.setlist.md', title: 'Ensaio', count: 1 },
+        { bookId: 'band', path: 'gigs/ensaio.setlist.md', title: 'Ensaio', count: 1, status: null },
       ]);
       expect(errors).toEqual([]);
     } finally {

@@ -14,6 +14,11 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { orderedBooks, titleFor } from './book-display.js';
 import './setlist.css';
 
+// A row's status word (books.setlist_done Constraint 3; workflow 12 §Building
+// one): the same rule as the setlist's own badge, inside the row button so a
+// screen reader hears it in the row's name.
+const STATUS_WORD = { new: 'setlists.notSavedYet', unsaved: 'setlists.unsaved' };
+
 export default function SetlistsScreen({ store, onOpenSetlist = () => {} }) {
   const setlists = useSlice(store, 'setlists');
   const shelf = useSlice(store, 'shelf');
@@ -97,6 +102,11 @@ export default function SetlistsScreen({ store, onOpenSetlist = () => {} }) {
                   })}
                 </span>
               </span>
+              {STATUS_WORD[s.status] ? (
+                <span className="badges">
+                  <span className="badge unsaved dot">{t(STATUS_WORD[s.status])}</span>
+                </span>
+              ) : null}
             </Button>
           ))}
         </div>

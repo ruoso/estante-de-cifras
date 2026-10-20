@@ -199,7 +199,19 @@ export default function SetlistView({
   const bookTitle = titleFor(orderedBooks(shelf).find((e) => e.id === bookId)?.book ?? {}, t('books.untitled'));
   const folder = folderOf(path);
   const songCount = t('setlists.songCount', { count: rows.length });
-  const unsaved = touched || statusByPath[path] === 'unsaved' || statusByPath[path] === 'new';
+  // One rule for the status word, in the read view and the editor bar
+  // (books.setlist_done Constraint 1; workflow 12 §Building one): a setlist the
+  // working copy reports `new` reads *not saved yet* until its first save,
+  // whatever was edited since (Decision 1); an edited saved one reads *unsaved
+  // changes*; a clean one, nothing. The same badge — the word tells them apart.
+  const fileStatus = statusByPath[path];
+  const statusWord =
+    fileStatus === 'new'
+      ? t('setlists.notSavedYet')
+      : touched || fileStatus === 'unsaved'
+        ? t('setlists.unsaved')
+        : null;
+  const unsaved = statusWord != null;
 
   const apply = (next) => {
     setModel(next);
@@ -274,6 +286,21 @@ export default function SetlistView({
   // draws it (the setlist's text may arrive a render later) — the shell clears
   // the flag once honoured.
   const shareRef = useRef(null);
+  // *Done* leaves editing keeping every change (the WRITEs already happened) and
+  // hands focus to the read view's *Edit*, whichever way editing was entered
+  // (books.setlist_done Constraint 5, Decision 4).
+  const editRef = useRef(null);
+  const focusEditRef = useRef(false);
+  const done = () => {
+    focusEditRef.current = true;
+    setEditing(false);
+  };
+  useEffect(() => {
+    if (!editing && focusEditRef.current && editRef.current) {
+      focusEditRef.current = false;
+      editRef.current.focus();
+    }
+  }, [editing]);
   const offersShare = current != null && !editing;
   useEffect(() => {
     if (autoFocusShare && offersShare && shareRef.current) {
@@ -315,6 +342,7 @@ export default function SetlistView({
           <span className="t-small">
             {[bookTitle, folder, songCount].filter(Boolean).join(' · ')}
           </span>
+          {statusWord ? <span className="badge unsaved dot setlist-head-status">{statusWord}</span> : null}
         </div>
         <Button className="btn primary block" onPress={() => onPlay({ bookId, path })}>
           <Icon d={PLAY} fill /> {t('setlists.play')}
@@ -361,7 +389,7 @@ export default function SetlistView({
             <Icon d={BACK} size={24} />
           </Button>
           <span className="title">{title}</span>
-          <Button className="btn quiet" onPress={() => setEditing(true)}>
+          <Button ref={editRef} className="btn quiet" onPress={() => setEditing(true)}>
             {t('setlists.edit')}
           </Button>
           {wide ? (
@@ -541,14 +569,14 @@ export default function SetlistView({
 
   return (
     <div className="setlist-screen">
-      {/* Two groups (shell.narrow_fixes Decision 2): the head — Back, the
+      {/* Two groups (shell.narrow_fixes Decision 2): the head — Done, the
           title and the book name under it, as the read view's .setlist-head —
           and the actions, the status word first and Save last, wrapping as a
           unit onto a second row on a phone. One row on the computer (W12). */}
       <div className="appbar setlist-edit-bar">
         <div className="setlist-bar-head">
-          <Button className="btn icon" aria-label={t('setlists.back')} onPress={() => setEditing(false)}>
-            <Icon d={BACK} size={24} />
+          <Button className="btn" onPress={done}>
+            {t('setlists.done')}
           </Button>
           <span className="setlist-bar-titles">
             <span className="title">{title}</span>
@@ -556,7 +584,7 @@ export default function SetlistView({
           </span>
         </div>
         <div className="setlist-bar-actions">
-          {unsaved ? <span className="badge unsaved dot">{t('setlists.unsaved')}</span> : null}
+          {statusWord ? <span className="badge unsaved dot">{statusWord}</span> : null}
           <Button className="btn" onPress={() => setAddingSong(true)}>
             <Icon d={PLUS} size={18} /> {t('setlists.addSong')}
           </Button>

@@ -39,8 +39,8 @@
 .setlist-screen .scroll {
   overflow-y: auto;
 }
-/* The editor's app bar carries the most controls of any bar in the app (back,
-   title, book, the unsaved badge, Add song, Play, Discard, Save); on a phone
+/* The editor's app bar carries the most controls of any bar in the app (Done,
+   title, book, the status badge, Add song, Play, Discard, Save); on a phone
    they cannot fit one row, so let the bar wrap rather than overflow its right
    edge (where Save would sit under a neighbour, uncliquable). Harmless on the
    wider read-view bar and the computer, which never overflow. */
@@ -88,6 +88,10 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+/* The setlist's status word under its title (books.setlist_done Constraint 2). */
+.setlist-head-status {
+  align-self: flex-start;
 }
 /* The leading number in a row. */
 .setlist-num {

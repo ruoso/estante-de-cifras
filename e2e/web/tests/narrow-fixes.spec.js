@@ -172,7 +172,8 @@ test('the setlist editor, unsaved: the bar wraps by group, the book name and the
   await key.fill('Am');
 
   const bar = page.locator('.setlist-edit-bar');
-  const badge = bar.getByText('unsaved changes', { exact: true });
+  // Never saved, so the status word is *not saved yet* (books.setlist_done).
+  const badge = bar.getByText('not saved yet', { exact: true });
   await expect(badge).toBeVisible();
   const save = bar.getByRole('button', { name: 'Save', exact: true });
   const book = bar.getByText(EXAMPLE_BOOK, { exact: true });
@@ -198,7 +199,7 @@ test('the setlist editor, unsaved: the bar wraps by group, the book name and the
     const badgeBox = await badge.boundingBox();
     const saveBox = await save.boundingBox();
     const boxes = await Promise.all(actions.map((a) => a.boundingBox()));
-    expect(boxes.some((b) => sameRow(b, badgeBox)), `${where}: "unsaved changes" sits alone on its row`).toBe(true);
+    expect(boxes.some((b) => sameRow(b, badgeBox)), `${where}: "not saved yet" sits alone on its row`).toBe(true);
     for (const b of [badgeBox, ...boxes]) {
       const before = b.y + b.height <= saveBox.y + 1 || (sameRow(b, saveBox) && b.x + b.width <= saveBox.x + 1);
       expect(before, `${where}: Save is not the last action`).toBe(true);
@@ -208,7 +209,7 @@ test('the setlist editor, unsaved: the bar wraps by group, the book name and the
     expect(rightPad, `${where}: Save is not at the bar's right`).toBeLessThanOrEqual(32);
     // The computer bar stays one row, as W12 draws it.
     if (testInfo.project.name === 'computer') {
-      expect(sameRow(await bar.getByRole('button', { name: 'Back' }).boundingBox(), saveBox), `${where}: the bar wrapped`).toBe(true);
+      expect(sameRow(await bar.getByRole('button', { name: 'Done', exact: true }).boundingBox(), saveBox), `${where}: the bar wrapped`).toBe(true);
     }
 
     // The Key field lies inside its row and shows the typed key whole.

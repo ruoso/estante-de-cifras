@@ -671,7 +671,8 @@ export const EventKind = Object.freeze({
   CREATE_REFUSED: 'create_refused',
   // Setlists (books.setlists, workflow 12). SETLISTS carries every loaded book's
   // setlists in reply to LIST_SETLISTS: `{ setlists: [{ bookId, path, title,
-  // count }] }`, folded into the `setlists` slice the Setlists destination
+  // count, status }] }` (status `'new' | 'unsaved' | null`, books.setlist_done),
+  // folded into the `setlists` slice the Setlists destination
   // reads. SETLIST_UPDATED `{ bookId, setlistPath, path, copied }` confirms an
   // ADD_TO_SETLIST landed in the working copy — a TRANSIENT event, like
   // FILE_MOVED: the view observes it (to re-list and show the unsaved state) and

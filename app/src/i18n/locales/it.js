@@ -486,6 +486,7 @@ export default {
     saveMessage: 'Modifica scaletta',
     discard: 'Annulla',
     unsaved: 'modifiche non salvate',
+    notSavedYet: 'non ancora salvata',
     songsLabel: 'Brani · trascina per riordinare',
     keyNoteHint: 'La tonalità e la nota valgono solo in questa scaletta',
     dragToReorder: 'Trascina per riordinare',

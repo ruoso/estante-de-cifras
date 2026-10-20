@@ -13,6 +13,13 @@
 // `HEAD` and no `main`, is not a book yet. A book whose read throws — any error —
 // is skipped and the rest are listed (Constraint 2). Framework-free Worker code;
 // it logs nothing (no titles, no text).
+//
+// Each row carries the setlist's status word (books.setlist_done Constraint 4;
+// workflow 12 §Building one): `new` for a file `main` does not hold, `unsaved`
+// for one whose text differs from `main`'s, `null` when clean — from an injected
+// `statusOf(bookId, path, text)`, per setlist, still no lock and no book-wide
+// `statusMatrix` (Decision 2). A status read that throws leaves that row `null`.
+import { readBlob, resolveRef } from 'isomorphic-git';
 import { parseSetlist } from 'cifra-md';
 
 const SETLIST_SUFFIX = '.setlist.md';
@@ -46,7 +53,34 @@ async function setlistPaths(fs, dir) {
   return out;
 }
 
-async function bookSetlists({ fs, bookDir, hasCommits, bookId }) {
+// The `statusOf` the Worker injects: the path's blob at `main`, read without the
+// book lock (as `hasCommits` reads `main`), against the working file's text. No
+// blob at that path → `new`; any other failure throws, and the row reads `null`.
+export function statusAtMain({ fs, bookDir }) {
+  return async (bookId, path, text) => {
+    const dir = bookDir(bookId);
+    const oid = await resolveRef({ fs, dir, ref: 'main' });
+    let blob;
+    try {
+      ({ blob } = await readBlob({ fs, dir, oid, filepath: path }));
+    } catch (err) {
+      if (err?.code === 'NotFoundError') return 'new';
+      throw err;
+    }
+    return new TextDecoder().decode(blob) === text ? null : 'unsaved';
+  };
+}
+
+async function rowStatus(statusOf, bookId, path, text) {
+  if (!statusOf) return null;
+  try {
+    return (await statusOf(bookId, path, text)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function bookSetlists({ fs, bookDir, hasCommits, statusOf, bookId }) {
   if (!(await hasCommits(bookId))) return [];
   const dir = bookDir(bookId);
   const rows = [];
@@ -56,18 +90,19 @@ async function bookSetlists({ fs, bookDir, hasCommits, bookId }) {
     const count = model.body.filter(
       (el) => el.type === 'song' || el.type === 'unlinked',
     ).length;
-    rows.push({ bookId, path, title: model.title, count });
+    const status = await rowStatus(statusOf, bookId, path, text);
+    rows.push({ bookId, path, title: model.title, count, status });
   }
   return rows;
 }
 
-// `[{ bookId, path, title, count }]` for every listable book, in book order then
-// path order.
-export async function listSetlists({ fs, bookDir, bookIds, hasCommits }) {
+// `[{ bookId, path, title, count, status }]` for every listable book, in book
+// order then path order.
+export async function listSetlists({ fs, bookDir, bookIds, hasCommits, statusOf }) {
   const setlists = [];
   for (const bookId of bookIds) {
     try {
-      setlists.push(...(await bookSetlists({ fs, bookDir, hasCommits, bookId })));
+      setlists.push(...(await bookSetlists({ fs, bookDir, hasCommits, statusOf, bookId })));
     } catch {
       // An unreadable book contributes nothing; the others still list.
     }

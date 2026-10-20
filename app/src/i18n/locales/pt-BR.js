@@ -486,6 +486,7 @@ export default {
     saveMessage: 'Editar repertório',
     discard: 'Descartar',
     unsaved: 'alterações não salvas',
+    notSavedYet: 'ainda não salvo',
     songsLabel: 'Músicas · arraste para reordenar',
     keyNoteHint: 'O tom e a nota valem só neste repertório',
     dragToReorder: 'Arraste para reordenar',

@@ -69,8 +69,11 @@ it opens nothing — the person was adding a song from a song, and stays there
 — and the file it writes is an unsaved change like any other (workflow 4:
 one kind of unsaved change). Until its first save it reads **not saved yet**
 where an edited setlist reads *unsaved changes*: in its badge, in the list of
-setlists and in the editor's bar. It is the same change underneath, named
-for what it is, so opening it does not claim it was changed.
+setlists and in the editor's bar. Its badge sits under its title in the read
+view, beside the book and song count; in the list of setlists the word sits
+on the setlist's row; a saved setlist with nothing unsaved shows neither. It
+is the same change underneath, named for what it is, so opening it does not
+claim it was changed.
 
 **Done leaves editing.** The editor's bar starts with **Done**, a word, where
 an icon-only Back was: it returns to the setlist as read, keeping every

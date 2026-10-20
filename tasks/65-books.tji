@@ -239,7 +239,8 @@ task books "Books" {
   task setlist_done "A new setlist says not saved yet, and editing has Done" {
     effort 0.5d
     allocate team
+    complete 100
     depends design.review_polish
-    note "Item 9 of design.review_polish: a setlist never saved reads not saved yet (badge, setlist list, editor bar) instead of unsaved changes, and the setlist editor's icon-only Back becomes Done, leaving editing with every change kept; four locales. Workflow 12. Source: persona exploration 2026-10-19. Tests: behavior (SetlistView: a new setlist's badge, an edited saved one's, Done keeps the change and returns focus to Edit; axe); e2e-web (a setlist made from Add to setlist, opened, edited, Done, then saved, on phone, tablet and computer; axe). Refinement: tasks/refinements/design/review_polish.md"
+    note "Item 9 of design.review_polish: a setlist never saved reads not saved yet (badge, setlist list, editor bar) instead of unsaved changes, and the setlist editor's icon-only Back becomes Done, leaving editing with every change kept; four locales. Workflow 12. Source: persona exploration 2026-10-19. Tests: behavior (SetlistView: a new setlist's badge, an edited saved one's, Done keeps the change and returns focus to Edit; axe); e2e-web (a setlist made from Add to setlist, opened, edited, Done, then saved, on phone, tablet and computer; axe). Refinement: tasks/refinements/design/review_polish.md; tasks/refinements/books/setlist_done.md"
   }
 }

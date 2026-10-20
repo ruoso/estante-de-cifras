@@ -751,7 +751,7 @@ describe('setlists in Palco (shell.palco_contrast)', () => {
   });
 });
 
-// shell.narrow_fixes — the editor's app bar in two groups: a head (Back, the
+// shell.narrow_fixes — the editor's app bar in two groups: a head (Done, the
 // title, the book name under it) and the actions (the "unsaved changes" word,
 // Add song, Play, Discard, Save), so a phone wraps the actions as a unit and
 // the status word stays with them, never shrinking the book name to a letter.
@@ -774,7 +774,10 @@ describe('SetlistView — the editor bar groups (shell.narrow_fixes)', () => {
     const bar = container.querySelector('.setlist-edit-bar');
     const [head, actions] = bar.children;
     expect(bar.children).toHaveLength(2);
-    expect(within(head).getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    // books.setlist_done Constraint 5: the head starts with Done, a word; no
+    // icon-only Back in the edit bar.
+    expect(head.children[0]).toBe(within(head).getByRole('button', { name: 'Done' }));
+    expect(within(bar).queryByRole('button', { name: 'Back' })).toBeNull();
     expect(within(head).getByText('Banda do Bairro')).toHaveClass('t-small');
     expect(within(actions).queryByText('Banda do Bairro')).toBeNull();
 
@@ -789,12 +792,94 @@ describe('SetlistView — the editor bar groups (shell.narrow_fixes)', () => {
     );
     for (const el of focusable) expect(Number(el.getAttribute('tabindex') ?? 0)).toBeLessThanOrEqual(0);
     expect(focusable.map((el) => el.getAttribute('aria-label') || el.textContent.trim())).toEqual([
-      'Back',
+      'Done',
       'Add song',
       'Play',
       'Discard',
       'Save',
     ]);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
+// books.setlist_done — the status word (Constraint 1-2: the same rule in the
+// read view and the editor bar) and Done (Constraint 5), workflow 12 §Building
+// one and §Done leaves editing; workflow 4 (one kind of unsaved change).
+describe('SetlistView — not saved yet, and Done (books.setlist_done)', () => {
+  const NEW_ENTRIES = ENTRIES.map((e) => (e.path === SETLIST_PATH ? { ...e, status: 'new' } : e));
+  const head = (container) => container.querySelector('.setlist-head');
+  const editKey = (value) =>
+    act(async () =>
+      fireEvent.change(screen.getByRole('textbox', { name: 'Key for Corcovado' }), { target: { value } }),
+    );
+  const press = (name) => act(async () => fireEvent.click(screen.getByRole('button', { name })));
+
+  it('a never-saved setlist reads "not saved yet" in its read view and in the editor bar, and no "unsaved changes", before and after an edit', async () => {
+    const { store } = makeStore({ entries: NEW_ENTRIES });
+    const { container } = renderSetlist(store);
+    await screen.findByText('Garota de Ipanema');
+    await waitFor(() => expect(within(head(container)).getByText('not saved yet')).toHaveClass('badge', 'unsaved'));
+    expect(screen.queryByText('unsaved changes')).toBeNull();
+    // Never in the app bar.
+    expect(within(container.querySelector('.appbar')).queryByText('not saved yet')).toBeNull();
+
+    await press('Edit');
+    await screen.findByRole('grid', { name: 'Songs · drag to reorder' });
+    const actions = container.querySelector('.setlist-bar-actions');
+    expect(within(actions).getByText('not saved yet')).toBeInTheDocument();
+    expect(screen.queryByText('unsaved changes')).toBeNull();
+
+    await editKey('A');
+    expect(within(actions).getByText('not saved yet')).toBeInTheDocument();
+    expect(screen.queryByText('unsaved changes')).toBeNull();
+
+    await press('Done');
+    await screen.findByText('in A');
+    expect(within(head(container)).getByText('not saved yet')).toBeInTheDocument();
+    expect(screen.queryByText('unsaved changes')).toBeNull();
+  });
+
+  it('a saved setlist reads nothing until edited, then "unsaved changes" in the editor bar and, after Done, under its title', async () => {
+    const { store } = makeStore();
+    const { container } = renderSetlist(store);
+    await screen.findByText('Garota de Ipanema');
+    expect(head(container).querySelector('.badge.unsaved')).toBeNull();
+    expect(screen.queryByText('unsaved changes')).toBeNull();
+    expect(screen.queryByText('not saved yet')).toBeNull();
+
+    await press('Edit');
+    await screen.findByRole('grid', { name: 'Songs · drag to reorder' });
+    expect(container.querySelector('.setlist-bar-actions .badge')).toBeNull();
+    await editKey('A');
+    expect(within(container.querySelector('.setlist-bar-actions')).getByText('unsaved changes')).toBeInTheDocument();
+
+    await press('Done');
+    await screen.findByText('in A');
+    expect(within(head(container)).getByText('unsaved changes')).toHaveClass('badge', 'unsaved', 'dot');
+    expect(screen.queryByText('not saved yet')).toBeNull();
+  });
+
+  it('Done keeps the change: back in the read view the edited key shows, no SAVE or DISCARD was sent, and focus is on Edit; axe clean on both views', async () => {
+    const { store, commands, getText } = makeStore({ entries: NEW_ENTRIES });
+    const { container } = renderSetlist(store);
+    await screen.findByText('Garota de Ipanema');
+    // Entered from the More menu's Edit, not the bar's: focus still lands on
+    // the bar's Edit (Decision 4).
+    await press('More');
+    await act(async () => fireEvent.click(await screen.findByRole('menuitem', { name: 'Edit' })));
+    await screen.findByRole('grid', { name: 'Songs · drag to reorder' });
+    await editKey('A');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    await press('Done');
+    expect(await screen.findByText('in A')).toBeInTheDocument();
+    expect(getText()).toContain('key: A');
+    expect(commands.some((c) => c.kind === CommandKind.SAVE || c.kind === CommandKind.DISCARD)).toBe(false);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit' })).toHaveFocus());
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // Editing again, the change is still there.
+    await press('Edit');
+    expect(await screen.findByRole('textbox', { name: 'Key for Corcovado' })).toHaveValue('A');
   });
 });

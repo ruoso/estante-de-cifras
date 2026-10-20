@@ -36,7 +36,10 @@ test('a book still coming down beside one that is here: Setlists lists the one t
   await openSetlist(page, 'Ensaio de sábado');
   await editSetlist(page);
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('unsaved changes')).toBeHidden();
+  await expect(page.getByText('not saved yet')).toBeHidden();
+  // Done leaves the editor for the read view, whose Back reaches the
+  // destinations (books.setlist_done: Done replaced the editor's icon Back).
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
   await toDestinations(page);
   await putBookOnline(page, 'Banda do Bairro');
   // Every other book carries a song too, so a book here never reads *0 songs*
