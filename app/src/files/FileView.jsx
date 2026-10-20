@@ -390,7 +390,7 @@ export default function FileView({ store, bookId, mode, initialPath = null, onBa
             <Button className="btn icon" aria-label={t('fileView.more')}>
               <MoreIcon />
             </Button>
-            <Popover className="card file-create-menu" placement="bottom end">
+            <Popover className="popover file-create-menu" placement="bottom end">
               <Menu
                 aria-label={t('fileView.more')}
                 onAction={(key) => {

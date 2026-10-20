@@ -12,8 +12,10 @@ import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { MY_SONGS_ID } from '../worker/my-songs.js';
 import { checkWcag21aa } from '../a11y/axe.js';
+import { injectStyles, expectPopoverSurface } from '../test/theme-styles.js';
 import { WIDE_QUERY } from '../shell/layout-mode.js';
 import AppShell from '../shell/AppShell.jsx';
+import ThemeRoot from '../theme/ThemeRoot.jsx';
 import { DEVICES, installWidths } from '../test/widths.js';
 
 // CodeMirror measures geometry jsdom lacks; stub it so the host's editor mounts
@@ -212,6 +214,36 @@ describe('which book', () => {
     expect(items).toContain('Banda do Bairro');
     expect(items).not.toContain('Turma de Quarta');
     expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
+// shell.popover_surface: WhichBook's Change book menu, with two writable books
+// offered, is drawn on the shared opaque surface inside the .est theme root,
+// axe clean while open (the .tji note: WhichBook's Popover was bare).
+describe('the Change book menu (shell.popover_surface)', () => {
+  it('the Change book menu is drawn on the popover surface', async () => {
+    const removeStyles = injectStyles();
+    try {
+      const { store, emit } = makeStore();
+      // Inside ThemeRoot as App.jsx mounts it: its portal provider keeps the
+      // popover in the .est token scope.
+      const { container } = render(
+        <ThemeRoot store={store}>
+          <AppShell store={store} />
+        </ThemeRoot>,
+      );
+      act(() => fireEvent.click(screen.getByRole('button', { name: /Write a song/ })));
+      emit(event(EventKind.SHELF, SHELF));
+      emit(event(EventKind.NEW_SONG_READY, { bookId: MY_SONGS_ID, path: 'untitled.cifra.md' }));
+
+      act(() => fireEvent.click(screen.getByRole('button', { name: 'Change book' })));
+      const menu = await screen.findByRole('menu', { name: 'Change book' });
+      expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['My songs', 'Banda do Bairro']);
+      expectPopoverSurface(menu);
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    } finally {
+      removeStyles();
+    }
   });
 });
 

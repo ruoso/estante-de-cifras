@@ -17,6 +17,7 @@ import { parseChord } from '../core/notation/parse.js';
 import { defaultVoicing } from '../core/voicings.js';
 import { describeFingering } from '../render/diagram.js';
 import { checkWcag21aa } from '../a11y/axe.js';
+import { injectStyles, expectPopoverSurface } from '../test/theme-styles.js';
 import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SongReading from './SongReading.jsx';
@@ -406,6 +407,74 @@ describe('SongReading — transpose (workflow 2 L111-146; W02 L181-186)', () => 
     await openAndWait(store);
     expect(screen.getByText('Transposed (+3)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Back to the written key' })).toBeInTheDocument();
+  });
+});
+
+// shell.popover_surface (usability review M7, M9; workflow 2 L67-70): the
+// Transpose popover, the variation picker and the ⋯ menu are each drawn on the
+// shared opaque surface, inside the .est theme root, axe clean while open. Their
+// bottom-end placement needs layout, so it is pinned in e2e
+// (popover-surface.spec.js).
+describe('SongReading — the popovers on the popover surface (shell.popover_surface)', () => {
+  let removeStyles;
+  beforeEach(() => {
+    removeStyles = injectStyles('songs/reading.css');
+  });
+  afterEach(() => removeStyles());
+
+  const twoVariations = song({
+    chart: 'C',
+    voicings: [
+      '## Voicings: E2 A2 D3 G3 B3 E4',
+      '- C: x32010',
+      '',
+      '## Up the neck: E2 A2 D3 G3 B3 E4',
+      '- C: 8-10-10-9-8-8',
+    ],
+  });
+  const escape = async () => {
+    await act(async () => {
+      fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+      fireEvent.keyUp(document.activeElement, { key: 'Escape' });
+    });
+  };
+
+  it('the Transpose popover, the variation picker and the ⋯ menu are drawn on the popover surface', async () => {
+    const { store } = makeStore({ text: twoVariations, entry: guitarEntry() });
+    await openAndWait(store);
+
+    // Transpose (M7): its Written key label sits on the surface, not over the caption.
+    await click(screen.getByRole('button', { name: 'Transpose' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Transpose the view' });
+    expectPopoverSurface(dialog);
+    expect(within(dialog).getByText('Written key')).toBeInTheDocument();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    await escape();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    // The variation picker (M7).
+    await click(screen.getByLabelText('Variation'));
+    const listbox = await screen.findByRole('listbox');
+    expectPopoverSurface(listbox);
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    await escape();
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+
+    // The ⋯ menu (M9).
+    const more = screen.getByRole('button', { name: 'More' });
+    act(() => more.focus());
+    await act(async () => {
+      fireEvent.keyDown(more, { key: 'Enter' });
+      fireEvent.keyUp(more, { key: 'Enter' });
+    });
+    const menu = await screen.findByRole('menu', { name: 'More' });
+    expectPopoverSurface(menu);
+    // Its rows are the drawn 44px rows; the focused one on --surface-2.
+    const first = within(menu).getAllByRole('menuitem')[0];
+    expect(getComputedStyle(first).minHeight).toBe('44px');
+    await waitFor(() => expect(first).toHaveAttribute('data-focused'));
+    expect(getComputedStyle(first).background).toContain('var(--surface-2)');
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 });
 

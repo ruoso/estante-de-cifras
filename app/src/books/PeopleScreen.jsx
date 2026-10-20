@@ -120,7 +120,7 @@ function ManagedRow({ member, meta, onChangeRole, onRemove }) {
         <Button className="btn est-sharing-role" aria-label={menuLabel}>
           {`${roleWord(member.role)} ▾`}
         </Button>
-        <Popover>
+        <Popover className="popover" placement="bottom end">
           <Menu className="menu" aria-label={menuLabel} onAction={(key) => onChangeRole(member, String(key))}>
             {member.role !== 'editor' ? <MenuItem id="editor">{t('sharing.makeEditor')}</MenuItem> : null}
             {member.role !== 'reader' ? <MenuItem id="reader">{t('sharing.makeReader')}</MenuItem> : null}

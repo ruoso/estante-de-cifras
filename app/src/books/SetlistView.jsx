@@ -275,7 +275,7 @@ export default function SetlistView({
             <Button className="btn icon" aria-label={t('setlists.more')}>
               <Icon d={DOTS} size={24} fill />
             </Button>
-            <Popover>
+            <Popover className="popover" placement="bottom end">
               <Menu
                 onAction={(key) => {
                   if (key === 'edit') setEditing(true);

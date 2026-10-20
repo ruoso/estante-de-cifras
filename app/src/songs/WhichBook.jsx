@@ -63,7 +63,7 @@ export default function WhichBook({ store, bookId, onChangeBook }) {
       </span>
       <MenuTrigger>
         <Button className="btn quiet">{t('newSong.changeBook')}</Button>
-        <Popover>
+        <Popover className="popover">
           <Menu
             aria-label={t('newSong.changeBook')}
             onAction={(key) => onChangeBook(String(key))}

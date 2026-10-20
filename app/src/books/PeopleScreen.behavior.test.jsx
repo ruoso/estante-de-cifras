@@ -17,6 +17,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 import { checkWcag21aa } from '../a11y/axe.js';
+import { injectStyles, expectPopoverSurface } from '../test/theme-styles.js';
 import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import PeopleScreen from './PeopleScreen.jsx';
@@ -166,6 +167,23 @@ describe('the owner’s people screen (W10 #3)', () => {
 
     await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
     expect(calls.find((c) => c.method === 'PATCH').body).toEqual({ role: 'reader' });
+  });
+
+  // shell.popover_surface: the role menu is drawn on the shared opaque surface
+  // inside the .est theme root, axe clean while open (the .tji note:
+  // PeopleScreen's Popover was bare).
+  it('a member’s role menu is drawn on the popover surface', async () => {
+    const removeStyles = injectStyles('books/sharing.css');
+    try {
+      const { container } = renderPeople(ownerClient().client);
+      fireEvent.click(await screen.findByRole('button', { name: 'Change Marina Costa’s role' }));
+      const menu = await screen.findByRole('menu', { name: 'Change Marina Costa’s role' });
+      expectPopoverSurface(menu);
+      expect(within(menu).getByRole('menuitem', { name: 'Make reader' })).toBeInTheDocument();
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    } finally {
+      removeStyles();
+    }
   });
 
   it('withdraws an invitation (DELETE); the reloaded card reads withdrawn and offers no Copy link', async () => {

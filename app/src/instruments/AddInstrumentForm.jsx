@@ -150,7 +150,7 @@ export default function AddInstrumentForm({ onSubmit, initial = null, editId = n
           <SelectValue />
           <span aria-hidden="true">▾</span>
         </Button>
-        <Popover className="instr-popover">
+        <Popover className="popover instr-popover">
           <ListBox>
             {CATALOG.map((e) => (
               <ListBoxItem key={e.id} id={e.id}>

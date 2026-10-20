@@ -417,7 +417,7 @@ export default function SongReading({
       >
         {variant === 'icon' ? <TransposeIcon /> : t('reading.transpose')}
       </Button>
-      <Popover>
+      <Popover className="popover">
         <Dialog className="reading-transpose" aria-label={t('reading.transposeTitle')}>
           <div className="reading-transpose-row">
             <Button className="btn icon" aria-label={t('reading.down')} onPress={() => setTransposition(clampOffset(offset - 1))}>
@@ -449,7 +449,7 @@ export default function SongReading({
         <Button className="btn">
           <SelectValue />
         </Button>
-        <Popover>
+        <Popover className="popover">
           <ListBox className="menu">
             {variations.map((v) => (
               <ListBoxItem key={v || 'default'} id={v}>
@@ -570,7 +570,7 @@ export default function SongReading({
       <Button className="btn icon" aria-label={t('reading.more')} data-share-return="">
         <MoreIcon />
       </Button>
-      <Popover>
+      <Popover className="popover" placement="bottom end">
         <Menu
           className="menu"
           aria-label={t('reading.more')}

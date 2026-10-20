@@ -16,7 +16,7 @@ import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SetlistView from './SetlistView.jsx';
 import AddToSetlist from './AddToSetlist.jsx';
-import { injectStyles } from '../test/theme-styles.js';
+import { injectStyles, expectPopoverSurface } from '../test/theme-styles.js';
 
 function installMatchMedia(matches) {
   globalThis.matchMedia = (query) => ({
@@ -154,6 +154,29 @@ describe('SetlistView — open (read view)', () => {
     const play = await screen.findByRole('button', { name: 'Play' });
     await act(async () => fireEvent.click(play));
     expect(onPlay).toHaveBeenCalledWith({ bookId: BOOK, path: SETLIST_PATH });
+  });
+});
+
+// shell.popover_surface: the setlist ⋯ menu (Edit, Play) is drawn on the shared
+// opaque surface inside the .est theme root, axe clean while open (the .tji note:
+// SetlistView's Popover was bare). Its bottom-end placement needs layout.
+describe('SetlistView — the ⋯ menu (shell.popover_surface)', () => {
+  let removeStyles;
+  beforeEach(() => {
+    removeStyles = injectStyles('books/setlist.css');
+  });
+  afterEach(() => removeStyles());
+
+  it('the setlist ⋯ menu is drawn on the popover surface', async () => {
+    const { store } = makeStore();
+    const { container } = renderSetlist(store);
+    await screen.findByText('Garota de Ipanema');
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'More' })));
+    const menu = await screen.findByRole('menu');
+    expectPopoverSurface(menu);
+    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Edit', 'Play']);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });
 

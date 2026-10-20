@@ -171,3 +171,7 @@ Append one `###` block per item, newest at the bottom:
 ### 2026-10-20 — Convert ChordPro-style inline chords on paste? (from `design.format_help`)
 - **What**: the format help only points a person writing bracket chords (`[Am]Teste`) to the right form; it does not convert them. cifra.md Appendix A treats conversion as a separate, asked-for operation.
 - **Decide**: whether a later version converts ChordPro-style inline chords on paste — a product call.
+
+### 2026-10-20 — `backToTree` helper races the file view going back (from `shell.popover_surface`)
+- **What**: `e2e/web/lib/journeys-files.js:40` counts the "Back to files" button then clicks it; after a delete the file view has already returned to the tree and the button is gone, so `file-view-create.spec.js:48` times out on the phone (fails 3 of 3 on HEAD too). The implementer proposed waiting for a stable state instead of count-then-click.
+- **Why parked**: a stability fix to a test helper (a test-only change, never a WBS leaf); a person judges whether it is an app race or a helper race.

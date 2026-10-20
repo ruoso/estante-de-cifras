@@ -73,22 +73,10 @@
 .select-trigger {
   justify-content: space-between;
 }
+/* The instrument picker's list: the shared `.popover` surface and rows
+ * (theme/controls.css §4); this only sizes it. */
 .instr-popover {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
   min-width: 220px;
-  overflow: auto;
-}
-.instr-popover [role='option'] {
-  padding: calc(var(--u) * 1.25) calc(var(--u) * 1.5);
-  cursor: pointer;
-  outline: none;
-}
-.instr-popover [role='option'][data-focused] {
-  background: var(--accent-soft);
-  color: var(--accent);
 }
 .instr-tuning-preview {
   color: var(--chord);

@@ -20,6 +20,7 @@ const UA_BUTTON = `button {
 }`;
 
 import { readFileSync } from 'node:fs';
+import { expect } from 'vitest';
 import path from 'node:path';
 
 const srcDir = path.join(process.cwd(), 'src');
@@ -37,4 +38,24 @@ export function injectStyles(...sheets) {
   ua.textContent = UA_BUTTON;
   document.head.prepend(ua);
   return () => [ua, ...elements].forEach((el) => el.remove());
+}
+
+// The RAC Popover holding an open menu, list box or dialog (shell.popover_surface):
+// its element carries `data-trigger` (MenuTrigger, Select, DialogTrigger). A
+// behavior test asserts on it with expectPopoverSurface after injectStyles.
+export function popoverOf(el) {
+  return el.closest('[data-trigger]');
+}
+
+// The popover around `el` is drawn on the shared surface: it portals inside the
+// `.est` theme root (ThemeRoot's provider), carries `popover`, and its computed
+// background is the theme's --surface (jsdom keeps the var() text).
+export function expectPopoverSurface(el) {
+  const popover = popoverOf(el);
+  expect(popover).not.toBeNull();
+  expect(popover.closest('.est')).not.toBeNull();
+  expect(popover).toHaveClass('popover');
+  expect(getComputedStyle(popover).background).toContain('var(--surface)');
+  expect(getComputedStyle(popover).background).not.toContain('var(--surface-2)');
+  return popover;
 }

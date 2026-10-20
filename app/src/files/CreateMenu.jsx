@@ -30,7 +30,7 @@ export default function CreateMenu({ mode, choices, onAction }) {
           <PlusIcon />
         </Button>
       )}
-      <Popover className="card file-create-menu" placement="bottom end">
+      <Popover className="popover file-create-menu" placement="bottom end">
         <Menu aria-label={t('fileView.new')} disabledKeys={disabledKeys} onAction={(key) => onAction(String(key))}>
           {choices.map(({ id, enabled }) => {
             if (id === 'readme') {

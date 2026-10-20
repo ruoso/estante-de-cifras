@@ -144,17 +144,10 @@
 }
 
 /* The *New* and *More* menus: a card dropped under the trigger, about 210px wide
- * (W14 #1 L58-63), each item a row with its kind's line under it. */
+ * (W14 #1 L58-63), each item a row with its kind's line under it. The surface
+ * is the shared `.popover` (theme/controls.css §4); this only sizes it. */
 .file-create-menu {
   min-width: 210px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
-  overflow: hidden;
-}
-
-.file-create-menu [role='menu'] {
-  display: flex;
-  flex-direction: column;
-  outline: none;
 }
 
 .file-create-item {

@@ -54,3 +54,62 @@
   -webkit-appearance: none;
   appearance: none;
 }
+
+/* 4. Every React Aria popover — the menus, the Select list boxes, the Transpose
+      dialog — is drawn on one surface (shell.popover_surface). RAC components
+      carry no look of their own (DIRECTION §3.7), and nothing on a board styles
+      a popover but the file view's menu, "a card dropped under the trigger"
+      (W14 #1 L58-63): without this a popover has no background and what is
+      beneath reads through it. Each <Popover> carries `popover`
+      (popover-surface.test.js fails on one that does not); a screen may add its
+      own class beside it for width or layout, never a second surface. RAC sets
+      the popover's max-height inline from the space it has; the cap here only
+      keeps a long list scrolling inside the surface where it does not.
+      The rows (menu items, list options) read as the drawn rows. Their rules are
+      wrapped in :where() so every screen's own row rules (the theme's .row, the
+      file view's .file-create-item) keep winning. */
+.popover {
+  box-sizing: border-box;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  color: var(--ink);
+  max-height: calc(100dvh - var(--u) * 2);
+  overflow: auto;
+}
+:where(.popover) :where([role='menu'], [role='listbox']) {
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+:where(.popover) :where([role='menuitem'], [role='option']) {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 0 calc(var(--u) * 2);
+  font: 16px var(--font-ui);
+  cursor: pointer;
+  outline: none;
+}
+:where(.popover) :where([role='menuitem'], [role='option'])[data-focused] {
+  background: var(--surface-2);
+}
+:where(.popover) :where([role='menuitem'], [role='option'])[data-focus-visible] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+:where(.popover) :where([role='menuitem'], [role='option'])[data-disabled] {
+  cursor: default;
+  color: var(--ink-2);
+}
+/* A selected option is marked by weight and a check, never colour alone. */
+:where(.popover) :where([role='option'])[data-selected] {
+  font-weight: 700;
+}
+:where(.popover) :where([role='option'])[data-selected]::after {
+  content: '✓';
+  margin-inline-start: auto;
+}

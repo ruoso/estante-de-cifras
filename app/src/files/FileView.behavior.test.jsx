@@ -13,7 +13,7 @@ import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import { t } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import FileView from './FileView.jsx';
-import { injectStyles } from '../test/theme-styles.js';
+import { injectStyles, popoverOf } from '../test/theme-styles.js';
 
 Range.prototype.getClientRects = function getClientRects() {
   return [];
@@ -486,6 +486,9 @@ describe('the New menu and the phone bars (books.file_view_create_menu)', () => 
     expect(within(menu).getByText('*.setlist.md')).toBeInTheDocument();
     expect(within(menu).getByText('exists once a file is in it')).toBeInTheDocument();
     expect(within(menu).getByRole('menuitem', { name: 'README.md already exists' })).toHaveAttribute('aria-disabled', 'true');
+    // The shared popover surface (shell.popover_surface), inside the .est root.
+    expect(popoverOf(menu)).toHaveClass('popover', 'file-create-menu');
+    expect(popoverOf(menu).closest('.est')).not.toBeNull();
     expect(await checkWcag21aa(container.ownerDocument.body)).toHaveNoViolations();
   });
 
@@ -643,6 +646,9 @@ describe('the New menu and the phone bars (books.file_view_create_menu)', () => 
       press(within(bar).getByRole('button', { name: t('fileView.more') }));
       const menu = screen.getByRole('menu');
       expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Rename', 'Delete']);
+      // The shared popover surface (shell.popover_surface), inside the .est root.
+      expect(popoverOf(menu)).toHaveClass('popover', 'file-create-menu');
+      expect(popoverOf(menu).closest('.est')).not.toBeNull();
       expect(await checkWcag21aa(container.ownerDocument.body)).toHaveNoViolations();
     });
 

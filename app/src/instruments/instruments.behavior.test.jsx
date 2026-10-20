@@ -25,6 +25,7 @@ import { startGitHttpRemote } from '../test/git-http-remote.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { installWebLocks } from '../test/web-locks.js';
 import { checkWcag21aa } from '../a11y/axe.js';
+import { injectStyles, expectPopoverSurface } from '../test/theme-styles.js';
 import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import InstrumentChip from './InstrumentChip.jsx';
@@ -594,6 +595,32 @@ describe('the instrument surface (behavior)', () => {
       fireEvent.keyUp(add, { key: 'Enter' });
     });
     expect(await screen.findByRole('heading', { name: 'Add instrument' })).toBeInTheDocument();
+  });
+
+  // shell.popover_surface constraint 2: the instrument picker's list sits on the
+  // shared surface (its own class only sizes it), inside the .est theme root,
+  // its focused option on --surface-2; axe clean while open.
+  it('the instrument picker is drawn on the popover surface', async () => {
+    const removeStyles = injectStyles('instruments/instruments.css');
+    try {
+      const { store } = makeFreshWorker('picker');
+      renderSurface(store);
+      act(() => store.open());
+      await waitFor(() => expect(chip()).toHaveTextContent(/Guitar/));
+      openOverlay();
+      act(() => fireEvent.click(screen.getByRole('button', { name: 'Add instrument' })));
+      await screen.findByRole('heading', { name: 'Add instrument' });
+
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: /Instrument/ })));
+      const listbox = await screen.findByRole('listbox');
+      const popover = expectPopoverSurface(listbox);
+      expect(popover).toHaveClass('instr-popover');
+      const option = within(listbox).getAllByRole('option')[0];
+      expect(getComputedStyle(option).minHeight).toBe('44px');
+      expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    } finally {
+      removeStyles();
+    }
   });
 });
 
