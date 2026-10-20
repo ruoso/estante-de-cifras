@@ -278,6 +278,9 @@ export default function PeopleScreen({
             <span className="t-h2 grow">{t('sharing.peopleOfLimit', { count, limit })}</span>
             <span className="t-small">{full ? t('sharing.noRoomLeft') : t('sharing.besidesYou', { count: room })}</span>
           </div>
+          {/* The limit, told to the one who invites (books.put_online_confirm
+              Constraint 6; workflow 10 §At most fifty) — as on the phone's sheet. */}
+          <p className="t-small">{t('sharing.limitHint')}</p>
           <div className="bar" role="img" aria-label={t('sharing.countOfLimit', { count, limit })}>
             <div style={{ width: `${pct}%` }} />
           </div>

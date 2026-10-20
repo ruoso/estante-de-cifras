@@ -234,8 +234,9 @@ task books "Books" {
   task put_online_confirm "Put online asks first and says up to 50 people" {
     effort 0.5d
     allocate team
+    complete 100
     depends !detail_as_drawn, design.review_polish
-    note "Items 7 and 8 of design.review_polish: Put online on the book detail opens a confirmation (Put {book} online?, what private means, up to 50 people; Cancel focused; focus back on the card's button), the local book's card says nobody else can see it yet, and every screen says up to 50 people (books.putOnlineBody, the successor of books.shareBody, the sharing screen's hint), in the four locales; the share panel's Put it online stays one press. Workflows 7, 10. Source: persona exploration 2026-10-19. Tests: behavior (BookDetail: Cancel sends nothing, Put online sends PUT_ONLINE, offline the failure line; axe); e2e-web (a local book put online through the dialog on phone, tablet and computer, then Share in the app bar; axe; the existing put-online journey in e2e/web/lib updated to pass the dialog). Refinement: tasks/refinements/design/review_polish.md"
+    note "Items 7 and 8 of design.review_polish: Put online on the book detail opens a confirmation (Put {book} online?, what private means, up to 50 people; Cancel focused; focus back on the card's button), the local book's card says nobody else can see it yet, and every screen says up to 50 people (books.putOnlineBody, the successor of books.shareBody, the sharing screen's hint), in the four locales; the share panel's Put it online stays one press. Workflows 7, 10. Source: persona exploration 2026-10-19. Tests: behavior (BookDetail: Cancel sends nothing, Put online sends PUT_ONLINE, offline the failure line; axe); e2e-web (a local book put online through the dialog on phone, tablet and computer, then Share in the app bar; axe; the existing put-online journey in e2e/web/lib updated to pass the dialog). Refinement: tasks/refinements/design/review_polish.md; tasks/refinements/books/put_online_confirm.md"
   }
   task setlist_done "A new setlist says not saved yet, and editing has Done" {
     effort 0.5d

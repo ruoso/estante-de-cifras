@@ -48,12 +48,17 @@ describe('Share on a book only on this device (workflow 10 §Sharing a song)', (
     const { container, sent } = renderBody();
 
     expect(screen.getByText('My songs is only on this device. Put it online to invite people.')).toBeInTheDocument();
-    expect(screen.getByText(/Only on this device\. Putting it online creates it on Estante, private/)).toBeInTheDocument();
+    // The local book's one sentence (books.put_online_confirm Constraint 1).
+    expect(
+      screen.getByText('Only on this device: nobody else can see it. Put it online to invite people — up to 50.'),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sign in to put it online' })).toBeNull();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     const put = screen.getByRole('button', { name: 'Put online' });
     fireEvent.click(put);
+    // One press, no dialog (books.put_online_confirm Constraint 7).
+    expect(screen.queryByRole('alertdialog')).toBeNull();
     const commands = sentOf(sent, CommandKind.PUT_ONLINE);
     expect(commands).toHaveLength(1);
     expect(commands[0].payload).toEqual({ bookId: 'local-1' });

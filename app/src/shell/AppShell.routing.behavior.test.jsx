@@ -1133,6 +1133,10 @@ describe('AppShell share surfaces (behavior)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^My songs/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Manage My songs' }));
     fireEvent.click(screen.getByRole('button', { name: 'Put online' }));
+    // The card asks first (books.put_online_confirm): confirm in the dialog.
+    fireEvent.click(
+      within(screen.getByRole('alertdialog', { name: 'Put My songs online?' })).getByRole('button', { name: 'Put online' }),
+    );
     expect(sent.filter((m) => m.kind === CommandKind.PUT_ONLINE).map((m) => m.payload)).toEqual([
       { bookId: LOCAL_ID },
     ]);

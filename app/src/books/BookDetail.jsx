@@ -306,6 +306,55 @@ function DeleteDialog({ title, onDelete }) {
   );
 }
 
+// The local book's Put online asks first (books.put_online_confirm; workflow 7
+// §Putting a book online L154-162; Review-polish board *Put online, asking*): an
+// alertdialog naming the book, what private means and the 50-people limit, with
+// Cancel focused. The card's button is the trigger, so RAC returns focus to it
+// on close. Nothing runs before the answer; Put online calls `onConfirm` (which
+// sends PUT_ONLINE) and closes — progress and failure stay on the card
+// (Decision 2). Local: it opens offline too, with no network check.
+function PutOnlineDialog({ title, onConfirm }) {
+  return (
+    <DialogTrigger>
+      <Button className="btn" style={{ alignSelf: 'flex-start' }}>
+        <OnlineIcon />
+        {t('books.putOnline')}
+      </Button>
+      <ModalOverlay className="scrim center" isDismissable>
+        <Modal className="dialog">
+          <Dialog role="alertdialog">
+            {({ close }) => (
+              <>
+                <Heading slot="title" className="t-h2">
+                  {t('books.putOnlineConfirmTitle', { name: title })}
+                </Heading>
+                <p className="t-body">{t('books.putOnlineConfirmBody')}</p>
+                <div className="actions">
+                  {/* Cancel takes focus when it opens (workflow 7 L160-161):
+                      the safe answer first. */}
+                  {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+                  <Button className="btn" autoFocus onPress={close}>
+                    {t('books.cancel')}
+                  </Button>
+                  <Button
+                    className="btn primary"
+                    onPress={() => {
+                      onConfirm();
+                      close();
+                    }}
+                  >
+                    {t('books.putOnline')}
+                  </Button>
+                </div>
+              </>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
+  );
+}
+
 /**
  * The per-book detail. `bookId` is the book shown; `kind` ('local' | 'shared')
  * is the shelf map it lives in; `onBack` closes the detail (*Back to {book}*);
@@ -409,17 +458,35 @@ export default function BookDetail({
   // lost, when following has already ended.
   const [forkSheet, setForkSheet] = useState(null);
 
+  // After a put online confirmed here succeeds, the card and its button are
+  // gone: focus goes to *Share* in the app bar, once (books.put_online_confirm
+  // Decision 3). `confirmedRef` marks the confirm until its answer arrives; the
+  // shell keeps this detail mounted across `onReselect`, so the flag survives.
+  const confirmedRef = useRef(false);
+  const [focusShareOnline, setFocusShareOnline] = useState(false);
+  useEffect(() => {
+    if (focusShareOnline && offersShare && shareRef.current) {
+      shareRef.current.focus();
+      setFocusShareOnline(false);
+    }
+  }, [focusShareOnline, offersShare]);
+
   // A successful put-online changed the book's on-device id (Decision 3): move
   // the open detail to the adopted service id so it keeps showing the book.
   useWorkerEvent(store, EventKind.BOOK_ONLINE, ({ previousBookId, bookId: newId }) => {
     if (previousBookId === bookId) {
       setFailure(null);
+      if (confirmedRef.current) setFocusShareOnline(true);
+      confirmedRef.current = false;
       onReselect(newId);
     }
   });
   // A failed put-online: word the reason (the service create was refused).
   useWorkerEvent(store, EventKind.BOOK_ONLINE_REFUSED, ({ bookId: id, reason }) => {
-    if (id === bookId) setFailure(reason);
+    if (id === bookId) {
+      confirmedRef.current = false;
+      setFailure(reason);
+    }
   });
   // A remove or delete finished: close the detail (the SHELF re-surface drops
   // the row).
@@ -438,6 +505,7 @@ export default function BookDetail({
 
   const putOnline = () => {
     setFailure(null);
+    confirmedRef.current = true;
     store.send(command(CommandKind.PUT_ONLINE, { bookId }));
   };
   const download = () => store.send(command(CommandKind.DOWNLOAD_BOOK, { bookId }));
@@ -516,10 +584,7 @@ export default function BookDetail({
                 {failureCopy}
               </p>
             ) : null}
-            <Button className="btn" style={{ alignSelf: 'flex-start' }} onPress={putOnline}>
-              <OnlineIcon />
-              {t('books.putOnline')}
-            </Button>
+            <PutOnlineDialog title={title} onConfirm={putOnline} />
           </div>
         ) : null}
 

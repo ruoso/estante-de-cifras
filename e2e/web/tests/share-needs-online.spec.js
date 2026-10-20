@@ -39,7 +39,9 @@ test('Share on a song in My songs: only on this device, sign in, put online, the
 
   const surface = await shareSong(page);
   await expect(surface.getByText('My songs is only on this device. Put it online to invite people.')).toBeVisible();
-  await expect(surface.getByText(/Putting it online creates it on Estante, private/)).toBeVisible();
+  await expect(
+    surface.getByText('Only on this device: nobody else can see it. Put it online to invite people — up to 50.'),
+  ).toBeVisible();
   await expect(surface.getByRole('textbox', { name: 'Song address' })).toHaveCount(0);
   await expect(surface.getByRole('button', { name: 'Put online' })).toHaveCount(0);
   expect(await analyzeBothThemes(page)).toEqual([]); // axe: share on a local book, signed out

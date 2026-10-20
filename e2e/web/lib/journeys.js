@@ -204,10 +204,21 @@ export async function openBookDetail(page, name) {
   await expect(page.locator('.book-detail')).toBeVisible();
 }
 
-// Put a book online from its detail (signed in).
+// Put a book online from its detail (signed in): the card's Put online asks
+// first (books.put_online_confirm; workflow 7 §Putting a book online), and the
+// dialog's Put online confirms.
 export async function putBookOnline(page, name) {
   await openBookDetail(page, name);
   await page.getByRole('button', { name: 'Put online' }).click();
+  await confirmPutOnline(page, name);
+}
+
+// The Put {book} online? dialog's Put online, then the book is private on Estante.
+export async function confirmPutOnline(page, name) {
+  const dialog = page.getByRole('alertdialog', { name: `Put ${name} online?` });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Put online' }).click();
+  await expect(dialog).toBeHidden();
   await expect(page.getByText('On Estante · private')).toBeVisible();
 }
 

@@ -234,6 +234,10 @@ function HostedShareBody({ bookId, title, role, itemKind, songPath, songName, sh
           />
         ) : null}
         <p className="t-small">{intro}</p>
+        {/* The limit, told to whoever invites (books.put_online_confirm
+            Constraint 6; workflow 10 §At most fifty): the owner, from a book,
+            song or setlist share alike — every invitation joins the book. */}
+        {isOwner ? <p className="t-small">{t('sharing.limitHint')}</p> : null}
         <PeopleBar count={members.count} limit={members.limit} bookTitle={title} />
         <NavRow
           icon={<PersonIcon />}

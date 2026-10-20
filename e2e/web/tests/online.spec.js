@@ -12,7 +12,7 @@ import { statSync } from 'node:fs';
 
 import { test, expect } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
-import { signedInDevice, makeLocalBook, openFileInFiles, openBookDetail, gotoTab } from '../lib/journeys.js';
+import { signedInDevice, makeLocalBook, openFileInFiles, openBookDetail, gotoTab, confirmPutOnline } from '../lib/journeys.js';
 import { hostedBookWithSong } from '../lib/journeys-share.js';
 import { editSong, leaveFiles } from '../lib/journeys-files.js';
 
@@ -33,9 +33,9 @@ test('put a local book online, download it, then delete it as owner (workflow 7)
   await expect(page.getByRole('button', { name: 'Put online' })).toBeVisible();
   await checkA11y(); // the per-book detail
 
-  // Put it online: it becomes On Estante · private.
+  // Put it online — confirmed in the dialog: it becomes On Estante · private.
   await page.getByRole('button', { name: 'Put online' }).click();
-  await expect(page.getByText('On Estante · private')).toBeVisible();
+  await confirmPutOnline(page, NAME);
   await checkA11y(); // the hosted detail
 
   // Download it: the browser saves a non-empty .zip.

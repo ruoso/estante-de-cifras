@@ -126,6 +126,39 @@ describe('a book’s Share sheet (W10 #1)', () => {
   });
 });
 
+// books.put_online_confirm Constraint 6 (workflow 10 §At most fifty people per
+// book): the owner's sharing screen — a book's, a song's or a setlist's, every
+// invitation joins the book — says the limit; a member's, who cannot invite,
+// does not.
+describe('the limit hint (workflow 10 §At most fifty)', () => {
+  const HINT = 'Invite people to read or edit this book — up to 50 people.';
+
+  it('the owner’s sharing screen says "Invite people to read or edit this book — up to 50 people.", a member’s does not', async () => {
+    const owner = renderSheet(ownerClient().client);
+    let sheet = await screen.findByRole('dialog', { name: 'Share Choros da Ana' });
+    expect(await within(sheet).findByText('37 of 50')).toBeInTheDocument();
+    expect(within(sheet).getByText(HINT)).toBeInTheDocument();
+    expect(await checkWcag21aa(owner.container)).toHaveNoViolations();
+    owner.unmount();
+
+    // A song's share, the owner's: the same hint.
+    const song = renderSheet(ownerClient().client, { songPath: SONG_PATH, songTitle: 'Carinhoso', origin: 'https://estante.app' });
+    sheet = await screen.findByRole('dialog', { name: 'Share Carinhoso' });
+    await within(sheet).findByRole('textbox', { name: 'Song address' });
+    expect(within(sheet).getByText(HINT)).toBeInTheDocument();
+    song.unmount();
+
+    const { client } = makeClient({
+      'GET /api/books/bk/members': () => ({ body: { members: [ANA, MARINA], count: 37, limit: 50 } }),
+    });
+    const { container } = renderSheet(client, { role: 'editor' });
+    sheet = await screen.findByRole('dialog', { name: 'Share Choros da Ana' });
+    expect(await within(sheet).findByText('You’re an editor')).toBeInTheDocument();
+    expect(within(sheet).queryByText(HINT)).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
 describe('a song’s Share sheet on a phone (workflow 10 §Sharing a song)', () => {
   it('for the owner: the address, and an invitation to this song whose link carries #<path>', async () => {
     const { client, calls } = ownerClient({
@@ -198,7 +231,9 @@ describe('a song’s Share sheet on a book only on this device', () => {
 
     const sheet = await screen.findByRole('dialog', { name: 'Share Carinhoso' });
     expect(within(sheet).getByText('My songs is only on this device. Put it online to invite people.')).toBeInTheDocument();
-    expect(within(sheet).getByText(/Putting it online creates it on Estante, private/)).toBeInTheDocument();
+    expect(
+      within(sheet).getByText('Only on this device: nobody else can see it. Put it online to invite people — up to 50.'),
+    ).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Sign in to put it online' })).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Put online' })).toBeNull();
     expect(within(sheet).queryByRole('textbox', { name: 'Song address' })).toBeNull();

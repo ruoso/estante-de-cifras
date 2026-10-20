@@ -181,7 +181,10 @@ export default {
     readOnly: 'Solo lectura',
     putOnline: 'Poner en línea',
     putOnlineBody:
-      'Solo en este dispositivo. Ponerlo en línea crea el libro en Estante, privado: solo tú puedes abrirlo, hasta que invites a otras personas, como máximo 50.',
+      'Solo en este dispositivo: nadie más puede verlo. Ponlo en línea para invitar a personas — hasta 50.',
+    putOnlineConfirmTitle: '¿Poner {name} en línea?',
+    putOnlineConfirmBody:
+      'Va a Estante como privado: solo tú puedes abrirlo. Nadie más lo ve hasta que invites a otras personas desde Compartir — hasta 50 personas.',
     putOnlineQuota: 'Tu cuenta está llena. Quita un libro o libera espacio y vuelve a intentarlo.',
     putOnlineSignedOut: 'Inicia sesión para poner un libro en línea.',
     putOnlineOffline: 'Estás sin conexión. Conéctate y ponlo en línea.',
@@ -254,6 +257,7 @@ export default {
     close: 'Cerrar',
     back: 'Atrás',
     intro: 'Solo quienes invites pueden abrir este libro, cada uno con su propia cuenta.',
+    limitHint: 'Invita a personas a leer o editar este libro — hasta 50 personas.',
     memberIntroReader:
       'Compartido contigo por {owner}. Puedes leer este libro y conservarlo en tu estante; para cambiarlo, hazlo tuyo. Solo {owner} invita a personas. Los demás lectores no aparecen en la lista.',
     memberIntroEditor:

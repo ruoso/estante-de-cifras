@@ -194,7 +194,10 @@ export default {
     readOnly: 'Read only',
     putOnline: 'Put online',
     putOnlineBody:
-      'Only on this device. Putting it online creates it on Estante, private: only you can open it, until you invite people to it, at most 50.',
+      'Only on this device: nobody else can see it. Put it online to invite people — up to 50.',
+    putOnlineConfirmTitle: 'Put {name} online?',
+    putOnlineConfirmBody:
+      'It goes to Estante private: only you can open it. Nobody else sees it until you invite them from Share — up to 50 people.',
     putOnlineQuota: 'Your account is full. Remove a book or free space, then try again.',
     putOnlineSignedOut: 'Sign in to put a book online.',
     putOnlineOffline: 'You’re offline. Connect, then put it online.',
@@ -278,6 +281,7 @@ export default {
     close: 'Close',
     back: 'Back',
     intro: 'Only people you invite can open this book, each with their own account.',
+    limitHint: 'Invite people to read or edit this book — up to 50 people.',
     memberIntroReader:
       'Shared with you by {owner}. You can read this book and keep it on your shelf; to change it, make it your own. Only {owner} invites people. Other readers aren’t listed.',
     memberIntroEditor:

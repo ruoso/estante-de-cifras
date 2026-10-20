@@ -307,6 +307,30 @@ describe('the owner’s people screen (W10 #3)', () => {
   });
 });
 
+// books.put_online_confirm Constraint 6 (workflow 10 §At most fifty people per
+// book): the wide sharing screen tells the owner the limit, up to 50 people, in
+// digits; a member, who cannot invite, is not told.
+describe('the limit hint (workflow 10 §At most fifty)', () => {
+  const HINT = 'Invite people to read or edit this book — up to 50 people.';
+
+  it('the owner’s people screen says "Invite people to read or edit this book — up to 50 people.", a member’s does not', async () => {
+    const owner = renderPeople(ownerClient().client);
+    expect(await screen.findByText('37 of 50 people')).toBeInTheDocument();
+    expect(screen.getByText(HINT)).toBeInTheDocument();
+    expect(await checkWcag21aa(owner.container)).toHaveNoViolations();
+    owner.unmount();
+
+    const { client } = makeClient({
+      'GET /api/books/bk/members': () => ({ body: { members: [ANA, MARINA], count: 37, limit: 50 } }),
+    });
+    const { container } = renderPeople(client, { role: 'reader' });
+    const region = await screen.findByRole('region', { name: 'Choros da Ana · Sharing' });
+    expect(await within(region).findByText('Ana')).toBeInTheDocument();
+    expect(screen.queryByText(HINT)).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
 describe('a member’s view (W10 #6)', () => {
   it('reads You’re a reader, names the owner and the editor, lists no other reader, and has no controls', async () => {
     const { client, calls } = makeClient({

@@ -92,7 +92,10 @@ describe('BookDetail (workflow 7; W07 board)', () => {
     renderDetail(store, { bookId: 'local-1', kind: 'local' });
     emit(localShelf());
 
+    // The card asks first (books.put_online_confirm): confirm in the dialog.
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Put online' })));
+    const dialog = screen.getByRole('alertdialog');
+    act(() => fireEvent.click(within(dialog).getByRole('button', { name: 'Put online' })));
     expect(lastCommand(sent, CommandKind.PUT_ONLINE).payload.bookId).toBe('local-1');
 
     // The service create was refused for quota: a worded message appears.
@@ -1037,5 +1040,146 @@ describe("the detail as drawn (workflow 7 §A book's songs; W07 #4)", () => {
     renderDetail(wide.store, { bookId: 'srv-1', kind: 'shared', mode: 'wide' });
     wide.emit(hostedShelf());
     expect(screen.getByRole('button', { name: 'Rename Choros da Ana' })).toHaveTextContent('Rename');
+  });
+});
+
+// books.put_online_confirm: the local book's card says nobody else can see it,
+// and its Put online asks first — Put {book} online?, private, up to 50 people,
+// Cancel focused; nothing runs before the answer (workflow 7 §Putting a book
+// online L143-167; Review-polish board *Put online, asking*).
+describe('Put online asks first (workflow 7 §Putting a book online)', () => {
+  const mySongs = (id = 'local-1') =>
+    event(EventKind.SHELF, {
+      books: {},
+      local: { [id]: { title: reg('My songs'), position: reg(0) } },
+    });
+  const BODY =
+    'It goes to Estante private: only you can open it. Nobody else sees it until you invite them from Share — up to 50 people.';
+  const openLocal = () => {
+    const made = makeStore();
+    const view = renderDetail(made.store, { bookId: 'local-1', kind: 'local' });
+    made.emit(mySongs());
+    return { ...made, ...view };
+  };
+  const cardButton = () => screen.getByRole('button', { name: 'Put online' });
+  const press = (el) => act(() => fireEvent.click(el));
+  // The keyboard path to the card's button: focus it, then Enter (one gesture,
+  // keyDown+keyUp) — so RAC has the trigger to return focus to on close.
+  const enter = (el) => {
+    act(() => el.focus());
+    act(() => fireEvent.keyDown(el, { key: 'Enter' }));
+    act(() => fireEvent.keyUp(el, { key: 'Enter' }));
+  };
+  const sentPutOnline = (sent) => sent.filter((m) => m.kind === CommandKind.PUT_ONLINE);
+
+  it('the local card reads "Only on this device: nobody else can see it. Put it online to invite people — up to 50."', async () => {
+    const { container } = openLocal();
+    expect(
+      screen.getByText('Only on this device: nobody else can see it. Put it online to invite people — up to 50.'),
+    ).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('pressing the card\'s Put online opens "Put My songs online?" with the private-and-up-to-50 body, Cancel focused, and sends nothing; axe clean with the dialog open', async () => {
+    const { container, sent } = openLocal();
+    enter(cardButton());
+
+    const dialog = screen.getByRole('alertdialog', { name: 'Put My songs online?' });
+    expect(within(dialog).getByText(BODY)).toBeInTheDocument();
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    await waitFor(() => expect(document.activeElement).toBe(cancel));
+    expect(within(dialog).getByRole('button', { name: 'Put online' })).toHaveClass('primary');
+    expect(sentPutOnline(sent)).toHaveLength(0);
+    expect(await checkWcag21aa(container.ownerDocument.body)).toHaveNoViolations();
+  });
+
+  it('Cancel (and Escape) close it, send no PUT_ONLINE, and focus returns to the card\'s Put online', async () => {
+    const { sent } = openLocal();
+    const trigger = cardButton();
+
+    enter(trigger);
+    press(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+
+    enter(trigger);
+    const dialog = screen.getByRole('alertdialog');
+    await waitFor(() => expect(dialog).toContainElement(document.activeElement));
+    act(() => fireEvent.keyDown(document.activeElement, { key: 'Escape' }));
+    act(() => fireEvent.keyUp(document.activeElement, { key: 'Escape' }));
+    expect(dialog).not.toBeInTheDocument();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+
+    expect(sentPutOnline(sent)).toHaveLength(0);
+  });
+
+  it('the dialog\'s Put online sends one PUT_ONLINE for the book and closes, focus on the card\'s button', async () => {
+    const { sent } = openLocal();
+    const trigger = cardButton();
+    enter(trigger);
+    press(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Put online' }));
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    const commands = sentPutOnline(sent);
+    expect(commands).toHaveLength(1);
+    expect(commands[0].payload).toEqual({ bookId: 'local-1' });
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+
+  it('offline: the dialog still opens, and after Put online a refusal with reason offline shows "You\'re offline. Connect, then put it online." on the card (workflow 7 L164-166)', async () => {
+    const { container, sent, emit } = openLocal();
+    press(cardButton());
+    const dialog = screen.getByRole('alertdialog', { name: 'Put My songs online?' });
+    press(within(dialog).getByRole('button', { name: 'Put online' }));
+    expect(sentPutOnline(sent)).toHaveLength(1);
+
+    emit(event(EventKind.BOOK_ONLINE_REFUSED, { bookId: 'local-1', reason: 'offline' }));
+    expect(screen.getByRole('status')).toHaveTextContent('You’re offline. Connect, then put it online.');
+    // The button stays to try again, and asks again.
+    press(cardButton());
+    expect(screen.getByRole('alertdialog', { name: 'Put My songs online?' })).toBeInTheDocument();
+    expect(sentPutOnline(sent)).toHaveLength(1);
+    expect(await checkWcag21aa(container.ownerDocument.body)).toHaveNoViolations();
+  });
+
+  it('after a confirmed put online, BOOK_ONLINE and the hosted book\'s detail put focus on Share in the app bar (Decision 3)', async () => {
+    const { store, emit, rerender } = openLocal();
+    const reselected = [];
+    rerender(
+      <ThemeRoot store={store}>
+        <BookDetail store={store} bookId="local-1" kind="local" onReselect={(id) => reselected.push(id)} />
+      </ThemeRoot>,
+    );
+    press(cardButton());
+    press(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Put online' }));
+
+    // The Worker adopted the service id: the shell re-selects the detail onto
+    // it, and the shelf now holds the hosted book.
+    emit(event(EventKind.BOOK_ONLINE, { previousBookId: 'local-1', bookId: 'srv-1' }));
+    expect(reselected).toEqual(['srv-1']);
+    rerender(
+      <ThemeRoot store={store}>
+        <BookDetail store={store} bookId="srv-1" kind="shared" onReselect={(id) => reselected.push(id)} />
+      </ThemeRoot>,
+    );
+    emit(
+      event(EventKind.SHELF, {
+        books: { 'srv-1': { label: reg('My songs'), position: reg(0), role: reg('owner') } },
+        local: {},
+      }),
+    );
+    const share = screen.getByRole('button', { name: 'Share', exact: true });
+    await waitFor(() => expect(document.activeElement).toBe(share));
+    expect(screen.queryByRole('button', { name: 'Put online' })).toBeNull();
+
+    // Once: later renders leave focus where it is.
+    share.blur();
+    emit(
+      event(EventKind.SHELF, {
+        books: { 'srv-1': { label: reg('My songs'), position: reg(0), role: reg('owner') } },
+        local: {},
+      }),
+    );
+    expect(document.activeElement).not.toBe(share);
   });
 });

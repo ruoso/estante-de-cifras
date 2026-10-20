@@ -7,7 +7,7 @@
 // state it reaches. Book names are written for the test (no-song-text rule).
 import { test, expect } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
-import { signedInDevice, makeLocalBook, openBookDetail } from '../lib/journeys.js';
+import { signedInDevice, makeLocalBook, openBookDetail, confirmPutOnline } from '../lib/journeys.js';
 import { closeSharing, peopleScreen } from '../lib/journeys-share.js';
 
 const onPhone = () => test.info().project.name === 'phone';
@@ -30,9 +30,9 @@ test("the book detail as drawn: Share in the app bar, Delete set apart at the en
   await expect(page.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
   await checkA11y(); // the local book's detail
 
-  // Put it online: Share shows in the detail's app bar.
+  // Put it online (confirmed in the dialog): Share shows in the detail's app bar.
   await page.getByRole('button', { name: 'Put online' }).click();
-  await expect(page.getByText('On Estante · private')).toBeVisible();
+  await confirmPutOnline(page, NAME);
   const share = appbar.getByRole('button', { name: 'Share', exact: true });
   await expect(share).toBeVisible();
   await expect(body.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
@@ -82,4 +82,64 @@ test("the book detail as drawn: Share in the app bar, Delete set apart at the en
   }
   await expect(share).toBeFocused();
   await checkA11y(); // the detail, back from sharing
+});
+
+// books.put_online_confirm (workflow 7 §Putting a book online L143-167; workflow
+// 10 §At most fifty people per book): the local card says nobody else can see
+// the book; its Put online asks first, Cancel focused; Cancel leaves it local
+// with focus back on the card's button; the dialog's Put online makes it
+// private on Estante with Share in the app bar, focused; the sharing screen
+// says up to 50 people.
+test('a local book put online asks first, Cancel leaves it local, and Put online makes it private on Estante with Share in the app bar (workflow 7 §Putting a book online)', async ({
+  page,
+  checkA11y,
+}) => {
+  const NAME = 'Ensaio de quinta';
+  await signedInDevice(page);
+  await makeLocalBook(page, NAME);
+  await openBookDetail(page, NAME);
+
+  const detail = page.locator('.book-detail');
+  const appbar = detail.locator('.appbar');
+  const card = detail.locator('.book-detail-body').getByRole('button', { name: 'Put online' });
+
+  // The local card says the book is invisible to anyone else, and the limit.
+  await expect(detail.getByText(/nobody else can see it/)).toBeVisible();
+  await expect(detail.getByText(/up to 50\.$/)).toBeVisible();
+  await checkA11y(); // the local detail with the card's sentence
+
+  // Put online asks first: Put {book} online?, up to 50 people, Cancel focused.
+  await card.click();
+  const dialog = page.getByRole('alertdialog', { name: `Put ${NAME} online?` });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText(/up to 50 people\.$/)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await checkA11y(); // the dialog open
+
+  // Cancel: no dialog, still local (no Share), focus back on the card's button.
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
+  await expect(page.getByText('On Estante · private')).toHaveCount(0);
+  await expect(card).toBeFocused();
+
+  // Put online again, and confirm: private on Estante, Share in the app bar,
+  // focused (books.put_online_confirm Decision 3).
+  await card.click();
+  await confirmPutOnline(page, NAME);
+  const share = appbar.getByRole('button', { name: 'Share', exact: true });
+  await expect(share).toBeVisible();
+  await expect(share).toBeFocused();
+  await checkA11y(); // the hosted detail
+
+  // Share: the sharing screen tells the owner the limit (workflow 10).
+  await share.click();
+  const hint = 'Invite people to read or edit this book — up to 50 people.';
+  if (onPhone()) {
+    const sheet = page.getByRole('dialog', { name: `Share ${NAME}` });
+    await expect(sheet.getByText(hint)).toBeVisible();
+  } else {
+    await expect(peopleScreen(page, NAME).getByText(hint)).toBeVisible();
+  }
+  await checkA11y(); // the sharing screen
 });
