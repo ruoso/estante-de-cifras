@@ -106,6 +106,7 @@ Append one `###` block per item, newest at the bottom:
 - **Updated** (2026-10-20, closer for `design.book_row_songs`): `docs/mockups/Open-a-book.dc.html` is new and registered in `canvas.json` (y 39680); W07 (Phone 1's rows, the Computer frame) is redrawn. None rendered, so check on publishing.
 - **Updated** (2026-10-20, closer for `design.format_help`): `docs/mockups/Format-help.dc.html` is new and registered in `canvas.json` (y 41300); W03 (Phone 2, Tablet, Computer) and W04 (Phone 1, Tablet) gain *Help*. None rendered, so check on publishing.
 - **Updated** (2026-10-20, closer for `books.setlist_invitation`): `docs/mockups/W12-setlists.dc.html` draws Share on a setlist; its `h` in `canvas.json` is raised from 1500 to 2500 and every board below it moves down 1000. Not rendered, so check on publishing.
+- **Updated** (2026-10-20, closer for `design.review_polish`): `docs/mockups/Review-polish.dc.html` is new and registered in `canvas.json` (y 43920); W01, W02 (shapes caption on the Tablet frame), W07, W12, Leave-book, Open-a-book and Remove-from-shelf are redrawn. None rendered, so check on publishing.
 
 ### 2026-10-13 — Handing ownership of a book to a successor on leaving
 - **Source**: closer for `design.leaving` (tasks/refinements/design/leaving.md), surfaced by implementer's return summary and workflow 10 §Later (line 120).
@@ -181,3 +182,7 @@ Append one `###` block per item, newest at the bottom:
 ### 2026-10-20 — Done on a made invitation landing on /setlists did not reproduce (from `books.setlist_picker_fixes`)
 - **What**: the persona run of 2026-10-19 reported Done on the invitation link screen, reached from a book's Share, landing on Setlists. New Done cases pass in jsdom and in a real browser on phone, tablet and computer (sheet, Members, after put-online, wide dialog), so the wiring was left unchanged.
 - **Decide**: whether the report came from a stale build or a path the tests miss; if it recurs, capture the steps and the history entries.
+
+### 2026-10-20 — Which viewport crowded the editor's text box? (from `design.review_polish`)
+- **What**: the persona exploration said the editor Preview crowds the text box on a phone but did not record the viewport, so the rule that text and preview sit side by side only at 640px of editor width or more is inferred.
+- **Decide**: whether 640px is the right threshold once the editor is seen on a turned phone and a narrow window.

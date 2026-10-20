@@ -145,7 +145,7 @@
             <div style="display: flex; gap: 16px">
               <div class="card pad" style="flex: 1">
                 <span class="t-h3">Left out</span>
-                <p class="t-small">A book holds songs, setlists, a README and .gitattributes, so these stay behind:</p>
+                <p class="t-small">A book holds songs, setlists and its README, so these stay behind:</p>
                 <sc-for list="{{leftOut}}" as="f" hint-placeholder-count="2">
                   <span class="t-mono" style="font-size: 14px">{{f.path}}</span>
                 </sc-for>
@@ -175,7 +175,7 @@
 
     <!-- Desktop -->
     <div class="dev-col">
-      <div class="dev-label"><b>Computer</b> · a book's detail, and deleting it from Estante</div>
+      <div class="dev-label"><b>Computer</b> · a book's detail — Share in its app bar, Download and Files, then after a rule Remove and, last, Delete — and deleting it from Estante</div>
       <div class="dev desktop">
         <div class="split">
           <div class="pane side">
@@ -214,7 +214,7 @@
               <div style="display: flex; gap: 16px">
                 <div class="card pad" style="flex: 1">
                   <span class="t-h2">Download</span>
-                  <p class="t-small">A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.</p>
+                  <p class="t-small">A zip of this book as it is on this device: every song and setlist with its whole history, and unsaved changes as they are. Upload it to bring the book back.</p>
                   <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"></path></svg>Download</button>
                 </div>
                 <div class="card pad" style="flex: 1">
@@ -223,6 +223,7 @@
                   <button class="btn" style="align-self: flex-start" aria-label="Files in My songs"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path></svg>Files</button>
                 </div>
               </div>
+              <div role="separator" style="border-top: 1px solid var(--line); margin-top: 14px"></div>
               <div style="display: flex; gap: 16px">
                 <div class="card pad" style="flex: 1">
                   <span class="t-h2">Remove from my shelf</span>

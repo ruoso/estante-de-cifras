@@ -30,6 +30,10 @@ git host:
 It is short enough to define in the cifra.md specification, as a companion to the
 song format, so that other tools can read it.
 
+Where the setlist's file is shown beside its editor, a line under it says why
+the links look as they do, without git's words: *The links start from
+{folder}, so they keep working wherever the book’s files are copied.*
+
 Setlists are found by the same search as songs, marked as setlists. Opening
 one lists its songs.
 
@@ -59,6 +63,20 @@ the setlist's `key` is shown as a note instead.
 chooses the setlist or makes a new one. Within a setlist, songs are reordered
 by dragging and removed by swiping. Every change is an edit, saved like any
 other (workflow 4).
+
+**A setlist made from Add to setlist is not saved yet**, and says so. Making
+it opens nothing — the person was adding a song from a song, and stays there
+— and the file it writes is an unsaved change like any other (workflow 4:
+one kind of unsaved change). Until its first save it reads **not saved yet**
+where an edited setlist reads *unsaved changes*: in its badge, in the list of
+setlists and in the editor's bar. It is the same change underneath, named
+for what it is, so opening it does not claim it was changed.
+
+**Done leaves editing.** The editor's bar starts with **Done**, a word, where
+an icon-only Back was: it returns to the setlist as read, keeping every
+change, as leaving any unsaved change asks nothing (workflow 4). Save and
+Discard stay as they are; Done is the one way out, not a second one beside
+Back.
 
 *Add song*, in a setlist being edited, searches the setlist's book. A song
 already in the setlist is still listed, and says so in words — *Already in

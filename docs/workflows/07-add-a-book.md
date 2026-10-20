@@ -89,13 +89,26 @@ action:
 **The detail** opens over the book's songs: on a phone it takes the screen,
 with *Back to {book}*; on a tablet and a computer it takes the main pane,
 beside the book's songs in the side pane, as a song does. It is not an
-address of its own: reloading lands on the book's songs. Its title carries
-**Rename**, the label on this shelf only. Below come the book's state and
-its acts, as they are drawn: put online, the notices of lost access, *can't
-save here* and taken down, **Download**, then **Files** — *Every file in the
-book, as it is stored.* — opening the file view (workflow 14), then fork,
-remove, leave, share and delete. Removing or leaving the book from its
-detail returns to Books, since its songs are no longer here.
+address of its own: reloading lands on the book's songs.
+
+Its app bar is Back, the title, **Rename** — the label on this shelf only —
+and, at its right end, **Share**, for whoever shares the book: its owner,
+once it is online, opens the sharing screen, and a member the people screen
+(workflow 10). On a phone Rename is an icon (named *Rename {book}*) and Share
+a word; on a tablet and a computer Rename keeps its word. A book only on this
+device has no Share there: its Put online card says how it is opened up
+(§Putting a book online). There is no Share card in the body.
+
+Below, top to bottom: the chips; the book's state — put online, the original
+gone (workflow 11), the notices of lost access, *can't save here* and taken
+down; **Download**; **Files** — *Every file in the book, as it is stored.* —
+opening the file view (workflow 14); **Fork** (workflow 11). Then, set apart
+by a rule with space above it — not a heading, since only Delete reaches
+anyone but this person and this device — the **closing group**: *Remove from
+my shelf*, *Leave this book*, and last *Delete the book* in its danger style.
+Each shows only for whom it applies, as before. The keyboard follows the same
+order: Back, Rename, Share, then the body. Removing or leaving the book from
+its detail returns to Books, since its songs are no longer here.
 
 ## Signing in
 
@@ -133,6 +146,26 @@ editors, at most fifty. Private is where a book starts, not where it must
 stay; it is never shared by default, since a book with words in it is
 copyrighted text.
 
+The local book's card says what being only here means: *Only on this device:
+nobody else can see it. Put it online to invite people — up to 50.* Every
+screen gives the limit that way, *up to 50 people*, in digits as the sharing
+screen counts it (*37 of 50*, workflow 10).
+
+**Put online asks first, on the book's detail.** It makes a book on a server,
+and a person meeting it cold should know what it does before it runs. The
+dialog:
+
+- **Put {book} online?**
+- *It goes to Estante private: only you can open it. Nobody else sees it
+  until you invite them from Share — up to 50 people.*
+- **Cancel** and **Put online**. Focus is on Cancel when it opens, and back on
+  the card's button when it closes.
+
+It is a local dialog: offline it still opens, and Put online then fails as
+it does today, saying the device is offline. The share panel's *Put it online
+to invite people* (workflow 10, on a local book) stays one press, with no
+dialog: its sentence is the explanation, and pressing it is the answer.
+
 ## Downloading a book
 
 *Download*, on any book, saves the repository **as it is on the device**:
@@ -140,6 +173,11 @@ the `.git` directory with the whole history, and the working tree, unsaved
 changes included. Unzipped, `git status` shows the unsaved changes as
 modified files, which is exactly what they are. The remote is removed, since
 its URL is the service's and useless outside the app.
+
+That is its behaviour; its words are plain. Git terms belong to the file view
+(workflow 14), so the card says: *A zip of this book as it is on this device:
+every song and setlist with its whole history, and unsaved changes as they
+are. Upload it to bring the book back.*
 
 The zip is written by the zip writer Explore Chords already has.
 
@@ -165,7 +203,11 @@ ignored, and only paths inside the repository are read.
 
 **A preview comes first.** The upload shows what it would do, song by song —
 *added*; *changed*, with the musical summary; *conflict* — and nothing is
-written until it is confirmed. For a merge, the preview is the save sheet
+written until it is confirmed. What a book does not hold is listed as left
+out (workflow 14 §An upload that holds other things), under a plain line:
+*A book holds songs, setlists and its README, so these stay behind.* — the
+`.gitattributes` the app writes itself is not named there; the file view is
+where it shows. For a merge, the preview is the save sheet
 (workflow 4): confirming makes the merge commit, and pushes it.
 
 **Edits never committed.** The likely uploader is not a git user: they

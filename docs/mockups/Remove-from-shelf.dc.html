@@ -100,13 +100,13 @@
             </div>
             <div class="card pad">
               <span class="t-h2">Put online</span>
-              <p class="t-small">Only on this device. Putting it online creates it on Estante, private: only you can open it, until you invite people to it, at most 50.</p>
+              <p class="t-small">Only on this device: nobody else can see it. Put it online to invite people — up to 50.</p>
               <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V8M7 13l5-5 5 5M4 4h16"></path></svg>Put online</button>
             </div>
             <div style="display: flex; gap: 16px">
               <div class="card pad" style="flex: 1">
                 <span class="t-h2">Download</span>
-                <p class="t-small">A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.</p>
+                <p class="t-small">A zip of this book as it is on this device: every song and setlist with its whole history, and unsaved changes as they are. Upload it to bring the book back.</p>
                 <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"></path></svg>Download</button>
               </div>
               <div class="card pad" style="flex: 1">
@@ -205,7 +205,7 @@ class Component extends DCLogic {
       theme: this.props.theme ?? 'current',
       density: this.props.density ?? 'comfortable',
       hostedVerbs: [
-        { title: 'Download', text: 'A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.', button: 'Download', cls: '' },
+        { title: 'Download', text: 'A zip of this book as it is on this device: every song and setlist with its whole history, and unsaved changes as they are. Upload it to bring the book back.', button: 'Download', cls: '' },
         { title: 'Remove from my shelf', text: 'Deletes this device’s copy only. The book stays on Estante.', button: 'Remove from my shelf', cls: '' },
         { title: 'Leave this book', text: 'Stop following it on all your devices.', button: 'Leave this book', cls: 'danger' },
       ],

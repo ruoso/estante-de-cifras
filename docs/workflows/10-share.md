@@ -28,6 +28,11 @@ without a session is refused, and so is a reader's push.
 
 A book has its owner and **at most fifty members**, readers and editors
 together. The owner sees how many — *37 of 50* — in the sharing screen.
+Every screen that states the limit says it the one way, in digits as that
+count is: *up to 50 people*. The sharing screen's hint reads *Invite people
+to read or edit this book — up to 50 people.*; the book's detail no longer
+has a Share card to say it, since Share is in its app bar (workflow 7 §A
+book's songs).
 
 When the book is full, an invitation stops admitting anyone: opening it says
 the book has reached its limit, and the owner is told someone tried. Making

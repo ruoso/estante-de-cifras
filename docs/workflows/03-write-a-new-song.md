@@ -75,8 +75,13 @@ syntax costs effort instead:
   ````
 
 - **Add section** writes a heading and a fence, and puts the cursor inside.
-- **A preview** of the song as it will be read sits beside the text on a wide
-  screen, and a tap away on a phone.
+- **A preview** of the song as it will be read sits beside the text when the
+  editor itself is **at least 640px wide** — a text of at least 280px beside
+  the 340px preview, and the gap between. Narrower, whatever the device, it is
+  *Text | Preview*, one at a time, with *Help* beside it: a phone held
+  upright, as before, and now a phone turned sideways or a narrow window on a
+  computer too. The editor's own width decides, not the screen's layout,
+  since the side rail can leave a wide screen a narrow editor.
 - **Help** explains the few marks the format asks for, in plain words with
   examples that go straight into the song (§Help with the format), and the
   editor points to it when what was typed looks like another format (§When it

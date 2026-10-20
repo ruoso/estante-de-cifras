@@ -14,6 +14,18 @@ The app opens on search: one box, across every book on the shelf.
 book as a collapsible section listing its songs. Recents are the way back
 into what you were playing; the books are the way to browse.
 
+**A book's section header** is the same on every device: a bordered row —
+the caret, the book's name, how many songs — that opens and closes the
+section, with two icons beside it, the plus (*New song in {book}*) and the
+filter (*Search only in {book}*). When the book has songs with unsaved
+changes, a line of its own sits under the header, above the songs: *2 songs
+with unsaved changes* (*1 song with unsaved changes*), and **Save all** at
+its end, which opens the save sheet for those songs (workflow 4). It is
+outside the part that opens and closes, so it shows with the section closed
+too, and it says what Save all will save. A phone's 370px holds the row and
+the two icons; a third action beside them is what pushed the header past the
+edge, so none goes there.
+
 Recents are kept on the device and are not synced. They change every time a
 song is opened, and the home book (DIRECTION §3.2) would gain a commit for
 each. What you played on the phone last night is not something the laptop
@@ -101,6 +113,31 @@ does: the chart, then the shapes, a page at a time on a phone.
 From the reading view the song can be edited (workflow 4), its history
 opened (workflow 6), transposed (below), and printed.
 
+### Nothing written yet
+
+- **An empty song** — no section holds a bar, a sung line or a note, and
+  there is nothing outside a section; a new song saved untouched is one
+  (workflow 3) — shows, in place of the chart, *Nothing written in this song
+  yet.* with **Edit**, which opens the editor as the toolbar's Edit does. Its
+  section names are not drawn, and there are no shapes, as with a song with
+  no chords.
+- **An empty section** in a song that has others shows its name and, under
+  it, a muted line: *Nothing written here yet.* There is no button: one Edit
+  per section would repeat the toolbar's, and Edit opens the whole text
+  anyway.
+
+### The song's menu
+
+The ⋯ menu holds every action on the song, on every device; the buttons in
+the toolbar are shortcuts to some of them, and stay. Its actions come in
+three groups, each with a small visible header — the name a screen reader
+gives the group — and a separator between them, in this order:
+
+- **This song** — Edit, Arrange for {instrument} (left out while the song is
+  transposed, below), History, Show the file;
+- **Take it along** — Add to setlist, Share, Print;
+- **View** — Full screen.
+
 ### Where a chord's shape comes from
 
 A chord the song has chosen no shape for (cifra.md §7.6) takes a default,
@@ -116,6 +153,15 @@ and the spec leaves the default to the app. Here it is, in order:
 Each is marked for what it is: the song's choice plain, *your shape*, or
 *default*. On paper they print alike, since a student needs the shape, not
 its provenance.
+
+The shapes carry a caption that says what each look means, with the mark's
+own word in it: *In ink: the song’s own shape. In colour: a shape you chose.
+In outline, marked default: the app’s suggestion.* A song with no voicings
+for the instrument in use says so in words a newcomer reads at once: *This
+song doesn’t say yet how to play its chords on cavaquinho, so each chord
+shows its easiest shape.*, with **Arrange for cavaquinho**. The marks
+themselves keep their words, *your shape* and *default*, here and in
+workflows 5 and 16.
 
 My shapes match by chord, not by spelling, so one saved as `Cmaj7` serves a
 song that writes `C7M`. They are applied when the song is shown and are never

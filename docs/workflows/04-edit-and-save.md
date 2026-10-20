@@ -88,6 +88,12 @@ on the book (workflow 8), not on the sheet. This settles the question left open 
 §6. The user has two states to think about, unsaved and saved, and *saved*
 means *shared with whoever shares the book*.
 
+The sheet says so in a caption, chosen by where the book lives. On a book on
+Estante: *Saving shares this version with whoever shares the book; with no
+network, at the next sync.* On a book only on this device, where nobody else
+can see it, it promises nothing of the kind: *Saved on this device. Only you
+can see it until the book is put online.*
+
 A teacher who wants drafts their students do not see keeps them in a book
 of their own. A separate *publish* step is not built unless that proves not
 to be enough.

@@ -95,10 +95,10 @@ anything else. Here the song comes first, so:
   the header, and changed from there. The header reads *Estante* (the wordmark),
   the chip (*Guitar*) and the account affordance — on a phone above every
   destination, on a tablet or computer at the head of the side rail.
-- **The first time a song is opened**, the reading view says *playing on
-  guitar — change?* once. That is the moment the choice shows, so it is the
-  moment to ask. Dismissing it, or changing the instrument, means it is not
-  asked again.
+- **The first time a song is opened**, the reading view says *Chord shapes
+  shown for guitar.* once, with **Change instrument** and **Keep guitar**.
+  That is the moment the choice shows, so it is the moment to ask. Keeping
+  guitar, or changing the instrument, means it is not asked again.
 
 ## The home book
 

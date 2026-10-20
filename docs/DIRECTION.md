@@ -662,6 +662,35 @@ workflows do not yet cover, and work that comes before building:
   another format — chords in brackets, or chords outside any fence — a notice
   above the text names the line and opens the help at its answer; it never
   stops a save nor rewrites the text. No new workflow.
+- **Polish from the usability review** (2026-10-19, and a persona
+  exploration the same day), decided (workflows 1, 2, 3, 4, 7, 10, 12) and
+  drawn on [mockups/Review-polish.dc.html](mockups/Review-polish.dc.html),
+  [mockups/W02-find-and-play.dc.html](mockups/W02-find-and-play.dc.html),
+  [mockups/W07-add-a-book.dc.html](mockups/W07-add-a-book.dc.html) and
+  [mockups/W12-setlists.dc.html](mockups/W12-setlists.dc.html):
+  - the book's detail has Share in its app bar and ends, after a rule, with
+    Remove, Leave and, last, Delete (workflow 7);
+  - plain words for Download, the upload's left-out files, the setlist file's
+    links and a local book's save caption; git terms stay in the file view
+    (workflows 4, 7, 12);
+  - a book's section in search keeps its plus and filter beside the header,
+    and Save all goes to a line of its own with the count (workflow 2);
+  - an empty song shows *Nothing written in this song yet.* with Edit, an
+    empty section *Nothing written here yet.* (workflow 2);
+  - the song's ⋯ menu in three named groups, *This song*, *Take it along*,
+    *View*, the toolbar shortcuts kept (workflow 2);
+  - the shapes caption, the no-voicings notice and the instrument prompt in
+    words a newcomer reads, the marks *your shape* and *default* kept
+    (workflows 1, 2);
+  - the limit said one way, *up to 50 people* (workflows 7, 10);
+  - Put online on the book's detail asks first, saying the book goes private
+    (workflow 7);
+  - a setlist never saved reads *not saved yet*, and *Done* leaves its editor
+    (workflow 12);
+  - the song editor puts text and preview side by side only when it is at
+    least 640px wide (workflow 3).
+
+  No new workflow.
 
 ## 7. Workflows
 

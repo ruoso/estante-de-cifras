@@ -236,4 +236,16 @@ task songs "Songs" {
     complete 100
     note "A chord written past the end of its sung line is drawn glued to the last word: mais cheia de graçaCmaj7, in the editor preview and the reading view. The parser keeps the chord column beyond the lyric (cifra.md/js parse: the item has a column past the words), and app/src/chart/layout.js places it with no gap. Keep at least a space between the last word and a chord after it, at every density, in both layouts the chart draws. Source: persona exploration 2026-10-19 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified against screenshots and code). Tests: unit (layout of a chord past the lyric end); behavior (the reading view and the preview draw the gap; axe); e2e-web (that song read on the three viewports). Refinement: tasks/refinements/songs/trailing_chord_gap.md"
   }
+  task shape_words "The shape words a teacher understands" {
+    effort 0.5d
+    allocate team
+    depends design.review_polish
+    note "Item 6 of design.review_polish: the reading view's shapes caption, its no-voicings notice and the first-open instrument prompt in the words the refinement pins (reading.shapesCaption, reading.noVoicings, reading.instrumentPrompt and its two buttons), in the four locales; the per-diagram marks unchanged. Workflows 1, 2. Source: persona exploration 2026-10-19. Tests: unit (the locales carry every key); behavior (SongReading: the caption with a default and a chosen shape, the notice on a song with no voicings, the prompt and its two answers; axe). Refinement: tasks/refinements/design/review_polish.md"
+  }
+  task editor_split_width "The editor splits text and preview only when wide enough" {
+    effort 0.5d
+    allocate team
+    depends design.review_polish
+    note "Item 10 of design.review_polish: the song editor puts text and preview side by side only when its own width is at least 640px, else Text | Preview with Help beside it, whatever the shell's layout. Workflow 3 section The editor. Source: persona exploration 2026-10-19. Tests: behavior (SongEditor: below and above 640px of editor width, the toggle and the split, focus kept on switching; axe); e2e-web (the editor on phone, tablet and computer, and on the phone at 844x390, never side by side under 640px; axe). Refinement: tasks/refinements/design/review_polish.md"
+  }
 }

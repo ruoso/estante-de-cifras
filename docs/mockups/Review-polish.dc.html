@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>2, 7 &amp; 12. Polish from the usability review</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflows 2, 7 &amp; 12</div>
+    <h1 class="board-title">Polish from the usability review</h1>
+    <p class="board-sub">A book section's Save all on its own line, an empty song, Put online asking first, and the song menu in groups.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · a book section with unsaved songs: the plus and the filter beside its header, Save all on a line of its own · then an untouched song</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 18px 16px 10px">
+              <span class="t-h1" style="flex: 1">Estante</span>
+              <span class="chip accent">Guitar</span>
+              <button class="btn icon" aria-label="Account"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></button>
+            </div>
+            <div style="padding: 0 16px 12px">
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span style="flex: 1; color: var(--ink-2)">Songs, words, chords…</span></div>
+            </div>
+            <div class="scroll" style="padding-top: 0; gap: 10px">
+              <div class="t-h3">Books</div>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <button class="btn" aria-expanded="true" style="flex: 1; min-width: 0; justify-content: flex-start; gap: 10px; border: 1px solid var(--line); background: var(--surface)">
+                  <span class="t-small" aria-hidden="true">▾</span>
+                  <span style="display: flex; flex-direction: column; align-items: flex-start; min-width: 0"><span class="name" style="font-weight: 700">Ensaios</span><span class="t-small">12 songs</span></span>
+                </button>
+                <button class="btn icon" aria-label="New song in Ensaios"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+                <button class="btn icon" aria-label="Search only in Ensaios"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4z"></path></svg></button>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; padding: 0 4px">
+                <span class="t-small" style="flex: 1">2 songs with unsaved changes</span>
+                <button class="btn">Save all</button>
+              </div>
+              <div class="list">
+                <sc-for list="{{ensaios}}" as="r" hint-placeholder-count="4">
+                  <a class="row" href="#"><span class="grow"><span class="name">{{r.title}}</span><span class="meta">{{r.meta}}</span><sc-if value="{{r.unsaved}}" hint-placeholder-val="{{ false }}"><span class="badges"><span class="badge unsaved dot">unsaved</span></span></sc-if></span></a>
+                </sc-for>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <button class="btn" aria-expanded="false" style="flex: 1; min-width: 0; justify-content: flex-start; gap: 10px; border: 1px solid var(--line); background: var(--surface)">
+                  <span class="t-small" aria-hidden="true">▸</span>
+                  <span style="display: flex; flex-direction: column; align-items: flex-start; min-width: 0"><span class="name" style="font-weight: 700">Banda do Bairro</span><span class="t-small">21 songs</span></span>
+                </button>
+                <button class="btn icon" aria-label="New song in Banda do Bairro"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+                <button class="btn icon" aria-label="Search only in Banda do Bairro"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4-2v-4z"></path></svg></button>
+              </div>
+            </div>
+            <div class="tabbar">
+              <button class="tab on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Search</button>
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>Books</button>
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg>Setlists</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Untitled song</span>
+              <button class="btn icon" aria-label="More"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+            </div>
+            <div class="scroll" style="gap: 16px">
+              <span class="t-small">My songs</span>
+              <div class="notice" style="flex-direction: column; gap: 12px">
+                <span class="t-body">Nothing written in this song yet.</span>
+                <button class="btn primary" style="align-self: flex-start"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg>Edit</button>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; padding: 12px 16px 22px; border-top: 1px solid var(--line); background: var(--surface)">
+              <button class="btn" style="flex: 1">Edit</button>
+              <button class="btn" style="flex: 1">Full screen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · a book only on this device: its Put online card says nobody else can see it, and Put online asks first; no Share in the app bar</div>
+      <div class="dev tablet">
+        <div class="split">
+          <div class="pane side">
+            <div style="padding: 18px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; align-items: center; gap: 8px"><span class="t-h1" style="flex: 1">Estante</span><span class="chip accent">Guitar</span></div>
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span class="scope">Choros da turma</span><span style="flex: 1"></span><button class="btn icon" aria-label="Clear filter" style="min-height: 32px; min-width: 32px; padding: 4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+              <div class="card pad" style="gap: 8px">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <span style="display: flex; flex-direction: column; flex: 1; min-width: 0"><span class="t-h2">Choros da turma</span><span class="t-small">On this device · 5 songs</span></span>
+                  <button class="btn" aria-label="Manage Choros da turma">Manage</button>
+                </div>
+              </div>
+            </div>
+            <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+              <div class="list">
+                <sc-for list="{{turma}}" as="s" hint-placeholder-count="5">
+                  <a class="row" href="#"><span class="grow"><span class="name">{{s.title}}</span><span class="meta">{{s.meta}}</span></span></a>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="appbar" style="padding: 14px 20px">
+              <button class="btn icon" aria-label="Back to Choros da turma"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Choros da turma</span>
+              <button class="btn quiet" aria-label="Rename Choros da turma"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg>Rename</button>
+            </div>
+            <div class="scroll" style="padding: 22px 24px; gap: 16px">
+              <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                <span class="chip">On this device</span>
+                <span class="chip">You can save</span>
+              </div>
+              <div class="card pad">
+                <span class="t-h2">Put online</span>
+                <p class="t-small">Only on this device: nobody else can see it. Put it online to invite people — up to 50.</p>
+                <button class="btn" style="align-self: flex-start; outline: 2px solid var(--accent); outline-offset: 2px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V8M7 13l5-5 5 5M4 4h16"></path></svg>Put online</button>
+              </div>
+              <div class="card pad">
+                <span class="t-h2">Download</span>
+                <p class="t-small">A zip of this book as it is on this device: every song and setlist with its whole history, and unsaved changes as they are. Upload it to bring the book back.</p>
+                <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"></path></svg>Download</button>
+              </div>
+              <div class="card pad">
+                <span class="t-h2">Files</span>
+                <p class="t-small">Every file in the book, as it is stored.</p>
+                <button class="btn" style="align-self: flex-start" aria-label="Files in Choros da turma"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path></svg>Files</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" role="alertdialog" aria-labelledby="rp-t-title" aria-describedby="rp-t-body" style="width: 520px">
+            <h2 class="t-h1" id="rp-t-title">Put Choros da turma online?</h2>
+            <p class="t-body" id="rp-t-body">It goes to Estante private: only you can open it. Nobody else sees it until you invite them from Share — up to 50 people.</p>
+            <div class="actions">
+              <button class="btn" style="outline: 2px solid var(--accent); outline-offset: 2px">Cancel</button>
+              <button class="btn primary">Put online</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · a song with an empty section, and its ⋯ menu in three named groups; the toolbar keeps its shortcuts</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side">
+            <div style="padding: 18px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; align-items: center; gap: 8px"><span class="t-h1" style="flex: 1">Estante</span><span class="chip accent">Guitar</span></div>
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span style="flex: 1; color: var(--ink-2)">Songs, words, chords…</span></div>
+            </div>
+            <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+              <div class="t-h3">Recent</div>
+              <div class="list">
+                <a class="row sel" href="#"><span class="grow"><span class="name">Valsa da Varanda</span><span class="meta">My songs · aulas/</span></span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Tarde Clara</span><span class="meta">My songs</span></span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Carinhoso</span><span class="meta">Choros da Ana · choro/</span></span><span class="badge voiced">voiced</span></a>
+              </div>
+            </div>
+          </div>
+          <div class="pane main" style="position: relative">
+            <div class="appbar" style="padding: 14px 24px">
+              <span class="title">Valsa da Varanda</span>
+              <button class="btn">Edit</button>
+              <button class="btn">History</button>
+              <button class="btn">Add to setlist</button>
+              <button class="btn">Print</button>
+              <button class="btn">Share</button>
+              <button class="btn icon" aria-label="More" aria-expanded="true" style="background: var(--surface-2)"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+            </div>
+            <div class="scroll" style="padding: 20px 32px; gap: 16px">
+              <span class="t-small">Pedro Araújo · My songs</span>
+              <div style="display: flex; gap: 40px; align-items: flex-start">
+                <div class="chart" style="flex: 1; --chart-size: 20px">
+                  <sc-for list="{{valsa}}" as="l" hint-placeholder-count="6">
+                    <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                    <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                    <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+                  </sc-for>
+                  <div class="sec-name">Refrão</div>
+                  <p class="t-small" style="color: var(--ink-2)">Nothing written here yet.</p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 10px; width: 300px; flex: none">
+                  <div class="t-h3">Shapes</div>
+                  <div class="shapes">
+                    <dc-import name="ChordBox" chord="D" frets="xx0232" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                    <dc-import name="ChordBox" chord="A7" frets="x02020" kind="song" size="m" inherit="yes" hint-size="90px,110px"></dc-import>
+                    <dc-import name="ChordBox" chord="G" frets="320033" kind="yours" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                    <dc-import name="ChordBox" chord="Bm" frets="x24432" kind="default" size="m" inherit="yes" hint-size="90px,124px"></dc-import>
+                  </div>
+                  <p class="t-small">In ink: the song’s own shape. In colour: a shape you chose. In outline, marked default: the app’s suggestion.</p>
+                </div>
+              </div>
+            </div>
+            <div class="card" role="menu" aria-label="More actions for Valsa da Varanda" style="position: absolute; top: 64px; right: 24px; width: 260px; padding: 8px 0; display: flex; flex-direction: column; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18)">
+              <sc-for list="{{menuGroups}}" as="g" hint-placeholder-count="3">
+                <sc-if value="{{g.sep}}" hint-placeholder-val="{{ false }}"><div role="separator" style="border-top: 1px solid var(--line); margin: 6px 0"></div></sc-if>
+                <div role="group" aria-label="{{g.name}}" style="display: flex; flex-direction: column">
+                  <span class="t-h3" aria-hidden="true" style="padding: 6px 16px 2px">{{g.name}}</span>
+                  <sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+                    <button class="btn quiet" role="menuitem" style="justify-content: flex-start; border-radius: 0; padding: 0 16px">{{it.label}}</button>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const segsOf = (chords, words) => {
+      const toks = []; const re = /\S+/g; let m;
+      while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
+      if (!toks.length) return [{ c: '', w: words }];
+      const segs = [];
+      if (toks[0].at > 0) segs.push({ c: '', w: words.slice(0, toks[0].at).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') });
+      toks.forEach((t, i) => {
+        const end = i + 1 < toks.length ? toks[i + 1].at : Math.max(words.length, t.at);
+        segs.push({ c: t.c, w: words.slice(t.at, end).replace(/([^\s_])_+(?=[^\s_]|$)/g, '$1') || ' ' });
+      });
+      return segs.map((sg, i) => ({ c: sg.c, w: sg.w, j: i + 1 < segs.length && /\S$/.test(sg.w) && /^\S/.test(segs[i + 1].w) }));
+    };
+    const L = {
+      sec: (t) => ({ isSec: true, text: t }),
+      sung: (c, w, cls) => ({ isSung: true, segs: segsOf(c, w), cls: cls || '' }),
+      bars: (t, cls) => ({ isBars: true, ms: t.split('|').map((x) => x.trim()).filter((x) => x).map((x) => ({ cs: x })), cls: cls || '' }),
+      run: (t, cls) => ({ isRun: true, text: t, cls: cls || '' }),
+      words: (t) => ({ isWords: true, text: t }),
+      gap: () => ({ isGap: true }),
+    };
+    const groups = [
+      { name: 'This song', items: ['Edit', 'Arrange for guitar', 'History', 'Show the file'] },
+      { name: 'Take it along', items: ['Add to setlist', 'Share', 'Print'] },
+      { name: 'View', items: ['Full screen'] },
+    ];
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      ensaios: [
+        { title: 'Rua do Porto', meta: 'Pedro Araújo', unsaved: true },
+        { title: 'Noite de São João', meta: 'Pedro Araújo', unsaved: false },
+        { title: 'Canção do Quintal', meta: 'Pedro Araújo · aulas/', unsaved: true },
+        { title: 'Tarde Clara', meta: 'Pedro Araújo', unsaved: false },
+      ],
+      turma: [
+        { title: 'Valsa da Varanda', meta: 'Pedro Araújo' },
+        { title: 'Rua do Porto', meta: 'Pedro Araújo' },
+        { title: 'Canção do Quintal', meta: 'Pedro Araújo' },
+        { title: 'Noite de São João', meta: 'Pedro Araújo' },
+        { title: 'Tarde Clara', meta: 'Pedro Araújo' },
+      ],
+      valsa: [
+        L.sec('Intro'),
+        L.bars('D | A7 | G | D'),
+        L.sec('Primeira Parte'),
+        L.sung('D          A7', 'Na varanda a valsa gira'),
+        L.sung('G             D', 'e a tarde vai devagar'),
+        L.gap(),
+        L.sung('Bm         A7', 'Quem passa fica parado'),
+        L.sung('G             D', 'só para ouvir tocar'),
+      ],
+      menuGroups: groups.map(function (g, i) {
+        return { name: g.name, sep: i > 0, items: g.items.map(function (x) { return { label: x }; }) };
+      }),
+    };
+  }
+}
+</script>
+</body>
+</html>

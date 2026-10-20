@@ -99,7 +99,7 @@
             </div>
             <div class="card pad">
               <span class="t-h2">Download</span>
-              <p class="t-small">A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.</p>
+              <p class="t-small">A zip of this book as it is on this device: every song and setlist with its whole history, and unsaved changes as they are. Upload it to bring the book back.</p>
               <button class="btn" style="align-self: flex-start">Download</button>
             </div>
             <div style="display: flex; gap: 16px">
@@ -239,7 +239,7 @@ class Component extends DCLogic {
       theme: this.props.theme ?? 'current',
       density: this.props.density ?? 'comfortable',
       readerVerbs: [
-        { title: 'Download', text: 'A zip of the repository as it is on this device. Any git tool opens it.', button: 'Download', cls: '' },
+        { title: 'Download', text: 'A zip of this book as it is on this device. Upload it to bring the book back.', button: 'Download', cls: '' },
         { title: 'Make it my own', text: 'A book of yours, with this one’s history, that keeps following it.', button: 'Make it my own', cls: '' },
         { title: 'Remove from my shelf', text: 'Deletes this device’s copy only. The book stays on Estante.', button: 'Remove from my shelf', cls: '' },
         { title: 'Leave this book', text: 'Stop following it on all your devices. Ana can invite you again.', button: 'Leave this book', cls: 'danger' },

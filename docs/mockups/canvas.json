@@ -198,6 +198,13 @@
    "w": 3208,
    "h": 1500,
    "title": "3 & 4. Help with the format"
+  },
+  "Review-polish.dc.html": {
+   "x": 0,
+   "y": 43920,
+   "w": 3208,
+   "h": 1500,
+   "title": "2, 7 & 12. Polish from the usability review"
   }
  },
  "order": [
@@ -227,7 +234,8 @@
   "Remove-from-shelf.dc.html",
   "Sign-in.dc.html",
   "Open-a-book.dc.html",
-  "Format-help.dc.html"
+  "Format-help.dc.html",
+  "Review-polish.dc.html"
  ],
  "notes": {
   "workflows": {
