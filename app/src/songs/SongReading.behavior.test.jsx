@@ -8,7 +8,7 @@
 // copyrighted words (no-song-text rule).
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, within, act, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, within, act, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
@@ -720,6 +720,47 @@ describe('SongReading — full screen, print, add to setlist, share', () => {
     await click(screen.getByRole('button', { name: 'More' }));
     await click(await screen.findByRole('menuitem', { name: 'Share' }));
     expect(onShare).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
+  });
+
+  // shell.surface_restore_focus_song Constraints 3-4: the shell re-mounts the
+  // reading view when the people screen opened from its share closes, and sends
+  // focus to the share opener once — More on the phone and the tablet, where
+  // Share is a menu item; the app bar's Share on the computer.
+  it('autoFocusShare focuses the share opener once: More when narrow, Share on the computer', async () => {
+    const DEVICES = [
+      { device: 'phone', mode: 'narrow', computer: false },
+      { device: 'tablet', mode: 'wide', computer: false },
+      { device: 'computer', mode: 'wide', computer: true },
+    ];
+    const opener = (computer) =>
+      computer ? screen.getByRole('button', { name: 'Share', exact: true }) : screen.getAllByRole('button', { name: 'More' })[0];
+    for (const { device, mode, computer } of DEVICES) {
+      installWidths(computer);
+      const onShareFocusReturned = vi.fn();
+      const { store } = makeStore({ text: song({}), entry: guitarEntry() });
+      const { rerender } = await openAndWait(store, { mode, autoFocusShare: true, onShareFocusReturned });
+      expect(document.activeElement, device).toBe(opener(computer));
+      expect(onShareFocusReturned, device).toHaveBeenCalledTimes(1);
+
+      // Later renders do not move focus again.
+      act(() => opener(computer).blur());
+      rerender(
+        <ThemeRoot store={store}>
+          <SongReading store={store} bookId={BOOK} path={PATH} mode={mode} autoFocusShare onShareFocusReturned={onShareFocusReturned} />
+        </ThemeRoot>,
+      );
+      expect(onShareFocusReturned, device).toHaveBeenCalledTimes(1);
+      expect(document.activeElement, device).toBe(document.body);
+      expect(await checkWcag21aa(document.body), device).toHaveNoViolations();
+      cleanup();
+
+      // Without the prop, nothing is focused.
+      const other = makeStore({ text: song({}), entry: guitarEntry() });
+      await openAndWait(other.store, { mode });
+      expect(opener(computer), device).toBeInTheDocument();
+      expect(document.activeElement, device).toBe(document.body);
+      cleanup();
+    }
   });
 });
 

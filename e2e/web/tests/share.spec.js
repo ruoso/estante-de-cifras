@@ -14,8 +14,8 @@
 // (books.setlist_invitation), and read a full book and
 // a member's view, and pin that Done on a made invitation returns to where it
 // was made from (books.setlist_picker_fixes) with focus on the restored screen
-// (shell.surface_restore_focus). Book, song and people are written
-// for these tests.
+// (shell.surface_restore_focus, shell.surface_restore_focus_song). Book, song
+// and people are written for these tests.
 
 import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import {
@@ -358,7 +358,23 @@ test('share from a song: the member address, and an invitation that opens on the
   if (!onPhone()) {
     await surface.getByRole('button', { name: 'Manage' }).click();
     await expect(page.getByRole('region', { name: `${BOOK} · People` })).toBeVisible();
+  } else {
+    // The phone's sheet is still open on its summary: its Members row.
+    await surface.getByRole('button', { name: /^Members/ }).click();
+    await expect(page.getByRole('region', { name: `${BOOK} · People` })).toBeVisible();
   }
+  // shell.surface_restore_focus_song (workflow 10 **Where it sits**;
+  // Constraints 1-5): Back from that people screen re-mounts the song, and focus
+  // lands on its share opener — the app bar's Share on the computer, More on the
+  // phone and the tablet.
+  await closeSharing(page);
+  await expect(page.getByRole('group', { name: SONG_TITLE }).first()).toBeVisible();
+  if (test.info().project.name === 'computer') {
+    await expect(page.getByRole('button', { name: 'Share', exact: true })).toBeFocused();
+  } else {
+    await expect(page.getByRole('button', { name: 'More', exact: true }).first()).toBeFocused();
+  }
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the restored song
 });
 
 // books.setlist_invitation (workflow 10 §Sharing a song or a setlist, **Where it
@@ -435,6 +451,26 @@ test('share from a setlist: the member address, and an invitation that opens on 
   } finally {
     await joiner.context.close();
   }
+
+  // shell.surface_restore_focus_song (workflow 10 **Where it sits**;
+  // Constraints 1-5): the people screen reached from the setlist's share — the
+  // phone's sheet's Members, the panel's Manage — closes onto the setlist, and
+  // focus lands on its share opener: More on the phone, the app bar's Share wider.
+  if (onPhone()) {
+    const { surface: sheet } = await shareSetlist(page);
+    await sheet.getByRole('button', { name: /^Members/ }).click();
+  } else {
+    await surface.getByRole('button', { name: 'Manage' }).click();
+  }
+  await expect(page.getByRole('region', { name: `${BOOK} · People` })).toBeVisible();
+  await closeSharing(page);
+  await expect(page.getByRole('heading', { level: 2, name: SETLIST, exact: true })).toBeVisible();
+  if (onPhone()) {
+    await expect(setlistScreen.getByRole('button', { name: 'More', exact: true })).toBeFocused();
+  } else {
+    await expect(setlistScreen.locator('.appbar').getByRole('button', { name: 'Share', exact: true })).toBeFocused();
+  }
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the restored setlist
 });
 
 // W10 #5 and #6: a full book as its owner sees it, and the book's sharing as a

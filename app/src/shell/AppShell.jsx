@@ -422,8 +422,10 @@ export default function AppShell({
   const [newInvitation, setNewInvitation] = useState(null);
   // Where focus goes when a sharing screen closes and the screen beneath
   // re-mounts with fresh nodes (shell.surface_restore_focus): `'book'` — the book
-  // detail's *Share* — `'people'` — the people screen's title — or null. Set by
-  // the closers, like `wizardReturn`, so Back, Done and the system back all get it.
+  // detail's *Share* — `'people'` — the people screen's title — `'song'` or
+  // `'setlist'` — its share opener (shell.surface_restore_focus_song) — or null.
+  // Set by the closers, like `wizardReturn`, so Back, Done and the system back
+  // all get it.
   const [shareReturn, setShareReturn] = useState(null);
   // The song-history surface (songs.history), raised from the reading view's
   // `onOpenHistory` seam — the "see what changed" merge notice (sync.read_in_place)
@@ -524,12 +526,16 @@ export default function AppShell({
   // so a closer can tell what will still be there once the pop is applied.
   const stays = (kind, kept) => !kept || kept.includes(kind);
   // A sharing screen's close sends focus back only to a surface that re-mounts:
-  // the people screen when it is still open, else the book detail when it is
-  // open with no song or setlist over it (a flag never waits for a surface that
-  // will not mount).
+  // the people screen when it is still open, else the song whose share opened it
+  // (it renders over a setlist beneath), else the setlist, else the book detail
+  // (shell.surface_restore_focus_song Constraint 1). A flag never waits for a
+  // surface that will not mount: the render-time clear below drops a song or
+  // setlist flag the pop's place no longer draws.
   const shareReturnFor = (kept, { fromInvitation }) => {
     if (fromInvitation && people && stays('people', kept)) return 'people';
-    if (bookDetail && stays('bookDetail', kept) && !openSong && !openSetlist) return 'book';
+    if (openSong) return 'song';
+    if (openSetlist) return 'setlist';
+    if (bookDetail && stays('bookDetail', kept)) return 'book';
     return null;
   };
   const closers = {
@@ -633,6 +639,11 @@ export default function AppShell({
   // A setlist's share closes with its setlist, and never carries to another
   // (books.setlist_invitation Constraint 4).
   if (sharingSetlist && !sameItem(sharingSetlist, openSetlist)) setSharingSetlist(null);
+  // A song's or setlist's restored-focus flag waits only for a surface that is
+  // drawn: the song while one is open, the setlist while it is open with no song
+  // over it (shell.surface_restore_focus_song Constraint 2).
+  if (shareReturn === 'song' && !openSong) setShareReturn(null);
+  if (shareReturn === 'setlist' && (!openSetlist || openSong)) setShareReturn(null);
   // The book's tree is asked for once per resolution; its TREE reply marks the
   // resolution's tree as fresh.
   const resolvingBook =
@@ -1581,6 +1592,8 @@ export default function AppShell({
           onAddToSetlist={setAddingToSetlist}
           sidePanel={songShare}
           onFullScreenChange={setReadingFull}
+          autoFocusShare={shareReturn === 'song'}
+          onShareFocusReturned={() => setShareReturn(null)}
         />
         {addingToSetlist ? (
           <AddToSetlist
@@ -1662,6 +1675,8 @@ export default function AppShell({
       onPlay={({ bookId, path }) => setPlayingSetlist({ bookId, path })}
       onShare={setSharingSetlist}
       sidePanel={setlistShare}
+      autoFocusShare={shareReturn === 'setlist'}
+      onShareFocusReturned={() => setShareReturn(null)}
     />
   ) : null;
   if (setlistView && mode === 'wide') return framed(setlistView);

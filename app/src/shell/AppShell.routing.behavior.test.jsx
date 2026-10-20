@@ -992,12 +992,13 @@ describe('AppShell share surfaces (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
-  // shell.surface_restore_focus Constraint 1's guard: a people screen opened from
-  // a song's share closes onto the reading view, so no flag is left for a later,
-  // unrelated book-detail mount.
-  it('narrow: Back from a people screen opened over a song leaves no pending focus', async () => {
+  // shell.surface_restore_focus_song Constraints 1-4 (and the predecessor's
+  // guard): a people screen opened from a song's share closes onto the reading
+  // view, whose share opener — More on a phone — takes focus, so no flag is left
+  // for a later, unrelated book-detail mount.
+  it('narrow: Back from a people screen opened over a song focuses its More, and leaves no pending focus', async () => {
     const { store, emit } = makeStore();
-    render(<AppShell store={store} />);
+    const { container } = render(<AppShell store={store} />);
     emit(event(EventKind.SHELF, OWNED));
     act(() => {
       fireEvent.change(screen.getAllByRole('searchbox')[0], { target: { value: 'tarde' } });
@@ -1021,6 +1022,8 @@ describe('AppShell share surfaces (behavior)', () => {
     await traverse(() => fireEvent.click(within(people).getByRole('button', { name: 'Back' })));
     expect(screen.queryByRole('region', { name: `${BOOK_LABEL} · People` })).toBeNull();
     expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+    expect(document.activeElement).toBe(screen.getAllByRole('button', { name: 'More' })[0]);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     // Later: off the song, then the book's detail through Books → Manage.
     await traverse(() => history.back());
@@ -1032,6 +1035,88 @@ describe('AppShell share surfaces (behavior)', () => {
     fireEvent.click(manage);
     const share = await screen.findByRole('button', { name: 'Share', exact: true });
     expect(document.activeElement).not.toBe(share);
+  });
+
+  // The owned book's song, opened from search and read.
+  async function openOwnedSong(emit) {
+    emit(event(EventKind.SHELF, OWNED));
+    act(() => {
+      fireEvent.change(screen.getAllByRole('searchbox')[0], { target: { value: 'tarde' } });
+    });
+    emit(
+      event(EventKind.SEARCH_RESULTS, {
+        query: 'tarde',
+        results: [{ bookId: BOOK, path: SONG_PATH, title: SONG_TITLE, artist: '', score: 3, unsaved: false }],
+      }),
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(SONG_TITLE) })[0]);
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
+    await screen.findByRole('group', { name: SONG_TITLE });
+  }
+
+  // shell.surface_restore_focus_song Constraint 1's order: an invitation made
+  // from the people screen over a song returns focus to that screen's title
+  // (`'people'` before `'song'`); its Back then focuses the song's More.
+  it('narrow: Done on an invitation made from a song’s people screen returns to its title; Back then focuses the song’s More', async () => {
+    answerInvitations();
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    await openOwnedSong(emit);
+    fireEvent.click(screen.getAllByRole('button', { name: 'More' })[0]);
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Share' }));
+    const sheet = await screen.findByRole('dialog', { name: `Share ${SONG_TITLE}` });
+    fireEvent.click(await within(sheet).findByRole('button', { name: /^Members/ }));
+    const people = await screen.findByRole('region', { name: `${BOOK_LABEL} · People` });
+    fireEvent.click(within(people).getByRole('button', { name: 'New invitation' }));
+    expect(await screen.findByRole('region', { name: 'New invitation' })).toBeInTheDocument();
+
+    await createThenDone();
+    const again = screen.getByRole('region', { name: `${BOOK_LABEL} · People` });
+    expect(document.activeElement).toBe(
+      within(again).getByRole('heading', { level: 1, name: `${BOOK_LABEL} · People` }),
+    );
+
+    await traverse(() => fireEvent.click(within(again).getByRole('button', { name: 'Back' })));
+    expect(screen.queryByRole('region', { name: `${BOOK_LABEL} · People` })).toBeNull();
+    expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+    expect(document.activeElement).toBe(screen.getAllByRole('button', { name: 'More' })[0]);
+  });
+
+  // shell.surface_restore_focus_song Constraints 4-5: on wide, Manage in the
+  // song's panel goes through the same closer; Back focuses the share opener —
+  // the app bar's Share on the computer, More on the tablet.
+  it('wide: Back from a people screen opened from a song’s panel focuses Share on the computer and More on the tablet', async () => {
+    for (const computer of [true, false]) {
+      wide(computer);
+      const { store, emit } = makeStore();
+      const { container } = render(<AppShell store={store} />);
+      await openOwnedSong(emit);
+      if (computer) {
+        fireEvent.click(screen.getByRole('button', { name: 'Share', exact: true }));
+      } else {
+        fireEvent.click(screen.getAllByRole('button', { name: 'More' })[0]);
+        fireEvent.click(await screen.findByRole('menuitem', { name: 'Share' }));
+      }
+      const panel = screen.getByRole('complementary', { name: `Share ${SONG_TITLE}` });
+      const manage = await within(panel).findByRole('button', { name: 'Manage' });
+      await act(async () => fireEvent.click(manage));
+      const people = await screen.findByRole('region', { name: `${BOOK_LABEL} · People` });
+      await within(people).findByText('Bia Rocha');
+
+      await traverse(() => fireEvent.click(within(people).getByRole('button', { name: 'Back' })));
+      expect(screen.queryByRole('region', { name: `${BOOK_LABEL} · People` })).toBeNull();
+      expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+      expect(screen.queryByRole('complementary', { name: `Share ${SONG_TITLE}` })).toBeNull();
+      expect(document.activeElement).toBe(
+        computer
+          ? screen.getByRole('button', { name: 'Share', exact: true })
+          : screen.getAllByRole('button', { name: 'More' })[0],
+      );
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+      cleanup();
+      history.replaceState(null, '', '/');
+      sessionStorage.clear();
+    }
   });
 
   it('narrow: after a put-online from the book detail, Done on the sheet’s invitation returns to the book at its service id', async () => {
@@ -1290,6 +1375,32 @@ describe('AppShell share surfaces (behavior)', () => {
     expect(screen.getByRole('heading', { level: 2, name: SETLIST_TITLE })).toBeInTheDocument();
     expect(location.pathname).toBe(SETLIST_URL);
     expect(history.state.place.tab).toBe('setlists');
+    // shell.surface_restore_focus_song Constraints 4-5: the setlist's app-bar
+    // Share — its share opener on wide — holds focus.
+    expect(document.activeElement).toBe(within(setlistScreen()).getByRole('button', { name: 'Share', exact: true }));
+  });
+
+  // shell.surface_restore_focus_song Constraints 1 and 4: the flag is set in the
+  // people closer, so the system back gets it too; on narrow the setlist's More
+  // is its share opener.
+  it('narrow: a setlist’s More → Share → Members → the system back focuses the setlist’s More (axe clean)', async () => {
+    const { store, emit } = makeStore();
+    const arrive = openSetlistAt(emit);
+    const { container } = render(<AppShell store={store} />);
+    arrive();
+
+    fireEvent.click(within(setlistScreen()).getByRole('button', { name: 'More' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Share' }));
+    const sheet = await screen.findByRole('dialog', { name: `Share ${SETLIST_TITLE}` });
+    fireEvent.click(await within(sheet).findByRole('button', { name: /^Members/ }));
+    const people = await screen.findByRole('region', { name: `${BOOK_LABEL} · People` });
+    await within(people).findByText('Bia Rocha');
+
+    await traverse(() => history.back());
+    expect(screen.queryByRole('region', { name: `${BOOK_LABEL} · People` })).toBeNull();
+    expect(location.pathname).toBe(SETLIST_URL);
+    expect(document.activeElement).toBe(within(setlistScreen()).getByRole('button', { name: 'More' }));
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
   it('wide: a local book’s setlist share says it is only on this device, then after BOOK_ONLINE is the owner’s setlist share under the new id (Constraint 4)', async () => {

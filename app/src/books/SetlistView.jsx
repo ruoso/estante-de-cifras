@@ -18,7 +18,7 @@
 // wide, rendered in place on a phone (the Share sheet is its own overlay). The
 // editor has no Share (Decision 4): a setlist is shared as the book holds it.
 
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Button,
   GridList,
@@ -149,6 +149,11 @@ export default function SetlistView({
   // panel beside the list on wide (W12, in W10 #4's shape), the Share sheet — a
   // Modal — on a phone. Null when no share is open.
   sidePanel = null,
+  // Sends focus to the share opener once — the shell sets it when the people
+  // screen opened from this setlist's share closes and the setlist re-mounts
+  // (shell.surface_restore_focus_song) — then calls `onShareFocusReturned`.
+  autoFocusShare = false,
+  onShareFocusReturned = () => {},
 }) {
   const source = useSlice(store, 'source');
   const tree = useSlice(store, 'tree');
@@ -263,6 +268,21 @@ export default function SetlistView({
     },
   });
 
+  // The share opener is the control that opened Share in this layout: the app
+  // bar's *Share* on wide, *More* on narrow (Constraint 4). Back from the people
+  // screen re-mounts the setlist with fresh nodes: focus it once the read view
+  // draws it (the setlist's text may arrive a render later) — the shell clears
+  // the flag once honoured.
+  const shareRef = useRef(null);
+  const offersShare = current != null && !editing;
+  useEffect(() => {
+    if (autoFocusShare && offersShare && shareRef.current) {
+      shareRef.current.focus();
+      onShareFocusReturned();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFocusShare, offersShare, mode]);
+
   if (current == null) {
     return (
       <div className="setlist-screen">
@@ -345,12 +365,12 @@ export default function SetlistView({
             {t('setlists.edit')}
           </Button>
           {wide ? (
-            <Button className="btn" onPress={() => onShare({ bookId, path })} data-share-return="">
+            <Button ref={shareRef} className="btn" onPress={() => onShare({ bookId, path })} data-share-return="">
               {t('setlists.share')}
             </Button>
           ) : null}
           <MenuTrigger>
-            <Button className="btn icon" aria-label={t('setlists.more')}>
+            <Button ref={wide ? undefined : shareRef} className="btn icon" aria-label={t('setlists.more')}>
               <Icon d={DOTS} size={24} fill />
             </Button>
             <Popover className="popover" placement="bottom end">

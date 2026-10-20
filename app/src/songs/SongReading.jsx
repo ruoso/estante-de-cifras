@@ -167,6 +167,11 @@ export default function SongReading({
   // shell drops the recovery-email banner with the rest of the chrome
   // (workflow 13 §The banner, *Full screen*; account.sign_in_two_doors).
   onFullScreenChange = () => {},
+  // Sends focus to the share opener once — the shell sets it when the people
+  // screen opened from this song's share closes and the song re-mounts
+  // (shell.surface_restore_focus_song) — then calls `onShareFocusReturned`.
+  autoFocusShare = false,
+  onShareFocusReturned = () => {},
 }) {
   // Bring the song in on mount (and when the open song changes): the text to
   // parse (OPEN_SOURCE), the reading state (OPEN_SONG), and a device-local recent
@@ -189,6 +194,19 @@ export default function SongReading({
   // (narrow), tablet (wide, below the query) and computer (wide, at or above).
   const computer = mode === 'wide' && actionsInline;
   const tablet = mode === 'wide' && !actionsInline;
+  // The share opener is the control that opened Share in this layout: the app
+  // bar's *Share* on the computer, *More* on the tablet and the phone, where Share
+  // is a menu item (Constraint 4). Back from the people screen re-mounts the song
+  // with fresh nodes: focus it, once — the shell clears the flag once honoured.
+  // Full screen draws neither, so the effect waits for it to close.
+  const shareRef = useRef(null);
+  useEffect(() => {
+    if (autoFocusShare && !fullScreen && shareRef.current) {
+      shareRef.current.focus();
+      onShareFocusReturned();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFocusShare, computer, fullScreen]);
   const shapesHeadingId = useId();
   const [instrumentsOpen, setInstrumentsOpen] = useState(false);
 
@@ -571,7 +589,7 @@ export default function SongReading({
   // items it also holds.
   const moreMenu = (
     <MenuTrigger>
-      <Button className="btn icon" aria-label={t('reading.more')} data-share-return="">
+      <Button ref={computer ? undefined : shareRef} className="btn icon" aria-label={t('reading.more')} data-share-return="">
         <MoreIcon />
       </Button>
       <Popover className="popover" placement="bottom end">
@@ -754,7 +772,7 @@ export default function SongReading({
               <Button className="btn" onPress={() => window.print()}>
                 {t('reading.print')}
               </Button>
-              <Button className="btn" onPress={() => onShare({ bookId, path })} data-share-return="">
+              <Button ref={shareRef} className="btn" onPress={() => onShare({ bookId, path })} data-share-return="">
                 {t('reading.share')}
               </Button>
               {moreMenu}

@@ -7,7 +7,7 @@
 // e2e (Decision 4). All setlist/song text is written for this test.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, act, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, act, fireEvent, waitFor, within, cleanup } from '@testing-library/react';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
@@ -236,6 +236,44 @@ describe('SetlistView — Share (workflow 12 §Sharing one)', () => {
     await screen.findByRole('grid', { name: 'Songs · drag to reorder' });
     expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: 'Share' })).toBeNull();
+  });
+
+  // shell.surface_restore_focus_song Constraints 3-4: the shell re-mounts the
+  // setlist when the people screen opened from its share closes, and sends focus
+  // to the share opener once — More on narrow, the app bar's Share on wide —
+  // even though the setlist's text (and with it the opener) arrives a render
+  // after the mount.
+  it('autoFocusShare focuses the share opener once: More when narrow, Share when wide', async () => {
+    const opener = (mode) =>
+      mode === 'wide' ? screen.getByRole('button', { name: 'Share' }) : screen.getByRole('button', { name: 'More' });
+    for (const mode of ['narrow', 'wide']) {
+      const onShareFocusReturned = vi.fn();
+      const { store } = makeStore();
+      const { container, rerender } = renderSetlist(store, { mode, autoFocusShare: true, onShareFocusReturned });
+      await screen.findByText('Garota de Ipanema');
+      await waitFor(() => expect(document.activeElement, mode).toBe(opener(mode)));
+      expect(onShareFocusReturned, mode).toHaveBeenCalledTimes(1);
+
+      // Later renders do not move focus again.
+      act(() => opener(mode).blur());
+      rerender(
+        <ThemeRoot store={store}>
+          <SetlistView store={store} bookId={BOOK} path={SETLIST_PATH} mode={mode} autoFocusShare onShareFocusReturned={onShareFocusReturned} />
+        </ThemeRoot>,
+      );
+      expect(onShareFocusReturned, mode).toHaveBeenCalledTimes(1);
+      expect(document.activeElement, mode).toBe(document.body);
+      expect(await checkWcag21aa(container), mode).toHaveNoViolations();
+      cleanup();
+
+      // Without the prop, nothing is focused.
+      const other = makeStore();
+      renderSetlist(other.store, { mode });
+      await screen.findByText('Garota de Ipanema');
+      expect(opener(mode), mode).toBeInTheDocument();
+      expect(document.activeElement, mode).toBe(document.body);
+      cleanup();
+    }
   });
 });
 
