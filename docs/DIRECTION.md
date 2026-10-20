@@ -646,6 +646,17 @@ workflows do not yet cover, and work that comes before building:
   book with *Manage*, which opens the book's detail, where renaming and
   *Files* now live; a book that needs you opens on its songs with *Settle*.
   No new workflow.
+- **Help with the format**, decided (workflow 3 §Help with the format, §When
+  it looks like another format; workflow 4 §Editing) and drawn on
+  [mockups/Format-help.dc.html](mockups/Format-help.dc.html) — *Help* in the
+  song editor's bar opens *Writing a song*, eight short topics in plain words
+  (title, parts and the fence, chords over words, bars, repeats, bracket part
+  names, notes, voicings), each with an example the parts' topics insert into
+  the song; a sheet on a phone, a panel from *Help* on a tablet and a
+  computer, bundled so it opens offline. When what is typed looks like
+  another format — chords in brackets, or chords outside any fence — a notice
+  above the text names the line and opens the help at its answer; it never
+  stops a save nor rewrites the text. No new workflow.
 
 ## 7. Workflows
 

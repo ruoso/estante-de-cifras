@@ -66,7 +66,7 @@
               <button class="btn quiet" style="min-height: 36px; padding: 0 8px">Change book</button>
             </div>
             <div class="scroll" style="gap: 12px">
-              <div class="seg" style="align-self: flex-start"><button class="on">Text</button><button>Preview</button></div>
+              <div style="display: flex; align-items: center; gap: 8px"><div class="seg"><button class="on">Text</button><button>Preview</button></div><button class="btn" style="margin-left: auto; min-height: 40px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01"></path></svg>Help</button></div>
               <div class="editor">
                 <sc-for list="{{edTemplate}}" as="ln" hint-placeholder-count="8">
                   <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
@@ -92,6 +92,7 @@
             <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
             <span class="title">Maré Mansa</span>
             <span class="badge unsaved dot">unsaved</span>
+            <button class="btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01"></path></svg>Help</button>
             <button class="btn">Add section</button>
             <button class="btn primary">Save</button>
           </div>
@@ -146,6 +147,7 @@
             <span class="t-small">Book</span>
             <span class="chip">My songs ▾</span>
             <span class="t-small" style="flex: 1">Can change until the first save</span>
+            <button class="btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01"></path></svg>Help</button>
             <button class="btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add section</button>
           </div>
           <div class="split">

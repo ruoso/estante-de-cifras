@@ -22,6 +22,14 @@ choosing a shape in the reading view, adding a variation, running the voicing
 wizard (workflow 5). All of them write to the same working copy, and are
 saved or discarded the same way.
 
+The editor is the one workflow 3 describes, with its *Help* and the notice
+when what is typed looks like another format (workflow 3 §Help with the
+format, §When it looks like another format) — the same while editing a saved
+song as while writing a new one. Words inside the music that the format does
+not read as chords are marked in the text as they are typed, and the save
+lists them and asks before saving (§Saving); a part named in brackets that
+reads as a chord is the case the notice points to the help for.
+
 ## Saving
 
 *Save* opens a short sheet with two things on it:

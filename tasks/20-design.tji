@@ -93,6 +93,7 @@ task design "Design gaps" {
   task format_help "How the song format is explained in the editor" {
     effort 1d
     allocate team
+    complete 100
     note "Decided 2026-10-19: the song editor has no instructions about the format, and a person writing bracket chords ([Am]Teste) got a blank preview (usability review M1). Decide and draw a format help popup reachable from the editor: what it covers (a section as ## Verse, the fenced chart under it, chords over lyrics, bars with |, repeats, a voicing), in plain words with short examples one can copy, never the spec. And the hint the editor gives when what is typed looks like another format (bracket chords, a chord-over-lyrics sheet pasted without a fence), pointing to it — the same moment songs.unknown_tokens_loud flags. Copy in the four locales. Workflows 3 (Writing a new song), 4 (Editing). Tests: none — design deliverable (workflow 3 and 4 edits and a board for the popup on a phone, tablet and computer). Refinement: tasks/refinements/design/format_help.md"
   }
   task review_polish "Polish from the usability review" {
