@@ -34,6 +34,16 @@ not a passkey / email pair of its own. The one exception is a press that
 already names a step: *Mine on Estante*'s *No passkey here? Email me a link*
 (workflow 7) opens straight on the email step.
 
+On a device with no passkey for Estante, *Use a passkey* gets nothing back: the
+browser answers just as if the person had cancelled its prompt, and the app
+cannot tell the two apart. So a cancelled *Use a passkey* is not met with an
+error. It leaves one calm line above the two sections, saying what to do if
+there is no passkey here: *No passkey for Estante on this device? If you
+already have an account, Email me a link signs you in. If not, Make an account
+under New here? starts one.* The line blames nobody and goes away with the
+next press. A cancelled *Make an account* gets no line, because that person
+already chose the door.
+
 Making an account is followed at once by **Add a recovery email** (§The
 recovery email). Signing in is not: an account that already exists has the
 account screen and the banner for that.

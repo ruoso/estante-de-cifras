@@ -63,6 +63,37 @@ test('makes an account with a passkey (virtual authenticator) and lands signed i
   await expect(page.getByRole('heading', { name: 'Your shelf is empty' })).toBeVisible();
 });
 
+// account.no_passkey_hint — workflow 13 §Signing in, or making an account (the
+// cancelled-passkey paragraph) and the "Neither" case of §Signing in on another
+// device. A fresh device's empty virtual authenticator answers Use a passkey
+// with NotAllowedError, as a real device with no passkey does (Decision 6): the
+// method step says, calmly, what to do, and nobody is signed in.
+test('a fresh device with no passkey presses Use a passkey and is told what to do', async ({
+  page,
+  checkA11y,
+}) => {
+  await enableVirtualAuthenticator(page); // no credential added
+  await openSignIn(page);
+
+  const have = page.getByRole('group', { name: 'Already have an account?' });
+  await have.getByRole('button', { name: 'Use a passkey' }).click();
+
+  // Chromium's empty authenticator rejects at once; no wait on the options' timeout.
+  const hint = page.getByRole('status').filter({
+    hasText:
+      'No passkey for Estante on this device? If you already have an account, Email me a link signs you in. If not, Make an account under New here? starts one.',
+  });
+  await expect(hint).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(await hasSessionCookie(page)).toBe(false);
+  await expect(have.getByRole('button', { name: 'Use a passkey' })).toBeEnabled();
+  await expect(have.getByRole('button', { name: 'Email me a link' })).toBeVisible();
+  await expect(
+    page.getByRole('group', { name: 'New here?' }).getByRole('button', { name: 'Make an account' }),
+  ).toBeVisible();
+  await checkA11y(); // the method step with the line shown, this viewport
+});
+
 test('signs in from an emailed link and then offers a passkey on this device', async ({
   page,
   checkA11y,

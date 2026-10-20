@@ -85,7 +85,8 @@ task account "First run and the account" {
   task no_passkey_hint "Using a passkey where there is none says what to do" {
     effort 0.25d
     allocate team
+    complete 100
     depends !sign_in_two_doors
-    note "On a device with no passkey for the site, Use a passkey shows nothing: the browser answers as if cancelled and SignIn deliberately says nothing on a cancellation (app/src/account/SignIn.jsx, isCancellation). After a cancelled sign-in ceremony, say in a line that if there is no passkey on this device, New here? makes an account and Email me a link reaches an existing one, without blaming the person. Source: persona exploration 2026-10-19 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified against screenshots and code). Tests: behavior (a cancelled authenticate shows the line, a cancelled create does not; axe); e2e-web (a fresh device with a virtual authenticator holding no credential presses Use a passkey and sees the line, on the three viewports)."
+    note "On a device with no passkey for the site, Use a passkey shows nothing: the browser answers as if cancelled and SignIn deliberately says nothing on a cancellation (app/src/account/SignIn.jsx, isCancellation). After a cancelled sign-in ceremony, say in a line that if there is no passkey on this device, New here? makes an account and Email me a link reaches an existing one, without blaming the person. Source: persona exploration 2026-10-19 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified against screenshots and code). Tests: behavior (a cancelled authenticate shows the line, a cancelled create does not; axe); e2e-web (a fresh device with a virtual authenticator holding no credential presses Use a passkey and sees the line, on the three viewports). Refinement: tasks/refinements/account/no_passkey_hint.md"
   }
 }

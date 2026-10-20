@@ -747,6 +747,7 @@ export default {
     newHere: 'Sei nuovo?',
     makeAccount: 'Crea un account',
     newHereNote: 'Crea un nuovo account con una passkey. Ne hai già uno? Accedi qui sopra. Sarebbe un secondo account, separato.',
+    noPasskeyHint: 'Nessuna passkey per Estante su questo dispositivo? Se hai già un account, Inviami un link via email ti fa accedere. Altrimenti, Crea un account sotto Sei nuovo? ne crea uno.',
     // Asked right after Make an account (workflow 13 §Asked when the account is made).
     recoveryHeading: 'Aggiungi un’email di recupero',
     recoverySend: 'Invia link',

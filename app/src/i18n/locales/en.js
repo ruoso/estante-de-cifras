@@ -804,6 +804,8 @@ export default {
     newHere: 'New here?',
     makeAccount: 'Make an account',
     newHereNote: 'Makes a new account with a passkey. Already have one? Sign in above. This would be a second, separate account.',
+    // After a cancelled Use a passkey (account.no_passkey_hint; workflow 13).
+    noPasskeyHint: 'No passkey for Estante on this device? If you already have an account, Email me a link signs you in. If not, Make an account under New here? starts one.',
     // Asked right after Make an account (workflow 13 §Asked when the account is made).
     recoveryHeading: 'Add a recovery email',
     recoverySend: 'Send link',

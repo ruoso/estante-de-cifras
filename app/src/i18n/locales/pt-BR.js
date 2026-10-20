@@ -747,6 +747,7 @@ export default {
     newHere: 'É novo por aqui?',
     makeAccount: 'Criar uma conta',
     newHereNote: 'Cria uma conta nova com uma chave de acesso. Já tem uma? Entre acima. Esta seria uma segunda conta, separada.',
+    noPasskeyHint: 'Nenhuma chave de acesso do Estante neste dispositivo? Se você já tem uma conta, Enviar um link por e-mail faz você entrar. Se não, Criar uma conta, em É novo por aqui?, começa uma.',
     // Asked right after Make an account (workflow 13 §Asked when the account is made).
     recoveryHeading: 'Adicione um e-mail de recuperação',
     recoverySend: 'Enviar link',

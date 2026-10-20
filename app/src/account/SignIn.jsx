@@ -89,6 +89,18 @@ function ErrorNotice({ messageKey }) {
   );
 }
 
+// After a cancelled *Use a passkey*: the browser answers "no passkey here" just
+// as it answers a cancel, so one calm, conditional line says what to do — a
+// polite status on a plain notice, not an error (workflow 13 §Signing in, or
+// making an account; account.no_passkey_hint Decision 2).
+function NoPasskeyHint() {
+  return (
+    <p className="notice" role="status">
+      {t('signIn.noPasskeyHint')}
+    </p>
+  );
+}
+
 // A quiet "working…" status while a ceremony or request is in flight, announced
 // politely so a screen-reader user knows the surface is busy.
 function BusyStatus({ busy }) {
@@ -125,6 +137,7 @@ export default function SignIn({
 }) {
   const [step, setStep] = useState(redeemToken ? 'redeeming' : initialStep);
   const [error, setError] = useState(null); // an i18n leaf under `signIn`, or null
+  const [hint, setHint] = useState(false); // the no-passkey line, after a cancelled authenticate
   const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
 
@@ -197,6 +210,7 @@ export default function SignIn({
     inFlight.current = true;
     setBusy(true);
     setError(null);
+    setHint(false);
     try {
       if (create) {
         const begin = await authClient.registerBegin(label);
@@ -212,7 +226,12 @@ export default function SignIn({
     } catch (err) {
       inFlight.current = false;
       setBusy(false);
-      if (isCancellation(err)) return; // cancelled: stay on the method step, no error shouted
+      if (isCancellation(err)) {
+        // Cancelled, or no passkey here (the two look alike): stay on the method
+        // step, no error shouted; after Use a passkey, say what to do instead.
+        if (!create) setHint(true);
+        return;
+      }
       setError(err?.kind === 'unauthorized' ? 'errorPasskey' : 'errorOffline');
     }
   }
@@ -270,6 +289,7 @@ export default function SignIn({
 
   const goMethod = () => {
     setError(null);
+    setHint(false);
     setStep('method');
   };
 
@@ -296,7 +316,7 @@ export default function SignIn({
             {t('signIn.heading')}
           </h2>
         )}
-        {error ? <ErrorNotice messageKey={error} /> : null}
+        {error ? <ErrorNotice messageKey={error} /> : hint ? <NoPasskeyHint /> : null}
         <div className="account-door" role="group" aria-labelledby={haveId}>
           <h3 className="t-h2" id={haveId}>
             {t('signIn.haveAccount')}
@@ -309,6 +329,7 @@ export default function SignIn({
             className="btn block"
             onPress={() => {
               setError(null);
+              setHint(false);
               setStep('email');
             }}
             isDisabled={busy}

@@ -110,6 +110,9 @@ const HEADING = 'Sign in or make an account';
 const NEW_HERE_LINE =
   'Makes a new account with a passkey. Already have one? Sign in above. This would be a second, separate account.';
 
+const NO_PASSKEY_HINT =
+  'No passkey for Estante on this device? If you already have an account, Email me a link signs you in. If not, Make an account under New here? starts one.';
+
 describe('the sign-in surface (behavior)', () => {
   // account.sign_in_two_doors; workflow 13 §Signing in, or making an account
   // (L10-39); W13 #1: one heading, two labelled sections in this order.
@@ -403,7 +406,10 @@ describe('the sign-in surface (behavior)', () => {
     expect(screen.queryByRole('heading', { name: 'Add a recovery email' })).toBeNull();
   });
 
-  it('a cancelled passkey prompt returns to the method step with no error shouted', async () => {
+  // account.no_passkey_hint; workflow 13 §Signing in, or making an account (the
+  // cancelled-passkey paragraph): a device with no passkey answers Use a passkey
+  // just as a cancel does, so the method step says, calmly, what to do instead.
+  it('a cancelled Use a passkey says, in a status line, what to do if there is no passkey here — no alert, axe clean', async () => {
     installWebAuthn({
       get: async () => {
         throw new DOMException('The operation was cancelled.', 'NotAllowedError');
@@ -415,14 +421,152 @@ describe('the sign-in surface (behavior)', () => {
     const onSignedIn = vi.fn();
     render(<SignIn authClient={client} onSignedIn={onSignedIn} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Use a passkey' }));
+    // Absent on first open.
+    expect(screen.queryByText(NO_PASSKEY_HINT)).toBeNull();
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Use a passkey' })).not.toBeDisabled(),
-    );
+    const usePasskey = screen.getByRole('button', { name: 'Use a passkey' });
+    act(() => usePasskey.focus());
+    fireEvent.click(usePasskey);
+
+    await waitFor(() => expect(usePasskey).not.toBeDisabled());
+    const hint = await screen.findByText(NO_PASSKEY_HINT);
+    expect(hint).toHaveAttribute('role', 'status');
+    expect(hint).toHaveClass('notice');
+    expect(hint).not.toHaveClass('warn');
+    // Above the two sections, in the step's message slot.
+    const have = screen.getByRole('group', { name: 'Already have an account?' });
+    expect(hint.compareDocumentPosition(have) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // No error shouted, and the line does not move focus.
     expect(screen.queryByRole('alert')).toBeNull();
+    expect(usePasskey).toHaveFocus();
     expect(onSignedIn).not.toHaveBeenCalled();
     expect(screen.getByRole('heading', { name: HEADING })).toBeInTheDocument();
+
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('an AbortError from Use a passkey shows the same line', async () => {
+    installWebAuthn({
+      get: async () => {
+        throw new DOMException('The operation was aborted.', 'AbortError');
+      },
+    });
+    const { client } = makeClient({
+      'POST /api/auth/passkey/authenticate/begin': () => ({ body: OPTIONS }),
+    });
+    render(<SignIn authClient={client} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use a passkey' }));
+
+    expect(await screen.findByText(NO_PASSKEY_HINT)).toHaveAttribute('role', 'status');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  // The same paragraph: "a cancelled Make an account gets no line" (Decision 4).
+  it('a cancelled Make an account shows no line', async () => {
+    installWebAuthn({
+      create: async () => {
+        throw new DOMException('The operation was cancelled.', 'NotAllowedError');
+      },
+    });
+    const { client } = makeClient({
+      'POST /api/auth/passkey/register/begin': () => ({ body: OPTIONS }),
+    });
+    const onSignedIn = vi.fn();
+    render(<SignIn authClient={client} onSignedIn={onSignedIn} />);
+
+    const make = screen.getByRole('button', { name: 'Make an account' });
+    fireEvent.click(make);
+
+    await waitFor(() => expect(make).not.toBeDisabled());
+    expect(screen.queryByText(NO_PASSKEY_HINT)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(onSignedIn).not.toHaveBeenCalled();
+  });
+
+  // Decision 4: a cancelled Add a passkey on the offer step keeps its silence.
+  it('a cancelled Add a passkey on the offer step shows no line', async () => {
+    installWebAuthn({
+      create: async () => {
+        throw new DOMException('The operation was cancelled.', 'NotAllowedError');
+      },
+    });
+    const { client } = makeClient({
+      'POST /api/auth/email/redeem': () => ({ body: { id: 'u_mail' } }),
+      'POST /api/auth/passkey/register/begin': () => ({ body: OPTIONS }),
+    });
+    const onDone = vi.fn();
+    render(<SignIn redeemToken="tok_abc" authClient={client} onDone={onDone} />);
+
+    const add = await screen.findByRole('button', { name: 'Add a passkey' });
+    fireEvent.click(add);
+
+    await waitFor(() => expect(add).not.toBeDisabled());
+    expect(screen.queryByText(NO_PASSKEY_HINT)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  // "goes away with the next press", and the hint and the error are never both shown.
+  it('the line goes with the next press: Email me a link moves on without it, and a retried Use a passkey that 401s shows only the passkey error', async () => {
+    let gets = 0;
+    installWebAuthn({ attachment: 'platform' });
+    const realGet = navigator.credentials.get;
+    navigator.credentials.get = async (...args) => {
+      gets += 1;
+      if (gets === 1) throw new DOMException('The operation was cancelled.', 'NotAllowedError');
+      return realGet(...args);
+    };
+    const { client } = makeClient({
+      'POST /api/auth/passkey/authenticate/begin': () => ({ body: OPTIONS }),
+      'POST /api/auth/passkey/authenticate/finish': () => ({ status: 401 }),
+    });
+    const onSignedIn = vi.fn();
+    render(<SignIn authClient={client} onSignedIn={onSignedIn} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use a passkey' }));
+    await screen.findByText(NO_PASSKEY_HINT);
+
+    // Email me a link moves to the email step without the line, and coming back
+    // finds the method step clean.
+    fireEvent.click(screen.getByRole('button', { name: 'Email me a link' }));
+    expect(await screen.findByRole('heading', { name: 'Email me a link' })).toBeInTheDocument();
+    expect(screen.queryByText(NO_PASSKEY_HINT)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Use a passkey instead' }));
+    await screen.findByRole('heading', { name: HEADING });
+    expect(screen.queryByText(NO_PASSKEY_HINT)).toBeNull();
+
+    // Cancel again, then a retry that reaches the service and 401s: only the error.
+    gets = 0;
+    fireEvent.click(screen.getByRole('button', { name: 'Use a passkey' }));
+    await screen.findByText(NO_PASSKEY_HINT);
+    fireEvent.click(screen.getByRole('button', { name: 'Use a passkey' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('That passkey didn’t work');
+    expect(screen.queryByText(NO_PASSKEY_HINT)).toBeNull();
+    expect(onSignedIn).not.toHaveBeenCalled();
+  });
+
+  // The invited screen draws the same two sections (`lead`), so the line too.
+  it('under an invitation lead, a cancelled Use a passkey shows the same line', async () => {
+    installWebAuthn({
+      get: async () => {
+        throw new DOMException('The operation was cancelled.', 'NotAllowedError');
+      },
+    });
+    const { client } = makeClient({
+      'POST /api/auth/passkey/authenticate/begin': () => ({ body: OPTIONS }),
+    });
+    render(<SignIn authClient={client} lead={<InvitedLead />} leadFooter={<InvitedFooter />} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use a passkey' }));
+
+    const hint = await screen.findByText(NO_PASSKEY_HINT);
+    expect(hint).toHaveAttribute('role', 'status');
+    const have = screen.getByRole('group', { name: 'Already have an account?' });
+    expect(hint.compareDocumentPosition(have) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 
   it('a 401 on finish shows the worded passkey error and does not sign in', async () => {

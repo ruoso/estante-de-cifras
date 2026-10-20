@@ -747,6 +747,7 @@ export default {
     newHere: '¿Eres nuevo aquí?',
     makeAccount: 'Crear una cuenta',
     newHereNote: 'Crea una cuenta nueva con una clave de acceso. ¿Ya tienes una? Inicia sesión arriba. Esta sería una segunda cuenta, separada.',
+    noPasskeyHint: '¿No hay una clave de acceso de Estante en este dispositivo? Si ya tienes una cuenta, Enviarme un enlace por correo te permite iniciar sesión. Si no, Crear una cuenta, en ¿Eres nuevo aquí?, crea una.',
     // Asked right after Make an account (workflow 13 §Asked when the account is made).
     recoveryHeading: 'Agrega un correo de recuperación',
     recoverySend: 'Enviar enlace',
