@@ -86,7 +86,7 @@ export default {
     uploadKeep: 'Replace “{name}” with the uploaded version',
     uploadLeftOutTitle: 'Left out',
     uploadLeftOutBody:
-      'A book holds songs, setlists, a README and .gitattributes, so these stay behind.',
+      'A book holds songs, setlists and its README, so these stay behind.',
     uploadCanonTitle: 'Put in canonical form',
     uploadCanonBody: 'The voicings are put in canonical order; the chart is left as written.',
     uploadMarkersTitle: 'An unfinished merge in the history',
@@ -215,7 +215,7 @@ export default {
     takenDownTitle: 'This book has been taken down',
     download: 'Download',
     downloadBody:
-      'A zip of the repository as it is on this device: the whole history, and unsaved changes as modified files. Any git tool opens it.',
+      'A zip of this book as it is on this device: every song and setlist with its whole history, and unsaved changes as they are. Upload it to bring the book back.',
     remove: 'Remove from my shelf',
     removeBody: 'Deletes this device’s copy only. The book stays on Estante.',
     removeTitle: 'Remove “{name}” from this device?',
@@ -542,7 +542,7 @@ export default {
     // A picker row for a song already in the setlist (workflow 12 §Building one).
     alreadyIn: 'Already in this setlist · {places}',
     // The raw *.setlist.md side pane (wide, read-only).
-    relativeNote: 'Links are relative to {folder}, so the file opens the songs on any git host.',
+    relativeNote: 'The links start from {folder}, so they keep working wherever the book’s files are copied.',
     // The Add-to-setlist dialog (from search and the reading view).
     addToSetlistTitle: 'Add to setlist',
     newSetlist: 'New setlist…',
@@ -1107,6 +1107,8 @@ export default {
     note: 'Note',
     pushCaption:
       'Saving shares this version with whoever shares the book; with no network, at the next sync.',
+    localCaption:
+      'Saved on this device. Only you can see it until the book is put online.',
     cancel: 'Cancel',
     save: 'Save',
     // The words a save adds that the reader does not read as chords

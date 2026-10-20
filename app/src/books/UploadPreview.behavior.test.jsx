@@ -305,7 +305,11 @@ describe('UploadPreview — every status word renders (synthetic UPLOAD_PREVIEW;
     emit(event(EventKind.UPLOAD_PREVIEW, model({ branch: 'main', previews: [] })));
     expect(screen.getByText(/From the zip’s branch main\./)).toBeInTheDocument();
     expect(screen.getByText('Left out')).toBeInTheDocument();
-    expect(screen.getByText(/A book holds songs, setlists, a README and \.gitattributes/)).toBeInTheDocument();
+    // shell.plain_language — workflow 7 §Uploading L204-211: plain words, git's
+    // own files left to the file view.
+    const leftOut = screen.getByText('A book holds songs, setlists and its README, so these stay behind.');
+    expect(leftOut).toBeInTheDocument();
+    expect(leftOut.closest('.card')).not.toHaveTextContent('.gitattributes');
     expect(screen.getByText('Put in canonical form')).toBeInTheDocument();
     expect(screen.getByText(/The voicings are put in canonical order/)).toBeInTheDocument();
   });

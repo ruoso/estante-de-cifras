@@ -732,3 +732,48 @@ describe('save sheet — saving says what it is doing and why it cannot (songs.s
     expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
   });
 });
+
+// shell.plain_language — workflow 4 §Save pushes L90-94: the caption is chosen
+// by where the book lives; with no shelf yet it reads as hosted (Decision
+// *Unknown reads as hosted*).
+describe('save sheet — the caption says where the save goes (§Save pushes)', () => {
+  const LOCAL_CAPTION = 'Saved on this device. Only you can see it until the book is put online.';
+  const HOSTED_CAPTION = 'Saving shares this version with whoever shares the book; with no network, at the next sync.';
+
+  it('a book only on this device says the save stays here, not that it is shared (axe clean)', async () => {
+    const { store, emit } = makeStore();
+    emit(event(EventKind.SHELF, { books: {}, local: { [BOOK]: { title: { value: 'Caderno da Lia', at: AT }, position: { value: 0, at: AT } } } }));
+    renderSheet({ paths: ['tarde-clara.cifra.md'] }, store);
+    withName(emit);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
+
+    expect(screen.getByText(LOCAL_CAPTION)).toBeInTheDocument();
+    expect(screen.queryByText(/Saving shares this version/)).toBeNull();
+    expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
+  });
+
+  it('a book on Estante keeps the sharing caption (axe clean)', async () => {
+    const { store, emit } = makeStore();
+    emit(event(EventKind.SHELF, {
+      books: { [BOOK]: { label: { value: 'Roda de Sábado', at: AT }, role: { value: 'owner', at: AT }, position: { value: 1, at: AT } } },
+      local: {},
+    }));
+    renderSheet({ paths: ['tarde-clara.cifra.md'] }, store);
+    withName(emit);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
+
+    expect(screen.getByText(HOSTED_CAPTION)).toBeInTheDocument();
+    expect(screen.queryByText(LOCAL_CAPTION)).toBeNull();
+    expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
+  });
+
+  it('with the shelf not arrived yet, the sharing caption', () => {
+    const { store, emit } = makeStore();
+    renderSheet({ paths: ['tarde-clara.cifra.md'] }, store);
+    withName(emit);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
+
+    expect(screen.getByText(HOSTED_CAPTION)).toBeInTheDocument();
+    expect(screen.queryByText(LOCAL_CAPTION)).toBeNull();
+  });
+});

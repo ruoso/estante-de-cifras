@@ -77,7 +77,7 @@ export default {
     uploadKeep: 'Substituir “{name}” pela versão enviada',
     uploadLeftOutTitle: 'Ficam de fora',
     uploadLeftOutBody:
-      'Um livro guarda músicas, repertórios, um README e .gitattributes, então estes ficam de fora.',
+      'Um livro guarda músicas, repertórios e o seu README, então estes ficam de fora.',
     uploadCanonTitle: 'Posto em forma canônica',
     uploadCanonBody: 'As posições são postas em ordem canônica; a grade fica como foi escrita.',
     uploadMarkersTitle: 'Uma mesclagem inacabada no histórico',
@@ -195,7 +195,7 @@ export default {
     takenDownTitle: 'Este livro foi retirado',
     download: 'Baixar',
     downloadBody:
-      'Um zip do repositório como está neste dispositivo: todo o histórico e as alterações não salvas como arquivos modificados. Qualquer ferramenta git abre.',
+      'Um zip deste livro como está neste dispositivo: cada música e repertório com todo o seu histórico, e as alterações não salvas como estão. Envie-o para trazer o livro de volta.',
     remove: 'Remover da minha estante',
     removeBody: 'Apaga só a cópia deste dispositivo. O livro continua no Estante.',
     removeTitle: 'Remover “{name}” deste dispositivo?',
@@ -504,7 +504,7 @@ export default {
     pointHere: 'Apontar aqui',
     noResults: 'Nenhuma música encontrada.',
     alreadyIn: 'Já está neste repertório · {places}',
-    relativeNote: 'Os links são relativos a {folder}, então o arquivo abre as músicas em qualquer host git.',
+    relativeNote: 'Os links partem de {folder}, então continuam funcionando onde quer que os arquivos do livro sejam copiados.',
     addToSetlistTitle: 'Adicionar ao repertório',
     newSetlist: 'Novo repertório…',
     pickerMeta: '{book} · {count}',
@@ -1014,6 +1014,8 @@ export default {
     note: 'Nota',
     pushCaption:
       'Salvar compartilha esta versão com quem compartilha o livro; sem rede, na próxima sincronização.',
+    localCaption:
+      'Salvo neste dispositivo. Só você pode ver até o livro ser colocado online.',
     cancel: 'Cancelar',
     save: 'Salvar',
     // The words a save adds that the reader does not read as chords

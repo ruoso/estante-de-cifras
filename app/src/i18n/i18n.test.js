@@ -72,6 +72,37 @@ describe('the languages', () => {
   }
 });
 
+// shell.plain_language — workflow 7 §Downloading and §Uploading, workflow 12
+// L33-35; design.review_polish's Constraint: git terms stay in the file view.
+describe('says the everyday lines without git\u2019s words, in every language (shell.plain_language)', () => {
+  const EVERYDAY = ['books.downloadBody', 'books.uploadLeftOutBody', 'setlists.relativeNote', 'saveSheet.localCaption'];
+  const GIT_WORDS = [/\bgit\b/i, /repositor/i, /\.gitattributes/, /\bhost\b/i];
+
+  for (const locale of LOCALES) {
+    it(`${locale.id} names no git term in the everyday lines`, () => {
+      for (const path of EVERYDAY) {
+        const text = leafValue(locale.messages, path);
+        expect(typeof text, path).toBe('string');
+        for (const word of GIT_WORDS) expect(text, `${path} ${word}`).not.toMatch(word);
+      }
+    });
+  }
+
+  it('English says the copy table\u2019s words (design.review_polish, The new copy)', () => {
+    expect(en.books.downloadBody).toBe(
+      'A zip of this book as it is on this device: every song and setlist with its whole history, and unsaved changes as they are. Upload it to bring the book back.',
+    );
+    expect(en.books.uploadLeftOutBody).toBe('A book holds songs, setlists and its README, so these stay behind.');
+    expect(en.setlists.relativeNote).toBe(
+      'The links start from {folder}, so they keep working wherever the book’s files are copied.',
+    );
+    expect(en.saveSheet.localCaption).toBe('Saved on this device. Only you can see it until the book is put online.');
+    expect(en.saveSheet.pushCaption).toBe(
+      'Saving shares this version with whoever shares the book; with no network, at the next sync.',
+    );
+  });
+});
+
 describe('lookup', () => {
   it('interpolates named parameters', () => {
     expect(t('results.none', { label: 'Guitar' })).toBe('No fingerings for this chord on Guitar.');

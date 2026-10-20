@@ -77,7 +77,7 @@ export default {
     uploadKeep: 'Reemplazar «{name}» con la versión subida',
     uploadLeftOutTitle: 'Quedan afuera',
     uploadLeftOutBody:
-      'Un libro contiene canciones, repertorios, un README y .gitattributes, así que estos se quedan afuera.',
+      'Un libro contiene canciones, repertorios y su README, así que estos se quedan afuera.',
     uploadCanonTitle: 'Puesto en forma canónica',
     uploadCanonBody: 'Las digitaciones se ponen en orden canónico; la grilla se deja tal como está escrita.',
     uploadMarkersTitle: 'Una combinación sin terminar en el historial',
@@ -195,7 +195,7 @@ export default {
     takenDownTitle: 'Este libro fue retirado',
     download: 'Descargar',
     downloadBody:
-      'Un zip del repositorio tal como está en este dispositivo: todo el historial y los cambios sin guardar como archivos modificados. Cualquier herramienta git lo abre.',
+      'Un zip de este libro tal como está en este dispositivo: cada canción y repertorio con todo su historial, y los cambios sin guardar tal como están. Súbelo para recuperar el libro.',
     remove: 'Quitar de mi estante',
     removeBody: 'Borra solo la copia de este dispositivo. El libro sigue en Estante.',
     removeTitle: '¿Quitar “{name}” de este dispositivo?',
@@ -504,7 +504,7 @@ export default {
     pointHere: 'Apuntar aquí',
     noResults: 'No se encontraron canciones.',
     alreadyIn: 'Ya está en este repertorio · {places}',
-    relativeNote: 'Los enlaces son relativos a {folder}, así que el archivo abre las canciones en cualquier host git.',
+    relativeNote: 'Los enlaces parten de {folder}, así que siguen funcionando dondequiera que se copien los archivos del libro.',
     addToSetlistTitle: 'Agregar al repertorio',
     newSetlist: 'Nuevo repertorio…',
     pickerMeta: '{book} · {count}',
@@ -1015,6 +1015,8 @@ export default {
     note: 'Nota',
     pushCaption:
       'Guardar comparte esta versión con quien comparte el libro; sin red, en la próxima sincronización.',
+    localCaption:
+      'Guardado en este dispositivo. Solo tú puedes verlo hasta que el libro se ponga en línea.',
     cancel: 'Cancelar',
     save: 'Guardar',
     // The words a save adds that the reader does not read as chords

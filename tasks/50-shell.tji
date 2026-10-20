@@ -140,8 +140,9 @@ task shell "Shell" {
   task plain_language "Plain words where git terms leak into everyday screens" {
     effort 0.5d
     allocate team
+    complete 100
     depends design.review_polish
-    note "M12, L4, M4: the book detail Download card says A zip of the repository … Any git tool opens it (en.js:205-206, as the boards draw it), the upload preview names .gitattributes (en.js:86), the setlist raw pane says any git host (en.js:520), and the save sheet tells a local book that saving shares it with whoever shares the book (SaveSheet.jsx:235). Git terms stay in the file view, where workflow 14 shows the book as git sees it. Change the strings in all four locales and the boards, as design.review_polish writes them. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (the locales carry every key); behavior (the local-book save caption differs from a hosted one; axe)."
+    note "M12, L4, M4: the book detail Download card says A zip of the repository … Any git tool opens it (en.js:205-206, as the boards draw it), the upload preview names .gitattributes (en.js:86), the setlist raw pane says any git host (en.js:520), and the save sheet tells a local book that saving shares it with whoever shares the book (SaveSheet.jsx:235). Git terms stay in the file view, where workflow 14 shows the book as git sees it. Change the strings in all four locales and the boards, as design.review_polish writes them. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (the locales carry every key); behavior (the local-book save caption differs from a hosted one; axe). Refinement: tasks/refinements/shell/plain_language.md"
   }
   task narrow_fixes "Nothing cut off or crowded where the explorers found it" {
     effort 0.5d

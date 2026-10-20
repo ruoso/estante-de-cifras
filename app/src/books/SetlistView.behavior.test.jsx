@@ -238,6 +238,18 @@ describe('SetlistView — Share (workflow 12 §Sharing one)', () => {
     expect(screen.queryByRole('menuitem', { name: 'Share' })).toBeNull();
   });
 
+  it('wide editor: the raw pane says the links start from the setlist\u2019s folder, in plain words (shell.plain_language; workflow 12 L33-35)', async () => {
+    const { store } = makeStore();
+    renderSetlist(store, { mode: 'wide' });
+    await screen.findByText('Garota de Ipanema');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Edit' })));
+    await screen.findByRole('grid', { name: 'Songs · drag to reorder' });
+    // The setlist sits at the book root, so its folder reads as /.
+    const note = screen.getByText('The links start from /, so they keep working wherever the book’s files are copied.');
+    expect(note).toBeInTheDocument();
+    expect(note).not.toHaveTextContent(/git|host/i);
+  });
+
   // shell.surface_restore_focus_song Constraints 3-4: the shell re-mounts the
   // setlist when the people screen opened from its share closes, and sends focus
   // to the share opener once — More on narrow, the app bar's Share on wide —

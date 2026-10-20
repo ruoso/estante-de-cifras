@@ -77,7 +77,7 @@ export default {
     uploadKeep: 'Sostituisci «{name}» con la versione caricata',
     uploadLeftOutTitle: 'Lasciati fuori',
     uploadLeftOutBody:
-      'Un libro contiene canzoni, scalette, un README e .gitattributes, quindi questi restano fuori.',
+      'Un libro contiene canzoni, scalette e il suo README, quindi questi restano fuori.',
     uploadCanonTitle: 'Messo in forma canonica',
     uploadCanonBody: 'Le diteggiature vengono messe in ordine canonico; la griglia resta come scritta.',
     uploadMarkersTitle: 'Un’unione non finita nella cronologia',
@@ -195,7 +195,7 @@ export default {
     takenDownTitle: 'Questo libro è stato rimosso',
     download: 'Scarica',
     downloadBody:
-      'Uno zip del repository com’è su questo dispositivo: tutta la cronologia e le modifiche non salvate come file modificati. Qualsiasi strumento git lo apre.',
+      'Uno zip di questo libro com’è su questo dispositivo: ogni brano e scaletta con tutta la sua cronologia, e le modifiche non salvate così come sono. Caricalo per riavere il libro.',
     remove: 'Rimuovi dalla mia libreria',
     removeBody: 'Cancella solo la copia di questo dispositivo. Il libro resta su Estante.',
     removeTitle: 'Rimuovere “{name}” da questo dispositivo?',
@@ -504,7 +504,7 @@ export default {
     pointHere: 'Punta qui',
     noResults: 'Nessun brano trovato.',
     alreadyIn: 'Già in questa scaletta · {places}',
-    relativeNote: 'I link sono relativi a {folder}, così il file apre i brani su qualsiasi host git.',
+    relativeNote: 'I link partono da {folder}, così continuano a funzionare ovunque vengano copiati i file del libro.',
     addToSetlistTitle: 'Aggiungi alla scaletta',
     newSetlist: 'Nuova scaletta…',
     pickerMeta: '{book} · {count}',
@@ -1014,6 +1014,8 @@ export default {
     note: 'Nota',
     pushCaption:
       'Salvare condivide questa versione con chi condivide il libro; senza rete, alla prossima sincronizzazione.',
+    localCaption:
+      'Salvato su questo dispositivo. Solo tu puoi vederlo finché il libro non viene messo online.',
     cancel: 'Annulla',
     save: 'Salva',
     // The words a save adds that the reader does not read as chords

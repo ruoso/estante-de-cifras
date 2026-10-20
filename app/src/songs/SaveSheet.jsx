@@ -54,6 +54,7 @@ import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import DiffRows from './DiffRows.jsx';
 import { MakeYourOwnBody } from '../books/MakeYourOwn.jsx';
+import { orderedBooks } from '../books/book-display.js';
 import { buildSaveNote } from './save-note.js';
 import { deriveSongFilename } from './song-filename.js';
 import './save-sheet.css';
@@ -75,6 +76,11 @@ function SaveForm({
 }) {
   const savePreview = useSlice(store, 'savePreview');
   const preferences = useSlice(store, 'preferences');
+  // Workflow 4 §Save pushes: the caption says where the save goes. A book only
+  // on this device is not shared; with no shelf entry yet, read it as hosted —
+  // promising privacy that is not there is the worse mistake.
+  const shelf = useSlice(store, 'shelf');
+  const isLocal = orderedBooks(shelf).find((e) => e.id === bookId)?.kind === 'local';
 
   const previewPaths = useMemo(
     () => (isNew ? [fromPath].filter(Boolean) : paths ?? []),
@@ -323,7 +329,9 @@ function SaveForm({
         </div>
       )}
 
-      <p className="t-small">{t('saveSheet.pushCaption')}</p>
+      <p className="t-small">
+        {t(isLocal ? 'saveSheet.localCaption' : 'saveSheet.pushCaption')}
+      </p>
 
       {panel ? (
         // W04#4 L206: the panel's one full-width Save; it closes with Escape

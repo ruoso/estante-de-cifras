@@ -70,6 +70,13 @@ describe('BookDetail (workflow 7; W07 board)', () => {
     // Where-it-lives chip is a word, not colour alone.
     expect(screen.getByText('On this device')).toBeInTheDocument();
     expect(screen.getByText('You can save')).toBeInTheDocument();
+    // shell.plain_language — workflow 7 §Downloading L176-180: Download's body
+    // in plain words, no git.
+    expect(
+      screen.getByText(
+        'A zip of this book as it is on this device: every song and setlist with its whole history, and unsaved changes as they are. Upload it to bring the book back.',
+      ),
+    ).toBeInTheDocument();
 
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
