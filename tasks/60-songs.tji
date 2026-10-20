@@ -189,7 +189,8 @@ task songs "Songs" {
   task history_24h "Song history tells the time as the rest of the app does" {
     effort 0.25d
     allocate team
-    note "M6: song history showed 16:59 PM. history-view.js:54-63 formats with currentLocale() (bare en) and no hourCycle, while book-display.js:208, BookHistory.jsx:41, people.js:22 and shape-readout.js:105 map en to en-GB (24-hour), so the app shows two clock styles; the PM was not reproduced. Use the same mapping. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (the history time in each locale, no AM/PM in en)."
+    complete 100
+    note "M6: song history showed 16:59 PM. history-view.js:54-63 formats with currentLocale() (bare en) and no hourCycle, while book-display.js:208, BookHistory.jsx:41, people.js:22 and shape-readout.js:105 map en to en-GB (24-hour), so the app shows two clock styles; the PM was not reproduced. Use the same mapping. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (the history time in each locale, no AM/PM in en). Refinement: tasks/refinements/songs/history_24h.md"
   }
   task render_notes "Notes and verbatim blocks shown in the preview and the reading view" {
     effort 1d

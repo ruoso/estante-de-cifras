@@ -105,6 +105,11 @@ export async function deleteOpenFile(page, fileName) {
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(dialog).toBeHidden();
+  // The file closes once the Worker reports it deleted (FILE_DELETED), a beat
+  // after the dialog: wait for that, so a phone's *Back to files* is not caught
+  // on its way out (wide: the header's own actions go with the file).
+  await expect(page.getByRole('button', { name: `Delete ${fileName}` })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Back to files' })).toHaveCount(0);
 }
 
 // In the file view's tree: *New* → `kind` (Song, Setlist, Folder or README.md),

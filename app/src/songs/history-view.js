@@ -51,6 +51,9 @@ export function isYou(author, identity = {}) {
 // it as whole seconds). Best-effort: a missing timestamp reads blank, and an
 // environment without `Intl` falls back to the ISO date. `withTime` carries the
 // list/detail "when"; the date alone names the restore dialog (W06 "20 Sep").
+// The app's `en` is the boards' English, day before month on a 24-hour clock
+// (W06 "20 Sep, 18:02"), so it formats as `en-GB`, as the book history does;
+// every other locale formats as itself.
 function formatWhen(timestamp, locale, withTime = true) {
   if (timestamp == null) return '';
   const date = new Date(timestamp * 1000);
@@ -58,7 +61,7 @@ function formatWhen(timestamp, locale, withTime = true) {
     ? { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }
     : { day: 'numeric', month: 'short' };
   try {
-    return new Intl.DateTimeFormat(locale, options).format(date);
+    return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : locale, options).format(date);
   } catch {
     return date.toISOString();
   }
@@ -95,7 +98,7 @@ function changeOf(thisText, beforeText) {
  * @param {{ changes?: object[], summary?: string }|null} [opts.preview] the path's save preview
  * @param {{ name?: string }} [opts.identity] the *you* identity
  * @param {(key: string, params?: object) => string} opts.t the i18n lookup
- * @param {string} [opts.locale] the BCP-47 tag for the date format
+ * @param {string} [opts.locale='en'] the BCP-47 tag for the date format
  * @returns {{ rows: object[] }}
  */
 export function buildHistoryView({
@@ -104,7 +107,7 @@ export function buildHistoryView({
   preview = null,
   identity = {},
   t,
-  locale,
+  locale = 'en',
 } = {}) {
   const rows = [];
 

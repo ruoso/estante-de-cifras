@@ -3,7 +3,9 @@
 // summary; the oldest diffs against an empty parse; *you* is marked by the local
 // no-reply email and by the stored name before sign-in; the unsaved row is
 // prepended only when the save preview has changes; a resolution merge is
-// labelled *merged, with your resolution* and diffed against its first parent.
+// labelled *merged, with your resolution* and diffed against its first parent;
+// the *when* reads English as `en-GB` (day first, 24-hour — W06 L115, L137,
+// songs.history_24h) and every other locale as itself.
 // Fixtures are purpose-written songs, never anyone's words.
 
 import { describe, it, expect } from 'vitest';
@@ -168,5 +170,44 @@ describe('buildHistoryView', () => {
     expect(rows[0].hasText).toBe(false);
     expect(rows[0].summary).toBe('');
     expect(rows[0].changes).toEqual([]);
+  });
+});
+
+// songs.history_24h — the history tells the time as the rest of the app does.
+// The local-time constructor keeps the hour at 16:59 under any TZ, and October
+// avoids ICU's Sep/Sept variance.
+describe('when', () => {
+  const date = new Date(2026, 9, 2, 16, 59);
+  const at = [{ ...entries()[0], timestamp: date.getTime() / 1000 }];
+  const rowFor = (locale) =>
+    buildHistoryView({ entries: at, versions: {}, identity: {}, t, ...(locale ? { locale } : {}) })
+      .rows[0];
+
+  it('en reads day first on a 24-hour clock (W06 "20 Sep, 18:02"; book-display.js en → en-GB)', () => {
+    const row = rowFor('en');
+    expect(row.when).toContain('16:59');
+    expect(row.when).not.toMatch(/AM|PM/i);
+    expect(row.when).toMatch(/^2 Oct/);
+    // The restore dialog's date (W06 L137 "Restore the version of 20 Sep?").
+    expect(row.whenDate).toBe('2 Oct');
+  });
+
+  it('an omitted locale is the app\'s English, not the runner\'s default (Constraint 3)', () => {
+    const row = rowFor(undefined);
+    expect(row.when).toContain('16:59');
+    expect(row.when).not.toMatch(/AM|PM/i);
+    expect(row.when).toMatch(/^2 Oct/);
+    expect(row.whenDate).toBe('2 Oct');
+  });
+
+  it.each(['pt-BR', 'it'])('%s reads 16:59 with no AM/PM', (locale) => {
+    const row = rowFor(locale);
+    expect(row.when).toContain('16:59');
+    expect(row.when).not.toMatch(/AM|PM/i);
+  });
+
+  it('es-419 formats as itself, as the book history does (Decision 2)', () => {
+    const options = { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
+    expect(rowFor('es-419').when).toBe(new Intl.DateTimeFormat('es-419', options).format(date));
   });
 });
