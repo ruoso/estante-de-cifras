@@ -673,6 +673,50 @@ describe('SongEditor — the preview shows notes', () => {
   });
 });
 
+// The test song for songs.trailing_chord_gap, written for the purpose: Fmaj7 a
+// few columns past "tarde", A7 exactly at the end of "barco" — the two
+// attachments cifra.md §4.4 gives "past the end" (words: '').
+const PORTO_SONG = [
+  '# Porto de Lenha',
+  '',
+  '## Verso',
+  '```',
+  'C                     Fmaj7',
+  'Vem a maré da tarde',
+  'G           A7',
+  'leva o barco',
+  '```',
+  '',
+].join('\n');
+
+// songs.trailing_chord_gap — the preview (the reading Chart, editor.md AC5)
+// draws a chord written past the end of its sung line as a `tail` segment, kept
+// apart from the last word (cifra.md §4.4, §4.8). The geometry is pinned at
+// e2e-web; axe over the preview.
+describe('SongEditor — a chord after the last word in the preview', () => {
+  it('the preview draws a chord after the last word apart from it', async () => {
+    const { store, emit } = makeStore();
+    const editorRef = { current: null };
+    const { container } = render(
+      <SongEditor store={store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} onSave={() => {}} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: '' }));
+    await waitFor(() => expect(editorRef.current).not.toBeNull());
+    // Typed into the editor: the whole song as one edit, as a user's typing lands.
+    act(() => {
+      const view = editorRef.current;
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: PORTO_SONG } });
+    });
+
+    const preview = screen.getByRole('region', { name: t('editor.source.preview') });
+    await waitFor(() => expect(preview.querySelectorAll('.chart .s.tail').length).toBe(2));
+    const tails = Array.from(preview.querySelectorAll('.chart .s.tail'));
+    expect(tails.map((s) => s.querySelector('.c').textContent)).toEqual(['Fmaj7', 'A7']);
+    expect(tails.every((s) => s.querySelector('.w').textContent === '')).toBe(true);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
 describe('SongEditor — words not read as chords', () => {
   const BRACKETS = ['# Tarde Clara', '', '```', '[Am]Teste [G]linha', '```', ''].join('\n');
   const bracketNotice = (line) => t('editor.source.bracketChords', { line });
@@ -928,6 +972,8 @@ describe('SongEditor format help', () => {
     expect(helpDialog()).toBeInTheDocument();
     expect(helpDialog().closest('.sheet')).not.toBeNull();
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    // The Dialog takes focus in an effect; Escape is pressed from inside it.
+    await waitFor(() => expect(helpDialog()).toContainElement(document.activeElement));
     fireEvent.keyDown(document.activeElement, { key: 'Escape' });
     expect(helpDialog()).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(HELP()));
@@ -944,6 +990,7 @@ describe('SongEditor format help', () => {
     expect(helpDialog().closest('.popover.card')).not.toBeNull();
     expect(HELP()).toHaveAttribute('aria-expanded', 'true');
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    await waitFor(() => expect(helpDialog()).toContainElement(document.activeElement));
     fireEvent.keyDown(document.activeElement, { key: 'Escape' });
     expect(helpDialog()).toBeNull();
     expect(HELP()).toHaveAttribute('aria-expanded', 'false');

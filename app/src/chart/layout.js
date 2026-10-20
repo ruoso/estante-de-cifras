@@ -95,8 +95,15 @@ function voiceFor(item) {
 // measure, a segment's `hyphen` is set when it splits a word with the next. Each
 // segment also carries its pressable `token` (null for a non-chord), used only
 // by the interactive arrange chart.
+//
+// A segment is a `tail` (songs.trailing_chord_gap) when it has no words and the
+// segment before it on the same line — across bars, since a sung row draws no
+// bar rule — has words holding a non-space: the chord attached past the end of
+// the words (spec §4.4, §4.8 "a chord with an empty segment") would otherwise
+// sit glued to the last word. The view draws the space; the words are untouched.
 function sungRow(line, address) {
   const segments = [];
+  let previousWords = null;
   line.measures.forEach((measure, measureIndex) => {
     const items = [];
     measure.items.forEach((item, itemIndex) => {
@@ -106,10 +113,13 @@ function sungRow(line, address) {
       const words = item.words ?? '';
       const next = items[i + 1];
       const hyphen = next != null && endsTight(words) && startsTight(next.item.words ?? '');
+      const tail = words === '' && previousWords != null && /\S/.test(previousWords);
+      previousWords = words;
       segments.push({
         chord: chordText(item),
         words,
         hyphen,
+        tail,
         token: tokenFor(item, address, measureIndex, itemIndex),
         voice: voiceFor(item),
       });

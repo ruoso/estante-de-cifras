@@ -88,10 +88,12 @@ function ChordSlot({ text, token, voice, ctx, glyphClass }) {
 // One sung segment: the chord in `.c` stacked over its words in `.w`, DOM order
 // chord-then-words so the reading is chord-then-word-run (§2). The spoken name
 // sits before the word-run; the centred-hyphen `.fill` is decorative and hidden
-// from the tree (§4). The words are the real `.w` text, read as written.
+// from the tree (§4). The words are the real `.w` text, read as written. A
+// `tail` segment — a chord past the end of the words — takes the `tail` class,
+// which the theme spaces from the last word (songs.trailing_chord_gap).
 function Segment({ segment, ctx }) {
   return (
-    <span className="s">
+    <span className={segment.tail ? 's tail' : 's'}>
       <ChordSlot text={segment.chord} token={segment.token} voice={segment.voice} ctx={ctx} glyphClass="c" />
       <span className="w">
         {segment.words}

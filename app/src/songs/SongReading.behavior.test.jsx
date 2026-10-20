@@ -392,6 +392,45 @@ describe('SongReading — notes and a tab block (songs.render_notes)', () => {
   });
 });
 
+// The test song for songs.trailing_chord_gap, written for the purpose: Fmaj7 a
+// few columns past "tarde", A7 exactly at the end of "barco" — the two
+// attachments cifra.md §4.4 gives "past the end" (words: '').
+const PORTO = [
+  '# Porto de Lenha',
+  '',
+  '## Verso',
+  '```',
+  'C                     Fmaj7',
+  'Vem a maré da tarde',
+  'G           A7',
+  'leva o barco',
+  '```',
+  '',
+].join('\n');
+
+// songs.trailing_chord_gap — the reading chart, narrow and wide (`mode`; the
+// wide one draws at size 20), draws each chord written past the end of its sung
+// line as a `tail` segment the theme keeps apart from the last word (cifra.md
+// §4.4, §4.8). The geometry is pinned at e2e-web; axe over each.
+describe('SongReading — a chord after the last word (songs.trailing_chord_gap)', () => {
+  for (const mode of ['narrow', 'wide']) {
+    it(`the reading view draws a chord after the last word apart from it (${mode})`, async () => {
+      installWidths(false);
+      const { store } = makeStore({ text: PORTO, entry: guitarEntry() });
+      renderReading(store, { mode });
+      act(() => store.open());
+      const chart = await screen.findByRole('group', { name: 'Porto de Lenha' });
+      await waitFor(() => expect(chart.querySelectorAll('.s.tail').length).toBe(2));
+      const tails = Array.from(chart.querySelectorAll('.s.tail'));
+      expect(tails.map((s) => s.querySelector('.c').textContent)).toEqual(['Fmaj7', 'A7']);
+      expect(tails.every((s) => s.querySelector('.w').textContent === '')).toBe(true);
+      // The segments with words of their own are not tails.
+      expect(chart.querySelectorAll('.sung .s:not(.tail)').length).toBe(2);
+      expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    });
+  }
+});
+
 describe('SongReading — the variation picker (workflow 2 L73-74, L120-125)', () => {
   const twoVariations = song({
     chart: 'C',

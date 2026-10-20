@@ -382,6 +382,11 @@
 .chart .sung { display: flex; flex-wrap: wrap; align-items: flex-end; padding: 2px 0; }
 .chart .s { display: inline-flex; flex-direction: column; max-width: 100%; }
 .chart .s .c { color: var(--chord); font-weight: 700; min-height: 1.3em; padding-right: 0.45em; white-space: pre; }
+/* App fix over the boards (which never drew a chord past the words): a chord
+   attached past the end of the words (cifra.md §4.4, §4.8 — a chord with an
+   empty segment) keeps the same 0.45em a chord keeps after itself from the
+   last word, rather than starting on its last glyph (songs.trailing_chord_gap). */
+.chart .s.tail { margin-left: 0.45em; }
 /* App fix over the boards (which never drew a line longer than its screen):
    a segment is capped at the chart's width and its words wrap inside it
    (pre-wrap keeps the spacing), so a long run of words under one chord wraps

@@ -56,11 +56,12 @@ describe('chartRows — sung lines', () => {
     );
     const sung = rows.find((r) => r.type === 'sung');
     expect(sung.segments).toEqual([
-      { chord: '', words: 'Te', hyphen: true, token: null, voice: { type: 'lead' } },
+      { chord: '', words: 'Te', hyphen: true, tail: false, token: null, voice: { type: 'lead' } },
       {
         chord: 'G',
         words: 'sting',
         hyphen: false,
+        tail: false,
         token: { symbol: 'G', key: 'G', address: { section: 0, part: 0, line: 0, measure: 0, item: 1 } },
         voice: { type: 'chord', chord: null, footnote: 1 },
       },
@@ -127,6 +128,7 @@ describe('chartRows — sung lines', () => {
         chord: 'C',
         words: 'some',
         hyphen: false,
+        tail: false,
         token: { symbol: 'C', key: 'C', address: { section: 0, part: 0, line: 0, measure: 0, item: 0 } },
         voice: { type: 'chord', chord: null, footnote: 1 },
       },
@@ -134,6 +136,7 @@ describe('chartRows — sung lines', () => {
         chord: 'G',
         words: 'more',
         hyphen: false,
+        tail: false,
         token: { symbol: 'G', key: 'G', address: { section: 0, part: 0, line: 0, measure: 1, item: 0 } },
         voice: { type: 'chord', chord: null, footnote: 1 },
       },
@@ -167,8 +170,8 @@ describe('chartRows — sung lines', () => {
     // A no-chord and an unknown token are not pressable (only a voiced chord is):
     // their token is null.
     expect(sung.segments).toEqual([
-      { chord: 'N.C.', words: 'hush ', hyphen: false, token: null, voice: { type: 'nochord' } },
-      { chord: '>x', words: 'then', hyphen: false, token: null, voice: { type: 'unknown', text: '>x' } },
+      { chord: 'N.C.', words: 'hush ', hyphen: false, tail: false, token: null, voice: { type: 'nochord' } },
+      { chord: '>x', words: 'then', hyphen: false, tail: false, token: null, voice: { type: 'unknown', text: '>x' } },
     ]);
   });
 
@@ -202,11 +205,12 @@ describe('chartRows — sung lines', () => {
     // is item 3 (after the nochord, count and mark), the index cifra-md's §8.5
     // `itemAt` uses.
     expect(sung.segments).toEqual([
-      { chord: 'N.C.', words: 'la ', hyphen: false, token: null, voice: { type: 'nochord' } },
+      { chord: 'N.C.', words: 'la ', hyphen: false, tail: false, token: null, voice: { type: 'nochord' } },
       {
         chord: 'Cm',
         words: 'la',
         hyphen: false,
+        tail: false,
         token: { symbol: 'Cm', key: 'Cm', address: { section: 0, part: 0, line: 0, measure: 0, item: 3 } },
         voice: { type: 'chord', chord: null, footnote: 1 },
       },
@@ -424,5 +428,59 @@ describe('chartRows — notes and verbatim', () => {
     expect(rows[0].paragraphs).toEqual(['Play it gently.']);
     expect(rows[3].paragraphs).toEqual(['Softer the second time.']);
     expect(rows[5]).toMatchObject({ info: 'tab', text: 'e|--3--|\nB|--0--|' });
+  });
+});
+
+describe('chartRows — a chord past the end of the words', () => {
+  // songs.trailing_chord_gap: a chord attached at or past the end of the words
+  // has no words (spec/4-lyrics.md §4.4 :170) and is "a chord with an empty
+  // segment" (§4.8 :371-372); the layout marks it `tail` when words precede it on
+  // the line, so the view keeps it apart from the last word.
+  const sungLine = (measures) =>
+    chartRows(model([section('Verse', [music([{ kind: 'sung', closeBar: null, forced: false, measures }])])])).find(
+      (r) => r.type === 'sung',
+    );
+
+  it('a chord past the end of the words is a tail segment', () => {
+    const sung = sungLine([{ bar: null, items: [chord('G', 0, 'the tide'), chord('D', 12, '')] }]);
+    expect(sung.segments[0]).toMatchObject({ chord: 'G', words: 'the tide', tail: false, hyphen: false });
+    expect(sung.segments[1]).toMatchObject({ chord: 'D', words: '', tail: true, hyphen: false });
+  });
+
+  it('a chord exactly at the end of the words is a tail too', () => {
+    // As the reader gives it: D at column 9, exactly the end of "the night" (no space even in the source).
+    const rows = chartRows(parse(['## Verse', '```', 'G        D', 'the night', '```', ''].join('\n')));
+    const sung = rows.find((r) => r.type === 'sung');
+    expect(sung.segments.map(({ chord: c, words, tail, hyphen }) => ({ chord: c, words, tail, hyphen }))).toEqual([
+      { chord: 'G', words: 'the night', tail: false, hyphen: false },
+      { chord: 'D', words: '', tail: true, hyphen: false },
+    ]);
+  });
+
+  it('only the first of two chords past the end is a tail', () => {
+    // The second is already spaced by the first chord's own padding.
+    const sung = sungLine([{ bar: null, items: [chord('G', 0, 'home'), chord('D', 6, ''), chord('Em', 8, '')] }]);
+    expect(sung.segments.map((s) => s.tail)).toEqual([false, true, false]);
+  });
+
+  it('a tail across a bar', () => {
+    // A sung row draws no bar rule, so the past-end chord after a bar would be
+    // glued to the words just the same.
+    const sung = sungLine([
+      { bar: null, items: [chord('C', 0, 'away')] },
+      { bar: '|', column: 5, items: [chord('G', 7, '')] },
+    ]);
+    expect(sung.segments.map((s) => s.tail)).toEqual([false, true]);
+  });
+
+  it('no tail after words of only spaces, on a chord with words of its own, or on the first segment', () => {
+    const afterSpaces = sungLine([{ bar: null, items: [chord('C', 0, '   '), chord('G', 3, '')] }]);
+    expect(afterSpaces.segments.map((s) => s.tail)).toEqual([false, false]);
+    const withWords = sungLine([{ bar: null, items: [chord('C', 0, 'one '), chord('G', 4, 'two')] }]);
+    expect(withWords.segments.map((s) => s.tail)).toEqual([false, false]);
+    const firstEmpty = sungLine([{ bar: null, items: [chord('C', 0, ''), chord('G', 2, '')] }]);
+    expect(firstEmpty.segments.map((s) => s.tail)).toEqual([false, false]);
+    const lead = sungLine([{ bar: null, items: [{ type: 'lead', column: 0, words: 'Oh ' }, chord('G', 3, 'yes')] }]);
+    expect(lead.segments.map((s) => s.tail)).toEqual([false, false]);
   });
 });

@@ -183,3 +183,45 @@ Hold it **x** and [x](y) <b>.
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });
+
+// The test song for songs.trailing_chord_gap, written for the purpose: Fmaj7 a
+// few columns past "tarde", A7 exactly at the end of "barco" — the two
+// attachments cifra.md §4.4 gives "past the end" (words: '').
+const PORTO = [
+  '# Porto de Lenha',
+  '',
+  '## Verso',
+  '```',
+  'C                     Fmaj7',
+  'Vem a maré da tarde',
+  'G           A7',
+  'leva o barco',
+  '```',
+  '',
+].join('\n');
+
+// songs.trailing_chord_gap — a chord after the last word (cifra.md §4.4, §4.8:
+// "a chord with an empty segment") is drawn as a `tail` segment, the class the
+// theme spaces from the words. jsdom has no layout, so this pins the mark the
+// CSS keys on; the geometry is pinned at e2e-web (trailing-chord.spec.js).
+describe('Chart — a chord past the end of the words (songs.trailing_chord_gap)', () => {
+  beforeEach(() => setLocale('en'));
+
+  it('a chord after the last word is drawn as a tail segment', async () => {
+    const { container } = renderChart(<Chart model={parse(PORTO)} />);
+    const segmentOf = (symbol) =>
+      Array.from(container.querySelectorAll('.chart .sung .s')).find((s) => s.querySelector('.c')?.textContent === symbol);
+    for (const symbol of ['Fmaj7', 'A7']) {
+      const tail = segmentOf(symbol);
+      expect(tail).toHaveClass('s', 'tail');
+      expect(tail.querySelector('.w').textContent).toBe('');
+    }
+    for (const symbol of ['C', 'G']) {
+      const withWords = segmentOf(symbol);
+      expect(withWords).not.toHaveClass('tail');
+      expect(withWords.querySelector('.w').textContent).not.toBe('');
+    }
+    expect(container.querySelectorAll('.chart .s.tail').length).toBe(2);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
