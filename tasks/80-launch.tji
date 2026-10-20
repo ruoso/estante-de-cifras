@@ -1,6 +1,6 @@
 # 80 — Launch
 #
-# Running on Railway at estantedecifras.app.
+# Running on Railway at www.estantedecifras.app.
 
 task launch "Launch" {
   task railway "Railway project" {
@@ -14,7 +14,7 @@ task launch "Launch" {
     allocate team
     complete 50
     depends !railway
-    note "estantedecifras.app is registered; pointing it at Railway remains. DIRECTION §3.3. Tests: none — DNS and certificates; checked by HTTPS answering at the domain."
+    note "estantedecifras.app is registered at GoDaddy, whose DNS keeps it: www is a CNAME to Railway and serves the app, the apex forwards to https://www (301), as a-conversa.org does. Pointing it at Railway remains. DIRECTION §3.3. Tests: none — DNS and certificates; checked by HTTPS answering at the domain."
   }
   task email "Email provider" {
     effort 1d

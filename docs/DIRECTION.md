@@ -158,7 +158,12 @@ be small, and one place to run is worth more than a CDN. The project runs
 **one service**, a small Go program in a container, with **PostgreSQL**
 beside it (§3.6). The same service serves the app — a static PWA, which the
 browser installs and caches, so serving it costs little — at the root of
-**`estantedecifras.app`**, and its API beneath it. The `.app` domain is
+**`www.estantedecifras.app`**, and its API beneath it. The bare
+`estantedecifras.app` only forwards there: the domain's DNS stays with its
+registrar, which cannot point an apex at Railway's CNAME. That origin is for
+good — a device's books, the installed app and the git remotes in every home
+book belong to it — while passkeys are bound to `estantedecifras.app`, which
+covers `www` and leaves the apex open later. The `.app` domain is
 HTTPS-only for every browser, which a PWA and passkeys need anyway. Sign-in
 links are mailed from it too.
 
