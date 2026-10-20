@@ -1934,6 +1934,78 @@ export default {
       markerStop: 'Line {line} is a conflict marker. Resolve it before the song can be saved.',
       afterRuleStop:
         'Line {line} comes after the rule, where only voicing blocks are kept, and saving would drop it. If it is part of the song, move the rule below it; a voicings heading needs a tuning, like ## Voicings: E2 A2 D3 G3 B3 E4.',
+      // The notice's *Show me how* and its second case, chords outside the
+      // music (songs.format_help; workflow 3 §When it looks like another format).
+      showMeHow: 'Show me how',
+      unfencedChords:
+        'Line {line} looks like chords, but it is outside the music, so it is kept as a note. Music goes between two lines of three backticks.',
+    },
+    // The format help, *Writing a song* (songs.format_help; workflow 3 §Help
+    // with the format, its English pinned there). Each topic's heading carries
+    // its number as the board draws it; `{topic}` in the action labels is the
+    // heading without it. In another language the sentences, part names and
+    // sung words are translated, never the marks, the chord symbols, the
+    // tuning or `Voicings` (cifra.md §7.3) — each example must still read as
+    // its topic says (format-help.test.js).
+    formatHelp: {
+      open: 'Help',
+      title: 'Writing a song',
+      intro: 'A song here is plain text. A few marks tell the app what is music.',
+      close: 'Close',
+      insert: 'Insert',
+      insertLabel: 'Insert the {topic} example',
+      copy: 'Copy',
+      copyLabel: 'Copy the {topic} example',
+      copied: 'Copied',
+      copyFailed: 'Could not copy — select the example instead',
+      topics: {
+        title: {
+          heading: '1. The title and details',
+          text: 'The first line is the title, after #. Under it, details as a list: who it is by, the key.',
+          example: '# Moonlit Road\n- artist: The Porch Band\n- key: G',
+        },
+        parts: {
+          heading: '2. Parts and the music fence',
+          text:
+            'Each part of the song starts with ## and its name. Its music goes between two lines of three backticks, so the app reads it as chords and words. ~~~ works too, on a keyboard where the backtick is hard to type.',
+          example: '## Verse\n```\nG                C\nWalk the moonlit road\n```',
+        },
+        chords: {
+          heading: '3. Chords over words',
+          text:
+            'Put the chords on their own line, right above the words, each over the syllable where it changes. No blank line between them. Chords inside the words, like [G]Walk, are not read.',
+          example: '## Chorus\n```\nC          G\nSing it slow\nD             G\nAll the way home\n```',
+        },
+        bars: {
+          heading: '4. Bars',
+          text: 'A | separates bars. % plays the bar before again.',
+          example: '## Intro\n```\nG | % | C | D\n```',
+        },
+        repeats: {
+          heading: '5. Repeats',
+          text:
+            '|: and :| around bars play them twice; x3 after them plays them three times. 1. and 2. start the ending of each time through.',
+          example: '## Bridge\n```\n|: Em | C :| x3\n|: G | C |1. D | G :|2. D | D |\n```',
+        },
+        bracketNames: {
+          heading: '6. Part names inside the music',
+          text:
+            '[Chorus] on a line of its own, inside the music, starts a part too — that is how cifra sites write it. Between the brackets goes a name, not a chord.',
+          example: '```\n[Chorus]\nG | C | D | G\n```',
+        },
+        notes: {
+          heading: '7. Notes',
+          text:
+            'Lines outside the backticks are notes: shown as written, never read as chords. Inside the music, a line that starts with // is a note in its place.',
+          example: '## Verse 2\nSofter the second time.\n```\n// guitar alone\nG | C | D | G\n```',
+        },
+        voicings: {
+          heading: '8. How to play a chord',
+          text:
+            'Below a line of ---, a heading with the instrument’s strings, then each chord with its frets from the lowest string; x for a string not played. Arranging for an instrument writes these for you.',
+          example: '---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- G: 320003\n- C: x32010',
+        },
+      },
     },
     // A background sync merged a new version in under the open editor's unsaved
     // edits (songs.edit_in_place; sync.in_place_notices, W08#3 L101-107). The
@@ -1975,51 +2047,6 @@ export default {
     title: 'Title',
     song: 'The song',
     placeholder: '# Verse\nA | Cm | A | Cm',
-    help: {
-      sections: {
-        term: 'Sections',
-        text: 'Three ways to name one: a line beginning with #, a name in brackets, or a ' +
-          'name and a colon. The last two may carry that section’s chords on the same ' +
-          'line. A colon only names a section when chords follow it, so a sung line ' +
-          'with a colon in it stays a line of words.',
-        example: '# Verse\n[Intro] G  D  Em  C\nSolo: Am  F  C  G',
-      },
-      chart: {
-        term: 'A chart',
-        text: 'A vertical bar starts a new measure; spaces separate the chords inside one.',
-        example: 'C  Am | F  G | C\nF     | G    | C',
-      },
-      words: {
-        term: 'Or the words underneath',
-        text: 'A line of chords over the line it is sung to, each chord above the syllable it falls on.',
-        example: 'G            D\nWhen I first saw you',
-      },
-      either: {
-        term: 'When a line could be either',
-        text: 'A vertical bar makes it a chart. A leading > makes it words, and is the only way to settle a line that reads as a chord.',
-        example: 'G\n> A',
-      },
-      bars: {
-        term: 'Bar numbers',
-        text: 'Bars count on their own. Write @9 at the start of a measure where the chart ' +
-          'stops agreeing with the score it came from — writing a repeat out straight means ' +
-          'the same bars appear twice, and the count has to be told. A heading can carry it ' +
-          'instead, and a number on its own line applies to the bar after it.',
-        example: '# A @9\nDm | G7 | @17 Em | A7',
-      },
-      variations: {
-        term: 'More than one variation',
-        text: 'The word before the colon names a variation, so one instrument can have ' +
-          'several in one song — an easy version and a fuller one, say. A plain Voicings ' +
-          'heading is the default. Which one you are working in is chosen above the shapes.',
-        example: '# Voicings: E2, A2, D3, G3, B3, E4\nC = x32010\n\n# Up the neck: E2, A2, D3, G3, B3, E4\nC = x35553',
-      },
-      voicings: {
-        term: 'Voicings',
-        text: 'They sit after a --- rule, one block per tuning under a heading that names it, so the same song serves every instrument. A chord played more than one way is footnoted. A chord you have saved a shape for gets that shape when it first appears.',
-        example: '---\n\n# Voicings: E2, A2, D3, G3, B3, E4\nCm = x35543\nCm[2] = 8-10-10-8-8-8',
-      },
-    },
     notAChord: 'Not a chord: {list}',
     badVoicingLines: 'Could not read these voicing lines: {list}',
     chart: 'The chart',

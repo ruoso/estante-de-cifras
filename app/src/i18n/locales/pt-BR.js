@@ -1768,6 +1768,74 @@ export default {
       markerStop: 'A linha {line} é um marcador de conflito. Resolva-o antes de poder salvar a música.',
       afterRuleStop:
         'A linha {line} vem depois da linha ---, onde só se guardam blocos de dedilhados, e salvar iria descartá-la. Se ela faz parte da música, mova a linha --- para baixo dela; um título de dedilhados precisa de uma afinação, como ## Voicings: E2 A2 D3 G3 B3 E4.',
+      // O *Mostre como* do aviso e o seu segundo caso, acordes fora da música
+      // (songs.format_help; workflow 3).
+      showMeHow: 'Mostre como',
+      unfencedChords:
+        'A linha {line} parece ter acordes, mas está fora da música, então fica como nota. A música vai entre duas linhas de três crases.',
+    },
+    // A ajuda do formato, *Escrevendo uma música* (songs.format_help;
+    // workflow 3). Frases, nomes das partes e letra traduzidos; as marcas, os
+    // acordes, a afinação e `Voicings` nunca (cifra.md §7.3).
+    formatHelp: {
+      open: 'Ajuda',
+      title: 'Escrevendo uma música',
+      intro: 'Aqui uma música é texto simples. Algumas marcas dizem ao app o que é música.',
+      close: 'Fechar',
+      insert: 'Inserir',
+      insertLabel: 'Inserir o exemplo de {topic}',
+      copy: 'Copiar',
+      copyLabel: 'Copiar o exemplo de {topic}',
+      copied: 'Copiado',
+      copyFailed: 'Não foi possível copiar — selecione o exemplo',
+      topics: {
+        title: {
+          heading: '1. O título e os detalhes',
+          text: 'A primeira linha é o título, depois de #. Abaixo dela, os detalhes em lista: de quem é, o tom.',
+          example: '# Estrada de Luar\n- artist: A Banda da Varanda\n- key: G',
+        },
+        parts: {
+          heading: '2. Partes e a cerca de música',
+          text:
+            'Cada parte da música começa com ## e o nome dela. A música vai entre duas linhas de três crases, para o app ler acordes e letra. ~~~ também serve, num teclado onde a crase é difícil de digitar.',
+          example: '## Verso\n```\nG               C\nPela estrada de luar\n```',
+        },
+        chords: {
+          heading: '3. Acordes sobre a letra',
+          text:
+            'Ponha os acordes numa linha própria, logo acima da letra, cada um sobre a sílaba onde ele muda. Sem linha em branco entre as duas. Acordes dentro da letra, como [G]Caminha, não são lidos.',
+          example: '## Refrão\n```\nC          G\nCanta devagar\nD             G\nTodo o caminho de volta\n```',
+        },
+        bars: {
+          heading: '4. Compassos',
+          text: 'Uma | separa os compassos. % toca de novo o compasso anterior.',
+          example: '## Introdução\n```\nG | % | C | D\n```',
+        },
+        repeats: {
+          heading: '5. Repetições',
+          text:
+            '|: e :| em volta de compassos fazem tocá-los duas vezes; x3 depois deles, três vezes. 1. e 2. começam o final de cada vez.',
+          example: '## Ponte\n```\n|: Em | C :| x3\n|: G | C |1. D | G :|2. D | D |\n```',
+        },
+        bracketNames: {
+          heading: '6. Nomes de partes dentro da música',
+          text:
+            '[Refrão] numa linha própria, dentro da música, também começa uma parte — é assim que os sites de cifra escrevem. Entre os colchetes vai um nome, não um acorde.',
+          example: '```\n[Refrão]\nG | C | D | G\n```',
+        },
+        notes: {
+          heading: '7. Notas',
+          text:
+            'As linhas fora das crases são notas: aparecem como foram escritas, nunca lidas como acordes. Dentro da música, uma linha que começa com // é uma nota no seu lugar.',
+          example: '## Verso 2\nMais suave na segunda vez.\n```\n// só o violão\nG | C | D | G\n```',
+        },
+        voicings: {
+          heading: '8. Como tocar um acorde',
+          text:
+            'Abaixo de uma linha de ---, um título com as cordas do instrumento, depois cada acorde com as casas a partir da corda mais grave; x para uma corda que não é tocada. Arranjar para um instrumento escreve isso para você.',
+          example: '---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- G: 320003\n- C: x32010',
+        },
+      },
     },
     // Uma sincronização em segundo plano mesclou uma nova versão sob as edições
     // não salvas do editor aberto (songs.edit_in_place, workflow 8; W08). O aviso
@@ -1807,53 +1875,6 @@ export default {
     title: 'Nome',
     song: 'A música',
     placeholder: '# Verso\nA | Cm | A | Cm',
-    help: {
-      sections: {
-        term: 'Seções',
-        text: 'Três jeitos de dar nome a uma: uma linha começando com #, um nome entre ' +
-          'colchetes, ou um nome com dois-pontos. As duas últimas podem trazer os acordes ' +
-          'da seção na mesma linha. Os dois-pontos só dão nome a uma seção quando o que ' +
-          'vem depois são acordes, então uma linha cantada com dois-pontos continua letra.',
-        example: '# Verso\n[Intro] G  D  Em  C\nSolo: Am  F  C  G',
-      },
-      chart: {
-        term: 'Uma cifra',
-        text: 'Uma barra vertical inicia um compasso; espaços separam os acordes dentro dele.',
-        example: 'C  Am | F  G | C\nF     | G    | C',
-      },
-      words: {
-        term: 'Ou com a letra embaixo',
-        text: 'Uma linha de acordes sobre a linha em que é cantada, cada acorde acima da sílaba em que cai.',
-        example: 'G            D\nQuando eu te vi passar',
-      },
-      either: {
-        term: 'Quando a linha poderia ser as duas coisas',
-        text: 'Uma barra vertical faz dela uma cifra. Um > no começo faz dela letra, e é o único jeito de resolver uma linha que se lê como acorde.',
-        example: 'G\n> A',
-      },
-      bars: {
-        term: 'Números dos compassos',
-        text: 'Os compassos são contados sozinhos. Escreva @9 no início de um compasso onde ' +
-          'a cifra deixa de concordar com a partitura de origem — escrever uma repetição por ' +
-          'extenso faz os mesmos compassos aparecerem duas vezes, e a contagem precisa ser ' +
-          'avisada. Um título pode levar o número, e um número numa linha sozinha vale para o ' +
-          'compasso seguinte.',
-        example: '# A @9\nDm | G7 | @17 Em | A7',
-      },
-      variations: {
-        term: 'Mais de uma variação',
-        text: 'A palavra antes dos dois-pontos dá nome a uma variação, então um instrumento ' +
-          'pode ter várias numa música — uma versão fácil e uma mais cheia, por exemplo. Um ' +
-          'título só com Voicings é a variação padrão. Em qual você trabalha se escolhe acima ' +
-          'dos desenhos.',
-        example: '# Voicings: E2, A2, D3, G3, B3, E4\nC = x32010\n\n# Mais acima: E2, A2, D3, G3, B3, E4\nC = x35553',
-      },
-      voicings: {
-        term: 'Voicings',
-        text: 'Ficam depois de uma linha ---, um bloco por afinação sob um título que a nomeia, para a mesma música servir a todos os instrumentos. Um acorde tocado de mais de um jeito ganha uma nota. Um acorde para o qual você salvou um desenho recebe esse desenho na primeira vez que aparece.',
-        example: '---\n\n# Posições: E2, A2, D3, G3, B3, E4\nCm = x35543\nCm[2] = 8-10-10-8-8-8',
-      },
-    },
     notAChord: 'Não é um acorde: {list}',
     badVoicingLines: 'Não consegui ler estas linhas de voicing: {list}',
     chart: 'A cifra',

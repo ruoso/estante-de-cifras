@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { Annotation } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { undo } from '@codemirror/commands';
+import { undo, isolateHistory } from '@codemirror/commands';
 import { parse } from 'cifra-md';
 
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
@@ -27,9 +27,11 @@ import { t } from '../i18n/index.js';
 import Chart from '../chart/Chart.jsx';
 import { sourceExtensions, unknownMarksField } from './source-extensions.js';
 import { fencePaste } from './fence-paste.js';
-import { sectionInsertPos } from './section-insert.js';
+import { sectionInsertion } from './section-insert.js';
 import { saveBlockers, stopMessageKey } from './save-blockers.js';
-import { isSongPath, chordBracketHeadings } from './unknown-words.js';
+import { isSongPath, formatHint } from './unknown-words.js';
+import { exampleInsertion } from './format-help.js';
+import FormatHelp from './FormatHelp.jsx';
 import { template } from './template.js';
 import './editor.css';
 
@@ -53,6 +55,17 @@ function DismissIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
+// The question mark on *Help* (board Format-help; aria-hidden — the word is
+// the button's name).
+function HelpIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01" />
     </svg>
   );
 }
@@ -114,13 +127,20 @@ export default function SongEditor({
   const [previewTab, setPreviewTab] = useState(false);
   const [saveError, setSaveError] = useState(null); // { line, code } | null
   const [pasteNotice, setPasteNotice] = useState(null); // { titled } | null
-  // The *Chords in brackets* notice (workflow 3 §When it looks like another
-  // format): the line the cursor is on — a typed bracket line counts once the
-  // cursor has left it — the lines a paste brought in, which count at once,
-  // and whether the notice was dismissed for the rest of this editing.
+  // The notice that what was typed looks like another format (workflow 3
+  // §When it looks like another format; songs.format_help Decision 1): the
+  // line the cursor is on — a typed line counts once the cursor has left it —
+  // the lines a paste brought in, which count at once, and the cases dismissed
+  // for the rest of this editing (Decision 4).
   const [cursorLine, setCursorLine] = useState(1);
   const [pastedLines, setPastedLines] = useState(() => new Set());
-  const [bracketDismissed, setBracketDismissed] = useState(false);
+  const [dismissedHints, setDismissedHints] = useState(() => new Set());
+  // The format help (songs.format_help): open or not, and the topic Show me
+  // how opened it at. `focusTextOnClose` hands focus to the text once the
+  // help has closed after an Insert (workflow 3 L222-227).
+  const [help, setHelp] = useState({ open: false, topic: null });
+  const helpRef = useRef(null);
+  const focusTextOnClose = useRef(false);
   // Marks and the notice are for a song a person is writing, never README.md
   // or a setlist in the raw editor (songs.unknown_tokens_loud Decision 6).
   const song = isSongPath(path);
@@ -391,14 +411,14 @@ export default function SongEditor({
   // song writer would drop (workflow 4 §Normalising). Everything else the format
   // is happy to normalise.
   const blockers = useMemo(() => saveBlockers(parsed.diagnostics, path), [parsed, path]);
-  // A bracket heading named by a chord (workflow 3 §When it looks like another
-  // format): the first such line that counts — the cursor has left it, or it
-  // was pasted. A question, never a stop; it goes when the text no longer holds
-  // the case.
-  const bracketHeadings = useMemo(() => (song ? chordBracketHeadings(text) : []), [song, text]);
-  const bracketLine = bracketDismissed
-    ? null
-    : (bracketHeadings.find((h) => h.line !== cursorLine || pastedLines.has(h.line))?.line ?? null);
+  // What was typed looks like another format (workflow 3 §When it looks like
+  // another format): chords in brackets first, then chords outside the music,
+  // at the first line that counts — the cursor has left it, or it was pasted.
+  // A question, never a stop; it goes when the text no longer holds the case.
+  const hint = useMemo(
+    () => (song ? formatHint({ text, parsed, cursorLine, pastedLines, dismissed: dismissedHints }) : null),
+    [song, text, parsed, cursorLine, pastedLines, dismissedHints],
+  );
 
   // The host's header names the song by its title as the text has it now
   // (songs.editor_chrome Constraint 4; workflow 4 §Editing). Reported from the
@@ -412,27 +432,40 @@ export default function SongEditor({
   const addSection = () => {
     const view = viewRef.current;
     if (!view) return;
-    const docStr = view.state.doc.toString();
     // The end of the chart, not the end of the document: on a song with a
     // voicings appendix the new section must land before the rule, or
-    // canonicalise drops it on save (section-insert.js; spec §1.5/§8.2). With no
-    // appendix this is `docStr.length`, exactly as Add section behaved before.
-    const from = sectionInsertPos(docStr);
-    const before = docStr.slice(0, from);
-    const after = docStr.slice(from);
-    // Pad a blank line before the heading (unless inserting at the very start)
-    // and — when there is an appendix following — a blank line after the closing
-    // fence, honouring the newlines already present on each side.
-    const leadingNL = /\n*$/.exec(before)[0].length;
-    const afterNL = /^\n*/.exec(after)[0].length;
-    const leadSep = before.length === 0 ? '' : '\n'.repeat(Math.max(0, 2 - leadingNL));
-    const trailSep = after.length === 0 ? '' : '\n'.repeat(Math.max(0, 2 - afterNL));
-    const head = `${leadSep}## \n\`\`\`\n`;
-    const insert = `${head}\n\`\`\`${trailSep}`;
-    const cursor = from + head.length; // the empty line between the fences
+    // canonicalise drops it on save (section-insert.js; spec §1.5/§8.2), padded
+    // by a blank line on each side.
+    const head = '## \n```\n';
+    const { from, insert, offset } = sectionInsertion(view.state.doc.toString(), `${head}\n\`\`\``);
+    const cursor = from + offset + head.length; // the empty line between the fences
     view.dispatch({ changes: { from, insert }, selection: { anchor: cursor }, scrollIntoView: true });
     view.focus();
   };
+
+  // The help's Insert (workflow 3 §Help with the format; Constraint 4): the
+  // example where Add section puts a new part, as one transaction — one undo
+  // takes it back — the cursor at its end; the help closes and the text takes
+  // focus once it has.
+  const insertExample = (example) => {
+    const view = viewRef.current;
+    if (!view) return;
+    const { from, insert, cursor } = exampleInsertion(view.state.doc.toString(), example);
+    // Its own undo step, never merged with a keystroke just before it.
+    view.dispatch({
+      changes: { from, insert },
+      selection: { anchor: cursor },
+      scrollIntoView: true,
+      annotations: isolateHistory.of('full'),
+    });
+    focusTextOnClose.current = true;
+    setHelp({ open: false, topic: null });
+  };
+  useEffect(() => {
+    if (help.open || !focusTextOnClose.current) return;
+    focusTextOnClose.current = false;
+    viewRef.current?.focus();
+  }, [help.open]);
 
   const undoPaste = () => {
     const view = viewRef.current;
@@ -481,6 +514,17 @@ export default function SongEditor({
   const showPreviewPane = narrow ? previewTab : previewAllowed;
   const hostSave = saveRef !== undefined;
   const hostAddSection = addSectionRef !== undefined;
+  const helpButton = (
+    <Button
+      ref={helpRef}
+      className={`btn est-editor-help${narrow ? ' narrow' : ''}`}
+      aria-expanded={help.open}
+      onPress={() => setHelp({ open: true, topic: null })}
+    >
+      <HelpIcon />
+      {t('editor.formatHelp.open')}
+    </Button>
+  );
 
   return (
     <div className="est-editor">
@@ -498,11 +542,16 @@ export default function SongEditor({
             <ToggleButton id="preview">{t('editor.source.preview')}</ToggleButton>
           </ToggleButtonGroup>
         )}
+        {/* Help: on a phone beside Text | Preview, on a tablet and a computer
+            beside Add section — always the editor's own, for a song only
+            (songs.format_help Constraints 5-6). */}
+        {song && narrow ? helpButton : null}
         {/* The actions wrap beneath the switch as a unit when they do not fit
             beside it, Save last and right-aligned (shell.narrow_fit
             Decision 5; W14#2, W04 phone). */}
-        {hostSave && hostAddSection ? null : (
+        {hostSave && hostAddSection && !(song && !narrow) ? null : (
           <div className="est-editor-bar-actions">
+            {song && !narrow ? helpButton : null}
             {hostAddSection ? null : (
               <Button className="btn" onPress={addSection}>
                 {t('editor.source.addSection')}
@@ -529,19 +578,38 @@ export default function SongEditor({
         </div>
       )}
 
-      {bracketLine !== null && (
+      {hint && (
         <div className="notice accent est-editor-notice" role="status">
           <span className="est-editor-notice-text">
-            {t('editor.source.bracketChords', { line: bracketLine })}
+            {t(hint.kind === 'bracket' ? 'editor.source.bracketChords' : 'editor.source.unfencedChords', {
+              line: hint.line,
+            })}
           </span>
+          <Button
+            className="btn quiet act est-editor-show-me"
+            onPress={() => setHelp({ open: true, topic: hint.topic })}
+          >
+            {t('editor.source.showMeHow')}
+          </Button>
           <Button
             className="btn icon"
             aria-label={t('editor.source.dismissNotice')}
-            onPress={() => setBracketDismissed(true)}
+            onPress={() => setDismissedHints((prev) => new Set(prev).add(hint.kind))}
           >
             <DismissIcon />
           </Button>
         </div>
+      )}
+
+      {song && (
+        <FormatHelp
+          presentation={narrow ? 'sheet' : 'popover'}
+          isOpen={help.open}
+          topic={help.topic}
+          triggerRef={helpRef}
+          onClose={() => setHelp({ open: false, topic: null })}
+          onInsert={insertExample}
+        />
       )}
 
       {/* The merged-under-your-edits notice (sync.in_place_notices; W08#3

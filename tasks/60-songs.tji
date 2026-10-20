@@ -207,8 +207,9 @@ task songs "Songs" {
   task format_help "The song format explained in the editor" {
     effort 1d
     allocate team
+    complete 100
     depends design.format_help, !render_notes
-    note "As design.format_help decides: a format help popup reachable from the song editor, in plain words with copyable examples, and the hint from the editor when what was typed looks like another format. Decided 2026-10-19 (the editor has no instructions about the format; usability review M1). Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (the popup opens from the editor and returns focus, examples insert or copy, the hint on bracket chords; axe); e2e-web (the help opened while writing a new song on the three viewports; axe)."
+    note "As design.format_help decides: a format help popup reachable from the song editor, in plain words with copyable examples, and the hint from the editor when what was typed looks like another format. Decided 2026-10-19 (the editor has no instructions about the format; usability review M1). Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (the popup opens from the editor and returns focus, examples insert or copy, the hint on bracket chords; axe); e2e-web (the help opened while writing a new song on the three viewports; axe). Refinement: tasks/refinements/songs/format_help.md"
   }
   task search_book_head_narrow "A book section heading in search fits a phone" {
     effort 0.5d

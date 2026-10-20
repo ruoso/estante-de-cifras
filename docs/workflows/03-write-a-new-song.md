@@ -220,7 +220,11 @@ the writer knows and the help does not. Every example reads in the preview
 exactly as the topic says, with no word the format does not know.
 
 The help closes with its close button, Escape, a tap outside, or Insert;
-focus goes back to *Help*, or to the text after Insert.
+focus goes back to what opened it — *Help*, or the notice's *Show me how*
+(below) — or to the text after Insert. Opened from *Show me how*, it opens at
+that topic, its heading the first thing read. If the device refuses the copy,
+the button says *Could not copy — select the example instead*, and the
+example stays selectable as text.
 
 In another language the sentences, the parts' names and the words sung are
 translated; the marks are not — `#`, `##`, the backticks, `|`, `%`, `|:`,

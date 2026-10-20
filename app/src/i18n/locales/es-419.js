@@ -1769,6 +1769,74 @@ export default {
       markerStop: 'La línea {line} es un marcador de conflicto. Resuélvelo antes de poder guardar la canción.',
       afterRuleStop:
         'La línea {line} viene después de la línea ---, donde solo se conservan bloques de digitaciones, y al guardar se descartaría. Si es parte de la canción, mueve la línea --- debajo de ella; un título de digitaciones necesita una afinación, como ## Voicings: E2 A2 D3 G3 B3 E4.',
+      // El *Muéstrame cómo* del aviso y su segundo caso, acordes fuera de la
+      // música (songs.format_help; workflow 3).
+      showMeHow: 'Muéstrame cómo',
+      unfencedChords:
+        'La línea {line} parece tener acordes, pero está fuera de la música, así que se guarda como nota. La música va entre dos líneas de tres comillas invertidas.',
+    },
+    // La ayuda del formato, *Escribir una canción* (songs.format_help;
+    // workflow 3). Frases, nombres de las partes y letra traducidos; nunca las
+    // marcas, los acordes, la afinación ni `Voicings` (cifra.md §7.3).
+    formatHelp: {
+      open: 'Ayuda',
+      title: 'Escribir una canción',
+      intro: 'Aquí una canción es texto simple. Unas pocas marcas le dicen a la app qué es música.',
+      close: 'Cerrar',
+      insert: 'Insertar',
+      insertLabel: 'Insertar el ejemplo de {topic}',
+      copy: 'Copiar',
+      copyLabel: 'Copiar el ejemplo de {topic}',
+      copied: 'Copiado',
+      copyFailed: 'No se pudo copiar — selecciona el ejemplo',
+      topics: {
+        title: {
+          heading: '1. El título y los detalles',
+          text: 'La primera línea es el título, después de #. Debajo, los detalles en una lista: de quién es, el tono.',
+          example: '# Camino de Luna\n- artist: La Banda del Porche\n- key: G',
+        },
+        parts: {
+          heading: '2. Las partes y la cerca de música',
+          text:
+            'Cada parte de la canción empieza con ## y su nombre. Su música va entre dos líneas de tres comillas invertidas, para que la app la lea como acordes y letra. ~~~ también sirve, en un teclado donde la comilla invertida es difícil de escribir.',
+          example: '## Verso\n```\nG                C\nPor el camino de luna\n```',
+        },
+        chords: {
+          heading: '3. Acordes sobre la letra',
+          text:
+            'Pon los acordes en su propia línea, justo encima de la letra, cada uno sobre la sílaba donde cambia. Sin línea en blanco entre las dos. Los acordes dentro de la letra, como [G]Camina, no se leen.',
+          example: '## Coro\n```\nC          G\nCántalo lento\nD             G\nTodo el camino a casa\n```',
+        },
+        bars: {
+          heading: '4. Compases',
+          text: 'Una | separa los compases. % toca otra vez el compás anterior.',
+          example: '## Introducción\n```\nG | % | C | D\n```',
+        },
+        repeats: {
+          heading: '5. Repeticiones',
+          text:
+            '|: y :| alrededor de compases los tocan dos veces; x3 después de ellos, tres veces. 1. y 2. empiezan el final de cada vuelta.',
+          example: '## Puente\n```\n|: Em | C :| x3\n|: G | C |1. D | G :|2. D | D |\n```',
+        },
+        bracketNames: {
+          heading: '6. Nombres de partes dentro de la música',
+          text:
+            '[Coro] en una línea propia, dentro de la música, también empieza una parte: así lo escriben los sitios de acordes. Entre los corchetes va un nombre, no un acorde.',
+          example: '```\n[Coro]\nG | C | D | G\n```',
+        },
+        notes: {
+          heading: '7. Notas',
+          text:
+            'Las líneas fuera de las comillas invertidas son notas: se muestran tal como se escribieron, nunca se leen como acordes. Dentro de la música, una línea que empieza con // es una nota en su lugar.',
+          example: '## Verso 2\nMás suave la segunda vez.\n```\n// guitarra sola\nG | C | D | G\n```',
+        },
+        voicings: {
+          heading: '8. Cómo tocar un acorde',
+          text:
+            'Debajo de una línea de ---, un encabezado con las cuerdas del instrumento, y luego cada acorde con sus trastes desde la cuerda más grave; x para una cuerda que no se toca. Hacer un arreglo para un instrumento los escribe por ti.',
+          example: '---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- G: 320003\n- C: x32010',
+        },
+      },
     },
     // Una sincronización en segundo plano fusionó una nueva versión bajo las
     // ediciones sin guardar del editor abierto (songs.edit_in_place, workflow 8;
@@ -1809,54 +1877,6 @@ export default {
     title: 'Título',
     song: 'La canción',
     placeholder: '# Verso\nA | Cm | A | Cm',
-    help: {
-      sections: {
-        term: 'Secciones',
-        text: 'Tres maneras de nombrar una: una línea que empieza con #, un nombre entre ' +
-          'corchetes, o un nombre con dos puntos. Las dos últimas pueden llevar los ' +
-          'acordes de la sección en la misma línea. Los dos puntos solo nombran una ' +
-          'sección cuando lo que sigue son acordes, así que una línea cantada con dos ' +
-          'puntos sigue siendo letra.',
-        example: '# Verso\n[Intro] G  D  Em  C\nSolo: Am  F  C  G',
-      },
-      chart: {
-        term: 'Un cifrado',
-        text: 'Una barra vertical inicia un compás; los espacios separan los acordes dentro de él.',
-        example: 'C  Am | F  G | C\nF     | G    | C',
-      },
-      words: {
-        term: 'O con la letra debajo',
-        text: 'Una línea de acordes sobre la línea que se canta, cada acorde encima de la sílaba en la que cae.',
-        example: 'G         D\nCuando te vi pasar',
-      },
-      either: {
-        term: 'Cuando la línea podría ser las dos cosas',
-        text: 'Una barra vertical la hace cifrado. Un > al principio la hace letra, y es la única manera de resolver una línea que se lee como acorde.',
-        example: 'G\n> A',
-      },
-      bars: {
-        term: 'Números de compás',
-        text: 'Los compases se cuentan solos. Escribí @9 al principio de un compás donde la ' +
-          'cifra deja de coincidir con la partitura de la que salió: escribir una repetición ' +
-          'completa hace que los mismos compases aparezcan dos veces, y hay que avisarle a la ' +
-          'cuenta. Un título puede llevar el número, y un número en una línea sola vale para ' +
-          'el compás siguiente.',
-        example: '# A @9\nDm | G7 | @17 Em | A7',
-      },
-      variations: {
-        term: 'Más de una variación',
-        text: 'La palabra antes de los dos puntos nombra una variación, así que un ' +
-          'instrumento puede tener varias en una canción: una versión fácil y una más llena. ' +
-          'Un título que sólo dice Voicings es la variación predeterminada. En cuál trabajás ' +
-          'se elige arriba de las formas.',
-        example: '# Voicings: E2, A2, D3, G3, B3, E4\nC = x32010\n\n# Más arriba: E2, A2, D3, G3, B3, E4\nC = x35553',
-      },
-      voicings: {
-        term: 'Voicings',
-        text: 'Van después de una línea ---, un bloque por afinación bajo un título que la nombra, para que la misma canción sirva en todos los instrumentos. Un acorde que se toca de más de una manera lleva una nota. Un acorde para el que guardaste una forma recibe esa forma la primera vez que aparece.',
-        example: '---\n\n# Posiciones: E2, A2, D3, G3, B3, E4\nCm = x35543\nCm[2] = 8-10-10-8-8-8',
-      },
-    },
     notAChord: 'No es un acorde: {list}',
     badVoicingLines: 'No pude leer estas líneas de voicing: {list}',
     chart: 'El cifrado',

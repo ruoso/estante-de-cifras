@@ -893,3 +893,140 @@ describe('SongEditor under a host-owned chrome', () => {
     expect(within(bar).getByRole('button', { name: t('editor.source.addSection') })).toBeInTheDocument();
   });
 });
+
+// songs.format_help: Help in the editor's bar, Insert, and the notice's three
+// cases with Show me how (workflow 3 §Help with the format, §When it looks
+// like another format; workflow 4 §Editing). Purpose-written songs.
+describe('SongEditor format help', () => {
+  // While the help is open RAC hides the rest of the page from the
+  // accessibility tree (a modal overlay), Help included.
+  const HELP = () => screen.getByRole('button', { name: 'Help', hidden: true });
+  const helpDialog = () => screen.queryByRole('dialog', { name: 'Writing a song' });
+
+  async function mount(text, { path = PATH, layoutMode = 'wide' } = {}) {
+    const env = makeStore();
+    const editorRef = { current: null };
+    const utils = render(
+      <SongEditor store={env.store} bookId={BOOK} path={path} layoutMode={layoutMode} editorRef={editorRef} onSave={() => {}} />,
+    );
+    env.emit(event(EventKind.SOURCE, { bookId: BOOK, path, text }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(text));
+    return { ...env, ...utils, editorRef };
+  }
+
+  const SONG = '# Tarde Clara\n\n## A\n```\nC | G\n```\n';
+
+  it('Help opens the help and Escape returns focus to Help', async () => {
+    // Narrow: beside Text | Preview, in the bar; the sheet.
+    const narrow = await mount(SONG, { layoutMode: 'narrow' });
+    let bar = narrow.container.querySelector('.est-editor-bar');
+    const toggle = within(bar).getByRole('radiogroup', { name: t('editor.source.viewToggle') });
+    expect(toggle.nextElementSibling).toBe(HELP());
+    expect(HELP()).toHaveAttribute('aria-expanded', 'false');
+    act(() => HELP().focus());
+    act(() => fireEvent.click(HELP()));
+    expect(helpDialog()).toBeInTheDocument();
+    expect(helpDialog().closest('.sheet')).not.toBeNull();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+    expect(helpDialog()).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(HELP()));
+    narrow.unmount();
+
+    // Wide: beside Add section; a popover hanging from Help, aria-expanded
+    // while open.
+    const wide = await mount(SONG);
+    bar = wide.container.querySelector('.est-editor-bar');
+    const addSection = within(bar).getByRole('button', { name: t('editor.source.addSection') });
+    expect(addSection.previousElementSibling).toBe(HELP());
+    act(() => HELP().focus());
+    act(() => fireEvent.click(HELP()));
+    expect(helpDialog().closest('.popover.card')).not.toBeNull();
+    expect(HELP()).toHaveAttribute('aria-expanded', 'true');
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+    expect(helpDialog()).toBeNull();
+    expect(HELP()).toHaveAttribute('aria-expanded', 'false');
+    await waitFor(() => expect(document.activeElement).toBe(HELP()));
+  });
+
+  it('Insert puts the Bars example where Add section would, and one undo removes it', async () => {
+    const chart = '# Tarde Clara\n\n## A\n```\nC | G\n```\n';
+    const text = `${chart}\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- C: x32010\n`;
+    const { editorRef, container } = await mount(text);
+    act(() => fireEvent.click(HELP()));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Insert the Bars example' })));
+
+    const bars = '## Intro\n```\nG | % | C | D\n```';
+    const doc = editorRef.current.state.doc.toString();
+    expect(doc).toBe(`${chart}\n${bars}\n\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- C: x32010\n`);
+    expect(doc.indexOf(bars)).toBeLessThan(doc.indexOf('---'));
+    expect(helpDialog()).toBeNull();
+    expect(editorRef.current.state.selection.main.head).toBe(chart.length + 1 + bars.length);
+    await waitFor(() => expect(container.querySelector('.cm-content').contains(document.activeElement)).toBe(true));
+
+    act(() => {
+      undo(editorRef.current);
+    });
+    expect(editorRef.current.state.doc.toString()).toBe(text);
+  });
+
+  it('Show me how opens the help at Chords over words, and focus returns to it', async () => {
+    const BRACKETS = ['# Tarde Clara', '', '```', '[Am]Teste [G]linha', '```', ''].join('\n');
+    await mount(BRACKETS);
+    expect(screen.getByText(t('editor.source.bracketChords', { line: 4 }))).toBeInTheDocument();
+    const showMe = screen.getByRole('button', { name: 'Show me how' });
+    act(() => showMe.focus());
+    act(() => fireEvent.click(showMe));
+    expect(helpDialog()).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { name: '3. Chords over words' });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+    // The popover still hangs from Help (board Computer).
+    expect(HELP()).toHaveAttribute('aria-expanded', 'true');
+    act(() => fireEvent.click(within(helpDialog()).getByRole('button', { name: 'Close' })));
+    expect(helpDialog()).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Show me how' })));
+  });
+
+  it('chords outside the music: the notice names the line and opens at Parts and the music fence', async () => {
+    const UNFENCED = ['# Tarde Clara', '', '## Intro', 'G | C | D', ''].join('\n');
+    const { editorRef, container } = await mount(UNFENCED);
+    const notice = t('editor.source.unfencedChords', { line: 4 });
+    expect(notice).toBe(
+      'Line 4 looks like chords, but it is outside the music, so it is kept as a note. Music goes between two lines of three backticks.',
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(notice);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Show me how' })));
+    const heading = screen.getByRole('heading', { name: '2. Parts and the music fence' });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+    act(() => fireEvent.click(within(helpDialog()).getByRole('button', { name: 'Close' })));
+
+    // Dismissed: gone for this editing; a bracket line added still raises the
+    // bracket notice (Decision 4).
+    act(() => fireEvent.click(screen.getByRole('button', { name: t('editor.source.dismissNotice') })));
+    expect(screen.queryByText(notice)).toBeNull();
+    act(() => {
+      const end = editorRef.current.state.doc.length;
+      editorRef.current.dispatch({ changes: { from: end, insert: '\n[G]Walk the road\n' }, selection: { anchor: 0 } });
+    });
+    expect(screen.queryByText(notice)).toBeNull();
+    expect(screen.getByText(t('editor.source.bracketChords', { line: 6 }))).toBeInTheDocument();
+  });
+
+  it('bracket chords in notes raise the bracket notice', async () => {
+    await mount(['# Tarde Clara', '', '[G]Walk the road', ''].join('\n'));
+    expect(screen.getByText(t('editor.source.bracketChords', { line: 3 }))).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show me how' })).toBeInTheDocument();
+  });
+
+  it('a README has no Help and no notice', async () => {
+    await mount(['# Livro de Ensaio', '', '## Intro', 'G | C | D', '[G]Walk the road', ''].join('\n'), {
+      path: 'README.md',
+    });
+    expect(screen.queryByRole('button', { name: 'Help' })).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Show me how' })).toBeNull();
+  });
+});

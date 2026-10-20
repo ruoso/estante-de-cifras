@@ -75,3 +75,26 @@ export function sectionInsertPos(text) {
   while (i > 0 && clean(lines[i - 1]) === '') i -= 1;
   return starts[i];
 }
+
+/**
+ * How to insert a whole block — Add section's empty heading and fence, or one
+ * of the format help's examples (songs.format_help Decision 9) — where Add
+ * section puts a new part: at `sectionInsertPos(text)`, with a blank line
+ * before it (unless it lands at the very start) and, when an appendix follows,
+ * a blank line after it, honouring the newlines already on each side.
+ *
+ * @param {string} text the buffer text
+ * @param {string} block what to insert, with no padding of its own
+ * @returns {{from: number, insert: string, offset: number}} the offset to
+ *   insert at, the padded text, and where `block` starts within `insert`
+ */
+export function sectionInsertion(text, block) {
+  const from = sectionInsertPos(text);
+  const before = text.slice(0, from);
+  const after = text.slice(from);
+  const leadingNL = /\n*$/.exec(before)[0].length;
+  const afterNL = /^\n*/.exec(after)[0].length;
+  const leadSep = before.length === 0 ? '' : '\n'.repeat(Math.max(0, 2 - leadingNL));
+  const trailSep = after.length === 0 ? '' : '\n'.repeat(Math.max(0, 2 - afterNL));
+  return { from, insert: `${leadSep}${block}${trailSep}`, offset: leadSep.length };
+}

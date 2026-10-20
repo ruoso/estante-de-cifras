@@ -6,7 +6,7 @@
 // boundary js/src/parse.js:30). Fixtures are purpose-written songs.
 
 import { describe, it, expect } from 'vitest';
-import { sectionInsertPos } from './section-insert.js';
+import { sectionInsertPos, sectionInsertion } from './section-insert.js';
 
 describe('sectionInsertPos', () => {
   it('returns the end of the chart, before the appendix rule (net of the blank line before it)', () => {
@@ -68,5 +68,36 @@ describe('sectionInsertPos', () => {
 
   it('returns 0 for the empty buffer', () => {
     expect(sectionInsertPos('')).toBe(0);
+  });
+});
+
+// songs.format_help Decision 9: Add section and the help's Insert place a
+// block by one rule, padded as Add section always padded.
+describe('sectionInsertion', () => {
+  const block = '## \n```\n\n```';
+
+  it('at the start of an empty text: no lead, no trail', () => {
+    expect(sectionInsertion('', block)).toEqual({ from: 0, insert: block, offset: 0 });
+  });
+
+  it('after text ending in one newline: one more, for a blank line', () => {
+    const text = '# Lua Nova\n';
+    expect(sectionInsertion(text, block)).toEqual({ from: text.length, insert: `\n${block}`, offset: 1 });
+  });
+
+  it('after text with no final newline: two', () => {
+    const text = '# Lua Nova';
+    expect(sectionInsertion(text, block)).toEqual({ from: text.length, insert: `\n\n${block}`, offset: 2 });
+  });
+
+  it('before an appendix: a blank line after the block, the rule kept below', () => {
+    const chart = '# Lua Nova\n\n## Primeira Parte\n```\nG  D\n```\n';
+    const text = `${chart}\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- G: 320003\n`;
+    const { from, insert, offset } = sectionInsertion(text, block);
+    expect(from).toBe(chart.length);
+    expect(insert).toBe(`\n${block}\n`);
+    expect(offset).toBe(1);
+    const result = text.slice(0, from) + insert + text.slice(from);
+    expect(result).toBe(`${chart}\n${block}\n\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- G: 320003\n`);
   });
 });

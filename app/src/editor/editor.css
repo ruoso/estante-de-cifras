@@ -181,3 +181,123 @@
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
+
+/* Help in the editor's bar (songs.format_help; board Format-help): on a phone
+ * at the end of the row with Text | Preview, the open state drawn as the board
+ * draws it — the accent, with the word and aria-expanded carrying it. */
+.est .est-editor-help.narrow {
+  margin-left: auto;
+}
+
+.est .est-editor-help[aria-expanded='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.est .est-editor-notice .est-editor-show-me {
+  margin-left: 0;
+  white-space: nowrap;
+}
+
+/* The help, *Writing a song*: a sheet tall enough to read on a phone, a panel
+ * hanging from Help on a tablet and a computer; one scrolling page. The overlay
+ * portals inside `.est` (shell.portal_provider), so the tokens apply. */
+.est .est-format-help {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.est .est-format-help-sheet {
+  max-height: 88dvh;
+  padding-bottom: 0;
+}
+
+.est .est-format-help-popover {
+  width: min(480px, calc(100vw - var(--u) * 4));
+  max-height: min(70dvh, 640px);
+  padding: calc(var(--u) * 2) calc(var(--u) * 2.5);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+}
+
+.est .est-format-help-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+  min-height: 0;
+  flex: 1;
+  outline: none;
+}
+
+.est .est-format-help-sheet .est-format-help-dialog {
+  overflow-y: auto;
+  padding-bottom: 28px;
+}
+
+.est .est-format-help-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u));
+}
+
+.est .est-format-help-head .t-h2 {
+  flex: 1;
+  margin: 0;
+}
+
+.est .est-format-help-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  padding-top: calc(var(--u) * 1.5);
+  border-top: 1px solid var(--line);
+}
+
+.est .est-format-help-intro {
+  margin: 0;
+  color: var(--ink);
+}
+
+.est .est-format-help-topic {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.25);
+}
+
+.est .est-format-help-topic-heading {
+  font-size: 16px;
+  margin: 0;
+  scroll-margin-top: calc(var(--u) * 2);
+}
+
+.est .est-format-help-topic p {
+  margin: 0;
+}
+
+/* The example as it is typed, in the editor's monospaced face (the theme's
+ * `.editor`), selectable as text — the fallback when a copy is refused. */
+.est .est-format-help-example {
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+  user-select: text;
+}
+
+.est .est-format-help-action {
+  align-self: flex-start;
+}
+
+/* The status line announcing Copied, or that it could not copy; the button
+ * shows the same word. */
+.est .est-format-help-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

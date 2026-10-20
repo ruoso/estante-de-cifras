@@ -1769,6 +1769,74 @@ export default {
       markerStop: 'La riga {line} è un marcatore di conflitto. Risolvilo prima di poter salvare la canzone.',
       afterRuleStop:
         'La riga {line} viene dopo la riga ---, dove si conservano solo blocchi di diteggiature, e salvando andrebbe persa. Se fa parte della canzone, sposta la riga --- sotto di essa; un titolo di diteggiature ha bisogno di un’accordatura, come ## Voicings: E2 A2 D3 G3 B3 E4.',
+      // Il *Fammi vedere* dell’avviso e il suo secondo caso, accordi fuori dalla
+      // musica (songs.format_help; workflow 3).
+      showMeHow: 'Fammi vedere',
+      unfencedChords:
+        'La riga {line} sembra avere accordi, ma è fuori dalla musica, quindi resta una nota. La musica va tra due righe di tre apici inversi.',
+    },
+    // L’aiuto sul formato, *Scrivere una canzone* (songs.format_help;
+    // workflow 3). Frasi, nomi delle parti e parole cantate tradotte; mai i
+    // segni, gli accordi, l’accordatura o `Voicings` (cifra.md §7.3).
+    formatHelp: {
+      open: 'Aiuto',
+      title: 'Scrivere una canzone',
+      intro: 'Qui una canzone è testo semplice. Pochi segni dicono all’app che cosa è musica.',
+      close: 'Chiudi',
+      insert: 'Inserisci',
+      insertLabel: 'Inserisci l’esempio di {topic}',
+      copy: 'Copia',
+      copyLabel: 'Copia l’esempio di {topic}',
+      copied: 'Copiato',
+      copyFailed: 'Impossibile copiare — seleziona l’esempio',
+      topics: {
+        title: {
+          heading: '1. Il titolo e i dettagli',
+          text: 'La prima riga è il titolo, dopo #. Sotto, i dettagli in un elenco: di chi è, la tonalità.',
+          example: '# Strada di Luna\n- artist: La Banda del Portico\n- key: G',
+        },
+        parts: {
+          heading: '2. Le parti e il recinto della musica',
+          text:
+            'Ogni parte della canzone comincia con ## e il suo nome. La sua musica va tra due righe di tre apici inversi, così l’app la legge come accordi e parole. Anche ~~~ funziona, su una tastiera dove l’apice inverso è difficile da scrivere.',
+          example: '## Strofa\n```\nG              C\nCammina sulla strada\n```',
+        },
+        chords: {
+          heading: '3. Accordi sopra le parole',
+          text:
+            'Metti gli accordi su una riga a sé, proprio sopra le parole, ognuno sopra la sillaba dove cambia. Nessuna riga vuota tra le due. Gli accordi dentro le parole, come [G]Cammina, non vengono letti.',
+          example: '## Ritornello\n```\nC          G\nCantala piano\nD             G\nFino a casa nostra\n```',
+        },
+        bars: {
+          heading: '4. Battute',
+          text: 'Una | separa le battute. % suona di nuovo la battuta precedente.',
+          example: '## Introduzione\n```\nG | % | C | D\n```',
+        },
+        repeats: {
+          heading: '5. Ripetizioni',
+          text:
+            '|: e :| attorno alle battute le fanno suonare due volte; x3 dopo di esse, tre volte. 1. e 2. iniziano il finale di ogni giro.',
+          example: '## Ponte\n```\n|: Em | C :| x3\n|: G | C |1. D | G :|2. D | D |\n```',
+        },
+        bracketNames: {
+          heading: '6. Nomi delle parti dentro la musica',
+          text:
+            '[Ritornello] su una riga a sé, dentro la musica, comincia anche lui una parte: è così che lo scrivono i siti di accordi. Tra le parentesi quadre va un nome, non un accordo.',
+          example: '```\n[Ritornello]\nG | C | D | G\n```',
+        },
+        notes: {
+          heading: '7. Note',
+          text:
+            'Le righe fuori dagli apici inversi sono note: mostrate come sono scritte, mai lette come accordi. Dentro la musica, una riga che comincia con // è una nota al suo posto.',
+          example: '## Strofa 2\nPiù piano la seconda volta.\n```\n// chitarra sola\nG | C | D | G\n```',
+        },
+        voicings: {
+          heading: '8. Come suonare un accordo',
+          text:
+            'Sotto una riga di ---, un titolo con le corde dello strumento, poi ogni accordo con i suoi tasti dalla corda più grave; x per una corda che non si suona. Arrangiare per uno strumento li scrive per te.',
+          example: '---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- G: 320003\n- C: x32010',
+        },
+      },
     },
     // Una sincronizzazione in background ha unito una nuova versione sotto le
     // modifiche non salvate dell'editor aperto (songs.edit_in_place, workflow 8;
@@ -1809,54 +1877,6 @@ export default {
     title: 'Titolo',
     song: 'La canzone',
     placeholder: '# Strofa\nA | Cm | A | Cm',
-    help: {
-      sections: {
-        term: 'Sezioni',
-        text: 'Tre modi per darle un nome: una riga che comincia con #, un nome tra parentesi ' +
-          'quadre, o un nome con i due punti. Le ultime due possono portare gli accordi ' +
-          'della sezione sulla stessa riga. I due punti danno il nome a una sezione solo ' +
-          'quando ciò che segue sono accordi, così una riga cantata con i due punti resta ' +
-          'testo.',
-        example: '# Strofa\n[Intro] G  D  Em  C\nSolo: Am  F  C  G',
-      },
-      chart: {
-        term: 'Uno schema',
-        text: 'Una barra verticale apre una battuta; gli spazi separano gli accordi al suo interno.',
-        example: 'C  Am | F  G | C\nF     | G    | C',
-      },
-      words: {
-        term: 'Oppure con il testo sotto',
-        text: 'Una riga di accordi sopra la riga su cui si canta, ogni accordo sopra la sillaba su cui cade.',
-        example: 'G            D\nQuando ti ho vista passare',
-      },
-      either: {
-        term: 'Quando una riga potrebbe essere entrambe',
-        text: 'Una barra verticale la rende schema. Un > iniziale la rende testo, ed è l’unico modo di risolvere una riga che si legge come accordo.',
-        example: 'G\n> A',
-      },
-      bars: {
-        term: 'Numeri di battuta',
-        text: 'Le battute si contano da sole. Scrivi @9 all’inizio di una battuta dove la ' +
-          'cifra smette di corrispondere allo spartito da cui viene: scrivere per esteso una ' +
-          'ripetizione fa comparire due volte le stesse battute, e il conteggio va avvertito. ' +
-          'Un titolo può portare il numero, e un numero su una riga da sola vale per la ' +
-          'battuta successiva.',
-        example: '# A @9\nDm | G7 | @17 Em | A7',
-      },
-      variations: {
-        term: 'Più di una variazione',
-        text: 'La parola prima dei due punti dà il nome a una variazione, così uno strumento ' +
-          'può averne più di una in un brano: una versione facile e una più piena. Un titolo ' +
-          'che dice solo Voicings è la variazione predefinita. Quella in cui lavori si scegli ' +
-          'sopra le forme.',
-        example: '# Voicings: E2, A2, D3, G3, B3, E4\nC = x32010\n\n# Più su: E2, A2, D3, G3, B3, E4\nC = x35553',
-      },
-      voicings: {
-        term: 'Voicing',
-        text: 'Stanno dopo una riga ---, un blocco per accordatura sotto un titolo che la nomina, così la stessa canzone serve per tutti gli strumenti. Un accordo suonato in più di un modo ha una nota. Un accordo per cui hai salvato una forma riceve quella forma la prima volta che compare.',
-        example: '---\n\n# Posizioni: E2, A2, D3, G3, B3, E4\nCm = x35543\nCm[2] = 8-10-10-8-8-8',
-      },
-    },
     notAChord: 'Non è un accordo: {list}',
     badVoicingLines: 'Non riesco a leggere queste righe di voicing: {list}',
     chart: 'Lo schema',
