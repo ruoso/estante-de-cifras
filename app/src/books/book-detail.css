@@ -26,9 +26,24 @@
   color: var(--conflict);
 }
 
-/* The detail's title row: the book's name and its Rename (the Open-a-book
-   board's computer frame L178-181). */
+/* The detail's app bar: Back, the book's name, its Rename, and Share at the
+   right end (workflow 7 §A book's songs; W07 #4 L201-207, the board's spacer).
+   The title ellipsizes so the controls never wrap or cut off on a phone. */
 .book-detail .appbar .rename-btn {
+  flex: none;
+}
+
+.book-detail .appbar .share-btn {
+  flex: none;
+  margin-inline-start: auto;
+}
+
+/* The rule before the closing group (Remove, Leave, Delete last): a line with
+   space above it, no heading (W07 L226). */
+.book-detail .detail-rule {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 14px 0 0;
   flex: none;
 }
 

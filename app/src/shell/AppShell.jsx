@@ -1391,6 +1391,7 @@ export default function AppShell({
         onReselect={(bookId) => setBookDetail({ bookId })}
         autoFocusShare={shareReturn === 'book'}
         onShareFocusReturned={() => setShareReturn(null)}
+        mode={mode}
       />
     );
     // A book's Share on a phone: the sheet over the detail.

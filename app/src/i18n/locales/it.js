@@ -239,8 +239,6 @@ export default {
     leaveConfirm: 'Esci dal libro',
     leaveFailed: 'Non sei uscito da {name}. Sei ancora un membro.',
     share: 'Condividi',
-    shareBody: 'Invita persone a leggere o modificare questo libro — fino a cinquanta.',
-    shareBodyMember: 'Vedi chi condivide questo libro con te, e chi vi salva.',
     // Le schede della copia propria nel dettaglio (books.fork, workflow 11).
     cannotSaveTitle: 'Non puoi salvare qui',
     cannotSaveBody: {

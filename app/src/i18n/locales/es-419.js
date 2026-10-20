@@ -239,8 +239,6 @@ export default {
     leaveConfirm: 'Salir del libro',
     leaveFailed: 'No saliste de {name}. Sigues siendo miembro.',
     share: 'Compartir',
-    shareBody: 'Invita a personas a leer o editar este libro — hasta cincuenta.',
-    shareBodyMember: 'Mira quién comparte este libro contigo, y quién guarda en él.',
     // Las tarjetas de copia propia en el detalle (books.fork, workflow 11).
     cannotSaveTitle: 'No se puede guardar aquí',
     cannotSaveBody: {

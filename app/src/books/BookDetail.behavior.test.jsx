@@ -766,7 +766,9 @@ describe('The owner\'s name on a shared book (books.owner_name)', () => {
 describe('Rename, Files and Back on the detail (books.row_opens_songs)', () => {
   it('Rename in the title opens with the current name, sends RENAME_BOOK, and the title re-labels (workflow 7 L89); axe clean', async () => {
     const { store, sent, emit } = makeStore();
-    renderDetail(store, { bookId: 'local-1', kind: 'local' });
+    // Wide, the trigger carries the word (the phone's icon form is pinned in
+    // *the detail as drawn* below).
+    renderDetail(store, { bookId: 'local-1', kind: 'local', mode: 'wide' });
     emit(localShelf());
 
     const rename = screen.getByRole('button', { name: 'Rename Exercícios de violão' });
@@ -801,7 +803,10 @@ describe('Rename, Files and Back on the detail (books.row_opens_songs)', () => {
     });
     emit(hostedShelf());
 
+    // The full drawn order (workflow 7 §A book's songs; W07 #4): Files follows
+    // Download, then the closing group with Delete last.
     const headings = [...container.querySelectorAll('.card > .t-h2')].map((h) => h.textContent);
+    expect(headings).toEqual(['Download', 'Files', 'Remove from my shelf', 'Delete the book']);
     expect(headings.indexOf('Files')).toBe(headings.indexOf('Download') + 1);
     const card = [...container.querySelectorAll('.card')].find((c) => c.querySelector('.t-h2')?.textContent === 'Files');
     expect(within(card).getByText('Every file in the book, as it is stored.')).toBeInTheDocument();
@@ -843,8 +848,8 @@ describe('BookDetail restored focus (shell.surface_restore_focus)', () => {
   it('autoFocusShare focuses Share once and reports it', async () => {
     const { store, emit } = makeStore();
     const onShareFocusReturned = vi.fn();
-    // The shelf arrives a render after the mount: the Share card appears then,
-    // and still gets focus.
+    // The shelf arrives a render after the mount: the app bar's Share appears
+    // then, and still gets focus.
     const { container, rerender } = renderDetail(store, {
       bookId: 'srv-1',
       kind: 'shared',
@@ -874,5 +879,163 @@ describe('BookDetail restored focus (shell.surface_restore_focus)', () => {
     other.emit(hostedShelf());
     expect(screen.getByRole('button', { name: 'Share', exact: true })).toBeInTheDocument();
     expect(document.activeElement).toBe(document.body);
+  });
+});
+
+// books.detail_as_drawn: the detail in the board's order (workflow 7 §A book's
+// songs; W07 #4; design.review_polish item 1) — Share in the app bar, no Share
+// card, Download / Files / Fork, then a rule, then Remove, Leave and Delete last.
+describe("the detail as drawn (workflow 7 §A book's songs; W07 #4)", () => {
+  const headingsOf = (container) =>
+    [...container.querySelectorAll('.card > .t-h2')].map((h) => h.textContent);
+  const cardOf = (container, heading) =>
+    [...container.querySelectorAll('.card')].find((c) => c.querySelector('.t-h2')?.textContent === heading);
+  const follows = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+  // The controls a Tab reaches, in DOM order (nothing reorders by tabIndex).
+  const tabStops = (root) =>
+    [...root.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')].filter(
+      (el) => !el.disabled && el.getAttribute('tabindex') !== '-1',
+    );
+
+  it('a hosted book\'s owner: the app bar holds Back, Rename and Share in that order; no Share card; Download, Files, the rule, Remove from my shelf, Delete the book, and Delete is the last button; axe clean', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderDetail(store, { bookId: 'srv-1', kind: 'shared', mode: 'wide' });
+    emit(hostedShelf());
+
+    const appbar = container.querySelector('.appbar');
+    const body = container.querySelector('.book-detail-body');
+    const barButtons = within(appbar).getAllByRole('button');
+    expect(barButtons.map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual([
+      'Back to Choros da Ana',
+      'Rename Choros da Ana',
+      'Share',
+    ]);
+    // Exactly one Share, in the app bar; the scroll body has none, and no card.
+    expect(within(appbar).getByRole('button', { name: 'Share', exact: true })).toBeInTheDocument();
+    expect(within(body).queryByRole('button', { name: 'Share', exact: true })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Share', exact: true })).toHaveLength(1);
+    expect(headingsOf(container)).not.toContain('Share');
+
+    expect(headingsOf(container)).toEqual(['Download', 'Files', 'Remove from my shelf', 'Delete the book']);
+    // The rule: after Files, before Remove, with no words of its own.
+    const rule = within(body).getByRole('separator');
+    expect(rule).toHaveClass('detail-rule');
+    expect(rule).toHaveTextContent('');
+    expect(follows(cardOf(container, 'Files'), rule)).toBe(true);
+    expect(follows(rule, cardOf(container, 'Remove from my shelf'))).toBe(true);
+    // Delete is the last control in the body.
+    const bodyButtons = within(body).getAllByRole('button');
+    expect(bodyButtons.at(-1)).toHaveTextContent('Delete the book');
+    expect(bodyButtons.at(-1)).toHaveClass('danger');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('a member: Share in the app bar, and the body runs Download, Files, Fork, the rule, Remove, Leave this book, with no Delete (each card only for whom it applies); axe clean', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderDetail(store, { bookId: 'srv-2', kind: 'shared' });
+    emit(memberShelf());
+
+    const appbar = container.querySelector('.appbar');
+    expect(within(appbar).getByRole('button', { name: 'Share', exact: true })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Share', exact: true })).toHaveLength(1);
+    expect(headingsOf(container)).toEqual(['Download', 'Files', 'Fork', 'Remove from my shelf', 'Leave this book']);
+    expect(screen.queryByRole('button', { name: 'Delete the book' })).toBeNull();
+    const rule = screen.getByRole('separator');
+    expect(follows(cardOf(container, 'Fork'), rule)).toBe(true);
+    expect(follows(rule, cardOf(container, 'Remove from my shelf'))).toBe(true);
+    expect(follows(rule, cardOf(container, 'Leave this book'))).toBe(true);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('a local book: no Share anywhere; Put online first after the chips, then Download and Files, then the rule and Remove (a book only on this device has no Share); axe clean', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderDetail(store, { bookId: 'local-1', kind: 'local' });
+    emit(localShelf());
+
+    expect(screen.queryByRole('button', { name: 'Share', exact: true })).toBeNull();
+    expect(headingsOf(container)).toEqual(['Put online', 'Download', 'Files', 'Remove from my shelf']);
+    const rule = screen.getByRole('separator');
+    expect(follows(cardOf(container, 'Files'), rule)).toBe(true);
+    expect(follows(rule, cardOf(container, 'Remove from my shelf'))).toBe(true);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('a member\'s book once access is gone: no Share and no Leave; the lost-access card comes before Download, and the rule still precedes Remove', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderDetail(store, { bookId: 'srv-2', kind: 'shared' });
+    emit(memberShelf());
+    emit(event(EventKind.SYNC, { bookId: 'srv-2', phase: 'gone', at: AT }));
+
+    expect(screen.queryByRole('button', { name: 'Share', exact: true })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Leave this book' })).toBeNull();
+    expect(headingsOf(container)).toEqual([
+      'No longer shared with you',
+      'Download',
+      'Files',
+      'Remove from my shelf',
+    ]);
+    const rule = screen.getByRole('separator');
+    expect(follows(rule, cardOf(container, 'Remove from my shelf'))).toBe(true);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('Share is reachable and does what it did: pressing it calls onShare(bookId), for the owner and for the member', () => {
+    const shared = [];
+    const owner = makeStore();
+    renderDetail(owner.store, { bookId: 'srv-1', kind: 'shared', onShare: (id) => shared.push(id) });
+    owner.emit(hostedShelf());
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Share', exact: true })));
+    expect(shared).toEqual(['srv-1']);
+    cleanup();
+
+    const member = makeStore();
+    renderDetail(member.store, { bookId: 'srv-2', kind: 'shared', onShare: (id) => shared.push(id) });
+    member.emit(memberShelf());
+    // By keyboard, as by pointer.
+    const share = screen.getByRole('button', { name: 'Share', exact: true });
+    act(() => share.focus());
+    act(() => {
+      fireEvent.keyDown(share, { key: 'Enter' });
+      fireEvent.keyUp(share, { key: 'Enter' });
+    });
+    expect(shared).toEqual(['srv-1', 'srv-2']);
+  });
+
+  it('the keyboard path follows the drawn order: Back, Rename {book}, Share, then Download, and the last Tab stop in the body is Delete the book (workflow 7: "Back, Rename, Share, then the body")', () => {
+    const { store, emit } = makeStore();
+    const { container } = renderDetail(store, { bookId: 'srv-1', kind: 'shared', mode: 'wide' });
+    emit(hostedShelf());
+
+    const detail = container.querySelector('.book-detail');
+    const stops = tabStops(detail);
+    // Nothing reorders the path with a positive tabIndex: DOM order is Tab order.
+    expect(stops.filter((el) => el.tabIndex > 0)).toEqual([]);
+    const names = stops.map((el) => el.getAttribute('aria-label') ?? el.textContent);
+    expect(names.slice(0, 4)).toEqual(['Back to Choros da Ana', 'Rename Choros da Ana', 'Share', 'Download']);
+    expect(names.at(-1)).toBe('Delete the book');
+    // Each stop takes focus in turn.
+    for (const el of stops) {
+      act(() => el.focus());
+      expect(document.activeElement).toBe(el);
+    }
+  });
+
+  it('on a phone (mode narrow) Rename shows no word but is named Rename {book} and opens its dialog; wide, it shows Rename', async () => {
+    const narrow = makeStore();
+    const { container } = renderDetail(narrow.store, { bookId: 'srv-1', kind: 'shared', mode: 'narrow' });
+    narrow.emit(hostedShelf());
+    const rename = screen.getByRole('button', { name: 'Rename Choros da Ana' });
+    expect(rename).toHaveTextContent(/^$/);
+    expect(rename.querySelector('svg')).not.toBeNull();
+    // Share stays a word on the phone.
+    expect(within(container.querySelector('.appbar')).getByRole('button', { name: 'Share', exact: true })).toHaveTextContent('Share');
+    act(() => fireEvent.click(rename));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    cleanup();
+
+    const wide = makeStore();
+    renderDetail(wide.store, { bookId: 'srv-1', kind: 'shared', mode: 'wide' });
+    wide.emit(hostedShelf());
+    expect(screen.getByRole('button', { name: 'Rename Choros da Ana' })).toHaveTextContent('Rename');
   });
 });

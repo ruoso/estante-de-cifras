@@ -8,8 +8,11 @@
 // songs on a computer, full screen with *Back to {book}* below that. Its title
 // carries **Rename** (a label kept in the home book that changes nothing in the
 // repository, workflow 7 L16-18), and a **Files** card after Download opens the
-// file view (workflow 14 §The view). This component is the detail only — the
-// title row, the chips, the act cards and their confirmations.
+// file view (workflow 14 §The view). **Share** sits at the app bar's right end
+// (books.detail_as_drawn; workflow 7 §A book's songs; W07 #4), and the body runs
+// in the board's order: chips, state cards, Download, Files, Fork, then a rule
+// and the closing group — Remove, Leave, and Delete last. This component is the
+// detail only — the title row, the chips, the act cards and their confirmations.
 //
 // When the book's live `sync` phase is `gone` — the device is no longer a member
 // (sync.lost_access, workflow 8 §Losing access) — it also shows a *no longer
@@ -42,6 +45,7 @@ import {
   Label,
   Modal,
   ModalOverlay,
+  Separator,
   TextField,
 } from 'react-aria-components';
 
@@ -198,8 +202,9 @@ function RemoveDialog({ store, bookId, title, isLocal, savesWaiting: syncWaiting
 // by books.row_opens_songs): the trigger restores focus on close (RAC); the
 // field opens pre-filled with the current name and, on submit, sends
 // RENAME_BOOK and closes. The repository is never touched — only the shelf
-// label.
-function RenameDialog({ bookId, currentName, onRename }) {
+// label. On a phone (`narrow`) the trigger is the pencil alone, still named
+// *Rename {book}* (workflow 7 §A book's songs), to leave room for Share.
+function RenameDialog({ bookId, currentName, onRename, narrow }) {
   const [name, setName] = useState(currentName);
   return (
     <DialogTrigger
@@ -207,9 +212,12 @@ function RenameDialog({ bookId, currentName, onRename }) {
         if (open) setName(currentName);
       }}
     >
-      <Button className="btn quiet rename-btn" aria-label={t('books.renameLabel', { name: currentName })}>
+      <Button
+        className={narrow ? 'btn quiet icon rename-btn' : 'btn quiet rename-btn'}
+        aria-label={t('books.renameLabel', { name: currentName })}
+      >
         <PencilIcon />
-        {t('books.rename')}
+        {narrow ? null : t('books.rename')}
       </Button>
       <ModalOverlay className="scrim center">
         <Modal className="dialog">
@@ -309,7 +317,8 @@ function DeleteDialog({ title, onDelete }) {
  * opens the book's file view (workflow 14 §The view). `autoFocusShare` sends
  * focus to *Share* once — the shell sets it when a sharing screen over this
  * detail closes and the detail re-mounts (shell.surface_restore_focus) — then
- * calls `onShareFocusReturned`.
+ * calls `onShareFocusReturned`. `mode` ('narrow' | 'wide', the shell's layout
+ * mode, as SongReading takes it) turns Rename into its icon on a phone.
  */
 export default function BookDetail({
   store,
@@ -322,6 +331,7 @@ export default function BookDetail({
   onFiles = () => {},
   autoFocusShare = false,
   onShareFocusReturned = () => {},
+  mode = 'narrow',
 }) {
   const shelf = useSlice(store, 'shelf');
   const sync = useSlice(store, 'sync');
@@ -384,7 +394,7 @@ export default function BookDetail({
   const online = useOnline();
   // Back on the detail after a sharing screen over it closed (its nodes are
   // fresh): focus *Share*, the control that started it. It waits for the Share
-  // card if that renders a moment later, and runs once — the shell clears the
+  // button if that renders a moment later, and runs once — the shell clears the
   // flag once honoured.
   const offersShare = (isOwner && !isLocal) || offersLeave;
   const shareRef = useRef(null);
@@ -452,7 +462,16 @@ export default function BookDetail({
           </svg>
         </Button>
         <span className="title t-h2">{title}</span>
-        <RenameDialog bookId={bookId} currentName={title} onRename={renameBook} />
+        <RenameDialog bookId={bookId} currentName={title} onRename={renameBook} narrow={mode === 'narrow'} />
+        {offersShare ? (
+          // Share at the app bar's right end, a word on every mode (workflow 7
+          // §A book's songs; W07 #4): the owner shares the book; a member sees
+          // who shares it with them and who saves to it (workflow 10 §Who sees
+          // whom; W10 #6). A local book has none.
+          <Button ref={shareRef} className="btn share-btn" onPress={() => onShare(bookId)}>
+            {t('books.share')}
+          </Button>
+        ) : null}
       </div>
 
       <div className="scroll book-detail-body">
@@ -586,6 +605,11 @@ export default function BookDetail({
           </div>
         ) : null}
 
+        {/* The rule, with space above it and no heading (workflow 7 §A book's
+            songs; W07 L226; review_polish Decision): the closing group —
+            Remove, Leave, and Delete last — set apart from the rest. */}
+        <Separator className="detail-rule" />
+
         <div className="card pad">
           <span className="t-h2">{t('books.remove')}</span>
           <p className="t-small">{t('books.removeBody')}</p>
@@ -623,23 +647,6 @@ export default function BookDetail({
               trigger={t('books.leave')}
               onMakeYourOwn={() => makeYourOwn(true)}
             />
-          </div>
-        ) : null}
-
-        {offersShare ? (
-          // The owner shares the book; a member sees who shares it with them and
-          // who saves to it (workflow 10 §Who sees whom; W10 #6).
-          <div className="card pad">
-            <span className="t-h2">{t('books.share')}</span>
-            <p className="t-small">{isOwner ? t('books.shareBody') : t('books.shareBodyMember')}</p>
-            <Button
-              ref={shareRef}
-              className="btn"
-              style={{ alignSelf: 'flex-start' }}
-              onPress={() => onShare(bookId)}
-            >
-              {t('books.share')}
-            </Button>
           </div>
         ) : null}
 

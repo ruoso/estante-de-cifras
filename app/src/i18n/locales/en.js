@@ -258,10 +258,8 @@ export default {
     leaveDownloadFirst: 'Download first',
     leaveConfirm: 'Leave the book',
     leaveFailed: 'You did not leave {name}. You are still a member.',
-    // The owner-only Share card on the per-book detail (books.share, workflow 10).
+    // Share in the per-book detail's app bar (books.share, workflow 10).
     share: 'Share',
-    shareBody: 'Invite people to read or edit this book — up to fifty.',
-    shareBodyMember: 'See who shares this book with you, and who saves to it.',
     // The book detail's fork cards (books.fork, workflow 11; W11 board :189-196).
     cannotSaveTitle: 'Can’t save here',
     cannotSaveBody: {

@@ -86,6 +86,14 @@ test('a reader leaves from book management: gone from the shelf, from Mine on Es
     await expect(joiner.page.getByText('You own it', { exact: true })).toHaveCount(0);
     const leave = joiner.page.getByRole('button', { name: 'Leave this book' });
     await expect(leave).toBeVisible();
+    // The member's detail as drawn (books.detail_as_drawn; workflow 7 §A book's
+    // songs; W07 #4): Share in the app bar, Leave after the rule, no Delete.
+    const memberDetail = joiner.page.locator('.book-detail');
+    await expect(memberDetail.locator('.appbar').getByRole('button', { name: 'Share', exact: true })).toBeVisible();
+    await expect(memberDetail.locator('.book-detail-body').getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
+    const ruleBox = await memberDetail.getByRole('separator').boundingBox();
+    expect((await leave.boundingBox()).y).toBeGreaterThan(ruleBox.y);
+    await expect(joiner.page.getByRole('button', { name: 'Delete the book' })).toHaveCount(0);
     expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: book management with the chip and the Leave card
 
     // The confirmation: nothing to lose, so the sentence — naming the owner
