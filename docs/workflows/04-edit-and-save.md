@@ -66,6 +66,19 @@ song's name — leaves *Save* pressable: pressing it says, under the field,
 what is missing, and puts the cursor there. A button that is grey with no
 reason given is never how a save says no.
 
+A save that brings in words the format does not read as chords — inside the
+music, where only chords, bars and the marks of the format are read (cifra.md
+§2.9) — lists them on the sheet before it is made: *Not read as chords, kept
+as written: Teste, [G]linha*, one line per song when several are saved. The
+words are the ones this save adds, each once, in the order they appear; a
+word the song already held when it was last saved was asked about then, and
+is not asked again. While the list is there the button reads **Save anyway**:
+it is pressable, and pressing it saves exactly as *Save* would. It is a
+question, not a stop — an annotation the format does not define, *fine*,
+*rit.*, *(solo)*, is a legitimate word to keep, and the writer decides; the
+marks in the editor (§Editing) are where the words can be found and fixed
+instead.
+
 ### Save pushes
 
 Save commits and then pushes: at once if there is a network, at the next

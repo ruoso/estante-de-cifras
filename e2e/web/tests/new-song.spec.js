@@ -110,7 +110,11 @@ test('from search (no match): Create "{query}" opens the template titled with th
 
   // Put a chord in the empty fence and save; the song is then findable.
   await content.click();
+  // The template ends on its closing fence: step up onto the empty line
+  // inside it, so the chords are music, not a word after the fence the
+  // save sheet would list as not read as a chord (songs.unknown_tokens_loud).
   await page.keyboard.press('Control+End');
+  await page.keyboard.press('ArrowUp');
   await page.keyboard.insertText('Am G C');
   await saveThroughSheet(page, {
     onSheet: async (sheet) => {

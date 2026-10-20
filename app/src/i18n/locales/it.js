@@ -993,6 +993,10 @@ export default {
       'Salvare condivide questa versione con chi condivide il libro; senza rete, alla prossima sincronizzazione.',
     cancel: 'Annulla',
     save: 'Salva',
+    // The words a save adds that the reader does not read as chords
+    // (songs.unknown_tokens_loud; workflow 4 §Saving): shown as written.
+    unknownWords: 'Non letti come accordi, tenuti come scritti: {words}',
+    saveAnyway: 'Salva comunque',
     close: 'Chiudi',
     saveAll: 'Salva tutto',
     saveAllLabel: 'Salva tutte le modifiche in {book}',
@@ -1753,6 +1757,11 @@ export default {
       undo: 'Annulla',
       pasteFenced: 'La canzone incollata ora è dentro un recinto, quindi viene letta come musica.',
       pasteTitleAdded: 'La sua prima riga è diventata il titolo.',
+      // A word the reader keeps but does not read as a chord, and a bracket
+      // heading named by a chord (songs.unknown_tokens_loud; workflow 3, 4).
+      unknownMark: 'Non letto come accordo',
+      bracketChords: 'La riga {line} sembra avere accordi tra parentesi quadre. Qui un accordo va su una riga a sé, sopra le sue parole.',
+      dismissNotice: 'Chiudi l’avviso',
       notSaved: 'Non salvato.',
       voicingStop:
         'La riga {line} è un diteggiatura che non può essere letta, e salvando andrebbe persa. Correggila o eliminala, poi salva di nuovo.',

@@ -15,6 +15,7 @@ import {
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { classifyLines } from './cifra-syntax.js';
+import { unknownMarks } from './unknown-words.js';
 
 // Build the per-line decoration set from the classifier. A `text` (plain) line
 // gets no decoration (default colour); every other class maps to an
@@ -32,6 +33,33 @@ function buildDecorations(doc) {
     }
   }
   return builder.finish();
+}
+
+// The mark decorations over every word the reader does not read as a chord
+// (songs.unknown_tokens_loud; workflow 4 §Editing): a wavy underline — a shape,
+// not colour alone — with a `title` saying so.
+function buildMarks(doc, title) {
+  const mark = Decoration.mark({ class: 'est-unknown', attributes: { title } });
+  const builder = new RangeSetBuilder();
+  for (const { from, to } of unknownMarks(doc.toString())) builder.add(from, to, mark);
+  return builder.finish();
+}
+
+/**
+ * A song's unknown-token marks, recomputed on every change (editor Decision 2:
+ * synchronous decorations over the buffer). Only the song editor adds it, and
+ * only for a song (unknown-words.js `isSongPath`); the shared set stays
+ * unmarked for the conflict resolver and the raw editor.
+ *
+ * @param {{ title: string }} options — the mark's tooltip text
+ * @returns {object} a CodeMirror extension
+ */
+export function unknownMarksField({ title }) {
+  return StateField.define({
+    create: (state) => buildMarks(state.doc, title),
+    update: (value, tr) => (tr.docChanged ? buildMarks(tr.state.doc, title) : value),
+    provide: (f) => EditorView.decorations.from(f),
+  });
 }
 
 /**

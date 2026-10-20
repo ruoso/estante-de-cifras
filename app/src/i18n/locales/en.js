@@ -1083,6 +1083,10 @@ export default {
       'Saving shares this version with whoever shares the book; with no network, at the next sync.',
     cancel: 'Cancel',
     save: 'Save',
+    // The words a save adds that the reader does not read as chords
+    // (songs.unknown_tokens_loud; workflow 4 §Saving): shown as written.
+    unknownWords: 'Not read as chords, kept as written: {words}',
+    saveAnyway: 'Save anyway',
     close: 'Close',
     saveAll: 'Save all',
     saveAllLabel: 'Save all changes in {book}',
@@ -1916,6 +1920,11 @@ export default {
       undo: 'Undo',
       pasteFenced: 'The pasted song is now inside a fence, so it reads as music.',
       pasteTitleAdded: 'Its first line became the title.',
+      // A word the reader keeps but does not read as a chord, and a bracket
+      // heading named by a chord (songs.unknown_tokens_loud; workflow 3, 4).
+      unknownMark: 'Not read as a chord',
+      bracketChords: 'Line {line} looks like chords in brackets. Here a chord goes on its own line, above its words.',
+      dismissNotice: 'Dismiss the notice',
       notSaved: 'Not saved.',
       voicingStop:
         'Line {line} is a voicing that can’t be read, and saving would drop it. Fix it or delete it, then save again.',

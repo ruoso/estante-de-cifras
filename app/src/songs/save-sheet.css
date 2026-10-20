@@ -23,6 +23,17 @@
   margin: 0;
 }
 
+/* The words a save adds that are not read as chords (songs.unknown_tokens_loud;
+   workflow 4 §Saving): one line per song, stacked. */
+.est-save-unknown {
+  flex-direction: column;
+  gap: calc(var(--u) * 0.5);
+}
+
+.est-save-unknown p {
+  margin: 0;
+}
+
 /* Save all: each song's changes under its own title (W04 computer Unsaved). */
 .est-save-songs {
   display: flex;

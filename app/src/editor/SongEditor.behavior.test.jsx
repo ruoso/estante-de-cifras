@@ -629,6 +629,121 @@ describe('SongEditor', () => {
   });
 });
 
+// songs.unknown_tokens_loud §Acceptance 2-3: the words the reader does not
+// read as chords are marked as typed (workflow 4 §Editing; spec §2.9), and a
+// bracket heading named by a chord raises the *Chords in brackets* notice
+// (workflow 3 §When it looks like another format; spec §1.7.2). Neither stops a
+// save.
+describe('SongEditor — words not read as chords', () => {
+  const BRACKETS = ['# Tarde Clara', '', '```', '[Am]Teste [G]linha', '```', ''].join('\n');
+  const bracketNotice = (line) => t('editor.source.bracketChords', { line });
+
+  async function open(text, path = PATH, onSave = () => {}) {
+    const { store, emit } = makeStore();
+    const editorRef = { current: null };
+    const utils = render(
+      <SongEditor store={store} bookId={BOOK} path={path} layoutMode="wide" editorRef={editorRef} onSave={onSave} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path, text }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(text));
+    return { ...utils, editorRef };
+  }
+
+  it('marks every word it does not read as a chord', async () => {
+    const onSave = vi.fn();
+    const { container } = await open(BRACKETS, PATH, onSave);
+
+    const marks = [...container.querySelectorAll('.est-unknown')];
+    expect(marks.map((m) => m.textContent)).toEqual(['Teste', '[G]linha']);
+    for (const m of marks) expect(m).toHaveAttribute('title', t('editor.source.unknownMark'));
+    // The bracket heading reads as a chord: the notice names its line, in words.
+    expect(screen.getByRole('status')).toHaveTextContent(bracketNotice(4));
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // A question, never a stop: Save goes through.
+    act(() => fireEvent.click(screen.getByRole('button', { name: t('editor.source.save') })));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('marks follow the text: a word in a bar, and none once it is a chord', async () => {
+    const SONG = ['# Tarde Clara', '', '## Parte', '```', '| G | C | fine |', '```', ''].join('\n');
+    const { container, editorRef } = await open(SONG);
+    expect([...container.querySelectorAll('.est-unknown')].map((m) => m.textContent)).toEqual(['fine']);
+    expect(screen.queryByRole('status')).toBeNull();
+
+    act(() => {
+      const at = editorRef.current.state.doc.toString().indexOf('fine');
+      editorRef.current.dispatch({ changes: { from: at, to: at + 4, insert: 'D7' } });
+    });
+    expect(container.querySelectorAll('.est-unknown')).toHaveLength(0);
+  });
+
+  it('dismisses the bracket notice and keeps it away while editing', async () => {
+    const { editorRef } = await open(BRACKETS);
+    const dismiss = screen.getByRole('button', { name: t('editor.source.dismissNotice') });
+    act(() => fireEvent.click(dismiss));
+    expect(screen.queryByText(bracketNotice(4))).toBeNull();
+
+    // Another keystroke, a new bracket chord even: it stays away for this editing.
+    act(() => {
+      const end = editorRef.current.state.doc.length;
+      editorRef.current.dispatch({ changes: { from: end, insert: '\n```\n[G7]linha\n```\n' }, selection: { anchor: 0 } });
+    });
+    expect(screen.queryByText(/looks like chords in brackets/)).toBeNull();
+  });
+
+  it('goes on its own when the text no longer holds the case', async () => {
+    const { editorRef } = await open(BRACKETS);
+    expect(screen.getByText(bracketNotice(4))).toBeInTheDocument();
+    act(() => {
+      const doc = editorRef.current.state.doc;
+      const line = doc.line(4);
+      editorRef.current.dispatch({ changes: { from: line.from, to: line.to, insert: '[Refrão]' }, selection: { anchor: 0 } });
+    });
+    expect(screen.queryByText(/looks like chords in brackets/)).toBeNull();
+  });
+
+  it('a typed bracket line waits for the cursor to leave it', async () => {
+    const SONG = ['# Tarde Clara', '', '```', '', '```', ''].join('\n');
+    const { editorRef } = await open(SONG);
+    const lineFrom = editorRef.current.state.doc.line(4).from;
+    // Typed key by key, the cursor following: no notice halfway through `[A`,
+    // nor once `[Am]` is complete while the cursor is still on its line.
+    for (const ch of '[Am]') {
+      act(() => {
+        const head = editorRef.current.state.selection.main.head;
+        const at = head < lineFrom ? lineFrom : head;
+        editorRef.current.dispatch({ changes: { from: at, insert: ch }, selection: { anchor: at + 1 }, userEvent: 'input.type' });
+      });
+      expect(screen.queryByText(/looks like chords in brackets/)).toBeNull();
+    }
+    // The cursor moves to another line: now the line counts.
+    act(() => editorRef.current.dispatch({ selection: { anchor: 0 } }));
+    expect(screen.getByText(bracketNotice(4))).toBeInTheDocument();
+  });
+
+  it('pasted bracket chords count at once', async () => {
+    const SONG = ['# Tarde Clara', '', '```', '', '```', ''].join('\n');
+    const { container, editorRef } = await open(SONG);
+    const at = editorRef.current.state.doc.line(4).from;
+    act(() => editorRef.current.dispatch({ selection: { anchor: at } }));
+    firePaste(container.querySelector('.cm-content'), '[Am]Teste');
+    // The cursor is still on the pasted line, and the notice is already there.
+    const head = editorRef.current.state.selection.main.head;
+    expect(editorRef.current.state.doc.lineAt(head).number).toBe(4);
+    expect(screen.getByText(bracketNotice(4))).toBeInTheDocument();
+  });
+
+  it('a raw README marks nothing', async () => {
+    const README = ['# Livro de Ensaio', '', '```', '[Am]Teste [G]linha', 'Teste linha', '```', ''].join('\n');
+    const { container } = await open(README, 'README.md');
+    expect(container.querySelectorAll('.est-unknown')).toHaveLength(0);
+    expect(screen.queryByText(/looks like chords in brackets/)).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+});
+
 // songs.editor_chrome Constraints 2-4, 8; editor Decision 10: the seams a host
 // that draws its own header uses.
 describe('SongEditor under a host-owned chrome', () => {

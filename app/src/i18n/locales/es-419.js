@@ -994,6 +994,10 @@ export default {
       'Guardar comparte esta versión con quien comparte el libro; sin red, en la próxima sincronización.',
     cancel: 'Cancelar',
     save: 'Guardar',
+    // The words a save adds that the reader does not read as chords
+    // (songs.unknown_tokens_loud; workflow 4 §Saving): shown as written.
+    unknownWords: 'No se leen como acordes, se guardan como están escritos: {words}',
+    saveAnyway: 'Guardar de todos modos',
     close: 'Cerrar',
     saveAll: 'Guardar todo',
     saveAllLabel: 'Guardar todos los cambios en {book}',
@@ -1753,6 +1757,11 @@ export default {
       undo: 'Deshacer',
       pasteFenced: 'La canción pegada ahora está dentro de una cerca, así que se lee como música.',
       pasteTitleAdded: 'Su primera línea pasó a ser el título.',
+      // A word the reader keeps but does not read as a chord, and a bracket
+      // heading named by a chord (songs.unknown_tokens_loud; workflow 3, 4).
+      unknownMark: 'No se lee como acorde',
+      bracketChords: 'La línea {line} parece tener acordes entre corchetes. Aquí el acorde va en su propia línea, sobre la letra.',
+      dismissNotice: 'Descartar el aviso',
       notSaved: 'No se guardó.',
       voicingStop:
         'La línea {line} es una digitación que no se puede leer, y al guardar se descartaría. Corrígela o bórrala y guarda de nuevo.',

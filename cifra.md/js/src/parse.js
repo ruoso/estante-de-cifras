@@ -320,6 +320,10 @@ class Parser {
     this.sections = [];
     this.blocks = [];
     this.dialectOverride = dialect ?? null;
+    // Where each scanned item stood in the source — `{line, column}` keyed by
+    // the item object, which the model keeps (demote rewrites it in place) —
+    // for `unknownTokens`; the model itself carries no positions.
+    this.sourceAt = new Map();
   }
 
   diag(code, line, message, text) {
@@ -767,6 +771,7 @@ class Parser {
         i += 1;
         continue;
       }
+      this.place(sh, raws[i]);
       if (!sung) {
         const line = this.chartLine(sh);
         line._line = lineno;
@@ -789,6 +794,40 @@ class Parser {
         line._line = lineno;
         out.push(line);
         i += 1;
+      }
+    }
+    return out;
+  }
+
+  // Record the source position of every item of a scanned line. The text the
+  // line was scanned from is a suffix of its prepared source line (what a
+  // bracket or label heading leaves on its line), so its columns shift by the
+  // length of what precedes it.
+  place(sh, [lineno, text]) {
+    if (sh.scan === null) return;
+    const offset = this.lines[lineno - 1].length - text.length;
+    for (const m of sh.scan.measures) {
+      for (const it of m.items) {
+        if ("column" in it) this.sourceAt.set(it, { line: lineno, column: offset + it.column });
+      }
+    }
+  }
+
+  // Every unknown token of the read document, in source order (spec §2.9).
+  unknownTokens() {
+    const out = [];
+    for (const section of this.sections) {
+      for (const part of section.body) {
+        if (part.type !== "music") continue;
+        for (const line of part.lines) {
+          for (const m of line.measures || []) {
+            for (const it of m.items) {
+              if (it.type !== "unknown") continue;
+              const pos = this.sourceAt.get(it);
+              out.push({ text: it.text, line: pos.line, column: pos.column });
+            }
+          }
+        }
       }
     }
     return out;
@@ -1104,6 +1143,20 @@ export function isChordRun(text, dialect) {
 // Read a cifra.md document into its model (schema/cifra.schema.json).
 export function parse(bytes, dialect = null) {
   return new Parser(bytes, dialect).run();
+}
+
+// The unknown tokens of a cifra.md document (spec §2.9: "a reader SHOULD make
+// the distinct unknown symbols of a document available"), each with where it
+// stands: `[{text, line, column}]` in source order, `line` 1-based and `column`
+// the 0-based UTF-16 offset in that line as the text layer prepares it (§1.3),
+// so `prepare(input)[line - 1].slice(column, column + text.length) === text`.
+// Read by the same run as `parse`, so it lists exactly the model's `unknown`
+// items — what follows a bracket heading, demoted endings, chords over words.
+// Not corpus-facing: an application uses it to show where the words are.
+export function unknownTokens(bytes, dialect = null) {
+  const parser = new Parser(bytes, dialect);
+  parser.run();
+  return parser.unknownTokens();
 }
 
 // Re-derive a model's derived fields (bar numbers and repeat groups) in place,

@@ -283,6 +283,74 @@ describe('save sheet — save all (§Several songs at once)', () => {
   });
 });
 
+// songs.unknown_tokens_loud §Acceptance 4; workflow 4 §Saving (delta): the
+// words the save adds that are not read as chords are listed, and the one
+// confirm asks *Save anyway* — pressable, and saving as Save does.
+describe('save sheet — words not read as chords (§Saving)', () => {
+  it('lists the words not read as chords and asks Save anyway', async () => {
+    const { store, sent, emit } = makeStore();
+    renderSheet({ paths: ['tarde-clara.cifra.md'] }, store);
+    withName(emit);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview({ unknown: ['Teste', '[G]linha'] })] }));
+
+    expect(screen.getByText('Not read as chords, kept as written: Teste, [G]linha')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    const anyway = screen.getByRole('button', { name: 'Save anyway' });
+    expect(anyway).toBeEnabled();
+    expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
+
+    act(() => fireEvent.click(anyway));
+    const saves = commandsOf(sent, CommandKind.SAVE);
+    expect(saves).toHaveLength(1);
+    expect(saves[0].payload).toMatchObject({
+      bookId: BOOK,
+      paths: ['tarde-clara.cifra.md'],
+      message: SUMMARY,
+      name: 'Marina',
+    });
+  });
+
+  it('several songs list one line each, by title', async () => {
+    const { store, sent, emit } = makeStore();
+    renderSheet({ paths: ['tarde-clara.cifra.md', 'carinhoso.cifra.md', 'mare.cifra.md'] }, store);
+    withName(emit);
+    emit(
+      event(EventKind.SAVE_PREVIEW, {
+        bookId: BOOK,
+        previews: [
+          preview({ path: 'tarde-clara.cifra.md', title: 'Tarde Clara', summary: 'a', unknown: ['Teste'] }),
+          preview({ path: 'carinhoso.cifra.md', title: 'Carinhoso', summary: 'b', unknown: [] }),
+          preview({ path: 'mare.cifra.md', title: 'Maré Mansa', summary: 'c', unknown: ['rit.', '(solo)'] }),
+        ],
+      }),
+    );
+
+    const lines = document.querySelectorAll('.est-save-unknown p');
+    expect([...lines].map((l) => l.textContent)).toEqual([
+      'Tarde Clara: Not read as chords, kept as written: Teste',
+      'Maré Mansa: Not read as chords, kept as written: rit., (solo)',
+    ]);
+    expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save anyway' })));
+    expect(commandsOf(sent, CommandKind.SAVE)[0].payload.paths).toEqual([
+      'tarde-clara.cifra.md',
+      'carinhoso.cifra.md',
+      'mare.cifra.md',
+    ]);
+  });
+
+  it('no list, plain Save', async () => {
+    const { store, emit } = makeStore();
+    renderSheet({ paths: ['tarde-clara.cifra.md'] }, store);
+    withName(emit);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview({ unknown: [] })] }));
+
+    expect(screen.queryByText(/Not read as chords/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save anyway' })).not.toBeInTheDocument();
+  });
+});
+
 // Workflow 4 §A book the user cannot push to; books.fork AC1 (W11 board #1):
 // Save in a reader's book opens the make-it-your-own offer, never the form; on
 // BOOK_FORKED it turns into the ordinary save form for the same paths in the

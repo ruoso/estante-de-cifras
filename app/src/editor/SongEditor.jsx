@@ -25,10 +25,11 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { useLayoutMode } from '../shell/AppShell.jsx';
 import { t } from '../i18n/index.js';
 import Chart from '../chart/Chart.jsx';
-import { sourceExtensions } from './source-extensions.js';
+import { sourceExtensions, unknownMarksField } from './source-extensions.js';
 import { fencePaste } from './fence-paste.js';
 import { sectionInsertPos } from './section-insert.js';
 import { saveBlockers, stopMessageKey } from './save-blockers.js';
+import { isSongPath, chordBracketHeadings } from './unknown-words.js';
 import { template } from './template.js';
 import './editor.css';
 
@@ -113,6 +114,16 @@ export default function SongEditor({
   const [previewTab, setPreviewTab] = useState(false);
   const [saveError, setSaveError] = useState(null); // { line, code } | null
   const [pasteNotice, setPasteNotice] = useState(null); // { titled } | null
+  // The *Chords in brackets* notice (workflow 3 §When it looks like another
+  // format): the line the cursor is on — a typed bracket line counts once the
+  // cursor has left it — the lines a paste brought in, which count at once,
+  // and whether the notice was dismissed for the rest of this editing.
+  const [cursorLine, setCursorLine] = useState(1);
+  const [pastedLines, setPastedLines] = useState(() => new Set());
+  const [bracketDismissed, setBracketDismissed] = useState(false);
+  // Marks and the notice are for a song a person is writing, never README.md
+  // or a setlist in the raw editor (songs.unknown_tokens_loud Decision 6).
+  const song = isSongPath(path);
   // A background sync merged a new version under the unsaved buffer (sync.unsaved
   // → the transient MERGED fact; workflow 8 L55-56). The shown notice —
   // `{ author, commit, summary }` — or null; `mergePending` flags the one re-issued
@@ -224,6 +235,13 @@ export default function SongEditor({
       const anchor = sel.from + delta + result.insert.length;
       view.dispatch({ changes, selection: { anchor }, userEvent: 'input.paste', scrollIntoView: true });
       if (result.wrapped) setPasteNotice({ titled: result.titled });
+      // Pasted text counts at once (workflow 3): the lines it now spans.
+      const doc = view.state.doc;
+      const first = doc.lineAt(sel.from).number;
+      const last = doc.lineAt(anchor).number;
+      const lines = new Set();
+      for (let n = first; n <= last; n += 1) lines.add(n);
+      setPastedLines(lines);
       return true;
     };
   });
@@ -248,6 +266,13 @@ export default function SongEditor({
         EditorView.domEventHandlers({
           paste: (event, cmView) => pasteHandlerRef.current(event, cmView),
         }),
+        // The cursor's line, for the bracket notice's timing.
+        EditorView.updateListener.of((update) => {
+          if (!update.selectionSet && !update.docChanged) return;
+          const { state } = update;
+          setCursorLine(state.doc.lineAt(state.selection.main.head).number);
+        }),
+        ...(song ? [unknownMarksField({ title: t('editor.source.unknownMark') })] : []),
       ],
     });
     viewRef.current = view;
@@ -366,6 +391,14 @@ export default function SongEditor({
   // song writer would drop (workflow 4 §Normalising). Everything else the format
   // is happy to normalise.
   const blockers = useMemo(() => saveBlockers(parsed.diagnostics, path), [parsed, path]);
+  // A bracket heading named by a chord (workflow 3 §When it looks like another
+  // format): the first such line that counts — the cursor has left it, or it
+  // was pasted. A question, never a stop; it goes when the text no longer holds
+  // the case.
+  const bracketHeadings = useMemo(() => (song ? chordBracketHeadings(text) : []), [song, text]);
+  const bracketLine = bracketDismissed
+    ? null
+    : (bracketHeadings.find((h) => h.line !== cursorLine || pastedLines.has(h.line))?.line ?? null);
 
   // The host's header names the song by its title as the text has it now
   // (songs.editor_chrome Constraint 4; workflow 4 §Editing). Reported from the
@@ -492,6 +525,21 @@ export default function SongEditor({
           </span>
           <Button className="btn" onPress={undoPaste}>
             {t('editor.source.undo')}
+          </Button>
+        </div>
+      )}
+
+      {bracketLine !== null && (
+        <div className="notice accent est-editor-notice" role="status">
+          <span className="est-editor-notice-text">
+            {t('editor.source.bracketChords', { line: bracketLine })}
+          </span>
+          <Button
+            className="btn icon"
+            aria-label={t('editor.source.dismissNotice')}
+            onPress={() => setBracketDismissed(true)}
+          >
+            <DismissIcon />
           </Button>
         </div>
       )}

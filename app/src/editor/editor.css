@@ -172,3 +172,12 @@
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+/* A word inside the music the reader does not read as a chord
+ * (songs.unknown_tokens_loud; workflow 4 §Editing): a wavy underline — a shape,
+ * so the mark is never colour alone — with its `title` in words. */
+.est .est-unknown {
+  text-decoration: underline wavy var(--unsaved);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}

@@ -993,6 +993,10 @@ export default {
       'Salvar compartilha esta versão com quem compartilha o livro; sem rede, na próxima sincronização.',
     cancel: 'Cancelar',
     save: 'Salvar',
+    // The words a save adds that the reader does not read as chords
+    // (songs.unknown_tokens_loud; workflow 4 §Saving): shown as written.
+    unknownWords: 'Não lidos como acordes, mantidos como escritos: {words}',
+    saveAnyway: 'Salvar mesmo assim',
     close: 'Fechar',
     saveAll: 'Salvar tudo',
     saveAllLabel: 'Salvar todas as mudanças em {book}',
@@ -1752,6 +1756,11 @@ export default {
       undo: 'Desfazer',
       pasteFenced: 'A música colada agora está dentro de uma cerca, então é lida como música.',
       pasteTitleAdded: 'A primeira linha virou o título.',
+      // A word the reader keeps but does not read as a chord, and a bracket
+      // heading named by a chord (songs.unknown_tokens_loud; workflow 3, 4).
+      unknownMark: 'Não lido como acorde',
+      bracketChords: 'A linha {line} parece ter acordes entre colchetes. Aqui o acorde vai numa linha própria, acima da letra.',
+      dismissNotice: 'Dispensar o aviso',
       notSaved: 'Não salvo.',
       voicingStop:
         'A linha {line} é um dedilhado que não pode ser lido, e salvar iria descartá-lo. Corrija ou apague a linha e salve de novo.',

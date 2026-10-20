@@ -67,6 +67,11 @@ export {
 // refinement §Constraints).
 export { parse } from "./parse.js";
 
+// Where the reader's unknown tokens (spec §2.9) stand in the source, for an
+// application to mark them; the same reading as `parse`, whose model carries no
+// positions. Not corpus-facing (songs.unknown_tokens_loud refinement §Decisions).
+export { unknownTokens } from "./parse.js";
+
 // Canonical writer: model -> canonical text (spec §8). `write` is
 // `serialize ∘ canonical` with the §8.1 marked-text refusal; `canonical` is the
 // §8.2/§8.3/§4.5 model-level canonicaliser. `MarkedTextError` and `isCanonical`

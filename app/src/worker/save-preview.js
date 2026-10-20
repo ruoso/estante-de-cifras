@@ -13,7 +13,7 @@
 // Framework-free, Worker-only: plain ESM, no React. Logs nothing — never song
 // text (standing rule); the diff records never reach `console`.
 
-import { diff } from 'cifra-md';
+import { diff, unknownTokens } from 'cifra-md';
 import { resolveRef, readBlob } from 'isomorphic-git';
 
 /**
@@ -28,7 +28,7 @@ import { resolveRef, readBlob } from 'isomorphic-git';
  *   parse: (input: string|Uint8Array) => object,
  * }} deps
  * @returns {{ preview: (opts: { bookId: string, paths: string[] }) =>
- *   Promise<{ previews: Array<{ path: string, title: string, changes: object[], summary: string, isNew: boolean }> }> }}
+ *   Promise<{ previews: Array<{ path: string, title: string, changes: object[], summary: string, isNew: boolean, unknown: string[] }> }> }}
  */
 export function createSavePreview({ fs, git, locks, parse } = {}) {
   if (!fs) throw new Error('createSavePreview requires an fs');
@@ -37,13 +37,15 @@ export function createSavePreview({ fs, git, locks, parse } = {}) {
   if (!parse) throw new Error('createSavePreview requires a parse');
 
   const at = (dir, path) => `${dir}/${path}`;
+  // Only a song lists its unknown words (Decision 6); a setlist holds no chart.
+  const SONG = /\.cifra\.md$/;
   // The empty model a never-saved song diffs against — all-added.
   const EMPTY = parse('');
 
-  // The last-saved model for a path: the blob at HEAD parsed, or `null` when the
-  // path has no committed version yet — a never-saved song, or a book with no
+  // The last-saved bytes for a path: the blob at HEAD, or `null` when the path
+  // has no committed version yet — a never-saved song, or a book with no
   // commits at all (resolveRef throws) — so the caller reads it as new.
-  async function headModel(dir, path) {
+  async function headBlob(dir, path) {
     let head;
     try {
       head = await resolveRef({ fs, dir, ref: 'HEAD' });
@@ -52,11 +54,24 @@ export function createSavePreview({ fs, git, locks, parse } = {}) {
     }
     try {
       const { blob } = await readBlob({ fs, dir, oid: head, filepath: path });
-      return parse(blob);
+      return blob;
     } catch (err) {
       if (err?.code === 'NotFoundError') return null;
       throw err;
     }
+  }
+
+  // The words a save adds that the reader does not read as chords (spec §2.9;
+  // workflow 4 §Saving): the distinct unknown tokens of the text to save, in
+  // first-seen order, minus those the last-saved version already held — they
+  // were asked about when it was saved (songs.unknown_tokens_loud Decision 4).
+  function addedUnknown(beforeBytes, afterBytes) {
+    const held = new Set(beforeBytes == null ? [] : unknownTokens(beforeBytes).map((tok) => tok.text));
+    const out = [];
+    for (const { text } of unknownTokens(afterBytes)) {
+      if (!held.has(text) && !out.includes(text)) out.push(text);
+    }
+    return out;
   }
 
   // Preview one path: the semantic diff between HEAD (before) and the working
@@ -71,7 +86,8 @@ export function createSavePreview({ fs, git, locks, parse } = {}) {
     } catch (err) {
       if (err?.code !== 'ENOENT') throw err;
     }
-    const before = await headModel(dir, path);
+    const beforeBytes = await headBlob(dir, path);
+    const before = beforeBytes == null ? null : parse(beforeBytes);
     if (afterBytes == null) {
       const { changes, summary } = diff(before ?? EMPTY, EMPTY);
       return {
@@ -81,6 +97,7 @@ export function createSavePreview({ fs, git, locks, parse } = {}) {
         summary,
         isNew: false,
         deleted: true,
+        unknown: [],
       };
     }
     const after = parse(afterBytes);
@@ -91,6 +108,7 @@ export function createSavePreview({ fs, git, locks, parse } = {}) {
       changes,
       summary,
       isNew: before === null,
+      unknown: SONG.test(path) ? addedUnknown(beforeBytes, afterBytes) : [],
     };
   }
 

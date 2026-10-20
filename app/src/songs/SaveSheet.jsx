@@ -199,10 +199,22 @@ function SaveForm({
     }
   };
 
-  // Pending says so in a word, never a spinner alone (Decision 3).
-  const saveLabel = saving ? t('saveSheet.saving') : t('saveSheet.save');
-
   const multi = !isNew && (paths?.length ?? 0) > 1;
+
+  // The words this save adds that the reader does not read as chords
+  // (songs.unknown_tokens_loud; workflow 4 §Saving): one line per such song,
+  // named by its title when the sheet saves several. A question, never a stop:
+  // while they are listed the button asks *Save anyway*, and saves as Save does.
+  const unknownLines = previews.filter((p) => p.unknown?.length);
+  const askAnyway = unknownLines.length > 0;
+
+  // Pending says so in a word, never a spinner alone (Decision 3).
+  const saveLabel = saving
+    ? t('saveSheet.saving')
+    : askAnyway
+      ? t('saveSheet.saveAnyway')
+      : t('saveSheet.save');
+
   const headerTitle = multi
     ? t('saveSheet.titleAll', { count: paths.length })
     : t('saveSheet.title', { title: firstPreview?.title || titleHint || t('newSong.untitled') });
@@ -298,6 +310,17 @@ function SaveForm({
               ? t('saveSheet.failed')
               : t('saveSheet.refused', { line: refused.line ?? '?' })}
         </p>
+      )}
+
+      {askAnyway && (
+        <div className="notice accent est-save-unknown">
+          {unknownLines.map((p) => (
+            <p key={p.path}>
+              {multi ? <b>{`${p.title || p.path}: `}</b> : null}
+              {t('saveSheet.unknownWords', { words: p.unknown.join(', ') })}
+            </p>
+          ))}
+        </div>
       )}
 
       <p className="t-small">{t('saveSheet.pushCaption')}</p>

@@ -164,6 +164,52 @@ describe('PREVIEW_SAVE — what changed, in musical terms (§Saving)', () => {
   });
 });
 
+// songs.unknown_tokens_loud §Acceptance 4; workflow 4 §Saving: the sheet lists
+// the words the save adds that the reader does not read as chords — only the
+// ones this save adds (Decision 4), each once, first-seen order (spec §2.9).
+describe('PREVIEW_SAVE — the unknown words a save adds (§Saving)', () => {
+  const song = (title, lines) => [`# ${title}`, '- notation: brazilian', '', '## Parte', '```', ...lines, '```', ''].join('\n');
+
+  it('lists the unknown words a save adds', async () => {
+    const w = makeWorker();
+    const bookId = await seedBookWithSong(w);
+
+    // HEAD holds `fine`.
+    w.store.send(command(CommandKind.WRITE, { bookId, path: 'tarde.cifra.md', text: song('Tarde Clara', ['D | Em | fine']) }));
+    await w.settled(bookId);
+    w.store.send(command(CommandKind.SAVE, { bookId, paths: ['tarde.cifra.md'], message: 'fine', author: AUTHOR }));
+    await until(() => expect(w.events.filter((e) => e.kind === EventKind.SAVED)).toHaveLength(2));
+
+    // The buffer adds `Teste` and `fine` again; a new song holds three words,
+    // one twice; a README holds a fence of words.
+    w.store.send(
+      command(CommandKind.WRITE, { bookId, path: 'tarde.cifra.md', text: song('Tarde Clara', ['D | Teste | fine', 'Em | fine']) }),
+    );
+    w.store.send(
+      command(CommandKind.WRITE, { bookId, path: 'nova.cifra.md', text: song('Nova', ['[Am]Teste [G]linha', 'G | Teste | rit.']) }),
+    );
+    w.store.send(command(CommandKind.WRITE, { bookId, path: 'README.md', text: '# Livro\n\n```\nTeste linha\n```\n' }));
+    await w.settled(bookId);
+
+    w.store.send(command(CommandKind.PREVIEW_SAVE, { bookId, paths: ['tarde.cifra.md', 'nova.cifra.md', 'README.md'] }));
+    await until(() => expect(w.lastEvent(EventKind.SAVE_PREVIEW)).toBeTruthy());
+    const byPath = Object.fromEntries(w.lastEvent(EventKind.SAVE_PREVIEW).payload.previews.map((p) => [p.path, p]));
+    expect(byPath['tarde.cifra.md'].unknown).toEqual(['Teste']);
+    expect(byPath['nova.cifra.md']).toMatchObject({ isNew: true, unknown: ['Teste', '[G]linha', 'rit.'] });
+    expect(byPath['README.md'].unknown).toEqual([]);
+  });
+
+  it('a clean song lists nothing', async () => {
+    const w = makeWorker();
+    const bookId = await seedBookWithSong(w);
+    w.store.send(command(CommandKind.WRITE, { bookId, path: 'tarde.cifra.md', text: V2 }));
+    await w.settled(bookId);
+    w.store.send(command(CommandKind.PREVIEW_SAVE, { bookId, paths: ['tarde.cifra.md'] }));
+    await until(() => expect(w.lastEvent(EventKind.SAVE_PREVIEW)).toBeTruthy());
+    expect(w.lastEvent(EventKind.SAVE_PREVIEW).payload.previews[0].unknown).toEqual([]);
+  });
+});
+
 describe('SAVE with the sheet note, and the first-save author name', () => {
   it('commits the working copy with the note as the message and re-indexes it saved', async () => {
     const w = makeWorker();

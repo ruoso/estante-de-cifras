@@ -345,8 +345,11 @@ export function saveSurface(page) {
 // first save on a device asks for the author's name (workflow 4 §Who made the
 // change); `name` answers it. Waits for the sheet to close (the commit landed).
 // `onSheet(sheet)` runs while the sheet is open, before saving (assertions,
-// axe, a mockup() snapshot).
-export async function saveThroughSheet(page, { note, name = 'Marina Souza', onSheet } = {}) {
+// axe, a mockup() snapshot). `saveAnyway` answers a sheet that lists words not
+// read as chords (workflow 4 §Saving): its button then reads *Save anyway*. A
+// journey that does not expect the list keeps the exact *Save*, so a fixture
+// holding such words by accident fails here rather than being waved through.
+export async function saveThroughSheet(page, { note, name = 'Marina Souza', onSheet, saveAnyway = false } = {}) {
   await page.getByRole('button', { name: 'Save', exact: true }).first().click();
   const sheet = saveSurface(page);
   await expect(sheet).toBeVisible();
@@ -354,7 +357,7 @@ export async function saveThroughSheet(page, { note, name = 'Marina Souza', onSh
   if (await nameField.count()) await nameField.fill(name);
   if (note !== undefined) await sheet.getByRole('textbox', { name: /Note/ }).fill(note);
   if (onSheet) await onSheet(sheet);
-  await sheet.getByRole('button', { name: 'Save', exact: true }).click();
+  await sheet.getByRole('button', { name: saveAnyway ? 'Save anyway' : 'Save', exact: true }).click();
   await expect(sheet).toBeHidden();
 }
 
