@@ -7,6 +7,37 @@ the books, the instruments, the preferences. Also the reverse — signing out �
 since it is the same question asked the other way: what on this device is the
 account's.
 
+## Signing in, or making an account
+
+There is **one sign-in surface**, and every way in opens it the same way: the
+first run's *Sign in or make an account* row (workflow 1 §Cold), the account
+screen's not-signed-in card, *Mine on Estante* and the add-book sheet
+(workflow 7), and the invited screen (workflow 1 §Invited), which draws the
+same two sections under its own heading. Its heading is *Sign in or make an
+account*, and it has two sections, in this order:
+
+- **Already have an account?** — **Use a passkey** (the browser's own prompt,
+  §Signing in on another device) and **Email me a link** (the emailed link,
+  below), with the note that the link is the way in where no passkey can be
+  reached.
+- **New here?** — **Make an account**, which makes a passkey on this device
+  and with it a new account, and the line *Makes a new account with a passkey.
+  Already have one? Sign in above. This would be a second, separate account.*
+  Making an account never joins one the person already has: the service makes
+  a new account for every signed-out passkey made, so the section says so,
+  and sends whoever has one to the section above.
+
+No entry chooses a door for the person, and none opens the surface on a step
+past the two sections — the account card is one *Sign in or make an account*
+button (*Bring your books to this device, or start keeping them on Estante*),
+not a passkey / email pair of its own. The one exception is a press that
+already names a step: *Mine on Estante*'s *No passkey here? Email me a link*
+(workflow 7) opens straight on the email step.
+
+Making an account is followed at once by **Add a recovery email** (§The
+recovery email). Signing in is not: an account that already exists has the
+account screen and the banner for that.
+
 ## Signing in on another device
 
 How it goes depends on whether the device can reach a passkey the user
@@ -26,20 +57,25 @@ already has.
   patchy (desktop Linux): the **emailed link**. It is also how an account is
   recovered when every device holding a passkey is lost. The link goes to the
   account's **recovery email** (below), so it reaches only an account that has
-  set one; an account is made with a passkey alone and has none until its
-  owner adds it.
+  set one; an account is asked for one the moment it is made (§The recovery
+  email), and has none if its owner leaves that for later.
 
 ## The recovery email
 
-An account starts with a passkey and **no email**: the first run asks for
-nothing (workflow 1), and the address is never in a book's history (commits
-carry the no-reply address, DIRECTION §3.3). The recovery email is the one
+An account is made with a passkey alone, and is **asked for its recovery
+email at once** (§Asked when the account is made, below): a new account's only
+way back in is otherwise the one passkey just made. It may be left for later,
+so an account can still have **no email**. The first run itself still asks
+for nothing (workflow 1): the question comes only after someone chose to make
+an account. The address is never in a book's history (commits carry the
+no-reply address, DIRECTION §3.3). The recovery email is the one
 address the service holds for an account, and it is used for one thing — to
 mail the sign-in link. It is never shown to anyone but the account's owner,
 never written to the home book or a book, and never logged.
 
-- **Setting it.** On the account screen (below), a signed-in person types an
-  address and asks for a **verification link**. Nothing changes yet: the
+- **Setting it.** On the account screen (below), or in the step right
+  after making an account (§Asked when the account is made), a signed-in
+  person types an address and asks for a **verification link**. Nothing changes yet: the
   address is written to the account only when the link is opened. The region
   then says *waiting for you to confirm* and names the address it was sent
   to, with **send again** and **use a different address**. The link works
@@ -66,6 +102,61 @@ never written to the home book or a book, and never logged.
 - **It needs a connection**, like signing in: the address lives only on the
   service. Offline, the region says so and its actions wait; nothing in a
   song does.
+
+### Asked when the account is made
+
+Right after *Make an account* succeeds, the sign-in surface shows one more
+step, **Add a recovery email**: the region's *none* warning (*If you lose every
+device with a passkey, there is no way back in*), the *Recovery email* field
+with its hint, and two buttons — **Send link** and **Not now**. It is the same
+set-and-verify as the account screen's region, not a second one: **Send link**
+mails the verification link, and the step then shows the region's *waiting
+for you to confirm* words naming the address, with **Done**. **Done** and
+**Not now** both go on to where the person was headed — the shelf, or the book
+an invitation opens (workflow 1 §Invited) — which by then is already coming
+down: the home book attaches and an invitation is accepted behind the step,
+so nothing waits on it. Offline it cannot be reached at all, since making an
+account needs a connection too. **Not now** leaves the address to the account
+screen, and to the banner.
+
+### The banner
+
+While a signed-in account has **no confirmed recovery email**, a banner sits
+in the shell on every screen:
+
+> **No recovery email yet.** If you lose your passkeys, you lose this account
+> and your books on Estante. — **Add one**
+
+- **Not dismissible**, and not on a timer: it goes only when the address is
+  confirmed. A pending address — the link sent, not yet opened — keeps it,
+  since a link not opened is no way back in.
+- **Add one** opens the account screen at its Recovery email region, focus on
+  the region (its field, in the *none* state). The banner is on the account
+  screen too, where *Add one* moves to the region below.
+- **Where it sits.** Below the header chrome, never inside it: on a phone
+  between the header row (*Estante*, the instrument chip, the account
+  affordance) and the destination; on a tablet and a computer across the head
+  of the main pane, beside the rail, not in it. It does not scroll with the
+  screen, and it takes its own room rather than covering anything. The notice
+  that a new version of the app is ready (DIRECTION §3.7) stays as it is — a
+  passing, dismissible notice floating over the top of the screen — and is
+  never merged into the banner: one goes when dismissed, the other only when
+  the account has a way back.
+- **Reading full screen** (a song, a setlist's *Play*, workflows 8 and 12) it
+  goes with the rest of the chrome and is back when the person leaves full
+  screen: the middle of a performance is the worst moment for anything to
+  appear (DIRECTION §3.7).
+- **How it reads.** It is a notice in the warning tone the region's *No
+  recovery email* badge uses, in each theme's own tokens — in Palco, the
+  dark stage's warning tint with light text — and it says its state in words,
+  never colour alone. To a screen reader it is a labelled region, *No recovery
+  email yet*, read once in reading order after the header and before the
+  screen, *Add one* a button in it; it is not a live region, so moving between
+  screens does not announce it again.
+- **What the device knows.** It shows when the service has answered that the
+  account has no confirmed recovery email. Offline with no answer yet it is
+  not shown, rather than claim what the device does not know — and adding one
+  needs a connection anyway (§The recovery email).
 
 ### The last way in
 
@@ -189,5 +280,3 @@ never removed without the download being offered.
   Changing it covers a wrong or outdated address, and deleting the account
   (workflow 17) removes it; going back to a passkey-only account on purpose
   is a small decision of its own, bounded by §The last way in.
-- **Asking for a recovery email unprompted** — after a first sign-in, or
-  when a passkey is added — rather than leaving it to the account screen.

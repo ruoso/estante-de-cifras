@@ -101,6 +101,7 @@ Append one `###` block per item, newest at the bottom:
 - **Updated** (2026-10-15, closer for `design.w07_remove_board`): `docs/mockups/Remove-from-shelf.dc.html` is drawn and registered in `canvas.json` (y 36440); it was not rendered, so check it on publishing.
 - **Updated** (2026-10-15, closer for `design.display_preferences`): `docs/mockups/Theme-picker.dc.html` gained the Density and Chord diagrams groups on all four frames; it was not rendered, so check it on publishing.
 - **Updated** (2026-10-18, closer for `design.boards_refresh`): redrawn and not rendered, so check on publishing: W01 (invited screen), W03 (line numbers), W04, W05 (*Default*), W08, W09 (*Default*, Keep both, line numbers), W12, W14, W16 (tablet split, line numbers), Screen-reader and Theme-picker (one wording per theme). `canvas.json` unchanged.
+- **Updated** (2026-10-19, closer for `design.sign_in_two_doors`): `docs/mockups/Sign-in.dc.html` is new and registered in `canvas.json` (y 38060); W01 (frames 1, 2, 4) and W13 (frames 1, 2) are redrawn. None rendered, so check on publishing.
 
 ### 2026-10-13 — Handing ownership of a book to a successor on leaving
 - **Source**: closer for `design.leaving` (tasks/refinements/design/leaving.md), surfaced by implementer's return summary and workflow 10 §Later (line 120).
@@ -156,3 +157,11 @@ Append one `###` block per item, newest at the bottom:
 - **Source**: fixer for `design.boards_refresh` (`app/src/music/EnterShape.behavior.test.jsx` timed out at 5.5 s against the 5 s default under full-suite load).
 - **Question**: Several behavior tests (EnterShape, SongWizard, StandardShapeStar) carry hand-set 20 s per-test timeouts for axe-heavy renders. Should the app's Vitest config get a shared timeout for them instead?
 - **Why parked**: test-infrastructure only — tests are never WBS tech-debt leaves; a human decides whether to raise the global `testTimeout` or keep per-test timeouts.
+
+### 2026-10-19 — Copy for the recovery-email banner while an address is pending (from `design.sign_in_two_doors`)
+- **What**: the pinned banner reads *No recovery email yet* and the rule keeps it while an address is pending, so someone who just pressed *Send link* sees a banner saying they have none. The design follows the pinned words.
+- **Decide**: whether the pending state needs its own wording (e.g. that the link is waiting).
+
+### 2026-10-19 — Out-of-date line on the Recovery-email board (from `design.sign_in_two_doors`)
+- **What**: the text at the top of `docs/mockups/Recovery-email.dc.html` still says "An account starts with a passkey and no email", which the two-doors decision reverses. Left alone because the refinement touches no other board.
+- **Decide**: have a later board pass update it.

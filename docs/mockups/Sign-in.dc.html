@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>1 &amp; 13. Signing in, or making an account</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflows 1 &amp; 13</div>
+    <h1 class="board-title">Signing in, or making an account</h1>
+    <p class="board-sub">Every way in opens the one sign-in surface, and the account screen's card is one entry into it. Making an account asks for the recovery email at once, and may be left for later; until an address is confirmed, a banner below the header chrome says so on every screen, answered, never dismissed.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · the account screen not signed in, its card one entry into the surface; then Add a recovery email, right after Make an account</div>
+      <div class="dev-pair">
+
+        <!-- Phone 1: the account screen, not signed in, scrolled to the end: Language, then the sign-in card -->
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Account</span>
+            </div>
+            <div class="scroll" style="justify-content: flex-end">
+             <div style="flex: none; display: flex; flex-direction: column; gap: 12px">
+              <div class="t-h3">Preferences</div>
+              <div class="t-h3" style="color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 15px">Chord diagrams</div>
+              <div style="display: flex; flex-direction: column; gap: 6px">
+                <span class="t-small" style="font-weight: 700; color: var(--ink)">Neck</span>
+                <div class="list" role="radiogroup" aria-label="Neck">
+                  <a class="row sel" href="#" style="gap: 12px"><span class="check on" style="border-radius: 50%"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span class="grow"><span class="name">Vertical</span><span class="meta">The default · the nut at the top</span></span><span class="badge ok">Selected</span></a>
+                  <a class="row" href="#" style="gap: 12px"><span class="check" style="border-radius: 50%"></span><span class="grow"><span class="name">Horizontal</span><span class="meta">The nut at the left, frets to the right</span></span></a>
+                </div>
+              </div>
+              <div class="t-h3" style="color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 15px; margin-top: 4px">Language</div>
+              <div class="list" role="radiogroup" aria-label="Language">
+                <a class="row sel" href="#" style="gap: 12px"><span class="check on" style="border-radius: 50%"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span class="grow"><span class="name">English</span></span><span class="badge ok">Selected</span></a>
+                <a class="row" href="#" style="gap: 12px"><span class="check" style="border-radius: 50%"></span><span class="grow"><span class="name">Português do Brasil</span></span></a>
+                <a class="row" href="#" style="gap: 12px"><span class="check" style="border-radius: 50%"></span><span class="grow"><span class="name">Español (Latinoamérica)</span></span></a>
+                <a class="row" href="#" style="gap: 12px"><span class="check" style="border-radius: 50%"></span><span class="grow"><span class="name">Italiano</span></span></a>
+              </div>
+              <p class="t-small">Uses your browser’s language until you choose one.</p>
+              <div class="card pad" style="margin-top: 4px; gap: 10px">
+                <span class="t-h2">Not signed in</span>
+                <span class="t-small">Bring your books to this device, or start keeping them on Estante.</span>
+                <button class="btn primary block"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg>Sign in or make an account</button>
+              </div>
+             </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phone 2: the step after Make an account, on the sign-in surface -->
+        <div class="dev phone">
+          <div class="screen">
+            <div style="padding: 56px 24px 0; display: flex; flex-direction: column; gap: 14px">
+              <span class="t-h1">Estante</span>
+              <h2 class="t-display">Add a recovery email</h2>
+              <div class="notice unsaved" style="gap: 10px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--unsaved)"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg><span>If you lose every device with a passkey, there is no way back in.</span></div>
+              <div class="field">
+                <label for="si-p2-email">Recovery email</label>
+                <input id="si-p2-email" class="input" type="email" value="ana@example.com">
+              </div>
+              <p class="t-small">Used only to email you a sign-in link. Shown here, to you, and nowhere else.</p>
+              <button class="btn primary block" style="margin-top: 8px">Send link</button>
+              <button class="btn quiet block">Not now</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · where the person was headed after Send link and Done: the invitation's book, the banner kept while the address is pending, the update-ready notice floating apart over it</div>
+      <div class="dev tablet">
+        <div class="split">
+          <div class="pane side" style="width: 260px">
+            <div style="padding: 18px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; align-items: center; gap: 8px"><span class="t-h1" style="flex: 1">Estante</span><span class="chip accent">Guitar</span><button class="btn icon" aria-label="Account"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></button></div>
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span style="flex: 1; color: var(--ink-2)">Songs, words, chords…</span></div>
+            </div>
+            <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 10px">
+              <div class="t-h3">Books</div>
+              <div class="list">
+                <sc-for list="{{books}}" as="b" hint-placeholder-count="2">
+                  <a class="row {{b.cls}}" href="#"><span class="grow"><span class="name">{{b.title}}</span><span class="meta">{{b.meta}}</span></span></a>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <section class="notice unsaved" aria-label="No recovery email yet" style="flex: none; border-radius: 0; align-items: flex-start; padding: 14px 24px; border-bottom: 1px solid var(--line)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--unsaved)"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg>
+              <span style="flex: 1"><b>No recovery email yet.</b> If you lose your passkeys, you lose this account and your books on Estante.</span>
+              <button class="btn">Add one</button>
+            </section>
+            <div class="appbar">
+              <span class="title">Choros da Ana</span>
+            </div>
+            <div class="scroll" style="padding: 20px 24px; gap: 14px">
+              <div class="section-label"><span class="t-h3">Songs</span><span class="t-small">14 songs</span></div>
+              <div class="list">
+                <sc-for list="{{songs}}" as="s" hint-placeholder-count="6">
+                  <a class="row" href="#"><span class="grow"><span class="name">{{s.title}}</span><span class="meta">{{s.meta}}</span></span></a>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="notice accent" role="status" style="position: absolute; top: 16px; left: 50%; transform: translateX(-50%); width: max-content; align-items: center; border: 1px solid var(--line)">
+          <span>A new version is ready.</span>
+          <button class="btn primary">Reload now</button>
+          <button class="btn quiet">Dismiss</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · Add one pressed: the account screen, the banner across the main pane's head, scrolled to the Recovery email region waiting for you to confirm, focus on it</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side" style="width: 300px">
+            <div style="padding: 22px 20px; display: flex; flex-direction: column; gap: 14px">
+              <span class="t-h1">Account</span>
+              <div style="display: flex; align-items: center; gap: 12px">
+                <span style="width: 44px; height: 44px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></span>
+                <span style="display: flex; flex-direction: column"><span class="t-h2">Ana</span><span class="t-small">Signed in on this device</span></span>
+              </div>
+              <button class="btn block">Sign out of this computer</button>
+            </div>
+          </div>
+          <div class="pane main">
+            <section class="notice unsaved" aria-label="No recovery email yet" style="flex: none; border-radius: 0; align-items: center; padding: 12px 32px; border-bottom: 1px solid var(--line)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--unsaved)"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg>
+              <span style="flex: 1"><b>No recovery email yet.</b> If you lose your passkeys, you lose this account and your books on Estante.</span>
+              <button class="btn">Add one</button>
+            </section>
+            <div class="scroll" style="padding: 24px 32px; gap: 14px; justify-content: flex-end">
+             <div style="flex: none; display: flex; flex-direction: column; gap: 14px">
+              <div class="t-h3">Signed-in devices</div>
+              <div class="list">
+                <div class="row"><span class="grow"><span class="name">This computer</span><span class="meta">Edge on Windows · in use now</span></span><button class="btn quiet">Sign out</button></div>
+              </div>
+              <div class="t-h3" style="margin-top: 8px">Passkeys</div>
+              <div class="list">
+                <sc-for list="{{passkeys}}" as="k" hint-placeholder-count="1">
+                  <div class="row" style="flex-direction: column; align-items: stretch; gap: 6px">
+                    <div style="display: flex; align-items: center; gap: 10px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg><span class="grow"><span class="name">{{k.name}}</span><span class="meta">{{k.meta}}</span></span><span class="badge">last way in</span></div>
+                    <span class="t-small">Your only way to sign in — add a recovery email or another passkey first.</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div class="t-h3" style="margin-top: 8px">Recovery email</div>
+              <div class="card pad" role="region" aria-label="Recovery email" tabindex="-1" style="gap: 12px; outline: 3px solid var(--accent); outline-offset: 3px">
+                <div style="display: flex; align-items: center; gap: 8px"><span class="badge dot">Waiting for you to confirm</span></div>
+                <div class="notice accent" style="gap: 10px; flex-direction: column">
+                  <span>We sent a verification link to <b>ana@example.com</b>. Check your inbox and open it.</span>
+                  <span class="t-small">The link works once, for fifteen minutes. Until it is opened, nothing changes and the account still has no recovery email.</span>
+                </div>
+                <div class="actions" style="justify-content: flex-start">
+                  <button class="btn">Send again</button>
+                  <button class="btn quiet">Use a different address</button>
+                </div>
+              </div>
+             </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      books: [
+        { title: 'My songs', meta: 'No songs yet', cls: '' },
+        { title: 'Choros da Ana', meta: 'reading · 14 songs', cls: 'sel' },
+      ],
+      songs: [
+        { title: 'Carinhoso', meta: 'Pixinguinha · choros/' },
+        { title: 'Chuva no Telhado', meta: 'Pedro Araújo · choros/' },
+        { title: 'Noite de Lua', meta: 'Lúcia Mendes · valsas/' },
+        { title: 'Tarde Clara', meta: 'Pedro Araújo · choros/' },
+        { title: 'Valsa da Esquina', meta: 'Lúcia Mendes · valsas/' },
+        { title: 'Valsa da Janela', meta: 'Lúcia Mendes · valsas/' },
+      ],
+      passkeys: [
+        { name: 'Windows Hello', meta: 'This computer · added today' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

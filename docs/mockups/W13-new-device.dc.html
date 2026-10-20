@@ -17,35 +17,30 @@
   <div class="board-head">
     <div class="board-num">Workflow 13</div>
     <h1 class="board-title">A new device</h1>
-    <p class="board-sub">Sign in with a passkey, or an emailed link where none can be reached. The home book comes down first, so instrument, notation and language are right; then every book on the shelf is listed at once and clones in the background. Signing out asks what on this device is the account's.</p>
+    <p class="board-sub">One sign-in surface, two doors: already have an account (a passkey, or an emailed link where none can be reached), or new here, which makes a new, separate account. Until an account has a confirmed recovery email a banner says so on every screen. The home book comes down first, so instrument, notation and language are right; then every book on the shelf is listed at once and clones in the background. Signing out asks what on this device is the account's.</p>
   </div>
 
   <div class="devices">
     <!-- Phones -->
     <div class="dev-col">
-      <div class="dev-label"><b>Phone</b> · signing in on a new phone, then the shelf filling</div>
+      <div class="dev-label"><b>Phone</b> · the one sign-in surface, its two doors, on a new phone; then the shelf filling, under the banner of an account with no recovery email</div>
       <div class="dev-pair">
         <div class="dev phone">
           <div class="screen">
             <div style="padding: 56px 24px 0; display: flex; flex-direction: column; gap: 14px">
               <span class="t-h1">Estante</span>
-              <h2 class="t-display">Sign in</h2>
-              <p class="t-body" style="color: var(--ink-2)">Bring your books, instruments and preferences to this phone.</p>
-              <button class="btn primary block" style="margin-top: 12px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Use a passkey</button>
-              <button class="btn block">Email me a link</button>
-              <p class="t-small">No passkey here? The link signs you in on this phone, and recovers your account if every device with a passkey is lost.</p>
-            </div>
-          </div>
-          <div class="scrim">
-            <div class="sheet">
-              <div class="grip"></div>
-              <span class="t-h3">The phone's own passkey prompt</span>
-              <div style="display: flex; align-items: center; gap: 14px">
-                <span style="width: 48px; height: 48px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg></span>
-                <span style="display: flex; flex-direction: column; gap: 2px"><span class="t-h2">Sign in to Estante?</span><span class="t-small">With your saved passkey, synced from your other devices</span></span>
+              <h2 class="t-display">Sign in or make an account</h2>
+              <div role="group" aria-labelledby="w13-have" style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px">
+                <h3 class="t-h2" id="w13-have">Already have an account?</h3>
+                <button class="btn primary block"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Use a passkey</button>
+                <button class="btn block">Email me a link</button>
+                <p class="t-small">No passkey here? The link signs you in on this phone, and recovers your account if every device with a passkey is lost.</p>
               </div>
-              <button class="btn primary block">Continue with face or fingerprint</button>
-              <button class="btn quiet block">Other options</button>
+              <div role="group" aria-labelledby="w13-new" style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px; padding-top: 18px; border-top: 1px solid var(--line)">
+                <h3 class="t-h2" id="w13-new">New here?</h3>
+                <button class="btn block">Make an account</button>
+                <p class="t-small">Makes a new account with a passkey. Already have one? Sign in above. This would be a second, separate account.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -56,6 +51,10 @@
               <span class="t-h1" style="flex: 1">Books</span>
               <span class="chip accent">Guitar</span>
             </div>
+            <section class="notice unsaved" aria-label="No recovery email yet" style="flex: none; margin: 0 16px 8px; padding: 10px 12px; gap: 10px; align-items: flex-start; font-size: 14px">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; color: var(--unsaved)"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"></path></svg>
+              <span style="flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 8px"><span><b>No recovery email yet.</b> If you lose your passkeys, you lose this account and your books on Estante.</span><button class="btn">Add one</button></span>
+            </section>
             <div class="scroll" style="padding-top: 4px; gap: 12px">
               <div class="notice accent" style="flex-direction: column; gap: 8px">
                 <span><b>Home book restored.</b> Your instrument, notation and language are set.</span>

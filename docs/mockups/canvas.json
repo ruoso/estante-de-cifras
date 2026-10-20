@@ -177,6 +177,13 @@
    "w": 3208,
    "h": 1500,
    "title": "7. Removing a book from the shelf"
+  },
+  "Sign-in.dc.html": {
+   "x": 0,
+   "y": 38060,
+   "w": 3208,
+   "h": 1500,
+   "title": "1 & 13. Signing in, or making an account"
   }
  },
  "order": [
@@ -203,7 +210,8 @@
   "W17-leaving.dc.html",
   "Recovery-email.dc.html",
   "Leave-book.dc.html",
-  "Remove-from-shelf.dc.html"
+  "Remove-from-shelf.dc.html",
+  "Sign-in.dc.html"
  ],
  "notes": {
   "workflows": {

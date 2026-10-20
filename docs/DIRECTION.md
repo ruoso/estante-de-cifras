@@ -604,8 +604,9 @@ workflows do not yet cover, and work that comes before building:
   workflow 1's; this closes the gap by drawing it and placing it.
 - **The recovery email**, decided (workflows 13, 17) and drawn:
   [mockups/Recovery-email.dc.html](mockups/Recovery-email.dc.html) — an
-  account starts with a passkey and no email; its owner sets, confirms and
-  changes the address the sign-in link goes to from the account screen, written
+  account is made with a passkey and asked for an address at once, which it
+  may leave for later; its owner sets, confirms and changes the address the
+  sign-in link goes to from the account screen, written
   only when the emailed verification link is opened (which confirms, and does
   not sign in). The last passkey of an account without one cannot be removed,
   and an account without one confirms its deletion with a passkey instead of
@@ -625,6 +626,17 @@ workflows do not yet cover, and work that comes before building:
   or horizontal), each a synced home-book register (home-book-format §4.1),
   applied on every screen and to every diagram the app draws, never changing
   what a chart or a diagram says. No new workflow.
+- **Signing in, or making an account**, decided (workflow 13 §Signing in, or
+  making an account, §Asked when the account is made, §The banner; workflow 1
+  §Cold, §Invited) and drawn on
+  [mockups/W13-new-device.dc.html](mockups/W13-new-device.dc.html) and
+  [mockups/W01-first-run.dc.html](mockups/W01-first-run.dc.html) — one sign-in
+  surface opened the same way from every entry, with two sections, *Already
+  have an account?* (a passkey, an emailed link) and *New here?* (make an
+  account, saying it makes a new, separate one); a newly made account asked
+  for its recovery email at once, skippable; and, while a signed-in account
+  has no confirmed recovery email, a banner on every screen that is not
+  dismissed, only answered. No new workflow.
 
 ## 7. Workflows
 

@@ -22,7 +22,11 @@ state says what a book is, and offers the ways to fill the shelf:
 
 - **write a song**, which goes into *My songs* (below);
 - **add a book** by its link (workflow 7);
-- **sign in** to bring back a shelf from another device (workflow 13);
+- **sign in or make an account** — *bring back your shelf, or start one on
+  Estante* — which opens the one sign-in surface (workflow 13 §Signing in, or
+  making an account), with its two doors — offered only while no one is
+  signed in on the device, so the empty shelf of an account just made offers
+  the other three;
 - **open the example book**, songs written for the purpose that ship with
   the app.
 
@@ -46,6 +50,17 @@ person to sign in, or to make an account first — a passkey, which takes
 seconds — since no book can be read without one. Then the book is cloned,
 as the reader or editor the invitation makes them, and the first screen is
 its song list, or the song the invitation was made from.
+
+The invited screen asks with the same two doors as every other way in
+(workflow 13 §Signing in, or making an account), drawn under its own heading:
+**Already have an account?** — *use a passkey*, *email me a link* — and
+**New here?** — *make an account*, with its line that this makes a new,
+separate account. They are the sign-in surface's own sections, in its order
+and words, not two buttons of the invitation's that open it, so a person
+holding an invitation is one press from either ceremony. Making an account
+here asks for the recovery email next, as anywhere (workflow 13 §The recovery
+email), and the book opens when that step is done or left for later; the
+invitation is accepted behind it, so nothing waits on it.
 
 Until the account exists, the invited screen names neither the book nor its
 owner — only that it is an invitation to a book on Estante. The service tells
