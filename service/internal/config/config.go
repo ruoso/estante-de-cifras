@@ -69,9 +69,9 @@ const DefaultTrustedProxies = 0
 // Config is the service's configuration. Today it carries the listen port the
 // skeleton needs, the app-root the built PWA is served from, the Postgres DSN
 // the registry lives behind, and the sign-in machinery's vars (the SMTP relay
-// and sender, the public origin, and the link-signing secret —
-// service.email_links); later service tasks extend it (the volume path in
-// service.books).
+// and its optional credentials — launch.email — the sender, the public origin,
+// and the link-signing secret — service.email_links); later service tasks
+// extend it (the volume path in service.books).
 type Config struct {
 	// Port is the TCP port the HTTP server binds. Railway injects PORT and
 	// expects the process to bind it (DIRECTION §3.3), so the service deploys
@@ -133,6 +133,15 @@ type Config struct {
 	// (DIRECTION §3.6 lines 313–315). Read from ESTANTE_SMTP_ADDR; in
 	// development and the e2e stack it is the Mailpit catcher (mail:1025).
 	SMTPAddr string
+
+	// SMTPUsername and SMTPPassword are the relay's SMTP AUTH credentials, for a
+	// transactional provider's submission port (launch.email). Read from
+	// ESTANTE_SMTP_USERNAME and ESTANTE_SMTP_PASSWORD; both are optional and go
+	// together — both empty is an unauthenticated relay (the Mailpit catcher in
+	// development and the e2e stack), exactly one set is a start-up error. The
+	// password is a secret and is never logged.
+	SMTPUsername string
+	SMTPPassword string
 
 	// MailFrom is the sender the sign-in mail is sent as. Read from
 	// ESTANTE_MAIL_FROM.
@@ -250,6 +259,21 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 
 	if raw, ok := lookup("ESTANTE_SMTP_ADDR"); ok {
 		cfg.SMTPAddr = raw
+	}
+
+	// ESTANTE_SMTP_USERNAME and ESTANTE_SMTP_PASSWORD go together: neither is
+	// the unauthenticated catcher, both is the provider's relay (launch.email),
+	// and one without the other is a half-configured relay that would fail every
+	// send — a start-up error instead. The error names the variables, never the
+	// value.
+	if raw, ok := lookup("ESTANTE_SMTP_USERNAME"); ok {
+		cfg.SMTPUsername = raw
+	}
+	if raw, ok := lookup("ESTANTE_SMTP_PASSWORD"); ok {
+		cfg.SMTPPassword = raw
+	}
+	if (cfg.SMTPUsername == "") != (cfg.SMTPPassword == "") {
+		return Config{}, fmt.Errorf("config: ESTANTE_SMTP_USERNAME and ESTANTE_SMTP_PASSWORD must be set together (the relay's SMTP credentials; both empty for an unauthenticated relay)")
 	}
 
 	if raw, ok := lookup("ESTANTE_MAIL_FROM"); ok {

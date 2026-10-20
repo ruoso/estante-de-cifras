@@ -91,8 +91,10 @@ func run() error {
 	}
 
 	api := &server.APIDeps{
-		DB:         pool,
-		Mailer:     mail.NewSMTP(cfg.SMTPAddr, cfg.MailFrom),
+		DB: pool,
+		// The relay's SMTP credentials are optional (launch.email): empty in
+		// dev and the e2e stack (Mailpit), the provider's in production.
+		Mailer:     mail.NewSMTP(cfg.SMTPAddr, cfg.MailFrom).WithAuth(cfg.SMTPUsername, cfg.SMTPPassword),
 		LinkSecret: []byte(cfg.LinkSecret),
 		// The invitation link's derivation key (books.share_people).
 		InvitationSecret: []byte(cfg.InvitationSecret),

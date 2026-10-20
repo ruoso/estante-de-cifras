@@ -77,7 +77,9 @@ services:
       # origin — scripts/gate authors it (ESTANTE_E2E_BASE_URL) and this reads it,
       # defaulting to http://localhost:<port> for a bare `docker compose up`. The
       # signing secret is a dev-only placeholder here (never a real credential);
-      # production injects a real ESTANTE_LINK_SECRET.
+      # production injects a real ESTANTE_LINK_SECRET. Mailpit takes mail with no
+      # SMTP AUTH, so ESTANTE_SMTP_USERNAME/ESTANTE_SMTP_PASSWORD stay unset here;
+      # production sets both for the provider's relay (launch.email).
       ESTANTE_SMTP_ADDR: mail:1025
       ESTANTE_MAIL_FROM: ${ESTANTE_MAIL_FROM:-no-reply@estantedecifras.app}
       ESTANTE_PUBLIC_BASE_URL: ${ESTANTE_E2E_BASE_URL:-http://localhost:${ESTANTE_HTTP_PORT:-8080}}

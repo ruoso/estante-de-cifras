@@ -448,3 +448,74 @@ func TestLoadRejectsBadTrustedProxies(t *testing.T) {
 		}
 	}
 }
+
+// TestLoadSMTPCredentials pins the relay's optional SMTP AUTH credentials
+// (launch.email): neither set is the unauthenticated catcher (dev and e2e),
+// both set are read verbatim, and exactly one set is a start-up error that
+// names the variables but never carries the password.
+func TestLoadSMTPCredentials(t *testing.T) {
+	const password = "a-very-secret-smtp-password"
+
+	t.Run("neither set", func(t *testing.T) {
+		cfg, err := Load(envFrom(withSecret(nil)))
+		if err != nil {
+			t.Fatalf("Load: unexpected error: %v", err)
+		}
+		if cfg.SMTPUsername != "" || cfg.SMTPPassword != "" {
+			t.Errorf("SMTP credentials = %q/%q, want both empty", cfg.SMTPUsername, cfg.SMTPPassword)
+		}
+	})
+
+	t.Run("both empty", func(t *testing.T) {
+		cfg, err := Load(envFrom(withSecret(map[string]string{
+			"ESTANTE_SMTP_USERNAME": "",
+			"ESTANTE_SMTP_PASSWORD": "",
+		})))
+		if err != nil {
+			t.Fatalf("Load: unexpected error: %v", err)
+		}
+		if cfg.SMTPUsername != "" || cfg.SMTPPassword != "" {
+			t.Errorf("SMTP credentials = %q/%q, want both empty", cfg.SMTPUsername, cfg.SMTPPassword)
+		}
+	})
+
+	t.Run("both set", func(t *testing.T) {
+		cfg, err := Load(envFrom(withSecret(map[string]string{
+			"ESTANTE_SMTP_USERNAME": "relay-user",
+			"ESTANTE_SMTP_PASSWORD": password,
+		})))
+		if err != nil {
+			t.Fatalf("Load: unexpected error: %v", err)
+		}
+		if cfg.SMTPUsername != "relay-user" {
+			t.Errorf("SMTPUsername = %q, want relay-user", cfg.SMTPUsername)
+		}
+		if cfg.SMTPPassword != password {
+			t.Error("SMTPPassword was not read verbatim")
+		}
+	})
+
+	for name, extra := range map[string]map[string]string{
+		"only username": {"ESTANTE_SMTP_USERNAME": "relay-user"},
+		"only password": {"ESTANTE_SMTP_PASSWORD": password},
+		"empty username": {
+			"ESTANTE_SMTP_USERNAME": "",
+			"ESTANTE_SMTP_PASSWORD": password,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := Load(envFrom(withSecret(extra)))
+			if err == nil {
+				t.Fatal("Load: want error when only one SMTP credential is set, got nil")
+			}
+			for _, v := range []string{"ESTANTE_SMTP_USERNAME", "ESTANTE_SMTP_PASSWORD"} {
+				if !strings.Contains(err.Error(), v) {
+					t.Errorf("error %q does not name %s", err, v)
+				}
+			}
+			if strings.Contains(err.Error(), password) {
+				t.Error("error carries the SMTP password")
+			}
+		})
+	}
+}
