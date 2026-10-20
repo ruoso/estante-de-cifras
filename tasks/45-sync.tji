@@ -29,6 +29,7 @@ task sync "Sync" {
   task states_e2e_hosted "Hosted-book sync state e2e journey" {
     effort 1d
     allocate team
+    complete 100
     depends !states, books.online
     note "A correction owed by sync.states, which landed without its hosted-book e2e journey — not new work. Put a local book online (books.online), take the device offline and back on the compose stack, and assert offline since …, N saves waiting, the header mark, then cleared after sync; axe on each state on all three viewports. Needs only books.online: one device's own book, no invitation. Source of debt: tasks/refinements/sync/states.md (sync.states). Tests: e2e-web (hosted book offline→online state transitions, axe on phone/tablet/computer)."
   }

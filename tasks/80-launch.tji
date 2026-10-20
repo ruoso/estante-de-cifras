@@ -6,6 +6,7 @@ task launch "Launch" {
   task railway "Railway project" {
     effort 1d
     allocate team
+    complete 100
     depends foundation.compose
     note "The service with its volume and Postgres in a US region; Railway's backups for both. DIRECTION §3.3, §3.4. Tests: none in code — infrastructure; checked by the deployed service's health check."
   }
