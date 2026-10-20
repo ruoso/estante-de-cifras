@@ -182,4 +182,10 @@ task books "Books" {
     depends songs.save_gate_dropped_section
     note "The Worker's save writes README.md and .gitattributes through the song writer (app/src/worker/canonicalise.js:30,76-79 treats every non-setlist path as a song), so a README with a `---` above a `## Heading` loses the lines under it and runs of blank lines are collapsed, but the hook holds README.md only to the text rules (hook.canonical). Save README.md and .gitattributes as written (UTF-8 checked, marker lines refused), and narrow the editor's after-rule save gate (app/src/editor/save-blockers.js) to `*.cifra.md` paths and new songs. Source: tasks/refinements/songs/save_gate_dropped_section.md (songs.save_gate_dropped_section). Governing: docs/workflows/04-edit-and-save.md Normalising. Tests: unit (canonicaliseFile keeps a README with a rule and headings byte for byte; refuses a marker line); behavior (a README saved through working-copy.js save commits its bytes unchanged; the raw editor saves a README with `---` / `## Usage` without the after-rule stop; axe). Refinement: tasks/refinements/books/save_readme_verbatim.md"
   }
+  task row_opens_songs "A book on the shelf opens on its songs" {
+    effort 1d
+    allocate team
+    depends !shelf, !file_view, design.book_row_songs
+    note "As design.book_row_songs decides: the book row's press opens the book's songs (search scoped to it at …/b/<book>), the row has no other action — the management detail is reached from an entry on the book's songs view, and Files moves from the row into that detail; a book that needs you opens as the design says. Source: launch smoke test 2026-10-19 (the Books tab's only visible way into a book was Files). Tests: behavior (the row opens the scoped search, its detail entry opens the detail, Files reached from the detail, keyboard paths; axe); e2e-web (a book's songs opened from the Books tab and a song played from there, the detail reached from the book's songs and Files from the detail, on the three viewports; axe, mockup W07 and W14). Refinement: tasks/refinements/books/row_opens_songs.md"
+  }
 }

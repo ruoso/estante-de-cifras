@@ -29,7 +29,7 @@ task milestones "Milestones" {
 
   task m3_service "M3: Estante online" {
     milestone
-    depends milestones.m2_local, hook.messages, hook.home_book, account.sign_in, books.online, books.online_reindex, sync.states, sync.states_e2e_hosted, sync.read_in_place, sync.unsaved, songs.edit_in_place, launch.deploy, launch.email, foundation.cifra_md_in_image, foundation.gate_localhost_origin, account.sign_in_two_doors
+    depends milestones.m2_local, hook.messages, hook.home_book, account.sign_in, books.online, books.online_reindex, sync.states, sync.states_e2e_hosted, sync.read_in_place, sync.unsaved, songs.edit_in_place, launch.deploy, launch.email, foundation.cifra_md_in_image, foundation.gate_localhost_origin, account.sign_in_two_doors, books.row_opens_songs
     note "Sign in, put a book online, every push checked, sync across one person's devices — running at www.estantedecifras.app."
   }
 
