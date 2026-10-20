@@ -348,7 +348,9 @@
 .row.explore { background: var(--accent-soft); }
 .row.explore .name { color: var(--accent); }
 .badges { display: flex; gap: 6px; flex-wrap: wrap; }
-.section-label { display: flex; align-items: center; justify-content: space-between; padding: 0 2px; }
+/* A caption beside the label drops whole beneath it when both do not fit,
+   rather than each squeezing (shell.narrow_fixes Decision 5). */
+.section-label { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px calc(var(--u) * 1.5); padding: 0 2px; }
 
 /* Notices inline on a screen */
 .notice { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; padding: calc(var(--u) * 1.5) calc(var(--u) * 2); border-radius: var(--radius); background: var(--surface-2); font-size: 15px; line-height: 1.4; }

@@ -146,8 +146,9 @@ task shell "Shell" {
   task narrow_fixes "Nothing cut off or crowded where the explorers found it" {
     effort 0.5d
     allocate team
+    complete 100
     depends !narrow_fit
-    note "At phone width: the Add a book sheet Mine on Estante line runs past the sheet’s right edge (Your books that are not on this shelf yet. Sign in to s…); the Account Neck choice reads Verti… with its Selected badge crowding it; the setlist edit header truncates the book name to M., wraps Save to a second row beside the unsaved changes pill and clips the Key field, and the Key and note apply in this setlist only line wraps awkwardly; the search field shows two clear controls while typing (a blue × inside the field and a separate ✕). Source: persona exploration 2026-10-19 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified against screenshots and code). Tests: behavior (each control has room, one clear control; axe); e2e-web (each screen at 390px and 412px in all themes, nothing clipped; axe, the narrow_fit checks)."
+    note "At phone width: the Add a book sheet Mine on Estante line runs past the sheet’s right edge (Your books that are not on this shelf yet. Sign in to s…); the Account Neck choice reads Verti… with its Selected badge crowding it; the setlist edit header truncates the book name to M., wraps Save to a second row beside the unsaved changes pill and clips the Key field, and the Key and note apply in this setlist only line wraps awkwardly; the search field shows two clear controls while typing (a blue × inside the field and a separate ✕). Source: persona exploration 2026-10-19 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified against screenshots and code). Tests: behavior (each control has room, one clear control; axe); e2e-web (each screen at 390px and 412px in all themes, nothing clipped; axe, the narrow_fit checks). Refinement: tasks/refinements/shell/narrow_fixes.md"
   }
   task surface_restore_focus "Focus lands on the restored screen when a full-screen layer closes" {
     effort 0.5d

@@ -678,3 +678,35 @@ describe('SearchScreen — an owner-role book offers a new song (books.owner_can
     expect(written).toEqual([{ bookId: 'srv-own' }]);
   });
 });
+
+// shell.narrow_fixes — one clear control per search field: with a query typed
+// the field holds exactly one clear button, the app's ✕ "Clear search"; it and
+// Escape (RAC SearchField) both empty the field. The browser's own cancel × is
+// a pseudo-element jsdom cannot see; e2e-web pins it hidden
+// (narrow-fixes.spec.js, Decision 6).
+describe('SearchScreen — one clear control (shell.narrow_fixes)', () => {
+  it('with a query typed, exactly one /clear/i button in the field; ✕ and Escape each empty it; axe clean', async () => {
+    const { store } = makeStore();
+    const { container } = render(<SearchScreen store={store} />);
+    const field = container.querySelector('.search .field');
+    const searchbox = screen.getByRole('searchbox');
+
+    type('Morning');
+    expect(searchbox).toHaveValue('Morning');
+    const clears = within(field).getAllByRole('button', { name: /clear/i });
+    expect(clears).toHaveLength(1);
+    expect(clears[0]).toHaveAccessibleName('Clear search');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    act(() => fireEvent.click(clears[0]));
+    expect(screen.getByRole('searchbox')).toHaveValue('');
+
+    type('Morning');
+    expect(screen.getByRole('searchbox')).toHaveValue('Morning');
+    act(() => {
+      fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Escape' });
+      fireEvent.keyUp(screen.getByRole('searchbox'), { key: 'Escape' });
+    });
+    expect(screen.getByRole('searchbox')).toHaveValue('');
+  });
+});

@@ -112,7 +112,11 @@
    theme's .row (a RAC Button resets the native button look here); the meta line
    may wrap on a phone rather than lose its words. Layout only — colours are
    theme tokens. */
+/* Border-box: the Mine row is a div, not a button, so its `width: 100%` would
+   otherwise add the row's padding and run its description past the sheet's
+   right edge (shell.narrow_fixes, measured: 380 px in a 348 px list). */
 .add-choice {
+  box-sizing: border-box;
   width: 100%;
   border: 0;
   border-bottom: 1px solid var(--line);

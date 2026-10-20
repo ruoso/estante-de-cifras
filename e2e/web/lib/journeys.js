@@ -168,11 +168,18 @@ export async function signedInDevice(page) {
 
 // ---- books (workflow 7) ------------------------------------------------------
 
-export async function makeLocalBook(page, name) {
+// Books → *Add a book*: the chooser sheet of the ways in (books.add_book_chooser;
+// workflow 7 §The book-management screen). Returns the sheet.
+export async function openAddABook(page) {
   await gotoTab(page, 'Books');
   await page.getByRole('button', { name: 'Add a book' }).click();
   const sheet = page.getByRole('dialog');
   await expect(sheet).toBeVisible();
+  return sheet;
+}
+
+export async function makeLocalBook(page, name) {
+  const sheet = await openAddABook(page);
   // The sheet is a chooser (books.add_book_chooser): New book's row opens its step.
   await sheet.getByRole('button', { name: 'New book' }).click();
   await sheet.getByRole('textbox', { name: 'Book name' }).fill(name);

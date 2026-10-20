@@ -1475,3 +1475,39 @@ describe('your name (account.author_name)', () => {
     expect(within(region()).queryByText('Ana Ribeiro')).toBeNull();
   });
 });
+
+// shell.narrow_fixes — the Neck tiles: the chosen one holds its name and the
+// "Selected" word (the state carried by a word, never colour alone), and the
+// word moves with the choice; the radio is still named by its option. Pins
+// workflow 13 §The account screen and workflow 16 §How diagrams are drawn.
+// Whether the word sits beside or beneath the name is e2e-web's geometry
+// (narrow-fixes.spec.js).
+describe('AccountScreen — the Neck tiles read whole (shell.narrow_fixes)', () => {
+  it('the chosen tile holds its name and "Selected"; choosing Horizontal moves the word; names unchanged; axe clean', async () => {
+    const { client } = signedOut();
+    const { container } = renderAccount(workerStore(), { client });
+    await screen.findByText('Not signed in');
+    const neck = () => screen.getByRole('radiogroup', { name: 'Neck' });
+    const radio = (name) => within(neck()).getByRole('radio', { name: new RegExp(`^${name}`) });
+    const tileOf = (name) => radio(name).closest('label');
+
+    expect(radio('Vertical')).toBeChecked();
+    expect(within(tileOf('Vertical')).getByText('Vertical')).toHaveClass('name');
+    expect(within(tileOf('Vertical')).getByText('Selected')).toBeInTheDocument();
+    expect(within(tileOf('Horizontal')).queryByText('Selected')).toBeNull();
+    expect(await checkWcag21aa(container), 'vertical').toHaveNoViolations();
+
+    fireEvent.click(radio('Horizontal'));
+    await waitFor(() => expect(radio('Horizontal')).toBeChecked());
+    expect(within(tileOf('Horizontal')).getByText('Horizontal')).toHaveClass('name');
+    expect(within(tileOf('Horizontal')).getByText('Selected')).toBeInTheDocument();
+    expect(within(tileOf('Vertical')).queryByText('Selected')).toBeNull();
+    expect(within(neck()).getAllByText('Selected')).toHaveLength(1);
+    // Each radio is still named by its option first (the tile's label, as
+    // before this task: the name, its description, then the state word).
+    for (const name of ['Vertical', 'Horizontal']) {
+      expect(radio(name)).toHaveAccessibleName(expect.stringMatching(new RegExp(`^${name}`)));
+    }
+    expect(await checkWcag21aa(container), 'horizontal').toHaveNoViolations();
+  });
+});

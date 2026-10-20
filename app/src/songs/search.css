@@ -67,6 +67,15 @@
   outline: none;
 }
 
+/* One clear control: the app's ✕ "Clear search". RAC gives the input
+   type="search", for which Chromium draws its own cancel × as well; hide that
+   one only here, where the app draws its own (the setlist in-book picker keeps
+   its native one, its only clear control; shell.narrow_fixes Decision 6). */
+.search .field input::-webkit-search-cancel-button {
+  appearance: none;
+  display: none;
+}
+
 .search .icon {
   flex: none;
   color: var(--ink-2);

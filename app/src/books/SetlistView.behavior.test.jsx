@@ -712,3 +712,51 @@ describe('setlists in Palco (shell.palco_contrast)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });
+
+// shell.narrow_fixes — the editor's app bar in two groups: a head (Back, the
+// title, the book name under it) and the actions (the "unsaved changes" word,
+// Add song, Play, Discard, Save), so a phone wraps the actions as a unit and
+// the status word stays with them, never shrinking the book name to a letter.
+// DOM order is the visual and tab order. Pins workflow 12 §Building one and
+// W12's editor bar; the geometry is e2e-web's (narrow-fixes.spec.js).
+describe('SetlistView — the editor bar groups (shell.narrow_fixes)', () => {
+  const BAR_SHELF = { local: { band: { title: { value: 'Banda do Bairro' }, position: { value: 1 } } } };
+
+  it('editing a Key shows "unsaved changes" first in the actions group, Save last; the book name in the head; tab order follows; axe clean', async () => {
+    const { store } = makeStore({ shelf: BAR_SHELF });
+    const { container } = renderSetlist(store);
+    await screen.findByText('Garota de Ipanema');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Edit' })));
+    await screen.findByRole('grid', { name: 'Songs · drag to reorder' });
+    await act(async () =>
+      fireEvent.change(screen.getByRole('textbox', { name: 'Key for Corcovado' }), { target: { value: 'A' } }),
+    );
+    await screen.findByText('unsaved changes');
+
+    const bar = container.querySelector('.setlist-edit-bar');
+    const [head, actions] = bar.children;
+    expect(bar.children).toHaveLength(2);
+    expect(within(head).getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(within(head).getByText('Banda do Bairro')).toHaveClass('t-small');
+    expect(within(actions).queryByText('Banda do Bairro')).toBeNull();
+
+    const words = [...actions.children].map((el) => el.textContent.trim());
+    expect(words).toEqual(['unsaved changes', 'Add song', 'Play', 'Discard', 'Save']);
+    expect(actions.children[0]).toHaveClass('badge', 'unsaved');
+
+    // Tab order is DOM order: no positive tabindex, and the bar's focusable
+    // controls come in W12's order with Save last.
+    const focusable = [...bar.querySelectorAll('button, [tabindex]')].filter(
+      (el) => !el.disabled && el.getAttribute('tabindex') !== '-1',
+    );
+    for (const el of focusable) expect(Number(el.getAttribute('tabindex') ?? 0)).toBeLessThanOrEqual(0);
+    expect(focusable.map((el) => el.getAttribute('aria-label') || el.textContent.trim())).toEqual([
+      'Back',
+      'Add song',
+      'Play',
+      'Discard',
+      'Save',
+    ]);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});

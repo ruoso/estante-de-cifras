@@ -47,12 +47,41 @@
 .setlist-screen .appbar {
   flex-wrap: wrap;
 }
-.setlist-appbar-book {
-  flex: 1;
+/* The editor bar wraps by group, not item by item (shell.narrow_fixes
+   Decision 2): the head takes the row; the actions, sized to their content,
+   drop beneath it as a unit when both do not fit, and wrap within themselves
+   right-aligned so Save stays last at the right. The book name, under the
+   title, ellipsizes only when it alone is wider than the row. */
+.setlist-edit-bar {
+  row-gap: var(--u);
+}
+.setlist-bar-head {
+  flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+}
+.setlist-bar-titles {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.setlist-appbar-book {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.setlist-bar-actions {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--u) calc(var(--u) * 1.5);
 }
 
 .setlist-head {
@@ -97,6 +126,10 @@
 }
 .setlist-edit-row .grow {
   min-width: 40%;
+  /* Where the whole row fits one line the name column takes the room the note
+     could grow into, so the note keeps its board width (W12: 200 px); the note
+     grows only on a line of its own (see .setlist-note-field). */
+  flex-grow: 1000;
 }
 .setlist-edit-row[data-dragging='true'] {
   background: var(--surface);
@@ -120,8 +153,16 @@
   min-height: 36px;
 }
 .setlist-note {
-  width: 200px;
+  width: 100%;
   min-height: 36px;
+}
+/* The note is free text and is the field that gives (shell.narrow_fixes
+   Decision 4): its board width of 200 px where the row has room, the rest of
+   the row's second line on a phone; the key keeps its 64 px. */
+.setlist-field.setlist-note-field {
+  flex: 1 1 auto;
+  width: 200px;
+  min-width: 8em;
 }
 
 /* The inline in-book picker (add a song, point a missing item at a song). */

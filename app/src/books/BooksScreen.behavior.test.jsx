@@ -729,3 +729,28 @@ describe('BooksScreen on a new device (account.new_device, behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });
+
+// shell.narrow_fixes — the Mine row's description and its signed-out sentence
+// are sentences, not the row's ellipsizing .name/.meta lines, so they wrap
+// inside the sheet; both sign-in controls sit with them. Pins workflow 7 §The
+// book-management screen (each way in explained in a line). The geometry is
+// e2e-web's (narrow-fixes.spec.js).
+describe('BooksScreen — the Mine row reads whole (shell.narrow_fixes)', () => {
+  it('signed out, the description and status sentence sit outside .name/.meta, with both sign-in controls; axe clean', async () => {
+    const { store, emit } = makeStore();
+    renderScreen(store);
+    const dialog = openSheet();
+    emit(event(EventKind.MINE, { status: 'signed_out', books: [] }));
+
+    const mine = within(dialog).getByRole('group', { name: 'Mine on Estante' });
+    const description = within(mine).getByText(/Your books that are not on this shelf yet\./);
+    const status = within(mine).getByRole('status');
+    expect(status).toHaveTextContent('Sign in to see them.');
+    for (const sentence of [description, status]) {
+      expect(sentence.closest('.name, .meta')).toBeNull();
+    }
+    expect(within(mine).getByRole('button', { name: 'Sign in with a passkey' })).toBeInTheDocument();
+    expect(within(mine).getByRole('button', { name: 'No passkey here? Email me a link' })).toBeInTheDocument();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+  });
+});

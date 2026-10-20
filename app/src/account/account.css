@@ -756,6 +756,18 @@ label.signout-card > span:first-child input {
   border-bottom: 0;
   gap: calc(var(--u) * 1.25);
 }
+/* The name reads whole (a fixed label, never ellipsized): the tile's column
+   takes its content's basis rather than the row's zero basis, so when the name
+   and the "Selected" word do not both fit, the tile's wrap moves the word
+   beneath the name (shell.narrow_fixes Decision 1). The description lends no
+   width to that basis — it fills the column and ellipsizes as before. */
+.account-list.account-tiles .account-row .grow {
+  flex: 1 1 auto;
+}
+.account-list.account-tiles .account-row .meta {
+  width: 0;
+  min-width: 100%;
+}
 .account-list.account-tiles .account-row + .account-row {
   border-left: 1px solid var(--line);
 }

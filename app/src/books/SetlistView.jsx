@@ -428,7 +428,7 @@ export default function SetlistView({
                   <Input className="input setlist-key" placeholder={t('setlists.keyPlaceholder')} />
                 </TextField>
                 <TextField
-                  className="setlist-field"
+                  className="setlist-field setlist-note-field"
                   aria-label={t('setlists.noteLabel', { title: row.title })}
                   value={row.note || ''}
                   onChange={(v) => setNote(row.at, v)}
@@ -521,25 +521,35 @@ export default function SetlistView({
 
   return (
     <div className="setlist-screen">
-      <div className="appbar">
-        <Button className="btn icon" aria-label={t('setlists.back')} onPress={() => setEditing(false)}>
-          <Icon d={BACK} size={24} />
-        </Button>
-        <span className="title">{title}</span>
-        <span className="t-small setlist-appbar-book">{bookTitle}</span>
-        {unsaved ? <span className="badge unsaved dot">{t('setlists.unsaved')}</span> : null}
-        <Button className="btn" onPress={() => setAddingSong(true)}>
-          <Icon d={PLUS} size={18} /> {t('setlists.addSong')}
-        </Button>
-        <Button className="btn" onPress={() => onPlay({ bookId, path })}>
-          <Icon d={PLAY} size={18} fill /> {t('setlists.play')}
-        </Button>
-        {unsaved ? (
-          <Button className="btn" onPress={discard}>{t('setlists.discard')}</Button>
-        ) : null}
-        <Button className="btn primary" isDisabled={!unsaved} onPress={save}>
-          {t('setlists.save')}
-        </Button>
+      {/* Two groups (shell.narrow_fixes Decision 2): the head — Back, the
+          title and the book name under it, as the read view's .setlist-head —
+          and the actions, the status word first and Save last, wrapping as a
+          unit onto a second row on a phone. One row on the computer (W12). */}
+      <div className="appbar setlist-edit-bar">
+        <div className="setlist-bar-head">
+          <Button className="btn icon" aria-label={t('setlists.back')} onPress={() => setEditing(false)}>
+            <Icon d={BACK} size={24} />
+          </Button>
+          <span className="setlist-bar-titles">
+            <span className="title">{title}</span>
+            <span className="t-small setlist-appbar-book">{bookTitle}</span>
+          </span>
+        </div>
+        <div className="setlist-bar-actions">
+          {unsaved ? <span className="badge unsaved dot">{t('setlists.unsaved')}</span> : null}
+          <Button className="btn" onPress={() => setAddingSong(true)}>
+            <Icon d={PLUS} size={18} /> {t('setlists.addSong')}
+          </Button>
+          <Button className="btn" onPress={() => onPlay({ bookId, path })}>
+            <Icon d={PLAY} size={18} fill /> {t('setlists.play')}
+          </Button>
+          {unsaved ? (
+            <Button className="btn" onPress={discard}>{t('setlists.discard')}</Button>
+          ) : null}
+          <Button className="btn primary" isDisabled={!unsaved} onPress={save}>
+            {t('setlists.save')}
+          </Button>
+        </div>
       </div>
       {sidePane ? (
         <div className="split">
