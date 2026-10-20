@@ -14,6 +14,11 @@
 // ShareNeedsOnline instead, and asks Estante nothing until the book is put
 // online (books.share_needs_online Constraint 2) — the loads live in the hosted
 // body below, mounted only for a book on Estante.
+//
+// *Share* on a setlist is this panel with `itemKind="setlist"`
+// (books.setlist_invitation; workflow 12 §Sharing one): `songPath`/`songTitle`
+// then name the setlist, and only the words change — the address, an invitation
+// that opens on the setlist, and a line that the invited join the whole book.
 
 import { useEffect, useRef } from 'react';
 import { Button } from 'react-aria-components';
@@ -22,7 +27,7 @@ import { t } from '../i18n/index.js';
 import { bookSongPath } from './book-route.js';
 import { memberSummary, personLabel } from './people.js';
 import { CreatedLink, InvitationForm, useCreateInvitation } from './NewInvitation.jsx';
-import { SongAddress } from './ShareSheet.jsx';
+import { SongAddress, itemShareCopy } from './ShareSheet.jsx';
 import ShareNeedsOnline from './ShareNeedsOnline.jsx';
 import { CloseIcon, LoadState, errorCopy, useSharing } from './sharing-parts.jsx';
 import './sharing.css';
@@ -38,6 +43,7 @@ export default function SongSharePanel({
   role = null,
   isLocal = false,
   accountStatus = 'unknown',
+  itemKind = 'song',
   songPath,
   songTitle = null,
   sharingClient,
@@ -93,6 +99,7 @@ export default function SongSharePanel({
             bookId={bookId}
             title={title}
             role={role}
+            itemKind={itemKind}
             songPath={songPath}
             songName={songName}
             sharingClient={sharingClient}
@@ -108,11 +115,12 @@ export default function SongSharePanel({
 // The panel's body for a book on Estante: the song's address, the owner's
 // invite, and the book's people — loaded on mount, so only ever mounted for a
 // hosted book (a put-online mounts it fresh under the book's new id).
-function HostedSongShare({ bookId, title, role, songPath, songName, sharingClient, origin, onManage }) {
+function HostedSongShare({ bookId, title, role, itemKind, songPath, songName, sharingClient, origin, onManage }) {
   const isOwner = role === 'owner';
   const { client, members, invitations, loadError, reload } = useSharing({ client: sharingClient, bookId, isOwner });
   const creating = useCreateInvitation({ client, bookId, songPath, onCreated: () => reload() });
   const base = origin ?? (typeof window !== 'undefined' ? window.location.origin : '');
+  const copy = itemShareCopy(itemKind, { book: title, name: songName });
 
   const count = members?.count ?? 0;
   const limit = members?.limit ?? 50;
@@ -124,8 +132,12 @@ function HostedSongShare({ bookId, title, role, songPath, songName, sharingClien
 
   return (
     <>
-      <p className="t-small">{t('sharing.songShareIntro', { book: title })}</p>
-      <SongAddress songAddress={`${base}${bookSongPath(bookId, songPath)}`} songTitle={songName} />
+      <p className="t-small">{copy.intro}</p>
+      <SongAddress
+        songAddress={`${base}${bookSongPath(bookId, songPath)}`}
+        songTitle={songName}
+        addressLabel={copy.addressLabel}
+      />
       {loadError || members == null ? (
         <LoadState error={loadError} onRetry={reload} />
       ) : (
@@ -133,8 +145,8 @@ function HostedSongShare({ bookId, title, role, songPath, songName, sharingClien
           {isOwner ? (
             <>
               <div className="est-sharing-rule" />
-              <div className="t-h3">{t('sharing.songInvite')}</div>
-              <p className="t-small">{t('sharing.songInviteBody', { book: title, song: songName })}</p>
+              <div className="t-h3">{copy.invite}</div>
+              <p className="t-small">{copy.inviteBody}</p>
               {creating.error ? (
                 <p className="notice warn" role="alert">
                   {errorCopy(creating.error)}

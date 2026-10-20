@@ -206,3 +206,76 @@ describe('a song’s Share sheet on a book only on this device', () => {
     expect(calls).toEqual([]);
   });
 });
+
+// books.setlist_invitation (workflow 10 §Sharing a song or a setlist; workflow 12
+// §Sharing one): the sheet in setlist mode on a phone — the setlist's address,
+// *Invite someone to this setlist* whose link carries `#<path>`, the line that
+// the invited join the whole book, and Done back to the sheet's summary.
+describe('a setlist’s Share sheet on a phone', () => {
+  const SETLIST_PATH = 'lessons/lesson-3.setlist.md';
+  const SETLIST = { itemKind: 'setlist', songPath: SETLIST_PATH, songTitle: 'Lesson 3', origin: 'https://estante.app' };
+
+  it('for the owner: the address, the joins-the-book line, an invitation whose link carries #<path>, Done back to the summary', async () => {
+    const { client, calls } = ownerClient({
+      'POST /api/books/bk/invitations': () => ({
+        status: 201,
+        body: { ...READER_INV, id: 'i-new', joined: [], joinedCount: 0, url: 'https://estante.app/i/tok' },
+      }),
+    });
+    const { container } = renderSheet(client, SETLIST);
+
+    const sheet = await screen.findByRole('dialog', { name: 'Share Lesson 3' });
+    expect(await within(sheet).findByRole('textbox', { name: 'Setlist address' })).toHaveValue(
+      'https://estante.app/b/bk/lessons/lesson-3.setlist.md',
+    );
+    expect(within(sheet).getByText(/Everyone you invite joins Choros da Ana; the link opens it on Lesson 3\./)).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Invite someone to this setlist' }));
+    expect(within(sheet).getByText(/opens on Lesson 3 once they’ve signed in/)).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Create link' }));
+    const link = await within(sheet).findByRole('textbox', { name: 'Invitation link' });
+    expect(link).toHaveValue('https://estante.app/i/tok#lessons/lesson-3.setlist.md');
+    expect(calls.find((c) => c.method === 'POST').body).toEqual({ role: 'reader', expiry: 'week' });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Done' }));
+    expect(await within(sheet).findByRole('textbox', { name: 'Setlist address' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Invite someone to this setlist' })).toBeInTheDocument();
+    expect(within(sheet).queryByRole('textbox', { name: 'Invitation link' })).toBeNull();
+  });
+
+  it('for a reader: the setlist’s address, no invite', async () => {
+    const { client } = makeClient({
+      'GET /api/books/bk/members': () => ({ body: { members: [ANA], count: 3, limit: 50 } }),
+    });
+    const { container } = renderSheet(client, { ...SETLIST, role: 'reader' });
+
+    const sheet = await screen.findByRole('dialog', { name: 'Share Lesson 3' });
+    expect(await within(sheet).findByRole('textbox', { name: 'Setlist address' })).toHaveValue(
+      'https://estante.app/b/bk/lessons/lesson-3.setlist.md',
+    );
+    expect(within(sheet).queryByRole('button', { name: 'Invite someone to this setlist' })).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('on a book only on this device: the needs-online body under Share Lesson 3, and no call', async () => {
+    const { client, calls } = makeClient({});
+    const { container } = renderSheet(client, {
+      ...SETLIST,
+      store: makeStore(),
+      bookId: 'local-1',
+      title: 'My songs',
+      role: null,
+      isLocal: true,
+      accountStatus: 'in',
+    });
+
+    const sheet = await screen.findByRole('dialog', { name: 'Share Lesson 3' });
+    expect(within(sheet).getByText('My songs is only on this device. Put it online to invite people.')).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Put online' })).toBeInTheDocument();
+    expect(within(sheet).queryByRole('textbox', { name: 'Setlist address' })).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    expect(calls).toEqual([]);
+  });
+});

@@ -556,6 +556,26 @@ describe('AppShell routing (behavior)', () => {
     expect(location.href).not.toContain('tok-secret');
   });
 
+  it('an invitation link ends on the setlist address', () => {
+    // books.setlist_invitation Constraint 5 (workflow 10 §Sharing a song or a
+    // setlist): the anchor names a setlist, so it opens the setlist on the
+    // Setlists tab — at its address, never on the token.
+    const LESSON_PATH = 'lessons/lesson-3.setlist.md';
+    const LESSON_TEXT = ['# Lesson 3', '', `1. [${SONG_TITLE}](../${SONG_PATH})`, ''].join('\n');
+    history.replaceState(null, '', `/i/tok-secret#${LESSON_PATH}`);
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} inviteToken="tok-secret" inviteSongAnchor={LESSON_PATH} />);
+    emit(event(EventKind.SHELF, SHELF));
+    emit(event(EventKind.BOOK_CLONED, { bookId: BOOK }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: LESSON_PATH, text: LESSON_TEXT }));
+    expect(location.pathname).toBe(`/b/${BOOK}/${LESSON_PATH}`);
+    expect(screen.getByRole('heading', { level: 2, name: 'Lesson 3' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Setlists', selected: true })).toBeInTheDocument();
+    expect(history.state.place.tab).toBe('setlists');
+    expect(screen.queryByRole('group', { name: SONG_TITLE })).toBeNull();
+    expect(location.href).not.toContain('tok-secret');
+  });
+
   // books.invited_presentation — workflow 1 §Invited, the presentation
   // paragraph: a refusal is a dialog over the shelf, and dismissing it leaves
   // the person there. The modal aria-hides the shell, so the shell's tabs are
@@ -1091,6 +1111,112 @@ describe('AppShell share surfaces (behavior)', () => {
     const again = screen.getByRole('complementary', { name: `Share ${SONG_TITLE}` });
     expect(within(again).getByRole('button', { name: 'Sign in to put it online' })).toBeInTheDocument();
     expect(bookCalls).toEqual([]);
+  });
+
+  // books.setlist_invitation (workflow 12 §Sharing one; workflow 10 **Where it
+  // sits**, Constraints 4 and 6): Share on an open setlist — the sheet on a
+  // phone, whose inline invite's Done comes back to the sheet and Close to the
+  // setlist at its address; the panel on wide, whose Manage leads to the people
+  // screen over the setlist and its Back back to the setlist; and a local
+  // book's setlist share following the book online.
+  const SETLIST_URL = `/b/${BOOK}/${SETLIST_PATH}`;
+  const SETLIST_TITLE = 'Sábado no bar';
+  function openSetlistAt(emit, { shelf = OWNED, bookId = BOOK } = {}) {
+    history.replaceState(null, '', `/b/${bookId}/${SETLIST_PATH}`);
+    return () => {
+      emit(event(EventKind.SHELF, shelf));
+      emit(event(EventKind.TREE, { bookId, entries: ENTRIES }));
+      emit(event(EventKind.SOURCE, { bookId, path: SETLIST_PATH, text: SETLIST_TEXT }));
+      expect(screen.getByRole('heading', { level: 2, name: SETLIST_TITLE })).toBeInTheDocument();
+    };
+  }
+  const setlistScreen = () =>
+    screen.getByRole('heading', { level: 2, name: SETLIST_TITLE }).closest('.setlist-screen');
+
+  it('narrow: a setlist’s More → Share → Invite someone to this setlist → Create link → Done → Close lands on the setlist, never /setlists', async () => {
+    answerInvitations();
+    const { store, emit } = makeStore();
+    const arrive = openSetlistAt(emit);
+    const { container } = render(<AppShell store={store} />);
+    arrive();
+    expect(location.pathname).toBe(SETLIST_URL);
+
+    fireEvent.click(within(setlistScreen()).getByRole('button', { name: 'More' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Share' }));
+    const sheet = await screen.findByRole('dialog', { name: `Share ${SETLIST_TITLE}` });
+    expect(await within(sheet).findByRole('textbox', { name: 'Setlist address' })).toHaveValue(
+      `${location.origin}${SETLIST_URL}`,
+    );
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.click(await within(sheet).findByRole('button', { name: 'Invite someone to this setlist' }));
+    fireEvent.click(await within(sheet).findByRole('button', { name: 'Create link' }));
+    expect(await within(sheet).findByRole('textbox', { name: 'Invitation link' })).toHaveValue(
+      `https://estante.app/i/tok-done#${SETLIST_PATH}`,
+    );
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Done' }));
+    expect(await within(sheet).findByRole('button', { name: 'Invite someone to this setlist' })).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.getByRole('heading', { level: 2, name: SETLIST_TITLE })).toBeInTheDocument();
+    expect(location.pathname).toBe(SETLIST_URL);
+    expect(location.pathname).not.toBe('/setlists');
+    expect(screen.getByRole('tab', { name: 'Setlists', selected: true })).toBeInTheDocument();
+  });
+
+  it('wide: a setlist’s Share → Manage shows the people screen over the setlist; its Back returns to the setlist at its address', async () => {
+    wide();
+    const { store, emit } = makeStore();
+    const arrive = openSetlistAt(emit);
+    const { container } = render(<AppShell store={store} />);
+    arrive();
+
+    fireEvent.click(within(setlistScreen()).getByRole('button', { name: 'Share', exact: true }));
+    const panel = screen.getByRole('complementary', { name: `Share ${SETLIST_TITLE}` });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(within(panel).getByText(new RegExp(`Everyone you invite joins ${BOOK_LABEL}`))).toBeInTheDocument();
+    await within(panel).findByText(/0 invitations/);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    await act(async () => fireEvent.click(within(panel).getByRole('button', { name: 'Manage' })));
+    const people = await screen.findByRole('region', { name: `${BOOK_LABEL} · People` });
+    expect(screen.queryByRole('heading', { level: 2, name: SETLIST_TITLE })).toBeNull();
+    expect(history.state.layers).toEqual(['people']);
+
+    await traverse(() => fireEvent.click(within(people).getByRole('button', { name: 'Back' })));
+    expect(screen.queryByRole('region', { name: `${BOOK_LABEL} · People` })).toBeNull();
+    expect(screen.getByRole('heading', { level: 2, name: SETLIST_TITLE })).toBeInTheDocument();
+    expect(location.pathname).toBe(SETLIST_URL);
+    expect(history.state.place.tab).toBe('setlists');
+  });
+
+  it('wide: a local book’s setlist share says it is only on this device, then after BOOK_ONLINE is the owner’s setlist share under the new id (Constraint 4)', async () => {
+    wide();
+    recordBookCalls();
+    const { store, emit } = makeStore();
+    const arrive = openSetlistAt(emit, { shelf: LOCAL_SHELF, bookId: LOCAL });
+    render(<AppShell store={store} authClient={authAs(true)} />);
+    arrive();
+
+    fireEvent.click(within(setlistScreen()).getByRole('button', { name: 'Share', exact: true }));
+    const panel = screen.getByRole('complementary', { name: `Share ${SETLIST_TITLE}` });
+    expect(within(panel).getByText('My songs is only on this device. Put it online to invite people.')).toBeInTheDocument();
+    expect(within(panel).queryByRole('textbox', { name: 'Setlist address' })).toBeNull();
+    expect(bookCalls).toEqual([]);
+
+    emit(event(EventKind.SHELF, ONLINE_SHELF));
+    emit(event(EventKind.BOOK_ONLINE, { previousBookId: LOCAL, bookId: SERVICE }));
+    emit(event(EventKind.SOURCE, { bookId: SERVICE, path: SETLIST_PATH, text: SETLIST_TEXT }));
+
+    const same = screen.getByRole('complementary', { name: `Share ${SETLIST_TITLE}` });
+    expect(within(same).getByRole('textbox', { name: 'Setlist address' })).toHaveValue(
+      `${location.origin}/b/${SERVICE}/${SETLIST_PATH}`,
+    );
+    expect(await within(same).findByRole('button', { name: 'Create link' })).toBeInTheDocument();
+    expect(within(same).getByText('Invite someone to this setlist')).toBeInTheDocument();
+    await waitFor(() => expect(bookCalls).toContain(`/api/books/${SERVICE}/members`));
+    expect(bookCalls.every((p) => p.startsWith(`/api/books/${SERVICE}/`))).toBe(true);
   });
 });
 

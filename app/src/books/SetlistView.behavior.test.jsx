@@ -175,8 +175,67 @@ describe('SetlistView — the ⋯ menu (shell.popover_surface)', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'More' })));
     const menu = await screen.findByRole('menu');
     expectPopoverSurface(menu);
-    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Edit', 'Play']);
+    // Share joined Edit and Play (books.setlist_invitation; workflow 12 §Sharing one).
+    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Edit', 'Play', 'Share']);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
+// books.setlist_invitation (workflow 12 §Sharing one; Constraint 3): Share sits
+// on the read view — in More on every mode, and as an app-bar button on wide —
+// and raises `onShare({bookId, path})`. The shell's surface comes back through
+// `sidePanel`: beside the list on wide, the list still there for assistive
+// technology. The editor offers no Share (Decision 4).
+describe('SetlistView — Share (workflow 12 §Sharing one)', () => {
+  it('narrow: More has Share, which raises onShare; no app-bar Share button', async () => {
+    const onShare = vi.fn();
+    const { store } = makeStore();
+    renderSetlist(store, { mode: 'narrow', onShare });
+    await screen.findByText('Garota de Ipanema');
+    expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'More' })));
+    const menu = await screen.findByRole('menu');
+    await act(async () => fireEvent.click(within(menu).getByRole('menuitem', { name: 'Share' })));
+    expect(onShare).toHaveBeenCalledWith({ bookId: BOOK, path: SETLIST_PATH });
+  });
+
+  it('wide: the app bar has Share, which raises onShare; the side panel sits beside the list (axe clean)', async () => {
+    const onShare = vi.fn();
+    const { store } = makeStore();
+    const sidePanel = vi.fn(({ title }) => (
+      <aside aria-label={`Share ${title}`}>
+        <h2>Share {title}</h2>
+      </aside>
+    ));
+    const { container } = renderSetlist(store, { mode: 'wide', onShare, sidePanel });
+    await screen.findByText('Garota de Ipanema');
+
+    const share = screen.getByRole('button', { name: 'Share' });
+    expect(share).toHaveAttribute('data-share-return');
+    await act(async () => fireEvent.click(share));
+    expect(onShare).toHaveBeenCalledWith({ bookId: BOOK, path: SETLIST_PATH });
+
+    const panel = screen.getByRole('complementary', { name: 'Share Bar do Zé' });
+    expect(sidePanel).toHaveBeenCalledWith({ title: 'Bar do Zé' });
+    // Beside the list, in the same row; the list is not hidden behind it.
+    const row = panel.parentElement;
+    expect(row).toHaveClass('setlist-with-panel');
+    const list = screen.getByText('Garota de Ipanema');
+    expect(row.contains(list)).toBe(true);
+    expect(list.closest('[aria-hidden="true"]')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('the editor (after Edit) offers no Share', async () => {
+    const { store } = makeStore();
+    renderSetlist(store, { mode: 'wide' });
+    await screen.findByText('Garota de Ipanema');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Edit' })));
+    await screen.findByRole('grid', { name: 'Songs · drag to reorder' });
+    expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Share' })).toBeNull();
   });
 });
 

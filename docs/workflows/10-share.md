@@ -85,12 +85,13 @@ never an account's id.
 book's people up — *37 of 50*, the members counted by role, the invitations —
 and leads to the people screen and to a new invitation, each a screen of its
 own. On a tablet or a computer it opens the people screen itself, with a new
-invitation as a dialog over it. *Share* on a song is a panel beside the song
-on a tablet or a computer, and the same sheet on a phone. A member's *Share*
-opens the same places, showing what a member sees.
+invitation as a dialog over it. *Share* on a song or a setlist is a panel
+beside it on a tablet or a computer, and the same sheet on a phone. A
+member's *Share* opens the same places, showing what a member sees.
 *Done*, once a new invitation's link is made, returns to where it was made
-from: the book's people screen, or the book itself when the invitation was
-made from the phone's sheet — never to another destination.
+from: the book's people screen, the book itself when the invitation was
+made from the phone's sheet, or the song or setlist whose *Share* made it —
+never to another destination.
 
 ## Removing someone, or lowering their role
 
@@ -165,15 +166,25 @@ Edge cases:
 Their edits stay unsaved on their device, as workflow 4 has it, and *save*
 offers to make the book their own (workflow 11).
 
-## Sharing a song
+## Sharing a song or a setlist
 
 *Share* on a song shares its book: the invitation it makes opens on that song
 once accepted. For someone already a member, the link is just the song's
 address, `…/b/<book>/<path>`. There is no sharing one song apart from its
 book.
 
-A song in a book that is only on this device — *My songs* before it goes
-online, or any book made here — has no one to share it with yet. Its
+A setlist is shared the same way (workflow 12 §Sharing one). A teacher who
+wants the class to see this week's lesson presses *Share* on the lesson's
+setlist: the invitation it makes is the book's ordinary invitation, and opens
+on that setlist once accepted; for someone already a member, the link is the
+setlist's address, `…/b/<book>/<path>`. The people invited still join the
+whole book — there is no sharing one setlist apart from its book either — and
+the surface says so in a line: *Everyone you invite joins Choros da Ana; the
+link opens it on Lesson 3.*
+
+A song or a setlist in a book that is only on this device — *My songs*
+before it goes online, or any book made here — has no one to share it with
+yet. Its
 *Share* opens the same panel or sheet, and says so in words: *this book is
 only on this device; put it online to invite people*, with the same line
 *Put online* carries in the book's detail (workflow 7 §Putting a book
@@ -181,8 +192,8 @@ online: it goes online private). It offers *Put online* there; signed out,
 it offers *Sign in to put it online* first, which opens the one sign-in
 surface (workflow 13 §Signing in, or making an account) and comes back to
 the same panel, where *Put online* is then one more press. Once the book is
-online, the panel is the owner's ordinary song share, ready to invite.
-Nothing in it asks Estante anything until *Put online* is pressed.
+online, the panel is the owner's ordinary song or setlist share, ready to
+invite. Nothing in it asks Estante anything until *Put online* is pressed.
 
 Explore Chords' link, which carried the song in the link itself, is not
 brought over.

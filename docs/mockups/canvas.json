@@ -105,96 +105,96 @@
    "x": 0,
    "y": 20240,
    "w": 3208,
-   "h": 1500,
+   "h": 2500,
    "title": "12. Setlists"
   },
   "W13-new-device.dc.html": {
    "x": 0,
-   "y": 21860,
+   "y": 22860,
    "w": 3208,
    "h": 1500,
    "title": "13. A new device"
   },
   "W14-file-view.dc.html": {
    "x": 0,
-   "y": 23480,
+   "y": 24480,
    "w": 3208,
    "h": 1500,
    "title": "14. The file view"
   },
   "W16-chord-explorer.dc.html": {
    "x": 0,
-   "y": 25100,
+   "y": 26100,
    "w": 3208,
    "h": 1500,
    "title": "16. The chord explorer"
   },
   "W15-set-up-an-instrument.dc.html": {
    "x": 0,
-   "y": 26720,
+   "y": 27720,
    "w": 3208,
    "h": 1500,
    "title": "15. Setting up an instrument"
   },
   "Theme-picker.dc.html": {
    "x": 0,
-   "y": 28340,
+   "y": 29340,
    "w": 3208,
    "h": 1500,
    "title": "The theme picker"
   },
   "Screen-reader.dc.html": {
    "x": 0,
-   "y": 29960,
+   "y": 30960,
    "w": 3208,
    "h": 1500,
    "title": "How a screen reader reads a chart"
   },
   "W17-leaving.dc.html": {
    "x": 0,
-   "y": 31580,
+   "y": 32580,
    "w": 3208,
    "h": 1500,
    "title": "17. Leaving"
   },
   "Recovery-email.dc.html": {
    "x": 0,
-   "y": 33200,
+   "y": 34200,
    "w": 3208,
    "h": 1500,
    "title": "13 & 17. The recovery email"
   },
   "Leave-book.dc.html": {
    "x": 0,
-   "y": 34820,
+   "y": 35820,
    "w": 3208,
    "h": 1500,
    "title": "10. Leaving one book"
   },
   "Remove-from-shelf.dc.html": {
    "x": 0,
-   "y": 36440,
+   "y": 37440,
    "w": 3208,
    "h": 1500,
    "title": "7. Removing a book from the shelf"
   },
   "Sign-in.dc.html": {
    "x": 0,
-   "y": 38060,
+   "y": 39060,
    "w": 3208,
    "h": 1500,
    "title": "1 & 13. Signing in, or making an account"
   },
   "Open-a-book.dc.html": {
    "x": 0,
-   "y": 39680,
+   "y": 40680,
    "w": 3208,
    "h": 1500,
    "title": "7 & 14. A book opens on its songs"
   },
   "Format-help.dc.html": {
    "x": 0,
-   "y": 41300,
+   "y": 42300,
    "w": 3208,
    "h": 1500,
    "title": "3 & 4. Help with the format"

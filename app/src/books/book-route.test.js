@@ -93,6 +93,14 @@ describe('the link builders round-trip with the parsers', () => {
     const link = invitationSongLink('https://estante.app/i/tok', path);
     expect(songAnchorFromHash(new URL(link).hash)).toBe(path);
   });
+
+  // books.setlist_invitation (share Decision 2 for a setlist path): a setlist's
+  // invitation carries its path the same way — slashes kept, segments encoded.
+  it('invitationSongLink carries a setlist path, and songAnchorFromHash gives it back', () => {
+    const link = invitationSongLink('https://estante.app/i/tok', 'lessons/lesson 3.setlist.md');
+    expect(link).toBe('https://estante.app/i/tok#lessons/lesson%203.setlist.md');
+    expect(songAnchorFromHash(new URL(link).hash)).toBe('lessons/lesson 3.setlist.md');
+  });
 });
 
 // unit (shell.routing) — the book-only address `/b/<bookId>`: where the app is

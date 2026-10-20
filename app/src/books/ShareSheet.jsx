@@ -10,6 +10,10 @@
 // member's sheet shows what a member sees: their role in a word, the count, and
 // who shares the book and saves to it.
 //
+// *Share* on a setlist is the same sheet with `itemKind="setlist"`
+// (books.setlist_invitation; workflow 12 §Sharing one): `songPath`/`songTitle`
+// then name the setlist, and only the words change.
+//
 // A song in a book only on this device has no one to share it with yet: the
 // sheet holds ShareNeedsOnline instead, and asks Estante nothing until the book
 // is put online (books.share_needs_online Constraint 2) — the loads live in the
@@ -55,13 +59,13 @@ function PersonIcon() {
 
 // A song's part of the sheet (and of the wide panel): the address members open
 // it at, with Copy (workflow 10 §Sharing a song).
-export function SongAddress({ songAddress, songTitle }) {
+export function SongAddress({ songAddress, songTitle, addressLabel = t('sharing.songAddressLabel') }) {
   return (
     <div className="est-sharing-song">
       <div className="t-h3">{t('sharing.songForMembers')}</div>
       <p className="t-small">{t('sharing.songForMembersBody', { name: songTitle })}</p>
       <div className="est-sharing-linkrow">
-        <TextField className="field grow" value={songAddress} aria-label={t('sharing.songAddressLabel')}>
+        <TextField className="field grow" value={songAddress} aria-label={addressLabel}>
           <Input className="input" readOnly />
         </TextField>
         <CopyLinkButton url={songAddress} label={t('sharing.copy')} byHand={false} />
@@ -70,9 +74,31 @@ export function SongAddress({ songAddress, songTitle }) {
   );
 }
 
+// The words that differ between Share on a song and Share on a setlist
+// (workflow 10 §Sharing a song or a setlist): the intro (for a setlist, that the
+// invited join the whole book), the invite's heading and body, and the address
+// field's label. `name` is the song's or setlist's.
+export function itemShareCopy(itemKind, { book, name }) {
+  if (itemKind === 'setlist') {
+    return {
+      intro: t('sharing.setlistShareIntro', { book, setlist: name }),
+      invite: t('sharing.setlistInvite'),
+      inviteBody: t('sharing.setlistInviteBody', { book, setlist: name }),
+      addressLabel: t('sharing.setlistAddressLabel'),
+    };
+  }
+  return {
+    intro: t('sharing.songShareIntro', { book }),
+    invite: t('sharing.songInvite'),
+    inviteBody: t('sharing.songInviteBody', { book, song: name }),
+    addressLabel: t('sharing.songAddressLabel'),
+  };
+}
+
 /**
  * The Share sheet. `title` is the book's; `songPath`/`songTitle` make it a
- * song's sheet. `onOpenPeople` and `onNewInvitation` are AppShell's: each
+ * song's sheet — or, with `itemKind="setlist"`, a setlist's (the names stay the
+ * song's: they name the shared item). `onOpenPeople` and `onNewInvitation` are AppShell's: each
  * closes the sheet and opens that screen.
  */
 export default function ShareSheet({
@@ -82,6 +108,7 @@ export default function ShareSheet({
   role = null,
   isLocal = false,
   accountStatus = 'unknown',
+  itemKind = 'song',
   songPath = null,
   songTitle = null,
   sharingClient,
@@ -100,6 +127,7 @@ export default function ShareSheet({
       bookId={bookId}
       title={title}
       role={role}
+      itemKind={itemKind}
       songPath={songPath}
       songName={songName}
       sharingClient={sharingClient}
@@ -140,7 +168,7 @@ export default function ShareSheet({
 // The sheet's body for a book on Estante: the people and invitations, loaded on
 // mount — so only ever mounted for a hosted book (a put-online mounts it fresh
 // under the book's new id) — and, on a song's sheet, the song's part.
-function HostedShareBody({ bookId, title, role, songPath, songName, sharingClient, origin, onOpenPeople, onNewInvitation }) {
+function HostedShareBody({ bookId, title, role, itemKind, songPath, songName, sharingClient, origin, onOpenPeople, onNewInvitation }) {
   const isOwner = role === 'owner';
   const locale = currentLocale();
   const { client, members, invitations, loadError, reload } = useSharing({ client: sharingClient, bookId, isOwner });
@@ -155,8 +183,9 @@ function HostedShareBody({ bookId, title, role, songPath, songName, sharingClien
   const visibleNames = list.map((m) => personLabel(m, { t })).join(', ');
   const owner = list.find((m) => m.role === 'owner');
   const ownerShown = owner?.displayName?.trim() || t('sharing.itsOwner');
+  const copy = itemShareCopy(itemKind, { book: title, name: songName });
   const intro = songPath
-    ? t('sharing.songShareIntro', { book: title })
+    ? copy.intro
     : isOwner
       ? t('sharing.intro')
       : t(role === 'editor' ? 'sharing.memberIntroEditor' : 'sharing.memberIntroReader', { owner: ownerShown });
@@ -177,7 +206,7 @@ function HostedShareBody({ bookId, title, role, songPath, songName, sharingClien
   } else if (songInviting) {
     body = (
       <>
-        <p className="t-small">{t('sharing.songInviteBody', { book: title, song: songName })}</p>
+        <p className="t-small">{copy.inviteBody}</p>
         {creating.error ? (
           <p className="notice warn" role="alert">
             {errorCopy(creating.error)}
@@ -198,7 +227,11 @@ function HostedShareBody({ bookId, title, role, songPath, songName, sharingClien
     body = (
       <>
         {songPath ? (
-          <SongAddress songAddress={`${base}${bookSongPath(bookId, songPath)}`} songTitle={songName} />
+          <SongAddress
+            songAddress={`${base}${bookSongPath(bookId, songPath)}`}
+            songTitle={songName}
+            addressLabel={copy.addressLabel}
+          />
         ) : null}
         <p className="t-small">{intro}</p>
         <PeopleBar count={members.count} limit={members.limit} bookTitle={title} />
@@ -233,7 +266,7 @@ function HostedShareBody({ bookId, title, role, songPath, songName, sharingClien
             className="btn primary block est-sharing-invite-btn"
             onPress={() => (songPath ? setSongInviting(true) : onNewInvitation())}
           >
-            {songPath ? t('sharing.songInvite') : t('sharing.invitePeople')}
+            {songPath ? copy.invite : t('sharing.invitePeople')}
           </Button>
         ) : null}
       </>

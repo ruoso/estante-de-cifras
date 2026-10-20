@@ -65,7 +65,7 @@ import NotHere from './NotHere.jsx';
 import RecoveryBanner from './RecoveryBanner.jsx';
 import { useAccountStatus } from './use-account-status.js';
 import { offersFirstRunSignIn, showsRecoveryBanner } from './account-status.js';
-import { bookOfScope, sameItem } from './place.js';
+import { bookOfScope, isSetlistPath, sameItem } from './place.js';
 import { bootEntry, usePlaceHistory } from './use-place-history.js';
 import './shell.css';
 
@@ -459,6 +459,19 @@ export default function AppShell({
   // portaled into `.est` over whatever surface raised it. Ephemeral, no router.
   const [openSetlist, setOpenSetlist] = useState(null);
   const [addingToSetlist, setAddingToSetlist] = useState(null);
+  // The sharing surface over the open setlist (books.setlist_invitation;
+  // workflow 12 §Sharing one): `{ bookId, path }` or null, set by the setlist's
+  // Share — a panel beside the list on wide, the Share sheet on a phone. Kept
+  // apart from the song's `sharing` (Decision 5), so a song opened from the
+  // setlist never shows it; it closes with the setlist (below).
+  const [sharingSetlist, setSharingSetlist] = useState(null);
+  // Opening a setlist, from any destination, selects the Setlists tab
+  // (books.setlist_chrome Decision 3); a search hit still pushes, so Back lands
+  // on search again.
+  const openSetlistOnTab = (next) => {
+    setSelected('setlists');
+    setOpenSetlist(next);
+  };
   // The setlist player (books.play, workflow 12 §Playing through): the setlist
   // being played `{ bookId, path }`, a chrome-free full-screen surface over the
   // opened setlist, raised from SetlistView's `onPlay` seam. Stop clears it and
@@ -589,6 +602,9 @@ export default function AppShell({
     setResolving(null);
     applyPlace(resolving.place);
   }
+  // A setlist's share closes with its setlist, and never carries to another
+  // (books.setlist_invitation Constraint 4).
+  if (sharingSetlist && !sameItem(sharingSetlist, openSetlist)) setSharingSetlist(null);
   // The book's tree is asked for once per resolution; its TREE reply marks the
   // resolution's tree as fresh.
   const resolvingBook =
@@ -636,6 +652,7 @@ export default function AppShell({
     setPeople(follow);
     setNewInvitation(follow);
     setOpenSetlist(follow);
+    setSharingSetlist(follow);
     setPlayingSetlist(follow);
     setOpenFile(follow);
     setBookDetail(follow);
@@ -754,9 +771,13 @@ export default function AppShell({
     // A song-share invitation carried the song path as a client-only `#<path>`
     // fragment (books.share Decision 2): open it in the freshly cloned book —
     // a pushed step, so the address bar ends on the song's address
-    // (shell.routing Decision 9), never on the token.
+    // (shell.routing Decision 9), never on the token. A setlist's invitation
+    // carries the setlist's path the same way, and opens the setlist on the
+    // Setlists tab — decided by the path, as an address is
+    // (books.setlist_invitation Decision 3).
     if (inviteSongAnchor && bookId) {
-      setOpenSong({ bookId, path: inviteSongAnchor });
+      if (isSetlistPath(inviteSongAnchor)) openSetlistOnTab({ bookId, path: inviteSongAnchor });
+      else setOpenSong({ bookId, path: inviteSongAnchor });
     }
   });
 
@@ -968,6 +989,7 @@ export default function AppShell({
   const openPeopleFrom = (bookId) => {
     setShareSheet(null);
     setSharing(null);
+    setSharingSetlist(null);
     setPeople({ bookId });
   };
 
@@ -1063,13 +1085,6 @@ export default function AppShell({
   // The cold row's *Sign in or make an account*, only while no one is signed in
   // (workflow 1 §Cold).
   const offerSignIn = offersFirstRunSignIn(accountStatus);
-  // Opening a setlist, from any destination, selects the Setlists tab
-  // (books.setlist_chrome Decision 3); a search hit still pushes, so Back lands
-  // on search again.
-  const openSetlistOnTab = (next) => {
-    setSelected('setlists');
-    setOpenSetlist(next);
-  };
   // A destination tab pressed under an open setlist (the phone) leaves it: a tab
   // switch plus a close, so the entry is replaced (routing Decision 4;
   // books.setlist_chrome Decision 4). So does a rail tab beside the paused book
@@ -1297,7 +1312,9 @@ export default function AppShell({
       />
     );
   }
-  if (sharingScreen && (openSong || bookDetail)) return framed(sharingScreen);
+  // Over an open setlist too (books.setlist_invitation Constraint 6): the
+  // setlist's Manage leads here, and Back returns to the setlist.
+  if (sharingScreen && (openSong || openSetlist || bookDetail)) return framed(sharingScreen);
 
   // The file view is a full screen over the shell (books.file_view Decision 7),
   // exactly as the new-song editor host is; Back returns to the shell.
@@ -1566,6 +1583,43 @@ export default function AppShell({
   // it (W12 #3, #4); on the phone it sits in the Setlists tab panel with the tab
   // bar below it and no header row above (books.setlist_chrome; W12 phone #1;
   // header_chrome Decision 8).
+  // Its Share (books.setlist_invitation) is the song's surfaces in setlist
+  // mode, built like the song's share above.
+  const setlistShareFacts = sharingSetlist ? sharingFacts(sharingSetlist.bookId) : null;
+  const setlistShare = sharingSetlist
+    ? ({ title: setlistTitle }) =>
+        mode === 'wide' ? (
+          <SongSharePanel
+            store={store}
+            bookId={sharingSetlist.bookId}
+            title={setlistShareFacts.title}
+            role={setlistShareFacts.role}
+            isLocal={setlistShareFacts.isLocal}
+            accountStatus={accountStatus.status}
+            onSignIn={() => setSignIn({})}
+            itemKind="setlist"
+            songPath={sharingSetlist.path}
+            songTitle={setlistTitle}
+            onClose={() => setSharingSetlist(null)}
+            onManage={() => openPeopleFrom(sharingSetlist.bookId)}
+          />
+        ) : (
+          <ShareSheet
+            store={store}
+            bookId={sharingSetlist.bookId}
+            title={setlistShareFacts.title}
+            role={setlistShareFacts.role}
+            isLocal={setlistShareFacts.isLocal}
+            accountStatus={accountStatus.status}
+            onSignIn={() => setSignIn({})}
+            itemKind="setlist"
+            songPath={sharingSetlist.path}
+            songTitle={setlistTitle}
+            onClose={() => setSharingSetlist(null)}
+            onOpenPeople={() => openPeopleFrom(sharingSetlist.bookId)}
+          />
+        )
+    : null;
   const setlistView = openSetlist ? (
     <SetlistView
       store={store}
@@ -1574,6 +1628,8 @@ export default function AppShell({
       mode={mode}
       onBack={() => back(() => setOpenSetlist(null))}
       onPlay={({ bookId, path }) => setPlayingSetlist({ bookId, path })}
+      onShare={setSharingSetlist}
+      sidePanel={setlistShare}
     />
   ) : null;
   if (setlistView && mode === 'wide') return framed(setlistView);

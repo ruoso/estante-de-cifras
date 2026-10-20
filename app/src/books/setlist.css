@@ -207,3 +207,16 @@
 .setlist-pick-check {
   color: var(--accent);
 }
+
+/* A setlist's share panel beside the list (books.setlist_invitation; W12, in
+   W10 #4's shape): the list and the panel share the screen's row, as the song's
+   `.reading-with-panel` does. */
+.setlist-with-panel {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.setlist-with-panel > .scroll {
+  flex: 1;
+  min-width: 0;
+}

@@ -11,6 +11,12 @@
 // file set (BOOK_TREE → the `tree` slice) for missing-item detection, and
 // applies cifra-md's pure §10.10 editing ops in the view, then `writeSetlist` +
 // WRITE (Decision 3). The Worker owns no setlist model.
+//
+// The read view carries *Share* (books.setlist_invitation; workflow 12 §Sharing
+// one): an item in More on every mode and, on wide, a button in the app bar. The
+// shell's share surface comes back through `sidePanel` — laid beside the list on
+// wide, rendered in place on a phone (the Share sheet is its own overlay). The
+// editor has no Share (Decision 4): a setlist is shared as the book holds it.
 
 import { useEffect, useId, useMemo, useState } from 'react';
 import {
@@ -138,6 +144,11 @@ export default function SetlistView({
   mode = 'narrow',
   onBack = () => {},
   onPlay = () => {},
+  onShare = () => {},
+  // The setlist's share (books.setlist_invitation), given the setlist's title: a
+  // panel beside the list on wide (W12, in W10 #4's shape), the Share sheet — a
+  // Modal — on a phone. Null when no share is open.
+  sidePanel = null,
 }) {
   const source = useSlice(store, 'source');
   const tree = useSlice(store, 'tree');
@@ -273,6 +284,56 @@ export default function SetlistView({
 
   // ---- read view ----------------------------------------------------------
   if (!editing) {
+    const wide = mode === 'wide';
+    const panel = typeof sidePanel === 'function' ? sidePanel({ title }) : sidePanel;
+    // The list, with the share panel beside it when one is open (wide); the
+    // phone renders the sheet in place, over its screen.
+    const list = (
+      <div className="scroll">
+        <div className="setlist-head">
+          <h2 className="t-display">{title}</h2>
+          <span className="t-small">
+            {[bookTitle, folder, songCount].filter(Boolean).join(' · ')}
+          </span>
+        </div>
+        <Button className="btn primary block" onPress={() => onPlay({ bookId, path })}>
+          <Icon d={PLAY} fill /> {t('setlists.play')}
+        </Button>
+        <div className="list">
+          {rows.map((row) => (
+            <div className="row" key={row.at}>
+              <span className="t-h2 setlist-num">{row.number}</span>
+              <span className="grow">
+                <span className="name">{row.title}</span>
+                {row.note ? <span className="meta">{row.note}</span> : null}
+                {!row.missing && row.folder ? <span className="meta">{row.folder}</span> : null}
+              </span>
+              <span className="badges">
+                {row.key ? <span className="badge voiced">{t('setlists.inKey', { key: row.key })}</span> : null}
+                {row.missing ? <span className="badge conflict dot">{t('setlists.missing')}</span> : null}
+              </span>
+            </div>
+          ))}
+        </div>
+        {missingRows.map((row) => (
+          <div className="notice conflict setlist-missing-notice" key={row.at}>
+            <span>
+              <b>{t('setlists.missingNotice', { title: row.title })}</b>{' '}
+              {t('setlists.missingDetail', { path: row.resolvedPath || row.title })}
+            </span>
+            <Button
+              className="btn quiet setlist-point-act"
+              onPress={() => {
+                setEditing(true);
+                setRepointAt(row.at);
+              }}
+            >
+              {t('setlists.pointItAtASong')}
+            </Button>
+          </div>
+        ))}
+      </div>
+    );
     return (
       <div className="setlist-screen">
         <div className="appbar">
@@ -283,6 +344,11 @@ export default function SetlistView({
           <Button className="btn quiet" onPress={() => setEditing(true)}>
             {t('setlists.edit')}
           </Button>
+          {wide ? (
+            <Button className="btn" onPress={() => onShare({ bookId, path })} data-share-return="">
+              {t('setlists.share')}
+            </Button>
+          ) : null}
           <MenuTrigger>
             <Button className="btn icon" aria-label={t('setlists.more')}>
               <Icon d={DOTS} size={24} fill />
@@ -292,58 +358,27 @@ export default function SetlistView({
                 onAction={(key) => {
                   if (key === 'edit') setEditing(true);
                   else if (key === 'play') onPlay({ bookId, path });
+                  else if (key === 'share') onShare({ bookId, path });
                 }}
               >
                 <MenuItem id="edit">{t('setlists.edit')}</MenuItem>
                 <MenuItem id="play">{t('setlists.play')}</MenuItem>
+                <MenuItem id="share">{t('setlists.share')}</MenuItem>
               </Menu>
             </Popover>
           </MenuTrigger>
         </div>
-        <div className="scroll">
-          <div className="setlist-head">
-            <h2 className="t-display">{title}</h2>
-            <span className="t-small">
-              {[bookTitle, folder, songCount].filter(Boolean).join(' · ')}
-            </span>
+        {wide && panel ? (
+          <div className="setlist-with-panel">
+            {list}
+            {panel}
           </div>
-          <Button className="btn primary block" onPress={() => onPlay({ bookId, path })}>
-            <Icon d={PLAY} fill /> {t('setlists.play')}
-          </Button>
-          <div className="list">
-            {rows.map((row) => (
-              <div className="row" key={row.at}>
-                <span className="t-h2 setlist-num">{row.number}</span>
-                <span className="grow">
-                  <span className="name">{row.title}</span>
-                  {row.note ? <span className="meta">{row.note}</span> : null}
-                  {!row.missing && row.folder ? <span className="meta">{row.folder}</span> : null}
-                </span>
-                <span className="badges">
-                  {row.key ? <span className="badge voiced">{t('setlists.inKey', { key: row.key })}</span> : null}
-                  {row.missing ? <span className="badge conflict dot">{t('setlists.missing')}</span> : null}
-                </span>
-              </div>
-            ))}
-          </div>
-          {missingRows.map((row) => (
-            <div className="notice conflict setlist-missing-notice" key={row.at}>
-              <span>
-                <b>{t('setlists.missingNotice', { title: row.title })}</b>{' '}
-                {t('setlists.missingDetail', { path: row.resolvedPath || row.title })}
-              </span>
-              <Button
-                className="btn quiet setlist-point-act"
-                onPress={() => {
-                  setEditing(true);
-                  setRepointAt(row.at);
-                }}
-              >
-                {t('setlists.pointItAtASong')}
-              </Button>
-            </div>
-          ))}
-        </div>
+        ) : (
+          <>
+            {list}
+            {panel}
+          </>
+        )}
       </div>
     );
   }

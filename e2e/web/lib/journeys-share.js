@@ -266,3 +266,25 @@ export async function addSectionAndSave(page, mark, { name } = {}) {
   await page.keyboard.insertText(`## ${mark}\n\`\`\`\nC | G\n\`\`\`\n\n`);
   await saveThroughSheet(page, { name });
 }
+
+// On a setlist open in its read view: Share — the More menu on a phone, the app
+// bar's Share on a tablet or a computer (books.setlist_invitation; workflow 12
+// §Sharing one). Returns the setlist's share surface — the phone's sheet, the
+// wide panel, named *Share {setlist}* — and the members' address.
+export async function shareSetlist(page) {
+  const screen = page.locator('.setlist-screen');
+  const name = (await screen.getByRole('heading', { level: 2 }).first().textContent()).trim();
+  const share = screen.locator('.appbar').getByRole('button', { name: 'Share', exact: true });
+  if (await share.isVisible().catch(() => false)) {
+    await share.click();
+  } else {
+    await screen.getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Share', exact: true }).click();
+  }
+  const surface = page
+    .getByRole('dialog', { name: `Share ${name}` })
+    .or(page.getByRole('complementary', { name: `Share ${name}` }));
+  await expect(surface).toBeVisible();
+  const address = await surface.getByRole('textbox', { name: 'Setlist address' }).inputValue();
+  return { surface, address };
+}

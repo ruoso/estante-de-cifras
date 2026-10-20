@@ -198,3 +198,87 @@ describe('a song’s share panel on a book only on this device', () => {
     expect(calls).toEqual([]);
   });
 });
+
+// books.setlist_invitation (workflow 10 §Sharing a song or a setlist; workflow 12
+// §Sharing one): the same panel in setlist mode — the setlist's address, an
+// invitation whose link opens on the setlist, and the line that the invited join
+// the whole book. The `#<path>` stays on the client: the request carries no path.
+describe('Share on a setlist, wide (workflow 10 §Sharing a song or a setlist)', () => {
+  const SETLIST_PATH = 'lessons/lesson-3.setlist.md';
+
+  function renderSetlistPanel(client, props = {}) {
+    return render(
+      <ThemeRoot store={makeStore()}>
+        <div className="setlist-with-panel">
+          <div className="scroll">
+            <h2>Lesson 3</h2>
+          </div>
+          <SongSharePanel
+            store={makeStore()}
+            bookId="bk"
+            title="Choros da Ana"
+            role={OWNER_ROLE}
+            itemKind="setlist"
+            songPath={SETLIST_PATH}
+            songTitle="Lesson 3"
+            origin="https://estante.app"
+            sharingClient={client}
+            {...props}
+          />
+        </div>
+      </ThemeRoot>,
+    );
+  }
+
+  it('for the owner: Share Lesson 3, the joins-the-book line, the setlist address, an invitation carrying #<path>', async () => {
+    const { client, calls } = ownerClient();
+    const { container } = renderSetlistPanel(client);
+    const panel = screen.getByRole('complementary', { name: 'Share Lesson 3' });
+
+    expect(
+      within(panel).getByText(
+        'A setlist is shared with its book, Choros da Ana. Everyone you invite joins Choros da Ana; the link opens it on Lesson 3.',
+      ),
+    ).toBeInTheDocument();
+    expect(within(panel).getByRole('textbox', { name: 'Setlist address' })).toHaveValue(
+      'https://estante.app/b/bk/lessons/lesson-3.setlist.md',
+    );
+    expect(within(panel).queryByRole('textbox', { name: 'Song address' })).toBeNull();
+    expect(await within(panel).findByText('Invite someone to this setlist')).toBeInTheDocument();
+    expect(within(panel).getByText('The invitation brings them into Choros da Ana, and opens on Lesson 3 once they’ve signed in.')).toBeInTheDocument();
+    await within(panel).findByText('Expires in a week · no limit on uses');
+    fireEvent.click(within(panel).getByRole('button', { name: 'Create link' }));
+    const link = await within(panel).findByRole('textbox', { name: 'Invitation link' });
+    expect(link.value.endsWith('#lessons/lesson-3.setlist.md')).toBe(true);
+    const post = calls.find((c) => c.method === 'POST');
+    expect(JSON.stringify(post.body)).not.toContain('setlist');
+    expect(post.path).not.toContain('setlist');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('for a reader: the setlist address and no invitation', async () => {
+    const { client } = makeClient({
+      'GET /api/books/bk/members': () => ({ body: { members: [ANA, MARINA], count: 37, limit: 50 } }),
+    });
+    const { container } = renderSetlistPanel(client, { role: 'reader' });
+    const panel = screen.getByRole('complementary', { name: 'Share Lesson 3' });
+    await within(panel).findByText('37 of 50');
+    expect(within(panel).getByRole('textbox', { name: 'Setlist address' })).toHaveValue(
+      'https://estante.app/b/bk/lessons/lesson-3.setlist.md',
+    );
+    expect(within(panel).queryByText('Invite someone to this setlist')).toBeNull();
+    expect(within(panel).queryByRole('button', { name: 'Create link' })).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('on a book only on this device: the needs-online body under Share Lesson 3, and no call', async () => {
+    const { client, calls } = makeClient({});
+    const { container } = renderSetlistPanel(client, { bookId: 'local-1', title: 'My songs', isLocal: true, accountStatus: 'in', role: null });
+    const panel = screen.getByRole('complementary', { name: 'Share Lesson 3' });
+    expect(within(panel).getByText('My songs is only on this device. Put it online to invite people.')).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'Put online' })).toBeInTheDocument();
+    expect(within(panel).queryByRole('textbox', { name: 'Setlist address' })).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    expect(calls).toEqual([]);
+  });
+});

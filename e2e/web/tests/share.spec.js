@@ -10,7 +10,8 @@
 // follows workflow 10 **Where it sits**: the phone's Share sheet leads to the
 // people and New invitation screens; a tablet's or computer's Share opens the
 // people screen; a song's Share is a panel beside it on wide. Further tests copy
-// an open invitation's link again, share from a song, and read a full book and
+// an open invitation's link again, share from a song and from a setlist
+// (books.setlist_invitation), and read a full book and
 // a member's view, and pin that Done on a made invitation returns to where it
 // was made from (books.setlist_picker_fixes). Book, song and people are written
 // for these tests.
@@ -23,6 +24,7 @@ import {
   enableVirtualAuthenticator,
   openSongFromSearch,
   openSongInEditor,
+  openFiles,
   waitUntilSearchable,
   syncNow,
   makeAccount,
@@ -39,7 +41,9 @@ import {
   addSectionAndSave,
   ownerNameOnService,
   bookIdOf,
+  shareSetlist,
 } from '../lib/journeys-share.js';
+import { addToNewSetlistFromSong, openSetlist, saveAllChanges } from '../lib/journeys-files.js';
 import { fillBookToCapacity } from '../lib/db.js';
 import { openDevice } from '../lib/devices.js';
 import { mockup } from '../lib/mockup.js';
@@ -321,6 +325,82 @@ test('share from a song: the member address, and an invitation that opens on the
   if (!onPhone()) {
     await surface.getByRole('button', { name: 'Manage' }).click();
     await expect(page.getByRole('region', { name: `${BOOK} · People` })).toBeVisible();
+  }
+});
+
+// books.setlist_invitation (workflow 10 §Sharing a song or a setlist, **Where it
+// sits**; workflow 12 §Sharing one): Share on a setlist — the sheet on a phone,
+// a panel beside the list wider — gives a member its address and the owner an
+// invitation whose link carries the setlist's path. The invited join the whole
+// book, and land on the setlist, on its address. Done returns to the setlist,
+// never to /setlists. The setlist *Lesson 3* is written for this test.
+test('share from a setlist: the member address, and an invitation that opens on the setlist', async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(45000);
+  const SETLIST = 'Lesson 3';
+  await hostedBookWithSong(page, BOOK, SONG_TITLE);
+  await openSongFromSearch(page, 'Roda', SONG_TITLE);
+  await addToNewSetlistFromSong(page, SONG_TITLE, SETLIST);
+  // The new setlist is an unsaved change to the book: save it through the file
+  // view, so it reaches Estante. The reader has no tabs beside it: start from `/`
+  // (the unsaved setlist stays in the working copy).
+  await startApp(page);
+  await openFiles(page, BOOK);
+  await saveAllChanges(page);
+  await syncNow(page);
+  await openSetlist(page, SETLIST);
+
+  const setlistScreen = page.locator('.setlist-screen');
+  const { surface, address } = await shareSetlist(page);
+  expect(address).toMatch(/\/b\/[^/]+\/.+\.setlist\.md$/);
+  if (onPhone()) {
+    await expect(page.getByRole('dialog', { name: `Share ${SETLIST}` })).toBeVisible();
+  } else {
+    // A panel beside the list: no scrim, the list still there.
+    await expect(page.getByRole('complementary', { name: `Share ${SETLIST}` })).toBeVisible();
+    await expect(setlistScreen.getByText(SONG_TITLE).first()).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  }
+  // The invited join the whole book, and the surface says so.
+  await expect(surface.getByText(`Everyone you invite joins ${BOOK}; the link opens it on ${SETLIST}.`, { exact: false })).toBeVisible();
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: share-on-a-setlist
+
+  if (onPhone()) await surface.getByRole('button', { name: 'Invite someone to this setlist' }).click();
+  await surface.getByRole('button', { name: 'Create link' }).click();
+  const link = await surface.getByRole('textbox', { name: 'Invitation link' }).inputValue();
+  expect(link).toContain('/i/');
+  expect(link).toMatch(/#.+\.setlist\.md$/);
+  await finishInvite(surface);
+  // Done returns to the setlist (workflow 10 **Where it sits**): the phone's
+  // sheet to its summary, closed onto the setlist; the panel stays beside it.
+  if (onPhone()) {
+    await expect(surface.getByRole('button', { name: 'Invite someone to this setlist' })).toBeVisible();
+    await surface.getByRole('button', { name: 'Close' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  }
+  await expect(page.getByRole('heading', { level: 2, name: SETLIST, exact: true })).toBeVisible();
+  expect(new URL(page.url()).pathname).toMatch(/\.setlist\.md$/);
+  expect(new URL(page.url()).pathname).not.toMatch(/\/setlists$/);
+
+  // A second person accepts and lands on the setlist, at its address.
+  const joiner = await openDevice(browser);
+  try {
+    await enableVirtualAuthenticator(joiner.page);
+    await acceptInvitation(joiner.page, link);
+    const landed = joiner.page.locator('.setlist-screen');
+    await expect(joiner.page.getByRole('heading', { level: 2, name: SETLIST, exact: true })).toBeVisible();
+    await expect(landed.getByText(SONG_TITLE).first()).toBeVisible();
+    await expect.poll(() => new URL(joiner.page.url()).pathname).toBe(new URL(address).pathname);
+    expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the setlist a joiner lands on
+
+    // A member opens the plain address and reads the same setlist.
+    await joiner.page.goto(address);
+    await expect(joiner.page.getByRole('heading', { level: 2, name: SETLIST, exact: true })).toBeVisible();
+    await expect(landed.getByText(SONG_TITLE).first()).toBeVisible();
+  } finally {
+    await joiner.context.close();
   }
 });
 

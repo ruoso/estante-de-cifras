@@ -65,6 +65,23 @@ already in the setlist is still listed, and says so in words — *Already in
 this setlist · 1*, with its places — so nobody adds it twice by accident; it
 can still be added again, since a setlist may come back to a song.
 
+## Sharing one
+
+A teacher builds this week's lesson as a setlist and wants the class to see
+it. Sharing is per book (workflow 10), so *Share* on a setlist shares its
+book, as *Share* on a song does (workflow 10 §Sharing a song or a setlist):
+the invitation it makes opens on the setlist once accepted, and a member is
+given the setlist's address, `…/b/<book>/<path>`. The people invited join the
+whole book, and the surface says so in a line.
+
+*Share* sits on the setlist being read: in its *More* menu on a phone, where
+it opens the Share sheet, and as a button in its app bar on a tablet or a
+computer, where it opens the panel beside the list. On a book only on this
+device it says the book must go online first and offers to put it online, as
+on a song. The people invited open the setlist as the book holds it, so a
+change not yet saved reaches them once it is saved and synced (workflow 4,
+workflow 8), as for a song.
+
 ## Playing through
 
 *Play* goes through the songs one at a time, full screen.
