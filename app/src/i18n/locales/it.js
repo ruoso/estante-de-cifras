@@ -499,6 +499,7 @@ export default {
     newSetlistTitle: 'Nuova scaletta',
     newSetlistNameLabel: 'Nome della scaletta',
     newSetlistNamePlaceholder: 'Nome della scaletta',
+    newSetlistNoBook: 'Il libro di questa canzone è in sola lettura e I miei brani non è su questo dispositivo, quindi non c’è un libro in cui tenere una nuova scaletta.',
     create: 'Crea',
   },
 

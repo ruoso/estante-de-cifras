@@ -183,6 +183,36 @@ describe('which book', () => {
     expect(items).toContain('Banda do Bairro');
     expect(items).not.toContain('Turma de Quarta');
   });
+
+  // books.owner_can_save: a book the signed-in person put online is shelved
+  // with role `owner` and is offered beside the editor one; the reader book
+  // still is not (workflow 3 §Which book L26-28).
+  it('offers an owner-role shared book beside the editor one, never the reader one (books.owner_can_save)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    const shelf = {
+      ...SHELF,
+      books: {
+        ...SHELF.books,
+        'book-owner': {
+          label: { value: 'Roda de Sábado', at: AT },
+          role: { value: 'owner', at: AT },
+          position: { value: 3, at: AT },
+        },
+      },
+    };
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: /Write a song/ })));
+    emit(event(EventKind.SHELF, shelf));
+    emit(event(EventKind.NEW_SONG_READY, { bookId: MY_SONGS_ID, path: 'untitled.cifra.md' }));
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Change book' })));
+    const items = screen.getAllByRole('menuitem').map((el) => el.textContent);
+    expect(items).toContain('Roda de Sábado');
+    expect(items).toContain('Banda do Bairro');
+    expect(items).not.toContain('Turma de Quarta');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
 });
 
 describe('the first save', () => {

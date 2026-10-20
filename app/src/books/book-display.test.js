@@ -12,6 +12,7 @@ import {
   elsewhereCopyFor,
   thisDeviceFor,
   bookMetaFor,
+  mySongsIdFor,
 } from './book-display.js';
 import { t, setLocale } from '../i18n/index.js';
 
@@ -55,6 +56,14 @@ describe('book-display: whereFor / canSaveFor (where it lives / can save — wor
     expect(canSaveFor('shared', { role: reg('editor') })).toBe(true);
     expect(canSaveFor('shared', { role: reg('reader') })).toBe(false);
     expect(canSaveFor('shared', {})).toBe(null);
+  });
+
+  // books.owner_can_save Constraint 1: a book the user put online or forked is
+  // shelved with role `owner` and can be saved to; an unknown role stays null
+  // (home-book-format §4.2 — the role is a hint, never an authority).
+  it('maps an owner-role shared book to can save, an unknown role to null', () => {
+    expect(canSaveFor('shared', { role: reg('owner') })).toBe(true);
+    expect(canSaveFor('shared', { role: reg('admin') })).toBe(null);
   });
 });
 
@@ -291,8 +300,62 @@ describe('book-display: bookMetaFor (where · role · count — workflow 7 L19-2
     expect(bookMetaFor('shared', { role: reg('reader') }, { count: 1, t })).toBe('On Estante · reader · 1 song');
   });
 
+  it('says can save for a book the user owns (books.owner_can_save, workflow 7 L19)', () => {
+    expect(bookMetaFor('shared', { role: reg('owner') }, { count: 3, t })).toBe('On Estante · can save · 3 songs');
+  });
+
   it('says still loading while the index builds or before a count arrives, and leaves out an unknown role', () => {
     expect(bookMetaFor('local', {}, { count: 2, building: true, t })).toBe('On this device · can save · still loading');
     expect(bookMetaFor('shared', {}, { t })).toBe('On Estante · still loading');
+  });
+});
+
+// books.owner_can_save Constraint 3: *My songs* is found by id — the `mySongs`
+// register (home-book-format §4.2) or this device's `local-my-songs` — never by
+// a label, which is the user's words.
+describe('book-display: mySongsIdFor (My songs by id — home-book-format §4.2 mySongs)', () => {
+  it('returns the mySongs register’s id when that shared book is on the shelf', () => {
+    const shelf = {
+      books: { 'srv-1': { label: reg('Cantos') } },
+      local: { 'local-my-songs': { title: reg('My songs') } },
+      mySongs: reg('srv-1'),
+    };
+    expect(mySongsIdFor(shelf)).toBe('srv-1');
+  });
+
+  it('returns local-my-songs when only the local one is on the shelf', () => {
+    expect(mySongsIdFor({ books: {}, local: { 'local-my-songs': { title: reg('My songs') } } })).toBe(
+      'local-my-songs',
+    );
+    // a mySongs register naming a book not on the shelf falls back to the local one.
+    expect(
+      mySongsIdFor({
+        books: {},
+        local: { 'local-my-songs': { title: reg('My songs') } },
+        mySongs: reg('srv-gone'),
+      }),
+    ).toBe('local-my-songs');
+  });
+
+  it('returns null when neither is on the shelf', () => {
+    expect(mySongsIdFor({ books: {}, local: {} })).toBe(null);
+    expect(mySongsIdFor(undefined)).toBe(null);
+  });
+
+  it('ignores a removed (all-tombstone) entry', () => {
+    const shelf = {
+      books: { 'srv-1': { label: reg(null), position: reg(null) } },
+      local: { 'local-my-songs': { title: reg(null) } },
+      mySongs: reg('srv-1'),
+    };
+    expect(mySongsIdFor(shelf)).toBe(null);
+  });
+
+  it('does not choose a book merely labelled My songs', () => {
+    const shelf = {
+      books: { 'srv-2': { label: reg('My songs'), role: reg('owner') } },
+      local: { band: { title: reg('My songs') } },
+    };
+    expect(mySongsIdFor(shelf)).toBe(null);
   });
 });

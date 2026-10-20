@@ -22,7 +22,7 @@ import {
 import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
-import { orderedBooks, canSaveFor, titleFor } from './book-display.js';
+import { orderedBooks, canSaveFor, mySongsIdFor, titleFor } from './book-display.js';
 import { setlistFilename } from './setlist-display.js';
 import { useLoadSong } from './use-load-song.js';
 import './setlist.css';
@@ -83,12 +83,12 @@ export default function AddToSetlist({ store, song, onClose }) {
   );
 
   // The home ("My songs") book, the fallback target for a new setlist when the
-  // song's own book is not savable (Decision 7).
-  const homeTitle = t('firstRun.mySongs');
+  // song's own book is not savable (Decision 7) — found by id, never by its
+  // label (books.owner_can_save Constraint 3), and only when it is savable.
   const homeBookId = useMemo(() => {
-    for (const [id, name] of savable) if (name === homeTitle) return id;
-    return null;
-  }, [savable, homeTitle]);
+    const id = mySongsIdFor(shelf);
+    return id && savable.has(id) ? id : null;
+  }, [shelf, savable]);
 
   const songBookSavable = savable.has(song.bookId);
 
@@ -111,9 +111,15 @@ export default function AddToSetlist({ store, song, onClose }) {
     );
   };
 
+  // The new setlist's book: the song's own when savable, else My songs, else
+  // none (Decision 7).
+  const newTargetBookId = songBookSavable ? song.bookId : homeBookId;
+
+  // Sends the create and reports whether it did: with no book to keep the
+  // setlist in, nothing is sent and the name dialog stays open (Constraint 5).
   const createNew = (name) => {
-    const targetBookId = songBookSavable ? song.bookId : homeBookId;
-    if (!targetBookId) return;
+    const targetBookId = newTargetBookId;
+    if (!targetBookId) return false;
     const existing = (setlists ?? [])
       .filter((s) => s.bookId === targetBookId)
       .map((s) => s.path);
@@ -125,6 +131,7 @@ export default function AddToSetlist({ store, song, onClose }) {
         song: { bookId: song.bookId, path: song.path, title },
       }),
     );
+    return true;
   };
 
   return (
@@ -202,7 +209,7 @@ export default function AddToSetlist({ store, song, onClose }) {
                 </div>
               ) : null}
 
-              {chosen ? (
+              {chosen && targetName ? (
                 <p className="t-small">
                   {copies
                     ? t('setlists.copyThenUnsaved', { book: targetName })
@@ -225,10 +232,9 @@ export default function AddToSetlist({ store, song, onClose }) {
 
               {naming ? (
                 <NewSetlistDialog
+                  hasTarget={Boolean(newTargetBookId)}
                   onCancel={() => setNaming(false)}
-                  onCreate={(name) => {
-                    createNew(name);
-                  }}
+                  onCreate={createNew}
                 />
               ) : null}
             </>
@@ -241,8 +247,10 @@ export default function AddToSetlist({ store, song, onClose }) {
 
 // The New-setlist name dialog — a nested modal over the picker (Decision 7: the
 // book is the song's own when savable, else My songs, so the dialog asks only
-// for a name).
-function NewSetlistDialog({ onCancel, onCreate }) {
+// for a name). The name field has focus on open, and the dialog closes only once
+// the create was sent; with no book to keep the setlist in it says why, in words,
+// and offers only Cancel (books.owner_can_save Constraints 4-5, Decision 4).
+function NewSetlistDialog({ hasTarget, onCancel, onCreate }) {
   const [name, setName] = useState('');
   return (
     <ModalOverlay
@@ -261,25 +269,39 @@ function NewSetlistDialog({ onCancel, onCreate }) {
               onSubmit={(event) => {
                 event.preventDefault();
                 const trimmed = name.trim();
-                if (!trimmed) return;
-                onCreate(trimmed);
-                close();
+                if (!hasTarget || !trimmed) return;
+                if (onCreate(trimmed) === true) close();
               }}
             >
               <Heading slot="title" className="t-h2">
                 {t('setlists.newSetlistTitle')}
               </Heading>
-              <TextField className="field" value={name} onChange={setName}>
-                <Label>{t('setlists.newSetlistNameLabel')}</Label>
-                <Input className="input" placeholder={t('setlists.newSetlistNamePlaceholder')} />
-              </TextField>
+              {hasTarget ? (
+                // autoFocus on the TextField: React Aria focuses its input on
+                // mount, before the Dialog would take focus itself — the dialog
+                // asks only for a name, so typing starts at once (Constraint 4).
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                <TextField className="field" value={name} onChange={setName} autoFocus>
+                  <Label>{t('setlists.newSetlistNameLabel')}</Label>
+                  <Input className="input" placeholder={t('setlists.newSetlistNamePlaceholder')} />
+                </TextField>
+              ) : (
+                <p className="t-small" role="status">
+                  {t('setlists.newSetlistNoBook')}
+                </p>
+              )}
               <div className="actions">
-                <Button className="btn" onPress={close}>
+                {/* With nowhere to keep a setlist, Cancel is the one action
+                    and takes focus (Constraint 5). */}
+                {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+                <Button className="btn" autoFocus={!hasTarget} onPress={close}>
                   {t('setlists.cancel')}
                 </Button>
-                <Button type="submit" className="btn primary" isDisabled={!name.trim()}>
-                  {t('setlists.create')}
-                </Button>
+                {hasTarget ? (
+                  <Button type="submit" className="btn primary" isDisabled={!name.trim()}>
+                    {t('setlists.create')}
+                  </Button>
+                ) : null}
               </div>
             </form>
           )}

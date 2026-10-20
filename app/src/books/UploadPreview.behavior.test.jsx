@@ -325,6 +325,37 @@ describe('UploadPreview — every status word renders (synthetic UPLOAD_PREVIEW;
   });
 });
 
+// books.owner_can_save: a book the signed-in person put online is shelved with
+// role `owner` and is a Merge-into target; a reader-role book is not (workflow 7
+// §Uploading a book, `canSaveFor`).
+describe('UploadPreview — an owner-role book is a merge target (books.owner_can_save)', () => {
+  it('offers the owner-role shared book as a Merge-into target, never the reader one', async () => {
+    const { store, sent, emit } = makeStore();
+    const { container } = renderPreview(store);
+    emit(
+      event(EventKind.SHELF, {
+        books: {
+          'srv-own': { label: { value: 'Roda de Sábado' }, role: { value: 'owner' }, position: { value: 1 } },
+          'srv-read': { label: { value: 'Songbook do Coral' }, role: { value: 'reader' }, position: { value: 2 } },
+        },
+        local: {},
+      }),
+    );
+    emit(event(EventKind.UPLOAD_PREVIEW, model()));
+    act(() => fireEvent.click(screen.getByRole('radio', { name: 'Merge into an existing book' })));
+    const own = screen.getByRole('radio', { name: 'Roda de Sábado' });
+    expect(screen.queryByRole('radio', { name: 'Songbook do Coral' })).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    act(() => fireEvent.click(own));
+    await waitFor(() =>
+      expect(lastCommand(sent, CommandKind.PREVIEW_UPLOAD)?.payload.target).toMatchObject({
+        kind: 'existing',
+        bookId: 'srv-own',
+      }),
+    );
+  });
+});
+
 describe('UploadPreview — accessibility (axe WCAG 2.1 AA)', () => {
   it('the Add-a-book chooser’s Upload row is the zip picker, and the chooser is axe-clean (books.add_book_chooser Decision 2)', async () => {
     const { store } = makeStore();

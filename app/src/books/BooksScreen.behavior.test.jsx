@@ -67,6 +67,22 @@ function makeStore() {
 const lastCommand = (sent, kind) => [...sent].reverse().find((m) => m.kind === kind);
 
 describe('BooksScreen (behavior)', () => {
+  // books.owner_can_save: a book the signed-in person put online (or forked) is
+  // shelved with role `owner`; its row says *can save* in a word (workflow 7 L19).
+  it('an owner-role row reads *On Estante · can save · …* (books.owner_can_save, workflow 7 L19)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = renderScreen(store);
+    emit(
+      event(EventKind.SHELF, {
+        books: { 'srv-own': { label: reg('Roda de Sábado'), position: reg(0), role: reg('owner') } },
+        local: {},
+      }),
+    );
+    const row = screen.getByText('Roda de Sábado').closest('.book-row');
+    expect(within(row).getByText('On Estante · can save · still loading')).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
   it('the shelf lists every book with title, where-it-lives and can-save, ordered by position (workflow 7 L14-21)', async () => {
     const { store, emit } = makeStore();
     const { container } = renderScreen(store);
@@ -514,6 +530,9 @@ describe('BooksScreen (behavior)', () => {
 
       // One row, not two: the original's tombstoned entry draws nothing.
       expect(screen.getAllByText('Choros da Ana')).toHaveLength(1);
+      // The fork is the user's own (role `owner`): it says *can save*
+      // (books.owner_can_save, workflow 7 L19).
+      expect(screen.getByText('On Estante · can save · still loading')).toBeInTheDocument();
       expect(screen.getByText('from Choros da Ana')).toBeInTheDocument();
       expect(screen.queryByText(/new save/)).toBeNull();
 
@@ -655,6 +674,11 @@ describe('BooksScreen on a new device (account.new_device, behavior)', () => {
     expect(bar).toHaveAttribute('aria-valuenow', '45');
     expect(within(rowOf('Valsas')).getByText('waiting')).toBeInTheDocument();
     expect(within(rowOf('Valsas')).getByText('next in line')).toBeInTheDocument();
+    // The owner-role rows say *can save*, the reader one *reader* — words
+    // (books.owner_can_save, workflow 7 L19).
+    expect(within(rowOf('Banda do Bairro')).getByText(/^On Estante · can save · /)).toBeInTheDocument();
+    expect(within(rowOf('Valsas')).getByText(/^On Estante · can save · /)).toBeInTheDocument();
+    expect(within(rowOf('Choros da Ana')).getByText(/^On Estante · reader · /)).toBeInTheDocument();
     // Only the cloning book draws a bar.
     expect(screen.getAllByRole('progressbar')).toHaveLength(1);
     // The shelf's count is announced politely.

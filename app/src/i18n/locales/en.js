@@ -538,6 +538,7 @@ export default {
     newSetlistTitle: 'New setlist',
     newSetlistNameLabel: 'Setlist name',
     newSetlistNamePlaceholder: 'Setlist name',
+    newSetlistNoBook: "This song's book is read-only and My songs isn't on this device, so there is no book to keep a new setlist in.",
     create: 'Create',
   },
 

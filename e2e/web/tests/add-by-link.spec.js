@@ -444,9 +444,10 @@ test.describe('add by link', () => {
       // It clones onto the shelf, On Estante (the add lands on Search).
       await gotoTab(other.page, 'Books');
       await expect(other.page.getByRole('button', { name: rowFor('Minhas cifras') })).toBeVisible();
-      // The row's meta leads with where it lives, then its song count
-      // (books.row_opens_songs; workflow 7 L19-23).
-      await expect(other.page.getByText(/^On Estante · (\d+ songs?|still loading)$/)).toBeVisible();
+      // The row's meta leads with where it lives, then the owner's can-save
+      // word, then its song count (books.row_opens_songs,
+      // books.owner_can_save; workflow 7 L19-23).
+      await expect(other.page.getByText(/^On Estante · can save · (\d+ songs?|still loading)$/)).toBeVisible();
     } finally {
       await other.context.close();
     }

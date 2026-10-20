@@ -197,6 +197,28 @@ export async function addToNewSetlist(page, query, title, setlistName) {
   await expect(page.getByRole('heading', { name: 'Add to setlist' })).toBeHidden();
 }
 
+// From a song open in the reading view: its ⋯ menu › Add to setlist (the same
+// on every device; the computer's row button is a shortcut to it) → New
+// setlist… → type the name WITHOUT clicking the field (the field has focus on
+// open, books.owner_can_save Constraint 4) → Create. `checkA11y`, when given,
+// runs on the picker and on the name dialog.
+export async function addToNewSetlistFromSong(page, title, setlistName, { checkA11y } = {}) {
+  await expect(page.getByRole('group', { name: title }).first()).toBeVisible();
+  const more = page.locator('.appbar.reading-chrome').getByRole('button', { name: 'More', exact: true });
+  await more.first().click();
+  await page.getByRole('menuitem', { name: 'Add to setlist', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add to setlist' })).toBeVisible();
+  if (checkA11y) await checkA11y();
+  await page.getByRole('button', { name: 'New setlist…' }).click();
+  const field = page.getByRole('textbox', { name: 'Setlist name' });
+  await expect(field).toBeFocused();
+  if (checkA11y) await checkA11y();
+  await page.keyboard.type(setlistName);
+  await expect(field).toHaveValue(setlistName);
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('heading', { name: 'Add to setlist' })).toBeHidden();
+}
+
 // Add a song to an existing setlist.
 export async function addToExistingSetlist(page, query, title, setlistName) {
   await addToSetlistFromSearch(page, query, title);

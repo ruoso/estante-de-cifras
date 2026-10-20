@@ -499,6 +499,7 @@ export default {
     newSetlistTitle: 'Nuevo repertorio',
     newSetlistNameLabel: 'Nombre del repertorio',
     newSetlistNamePlaceholder: 'Nombre del repertorio',
+    newSetlistNoBook: 'El libro de esta canción es de solo lectura y Mis canciones no está en este dispositivo, así que no hay ningún libro donde guardar un repertorio nuevo.',
     create: 'Crear',
   },
 

@@ -520,3 +520,37 @@ describe('SearchScreen — the book’s bar (books.row_opens_songs)', () => {
     expect(within(screen.getByRole('button', { name: /^Caminho da feira/ })).queryByText('conflict')).toBeNull();
   });
 });
+
+// books.owner_can_save: a book the signed-in person put online is shelved with
+// role `owner`; its section offers the new-song affordance (`canWriteTo` →
+// `canSaveFor`), and a reader-role book's section still does not (workflow 3
+// §Which book L28).
+describe('SearchScreen — an owner-role book offers a new song (books.owner_can_save)', () => {
+  it('the owner-role section offers New song in this book; the reader one does not', async () => {
+    const written = [];
+    const { store, emit } = makeStore();
+    const { container } = render(<SearchScreen store={store} onWriteSong={(w) => written.push(w)} />);
+    emit(
+      event(EventKind.BROWSE_RESULTS, {
+        books: [
+          { bookId: 'srv-own', count: 1, songs: [{ path: 'a.cifra.md', title: 'Feira de Domingo', artist: '', unsaved: false }] },
+          { bookId: 'srv-read', count: 1, songs: [{ path: 'b.cifra.md', title: 'Aurora Mansa', artist: '', unsaved: false }] },
+        ],
+      }),
+    );
+    emit(
+      event(EventKind.SHELF, {
+        books: {
+          'srv-own': { label: { value: 'Roda de Sábado' }, role: { value: 'owner' } },
+          'srv-read': { label: { value: 'Songbook do Coral' }, role: { value: 'reader' } },
+        },
+        local: {},
+      }),
+    );
+    const newSong = screen.getByRole('button', { name: 'New song in Roda de Sábado' });
+    expect(screen.queryByRole('button', { name: 'New song in Songbook do Coral' })).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    act(() => fireEvent.click(newSong));
+    expect(written).toEqual([{ bookId: 'srv-own' }]);
+  });
+});

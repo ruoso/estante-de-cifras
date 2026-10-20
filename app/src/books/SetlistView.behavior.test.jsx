@@ -362,6 +362,136 @@ describe('AddToSetlist dialog', () => {
   });
 });
 
+// books.owner_can_save — a book the signed-in person put online (role `owner`)
+// is savable: its setlists are offered and a new setlist from one of its songs
+// stays in it. *My songs* is found by id (the `mySongs` register), never by its
+// label; with no book to keep a new setlist in, the name dialog says why and
+// stays open. All titles are written for this test.
+const OWNER_SHELF = {
+  books: {
+    'srv-own': { label: { value: 'Roda de Sábado' }, role: { value: 'owner' }, position: { value: 1 } },
+    'srv-read': { label: { value: 'Songbook do Coral' }, role: { value: 'reader' }, position: { value: 2 } },
+  },
+  local: {},
+};
+const OWNER_SETLISTS = [
+  { bookId: 'srv-own', path: 'ensaio.setlist.md', title: 'Ensaio de quinta', count: 3 },
+  { bookId: 'srv-read', path: 'missa.setlist.md', title: 'Missa das dez', count: 6 },
+];
+
+describe('AddToSetlist dialog with an owner-role book (books.owner_can_save)', () => {
+  function renderDialog(song, { shelf = OWNER_SHELF, setlists = OWNER_SETLISTS } = {}) {
+    const made = makeStore({ setlists, shelf });
+    const onClose = vi.fn();
+    const result = render(
+      <ThemeRoot store={made.store}>
+        <AddToSetlist store={made.store} song={song} onClose={onClose} />
+      </ThemeRoot>,
+    );
+    return { ...made, onClose, ...result };
+  }
+  const OWN_SONG = { bookId: 'srv-own', path: 'samba/feira.cifra.md', title: 'Feira de Domingo' };
+  const READ_SONG = { bookId: 'srv-read', path: 'hinos/aurora.cifra.md', title: 'Aurora Mansa' };
+
+  it('lists the owner book’s setlist and Add targets it (workflow 12 §Building one)', async () => {
+    const { commands, container } = renderDialog(OWN_SONG);
+    const row = await screen.findByRole('button', { name: /Ensaio de quinta/ });
+    // the reader book's setlist is not offered (it cannot be written).
+    expect(screen.queryByRole('button', { name: /Missa das dez/ })).not.toBeInTheDocument();
+    await act(async () => fireEvent.click(row));
+    expect(screen.getByText(/an unsaved change to Roda de Sábado/)).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Add' })));
+    const add = commands.find((c) => c.kind === CommandKind.ADD_TO_SETLIST);
+    expect(add.payload).toMatchObject({
+      targetBookId: 'srv-own',
+      setlistPath: 'ensaio.setlist.md',
+      song: { bookId: 'srv-own', path: 'samba/feira.cifra.md' },
+    });
+  });
+
+  it('New setlist… from a song in the owner book keeps it there (setlists Decision 7)', async () => {
+    const { commands, container } = renderDialog(OWN_SONG);
+    await act(async () => fireEvent.click(await screen.findByRole('button', { name: 'New setlist…' })));
+    const nameField = await screen.findByRole('textbox', { name: 'Setlist name' });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    await act(async () => fireEvent.change(nameField, { target: { value: 'Roda nova' } }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Create' })));
+    const add = commands.find((c) => c.kind === CommandKind.ADD_TO_SETLIST);
+    expect(add.payload).toMatchObject({ targetBookId: 'srv-own', newTitle: 'Roda nova' });
+  });
+
+  it('the name field has focus on open; typing then Enter creates (Constraint 4)', async () => {
+    const { commands, container } = renderDialog(OWN_SONG);
+    const newRow = await screen.findByRole('button', { name: 'New setlist…' });
+    // the keyboard path: Enter on New setlist… opens the name dialog.
+    act(() => newRow.focus());
+    await act(async () => {
+      fireEvent.keyDown(newRow, { key: 'Enter' });
+      fireEvent.keyUp(newRow, { key: 'Enter' });
+    });
+    const nameField = await screen.findByRole('textbox', { name: 'Setlist name' });
+    await waitFor(() => expect(nameField).toHaveFocus());
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    // typing lands in the focused field, then Enter submits the form.
+    await act(async () => fireEvent.change(document.activeElement, { target: { value: 'Ensaio extra' } }));
+    await act(async () => fireEvent.submit(nameField.closest('form')));
+    const add = commands.find((c) => c.kind === CommandKind.ADD_TO_SETLIST);
+    expect(add.payload).toMatchObject({ targetBookId: 'srv-own', newTitle: 'Ensaio extra' });
+  });
+
+  it('from a reader book’s song, a new setlist goes to My songs by id, even relabelled (Constraint 3)', async () => {
+    const shelf = {
+      books: {
+        ...OWNER_SHELF.books,
+        'srv-mine': { label: { value: 'Cantos' }, role: { value: 'owner' }, position: { value: 3 } },
+        // a book merely *labelled* My songs is not the account's My songs.
+        'srv-fake': { label: { value: 'My songs' }, role: { value: 'editor' }, position: { value: 4 } },
+      },
+      local: {},
+      mySongs: { value: 'srv-mine' },
+    };
+    const { commands, container } = renderDialog(READ_SONG, { shelf });
+    await act(async () => fireEvent.click(await screen.findByRole('button', { name: 'New setlist…' })));
+    expect(screen.getByText(/This song will be copied into Cantos first\./)).toBeInTheDocument();
+    const nameField = await screen.findByRole('textbox', { name: 'Setlist name' });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    await act(async () => fireEvent.change(nameField, { target: { value: 'Coral em casa' } }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Create' })));
+    const add = commands.find((c) => c.kind === CommandKind.ADD_TO_SETLIST);
+    expect(add.payload).toMatchObject({
+      targetBookId: 'srv-mine',
+      newTitle: 'Coral em casa',
+      song: { bookId: 'srv-read' },
+    });
+  });
+
+  it('from a reader book’s song with no My songs, the name dialog says why and stays open (Constraints 5-6)', async () => {
+    const { commands, container } = renderDialog(READ_SONG);
+    await act(async () => fireEvent.click(await screen.findByRole('button', { name: 'New setlist…' })));
+    const nameDialog = await screen.findByRole('dialog', { name: 'New setlist' });
+    const status = within(nameDialog).getByRole('status');
+    expect(status).toHaveTextContent(
+      "This song's book is read-only and My songs isn't on this device, so there is no book to keep a new setlist in.",
+    );
+    expect(within(nameDialog).queryByRole('textbox')).not.toBeInTheDocument();
+    expect(within(nameDialog).queryByRole('button', { name: 'Create' })).not.toBeInTheDocument();
+    const cancel = within(nameDialog).getByRole('button', { name: 'Cancel' });
+    await waitFor(() => expect(cancel).toHaveFocus());
+    // the picker shows no target paragraph — never "… in null".
+    expect(screen.queryByText(/unsaved change/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/null/)).not.toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    // a submit (Enter) sends nothing and the dialog stays open.
+    await act(async () => fireEvent.submit(nameDialog.querySelector('form')));
+    expect(commands.some((c) => c.kind === CommandKind.ADD_TO_SETLIST)).toBe(false);
+    expect(screen.getByRole('dialog', { name: 'New setlist' })).toBeInTheDocument();
+    await act(async () => fireEvent.click(cancel));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New setlist' })).not.toBeInTheDocument());
+    expect(commands.some((c) => c.kind === CommandKind.ADD_TO_SETLIST)).toBe(false);
+  });
+});
+
 // shell.palco_contrast — in Palco the in-book picker's results and the Add to
 // setlist list kept the UA's light button fill under Palco's light ink, and the
 // amber New setlist… row was an inline style (UI audit 2026-10-14, W12). With

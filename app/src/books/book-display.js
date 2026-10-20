@@ -46,9 +46,11 @@ export function whereFor(kind) {
 
 /**
  * Whether the user can save to a book: a `local` book is always savable; a
- * shared book's role is the membership seam (Decision 5) — `editor` can save,
- * `reader` cannot, and an absent role is `null` (the seam is not filled yet, so
- * the view renders no role word). Pins workflow 7 L20.
+ * shared book's role is the membership seam (Decision 5) — `owner` (a book the
+ * user put online or forked) and `editor` can save, `reader` cannot, and an
+ * absent or unknown role is `null` (the view renders no role word). The role is
+ * a hint (home-book-format §4.2): the service still decides on push. Pins
+ * workflow 7 L19-20 (books.owner_can_save Decisions 1-2).
  *
  * @param {'local' | 'shared'} kind
  * @param {Object} book one book's register map
@@ -57,7 +59,7 @@ export function whereFor(kind) {
 export function canSaveFor(kind, book) {
   if (kind === 'local') return true;
   const role = book?.role?.value;
-  if (role === 'editor') return true;
+  if (role === 'owner' || role === 'editor') return true;
   if (role === 'reader') return false;
   return null;
 }
@@ -104,6 +106,34 @@ function isVisible(book) {
   const keys = Object.keys(book);
   if (keys.length === 0) return true;
   return keys.some((key) => registerValue(book[key]) !== undefined);
+}
+
+// This device's *My songs* before it is put online (worker/my-songs.js
+// MY_SONGS_ID). The view does not import Worker modules (DIRECTION §3.7), so it
+// repeats the constant, as LeaveDialogs.jsx does for the home book.
+const LOCAL_MY_SONGS_ID = 'local-my-songs';
+
+/**
+ * The id of the account's *My songs* on this shelf, found by id and never by
+ * its label (the label is the user's words): the `mySongs` register's book id
+ * when that shared book is a visible entry of `shelf.books`, else
+ * `'local-my-songs'` when that is a visible entry of `shelf.local`, else `null`.
+ * Pins home-book-format §4.2 `mySongs` (books.owner_can_save Constraint 3).
+ *
+ * @param {{ books?: Object, local?: Object, mySongs?: Object }} shelf the `shelf` slice
+ * @returns {string | null}
+ */
+export function mySongsIdFor(shelf) {
+  const shared = registerValue(shelf?.mySongs);
+  const books = shelf?.books ?? {};
+  if (typeof shared === 'string' && Object.hasOwn(books, shared) && isVisible(books[shared])) {
+    return shared;
+  }
+  const local = shelf?.local ?? {};
+  if (Object.hasOwn(local, LOCAL_MY_SONGS_ID) && isVisible(local[LOCAL_MY_SONGS_ID])) {
+    return LOCAL_MY_SONGS_ID;
+  }
+  return null;
 }
 
 // Compare two book ids for a stable, deterministic order (ties on position).

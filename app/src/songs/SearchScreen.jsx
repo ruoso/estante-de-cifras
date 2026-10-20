@@ -110,7 +110,7 @@ function ExploreIcon() {
 
 // Whether a new song may be started into a book from its section (workflow 3
 // §Which book L28): a shared book only when the user can push to it
-// (`canSaveFor` the editor role), a local book (in `shelf.local`, including *My
+// (`canSaveFor`: owner or editor), a local book (in `shelf.local`, including *My
 // songs*) always. A book with no shelf entry is treated as local/on-device.
 function canWriteTo(shelf, bookId) {
   const shared = shelf?.books?.[bookId];
