@@ -29,6 +29,7 @@ import { createWorkingCopy } from './working-copy.js';
 import { createSavePreview } from './save-preview.js';
 import { createHistory } from './history.js';
 import { createBookTree } from './book-tree.js';
+import { listSetlists } from './setlist-list.js';
 import { createHomeBook, HOME_BOOK_ID } from './home-book.js';
 import { createChangeCheckClient } from './change-check-client.js';
 import { createBooksClient } from './books-client.js';
@@ -90,10 +91,6 @@ import { LOCALE_IDS } from '../i18n/index.js';
 export const SCHEMA_VERSION = latestVersion(MIGRATIONS);
 export const DB_NAME = 'estante';
 export const META_KEY = 'meta';
-
-// The setlist file suffix (spec §10; canonicalise.js keys off it too) — used by
-// LIST_SETLISTS to pick a book's setlists out of its working tree.
-const SETLIST_SUFFIX = '.setlist.md';
 
 // The display-preference registers (shell.display_preferences;
 // home-book-format §4.1), one per command: the payload field carrying the
@@ -979,6 +976,14 @@ export function createWorkerLogic(port, options = {}) {
     await ensureIndexHydrated();
     const bookIds = await listBookIds(ensureFs(), HOME_BOOK_ID);
     for (const bookId of bookIds) {
+      // A directory with no commit (a half-done clone) is not a book yet: no
+      // status, and nothing the hydrated index held for it, so it never reads
+      // as ready and empty. The shelf fill indexes it once its clone lands
+      // (books.setlists_resilient Constraint 6).
+      if (!(await hasCommits(bookId))) {
+        await persistIndexChanges(ensureSearchIndex().removeBook(bookId));
+        continue;
+      }
       await indexOneBook(bookId);
     }
   }
@@ -1053,15 +1058,13 @@ export function createWorkerLogic(port, options = {}) {
   async function cloneOntoShelf({ serviceId, gitUrl, title, role, ownerName, author }) {
     // Clone only if the book is not already on the device — re-opening the same
     // link (accept is idempotent and would 200 again) must not clone twice into a
-    // non-empty directory. A present `.git` is the "already cloned" signal; the
-    // shelf register below is rewritten either way (idempotent).
-    let alreadyCloned = true;
-    try {
-      await ensureFs().promises.stat(`${ensureGit().bookDir(serviceId)}/.git`);
-    } catch {
-      alreadyCloned = false;
-    }
-    if (!alreadyCloned) {
+    // non-empty directory. A `main` commit is the "already cloned" signal, the
+    // one the shelf fill trusts; a directory an interrupted clone left is
+    // cleared and cloned again, as the fill heals it (books.setlists_resilient
+    // Constraint 8). The shelf register below is rewritten either way
+    // (idempotent).
+    if (!(await hasCommits(serviceId))) {
+      await clearPartialClone(serviceId);
       await ensureAddByLink().cloneHosted({ id: serviceId, gitUrl });
     }
     const home = ensureHomeBook();
@@ -2122,34 +2125,20 @@ export function createWorkerLogic(port, options = {}) {
           }
           case CommandKind.LIST_SETLISTS: {
             // Every loaded book's setlists for the Setlists destination
-            // (books.setlists, workflow 12 §The file L34): walk each book's
-            // working tree, read its `*.setlist.md` files and reply with each
-            // one's book, path, title and song count. A local, offline read;
-            // the home-state book holds no setlists, so it is excluded exactly
-            // as the index sweep excludes it.
-            const bookIds = await listBookIds(ensureFs(), HOME_BOOK_ID);
-            const setlists = [];
-            for (const bookId of bookIds) {
-              const { entries } = await ensureBookTree().tree({ bookId });
-              const dir = ensureGit().bookDir(bookId);
-              for (const entry of entries) {
-                if (!entry.path.endsWith(SETLIST_SUFFIX) || entry.status === 'deleted') {
-                  continue;
-                }
-                let text;
-                try {
-                  text = await ensureFs().promises.readFile(`${dir}/${entry.path}`, 'utf8');
-                } catch (err) {
-                  if (err?.code === 'ENOENT') continue;
-                  throw err;
-                }
-                const model = parseSetlist(text);
-                const count = model.body.filter(
-                  (el) => el.type === 'song' || el.type === 'unlinked',
-                ).length;
-                setlists.push({ bookId, path: entry.path, title: model.title, count });
-              }
-            }
+            // (books.setlists, workflow 12 §The file L34): each book's
+            // `*.setlist.md` files with their book, path, title and song count.
+            // A local, offline read of the files present, taking no book lock,
+            // so a clone or sync never holds the list up; a book with no commit
+            // or one that cannot be read is skipped, and the rest are listed
+            // (books.setlists_resilient Constraints 1-3). The home-state book
+            // holds no setlists, so it is excluded exactly as the index sweep
+            // excludes it.
+            const setlists = await listSetlists({
+              fs: ensureFs(),
+              bookDir: (bookId) => ensureGit().bookDir(bookId),
+              bookIds: await listBookIds(ensureFs(), HOME_BOOK_ID),
+              hasCommits,
+            });
             port.postMessage(event(EventKind.SETLISTS, { setlists }));
             break;
           }

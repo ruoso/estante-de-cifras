@@ -35,7 +35,7 @@ import { t, currentLocale } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
-import { canSaveFor, orderedBooks, saveTargetFor } from '../books/book-display.js';
+import { canSaveFor, fillDisplayFor, orderedBooks, saveTargetFor } from '../books/book-display.js';
 import {
   recognizeChord,
   scopePayload,
@@ -284,12 +284,18 @@ function AddToSetlistIcon() {
 // One book as a collapsible section (workflow 2 L15-16). The disclosure toggles
 // by pointer and keyboard (RAC); its heading carries the book label and either
 // the song count or, while the book's index is still building, a "still
-// loading" line rather than looking empty (workflow 2 L159-162). A funnel button
+// loading" line rather than looking empty (workflow 2 L159-162). A book still
+// coming down onto this device reads the shelf's fill word (*waiting*, *cloning
+// 40%*), never *0 songs*, and offers no New song or Save all — nothing is there
+// to write into yet (books.setlists_resilient Constraint 7). A funnel button
 // narrows the search to just this book (the scope — workflow 2 L62).
 function BookSection({
   bookId,
   book,
   building,
+  // The book's fill display (`fillDisplayFor`) while it is still coming down,
+  // else null.
+  comingDown = null,
   bookLabel,
   instrument,
   onOpen,
@@ -307,10 +313,12 @@ function BookSection({
   const songs = book?.songs ?? [];
   // Save all is offered in a book's section for a book the user can push to when
   // songs in it have unsaved changes (workflow 4 §Several songs at once).
-  const unsavedPaths = songs.filter((s) => s.unsaved).map((s) => s.path);
-  const meta = building
-    ? t('search.stillLoading')
-    : t('search.songCount', { count });
+  const unsavedPaths = comingDown ? [] : songs.filter((s) => s.unsaved).map((s) => s.path);
+  const meta = comingDown
+    ? comingDown.word
+    : building
+      ? t('search.stillLoading')
+      : t('search.songCount', { count });
   return (
     <Disclosure className="book" defaultExpanded={defaultExpanded}>
       {({ isExpanded }) => (
@@ -330,7 +338,7 @@ function BookSection({
             {/* New song in this book (workflow 3 §Ways in L13): only for a book
                 the user can push to (`canSaveFor`); a book they cannot save to
                 is not offered one (workflow 3 §Which book L28). */}
-            {canWrite && (
+            {canWrite && !comingDown && (
               <Button
                 className="scope-btn"
                 aria-label={t('newSong.inThisBook', { book: bookLabel })}
@@ -447,6 +455,7 @@ export default function SearchScreen({
 }) {
   const searchSlice = useSlice(store, 'search');
   const indexSlice = useSlice(store, 'index');
+  const fillSlice = useSlice(store, 'fill');
   const browseSlice = useSlice(store, 'browse');
   const recentsSlice = useSlice(store, 'recents');
   const preferences = useSlice(store, 'preferences');
@@ -548,13 +557,22 @@ export default function SearchScreen({
       },
   );
 
-  // Every book to list: those with indexed songs (browse) plus any whose index
-  // is still building (so it shows "still loading" rather than vanishing).
+  // Every book to list: those with indexed songs (browse), any whose index is
+  // still building (so it shows "still loading" rather than vanishing), and any
+  // still coming down onto this device (so it reads its fill word, not *0
+  // songs* — books.setlists_resilient Constraint 7; workflow 2 L177-179).
+  const comingDownOf = (id) => {
+    const entry = fillSlice?.[id];
+    return entry && entry.state !== 'ready' ? fillDisplayFor(entry, { t }) : null;
+  };
   const bookIds = useMemo(() => {
     const ids = new Set(browseSlice.books.map((b) => b.bookId));
     for (const id of Object.keys(indexSlice)) ids.add(id);
+    for (const [id, entry] of Object.entries(fillSlice ?? {})) {
+      if (entry?.state !== 'ready') ids.add(id);
+    }
     return [...ids].sort();
-  }, [browseSlice, indexSlice]);
+  }, [browseSlice, indexSlice, fillSlice]);
 
   const bookById = useMemo(() => {
     const m = new Map();
@@ -791,6 +809,7 @@ export default function SearchScreen({
                       bookId={id}
                       book={bookById.get(id)}
                       building={indexSlice[id] === 'building'}
+                      comingDown={comingDownOf(id)}
                       bookLabel={bookLabelFor(id)}
                       instrument={instrument}
                       onOpen={onOpenSong}

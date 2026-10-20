@@ -456,6 +456,8 @@ export default {
     title: 'Repertórios',
     empty: 'Nenhum repertório ainda. Adicione uma música a um repertório pela busca ou pela tela de leitura.',
     loading: 'Carregando repertórios…',
+    failed: 'Não foi possível ler os repertórios deste aparelho.',
+    retry: 'Tentar de novo',
     songCount: { one: '{count} música', other: '{count} músicas' },
     back: 'Voltar',
     play: 'Tocar',

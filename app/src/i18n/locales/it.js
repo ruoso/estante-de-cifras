@@ -456,6 +456,8 @@ export default {
     title: 'Scalette',
     empty: 'Ancora nessuna scaletta. Aggiungi un brano a una scaletta dalla ricerca o dalla vista di lettura.',
     loading: 'Caricamento scalette…',
+    failed: 'Non è stato possibile leggere le scalette su questo dispositivo.',
+    retry: 'Riprova',
     songCount: { one: '{count} brano', other: '{count} brani' },
     back: 'Indietro',
     play: 'Riproduci',

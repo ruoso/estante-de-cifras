@@ -23,6 +23,9 @@
 .setlists-empty {
   max-width: 48ch;
 }
+.setlists-retry {
+  align-self: flex-start;
+}
 
 /* The open/read view and the editor — a full-screen scroll frame bounded by the
    shell's definite frame (.est is height:100dvh, shell.css), so the app bar

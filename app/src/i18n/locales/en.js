@@ -489,6 +489,8 @@ export default {
     title: 'Setlists',
     empty: 'No setlists yet. Add a song to a setlist from search or the reading view.',
     loading: 'Loading setlists…',
+    failed: "The setlists on this device couldn't be read.",
+    retry: 'Try again',
     songCount: { one: '{count} song', other: '{count} songs' },
     // The open/read view.
     back: 'Back',

@@ -208,6 +208,88 @@ describe('the setlist Worker seams (behavior)', () => {
     }
   });
 
+  it('LIST_SETLISTS skips a HEAD-less directory beside a seeded book and posts no ERROR (books.setlists_resilient H1, Constraints 1-2)', async () => {
+    const ctx = await setup();
+    try {
+      await ctx.seedBook('band', async ({ g, w }) => {
+        w('valsa.cifra.md', VALSA);
+        w('gigs/ensaio.setlist.md', SETLIST);
+        await g('add', '.');
+        await g('commit', '-qm', 'Scaffold');
+      });
+      // What an interrupted clone (or a non-atomic removeTree) leaves: a setlist
+      // in the tree and a `.git` with no HEAD.
+      await ctx.fs.promises.mkdir('/books/broken');
+      await ctx.fs.promises.mkdir('/books/broken/.git');
+      await ctx.fs.promises.writeFile(
+        '/books/broken/perdida.setlist.md',
+        ['# Lista perdida', '', '1. Alguma coisa', ''].join('\n'),
+        'utf8',
+      );
+
+      const errors = [];
+      const unsub = ctx.store.subscribeEvents((message) => {
+        if (message?.dir === EVENT && message.kind === EventKind.ERROR) errors.push(message.payload);
+      });
+      const done = ctx.waitEvent(EventKind.SETLISTS);
+      ctx.store.send(command(CommandKind.LIST_SETLISTS, {}));
+      const { setlists } = await done;
+      unsub();
+
+      expect(setlists).toEqual([
+        { bookId: 'band', path: 'gigs/ensaio.setlist.md', title: 'Ensaio', count: 1 },
+      ]);
+      expect(errors).toEqual([]);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('LIST_SETLISTS replies while another book\'s lock is held, reading both lock-free (books.setlists_resilient Constraint 2; DIRECTION §3.7 offline first)', async () => {
+    const ctx = await setup();
+    let release;
+    try {
+      await ctx.seedBook('band', async ({ g, w }) => {
+        w('valsa.cifra.md', VALSA);
+        w('gigs/ensaio.setlist.md', SETLIST);
+        await g('add', '.');
+        await g('commit', '-qm', 'Scaffold');
+      });
+      await ctx.seedBook('ana', async ({ g, w }) => {
+        w('chuva.cifra.md', CHUVA);
+        w('aula.setlist.md', ['# Aula de terça', '', '1. [Chuva](chuva.cifra.md)', ''].join('\n'));
+        await g('add', '.');
+        await g('commit', '-qm', 'Scaffold');
+      });
+      // Hold `ana`'s book lock for the whole test, as a clone or sync would.
+      let held;
+      const acquired = new Promise((resolve) => {
+        held = resolve;
+      });
+      const holding = navigator.locks.request('book:ana', { mode: 'exclusive' }, () => {
+        held();
+        return new Promise((resolve) => {
+          release = resolve;
+        });
+      });
+      await acquired;
+
+      const done = ctx.waitEvent(EventKind.SETLISTS);
+      ctx.store.send(command(CommandKind.LIST_SETLISTS, {}));
+      const { setlists } = await done;
+
+      const byTitle = Object.fromEntries(setlists.map((s) => [s.title, s]));
+      expect(byTitle['Ensaio']).toMatchObject({ bookId: 'band', path: 'gigs/ensaio.setlist.md', count: 1 });
+      expect(byTitle['Aula de terça']).toMatchObject({ bookId: 'ana', path: 'aula.setlist.md', count: 1 });
+      release();
+      release = null;
+      await holding;
+    } finally {
+      release?.();
+      await ctx.cleanup();
+    }
+  });
+
   it('ADD_TO_SETLIST into a setlist in the song\'s own book adds a canonical item, unsaved (workflow 12 §Building one)', async () => {
     const ctx = await setup();
     try {

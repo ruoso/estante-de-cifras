@@ -195,6 +195,52 @@ describe('SearchScreen (behavior)', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
 
+  it('a book still coming down reads its fill word, never "0 songs", and offers no New song; once it lands it reads its count (books.setlists_resilient Constraint 7; workflow 2 L177-179)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = render(<SearchScreen store={store} />);
+
+    // Two books of the shelf fill, nothing indexed for either.
+    emit(event(EventKind.SHELF_FILL, { bookId: 'book-a', state: 'waiting', progress: 0 }));
+    emit(event(EventKind.SHELF_FILL, { bookId: 'book-b', state: 'cloning', progress: 40 }));
+
+    // Both are listed, by the shelf's word.
+    expect(screen.getByRole('button', { name: /book-a.*waiting/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /book-b.*cloning 40%/ })).toBeInTheDocument();
+    expect(screen.getByText('waiting')).toBeInTheDocument();
+    expect(screen.getByText('cloning 40%')).toBeInTheDocument();
+    expect(screen.queryByText(/\b0 songs/)).not.toBeInTheDocument();
+    // Nothing is there to write into yet: no New song, no Save all.
+    expect(screen.queryByRole('button', { name: 'New song in book-a' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New song in book-b' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Save all/ })).not.toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // book-b lands: fill ready, indexed with its songs → its song count.
+    emit(event(EventKind.SHELF_FILL, { bookId: 'book-b', state: 'ready', progress: 100, songs: 2 }));
+    emit(event(EventKind.INDEX_STATUS, { bookId: 'book-b', state: 'ready', songs: 2 }));
+    emit(
+      event(EventKind.BROWSE_RESULTS, {
+        books: [
+          {
+            bookId: 'book-b',
+            count: 2,
+            songs: [
+              { path: 'alpha.cifra.md', title: 'Alpha', artist: '', unsaved: false },
+              { path: 'beta.cifra.md', title: 'Beta', artist: '', unsaved: false },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(screen.getByRole('button', { name: /book-b.*2 songs/ })).toBeInTheDocument();
+    expect(screen.queryByText('cloning 40%')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New song in book-b' })).toBeInTheDocument();
+    // book-a is still waiting.
+    expect(screen.getByText('waiting')).toBeInTheDocument();
+    expect(screen.queryByText(/\b0 songs/)).not.toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
   it('badges: each applicable flag renders as a labelled word, never colour alone (workflow 2 L50-54, mockups README L26)', async () => {
     const { store, emit } = makeStore();
     const { container } = render(<SearchScreen store={store} />);

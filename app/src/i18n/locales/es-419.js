@@ -456,6 +456,8 @@ export default {
     title: 'Repertorios',
     empty: 'Aún no hay repertorios. Agrega una canción a un repertorio desde la búsqueda o la vista de lectura.',
     loading: 'Cargando repertorios…',
+    failed: 'No se pudieron leer los repertorios de este dispositivo.',
+    retry: 'Intentar de nuevo',
     songCount: { one: '{count} canción', other: '{count} canciones' },
     back: 'Atrás',
     play: 'Reproducir',

@@ -14,7 +14,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
-import { hashBlob } from 'isomorphic-git';
+import { hashBlob, init as gitInit } from 'isomorphic-git';
 import { parse as realParse } from 'cifra-md';
 import { createFileSystem } from './fs.js';
 import { createGitLayer } from './git.js';
@@ -49,7 +49,7 @@ afterEach(() => {
 // command each poll, which is a port message, not a filesystem read.
 const until = (fn) => vi.waitFor(fn, { timeout: 8000, interval: 25 });
 
-async function setup() {
+async function setup({ beforeClone } = {}) {
   const remote = await startGitHttpRemote();
   const idb = new IDBFactory();
   const name = `idx-${Math.random().toString(36).slice(2)}`;
@@ -60,6 +60,9 @@ async function setup() {
     http: createGitHttpClient({ fetch: globalThis.fetch }),
   });
   const dir = git.bookDir(bookId);
+  // A hook to lay down other `/books` entries first, so the bring-up sweep
+  // (which walks `/books` in creation order) reaches them before this book.
+  if (beforeClone) await beforeClone(fs);
   await git.clone({ dir, url: remote.url });
 
   // A fresh Worker logic + store over the shared idb/name (a "restart" is a
@@ -176,6 +179,46 @@ describe('search index (behavior)', () => {
       expect(hit.bookId).toBe(ctx.bookId);
       expect(hit.title).toBe('Coração Valente');
       expect(hit.artist).toBe('Banda Teste');
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('skips a directory with HEAD and no main on bring-up: no INDEX_STATUS for it, BROWSE lists only the seeded book (books.setlists_resilient Constraint 6; M8)', async () => {
+    // A half-done clone: HEAD → refs/heads/main, no main, a song in the tree.
+    // Laid down before the seeded book, so the sweep reaches it first and the
+    // seeded book's `ready` means it has been passed over.
+    const ctx = await setup({
+      beforeClone: async (fs) => {
+        await fs.promises.mkdir('/books');
+        await fs.promises.mkdir('/books/half');
+        await gitInit({ fs, dir: '/books/half', defaultBranch: 'main' });
+        await fs.promises.writeFile(
+          '/books/half/b.cifra.md',
+          song(['# Meia', '## A', FENCE, 'G', FENCE]),
+          'utf8',
+        );
+      },
+    });
+    try {
+      ctx.writeSong('a.cifra.md', song(['# Uma', '## A', FENCE, 'C', FENCE]));
+      const { store } = ctx.makeStore();
+      const statuses = [];
+      store.subscribe(() => {
+        for (const [bookId, state] of Object.entries(store.slice('index') ?? {})) {
+          const key = `${bookId}:${state}`;
+          if (!statuses.includes(key)) statuses.push(key);
+        }
+      });
+
+      store.open();
+      await until(() => expect(store.slice('index')[ctx.bookId]).toBe('ready'));
+      expect(statuses.filter((s) => s.startsWith('half:'))).toEqual([]);
+      expect(store.slice('index').half).toBeUndefined();
+
+      store.send(command(CommandKind.BROWSE, {}));
+      await until(() => expect(store.slice('browse').books.length).toBeGreaterThan(0));
+      expect(store.slice('browse').books.map((b) => b.bookId)).toEqual([ctx.bookId]);
     } finally {
       await ctx.cleanup();
     }

@@ -17,6 +17,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { waitFor } from '@testing-library/react';
 import { spawn } from 'node:child_process';
+import { init as gitInit, resolveRef } from 'isomorphic-git';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -219,6 +220,36 @@ describe('add by link (books.add_by_link, workflow 1 §Invited)', () => {
       expect(results.some((r) => r.bookId === serviceId && r.path === SONG_PATH)).toBe(true);
     } finally {
       await remote.stop();
+    }
+  });
+
+  it('heals a directory a prior clone left with HEAD and no main, and never clones a complete book again (books.setlists_resilient Constraint 8)', async () => {
+    const remote = await startGitHttpRemote({ seed: false });
+    const serviceId = `srv-${rand()}`;
+    let stopped = false;
+    try {
+      await seedRemoteWithSong(remote, scratch);
+      const w = await makeWorker(() => ({ status: 200, body: bookOf('editor', serviceId, remote.url) }));
+      // What an interrupted clone leaves: HEAD → refs/heads/main and no main.
+      const dir = w.git.bookDir(serviceId);
+      await w.fs.promises.mkdir('/books').catch(() => {});
+      await w.fs.promises.mkdir(dir);
+      await gitInit({ fs: w.fs, dir, defaultBranch: 'main' });
+
+      const first = await addByLink(w, 'tok-heal');
+      expect(first.kind).toBe(EventKind.BOOK_CLONED);
+      // Cloned for real: the song is readable and the book has its commit.
+      expect(await w.fs.promises.readFile(`${dir}/${SONG_PATH}`, 'utf8')).toBe(SONG);
+      expect(await resolveRef({ fs: w.fs, dir, ref: 'main' })).toMatch(/^[0-9a-f]{40}$/);
+
+      // With the remote gone, a second add can only succeed if it does not clone.
+      await remote.stop();
+      stopped = true;
+      const second = await addByLink(w, 'tok-heal');
+      expect(second.kind).toBe(EventKind.BOOK_CLONED);
+      expect(await w.fs.promises.readFile(`${dir}/${SONG_PATH}`, 'utf8')).toBe(SONG);
+    } finally {
+      if (!stopped) await remote.stop();
     }
   });
 
