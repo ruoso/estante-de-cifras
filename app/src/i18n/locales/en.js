@@ -1551,6 +1551,9 @@ export default {
 
   chart: {
     label: 'Chart',
+    // A verbatim fence's accessible name (songs.render_notes; cifra.md §1.9),
+    // `info` its info string with the first letter capitalised ("Tab block").
+    verbatim: '{info} block',
     // Screen-reader structural phrases (shell.a11y_chart; docs/screen-reader.md
     // §5, §7). `bar` leads a stated numbered measure (§5, cifra.md §2.8);
     // `noChord` reads a no-chord mark (§5, cifra.md §2.6); the region words

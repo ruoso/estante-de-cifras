@@ -338,6 +338,60 @@ describe("SongReading — the song's own notation (workflow 2 §Reading a song)"
   });
 });
 
+// songs.render_notes — the reading view's chart draws the whole body in
+// document order (reading.md D1: the view composes transpose and <Chart>;
+// cifra.md §1.9): a note, a fence, a tab block. Transposition touches music only,
+// so the note and the tab text are unchanged while the chords move.
+describe('SongReading — notes and a tab block (songs.render_notes)', () => {
+  const NOTE = 'Play it gently, the first time.';
+  const TAB = 'e|--3--|\nB|--0--|';
+  const withNotes = [
+    '# Tarde Clara',
+    '',
+    '## Verse',
+    NOTE,
+    '',
+    FENCE,
+    'G  C | Am  D',
+    FENCE,
+    '',
+    `${FENCE}tab`,
+    TAB,
+    FENCE,
+    '',
+  ].join('\n');
+
+  function bodyInOrder() {
+    const chart = screen.getByRole('group', { name: 'Tarde Clara' });
+    const note = within(chart).getByText(NOTE);
+    const bars = chart.querySelector('.barline');
+    const tab = within(chart).getByRole('group', { name: 'Tab block' });
+    expect(note.compareDocumentPosition(bars) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bars.compareDocumentPosition(tab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    return { note, tab };
+  }
+
+  it('reads the note, the music, then the tab block, inside the chart group', async () => {
+    const { store } = makeStore({ text: withNotes, entry: guitarEntry() });
+    await openAndWait(store);
+    const { tab } = bodyInOrder();
+    expect(tab.tagName).toBe('PRE');
+    expect(tab.textContent).toBe(TAB);
+    expect(chartFirstLineGlyphs()).toBe('G C');
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('transposed up a tone, the chords move and the note and the tab text are unchanged', async () => {
+    const { store } = makeStore({ text: withNotes, entry: guitarEntry(), transposition: 2 });
+    await openAndWait(store);
+    await waitFor(() => expect(chartFirstLineGlyphs()).toBe('A D'));
+    const { note, tab } = bodyInOrder();
+    expect(note.textContent).toBe(NOTE);
+    expect(tab.textContent).toBe(TAB);
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+});
+
 describe('SongReading — the variation picker (workflow 2 L73-74, L120-125)', () => {
   const twoVariations = song({
     chart: 'C',

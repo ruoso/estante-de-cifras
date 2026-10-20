@@ -1412,6 +1412,7 @@ export default {
 
   chart: {
     label: 'Cifra',
+    verbatim: 'Bloco {info}',
     spoken: {
       noChord: 'sem acorde',
       bar: 'compasso {n}:',

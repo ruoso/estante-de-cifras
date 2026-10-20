@@ -9,6 +9,7 @@
 // §2.1-§2.2 (chord lines, runs, measures and bar lines) and §2.6 (no-chord).
 
 import { describe, it, expect } from 'vitest';
+import { parse } from 'cifra-md';
 import { chartRows } from './layout.js';
 
 // A chord item in the reader's shape; the chart reads `symbol`, `column` and
@@ -338,5 +339,90 @@ describe('chartRows — words, breaks and sections', () => {
       ]),
     );
     expect(rows.filter((r) => r.type === 'section')).toEqual([{ type: 'section', name: 'Verse' }]);
+  });
+});
+
+// songs.render_notes — the chart draws the whole body in document order
+// (DIRECTION §3.7): a notes part in its place among the fences, a verbatim
+// fence as one block (cifra.md spec/1-document.md §1.9).
+describe('chartRows — notes and verbatim', () => {
+  const sungLine = (words) => ({
+    kind: 'sung',
+    closeBar: null,
+    measures: [{ items: [chord('G', 0, words)] }],
+  });
+  const notes = (text) => ({ type: 'notes', text });
+  const verbatim = (info, text) => ({ type: 'verbatim', info, text });
+
+  it('a section [music, notes, music] yields the notes row between the two parts (spec §1.9: position relative to the fences)', () => {
+    const rows = chartRows(
+      model([section('Verse', [music([sungLine('one')]), notes('Softer the second time.'), music([sungLine('two')])])]),
+    );
+    expect(rows.map((r) => r.type)).toEqual(['section', 'sung', 'notes', 'sung']);
+    expect(rows[1].address).toEqual({ section: 0, part: 0, line: 0 });
+    expect(rows[2]).toEqual({ type: 'notes', paragraphs: ['Softer the second time.'], address: { section: 0, part: 1 } });
+    expect(rows[3].address).toEqual({ section: 0, part: 2, line: 0 });
+  });
+
+  it('splits notes into paragraphs on blank lines, keeping inner and leading spaces (spec §1.3)', () => {
+    const rows = chartRows(model([section('Verse', [notes('Softer the second time.\n\nThen   louder.\n  indented')])]));
+    expect(rows[1].paragraphs).toEqual(['Softer the second time.', 'Then   louder.\n  indented']);
+  });
+
+  it('treats a whitespace-only line as a blank line between paragraphs', () => {
+    const rows = chartRows(model([section('Verse', [notes('first\n   \n\nsecond')])]));
+    expect(rows[1].paragraphs).toEqual(['first', 'second']);
+  });
+
+  it('passes Markdown in notes through unchanged (spec §1.9: notes are never interpreted)', () => {
+    const rows = chartRows(model([section('Verse', [notes('**bold** and _soft_ and [x](y) and <b>')])]));
+    expect(rows[1].paragraphs).toEqual(['**bold** and _soft_ and [x](y) and <b>']);
+  });
+
+  it('a verbatim part yields one row with its text whole, blank line kept (spec §1.9)', () => {
+    const rows = chartRows(model([section('Verse', [verbatim('tab', 'e|--3--|\n\nB|--0--|')])]));
+    expect(rows[1]).toEqual({ type: 'verbatim', info: 'tab', text: 'e|--3--|\n\nB|--0--|', address: { section: 0, part: 0 } });
+  });
+
+  it('an empty verbatim fence still yields its row; an empty notes part yields none', () => {
+    const rows = chartRows(model([section('Verse', [verbatim('strum', ''), notes(''), notes('  \n ')])]));
+    expect(rows.map((r) => r.type)).toEqual(['section', 'verbatim']);
+    expect(rows[1].text).toBe('');
+  });
+
+  it('an empty-name section holding only notes yields the notes row and no section row (spec §1.8)', () => {
+    const rows = chartRows(model([section('', [notes('[G]Walk the [C]road')])]));
+    expect(rows).toEqual([{ type: 'notes', paragraphs: ['[G]Walk the [C]road'], address: { section: 0, part: 0 } }]);
+  });
+
+  it('parsed: notes before the first heading, a note between two fences and a tab block come in document order', () => {
+    const src = [
+      '# Riverside Walk',
+      '',
+      'Play it gently.',
+      '',
+      '## Verse',
+      '```',
+      'G      C',
+      'Down by the water',
+      '```',
+      '',
+      'Softer the second time.',
+      '',
+      '```',
+      'C | G',
+      '```',
+      '',
+      '```tab',
+      'e|--3--|',
+      'B|--0--|',
+      '```',
+      '',
+    ].join('\n');
+    const rows = chartRows(parse(src));
+    expect(rows.map((r) => r.type)).toEqual(['notes', 'section', 'sung', 'notes', 'bars', 'verbatim']);
+    expect(rows[0].paragraphs).toEqual(['Play it gently.']);
+    expect(rows[3].paragraphs).toEqual(['Softer the second time.']);
+    expect(rows[5]).toMatchObject({ info: 'tab', text: 'e|--3--|\nB|--0--|' });
   });
 });

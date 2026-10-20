@@ -1412,6 +1412,7 @@ export default {
 
   chart: {
     label: 'Spartito',
+    verbatim: 'Blocco {info}',
     spoken: {
       noChord: 'nessun accordo',
       bar: 'battuta {n}:',

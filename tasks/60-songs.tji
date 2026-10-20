@@ -194,7 +194,8 @@ task songs "Songs" {
   task render_notes "Notes and verbatim blocks shown in the preview and the reading view" {
     effort 1d
     allocate team
-    note "M1, in part: text outside a fence is a notes part (cifra.md/spec/1-document.md:244-246), which the spec says is free text for whoever reads the sheet (:339), and a verbatim fence is shown in a monospaced face (:353-355); but the editor preview renders only Chart (editor/SongEditor.jsx:560) and chart/layout.js:197,209 skips every non-music part, so a song written as bracket chords on plain lines previews blank and reads blank. Render notes and verbatim parts in the preview and the reading view, in document order. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (notes and verbatim drawn in order, read by a screen reader; axe); e2e-web (a song with notes and a verbatim block read on the three viewports; axe)."
+    complete 100
+    note "M1, in part: text outside a fence is a notes part (cifra.md/spec/1-document.md:244-246), which the spec says is free text for whoever reads the sheet (:339), and a verbatim fence is shown in a monospaced face (:353-355); but the editor preview renders only Chart (editor/SongEditor.jsx:560) and chart/layout.js:197,209 skips every non-music part, so a song written as bracket chords on plain lines previews blank and reads blank. Render notes and verbatim parts in the preview and the reading view, in document order. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (notes and verbatim drawn in order, read by a screen reader; axe); e2e-web (a song with notes and a verbatim block read on the three viewports; axe). Refinement: tasks/refinements/songs/render_notes.md"
   }
   task unknown_tokens_loud "Text that is not a chord is flagged loudly before a save" {
     effort 1d

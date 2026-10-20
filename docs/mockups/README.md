@@ -21,6 +21,6 @@ on their own.
 
 ## Decisions the drawings carry
 
-- **Charts are set in a proportional face, not a monospace.** A sung line is drawn as segments, each a chord stacked over the words it is attached to. A chord wider than its syllable opens room in the words. Where that room falls inside a word, a centred hyphen bridges it, as syllables are joined under notes in sheet music. Chord-only lines are measures between bar rules. Only the raw source editor is monospaced.
+- **Charts are set in a proportional face, not a monospace.** A sung line is drawn as segments, each a chord stacked over the words it is attached to. A chord wider than its syllable opens room in the words. Where that room falls inside a word, a centred hyphen bridges it, as syllables are joined under notes in sheet music. Chord-only lines are measures between bar rules. Only the raw source editor and a verbatim block in a song are monospaced.
 - **A chord diagram that starts up the neck** shows the fret number alone (`8`), right-aligned beside the first fret.
 - **Defaults are drawn hollow, your shapes filled in the chord colour, the song's own shapes filled in ink.** Every status badge carries a word, never colour alone.

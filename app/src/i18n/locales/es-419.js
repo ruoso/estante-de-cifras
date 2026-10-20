@@ -1413,6 +1413,7 @@ export default {
 
   chart: {
     label: 'Cifrado',
+    verbatim: 'Bloque {info}',
     spoken: {
       noChord: 'sin acorde',
       bar: 'compás {n}:',

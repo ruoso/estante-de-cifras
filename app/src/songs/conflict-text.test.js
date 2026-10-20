@@ -176,3 +176,31 @@ describe('conflictSummary', () => {
     }
   });
 });
+
+// songs.render_notes Decision 5 — chartPlace matches over music rows only, so a
+// note between two fences of one section (now a chart row of its own) does not
+// break a disputed run that spans both fences: it is placed as before.
+describe('conflictPlace — a note between two fences', () => {
+  const fenced = (between) => parse([
+    '## Primeira parte',
+    '```',
+    'F | F | C7 | C7',
+    '```',
+    '',
+    ...between,
+    '```',
+    'Db7 | C7 | F | F',
+    '```',
+    '',
+  ].join('\n'));
+  const item = { kind: 'chart', ours: ['F | F | C7 | C7', 'Db7 | C7 | F | F'], theirs: ['F | F | C7 | C7', 'G7 | C7 | F | F'] };
+
+  it('places the disputed lines as it does with no note there', () => {
+    const withNote = fenced(['Mais devagar na segunda vez.', '']);
+    const without = fenced([]);
+    const place = conflictPlace(withNote, item);
+    expect(place).not.toBeNull();
+    expect(place.section).toBe('Primeira parte');
+    expect(place).toEqual(conflictPlace(without, item));
+  });
+});

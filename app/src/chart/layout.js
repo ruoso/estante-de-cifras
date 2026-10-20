@@ -1,4 +1,4 @@
-// The chart's layout (shell.chart): a pure, framework-free transform from the
+// The chart's layout (shell.chart, songs.render_notes): a pure, framework-free transform from the
 // cifra.md reader's parsed song model into an ordered list of chart render rows.
 // No DOM, no React, and no `cifra-md` import — the Web Worker owns parsing and
 // the model reaches the view as plain data (DIRECTION §3.7 lines 407-417), so
@@ -187,15 +187,36 @@ function rowForLine(line, address) {
   }
 }
 
+// A notes part's text → its paragraphs: split on runs of blank lines (a line
+// empty or only whitespace), each paragraph's lines kept with their `\n` and
+// leading spaces (spec §1.3). Notes are free text shown as written and never
+// interpreted (spec §1.9): no Markdown is read here or anywhere in the chart.
+function notesParagraphs(text) {
+  const paragraphs = [];
+  let current = [];
+  for (const line of String(text ?? '').split('\n')) {
+    if (line.trim() === '') {
+      if (current.length) paragraphs.push(current.join('\n'));
+      current = [];
+    } else {
+      current.push(line);
+    }
+  }
+  if (current.length) paragraphs.push(current.join('\n'));
+  return paragraphs;
+}
+
 /**
  * Turn a parsed cifra.md song model into an ordered list of chart render rows.
  *
  * A named section yields a section-name row (the pre-heading section's name is
  * the empty string and yields none); each `music` body part yields one content
  * row per line — a sung row, a bars row, a run row, a words row or a gap row —
- * carrying its stable `{ section, part, line }` address. Non-music body parts
- * (prose `notes`, `verbatim` fences) are the song-reading view's to draw, not
- * the chart's (the refinement's "scope of what the chart draws").
+ * carrying its stable `{ section, part, line }` address. The chart draws the
+ * whole body in document order (DIRECTION §3.7): a `notes` part yields one notes
+ * row of its paragraphs, in its place among the section's fences (cifra.md
+ * §1.9), and a `verbatim` fence yields one verbatim row of its text whole, both
+ * addressed `{ section, part }`.
  *
  * @param {object} [model]  the reader's plain-object model
  * @returns {Array<object>} render rows in document order
@@ -206,6 +227,15 @@ export function chartRows(model) {
   sections.forEach((section, sectionIndex) => {
     if (section.name) rows.push({ type: 'section', name: section.name });
     (section.body ?? []).forEach((part, partIndex) => {
+      if (part.type === 'notes') {
+        const paragraphs = notesParagraphs(part.text);
+        if (paragraphs.length) rows.push({ type: 'notes', paragraphs, address: { section: sectionIndex, part: partIndex } });
+        return;
+      }
+      if (part.type === 'verbatim') {
+        rows.push({ type: 'verbatim', info: part.info ?? '', text: part.text ?? '', address: { section: sectionIndex, part: partIndex } });
+        return;
+      }
       if (part.type !== 'music') return;
       (part.lines ?? []).forEach((line, lineIndex) => {
         rows.push(rowForLine(line, { section: sectionIndex, part: partIndex, line: lineIndex }));

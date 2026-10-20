@@ -145,3 +145,35 @@ describe('readingTokens — the token array', () => {
     expect(readingTokens(row, deps)).toEqual(['G', 'D', 'E minor', 'C']);
   });
 });
+
+// songs.render_notes — the new rows' reading, in the chart's one reading order
+// (screen-reader.md §1.2): a notes row reads as its paragraphs, a verbatim row
+// as its group name then its text.
+describe('readingTokens — notes and verbatim (songs.render_notes)', () => {
+  beforeEach(() => setLocale('en'));
+
+  const notesRow = { type: 'notes', paragraphs: ['Softer the second time.  ', 'Then louder.\n  indented'], address: { section: 0, part: 1 } };
+  const tabRow = { type: 'verbatim', info: 'tab', text: 'e|--3--|\nB|--0--|', address: { section: 0, part: 2 } };
+
+  it('a notes row reads as its paragraphs, trailing spaces trimmed', () => {
+    expect(readingTokens(notesRow, deps)).toEqual(['Softer the second time.', 'Then louder.\n  indented']);
+  });
+
+  it('a verbatim row reads as "Tab block" then its text', () => {
+    expect(readingTokens(tabRow, deps)).toEqual(['Tab block', 'e|--3--|\nB|--0--|']);
+  });
+
+  it('announce joins them with ", " (§1.2)', () => {
+    expect(announce(notesRow, deps)).toBe('Softer the second time., Then louder.\n  indented');
+    expect(announce(tabRow, deps)).toBe('Tab block, e|--3--|\nB|--0--|');
+  });
+
+  it('the parsed rows read in document order', () => {
+    const rows = chartRows(parse('## Verse\n```\nC | G\n```\n\nSofter the second time.\n\n```strum\nD DU UDU\n```\n'));
+    expect(rows.map((row) => announce(row, deps)).filter(Boolean)).toEqual([
+      'C, G',
+      'Softer the second time.',
+      'Strum block, D DU UDU',
+    ]);
+  });
+});

@@ -634,6 +634,45 @@ describe('SongEditor', () => {
 // bracket heading named by a chord raises the *Chords in brackets* notice
 // (workflow 3 §When it looks like another format; spec §1.7.2). Neither stops a
 // save.
+// songs.render_notes — usability finding M1: a song written as bracket chords on
+// plain lines (no fence) is all notes (cifra.md §1.9; workflow 3 L93-96), and
+// the preview, the reading Chart (editor.md AC5), shows those lines as written
+// instead of a blank preview. axe over the preview with notes.
+describe('SongEditor — the preview shows notes', () => {
+  const PLAIN = ['# Trilha Curta', '', '[G]Walk the [C]road', 'down to the [D]water', ''].join('\n');
+
+  it('shows a bracket-chord song with no fence in the preview, as written (wide)', async () => {
+    const { store, emit } = makeStore();
+    const editorRef = { current: null };
+    const { container } = render(
+      <SongEditor store={store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} onSave={() => {}} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: PLAIN }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(PLAIN));
+
+    const preview = screen.getByRole('region', { name: t('editor.source.preview') });
+    const note = within(preview).getByText(/\[G\]Walk the \[C\]road/);
+    expect(note.tagName).toBe('P');
+    expect(note.textContent).toBe('[G]Walk the [C]road\ndown to the [D]water');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('shows the same behind the Preview tab on narrow', async () => {
+    const { store, emit } = makeStore();
+    const editorRef = { current: null };
+    const { container } = render(
+      <SongEditor store={store} bookId={BOOK} path={PATH} layoutMode="narrow" editorRef={editorRef} onSave={() => {}} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: PLAIN }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(PLAIN));
+
+    act(() => fireEvent.click(screen.getByRole('radio', { name: t('editor.source.preview') })));
+    const preview = screen.getByRole('region', { name: t('editor.source.preview') });
+    expect(within(preview).getByText(/\[G\]Walk the \[C\]road/).textContent).toBe('[G]Walk the [C]road\ndown to the [D]water');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
 describe('SongEditor — words not read as chords', () => {
   const BRACKETS = ['# Tarde Clara', '', '```', '[Am]Teste [G]linha', '```', ''].join('\n');
   const bracketNotice = (line) => t('editor.source.bracketChords', { line });

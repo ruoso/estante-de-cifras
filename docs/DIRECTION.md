@@ -475,7 +475,12 @@ languages. Its components carry no look of their own, so the visual language
   is not worth it.
 - **Charts are drawn by the app**, in a proportional face, as chords stacked
   over the syllables they belong to, with a centred hyphen where a chord
-  opens room inside a word (`docs/mockups/`).
+  opens room inside a word (`docs/mockups/`). The chart draws the whole
+  body of a song in document order: a section's notes as written prose in
+  their place among its music, never read as chords and never interpreted
+  as Markdown, and a verbatim fence (a `tab`, a `strum`, cifra.md §1.9) as
+  a block in the monospaced face, its lines kept — the one place outside
+  the source editor where the app sets text in a monospace.
 - **Installed, and updated on the next launch.** The browser installs the
   app from a web app manifest — its name, icons and colours — and caches the
   shell up front, so it opens with no signal. A new version is fetched in the

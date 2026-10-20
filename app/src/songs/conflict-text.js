@@ -67,11 +67,15 @@ function sideLines(side) {
   return side.flatMap((unit) => String(unit).split('\n'));
 }
 
+const MUSIC_ROWS = new Set(['sung', 'bars', 'run', 'words', 'gap', 'section']);
+
 function chartPlace(model, item) {
   const ours = sideLines(item.ours);
   if (ours.length === 0) return null;
   const theirs = sideLines(item.theirs);
-  const rows = chartRows(model);
+  // Music rows only (songs.render_notes Decision 5): a notes or verbatim row
+  // between two fences must not break a run that matches across them.
+  const rows = chartRows(model).filter((row) => MUSIC_ROWS.has(row.type));
   for (let i = 0; i + ours.length <= rows.length; i += 1) {
     if (!ours.every((line, j) => rowText(rows[i + j]) === line)) continue;
     let section = null;

@@ -48,6 +48,19 @@ function barPrefix(number, t) {
 }
 
 /**
+ * A verbatim block's accessible name (songs.render_notes): its info string,
+ * lower-cased by the reader, with the first letter capitalised — "Tab block".
+ *
+ * @param {string} info  the fence's info string
+ * @param {(key: string, params?: object) => string} t
+ * @returns {string}
+ */
+export function verbatimLabel(info, t) {
+  const word = String(info ?? '');
+  return t('chart.verbatim', { info: word.charAt(0).toUpperCase() + word.slice(1) });
+}
+
+/**
  * The ordered spoken tokens of one render row (§2, §4, §5).
  *
  * @param {object} row  a `chartRows` render row
@@ -89,6 +102,13 @@ export function readingTokens(row, deps) {
       // An intro/`.run` line reads its chords as a plain sequence (§5): no bar
       // numbers, no measure grouping.
       return row.tokens.map((cell) => speakVoice(cell.voice, deps)).filter(Boolean);
+    case 'notes':
+      // A notes part reads as its paragraphs, as written (cifra.md §1.9): plain
+      // text, nothing spoken that is not on the screen.
+      return row.paragraphs.map((paragraph) => paragraph.replace(/[ \t]+$/gm, ''));
+    case 'verbatim':
+      // A verbatim fence reads as its named group, then its text whole.
+      return [verbatimLabel(row.info, t), row.text];
     default:
       return [];
   }

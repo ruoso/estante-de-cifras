@@ -124,3 +124,62 @@ describe('Chart (behavior)', () => {
     }
   });
 });
+
+// songs.render_notes — the chart draws a section's notes in their place among
+// its fences and a verbatim fence as a monospaced, focusable, named block
+// (cifra.md spec §1.9; workflow 3 topic 7; DIRECTION §3.7). Notes are shown as
+// written: Markdown is never read.
+describe('notes and verbatim', () => {
+  beforeEach(() => setLocale('en'));
+
+  const NOTES_SONG = `# Riverside Walk
+
+## Verse
+\`\`\`
+G      C
+Down by the water
+\`\`\`
+
+Softer the second time.
+
+\`\`\`
+C | G | D
+\`\`\`
+
+\`\`\`tab
+e|--3--|
+
+B|--0--|
+\`\`\`
+
+Hold it **x** and [x](y) <b>.
+`;
+
+  it('draws the sung line, the note and the second fence in document order, the tab as a named group', async () => {
+    const { container } = renderChart(<Chart model={parse(NOTES_SONG)} />);
+    const chart = screen.getByRole('group', { name: 'Chart' });
+    const sung = chart.querySelector('.sung');
+    const note = within(chart).getByText('Softer the second time.');
+    const bars = chart.querySelector('.barline');
+    const tab = within(chart).getByRole('group', { name: 'Tab block' });
+    const following = (a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    expect(following(sung, note)).toBe(true);
+    expect(following(note, bars)).toBe(true);
+    expect(following(bars, tab)).toBe(true);
+
+    expect(note.tagName).toBe('P');
+    expect(note.closest('.notes')).not.toBeNull();
+    expect(tab.tagName).toBe('PRE');
+    expect(tab).toHaveClass('verbatim');
+    expect(tab).toHaveAttribute('tabindex', '0');
+    expect(tab.textContent).toBe('e|--3--|\n\nB|--0--|');
+    tab.focus();
+    expect(document.activeElement).toBe(tab);
+
+    // Markdown and markup in a note show as typed: no <strong>, no link, no <b>.
+    expect(within(chart).getByText('Hold it **x** and [x](y) <b>.')).toBeInTheDocument();
+    expect(chart.querySelector('strong, a, b')).toBeNull();
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});

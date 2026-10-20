@@ -2,7 +2,7 @@
 // `chartRows` layout. It renders a parsed cifra.md song model proportionally —
 // a sung line as chords stacked over the words they are attached to, a
 // chord-only line as measures between bar rules or a run, section names, words
-// lines and stanza breaks — in the mockups' chart markup, which theme.css lines
+// lines, stanza breaks, a section's notes and its verbatim blocks — in the mockups' chart markup, which theme.css lines
 // 210-229 style from the theme tokens (the "adopted chart CSS").
 //
 // This is a view component, so it is the only layer here that knows React
@@ -33,7 +33,7 @@
 import { Fragment } from 'react';
 import { Button } from 'react-aria-components';
 import { chartRows } from './layout.js';
-import { speakVoice, regionAnnouncement } from './reading.js';
+import { speakVoice, regionAnnouncement, verbatimLabel } from './reading.js';
 import { speakChord } from '../render/chord-speech.js';
 import { t } from '../i18n/index.js';
 
@@ -156,6 +156,27 @@ function Row({ row, mark, ctx }) {
       return <div className={`words${markCls}`}>{row.text}</div>;
     case 'gap':
       return <div className="gap" />;
+    case 'notes':
+      // A section's notes, in their place among its music (cifra.md §1.9): one
+      // paragraph per blank-line-separated run, shown as written — React text
+      // children, never Markdown, line breaks and leading spaces kept by CSS.
+      return (
+        <div className="notes">
+          {row.paragraphs.map((paragraph, i) => (
+            <p key={i}>{paragraph}</p>
+          ))}
+        </div>
+      );
+    case 'verbatim':
+      // A verbatim fence (a `tab`, a `strum`) in the monospaced face, its lines
+      // kept and never wrapped; it scrolls sideways inside itself, so it is a
+      // focusable named group a keyboard can reach (axe scrollable-region-focusable).
+      return (
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        <pre className="verbatim" role="group" aria-label={verbatimLabel(row.info, t)} tabIndex={0}>
+          {row.text}
+        </pre>
+      );
     default:
       return null;
   }
