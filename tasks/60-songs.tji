@@ -166,4 +166,61 @@ task songs "Songs" {
     depends music.voicings_song_dialect, !editor, music.wizard, books.play
     note "SetlistPlay, SongEditor (with editor/cifra-syntax.js) and SongWizard still pass the user's notation preference as cifra-md's dialect override; they take songDialect(model) as SongReading and SongArrange now do (the preference kept for what spells for the user). Source-of-debt: tasks/refinements/music/voicings_song_dialect.md (Decision 6; cifra.md section 5.6). Tests: behavior (SetlistPlay: an american song's C7+ played at a setlist key a tone up shows the sharp-fifth chord transposed; SongWizard: an american song's C7+ is offered the sharp-fifth shapes); unit (cifra-syntax: an american song's ambiguity diagnostics report the american reading under a brazilian preference). Refinement: tasks/refinements/songs/song_notation_views.md"
   }
+  task save_feedback "Saving says what it is doing and why it cannot" {
+    effort 1.5d
+    allocate team
+    depends !save_sheet
+    note "H2: a blank Your name leaves Save disabled with nothing saying why (app/src/songs/SaveSheet.jsx:125-127, 169-173, 241, 253; a RAC TextField isRequired with no FieldError) — keep Save pressable and on a blank name show an inline error and focus the field; and offer the account name the help text promises (en.js:1081; needsName checks only preferences.authorName, SaveSheet.jsx:104-105). M3: the save waits on the push (worker/working-copy.js:185-200; SAVED posted after it, logic.js:1749-1758) with no pending state, so it takes seconds and Save can be pressed twice — post SAVED once the local commit lands and push in the background, as workflow 4 says (at once with a network, at the next sync without), and show Saving… with Save disabled meanwhile. M5: a blank artist gives the note artist added: ; — cifra.md/js/src/diff.js:136-138 emits an added entry for an empty value; treat empty as absent there (a cifra.md/ subtree change, its own tests). Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (diffProperties with an empty value); behavior (the name error and focus, the pending state, no double save, the account name offered; axe); e2e-web (save with a blank name shows the error; a save with the remote unreachable closes at once and is pushed at the next sync; axe)."
+  }
+  task unsaved_after_discard "Discarding or saving clears the unsaved badge where one returns" {
+    effort 0.5d
+    allocate team
+    depends !save_sheet
+    note "L3: an unsaved badge persisted after discarding. Worker commands run concurrently (worker/attach-worker.js:18); DISCARD posts DISCARDED before re-indexing (logic.js:1948 vs 1952-1964) and never posts INDEX_STATUS after, so the screen returned to browses the stale unsaved flag and nothing re-browses; SAVE has the same order (1749 vs 1762-1775). WRITE already posts INDEX_STATUS for exactly this hazard (logic.js:1684-1691) — do the same after DISCARD and SAVE re-index. Recents are never pruned (worker/recents.js), so a discarded draft row lingers: drop recents for paths that no longer exist. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (recents pruning); behavior (discard then back to search: no badge; save likewise); e2e-web (a draft discarded and the search screen shows no unsaved badge on the three viewports)."
+  }
+  task no_raw_ids "No raw book ids and no file-name titles in lists" {
+    effort 1d
+    allocate team
+    note "L2: raw ids like local-6467d4de-… appeared in the sidebar, the Books list and the song header meta. Every label resolver falls back to the id when this device shelf entry has no title: titleFor (books/book-display.js:31-33), bookLabelFor (songs/first-run.js:39-45, used by SearchScreen, SongReading.jsx:327, NewSongHost), SongHistory.jsx:258, unsaved-list.js:34. Never show the id: fall back to a localized Untitled book, and backfill a missing shelf.local entry from the README level-1 heading on OPEN; find why the entry was missing (device-namespace mismatch, home book attached without this device entries). L1: rows show the placeholder file name untitled-2 for a song with no title (search-query.js:79-83, SearchScreen.jsx:203,249, unsaved-list.js:53,71), but workflow 3 L37-41 says only the file view shows it: show the localized Untitled song instead. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (each resolver never returns an id); behavior (a book missing its shelf entry is labelled; an untitled song row; axe); e2e-web (a new untitled song and a book without a shelf label, on the three viewports)."
+  }
+  task history_24h "Song history tells the time as the rest of the app does" {
+    effort 0.25d
+    allocate team
+    note "M6: song history showed 16:59 PM. history-view.js:54-63 formats with currentLocale() (bare en) and no hourCycle, while book-display.js:208, BookHistory.jsx:41, people.js:22 and shape-readout.js:105 map en to en-GB (24-hour), so the app shows two clock styles; the PM was not reproduced. Use the same mapping. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (the history time in each locale, no AM/PM in en)."
+  }
+  task render_notes "Notes and verbatim blocks shown in the preview and the reading view" {
+    effort 1d
+    allocate team
+    note "M1, in part: text outside a fence is a notes part (cifra.md/spec/1-document.md:244-246), which the spec says is free text for whoever reads the sheet (:339), and a verbatim fence is shown in a monospaced face (:353-355); but the editor preview renders only Chart (editor/SongEditor.jsx:560) and chart/layout.js:197,209 skips every non-music part, so a song written as bracket chords on plain lines previews blank and reads blank. Render notes and verbatim parts in the preview and the reading view, in document order. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (notes and verbatim drawn in order, read by a screen reader; axe); e2e-web (a song with notes and a verbatim block read on the three viewports; axe)."
+  }
+  task unknown_tokens_loud "Text that is not a chord is flagged loudly before a save" {
+    effort 1d
+    allocate team
+    depends !save_gate_dropped_section
+    note "M2, decided 2026-10-19: saves are canonical (songs.save_gate_dropped_section), so bad syntax must be refused loudly, not discovered later. Typing [Am]Teste [G]linha inside a fence gives a section named Am with unknown tokens Teste and [G]linha and no diagnostic — conformant, since spec/2-chart.md §2.9 says a reader MUST NOT raise a diagnostic for an unknown token, but MUST keep it and SHOULD list the distinct ones. That is the reader; the app may refuse: mark every unknown token in the editor, and make the save sheet list them and require an explicit Save anyway — not an outright block, since §2.9 names annotations the format does not define (fine, rit., (solo)) as legitimate unknown tokens. Also flag a bracket heading whose name parses as a chord symbol ([Am] read as a section) as almost certainly a chord written in another format, pointing to the format help (songs.format_help). Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (which inputs are flagged); behavior (the editor marks, the save sheet lists and asks, a bracket-chord heading flagged; axe); e2e-web (bracket chords typed into a new song are flagged and the save asks first, on the three viewports; axe)."
+  }
+  task format_help "The song format explained in the editor" {
+    effort 1d
+    allocate team
+    depends design.format_help, !render_notes
+    note "As design.format_help decides: a format help popup reachable from the song editor, in plain words with copyable examples, and the hint from the editor when what was typed looks like another format. Decided 2026-10-19 (the editor has no instructions about the format; usability review M1). Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (the popup opens from the editor and returns focus, examples insert or copy, the hint on bracket chords; axe); e2e-web (the help opened while writing a new song on the three viewports; axe)."
+  }
+  task search_book_head_narrow "A book section heading in search fits a phone" {
+    effort 0.5d
+    allocate team
+    depends design.review_polish
+    note "M13: on a phone the search screen book section header puts the bordered row, the 44px plus, Save all and the 44px filter side by side (SearchScreen.jsx:308-350; search.css:128-201), crowding the card edge; W02 draws the row alone. As design.review_polish draws it. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (the actions reachable at narrow width; axe); e2e-web (a book section with unsaved songs at 390px, nothing clipped; axe, mockup W02)."
+  }
+  task empty_states "An empty song or section says so and offers Edit" {
+    effort 0.5d
+    allocate team
+    depends design.review_polish, !render_notes
+    note "L6: the reading view has no empty state (SongReading.jsx), so a song saved from the template reads as a blank section; only the arrange chart has one (en.js Nothing written yet.). As design.review_polish decides. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (an empty song and an empty section, Edit reachable; axe); e2e-web (a song saved untouched reads its empty state on the three viewports; axe)."
+  }
+  task menu_grouping "The song menu grouped" {
+    effort 0.25d
+    allocate team
+    depends design.review_polish
+    note "L7: the song ⋯ menu is eight flat items (SongReading.jsx:580-587). Its duplicating the toolbar stays as decided (tasks/refinements/songs/reading_chrome.md). Group it with RAC Section and Separator as design.review_polish draws it. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (groups named for a screen reader, keyboard order; axe)."
+  }
 }

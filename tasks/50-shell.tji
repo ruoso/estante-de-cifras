@@ -131,4 +131,15 @@ task shell "Shell" {
     depends !tokens
     note "In Palco the file view tree rows, its history cards, the Add to setlist list and the setlist point-at results keep a light fill with light text, so titles are near invisible (W14, W12; the amber New setlist row is low contrast on it). Those components set a surface colour outside the theme tokens. The e2e axe checks run in the automatic theme on a light device, i.e. Estante only, which is why none caught it: make the axe fixture also check under Palco (emulateMedia dark) on every screen it visits. Source: UI pairwise audit 2026-10-14 (e2e mockup() screenshots vs rendered boards, audit/out). Tests: behavior (the listed rows take the theme surface; axe in Palco); e2e-web (axe under both themes on every visited screen, three viewports). Refinement: tasks/refinements/shell/palco_contrast.md"
   }
+  task popover_surface "Every popover and menu drawn on a surface" {
+    effort 0.5d
+    allocate team
+    note "M7, M9: six RAC Popovers have no class and nothing styles .react-aria-Popover or a bare menu, so they render see-through over what is beneath — SongReading.jsx:412 (Transpose: its Written key label lands on the arrangement caption), :444 (variation Select), :565 (the ⋯ menu, which also opens off the right edge), PeopleScreen.jsx:123, SetlistView.jsx:278, WhichBook.jsx:66. Only the file view gets it right (className card file-create-menu, placement bottom end; files/file-view.css:146-158). One shared popover and menu surface for all of them, the ⋯ menu placed bottom end, and a check that fails on a Popover without it. Mind the theme root: overlays portal outside .est unless given a container inside it. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit or lint (no bare Popover); behavior (each popover has the surface class and tokens; axe); e2e-web (Transpose open over the arrangement caption and the ⋯ menu opened on the three viewports in all themes, nothing overlapping; axe)."
+  }
+  task plain_language "Plain words where git terms leak into everyday screens" {
+    effort 0.5d
+    allocate team
+    depends design.review_polish
+    note "M12, L4, M4: the book detail Download card says A zip of the repository … Any git tool opens it (en.js:205-206, as the boards draw it), the upload preview names .gitattributes (en.js:86), the setlist raw pane says any git host (en.js:520), and the save sheet tells a local book that saving shares it with whoever shares the book (SaveSheet.jsx:235). Git terms stay in the file view, where workflow 14 shows the book as git sees it. Change the strings in all four locales and the boards, as design.review_polish writes them. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (the locales carry every key); behavior (the local-book save caption differs from a hosted one; axe)."
+  }
 }
