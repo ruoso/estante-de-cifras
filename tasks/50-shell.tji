@@ -153,7 +153,14 @@ task shell "Shell" {
   task surface_restore_focus "Focus lands on the restored screen when a full-screen layer closes" {
     effort 0.5d
     allocate team
+    complete 100
     depends !narrow_fixes
-    note "On the phone, when a full-screen layer closes (Done on a made invitation, Back from the people screen), nothing moves focus to the restored screen: the book detail's Share button, or the people screen's heading. Move it there, with no new mechanism beyond framed's focus handling. Source: books.setlist_picker_fixes (tasks/refinements/books/setlist_picker_fixes.md, Constraint 6), the governing document being workflow 10 Where it sits. Tests: behavior (Done and Back on the phone leave focus on the restored screen; axe); e2e-web (the same on the phone viewport; axe)."
+    note "On the phone, when a full-screen layer closes (Done on a made invitation, Back from the people screen), nothing moves focus to the restored screen: the book detail's Share button, or the people screen's heading. Move it there, with no new mechanism beyond framed's focus handling. Source: books.setlist_picker_fixes (tasks/refinements/books/setlist_picker_fixes.md, Constraint 6), the governing document being workflow 10 Where it sits. Tests: behavior (Done and Back on the phone leave focus on the restored screen; axe); e2e-web (the same on the phone viewport; axe). Refinement: tasks/refinements/shell/surface_restore_focus.md"
+  }
+  task surface_restore_focus_song "Focus lands on the song's or setlist's Share when the people screen opened from it closes" {
+    effort 0.5d
+    allocate team
+    depends !surface_restore_focus
+    note "Follow-up to shell.surface_restore_focus (tasks/refinements/shell/surface_restore_focus.md): when the people screen opened from a song or a setlist closes on the phone, focus lands on that song's or setlist's Share. SongReading and SetlistView take the same one-shot prop, and shareReturn gains 'song' and 'setlist'. Governing document: workflow 10 Where it sits (docs/workflows/10-share.md). Tests: behavior (AppShell: Back and Done leave focus on Share for a song and for a setlist; axe); e2e-web (share.spec.js song and setlist share cases on the phone assert toBeFocused; axe)."
   }
 }

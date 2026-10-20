@@ -32,7 +32,7 @@
 // pattern), portaled into `.est` by the app-wide provider; status is a word,
 // never colour alone (the chips, the loss warning).
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -306,7 +306,10 @@ function DeleteDialog({ title, onDelete }) {
  * (put-online adopts the service id — Decision 3); `onShare(bookId)` opens the
  * book's sharing where the shell puts it — the Share sheet on a phone, the
  * people screen on a tablet or a computer (books.share_people); `onFiles(bookId)`
- * opens the book's file view (workflow 14 §The view).
+ * opens the book's file view (workflow 14 §The view). `autoFocusShare` sends
+ * focus to *Share* once — the shell sets it when a sharing screen over this
+ * detail closes and the detail re-mounts (shell.surface_restore_focus) — then
+ * calls `onShareFocusReturned`.
  */
 export default function BookDetail({
   store,
@@ -317,6 +320,8 @@ export default function BookDetail({
   onReselect = () => {},
   onShare = () => {},
   onFiles = () => {},
+  autoFocusShare = false,
+  onShareFocusReturned = () => {},
 }) {
   const shelf = useSlice(store, 'shelf');
   const sync = useSlice(store, 'sync');
@@ -377,6 +382,19 @@ export default function BookDetail({
     !isTakenDown;
   // Leaving needs a connection (Decision 8): offline, the button is held off.
   const online = useOnline();
+  // Back on the detail after a sharing screen over it closed (its nodes are
+  // fresh): focus *Share*, the control that started it. It waits for the Share
+  // card if that renders a moment later, and runs once — the shell clears the
+  // flag once honoured.
+  const offersShare = (isOwner && !isLocal) || offersLeave;
+  const shareRef = useRef(null);
+  useEffect(() => {
+    if (autoFocusShare && offersShare && shareRef.current) {
+      shareRef.current.focus();
+      onShareFocusReturned();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFocusShare, offersShare]);
   // The make-it-your-own sheet: closed, or `{ following }` — false once access is
   // lost, when following has already ended.
   const [forkSheet, setForkSheet] = useState(null);
@@ -608,13 +626,14 @@ export default function BookDetail({
           </div>
         ) : null}
 
-        {(isOwner && !isLocal) || offersLeave ? (
+        {offersShare ? (
           // The owner shares the book; a member sees who shares it with them and
           // who saves to it (workflow 10 §Who sees whom; W10 #6).
           <div className="card pad">
             <span className="t-h2">{t('books.share')}</span>
             <p className="t-small">{isOwner ? t('books.shareBody') : t('books.shareBodyMember')}</p>
             <Button
+              ref={shareRef}
               className="btn"
               style={{ alignSelf: 'flex-start' }}
               onPress={() => onShare(bookId)}

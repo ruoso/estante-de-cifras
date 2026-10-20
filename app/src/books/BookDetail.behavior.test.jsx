@@ -6,7 +6,7 @@
 // book; axe is clean on each overlay. Rendered inside ThemeRoot the way the app
 // mounts it, so its overlays portal into the `.est` token root (the app-wide
 // UNSAFE_PortalProvider) — [[rac-overlays-portal-outside-est-theme-root]].
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act, within, cleanup, waitFor } from '@testing-library/react';
 
 import { checkWcag21aa } from '../a11y/axe.js';
@@ -834,5 +834,45 @@ describe('Rename, Files and Back on the detail (books.row_opens_songs)', () => {
     emit(event(EventKind.BOOK_REMOVED, { bookId: 'srv-1' }));
     expect(calls).toEqual(['back', 'gone']);
     expect(screen.queryByRole('button', { name: 'Back to books' })).toBeNull();
+  });
+});
+
+// shell.surface_restore_focus Constraint 2: the shell re-mounts the detail when a
+// sharing screen over it closes, and sends focus to *Share* once.
+describe('BookDetail restored focus (shell.surface_restore_focus)', () => {
+  it('autoFocusShare focuses Share once and reports it', async () => {
+    const { store, emit } = makeStore();
+    const onShareFocusReturned = vi.fn();
+    // The shelf arrives a render after the mount: the Share card appears then,
+    // and still gets focus.
+    const { container, rerender } = renderDetail(store, {
+      bookId: 'srv-1',
+      kind: 'shared',
+      autoFocusShare: true,
+      onShareFocusReturned,
+    });
+    emit(hostedShelf());
+    const share = screen.getByRole('button', { name: 'Share', exact: true });
+    expect(document.activeElement).toBe(share);
+    expect(onShareFocusReturned).toHaveBeenCalledTimes(1);
+
+    // Later renders do not move focus again.
+    share.blur();
+    rerender(
+      <ThemeRoot store={store}>
+        <BookDetail store={store} bookId="srv-1" kind="shared" autoFocusShare onShareFocusReturned={onShareFocusReturned} />
+      </ThemeRoot>,
+    );
+    emit(hostedShelf());
+    expect(onShareFocusReturned).toHaveBeenCalledTimes(1);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    cleanup();
+
+    // Without the prop, nothing is focused.
+    const other = makeStore();
+    renderDetail(other.store, { bookId: 'srv-1', kind: 'shared' });
+    other.emit(hostedShelf());
+    expect(screen.getByRole('button', { name: 'Share', exact: true })).toBeInTheDocument();
+    expect(document.activeElement).toBe(document.body);
   });
 });

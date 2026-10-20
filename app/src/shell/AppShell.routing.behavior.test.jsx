@@ -903,6 +903,9 @@ describe('AppShell share surfaces (behavior)', () => {
     await createThenDone();
     expect(screen.queryByRole('region', { name: 'New invitation' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Share', exact: true })).toBeInTheDocument();
+    // shell.surface_restore_focus Constraints 1-2: focus lands on the restored
+    // detail's Share, not on <body>.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Share', exact: true }));
     expect(location.pathname).toBe(`/b/${BOOK}`);
     expect(history.state.layers).toEqual(['bookDetail']);
     expectNotOnSetlists();
@@ -926,11 +929,109 @@ describe('AppShell share surfaces (behavior)', () => {
     const again = screen.getByRole('region', { name: `${BOOK_LABEL} · People` });
     expect(history.state.layers).toEqual(['bookDetail', 'people']);
     expectNotOnSetlists();
+    // shell.surface_restore_focus Constraints 1-3: the restored people screen's
+    // title heading holds focus.
+    expect(document.activeElement).toBe(
+      within(again).getByRole('heading', { level: 1, name: `${BOOK_LABEL} · People` }),
+    );
 
     await traverse(() => fireEvent.click(within(again).getByRole('button', { name: 'Back' })));
     expect(screen.queryByRole('region', { name: `${BOOK_LABEL} · People` })).toBeNull();
     expect(screen.getByRole('button', { name: 'Share', exact: true })).toBeInTheDocument();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Share', exact: true }));
     expect(history.state.layers).toEqual(['bookDetail']);
+  });
+
+  // shell.surface_restore_focus Constraint 1: the flag is set in the closer, so
+  // the system back (popstate's reconcile) restores focus as Back does.
+  it('narrow: the system back from the people screen focuses Share on the restored book detail', async () => {
+    const { store, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    openBookDetail(emit);
+    const sheet = await screen.findByRole('dialog', { name: `Share ${BOOK_LABEL}` });
+    fireEvent.click(await within(sheet).findByRole('button', { name: /^Members/ }));
+    const people = await screen.findByRole('region', { name: `${BOOK_LABEL} · People` });
+    await within(people).findByText('Bia Rocha');
+    expect(history.state.layers).toEqual(['bookDetail', 'people']);
+
+    await traverse(() => history.back());
+    expect(screen.queryByRole('region', { name: `${BOOK_LABEL} · People` })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Share', exact: true }));
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  // shell.surface_restore_focus Constraint 4: on a tablet or a computer Back
+  // from the people screen goes through the same closer; the New invitation
+  // dialog's Done keeps RAC's own restore to its trigger, never the flag.
+  it('wide: Back from the people screen focuses Share on the book detail; the New invitation dialog’s Done leaves focus on New invitation', async () => {
+    wide();
+    answerInvitations();
+    const { store, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    openBookDetail(emit);
+    const people = await screen.findByRole('region', { name: `${BOOK_LABEL} · People` });
+    await within(people).findByText('Ana (you)');
+
+    // RAC restores focus to what held it before the dialog opened.
+    const trigger = within(people).getByRole('button', { name: 'New invitation' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole('dialog', { name: 'New invitation' });
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Create link' }));
+    await within(dialog).findByRole('textbox', { name: 'Invitation link' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New invitation' })).toBeNull());
+    const still = screen.getByRole('region', { name: `${BOOK_LABEL} · People` });
+    await waitFor(() =>
+      expect(document.activeElement).toBe(within(still).getByRole('button', { name: 'New invitation' })),
+    );
+
+    await traverse(() => fireEvent.click(within(still).getByRole('button', { name: 'Back' })));
+    expect(screen.queryByRole('region', { name: `${BOOK_LABEL} · People` })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Share', exact: true }));
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  // shell.surface_restore_focus Constraint 1's guard: a people screen opened from
+  // a song's share closes onto the reading view, so no flag is left for a later,
+  // unrelated book-detail mount.
+  it('narrow: Back from a people screen opened over a song leaves no pending focus', async () => {
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, OWNED));
+    act(() => {
+      fireEvent.change(screen.getAllByRole('searchbox')[0], { target: { value: 'tarde' } });
+    });
+    emit(
+      event(EventKind.SEARCH_RESULTS, {
+        query: 'tarde',
+        results: [{ bookId: BOOK, path: SONG_PATH, title: SONG_TITLE, artist: '', score: 3, unsaved: false }],
+      }),
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(SONG_TITLE) })[0]);
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
+    await screen.findByRole('group', { name: SONG_TITLE });
+    fireEvent.click(screen.getAllByRole('button', { name: 'More' })[0]);
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Share' }));
+    const sheet = await screen.findByRole('dialog', { name: `Share ${SONG_TITLE}` });
+    fireEvent.click(await within(sheet).findByRole('button', { name: /^Members/ }));
+    const people = await screen.findByRole('region', { name: `${BOOK_LABEL} · People` });
+    await within(people).findByText('Bia Rocha');
+
+    await traverse(() => fireEvent.click(within(people).getByRole('button', { name: 'Back' })));
+    expect(screen.queryByRole('region', { name: `${BOOK_LABEL} · People` })).toBeNull();
+    expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
+
+    // Later: off the song, then the book's detail through Books → Manage.
+    await traverse(() => history.back());
+    expect(screen.queryByRole('group', { name: SONG_TITLE })).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${BOOK_LABEL}`) }));
+    const manage = screen.getByRole('button', { name: `Manage ${BOOK_LABEL}` });
+    manage.focus();
+    fireEvent.click(manage);
+    const share = await screen.findByRole('button', { name: 'Share', exact: true });
+    expect(document.activeElement).not.toBe(share);
   });
 
   it('narrow: after a put-online from the book detail, Done on the sheet’s invitation returns to the book at its service id', async () => {

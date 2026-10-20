@@ -14,7 +14,7 @@
 // Withdraw. A member (#6) sees who shares the book and who saves to it — the
 // service lists no other reader — and no controls.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -187,6 +187,9 @@ function InvitationCard({ invitation, members, locale, onWithdraw }) {
  * New invitation's place — the phone's own screen (`onNewInvitation`, raised to
  * AppShell) or, wide, a centred dialog over this screen. `ownerName` is the
  * shelf's name for the owner, a member's fallback when the service sends none.
+ * `autoFocusTitle` sends focus to the screen's title once on mount — the shell
+ * sets it when a New invitation screen made from here closes and this screen
+ * re-mounts (shell.surface_restore_focus) — then calls `onTitleFocusReturned`.
  */
 export default function PeopleScreen({
   bookId,
@@ -197,6 +200,8 @@ export default function PeopleScreen({
   sharingClient,
   onBack = () => {},
   onNewInvitation = null,
+  autoFocusTitle = false,
+  onTitleFocusReturned = () => {},
 }) {
   const isOwner = role === 'owner';
   const locale = currentLocale();
@@ -206,6 +211,17 @@ export default function PeopleScreen({
   const [inviting, setInviting] = useState(false);
   const [moreReaders, setMoreReaders] = useState(false);
   const membersHeading = useRef(null);
+  // Back on this screen after the New invitation screen over it closed (the
+  // screen's nodes are fresh): focus its title, so a screen reader says where it
+  // is. One-shot on mount; the shell clears the flag once honoured.
+  const titleRef = useRef(null);
+  useEffect(() => {
+    if (autoFocusTitle && titleRef.current) {
+      titleRef.current.focus();
+      onTitleFocusReturned();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const act = async (fn) => {
     setActionError(null);
@@ -348,7 +364,7 @@ export default function PeopleScreen({
         <Button className="btn icon" aria-label={t('sharing.back')} onPress={onBack}>
           <BackIcon />
         </Button>
-        <h1 className="title" id="est-people-title">
+        <h1 className="title" id="est-people-title" ref={titleRef} tabIndex={-1}>
           {heading}
         </h1>
         {isOwner && full ? <span className="badge conflict">{t('sharing.stateFull')}</span> : null}

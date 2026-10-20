@@ -330,3 +330,22 @@ describe('a member’s view (W10 #6)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });
+
+// shell.surface_restore_focus Constraints 2-3: the shell re-mounts the people
+// screen when the New invitation screen over it closes, and sends focus to its
+// title — focusable by script, never a tab stop.
+describe('the people screen’s restored focus (shell.surface_restore_focus)', () => {
+  it('autoFocusTitle focuses the screen’s heading, which stays out of the tab order', async () => {
+    const { client } = ownerClient();
+    const onTitleFocusReturned = vi.fn();
+    const { container } = renderPeople(client, { mode: 'narrow', autoFocusTitle: true, onTitleFocusReturned });
+
+    const region = await screen.findByRole('region', { name: 'Choros da Ana · People' });
+    const heading = within(region).getByRole('heading', { level: 1, name: 'Choros da Ana · People' });
+    expect(document.activeElement).toBe(heading);
+    expect(heading).toHaveAttribute('tabindex', '-1');
+    await within(region).findByText('Ana (you)');
+    expect(onTitleFocusReturned).toHaveBeenCalledTimes(1);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});

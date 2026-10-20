@@ -420,6 +420,11 @@ export default function AppShell({
   const [shareSheet, setShareSheet] = useState(null);
   const [people, setPeople] = useState(null);
   const [newInvitation, setNewInvitation] = useState(null);
+  // Where focus goes when a sharing screen closes and the screen beneath
+  // re-mounts with fresh nodes (shell.surface_restore_focus): `'book'` — the book
+  // detail's *Share* — `'people'` — the people screen's title — or null. Set by
+  // the closers, like `wizardReturn`, so Back, Done and the system back all get it.
+  const [shareReturn, setShareReturn] = useState(null);
   // The song-history surface (songs.history), raised from the reading view's
   // `onOpenHistory` seam — the "see what changed" merge notice (sync.read_in_place)
   // and the existing History button both open it: `{ bookId, path, commit? }` or
@@ -514,7 +519,19 @@ export default function AppShell({
   ].filter(Boolean);
   // How each surface closes — what its Back does at the bottom of the history,
   // and what `popstate` does to a surface the entry it lands on does not name.
-  // The editor's unsaved edit stays in the working copy either way.
+  // The editor's unsaved edit stays in the working copy either way. `kept` is the
+  // layers a popped entry keeps (absent for a Back that closes this one alone),
+  // so a closer can tell what will still be there once the pop is applied.
+  const stays = (kind, kept) => !kept || kept.includes(kind);
+  // A sharing screen's close sends focus back only to a surface that re-mounts:
+  // the people screen when it is still open, else the book detail when it is
+  // open with no song or setlist over it (a flag never waits for a surface that
+  // will not mount).
+  const shareReturnFor = (kept, { fromInvitation }) => {
+    if (fromInvitation && people && stays('people', kept)) return 'people';
+    if (bookDetail && stays('bookDetail', kept) && !openSong && !openSetlist) return 'book';
+    return null;
+  };
   const closers = {
     // Closing the account screen asks again: the address may have been set or
     // confirmed there.
@@ -522,7 +539,10 @@ export default function AppShell({
       setAccount(false);
       refreshAccount();
     },
-    bookDetail: () => setBookDetail(null),
+    bookDetail: () => {
+      setBookDetail(null);
+      setShareReturn(null);
+    },
     conflicts: () => setConflictsBook(null),
     songConflict: () => setSongConflict(null),
     history: () => {
@@ -530,8 +550,16 @@ export default function AppShell({
       setHistory(null);
     },
     files: () => setOpenFile(null),
-    people: () => setPeople(null),
-    newInvitation: () => setNewInvitation(null),
+    people: (kept) => {
+      setPeople(null);
+      setShareReturn(shareReturnFor(kept, { fromInvitation: false }));
+    },
+    newInvitation: (kept) => {
+      setNewInvitation(null);
+      // When the same pop closes the people screen too, its closer (run first,
+      // in layer order) already said where focus goes.
+      if (!people || stays('people', kept)) setShareReturn(shareReturnFor(kept, { fromInvitation: true }));
+    },
     newSong: () => {
       // A never-saved draft stays in the working copy, findable by its badge
       // (workflow 3 §Abandoning it L53-54); a pending re-target is dropped so a
@@ -570,7 +598,7 @@ export default function AppShell({
   // the one open, so a book removed since says so instead of opening empty.
   const applyEntry = (next, kept) => {
     for (const kind of layers) {
-      if (!kept.includes(kind)) closers[kind]();
+      if (!kept.includes(kind)) closers[kind](kept);
     }
     const item = next.song ?? next.setlist ?? null;
     const bookId = item?.bookId ?? next.book ?? null;
@@ -1309,6 +1337,8 @@ export default function AppShell({
         mode={mode}
         onBack={() => back(closers.people)}
         onNewInvitation={() => setNewInvitation({ bookId: people.bookId })}
+        autoFocusTitle={shareReturn === 'people'}
+        onTitleFocusReturned={() => setShareReturn(null)}
       />
     );
   }
@@ -1348,6 +1378,8 @@ export default function AppShell({
         onShare={shareBook}
         onFiles={(bookId) => openFiles(bookId)}
         onReselect={(bookId) => setBookDetail({ bookId })}
+        autoFocusShare={shareReturn === 'book'}
+        onShareFocusReturned={() => setShareReturn(null)}
       />
     );
     // A book's Share on a phone: the sheet over the detail.

@@ -13,7 +13,8 @@
 // an open invitation's link again, share from a song and from a setlist
 // (books.setlist_invitation), and read a full book and
 // a member's view, and pin that Done on a made invitation returns to where it
-// was made from (books.setlist_picker_fixes). Book, song and people are written
+// was made from (books.setlist_picker_fixes) with focus on the restored screen
+// (shell.surface_restore_focus). Book, song and people are written
 // for these tests.
 
 import { test, expect, analyzeBothThemes } from '../lib/axe.js';
@@ -230,6 +231,38 @@ test('Done on a made invitation returns to the book', async ({ page, checkA11y }
     expect(new URL(page.url()).pathname).not.toContain('/setlists');
   }
   await checkA11y(); // the screen Done returned to
+});
+
+// shell.surface_restore_focus (workflow 10 **Where it sits**; Constraints 1-4):
+// a sharing screen that closes re-mounts the screen beneath, and focus lands on
+// it — the book's Share, or the people screen's title — never on <body>. The
+// wide New invitation dialog keeps RAC's own restore (above).
+test('focus lands on the restored screen when a sharing screen closes', async ({ page, checkA11y }) => {
+  await hostedBookWithSong(page, BOOK, SONG_TITLE);
+  const share = page.getByRole('button', { name: 'Share', exact: true });
+
+  if (onPhone()) {
+    const sheet = await openShareSheet(page, BOOK);
+    await createInvitationIn(sheet);
+    await finishInvite(sheet);
+    await expect(share).toBeFocused();
+    await checkA11y(); // the book detail, after Done
+
+    const people = await openSharing(page, BOOK);
+    await createInvitationIn(people);
+    await finishInvite(people);
+    await expect(people.getByRole('heading', { level: 1 })).toBeFocused();
+    await checkA11y(); // the people screen, after Done
+
+    await closeSharing(page);
+    await expect(share).toBeFocused();
+    await checkA11y(); // the book detail, after Back
+  } else {
+    await openSharing(page, BOOK);
+    await closeSharing(page);
+    await expect(share).toBeFocused();
+    await checkA11y(); // the book detail, after Back
+  }
 });
 
 test("the owner copies an open invitation's link again, and a third person joins through it", async ({
