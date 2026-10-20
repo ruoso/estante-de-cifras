@@ -231,6 +231,19 @@ export async function closeAccount(page) {
   await expect(page.getByRole('tab', { name: 'Books' })).toBeVisible();
 }
 
+// Change the name one saves as (account.author_name; workflow 13 §The account
+// screen): on the open account screen, *Change your name*, replace the field
+// with `name`, Save, and wait for the dialog to close and the row to read it.
+export async function changeAuthorName(page, name) {
+  await page.getByRole('button', { name: 'Change your name' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Your name' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('textbox', { name: 'Your name' }).fill(name);
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('region', { name: 'Your name' }).getByText(name, { exact: true })).toBeVisible();
+}
+
 // Choose a theme on the account screen, and leave it.
 export async function chooseTheme(page, name) {
   await openAccount(page);

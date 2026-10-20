@@ -166,6 +166,23 @@ describe('save sheet — who made the change (§Who made the change)', () => {
     withName(emit);
     expect(screen.queryByRole('textbox', { name: /Your name/ })).not.toBeInTheDocument();
   });
+
+  // account.author_name acceptance 4: once the Account screen has replaced the
+  // register, the sheet still reads it live — no field, no SET_IDENTITY_NAME,
+  // and the save carries the new name.
+  it('with the name changed on the Account screen, asks nothing and saves under the new name', async () => {
+    const { store, sent, emit } = makeStore();
+    withName(emit);
+    // The Account screen's change re-surfaces PREFERENCES with the new register.
+    emit(event(EventKind.PREFERENCES, { authorName: { value: 'Marina Lima', at: '2026-10-19T00:00:00.000Z' } }));
+    renderSheet({ paths: ['tarde-clara.cifra.md'] }, store);
+    emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
+
+    expect(screen.queryByRole('textbox', { name: /Your name/ })).not.toBeInTheDocument();
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Save' })));
+    expect(commandsOf(sent, CommandKind.SET_IDENTITY_NAME)).toHaveLength(0);
+    expect(lastCommand(sent, CommandKind.SAVE).payload.name).toBe('Marina Lima');
+  });
 });
 
 describe('save sheet — a titleless new song is named (acceptance 7)', () => {

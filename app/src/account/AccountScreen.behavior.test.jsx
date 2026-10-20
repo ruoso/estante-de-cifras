@@ -1274,3 +1274,204 @@ describe('The account screen as drawn (account.preferences_layout)', () => {
     expect(follows(status, screen.getByText('Signed-in devices'))).toBe(true);
   });
 });
+
+// behavior (account.author_name) — the *Your name* row at the end of
+// Preferences and its change dialog. Pins workflow 13 §The account screen
+// (lines 246-251: your name last, the note, change prefilled, a blank name
+// refused in words) and workflow 4 §Who made the change (the name is changed
+// through SET_IDENTITY_NAME, the one write path). A recording store stands in
+// for the Worker: the dialog's command is read off postMessage, and a
+// PREFERENCES event is pushed through the endpoint as the Worker would.
+describe('your name (account.author_name)', () => {
+  function recordingStore(authorName) {
+    const sent = [];
+    const endpoint = { postMessage: (message) => sent.push(message), onmessage: null };
+    const store = createStore(endpoint);
+    const surface = (name) =>
+      act(() =>
+        endpoint.onmessage({
+          data: event(EventKind.PREFERENCES, name ? { authorName: { value: name, at: 't' } } : {}),
+        }),
+      );
+    if (authorName) surface(authorName);
+    const nameCommands = () => sent.filter((m) => m.kind === CommandKind.SET_IDENTITY_NAME);
+    return { store, sent, surface, nameCommands };
+  }
+
+  const region = () => screen.getByRole('region', { name: 'Your name' });
+  const changeButton = () => screen.getByRole('button', { name: 'Change your name' });
+  const dialog = () => screen.queryByRole('dialog', { name: 'Your name' });
+  const field = () => within(dialog()).getByRole('textbox', { name: 'Your name' });
+
+  function signedInClient() {
+    return makeAuthClient({
+      'GET /api/account/sessions': () => ({
+        body: { sessions: [{ id: 's1', current: true, lastUsedAt: '2026-10-12T10:00:00.000Z' }] },
+      }),
+      'GET /api/account/passkeys': () => ({ body: { passkeys: [] } }),
+      'GET /api/account/recovery-email': () => ({ body: { email: null, pending: null } }),
+    });
+  }
+
+  // A press focuses the button first, as a pointer or the keyboard does — RAC
+  // restores focus on close to what was focused when the dialog opened.
+  async function openDialog() {
+    act(() => changeButton().focus());
+    fireEvent.click(changeButton());
+    await waitFor(() => expect(dialog()).not.toBeNull());
+  }
+
+  it('not signed in, no name yet: the row reads Not set yet, the note and Change your name, last in Preferences, axe clean', async () => {
+    const { client } = signedOut();
+    const { store } = recordingStore();
+    const { container } = renderAccount(store, { client });
+    await screen.findByText('Not signed in');
+
+    expect(within(region()).getByText('Not set yet')).toBeInTheDocument();
+    expect(
+      within(region()).getByText(
+        'Shown on the changes you save from now on. Changes already saved keep the name they were made with.',
+      ),
+    ).toBeInTheDocument();
+    expect(within(region()).getByRole('button', { name: 'Change your name' })).toHaveTextContent('Change');
+    // Last in Preferences: after the Language picker (workflow 13 order).
+    const language = screen.getByRole('radiogroup', { name: 'Language' });
+    expect(Boolean(language.compareDocumentPosition(region()) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('with a name, signed out: the row shows it', async () => {
+    const { client } = signedOut();
+    const { store } = recordingStore('Ana Ribeiro');
+    renderAccount(store, { client });
+    await screen.findByText('Not signed in');
+    expect(within(region()).getByText('Ana Ribeiro')).toBeInTheDocument();
+    expect(within(region()).queryByText('Not set yet')).toBeNull();
+  });
+
+  it('with a name, signed in: the row and the identity block both show it', async () => {
+    const { client } = signedInClient();
+    const { store } = recordingStore('Ana Ribeiro');
+    const { container } = renderAccount(store, { client, sharingClient: { listMembers: async () => ({ members: [], count: 0, limit: 50 }) } });
+    await screen.findByText('Signed in on this device');
+    expect(within(region()).getByText('Ana Ribeiro')).toBeInTheDocument();
+    expect(container.querySelector('.account-identity')).toHaveTextContent('Ana Ribeiro');
+  });
+
+  it('Change opens the dialog titled Your name, the field prefilled and focused, axe clean', async () => {
+    const { client } = signedOut();
+    const { store } = recordingStore('Ana Ribeiro');
+    renderAccount(store, { client });
+    await screen.findByText('Not signed in');
+    await openDialog();
+
+    expect(field()).toHaveValue('Ana Ribeiro');
+    await waitFor(() => expect(field()).toHaveFocus());
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('with no name, the field opens empty', async () => {
+    const { client } = signedOut();
+    const { store } = recordingStore();
+    renderAccount(store, { client });
+    await screen.findByText('Not signed in');
+    await openDialog();
+    expect(field()).toHaveValue('');
+  });
+
+  it('a blank and a whitespace-only Save are refused in words, send nothing, and keep the dialog open', async () => {
+    const { client } = signedOut();
+    const { store, nameCommands } = recordingStore('Ana Ribeiro');
+    renderAccount(store, { client });
+    await screen.findByText('Not signed in');
+    await openDialog();
+
+    for (const blank of ['', '   ']) {
+      fireEvent.change(field(), { target: { value: blank } });
+      fireEvent.click(within(dialog()).getByRole('button', { name: 'Save' }));
+      const error = await within(dialog()).findByText('Your name can’t be empty.');
+      expect(error).toBeInTheDocument();
+      expect(field()).toHaveAttribute('aria-invalid', 'true');
+      expect(field()).toHaveAccessibleDescription(/Your name can’t be empty\./);
+      expect(dialog()).not.toBeNull();
+    }
+    expect(nameCommands()).toHaveLength(0);
+  });
+
+  it('a new name is sent trimmed, once, through SET_IDENTITY_NAME; the dialog closes and focus is on Change', async () => {
+    const { client } = signedOut();
+    const { store, nameCommands } = recordingStore('Ana Ribeiro');
+    renderAccount(store, { client });
+    await screen.findByText('Not signed in');
+    await openDialog();
+
+    fireEvent.change(field(), { target: { value: '  Ana Lima  ' } });
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(dialog()).toBeNull());
+    expect(nameCommands()).toHaveLength(1);
+    expect(nameCommands()[0].payload).toEqual({ name: 'Ana Lima' });
+    await waitFor(() => expect(changeButton()).toHaveFocus());
+  });
+
+  it('Enter in the field submits', async () => {
+    const { client } = signedOut();
+    const { store, nameCommands } = recordingStore();
+    renderAccount(store, { client });
+    await screen.findByText('Not signed in');
+    await openDialog();
+
+    fireEvent.change(field(), { target: { value: 'Bia' } });
+    fireEvent.submit(field().closest('form'));
+    await waitFor(() => expect(dialog()).toBeNull());
+    expect(nameCommands().map((m) => m.payload)).toEqual([{ name: 'Bia' }]);
+  });
+
+  it('an unchanged name (after trimming) closes with no command', async () => {
+    const { client } = signedOut();
+    const { store, nameCommands } = recordingStore('Ana Ribeiro');
+    renderAccount(store, { client });
+    await screen.findByText('Not signed in');
+    await openDialog();
+
+    fireEvent.change(field(), { target: { value: ' Ana Ribeiro ' } });
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(dialog()).toBeNull());
+    expect(nameCommands()).toHaveLength(0);
+    await waitFor(() => expect(changeButton()).toHaveFocus());
+  });
+
+  it('Cancel and Escape send nothing and return focus to Change', async () => {
+    const { client } = signedOut();
+    const { store, nameCommands } = recordingStore('Ana Ribeiro');
+    renderAccount(store, { client });
+    await screen.findByText('Not signed in');
+
+    await openDialog();
+    fireEvent.change(field(), { target: { value: 'Someone else' } });
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(dialog()).toBeNull());
+    await waitFor(() => expect(changeButton()).toHaveFocus());
+
+    await openDialog();
+    fireEvent.change(field(), { target: { value: 'Someone else' } });
+    fireEvent.keyDown(field(), { key: 'Escape' });
+    await waitFor(() => expect(dialog()).toBeNull());
+    await waitFor(() => expect(changeButton()).toHaveFocus());
+
+    expect(nameCommands()).toHaveLength(0);
+    expect(within(region()).getByText('Ana Ribeiro')).toBeInTheDocument();
+  });
+
+  it('a PREFERENCES event with a new authorName updates the row', async () => {
+    const { client } = signedOut();
+    const { store, surface } = recordingStore('Ana Ribeiro');
+    renderAccount(store, { client });
+    await screen.findByText('Not signed in');
+
+    surface('Ana Lima');
+    await waitFor(() => expect(within(region()).getByText('Ana Lima')).toBeInTheDocument());
+    expect(within(region()).queryByText('Ana Ribeiro')).toBeNull();
+  });
+});

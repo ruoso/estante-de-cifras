@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
+import { log as gitLog } from 'isomorphic-git';
 import { waitFor } from '@testing-library/react';
 import { createFileSystem } from './fs.js';
 import { createGitLayer } from './git.js';
@@ -174,6 +175,63 @@ describe('the theme/language preference writes (behavior)', () => {
       // Neither register was written.
       expect(store.slice('preferences').theme).toBeUndefined();
       expect(store.slice('preferences').language).toBeUndefined();
+    } finally {
+      await remote.stop();
+    }
+  });
+});
+
+// behavior (account.author_name Constraint 2) — the Account screen's *Your
+// name* change goes through SET_IDENTITY_NAME, the same write path the save
+// sheet uses: over an existing name it replaces the register and re-surfaces
+// it (surviving a reload); a blank or whitespace-only name writes nothing.
+describe('changing the name one saves as (account.author_name)', () => {
+  // The home book's commits on `main`, read through a fresh filesystem over the
+  // Worker's database (the Worker flushes after each write).
+  const homeCommits = (idb, name) =>
+    gitLog({ fs: createFileSystem(`${name}-fs`, { indexedDB: idb }), dir: `/books/${HOME_BOOK_ID}`, ref: 'main' });
+
+  it('SET_IDENTITY_NAME over an existing name replaces the register, re-surfaces it, and survives a reload', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await seedPreference(remote, 'seed', { path: ['authorName'], value: 'Rafael' }, T_EARLY);
+
+      const { store, idb, name } = await makeWorkerDevice(remote, 'w');
+      store.open();
+      await waitFor(() => expect(store.slice('preferences').authorName?.value).toBe('Rafael'));
+
+      store.send(command(CommandKind.SET_IDENTITY_NAME, { name: '  Rafael Lima ' }));
+      await waitFor(() => expect(store.slice('preferences').authorName?.value).toBe('Rafael Lima'));
+
+      const reloaded = workerStore(idb, name);
+      reloaded.open();
+      await waitFor(() => expect(reloaded.slice('preferences').authorName?.value).toBe('Rafael Lima'));
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('a blank or whitespace-only name writes nothing: no register change, no home-book commit', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await seedPreference(remote, 'seed', { path: ['authorName'], value: 'Rafael' }, T_EARLY);
+
+      const { store, idb, name } = await makeWorkerDevice(remote, 'w');
+      store.open();
+      await waitFor(() => expect(store.slice('preferences').authorName?.value).toBe('Rafael'));
+      const baseline = await homeCommits(idb, name);
+
+      store.send(command(CommandKind.SET_IDENTITY_NAME, { name: '' }));
+      store.send(command(CommandKind.SET_IDENTITY_NAME, { name: '   ' }));
+      // A valid write after them: once it lands, the blank ones have been handled.
+      store.send(command(CommandKind.SET_LANGUAGE, { language: 'it', author: IDENTITY }));
+      await waitFor(() => expect(store.slice('preferences').language?.value).toBe('it'));
+
+      expect(store.slice('preferences').authorName?.value).toBe('Rafael');
+      // Only the language commit was added on the home book.
+      const after = await homeCommits(idb, name);
+      expect(after).toHaveLength(baseline.length + 1);
+      expect(after.slice(1).map((e) => e.oid)).toEqual(baseline.map((e) => e.oid));
     } finally {
       await remote.stop();
     }

@@ -1877,8 +1877,12 @@ export function createWorkerLogic(port, options = {}) {
             // register into preferences.json, and re-surface PREFERENCES so the
             // slice carries it and the save sheet stops asking. Offline,
             // auto-committed, never pushed (a preference). The name is a user's
-            // own words — never logged (standing rule).
-            const { name: displayName } = message.payload;
+            // own words — never logged (standing rule). Also the Account
+            // screen's *Your name* change (account.author_name): the name is
+            // trimmed, and a blank one writes nothing (Constraint 2, as
+            // SET_THEME refuses an invalid value) — the view refuses it first.
+            const displayName = String(message.payload?.name ?? '').trim();
+            if (!displayName) break;
             const author = await resolveAuthor({ name: displayName });
             const home = ensureHomeBook();
             await home.ensureLocal({ author });

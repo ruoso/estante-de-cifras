@@ -243,7 +243,12 @@ its songs are now in the account's.
   Roomy; chord diagrams by hand (Right-handed, the default, or Left-handed) and
   neck (Vertical, the default, or Horizontal) — in that order, theme, density,
   chord diagrams, language; each chosen one marked by a word, never colour
-  alone.
+  alone. Last comes **your name**, the name one's saves carry (workflow 4
+  §Who made the change): a row showing it — or *Not set yet* before the first
+  save asks — with *Shown on the changes you save from now on. Changes already
+  saved keep the name they were made with.*, and **change**, which opens a
+  small dialog prefilled with the name; a blank name is refused in words,
+  *Your name can’t be empty.*
 - **Signed-in devices**, each with when it was last used, and **sign out**
   for any of them. A lost phone is signed out from the laptop, and its
   session stops working at its next request.
@@ -266,7 +271,8 @@ column in the order above. On a computer it is drawn in
 [W13](../mockups/W13-new-device.dc.html): a rail at the left holds the
 screen's title, who is signed in and *sign out of this device* (or, not signed
 in, the way to sign in); beside it, Preferences in two columns — theme beside
-density, chord diagrams beside language — and below them, full width, the
+density, chord diagrams beside language, your name below them across both —
+and below them, full width, the
 devices, passkeys, recovery email and Leaving Estante. The reading order stays
 the order above.
 

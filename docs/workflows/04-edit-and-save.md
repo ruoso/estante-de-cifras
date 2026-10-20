@@ -128,6 +128,14 @@ place of the one given: it comes down with the home book to every device
 signed in to the account, and a device that has it never asks. A sheet open
 when it arrives stops asking and saves under it.
 
+The name can be changed afterwards, on the account screen (*Your name*,
+workflow 13 §The account screen), signed in or not. It is a preference like
+any other: the saves made from then on carry the new name, and the saves
+already made keep the one they were made with — history is not rewritten.
+The people in a book see the new name on the changes saved after it, and
+where the service names the person (workflow 10) once it next reads the home
+book.
+
 ## Discarding
 
 *Discard changes* puts the song back as last saved. It shows what would be

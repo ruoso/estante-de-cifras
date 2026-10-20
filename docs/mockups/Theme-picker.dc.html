@@ -17,7 +17,7 @@
   <div class="board-head">
     <div class="board-num">Workflow 1 · Workflow 13 · Workflow 16</div>
     <h1 class="board-title">The theme picker</h1>
-    <p class="board-sub">Theme and language live together in a Preferences section of the account screen, reached from the header and present before you sign in. Four theme choices — Automatic, Estante, Caderno, Palco — each named in words with a live preview, the chosen one marked by a word, never colour alone. The columns are drawn in the theme each would apply. Between theme and language sit density — Compact, Comfortable, Roomy, each with a sample of a chart line — and how chord diagrams are drawn, by hand and neck, with one live diagram drawn as the pair chosen; the tablet is drawn Roomy and the computer Compact.</p>
+    <p class="board-sub">Theme and language live together in a Preferences section of the account screen, reached from the header and present before you sign in. Four theme choices — Automatic, Estante, Caderno, Palco — each named in words with a live preview, the chosen one marked by a word, never colour alone. The columns are drawn in the theme each would apply. Between theme and language sit density — Compact, Comfortable, Roomy, each with a sample of a chart line — and how chord diagrams are drawn, by hand and neck, with one live diagram drawn as the pair chosen; the tablet is drawn Roomy and the computer Compact. Last comes your name — the name your saves carry, or Not set yet before the first save asks — with Change, which opens a small dialog prefilled with it; saves from then on carry the new name and those already saved keep theirs. On the computer it sits below the two columns, across both.</p>
   </div>
 
   <div class="devices">
@@ -110,6 +110,12 @@
                 </sc-for>
               </div>
               <p class="t-small">Uses your browser's language until you choose one.</p>
+              <!-- Your name (account.author_name): last in Preferences; not set before the first save asks -->
+              <div class="t-h3" style="color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 15px; margin-top: 4px">Your name</div>
+              <div class="list">
+                <div class="row"><span class="grow"><span class="name">Not set yet</span></span><button class="btn" aria-label="Change your name">Change</button></div>
+              </div>
+              <p class="t-small">Shown on the changes you save from now on. Changes already saved keep the name they were made with.</p>
               <div class="card pad" style="margin-top: 4px; gap: 10px">
                 <span class="t-h2">Not signed in</span>
                 <span class="t-small">These preferences are saved on this device now. Sign in to keep your books and carry your preferences to your other devices.</span>
@@ -278,6 +284,12 @@
                 </div>
               </div>
             </div>
+            <!-- Your name (account.author_name): last in Preferences, across both columns -->
+            <div class="t-h3" style="margin-top: 4px">Your name</div>
+            <div class="list">
+              <div class="row"><span class="grow"><span class="name">Rafael Lima</span></span><button class="btn" aria-label="Change your name">Change</button></div>
+            </div>
+            <p class="t-small">Shown on the changes you save from now on. Changes already saved keep the name they were made with.</p>
             <div style="display: flex; gap: 28px; align-items: flex-start">
               <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px">
                 <div class="t-h3">Signed-in devices</div>
@@ -422,6 +434,12 @@
                   <p class="t-small">Uses your browser's language until you choose one. The choice is kept in your home book.</p>
                 </div>
               </div>
+              <!-- Your name (account.author_name): below the two columns, across both -->
+              <div class="t-h3" style="color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 15px; margin-top: 8px">Your name</div>
+              <div class="list">
+                <div class="row"><span class="grow"><span class="name">Rafael Lima</span></span><button class="btn" aria-label="Change your name">Change</button></div>
+              </div>
+              <p class="t-small">Shown on the changes you save from now on. Changes already saved keep the name they were made with.</p>
               <div class="t-h3" style="margin-top: 8px">Signed-in devices</div>
               <div class="list">
                 <sc-for list="{{devices}}" as="d" hint-placeholder-count="4">

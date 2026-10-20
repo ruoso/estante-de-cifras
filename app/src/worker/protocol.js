@@ -254,6 +254,9 @@ export const CommandKind = Object.freeze({
   // the `authorName` register into preferences.json (home-book-format §4.1),
   // then re-surfaces PREFERENCES so the slice carries it and the first save is
   // the only one that asks. Offline, auto-committed, never pushed (a preference).
+  // Also how the Account screen changes the name (account.author_name): the name
+  // is trimmed, and a blank or whitespace-only one writes nothing; later saves
+  // carry the new name, earlier ones keep theirs.
   SET_IDENTITY_NAME: 'set_identity_name',
   // Persist the chosen theme and language to the home book (account.account_screen,
   // design.theme_picker; workflow 13 §Preferences; home-book-format §4.1). Each is

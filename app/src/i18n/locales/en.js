@@ -882,6 +882,16 @@ export default {
     diagramsNote:
       'Changes how a shape is drawn, never which shapes are found. Every diagram follows it.',
     languageNote: 'Uses your browser’s language until you choose one.',
+    // Your name (account.author_name; workflow 13 §The account screen; workflow 4
+    // §Who made the change). Proposed 2026-10-19, pending the human.
+    yourName: 'Your name',
+    yourNameNote:
+      'Shown on the changes you save from now on. Changes already saved keep the name they were made with.',
+    yourNameNotSet: 'Not set yet',
+    yourNameChange: 'Change',
+    yourNameChangeLabel: 'Change your name',
+    yourNameEmpty: 'Your name can’t be empty.',
+    save: 'Save',
     // Not signed in.
     notSignedIn: 'Not signed in',
     notSignedInBody: 'Bring your books to this device, or start keeping them on Estante.',

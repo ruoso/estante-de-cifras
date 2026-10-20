@@ -5,9 +5,10 @@
 //   1. Preferences — a Theme picker (Automatic, Estante, Caderno, Palco), a
 //      Density picker (Compact, Comfortable, Roomy), the Chord diagrams Hand and
 //      Neck pickers with one live diagram sample (shell.display_preferences),
-//      and a Language picker (the four LOCALES), present and writable whether or not
-//      the user is signed in (preferences live in the local home book from the
-//      first minute). A choice is a Worker command (SET_THEME / SET_LANGUAGE)
+//      a Language picker (the four LOCALES) and Your name (account.author_name:
+//      the name one's saves carry, changed through a dialog), present and
+//      writable whether or not the user is signed in (preferences live in the
+//      local home book from the first minute). A choice is a Worker command (SET_THEME / SET_LANGUAGE)
 //      that writes the `{ value, at }` register through the home book; the view
 //      only dispatches and reads the `preferences` slice, and ThemeRoot /
 //      LocaleRoot re-apply off it live (DIRECTION §3.7; Constraints). Automatic
@@ -74,6 +75,7 @@ import { createAuthClient, AuthError } from './auth-client.js';
 import SignOutDialog from './SignOutDialog.jsx';
 import LeaveDialogs from './LeaveDialogs.jsx';
 import RecoveryEmailRegion from './RecoveryEmailRegion.jsx';
+import AuthorNameDialog from './AuthorNameDialog.jsx';
 import { isLastWayIn } from './recovery-email.js';
 import { useOnline } from './use-online.js';
 import RecoveryBanner from '../shell/RecoveryBanner.jsx';
@@ -405,6 +407,11 @@ export default function AccountScreen({
     store.send(command(CommandKind.SET_THEME, { theme }));
   const chooseLanguage = (language) =>
     store.send(command(CommandKind.SET_LANGUAGE, { language }));
+  // The name one's saves carry (account.author_name): the one write path the
+  // save sheet uses, SET_IDENTITY_NAME; the dialog has already trimmed it and
+  // refused a blank one (Constraints 1-2).
+  const changeAuthorName = (name) =>
+    store.send(command(CommandKind.SET_IDENTITY_NAME, { name }));
 
   // Density and the diagram's hand and neck read through the same resolvers
   // ThemeRoot applies, so an absent, tombstoned or unknown register marks the
@@ -664,6 +671,25 @@ export default function AccountScreen({
     </div>
   );
 
+  // Your name, last in Preferences, signed in or not (account.author_name;
+  // workflow 13 §The account screen; workflow 4 §Who made the change): the
+  // stored `authorName` or *Not set yet*, the note, and *Change*, which opens
+  // the AuthorNameDialog. Labelled by its sub-heading.
+  const authorNameRegion = (
+    <section className="account-pref" aria-labelledby="account-your-name">
+      <div className="t-h3 account-subhead" id="account-your-name">
+        {t('account.yourName')}
+      </div>
+      <div className="row account-row">
+        <span className="grow">
+          <span className="name">{authorName || t('account.yourNameNotSet')}</span>
+        </span>
+        <AuthorNameDialog name={authorName} onSave={changeAuthorName} />
+      </div>
+      <p className="t-small account-note">{t('account.yourNameNote')}</p>
+    </section>
+  );
+
   const notSignedInCard = (
     <div className="card pad account-signin-card">
       <span className="t-h2">{t('account.notSignedIn')}</span>
@@ -909,6 +935,7 @@ export default function AccountScreen({
                 {diagramsRegion}
                 {languageRegion}
               </div>
+              {authorNameRegion}
               {accountRegions}
             </div>
           </div>
@@ -932,6 +959,7 @@ export default function AccountScreen({
           {densityRegion}
           {diagramsRegion}
           {languageRegion}
+          {authorNameRegion}
           {whoBlock}
           {accountRegions}
         </div>

@@ -353,6 +353,14 @@ label.account-row > span:first-child input {
   white-space: normal;
 }
 
+/* The Your name dialog's form (account.author_name): the heading, the field and
+   the actions, spaced as the .dialog spaces its own children. */
+.account-name-form {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+
 .account-add-passkey {
   margin-top: calc(var(--u) * 0.5);
 }

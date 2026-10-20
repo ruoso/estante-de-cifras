@@ -813,6 +813,15 @@ export default {
     diagramsNote:
       'Cambia cómo se dibuja una posición, nunca qué posiciones se encuentran. Todos los diagramas la siguen.',
     languageNote: 'Usa el idioma de tu navegador hasta que elijas uno.',
+    // Tu nombre (account.author_name). Propuesto 2026-10-19, pendiente de revisión.
+    yourName: 'Tu nombre',
+    yourNameNote:
+      'Aparece en los cambios que guardes de ahora en adelante. Los cambios ya guardados conservan el nombre con el que se hicieron.',
+    yourNameNotSet: 'Aún no definido',
+    yourNameChange: 'Cambiar',
+    yourNameChangeLabel: 'Cambiar tu nombre',
+    yourNameEmpty: 'Tu nombre no puede estar vacío.',
+    save: 'Guardar',
     notSignedIn: 'Sin sesión iniciada',
     notSignedInBody: 'Trae tus libros a este dispositivo, o empieza a guardarlos en Estante.',
     signInOrMake: 'Inicia sesión o crea una cuenta',

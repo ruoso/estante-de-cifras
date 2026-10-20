@@ -812,6 +812,15 @@ export default {
     diagramsNote:
       'Muda como um formato é desenhado, nunca quais formatos são encontrados. Todos os diagramas seguem esta escolha.',
     languageNote: 'Usa o idioma do seu navegador até você escolher um.',
+    // Seu nome (account.author_name). Proposto 2026-10-19, aguardando revisão.
+    yourName: 'Seu nome',
+    yourNameNote:
+      'Aparece nas alterações que você salvar daqui em diante. As alterações já salvas mantêm o nome com que foram feitas.',
+    yourNameNotSet: 'Ainda não definido',
+    yourNameChange: 'Alterar',
+    yourNameChangeLabel: 'Alterar seu nome',
+    yourNameEmpty: 'Seu nome não pode ficar vazio.',
+    save: 'Salvar',
     notSignedIn: 'Sem sessão iniciada',
     notSignedInBody: 'Traga seus livros para este dispositivo, ou comece a guardá-los no Estante.',
     signInOrMake: 'Entrar ou criar uma conta',

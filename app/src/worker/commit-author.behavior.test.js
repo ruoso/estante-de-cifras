@@ -593,4 +593,34 @@ describe('authoring as the account (account.commit_author)', () => {
     expect(afterIn.slice(1).map((e) => e.oid)).toEqual(accountOids);
     expect(emailsOf(afterIn.slice(1)).every((e) => e === ACCOUNT)).toBe(true);
   }, 120000);
+
+  // account.author_name Constraint 3; workflow 4 §Who made the change (lines
+  // 131-137): changing the name on the Account screen authors the saves made
+  // after it; an earlier save keeps its oid and the name it was made with —
+  // history is not rewritten.
+  it('a changed name authors the next save; the earlier commit keeps its oid and old name (account.author_name)', async () => {
+    const w = await makeDevice(service);
+    await open(w);
+    w.send(command(CommandKind.SET_IDENTITY_NAME, { name: 'Ana Teste' }));
+    await waitEvent(w, EventKind.PREFERENCES, (p) => p.authorName?.value === 'Ana Teste');
+
+    const bookId = await localBook(w, 'Rascunhos');
+    await write(w, bookId, 'marcha-teste.cifra.md', song('Marcha de Teste', 'um dois feijão'));
+    await save(w, bookId, 'marcha-teste.cifra.md', 'Before the change');
+    const [before] = await commitsOf(w, bookId);
+    expect(before.commit.author.name).toBe('Ana Teste');
+
+    w.send(command(CommandKind.SET_IDENTITY_NAME, { name: 'Ana Lima' }));
+    await waitEvent(w, EventKind.PREFERENCES, (p) => p.authorName?.value === 'Ana Lima');
+
+    await write(w, bookId, 'marcha-teste.cifra.md', song('Marcha de Teste', 'um dois três feijão'));
+    await save(w, bookId, 'marcha-teste.cifra.md', 'After the change');
+    const after = await commitsOf(w, bookId);
+    expect(after[0].commit.message.trim()).toBe('After the change');
+    expect(after[0].commit.author.name).toBe('Ana Lima');
+    expect(after[0].commit.parent).toEqual([before.oid]);
+    const earlier = after.find((e) => e.oid === before.oid);
+    expect(earlier.commit.author.name).toBe('Ana Teste');
+    expect(earlier.commit.message.trim()).toBe('Before the change');
+  }, 120000);
 });
