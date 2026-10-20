@@ -11,7 +11,9 @@
 // people and New invitation screens; a tablet's or computer's Share opens the
 // people screen; a song's Share is a panel beside it on wide. Further tests copy
 // an open invitation's link again, share from a song, and read a full book and
-// a member's view. Book, song and people are written for these tests.
+// a member's view, and pin that Done on a made invitation returns to where it
+// was made from (books.setlist_picker_fixes). Book, song and people are written
+// for these tests.
 
 import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import {
@@ -31,6 +33,7 @@ import {
   openShareSheet,
   createInvitationIn,
   finishInvite,
+  closeSharing,
   inviteThroughShare,
   acceptInvitation,
   addSectionAndSave,
@@ -195,6 +198,36 @@ test('the two-person sharing journey: invite, join, edit to a clean merge, the p
 // books.share_people (workflow 10 §Invitations): an open invitation's link can
 // be copied again, from the people screen, and still lets someone in; once
 // withdrawn there is nothing to copy.
+// Workflow 10 **Where it sits** and its delta (books.setlist_picker_fixes
+// Constraint 4): Done on a made invitation returns to where it was made from —
+// the book from the phone's sheet, the people screen on a tablet or a computer —
+// never to another destination (the persona's /setlists report).
+test('Done on a made invitation returns to the book', async ({ page, checkA11y }) => {
+  await hostedBookWithSong(page, BOOK, SONG_TITLE);
+  const share = page.getByRole('button', { name: 'Share', exact: true });
+
+  if (onPhone()) {
+    const sheet = await openShareSheet(page, BOOK);
+    await createInvitationIn(sheet);
+    await finishInvite(sheet);
+    await expect(page.getByRole('region', { name: 'New invitation' })).toBeHidden();
+    await expect(share).toBeVisible();
+    expect(new URL(page.url()).pathname).not.toContain('/setlists');
+    await expect(page.getByRole('tab', { name: 'Setlists', selected: true })).toHaveCount(0);
+  } else {
+    const people = await openSharing(page, BOOK);
+    await createInvitationIn(people);
+    await finishInvite(people);
+    await expect(page.getByRole('dialog', { name: 'New invitation' })).toBeHidden();
+    await expect(people).toBeVisible();
+    expect(new URL(page.url()).pathname).not.toContain('/setlists');
+    await closeSharing(page);
+    await expect(share).toBeVisible();
+    expect(new URL(page.url()).pathname).not.toContain('/setlists');
+  }
+  await checkA11y(); // the screen Done returned to
+});
+
 test("the owner copies an open invitation's link again, and a third person joins through it", async ({
   browser,
   page,

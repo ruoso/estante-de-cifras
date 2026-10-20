@@ -42,7 +42,7 @@ import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { orderedBooks, titleFor } from './book-display.js';
-import { setlistRows, bookFileSet, folderOf } from './setlist-display.js';
+import { setlistRows, bookFileSet, folderOf, placesBySong } from './setlist-display.js';
 import { songTitle } from '../songs/search-query.js';
 import './setlist.css';
 
@@ -70,7 +70,11 @@ const DOTS = ['M5 12h.01M12 12h.01M19 12h.01'];
 // The in-book song picker that drives both Add-song and the missing-item
 // repoint: a search field scoped to the setlist's own book, its results, and a
 // pick. A setlist points only into its own book, so the search is book-scoped.
-function InBookPicker({ store, bookId, onPick, onCancel, titleText, confirmLabel }) {
+// `inSetlist` (book-root path → ascending item numbers, from placesBySong) marks
+// a song already in the setlist in words; it stays pickable, since a setlist may
+// come back to a song (workflow 12 §Building one; setlist_picker_fixes
+// Decision 1).
+function InBookPicker({ store, bookId, onPick, onCancel, titleText, confirmLabel, inSetlist }) {
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState(null);
   const results = useSlice(store, 'search');
@@ -97,6 +101,7 @@ function InBookPicker({ store, bookId, onPick, onCancel, titleText, confirmLabel
         <div className="list" role="group" aria-label={t('setlists.searchLabel')}>
           {list.map((r) => {
             const isSel = picked?.path === r.path;
+            const places = inSetlist?.get(r.path);
             return (
               <Button
                 key={r.path}
@@ -107,6 +112,9 @@ function InBookPicker({ store, bookId, onPick, onCancel, titleText, confirmLabel
                 <span className="grow">
                   <span className="name">{songTitle(r.title, t('newSong.untitled'))}</span>
                   <span className="meta t-mono">{r.path}</span>
+                  {places?.length ? (
+                    <span className="meta">{t('setlists.alreadyIn', { places: places.join(', ') })}</span>
+                  ) : null}
                 </span>
               </Button>
             );
@@ -168,6 +176,9 @@ export default function SetlistView({
     () => (current ? setlistRows(current, path, present) : []),
     [current, path, present],
   );
+  // Built from the current, unsaved rows, so a song added a moment ago is
+  // marked when the picker opens again.
+  const inSetlist = useMemo(() => placesBySong(rows), [rows]);
 
   const bookTitle = titleFor(orderedBooks(shelf).find((e) => e.id === bookId)?.book ?? {}, t('books.untitled'));
   const folder = folderOf(path);
@@ -414,6 +425,7 @@ export default function SetlistView({
           confirmLabel={t('setlists.pointHere')}
           onPick={repointPicked}
           onCancel={() => setRepointAt(null)}
+          inSetlist={inSetlist}
         />
       ) : null}
 
@@ -425,6 +437,7 @@ export default function SetlistView({
           confirmLabel={t('setlists.add')}
           onPick={addPicked}
           onCancel={() => setAddingSong(false)}
+          inSetlist={inSetlist}
         />
       ) : null}
 

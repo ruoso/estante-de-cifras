@@ -60,6 +60,11 @@ chooses the setlist or makes a new one. Within a setlist, songs are reordered
 by dragging and removed by swiping. Every change is an edit, saved like any
 other (workflow 4).
 
+*Add song*, in a setlist being edited, searches the setlist's book. A song
+already in the setlist is still listed, and says so in words — *Already in
+this setlist · 1*, with its places — so nobody adds it twice by accident; it
+can still be added again, since a setlist may come back to a song.
+
 ## Playing through
 
 *Play* goes through the songs one at a time, full screen.

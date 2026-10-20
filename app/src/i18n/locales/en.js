@@ -530,6 +530,8 @@ export default {
     cancel: 'Cancel',
     pointHere: 'Point here',
     noResults: 'No songs found.',
+    // A picker row for a song already in the setlist (workflow 12 §Building one).
+    alreadyIn: 'Already in this setlist · {places}',
     // The raw *.setlist.md side pane (wide, read-only).
     relativeNote: 'Links are relative to {folder}, so the file opens the songs on any git host.',
     // The Add-to-setlist dialog (from search and the reading view).

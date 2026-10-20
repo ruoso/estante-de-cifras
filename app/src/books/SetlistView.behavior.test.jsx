@@ -229,6 +229,67 @@ describe('SetlistView — editor', () => {
     await waitFor(() => expect(lastWrite(commands)).toContain('mpb/tarde-clara.cifra.md'));
   });
 
+  // The picker marks a song already in the setlist in words, with its places,
+  // and keeps it addable (workflow 12 §Building one; setlist_picker_fixes
+  // Constraints 1-3, Decision 1).
+  const WITH_CORCOVADO = [
+    { bookId: BOOK, path: 'bossa/corcovado.cifra.md', title: 'Corcovado' },
+    { bookId: BOOK, path: 'mpb/tarde-clara.cifra.md', title: 'Tarde Clara' },
+  ];
+
+  async function openAddSong(query) {
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Add song' })));
+    const searchField = await screen.findByRole('searchbox', { name: 'Search for a song' });
+    await act(async () => fireEvent.change(searchField, { target: { value: query } }));
+  }
+
+  it('marks a song already in the setlist in the Add-song picker, in words (axe clean)', async () => {
+    const { store } = makeStore({ results: WITH_CORCOVADO });
+    await openEditor(store);
+    await openAddSong('o');
+
+    const marked = await screen.findByRole('button', { name: /bossa\/corcovado\.cifra\.md/ });
+    expect(marked).toHaveAccessibleName(expect.stringContaining('Already in this setlist · 2'));
+    const other = screen.getByRole('button', { name: /mpb\/tarde-clara\.cifra\.md/ });
+    expect(other).not.toHaveAccessibleName(expect.stringContaining('Already in this setlist'));
+    // The selection state is unchanged by the mark.
+    expect(marked).toHaveAttribute('aria-pressed', 'false');
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('still adds a marked song, appending a second item linking it', async () => {
+    const { store, commands } = makeStore({ results: WITH_CORCOVADO });
+    await openEditor(store);
+    await openAddSong('corco');
+
+    const marked = await screen.findByRole('button', { name: /Already in this setlist · 2/ });
+    await act(async () => fireEvent.click(marked));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Add' })));
+
+    await waitFor(() => {
+      const text = lastWrite(commands);
+      expect(text).toBeDefined();
+      expect(text.match(/\(bossa\/corcovado\.cifra\.md\)/g)).toHaveLength(2);
+      expect(text).toMatch(/4\. \[Corcovado\]\(bossa\/corcovado\.cifra\.md\)/);
+    });
+  });
+
+  it('marks a song added in this edit, before Save, when Add song opens again', async () => {
+    const { store, commands } = makeStore({ results: WITH_CORCOVADO });
+    await openEditor(store);
+    await openAddSong('tarde');
+    const tarde = await screen.findByRole('button', { name: /mpb\/tarde-clara\.cifra\.md/ });
+    expect(tarde).not.toHaveAccessibleName(expect.stringContaining('Already in this setlist'));
+    await act(async () => fireEvent.click(tarde));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Add' })));
+    await waitFor(() => expect(lastWrite(commands)).toContain('mpb/tarde-clara.cifra.md'));
+    expect(commands.some((c) => c.kind === CommandKind.SAVE)).toBe(false);
+
+    await openAddSong('tarde');
+    const again = await screen.findByRole('button', { name: /mpb\/tarde-clara\.cifra\.md/ });
+    expect(again).toHaveAccessibleName(expect.stringContaining('Already in this setlist · 4'));
+  });
+
   it('points a missing item at a song via the in-book search (pointItemAtSong)', async () => {
     const { store, commands, getText } = makeStore();
     await openEditor(store);

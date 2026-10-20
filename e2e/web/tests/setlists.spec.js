@@ -10,7 +10,9 @@
  *   - delete a referenced song in the file view (Books → Files) to make a
  *     missing item, then point it at a song, save, and see it fixed after a
  *     reload;
- *   - rename a song a setlist uses in the file view: the setlist still opens it.
+ *   - rename a song a setlist uses in the file view: the setlist still opens it;
+ *   - Add song in the editor marks a song already in the setlist, in words with
+ *     its places, and still adds it (books.setlist_picker_fixes).
  * axe (WCAG 2.1 AA, contrast in a real browser) runs on each screen and overlay.
  *
  * Pins workflow 12 §Building one (L57-61), §Songs from another book (L38-40),
@@ -27,6 +29,7 @@ import {
   addToExistingSetlist,
   openSetlist,
   editSetlist,
+  addSongInEditor,
   deleteSongInFiles,
   renameOpenFile,
   fileRow,
@@ -111,6 +114,29 @@ test('reorder a setlist by drag', async ({ page }) => {
   await page.mouse.up();
 
   await expect(names().first()).toHaveText('The Ferry Line');
+});
+
+// Workflow 12 §Building one (books.setlist_picker_fixes Constraints 1-3): the
+// editor's in-book picker says a song is already in the setlist, with its
+// places, and a setlist may still come back to it.
+test('Add song in the editor marks a song already in the setlist', async ({ page, checkA11y }) => {
+  await gigNight(page);
+  const names = () => page.locator('.setlist-edit-row .name');
+  await expect(names()).toHaveText(['Morning on the Porch', 'The Ferry Line']);
+
+  await addSongInEditor(page, 'Morning');
+  const marked = page.getByRole('button', { name: /Morning on the Porch.*Already in this setlist · 1/ });
+  await expect(marked).toBeVisible();
+  await expect(marked).toContainText('Already in this setlist · 1');
+  await checkA11y(); // the picker with a marked row
+
+  await marked.click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(names()).toHaveText(['Morning on the Porch', 'The Ferry Line', 'Morning on the Porch']);
+  await expect(page.locator('.setlist-edit-row .setlist-num')).toHaveText(['1', '2', '3']);
+  await expect(page.getByText('unsaved changes')).toBeVisible();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('unsaved changes')).toBeHidden();
 });
 
 test('reorder a setlist by keyboard on the computer', async ({ page }, testInfo) => {

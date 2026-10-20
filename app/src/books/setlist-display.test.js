@@ -5,7 +5,10 @@
 //     absent → missing; workflow 12 §Songs moved L83-85);
 //   - display-row derivation (number, title from item.text, folder, the `key`
 //     badge value, the `note`);
-//   - the new-setlist filename slug from a title.
+//   - the new-setlist filename slug from a title;
+//   - placesBySong: where each song already sits, keyed by book-root path, for
+//     the picker's *Already in this setlist* mark (workflow 12 L25-26 and
+//     §Building one; setlist_picker_fixes Constraint 1).
 // The models are built with cifra-md's real reader, so the test is held to the
 // same §10 shapes the view consumes — never a hand-rolled model.
 
@@ -18,6 +21,7 @@ import {
   setlistRows,
   itemCount,
   setlistFilename,
+  placesBySong,
 } from './setlist-display.js';
 
 describe('resolveItemPath (folder-relative → book-root, §10.5)', () => {
@@ -117,6 +121,39 @@ describe('setlistRows (display derivation + missing detection)', () => {
     const rows = setlistRows(model, 'set.setlist.md', ['a.cifra.md']);
     expect(rows[0].missing).toBe(false);
     expect(rows[1]).toMatchObject({ at: 1, number: 2, missing: true, path: null });
+  });
+});
+
+describe('placesBySong (where each song already sits, workflow 12 §Building one)', () => {
+  it('maps a song at items 1 and 3 to [1, 3]', () => {
+    const model = parseSetlist(
+      ['# Set', '', '1. [A](a.cifra.md)', '2. [B](b.cifra.md)', '3. [A again](a.cifra.md)', ''].join('\n'),
+    );
+    const places = placesBySong(setlistRows(model, 'set.setlist.md', ['a.cifra.md', 'b.cifra.md']));
+    expect(places.get('a.cifra.md')).toEqual([1, 3]);
+    expect(places.get('b.cifra.md')).toEqual([2]);
+  });
+
+  it('keys an item linked through `..` by its book-root resolvedPath', () => {
+    // The folder-relative item.path keeps `..`; the picker's search results are
+    // book-root, so the key must be the resolved path (memory
+    // setlist-item-path-is-folder-relative).
+    const model = parseSetlist(['# Set', '', '1. [Garota](../bossa/garota.cifra.md)', ''].join('\n'));
+    const places = placesBySong(setlistRows(model, 'gigs/set.setlist.md', ['bossa/garota.cifra.md']));
+    expect([...places.keys()]).toEqual(['bossa/garota.cifra.md']);
+    expect(places.get('bossa/garota.cifra.md')).toEqual([1]);
+  });
+
+  it('skips an unlinked item', () => {
+    const model = parseSetlist(['# Set', '', '1. not a link', '2. [Ok](a.cifra.md)', ''].join('\n'));
+    const places = placesBySong(setlistRows(model, 'set.setlist.md', ['a.cifra.md']));
+    expect([...places.entries()]).toEqual([['a.cifra.md', [2]]]);
+  });
+
+  it('gives an empty map for an empty setlist', () => {
+    const model = parseSetlist(['# Set', ''].join('\n'));
+    expect(placesBySong(setlistRows(model, 'set.setlist.md', [])).size).toBe(0);
+    expect(placesBySong([]).size).toBe(0);
   });
 });
 

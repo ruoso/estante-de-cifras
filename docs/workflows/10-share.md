@@ -88,6 +88,9 @@ own. On a tablet or a computer it opens the people screen itself, with a new
 invitation as a dialog over it. *Share* on a song is a panel beside the song
 on a tablet or a computer, and the same sheet on a phone. A member's *Share*
 opens the same places, showing what a member sees.
+*Done*, once a new invitation's link is made, returns to where it was made
+from: the book's people screen, or the book itself when the invitation was
+made from the phone's sheet — never to another destination.
 
 ## Removing someone, or lowering their role
 

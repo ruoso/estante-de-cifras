@@ -219,8 +219,9 @@ task books "Books" {
   task setlist_picker_fixes "The setlist song picker and the invitation Done" {
     effort 0.5d
     allocate team
+    complete 100
     depends !setlists, !share_people
-    note "Add song in a setlist being edited offers a song already in it as addable (Corcovado listed while first in the setlist): mark the songs already there, or leave them out. And Done on the invitation link screen, reached from a book detail Share, lands on the Setlists destination (/setlists) instead of back on the book. Source: persona exploration 2026-10-19 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified against screenshots and code). Tests: behavior (the picker with a song already in the setlist; Done returns to where Share was opened; axe); e2e-web (a setlist edited on a phone, and an invitation made from a book, each on the three viewports; axe)."
+    note "Add song in a setlist being edited offers a song already in it as addable (Corcovado listed while first in the setlist): mark the songs already there, or leave them out. And Done on the invitation link screen, reached from a book detail Share, lands on the Setlists destination (/setlists) instead of back on the book. Source: persona exploration 2026-10-19 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified against screenshots and code). Tests: behavior (the picker with a song already in the setlist; Done returns to where Share was opened; axe); e2e-web (a setlist edited on a phone, and an invitation made from a book, each on the three viewports; axe). Refinement: tasks/refinements/books/setlist_picker_fixes.md"
   }
   task setlist_invitation "An invitation that opens on a setlist" {
     effort 1d

@@ -238,6 +238,15 @@ export async function editSetlist(page) {
   await expect(page.getByRole('grid', { name: 'Songs · drag to reorder' })).toBeVisible();
 }
 
+// In the setlist editor: the app bar's Add song opens the in-book picker, and
+// `query` goes in its *Search for a song* field (books.setlist_picker_fixes).
+export async function addSongInEditor(page, query) {
+  await page.getByRole('button', { name: 'Add song', exact: true }).click();
+  const field = page.getByRole('searchbox', { name: 'Search for a song' });
+  await expect(field).toBeVisible();
+  await field.fill(query);
+}
+
 // Setlist read view → Play.
 export async function enterPlayer(page) {
   await page.getByRole('button', { name: 'Play', exact: true }).click();

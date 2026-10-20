@@ -494,6 +494,7 @@ export default {
     cancel: 'Annulla',
     pointHere: 'Punta qui',
     noResults: 'Nessun brano trovato.',
+    alreadyIn: 'Già in questa scaletta · {places}',
     relativeNote: 'I link sono relativi a {folder}, così il file apre i brani su qualsiasi host git.',
     addToSetlistTitle: 'Aggiungi alla scaletta',
     newSetlist: 'Nuova scaletta…',

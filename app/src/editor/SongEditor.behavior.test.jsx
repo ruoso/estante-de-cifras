@@ -947,6 +947,20 @@ describe('SongEditor format help', () => {
   const HELP = () => screen.getByRole('button', { name: 'Help', hidden: true });
   const helpDialog = () => screen.queryByRole('dialog', { name: 'Writing a song' });
 
+  // Escape, pressed from inside the open help. RAC's Dialog takes focus in an
+  // effect, then 500ms later blurs and refocuses itself on a further timer (an
+  // iOS VoiceOver workaround), leaving focus on the body in between. waitFor
+  // lets timers run after it passes, so under load the key could land in that
+  // gap; this presses it in the same tick focus is seen inside.
+  async function escapeFromHelp() {
+    const until = Date.now() + 1000;
+    while (!helpDialog()?.contains(document.activeElement)) {
+      if (Date.now() > until) throw new Error('focus never settled inside the help');
+      await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    }
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+  }
+
   async function mount(text, { path = PATH, layoutMode = 'wide' } = {}) {
     const env = makeStore();
     const editorRef = { current: null };
@@ -972,9 +986,7 @@ describe('SongEditor format help', () => {
     expect(helpDialog()).toBeInTheDocument();
     expect(helpDialog().closest('.sheet')).not.toBeNull();
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
-    // The Dialog takes focus in an effect; Escape is pressed from inside it.
-    await waitFor(() => expect(helpDialog()).toContainElement(document.activeElement));
-    fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+    await escapeFromHelp();
     expect(helpDialog()).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(HELP()));
     narrow.unmount();
@@ -990,8 +1002,7 @@ describe('SongEditor format help', () => {
     expect(helpDialog().closest('.popover.card')).not.toBeNull();
     expect(HELP()).toHaveAttribute('aria-expanded', 'true');
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
-    await waitFor(() => expect(helpDialog()).toContainElement(document.activeElement));
-    fireEvent.keyDown(document.activeElement, { key: 'Escape' });
+    await escapeFromHelp();
     expect(helpDialog()).toBeNull();
     expect(HELP()).toHaveAttribute('aria-expanded', 'false');
     await waitFor(() => expect(document.activeElement).toBe(HELP()));

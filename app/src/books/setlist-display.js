@@ -113,6 +113,24 @@ export function setlistRows(model, setlistPath, bookPaths) {
   return rows;
 }
 
+// Where each song already sits in a setlist: a Map from a row's book-root
+// `resolvedPath` to the ascending item numbers holding it — what the in-book
+// picker marks *Already in this setlist · 1, 3* (workflow 12 §Building one).
+// Keyed by the resolved path, never the folder-relative `item.path`, so a link
+// through `..` matches the search result's book-root path; an unlinked item
+// (null `resolvedPath`) points at no song and is skipped.
+export function placesBySong(rows) {
+  const places = new Map();
+  for (const row of rows || []) {
+    if (!row.resolvedPath) continue;
+    const list = places.get(row.resolvedPath) ?? [];
+    list.push(row.number);
+    places.set(row.resolvedPath, list);
+  }
+  for (const list of places.values()) list.sort((a, b) => a - b);
+  return places;
+}
+
 // The number of items (songs + unlinked) in a setlist model — the count the
 // Setlists destination shows beside each setlist.
 export function itemCount(model) {

@@ -837,6 +837,151 @@ describe('AppShell share surfaces (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
+  // books.setlist_picker_fixes (workflow 10 **Where it sits** and its delta;
+  // Constraint 4): Done on a made invitation returns to where it was made from —
+  // the book's detail from the phone's sheet, the people screen from there —
+  // never to another destination. The fetch answers Create link with a link.
+  const answerInvitations = () => {
+    const answer = globalThis.fetch;
+    globalThis.fetch = async (path, init) => {
+      if (String(path).endsWith('/invitations') && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({ id: 'inv-1', url: 'https://estante.app/i/tok-done', role: 'reader' }),
+        };
+      }
+      return answer(path, init);
+    };
+  };
+  // Create link on the shown invitation, then Done on the made link.
+  async function createThenDone(within_ = screen) {
+    fireEvent.click(await within_.findByRole('button', { name: 'Create link' }));
+    expect(await screen.findByRole('textbox', { name: 'Invitation link' })).toHaveValue(
+      'https://estante.app/i/tok-done',
+    );
+    await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Done' })));
+  }
+  const expectNotOnSetlists = () => {
+    expect(location.pathname).not.toMatch(/setlists/);
+    expect(history.state.place.tab).not.toBe('setlists');
+    expect(screen.queryByRole('tab', { name: 'Setlists', selected: true })).toBeNull();
+  };
+
+  it('narrow: Done on an invitation made from the Share sheet returns to the book detail, not Setlists (axe clean)', async () => {
+    answerInvitations();
+    const { store, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    openBookDetail(emit);
+    expect(location.pathname).toBe(`/b/${BOOK}`);
+
+    const sheet = await screen.findByRole('dialog', { name: `Share ${BOOK_LABEL}` });
+    fireEvent.click(await within(sheet).findByRole('button', { name: /^Invite people/ }));
+    expect(await screen.findByRole('region', { name: 'New invitation' })).toBeInTheDocument();
+    expect(history.state.layers).toEqual(['bookDetail', 'newInvitation']);
+
+    await createThenDone();
+    expect(screen.queryByRole('region', { name: 'New invitation' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Share', exact: true })).toBeInTheDocument();
+    expect(location.pathname).toBe(`/b/${BOOK}`);
+    expect(history.state.layers).toEqual(['bookDetail']);
+    expectNotOnSetlists();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('narrow: Done on an invitation made from the people screen returns to it; its Back returns to the book', async () => {
+    answerInvitations();
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    openBookDetail(emit);
+
+    const sheet = await screen.findByRole('dialog', { name: `Share ${BOOK_LABEL}` });
+    fireEvent.click(await within(sheet).findByRole('button', { name: /^Members/ }));
+    const people = await screen.findByRole('region', { name: `${BOOK_LABEL} · People` });
+    fireEvent.click(within(people).getByRole('button', { name: 'New invitation' }));
+    expect(await screen.findByRole('region', { name: 'New invitation' })).toBeInTheDocument();
+    expect(history.state.layers).toEqual(['bookDetail', 'people', 'newInvitation']);
+
+    await createThenDone();
+    const again = screen.getByRole('region', { name: `${BOOK_LABEL} · People` });
+    expect(history.state.layers).toEqual(['bookDetail', 'people']);
+    expectNotOnSetlists();
+
+    await traverse(() => fireEvent.click(within(again).getByRole('button', { name: 'Back' })));
+    expect(screen.queryByRole('region', { name: `${BOOK_LABEL} · People` })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Share', exact: true })).toBeInTheDocument();
+    expect(history.state.layers).toEqual(['bookDetail']);
+  });
+
+  it('narrow: after a put-online from the book detail, Done on the sheet’s invitation returns to the book at its service id', async () => {
+    answerInvitations();
+    const LOCAL_ID = 'local-1';
+    const SERVICE_ID = 'srv-1';
+    const { store, sent, emit } = makeStore();
+    render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, {
+      books: {},
+      local: { [LOCAL_ID]: { title: { value: 'My songs', at: AT }, position: { value: 0, at: AT } } },
+    }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    fireEvent.click(screen.getByRole('button', { name: /^My songs/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manage My songs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put online' }));
+    expect(sent.filter((m) => m.kind === CommandKind.PUT_ONLINE).map((m) => m.payload)).toEqual([
+      { bookId: LOCAL_ID },
+    ]);
+    emit(event(EventKind.SHELF, {
+      books: {
+        [SERVICE_ID]: {
+          label: { value: 'My songs', at: AT },
+          role: { value: 'owner', at: AT },
+          position: { value: 0, at: AT },
+        },
+      },
+      local: {},
+    }));
+    emit(event(EventKind.BOOK_ONLINE, { previousBookId: LOCAL_ID, bookId: SERVICE_ID }));
+    expect(location.pathname).toBe(`/b/${SERVICE_ID}`);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Share', exact: true }));
+    const sheet = await screen.findByRole('dialog', { name: 'Share My songs' });
+    fireEvent.click(await within(sheet).findByRole('button', { name: /^Invite people/ }));
+    expect(await screen.findByRole('region', { name: 'New invitation' })).toBeInTheDocument();
+
+    await createThenDone();
+    expect(screen.queryByRole('region', { name: 'New invitation' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Share', exact: true })).toBeInTheDocument();
+    expect(location.pathname).toBe(`/b/${SERVICE_ID}`);
+    expect(history.state.layers).toEqual(['bookDetail']);
+    expectNotOnSetlists();
+  });
+
+  it('wide: Done on the New invitation dialog closes it over the people screen, history untouched', async () => {
+    wide();
+    answerInvitations();
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    openBookDetail(emit);
+    const people = await screen.findByRole('region', { name: `${BOOK_LABEL} · People` });
+    await within(people).findByText('Ana (you)');
+    const before = { state: history.state, length: history.length, path: location.pathname };
+
+    fireEvent.click(within(people).getByRole('button', { name: 'New invitation' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New invitation' });
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Create link' }));
+    expect(await within(dialog).findByRole('textbox', { name: 'Invitation link' })).toHaveValue(
+      'https://estante.app/i/tok-done',
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New invitation' })).toBeNull());
+    expect(screen.getByRole('region', { name: `${BOOK_LABEL} · People` })).toBeInTheDocument();
+    expect(history.state).toEqual(before.state);
+    expect(history.length).toBe(before.length);
+    expect(location.pathname).toBe(before.path);
+    expectNotOnSetlists();
+  });
+
   // books.share_needs_online (workflow 10 §Sharing a song): a song in a book only
   // on this device — *My songs* before it goes online.
   const LOCAL = 'local-1';

@@ -494,6 +494,7 @@ export default {
     cancel: 'Cancelar',
     pointHere: 'Apontar aqui',
     noResults: 'Nenhuma música encontrada.',
+    alreadyIn: 'Já está neste repertório · {places}',
     relativeNote: 'Os links são relativos a {folder}, então o arquivo abre as músicas em qualquer host git.',
     addToSetlistTitle: 'Adicionar ao repertório',
     newSetlist: 'Novo repertório…',
