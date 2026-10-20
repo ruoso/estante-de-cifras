@@ -206,4 +206,22 @@ task books "Books" {
     depends !row_opens_songs, design.review_polish
     note "M11: BookDetail stacks Download, Fork, Remove, Leave, a Share card, then the red Delete (BookDetail.jsx:465-548), so Delete sits under Share with no separation; W07 (docs/mockups/W07-add-a-book.dc.html:202-226) has Share in the app bar. As design.review_polish draws it: Share where the board puts it, Delete set apart at the end. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (the order and the separation, Share reachable, keyboard path; axe); e2e-web (the book detail on the three viewports; axe, mockup W07)."
   }
+  task share_needs_online "Share on a book only on this device leads to putting it online" {
+    effort 0.5d
+    allocate team
+    depends !share_people, !online
+    note "A first-time teacher pressed Share on a song in My songs (local, signed out) and got Something went wrong. Try again., on a phone and a computer, and Try again failed the same way: Share is offered on every song (app/src/songs/SongReading.jsx:582, :753) and the panel and sheet (SongSharePanel.jsx, useSharing) ask the service about a book it has never seen. Workflow 10 shares only books on Estante. On a book only on this device, Share says so in words — this book is only on this device; put it online to invite people — and offers Put online, signing in first when signed out (account.sign_in_two_doors). Source: persona exploration 2026-10-19 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified against screenshots and code). Tests: behavior (Share on a local book, signed in and out: the explanation and the way on, no service call; axe); e2e-web (a song written in My songs, Share leads to putting the book online and then inviting, on the three viewports; axe)."
+  }
+  task setlist_picker_fixes "The setlist song picker and the invitation Done" {
+    effort 0.5d
+    allocate team
+    depends !setlists, !share_people
+    note "Add song in a setlist being edited offers a song already in it as addable (Corcovado listed while first in the setlist): mark the songs already there, or leave them out. And Done on the invitation link screen, reached from a book detail Share, lands on the Setlists destination (/setlists) instead of back on the book. Source: persona exploration 2026-10-19 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified against screenshots and code). Tests: behavior (the picker with a song already in the setlist; Done returns to where Share was opened; axe); e2e-web (a setlist edited on a phone, and an invitation made from a book, each on the three viewports; axe)."
+  }
+  task setlist_invitation "An invitation that opens on a setlist" {
+    effort 1d
+    allocate team
+    depends !setlists, !share_people, !setlist_picker_fixes
+    note "Decided 2026-10-19: a teacher wanted students to see this week’s lesson, a setlist, but sharing is per book, so the only way was to put the whole book online and invite people to all of it. Share on a setlist makes the book’s ordinary invitation and opens on that setlist once accepted, exactly as Share on a song opens on the song: the setlist path appended to the /i/<token> link as a client-only fragment (tasks/refinements/books/share.md Decision 2; the …/b/<book>/<path> address already opens setlists, workflow 7 L52-54). For someone already a member the link is just the setlist address. Students still join the whole book; workflow 10’s there is no sharing one song apart from its book holds for a setlist too, and the Share surface says so in a line. A Share action on the setlist view, phone sheet and wider panel as Share on a song; on a book only on this device it behaves as books.share_needs_online. Record it in workflow 10 (Sharing a song, now a song or a setlist) and workflow 12, and draw Share on the W12 board. Source: persona exploration 2026-10-19 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified against screenshots and code). Tests: behavior (Share on a setlist: the invitation link carries the setlist path, the member link is the setlist address; axe); e2e-web (a teacher shares a setlist, a second account accepts and lands on the setlist, on the three viewports; axe)."
+  }
 }

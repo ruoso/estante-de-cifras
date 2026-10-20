@@ -29,7 +29,7 @@ task milestones "Milestones" {
 
   task m3_service "M3: Estante online" {
     milestone
-    depends milestones.m2_local, hook.messages, hook.home_book, account.sign_in, books.online, books.online_reindex, sync.states, sync.states_e2e_hosted, sync.read_in_place, sync.unsaved, songs.edit_in_place, launch.deploy, launch.email, foundation.cifra_md_in_image, foundation.gate_localhost_origin, account.sign_in_two_doors, books.row_opens_songs, books.setlists_resilient, books.owner_can_save, shell.popover_surface, songs.save_feedback, songs.unsaved_after_discard, songs.no_raw_ids, songs.history_24h, songs.render_notes, songs.unknown_tokens_loud, songs.format_help, account.author_name
+    depends milestones.m2_local, hook.messages, hook.home_book, account.sign_in, books.online, books.online_reindex, sync.states, sync.states_e2e_hosted, sync.read_in_place, sync.unsaved, songs.edit_in_place, launch.deploy, launch.email, foundation.cifra_md_in_image, foundation.gate_localhost_origin, account.sign_in_two_doors, books.row_opens_songs, books.setlists_resilient, books.owner_can_save, shell.popover_surface, songs.save_feedback, songs.unsaved_after_discard, songs.no_raw_ids, songs.history_24h, songs.render_notes, songs.unknown_tokens_loud, songs.format_help, account.author_name, books.share_needs_online, books.setlist_picker_fixes, books.setlist_invitation, songs.trailing_chord_gap, shell.narrow_fixes, account.no_passkey_hint
     note "Sign in, put a book online, every push checked, sync across one person's devices — running at www.estantedecifras.app."
   }
 

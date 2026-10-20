@@ -142,4 +142,10 @@ task shell "Shell" {
     depends design.review_polish
     note "M12, L4, M4: the book detail Download card says A zip of the repository … Any git tool opens it (en.js:205-206, as the boards draw it), the upload preview names .gitattributes (en.js:86), the setlist raw pane says any git host (en.js:520), and the save sheet tells a local book that saving shares it with whoever shares the book (SaveSheet.jsx:235). Git terms stay in the file view, where workflow 14 shows the book as git sees it. Change the strings in all four locales and the boards, as design.review_polish writes them. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: unit (the locales carry every key); behavior (the local-book save caption differs from a hosted one; axe)."
   }
+  task narrow_fixes "Nothing cut off or crowded where the explorers found it" {
+    effort 0.5d
+    allocate team
+    depends !narrow_fit
+    note "At phone width: the Add a book sheet Mine on Estante line runs past the sheet’s right edge (Your books that are not on this shelf yet. Sign in to s…); the Account Neck choice reads Verti… with its Selected badge crowding it; the setlist edit header truncates the book name to M., wraps Save to a second row beside the unsaved changes pill and clips the Key field, and the Key and note apply in this setlist only line wraps awkwardly; the search field shows two clear controls while typing (a blue × inside the field and a separate ✕). Source: persona exploration 2026-10-19 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified against screenshots and code). Tests: behavior (each control has room, one clear control; axe); e2e-web (each screen at 390px and 412px in all themes, nothing clipped; axe, the narrow_fit checks)."
+  }
 }
