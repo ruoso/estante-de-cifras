@@ -11,6 +11,9 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, within, fireEvent, act, waitFor } from '@testing-library/react';
 
 import { checkWcag21aa } from '../a11y/axe.js';
+import { injectStyles, expectSheetHead } from '../test/theme-styles.js';
+import { createStore } from '../worker/store.js';
+import ThemeRoot from '../theme/ThemeRoot.jsx';
 import { t, setLocale } from '../i18n/index.js';
 import en from '../i18n/locales/en.js';
 import FormatHelp from './FormatHelp.jsx';
@@ -64,6 +67,26 @@ describe('FormatHelp', () => {
       ).toBe('Insert');
       expect(await checkWcag21aa(document.body)).toHaveNoViolations();
       unmount();
+    }
+  });
+
+  // The sheet opens into a ThemeRoot already on screen, as in the app, so it
+  // portals inside the `.est` theme root the shared rule is keyed on.
+  it('as a sheet, its header is the shared sheet head: title, then Close last (shell.sheet_close_placement)', async () => {
+    const removeStyles = injectStyles('editor/editor.css');
+    try {
+      const store = createStore({ postMessage: () => {}, onmessage: null });
+      const view = render(<ThemeRoot store={store} />);
+      view.rerender(
+        <ThemeRoot store={store}>
+          <Harness presentation="sheet" />
+        </ThemeRoot>,
+      );
+      const dialog = screen.getByRole('dialog', { name: 'Writing a song' });
+      expectSheetHead(within(dialog).getByRole('heading', { level: 2, name: 'Writing a song' }));
+      expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    } finally {
+      removeStyles();
     }
   });
 

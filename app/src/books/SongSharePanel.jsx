@@ -77,8 +77,8 @@ export default function SongSharePanel({
     // controls are the focusable parts.
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <aside className="est-sharing-panel" aria-labelledby="est-songshare-title" onKeyDown={onKeyDown}>
-      <div className="est-sharing-head">
-        <h2 className="t-h2 grow" id="est-songshare-title" ref={headingRef} tabIndex={-1}>
+      <div className="sheet-head">
+        <h2 className="t-h2" id="est-songshare-title" ref={headingRef} tabIndex={-1}>
           {t('sharing.shareTitle', { name: songName })}
         </h2>
         <Button className="btn icon" aria-label={t('sharing.close')} onPress={onClose}>

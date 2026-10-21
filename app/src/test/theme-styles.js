@@ -59,3 +59,18 @@ export function expectPopoverSurface(el) {
   expect(getComputedStyle(popover).background).not.toContain('var(--surface-2)');
   return popover;
 }
+
+// A sheet's header is the shared `.sheet-head` (shell.sheet_close_placement;
+// W07 #2 L72-77, W10 #1 L45-49): the heading sits in it inside the `.est` theme
+// root and takes the row's free width (computed flex-grow 1, after
+// injectStyles), and the header's last element is the close, named Close.
+export function expectSheetHead(heading) {
+  const head = heading.parentElement;
+  expect(head).toHaveClass('sheet-head');
+  expect(head.closest('.est')).not.toBeNull();
+  expect(getComputedStyle(heading).flexGrow).toBe('1');
+  const close = head.lastElementChild;
+  expect(close.tagName).toBe('BUTTON');
+  expect(close).toHaveAccessibleName('Close');
+  return head;
+}

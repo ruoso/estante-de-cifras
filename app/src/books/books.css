@@ -97,12 +97,6 @@
   gap: calc(var(--u) * 1.75);
 }
 
-.sheet-head {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u) * 1);
-}
-
 .books-screen .empty {
   color: var(--ink-2);
 }

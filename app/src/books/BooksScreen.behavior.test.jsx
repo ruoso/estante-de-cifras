@@ -20,6 +20,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react';
 import { checkWcag21aa } from '../a11y/axe.js';
+import { injectStyles, expectSheetHead } from '../test/theme-styles.js';
 import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
@@ -264,6 +265,19 @@ describe('BooksScreen (behavior)', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     act(() => fireEvent.click(add));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('the Add a book sheet’s header is the shared sheet head: title, then Close last (W07 #2 L72-77)', async () => {
+    const removeStyles = injectStyles('books/books.css');
+    try {
+      const { store } = makeStore();
+      renderScreen(store);
+      const dialog = openSheet();
+      expectSheetHead(within(dialog).getByRole('heading', { name: 'Add a book' }));
+      expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+    } finally {
+      removeStyles();
+    }
   });
 
   it('New book: chooser → New book step (Book name focused) → submit sends CREATE_BOOK, the book appears via the SHELF re-surface and focus moves to it (workflow 7 L25)', async () => {

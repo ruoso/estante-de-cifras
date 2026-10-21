@@ -14,6 +14,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 import { checkWcag21aa } from '../a11y/axe.js';
+import { injectStyles, expectSheetHead } from '../test/theme-styles.js';
 import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SongSharePanel from './SongSharePanel.jsx';
@@ -112,6 +113,20 @@ describe('a song’s share panel (W10 #4)', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('complementary')).toBeNull();
     expect(document.activeElement).toBe(share);
+  });
+
+  it('its header is the shared sheet head: the heading grows, Close last (W10 #4; shell.sheet_close_placement)', async () => {
+    const removeStyles = injectStyles('books/sharing.css');
+    try {
+      const { container } = renderReading(ownerClient().client);
+      openPanel();
+      const panel = screen.getByRole('complementary', { name: 'Share Carinhoso' });
+      await within(panel).findByText(/2 invitations/);
+      expectSheetHead(within(panel).getByRole('heading', { name: 'Share Carinhoso' }));
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    } finally {
+      removeStyles();
+    }
   });
 
   it('closes on Escape, focus back to Share', async () => {

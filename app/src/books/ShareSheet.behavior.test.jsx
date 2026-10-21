@@ -13,6 +13,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 import { checkWcag21aa } from '../a11y/axe.js';
+import { injectStyles, expectSheetHead } from '../test/theme-styles.js';
 import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import ShareSheet from './ShareSheet.jsx';
@@ -108,6 +109,25 @@ describe('a book’s Share sheet (W10 #1)', () => {
     expect(onOpenPeople).toHaveBeenCalledTimes(2);
     fireEvent.click(within(sheet).getByRole('button', { name: 'Invite people' }));
     expect(onNewInvitation).toHaveBeenCalled();
+  });
+
+  it('the header is the shared sheet head: title, the role chip, then Close last (W10 #1 L45-49)', async () => {
+    const removeStyles = injectStyles('books/sharing.css');
+    try {
+      const { client } = makeClient({
+        'GET /api/books/bk/members': () => ({ body: { members: [ANA, MARINA], count: 37, limit: 50 } }),
+      });
+      const { container } = renderSheet(client, { role: 'editor' });
+      const sheet = await screen.findByRole('dialog', { name: 'Share Choros da Ana' });
+      await within(sheet).findByText('You’re an editor');
+      const heading = within(sheet).getByRole('heading', { name: 'Share Choros da Ana' });
+      const head = expectSheetHead(heading);
+      // The chip sits between the title and the close.
+      expect([...head.children].map((el) => el.textContent)).toEqual(['Share Choros da Ana', 'You’re an editor', '']);
+      expect(await checkWcag21aa(container)).toHaveNoViolations();
+    } finally {
+      removeStyles();
+    }
   });
 
   it('a member’s sheet reads their role and who shares the book, with no invitations and no invite', async () => {

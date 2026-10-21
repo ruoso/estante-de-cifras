@@ -147,8 +147,8 @@ export default function ShareSheet({
       <Modal className="sheet est-sharing">
         <Dialog>
           <div className="grip" aria-hidden="true" />
-          <div className="est-sharing-head">
-            <Heading slot="title" className="t-h2 grow">
+          <div className="sheet-head">
+            <Heading slot="title" className="t-h2">
               {t('sharing.shareTitle', { name: songPath ? songName : title })}
             </Heading>
             {roleChip}

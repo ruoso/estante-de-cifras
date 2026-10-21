@@ -128,3 +128,22 @@
   content: '✓';
   margin-inline-start: auto;
 }
+
+/* 5. One header for every sheet with a close (shell.sheet_close_placement;
+      W07 #2 L72-77, W10 #1 L45-49): the title takes the row's free width, then
+      anything beside it (the Share sheet's role chip), then the close ✕ at the
+      sheet's right edge. The boards draw it inline, so theme.css has no class
+      for it; every sheet header with a ✕ — Add a book, the Share sheet, the
+      song-share panel, the format help — carries `sheet-head`, so no sheet's
+      close can drift beside its title again. Longhands, so a computed style
+      carries `flex-grow`. The title wraps; it is never ellipsized or clipped. */
+.est .sheet-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1);
+}
+.est .sheet-head > .t-h2 {
+  flex-grow: 1;
+  min-width: 0;
+  margin: 0;
+}

@@ -120,7 +120,7 @@ function HelpContent({ close, topic, grip, onInsert }) {
   return (
     <>
       {grip ? <div className="grip" aria-hidden="true" /> : null}
-      <div className="est-format-help-head">
+      <div className="sheet-head">
         <Heading slot="title" level={2} className="t-h2">
           {t('editor.formatHelp.title')}
         </Heading>

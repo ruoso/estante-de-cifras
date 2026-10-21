@@ -249,17 +249,6 @@
   padding-bottom: 28px;
 }
 
-.est .est-format-help-head {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--u));
-}
-
-.est .est-format-help-head .t-h2 {
-  flex: 1;
-  margin: 0;
-}
-
 .est .est-format-help-body {
   display: flex;
   flex-direction: column;

@@ -175,7 +175,8 @@ task shell "Shell" {
   task sheet_close_placement "A sheet’s close sits at its right edge" {
     effort 0.25d
     allocate team
+    complete 100
     depends !narrow_fixes
-    note "The Add a book sheet’s close ✕ sits beside its title instead of at the sheet’s right edge, where the Share sheet and every other sheet put it. One header for every sheet (title, then close at the end), as the boards draw it. Source: persona exploration 2026-10-20 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified live and against the code). Tests: behavior (each sheet header’s close is its last control; axe); e2e-web (Add a book on the three viewports, the close at the right edge; axe, mockup W07)."
+    note "The Add a book sheet’s close ✕ sits beside its title instead of at the sheet’s right edge, where the Share sheet and every other sheet put it. One header for every sheet (title, then close at the end), as the boards draw it. Source: persona exploration 2026-10-20 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified live and against the code). Tests: behavior (each sheet header’s close is its last control; axe); e2e-web (Add a book on the three viewports, the close at the right edge; axe, mockup W07). Refinement: tasks/refinements/shell/sheet_close_placement.md"
   }
 }

@@ -431,7 +431,7 @@ function AddBookSheet({ store, onCreate, onByLink, onSignIn, onAddMine, onListMi
               <>
                 <div className="grip" aria-hidden="true" />
                 <div className="sheet-head">
-                  <Heading slot="title" className="t-h2 grow">
+                  <Heading slot="title" className="t-h2">
                     {t('books.addTitle')}
                   </Heading>
                   <Button className="btn icon" aria-label={t('books.close')} onPress={close}>
