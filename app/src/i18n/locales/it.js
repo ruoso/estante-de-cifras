@@ -1814,6 +1814,41 @@ export default {
       showMeHow: 'Fammi vedere',
       unfencedChords:
         'La riga {line} sembra avere accordi, ma è fuori dalla musica, quindi resta una nota. La musica va tra due righe di tre apici inversi.',
+      // Le parole sotto una riga rossa e l’offerta dell’avviso di mettere
+      // nella musica una riga di accordi fuori da essa (songs.editor_errors_in_words).
+      lineNote: 'Riga {line}: {words}',
+      putInMusic: 'Mettila nella musica',
+      lineFenced: 'La riga {line} ora è dentro la musica, quindi si legge come accordi.',
+    },
+    // Che cosa non va in una riga che il lettore segnala, dal codice della
+    // diagnostica (cifra.md §0); `other` per un codice che l’app non conosce.
+    diagnostic: {
+      'duplicate-property': 'questa proprietà compare di nuovo; il valore precedente non resta.',
+      'bad-property': 'una proprietà è un nome, due punti, uno spazio e il suo valore; questa riga non resta.',
+      'marker-line':
+        'un marcatore di conflitto, lasciato dove due versioni si sono incontrate; risolvilo prima di salvare.',
+      'bad-notation': 'una notazione che l’app non conosce; la canzone si legge come brasiliana.',
+      'heading-looks-like-key':
+        'questo si legge come una parte col nome di un accordo; se è la tonalità della canzone, scrivi - key: nelle proprietà.',
+      'unclosed-fence': 'la musica aperta qui non viene mai chiusa con una riga di tre apici inversi.',
+      'extra-rule': 'una seconda riga ---; solo la prima divide la canzone, e questa non resta.',
+      'bad-block-heading':
+        'dopo la riga --- un titolo è un blocco di diteggiature e ha bisogno di un’accordatura; le righe sotto non vengono lette.',
+      'duplicate-block': 'un secondo blocco di diteggiature per la stessa accordatura; i due vengono uniti.',
+      'item-outside-block': 'dopo la riga ---, restano solo blocchi di diteggiature.',
+      'bad-voicing': 'una diteggiatura che non si può leggere.',
+      'bad-fingering': 'le dita di questa diteggiatura non si possono leggere, quindi restano fuori.',
+      'notes-outside-block': 'dopo la riga ---, restano solo blocchi di diteggiature.',
+      'unfenced-music': 'questo si legge come accordi, ma è fuori dalla musica, quindi resta una nota.',
+      'stray-mark': 'un segno di ripetizione senza gruppo da aprire o chiudere.',
+      'ending-outside-group': 'un finale fuori da un gruppo di ripetizione.',
+      'count-out-of-place': 'un conteggio di ripetizioni che non segue un gruppo e non chiude la riga.',
+      'unclosed-group': 'un gruppo di ripetizione aperto qui non viene mai chiuso.',
+      'bad-ending-sequence': 'i finali vanno numerati 1., 2. e così via, in ordine.',
+      'count-with-endings': 'un gruppo con finali si conta da essi, quindi questo conteggio è di troppo.',
+      'repeat-without-previous': 'una ripetizione senza una battuta prima da ripetere.',
+      'repeat-beside-items': 'un segno di ripetizione divide la battuta con altri accordi, il che non ha senso.',
+      'other': 'il formato non riesce a leggere questa riga così com’è scritta.',
     },
     // L’aiuto sul formato, *Scrivere una canzone* (songs.format_help;
     // workflow 3). Frasi, nomi delle parti e parole cantate tradotte; mai i

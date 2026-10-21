@@ -1814,6 +1814,41 @@ export default {
       showMeHow: 'Muéstrame cómo',
       unfencedChords:
         'La línea {line} parece tener acordes, pero está fuera de la música, así que se guarda como nota. La música va entre dos líneas de tres comillas invertidas.',
+      // Las palabras bajo una línea roja y la oferta del aviso de poner dentro
+      // de la música una línea de acordes fuera de ella (songs.editor_errors_in_words).
+      lineNote: 'Línea {line}: {words}',
+      putInMusic: 'Ponerla en la música',
+      lineFenced: 'La línea {line} ahora está dentro de la música, así que se lee como acordes.',
+    },
+    // Lo que tiene mal una línea que el lector señala, por el código del
+    // diagnóstico (cifra.md §0); `other` para un código que la app no conoce.
+    diagnostic: {
+      'duplicate-property': 'esta propiedad aparece otra vez; el valor anterior no se conserva.',
+      'bad-property': 'una propiedad es un nombre, dos puntos, un espacio y su valor; esta línea no se conserva.',
+      'marker-line':
+        'un marcador de conflicto, dejado donde dos versiones se encontraron; resuélvelo antes de guardar.',
+      'bad-notation': 'una notación que la app no conoce; la canción se lee como brasileña.',
+      'heading-looks-like-key':
+        'esto se lee como una parte con el nombre de un acorde; si es la tonalidad de la canción, escribe - key: en las propiedades.',
+      'unclosed-fence': 'la música abierta aquí nunca se cierra con una línea de tres comillas invertidas.',
+      'extra-rule': 'una segunda línea ---; solo la primera divide la canción, y esta no se conserva.',
+      'bad-block-heading':
+        'después de la línea --- un título es un bloque de digitaciones y necesita una afinación; las líneas bajo él no se leen.',
+      'duplicate-block': 'un segundo bloque de digitaciones para la misma afinación; los dos se juntan.',
+      'item-outside-block': 'después de la línea ---, solo se conservan bloques de digitaciones.',
+      'bad-voicing': 'una digitación que no se puede leer.',
+      'bad-fingering': 'los dedos de esta digitación no se pueden leer, así que quedan fuera.',
+      'notes-outside-block': 'después de la línea ---, solo se conservan bloques de digitaciones.',
+      'unfenced-music': 'esto se lee como acordes, pero está fuera de la música, así que se guarda como nota.',
+      'stray-mark': 'un signo de repetición sin grupo que abrir o cerrar.',
+      'ending-outside-group': 'un final fuera de un grupo de repetición.',
+      'count-out-of-place': 'una cuenta de repeticiones que no sigue a un grupo ni termina la línea.',
+      'unclosed-group': 'un grupo de repetición abierto aquí nunca se cierra.',
+      'bad-ending-sequence': 'los finales van numerados 1., 2. y así, en orden.',
+      'count-with-endings': 'un grupo con finales se cuenta por ellos, así que esta cuenta sobra.',
+      'repeat-without-previous': 'una repetición sin compás antes de ella que repetir.',
+      'repeat-beside-items': 'un signo de repetición comparte su compás con otros acordes, lo que no tiene sentido.',
+      'other': 'el formato no puede leer esta línea tal como está escrita.',
     },
     // La ayuda del formato, *Escribir una canción* (songs.format_help;
     // workflow 3). Frases, nombres de las partes y letra traducidos; nunca las

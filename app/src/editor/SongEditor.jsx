@@ -2,8 +2,10 @@
 // a song's cifra.md text: the text loaded from the working copy (or a template
 // for a new song), coloured by cifra.md structure, persisted back on every
 // (debounced) edit, with a preview beside it when the editor is wide enough and
-// a tap away when it is not, paste-into-a-fence with undo, and a voicing the reader cannot read
-// stopping the save.
+// a tap away when it is not, paste-into-a-fence with undo, a voicing the reader cannot read
+// stopping the save, and every line the reader reports saying why in words —
+// under the line, and to a screen reader when the cursor arrives
+// (songs.editor_errors_in_words).
 //
 // Component boundaries (DIRECTION §3.6-3.7): this is the only React layer. It
 // reads the song text through the `source` slice (fed by OPEN_SOURCE), persists
@@ -26,7 +28,8 @@ import { useLayoutMode } from '../shell/AppShell.jsx';
 import { t } from '../i18n/index.js';
 import Chart from '../chart/Chart.jsx';
 import { sourceExtensions, unknownMarksField } from './source-extensions.js';
-import { fencePaste } from './fence-paste.js';
+import { fencePaste, fenceAround } from './fence-paste.js';
+import { lineDiagnostics, lineNoteText } from './diagnostic-words.js';
 import { sectionInsertion } from './section-insert.js';
 import { saveBlockers, stopMessageKey } from './save-blockers.js';
 import { isSongPath, formatHint } from './unknown-words.js';
@@ -135,7 +138,10 @@ export default function SongEditor({
   const bodyWidthRef = useRef(null);
   const [bodyWidth, setBodyWidth] = useState(null);
   const [saveError, setSaveError] = useState(null); // { line, code } | null
-  const [pasteNotice, setPasteNotice] = useState(null); // { titled } | null
+  // The notice that the editor put text inside the music, with its Undo: a
+  // paste it wrapped, or a line *Put it in the music* fenced
+  // (songs.editor_errors_in_words Constraint 6; workflow 3 §Pasting a cifra).
+  const [wrapNotice, setWrapNotice] = useState(null); // { kind: 'paste', titled } | { kind: 'line', line } | null
   // The notice that what was typed looks like another format (workflow 3
   // §When it looks like another format; songs.format_help Decision 1): the
   // line the cursor is on — a typed line counts once the cursor has left it —
@@ -233,10 +239,11 @@ export default function SongEditor({
     onWriteRef.current = onWrite;
     changeHandlerRef.current = (value) => {
       setText(value);
-      // Any edit clears a stale save-stop notice and a stale paste notice; a
-      // wrapping paste re-sets its own notice after its dispatch below.
+      // Any edit clears a stale save-stop notice and a stale wrap notice; a
+      // wrapping paste or Put it in the music re-sets its own notice after its
+      // dispatch.
       setSaveError(null);
-      setPasteNotice(null);
+      setWrapNotice(null);
       scheduleWrite(value);
     };
 
@@ -263,7 +270,7 @@ export default function SongEditor({
       changes.push({ from: sel.from, to: sel.to, insert: result.insert });
       const anchor = sel.from + delta + result.insert.length;
       view.dispatch({ changes, selection: { anchor }, userEvent: 'input.paste', scrollIntoView: true });
-      if (result.wrapped) setPasteNotice({ titled: result.titled });
+      if (result.wrapped) setWrapNotice({ kind: 'paste', titled: result.titled });
       // Pasted text counts at once (workflow 3): the lines it now spans.
       const doc = view.state.doc;
       const first = doc.lineAt(sel.from).number;
@@ -284,6 +291,8 @@ export default function SongEditor({
       extensions: [
         ...sourceExtensions({
           label: t('editor.source.sourceLabel'),
+          // The words under every red line (songs.editor_errors_in_words).
+          lineNote: (d) => lineNoteText(d, t),
           onDocChange: (update) => {
             // The initial on-disk load is not an edit to persist (ExternalLoad):
             // mirror its text into React but schedule no WRITE.
@@ -295,7 +304,8 @@ export default function SongEditor({
         EditorView.domEventHandlers({
           paste: (event, cmView) => pasteHandlerRef.current(event, cmView),
         }),
-        // The cursor's line, for the bracket notice's timing.
+        // The cursor's line, for the bracket notice's timing and the spoken
+        // note of a reported line.
         EditorView.updateListener.of((update) => {
           if (!update.selectionSet && !update.docChanged) return;
           const { state } = update;
@@ -434,6 +444,19 @@ export default function SongEditor({
   // parse the preview already makes (Decision 6); nothing until the buffer
   // holds its document, so the host shows its own title meanwhile.
   const parsedTitle = loaded ? (parsed.title ?? null) : undefined;
+
+  // What a screen reader hears when the cursor reaches a reported line
+  // (songs.editor_errors_in_words Constraint 5, Decision 2): that line's note,
+  // in a live region outside the textbox; nothing on an unreported line. It is
+  // derived from the cursor's line and the line's first diagnostic, so typing
+  // on the same line leaves the region's words — and the announcement — as
+  // they are; a change of line, or of the line's first code, sets it anew.
+  // The region is there while the text holds any red line, so it is in place
+  // before the cursor reaches one (a live region speaks changes, not its
+  // arrival), and a song with nothing to say carries no extra status.
+  const reportedByLine = useMemo(() => lineDiagnostics(parsed.diagnostics), [parsed]);
+  const cursorDiagnostic = reportedByLine.get(cursorLine) ?? null;
+  const lineAnnouncement = cursorDiagnostic ? lineNoteText(cursorDiagnostic, t) : '';
   useEffect(() => {
     if (parsedTitle !== undefined) onTitleChange?.(parsedTitle);
   }, [onTitleChange, parsedTitle]);
@@ -476,11 +499,37 @@ export default function SongEditor({
     viewRef.current?.focus();
   }, [help.open]);
 
-  const undoPaste = () => {
+  // Put it in the music (songs.editor_errors_in_words Constraint 6; workflow 3
+  // §When it looks like another format): the reported line's paragraph between
+  // two fence lines, as its own undo step; the cursor stays on the same text,
+  // now inside the fence, and the text takes focus back.
+  const putInMusic = (line) => {
+    const view = viewRef.current;
+    if (!view) return;
+    const { from, to, insert } = fenceAround(view.state.doc.toString(), line);
+    const head = view.state.selection.main.head;
+    const opener = insert.indexOf('\n') + 1;
+    let anchor = head;
+    if (head > to) anchor = head + insert.length - (to - from);
+    else if (head >= from) anchor = head + opener;
+    view.dispatch({
+      changes: { from, to, insert },
+      selection: { anchor },
+      userEvent: 'input',
+      scrollIntoView: true,
+      annotations: isolateHistory.of('full'),
+    });
+    setWrapNotice({ kind: 'line', line });
+    view.focus();
+  };
+
+  // The wrap notice's Undo, for a paste and a fenced line alike: one undo
+  // reverses exactly the one transaction.
+  const undoWrap = () => {
     const view = viewRef.current;
     if (!view) return;
     undo(view);
-    setPasteNotice(null);
+    setWrapNotice(null);
     view.focus();
   };
 
@@ -608,13 +657,15 @@ export default function SongEditor({
         )}
       </div>
 
-      {pasteNotice && (
+      {wrapNotice && (
         <div className="notice accent est-editor-notice" role="status">
           <span className="est-editor-notice-text">
-            {t('editor.source.pasteFenced')}
-            {pasteNotice.titled ? ` ${t('editor.source.pasteTitleAdded')}` : ''}
+            {wrapNotice.kind === 'line'
+              ? t('editor.source.lineFenced', { line: wrapNotice.line })
+              : t('editor.source.pasteFenced')}
+            {wrapNotice.kind === 'paste' && wrapNotice.titled ? ` ${t('editor.source.pasteTitleAdded')}` : ''}
           </span>
-          <Button className="btn" onPress={undoPaste}>
+          <Button className="btn" onPress={undoWrap}>
             {t('editor.source.undo')}
           </Button>
         </div>
@@ -627,6 +678,11 @@ export default function SongEditor({
               line: hint.line,
             })}
           </span>
+          {hint.kind === 'unfenced' ? (
+            <Button className="btn est-editor-put-in-music" onPress={() => putInMusic(hint.line)}>
+              {t('editor.source.putInMusic')}
+            </Button>
+          ) : null}
           <Button
             className="btn quiet act est-editor-show-me"
             onPress={() => setHelp({ open: true, topic: hint.topic })}
@@ -697,6 +753,12 @@ export default function SongEditor({
           </span>
         </div>
       )}
+
+      {reportedByLine.size > 0 ? (
+        <div className="visually-hidden est-line-announce" role="status" aria-live="polite">
+          {lineAnnouncement}
+        </div>
+      ) : null}
 
       <div ref={bodyRef} className={`est-editor-body${split ? ' split' : ''}`}>
         <div className="est-editor-pane" hidden={!showEditorPane}>

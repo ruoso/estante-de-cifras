@@ -19,6 +19,7 @@ import {
   parse,
 } from 'cifra-md';
 import { songDialect } from '../core/notation/dialects.js';
+import { lineDiagnostics } from './diagnostic-words.js';
 
 // The class vocabulary (each maps to an `est-<class>` CSS class on the line):
 //   md       — markdown structure: the `#` title, `- property:` lines, `##`
@@ -63,19 +64,18 @@ function looksLikeChords(line, dialect) {
 }
 
 // The lines the reader reported, keyed by 1-based line number. A marker line
-// takes its own class; every other reported line stands out as an error — "the
-// lines the reader reported" (acceptance criterion 2). `parse` only throws on
-// invalid UTF-8, which a string buffer cannot be, so this never throws.
+// takes its own class — a marker is the strongest signal, so no other
+// diagnostic on the line downgrades it; every other reported line stands out as
+// an error — "the lines the reader reported" (acceptance criterion 2). The
+// error lines are exactly those `lineDiagnostics` words (diagnostic-words.js),
+// so the red and its note never disagree. `parse` only throws on invalid UTF-8,
+// which a string buffer cannot be, so this never throws.
 function reportedLines(doc) {
   const byLine = new Map();
   for (const d of doc.diagnostics) {
-    if (typeof d.line !== 'number') continue;
-    const cls = d.code === 'marker-line' ? 'mk' : 'err';
-    // A marker is the strongest signal; do not let a later diagnostic on the
-    // same line downgrade it to a plain error.
-    if (byLine.get(d.line) === 'mk') continue;
-    byLine.set(d.line, cls);
+    if (d.code === 'marker-line' && typeof d.line === 'number') byLine.set(d.line, 'mk');
   }
+  for (const line of lineDiagnostics(doc.diagnostics).keys()) byLine.set(line, 'err');
   return byLine;
 }
 

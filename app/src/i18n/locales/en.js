@@ -1984,6 +1984,42 @@ export default {
       showMeHow: 'Show me how',
       unfencedChords:
         'Line {line} looks like chords, but it is outside the music, so it is kept as a note. Music goes between two lines of three backticks.',
+      // The words under a red line, and the notice's offer to put a line of
+      // chords outside the music inside it (songs.editor_errors_in_words;
+      // workflow 4 §Editing, workflow 3 §When it looks like another format).
+      lineNote: 'Line {line}: {words}',
+      putInMusic: 'Put it in the music',
+      lineFenced: 'Line {line} is now inside the music, so it reads as chords.',
+    },
+    // What a line the reader reports has wrong, by the diagnostic's code
+    // (cifra.md §0), never the reader's English message; `other` for a code the
+    // app does not know yet (songs.editor_errors_in_words Constraint 1).
+    diagnostic: {
+      'duplicate-property': 'this property is set again; the earlier value is not kept.',
+      'bad-property': 'a property is a name, a colon, a space and its value; this line is not kept.',
+      'marker-line': 'a conflict marker, left where two versions met; resolve it before saving.',
+      'bad-notation': 'a notation the app does not know; the song is read as Brazilian.',
+      'heading-looks-like-key':
+        'this reads as a part named after one chord; if it is the song’s key, write it as - key: in the properties.',
+      'unclosed-fence': 'the music opened here is never closed with a line of three backticks.',
+      'extra-rule': 'a second rule; only the first divides the song, and this one is not kept.',
+      'bad-block-heading':
+        'after the rule a heading is a voicings block and needs a tuning; the lines under it are not read.',
+      'duplicate-block': 'a second voicings block for the same tuning; the two are joined.',
+      'item-outside-block': 'after the rule, only voicing blocks are kept.',
+      'bad-voicing': 'a voicing that can’t be read.',
+      'bad-fingering': 'the fingers given for this voicing can’t be read, so they are left out.',
+      'notes-outside-block': 'after the rule, only voicing blocks are kept.',
+      'unfenced-music': 'this reads as chords, but it is outside the music, so it is kept as a note.',
+      'stray-mark': 'a repeat mark with no group to open or close.',
+      'ending-outside-group': 'an ending outside a repeat group.',
+      'count-out-of-place': 'a repeat count that follows no repeat group and does not end the line.',
+      'unclosed-group': 'a repeat group opened here is never closed.',
+      'bad-ending-sequence': 'the endings must be numbered 1., 2. and on, in order.',
+      'count-with-endings': 'a group with endings is counted by them, so this count is not needed.',
+      'repeat-without-previous': 'a repeat with no bar before it to repeat.',
+      'repeat-beside-items': 'a repeat sign shares its bar with other chords, which has no meaning.',
+      'other': 'the format cannot read this line as written.',
     },
     // The format help, *Writing a song* (songs.format_help; workflow 3 §Help
     // with the format, its English pinned there). Each topic's heading carries

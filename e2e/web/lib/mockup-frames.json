@@ -144,6 +144,12 @@
   "label": "Computer · a save stopped by an unreadable voicing; the first save asks your name"
  },
  {
+  "board": "W04-edit-and-save",
+  "index": 5,
+  "kind": "phone",
+  "label": "Phone · the template overwritten: a bar line outside the music says why, and offers to put it in"
+ },
+ {
   "board": "W05-arrange",
   "index": 1,
   "kind": "phone",

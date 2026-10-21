@@ -187,3 +187,7 @@ Append one `###` block per item, newest at the bottom:
 ### 2026-10-20 — Which viewport crowded the editor's text box? (from `design.review_polish`)
 - **What**: the persona exploration said the editor Preview crowds the text box on a phone but did not record the viewport, so the rule that text and preview sit side by side only at 640px of editor width or more is inferred.
 - **Decide**: whether 640px is the right threshold once the editor is seen on a turned phone and a narrow window.
+
+### 2026-10-21 — Republish the canvas and regenerate mockup frames after the W04 editor-errors frame (from `songs.editor_errors_in_words`)
+- **What**: `docs/mockups/W04-edit-and-save.dc.html` gained a phone frame 5 (a marked line says why); the board is now 3678px wide. `e2e/web/lib/mockup-frames.json` frame 5 was added by hand, so run `audit/render-mockups.mjs` to regenerate it, and republish the canvas (see the 2026-10-13 entry).
+- **Decide**: work only a person can do: publishing access and a render run.

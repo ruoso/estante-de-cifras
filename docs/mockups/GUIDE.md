@@ -37,7 +37,7 @@ Status (always a word): `.badge` + `.unsaved|.conflict|.ok|.voiced`, `.dot` modi
 Lists: `.list` > `.row` (`.sel`, `.explore`) with `.grow` > `.name` + `.meta`, `.badges`, `.section-label`; `.card` (`.pad`).
 Notices: `.notice` (`.accent|.unsaved|.conflict`) with `.act` for its action.
 Overlays: `.scrim` (bottom sheet) or `.scrim.center` (dialog) positioned over a screen — put it as the last child of the `.dev` (which is `position: relative`); `.sheet` (with `.grip`), `.dialog`, `.actions`.
-Music: `.chart` holds chart lines built with the `L` helpers (see *Charts*); a line can carry an extra class for marking: `mark-def` (shows defaults, dashed), `mark-conf` (conflict), `mark-tap` (chords tappable in arrange mode). `.shapes` + ChordBox. `.editor` > `.ln` with `.md` (markdown syntax lines), `.ch`, `.cur`, `.err`, `.mk` (conflict marker lines), `.add`/`.del` (diff lines) — monospaced, for source text only.
+Music: `.chart` holds chart lines built with the `L` helpers (see *Charts*); a line can carry an extra class for marking: `mark-def` (shows defaults, dashed), `mark-conf` (conflict), `mark-tap` (chords tappable in arrange mode). `.shapes` + ChordBox. `.editor` > `.ln` with `.md` (markdown syntax lines), `.ch`, `.cur`, `.err`, `.err-note` (the words under an `.err` line, "Line N: …" — unnumbered, in the interface face, tied to the red line by a rule in `--conflict`; status in words, never the red alone), `.mk` (conflict marker lines), `.add`/`.del` (diff lines) — monospaced, for source text only.
 Diffs: `.diff` > `.d` > `.k` + `.was` / `.now`.
 Type: `.t-display`, `.t-h1`, `.t-h2`, `.t-h3` (small caps label), `.t-body`, `.t-small`, `.t-mono`.
 Progress: `.bar` > `div` with `style="width: 40%"`.

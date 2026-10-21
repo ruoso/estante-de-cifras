@@ -11,7 +11,7 @@
 // Pure: no React, no CodeMirror. The editor decides the paste point; this helper
 // decides the transform from the text before that point.
 
-import { fenceOpen, closesFence } from 'cifra-md';
+import { fenceOpen, closesFence, mdHeading } from 'cifra-md';
 
 const FENCE = '```';
 
@@ -77,4 +77,58 @@ export function fencePaste({ text = '', pasted = '', hasTitle = true } = {}) {
 
   const insert = `${FENCE}\n${body}${body.endsWith('\n') || body === '' ? '' : '\n'}${FENCE}`;
   return { insideFence: false, wrapped: true, titled, insert, title };
+}
+
+// What ends a paragraph for `fenceAround`: a blank line, a `#` heading, a
+// `- key:` list item (a property or a voicing), a thematic break, or a fence
+// delimiter — the markdown structure around a chart, never part of it.
+const THEMATIC_BREAK = /^ {0,3}([-*_])( *\1){2,} *$/;
+const LIST_ITEM = /^ {0,3}-\s+[^:]+:/;
+function endsParagraph(line) {
+  return (
+    line.trim() === '' ||
+    mdHeading(line) !== null ||
+    LIST_ITEM.test(line) ||
+    THEMATIC_BREAK.test(line) ||
+    fenceOpen(line) !== null
+  );
+}
+
+/**
+ * Put the paragraph holding `line` inside a music fence — **Put it in the
+ * music** on the *chords outside the music* notice (songs.editor_errors_in_words
+ * Constraint 6, Decision 6; workflow 3 §When it looks like another format;
+ * spec §1.9). The paragraph is the contiguous run of lines around `line` up to,
+ * not including, a blank line, a heading, a `- key:` item, a rule or a fence
+ * delimiter: chords over words are two lines, and fencing the chord line alone
+ * would split them.
+ *
+ * @param {string} text the whole buffer
+ * @param {number} line the 1-based line the reader reported
+ * @returns {{from: number, to: number, insert: string}} one change: the text
+ *   between `from` and `to` (the paragraph) replaced by itself between two
+ *   lines of three backticks.
+ */
+export function fenceAround(text, line) {
+  // Each line's text and its start offset, keeping the real separators.
+  const lines = [];
+  const re = /\r\n|\r|\n/g;
+  let start = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    lines.push({ text: text.slice(start, m.index), from: start });
+    start = m.index + m[0].length;
+  }
+  lines.push({ text: text.slice(start), from: start });
+
+  const at = Math.min(Math.max(line, 1), lines.length) - 1;
+  let first = at;
+  let last = at;
+  if (!endsParagraph(lines[at].text)) {
+    while (first > 0 && !endsParagraph(lines[first - 1].text)) first -= 1;
+    while (last < lines.length - 1 && !endsParagraph(lines[last + 1].text)) last += 1;
+  }
+  const from = lines[first].from;
+  const to = lines[last].from + lines[last].text.length;
+  return { from, to, insert: `${FENCE}\n${text.slice(from, to)}\n${FENCE}` };
 }

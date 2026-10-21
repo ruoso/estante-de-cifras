@@ -254,14 +254,17 @@ with **Show me how**, which opens the help at the topic that answers it:
   would read as chords, which is what the reader reports for a chart never
   fenced (§1.9): *Line 4 looks like chords, but it is outside the music, so it
   is kept as a note. Music goes between two lines of three backticks.* Opens
-  at *Parts and the music fence*.
+  at *Parts and the music fence*. This notice also offers **Put it in the
+  music**, which fences the line's paragraph in one undoable step (workflow 4
+  §Editing).
 
 One notice at a time, chords in brackets first, naming the first line it
 holds for. A line counts once the cursor has left it, or at once for pasted
 text, so the notice does not appear halfway through typing `[A`. It goes when
 the text no longer holds the case; its dismiss button sends it away for the
 rest of this editing of the song. It never stops a save, and the editor does
-not rewrite the text: the writer decides what was meant — a part named *A*
+not rewrite the text unasked (*Put it in the music* is the writer's press,
+never automatic): the writer decides what was meant — a part named *A*
 in brackets is legitimate, and the notice only says it looks like a chord.
 It comes at the moment the editor marks the words it does not read as chords
 and the save lists them before saving (workflow 4 §Saving); the notice is what

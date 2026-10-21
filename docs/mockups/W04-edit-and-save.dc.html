@@ -13,11 +13,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
 <style>body{margin:0}</style>
 </helmet>
-<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3678px; height: 1500px">
   <div class="board-head">
     <div class="board-num">Workflow 4</div>
     <h1 class="board-title">Edit and save</h1>
-    <p class="board-sub">Every change goes to the working copy as it is made, so nothing is ever lost by leaving. Save is two taps, because seeing what changed is part of choosing to keep it; it commits and shares. Discard always asks.</p>
+    <p class="board-sub">Every change goes to the working copy as it is made, so nothing is ever lost by leaving. Save is two taps, because seeing what changed is part of choosing to keep it; it commits and shares. Discard always asks. A line the editor marks red says why, right under it.</p>
   </div>
 
   <div class="devices">
@@ -180,8 +180,9 @@
                 <span><b>Not saved.</b> Line 23 is a voicing that can’t be read, and saving would drop it. Fix it or delete it, then save again.</span>
               </div>
               <div class="editor">
-                <sc-for list="{{edDesk}}" as="ln" hint-placeholder-count="24">
-                  <div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div>
+                <sc-for list="{{edDesk}}" as="ln" hint-placeholder-count="25">
+                  <sc-if value="{{ln.isNote}}" hint-placeholder-val="{{ false }}"><div class="ln err-note" style="margin-left: 36px">{{ln.text}}</div></sc-if>
+                  <sc-if value="{{ln.isLine}}" hint-placeholder-val="{{ true }}"><div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div></sc-if>
                 </sc-for>
               </div>
             </div>
@@ -207,13 +208,59 @@
         </div>
       </div>
     </div>
+
+    <!-- Phone: the template overwritten (songs.editor_errors_in_words) -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · the template overwritten: a bar line outside the music says why, and offers to put it in</div>
+      <div class="dev phone">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Rascunho</span>
+            <button class="btn primary">Save</button>
+          </div>
+          <div class="scroll" style="gap: 12px">
+            <div style="display: flex; align-items: center; gap: 8px"><div class="seg"><button class="on">Text</button><button>Preview</button></div><button class="btn" style="margin-left: auto; min-height: 40px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01"></path></svg>Help</button></div>
+            <div class="notice accent" role="status" style="flex-direction: column; gap: 8px">
+              <div style="display: flex; gap: 8px; align-items: flex-start">
+                <span style="flex: 1">Line 3 looks like chords, but it is outside the music, so it is kept as a note. Music goes between two lines of three backticks.</span>
+                <button class="btn icon" aria-label="Dismiss the notice" style="width: 36px; min-height: 36px; margin: -6px -8px 0 0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center">
+                <button class="btn" style="min-height: 40px">Put it in the music</button>
+                <button class="btn quiet act" style="min-height: 40px; padding: 0 4px; margin-left: 0">Show me how</button>
+              </div>
+            </div>
+            <div class="editor">
+              <sc-for list="{{edRascunho}}" as="ln" hint-placeholder-count="4">
+                <sc-if value="{{ln.isNote}}" hint-placeholder-val="{{ false }}"><div class="ln err-note" style="margin-left: 36px">{{ln.text}}</div></sc-if>
+                <sc-if value="{{ln.isLine}}" hint-placeholder-val="{{ true }}"><div class="ln {{ln.cls}}"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">{{ln.n}}</span>{{ln.text}}</div></sc-if>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; padding: 12px 16px 22px; border-top: 1px solid var(--line); background: var(--surface)">
+            <button class="btn" style="flex: 1">Add section</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3678,"height":1500}}'>
 class Component extends DCLogic {
   renderVals() {
     const numbered = (ls) => ls.map((ln, i) => ({ cls: ln.cls, text: ln.text, n: String(i + 1) }));
+    // A red line's note (songs.editor_errors_in_words; GUIDE `.err-note`): a
+    // row under the line in words, unnumbered — it is not a line of the text.
+    const withNotes = (ls) => {
+      let n = 0;
+      return ls.map((ln) => {
+        if (ln.note) return { isNote: true, isLine: false, text: ln.text, cls: '', n: '' };
+        n += 1;
+        return { isNote: false, isLine: true, cls: ln.cls, text: ln.text, n: String(n) };
+      });
+    };
     const segsOf = (chords, words) => {
       const toks = []; const re = /\S+/g; let m;
       while ((m = re.exec(chords))) toks.push({ c: m[0], at: m.index });
@@ -261,6 +308,15 @@ class Component extends DCLogic {
       { cls: 'err', text: '- Em: 02200' },
       { cls: '', text: '- C: x32010' },
     ];
+    const desk = source.slice(0, 23).concat([
+      { note: true, text: 'Line 23: a voicing that can’t be read.' },
+    ], source.slice(23));
+    const rascunho = [
+      { cls: 'md cur', text: '# Rascunho' },
+      { cls: '', text: '' },
+      { cls: 'err', text: '| Am7 | D7 | Gm7 | C7 |' },
+      { note: true, text: 'Line 3: this reads as chords, but it is outside the music, so it is kept as a note.' },
+    ];
     const phone = source.slice(0, 19).concat([
       { cls: 'md', text: '## Voicings: G4 C4 E4 A4' },
       { cls: 'add', text: '- G: 0232' },
@@ -270,7 +326,8 @@ class Component extends DCLogic {
       theme: this.props.theme ?? 'current',
       density: this.props.density ?? 'comfortable',
       edPhone: numbered(phone),
-      edDesk: numbered(source),
+      edDesk: withNotes(desk),
+      edRascunho: withNotes(rascunho),
       tarde: [
         L.sec('Primeira Parte'),
         L.sung('G           D7', 'Quando eu te vi passar'),

@@ -1813,6 +1813,40 @@ export default {
       showMeHow: 'Mostre como',
       unfencedChords:
         'A linha {line} parece ter acordes, mas está fora da música, então fica como nota. A música vai entre duas linhas de três crases.',
+      // As palavras sob uma linha vermelha e a oferta do aviso de pôr dentro
+      // da música uma linha de acordes fora dela (songs.editor_errors_in_words).
+      lineNote: 'Linha {line}: {words}',
+      putInMusic: 'Pôr na música',
+      lineFenced: 'A linha {line} agora está dentro da música, então é lida como acordes.',
+    },
+    // O que há de errado numa linha que o leitor aponta, pelo código do
+    // diagnóstico (cifra.md §0); `other` para um código que o app não conhece.
+    diagnostic: {
+      'duplicate-property': 'esta propriedade aparece de novo; o valor anterior não fica.',
+      'bad-property': 'uma propriedade é um nome, dois-pontos, um espaço e o valor; esta linha não fica.',
+      'marker-line': 'um marcador de conflito, deixado onde duas versões se encontraram; resolva-o antes de salvar.',
+      'bad-notation': 'uma notação que o app não conhece; a música é lida como brasileira.',
+      'heading-looks-like-key':
+        'isto é lido como uma parte com o nome de um acorde; se é o tom da música, escreva - key: nas propriedades.',
+      'unclosed-fence': 'a música aberta aqui nunca é fechada com uma linha de três crases.',
+      'extra-rule': 'uma segunda linha ---; só a primeira divide a música, e esta não fica.',
+      'bad-block-heading':
+        'depois da linha --- um título é um bloco de dedilhados e precisa de uma afinação; as linhas abaixo dele não são lidas.',
+      'duplicate-block': 'um segundo bloco de dedilhados para a mesma afinação; os dois são juntados.',
+      'item-outside-block': 'depois da linha ---, só ficam blocos de dedilhados.',
+      'bad-voicing': 'um dedilhado que não pode ser lido.',
+      'bad-fingering': 'os dedos deste dedilhado não podem ser lidos, então ficam de fora.',
+      'notes-outside-block': 'depois da linha ---, só ficam blocos de dedilhados.',
+      'unfenced-music': 'isto é lido como acordes, mas está fora da música, então fica como nota.',
+      'stray-mark': 'um sinal de repetição sem grupo para abrir ou fechar.',
+      'ending-outside-group': 'uma casa de final fora de um grupo de repetição.',
+      'count-out-of-place': 'uma contagem de repetição que não segue um grupo nem termina a linha.',
+      'unclosed-group': 'um grupo de repetição aberto aqui nunca é fechado.',
+      'bad-ending-sequence': 'as casas de final vão numeradas 1., 2. e assim por diante, em ordem.',
+      'count-with-endings': 'um grupo com casas de final é contado por elas, então esta contagem sobra.',
+      'repeat-without-previous': 'uma repetição sem compasso antes dela para repetir.',
+      'repeat-beside-items': 'um sinal de repetição divide o compasso com outros acordes, o que não tem sentido.',
+      'other': 'o formato não consegue ler esta linha como está escrita.',
     },
     // A ajuda do formato, *Escrevendo uma música* (songs.format_help;
     // workflow 3). Frases, nomes das partes e letra traduzidos; as marcas, os

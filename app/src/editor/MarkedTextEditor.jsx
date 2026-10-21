@@ -2,7 +2,8 @@
 // the conflict resolver's *edit* view of a song's marked text
 // (sync.conflicts_editing; workflow 9 §Settling one; W09#3). The same
 // CodeMirror setup as the song editor (sourceExtensions: line numbers, the
-// cifra syntax colouring with marker lines as `est-mk`, the active line, the
+// cifra syntax colouring with marker lines as `est-mk` and a note in words under
+// each red line, the active line, the
 // accessible name, tabindex 0), and nothing else: no OPEN_SOURCE, no WRITE, no
 // store. A marked text never reaches the working copy (DIRECTION §2.2); the host
 // sends the text to the Worker on its own Save.
@@ -14,6 +15,8 @@
 import { useEffect, useRef } from 'react';
 import { EditorView } from '@codemirror/view';
 import { sourceExtensions } from './source-extensions.js';
+import { lineNoteText } from './diagnostic-words.js';
+import { t } from '../i18n/index.js';
 import './editor.css';
 
 export default function MarkedTextEditor({ initialText = '', label, onChange, viewRef, className = '' }) {
@@ -34,6 +37,9 @@ export default function MarkedTextEditor({ initialText = '', label, onChange, vi
       doc: initialRef.current,
       extensions: sourceExtensions({
         label: labelRef.current,
+        // A line it colours red says why, as in the song editor
+        // (songs.editor_errors_in_words Decision 8); marker lines have none.
+        lineNote: (d) => lineNoteText(d, t),
         onDocChange: (update) => changeRef.current?.(update.state.doc.toString()),
       }),
     });

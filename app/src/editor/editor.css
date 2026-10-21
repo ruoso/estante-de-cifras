@@ -160,6 +160,20 @@
   color: var(--conflict);
 }
 
+/* The words under a red line (songs.editor_errors_in_words Constraint 3;
+ * workflow 4 §Editing; GUIDE `.err-note`): the line's reason in the interface
+ * face, smaller, in the secondary ink, tied to the red line above by a rule in
+ * its colour. Tokens only — the words carry the meaning. */
+.est .est-line-note {
+  border-left: 3px solid var(--conflict);
+  color: var(--ink-2);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.35;
+  padding: 2px 6px 4px 6px;
+  white-space: normal;
+}
+
 .est .cm-line.est-mk {
   background: var(--unsaved-soft);
   color: var(--unsaved);

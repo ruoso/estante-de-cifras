@@ -255,6 +255,7 @@
 .editor .ch { color: var(--chord); font-weight: 600; }
 .editor .cur { background: var(--accent-soft); }
 .editor .err { background: var(--conflict-soft); color: var(--conflict); }
+.editor .err-note { white-space: normal; font-family: var(--font-ui); font-size: 13px; line-height: 1.35; color: var(--ink-2); border-left: 3px solid var(--conflict); padding: 2px 6px 4px; }
 .editor .mk { background: var(--unsaved-soft); color: var(--unsaved); font-weight: 600; }
 .editor .add { background: var(--ok-soft); }
 .editor .del { background: var(--conflict-soft); text-decoration: line-through; }
