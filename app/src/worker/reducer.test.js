@@ -331,7 +331,24 @@ describe('worker store reducer', () => {
     const d = reduce(b, event(EventKind.INDEX_STATUS, { bookId: 'a', state: null }));
     expect(d.songCounts).toEqual({ b: 5 });
     expect('a' in d.songCounts).toBe(false);
+    // …and its key from the index slice (books.put_online_no_ghosts).
+    expect('a' in d.index).toBe(false);
     expect(initialState.songCounts).toEqual({});
+  });
+
+  // books.put_online_no_ghosts Decision 1 — each book on the shelf is a Search
+  // section, and only those (workflow 2 L13-14): a book that left (put online
+  // under a new id, removed, deleted) is no key of `index`.
+  it('a null INDEX_STATUS removes the book from the index slice (books.put_online_no_ghosts)', () => {
+    const state = [
+      event(EventKind.INDEX_STATUS, { bookId: 'other', state: 'ready', songs: 1 }),
+      event(EventKind.INDEX_STATUS, { bookId: 'local-b', state: 'building' }),
+      event(EventKind.INDEX_STATUS, { bookId: 'local-b', state: 'ready', songs: 2 }),
+      event(EventKind.INDEX_STATUS, { bookId: 'local-b', state: null }),
+    ].reduce(reduce, initialState);
+    expect(Object.keys(state.index)).toEqual(['other']);
+    // A null for a book that is not there changes nothing.
+    expect(reduce(state, event(EventKind.INDEX_STATUS, { bookId: 'gone', state: null }))).toBe(state);
   });
 
   it('returns the same state reference for a command, a malformed message, or an unknown event kind', () => {

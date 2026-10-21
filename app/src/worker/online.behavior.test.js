@@ -116,6 +116,18 @@ async function makeWorker(remote, serviceId) {
   return { idb, name, fs, git, locks, deviceId, events, send, apiCalls, readHome, parseSpy };
 }
 
+// A second Worker over the same backing store (`idb`/`name`, and so the same
+// lightning-fs and `meta` store) — a "restart" of the device.
+function restartWorker(w, remote, serviceId) {
+  const { impl: fetchImpl } = routingFetch(remote, serviceId);
+  const events = [];
+  const endpoint = createLoopbackEndpoint((port) =>
+    createWorkerLogic(port, { indexedDB: w.idb, name: w.name, fetch: fetchImpl }),
+  );
+  endpoint.onmessage = (ev) => events.push(ev.data);
+  return { events, send: (cmd) => endpoint.postMessage(cmd) };
+}
+
 const lastEvent = (events, kind) => [...events].reverse().find((e) => e.kind === kind);
 
 // Fold the collected port events through the real reducer to read a slice the
@@ -439,8 +451,101 @@ describe('reindex on put-online / remove / delete (books.online_reindex)', () =>
       // The stale index build-status entry for localId is nulled; the serviceId
       // carries the live `ready` entry (Decision 4).
       const index = foldState(w.events).index;
-      expect(index[localId] ?? null).toBeNull();
+      expect(localId in index).toBe(false);
       expect(index[serviceId]).toBe('ready');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  // Record a recent for the seeded song (what opening it does) and wait for the
+  // RECENTS that carries it.
+  async function recordRecent(w, bookId) {
+    w.send(command(CommandKind.RECORD_RECENT, { bookId, path: SONG_PATH }));
+    await waitFor(() => {
+      expect(
+        lastEvent(w.events, EventKind.RECENTS)?.payload.recents.some(
+          (r) => r.bookId === bookId && r.path === SONG_PATH,
+        ),
+      ).toBe(true);
+    });
+  }
+
+  // books.put_online_no_ghosts Constraint 3 / Decision 2; workflow 2 L29-35 (a
+  // recent follows its book) and workflow 7 §Putting a book online.
+  it('put-online moves the book’s recents to the service id, persisted across a restart (books.put_online_no_ghosts)', async () => {
+    const remote = await startGitHttpRemote({ seed: false });
+    const serviceId = `srv-${rand()}`;
+    try {
+      const w = await makeWorker(remote, serviceId);
+      const localId = await seedIndexedLocalBook(w);
+      await recordRecent(w, localId);
+
+      await putOnline(w, localId);
+
+      // The last RECENTS before BOOK_ONLINE names the service id, and nothing
+      // is left under the local id.
+      const onlineAt = w.events.findIndex((e) => e.kind === EventKind.BOOK_ONLINE);
+      const recents = lastEvent(w.events.slice(0, onlineAt), EventKind.RECENTS).payload.recents;
+      expect(recents.some((r) => r.bookId === serviceId && r.path === SONG_PATH)).toBe(true);
+      expect(recents.some((r) => r.bookId === localId)).toBe(false);
+      // And Search lists no section for the old id.
+      expect(localId in foldState(w.events).index).toBe(false);
+
+      // Persisted in `meta`: a restart's OPEN surfaces the moved recent.
+      const again = restartWorker(w, remote, serviceId);
+      again.send(command(CommandKind.OPEN));
+      await waitFor(() => {
+        expect(lastEvent(again.events, EventKind.RECENTS)).toBeTruthy();
+      });
+      const reopened = lastEvent(again.events, EventKind.RECENTS).payload.recents;
+      expect(reopened.map((r) => [r.bookId, r.path])).toEqual([[serviceId, SONG_PATH]]);
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  // books.put_online_no_ghosts Constraint 3; workflow 7 L252-264 (removing a
+  // book) and workflow 2 L29-35.
+  it('remove drops the book’s recents and its index entry', async () => {
+    const remote = await startGitHttpRemote({ seed: false });
+    const serviceId = `srv-${rand()}`;
+    try {
+      const w = await makeWorker(remote, serviceId);
+      const localId = await seedIndexedLocalBook(w);
+      const { bookId } = await putOnline(w, localId);
+      await recordRecent(w, bookId);
+
+      w.send(command(CommandKind.REMOVE_BOOK, { bookId, author: IDENTITY }));
+      await waitFor(() => {
+        expect(lastEvent(w.events, EventKind.BOOK_REMOVED)?.payload.bookId).toBe(bookId);
+      });
+      const recents = lastEvent(w.events, EventKind.RECENTS).payload.recents;
+      expect(recents.some((r) => r.bookId === bookId)).toBe(false);
+      expect(bookId in foldState(w.events).index).toBe(false);
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  // books.put_online_no_ghosts Constraint 3; workflow 7 L252-264 (deleting a
+  // book) and workflow 2 L29-35.
+  it('delete drops the book’s recents and its index entry', async () => {
+    const remote = await startGitHttpRemote({ seed: false });
+    const serviceId = `srv-${rand()}`;
+    try {
+      const w = await makeWorker(remote, serviceId);
+      const localId = await seedIndexedLocalBook(w);
+      const { bookId } = await putOnline(w, localId);
+      await recordRecent(w, bookId);
+
+      w.send(command(CommandKind.DELETE_BOOK, { bookId, author: IDENTITY }));
+      await waitFor(() => {
+        expect(lastEvent(w.events, EventKind.BOOK_REMOVED)?.payload.bookId).toBe(bookId);
+      });
+      const recents = lastEvent(w.events, EventKind.RECENTS).payload.recents;
+      expect(recents.some((r) => r.bookId === bookId)).toBe(false);
+      expect(bookId in foldState(w.events).index).toBe(false);
     } finally {
       await remote.stop();
     }

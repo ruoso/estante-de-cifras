@@ -394,12 +394,25 @@ export function reduce(state, message) {
       if (!bookId) return state;
       const next = message.payload?.state ?? null;
       let songCounts = state.songCounts;
+      let index = state.index;
       if (next === null) {
+        // A book with no status has left (put online under a new id, removed,
+        // deleted): drop its key, as `songCounts` does, so a reader of
+        // `Object.keys(index)` — Search's book sections — never lists a book
+        // the device no longer holds (books.put_online_no_ghosts Decision 1;
+        // workflow 2 L13-14).
         if (bookId in songCounts) {
           songCounts = { ...songCounts };
           delete songCounts[bookId];
         }
-      } else if (next === 'ready' && typeof message.payload?.songs === 'number') {
+        if (bookId in index) {
+          index = { ...index };
+          delete index[bookId];
+        }
+        if (index === state.index && songCounts === state.songCounts) return state;
+        return { ...state, index, songCounts };
+      }
+      if (next === 'ready' && typeof message.payload?.songs === 'number') {
         if (songCounts[bookId] !== message.payload.songs) {
           songCounts = { ...songCounts, [bookId]: message.payload.songs };
         }

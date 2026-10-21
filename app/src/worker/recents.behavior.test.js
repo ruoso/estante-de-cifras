@@ -18,7 +18,8 @@ import { createWorkerLogic } from './logic.js';
 import { createStore } from './store.js';
 import { command, CommandKind, EventKind } from './protocol.js';
 import { HOME_BOOK_ID } from './home-book.js';
-import { DEFAULT_RECENTS_CAP } from './recents.js';
+import { DEFAULT_RECENTS_CAP, RECENTS_META_KEY } from './recents.js';
+import { META_STORE } from './migrations.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { startGitHttpRemote } from '../test/git-http-remote.js';
 import { installWebLocks } from '../test/web-locks.js';
@@ -63,9 +64,37 @@ async function setup() {
     return createStore(endpoint);
   }
 
+  // Read-modify-write the stored recents list straight in the `meta` store, as
+  // a device's IndexedDB holds it (not through the Worker).
+  async function editStoredRecents(edit) {
+    const db = await new Promise((resolve, reject) => {
+      const req = idb.open(name);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    try {
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction(META_STORE, 'readwrite');
+        const store = tx.objectStore(META_STORE);
+        const req = store.get(RECENTS_META_KEY);
+        let list;
+        req.onsuccess = () => {
+          list = edit(Array.isArray(req.result) ? req.result : []);
+          if (list) store.put(list, RECENTS_META_KEY);
+          else list = req.result;
+        };
+        tx.oncomplete = () => resolve(list);
+        tx.onerror = () => reject(tx.error);
+      });
+    } finally {
+      db.close();
+    }
+  }
+
   return {
     remote,
     makeStore,
+    editStoredRecents,
     headOid: () => resolveRef({ fs, dir: homeDir, ref: 'HEAD' }),
     async cleanup() {
       await remote.stop();
@@ -138,6 +167,38 @@ describe('recents (behavior)', () => {
         expect(restarted.slice('recents')[0]?.path).toBe(`song-${total - 1}.cifra.md`),
       );
       expect(restarted.slice('recents').length).toBe(DEFAULT_RECENTS_CAP);
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  // books.put_online_no_ghosts Constraint 4 / Decision 5 — heal at OPEN: a
+  // device that put a book online before the writers moved recents carries a
+  // recent naming a `local-…` book that is gone; its next start drops it
+  // (workflow 2 L29-35: a recent never leads to a book the device no longer has).
+  it('OPEN drops a recent whose book is no longer on the device (books.put_online_no_ghosts)', async () => {
+    const ctx = await setup();
+    try {
+      const store = ctx.makeStore();
+      store.open();
+      await until(() => expect(store.slice('index')[BOOK]).toBe('ready'));
+      store.send(command(CommandKind.RECORD_RECENT, { bookId: BOOK, path: 'real.cifra.md' }));
+      await until(() => expect(paths(store)).toEqual(['real.cifra.md']));
+
+      // The ghost, written straight into `meta` as an older device left it.
+      await ctx.editStoredRecents((list) => [
+        ...list,
+        { bookId: 'local-gone', path: 'ghost.cifra.md', at: '2026-10-19T10:00:00.000Z' },
+      ]);
+
+      const restarted = ctx.makeStore();
+      restarted.open();
+      await until(() => expect(restarted.slice('recents').length).toBeGreaterThan(0));
+      expect(restarted.slice('recents').map((r) => [r.bookId, r.path])).toEqual([[BOOK, 'real.cifra.md']]);
+
+      // Persisted: the stored list no longer holds the ghost.
+      const stored = await ctx.editStoredRecents(() => null);
+      expect(stored.map((r) => r.bookId)).toEqual([BOOK]);
     } finally {
       await ctx.cleanup();
     }

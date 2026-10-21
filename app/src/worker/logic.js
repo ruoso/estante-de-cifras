@@ -949,6 +949,29 @@ export function createWorkerLogic(port, options = {}) {
   // is a way back to nothing (songs.unsaved_after_discard Constraint 3,
   // workflow 2 L13-15). Not hooked into `persistIndexChanges`: `removeBook`
   // runs there for books merely loading or re-keying (Decision 3).
+  // A book changed id or left the device: move its recents to `toId` (put
+  // online, fork) or, with no `toId`, drop them (remove, leave, delete, sign
+  // out, leave Estante), and post RECENTS once when the list changed — a recent
+  // follows its book and never leads to one the device no longer has
+  // (books.put_online_no_ghosts Constraint 3; workflow 2 L29-35). Explicit at
+  // each call site, not in `removeBook`, for the reason above (Decision 4).
+  async function retireBookRecents(bookIds, toId = null) {
+    const ids = Array.isArray(bookIds) ? bookIds : [bookIds];
+    if (ids.length === 0) return;
+    const db = await ensureOpen();
+    const store = ensureRecents();
+    let list = null;
+    let changed = false;
+    for (const id of ids) {
+      const result = toId
+        ? await store.moveBook(db, id, toId)
+        : await store.forgetBook(db, id);
+      list = result.recents;
+      changed ||= result.changed;
+    }
+    if (changed) port.postMessage(event(EventKind.RECENTS, { recents: list }));
+  }
+
   async function forgetRemovedRecents(bookId, removedPaths) {
     if (removedPaths.length === 0) return;
     const db = await ensureOpen();
@@ -1181,6 +1204,7 @@ export function createWorkerLogic(port, options = {}) {
     await ensureIndexHydrated();
     await persistIndexChanges(ensureSearchIndex().removeBook(bookId));
     port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: null }));
+    await retireBookRecents(bookId);
     await ensureFs().flush();
   }
 
@@ -1597,9 +1621,16 @@ export function createWorkerLogic(port, options = {}) {
   // (songs.search, workflow 2 L13-14). Device-local, offline, no commit; an
   // empty list on first run. Logs nothing (a recent is a location, not song
   // text; standing rule).
+  //
+  // First it heals: a recent whose book has no directory on disk names a book
+  // that has gone (recents are only recorded for a song this device opened),
+  // a ghost a device made before put-online and the rest moved recents with
+  // their book. It is dropped, and the list persisted only when it changed
+  // (books.put_online_no_ghosts Constraint 4, Decision 5).
   async function surfaceRecents() {
     const db = await ensureOpen();
-    const list = await ensureRecents().read(db);
+    const bookIds = await listBookIds(ensureFs(), HOME_BOOK_ID);
+    const { recents: list } = await ensureRecents().keepBooks(db, bookIds);
     port.postMessage(event(EventKind.RECENTS, { recents: list }));
   }
 
@@ -2677,6 +2708,7 @@ export function createWorkerLogic(port, options = {}) {
             await ensureIndexHydrated();
             await persistIndexChanges(ensureSearchIndex().removeBook(localId));
             port.postMessage(event(EventKind.INDEX_STATUS, { bookId: localId, state: null }));
+            await retireBookRecents(localId, serviceId);
             await indexOneBook(serviceId);
             // Flush at the handler tail after both locks released (Decision 4):
             // one global flush persists the relocated repo and the shelf
@@ -2794,6 +2826,7 @@ export function createWorkerLogic(port, options = {}) {
             await ensureIndexHydrated();
             await persistIndexChanges(ensureSearchIndex().removeBook(bookId));
             port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: null }));
+            await retireBookRecents(bookId, forkId);
             await indexOneBook(forkId);
             await ensureFs().flush();
             port.postMessage(
@@ -2888,6 +2921,7 @@ export function createWorkerLogic(port, options = {}) {
             await ensureIndexHydrated();
             await persistIndexChanges(ensureSearchIndex().removeBook(bookId));
             port.postMessage(event(EventKind.INDEX_STATUS, { bookId, state: null }));
+            await retireBookRecents(bookId);
             await ensureFs().flush();
             port.postMessage(event(EventKind.BOOK_REMOVED, { bookId }));
             break;
@@ -3033,6 +3067,7 @@ export function createWorkerLogic(port, options = {}) {
             for (const id of removedIds) {
               port.postMessage(event(EventKind.INDEX_STATUS, { bookId: id, state: null }));
             }
+            await retireBookRecents(removedIds);
             break;
           }
           case CommandKind.LEAVE_ESTANTE: {
@@ -3084,6 +3119,7 @@ export function createWorkerLogic(port, options = {}) {
             for (const id of removedIds) {
               port.postMessage(event(EventKind.INDEX_STATUS, { bookId: id, state: null }));
             }
+            await retireBookRecents(removedIds);
             break;
           }
           case CommandKind.ADD_BY_LINK: {

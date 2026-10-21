@@ -66,6 +66,50 @@ export function dropRecents(list, locations) {
 }
 
 /**
+ * Pure list move: re-key every entry of book `fromId` to `toId` — a book that
+ * changes id (put online, forked) takes its recents with it (workflow 2
+ * L29-35; books.put_online_no_ghosts Constraint 2). Order and `at` are kept.
+ * When an entry for the same `{ toId, path }` is already in the list, the
+ * earlier one (the more recent) is kept and the later one dropped. Returns the
+ * SAME array when nothing matched.
+ *
+ * @param {Array<{ bookId: string, path: string, at: string }>} list
+ * @param {string} fromId
+ * @param {string} toId
+ * @returns {Array<{ bookId: string, path: string, at: string }>}
+ */
+export function moveBookRecents(list, fromId, toId) {
+  const prev = Array.isArray(list) ? list : [];
+  if (fromId === toId || !prev.some((r) => r.bookId === fromId)) return prev;
+  const seen = new Set();
+  const next = [];
+  for (const r of prev) {
+    const moved = r.bookId === fromId ? { ...r, bookId: toId } : r;
+    if (moved.bookId === toId) {
+      if (seen.has(moved.path)) continue;
+      seen.add(moved.path);
+    }
+    next.push(moved);
+  }
+  return next;
+}
+
+/**
+ * Pure list move: drop every entry of book `bookId` — a book that leaves the
+ * device's shelf takes its recents with it (workflow 2 L29-35). Returns the
+ * SAME array when nothing matched.
+ *
+ * @param {Array<{ bookId: string, path: string, at: string }>} list
+ * @param {string} bookId
+ * @returns {Array<{ bookId: string, path: string, at: string }>}
+ */
+export function dropBookRecents(list, bookId) {
+  const prev = Array.isArray(list) ? list : [];
+  if (!prev.some((r) => r.bookId === bookId)) return prev;
+  return prev.filter((r) => r.bookId !== bookId);
+}
+
+/**
  * The device-local recents store over the Worker's open `meta` database. Both
  * operations run in one `meta`-store transaction, resolved on completion so the
  * write is durable before it is reported.
@@ -74,6 +118,12 @@ export function dropRecents(list, locations) {
  * @returns {{ read: (db: IDBDatabase) => Promise<Array>,
  *   record: (db: IDBDatabase, entry: { bookId: string, path: string, now?: number }) => Promise<Array>,
  *   forget: (db: IDBDatabase, locations: Array<{ bookId: string, path: string }>)
+ *     => Promise<{ recents: Array, changed: boolean }>,
+ *   moveBook: (db: IDBDatabase, fromId: string, toId: string)
+ *     => Promise<{ recents: Array, changed: boolean }>,
+ *   forgetBook: (db: IDBDatabase, bookId: string)
+ *     => Promise<{ recents: Array, changed: boolean }>,
+ *   keepBooks: (db: IDBDatabase, bookIds: Array<string>)
  *     => Promise<{ recents: Array, changed: boolean }> }}
  */
 export function createRecents({ cap = DEFAULT_RECENTS_CAP } = {}) {
@@ -146,6 +196,13 @@ export function createRecents({ cap = DEFAULT_RECENTS_CAP } = {}) {
   // the caller posts RECENTS only when the slice must move. Writes nothing
   // when nothing matched.
   function forget(db, locations) {
+    return rewrite(db, (prev) => dropRecents(prev, locations));
+  }
+
+  // Read-modify-write the list through `move` (a pure list move that returns
+  // the same array when nothing changed) in one `meta` transaction, on the
+  // shared queue. Writes nothing when nothing changed.
+  function rewrite(db, move) {
     const run = () =>
       new Promise((resolve, reject) => {
         const tx = db.transaction(META_STORE, 'readwrite');
@@ -155,7 +212,7 @@ export function createRecents({ cap = DEFAULT_RECENTS_CAP } = {}) {
         let changed = false;
         request.onsuccess = () => {
           const prev = Array.isArray(request.result) ? request.result : [];
-          next = dropRecents(prev, locations);
+          next = move(prev);
           changed = next !== prev;
           if (changed) store.put(next, RECENTS_META_KEY);
         };
@@ -166,5 +223,28 @@ export function createRecents({ cap = DEFAULT_RECENTS_CAP } = {}) {
     return enqueue(run);
   }
 
-  return { read, record, forget };
+  // A book changed id (put online, forked): move its recents to the new id
+  // (books.put_online_no_ghosts Constraint 2).
+  function moveBook(db, fromId, toId) {
+    return rewrite(db, (prev) => moveBookRecents(prev, fromId, toId));
+  }
+
+  // A book left the device's shelf: drop its recents.
+  function forgetBook(db, bookId) {
+    return rewrite(db, (prev) => dropBookRecents(prev, bookId));
+  }
+
+  // Heal at OPEN: keep only the recents whose book is among `bookIds` (the
+  // books on disk) — a ghost left by a device from before the writers moved
+  // recents with their book (books.put_online_no_ghosts Constraint 4).
+  function keepBooks(db, bookIds) {
+    const present = new Set(bookIds);
+    return rewrite(db, (prev) =>
+      prev.some((r) => !present.has(r.bookId))
+        ? prev.filter((r) => present.has(r.bookId))
+        : prev,
+    );
+  }
+
+  return { read, record, forget, moveBook, forgetBook, keepBooks };
 }

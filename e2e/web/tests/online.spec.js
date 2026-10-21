@@ -12,8 +12,19 @@ import { statSync } from 'node:fs';
 
 import { test, expect } from '../lib/axe.js';
 import { mockup } from '../lib/mockup.js';
-import { signedInDevice, makeLocalBook, openFileInFiles, openBookDetail, gotoTab, confirmPutOnline } from '../lib/journeys.js';
-import { hostedBookWithSong } from '../lib/journeys-share.js';
+import {
+  signedInDevice,
+  makeLocalBook,
+  openFileInFiles,
+  openBookDetail,
+  gotoTab,
+  confirmPutOnline,
+  putBookOnline,
+  openSongFromSearch,
+  startApp,
+  toDestinations,
+} from '../lib/journeys.js';
+import { hostedBookWithSong, songLines, writeSongInBook } from '../lib/journeys-share.js';
 import { editSong, leaveFiles } from '../lib/journeys-files.js';
 
 test('put a local book online, download it, then delete it as owner (workflow 7)', async ({
@@ -114,4 +125,55 @@ test('remove a hosted book with an unsaved song: the confirmation names it (work
 
   await gotoTab(page, 'Books');
   await expect(page.getByRole('button', { name: new RegExp(`^${BOOK}`) })).toHaveCount(0);
+});
+
+// books.put_online_no_ghosts — putting a book online changes its id; Search
+// keeps no section for the old one, and its recents follow it (workflow 2
+// §Before typing, the recents paragraph; workflow 7 §Putting a book online).
+// Recent-region assertions as search.spec.js's recents test.
+test('putting a book online leaves no ghost in Search or Recent, after a reload too (books.put_online_no_ghosts; workflow 2 §Before typing, workflow 7 §Putting a book online)', async ({
+  page,
+  checkA11y,
+}) => {
+  const BOOK = 'Ensaio de terça';
+  const SONG = 'Lanterna do Cais';
+  await signedInDevice(page);
+  await makeLocalBook(page, BOOK);
+  await writeSongInBook(page, BOOK, songLines(SONG));
+  // A partial query, so the *Create '…'* row cannot match the title (the
+  // just-saved song may still be indexing); opening it records the recent.
+  await openSongFromSearch(page, 'Lanterna', SONG);
+  await toDestinations(page);
+
+  await putBookOnline(page, BOOK);
+  await gotoTab(page, 'Search');
+  await page.getByRole('searchbox').first().fill('');
+
+  const books = page.getByRole('region', { name: 'Books' });
+  const rows = page.getByRole('region', { name: 'Recent' }).locator('.search-row-open');
+  async function noGhosts() {
+    await expect(books).toContainText(BOOK);
+    await expect(books).not.toContainText('Untitled book');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText(SONG);
+    await expect(rows.first()).toContainText(BOOK);
+    await expect(rows.first()).not.toContainText('Untitled');
+  }
+  async function opensAtServiceAddress() {
+    await rows.first().click();
+    await expect(page.getByRole('group', { name: SONG }).first()).toBeVisible();
+    expect(page.url()).toMatch(/\/b\/(?!local-)[^/]+\//);
+  }
+
+  await noGhosts();
+  await checkA11y(); // Search before typing, after the put-online
+  await opensAtServiceAddress();
+
+  // The recents live on the device: a reload brings back the moved one, not a
+  // ghost.
+  await startApp(page);
+  await gotoTab(page, 'Search');
+  await page.getByRole('searchbox').first().fill('');
+  await noGhosts();
+  await opensAtServiceAddress();
 });

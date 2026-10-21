@@ -29,7 +29,10 @@ edge, so none goes there.
 Recents are kept on the device and are not synced. They change every time a
 song is opened, and the home book (DIRECTION §3.2) would gain a commit for
 each. What you played on the phone last night is not something the laptop
-needs.
+needs. A recent follows its book: when the book is put online (or forked)
+and so changes its address, its recents move with it; when the book leaves
+the device's shelf, its recents go too. A recent never leads to a book the
+device no longer has.
 
 **As you type**, results narrow on every keystroke. Search covers title,
 properties (artist and the rest), section names, words and chords, and
