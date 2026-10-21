@@ -68,6 +68,13 @@ test('a new book is made and renamed on the shelf, axe-clean on this viewport (w
   await expect(page.getByRole('button', { name: new RegExp(`^${NAME}`) })).toBeVisible();
   await expect(page.getByRole('button', { name: `Rename ${NAME}` })).toHaveCount(0);
 
+  // The empty book is counted at once, no reload: *0 songs*, never *still
+  // loading* (books.new_book_counted; workflow 7 L24-26).
+  const newBookRow = page.getByRole('button', { name: new RegExp(`^${NAME}`) });
+  await expect(newBookRow).toContainText('0 songs');
+  await expect(newBookRow).not.toContainText('still loading');
+  await checkA11y(); // the shelf with the new, counted row
+
   // Rename it from its detail — Books → the book's songs → Manage → Rename, a
   // label that changes nothing in the repository (workflow 7 L16-18, L89).
   await page.getByRole('button', { name: new RegExp(`^${NAME}`) }).click();

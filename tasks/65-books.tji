@@ -254,8 +254,9 @@ task books "Books" {
   task new_book_counted "A new book reads 0 songs at once" {
     effort 0.25d
     allocate team
+    complete 100
     depends !shelf
-    note "A new empty book read On this device · can save · still loading for more than 50 seconds, and 0 songs only after a reload: CREATE_BOOK (worker/logic.js:2479-2514) never indexes the book, so no INDEX_STATUS ready with a count arrives and book-display.js:90 says still loading whenever the count is not a number; the startup sweep indexes it on reload. CREATE_BOOK indexes the book it made, as every other path that adds a book does. Source: persona exploration 2026-10-20 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified live and against the code). Tests: behavior (worker: CREATE_BOOK posts INDEX_STATUS ready with songs 0); e2e-web (Add a book, New book, the row reads 0 songs without a reload, on the three viewports; axe)."
+    note "A new empty book read On this device · can save · still loading for more than 50 seconds, and 0 songs only after a reload: CREATE_BOOK (worker/logic.js:2479-2514) never indexes the book, so no INDEX_STATUS ready with a count arrives and book-display.js:90 says still loading whenever the count is not a number; the startup sweep indexes it on reload. CREATE_BOOK indexes the book it made, as every other path that adds a book does. Source: persona exploration 2026-10-20 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified live and against the code). Tests: behavior (worker: CREATE_BOOK posts INDEX_STATUS ready with songs 0); e2e-web (Add a book, New book, the row reads 0 songs without a reload, on the three viewports; axe). Refinement: tasks/refinements/books/new_book_counted.md"
   }
   task setlist_row_opens "A song in a setlist opens from its row" {
     effort 1d

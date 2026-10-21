@@ -127,6 +127,31 @@ describe('the shelf write path (behavior)', () => {
     expect(w.fetchCalls).toHaveLength(0);
   });
 
+  it('CREATE_BOOK indexes the new book: INDEX_STATUS ready with songs 0 before BOOK_CREATED (books.new_book_counted; workflow 7 L24-26)', async () => {
+    const w = await makeWorker('counted');
+
+    w.send(command(CommandKind.CREATE_BOOK, { title: 'Terça cedo', author: IDENTITY }));
+
+    let created;
+    await waitFor(() => {
+      created = lastEvent(w.events, EventKind.BOOK_CREATED);
+      expect(created).toBeTruthy();
+    });
+    const { bookId } = created.payload;
+
+    // The row's count arrives before the view moves focus to the new row, so it
+    // reads *0 songs*, never *still loading* (workflow 7 L24-26).
+    const readyAt = w.events.findIndex(
+      (e) => e.kind === EventKind.INDEX_STATUS && e.payload.bookId === bookId && e.payload.state === 'ready',
+    );
+    expect(readyAt).toBeGreaterThanOrEqual(0);
+    expect(w.events[readyAt].payload.songs).toBe(0);
+    expect(readyAt).toBeLessThan(w.events.indexOf(created));
+
+    // Indexing is local: still no network call, no push (offline-first).
+    expect(w.fetchCalls).toHaveLength(0);
+  });
+
   // storage.fs_flush behavior case 3: the CREATE_BOOK handler's tail flush makes
   // BOTH the new book's repo and the home-book shelf write durable against the
   // 500ms superblock debounce. The in-test synchronous turn never elapses the

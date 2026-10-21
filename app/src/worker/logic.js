@@ -2488,7 +2488,10 @@ export function createWorkerLogic(port, options = {}) {
             // reflects the new book at once, and announce it so the view can
             // move focus to it. All local — no fetch, no push (offline-first).
             // The lock on the new book and the lock on the home book are taken
-            // in sequence, never nested (locks.md Decision 1).
+            // in sequence, never nested (locks.md Decision 1). It indexes the
+            // book it made, as every other path that adds a book does, so its
+            // row reads *0 songs* at once rather than *still loading*
+            // (books.new_book_counted; workflow 7 L24-26).
             const { title } = message.payload;
             const author = await resolveAuthor();
             const home = ensureHomeBook();
@@ -2507,6 +2510,7 @@ export function createWorkerLogic(port, options = {}) {
               author,
             });
             await surfaceHomeBookShelf();
+            await indexOneBook(bookId);
             // Force the inode table out now (fs.js Decision 6), at the handler
             // tail after both repos' locks have released in sequence (Decision
             // 4): one global flush persists BOTH the new book's repo and the
