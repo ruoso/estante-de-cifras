@@ -139,7 +139,7 @@ function renderPlayer(store, props = {}) {
   const utils = render(
     <ThemeRoot store={store}>
       <SetlistPlay store={store} bookId={BOOK} path={SETLIST_PATH} mode="narrow"
-        onStop={onStop} wakeLock={wakeLock} />
+        onStop={onStop} wakeLock={wakeLock} startAt={props.startAt ?? null} />
     </ThemeRoot>,
   );
   return { ...utils, wakeLock, onStop };
@@ -356,6 +356,75 @@ describe("SetlistPlay — the song's own notation (workflow 2 §Reading a song)"
 
     // The chip names the setlist key.
     expect(screen.getByText('In D')).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
+// books.setlist_row_opens (workflow 12 §Playing through, as amended; §The key):
+// a song pressed in the setlist's list opens the same player at that song — its
+// play position counting playable songs only, the setlist's key applied — and
+// the song being played shows the setlist's note for it above its chart.
+describe('SetlistPlay — opened at a song (books.setlist_row_opens)', () => {
+  // The second item is missing, so the third is the second playable song.
+  const AT_SET = [
+    '# At Set',
+    '',
+    '1. [No Key Song](../no-key.cifra.md)',
+    '2. [Gone Song](../gone.cifra.md)',
+    '3. [In G Song](../in-g.cifra.md)',
+    '   - key: A',
+    '   - note: bring the tempo up',
+    '',
+  ].join('\n');
+  const texts = { [SETLIST_PATH]: AT_SET };
+
+  // The "Note: …" lines in the sheet that are not the Next card's.
+  const currentNotes = () => screen.queryAllByText(/^Note: /).filter((el) => !el.closest('.play-next'));
+
+  it('startAt on the third item opens on that song, 2 of 2, in the setlist key; Previous goes to the first (§Playing through, §The key)', async () => {
+    const store = makeStore({ texts });
+    renderPlayer(store, { startAt: 2 });
+    await screen.findByRole('group', { name: 'In G Song' });
+    expect(screen.getByText('2 of 2 · screen kept awake')).toBeInTheDocument();
+    const bar = screen.getByRole('button', { name: 'Stop playing' }).closest('.play-bar');
+    expect(within(bar).getByText('In A')).toBeInTheDocument();
+    expect(screen.getByText('Setlist key A · written in G')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next song' })).toBeDisabled();
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Previous song' })));
+    await screen.findByRole('group', { name: 'No Key Song' });
+    expect(screen.getByText('1 of 2 · screen kept awake')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Previous song' })).toBeDisabled();
+  });
+
+  it('shows the current song’s note above its chart, and none for a song without one (§Playing through)', async () => {
+    const store = makeStore({ texts });
+    const { container } = renderPlayer(store, { startAt: 2 });
+    await screen.findByRole('group', { name: 'In G Song' });
+    const [note] = currentNotes();
+    expect(note).toHaveTextContent('Note: bring the tempo up');
+    const chart = container.querySelector('.play-sheet .chart');
+    expect(note.compareDocumentPosition(chart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Previous song' })));
+    await screen.findByRole('group', { name: 'No Key Song' });
+    expect(currentNotes()).toEqual([]);
+    // The Next card still carries the next song's note.
+    expect(within(container.querySelector('.play-next')).getByText('Note: bring the tempo up')).toBeInTheDocument();
+  });
+
+  it('a startAt that is not playable starts at the first song', async () => {
+    const store = makeStore({ texts });
+    renderPlayer(store, { startAt: 1 });
+    await screen.findByRole('group', { name: 'No Key Song' });
+    expect(screen.getByText('1 of 2 · screen kept awake')).toBeInTheDocument();
+  });
+
+  it('is axe clean opened at a song with a note', async () => {
+    const store = makeStore({ texts });
+    const { container } = renderPlayer(store, { startAt: 2 });
+    await screen.findByRole('group', { name: 'In G Song' });
+    expect(currentNotes()).toHaveLength(1);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });

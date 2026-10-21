@@ -252,3 +252,14 @@ export async function enterPlayer(page) {
   await page.getByRole('button', { name: 'Play', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Stop playing' })).toBeVisible();
 }
+
+// Setlist read view → press a song's row: Play opens at that song
+// (books.setlist_row_opens; workflow 12 §The file).
+export function setlistSongRow(page, title) {
+  return page.locator('.setlist-screen .list').getByRole('button', { name: new RegExp(escape(title)) });
+}
+export async function openSetlistSong(page, title) {
+  await setlistSongRow(page, title).click();
+  await expect(page.getByRole('button', { name: 'Stop playing' })).toBeVisible();
+  await expect(page.getByRole('group', { name: title })).toBeVisible();
+}

@@ -107,6 +107,7 @@ Append one `###` block per item, newest at the bottom:
 - **Updated** (2026-10-20, closer for `design.format_help`): `docs/mockups/Format-help.dc.html` is new and registered in `canvas.json` (y 41300); W03 (Phone 2, Tablet, Computer) and W04 (Phone 1, Tablet) gain *Help*. None rendered, so check on publishing.
 - **Updated** (2026-10-20, closer for `books.setlist_invitation`): `docs/mockups/W12-setlists.dc.html` draws Share on a setlist; its `h` in `canvas.json` is raised from 1500 to 2500 and every board below it moves down 1000. Not rendered, so check on publishing.
 - **Updated** (2026-10-20, closer for `design.review_polish`): `docs/mockups/Review-polish.dc.html` is new and registered in `canvas.json` (y 43920); W01, W02 (shapes caption on the Tablet frame), W07, W12, Leave-book, Open-a-book and Remove-from-shelf are redrawn. None rendered, so check on publishing.
+- **Updated** (2026-10-21, closer for `books.setlist_row_opens`): `docs/mockups/W12-setlists.dc.html` subtitle and phone-pair caption say the second phone is a song pressed in the list. Not rendered, so check on publishing.
 - **Updated** (2026-10-21, closer for `songs.search_scope_follows`): `docs/mockups/Search-scope.dc.html` is new and registered in `canvas.json` (y 45540); not rendered, so check on publishing.
 
 ### 2026-10-13 — Handing ownership of a book to a successor on leaving

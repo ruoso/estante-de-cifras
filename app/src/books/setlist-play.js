@@ -86,3 +86,20 @@ export function nextItem(playable, index) {
   if (!next) return null;
   return { number: next.number, title: next.title, note: next.note ?? null };
 }
+
+/**
+ * The play index a row opens at: the position in the playable list of the row
+ * whose item index is `at` (books.setlist_row_opens; workflow 12 §Playing
+ * through). Missing and unlinked items are not in the playable list, so the
+ * row's `at` is not its play index; `at`, not the title or the path, since a
+ * setlist may hold the same song twice. An `at` that is not playable (absent,
+ * missing, out of range) starts at the first song.
+ * @param {Array<object>} playable the playable list
+ * @param {number|null|undefined} at the pressed row's item index
+ * @returns {number}
+ */
+export function startIndex(playable, at) {
+  if (at == null) return 0;
+  const index = (playable || []).findIndex((row) => row.at === at);
+  return index < 0 ? 0 : index;
+}

@@ -492,6 +492,10 @@ export default function AppShell({
   // opened setlist, raised from SetlistView's `onPlay` seam. Stop clears it and
   // the setlist is still behind. Ephemeral, no router.
   const [playingSetlist, setPlayingSetlist] = useState(null);
+  // Where focus goes in the setlist once the player closes
+  // (books.setlist_row_opens Decision 6): the pressed row's `at`, or `'play'`
+  // when Play opened it. SetlistView honours it on re-mount and clears it.
+  const [playReturn, setPlayReturn] = useState(null);
   // The live CodeMirror view, so Change book can carry the current text to the
   // new book's placeholder (Decision 3). A ref, not state — it never renders.
   const editorRef = useRef(null);
@@ -589,7 +593,10 @@ export default function AppShell({
       if (arranging) setWizardReturn(true);
     },
     arrange: () => setArranging(null),
-    play: () => setPlayingSetlist(null),
+    play: () => {
+      setPlayReturn(playingSetlist?.at ?? 'play');
+      setPlayingSetlist(null);
+    },
     explorer: () => setExploring(null),
   };
   // Set the place's slots: the tab, the one-book scope (on search), the open
@@ -652,6 +659,8 @@ export default function AppShell({
   // over it (shell.surface_restore_focus_song Constraint 2).
   if (shareReturn === 'song' && !openSong) setShareReturn(null);
   if (shareReturn === 'setlist' && (!openSetlist || openSong)) setShareReturn(null);
+  // A player's focus return never waits for a setlist the place no longer draws.
+  if (playReturn != null && !openSetlist) setPlayReturn(null);
   // The book's tree is asked for once per resolution; its TREE reply marks the
   // resolution's tree as fresh.
   const resolvingBook =
@@ -1644,6 +1653,7 @@ export default function AppShell({
         store={store}
         bookId={playingSetlist.bookId}
         path={playingSetlist.path}
+        startAt={playingSetlist.at ?? null}
         mode={mode}
         onStop={() => back(closers.play)}
       />
@@ -1700,11 +1710,13 @@ export default function AppShell({
       path={openSetlist.path}
       mode={mode}
       onBack={() => back(() => setOpenSetlist(null))}
-      onPlay={({ bookId, path }) => setPlayingSetlist({ bookId, path })}
+      onPlay={({ bookId, path, at }) => setPlayingSetlist({ bookId, path, ...(at != null ? { at } : {}) })}
       onShare={setSharingSetlist}
       sidePanel={setlistShare}
       autoFocusShare={shareReturn === 'setlist'}
       onShareFocusReturned={() => setShareReturn(null)}
+      returnFocusAt={playReturn}
+      onFocusReturned={() => setPlayReturn(null)}
     />
   ) : null;
   if (setlistView && mode === 'wide') return framed(setlistView);

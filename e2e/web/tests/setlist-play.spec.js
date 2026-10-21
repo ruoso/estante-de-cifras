@@ -40,6 +40,8 @@ import {
   EXAMPLE_BOOK,
   openSetlist,
   enterPlayer,
+  openSetlistSong,
+  setlistSongRow,
   deleteSongInFiles,
   leaveFiles,
 } from '../lib/journeys-files.js';
@@ -129,6 +131,47 @@ test('plays a setlist through, in the setlist key, skipping a missing song', asy
   // Stop returns to the setlist.
   await page.getByRole('button', { name: 'Stop playing' }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'A Short Set' })).toBeVisible();
+});
+
+// books.setlist_row_opens (workflow 12 §The file, §Playing through, as
+// amended; W12 phone #2 "pressed in the list"): a song pressed in its row opens
+// the same player at it, in the setlist key, with the setlist's notes; Stop
+// returns to the setlist with that row focused.
+test('a song opens from its row in the setlist, in the setlist key, and Stop returns to it', async ({
+  page,
+  checkA11y,
+}) => {
+  await openExampleBook(page);
+  await openSetlist(page, 'A Short Set');
+  await checkA11y(); // the read view, its rows buttons
+
+  await openSetlistSong(page, 'Walking to the Market');
+  const bar = page.locator('.play-bar').filter({
+    has: page.getByRole('button', { name: 'Stop playing' }),
+  });
+  await expect(bar.getByText(/^3 of 3/)).toBeVisible();
+  await expect(bar.getByText('In A')).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Walking to the Market' }).getByText('Setlist key A · written in G'),
+  ).toBeVisible();
+  await checkA11y(); // the player, opened at a song
+  await mockup(page, 'W12-setlists', 2, { note: 'opened from its row' });
+
+  // Previous through the rest of the set, to its first song and its note.
+  await page.getByRole('button', { name: 'Previous song' }).click();
+  await expect(page.getByRole('group', { name: 'The Ferry Line' })).toBeVisible();
+  await page.getByRole('button', { name: 'Previous song' }).click();
+  await expect(page.getByRole('group', { name: 'Morning on the Porch' })).toBeVisible();
+  const sheet = page.getByRole('region', { name: 'Morning on the Porch' });
+  const note = sheet.getByText('Note: start gently, let the intro ring');
+  await expect(note).toBeVisible();
+  const noteBox = await note.boundingBox();
+  const chartBox = await sheet.locator('.chart').first().boundingBox();
+  expect(noteBox.y).toBeLessThan(chartBox.y);
+
+  await page.getByRole('button', { name: 'Stop playing' }).click();
+  await expect(page.getByRole('heading', { level: 2, name: 'A Short Set' })).toBeVisible();
+  await expect(setlistSongRow(page, 'Walking to the Market')).toBeFocused();
 });
 
 test('shows the screen is kept awake while playing, and leaves the player on Stop', async ({

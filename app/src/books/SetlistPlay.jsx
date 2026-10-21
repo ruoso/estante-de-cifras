@@ -29,7 +29,7 @@ import { transpose, transposedKeyName } from '../core/transpose.js';
 import { songDialect } from '../core/notation/dialects.js';
 import Chart from '../chart/Chart.jsx';
 import { setlistRows, bookFileSet } from './setlist-display.js';
-import { playableItems, clampIndex, playKeyOffset, nextItem } from './setlist-play.js';
+import { playableItems, clampIndex, playKeyOffset, nextItem, startIndex } from './setlist-play.js';
 import { createWakeLock } from './wake-lock.js';
 import './play.css';
 
@@ -58,6 +58,9 @@ export default function SetlistPlay({
   mode = 'narrow',
   onStop = () => {},
   wakeLock = null,
+  // The item index (a row's `at`) of the song pressed in the setlist's list
+  // (books.setlist_row_opens): the player opens at it. Absent → the first song.
+  startAt = null,
 }) {
   const source = useSlice(store, 'source');
   const tree = useSlice(store, 'tree');
@@ -87,13 +90,16 @@ export default function SetlistPlay({
 
   // The cursor is held unclamped; the live index is clamped against the
   // playable list, so a list that shrinks (a song gone missing on a reload)
-  // never points off the end.
-  const [cursor, setCursor] = useState(0);
-  const index = clampIndex(cursor, playable.length);
+  // never points off the end. Until the first page turn it is null and the
+  // index is the start position — the playable list arrives after mount, so
+  // the pressed row's play index is only known then.
+  const [cursor, setCursor] = useState(null);
+  const start = startIndex(playable, startAt);
+  const index = clampIndex(cursor ?? start, playable.length);
   const current = playable[index] ?? null;
 
-  const goNext = () => setCursor((c) => clampIndex(clampIndex(c, playable.length) + 1, playable.length));
-  const goPrev = () => setCursor((c) => clampIndex(clampIndex(c, playable.length) - 1, playable.length));
+  const goNext = () => setCursor((c) => clampIndex(clampIndex(c ?? start, playable.length) + 1, playable.length));
+  const goPrev = () => setCursor((c) => clampIndex(clampIndex(c ?? start, playable.length) - 1, playable.length));
 
   // Load-once-per-song (Decision 2): the current song's text and the user's own
   // reading state are requested when it becomes current, keyed on its resolved
@@ -241,6 +247,11 @@ export default function SetlistPlay({
         onPointerUp={onPointerUp}
       >
         {setlistLine ? <span className="t-small">{setlistLine}</span> : null}
+        {/* The setlist's note for the song being played, above its chart
+            (workflow 12 §Playing through; books.setlist_row_opens Decision 5). */}
+        {current?.note ? (
+          <span className="t-small">{t('play.note', { note: current.note })}</span>
+        ) : null}
 
         {model ? (
           <Chart model={model} size={mode === 'wide' ? 20 : 21} label={title || undefined} />

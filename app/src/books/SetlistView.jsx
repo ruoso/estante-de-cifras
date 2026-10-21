@@ -154,6 +154,12 @@ export default function SetlistView({
   // (shell.surface_restore_focus_song) — then calls `onShareFocusReturned`.
   autoFocusShare = false,
   onShareFocusReturned = () => {},
+  // Sends focus back once when the player closes (books.setlist_row_opens
+  // Decision 6): a row's `at` focuses the row that was pressed, `'play'` the
+  // Play button — the shell sets it as the `play` layer closes and this view
+  // re-mounts, then clears it through `onFocusReturned`.
+  returnFocusAt = null,
+  onFocusReturned = () => {},
 }) {
   const source = useSlice(store, 'source');
   const tree = useSlice(store, 'tree');
@@ -309,6 +315,20 @@ export default function SetlistView({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoFocusShare, offersShare, mode]);
+  // Back from the player: the pressed row, or Play, once the read view draws
+  // it (the setlist's text may arrive a render later). A row that is no longer
+  // there (the setlist changed while playing) falls back to Play.
+  const playRef = useRef(null);
+  const rowRefs = useRef(new Map());
+  useEffect(() => {
+    if (returnFocusAt == null || !offersShare) return;
+    const target = (returnFocusAt !== 'play' && rowRefs.current.get(returnFocusAt)) || playRef.current;
+    if (target) {
+      target.focus();
+      onFocusReturned();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [returnFocusAt, offersShare, mode]);
 
   if (current == null) {
     return (
@@ -344,24 +364,44 @@ export default function SetlistView({
           </span>
           {statusWord ? <span className="badge unsaved dot setlist-head-status">{statusWord}</span> : null}
         </div>
-        <Button className="btn primary block" onPress={() => onPlay({ bookId, path })}>
+        <Button ref={playRef} className="btn primary block" onPress={() => onPlay({ bookId, path })}>
           <Icon d={PLAY} fill /> {t('setlists.play')}
         </Button>
         <div className="list">
-          {rows.map((row) => (
-            <div className="row" key={row.at}>
-              <span className="t-h2 setlist-num">{row.number}</span>
-              <span className="grow">
-                <span className="name">{row.title}</span>
-                {row.note ? <span className="meta">{row.note}</span> : null}
-                {!row.missing && row.folder ? <span className="meta">{row.folder}</span> : null}
-              </span>
-              <span className="badges">
-                {row.key ? <span className="badge voiced">{t('setlists.inKey', { key: row.key })}</span> : null}
-                {row.missing ? <span className="badge conflict dot">{t('setlists.missing')}</span> : null}
-              </span>
-            </div>
-          ))}
+          {rows.map((row) => {
+            const body = (
+              <>
+                <span className="t-h2 setlist-num">{row.number}</span>
+                <span className="grow">
+                  <span className="name">{row.title}</span>
+                  {row.note ? <span className="meta">{row.note}</span> : null}
+                  {!row.missing && row.folder ? <span className="meta">{row.folder}</span> : null}
+                </span>
+                <span className="badges">
+                  {row.key ? <span className="badge voiced">{t('setlists.inKey', { key: row.key })}</span> : null}
+                  {row.missing ? <span className="badge conflict dot">{t('setlists.missing')}</span> : null}
+                </span>
+              </>
+            );
+            // A present song opens Play at it (books.setlist_row_opens; workflow
+            // 12 §The file); a missing one is skipped when playing, so its row
+            // is not pressed open — the notice below offers the repoint.
+            return row.missing || row.path == null ? (
+              <div className="row" key={row.at}>{body}</div>
+            ) : (
+              <Button
+                className="row"
+                key={row.at}
+                ref={(node) => {
+                  if (node) rowRefs.current.set(row.at, node);
+                  else rowRefs.current.delete(row.at);
+                }}
+                onPress={() => onPlay({ bookId, path, at: row.at })}
+              >
+                {body}
+              </Button>
+            );
+          })}
         </div>
         {missingRows.map((row) => (
           <div className="notice conflict setlist-missing-notice" key={row.at}>

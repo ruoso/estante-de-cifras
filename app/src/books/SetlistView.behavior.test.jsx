@@ -157,6 +157,95 @@ describe('SetlistView — open (read view)', () => {
   });
 });
 
+// books.setlist_row_opens (workflow 12 §The file, as amended): each present
+// song's row is a button that opens Play at it — `onPlay` carries the row's
+// `at`; a missing row is not pressed open; editor rows open nothing; and the
+// shell's `returnFocusAt` brings focus back to the pressed row (or Play).
+describe('SetlistView — a song opens from its row (workflow 12 §The file)', () => {
+  // asa-branca present at its linked path, so the third row is a song.
+  const ALL_PRESENT = [...ENTRIES, { path: 'choro/asa-branca.cifra.md', status: null }];
+
+  it('present rows are buttons named by their song; a missing row is not', async () => {
+    const { store } = makeStore();
+    const { container } = renderSetlist(store);
+    await screen.findByText('Garota de Ipanema');
+    expect(screen.getByRole('button', { name: /Garota de Ipanema/ })).toHaveTextContent('in D');
+    expect(screen.getByRole('button', { name: /Corcovado/ })).toHaveTextContent('start from the B section');
+    expect(screen.queryByRole('button', { name: /Asa Branca/ })).toBeNull();
+    const missing = [...container.querySelectorAll('.setlist-screen .list .row')]
+      .find((r) => r.textContent.includes('Asa Branca'));
+    expect(missing.tagName).toBe('DIV');
+    expect(missing).toHaveTextContent('missing');
+    // The row never takes Play's exact name.
+    expect(screen.getAllByRole('button', { name: 'Play' })).toHaveLength(1);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('pressing the third row by click raises onPlay at 2', async () => {
+    const onPlay = vi.fn();
+    const { store } = makeStore({ entries: ALL_PRESENT });
+    renderSetlist(store, { onPlay });
+    const third = await screen.findByRole('button', { name: /Asa Branca/ });
+    await act(async () => fireEvent.click(third));
+    expect(onPlay).toHaveBeenCalledWith({ bookId: BOOK, path: SETLIST_PATH, at: 2 });
+  });
+
+  it('pressing the third row by Enter raises onPlay at 2', async () => {
+    const onPlay = vi.fn();
+    const { store } = makeStore({ entries: ALL_PRESENT });
+    renderSetlist(store, { onPlay });
+    const third = await screen.findByRole('button', { name: /Asa Branca/ });
+    act(() => third.focus());
+    await act(async () => {
+      fireEvent.keyDown(third, { key: 'Enter' });
+      fireEvent.keyUp(third, { key: 'Enter' });
+    });
+    expect(onPlay).toHaveBeenCalledTimes(1);
+    expect(onPlay).toHaveBeenCalledWith({ bookId: BOOK, path: SETLIST_PATH, at: 2 });
+  });
+
+  it('the Play button still raises onPlay without an at', async () => {
+    const onPlay = vi.fn();
+    const { store } = makeStore({ entries: ALL_PRESENT });
+    renderSetlist(store, { onPlay });
+    await act(async () => fireEvent.click(await screen.findByRole('button', { name: 'Play' })));
+    expect(onPlay).toHaveBeenCalledWith({ bookId: BOOK, path: SETLIST_PATH });
+  });
+
+  it('editor rows raise no onPlay', async () => {
+    const onPlay = vi.fn();
+    const { store } = makeStore({ entries: ALL_PRESENT });
+    const { container } = renderSetlist(store, { onPlay });
+    await screen.findByText('Garota de Ipanema');
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Edit' })));
+    await screen.findByRole('grid');
+    for (const row of container.querySelectorAll('[role="row"]')) {
+      await act(async () => fireEvent.click(row));
+    }
+    // The read view's row buttons are gone: the editor's rows are grid rows.
+    expect(container.querySelectorAll('.setlist-screen button.row')).toHaveLength(0);
+    expect(onPlay).not.toHaveBeenCalled();
+  });
+
+  it('returnFocusAt focuses that row on mount, then reports it', async () => {
+    const onFocusReturned = vi.fn();
+    const { store } = makeStore({ entries: ALL_PRESENT });
+    renderSetlist(store, { returnFocusAt: 1, onFocusReturned });
+    const second = await screen.findByRole('button', { name: /Corcovado/ });
+    await waitFor(() => expect(second).toHaveFocus());
+    expect(onFocusReturned).toHaveBeenCalledTimes(1);
+  });
+
+  it("returnFocusAt 'play' focuses the Play button", async () => {
+    const onFocusReturned = vi.fn();
+    const { store } = makeStore();
+    renderSetlist(store, { returnFocusAt: 'play', onFocusReturned });
+    const play = await screen.findByRole('button', { name: 'Play' });
+    await waitFor(() => expect(play).toHaveFocus());
+    expect(onFocusReturned).toHaveBeenCalledTimes(1);
+  });
+});
+
 // shell.popover_surface: the setlist ⋯ menu (Edit, Play) is drawn on the shared
 // opaque surface inside the .est theme root, axe clean while open (the .tji note:
 // SetlistView's Popover was bare). Its bottom-end placement needs layout.

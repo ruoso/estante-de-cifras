@@ -513,6 +513,29 @@ describe('AppShell routing (behavior)', () => {
     expect(location.pathname).toBe(`/b/b1/${SETLIST_PATH}`);
   });
 
+  // books.setlist_row_opens (workflow 12 §Playing through, as amended; the
+  // `play` layer's Back): a song pressed in the setlist's list mounts the player
+  // at that song, and Stop playing returns to the setlist with focus on its row.
+  it('a setlist song pressed in its row plays from it; Stop returns focus to the row', async () => {
+    const TWO = ['# Sábado no bar', '', `1. [${SONG_TITLE}](${SONG_PATH})`, `2. [${OTHER_TITLE}](${OTHER_PATH})`, ''].join('\n');
+    history.replaceState(null, '', `/b/b1/${SETLIST_PATH}`);
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, SHELF));
+    emit(event(EventKind.TREE, { bookId: BOOK, entries: [...ENTRIES, { path: OTHER_PATH, status: null }] }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SETLIST_PATH, text: TWO }));
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(OTHER_TITLE) }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: OTHER_PATH, text: OTHER_TEXT }));
+    expect(screen.getByRole('group', { name: OTHER_TITLE })).toBeInTheDocument();
+    expect(screen.getByText(/^2 of 2/)).toBeInTheDocument();
+
+    await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Stop playing' })));
+    expect(screen.getByRole('heading', { level: 2, name: 'Sábado no bar' })).toBeInTheDocument();
+    expect(location.pathname).toBe(`/b/b1/${SETLIST_PATH}`);
+    await waitFor(() => expect(screen.getByRole('button', { name: new RegExp(OTHER_TITLE) })).toHaveFocus());
+  });
+
   it("a deep URL opens its screen — a book's songs", () => {
     history.replaceState(null, '', '/b/b1');
     const { store, emit } = makeStore();

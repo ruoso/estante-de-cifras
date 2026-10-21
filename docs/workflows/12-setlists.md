@@ -35,7 +35,11 @@ the links look as they do, without git's words: *The links start from
 {folder}, so they keep working wherever the book’s files are copied.*
 
 Setlists are found by the same search as songs, marked as setlists. Opening
-one lists its songs.
+one lists its songs, and **each song in the list opens from its row**: pressing
+it plays the setlist from that song (§Playing through). A song gone missing is
+not pressed open; it says *missing* and offers to be pointed at a song (§Songs
+moved, renamed or deleted). While the setlist is being edited, its rows are
+for editing, and open nothing.
 
 ## Songs from another book
 
@@ -105,7 +109,15 @@ workflow 8), as for a song.
 
 ## Playing through
 
-*Play* goes through the songs one at a time, full screen.
+*Play* goes through the songs one at a time, full screen. It starts at the
+first song; a song pressed in the list starts it at that song instead, so a
+teacher can look at the fourth song of a lesson without paging through three.
+Either way it is the same player: the setlist's key and the song's note apply,
+next and previous go through the rest of the setlist, both ways, and stopping
+returns to the setlist, at the song that was pressed.
+
+- **The song's note** is shown above its chart while it plays, as the next
+  song's is at the end of the one before.
 
 - **Next and previous** by swiping, by tapping the edges of the screen, or by
   a page-turner pedal. Pedals send the keys a keyboard does, so the arrow and

@@ -3,7 +3,7 @@
 // workflow sections cited inline.
 
 import { describe, it, expect } from 'vitest';
-import { playKeyOffset, playableItems, clampIndex, nextItem } from './setlist-play.js';
+import { playKeyOffset, playableItems, clampIndex, nextItem, startIndex } from './setlist-play.js';
 
 // A row as `setlistRows` returns it, with only the fields the glue reads.
 function row({ number, title, path = null, missing = false, key = null, note = null }) {
@@ -130,5 +130,39 @@ describe('nextItem — the Next card (workflow 12 §Playing through L72)', () =>
   it('is null at the last song', () => {
     expect(nextItem(playable, 1)).toBeNull();
     expect(nextItem(playable, 5)).toBeNull();
+  });
+});
+
+// books.setlist_row_opens (workflow 12 §Playing through): a pressed row's `at`
+// is its item index; the player needs its play index.
+describe('startIndex — a row\'s at → its playable index (workflow 12 §Playing through)', () => {
+  const rows = [
+    row({ number: 1, title: 'Alpha', path: 'a.cifra.md' }),
+    row({ number: 2, title: 'Gone', path: 'gone.cifra.md', missing: true }),
+    row({ number: 3, title: 'Gone Too', path: 'gone-too.cifra.md', missing: true }),
+    row({ number: 4, title: 'Delta', path: 'd.cifra.md' }),
+    row({ number: 5, title: 'Unlinked' }),
+    row({ number: 6, title: 'Alpha', path: 'a.cifra.md' }),
+  ];
+  const playable = playableItems(rows);
+
+  it('maps a row to its playable index when items before it are missing', () => {
+    expect(startIndex(playable, 0)).toBe(0);
+    expect(startIndex(playable, 3)).toBe(1);
+  });
+
+  it('gives 0 for an at that is missing, unlinked, out of range or absent', () => {
+    expect(startIndex(playable, 1)).toBe(0);
+    expect(startIndex(playable, 4)).toBe(0);
+    expect(startIndex(playable, 99)).toBe(0);
+    expect(startIndex(playable, -1)).toBe(0);
+    expect(startIndex(playable, null)).toBe(0);
+    expect(startIndex(playable, undefined)).toBe(0);
+    expect(startIndex([], 2)).toBe(0);
+  });
+
+  it('maps each listing of a song that appears twice to its own position', () => {
+    expect(startIndex(playable, 0)).toBe(0);
+    expect(startIndex(playable, 5)).toBe(2);
   });
 });
