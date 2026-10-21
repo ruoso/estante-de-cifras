@@ -165,4 +165,16 @@ task shell "Shell" {
     depends !surface_restore_focus
     note "Follow-up to shell.surface_restore_focus (tasks/refinements/shell/surface_restore_focus.md): when the people screen opened from a song or a setlist closes on the phone, focus lands on that song's or setlist's Share. SongReading and SetlistView take the same one-shot prop, and shareReturn gains 'song' and 'setlist'. Governing document: workflow 10 Where it sits (docs/workflows/10-share.md). Tests: behavior (AppShell: Back and Done leave focus on Share for a song and for a setlist; axe); e2e-web (share.spec.js song and setlist share cases on the phone assert toBeFocused; axe). Refinement: tasks/refinements/shell/surface_restore_focus_song.md"
   }
+  task overlay_stacking "Sheets and dialogs always paint above the screen" {
+    effort 0.5d
+    allocate team
+    depends !popover_surface, !portal_provider
+    note "Made an account from inside Share (a song in a book only on this device: Share, Sign in to put it online, Make an account, the recovery email, Done): the Share sheet came back with the song page painted over it — chips, chord diagrams and Arrange for Guitar on top of its text — and the New invitation form after Put online the same. The sheet’s own surface is opaque and inside .est; the cause is order: while signing in AppShell renders SignIn in place of the shell (AppShell.jsx:885), and on Done the song surface and the still-open sheet mount in one render, so the sheet’s portal lands in the .est-frame root (ThemeRoot.jsx:82) before the recovery-frame and the reading scroll (position: relative), and .scrim is position: absolute with no z-index (theme/theme.css:369). Every overlay — sheet, dialog, popover, menu — paints above the screen whatever order it mounted in: one overlay layer with its own stacking context, not a z-index per component. Source: persona exploration 2026-10-20 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified live and against the code). Tests: behavior (AppShell: an overlay mounted before the screen still wins the stacking order; axe); e2e-web (Share opened, an account made from it, Done: the sheet and then New invitation are uncovered, an elementFromPoint check over the sheet’s text, on phone, tablet and computer; axe)."
+  }
+  task sheet_close_placement "A sheet’s close sits at its right edge" {
+    effort 0.25d
+    allocate team
+    depends !narrow_fixes
+    note "The Add a book sheet’s close ✕ sits beside its title instead of at the sheet’s right edge, where the Share sheet and every other sheet put it. One header for every sheet (title, then close at the end), as the boards draw it. Source: persona exploration 2026-10-20 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified live and against the code). Tests: behavior (each sheet header’s close is its last control; axe); e2e-web (Add a book on the three viewports, the close at the right edge; axe, mockup W07)."
+  }
 }

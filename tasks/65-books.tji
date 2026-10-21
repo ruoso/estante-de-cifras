@@ -245,4 +245,34 @@ task books "Books" {
     depends design.review_polish
     note "Item 9 of design.review_polish: a setlist never saved reads not saved yet (badge, setlist list, editor bar) instead of unsaved changes, and the setlist editor's icon-only Back becomes Done, leaving editing with every change kept; four locales. Workflow 12. Source: persona exploration 2026-10-19. Tests: behavior (SetlistView: a new setlist's badge, an edited saved one's, Done keeps the change and returns focus to Edit; axe); e2e-web (a setlist made from Add to setlist, opened, edited, Done, then saved, on phone, tablet and computer; axe). Refinement: tasks/refinements/design/review_polish.md; tasks/refinements/books/setlist_done.md"
   }
+  task put_online_no_ghosts "Putting a book online leaves no ghost behind" {
+    effort 0.5d
+    allocate team
+    depends !online, songs.no_raw_ids
+    note "After Put online on My songs, Search listed an Untitled book with 0 songs that the Books tab did not, and Recent showed Untitled song · Untitled book, which opened a dead /b/local-my-songs/… address. Two bugs: PUT_ONLINE emits INDEX_STATUS with state null for the old local id (worker/logic.js:2671) and the reducer stores the null instead of dropping the entry (worker/reducer.js:409), while SearchScreen lists every key of the index (songs/SearchScreen.jsx:571) — the same null is emitted when a book leaves the shelf (logic.js:1183, 2788, 2882, 3026, 3077); and PUT_ONLINE (logic.js:2596-2681) never moves the device’s recents to the book’s new id, so the old entry finds nothing and survives a reload. A book that changes id moves its recents; one that leaves drops them; a null status removes the book from the index. Source: persona exploration 2026-10-20 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified live and against the code). Tests: unit (reducer: a null INDEX_STATUS removes the entry); behavior (worker: PUT_ONLINE moves recents to the service id, removing a book drops its recents and index entry); e2e-web (a song saved and opened in a local book, Put online, Search lists no Untitled book, Recent opens the song at its new address, after a reload too, on the three viewports; axe)."
+  }
+  task new_book_counted "A new book reads 0 songs at once" {
+    effort 0.25d
+    allocate team
+    depends !shelf
+    note "A new empty book read On this device · can save · still loading for more than 50 seconds, and 0 songs only after a reload: CREATE_BOOK (worker/logic.js:2479-2514) never indexes the book, so no INDEX_STATUS ready with a count arrives and book-display.js:90 says still loading whenever the count is not a number; the startup sweep indexes it on reload. CREATE_BOOK indexes the book it made, as every other path that adds a book does. Source: persona exploration 2026-10-20 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified live and against the code). Tests: behavior (worker: CREATE_BOOK posts INDEX_STATUS ready with songs 0); e2e-web (Add a book, New book, the row reads 0 songs without a reload, on the three viewports; axe)."
+  }
+  task setlist_row_opens "A song in a setlist opens from its row" {
+    effort 1d
+    allocate team
+    depends !setlists, !play, !setlist_done
+    note "Design and build in one task. A teacher tapped Samba de Verao in his setlist to look at it and nothing happened: in reading mode a setlist’s rows are plain divs with no action (books/SetlistView.jsx:302-316), though they look like the pressable rows everywhere else, and workflow 12 says only that opening a setlist lists its songs. Decide in workflow 12 (docs/workflows/12-setlists.md) and draw on W12: pressing a song in a setlist opens it — playing through the setlist from that song, with its key and note, or reading it on its own with a way back — keyboard and screen reader included. Source: persona exploration 2026-10-20 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified live and against the code). Tests: behavior (SetlistView: a row is a button, pressing it opens the song as decided with the setlist’s key, Back returns to the setlist; axe); e2e-web (a setlist of two songs, the second opened from its row, on the three viewports; axe, mockup W12)."
+  }
+  task setlist_making "A setlist made from the Setlists tab, and said when made" {
+    effort 1d
+    allocate team
+    depends !setlists, !setlist_picker_fixes
+    note "Design and build in one task. The Setlists tab has no way to make a setlist — its empty state says No setlists yet. Add a song to a setlist from search or the reading view. — so a teacher planning a lesson had to leave it; and making one from Add to setlist, New setlist…, a name, Create closed both dialogs with nothing saying the song went in. Decide in workflow 12 and draw on W12: the Setlists tab offers New setlist (naming it and choosing its book when more than one can be saved to, then adding songs to it), and making a setlist from Add to setlist ends by saying the song is in it, with a way to open it. Source: persona exploration 2026-10-20 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified live and against the code). Tests: behavior (SetlistsScreen: New setlist from the tab, with one and with two books that can be saved to; Add to setlist with a new setlist announces it; axe); e2e-web (a setlist made from the tab and songs added, and one made from Add to setlist, on the three viewports; axe, mockup W12)."
+  }
+  task invite_send "Sending an invitation from the phone" {
+    effort 0.5d
+    allocate team
+    depends !share_people, !setlist_invitation
+    note "Design and build in one task. The made link says Here is the link. Send it however you like, but offers only Copy, so a teacher on his phone had to copy and switch apps; and the panel after Put online leads with For people already in the book and Members open … at its address, which a teacher with no students in it yet did not read as how to reach them. Decide in workflow 10 (docs/workflows/10-share.md) and draw on W10: where the device can share (the Web Share API), the made link offers Send beside Copy; a book with no members yet leads with inviting people. Source: persona exploration 2026-10-20 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified live and against the code). Tests: behavior (the made link offers Send when navigator.share exists and not when it does not, Send passes the link; a book with no members leads with the invitation; axe); e2e-web (an invitation made with navigator.share stubbed, Send called with the link, on the three viewports; axe, mockup W10)."
+  }
 }
