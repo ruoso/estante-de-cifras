@@ -160,12 +160,19 @@ export default function SetlistView({
   // re-mounts, then clears it through `onFocusReturned`.
   returnFocusAt = null,
   onFocusReturned = () => {},
+  // A setlist just made from the Setlists tab opens in its editor with *Add
+  // song* focused (books.setlist_making Constraint 5, Decision 2): read only as
+  // the initial `editing`; `onEditingStarted` tells the shell it was honoured,
+  // so a re-mount does not enter editing again (the `onFocusReturned`
+  // precedent).
+  startEditing = false,
+  onEditingStarted = () => {},
 }) {
   const source = useSlice(store, 'source');
   const tree = useSlice(store, 'tree');
   const shelf = useSlice(store, 'shelf');
   const [model, setModel] = useState(null); // null → show the source as-is
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(startEditing);
   const rawNameId = useId();
   const [touched, setTouched] = useState(false);
   const [addingSong, setAddingSong] = useState(false);
@@ -307,6 +314,18 @@ export default function SetlistView({
       editRef.current.focus();
     }
   }, [editing]);
+  // *Add song* takes focus once the new setlist's editor draws (its text may
+  // arrive a render later), and the shell is told once.
+  const addSongRef = useRef(null);
+  const startedRef = useRef(false);
+  const drawn = current != null;
+  useEffect(() => {
+    if (!startEditing || startedRef.current || !drawn || !editing || !addSongRef.current) return;
+    startedRef.current = true;
+    addSongRef.current.focus();
+    onEditingStarted();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startEditing, drawn, editing]);
   const offersShare = current != null && !editing;
   useEffect(() => {
     if (autoFocusShare && offersShare && shareRef.current) {
@@ -625,7 +644,7 @@ export default function SetlistView({
         </div>
         <div className="setlist-bar-actions">
           {statusWord ? <span className="badge unsaved dot">{statusWord}</span> : null}
-          <Button className="btn" onPress={() => setAddingSong(true)}>
+          <Button ref={addSongRef} className="btn" onPress={() => setAddingSong(true)}>
             <Icon d={PLUS} size={18} /> {t('setlists.addSong')}
           </Button>
           <Button className="btn" onPress={() => onPlay({ bookId, path })}>

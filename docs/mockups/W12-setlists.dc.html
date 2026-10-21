@@ -13,11 +13,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
 <style>body{margin:0}</style>
 </helmet>
-<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 2500px">
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 3880px">
   <div class="board-head">
     <div class="board-num">Workflow 12</div>
     <h1 class="board-title">Setlists</h1>
-    <p class="board-sub">A setlist is a Markdown file in a book: a numbered list of relative links to songs in that same book, each with an optional key and note. Play goes through it one song at a time, full screen, in the setlist's key, skipping any song that has gone missing; pressing a song in the list starts Play at that song. Shared, it is the book's invitation that opens on the setlist.</p>
+    <p class="board-sub">A setlist is a Markdown file in a book: a numbered list of relative links to songs in that same book, each with an optional key and note. Play goes through it one song at a time, full screen, in the setlist's key, skipping any song that has gone missing; pressing a song in the list starts Play at that song. Shared, it is the book's invitation that opens on the setlist. A setlist is made from the Setlists tab, or from a song with Add to setlist, which then says the song is in it.</p>
   </div>
 
   <div class="devices">
@@ -415,9 +415,166 @@
       </div>
     </div>
   </div>
+  <div class="devices" style="margin-top: 60px">
+    <!-- Phones: a setlist made from the Setlists tab (workflow 12 §Building one) -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · the Setlists tab makes a setlist: New setlist…, a name, and which book when more than one can be saved to</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 18px 16px 10px">
+              <span class="t-h1" style="flex: 1">Setlists</span>
+              <button class="btn" style="min-height: 40px">New setlist…</button>
+            </div>
+            <div class="scroll" style="padding-top: 6px; gap: 12px">
+              <div class="list">
+                <sc-for list="{{tabSetlists}}" as="sl" hint-placeholder-count="2">
+                  <a class="row" href="#">
+                    <span class="grow">
+                      <span class="name">{{sl.title}}</span>
+                      <span class="meta">{{sl.meta}}</span>
+                    </span>
+                  </a>
+                </sc-for>
+              </div>
+            </div>
+            <div class="tabbar">
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Search</button>
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>Books</button>
+              <button class="tab on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg>Setlists</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 18px 16px 10px">
+              <span class="t-h1" style="flex: 1">Setlists</span>
+              <button class="btn" style="min-height: 40px">New setlist…</button>
+            </div>
+            <div class="scroll" style="padding-top: 6px; gap: 12px">
+              <div class="list">
+                <sc-for list="{{tabSetlists}}" as="sl" hint-placeholder-count="2">
+                  <a class="row" href="#">
+                    <span class="grow">
+                      <span class="name">{{sl.title}}</span>
+                      <span class="meta">{{sl.meta}}</span>
+                    </span>
+                  </a>
+                </sc-for>
+              </div>
+            </div>
+            <div class="tabbar">
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Search</button>
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>Books</button>
+              <button class="tab on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg>Setlists</button>
+            </div>
+          </div>
+          <div class="scrim center">
+            <div class="dialog" style="width: 340px">
+              <h2 class="t-h2">New setlist</h2>
+              <div class="field">
+                <label for="w12-new-name">Setlist name</label>
+                <input id="w12-new-name" class="input" value="Thursday lesson" style="border-color: var(--accent)">
+              </div>
+              <div class="field">
+                <label>Book</label>
+                <div class="list">
+                  <a class="row sel" href="#"><span class="grow"><span class="name">My songs</span></span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent)"><path d="M5 12l5 5 9-10"></path></svg></a>
+                  <a class="row" href="#"><span class="grow"><span class="name">Banda do Bairro</span></span></a>
+                </div>
+              </div>
+              <div class="actions">
+                <button class="btn">Cancel</button>
+                <button class="btn primary">Create</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet: Add to setlist, after Create, says where the song went -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · Add to setlist, after Create: the song is in the new setlist, not saved yet; Open setlist or Done</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar">
+            <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Tarde Clara</span>
+            <span class="chip accent">Guitar</span>
+            <button class="btn">Transpose</button>
+            <button class="btn">Add to setlist</button>
+            <button class="btn icon" aria-label="More"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+          </div>
+          <div class="scroll" style="padding: 24px 28px; gap: 16px">
+            <span class="t-small">Banda do Bairro · mpb/</span>
+            <div class="chart" style="--chart-size: 20px">
+              <sc-for list="{{tardeClara}}" as="l" hint-placeholder-count="6">
+                <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                <sc-if value="{{l.isSung}}" hint-placeholder-val="{{ true }}"><div class="sung {{l.cls}}"><sc-for list="{{l.segs}}" as="sg" hint-placeholder-count="3"><span class="s"><span class="c">{{sg.c}}</span><span class="w">{{sg.w}}<sc-if value="{{sg.j}}" hint-placeholder-val="{{ false }}"><span class="fill"></span></sc-if></span></span></sc-for></div></sc-if>
+                <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ false }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                <sc-if value="{{l.isRun}}" hint-placeholder-val="{{ false }}"><div class="runline {{l.cls}}">{{l.text}}</div></sc-if>
+                <sc-if value="{{l.isWords}}" hint-placeholder-val="{{ false }}"><div class="words">{{l.text}}</div></sc-if>
+                <sc-if value="{{l.isGap}}" hint-placeholder-val="{{ false }}"><div class="gap"></div></sc-if>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" style="width: 580px">
+            <h2 class="t-h1">Add to setlist</h2>
+            <p style="font-weight: 600">Tarde Clara is in Thursday lesson.</p>
+            <p class="t-small">The setlist change is then an unsaved change to Banda do Bairro, saved like any other.</p>
+            <div class="actions">
+              <button class="btn">Open setlist</button>
+              <button class="btn primary" style="outline: 2px solid var(--accent); outline-offset: 2px">Done</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Computer: the new setlist, open in its editor -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · the new setlist opens in its editor, not saved yet, with Add song ready for the first song</div>
+      <div class="dev desktop">
+        <div class="appbar" style="padding: 12px 20px">
+          <button class="btn">Done</button>
+          <span class="title" style="flex: none">Thursday lesson</span>
+          <span class="t-small" style="flex: 1">My songs</span>
+          <span class="badge unsaved dot">not saved yet</span>
+          <button class="btn" style="outline: 2px solid var(--accent); outline-offset: 2px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add song</button>
+          <button class="btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg>Play</button>
+          <button class="btn">Discard</button>
+          <button class="btn primary">Save</button>
+        </div>
+        <div class="split">
+          <div class="pane main">
+            <div class="scroll" style="padding: 18px 24px; gap: 10px">
+              <div class="section-label"><span class="t-h3">Songs · drag to reorder</span><span class="t-small">Key and note apply in this setlist only</span></div>
+              <div class="list"></div>
+            </div>
+          </div>
+          <div class="pane side" style="width: 520px; border-right: 0; border-left: 1px solid var(--line); background: var(--bg)">
+            <div class="scroll" style="padding: 18px 20px; gap: 10px">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"></path><path d="M14 3v5h5"></path></svg>
+                <span class="t-mono" style="font-size: 14px; font-weight: 600; flex: 1">thursday-lesson.setlist.md</span>
+              </div>
+              <div class="editor" style="font-size: 12px">
+                <div class="ln md"><span style="display: inline-block; width: 36px; color: var(--ink-2); font-weight: 400">1</span># Thursday lesson</div>
+              </div>
+              <p class="t-small">The links start from /, so they keep working wherever the book’s files are copied.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":2500}}'>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":3880}}'>
 class Component extends DCLogic {
   renderVals() {
     const numbered = (ls) => ls.map((ln, i) => ({ cls: ln.cls, text: ln.text, n: String(i + 1) }));
@@ -445,6 +602,10 @@ class Component extends DCLogic {
       theme: this.props.theme ?? 'current',
       density: this.props.density ?? 'comfortable',
       setlistLink: 'estante.app/b/banda-do-bairro/gigs/bar-do-ze-10-october.setlist.md',
+      tabSetlists: [
+        { title: 'Bar do Zé, 10 October', meta: 'Banda do Bairro · 5 songs' },
+        { title: 'Ensaio de quinta', meta: 'Banda do Bairro · 8 songs' },
+      ],
       setItems: [
         { n: '1', title: 'Garota de Ipanema', meta: 'bossa/', hasKey: true, key: 'in D', missing: false },
         { n: '2', title: 'Tarde Clara', meta: 'mpb/', hasKey: true, key: 'in A', missing: false },
@@ -462,6 +623,17 @@ class Component extends DCLogic {
         L.sec('Refrão'),
         L.sung('D           A', 'Vem comigo ver o mar'),
         L.sung('E               A', 'antes da noite chegar'),
+      ],
+      tardeClara: [
+        L.sec('Primeira Parte'),
+        L.sung('G           D', 'Quando eu te vi passar'),
+        L.sung('Em              C', 'naquela tarde clara'),
+        L.gap(),
+        L.sung('G             D', 'A tarde era clara'),
+        L.sung('Em          C', 'e o mar estava calmo'),
+        L.sec('Refrão'),
+        L.sung('C           G', 'Vem comigo ver o mar'),
+        L.sung('D               G', 'antes da noite chegar'),
       ],
       chuva: [
         L.sec('Intro'),

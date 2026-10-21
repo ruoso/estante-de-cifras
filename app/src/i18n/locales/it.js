@@ -474,6 +474,8 @@ export default {
   setlists: {
     title: 'Scalette',
     empty: 'Ancora nessuna scaletta. Aggiungi un brano a una scaletta dalla ricerca o dalla vista di lettura.',
+    // The tab can make one (books.setlist_making; workflow 12 §Building one).
+    emptyCanMake: 'Ancora nessuna scaletta. Creane una con Nuova scaletta, o aggiungi un brano a una scaletta dalla ricerca o dalla vista di lettura.',
     loading: 'Caricamento scalette…',
     failed: 'Non è stato possibile leggere le scalette su questo dispositivo.',
     retry: 'Riprova',
@@ -525,6 +527,12 @@ export default {
     newSetlistNamePlaceholder: 'Nome della scaletta',
     newSetlistNoBook: 'Il libro di questa canzone è in sola lettura e I miei brani non è su questo dispositivo, quindi non c’è un libro in cui tenere una nuova scaletta.',
     create: 'Crea',
+    // The New setlist dialog's book choice, and Add to setlist's made step
+    // (books.setlist_making Constraints 4, 7).
+    newSetlistBookLabel: 'Libro',
+    madeIn: '{title} è in {setlist}.',
+    madeCopiedIn: '{title} è stato copiato in {book} ed è in {setlist}.',
+    openSetlist: 'Apri scaletta',
   },
 
   play: {

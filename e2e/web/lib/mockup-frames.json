@@ -1,5 +1,161 @@
 [
  {
+  "board": "Format-help",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · the notice on chords in brackets, then Show me how"
+ },
+ {
+  "board": "Format-help",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · the notice on chords in brackets, then Show me how"
+ },
+ {
+  "board": "Format-help",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · Help opened from the bar, in pt-BR; marks never translated"
+ },
+ {
+  "board": "Format-help",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · chords outside the music; Show me how opens the help at the fence"
+ },
+ {
+  "board": "Leave-book",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · a reader's book: Leave this book below Remove from my shelf, then its confirmation"
+ },
+ {
+  "board": "Leave-book",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · a reader's book: Leave this book below Remove from my shelf, then its confirmation"
+ },
+ {
+  "board": "Leave-book",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · an editor with saves not pushed: counted, with a fork or the download first"
+ },
+ {
+  "board": "Leave-book",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · after leaving Choros da Ana: gone from the shelf and from Mine on Estante, which offers Leave on another book"
+ },
+ {
+  "board": "Leave-book",
+  "index": 5,
+  "kind": "desktop",
+  "label": "Computer · after leaving Choros da Ana: gone from the shelf and from Mine on Estante, which offers Leave on another book"
+ },
+ {
+  "board": "Leave-book",
+  "index": 6,
+  "kind": "desktop",
+  "label": "Computer · after leaving Choros da Ana: gone from the shelf and from Mine on Estante, which offers Leave on another book"
+ },
+ {
+  "board": "Open-a-book",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · the shelf, then a book's songs"
+ },
+ {
+  "board": "Open-a-book",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · the shelf, then a book's songs"
+ },
+ {
+  "board": "Open-a-book",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · a book that needs you opens on its songs, with Settle one press away"
+ },
+ {
+  "board": "Open-a-book",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · Manage opens the book's detail beside its songs, with Rename and Files"
+ },
+ {
+  "board": "Recovery-email",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · the account screen with no recovery email and its last passkey, then waiting for you to confirm"
+ },
+ {
+  "board": "Recovery-email",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · the account screen with no recovery email and its last passkey, then waiting for you to confirm"
+ },
+ {
+  "board": "Recovery-email",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · the verification link opened: confirmed, not signed in; and the account screen's Confirmed state"
+ },
+ {
+  "board": "Recovery-email",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · deleting an account with no email: confirmed with a passkey, and the passkey prompt cancelled"
+ },
+ {
+  "board": "Remove-from-shelf",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · a book on Estante with an unsaved song and saves waiting: Remove, then what it would lose, counted"
+ },
+ {
+  "board": "Remove-from-shelf",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · a book on Estante with an unsaved song and saves waiting: Remove, then what it would lose, counted"
+ },
+ {
+  "board": "Remove-from-shelf",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · a book only on this device: gone for good, with the download offered first"
+ },
+ {
+  "board": "Remove-from-shelf",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · after removing Banda do Bairro: gone from the shelf, and Mine on Estante offers it again — the membership stays"
+ },
+ {
+  "board": "Review-polish",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · a book section with unsaved songs: the plus and the filter beside its header, Save all on a line of its own · then an untouched song"
+ },
+ {
+  "board": "Review-polish",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · a book section with unsaved songs: the plus and the filter beside its header, Save all on a line of its own · then an untouched song"
+ },
+ {
+  "board": "Review-polish",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · a book only on this device: its Put online card says nobody else can see it, and Put online asks first; no Share in the app bar"
+ },
+ {
+  "board": "Review-polish",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · a song with an empty section, and its ⋯ menu in three named groups; the toolbar keeps its shortcuts"
+ },
+ {
   "board": "Screen-reader",
   "index": 1,
   "kind": "phone",
@@ -24,16 +180,64 @@
   "label": "Computer · a conflicted line bounded by a word — and the raw markers that stay in the editor"
  },
  {
+  "board": "Search-scope",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · scoped to one book, then just after saving a new song into My songs"
+ },
+ {
+  "board": "Search-scope",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · scoped to one book, then just after saving a new song into My songs"
+ },
+ {
+  "board": "Search-scope",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · back from Books, the section is open as it was left"
+ },
+ {
+  "board": "Search-scope",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · the saved song beside a search scoped to the book it went to"
+ },
+ {
+  "board": "Sign-in",
+  "index": 1,
+  "kind": "phone",
+  "label": "Phone · the account screen not signed in, its card one entry into the surface; then Add a recovery email, right after Make an account"
+ },
+ {
+  "board": "Sign-in",
+  "index": 2,
+  "kind": "phone",
+  "label": "Phone · the account screen not signed in, its card one entry into the surface; then Add a recovery email, right after Make an account"
+ },
+ {
+  "board": "Sign-in",
+  "index": 3,
+  "kind": "tablet",
+  "label": "Tablet · where the person was headed after Send link and Done: the invitation's book, the banner kept while the address is pending, the update-ready notice floating apart over it"
+ },
+ {
+  "board": "Sign-in",
+  "index": 4,
+  "kind": "desktop",
+  "label": "Computer · Add one pressed: the account screen, the banner across the main pane's head, scrolled to the Recovery email region waiting for you to confirm, focus on it"
+ },
+ {
   "board": "Theme-picker",
   "index": 1,
   "kind": "phone",
-  "label": "Phone · before signing in (Estante), then signed in with Palco chosen"
+  "label": "Phone · before signing in (Estante), scrolled to the end: the defaults and the sign-in card; then signed in with Palco, scrolled to Density and Chord diagrams, left-handed chosen"
  },
  {
   "board": "Theme-picker",
   "index": 2,
   "kind": "phone",
-  "label": "Phone · before signing in (Estante), then signed in with Palco chosen"
+  "label": "Phone · before signing in (Estante), scrolled to the end: the defaults and the sign-in card; then signed in with Palco, scrolled to Density and Chord diagrams, left-handed chosen"
  },
  {
   "board": "Theme-picker",
@@ -45,7 +249,7 @@
   "board": "Theme-picker",
   "index": 4,
   "kind": "desktop",
-  "label": "Computer · the W13 Account surface, with Preferences in two columns, devices and passkeys below"
+  "label": "Computer · the W13 Account surface drawn Compact, Compact chosen, left-handed on a horizontal neck — Preferences above devices and passkeys"
  },
  {
   "board": "W01-first-run",
@@ -69,7 +273,7 @@
   "board": "W01-first-run",
   "index": 4,
   "kind": "desktop",
-  "label": "Computer · a link that does not open its book (expired, withdrawn, not a member), and a full book; neither says whose"
+  "label": "Computer · an account just made, under the no-recovery-email banner: a link that does not open its book (expired, withdrawn, not a member), and a full book; neither says whose"
  },
  {
   "board": "W02-find-and-play",
@@ -219,7 +423,7 @@
   "board": "W07-add-a-book",
   "index": 4,
   "kind": "desktop",
-  "label": "Computer · a book's detail, and deleting it from Estante"
+  "label": "Computer · a book's detail — Share in its app bar, Download and Files, then after a rule Remove and, last, Delete — and deleting it from Estante"
  },
  {
   "board": "W08-sync",
@@ -339,13 +543,13 @@
   "board": "W12-setlists",
   "index": 1,
   "kind": "phone",
-  "label": "Phone · a setlist opened, then playing through it"
+  "label": "Phone · a setlist opened, then Tarde Clara pressed in it: Play opens at that song, in the setlist's key, and Stop returns to its row"
  },
  {
   "board": "W12-setlists",
   "index": 2,
   "kind": "phone",
-  "label": "Phone · a setlist opened, then playing through it"
+  "label": "Phone · a setlist opened, then Tarde Clara pressed in it: Play opens at that song, in the setlist's key, and Stop returns to its row"
  },
  {
   "board": "W12-setlists",
@@ -357,19 +561,61 @@
   "board": "W12-setlists",
   "index": 4,
   "kind": "desktop",
-  "label": "Computer · the setlist editor beside its Markdown file, a missing link being repointed"
+  "label": "Computer · the setlist editor beside its Markdown file, a missing link being repointed; Done leaves editing, keeping every change"
+ },
+ {
+  "board": "W12-setlists",
+  "index": 5,
+  "kind": "phone",
+  "label": "Phone · Share on a setlist: in More, then the Share sheet over it"
+ },
+ {
+  "board": "W12-setlists",
+  "index": 6,
+  "kind": "phone",
+  "label": "Phone · Share on a setlist: in More, then the Share sheet over it"
+ },
+ {
+  "board": "W12-setlists",
+  "index": 7,
+  "kind": "desktop",
+  "label": "Computer · Share on a setlist: a panel beside the list; the invited join the whole book, and the link opens on the setlist"
+ },
+ {
+  "board": "W12-setlists",
+  "index": 8,
+  "kind": "phone",
+  "label": "Phone · the Setlists tab makes a setlist: New setlist…, a name, and which book when more than one can be saved to"
+ },
+ {
+  "board": "W12-setlists",
+  "index": 9,
+  "kind": "phone",
+  "label": "Phone · the Setlists tab makes a setlist: New setlist…, a name, and which book when more than one can be saved to"
+ },
+ {
+  "board": "W12-setlists",
+  "index": 10,
+  "kind": "tablet",
+  "label": "Tablet · Add to setlist, after Create: the song is in the new setlist, not saved yet; Open setlist or Done"
+ },
+ {
+  "board": "W12-setlists",
+  "index": 11,
+  "kind": "desktop",
+  "label": "Computer · the new setlist opens in its editor, not saved yet, with Add song ready for the first song"
  },
  {
   "board": "W13-new-device",
   "index": 1,
   "kind": "phone",
-  "label": "Phone · signing in on a new phone, then the shelf filling"
+  "label": "Phone · the one sign-in surface, its two doors, on a new phone; then the shelf filling, under the banner of an account with no recovery email"
  },
  {
   "board": "W13-new-device",
   "index": 2,
   "kind": "phone",
-  "label": "Phone · signing in on a new phone, then the shelf filling"
+  "label": "Phone · the one sign-in surface, its two doors, on a new phone; then the shelf filling, under the banner of an account with no recovery email"
  },
  {
   "board": "W13-new-device",
@@ -447,7 +693,7 @@
   "board": "W16-chord-explorer",
   "index": 3,
   "kind": "tablet",
-  "label": "Tablet · an ambiguous symbol, C7+, with the reading it took and the flip"
+  "label": "Tablet · an ambiguous symbol, C7+, with the reading it took and the flip; the search stays beside it"
  },
  {
   "board": "W16-chord-explorer",

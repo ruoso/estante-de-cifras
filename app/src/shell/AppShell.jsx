@@ -482,10 +482,21 @@ export default function AppShell({
   const [sharingSetlist, setSharingSetlist] = useState(null);
   // Opening a setlist, from any destination, selects the Setlists tab
   // (books.setlist_chrome Decision 3); a search hit still pushes, so Back lands
-  // on search again.
+  // on search again. `startEditing` (a setlist just made from the Setlists
+  // tab) rides in this state, never in the place or the address: editing is
+  // not a place, and SetlistView consumes it once (books.setlist_making
+  // Decision 7).
   const openSetlistOnTab = (next) => {
     setSelected('setlists');
     setOpenSetlist(next);
+  };
+  // Open setlist from Add to setlist's made step (books.setlist_making
+  // Constraint 8): a new place on the Setlists tab, so Back returns to the song
+  // or the search it was made from; a song open over the shell is closed, so it
+  // does not stay in front of the setlist (the pushed entry still names it).
+  const openSetlistFromSong = (next) => {
+    setOpenSong(null);
+    openSetlistOnTab(next);
   };
   // The setlist player (books.play, workflow 12 §Playing through): the setlist
   // being played `{ bookId, path }`, a chrome-free full-screen surface over the
@@ -1256,6 +1267,7 @@ export default function AppShell({
           store={store}
           song={addingToSetlist}
           onClose={() => setAddingToSetlist(null)}
+          onOpenSetlist={openSetlistFromSong}
         />
       ) : null}
       {/* A book's Share on a phone (books.share_people; W10 #1): the sheet over
@@ -1637,6 +1649,7 @@ export default function AppShell({
             store={store}
             song={addingToSetlist}
             onClose={() => setAddingToSetlist(null)}
+            onOpenSetlist={openSetlistFromSong}
           />
         ) : null}
       </>,
@@ -1717,6 +1730,10 @@ export default function AppShell({
       onShareFocusReturned={() => setShareReturn(null)}
       returnFocusAt={playReturn}
       onFocusReturned={() => setPlayReturn(null)}
+      startEditing={Boolean(openSetlist.startEditing)}
+      onEditingStarted={() =>
+        setOpenSetlist((prev) => (prev ? { bookId: prev.bookId, path: prev.path } : prev))
+      }
     />
   ) : null;
   if (setlistView && mode === 'wide') return framed(setlistView);

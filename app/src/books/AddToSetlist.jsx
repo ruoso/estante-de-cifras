@@ -7,24 +7,22 @@
 // says so (Decision 7). The copy and the setlist change are left unsaved,
 // committed later like any other file. The Worker owns the copy/create/add as
 // one locked change (ADD_TO_SETLIST); the view only chooses.
+//
+// A new setlist made here leaves a trace (books.setlist_making Constraint 7;
+// workflow 12 §Building one; W12 tablet #10): its SETLIST_UPDATED does not
+// close the picker, which then says *{song} is in {setlist}.* (or *was copied
+// into*), that it is not saved yet, and offers Open setlist and Done. Adding to
+// a setlist already in the list closes as before.
 
-import { useEffect, useMemo, useState } from 'react';
-import {
-  Button,
-  Dialog,
-  Heading,
-  Input,
-  Label,
-  Modal,
-  ModalOverlay,
-  TextField,
-} from 'react-aria-components';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button, Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { orderedBooks, canSaveFor, mySongsIdFor, titleFor } from './book-display.js';
 import { setlistFilename } from './setlist-display.js';
 import { useLoadSong } from './use-load-song.js';
+import NewSetlistDialog from './NewSetlistDialog.jsx';
 import './setlist.css';
 
 function CheckIcon() {
@@ -46,11 +44,16 @@ function PlusIcon() {
   );
 }
 
-export default function AddToSetlist({ store, song, onClose }) {
+export default function AddToSetlist({ store, song, onClose, onOpenSetlist = () => {} }) {
   const shelf = useSlice(store, 'shelf');
   const setlists = useSlice(store, 'setlists');
   const [selected, setSelected] = useState(null); // the chosen setlist, or null
   const [naming, setNaming] = useState(false); // the New-setlist name dialog
+  // The new setlist's name while its create is in flight (a ref: envelopes
+  // carry no request id, so the SETLIST_UPDATED after it is the made one), and
+  // the made step once it landed: `{ name, bookId, setlistPath, copied }`.
+  const creatingRef = useRef(null);
+  const [made, setMade] = useState(null);
 
   // The song's title, from search (passed in) or read from its source when the
   // reading view raised only { bookId, path } — needed for the copy notice and
@@ -61,9 +64,21 @@ export default function AddToSetlist({ store, song, onClose }) {
   useEffect(() => {
     store.send(command(CommandKind.LIST_SETLISTS, {}));
   }, [store]);
-  // A completed add re-lists and closes the dialog.
-  useWorkerEvent(store, EventKind.SETLIST_UPDATED, () => {
-    onClose();
+  // A completed add to a listed setlist closes the dialog; a new setlist's
+  // stays, saying where the song went (Constraint 7).
+  useWorkerEvent(store, EventKind.SETLIST_UPDATED, (payload) => {
+    const name = creatingRef.current;
+    if (name == null) {
+      onClose();
+      return;
+    }
+    creatingRef.current = null;
+    setMade({
+      name,
+      bookId: payload?.bookId,
+      setlistPath: payload?.setlistPath,
+      copied: Boolean(payload?.copied),
+    });
   });
 
   const savable = useMemo(() => {
@@ -123,6 +138,7 @@ export default function AddToSetlist({ store, song, onClose }) {
     const existing = (setlists ?? [])
       .filter((s) => s.bookId === targetBookId)
       .map((s) => s.path);
+    creatingRef.current = name;
     store.send(
       command(CommandKind.ADD_TO_SETLIST, {
         targetBookId,
@@ -145,7 +161,44 @@ export default function AddToSetlist({ store, song, onClose }) {
     >
       <Modal className="dialog setlist-dialog">
         <Dialog className="setlist-dialog-body" aria-label={t('setlists.addToSetlistTitle')}>
-          {({ close }) => (
+          {({ close }) => made ? (
+            <>
+              <Heading slot="title" className="t-h1">
+                {t('setlists.addToSetlistTitle')}
+              </Heading>
+              <p className="setlist-made" role="status">
+                {made.copied
+                  ? t('setlists.madeCopiedIn', {
+                    title,
+                    book: savable.get(made.bookId),
+                    setlist: made.name,
+                  })
+                  : t('setlists.madeIn', { title, setlist: made.name })}
+              </p>
+              <p className="t-small">
+                {made.copied
+                  ? t('setlists.copyThenUnsaved', { book: savable.get(made.bookId) })
+                  : t('setlists.thenUnsaved', { book: savable.get(made.bookId) })}
+              </p>
+              <div className="actions">
+                <Button
+                  className="btn"
+                  onPress={() => {
+                    onOpenSetlist({ bookId: made.bookId, path: made.setlistPath });
+                    onClose();
+                  }}
+                >
+                  {t('setlists.openSetlist')}
+                </Button>
+                {/* The row that had focus is gone: Done takes it as the made
+                    step draws (Constraint 7). */}
+                {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+                <Button className="btn primary" autoFocus onPress={close}>
+                  {t('setlists.done')}
+                </Button>
+              </div>
+            </>
+          ) : (
             <>
               <Heading slot="title" className="t-h1">
                 {t('setlists.addToSetlistTitle')}
@@ -238,72 +291,6 @@ export default function AddToSetlist({ store, song, onClose }) {
                 />
               ) : null}
             </>
-          )}
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
-  );
-}
-
-// The New-setlist name dialog — a nested modal over the picker (Decision 7: the
-// book is the song's own when savable, else My songs, so the dialog asks only
-// for a name). The name field has focus on open, and the dialog closes only once
-// the create was sent; with no book to keep the setlist in it says why, in words,
-// and offers only Cancel (books.owner_can_save Constraints 4-5, Decision 4).
-function NewSetlistDialog({ hasTarget, onCancel, onCreate }) {
-  const [name, setName] = useState('');
-  return (
-    <ModalOverlay
-      className="scrim center"
-      isOpen
-      isDismissable
-      onOpenChange={(open) => {
-        if (!open) onCancel();
-      }}
-    >
-      <Modal className="dialog">
-        <Dialog>
-          {({ close }) => (
-            <form
-              className="setlist-name-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const trimmed = name.trim();
-                if (!hasTarget || !trimmed) return;
-                if (onCreate(trimmed) === true) close();
-              }}
-            >
-              <Heading slot="title" className="t-h2">
-                {t('setlists.newSetlistTitle')}
-              </Heading>
-              {hasTarget ? (
-                // autoFocus on the TextField: React Aria focuses its input on
-                // mount, before the Dialog would take focus itself — the dialog
-                // asks only for a name, so typing starts at once (Constraint 4).
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                <TextField className="field" value={name} onChange={setName} autoFocus>
-                  <Label>{t('setlists.newSetlistNameLabel')}</Label>
-                  <Input className="input" placeholder={t('setlists.newSetlistNamePlaceholder')} />
-                </TextField>
-              ) : (
-                <p className="t-small" role="status">
-                  {t('setlists.newSetlistNoBook')}
-                </p>
-              )}
-              <div className="actions">
-                {/* With nowhere to keep a setlist, Cancel is the one action
-                    and takes focus (Constraint 5). */}
-                {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-                <Button className="btn" autoFocus={!hasTarget} onPress={close}>
-                  {t('setlists.cancel')}
-                </Button>
-                {hasTarget ? (
-                  <Button type="submit" className="btn primary" isDisabled={!name.trim()}>
-                    {t('setlists.create')}
-                  </Button>
-                ) : null}
-              </div>
-            </form>
           )}
         </Dialog>
       </Modal>

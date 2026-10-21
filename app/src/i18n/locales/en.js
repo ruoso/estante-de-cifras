@@ -507,6 +507,8 @@ export default {
     // The Setlists destination.
     title: 'Setlists',
     empty: 'No setlists yet. Add a song to a setlist from search or the reading view.',
+    // The tab can make one (books.setlist_making; workflow 12 §Building one).
+    emptyCanMake: 'No setlists yet. Make one with New setlist, or add a song to a setlist from search or the reading view.',
     loading: 'Loading setlists…',
     failed: "The setlists on this device couldn't be read.",
     retry: 'Try again',
@@ -565,6 +567,12 @@ export default {
     newSetlistNamePlaceholder: 'Setlist name',
     newSetlistNoBook: "This song's book is read-only and My songs isn't on this device, so there is no book to keep a new setlist in.",
     create: 'Create',
+    // The New setlist dialog's book choice, and Add to setlist's made step
+    // (books.setlist_making Constraints 4, 7).
+    newSetlistBookLabel: 'Book',
+    madeIn: '{title} is in {setlist}.',
+    madeCopiedIn: '{title} was copied into {book} and is in {setlist}.',
+    openSetlist: 'Open setlist',
   },
 
   // The setlist player (books.play, workflow 12 §Playing through, §The key;

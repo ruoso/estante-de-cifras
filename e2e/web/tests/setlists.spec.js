@@ -14,7 +14,10 @@
  *   - Add song in the editor marks a song already in the setlist, in words with
  *     its places, and still adds it (books.setlist_picker_fixes);
  *   - a new setlist reads *not saved yet* until saved, and Done leaves editing
- *     keeping the change (books.setlist_done).
+ *     keeping the change (books.setlist_done);
+ *   - a setlist made from the Setlists tab opens in its editor; with two books
+ *     it asks which; one made from Add to setlist says the song is in it, and
+ *     Open setlist opens it (books.setlist_making).
  * axe (WCAG 2.1 AA, contrast in a real browser) runs on each screen and overlay.
  *
  * Pins workflow 12 §Building one (L57-61), §Songs from another book (L38-40),
@@ -23,12 +26,21 @@
  */
 import { mockup } from '../lib/mockup.js';
 import { test, expect } from '../lib/axe.js';
-import { openExampleBook, openFiles, saveThroughSheet, startApp, gotoTab } from '../lib/journeys.js';
+import {
+  openExampleBook,
+  openFiles,
+  openSongFromSearch,
+  saveThroughSheet,
+  startApp,
+  gotoTab,
+} from '../lib/journeys.js';
 import {
   EXAMPLE_BOOK,
   addToSetlistFromSearch,
   addToNewSetlist,
+  addToNewSetlistFromSong,
   addToExistingSetlist,
+  newSetlistFromTab,
   openSetlist,
   editSetlist,
   addSongInEditor,
@@ -71,6 +83,9 @@ test('build a setlist from songs, add a second, edit key and note, and save', as
   ]);
   await page.getByRole('textbox', { name: 'Setlist name' }).fill('Gig Night');
   await page.getByRole('button', { name: 'Create' }).click();
+  // The picker stays and says where the song went (books.setlist_making).
+  await expect(page.getByRole('status').filter({ hasText: 'Morning on the Porch is in Gig Night.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Add to setlist' })).toBeHidden();
 
   // Add a second song to the same (existing) setlist.
@@ -177,18 +192,10 @@ test('removing an item in the setlist editor and saving drops it for good (audit
   await expect(names()).toHaveText(['Morning on the Porch']);
 });
 
-test('copy a song from another book into a setlist (Copy and add), saved', async ({
-  page,
-  checkA11y,
-}) => {
-  await seedExample(page);
-
-  // A setlist in the example book.
-  await addToNewSetlist(page, 'Morning', 'Morning on the Porch', 'Gig Night');
-
-  // A song in a second local book ("My songs"): with the example book already on
-  // the shelf, the empty-shelf "Write a song" way-in is gone, so start the song
-  // the way search offers when books exist — the Create row (new-song.spec.js).
+// A song in a second local book ("My songs"): with the example book already on
+// the shelf, the empty-shelf "Write a song" way-in is gone, so start the song
+// the way search offers when books exist — the Create row (new-song.spec.js).
+async function writeHarbourLights(page) {
   await gotoTab(page, 'Search');
   await page.getByRole('searchbox').fill('Harbour Lights');
   await page.getByRole('button', { name: /Create .Harbour Lights./ }).click();
@@ -199,6 +206,18 @@ test('copy a song from another book into a setlist (Copy and add), saved', async
   await page.keyboard.press('Delete');
   await page.keyboard.insertText(['# Harbour Lights', '', 'A quiet harbour tune', ''].join('\n'));
   await saveThroughSheet(page);
+}
+
+test('copy a song from another book into a setlist (Copy and add), saved', async ({
+  page,
+  checkA11y,
+}) => {
+  await seedExample(page);
+
+  // A setlist in the example book.
+  await addToNewSetlist(page, 'Morning', 'Morning on the Porch', 'Gig Night');
+
+  await writeHarbourLights(page);
 
   // Add the My-songs song to the example book's setlist: a cross-book copy.
   await addToSetlistFromSearch(page, 'Harbour', 'Harbour Lights');
@@ -395,4 +414,146 @@ test('a setlist made from Add to setlist says not saved yet until saved, and Don
   await page.getByRole('textbox', { name: 'Note for Morning on the Porch' }).fill('start gently');
   await expect(bar.getByText('unsaved changes', { exact: true })).toBeVisible();
   await expect(page.getByText('not saved yet')).toHaveCount(0);
+});
+
+// books.setlist_making — workflow 12 §Building one: the Setlists tab makes a
+// setlist (a name, and which book only when more than one can be saved to); it
+// opens in its editor, not saved yet, with Add song focused (W12 #8, #11).
+test('a setlist made from the Setlists tab opens in its editor, and songs go in (workflow 12 §Building one)', async ({
+  page,
+  checkA11y,
+}) => {
+  // A device with no book: nowhere to keep a setlist, so no New setlist….
+  await startApp(page);
+  await gotoTab(page, 'Setlists');
+  await expect(
+    page.getByText('No setlists yet. Add a song to a setlist from search or the reading view.'),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New setlist…' })).toHaveCount(0);
+
+  // The example book, its one setlist removed in the file view (an unsaved
+  // removal), so the tab has a book to save to and no setlists.
+  await seedExample(page);
+  await deleteSongInFiles(page, EXAMPLE_BOOK, 'a-short-set.setlist.md');
+  await leaveFiles(page);
+  await gotoTab(page, 'Setlists');
+  await expect(
+    page.getByText(
+      'No setlists yet. Make one with New setlist, or add a song to a setlist from search or the reading view.',
+    ),
+  ).toBeVisible();
+  await checkA11y(); // the tab's head
+
+  // New setlist…: the name focused; the example book alone, so no Book group.
+  await newSetlistFromTab(page, 'Thursday lesson', {
+    checkA11y: async () => {
+      await expect(page.getByRole('radiogroup', { name: 'Book' })).toHaveCount(0);
+      await checkA11y(); // the dialog without the book choice
+    },
+  });
+
+  // The editor: empty, not saved yet, Add song focused.
+  const bar = page.locator('.setlist-edit-bar');
+  await expect(bar.getByText('Thursday lesson', { exact: true })).toBeVisible();
+  await expect(bar.getByText('not saved yet', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add song', exact: true })).toBeFocused();
+  await expect(page.locator('.setlist-edit-row')).toHaveCount(0);
+  await checkA11y(); // the new setlist's editor
+  await mockup(page, 'W12-setlists', 11, { note: 'new setlist editor' });
+
+  // Songs go in, from the setlist's own book.
+  await addSongInEditor(page, 'Morning');
+  await page.getByRole('button', { name: /morning-on-the-porch/ }).first().click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await addSongInEditor(page, 'Walking');
+  await page.getByRole('button', { name: /walking-to-the-market/ }).first().click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  const names = page.locator('.setlist-edit-row .name');
+  await expect(names).toHaveText(['Morning on the Porch', 'Walking to the Market']);
+  await bar.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(bar.getByText('not saved yet', { exact: true })).toBeHidden();
+  await bar.getByRole('button', { name: 'Done', exact: true }).click();
+
+  // Back to the tab: the row, in the example book, with its count.
+  await page.getByRole('button', { name: 'Back', exact: true }).first().click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Setlists' })).toBeVisible();
+  const row = page.getByRole('button', { name: /Thursday lesson/ });
+  await expect(row).toContainText(`${EXAMPLE_BOOK} · 2 songs`);
+  await checkA11y();
+  await mockup(page, 'W12-setlists', 8);
+});
+
+// books.setlist_making — workflow 12 §Building one, workflow 3 §Which book: with
+// two books to save to, New setlist asks which, My songs chosen to begin with
+// (W12 #9).
+test('with two books, New setlist asks which book (workflow 12 §Building one; workflow 3 §Which book)', async ({
+  page,
+  checkA11y,
+}) => {
+  await seedExample(page);
+  await writeHarbourLights(page);
+
+  await newSetlistFromTab(page, 'Rehearsal', {
+    book: EXAMPLE_BOOK,
+    checkA11y: async () => {
+      const group = page.getByRole('radiogroup', { name: 'Book' });
+      await expect(group.getByRole('radio')).toHaveCount(2);
+      await expect(group.getByRole('radio', { name: 'My songs' })).toBeChecked();
+      await expect(group.getByRole('radio', { name: EXAMPLE_BOOK })).not.toBeChecked();
+      await checkA11y(); // the dialog with the book choice
+      await mockup(page, 'W12-setlists', 9);
+    },
+  });
+
+  // In its editor, in the example book; back on the tab its row says so.
+  const bar = page.locator('.setlist-edit-bar');
+  await expect(bar.getByText(EXAMPLE_BOOK, { exact: true })).toBeVisible();
+  await bar.getByRole('button', { name: 'Done', exact: true }).click();
+  await page.getByRole('button', { name: 'Back', exact: true }).first().click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Setlists' })).toBeVisible();
+  const row = page.getByRole('button', { name: /Rehearsal/ });
+  await expect(row).toContainText(`${EXAMPLE_BOOK} · 0 songs`);
+  await expect(row).toContainText('not saved yet');
+  await checkA11y();
+});
+
+// books.setlist_making — workflow 12 §Building one: a setlist made from Add to
+// setlist leaves the picker saying the song is in it (W12 #10); Open setlist
+// opens it as a new place, and Back returns to the song; Done leaves the search.
+test('a setlist made from Add to setlist says the song is in it, and Open setlist opens it (workflow 12 §Building one)', async ({
+  page,
+  checkA11y,
+}) => {
+  await seedExample(page);
+  await openSongFromSearch(page, 'Morning', 'Morning on the Porch');
+  await addToNewSetlistFromSong(page, 'Morning on the Porch', 'Gig Night', {
+    open: true,
+    checkA11y: async () => {
+      const made = page.getByRole('status').filter({ hasText: 'Morning on the Porch is in Gig Night.' });
+      if (await made.isVisible().catch(() => false)) {
+        await expect(page.getByText(/The setlist change is then an unsaved change to/)).toBeVisible();
+        await mockup(page, 'W12-setlists', 10);
+      }
+      await checkA11y();
+    },
+  });
+
+  // The setlist, in front: the song in it, not saved yet.
+  await expect(page.getByRole('group', { name: 'Morning on the Porch' })).toHaveCount(0);
+  await expect(page.locator('.setlist-head').getByText('not saved yet', { exact: true })).toBeVisible();
+  await expect(page.locator('.setlist-screen .list').getByText('Morning on the Porch')).toBeVisible();
+  await checkA11y();
+
+  // Back returns to the song it was made from.
+  await page.getByRole('button', { name: 'Back', exact: true }).first().click();
+  await expect(page.getByRole('group', { name: 'Morning on the Porch' }).first()).toBeVisible();
+
+  // From search (Back from the song first: beside an open song on the
+  // computer, search rows carry no Add to setlist): Done leaves the search
+  // showing.
+  await page.getByRole('button', { name: /^Back/ }).filter({ visible: true }).first().click();
+  await expect(page.getByRole('group', { name: 'Morning on the Porch' })).toHaveCount(0);
+  await addToNewSetlist(page, 'Ferry', 'The Ferry Line', 'Ferry practice');
+  await expect(page.getByRole('searchbox').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /The Ferry Line/ }).first()).toBeVisible();
 });

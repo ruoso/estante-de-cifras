@@ -474,6 +474,8 @@ export default {
   setlists: {
     title: 'Repertorios',
     empty: 'Aún no hay repertorios. Agrega una canción a un repertorio desde la búsqueda o la vista de lectura.',
+    // The tab can make one (books.setlist_making; workflow 12 §Building one).
+    emptyCanMake: 'Aún no hay repertorios. Crea uno con Nuevo repertorio, o agrega una canción a un repertorio desde la búsqueda o la vista de lectura.',
     loading: 'Cargando repertorios…',
     failed: 'No se pudieron leer los repertorios de este dispositivo.',
     retry: 'Intentar de nuevo',
@@ -525,6 +527,12 @@ export default {
     newSetlistNamePlaceholder: 'Nombre del repertorio',
     newSetlistNoBook: 'El libro de esta canción es de solo lectura y Mis canciones no está en este dispositivo, así que no hay ningún libro donde guardar un repertorio nuevo.',
     create: 'Crear',
+    // The New setlist dialog's book choice, and Add to setlist's made step
+    // (books.setlist_making Constraints 4, 7).
+    newSetlistBookLabel: 'Libro',
+    madeIn: '{title} está en {setlist}.',
+    madeCopiedIn: '{title} se copió a {book} y está en {setlist}.',
+    openSetlist: 'Abrir repertorio',
   },
 
   play: {

@@ -5,13 +5,20 @@
 // the `setlists` slice carries the result. It always ends in a list, the empty
 // sentence, or a plain failure sentence with Try again — never *Loading* forever
 // (books.setlists_resilient Constraint 4).
+//
+// Its head offers *New setlist…* whenever a book can be saved to
+// (books.setlist_making; workflow 12 §Building one; W12 phone #8-9): a name and,
+// with more than one savable book, which one; Create sends CREATE_FILE (no
+// folder: the book's root) and the FILE_CREATED for it opens the new setlist in
+// its editor (`startEditing`).
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
-import { orderedBooks, titleFor } from './book-display.js';
+import { orderedBooks, titleFor, savableBooks, newSetlistBook } from './book-display.js';
+import NewSetlistDialog from './NewSetlistDialog.jsx';
 import './setlist.css';
 
 // A row's status word (books.setlist_done Constraint 3; workflow 12 §Building
@@ -28,6 +35,15 @@ export default function SetlistsScreen({ store, onOpenSetlist = () => {} }) {
   // UploadPreview pattern; Decision 4).
   const inFlightRef = useRef(false);
   const [failed, setFailed] = useState(false);
+  const [naming, setNaming] = useState(false);
+  // The book a CREATE_FILE of ours was sent for, until its FILE_CREATED: as
+  // with LIST_SETLISTS, envelopes carry no request id, so a FILE_CREATED is
+  // ours only for that book and a setlist path (the file view's are not;
+  // books.setlist_making Constraint 5).
+  const creatingRef = useRef(null);
+
+  const savable = useMemo(() => savableBooks(shelf, t('books.untitled')), [shelf]);
+  const defaultBookId = useMemo(() => newSetlistBook(shelf, savable), [shelf, savable]);
 
   useEffect(() => {
     inFlightRef.current = true;
@@ -66,12 +82,37 @@ export default function SetlistsScreen({ store, onOpenSetlist = () => {} }) {
     if (payload?.state === 'ready') relist();
   });
 
+  useWorkerEvent(store, EventKind.FILE_CREATED, (payload) => {
+    const bookId = creatingRef.current;
+    if (!bookId || payload?.bookId !== bookId || !payload?.path?.endsWith('.setlist.md')) return;
+    creatingRef.current = null;
+    relist();
+    onOpenSetlist({ bookId, path: payload.path, startEditing: true });
+  });
+
+  // Sends the create (the Worker names the file from the title, under the book
+  // lock; Constraint 1) and reports it was sent, so the dialog closes.
+  const create = (title, bookId) => {
+    const target = bookId ?? defaultBookId;
+    if (!target) return false;
+    creatingRef.current = target;
+    store.send(command(CommandKind.CREATE_FILE, { bookId: target, kind: 'setlist', title }));
+    return true;
+  };
+
   const nameFor = (bookId) =>
     titleFor(orderedBooks(shelf).find((e) => e.id === bookId)?.book ?? {}, t('books.untitled'));
 
   return (
     <div className="setlists-screen">
-      <h1 className="t-h1">{t('setlists.title')}</h1>
+      <div className="setlists-head">
+        <h1 className="t-h1 grow">{t('setlists.title')}</h1>
+        {savable.length ? (
+          <Button className="btn setlists-new" onPress={() => setNaming(true)}>
+            {t('setlists.newSetlist')}
+          </Button>
+        ) : null}
+      </div>
       {setlists === null && failed ? (
         <>
           <p className="t-small setlists-empty" role="status">
@@ -84,7 +125,9 @@ export default function SetlistsScreen({ store, onOpenSetlist = () => {} }) {
       ) : setlists === null ? (
         <p className="t-small">{t('setlists.loading')}</p>
       ) : setlists.length === 0 ? (
-        <p className="t-small setlists-empty">{t('setlists.empty')}</p>
+        <p className="t-small setlists-empty">
+          {t(savable.length ? 'setlists.emptyCanMake' : 'setlists.empty')}
+        </p>
       ) : (
         <div className="list">
           {setlists.map((s) => (
@@ -111,6 +154,14 @@ export default function SetlistsScreen({ store, onOpenSetlist = () => {} }) {
           ))}
         </div>
       )}
+      {naming ? (
+        <NewSetlistDialog
+          books={savable}
+          defaultBookId={defaultBookId}
+          onCancel={() => setNaming(false)}
+          onCreate={create}
+        />
+      ) : null}
     </div>
   );
 }

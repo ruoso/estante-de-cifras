@@ -68,8 +68,32 @@ chooses the setlist or makes a new one. Within a setlist, songs are reordered
 by dragging and removed by swiping. Every change is an edit, saved like any
 other (workflow 4).
 
-**A setlist made from Add to setlist is not saved yet**, and says so. Making
-it opens nothing — the person was adding a song from a song, and stays there
+**The Setlists tab makes one too.** Its head offers *New setlist…* beside
+the title, whenever a book on the device can be saved to; with none, there is
+nowhere to keep a setlist and the button is not there. It asks for a name and,
+only when more than one book can be saved to, **which book** — every book the
+person can save to, and no other, with *My songs* chosen to begin with (the
+first such book when *My songs* is not one), as a new song's book is chosen
+(workflow 3 §Which book). The setlist goes at the root of that book, holding
+only its title, and opens at once in its editor, *not saved yet*, with *Add
+song* ready: a teacher planning a lesson starts from the lesson, not from a
+song. With no setlists yet, the tab says *No setlists yet. Make one with New
+setlist, or add a song to a setlist from search or the reading view.*; with
+no book to keep one in, *No setlists yet. Add a song to a setlist from search
+or the reading view.*
+
+**Making one from Add to setlist says the song is in it.** The name dialog
+closes and the picker stays, now saying *{song} is in {setlist}.* (*{song}
+was copied into {book} and is in {setlist}.* when it came from another book)
+and that it is not saved yet, with **Open setlist** and **Done**. Done, as
+Escape, leaves the person where they were; Open setlist opens it, and Back
+from it returns to the song or the search it was made from. Adding to a
+setlist already in the list closes the picker as before: the row chosen and
+*Add* already said where the song went.
+
+**A new setlist is not saved yet**, and says so, whichever way it was made.
+Making one from Add to setlist opens nothing by itself — the person was
+adding a song from a song, and stays there unless they choose *Open setlist*
 — and the file it writes is an unsaved change like any other (workflow 4:
 one kind of unsaved change). Until its first save it reads **not saved yet**
 where an edited setlist reads *unsaved changes*: in its badge, in the list of

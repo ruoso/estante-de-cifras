@@ -13,6 +13,8 @@ import {
   thisDeviceFor,
   bookMetaFor,
   mySongsIdFor,
+  savableBooks,
+  newSetlistBook,
   putOnlineFailureKey,
 } from './book-display.js';
 import { t, setLocale } from '../i18n/index.js';
@@ -377,6 +379,51 @@ describe('book-display: mySongsIdFor (My songs by id — home-book-format §4.2 
       local: { band: { title: reg('My songs') } },
     };
     expect(mySongsIdFor(shelf)).toBe(null);
+  });
+});
+
+// books.setlist_making Constraint 2: the books a new setlist can go in, and the
+// one chosen to begin with (workflow 12 §Building one; workflow 3 §Which book).
+describe('book-display: savableBooks / newSetlistBook (books.setlist_making)', () => {
+  const SHELF = {
+    books: {
+      'srv-read': { label: reg('Songbook do Coral'), role: reg('reader'), position: reg(1) },
+      'srv-own': { label: reg('Roda de Sábado'), role: reg('owner'), position: reg(2) },
+      'srv-what': { label: reg('Sem papel'), position: reg(3) },
+      'srv-edit': { label: reg('Banda do Bairro'), role: reg('editor'), position: reg(4) },
+    },
+    local: { 'local-my-songs': { title: reg('My songs'), position: reg(5) } },
+  };
+
+  it('keeps local, owner and editor books in shelf order, and drops reader and unknown-role ones', () => {
+    expect(savableBooks(SHELF, 'Untitled book')).toEqual([
+      { id: 'srv-own', label: 'Roda de Sábado' },
+      { id: 'srv-edit', label: 'Banda do Bairro' },
+      { id: 'local-my-songs', label: 'My songs' },
+    ]);
+    expect(savableBooks({ books: {}, local: { x: {} } }, 'Untitled book')).toEqual([
+      { id: 'x', label: 'Untitled book' },
+    ]);
+    expect(savableBooks(undefined, 'Untitled book')).toEqual([]);
+  });
+
+  it('is My songs by id when savable — also when titled otherwise', () => {
+    expect(newSetlistBook(SHELF, savableBooks(SHELF, 'Untitled book'))).toBe('local-my-songs');
+    const renamed = { ...SHELF, mySongs: reg('srv-edit') };
+    expect(newSetlistBook(renamed, savableBooks(renamed, 'Untitled book'))).toBe('srv-edit');
+  });
+
+  it('is the first savable book when My songs is absent or not savable', () => {
+    const absent = { books: SHELF.books, local: {} };
+    expect(newSetlistBook(absent, savableBooks(absent, 'Untitled book'))).toBe('srv-own');
+    // My songs a reader book (never offered): the first savable one instead.
+    const readOnly = { books: SHELF.books, local: {}, mySongs: reg('srv-read') };
+    expect(newSetlistBook(readOnly, savableBooks(readOnly, 'Untitled book'))).toBe('srv-own');
+  });
+
+  it('is null with no savable book', () => {
+    const none = { books: { 'srv-read': SHELF.books['srv-read'] }, local: {} };
+    expect(newSetlistBook(none, savableBooks(none, 'Untitled book'))).toBe(null);
   });
 });
 

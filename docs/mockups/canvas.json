@@ -105,110 +105,110 @@
    "x": 0,
    "y": 20240,
    "w": 3208,
-   "h": 2500,
+   "h": 3880,
    "title": "12. Setlists"
   },
   "W13-new-device.dc.html": {
    "x": 0,
-   "y": 22860,
+   "y": 24240,
    "w": 3208,
    "h": 1500,
    "title": "13. A new device"
   },
   "W14-file-view.dc.html": {
    "x": 0,
-   "y": 24480,
+   "y": 25860,
    "w": 3208,
    "h": 1500,
    "title": "14. The file view"
   },
   "W16-chord-explorer.dc.html": {
    "x": 0,
-   "y": 26100,
+   "y": 27480,
    "w": 3208,
    "h": 1500,
    "title": "16. The chord explorer"
   },
   "W15-set-up-an-instrument.dc.html": {
    "x": 0,
-   "y": 27720,
+   "y": 29100,
    "w": 3208,
    "h": 1500,
    "title": "15. Setting up an instrument"
   },
   "Theme-picker.dc.html": {
    "x": 0,
-   "y": 29340,
+   "y": 30720,
    "w": 3208,
    "h": 1500,
    "title": "The theme picker"
   },
   "Screen-reader.dc.html": {
    "x": 0,
-   "y": 30960,
+   "y": 32340,
    "w": 3208,
    "h": 1500,
    "title": "How a screen reader reads a chart"
   },
   "W17-leaving.dc.html": {
    "x": 0,
-   "y": 32580,
+   "y": 33960,
    "w": 3208,
    "h": 1500,
    "title": "17. Leaving"
   },
   "Recovery-email.dc.html": {
    "x": 0,
-   "y": 34200,
+   "y": 35580,
    "w": 3208,
    "h": 1500,
    "title": "13 & 17. The recovery email"
   },
   "Leave-book.dc.html": {
    "x": 0,
-   "y": 35820,
+   "y": 37200,
    "w": 3208,
    "h": 1500,
    "title": "10. Leaving one book"
   },
   "Remove-from-shelf.dc.html": {
    "x": 0,
-   "y": 37440,
+   "y": 38820,
    "w": 3208,
    "h": 1500,
    "title": "7. Removing a book from the shelf"
   },
   "Sign-in.dc.html": {
    "x": 0,
-   "y": 39060,
+   "y": 40440,
    "w": 3208,
    "h": 1500,
    "title": "1 & 13. Signing in, or making an account"
   },
   "Open-a-book.dc.html": {
    "x": 0,
-   "y": 40680,
+   "y": 42060,
    "w": 3208,
    "h": 1500,
    "title": "7 & 14. A book opens on its songs"
   },
   "Format-help.dc.html": {
    "x": 0,
-   "y": 42300,
+   "y": 43680,
    "w": 3208,
    "h": 1500,
    "title": "3 & 4. Help with the format"
   },
   "Review-polish.dc.html": {
    "x": 0,
-   "y": 43920,
+   "y": 45300,
    "w": 3208,
    "h": 1500,
    "title": "2, 7 & 12. Polish from the usability review"
   },
   "Search-scope.dc.html": {
    "x": 0,
-   "y": 45540,
+   "y": 46920,
    "w": 3208,
    "h": 1500,
    "title": "2. Search within a book"

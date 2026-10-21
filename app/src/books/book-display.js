@@ -182,6 +182,40 @@ export function orderedBooks(shelf) {
 }
 
 /**
+ * The books a new setlist (or anything new) can be kept in: the shelf's books
+ * the user can save to (`canSaveFor` true — a local book, an owner or editor
+ * one), in shelf order, as `{ id, label }`. A reader-role book and a book whose
+ * role is unknown are left out. The label falls back to the caller's localized
+ * `untitled`. Pins workflow 12 §Building one ("every book the person can save
+ * to, and no other"), workflow 3 §Which book (books.setlist_making Constraint 2).
+ *
+ * @param {{ books?: Object, local?: Object }} shelf the `shelf` slice
+ * @param {string} untitled the localized *Untitled book*
+ * @returns {Array<{ id: string, label: string }>}
+ */
+export function savableBooks(shelf, untitled) {
+  return orderedBooks(shelf)
+    .filter((entry) => canSaveFor(entry.kind, entry.book) === true)
+    .map((entry) => ({ id: entry.id, label: titleFor(entry.book, untitled) }));
+}
+
+/**
+ * The book a new setlist starts in when nothing chose one (workflow 12
+ * §Building one; workflow 3 §Which book): *My songs*, found by id
+ * (`mySongsIdFor`, never by its label), when it is among the savable books,
+ * else the first savable book, else `null`.
+ *
+ * @param {{ books?: Object, local?: Object, mySongs?: Object }} shelf the `shelf` slice
+ * @param {Array<{ id: string }>} savable `savableBooks(shelf, …)`
+ * @returns {string | null}
+ */
+export function newSetlistBook(shelf, savable) {
+  const mine = mySongsIdFor(shelf);
+  if (mine && savable.some((b) => b.id === mine)) return mine;
+  return savable[0]?.id ?? null;
+}
+
+/**
  * A fork's `original` register value — `{ bookId, title, link, followedAt,
  * goneAt? }` (home-book-format §4.2) — or `null` for a book that is not a fork
  * (or whose register was tombstoned). Pins workflow 11 §What a fork is.

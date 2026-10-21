@@ -20,6 +20,16 @@
 :where(.setlists-screen) > * {
   flex-shrink: 0;
 }
+/* The tab's head (books.setlist_making; W12 phone #8): the title and *New
+   setlist…* on one row, in the shape of the Books tab's `.books-head`. */
+.setlists-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+}
+.setlists-head .setlists-new {
+  flex: none;
+}
 .setlists-empty {
   max-width: 48ch;
 }
@@ -264,4 +274,49 @@
 .setlist-with-panel > .scroll {
   flex: 1;
   min-width: 0;
+}
+
+/* The New setlist dialog's *Book* choice (books.setlist_making; W12 phone #9):
+   a RAC RadioGroup worn as the picker's own rows, the chosen one marked by the
+   accent check as well as its radio state. */
+.setlist-book-choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+}
+.setlist-book-radio {
+  position: relative;
+  cursor: default;
+}
+.setlist-book-radio[data-focus-visible] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* RAC renders each Radio's real <input> inside a visually-hidden <span> first
+   child, clipped to a 1px box, so a by-role click lands on the label behind it
+   and is swallowed. Lift the wrapper and its input over the whole row so the
+   radio is hit where it is seen (as .upload-target in upload-preview.css);
+   !important beats VisuallyHidden's inline styles. */
+.setlist-book-radio > span:first-child {
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  clip-path: none !important;
+}
+.setlist-book-radio > span:first-child input {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* The made step of Add to setlist (books.setlist_making Constraint 7; W12
+   tablet #10): the sentence saying where the song went. */
+.setlist-made {
+  font-weight: 600;
 }

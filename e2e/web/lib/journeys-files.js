@@ -193,21 +193,36 @@ export async function addToSetlistFromSearch(page, query, title) {
   await expect(page.getByRole('heading', { name: 'Add to setlist' })).toBeVisible();
 }
 
-// Add a song to a brand-new setlist.
-export async function addToNewSetlist(page, query, title, setlistName) {
+// After Create in Add to setlist's name dialog: the picker stays and says the
+// song is in the new setlist (books.setlist_making Constraint 7; workflow 12
+// §Building one), then Done — or, with `open`, Open setlist — closes it.
+// `checkA11y`, when given, runs on the made step.
+async function finishMadeStep(page, setlistName, { open = false, checkA11y } = {}) {
+  const dialog = page.getByRole('dialog', { name: 'Add to setlist' });
+  await expect(dialog.getByRole('status')).toContainText(`is in ${setlistName}.`);
+  await expect(dialog.getByRole('button', { name: 'Done', exact: true })).toBeFocused();
+  if (checkA11y) await checkA11y();
+  await dialog.getByRole('button', { name: open ? 'Open setlist' : 'Done', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Add to setlist' })).toBeHidden();
+  if (open) await expect(page.getByRole('heading', { level: 2, name: setlistName })).toBeVisible();
+}
+
+// Add a song to a brand-new setlist, from search.
+export async function addToNewSetlist(page, query, title, setlistName, { open = false, checkA11y } = {}) {
   await addToSetlistFromSearch(page, query, title);
   await page.getByRole('button', { name: 'New setlist…' }).click();
   await page.getByRole('textbox', { name: 'Setlist name' }).fill(setlistName);
   await page.getByRole('button', { name: 'Create' }).click();
-  await expect(page.getByRole('heading', { name: 'Add to setlist' })).toBeHidden();
+  await finishMadeStep(page, setlistName, { open, checkA11y });
 }
 
 // From a song open in the reading view: its ⋯ menu › Add to setlist (the same
 // on every device; the computer's row button is a shortcut to it) → New
 // setlist… → type the name WITHOUT clicking the field (the field has focus on
-// open, books.owner_can_save Constraint 4) → Create. `checkA11y`, when given,
-// runs on the picker and on the name dialog.
-export async function addToNewSetlistFromSong(page, title, setlistName, { checkA11y } = {}) {
+// open, books.owner_can_save Constraint 4) → Create → the made step's Done (or
+// Open setlist, with `open`). `checkA11y`, when given, runs on the picker, the
+// name dialog and the made step.
+export async function addToNewSetlistFromSong(page, title, setlistName, { checkA11y, open = false } = {}) {
   await expect(page.getByRole('group', { name: title }).first()).toBeVisible();
   const more = page.locator('.appbar.reading-chrome').getByRole('button', { name: 'More', exact: true });
   await more.first().click();
@@ -221,7 +236,26 @@ export async function addToNewSetlistFromSong(page, title, setlistName, { checkA
   await page.keyboard.type(setlistName);
   await expect(field).toHaveValue(setlistName);
   await page.getByRole('button', { name: 'Create' }).click();
-  await expect(page.getByRole('heading', { name: 'Add to setlist' })).toBeHidden();
+  await finishMadeStep(page, setlistName, { open, checkA11y });
+}
+
+// The Setlists tab's head › New setlist… (books.setlist_making; workflow 12
+// §Building one): the name typed into the focused field, `book` chosen in the
+// *Book* group when given (only asked with more than one savable book), Create
+// — the new setlist opens in its editor with *Add song* focused. `checkA11y`,
+// when given, runs on the dialog, before the book is chosen.
+export async function newSetlistFromTab(page, name, { book, checkA11y } = {}) {
+  await gotoTab(page, 'Setlists');
+  await page.getByRole('button', { name: 'New setlist…' }).click();
+  const field = page.getByRole('textbox', { name: 'Setlist name' });
+  await expect(field).toBeFocused();
+  await page.keyboard.type(name);
+  await expect(field).toHaveValue(name);
+  if (checkA11y) await checkA11y();
+  if (book) await page.getByRole('radiogroup', { name: 'Book' }).getByRole('radio', { name: book }).check();
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('dialog', { name: 'New setlist' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Add song', exact: true })).toBeFocused();
 }
 
 // Add a song to an existing setlist.

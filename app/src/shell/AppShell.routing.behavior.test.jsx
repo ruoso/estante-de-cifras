@@ -930,6 +930,96 @@ describe('AppShell setlist chrome on a phone (behavior)', () => {
 // returns to the book; on a tablet or a computer *Share* opens the people
 // screen; *Share* on a song is a panel beside the chart, the reading view still
 // there and not aria-hidden. The sharing client's `fetch` is a loopback double.
+// behavior (books.setlist_making; workflow 12 §Building one; W12 #8-11): a
+// setlist made from the Setlists tab opens in its editor on the Setlists tab at
+// its own address; one made from Add to setlist over a song opens, through
+// *Open setlist*, as a new place whose Back returns to the song (Constraint 8).
+describe('AppShell making a setlist (behavior)', () => {
+  const NEW_PATH = 'thursday-lesson.setlist.md';
+  const NEW_URL = `/b/b1/${NEW_PATH}`;
+
+  it('narrow, New setlist… → Create → FILE_CREATED mounts the new setlist’s editor on the Setlists tab at its address', async () => {
+    const { store, sent, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, SHELF));
+    fireEvent.click(screen.getByRole('tab', { name: 'Setlists' }));
+    emit(event(EventKind.SETLISTS, { setlists: [] }));
+    expect(
+      screen.getByText('No setlists yet. Make one with New setlist, or add a song to a setlist from search or the reading view.'),
+    ).toBeInTheDocument();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'New setlist…' })));
+    const name = await screen.findByRole('textbox', { name: 'Setlist name' });
+    await act(async () => fireEvent.change(name, { target: { value: 'Thursday lesson' } }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Create' })));
+    const create = sent.find((m) => m.kind === CommandKind.CREATE_FILE);
+    expect(create.payload).toEqual({ bookId: BOOK, kind: 'setlist', title: 'Thursday lesson' });
+
+    const before = history.length;
+    emit(event(EventKind.FILE_CREATED, { bookId: BOOK, path: NEW_PATH }));
+    emit(event(EventKind.TREE, { bookId: BOOK, entries: [...ENTRIES, { path: NEW_PATH, status: 'new' }] }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: NEW_PATH, text: '# Thursday lesson\n' }));
+    const panel = screen.getByRole('tabpanel', { name: 'Setlists' });
+    const addSong = within(panel).getByRole('button', { name: 'Add song' });
+    expect(within(panel).getByRole('button', { name: 'Done' })).toBeInTheDocument();
+    expect(within(panel).getByText('not saved yet')).toBeInTheDocument();
+    await waitFor(() => expect(addSong).toHaveFocus());
+    expect(screen.getByRole('tab', { name: 'Setlists' })).toHaveAttribute('aria-selected', 'true');
+    expect(location.pathname).toBe(NEW_URL);
+    expect(history.length).toBe(before + 1);
+    // Editing is not a place: the entry names the setlist only.
+    expect(history.state.place).toEqual({ tab: 'setlists', setlist: { bookId: BOOK, path: NEW_PATH } });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('narrow, from a song open in the reading view, Add to setlist → New setlist → Create → Open setlist shows the setlist; Back returns to the song', async () => {
+    const { store, sent, emit } = makeStore();
+    render(<AppShell store={store} />);
+    openSongFromSearch(emit);
+    emit(event(EventKind.TREE, { bookId: BOOK, entries: ENTRIES }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'More' })[0]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add to setlist' }));
+    emit(event(EventKind.SETLISTS, { setlists: [] }));
+    await act(async () => fireEvent.click(await screen.findByRole('button', { name: 'New setlist…' })));
+    const name = await screen.findByRole('textbox', { name: 'Setlist name' });
+    await act(async () => fireEvent.change(name, { target: { value: 'Gig Night' } }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Create' })));
+    const add = sent.find((m) => m.kind === CommandKind.ADD_TO_SETLIST);
+    expect(add.payload).toMatchObject({ targetBookId: BOOK, setlistPath: 'gig-night.setlist.md', newTitle: 'Gig Night' });
+    emit(
+      event(EventKind.SETLIST_UPDATED, {
+        bookId: BOOK,
+        setlistPath: 'gig-night.setlist.md',
+        path: SONG_PATH,
+        copied: false,
+      }),
+    );
+    expect(await screen.findByRole('status')).toHaveTextContent(`${SONG_TITLE} is in Gig Night.`);
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Open setlist' })));
+    const GIG = ['# Gig Night', '', `1. [${SONG_TITLE}](${SONG_PATH})`, ''].join('\n');
+    emit(
+      event(EventKind.TREE, {
+        bookId: BOOK,
+        entries: [...ENTRIES, { path: 'gig-night.setlist.md', status: 'new' }],
+      }),
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: 'gig-night.setlist.md', text: GIG }));
+    expect(screen.queryByRole('dialog', { name: 'Add to setlist' })).not.toBeInTheDocument();
+    // The song does not stay in front of the setlist.
+    expect(screen.queryByRole('group', { name: SONG_TITLE })).not.toBeInTheDocument();
+    const panel = screen.getByRole('tabpanel', { name: 'Setlists' });
+    expect(within(panel).getByRole('heading', { level: 2, name: 'Gig Night' })).toBeInTheDocument();
+    expect(within(panel).getAllByText('not saved yet').length).toBeGreaterThan(0);
+    expect(location.pathname).toBe('/b/b1/gig-night.setlist.md');
+
+    await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
+    await waitFor(() => expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument());
+    expect(location.pathname).toBe(SONG_URL);
+    expect(screen.queryByRole('heading', { level: 2, name: 'Gig Night' })).not.toBeInTheDocument();
+  });
+});
+
 describe('AppShell share surfaces (behavior)', () => {
   const OWNED = {
     books: {
