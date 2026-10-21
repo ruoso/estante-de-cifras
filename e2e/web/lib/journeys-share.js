@@ -215,6 +215,29 @@ export async function finishInvite(scope) {
   await scope.page().getByRole('button', { name: 'Done' }).click();
 }
 
+// The device's own share sheet, emulated (books.invite_send Decision 9): no
+// Chromium on the CI viewports exposes the Web Share API and Playwright cannot
+// emulate it, so this replaces `navigator.share` (and `canShare`) on the live
+// page — once the real UI got there — with a recorder of what it was handed.
+// It touches no app state, storage or network. `webShareCalls` reads it back.
+export async function stubWebShare(page) {
+  await page.evaluate(() => {
+    const calls = [];
+    window.__estanteWebShareCalls = calls;
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async (data) => {
+        calls.push({ ...data });
+      },
+    });
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+  });
+}
+
+export async function webShareCalls(page) {
+  return page.evaluate(() => window.__estanteWebShareCalls ?? []);
+}
+
 // Books → book → Share → people → New invitation → Done → Back. Returns the URL.
 //   role: 'Reader' | 'Editor'; expiry: 'A day' | 'A week' | 'A month' |
 //   'Until withdrawn'; limit: a number of uses.

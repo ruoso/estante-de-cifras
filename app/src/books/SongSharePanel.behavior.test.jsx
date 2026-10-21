@@ -7,7 +7,10 @@
 // back to Share on close (✕) and on Escape; the chart beside it stays in the
 // accessibility tree (no aria-hidden); the members' address with Copy; the
 // invitation to this song carrying `#<path>`; the People line "1 editor, 36
-// readers · 2 invitations" with *Manage*.
+// readers · 2 invitations" with *Manage*; while nobody but the owner is in the
+// book, the invitation first and the address after it, with Send on the made
+// link where the device can share (workflow 10 §Nobody in the book yet, §Sending
+// the link).
 
 import { useState } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -33,6 +36,18 @@ const inv = (id) => ({
   joinedCount: 0,
   withdrawn: false,
 });
+
+// Board W10 #9: the book just put online, nobody in it but its owner.
+function emptyClient() {
+  return makeClient({
+    'GET /api/books/bk/members': () => ({ body: { members: [ANA], count: 0, limit: 50 } }),
+    'GET /api/books/bk/invitations': () => ({ body: { invitations: [] } }),
+    'POST /api/books/bk/invitations': () => ({ status: 201, body: { ...inv('c'), url: 'https://estante.app/i/tok' } }),
+  });
+}
+
+// `a` comes before `b` in document order.
+const before = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 function ownerClient() {
   return makeClient({
@@ -94,6 +109,7 @@ beforeEach(() => setLocale('en'));
 afterEach(() => {
   setLocale('en');
   delete navigator.clipboard;
+  delete navigator.share;
 });
 
 describe('a song’s share panel (W10 #4)', () => {
@@ -151,6 +167,10 @@ describe('a song’s share panel (W10 #4)', () => {
     );
     expect(within(panel).getByText('Members open Carinhoso at its address.')).toBeInTheDocument();
     await within(panel).findByText('Expires in a week · no limit on uses');
+    // People in the book: the address first, then the invitation (the usual order).
+    expect(
+      before(within(panel).getByText('For people already in the book'), within(panel).getByText('Invite someone to this song')),
+    ).toBe(true);
     fireEvent.click(within(panel).getByRole('radio', { name: 'Editor' }));
     fireEvent.click(within(panel).getByRole('button', { name: 'Create link' }));
     const link = await within(panel).findByRole('textbox', { name: 'Invitation link' });
@@ -160,6 +180,44 @@ describe('a song’s share panel (W10 #4)', () => {
 
     fireEvent.click(within(panel).getByRole('button', { name: 'Manage' }));
     expect(onManage).toHaveBeenCalled();
+  });
+
+  it('for the owner of a book nobody has joined yet: the invitation leads, the address follows, and the made link has Send beside Copy (workflow 10 §Nobody in the book yet, §Sending the link)', async () => {
+    const share = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    const { container } = renderReading(emptyClient().client);
+    openPanel();
+    const panel = screen.getByRole('complementary', { name: 'Share Carinhoso' });
+
+    const heading = await within(panel).findByText('Invite someone to this song');
+    expect(before(heading, within(panel).getByText('For people already in the book'))).toBe(true);
+    expect(before(within(panel).getByRole('textbox', { name: 'Song address' }), within(panel).getByText('0 of 50'))).toBe(true);
+    expect(within(panel).getByText(/^Nobody yet/)).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.click(within(panel).getByRole('button', { name: 'Create link' }));
+    const link = await within(panel).findByRole('textbox', { name: 'Invitation link' });
+    const send = within(panel).getByRole('button', { name: 'Send' });
+    const copies = within(panel).getAllByRole('button', { name: 'Copy' });
+    // Send sits before the made link's Copy; the address's Copy follows below.
+    expect(before(link, send)).toBe(true);
+    expect(before(send, copies[0])).toBe(true);
+    expect(before(copies[0], within(panel).getByRole('textbox', { name: 'Song address' }))).toBe(true);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    fireEvent.click(send);
+    await waitFor(() => expect(share).toHaveBeenCalledWith({ url: 'https://estante.app/i/tok#choro/carinhoso.cifra.md' }));
+  });
+
+  it('while the people have not loaded, the address shows and comes first (workflow 10 §Nobody in the book yet; Constraints 6–7)', async () => {
+    const pending = { listMembers: () => new Promise(() => {}), listInvitations: () => new Promise(() => {}) };
+    renderReading(pending);
+    openPanel();
+    const panel = screen.getByRole('complementary', { name: 'Share Carinhoso' });
+
+    const address = within(panel).getByRole('textbox', { name: 'Song address' });
+    expect(before(address, within(panel).getByRole('status'))).toBe(true);
+    expect(within(panel).getByRole('status')).toHaveTextContent('Loading');
+    expect(within(panel).queryByText('Invite someone to this song')).toBeNull();
   });
 
   it('for a member: the address with Copy, no invitation', async () => {
@@ -270,6 +328,15 @@ describe('Share on a setlist, wide (workflow 10 §Sharing a song or a setlist)',
     const post = calls.find((c) => c.method === 'POST');
     expect(JSON.stringify(post.body)).not.toContain('setlist');
     expect(post.path).not.toContain('setlist');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('for the owner of a book nobody has joined yet: Invite someone to this setlist leads, the Setlist address follows (workflow 10 §Nobody in the book yet)', async () => {
+    const { container } = renderSetlistPanel(emptyClient().client);
+    const panel = screen.getByRole('complementary', { name: 'Share Lesson 3' });
+
+    const heading = await within(panel).findByText('Invite someone to this setlist');
+    expect(before(heading, within(panel).getByRole('textbox', { name: 'Setlist address' }))).toBe(true);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 

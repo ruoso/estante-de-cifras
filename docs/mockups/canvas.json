@@ -91,124 +91,124 @@
    "x": 0,
    "y": 17000,
    "w": 3208,
-   "h": 1500,
+   "h": 2540,
    "title": "10. Share"
   },
   "W11-fork.dc.html": {
    "x": 0,
-   "y": 18620,
+   "y": 19660,
    "w": 3208,
    "h": 1500,
    "title": "11. Fork"
   },
   "W12-setlists.dc.html": {
    "x": 0,
-   "y": 20240,
+   "y": 21280,
    "w": 3208,
    "h": 3880,
    "title": "12. Setlists"
   },
   "W13-new-device.dc.html": {
    "x": 0,
-   "y": 24240,
+   "y": 25280,
    "w": 3208,
    "h": 1500,
    "title": "13. A new device"
   },
   "W14-file-view.dc.html": {
    "x": 0,
-   "y": 25860,
+   "y": 26900,
    "w": 3208,
    "h": 1500,
    "title": "14. The file view"
   },
   "W16-chord-explorer.dc.html": {
    "x": 0,
-   "y": 27480,
+   "y": 28520,
    "w": 3208,
    "h": 1500,
    "title": "16. The chord explorer"
   },
   "W15-set-up-an-instrument.dc.html": {
    "x": 0,
-   "y": 29100,
+   "y": 30140,
    "w": 3208,
    "h": 1500,
    "title": "15. Setting up an instrument"
   },
   "Theme-picker.dc.html": {
    "x": 0,
-   "y": 30720,
+   "y": 31760,
    "w": 3208,
    "h": 1500,
    "title": "The theme picker"
   },
   "Screen-reader.dc.html": {
    "x": 0,
-   "y": 32340,
+   "y": 33380,
    "w": 3208,
    "h": 1500,
    "title": "How a screen reader reads a chart"
   },
   "W17-leaving.dc.html": {
    "x": 0,
-   "y": 33960,
+   "y": 35000,
    "w": 3208,
    "h": 1500,
    "title": "17. Leaving"
   },
   "Recovery-email.dc.html": {
    "x": 0,
-   "y": 35580,
+   "y": 36620,
    "w": 3208,
    "h": 1500,
    "title": "13 & 17. The recovery email"
   },
   "Leave-book.dc.html": {
    "x": 0,
-   "y": 37200,
+   "y": 38240,
    "w": 3208,
    "h": 1500,
    "title": "10. Leaving one book"
   },
   "Remove-from-shelf.dc.html": {
    "x": 0,
-   "y": 38820,
+   "y": 39860,
    "w": 3208,
    "h": 1500,
    "title": "7. Removing a book from the shelf"
   },
   "Sign-in.dc.html": {
    "x": 0,
-   "y": 40440,
+   "y": 41480,
    "w": 3208,
    "h": 1500,
    "title": "1 & 13. Signing in, or making an account"
   },
   "Open-a-book.dc.html": {
    "x": 0,
-   "y": 42060,
+   "y": 43100,
    "w": 3208,
    "h": 1500,
    "title": "7 & 14. A book opens on its songs"
   },
   "Format-help.dc.html": {
    "x": 0,
-   "y": 43680,
+   "y": 44720,
    "w": 3208,
    "h": 1500,
    "title": "3 & 4. Help with the format"
   },
   "Review-polish.dc.html": {
    "x": 0,
-   "y": 45300,
+   "y": 46340,
    "w": 3208,
    "h": 1500,
    "title": "2, 7 & 12. Polish from the usability review"
   },
   "Search-scope.dc.html": {
    "x": 0,
-   "y": 46920,
+   "y": 47960,
    "w": 3208,
    "h": 1500,
    "title": "2. Search within a book"
@@ -248,7 +248,7 @@
  "notes": {
   "workflows": {
    "x": 0,
-   "y": 2160,
+   "y": 3200,
    "text": "Workflows · phone, tablet, computer",
    "kind": "title1",
    "maxW": 3208

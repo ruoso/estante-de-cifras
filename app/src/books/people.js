@@ -60,6 +60,15 @@ export function memberSummary(members, { t, you = true }) {
   return parts.join(', ');
 }
 
+// Whether the owner's Share leads with inviting (workflow 10 §Nobody in the book
+// yet): only the owner, and only once the members have loaded with nobody
+// counted — the service's count is the members besides the owner. Pending
+// invitations do not change it: nobody has joined. While the members load, or
+// cannot (the caller passes null), the usual order holds.
+export function leadsWithInvite({ isOwner, members }) {
+  return isOwner === true && members != null && members.count === 0;
+}
+
 // Who joined through an invitation (W10 #3): nobody yet; one name alone; up to
 // four names after the count; beyond four, the first four "and {n} more".
 export function joinedSummary(invitation, members, { t, locale = 'en' }) {

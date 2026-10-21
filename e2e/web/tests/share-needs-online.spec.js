@@ -5,10 +5,18 @@
 // making an account. Runs on phone, tablet and computer (the projects); real
 // UI only — writeSongFromScratch, makeAccount and the surface's own buttons.
 // The song is written for this test.
+//
+// books.invite_send: right after Put online the book has nobody in it, so the
+// owner's Share leads with the invitation (workflow 10 §Nobody in the book
+// yet), and the made link goes out with Send where the device can share
+// (§Sending the link) — the platform's own answer pinned first, then the Web
+// Share API emulated on the live page (stubWebShare, Decision 9).
 
 import { test, expect, analyzeBothThemes } from '../lib/axe.js';
 import { startApp, gotoTab, enableVirtualAuthenticator, openSongFromSearch, makeAccount, openBookDetail } from '../lib/journeys.js';
 import { writeSongFromScratch, bookRow } from '../lib/journeys-account.js';
+import { stubWebShare, webShareCalls } from '../lib/journeys-share.js';
+import { mockup } from '../lib/mockup.js';
 
 const SONG_TITLE = 'Paper Lanterns';
 const SONG = [`# ${SONG_TITLE}`, '', '## Verse', '```', 'G  D | Em  C', '```', ''];
@@ -30,8 +38,8 @@ async function shareSong(page) {
     .or(page.getByRole('complementary', { name: `Share ${SONG_TITLE}` }));
 }
 
-test('Share on a song in My songs: only on this device, sign in, put online, then invite to the song', async ({ page }) => {
-  test.setTimeout(60000);
+test('Share on a song in My songs: only on this device, sign in, put online, then the invitation leads and the link is sent', async ({ page }) => {
+  test.setTimeout(90000);
   await enableVirtualAuthenticator(page);
   // Signed out, a song into this device's My songs.
   await writeSongFromScratch(page, SONG);
@@ -64,15 +72,55 @@ test('Share on a song in My songs: only on this device, sign in, put online, the
   const address = await addressBox.inputValue();
   const path = decodeURIComponent(address.replace(/^.*\/b\/[^/]+\//, ''));
   expect(path).toMatch(/\.cifra\.md$/);
-  if (onPhone()) await surface.getByRole('button', { name: 'Invite someone to this song' }).click();
-  const create = surface.getByRole('button', { name: 'Create link' });
-  await expect(create).toBeVisible();
-  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the owner's song share
 
+  // Nobody in the book yet: the invitation leads, the address follows it
+  // (workflow 10 §Nobody in the book yet) — the phone's invite button, the
+  // panel's Create link section.
+  const inviteButton = surface.getByRole('button', { name: 'Invite someone to this song' });
+  const create = surface.getByRole('button', { name: 'Create link' });
+  const inviteControl = onPhone() ? inviteButton : create;
+  await expect(inviteControl).toBeVisible();
+  await expect(surface.getByText('0 of 50').first()).toBeVisible();
+  const inviteBox = await inviteControl.boundingBox();
+  const addressAt = await addressBox.boundingBox();
+  expect(inviteBox.y).toBeLessThan(addressAt.y);
+  if (onPhone()) await mockup(page, 'W10-share', 7);
+  else await mockup(page, 'W10-share', 9, { note: 'panel, nobody yet' });
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the owner's song share, leading with the invitation
+
+  // The platform as it is, before any stub: where it cannot share (the CI
+  // viewports' Chromium), the made link has the field and Copy, no Send.
+  const platformShares = await page.evaluate(() => typeof navigator.share === 'function');
+  if (onPhone()) await inviteButton.click();
+  await expect(create).toBeVisible();
   await create.click();
-  const link = await surface.getByRole('textbox', { name: 'Invitation link' }).inputValue();
+  const linkBox = surface.getByRole('textbox', { name: 'Invitation link' });
+  const made = surface.locator('.est-sharing-created');
+  const link = await linkBox.inputValue();
   expect(link).toContain('/i/');
   expect(decodeURIComponent(link)).toContain(`#${path}`);
+  await expect(made.getByRole('button', { name: 'Copy', exact: true })).toBeVisible();
+  if (!platformShares) await expect(made.getByRole('button', { name: 'Send', exact: true })).toHaveCount(0);
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the made link, Copy alone
+  await page.getByRole('button', { name: 'Done' }).click();
+
+  // A device that can share: another link, now with Send beside Copy; Send
+  // hands the device's sheet exactly the link in the field (§Sending the link).
+  await stubWebShare(page);
+  if (onPhone()) await inviteButton.click();
+  await expect(create).toBeVisible();
+  await create.click();
+  const send = made.getByRole('button', { name: 'Send', exact: true });
+  await expect(send).toBeVisible();
+  await expect(made.getByRole('button', { name: 'Copy', exact: true })).toBeVisible();
+  const sent = await linkBox.inputValue();
+  expect(sent).toContain('/i/');
+  expect(decodeURIComponent(sent)).toContain(`#${path}`);
+  if (onPhone()) await mockup(page, 'W10-share', 8);
+  expect(await analyzeBothThemes(page)).toEqual([]); // axe: the made link with Send
+  await send.click();
+  await expect.poll(() => webShareCalls(page)).toEqual([{ url: sent }]);
+  await expect(send).toBeVisible(); // nothing claimed: Send still reads Send
   await page.getByRole('button', { name: 'Done' }).click();
 
   // The book went online private: its row is on Estante, its detail says private.

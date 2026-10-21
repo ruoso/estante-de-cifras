@@ -1,6 +1,6 @@
 // sharing-parts.jsx — the pieces every sharing surface shares (books.share_people;
 // workflow 10; board W10): the load of a book's members and invitations, the
-// worded refusal, the people count with its bar, and Copy / Copy link. The
+// worded refusal, the people count with its bar, Copy / Copy link, and Send. The
 // surfaces themselves are ShareSheet (#1), PeopleScreen (#3, #5, #6),
 // NewInvitation (#2) and SongSharePanel (#4).
 //
@@ -140,6 +140,48 @@ export function CopyLinkButton({ url, label = t('sharing.copyLink'), fieldLabel 
           <span className="t-small">{t('sharing.copyByHand')}</span>
         </TextField>
       ) : null}
+    </>
+  );
+}
+
+// Whether the device can hand a link to its own share sheet (the Web Share API),
+// read at render so a platform — or a test — that has it when the link appears
+// gets Send.
+function canShareLink(url) {
+  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') return false;
+  if (typeof navigator.canShare !== 'function') return true;
+  try {
+    return navigator.canShare({ url }) === true;
+  } catch {
+    return false;
+  }
+}
+
+// Send a made link through the device's own share sheet (workflow 10 §Sending
+// the link): only where the device can share, with the link and nothing else.
+// The app cannot know whether anything went, so a share that resolves — or one
+// the person closes (AbortError) — says nothing; any other refusal reads
+// *Couldn't send*, announced through a polite live region, and a later press
+// tries again.
+export function SendLinkButton({ url, className = 'btn' }) {
+  const [failed, setFailed] = useState(false);
+  if (!canShareLink(url)) return null;
+  const send = async () => {
+    setFailed(false);
+    try {
+      await navigator.share({ url });
+    } catch (error) {
+      if (error?.name !== 'AbortError') setFailed(true);
+    }
+  };
+  return (
+    <>
+      <Button className={className} onPress={send}>
+        {failed ? t('sharing.couldNotSend') : t('sharing.send')}
+      </Button>
+      <span className="est-sr" aria-live="polite">
+        {failed ? t('sharing.couldNotSend') : ''}
+      </span>
     </>
   );
 }

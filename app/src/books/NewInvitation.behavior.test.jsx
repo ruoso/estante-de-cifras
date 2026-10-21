@@ -6,7 +6,8 @@
 // Pins: the room callout "Choros da Ana has room for 13 more people. …"; on a
 // full book the conflict notice with *Create link* still enabled (books.share
 // Decision 5); the role, the expiry (a week by default) and the use limit in
-// the request; the made link with Copy, and Done.
+// the request; the made link with Copy, and Done; and Send beside Copy where the
+// device can share (workflow 10 §Sending the link).
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -48,6 +49,8 @@ beforeEach(() => setLocale('en'));
 afterEach(() => {
   setLocale('en');
   delete navigator.clipboard;
+  delete navigator.share;
+  delete navigator.canShare;
 });
 
 describe('the New invitation screen (W10 #2)', () => {
@@ -111,5 +114,91 @@ describe('the New invitation screen (W10 #2)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(onBack).toHaveBeenCalled();
     expect(calls.some((x) => x.method === 'POST')).toBe(false);
+  });
+});
+
+describe('the made link: Send where the device can share (workflow 10 §Sending the link)', () => {
+  const stubShare = (share, canShare) => {
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    if (canShare) Object.defineProperty(navigator, 'canShare', { value: canShare, configurable: true });
+  };
+  const makeLink = async () => {
+    const { client: c } = client();
+    const view = renderScreen(c);
+    await screen.findByText(/has room for 13 more people/);
+    fireEvent.click(screen.getByRole('button', { name: 'Create link' }));
+    const field = await screen.findByRole('textbox', { name: 'Invitation link' });
+    return { ...view, field };
+  };
+  const liveText = (container) =>
+    [...container.querySelectorAll('.est-sr[aria-live="polite"]')].map((n) => n.textContent).join('');
+
+  it('with no Web Share API, shows the field, Copy and Done, and no Send', async () => {
+    expect(navigator.share).toBeUndefined();
+    const { container, field } = await makeLink();
+    expect(field).toHaveValue('https://estante.app/i/tok123');
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('with the API, shows Send before Copy, and Send hands the share sheet exactly the link, claiming nothing (Constraints 1–4)', async () => {
+    const share = vi.fn(async () => {});
+    stubShare(share);
+    const { container, field } = await makeLink();
+    const send = screen.getByRole('button', { name: 'Send' });
+    const copyBtn = screen.getByRole('button', { name: 'Copy' });
+    // Field, then Send, then Copy — the Tab order — and Done stays the primary.
+    expect(field.compareDocumentPosition(send) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(send.compareDocumentPosition(copyBtn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(send).not.toHaveClass('primary');
+    expect(copyBtn).not.toHaveClass('primary');
+    expect(screen.getByRole('button', { name: 'Done' })).toHaveClass('primary');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.click(send);
+    await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+    expect(share).toHaveBeenCalledWith({ url: field.value });
+    await Promise.resolve();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+    expect(liveText(container)).toBe('');
+  });
+
+  it('where canShare refuses the link, shows no Send', async () => {
+    stubShare(
+      vi.fn(async () => {}),
+      vi.fn(() => false),
+    );
+    await makeLink();
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+  });
+
+  it('a closed sheet (AbortError) says nothing; any other refusal says Couldn’t send, and the link stays to copy (Constraint 3)', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const share = vi
+      .fn()
+      .mockRejectedValueOnce(new DOMException('closed', 'AbortError'))
+      .mockRejectedValueOnce(new DOMException('not allowed', 'NotAllowedError'));
+    stubShare(share);
+    const { container, field } = await makeLink();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+    expect(liveText(container)).toBe('');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByRole('button', { name: 'Couldn’t send' })).toBeInTheDocument();
+    expect(share).toHaveBeenCalledTimes(2);
+    expect(liveText(container)).toBe('Couldn’t send');
+    expect(field).toHaveValue('https://estante.app/i/tok123');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://estante.app/i/tok123'));
   });
 });

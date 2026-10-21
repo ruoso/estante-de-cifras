@@ -25,7 +25,7 @@ import { Button } from 'react-aria-components';
 
 import { t } from '../i18n/index.js';
 import { bookSongPath } from './book-route.js';
-import { memberSummary, personLabel } from './people.js';
+import { leadsWithInvite, memberSummary, personLabel } from './people.js';
 import { CreatedLink, InvitationForm, useCreateInvitation } from './NewInvitation.jsx';
 import { SongAddress, itemShareCopy } from './ShareSheet.jsx';
 import ShareNeedsOnline from './ShareNeedsOnline.jsx';
@@ -130,21 +130,29 @@ function HostedSongShare({ bookId, title, role, itemKind, songPath, songName, sh
     ? `${memberSummary(members?.members ?? [], { t, you: false })} · ${t('sharing.invitationsCount', { count: invCount })}`
     : (members?.members ?? []).map((m) => personLabel(m, { t })).join(', ');
 
+  // While nobody but the owner is in the book, the invite comes straight after
+  // the opening line and the address follows it (workflow 10 §Nobody in the
+  // book yet); while the people load, or cannot, the address comes first.
+  const leads = leadsWithInvite({ isOwner, members: loadError ? null : members });
+  const address = (
+    <SongAddress
+      songAddress={`${base}${bookSongPath(bookId, songPath)}`}
+      songTitle={songName}
+      addressLabel={copy.addressLabel}
+    />
+  );
+
   return (
     <>
       <p className="t-small">{copy.intro}</p>
-      <SongAddress
-        songAddress={`${base}${bookSongPath(bookId, songPath)}`}
-        songTitle={songName}
-        addressLabel={copy.addressLabel}
-      />
+      {leads ? null : address}
       {loadError || members == null ? (
         <LoadState error={loadError} onRetry={reload} />
       ) : (
         <>
           {isOwner ? (
             <>
-              <div className="est-sharing-rule" />
+              {leads ? null : <div className="est-sharing-rule" />}
               <div className="t-h3">{copy.invite}</div>
               <p className="t-small">{copy.inviteBody}</p>
               {creating.error ? (
@@ -165,6 +173,12 @@ function HostedSongShare({ bookId, title, role, itemKind, songPath, songName, sh
                   onCreate={creating.create}
                 />
               )}
+            </>
+          ) : null}
+          {leads ? (
+            <>
+              <div className="est-sharing-rule" />
+              {address}
             </>
           ) : null}
           <div className="est-sharing-rule" />

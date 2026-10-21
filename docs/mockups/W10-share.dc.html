@@ -13,11 +13,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
 <style>body{margin:0}</style>
 </helmet>
-<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 2540px">
   <div class="board-head">
     <div class="board-num">Workflow 10</div>
     <h1 class="board-title">Share</h1>
-    <p class="board-sub">A book on Estante starts private, and nobody opens it without an account. Its owner invites people by link, as readers or editors, up to fifty per book; the owner sees who joined through each invitation, and can remove anyone alone.</p>
+    <p class="board-sub">A book on Estante starts private, and nobody opens it without an account. Its owner invites people by link, as readers or editors, up to fifty per book; the owner sees who joined through each invitation, and can remove anyone alone. A made link goes out with Send where the device can share, or Copy; a book nobody has joined yet leads with the invitation.</p>
   </div>
 
   <div class="devices">
@@ -255,9 +255,155 @@
       </div>
     </div>
   </div>
+  <div class="devices" style="margin-top: 60px">
+    <!-- Phones: Share on a song just after Put online, nobody in the book yet;
+         then the made link, with Send where the device can share -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · Share on a song just put online, nobody in the book yet: the invitation leads; then the made link, with Send and Copy</div>
+      <div class="dev-pair">
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Carinhoso</span>
+              <button class="btn icon" aria-label="More"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+            </div>
+            <div class="scroll" style="gap: 12px">
+              <span class="t-small">Choros da Ana · choro/</span>
+              <div class="chart">
+                  <sc-for list="{{chartCarinhosoPhone}}" as="l" hint-placeholder-count="6">
+                    <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ true }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                  </sc-for>
+                </div>
+            </div>
+          </div>
+          <div class="scrim">
+            <div class="sheet">
+              <div class="grip"></div>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <span class="t-h2" style="flex: 1">Share Carinhoso</span>
+                <button class="btn icon" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+              </div>
+              <p class="t-small">A song is shared with its book, Choros da Ana. Only people you invite can open it, each with their own account.</p>
+              <p class="t-small">Invite people to read or edit this book — up to 50 people.</p>
+              <button class="btn primary block">Invite someone to this song</button>
+              <div class="t-h3">For people already in the book</div>
+              <p class="t-small">Members open Carinhoso at its address.</p>
+              <div style="display: flex; gap: 8px">
+                <div class="input" style="flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; font-size: 13px; color: var(--ink-2)">{{songLink}}</div>
+                <button class="btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Copy</button>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <div style="display: flex; align-items: baseline; gap: 8px"><span class="t-h3" style="flex: 1">People</span><span style="font-weight: 700">0 of 50</span></div>
+                <div class="bar"><div style="width: 0%"></div></div>
+                <span class="t-small">Room for 50 more.</span>
+              </div>
+              <a class="row" href="#" style="padding: 4px 0; border: 0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg><span class="grow"><span class="name">Members</span><span class="meta">You</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></a>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Carinhoso</span>
+              <button class="btn icon" aria-label="More"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></button>
+            </div>
+            <div class="scroll" style="gap: 12px">
+              <span class="t-small">Choros da Ana · choro/</span>
+              <div class="chart">
+                  <sc-for list="{{chartCarinhosoPhone}}" as="l" hint-placeholder-count="6">
+                    <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ true }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                  </sc-for>
+                </div>
+            </div>
+          </div>
+          <div class="scrim">
+            <div class="sheet">
+              <div class="grip"></div>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <span class="t-h2" style="flex: 1">Share Carinhoso</span>
+                <button class="btn icon" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+              </div>
+              <p class="t-small">Here is the link. Send it however you like; you can copy it again while it can let someone in.</p>
+              <div class="input" style="min-width: 0; overflow: hidden; white-space: nowrap; font-size: 13px; color: var(--ink-2)">{{inviteLink}}</div>
+              <div style="display: flex; gap: 8px"><button class="btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v12M7 8l5-5 5 5"></path></svg>Send</button><button class="btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Copy</button></div>
+              <div class="actions"><button class="btn primary">Done</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Computer: the song's panel for the same empty book, the made link in it -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · the same song's panel, nobody in the book yet: the invitation and its made link first, the members' address after</div>
+      <div class="dev desktop">
+        <div class="split">
+          <div class="pane side" style="width: 260px">
+            <div style="padding: 18px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; align-items: center; gap: 8px"><span class="t-h1" style="flex: 1">Estante</span><span class="chip accent">Guitar</span></div>
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span class="scope">Choros da Ana</span></div>
+            </div>
+            <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+              <div class="list">
+                <a class="row" href="#"><span class="grow"><span class="name">Brejeiro</span><span class="meta">choro/</span></span></a>
+                <a class="row sel" href="#"><span class="grow"><span class="name">Carinhoso</span><span class="meta">choro/</span></span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Doce de Coco</span><span class="meta">choro/</span></span></a>
+                <a class="row" href="#"><span class="grow"><span class="name">Lamentos</span><span class="meta">choro/</span></span></a>
+              </div>
+            </div>
+          </div>
+          <div class="pane main">
+            <div class="appbar" style="padding: 14px 24px">
+              <span class="title">Carinhoso</span>
+              <button class="btn">Edit</button>
+              <button class="btn">History</button>
+              <button class="btn primary">Share</button>
+            </div>
+            <div style="display: flex; flex: 1; min-height: 0">
+              <div class="scroll" style="padding: 20px 28px; gap: 12px">
+                <span class="t-small">Choros da Ana · choro/</span>
+                <div class="chart">
+                  <sc-for list="{{chartCarinhoso}}" as="l" hint-placeholder-count="6">
+                    <sc-if value="{{l.isSec}}" hint-placeholder-val="{{ false }}"><div class="sec-name">{{l.text}}</div></sc-if>
+                    <sc-if value="{{l.isBars}}" hint-placeholder-val="{{ true }}"><div class="barline {{l.cls}}"><sc-for list="{{l.ms}}" as="ms" hint-placeholder-count="4"><span class="m">{{ms.cs}}</span></sc-for></div></sc-if>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="width: 400px; flex: none; border-left: 1px solid var(--line); background: var(--surface); padding: 18px 22px; display: flex; flex-direction: column; gap: 12px; overflow: hidden">
+                <div style="display: flex; align-items: center; gap: 8px"><span class="t-h2" style="flex: 1">Share Carinhoso</span><button class="btn icon" aria-label="Close" style="min-height: 32px; width: 32px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+                <p class="t-small">A song is shared with its book, Choros da Ana. Only people you invite can open it, each with their own account.</p>
+                <div class="t-h3">Invite someone to this song</div>
+                <p class="t-small">The invitation brings them into Choros da Ana, and opens on Carinhoso once they've signed in.</p>
+                <p class="t-small">Here is the link. Send it however you like; you can copy it again while it can let someone in.</p>
+                <div class="input" style="min-width: 0; overflow: hidden; white-space: nowrap; font-size: 13px; color: var(--ink-2)">{{inviteLink}}</div>
+                <div style="display: flex; gap: 8px"><button class="btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v12M7 8l5-5 5 5"></path></svg>Send</button><button class="btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Copy</button></div>
+                <div class="actions"><button class="btn primary">Done</button></div>
+                <div style="border-top: 1px solid var(--line)"></div>
+                <div class="t-h3">For people already in the book</div>
+              <p class="t-small">Members open Carinhoso at its address.</p>
+              <div style="display: flex; gap: 8px">
+                <div class="input" style="flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; font-size: 13px; color: var(--ink-2)">{{songLink}}</div>
+                <button class="btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Copy</button>
+              </div>
+                <div style="border-top: 1px solid var(--line)"></div>
+                <div style="display: flex; align-items: baseline; gap: 8px"><span class="t-h3" style="flex: 1">People</span><span style="font-weight: 700">0 of 50</span></div>
+                <div class="bar"><div style="width: 0%"></div></div>
+                <div style="display: flex; align-items: center; gap: 8px"><span class="t-small" style="flex: 1">Nobody yet · 1 invitation</span><button class="btn quiet" style="min-height: 32px; padding: 0 4px">Manage</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":2540}}'>
 class Component extends DCLogic {
   renderVals() {
     const segsOf = (chords, words) => {
@@ -284,6 +430,7 @@ class Component extends DCLogic {
       theme: this.props.theme ?? 'current',
       density: this.props.density ?? 'comfortable',
       songLink: 'estantedecifras.app/b/choros-da-ana/choro/carinhoso.cifra.md',
+      inviteLink: 'estantedecifras.app/i/k7Qm2xR9#choro/carinhoso.cifra.md',
       expiry: [
         { label: 'A day', on: false },
         { label: 'A week', on: true },
@@ -305,6 +452,18 @@ class Component extends DCLogic {
       invitesShort: [
         { title: 'Reader invitation · 2 Oct', short: 'open until 9 Oct · 36 joined' },
         { title: 'Editor invitation · 28 Sep', short: '1 use, used · Marina Costa joined' },
+      ],
+      // The phone's narrow chart: two bars to a line.
+      chartCarinhosoPhone: [
+        L.sec('Primeira parte'),
+        L.bars('F | F'),
+        L.bars('C7 | C7'),
+        L.bars('D♭7 | C7'),
+        L.bars('F | F'),
+        L.bars('B♭ | B♭m'),
+        L.bars('F | D7'),
+        L.bars('Gm | C7'),
+        L.bars('F | %'),
       ],
       chartCarinhoso: [
         L.sec('Primeira parte'),

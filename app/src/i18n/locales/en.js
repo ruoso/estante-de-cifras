@@ -406,6 +406,8 @@ export default {
     copyLink: 'Copy link',
     copied: 'Copied',
     couldNotCopy: 'Couldn’t copy',
+    send: 'Send',
+    couldNotSend: 'Couldn’t send',
     copyByHand: 'Select the link and copy it.',
     done: 'Done',
     inviteRowTitle: '{role} invitation',

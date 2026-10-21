@@ -7,7 +7,10 @@
 // readers" leading to the people screen; the invitation rows "open until … · 36
 // joined" / "1 use, used · Marina Costa joined"; *Invite people* leading to the
 // New invitation screen; a song's sheet — the owner's *Invite someone to this
-// song* (the link carries `#<path>`), a member's address with Copy.
+// song* (the link carries `#<path>`), a member's address with Copy; and, while
+// nobody but the owner is in the book, the owner's sheet leading with the
+// invitation, with Send on the made link where the device can share (workflow
+// 10 §Nobody in the book yet, §Sending the link).
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
@@ -50,6 +53,19 @@ const EDITOR_INV = {
   withdrawn: false,
 };
 
+// Board W10 #7: the book just put online, nobody in it but its owner.
+const EMPTY = { members: [ANA], count: 0, limit: 50 };
+function emptyClient(over = {}) {
+  return makeClient({
+    'GET /api/books/bk/members': () => ({ body: EMPTY }),
+    'GET /api/books/bk/invitations': () => ({ body: { invitations: [] } }),
+    ...over,
+  });
+}
+
+// `a` comes before `b` in document order.
+const before = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
 function ownerClient(over = {}) {
   return makeClient({
     'GET /api/books/bk/members': () => ({ body: MEMBERS }),
@@ -79,6 +95,7 @@ beforeEach(() => setLocale('en'));
 afterEach(() => {
   setLocale('en');
   delete navigator.clipboard;
+  delete navigator.share;
 });
 
 describe('a book’s Share sheet (W10 #1)', () => {
@@ -103,12 +120,30 @@ describe('a book’s Share sheet (W10 #1)', () => {
     expect(container.ownerDocument.body.textContent).not.toMatch(UUID);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
+    // With people in the book, Invite people keeps its place after the Members
+    // row (workflow 10 §Nobody in the book yet: the usual order).
+    expect(before(members, within(sheet).getByRole('button', { name: 'Invite people' }))).toBe(true);
+
     fireEvent.click(members);
     expect(onOpenPeople).toHaveBeenCalledTimes(1);
     fireEvent.click(readerRow);
     expect(onOpenPeople).toHaveBeenCalledTimes(2);
     fireEvent.click(within(sheet).getByRole('button', { name: 'Invite people' }));
     expect(onNewInvitation).toHaveBeenCalled();
+  });
+
+  it('for the owner of a book nobody has joined yet, Invite people comes before the People count (workflow 10 §Nobody in the book yet)', async () => {
+    const { container } = renderSheet(emptyClient().client);
+
+    const sheet = await screen.findByRole('dialog', { name: 'Share Choros da Ana' });
+    const count = await within(sheet).findByText('0 of 50');
+    const invite = within(sheet).getByRole('button', { name: 'Invite people' });
+    const intro = within(sheet).getByText('Only people you invite can open this book, each with their own account.');
+    expect(before(intro, invite)).toBe(true);
+    expect(before(invite, count)).toBe(true);
+    expect(before(count, within(sheet).getByRole('button', { name: /^Members/ }))).toBe(true);
+    expect(within(sheet).getByRole('button', { name: /^Members/ })).toHaveTextContent('You');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
   it('the header is the shared sheet head: title, the role chip, then Close last (W10 #1 L45-49)', async () => {
@@ -197,6 +232,14 @@ describe('a song’s Share sheet on a phone (workflow 10 §Sharing a song)', () 
     expect(await within(sheet).findByRole('textbox', { name: 'Song address' })).toHaveValue(
       'https://estante.app/b/bk/choro/carinhoso.cifra.md',
     );
+    // People in the book: the address first, the invite after (the usual order).
+    await within(sheet).findByText('37 of 50');
+    expect(
+      before(
+        within(sheet).getByRole('textbox', { name: 'Song address' }),
+        within(sheet).getByRole('button', { name: 'Invite someone to this song' }),
+      ),
+    ).toBe(true);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Invite someone to this song' }));
@@ -205,6 +248,58 @@ describe('a song’s Share sheet on a phone (workflow 10 §Sharing a song)', () 
     const link = await within(sheet).findByRole('textbox', { name: 'Invitation link' });
     expect(link).toHaveValue('https://estante.app/i/tok#choro/carinhoso.cifra.md');
     expect(calls.find((c) => c.method === 'POST').body).toEqual({ role: 'reader', expiry: 'week' });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('for the owner of a book nobody has joined yet: the invitation leads, and its link goes out with Send carrying #<path> (workflow 10 §Nobody in the book yet, §Sending the link)', async () => {
+    const share = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    const { client } = emptyClient({
+      'POST /api/books/bk/invitations': () => ({
+        status: 201,
+        body: { ...READER_INV, id: 'i-new', joined: [], joinedCount: 0, url: 'https://estante.app/i/tok' },
+      }),
+    });
+    const { container } = renderSheet(client, {
+      songPath: SONG_PATH,
+      songTitle: 'Carinhoso',
+      origin: 'https://estante.app',
+    });
+
+    const sheet = await screen.findByRole('dialog', { name: 'Share Carinhoso' });
+    const invite = await within(sheet).findByRole('button', { name: 'Invite someone to this song' });
+    const address = within(sheet).getByRole('textbox', { name: 'Song address' });
+    expect(before(invite, address)).toBe(true);
+    expect(before(address, within(sheet).getByText('0 of 50'))).toBe(true);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    fireEvent.click(invite);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Create link' }));
+    const link = await within(sheet).findByRole('textbox', { name: 'Invitation link' });
+    expect(link).toHaveValue('https://estante.app/i/tok#choro/carinhoso.cifra.md');
+    const send = within(sheet).getByRole('button', { name: 'Send' });
+    expect(before(send, within(sheet).getByRole('button', { name: 'Copy' }))).toBe(true);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    fireEvent.click(send);
+    await waitFor(() => expect(share).toHaveBeenCalledWith({ url: 'https://estante.app/i/tok#choro/carinhoso.cifra.md' }));
+    expect(share).toHaveBeenCalledTimes(1);
+  });
+
+  it('for a reader, even of a book whose members count none: the usual order, the address first, no invite (Constraint 6)', async () => {
+    const { client } = makeClient({
+      'GET /api/books/bk/members': () => ({ body: EMPTY }),
+    });
+    const { container } = renderSheet(client, {
+      role: 'reader',
+      songPath: SONG_PATH,
+      songTitle: 'Carinhoso',
+      origin: 'https://estante.app',
+    });
+
+    const sheet = await screen.findByRole('dialog', { name: 'Share Carinhoso' });
+    const count = await within(sheet).findByText('0 of 50');
+    expect(before(within(sheet).getByRole('textbox', { name: 'Song address' }), count)).toBe(true);
+    expect(within(sheet).queryByRole('button', { name: 'Invite someone to this song' })).toBeNull();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
@@ -298,6 +393,15 @@ describe('a setlist’s Share sheet on a phone', () => {
     expect(await within(sheet).findByRole('textbox', { name: 'Setlist address' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Invite someone to this setlist' })).toBeInTheDocument();
     expect(within(sheet).queryByRole('textbox', { name: 'Invitation link' })).toBeNull();
+  });
+
+  it('for the owner of a book nobody has joined yet: Invite someone to this setlist comes before the Setlist address (workflow 10 §Nobody in the book yet)', async () => {
+    const { container } = renderSheet(emptyClient().client, SETLIST);
+
+    const sheet = await screen.findByRole('dialog', { name: 'Share Lesson 3' });
+    const invite = await within(sheet).findByRole('button', { name: 'Invite someone to this setlist' });
+    expect(before(invite, within(sheet).getByRole('textbox', { name: 'Setlist address' }))).toBe(true);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
   it('for a reader: the setlist’s address, no invite', async () => {

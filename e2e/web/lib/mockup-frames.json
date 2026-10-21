@@ -516,6 +516,24 @@
   "label": "Computer · Share on a song: an invitation that opens on that song, and its plain address for members"
  },
  {
+  "board": "W10-share",
+  "index": 7,
+  "kind": "phone",
+  "label": "Phone · Share on a song just put online, nobody in the book yet: the invitation leads; then the made link, with Send and Copy"
+ },
+ {
+  "board": "W10-share",
+  "index": 8,
+  "kind": "phone",
+  "label": "Phone · Share on a song just put online, nobody in the book yet: the invitation leads; then the made link, with Send and Copy"
+ },
+ {
+  "board": "W10-share",
+  "index": 9,
+  "kind": "desktop",
+  "label": "Computer · the same song's panel, nobody in the book yet: the invitation and its made link first, the members' address after"
+ },
+ {
   "board": "W11-fork",
   "index": 1,
   "kind": "phone",

@@ -27,7 +27,7 @@ import { Button, Dialog, Heading, Input, Modal, ModalOverlay, TextField } from '
 
 import { currentLocale, t } from '../i18n/index.js';
 import { bookSongPath } from './book-route.js';
-import { invitationShort, invitationTitle, memberSummary, personLabel } from './people.js';
+import { invitationShort, invitationTitle, leadsWithInvite, memberSummary, personLabel } from './people.js';
 import ShareNeedsOnline from './ShareNeedsOnline.jsx';
 import { CreatedLink, InvitationForm, useCreateInvitation } from './NewInvitation.jsx';
 import { ChevronIcon, CloseIcon, CopyLinkButton, LoadState, PeopleBar, errorCopy, useSharing } from './sharing-parts.jsx';
@@ -224,20 +224,39 @@ function HostedShareBody({ bookId, title, role, itemKind, songPath, songName, sh
       </>
     );
   } else {
+    // While nobody but the owner is in the book, the invite comes straight
+    // after the opening line, above the address and the people (workflow 10
+    // §Nobody in the book yet); otherwise the usual order.
+    const leads = leadsWithInvite({ isOwner, members });
+    const address = songPath ? (
+      <SongAddress
+        songAddress={`${base}${bookSongPath(bookId, songPath)}`}
+        songTitle={songName}
+        addressLabel={copy.addressLabel}
+      />
+    ) : null;
+    const invite = isOwner ? (
+      <Button
+        className="btn primary block est-sharing-invite-btn"
+        onPress={() => (songPath ? setSongInviting(true) : onNewInvitation())}
+      >
+        {songPath ? copy.invite : t('sharing.invitePeople')}
+      </Button>
+    ) : null;
     body = (
       <>
-        {songPath ? (
-          <SongAddress
-            songAddress={`${base}${bookSongPath(bookId, songPath)}`}
-            songTitle={songName}
-            addressLabel={copy.addressLabel}
-          />
-        ) : null}
+        {leads ? null : address}
         <p className="t-small">{intro}</p>
         {/* The limit, told to whoever invites (books.put_online_confirm
             Constraint 6; workflow 10 §At most fifty): the owner, from a book,
             song or setlist share alike — every invitation joins the book. */}
         {isOwner ? <p className="t-small">{t('sharing.limitHint')}</p> : null}
+        {leads ? (
+          <>
+            {invite}
+            {address}
+          </>
+        ) : null}
         <PeopleBar count={members.count} limit={members.limit} bookTitle={title} />
         <NavRow
           icon={<PersonIcon />}
@@ -265,14 +284,7 @@ function HostedShareBody({ bookId, title, role, itemKind, songPath, songName, sh
             )}
           </>
         ) : null}
-        {isOwner ? (
-          <Button
-            className="btn primary block est-sharing-invite-btn"
-            onPress={() => (songPath ? setSongInviting(true) : onNewInvitation())}
-          >
-            {songPath ? copy.invite : t('sharing.invitePeople')}
-          </Button>
-        ) : null}
+        {leads ? null : invite}
       </>
     );
   }

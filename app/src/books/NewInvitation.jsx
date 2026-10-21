@@ -35,7 +35,7 @@ import {
 import { t } from '../i18n/index.js';
 import { invitationSongLink } from './book-route.js';
 import { roomLeft } from './people.js';
-import { BackIcon, CopyLinkButton, errorCopy, useSharing } from './sharing-parts.jsx';
+import { BackIcon, CopyLinkButton, errorCopy, SendLinkButton, useSharing } from './sharing-parts.jsx';
 import './sharing.css';
 
 const EXPIRY_CHOICES = ['day', 'week', 'month', 'until-withdrawn'];
@@ -191,7 +191,8 @@ export function InvitationForm({ bookTitle, count = null, limit = 50, busy = fal
   );
 }
 
-// The made link, with Copy and Done. A song's invitation carries the song as a
+// The made link, with Send (where the device can share), Copy and Done
+// (workflow 10 §Sending the link). A song's invitation carries the song as a
 // client-only `#<path>` fragment (books.share Decision 2).
 export function CreatedLink({ link, onDone }) {
   return (
@@ -203,7 +204,10 @@ export function CreatedLink({ link, onDone }) {
         <TextField className="field grow" value={link} aria-label={t('sharing.linkLabel')}>
           <Input className="input" readOnly />
         </TextField>
-        <CopyLinkButton url={link} label={t('sharing.copy')} byHand={false} />
+        <div className="est-sharing-linkbtns">
+          <SendLinkButton url={link} />
+          <CopyLinkButton url={link} label={t('sharing.copy')} byHand={false} />
+        </div>
       </div>
       <div className="actions">
         <Button className="btn primary" onPress={onDone}>

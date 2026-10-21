@@ -48,6 +48,16 @@ By link, not by email address: the owner makes an invitation for a role, and
 sends it however they like. The service holds nobody's address before they
 have agreed to anything.
 
+**Sending the link.** Once a link is made it sits in a field with **Copy**
+beside it, and — where the device can hand a link to its own share sheet
+(the Web Share API: most phones and tablets, some computers) — **Send** too,
+first. *Send* opens the device's sheet with the link, so a teacher on a phone
+picks the class's chat without copying and switching apps; the app still
+sends nothing itself and never learns where it went, so it says nothing when
+the sheet closes. If the device refuses, *Send* says *Couldn't send* and the
+link stays there to copy. A device that cannot share shows *Copy* alone, as
+before.
+
 **One invitation may be used by many people.** A teacher sends one link to a
 whole class, a band one link to the band.
 
@@ -199,6 +209,17 @@ surface (workflow 13 §Signing in, or making an account) and comes back to
 the same panel, where *Put online* is then one more press. Once the book is
 online, the panel is the owner's ordinary song or setlist share, ready to
 invite. Nothing in it asks Estante anything until *Put online* is pressed.
+
+**Nobody in the book yet, the invitation comes first.** While a book has
+nobody in it but its owner — just put online, or everyone gone — there is no
+one for its address to serve, so the owner's *Share* leads with inviting:
+on a song or a setlist, the invitation (*Invite someone to this song*, or to
+this setlist) comes straight after the opening line, and *For people already
+in the book* with the address follows it; on the phone's book sheet, *Invite
+people* comes straight after the opening line, above the count and the
+members. Once one person has joined, the order is the usual one, the address
+first. Until the people have loaded — or when they cannot be, offline — the
+order is the usual one too, so the address is never held back.
 
 Explore Chords' link, which carried the song in the link itself, is not
 brought over.

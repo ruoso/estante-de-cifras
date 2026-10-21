@@ -2,7 +2,8 @@
 // account ids (workflow 10 §Who sees whom, as books.share_people revised it),
 // the members counted by role (W10 #1), who joined through an invitation (W10
 // #3), the invitation a member joined through (Decision 7), and the room left
-// under fifty (workflow 10 §At most fifty people per book).
+// under fifty (workflow 10 §At most fifty people per book), and whether the
+// owner's Share leads with inviting (workflow 10 §Nobody in the book yet).
 
 import { describe, it, expect, beforeEach } from 'vitest';
 
@@ -15,6 +16,7 @@ import {
   joinedSummary,
   joinedThrough,
   joinerLabel,
+  leadsWithInvite,
   memberSummary,
   personLabel,
   roomLeft,
@@ -156,5 +158,31 @@ describe('an invitation’s title and the sheet’s line for it (W10 #1)', () =>
         { t, now },
       ),
     ).toBe('1 use, used · Marina Costa joined');
+  });
+});
+
+describe('leadsWithInvite (workflow 10 §Nobody in the book yet)', () => {
+  const owner = { userId: id(1), role: 'owner', displayName: 'Ana' };
+  const empty = { members: [owner], count: 0, limit: 50 };
+
+  it('is true for the owner while nobody but them is in the book — pending invitations or not', () => {
+    expect(leadsWithInvite({ isOwner: true, members: empty })).toBe(true);
+    // Open invitations the owner has made leave the count at zero: nobody has
+    // joined (Constraint 6).
+    const pending = { invitations: [{ id: 'i1', role: 'reader', joined: [], joinedCount: 0, withdrawn: false }] };
+    expect(leadsWithInvite({ isOwner: true, members: empty, invitations: pending })).toBe(true);
+  });
+
+  it('is false once someone has joined', () => {
+    const one = { members: [owner, { userId: id(2), role: 'reader', displayName: 'Joana Lima' }], count: 1, limit: 50 };
+    expect(leadsWithInvite({ isOwner: true, members: one })).toBe(false);
+  });
+
+  it('is false for an editor or a reader, even with nobody counted', () => {
+    expect(leadsWithInvite({ isOwner: false, members: empty })).toBe(false);
+  });
+
+  it('is false while the members load, or cannot (null)', () => {
+    expect(leadsWithInvite({ isOwner: true, members: null })).toBe(false);
   });
 });

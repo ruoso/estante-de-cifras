@@ -212,15 +212,26 @@
   gap: calc(var(--u) * 1.5);
 }
 
+/* The field and its buttons wrap: on a phone (and in the wide panel) a made
+   link's field takes the row and Send and Copy sit together under it; where
+   the width allows, all three fit on one line (workflow 10 §Sending the
+   link). */
 .est-sharing-linkrow {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: flex-start;
 }
 
 .est-sharing-linkrow .field {
-  flex: 1;
+  flex: 1 1 14rem;
   min-width: 0;
+}
+
+.est-sharing-linkbtns {
+  display: flex;
+  flex: none;
+  gap: 8px;
 }
 
 .est-sharing-song {

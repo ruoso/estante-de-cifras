@@ -382,6 +382,8 @@ export default {
     copyLink: 'Copiar link',
     copied: 'Copiado',
     couldNotCopy: 'Não deu para copiar',
+    send: 'Enviar',
+    couldNotSend: 'Não foi possível enviar',
     copyByHand: 'Selecione o link e copie.',
     done: 'Pronto',
     inviteRowTitle: 'Convite de {role}',
