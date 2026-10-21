@@ -10,7 +10,7 @@
 // automatic follows each device as it changes (Workflow 1 lines 94-103), never
 // a one-time read and never written to the home book.
 
-import { useMemo, useRef, useSyncExternalStore } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import { UNSAFE_PortalProvider } from 'react-aria';
 import { useSlice } from '../worker/useStore.js';
 import {
@@ -60,10 +60,18 @@ export function usePrefersDark() {
 // every overlay anywhere beneath ThemeRoot a portal container inside the token
 // scope, once, so no screen re-plumbs it (shell.portal_provider; it retires the
 // per-screen `UNSAFE_portalContainer` workaround books.shelf carried).
-// `getContainer` is a lazy callback invoked at portal time, so the ref on the
-// `.est` div is populated by the time any overlay opens; it returns null in a
-// bare render with no mounted root, so RAC falls back to document.body — the
-// provider is additive, never required.
+//
+// The container is the one overlay layer (shell.overlay_stacking): the
+// `est-overlays` div, the last child of `.est`, after the screen in document
+// order and its own stacking context (shell.css), so every sheet, dialog,
+// popover and menu paints above the screen whatever order it mounted in — an
+// overlay that mounts in the same commit as its screen (the shell remounting
+// from SignIn) no longer lands before it. The layer is held in a state callback
+// ref, not a useRef: it renders after the children, so on the first commit it
+// does not exist yet; when it attaches ThemeRoot re-renders once and an overlay
+// already open re-portals into it. `getContainer` returns null in a bare render
+// with no mounted root, so RAC falls back to document.body — the provider is
+// additive, never required.
 export default function ThemeRoot({ store, children }) {
   const preferences = useSlice(store, 'preferences');
   const prefersDark = usePrefersDark();
@@ -71,18 +79,19 @@ export default function ThemeRoot({ store, children }) {
   const density = resolveDensity(preferences?.density?.value);
   const { handed, orientation } = resolveDiagramDisplay(preferences);
   const diagramDisplay = useMemo(() => ({ handed, orientation }), [handed, orientation]);
-  const rootRef = useRef(null);
+  const [overlayLayer, setOverlayLayer] = useState(null);
   // `est-frame` marks this wrapper as the one window-height frame (shell.css);
   // themeClasses stays the boards' exact class set, which token-scoped previews
   // (the account screen's theme swatches) also carry without being framed
   // (account.preferences_layout Decision 1).
   return (
-    <div ref={rootRef} className={`${themeClasses(applied, density)} est-frame`}>
+    <div className={`${themeClasses(applied, density)} est-frame`}>
       <DiagramDisplayContext.Provider value={diagramDisplay}>
-        <UNSAFE_PortalProvider getContainer={() => rootRef.current}>
+        <UNSAFE_PortalProvider getContainer={() => overlayLayer}>
           {children}
         </UNSAFE_PortalProvider>
       </DiagramDisplayContext.Provider>
+      <div ref={setOverlayLayer} className="est-overlays" />
     </div>
   );
 }

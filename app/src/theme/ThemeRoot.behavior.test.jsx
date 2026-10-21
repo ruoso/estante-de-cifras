@@ -66,6 +66,66 @@ afterEach(() => {
 });
 
 describe('ThemeRoot portal provider (behavior)', () => {
+  // shell.overlay_stacking constraints 1, 3 and 4: an overlay already open when
+  // it mounts, placed before a positioned screen in tree order and rendered in
+  // the same commit (the shell remounting from SignIn), still lands in the one
+  // overlay layer, after the screen.
+  it('portals every overlay into the one overlay layer, the last child of `.est`, even when it mounts in the same commit as a positioned screen rendered after it (shell.overlay_stacking)', async () => {
+    const store = manualStore();
+    const { container } = render(
+      <ThemeRoot store={store}>
+        <ModalOverlay isOpen className="scrim">
+          <Modal className="sheet">
+            <Dialog>
+              <Heading slot="title" className="t-h2">
+                A sheet open at mount
+              </Heading>
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+        <div className="scroll">
+          <p>A screen written for this test.</p>
+        </div>
+      </ThemeRoot>,
+    );
+
+    const est = container.querySelector('.est');
+    const layer = est.querySelector('.est-overlays');
+    const dialog = await screen.findByRole('dialog', { name: 'A sheet open at mount' });
+    const screenBody = est.querySelector('.scroll');
+
+    expect(layer).toContainElement(dialog);
+    expect(est.lastElementChild).toBe(layer);
+    expect(screenBody.compareDocumentPosition(layer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  // shell.overlay_stacking constraints 2 and 5: the layer is fixed to the
+  // viewport, its own stacking context, and takes no taps while what is portaled
+  // into it does.
+  it('the overlay layer is its own stacking context above the screen (shell.overlay_stacking)', () => {
+    const removeStyles = injectStyles('shell/shell.css');
+    try {
+      const store = manualStore();
+      const { container } = render(
+        <ThemeRoot store={store}>
+          <Overlay />
+        </ThemeRoot>,
+      );
+      openOverlay();
+      const layer = container.querySelector('.est-overlays');
+      const style = getComputedStyle(layer);
+      expect(style.position).toBe('fixed');
+      expect(Number(style.zIndex)).toBeGreaterThanOrEqual(1);
+      expect(style.pointerEvents).toBe('none');
+      const scrim = layer.querySelector('.scrim');
+      expect(scrim).not.toBeNull();
+      expect(getComputedStyle(scrim).pointerEvents).toBe('auto');
+    } finally {
+      removeStyles();
+    }
+  });
+
   it('portals a React Aria overlay into the `.est` token root, axe-clean (DIRECTION §3.7 L404-405)', async () => {
     const store = manualStore();
     const { container } = render(

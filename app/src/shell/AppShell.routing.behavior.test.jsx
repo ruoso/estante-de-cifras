@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, onTestFinished } from 'vitest';
 import { render, screen, fireEvent, act, cleanup, waitFor, within } from '@testing-library/react';
 import { createStore } from '../worker/store.js';
 import { command, event, EventKind, CommandKind } from '../worker/protocol.js';
@@ -6,6 +6,7 @@ import { checkWcag21aa } from '../a11y/axe.js';
 import { instrumentInstance, configFor } from '../core/instrument.js';
 import { WIDE_QUERY, READING_ACTIONS_WIDE_QUERY } from './layout-mode.js';
 import AppShell from './AppShell.jsx';
+import ThemeRoot from '../theme/ThemeRoot.jsx';
 import { createAuthClient } from '../account/auth-client.js';
 
 // behavior (shell.routing) — the URL follows where you are: AppShell with its
@@ -116,6 +117,54 @@ afterEach(() => {
   cleanup();
   delete globalThis.matchMedia;
 });
+
+// The account-making double (Every entry opens both sections; shell.overlay_stacking):
+// a loopback auth client and a WebAuthn stand-in, shared by the describes below.
+const OPTIONS = { publicKey: { challenge: 'c', rp: { id: '127.0.0.1' } }, state: 's' };
+
+function makeAuth(routes = {}) {
+  const calls = [];
+  const fetch = async (path, init = {}) => {
+    const method = init.method ?? 'GET';
+    calls.push({ method, path });
+    const handler = {
+      'GET /api/account/recovery-email': () => ({ status: 401 }),
+      'GET /api/account/sessions': () => ({ status: 401 }),
+      'POST /api/auth/passkey/register/begin': () => ({ body: OPTIONS }),
+      'POST /api/auth/passkey/register/finish': () => ({ body: { id: 'u_new' } }),
+      'POST /api/auth/passkey/authenticate/begin': () => ({ body: OPTIONS }),
+      'POST /api/auth/passkey/authenticate/finish': () => ({ body: { id: 'u_old' } }),
+      ...routes,
+    }[`${method} ${path}`];
+    if (!handler) throw new TypeError(`no route for ${method} ${path}`);
+    const result = handler();
+    const status = result.status ?? 200;
+    return { ok: status >= 200 && status < 300, status, json: async () => result.body };
+  };
+  return { client: createAuthClient({ fetch }), calls };
+}
+
+// jsdom has no WebAuthn: a platform authenticator stand-in.
+function installWebAuthn() {
+  const PublicKeyCredential = function PublicKeyCredential() {};
+  PublicKeyCredential.parseCreationOptionsFromJSON = (json) => json;
+  PublicKeyCredential.parseRequestOptionsFromJSON = (json) => json;
+  globalThis.PublicKeyCredential = PublicKeyCredential;
+  const cred = () => ({
+    id: 'c1',
+    type: 'public-key',
+    authenticatorAttachment: 'platform',
+    toJSON: () => ({ id: 'c1', rawId: 'c1', type: 'public-key', response: {}, clientExtensionResults: {} }),
+  });
+  Object.defineProperty(globalThis.navigator, 'credentials', {
+    configurable: true,
+    value: { create: async () => cred(), get: async () => cred() },
+  });
+}
+function removeWebAuthn() {
+  delete globalThis.PublicKeyCredential;
+  delete globalThis.navigator.credentials;
+}
 
 describe('AppShell routing (behavior)', () => {
   it('opening a song pushes its address', () => {
@@ -1303,6 +1352,61 @@ describe('AppShell share surfaces (behavior)', () => {
     expect(bookCalls).toEqual([]);
   });
 
+  // shell.overlay_stacking (workflow 10 §Sharing a song, workflow 13 §Signing in,
+  // or making an account): SignIn stands in for the whole shell, so on Done the
+  // song and its still-open sheet mount again in one commit (AppShell's
+  // onDone). The sheet must come back in ThemeRoot's overlay layer — after the
+  // song's positioned `.scroll` body in document order, so the song never
+  // paints over it.
+  it('narrow: a local book’s song, signed out: Sign in to put it online, Make an account, Not now — the share sheet comes back in the overlay layer, after the song in document order (shell.overlay_stacking)', async () => {
+    installWebAuthn();
+    onTestFinished(removeWebAuthn);
+    recordBookCalls();
+    const { client } = makeAuth();
+    const { store, emit } = makeStore();
+    const { container } = render(
+      <ThemeRoot store={store}>
+        <AppShell store={store} authClient={client} />
+      </ThemeRoot>,
+    );
+
+    emit(event(EventKind.SHELF, LOCAL_SHELF));
+    act(() => {
+      fireEvent.change(screen.getAllByRole('searchbox')[0], { target: { value: 'tarde' } });
+    });
+    emit(
+      event(EventKind.SEARCH_RESULTS, {
+        query: 'tarde',
+        results: [{ bookId: LOCAL, path: SONG_PATH, title: SONG_TITLE, artist: '', score: 3, unsaved: false }],
+      }),
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(SONG_TITLE) })[0]);
+    emit(event(EventKind.SOURCE, { bookId: LOCAL, path: SONG_PATH, text: SONG_TEXT }));
+    await screen.findByRole('group', { name: SONG_TITLE });
+    fireEvent.click(screen.getAllByRole('button', { name: 'More' })[0]);
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Share' }));
+    const sheet = await screen.findByRole('dialog', { name: `Share ${SONG_TITLE}` });
+
+    fireEvent.click(await within(sheet).findByRole('button', { name: 'Sign in to put it online' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Make an account' }));
+    await screen.findByRole('heading', { name: 'Add a recovery email' });
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+
+    const again = await screen.findByRole('dialog', { name: `Share ${SONG_TITLE}` });
+    const est = container.querySelector('.est');
+    const layer = est.querySelector('.est-overlays');
+    expect(layer).toContainElement(again);
+    expect(est.lastElementChild).toBe(layer);
+    // The open sheet aria-hides the song beneath it, so its body is found by class.
+    expect(within(est).getByRole('group', { name: SONG_TITLE, hidden: true })).toBeInTheDocument();
+    const body = est.querySelector('.reading-scroll');
+    expect(body).not.toBeNull();
+    expect(layer).not.toContainElement(body);
+    expect(body.compareDocumentPosition(layer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bookCalls).toEqual([]);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
   // books.setlist_invitation (workflow 12 §Sharing one; workflow 10 **Where it
   // sits**, Constraints 4 and 6): Share on an open setlist — the sheet on a
   // phone, whose inline invite's Done comes back to the sheet and Close to the
@@ -1507,51 +1611,8 @@ describe('AppShell and the Add-a-book chooser (behavior)', () => {
 // workflow 1 §Invited. The auth client is a loopback double injected into the
 // shell, which shares it with the surface and the account screen.
 describe('Every entry opens both sections', () => {
-  const OPTIONS = { publicKey: { challenge: 'c', rp: { id: '127.0.0.1' } }, state: 's' };
-
-  function makeAuth(routes = {}) {
-    const calls = [];
-    const fetch = async (path, init = {}) => {
-      const method = init.method ?? 'GET';
-      calls.push({ method, path });
-      const handler = {
-        'GET /api/account/recovery-email': () => ({ status: 401 }),
-        'GET /api/account/sessions': () => ({ status: 401 }),
-        'POST /api/auth/passkey/register/begin': () => ({ body: OPTIONS }),
-        'POST /api/auth/passkey/register/finish': () => ({ body: { id: 'u_new' } }),
-        'POST /api/auth/passkey/authenticate/begin': () => ({ body: OPTIONS }),
-        'POST /api/auth/passkey/authenticate/finish': () => ({ body: { id: 'u_old' } }),
-        ...routes,
-      }[`${method} ${path}`];
-      if (!handler) throw new TypeError(`no route for ${method} ${path}`);
-      const result = handler();
-      const status = result.status ?? 200;
-      return { ok: status >= 200 && status < 300, status, json: async () => result.body };
-    };
-    return { client: createAuthClient({ fetch }), calls };
-  }
-
-  // jsdom has no WebAuthn: a platform authenticator stand-in.
-  beforeEach(() => {
-    const PublicKeyCredential = function PublicKeyCredential() {};
-    PublicKeyCredential.parseCreationOptionsFromJSON = (json) => json;
-    PublicKeyCredential.parseRequestOptionsFromJSON = (json) => json;
-    globalThis.PublicKeyCredential = PublicKeyCredential;
-    const cred = () => ({
-      id: 'c1',
-      type: 'public-key',
-      authenticatorAttachment: 'platform',
-      toJSON: () => ({ id: 'c1', rawId: 'c1', type: 'public-key', response: {}, clientExtensionResults: {} }),
-    });
-    Object.defineProperty(globalThis.navigator, 'credentials', {
-      configurable: true,
-      value: { create: async () => cred(), get: async () => cred() },
-    });
-  });
-  afterEach(() => {
-    delete globalThis.PublicKeyCredential;
-    delete globalThis.navigator.credentials;
-  });
+  beforeEach(installWebAuthn);
+  afterEach(removeWebAuthn);
 
   function expectBothSections() {
     expect(screen.getByRole('group', { name: 'Already have an account?' })).toBeInTheDocument();

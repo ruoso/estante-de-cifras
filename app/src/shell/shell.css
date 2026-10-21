@@ -36,6 +36,25 @@ body {
   flex-direction: column;
 }
 
+/* The one overlay layer (shell.overlay_stacking): ThemeRoot's last child of
+   `.est`, where every React Aria overlay portals. Fixed to the viewport, it is
+   the containing block a scrim's `inset: 0` fills and a popover is positioned
+   against, out of the frame's flex flow; its own stacking context above every
+   unindexed positioned part of the screen (`.scroll` is `position: relative`)
+   puts each sheet, dialog, popover and menu on top whatever order it mounted
+   in — one layer, never a z-index per component. Below the update notice (50).
+   Empty, it paints nothing and takes no taps; what is portaled in takes them. */
+.est-overlays {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.est-overlays > * {
+  pointer-events: auto;
+}
+
 /* Every theme `.scroll` body scrolls vertically in the running app. The theme's
    `.scroll` is `overflow: hidden` because the boards are static drawings
    clipped by a device frame; here a scroll body that cannot scroll would put
