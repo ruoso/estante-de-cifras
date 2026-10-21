@@ -12,7 +12,10 @@ The app opens on search: one box, across every book on the shelf.
 
 **Before anything is typed**, it shows the songs recently opened, then each
 book as a collapsible section listing its songs. Recents are the way back
-into what you were playing; the books are the way to browse.
+into what you were playing; the books are the way to browse. A section opened
+or closed stays as it was left for the rest of the session — switching to
+another tab, or opening a song, and coming back finds it the same; a new
+session starts with every section closed but the scoped book's.
 
 **A book's section header** is the same on every device: a bordered row —
 the caret, the book's name, how many songs — that opens and closes the
@@ -85,6 +88,24 @@ the book-management screen opens the same place.
 While the scope is one book or a folder in it, a bar above the results names
 the book, its state, and *Manage* for its detail (workflow 7 §A book's
 songs).
+
+A scoped search is that book's songs, and nothing else: the books outside the
+scope are left out — no section for them, no count, no recents from them —
+so nothing on the screen counts within the scope a book the scope does not
+hold (a *0 songs* beside a book that has songs). The other books are reached
+by clearing the chip, or from Books.
+
+**After a save, the scope follows the song.** When a song is saved into a
+book the scope does not hold — a new song made in *My songs*, or moved to
+another book before its first save, while the search was scoped elsewhere —
+the scope becomes the book it was saved to: the chip and the bar name that
+book, the address is that book's (`…/b/<book>`), and its section is open with
+the song in it. It never stays on the other book, where the song would not
+show, and it never clears, which would leave the person among every book to
+find it. A save the scope already holds leaves the scope as it is (a song
+saved outside the scoped folder widens it to the folder's book), and a save
+with no scope set leaves none. The scope moving is part of the save, not a
+step of its own: Back from it goes where it went before the song was written.
 
 ## Reading a song
 

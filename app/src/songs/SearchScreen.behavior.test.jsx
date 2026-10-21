@@ -815,3 +815,132 @@ describe('SearchScreen — a book section’s Save all on its own line (songs.se
     expect(container.querySelector('.book-unsaved')).toBeNull();
   });
 });
+
+// songs.search_scope_follows — workflow 2 §Scope (*A scoped search is that
+// book's songs*) and §The search screen (a section's open state lasts the
+// session).
+describe('SearchScreen — a scoped search is that book’s songs', () => {
+  const SHELF = event(EventKind.SHELF, {
+    books: {},
+    local: {
+      'l-roda': { title: { value: 'Roda de Choro', at: 'x' }, position: { value: 0, at: 'x' } },
+      'l-mine': { title: { value: 'My songs', at: 'x' }, position: { value: 1, at: 'x' } },
+    },
+  });
+  // The browse slice a scope of Roda de Choro gets: that book only.
+  const BROWSE_RODA = event(EventKind.BROWSE_RESULTS, {
+    books: [
+      {
+        bookId: 'l-roda',
+        count: 2,
+        songs: [
+          { path: 'roda-da-tarde.cifra.md', title: 'Roda da tarde', artist: '', unsaved: false },
+          { path: 'valsa-do-quintal.cifra.md', title: 'Valsa do quintal', artist: '', unsaved: false },
+        ],
+      },
+    ],
+  });
+  const BROWSE_ALL = event(EventKind.BROWSE_RESULTS, {
+    books: [
+      BROWSE_RODA.payload.books[0],
+      {
+        bookId: 'l-mine',
+        count: 1,
+        songs: [{ path: 'cancao-do-teste.cifra.md', title: 'Canção do teste', artist: '', unsaved: false }],
+      },
+    ],
+  });
+  const RECENTS = event(EventKind.RECENTS, {
+    recents: [
+      { bookId: 'l-mine', path: 'cancao-do-teste.cifra.md', at: '2026-10-21T10:00:00.000Z' },
+      { bookId: 'l-roda', path: 'roda-da-tarde.cifra.md', at: '2026-10-21T09:00:00.000Z' },
+    ],
+  });
+
+  // The shell holds the scope and the open state; this harness does the same.
+  function Scoped({ store, initial, expandedBooks, onExpandedBooksChange }) {
+    const [scope, setScope] = useState(initial);
+    return (
+      <SearchScreen
+        store={store}
+        scope={scope}
+        onScopeChange={setScope}
+        expandedBooks={expandedBooks}
+        onExpandedBooksChange={onExpandedBooksChange}
+      />
+    );
+  }
+
+  it('scoped to one book: no section, no count and no recent from another; clearing the chip lists it with its own count; axe clean (workflow 2 §Scope)', async () => {
+    const { store, emit } = makeStore();
+    const { container } = render(<Scoped store={store} initial={{ bookId: 'l-roda' }} />);
+    emit(SHELF);
+    emit(event(EventKind.INDEX_STATUS, { bookId: 'l-roda', state: 'ready' }));
+    emit(event(EventKind.INDEX_STATUS, { bookId: 'l-mine', state: 'ready' }));
+    emit(BROWSE_RODA);
+    emit(RECENTS);
+
+    const books = screen.getByRole('region', { name: 'Books' });
+    expect(within(books).getByRole('button', { name: /Roda de Choro.*2 songs/ })).toBeInTheDocument();
+    expect(within(books).queryByRole('button', { name: /^My songs/ })).toBeNull();
+    expect(screen.queryByText('0 songs')).toBeNull();
+    const recent = screen.getByRole('region', { name: 'Recent' });
+    expect(within(recent).queryByText('Canção do teste')).toBeNull();
+    expect(within(recent).getByText('Roda da tarde')).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Clear filter' })));
+    emit(BROWSE_ALL);
+    const all = screen.getByRole('region', { name: 'Books' });
+    expect(within(all).getByRole('button', { name: /^My songs.*1 song$/ })).toBeInTheDocument();
+    expect(within(all).getByRole('button', { name: /^Roda de Choro.*2 songs/ })).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Recent' })).getByText('Canção do teste')).toBeInTheDocument();
+  });
+
+  it('a book in scope still reads still loading while it builds (workflow 2 §Scope; L159-162)', () => {
+    const { store, emit } = makeStore();
+    render(<Scoped store={store} initial={{ bookId: 'l-roda' }} />);
+    emit(SHELF);
+    emit(event(EventKind.INDEX_STATUS, { bookId: 'l-roda', state: 'building' }));
+    emit(event(EventKind.INDEX_STATUS, { bookId: 'l-mine', state: 'building' }));
+
+    expect(screen.getAllByText('still loading')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /^Roda de Choro.*still loading/ })).toBeInTheDocument();
+  });
+
+  it('a section opened stays open across an unmount with the same lifted state (a tab switch); a fresh map opens only the scoped book (workflow 2 §The search screen)', () => {
+    let expanded = new Map();
+    const setExpanded = (next) => {
+      expanded = typeof next === 'function' ? next(expanded) : next;
+    };
+    const first = makeStore();
+    const { unmount } = render(
+      <Scoped store={first.store} initial={null} expandedBooks={expanded} onExpandedBooksChange={setExpanded} />,
+    );
+    first.emit(SHELF);
+    first.emit(BROWSE_ALL);
+    const mine = screen.getByRole('button', { name: /^My songs.*1 song$/ });
+    expect(mine).toHaveAttribute('aria-expanded', 'false');
+    act(() => fireEvent.click(mine));
+    expect(expanded.get('l-mine')).toBe(true);
+    unmount();
+
+    // Back on Search: the same session map, a fresh mount.
+    const again = makeStore();
+    const { unmount: unmountAgain } = render(
+      <Scoped store={again.store} initial={null} expandedBooks={expanded} onExpandedBooksChange={setExpanded} />,
+    );
+    again.emit(SHELF);
+    again.emit(BROWSE_ALL);
+    expect(screen.getByRole('button', { name: /^My songs.*1 song$/ })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: /^Roda de Choro.*2 songs/ })).toHaveAttribute('aria-expanded', 'false');
+    unmountAgain();
+
+    // A new session (a fresh map), scoped to Roda de Choro: only its section open.
+    const fresh = makeStore();
+    render(<Scoped store={fresh.store} initial={{ bookId: 'l-roda' }} expandedBooks={new Map()} onExpandedBooksChange={() => {}} />);
+    fresh.emit(SHELF);
+    fresh.emit(BROWSE_RODA);
+    expect(screen.getByRole('button', { name: /^Roda de Choro.*2 songs/ })).toHaveAttribute('aria-expanded', 'true');
+  });
+});

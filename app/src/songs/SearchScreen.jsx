@@ -42,6 +42,8 @@ import {
   INITIAL_SCOPE,
   songTitle,
   folderOf,
+  inScope,
+  moveBookEntry,
 } from './search-query.js';
 import FirstRun from './FirstRun.jsx';
 import BookBar from '../books/BookBar.jsx';
@@ -305,9 +307,12 @@ function BookSection({
   canWrite,
   onAddToSetlist,
   markConflict = (item) => item,
-  // The book's songs (books.row_opens_songs): a scope of this one book opens its
-  // section, so its songs list under the bar (the Open-a-book board, Phone 2).
-  defaultExpanded = false,
+  // Whether the section is open, and its setter: the screen holds the open
+  // state for the session (songs.search_scope_follows Constraint 5; workflow 2
+  // §The search screen), so a tab switch or a song opened over Search finds it
+  // as it was left.
+  isExpanded: expanded = false,
+  onExpandedChange = () => {},
 }) {
   const count = book?.count ?? 0;
   const songs = book?.songs ?? [];
@@ -320,7 +325,7 @@ function BookSection({
       ? t('search.stillLoading')
       : t('search.songCount', { count });
   return (
-    <Disclosure className="book" defaultExpanded={defaultExpanded}>
+    <Disclosure className="book" isExpanded={expanded} onExpandedChange={onExpandedChange}>
       {({ isExpanded }) => (
         <>
           <div className="book-head">
@@ -455,6 +460,12 @@ export default function SearchScreen({
   onQueryChange,
   scope: controlledScope,
   onScopeChange,
+  // Which book sections are open (`Map<bookId, boolean>`) and its setter (a
+  // value or an updater): the shell lifts it so it lasts the session across a
+  // tab switch and a full-screen host (songs.search_scope_follows Constraint
+  // 5). Uncontrolled, it is local state, as the scope is.
+  expandedBooks: controlledExpanded,
+  onExpandedBooksChange,
   // The bar's acts (books.row_opens_songs): *Manage* opens the book's detail,
   // *Settle* its conflicts; a bring-in that meets the person's own edits hands
   // the book to the conflicts (workflow 11).
@@ -493,6 +504,9 @@ export default function SearchScreen({
   const [internalScope, setInternalScope] = useState(INITIAL_SCOPE);
   const scope = controlledScope === undefined ? internalScope : controlledScope;
   const setScope = onScopeChange ?? setInternalScope;
+  const [internalExpanded, setInternalExpanded] = useState(() => new Map());
+  const expandedBooks = controlledExpanded ?? internalExpanded;
+  const setExpandedBooks = onExpandedBooksChange ?? setInternalExpanded;
   // Save all opens the one save sheet over a book's changed songs (workflow 4
   // §Several songs at once). Ephemeral view state: `{ bookId, paths, bookLabel }`.
   const [saveAll, setSaveAll] = useState(null);
@@ -504,6 +518,7 @@ export default function SearchScreen({
   // the same book.
   useWorkerEvent(store, EventKind.BOOK_FORKED, ({ previousBookId, bookId: forkId }) => {
     setSaveAll((prev) => (prev && prev.bookId === previousBookId ? { ...prev, bookId: forkId } : prev));
+    setExpandedBooks((prev) => moveBookEntry(prev, previousBookId, forkId));
     setScope((prev) => {
       if (!prev) return prev;
       if (Array.isArray(prev.books) && prev.books.includes(previousBookId)) {
@@ -555,7 +570,11 @@ export default function SearchScreen({
     return map;
   }, [browseSlice]);
 
-  const recentItems = recentsSlice.map(
+  // A scoped search is that book's songs (workflow 2 §Scope): a recent from a
+  // book the scope does not hold is not listed (songs.search_scope_follows
+  // Decision 6). `allRecents` keeps the cold-door test on the whole shelf.
+  const allRecents = recentsSlice;
+  const recentItems = recentsSlice.filter((r) => inScope(scope, r.bookId, r.path)).map(
     (r) =>
       songByLocation.get(keyOf(r.bookId, r.path)) ?? {
         bookId: r.bookId,
@@ -574,7 +593,11 @@ export default function SearchScreen({
     const entry = fillSlice?.[id];
     return entry && entry.state !== 'ready' ? fillDisplayFor(entry, { t }) : null;
   };
-  const bookIds = useMemo(() => {
+  // With a scope set, only the books it holds get a section — no section, and
+  // so no *0 songs*, for a book whose songs the scope hides (workflow 2 §Scope;
+  // songs.search_scope_follows Constraint 3-4). A book in scope still reads
+  // *still loading* or its fill word while it builds or comes down.
+  const allBookIds = useMemo(() => {
     const ids = new Set(browseSlice.books.map((b) => b.bookId));
     for (const id of Object.keys(indexSlice)) ids.add(id);
     for (const [id, entry] of Object.entries(fillSlice ?? {})) {
@@ -582,6 +605,10 @@ export default function SearchScreen({
     }
     return [...ids].sort();
   }, [browseSlice, indexSlice, fillSlice]);
+  const bookIds = useMemo(
+    () => allBookIds.filter((id) => inScope(scope, id)),
+    [allBookIds, scope],
+  );
 
   const bookById = useMemo(() => {
     const m = new Map();
@@ -764,7 +791,7 @@ export default function SearchScreen({
               </section>
             )}
           </>
-        ) : showsFirstRun(bookIds, recentItems) ? (
+        ) : showsFirstRun(allBookIds, allRecents) ? (
           // The cold door: an empty shelf and no recents (account.first_run,
           // workflow 1 §Cold). "Open the example book" seeds the bundled book in
           // the Worker; the other three route to the doors their own tasks own
@@ -829,7 +856,12 @@ export default function SearchScreen({
                       canWrite={canWriteTo(shelf, id)}
                       onAddToSetlist={onAddToSetlist}
                       markConflict={inConflict}
-                      defaultExpanded={id === barBook}
+                      // A book with no entry opens iff it is the bar's book
+                      // (books.row_opens_songs); an entry is how it was left.
+                      isExpanded={expandedBooks.has(id) ? expandedBooks.get(id) : id === barBook}
+                      onExpandedChange={(open) =>
+                        setExpandedBooks((prev) => new Map(prev).set(id, open))
+                      }
                     />
                   ))}
                 </div>

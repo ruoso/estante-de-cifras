@@ -10,6 +10,8 @@ import {
   INITIAL_SCOPE,
   songTitle,
   folderOf,
+  inScope,
+  followScope,
 } from './search-query.js';
 
 describe('recognizeChord — a chord recognised (workflow 2 L26-40)', () => {
@@ -94,5 +96,46 @@ describe('songTitle / folderOf — where a result lives (workflow 2 L49, L180-18
     expect(folderOf('bossa/tarde.cifra.md')).toBe('bossa');
     expect(folderOf('nested/deep/song.cifra.md')).toBe('nested/deep');
     expect(folderOf('song.cifra.md')).toBe('');
+  });
+});
+
+// songs.search_scope_follows — workflow 2 §Scope: *A scoped search is that
+// book's songs* (inScope) and *After a save, the scope follows the song*
+// (followScope).
+describe('scope follows a save', () => {
+  it('no scope stays no scope (Decision 2)', () => {
+    expect(followScope(null, 'A', 'x.md')).toBeNull();
+  });
+
+  it('a save the one-book scope holds keeps the same object', () => {
+    const scope = { bookId: 'A' };
+    expect(followScope(scope, 'A', 'x.md')).toBe(scope);
+    const listed = { books: ['A', 'C'] };
+    expect(followScope(listed, 'C', 'x.md')).toBe(listed);
+  });
+
+  it('a save into a book outside the scope becomes that book', () => {
+    expect(followScope({ books: ['A'] }, 'B', 'x.md')).toEqual({ bookId: 'B' });
+    expect(followScope({ bookId: 'A' }, 'B')).toEqual({ bookId: 'B' });
+  });
+
+  it('a folder scope holds a save under its prefix and widens to the book otherwise', () => {
+    const folder = { bookId: 'A', prefix: 'choros/' };
+    expect(followScope(folder, 'A', 'choros/x.md')).toBe(folder);
+    expect(followScope(folder, 'A', 'y.md')).toEqual({ bookId: 'A' });
+    // No path given: the book is the scope's, so it is held.
+    expect(followScope(folder, 'A')).toBe(folder);
+  });
+
+  it('inScope mirrors the Worker rule for every scope shape', () => {
+    expect(inScope(null, 'A', 'x.md')).toBe(true);
+    expect(inScope({ books: ['A', 'B'] }, 'B', 'x.md')).toBe(true);
+    expect(inScope({ books: ['A'] }, 'B')).toBe(false);
+    expect(inScope({ bookId: 'A' }, 'A')).toBe(true);
+    expect(inScope({ bookId: 'A' }, 'B', 'x.md')).toBe(false);
+    expect(inScope({ bookId: 'A', prefix: 'choros/' }, 'A', 'choros/x.md')).toBe(true);
+    expect(inScope({ bookId: 'A', prefix: 'choros/' }, 'A', 'y.md')).toBe(false);
+    expect(inScope({ bookId: 'A', prefix: 'choros/' }, 'A')).toBe(true);
+    expect(inScope({ bookId: 'A', prefix: 'choros/' }, 'B')).toBe(false);
   });
 });

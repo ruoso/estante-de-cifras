@@ -651,6 +651,10 @@ workflows do not yet cover, and work that comes before building:
   book with *Manage*, which opens the book's detail, where renaming and
   *Files* now live; a book that needs you opens on its songs with *Settle*.
   No new workflow.
+- **Search within a book**, decided (workflow 2 §The search screen, §Scope)
+  and drawn on [mockups/Search-scope.dc.html](mockups/Search-scope.dc.html) —
+  a scoped search is that book's songs, the scope follows a song saved into
+  another book, a section's open state lasts the session. No new workflow.
 - **Help with the format**, decided (workflow 3 §Help with the format, §When
   it looks like another format; workflow 4 §Editing) and drawn on
   [mockups/Format-help.dc.html](mockups/Format-help.dc.html) — *Help* in the

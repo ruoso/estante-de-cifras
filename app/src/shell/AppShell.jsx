@@ -67,6 +67,7 @@ import { useAccountStatus } from './use-account-status.js';
 import { offersFirstRunSignIn, showsRecoveryBanner } from './account-status.js';
 import { bookOfScope, isSetlistPath, sameItem } from './place.js';
 import { bootEntry, usePlaceHistory } from './use-place-history.js';
+import { followScope, moveBookEntry } from '../songs/search-query.js';
 import './shell.css';
 
 // The wide media query, or null where `matchMedia` is absent (jsdom provides
@@ -226,6 +227,8 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBookSongs, onOp
           onExploreChord={search.onExploreChord}
           scope={search.scope}
           onScopeChange={search.onScopeChange}
+          expandedBooks={search.expandedBooks}
+          onExpandedBooksChange={search.onExpandedBooksChange}
           onAddToSetlist={onAddToSetlist}
           onOpenSetlist={onOpenSetlist}
           onManageBook={bookActs.onManage}
@@ -293,6 +296,11 @@ export default function AppShell({
   // The search scope, lifted here (shell.routing Decision 1) so a book's address
   // can set it and back can return to it; SearchScreen is controlled by it.
   const [scope, setScope] = useState(null);
+  // Which of Search's book sections are open (`Map<bookId, boolean>`), held here
+  // beside the scope so it lasts the session — a tab switch and a full-screen
+  // host unmount SearchScreen — and is gone on reload, as the scope is
+  // (songs.search_scope_follows Decision 5; workflow 2 §The search screen).
+  const [expandedBooks, setExpandedBooks] = useState(() => new Map());
   // A place applied from an address (boot) or from history (popstate) that names
   // a book or an item, held until it resolves: `{ place, checkItem, treeReady }`
   // or null. While pending the shell's destination shows; when it resolves to a
@@ -618,7 +626,7 @@ export default function AppShell({
       applyPlace(next);
     }
   };
-  const { back, renameBook, followSong, pushNext } = usePlaceHistory({
+  const { back, renameBook, followSong, pushNext, replaceNext } = usePlaceHistory({
     boot,
     place,
     layers,
@@ -674,6 +682,7 @@ export default function AppShell({
     if (!previousBookId || !forkId || previousBookId === forkId) return;
     const follow = (prev) => (prev && prev.bookId === previousBookId ? { ...prev, bookId: forkId } : prev);
     renameBook(previousBookId, forkId);
+    setExpandedBooks((prev) => moveBookEntry(prev, previousBookId, forkId));
     setScope((prev) => {
       if (!prev) return prev;
       if (Array.isArray(prev.books) && prev.books.includes(previousBookId)) {
@@ -864,6 +873,20 @@ export default function AppShell({
     if (openFile) return;
     retargetRef.current = null;
     setEditing((prev) => (prev && prev.bookId === bookId ? null : prev));
+  });
+
+  // After a save, the scope follows the song (workflow 2 §Scope, *After a save*;
+  // songs.search_scope_follows Constraint 1-2): a song saved into a book the
+  // scope does not hold moves the scope to that book, its section open; a scope
+  // that holds it, or no scope, is left as it is. For every save, from any host
+  // and any tab — the scope is shell state. The move is part of the save, not a
+  // step: on search it rewrites the history entry the save lands on.
+  useWorkerEvent(store, EventKind.SAVED, ({ bookId, path, paths }) => {
+    const next = followScope(scope, bookId, path ?? paths?.[0]);
+    if (next === scope) return;
+    if (selected === 'search' && bookOfScope(next) !== bookOfScope(scope)) replaceNext();
+    setScope(next);
+    setExpandedBooks((prev) => (prev.get(bookId) === true ? prev : new Map(prev).set(bookId, true)));
   });
 
   // A save of the song being edited closes the editor, back to reading it.
@@ -1141,6 +1164,8 @@ export default function AppShell({
     onExploreChord: (_chord, typedQuery) => setExploring({ text: typedQuery ?? searchQuery }),
     scope,
     onScopeChange: setScope,
+    expandedBooks,
+    onExpandedBooksChange: setExpandedBooks,
   };
 
   // The shell itself: the destinations under their tab bar (phone) or beside the
@@ -1425,6 +1450,8 @@ export default function AppShell({
                 onQueryChange={setSearchQuery}
                 scope={scope}
                 onScopeChange={setScope}
+                expandedBooks={expandedBooks}
+                onExpandedBooksChange={setExpandedBooks}
                 onManageBook={bookActs.onManage}
                 onSettleBook={bookActs.onSettle}
                 onNeedsYou={bookActs.onNeedsYou}

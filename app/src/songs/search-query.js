@@ -66,6 +66,70 @@ export function scopePayload(scope) {
 }
 
 /**
+ * Does the scope hold this book (and, when given, this path)? The main-thread
+ * mirror of the Worker's `matchesScope` (storage.index) over the screen's scope
+ * shapes: `null` holds everything; `{ books }` holds those books; `{ bookId }`
+ * that one book; `{ bookId, prefix }` the paths under the prefix in that book —
+ * a book with no path given is held when it is the scope's book. A scoped
+ * search is that book's songs (workflow 2 §Scope), so the screen lists only the
+ * books and recents this holds (songs.search_scope_follows Constraint 3).
+ *
+ * @param {null | { books?: string[], bookId?: string, prefix?: string }} scope
+ * @param {string} bookId
+ * @param {string} [path]
+ * @returns {boolean}
+ */
+export function inScope(scope, bookId, path) {
+  if (!scope) return true;
+  if (Array.isArray(scope.books)) return scope.books.includes(bookId);
+  if (scope.bookId) {
+    if (bookId !== scope.bookId) return false;
+    if (scope.prefix && path !== undefined && path !== null) {
+      return path.startsWith(scope.prefix);
+    }
+    return true;
+  }
+  return true;
+}
+
+/**
+ * Where the scope goes after a song is saved (workflow 2 §Scope, *After a save,
+ * the scope follows the song*): no scope stays no scope (a save never sets one
+ * the person did not — Decision 2); a scope that holds the saved song is kept,
+ * the same object, so nothing re-renders and no history entry is made; any
+ * other scope becomes the saved book's (`{ bookId }`), so the song shows.
+ *
+ * @param {null | { books?: string[], bookId?: string, prefix?: string }} scope
+ * @param {string} bookId the book the song was saved into
+ * @param {string} [path] the saved song's path in it
+ * @returns {null | object}
+ */
+export function followScope(scope, bookId, path) {
+  if (!scope) return scope ?? null;
+  if (!bookId || inScope(scope, bookId, path)) return scope;
+  return { bookId };
+}
+
+/**
+ * A book's id changed (a fork, a put-online): its open-state entry in the
+ * search's `Map<bookId, boolean>` moves with it (songs.search_scope_follows
+ * Constraint 5). The same map when the old id has no entry, so applying it
+ * twice is harmless.
+ *
+ * @param {Map<string, boolean>} expanded
+ * @param {string} fromId
+ * @param {string} toId
+ * @returns {Map<string, boolean>}
+ */
+export function moveBookEntry(expanded, fromId, toId) {
+  if (!expanded.has(fromId)) return expanded;
+  const next = new Map(expanded);
+  next.set(toId, next.get(fromId));
+  next.delete(fromId);
+  return next;
+}
+
+/**
  * A song's display title: its own title, or — for "a song with no title" — the
  * caller's localized `untitled` (*Untitled song*). The placeholder file name
  * (`untitled-2.cifra.md`) shows only in the file view (workflow 3 L37-41;

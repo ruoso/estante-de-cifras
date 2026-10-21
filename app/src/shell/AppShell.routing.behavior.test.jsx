@@ -535,6 +535,115 @@ describe('AppShell routing (behavior)', () => {
     expect(history.length).toBe(before);
   });
 
+  // songs.search_scope_follows — workflow 2 §Scope, *After a save, the scope
+  // follows the song*; §The search screen (a section's open state lasts the
+  // session); DIRECTION §3.7 (the address follows where you are).
+  it('the scope follows a save: scoped to a book, a new song saved into My songs leaves Search scoped to My songs at its address, no step of its own; axe clean', async () => {
+    const MINE = 'l-mine';
+    const shelf = {
+      ...SHELF,
+      local: { [MINE]: { title: { value: 'My songs', at: AT }, position: { value: 0, at: AT } } },
+    };
+    const browseOf = (ids) =>
+      event(EventKind.BROWSE_RESULTS, {
+        books: [
+          { bookId: BOOK, count: 1, songs: [{ path: SONG_PATH, title: SONG_TITLE, artist: '', unsaved: false }] },
+          { bookId: MINE, count: 1, songs: [{ path: 'valsa-nova.cifra.md', title: 'Valsa nova', artist: '', unsaved: false }] },
+        ].filter((b) => ids.includes(b.bookId)),
+      });
+    const { store, emit } = makeStore();
+    const { container } = render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, shelf));
+    emit(browseOf([BOOK, MINE]));
+
+    // Scoped to Banda do Bairro: a step of its own, at the book's address.
+    fireEvent.click(screen.getByRole('button', { name: `Search only in ${BOOK_LABEL}` }));
+    expect(location.pathname).toBe('/b/b1');
+    const scopedDepth = history.state.depth;
+    emit(browseOf([BOOK]));
+    expect(screen.queryByRole('button', { name: /^My songs/ })).toBeNull();
+
+    // Nothing matches: Create makes a new song in My songs.
+    act(() => {
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Valsa nova' } });
+    });
+    emit(event(EventKind.SEARCH_RESULTS, { query: 'Valsa nova', results: [] }));
+    fireEvent.click(screen.getByRole('button', { name: /Create “Valsa nova”/ }));
+    emit(event(EventKind.NEW_SONG_READY, { bookId: MINE, path: 'untitled.cifra.md' }));
+    const lengthWithEditor = history.length;
+    expect(history.state.depth).toBe(scopedDepth + 1);
+
+    // The first save lands: the host closes and the scope follows the song.
+    const popped = new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
+    emit(event(EventKind.SAVED, { bookId: MINE, path: 'valsa-nova.cifra.md' }));
+    await act(async () => {
+      await popped;
+    });
+    expect(location.pathname).toBe(`/b/${MINE}`);
+    expect(history.length).toBe(lengthWithEditor);
+    expect(history.state.depth).toBe(scopedDepth);
+    expect(history.state.layers).toEqual([]);
+    expect(screen.getByRole('group', { name: 'Search songs, words and chords' })).toHaveTextContent('My songs');
+    expect(screen.getByRole('button', { name: 'Manage My songs' })).toBeInTheDocument();
+
+    // Its section is open with the song in it, under its own count; the book
+    // the scope left is not listed.
+    act(() => {
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } });
+    });
+    emit(browseOf([MINE]));
+    const mine = screen.getByRole('button', { name: /^My songs.*1 song$/ });
+    expect(mine).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Valsa nova')).toBeVisible();
+    expect(screen.queryByRole('button', { name: new RegExp(`^${BOOK_LABEL}`) })).toBeNull();
+    expect(screen.queryByText('0 songs')).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // The section's open state lasts the session: closed, it is still closed
+    // after Books and back to Search.
+    fireEvent.click(mine);
+    expect(screen.getByRole('button', { name: /^My songs.*1 song$/ })).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Search' }));
+    expect(screen.getByRole('button', { name: /^My songs.*1 song$/ })).toHaveAttribute('aria-expanded', 'false');
+
+    // One Back goes where Back went from the scoped search: the unscoped one.
+    await traverse(() => history.back());
+    expect(location.pathname).toBe('/');
+    expect(history.state.depth).toBe(scopedDepth - 1);
+  });
+
+  it('the scope follows a save: an edit saved in the scoped book leaves the scope and address untouched', async () => {
+    history.replaceState(null, '', '/');
+    const { store, emit } = makeStore();
+    render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, SHELF));
+    emit(
+      event(EventKind.BROWSE_RESULTS, {
+        books: [{ bookId: BOOK, count: 1, songs: [{ path: SONG_PATH, title: SONG_TITLE, artist: '', unsaved: false }] }],
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: `Search only in ${BOOK_LABEL}` }));
+    expect(location.pathname).toBe('/b/b1');
+    // Its section is open (the bar's book): open the song, then edit it.
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${SONG_TITLE}`) }));
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
+    expect(location.pathname).toBe(SONG_URL);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    const depth = history.state.depth;
+
+    const popped = new Promise((resolve) => window.addEventListener('popstate', resolve, { once: true }));
+    emit(event(EventKind.SAVED, { bookId: BOOK, paths: [SONG_PATH] }));
+    await act(async () => {
+      await popped;
+    });
+    expect(location.pathname).toBe(SONG_URL);
+    expect(history.state.depth).toBe(depth - 1);
+    await traverse(() => history.back());
+    expect(location.pathname).toBe('/b/b1');
+    expect(screen.getByRole('group', { name: 'Search songs, words and chords' })).toHaveTextContent(BOOK_LABEL);
+  });
+
   it('back after a fork lands on the fork, not the book it left', async () => {
     history.replaceState(null, '', '/b/b1');
     const { store, emit } = makeStore();

@@ -205,6 +205,13 @@
    "w": 3208,
    "h": 1500,
    "title": "2, 7 & 12. Polish from the usability review"
+  },
+  "Search-scope.dc.html": {
+   "x": 0,
+   "y": 45540,
+   "w": 3208,
+   "h": 1500,
+   "title": "2. Search within a book"
   }
  },
  "order": [
@@ -235,7 +242,8 @@
   "Sign-in.dc.html",
   "Open-a-book.dc.html",
   "Format-help.dc.html",
-  "Review-polish.dc.html"
+  "Review-polish.dc.html",
+  "Search-scope.dc.html"
  ],
  "notes": {
   "workflows": {

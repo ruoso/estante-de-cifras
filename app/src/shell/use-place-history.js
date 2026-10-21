@@ -108,6 +108,12 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
   const forceReplaceRef = useRef(false);
   // The next change pushes an entry whatever it is (`pushNext`).
   const forcePushRef = useRef(false);
+  // The next change is not a step of its own (`replaceNext`): it rewrites the
+  // entry it lands on — after the step back, when the same change closes the
+  // layer the current entry opened.
+  const replaceNextRef = useRef(false);
+  // The entry to write once a `replaceNext` step back lands: `{ place, layers }`.
+  const afterPopRef = useRef(null);
   // What the reload this session booted from dropped (reload-step.js), until
   // back lands on a real step or the hook writes an entry.
   const reloadedRef = useRef(null);
@@ -150,14 +156,29 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
     if (!cur || hold || pendingPopRef.current) return;
     const force = forceReplaceRef.current;
     forceReplaceRef.current = false;
+    const replace = replaceNextRef.current;
+    replaceNextRef.current = false;
     if (sameEntry(cur, place, layers)) return;
     const push = forcePushRef.current;
     forcePushRef.current = false;
     // The person moved on: no entry below is a dead step of the reload anymore.
     reloadedRef.current = null;
     const stack = stackRef.current;
+    // A consequence, not a step (`replaceNext`): when the same change closes the
+    // layer this entry opened (a save closing the editor), step back to the
+    // entry below and rewrite it there, so no entry naming the closed layer is
+    // left and Back goes where it went from the entry below.
+    if (!force && replace && cur.depth > 0) {
+      const below = stack[cur.depth - 1];
+      if (below && sameLayers(below.layers, layers) && !sameLayers(cur.layers, layers)) {
+        afterPopRef.current = { place, layers };
+        pendingPopRef.current = true;
+        history.back();
+        return;
+      }
+    }
     const adds = layers.some((kind) => !cur.layers.includes(kind));
-    if (!force && (push || isOpening(cur.place, place) || adds)) {
+    if (!force && !replace && (push || isOpening(cur.place, place) || adds)) {
       const state = { place, layers, depth: cur.depth + 1 };
       history.pushState(state, '', urlFromPlace(place));
       stack.length = state.depth;
@@ -165,7 +186,7 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
       lastRef.current = state;
       return;
     }
-    if (!force && cur.depth > 0 && sameEntry(stack[cur.depth - 1], place, layers)) {
+    if (!force && !replace && cur.depth > 0 && sameEntry(stack[cur.depth - 1], place, layers)) {
       pendingPopRef.current = true;
       history.back();
       return;
@@ -184,6 +205,18 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
       // Not one of ours (a `#dev/*` hash change): leave it to App.
       if (!state || !state.place) return;
       pendingPopRef.current = false;
+      // A `replaceNext` step back landed: the shell already shows the place, so
+      // the entry is rewritten to it rather than applied.
+      const after = afterPopRef.current;
+      if (after) {
+        afterPopRef.current = null;
+        const depth = Number.isInteger(state.depth) ? state.depth : 0;
+        const rewritten = { place: after.place, layers: after.layers, depth };
+        history.replaceState(rewritten, '', urlFromPlace(after.place));
+        stackRef.current[depth] = rewritten;
+        lastRef.current = rewritten;
+        return;
+      }
       const renames = renamesRef.current;
       const rename = (id) => resolveBookId(renames, id);
       const place = followPlace(songMovesRef.current, renamePlace(state.place, rename));
@@ -230,6 +263,13 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
     forcePushRef.current = true;
   }, []);
 
+  // The next change is a consequence, not a step (the search scope following a
+  // saved song — songs.search_scope_follows Decision 3): it replaces the entry
+  // it lands on rather than pushing one.
+  const replaceNext = useCallback(() => {
+    replaceNextRef.current = true;
+  }, []);
+
   // A book's id changed under the open place (a fork or a put-online): the next
   // change replaces the current entry, and every entry below that names the old
   // id opens the new one when back lands on it.
@@ -257,7 +297,7 @@ export function usePlaceHistory({ boot, place, layers, hold, onApply }) {
     );
   }, []);
 
-  return { back, renameBook, followSong, pushNext };
+  return { back, renameBook, followSong, pushNext, replaceNext };
 }
 
 function songKey(bookId, path) {
