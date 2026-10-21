@@ -710,3 +710,108 @@ describe('SearchScreen — one clear control (shell.narrow_fixes)', () => {
     expect(screen.getByRole('searchbox')).toHaveValue('');
   });
 });
+
+// songs.search_book_head_narrow — a book section's header holds the bordered
+// row, the plus and the filter only; Save all sits on a line of its own under
+// it, saying what it saves, outside what opens and closes (workflow 2 §A book's
+// section header, 02-find-and-play.md:17-26; the Review-polish board's Phone
+// frame). Pressing it opens the one save sheet (workflow 4 §Several songs at
+// once).
+describe('SearchScreen — a book section’s Save all on its own line (songs.search_book_head_narrow)', () => {
+  // This device's own book (so it takes a new song and saves), with the given
+  // songs' unsaved flags.
+  const setup = (unsavedFlags) => {
+    const { store, sent, emit } = makeStore();
+    const { container } = render(<SearchScreen store={store} />);
+    emit(
+      event(EventKind.SHELF, {
+        books: {},
+        local: { 'book-r': { title: { value: 'Roda de Quinta', at: AT }, position: { value: 0, at: AT } } },
+      }),
+    );
+    const titles = ['Lua do Quintal', 'Vento Manso', 'Ponte Velha'];
+    emit(
+      event(EventKind.BROWSE_RESULTS, {
+        books: [
+          {
+            bookId: 'book-r',
+            count: unsavedFlags.length,
+            songs: unsavedFlags.map((unsaved, i) => ({
+              path: `s${i}.cifra.md`,
+              title: titles[i],
+              artist: '',
+              unsaved,
+            })),
+          },
+        ],
+      }),
+    );
+    return { store, sent, emit, container };
+  };
+  const trigger = () => screen.getByRole('button', { name: /^Roda de Quinta/ });
+  const saveAll = () => screen.getByRole('button', { name: 'Save all changes in Roda de Quinta' });
+
+  it('a book with two unsaved songs: the header holds the trigger, the plus and the filter, and Save all sits on a line of its own under it reading "2 songs with unsaved changes"; axe clean', async () => {
+    const { container } = setup([true, false, true]);
+    const head = trigger().closest('.book-head');
+    expect(within(head).getByRole('button', { name: 'New song in Roda de Quinta' })).toBeInTheDocument();
+    expect(within(head).getByRole('button', { name: 'Search only in Roda de Quinta' })).toBeInTheDocument();
+    // Save all is not in the header's container…
+    expect(head.contains(saveAll())).toBe(false);
+    expect(within(head).queryByRole('button', { name: /Save all/ })).toBeNull();
+    // …but shares its own container with the count's words, which follows it.
+    const line = saveAll().parentElement;
+    expect(line).not.toBe(head);
+    expect(within(line).getByText('2 songs with unsaved changes')).toBeInTheDocument();
+    expect(head.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(saveAll()).toHaveTextContent('Save all');
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('the line shows with the section closed, and Save all opens the save sheet for the unsaved songs (workflow 4 §Several songs at once)', async () => {
+    setup([true, true]);
+    // Collapsed by default: the songs are hidden, the line is not.
+    expect(trigger()).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByText('Lua do Quintal')).not.toBeVisible();
+    expect(screen.getByText('2 songs with unsaved changes')).toBeVisible();
+    expect(saveAll()).toBeVisible();
+
+    act(() => fireEvent.click(saveAll()));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('heading', { name: 'Save 2 songs' })).toBeInTheDocument();
+  });
+
+  it('keyboard order: trigger, New song in {book}, Search only in {book}, Save all (document order, no tabIndex)', () => {
+    const { container } = setup([true, true]);
+    // userEvent is not a dependency of the app, and jsdom does not move focus on
+    // Tab; the sequential focus order of buttons with no positive tabIndex is
+    // their document order, so pin that order over the section's tabbable
+    // buttons (the collapsed panel's songs are hidden, so not tabbable).
+    const section = trigger().closest('.book');
+    const tabbable = [...section.querySelectorAll('button')].filter(
+      (b) => !b.closest('[hidden]') && b.tabIndex >= 0,
+    );
+    expect(tabbable.every((b) => b.tabIndex === 0)).toBe(true);
+    expect(tabbable.map((b) => b.getAttribute('aria-label') ?? 'trigger')).toEqual([
+      'trigger',
+      'New song in Roda de Quinta',
+      'Search only in Roda de Quinta',
+      'Save all changes in Roda de Quinta',
+    ]);
+    expect(tabbable[0]).toBe(trigger());
+    expect(container.querySelector('[tabindex]:not([tabindex="0"]):not([tabindex="-1"])')).toBeNull();
+  });
+
+  it('one unsaved song reads "1 song with unsaved changes"; none, no line', () => {
+    setup([false, true]);
+    expect(screen.getByText('1 song with unsaved changes')).toBeInTheDocument();
+    expect(saveAll()).toBeInTheDocument();
+  });
+
+  it('no unsaved song: neither the count nor Save all renders', () => {
+    const { container } = setup([false, false]);
+    expect(screen.queryByText(/with unsaved changes/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Save all/ })).toBeNull();
+    expect(container.querySelector('.book-unsaved')).toBeNull();
+  });
+});

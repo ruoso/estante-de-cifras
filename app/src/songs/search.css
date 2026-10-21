@@ -199,10 +199,25 @@
   cursor: pointer;
 }
 
-/* Save all for a book's changed songs (songs.save_sheet, workflow 4 §Several
-   songs at once): a compact text button in the section head, beside the scope
-   controls. Keeps the 44px touch target. */
-.book-head .save-all {
+/* The line under a book's section header when songs in it have unsaved
+   changes: the count's words, then Save all at its end (songs.save_sheet,
+   workflow 4 §Several songs at once; workflow 2 §A book's section header,
+   songs.search_book_head_narrow). Its own line, so the header keeps the row
+   and the two icons on a phone. The words may wrap, never ellipsize; Save all
+   keeps its 44px touch target. */
+.book-unsaved {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.25);
+  padding: calc(var(--u) * 0.5) 4px 0;
+}
+
+.book-unsaved-count {
+  flex: 1;
+  min-width: 0;
+}
+
+.book-unsaved .save-all {
   flex: none;
   min-height: 44px;
   padding: 0 calc(var(--u) * 1.5);

@@ -456,6 +456,12 @@ export default {
     searchedIn: 'Se buscó en títulos, artistas, secciones, letras y acordes de {books}.',
     pasteHint: 'O pega una canción entera, copiada de cualquier lugar, en una nueva.',
     songCount: { one: '{count} canción', other: '{count} canciones' },
+    // The line under a book's section header when songs in it have unsaved
+    // changes, Save all at its end (songs.search_book_head_narrow; workflow 2).
+    unsavedCount: {
+      one: '{count} canción con cambios sin guardar',
+      other: '{count} canciones con cambios sin guardar',
+    },
     stillLoading: 'cargando aún',
     voicedFor: 'con digitaciones para {instrument}',
     unsaved: 'sin guardar',

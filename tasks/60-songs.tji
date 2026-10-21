@@ -215,8 +215,9 @@ task songs "Songs" {
   task search_book_head_narrow "A book section heading in search fits a phone" {
     effort 0.5d
     allocate team
+    complete 100
     depends design.review_polish
-    note "M13: on a phone the search screen book section header puts the bordered row, the 44px plus, Save all and the 44px filter side by side (SearchScreen.jsx:308-350; search.css:128-201), crowding the card edge; W02 draws the row alone. As design.review_polish draws it. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (the actions reachable at narrow width; axe); e2e-web (a book section with unsaved songs at 390px, nothing clipped; axe, mockup W02)."
+    note "M13: on a phone the search screen book section header puts the bordered row, the 44px plus, Save all and the 44px filter side by side (SearchScreen.jsx:308-350; search.css:128-201), crowding the card edge; W02 draws the row alone. As design.review_polish draws it. Source: usability review 2026-10-19 (Claude in Chrome on the deployed app, findings verified against the code). Tests: behavior (the actions reachable at narrow width; axe); e2e-web (a book section with unsaved songs at 390px, nothing clipped; axe, mockup W02). Refinement: tasks/refinements/songs/search_book_head_narrow.md"
   }
   task empty_states "An empty song or section says so and offers Edit" {
     effort 0.5d

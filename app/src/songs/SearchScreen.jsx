@@ -347,20 +347,6 @@ function BookSection({
                 <CreateIcon />
               </Button>
             )}
-            {/* Save all the book's changed songs in one commit (workflow 4
-                §Several songs at once), only when something is unsaved. In a
-                book the user cannot push to it opens the make-it-your-own
-                offer instead (workflow 4 §A book the user cannot push to;
-                books.fork Constraint 7). */}
-            {unsavedPaths.length > 0 && (
-              <Button
-                className="btn save-all"
-                aria-label={t('saveSheet.saveAllLabel', { book: bookLabel })}
-                onPress={() => onSaveAll({ bookId, paths: unsavedPaths, bookLabel })}
-              >
-                {t('saveSheet.saveAll')}
-              </Button>
-            )}
             <Button
               className="scope-btn"
               aria-label={t('search.scopeToBook', { book: bookLabel })}
@@ -369,6 +355,28 @@ function BookSection({
               <FilterIcon />
             </Button>
           </div>
+          {/* Save all the book's changed songs in one commit (workflow 4
+              §Several songs at once), only when something is unsaved. A line of
+              its own under the header, saying what it saves, outside what opens
+              and closes so it shows with the section closed too (workflow 2 §A
+              book's section header; songs.search_book_head_narrow). In a book
+              the user cannot push to it opens the make-it-your-own offer
+              instead (workflow 4 §A book the user cannot push to; books.fork
+              Constraint 7). */}
+          {unsavedPaths.length > 0 && (
+            <div className="book-unsaved">
+              <span className="book-unsaved-count t-small">
+                {t('search.unsavedCount', { count: unsavedPaths.length })}
+              </span>
+              <Button
+                className="btn save-all"
+                aria-label={t('saveSheet.saveAllLabel', { book: bookLabel })}
+                onPress={() => onSaveAll({ bookId, paths: unsavedPaths, bookLabel })}
+              >
+                {t('saveSheet.saveAll')}
+              </Button>
+            </div>
+          )}
           <DisclosurePanel className="book-panel">
             <div className="list">
               {songs.map((s) => (
