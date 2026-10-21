@@ -247,7 +247,8 @@ task songs "Songs" {
   task editor_split_width "The editor splits text and preview only when wide enough" {
     effort 0.5d
     allocate team
+    complete 100
     depends design.review_polish
-    note "Item 10 of design.review_polish: the song editor puts text and preview side by side only when its own width is at least 640px, else Text | Preview with Help beside it, whatever the shell's layout. Workflow 3 section The editor. Source: persona exploration 2026-10-19. Tests: behavior (SongEditor: below and above 640px of editor width, the toggle and the split, focus kept on switching; axe); e2e-web (the editor on phone, tablet and computer, and on the phone at 844x390, never side by side under 640px; axe). Refinement: tasks/refinements/design/review_polish.md"
+    note "Item 10 of design.review_polish: the song editor puts text and preview side by side only when its own width is at least 640px, else Text | Preview with Help beside it, whatever the shell's layout. Workflow 3 section The editor. Source: persona exploration 2026-10-19. Tests: behavior (SongEditor: below and above 640px of editor width, the toggle and the split, focus kept on switching; axe); e2e-web (the editor on phone, tablet and computer, and on the phone at 844x390, never side by side under 640px; axe). Refinement: tasks/refinements/design/review_polish.md. Refinement: tasks/refinements/songs/editor_split_width.md"
   }
 }

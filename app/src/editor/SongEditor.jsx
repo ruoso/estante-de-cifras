@@ -1,8 +1,8 @@
 // The source editor (songs.editor; DIRECTION §3.7 L418-420). CodeMirror 6 over
 // a song's cifra.md text: the text loaded from the working copy (or a template
 // for a new song), coloured by cifra.md structure, persisted back on every
-// (debounced) edit, with a preview beside it on a wide screen and a tap away on
-// a phone, paste-into-a-fence with undo, and a voicing the reader cannot read
+// (debounced) edit, with a preview beside it when the editor is wide enough and
+// a tap away when it is not, paste-into-a-fence with undo, and a voicing the reader cannot read
 // stopping the save.
 //
 // Component boundaries (DIRECTION §3.6-3.7): this is the only React layer. It
@@ -13,7 +13,7 @@
 // knows no React, so it is usable below the view. Canonicalising, the
 // marked-text refusal and the commit stay in the Worker.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { Annotation } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
@@ -32,6 +32,7 @@ import { saveBlockers, stopMessageKey } from './save-blockers.js';
 import { isSongPath, formatHint } from './unknown-words.js';
 import { exampleInsertion } from './format-help.js';
 import FormatHelp from './FormatHelp.jsx';
+import { EDITOR_SPLIT_MIN_WIDTH, editorSplits } from './editor-split.js';
 import { template } from './template.js';
 import './editor.css';
 
@@ -125,6 +126,14 @@ export default function SongEditor({
   // follows it through the update listener.
   const [text, setText] = useState('');
   const [previewTab, setPreviewTab] = useState(false);
+  // The editor's own width — the body the two panes share — decides the split
+  // (songs.editor_split_width; workflow 3 §The editor L78-84). Kept in state
+  // only when it lands on the other side of the rule, so a resize does not
+  // re-render per pixel; `null` until measured (the layout mode decides then).
+  const bodyRef = useRef(null);
+  const previewRef = useRef(null);
+  const bodyWidthRef = useRef(null);
+  const [bodyWidth, setBodyWidth] = useState(null);
   const [saveError, setSaveError] = useState(null); // { line, code } | null
   const [pasteNotice, setPasteNotice] = useState(null); // { titled } | null
   // The notice that what was typed looks like another format (workflow 3
@@ -503,21 +512,53 @@ export default function SongEditor({
     };
   });
 
+  // Measure the body before paint, then follow it as the window or the panes
+  // around the editor resize (songs.editor_split_width Constraints 3, 6-7).
+  // The body takes its width from its container, never from which panes show,
+  // so a switch cannot change the width that decided it. Crossing under the
+  // rule, the toggle opens on the pane that holds focus, so the focused element
+  // is never hidden; the text pane is only ever hidden, never unmounted.
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    const measure = (width) => {
+      const prev = bodyWidthRef.current;
+      const sameSide = prev && width ? prev >= EDITOR_SPLIT_MIN_WIDTH === width >= EDITOR_SPLIT_MIN_WIDTH : !prev && !width;
+      if (sameSide) return;
+      bodyWidthRef.current = width;
+      if (width && width < EDITOR_SPLIT_MIN_WIDTH) {
+        setPreviewTab(Boolean(previewRef.current?.contains(document.activeElement)));
+      }
+      setBodyWidth(width);
+    };
+    measure(body.getBoundingClientRect().width);
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(() => measure(body.getBoundingClientRect().width));
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, []);
+
   const showStop = Boolean(saveError) && blockers.length > 0;
   let stopMessage = '';
   if (saveError) {
     stopMessage = t(stopMessageKey(saveError.code), { line: saveError.line });
   }
 
+  // The device decides Help's presentation (a sheet on a phone, a popover on a
+  // tablet and a computer — workflow 3 L115-118); the editor's own width
+  // decides the panes, the Text | Preview toggle and Help's place in the bar
+  // (songs.editor_split_width Constraints 4-5). A preview the host withholds
+  // stays withheld: text only, no toggle (Decision 3).
   const narrow = mode === 'narrow';
-  const showEditorPane = !(narrow && previewTab);
-  const showPreviewPane = narrow ? previewTab : previewAllowed;
+  const split = editorSplits({ width: bodyWidth, mode, previewAllowed });
+  const toggle = !split && previewAllowed;
+  const showEditorPane = !(toggle && previewTab);
+  const showPreviewPane = split || (toggle && previewTab);
   const hostSave = saveRef !== undefined;
   const hostAddSection = addSectionRef !== undefined;
   const helpButton = (
     <Button
       ref={helpRef}
-      className={`btn est-editor-help${narrow ? ' narrow' : ''}`}
+      className={`btn est-editor-help${toggle ? ' narrow' : ''}`}
       aria-expanded={help.open}
       onPress={() => setHelp({ open: true, topic: null })}
     >
@@ -529,7 +570,7 @@ export default function SongEditor({
   return (
     <div className="est-editor">
       <div className="est-editor-bar">
-        {mode === 'narrow' && (
+        {toggle && (
           <ToggleButtonGroup
             className="seg"
             aria-label={t('editor.source.viewToggle')}
@@ -542,16 +583,17 @@ export default function SongEditor({
             <ToggleButton id="preview">{t('editor.source.preview')}</ToggleButton>
           </ToggleButtonGroup>
         )}
-        {/* Help: on a phone beside Text | Preview, on a tablet and a computer
+        {/* Help: beside Text | Preview when the editor is too narrow to split
+            (a phone, a phone turned sideways, a narrow window), otherwise
             beside Add section — always the editor's own, for a song only
-            (songs.format_help Constraints 5-6). */}
-        {song && narrow ? helpButton : null}
+            (songs.format_help Constraints 5-6; songs.editor_split_width). */}
+        {song && toggle ? helpButton : null}
         {/* The actions wrap beneath the switch as a unit when they do not fit
             beside it, Save last and right-aligned (shell.narrow_fit
             Decision 5; W14#2, W04 phone). */}
-        {hostSave && hostAddSection && !(song && !narrow) ? null : (
+        {hostSave && hostAddSection && !(song && !toggle) ? null : (
           <div className="est-editor-bar-actions">
-            {song && !narrow ? helpButton : null}
+            {song && !toggle ? helpButton : null}
             {hostAddSection ? null : (
               <Button className="btn" onPress={addSection}>
                 {t('editor.source.addSection')}
@@ -656,7 +698,7 @@ export default function SongEditor({
         </div>
       )}
 
-      <div className={`est-editor-body${!narrow && previewAllowed ? ' split' : ''}`}>
+      <div ref={bodyRef} className={`est-editor-body${split ? ' split' : ''}`}>
         <div className="est-editor-pane" hidden={!showEditorPane}>
           <div ref={containerRef} className="est-cm" />
         </div>
@@ -666,6 +708,7 @@ export default function SongEditor({
           // the keyboard can reach and scroll (axe scrollable-region-focusable),
           // the scroll-region case jsx-a11y's rule documents as legitimate.
           <div
+            ref={previewRef}
             className="est-editor-pane est-editor-preview"
             role="region"
             aria-label={t('editor.source.preview')}

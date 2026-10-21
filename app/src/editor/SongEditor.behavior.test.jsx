@@ -6,7 +6,7 @@
 // CodeMirror view (the same ref a host would hold). Fixtures are purpose-written
 // songs.
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, within, fireEvent, act, waitFor } from '@testing-library/react';
 import { undo } from '@codemirror/commands';
 import { write, parse } from 'cifra-md';
@@ -1086,5 +1086,182 @@ describe('SongEditor format help', () => {
     expect(screen.queryByRole('button', { name: 'Help' })).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Show me how' })).toBeNull();
+  });
+});
+
+// songs.editor_split_width: the editor's own width — the `.est-editor-body` the
+// two panes share — decides the split, not the layout mode (workflow 3 §The
+// editor L78-84; Constraints 3-8). jsdom has no layout and no ResizeObserver,
+// so a fake observer records what it watches and lets the test deliver a width,
+// and the body's getBoundingClientRect reports the same width.
+describe('the split follows the editor\'s own width (songs.editor_split_width)', () => {
+  const SONG = '# Tarde Clara\n\n## A\n```\nC | G\n```\n';
+  const observers = [];
+  let bodyWidth = 0;
+
+  class FakeResizeObserver {
+    constructor(callback) {
+      this.callback = callback;
+      this.targets = [];
+      this.disconnected = false;
+      observers.push(this);
+    }
+
+    observe(target) {
+      this.targets.push(target);
+    }
+
+    unobserve(target) {
+      this.targets = this.targets.filter((t) => t !== target);
+    }
+
+    disconnect() {
+      this.disconnected = true;
+    }
+  }
+
+  function stubLayout(width) {
+    observers.length = 0;
+    bodyWidth = width;
+    vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    const original = Element.prototype.getBoundingClientRect;
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function rect() {
+      if (!this.classList.contains('est-editor-body')) return original.call(this);
+      return { x: 0, y: 0, top: 0, left: 0, right: bodyWidth, bottom: 0, width: bodyWidth, height: 0, toJSON() {} };
+    });
+  }
+
+  const bodyObservers = (body) => observers.filter((o) => o.targets.includes(body));
+
+  // The window (or the panes around the editor) resized: the body is now
+  // `width` wide and its observer hears of it.
+  function deliver(container, width) {
+    const body = container.querySelector('.est-editor-body');
+    bodyWidth = width;
+    act(() => {
+      for (const o of bodyObservers(body)) {
+        if (!o.disconnected) o.callback([{ target: body, contentRect: { width } }], o);
+      }
+    });
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  async function mount(width, props = {}) {
+    stubLayout(width);
+    const env = makeStore();
+    const editorRef = { current: null };
+    const utils = render(
+      <SongEditor store={env.store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} onSave={() => {}} {...props} />,
+    );
+    env.emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: SONG }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(SONG));
+    return { ...env, ...utils, editorRef };
+  }
+
+  const radio = (name) => screen.queryByRole('radio', { name: t(`editor.source.${name}`) });
+  const help = () => screen.getByRole('button', { name: t('editor.formatHelp.open'), hidden: true });
+  const previewRegion = () => screen.queryByRole('region', { name: t('editor.source.preview') });
+
+  it('a wide layout at 639px: Text | Preview with Help beside it, the chart a tap away (workflow 3 L81-84)', async () => {
+    const { container } = await mount(639);
+    expect(container.querySelector('.est-editor-body.split')).toBeNull();
+    expect(radio('text')).toBeInTheDocument();
+    expect(radio('preview')).toBeInTheDocument();
+    const bar = container.querySelector('.est-editor-bar');
+    const toggle = within(bar).getByRole('radiogroup', { name: t('editor.source.viewToggle') });
+    expect(toggle.nextElementSibling).toBe(help());
+    expect(help().closest('.est-editor-bar-actions')).toBeNull();
+    expect(container.querySelector('.chart')).toBeNull();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    act(() => fireEvent.click(radio('preview')));
+    expect(container.querySelector('.chart')).not.toBeNull();
+  });
+
+  it('a wide layout at 640px: text and preview side by side, Help beside Add section (workflow 3 L78-80, L110-113)', async () => {
+    const { container } = await mount(640);
+    expect(container.querySelector('.est-editor-body.split')).not.toBeNull();
+    expect(container.querySelector('.cm-editor')).not.toBeNull();
+    expect(container.querySelector('.chart')).not.toBeNull();
+    expect(radio('text')).toBeNull();
+    expect(radio('preview')).toBeNull();
+    const actions = container.querySelector('.est-editor-bar-actions');
+    expect(help().closest('.est-editor-bar-actions')).toBe(actions);
+    expect(help().nextElementSibling).toBe(within(actions).getByRole('button', { name: t('editor.source.addSection') }));
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('a narrow layout at 800px splits — the width decides — while Help still opens as the sheet (Constraint 5)', async () => {
+    const { container } = await mount(800, { layoutMode: 'narrow' });
+    expect(container.querySelector('.est-editor-body.split')).not.toBeNull();
+    expect(container.querySelector('.chart')).not.toBeNull();
+    expect(radio('preview')).toBeNull();
+    act(() => fireEvent.click(help()));
+    const dialog = screen.getByRole('dialog', { name: 'Writing a song' });
+    expect(dialog.closest('.sheet')).not.toBeNull();
+  });
+
+  it('crossing live with focus in the text keeps the focus, the cursor and the text (Constraint 6)', async () => {
+    const { container, editorRef } = await mount(800);
+    const content = container.querySelector('.cm-content');
+    act(() => editorRef.current.focus());
+    expect(content.contains(document.activeElement)).toBe(true);
+    const end = editorRef.current.state.doc.length;
+    act(() => editorRef.current.dispatch({ changes: { from: end, insert: '\n## B\n' }, selection: { anchor: end + 6 } }));
+    const typed = editorRef.current.state.doc.toString();
+
+    deliver(container, 600);
+    expect(container.querySelector('.est-editor-body.split')).toBeNull();
+    expect(radio('text')).toBeChecked();
+    expect(container.querySelector('.cm-content')).toBe(content);
+    expect(content.contains(document.activeElement)).toBe(true);
+    expect(editorRef.current.state.doc.toString()).toBe(typed);
+    expect(editorRef.current.state.selection.main.head).toBe(end + 6);
+
+    deliver(container, 800);
+    expect(container.querySelector('.est-editor-body.split')).not.toBeNull();
+    expect(container.querySelector('.cm-content')).toBe(content);
+    expect(content.contains(document.activeElement)).toBe(true);
+    expect(editorRef.current.state.doc.toString()).toBe(typed);
+  });
+
+  it('crossing live with focus in the preview opens the toggle on Preview, the region still focused (Constraint 6)', async () => {
+    const { container } = await mount(800);
+    const region = previewRegion();
+    act(() => region.focus());
+    expect(document.activeElement).toBe(region);
+
+    deliver(container, 600);
+    expect(radio('preview')).toBeChecked();
+    expect(previewRegion()).toBe(region);
+    expect(document.activeElement).toBe(region);
+    expect(container.querySelector('.est-editor-pane').hidden).toBe(true);
+  });
+
+  it('a preview the host withholds stays withheld at 600px and at 800px: text only, no toggle (Constraint 4)', async () => {
+    for (const width of [600, 800]) {
+      const { container, unmount } = await mount(width, { showPreview: false });
+      expect(container.querySelector('.est-editor-body')).not.toHaveClass('split');
+      expect(container.querySelector('.cm-editor')).not.toBeNull();
+      expect(radio('text')).toBeNull();
+      expect(radio('preview')).toBeNull();
+      expect(container.querySelector('.chart')).toBeNull();
+      expect(previewRegion()).toBeNull();
+      unmount();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('the observer on the body is disconnected on unmount', async () => {
+    const { container, unmount } = await mount(800);
+    const watching = bodyObservers(container.querySelector('.est-editor-body'));
+    expect(watching).toHaveLength(1);
+    expect(watching[0].disconnected).toBe(false);
+    unmount();
+    expect(watching[0].disconnected).toBe(true);
   });
 });

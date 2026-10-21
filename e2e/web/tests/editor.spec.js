@@ -3,9 +3,9 @@
 // reaches the editor the way a person does: search a song in the bundled example
 // book and press Edit in the reading view, or Write a song from the empty shelf.
 // Editing by keyboard and touch that survives a reload (workflow 4 §Editing),
-// the preview beside on a wide screen and a tap away on the phone (workflow 3
-// L78-79), pasting a cifra into a fence with an Undo using the REAL clipboard
-// (workflow 3 L87-95), a voicing the reader cannot read stopping the save
+// the preview beside when the editor is wide enough and a tap away otherwise
+// (workflow 3 L78-84), pasting a cifra into a fence with an Undo using the REAL
+// clipboard (workflow 3 L87-95), a voicing the reader cannot read stopping the save
 // (workflow 4 §Normalising), and all of it working offline (offline-first;
 // DIRECTION §3.4). Axe runs at WCAG 2.1 AA on the editor on every viewport.
 
@@ -42,16 +42,22 @@ test('an edit typed by keyboard or touch persists across a reload, axe-clean on 
   await expect(page.locator('.cm-content')).toContainText(stamp);
 });
 
-test('the preview sits beside the text on a wide screen and a tap away on the phone', async ({
+// The editor's own width decides (songs.editor_split_width; workflow 3
+// L78-84): beside the text from 640px of editor, a tap away under it — the
+// phone always, a tablet or computer whose editor is squeezed too.
+test('the preview sits beside the text when the editor is wide enough and a tap away otherwise', async ({
   page,
 }, testInfo) => {
   await openExampleBook(page);
   await openSongInEditor(page, 'Morning', SONG_TITLE);
-  if (testInfo.project.name === 'phone') {
+  const width = await page.locator('.est-editor-body').evaluate((el) => el.clientWidth);
+  if (testInfo.project.name === 'phone') expect(width).toBeLessThan(640);
+  if (width < 640) {
     await expect(page.locator('.chart')).toHaveCount(0);
     await page.getByRole('radio', { name: 'Preview' }).click();
     await expect(page.locator('.chart')).toBeVisible();
   } else {
+    await expect(page.locator('.est-editor-body.split')).toHaveCount(1);
     await expect(page.locator('.chart')).toBeVisible();
   }
   await mockup(page, 'W03-write-a-new-song', 4); // text and preview side by side
