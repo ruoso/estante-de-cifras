@@ -48,12 +48,17 @@
   margin-left: auto;
 }
 
-/* The first-open instrument prompt (W01 L104-108): the question takes the line
-   (the theme's `.notice > span:first-child`), the Change and dismiss controls
+/* The first-open instrument prompt (W01 L108-112): the statement takes the line
+   (the theme's `.notice > span:first-child`), Change instrument and Keep guitar
    sit at the end, or beneath it when both do not fit. An inline notice, not a
-   modal. */
+   modal. With two text answers the theme's 16em floor would leave the
+   statement half a tablet row beside them; holding it to most of the row sends
+   the answers beneath instead (shell.narrow_fit Decision 2). */
 .reading-instrument-prompt {
   align-items: center;
+}
+.notice.reading-instrument-prompt > span:first-child {
+  min-width: 65%;
 }
 
 /* The merge-landed notice (sync.read_in_place; W08 L65): the message takes the

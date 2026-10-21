@@ -148,8 +148,8 @@ function SyncIcon() {
   );
 }
 
-// The ✕ on the first-open instrument prompt's dismiss control (W01 L107;
-// aria-hidden — the button's "Keep guitar and dismiss" label is its name).
+// The ✕ on the update notice's dismiss control (aria-hidden — the button's
+// aria-label is its name).
 function DismissIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
@@ -670,8 +670,8 @@ export default function SongReading({
     </MenuTrigger>
   );
 
-  // The first-open instrument prompt (workflow 1 §The instrument; W01 L104-108;
-  // songs.first_song): the one-time inline notice offered the first time a song
+  // The first-open instrument prompt (workflow 1 §The instrument; W01 L108-112;
+  // songs.first_song, songs.shape_words): the one-time inline notice offered the first time a song
   // shows its shapes on the implicit standard guitar. Shown iff no instrument has
   // been put in use (`instrumentInUse` absent — the copy is fixed to "guitar", so
   // a user who already chose has nothing to ask) AND the prompt has not been
@@ -696,8 +696,8 @@ export default function SongReading({
       >
         {t('reading.instrumentPromptChange')}
       </Button>
-      <Button className="btn icon" aria-label={t('reading.instrumentPromptDismiss')} onPress={markInstrumentPromptSeen}>
-        <DismissIcon />
+      <Button className="btn quiet" onPress={markInstrumentPromptSeen}>
+        {t('reading.instrumentPromptKeep')}
       </Button>
     </div>
   ) : null;

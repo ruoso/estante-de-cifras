@@ -1641,7 +1641,10 @@ export default {
     shapes: 'Shapes',
     shapesInKey: 'Shapes in {key}',
     shapesFor: 'Shapes · {instrument}',
-    shapesCaption: "Hollow: the app's default. Filled in colour: your shape for that chord.",
+    // The three looks a diagram can take, each named with the mark's own word
+    // (workflow 2 §Where a chord's shape comes from; songs.shape_words).
+    shapesCaption:
+      'In ink: the song’s own shape. In colour: a shape you chose. In outline, marked default: the app’s suggestion.',
     transposedCaptionKey:
       "The song's own shapes are for {key}, so transposed chords use your shapes, then the defaults.",
     transposedCaption:
@@ -1663,13 +1666,14 @@ export default {
     arrangingOff: 'Arranging is off while transposed',
     // The no-voicings notice and the arrange seam (workflow 2 L75-77).
     noVoicings:
-      'Nobody has chosen shapes for {instrument} in this song yet. These are the easiest shapes for each chord.',
+      'This song doesn’t say yet how to play its chords on {instrument}, so each chord shows its easiest shape.',
     arrangeFor: 'Arrange for {instrument}',
     // The first-open instrument prompt, asked once (workflow 1 §The instrument;
-    // W01 L104-108; songs.first_song). The copy is fixed to "guitar".
-    instrumentPrompt: 'Playing on guitar — change?',
+    // W01 L108-112; songs.first_song, songs.shape_words): a statement and two
+    // answers. The copy is fixed to "guitar".
+    instrumentPrompt: 'Chord shapes shown for guitar.',
     instrumentPromptChange: 'Change instrument',
-    instrumentPromptDismiss: 'Keep guitar and dismiss',
+    instrumentPromptKeep: 'Keep guitar',
     // The app bar and action bar.
     arrange: 'Arrange',
     edit: 'Edit',

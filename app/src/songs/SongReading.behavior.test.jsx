@@ -239,7 +239,28 @@ describe('SongReading — the chart and the shapes (workflow 2 L69-77, L88-108)'
     const shapes = screen.getByRole('region', { name: 'Shapes' });
     expect(within(shapes).getByText('your shape')).toBeInTheDocument();
     expect(within(shapes).getByText('default')).toBeInTheDocument();
+    // The caption names the three looks, each by a word (songs.shape_words;
+    // workflow 2 §Where a chord's shape comes from).
+    expect(within(shapes).getByText('In ink: the song’s own shape. In colour: a shape you chose. In outline, marked default: the app’s suggestion.')).toBeInTheDocument();
 
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('shows no shapes caption when every chord has the song\u2019s own shape (songs.shape_words; show condition unchanged)', async () => {
+    const { store } = makeStore({
+      text: song({
+        props: ['key: G'],
+        chart: 'G  C',
+        voicings: ['## Voicings: E2 A2 D3 G3 B3 E4', '- G: 320003', '- C: x32010'],
+      }),
+      entry: guitarEntry(),
+    });
+    await openAndWait(store);
+
+    const shapes = screen.getByRole('region', { name: 'Shapes' });
+    expect(within(shapes).queryByText(/In ink:/)).not.toBeInTheDocument();
+    expect(within(shapes).queryByText('your shape')).not.toBeInTheDocument();
+    expect(within(shapes).queryByText('default')).not.toBeInTheDocument();
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 
@@ -257,9 +278,9 @@ describe('SongReading — the chart and the shapes (workflow 2 L69-77, L88-108)'
     const { store } = makeStore({ text: song({ chart: 'G  C  Am' }), entry: guitarEntry() });
     await openAndWait(store, { onArrange });
 
-    expect(
-      screen.getByText(/Nobody has chosen shapes for Guitar in this song yet/),
-    ).toBeInTheDocument();
+    // songs.shape_words; workflow 2 L159-163.
+    expect(screen.getByText('This song doesn’t say yet how to play its chords on Guitar, so each chord shows its easiest shape.')).toBeInTheDocument();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
     await click(screen.getByRole('button', { name: 'Arrange for Guitar' }));
     expect(onArrange).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
 
@@ -842,25 +863,30 @@ describe('SongReading — full screen, print, add to setlist, share', () => {
 
 describe('SongReading — the first-open instrument prompt (songs.first_song, workflow 1 §The instrument)', () => {
   const PATH2 = 'segunda-musica.cifra.md';
-  const promptText = /Playing on guitar/;
+  // songs.shape_words: a statement and two text answers (W01 L108-112).
+  const promptText = 'Chord shapes shown for guitar.';
 
-  it('shows the prompt on the first open, with Change and dismiss, axe clean (W01 L104-108)', async () => {
+  it('shows the prompt on the first open, with Change instrument and Keep guitar, axe clean (W01 L108-112)', async () => {
     // Fresh install: neither instrumentInUse nor instrumentPromptSeen is set.
     const { store } = makeStore({ text: song({}), entry: guitarEntry(), preferences: {} });
     await openAndWait(store);
 
     expect(screen.getByText(promptText)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Change instrument' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Keep guitar and dismiss' })).toBeInTheDocument();
+    const keep = screen.getByRole('button', { name: 'Keep guitar' });
+    // A visible text answer, not an icon with an aria-label.
+    expect(keep).toHaveTextContent('Keep guitar');
+    expect(keep).not.toHaveAttribute('aria-label');
+    expect(screen.queryByRole('button', { name: 'Keep guitar and dismiss' })).not.toBeInTheDocument();
 
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 
-  it('dismiss keeps guitar, sends MARK_INSTRUMENT_PROMPT_SEEN, and never asks again', async () => {
+  it('Keep guitar sends MARK_INSTRUMENT_PROMPT_SEEN and never asks again', async () => {
     const { store, commands } = makeStore({ text: song({}), entry: guitarEntry(), preferences: {} });
     await openAndWait(store);
 
-    await click(screen.getByRole('button', { name: 'Keep guitar and dismiss' }));
+    await click(screen.getByRole('button', { name: 'Keep guitar' }));
     expect(lastCommand(commands, CommandKind.MARK_INSTRUMENT_PROMPT_SEEN)).toBeTruthy();
     // After the PREFERENCES re-surface with the flag set, the notice is gone.
     await waitFor(() => expect(screen.queryByText(promptText)).not.toBeInTheDocument());
@@ -908,18 +934,18 @@ describe('SongReading — the first-open instrument prompt (songs.first_song, wo
     expect(screen.queryByText(promptText)).not.toBeInTheDocument();
   });
 
-  it('exposes dismiss and change as keyboard-reachable, keyboard-operable buttons (§3.7)', async () => {
+  it('exposes Keep guitar and Change instrument as keyboard-reachable, keyboard-operable buttons (§3.7)', async () => {
     const { store, commands } = makeStore({ text: song({}), entry: guitarEntry(), preferences: {} });
     await openAndWait(store);
 
-    const dismiss = screen.getByRole('button', { name: 'Keep guitar and dismiss' });
+    const dismiss = screen.getByRole('button', { name: 'Keep guitar' });
     const change = screen.getByRole('button', { name: 'Change instrument' });
     // Both are focusable (reachable by Tab).
     act(() => change.focus());
     expect(change).toHaveFocus();
     act(() => dismiss.focus());
     expect(dismiss).toHaveFocus();
-    // And operable by keyboard: Enter on dismiss sends the command (RAC Button
+    // And operable by keyboard: Enter on Keep guitar sends the command (RAC Button
     // usePress fires the press on key-up).
     await act(async () => {
       fireEvent.keyDown(dismiss, { key: 'Enter' });
@@ -1379,7 +1405,7 @@ describe('SongReading header chrome (behavior)', () => {
     await openAndWait(store);
 
     expect(await screen.findByRole('button', { name: 'Arrange for Guitar' })).toBeInTheDocument();
-    expect(screen.getByText(/Nobody has chosen shapes for Guitar in this song yet/)).toBeInTheDocument();
+    expect(screen.getByText('This song doesn’t say yet how to play its chords on Guitar, so each chord shows its easiest shape.')).toBeInTheDocument();
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 });

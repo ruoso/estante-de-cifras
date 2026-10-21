@@ -103,6 +103,31 @@ describe('says the everyday lines without git\u2019s words, in every language (s
   });
 });
 
+// songs.shape_words — workflow 1 §The instrument, workflow 2 §Where a chord's
+// shape comes from; design.review_polish, The new copy and The marks keep their word.
+describe('the shape words (songs.shape_words)', () => {
+  it('English says the pinned copy', () => {
+    expect(en.reading.shapesCaption).toBe(
+      'In ink: the song’s own shape. In colour: a shape you chose. In outline, marked default: the app’s suggestion.',
+    );
+    expect(en.reading.noVoicings).toBe(
+      'This song doesn’t say yet how to play its chords on {instrument}, so each chord shows its easiest shape.',
+    );
+    expect(en.reading.instrumentPrompt).toBe('Chord shapes shown for guitar.');
+    expect(en.reading.instrumentPromptChange).toBe('Change instrument');
+    expect(en.reading.instrumentPromptKeep).toBe('Keep guitar');
+    expect(en.reading).not.toHaveProperty('instrumentPromptDismiss');
+  });
+
+  for (const locale of LOCALES) {
+    it(`${locale.id} names the default look with the diagram's own mark word`, () => {
+      const mark = locale.messages.diagram.default;
+      expect(typeof mark).toBe('string');
+      expect(locale.messages.reading.shapesCaption).toContain(mark);
+    });
+  }
+});
+
 describe('lookup', () => {
   it('interpolates named parameters', () => {
     expect(t('results.none', { label: 'Guitar' })).toBe('No fingerings for this chord on Guitar.');

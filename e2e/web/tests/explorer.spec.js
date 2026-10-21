@@ -165,7 +165,11 @@ test('a shape entered by hand and starred is "your shape" in the reading view, a
   // In the song, G reads as the shape entered by hand.
   await page.getByRole('button', { name: 'Back to search' }).click();
   await openSongFromSearch(page, SONG.search, SONG.title);
-  await expect(page.getByText(/Nobody has chosen shapes for My Drop D/)).toBeVisible();
+  await expect(
+    page.getByText(
+      'This song doesn’t say yet how to play its chords on My Drop D, so each chord shows its easiest shape.',
+    ),
+  ).toBeVisible();
   await mockup(page, 'W02-find-and-play', 3);
   const yours = page.locator('.reading-shapes .chord-diagram__who', { hasText: 'your shape' });
   await expect(yours).toHaveCount(1);

@@ -71,7 +71,7 @@ test('the reading notices read as sentences, their actions fully visible (W02 ph
   await openExampleBook(page);
   await openSong(page);
   // The first-open instrument prompt.
-  const prompt = page.getByText('Playing on guitar — change?');
+  const prompt = page.getByText('Chord shapes shown for guitar.');
   await expect(prompt).toBeVisible();
   await expectFits(page, { sentences: [prompt] });
   await checkA11y();
@@ -81,7 +81,9 @@ test('the reading notices read as sentences, their actions fully visible (W02 ph
   await addInstrument(page, { tuning: 'Drop D', name: 'My Drop D' });
   await closeInstruments(page);
   await openSong(page);
-  const noVoicings = page.getByText(/^Nobody has chosen shapes for My Drop D/);
+  const noVoicings = page.getByText(
+    'This song doesn’t say yet how to play its chords on My Drop D, so each chord shows its easiest shape.',
+  );
   await expect(noVoicings).toBeVisible();
   await expect(page.getByRole('button', { name: 'Arrange for My Drop D' })).toBeVisible();
   await expectFits(page, { sentences: [noVoicings] });

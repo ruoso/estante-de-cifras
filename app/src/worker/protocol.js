@@ -283,7 +283,7 @@ export const CommandKind = Object.freeze({
   SET_DENSITY: 'set_density',
   SET_DIAGRAM_HANDED: 'set_diagram_handed',
   SET_DIAGRAM_ORIENTATION: 'set_diagram_orientation',
-  // Record that the first-open "Playing on guitar — change?" prompt was answered
+  // Record that the first-open "Chord shapes shown for guitar." prompt was answered
   // (songs.first_song, workflow 1 §The instrument). MARK_INSTRUMENT_PROMPT_SEEN
   // `{}`: the Worker provisions a local home book if none exists and
   // writes the `instrumentPromptSeen` register into preferences.json

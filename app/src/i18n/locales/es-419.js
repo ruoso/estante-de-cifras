@@ -1485,7 +1485,8 @@ export default {
     shapes: 'Formas',
     shapesInKey: 'Formas en {key}',
     shapesFor: 'Formas · {instrument}',
-    shapesCaption: 'Hueca: la forma predeterminada del app. Rellena en color: tu forma para ese acorde.',
+    shapesCaption:
+      'En tinta: la forma propia de la canción. En color: una forma que elegiste. En contorno, marcada predeterminada: la sugerencia del app.',
     transposedCaptionKey:
       'Las formas propias de la canción son para {key}, así que los acordes transpuestos usan tus formas y, luego, las predeterminadas.',
     transposedCaption:
@@ -1504,13 +1505,14 @@ export default {
     backToWritten: 'Volver al tono escrito',
     arrangingOff: 'Arreglar está desactivado mientras está transpuesta',
     noVoicings:
-      'Nadie ha elegido formas para {instrument} en esta canción todavía. Estas son las formas más fáciles para cada acorde.',
+      'Esta canción todavía no dice cómo tocar sus acordes en {instrument}, así que cada acorde muestra su forma más fácil.',
     arrangeFor: 'Arreglar para {instrument}',
     // La pregunta única en la primera apertura (workflow 1 §The instrument;
-    // W01 L104-108; songs.first_song). El texto es fijo en "guitarra".
-    instrumentPrompt: 'Tocando en guitarra — ¿cambiar?',
+    // W01 L108-112; songs.first_song, songs.shape_words): una afirmación y dos
+    // respuestas. El texto es fijo en "guitarra".
+    instrumentPrompt: 'Formas de acordes mostradas para guitarra.',
     instrumentPromptChange: 'Cambiar instrumento',
-    instrumentPromptDismiss: 'Conservar la guitarra y descartar',
+    instrumentPromptKeep: 'Conservar guitarra',
     arrange: 'Arreglar',
     edit: 'Editar',
     history: 'Historial',

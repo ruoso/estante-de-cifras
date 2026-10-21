@@ -4,8 +4,8 @@
 // on the shelf as a local book — no account, no network — and makes its songs
 // searchable; and because the book lives on the device, it survives a reload
 // with the network cut (DIRECTION §1 L29-31, §3.7). The first song opened then
-// asks about the instrument once — "Playing on guitar — change?" — and a dismiss
-// keeps the guitar and never asks again, on the next song or after a reload
+// says the instrument once — "Chord shapes shown for guitar." — and Keep guitar
+// answers it and it never shows again, on the next song or after a reload
 // (workflow 1 §The instrument; songs.first_song). Axe runs at WCAG 2.1 AA on the
 // first-run screen, the populated shelf and the reading screen with the notice,
 // on the phone, tablet and computer projects (contrast runs in the real browser
@@ -29,7 +29,7 @@ const WAYS = [
 // the first shows the prompt, the second must not.
 const FIRST = { search: 'Ferry', title: 'The Ferry Line' };
 const SECOND = { search: 'Morning', title: 'Morning on the Porch' };
-const PROMPT = /Playing on guitar/;
+const PROMPT = 'Chord shapes shown for guitar.';
 
 test('a first visit shows the empty shelf and its four ways in', async ({ page, checkA11y }) => {
   await startApp(page);
@@ -86,7 +86,8 @@ test('opening the example book puts it on the shelf, its songs are searchable, a
 
 // The first-open instrument prompt (workflow 1 §The instrument; songs.first_song).
 // On a fresh profile nobody has put an instrument in use, so the first song to
-// show its shapes asks once; dismissing it keeps the guitar and never asks again.
+// show its shapes says so once; Keep guitar answers it and it never shows again
+// (songs.shape_words: a statement and two text answers, W01 L108-112).
 test('the first song opened asks about the instrument once; the second does not', async ({
   page,
   checkA11y,
@@ -94,19 +95,20 @@ test('the first song opened asks about the instrument once; the second does not'
   await openExampleBook(page);
   await openSongFromSearch(page, FIRST.search, FIRST.title);
 
-  // The inline notice shows above the chart, with Change and dismiss controls.
+  // The inline notice shows above the chart, with Change instrument and Keep guitar.
   await expect(page.getByText(PROMPT)).toBeVisible();
   // Exact name: the header instrument chip's aria-label ends "…, change
   // instrument", which Playwright's default substring name match would also
   // catch (strict-mode violation); pin the notice's own control.
   await expect(page.getByRole('button', { name: 'Change instrument', exact: true })).toBeVisible();
-  const dismiss = page.getByRole('button', { name: 'Keep guitar and dismiss' });
-  await expect(dismiss).toBeVisible();
+  const keep = page.getByRole('button', { name: 'Keep guitar', exact: true });
+  await expect(keep).toBeVisible();
+  await expect(keep).toHaveText('Keep guitar');
   await mockup(page, 'W01-first-run', 3);
   await checkA11y(); // the reading screen with the notice present
 
-  // Keep the guitar and dismiss: the notice goes.
-  await dismiss.click();
+  // Keep guitar: the notice goes.
+  await keep.click();
   await expect(page.getByText(PROMPT)).toHaveCount(0);
 
   // A second song shows no notice (the phone returns to search with Back; the
@@ -116,12 +118,12 @@ test('the first song opened asks about the instrument once; the second does not'
   await expect(page.getByText(PROMPT)).toHaveCount(0);
 });
 
-test('the dismissed prompt stays dismissed across a reload (persisted in the home book)', async ({
+test('the answered prompt stays answered across a reload (persisted in the home book)', async ({
   page,
 }) => {
   await openExampleBook(page);
   await openSongFromSearch(page, FIRST.search, FIRST.title);
-  await page.getByRole('button', { name: 'Keep guitar and dismiss' }).click();
+  await page.getByRole('button', { name: 'Keep guitar', exact: true }).click();
   await expect(page.getByText(PROMPT)).toHaveCount(0);
 
   // Reload the app and open a song again: the flag lives in preferences.json, so

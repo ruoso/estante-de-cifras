@@ -1484,7 +1484,8 @@ export default {
     shapes: 'Forme',
     shapesInKey: 'Forme in {key}',
     shapesFor: 'Forme · {instrument}',
-    shapesCaption: 'Vuota: la forma predefinita dell’app. Piena a colori: la tua forma per quell’accordo.',
+    shapesCaption:
+      'In inchiostro: la forma propria della canzone. A colori: una forma che hai scelto. A contorno, marcata predefinita: il suggerimento dell’app.',
     transposedCaptionKey:
       'Le forme proprie della canzone sono per {key}, quindi gli accordi trasposti usano le tue forme e poi quelle predefinite.',
     transposedCaption:
@@ -1503,13 +1504,14 @@ export default {
     backToWritten: 'Torna alla tonalità scritta',
     arrangingOff: 'L’arrangiamento è disattivato mentre è trasposta',
     noVoicings:
-      'Nessuno ha ancora scelto forme per {instrument} in questa canzone. Queste sono le forme più facili per ogni accordo.',
+      'Questa canzone non dice ancora come suonare i suoi accordi su {instrument}, quindi ogni accordo mostra la sua forma più facile.',
     arrangeFor: 'Arrangia per {instrument}',
     // La domanda una tantum alla prima apertura (workflow 1 §The instrument;
-    // W01 L104-108; songs.first_song). Il testo è fisso su "chitarra".
-    instrumentPrompt: 'Suoni con la chitarra — cambiare?',
+    // W01 L108-112; songs.first_song, songs.shape_words): un'affermazione e due
+    // risposte. Il testo è fisso su "chitarra".
+    instrumentPrompt: 'Forme degli accordi mostrate per chitarra.',
     instrumentPromptChange: 'Cambia strumento',
-    instrumentPromptDismiss: 'Mantieni la chitarra e chiudi',
+    instrumentPromptKeep: 'Mantieni chitarra',
     arrange: 'Arrangia',
     edit: 'Modifica',
     history: 'Cronologia',

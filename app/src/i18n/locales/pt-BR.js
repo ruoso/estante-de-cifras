@@ -1484,7 +1484,8 @@ export default {
     shapes: 'Formas',
     shapesInKey: 'Formas em {key}',
     shapesFor: 'Formas · {instrument}',
-    shapesCaption: 'Vazado: a forma padrão do app. Preenchido em cor: a sua forma para esse acorde.',
+    shapesCaption:
+      'Em tinta: a forma da própria música. Em cor: uma forma que você escolheu. Em contorno, marcada padrão: a sugestão do app.',
     transposedCaptionKey:
       'As formas da própria música são para {key}, então acordes transpostos usam as suas formas e, depois, as padrão.',
     transposedCaption:
@@ -1503,13 +1504,14 @@ export default {
     backToWritten: 'Voltar ao tom escrito',
     arrangingOff: 'Arranjo desativado enquanto transposta',
     noVoicings:
-      'Ninguém escolheu formas para {instrument} nesta música ainda. Estas são as formas mais fáceis para cada acorde.',
+      'Esta música ainda não diz como tocar seus acordes em {instrument}, então cada acorde mostra a sua forma mais fácil.',
     arrangeFor: 'Arranjar para {instrument}',
     // A pergunta única na primeira abertura (workflow 1 §The instrument;
-    // W01 L104-108; songs.first_song). O texto é fixo em "violão".
-    instrumentPrompt: 'Tocando no violão — mudar?',
+    // W01 L108-112; songs.first_song, songs.shape_words): uma afirmação e duas
+    // respostas. O texto é fixo em "violão".
+    instrumentPrompt: 'Formas de acorde mostradas para violão.',
     instrumentPromptChange: 'Mudar instrumento',
-    instrumentPromptDismiss: 'Manter o violão e dispensar',
+    instrumentPromptKeep: 'Manter violão',
     arrange: 'Arranjar',
     edit: 'Editar',
     history: 'Histórico',

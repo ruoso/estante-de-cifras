@@ -242,8 +242,9 @@ task songs "Songs" {
   task shape_words "The shape words a teacher understands" {
     effort 0.5d
     allocate team
+    complete 100
     depends design.review_polish
-    note "Item 6 of design.review_polish: the reading view's shapes caption, its no-voicings notice and the first-open instrument prompt in the words the refinement pins (reading.shapesCaption, reading.noVoicings, reading.instrumentPrompt and its two buttons), in the four locales; the per-diagram marks unchanged. Workflows 1, 2. Source: persona exploration 2026-10-19. Tests: unit (the locales carry every key); behavior (SongReading: the caption with a default and a chosen shape, the notice on a song with no voicings, the prompt and its two answers; axe). Refinement: tasks/refinements/design/review_polish.md"
+    note "Item 6 of design.review_polish: the reading view's shapes caption, its no-voicings notice and the first-open instrument prompt in the words the refinement pins (reading.shapesCaption, reading.noVoicings, reading.instrumentPrompt and its two buttons), in the four locales; the per-diagram marks unchanged. Workflows 1, 2. Source: persona exploration 2026-10-19. Tests: unit (the locales carry every key); behavior (SongReading: the caption with a default and a chosen shape, the notice on a song with no voicings, the prompt and its two answers; axe). Refinement: tasks/refinements/design/review_polish.md. Refinement: tasks/refinements/songs/shape_words.md"
   }
   task editor_split_width "The editor splits text and preview only when wide enough" {
     effort 0.5d
