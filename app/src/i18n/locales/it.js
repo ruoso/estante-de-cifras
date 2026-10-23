@@ -1814,6 +1814,7 @@ export default {
       text: 'Testo',
       preview: 'Anteprima',
       previewLabel: 'Anteprima della canzone come verrà letta',
+      arrangeBlocked: 'Correggi le righe segnate nel testo per scegliere le forme qui.',
       addSection: 'Aggiungi sezione',
       save: 'Salva',
       undo: 'Annulla',

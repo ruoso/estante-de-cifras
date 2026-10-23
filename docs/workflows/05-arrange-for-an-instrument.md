@@ -11,6 +11,12 @@ the song may be someone else's, and the arrangement is shared.
 Every change here is an edit like any other (workflow 4): it goes to the
 working copy, shows as unsaved, and is saved or discarded the same way.
 
+Arranging happens in two places. The **arrange screen** below is the way in
+from reading, made for a phone. The **editor's preview** arranges too
+(workflow 3 §The editor): the same tappable chart, picker, shapes and
+variations beside the text, so changing a chord's shape while writing never
+means leaving the editor. Only the wizard is the arrange screen's alone.
+
 ## Arranging is a mode
 
 From the reading view, *arrange* — or *arrange for cavaquinho*, on a song

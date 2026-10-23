@@ -1814,6 +1814,7 @@ export default {
       text: 'Texto',
       preview: 'Vista previa',
       previewLabel: 'Vista previa de la canción tal como se leerá',
+      arrangeBlocked: 'Corrige las líneas marcadas en el texto para elegir formas aquí.',
       addSection: 'Agregar sección',
       save: 'Guardar',
       undo: 'Deshacer',

@@ -2,7 +2,10 @@
 // a song's cifra.md text: the text loaded from the working copy (or a template
 // for a new song), coloured by cifra.md structure, persisted back on every
 // (debounced) edit, with a preview beside it when the editor is wide enough and
-// a tap away when it is not, paste-into-a-fence with undo, a voicing the reader cannot read
+// a tap away when it is not — a preview that arranges, as the arrange screen
+// does (workflow 4 §Editing): its chords open the shape picker and every
+// chord's diagram follows the chart, a choice landing in the buffer as one
+// undoable change — paste-into-a-fence with undo, a voicing the reader cannot read
 // stopping the save, and every line the reader reports saying why in words —
 // under the line, and to a screen reader when the cursor arrives
 // (songs.editor_errors_in_words).
@@ -27,6 +30,8 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { useLayoutMode } from '../shell/AppShell.jsx';
 import { t } from '../i18n/index.js';
 import Chart from '../chart/Chart.jsx';
+import InstrumentChip from '../instruments/InstrumentChip.jsx';
+import { useArrange } from '../songs/arrange-surface.jsx';
 import { sourceExtensions, unknownMarksField } from './source-extensions.js';
 import { fencePaste, fenceAround } from './fence-paste.js';
 import { lineDiagnostics, lineNoteText } from './diagnostic-words.js';
@@ -356,11 +361,14 @@ export default function SongEditor({
     setLoaded(true);
   }, [isNew, templateDoc, sourceText, bookId, path]);
 
-  // Ask the Worker for the working-copy text of an existing song.
+  // Ask the Worker for the working-copy text of an existing song, and for a
+  // song its reading state too (OPEN_SONG — a plain read): the variation in use
+  // per tuning, which the arranging preview chooses into.
   useEffect(() => {
     if (isNew || !bookId || !path) return;
     store.send(command(CommandKind.OPEN_SOURCE, { bookId, path }));
-  }, [store, isNew, bookId, path]);
+    if (song) store.send(command(CommandKind.OPEN_SONG, { bookId, path }));
+  }, [store, isNew, bookId, path, song]);
 
   // A merge landed under the open buffer (the transient MERGED fact, like
   // RESTORED / FILE_MOVED). React only when it names THIS open song. The Worker
@@ -460,6 +468,37 @@ export default function SongEditor({
   useEffect(() => {
     if (parsedTitle !== undefined) onTitleChange?.(parsedTitle);
   }, [onTitleChange, parsedTitle]);
+
+  // The preview arranges (workflow 4 §Editing; workflow 5): the arrange screen's
+  // tappable chart, picker, shapes and variations over the live buffer. A choice
+  // is the canonical text `write` makes of the chosen model, put into the buffer
+  // as the minimal change — one undo step, the caret mapped through it — so it
+  // is an edit like a keystroke: mirrored, debounced into WRITE, saved or
+  // discarded with the rest. While the text holds a line that stops a save,
+  // `write` could drop it, so the chart reads but takes no taps until it is
+  // fixed.
+  const canArrange = song && blockers.length === 0;
+  const arrangeText = (out) => {
+    const view = viewRef.current;
+    if (!view) return;
+    const current = view.state.doc.toString();
+    if (out === current) return;
+    view.dispatch({
+      changes: minimalChange(current, out),
+      userEvent: 'input',
+      annotations: isolateHistory.of('full'),
+    });
+  };
+  const arrange = useArrange({
+    store,
+    bookId,
+    path,
+    text: song ? text : '',
+    onText: arrangeText,
+    mode: mode === 'narrow' ? 'narrow' : 'wide',
+    canWrite: canArrange,
+    chartProps: { label: t('editor.source.previewLabel') },
+  });
 
   const addSection = () => {
     const view = viewRef.current;
@@ -777,11 +816,37 @@ export default function SongEditor({
             // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
             tabIndex={0}
           >
-            <div className="t-h3">{t('editor.source.preview')}</div>
-            <Chart model={parsed} label={t('editor.source.previewLabel')} />
+            {arrange.enterScreen}
+            {/* Kept mounted (hidden) while a shape is entered, so the chord
+                that opened the picker is there to take focus back. */}
+            <div className="est-editor-preview-body" hidden={arrange.entering}>
+              <div className="est-editor-preview-head">
+                <div className="t-h3">{t('editor.source.preview')}</div>
+                {song && arrange.entry ? <InstrumentChip store={store} onOpen={arrange.openInstruments} /> : null}
+              </div>
+              {song ? (
+                <>
+                  <p className="t-small est-editor-arrange-hint">
+                    {canArrange ? t('arrange.modeHint') : t('editor.source.arrangeBlocked')}
+                  </p>
+                  {arrange.variationSelector}
+                  {arrange.chart}
+                  {arrange.shapesStrip}
+                  <div className="est-editor-arrange-actions">
+                    {arrange.chooseEveryButton}
+                    <Button className="btn" isDisabled={!canArrange} onPress={arrange.openAddVariation}>
+                      {t('arrange.variations')}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <Chart model={parsed} label={t('editor.source.previewLabel')} />
+              )}
+            </div>
           </div>
         )}
       </div>
+      {song ? arrange.overlays : null}
     </div>
   );
 }

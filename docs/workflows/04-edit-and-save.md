@@ -20,7 +20,9 @@ closing the tab or turning off the phone loses nothing, and so asks nothing.
 editor is an edit. So is anything that changes the text from elsewhere:
 choosing a shape in the reading view, adding a variation, running the voicing
 wizard (workflow 5). All of them write to the same working copy, and are
-saved or discarded the same way.
+saved or discarded the same way. Inside the editor a shape is chosen without
+leaving it: the preview arranges (workflow 3 §The editor), and its choice is
+an edit in the text, undone like a keystroke.
 
 The editor is the one workflow 3 describes, with its *Help* and the notice
 when what is typed looks like another format (workflow 3 §Help with the

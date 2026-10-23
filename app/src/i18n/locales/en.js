@@ -1984,6 +1984,7 @@ export default {
       text: 'Text',
       preview: 'Preview',
       previewLabel: 'Preview of the song as it will be read',
+      arrangeBlocked: 'Fix the lines marked in the text to choose shapes here.',
       addSection: 'Add section',
       save: 'Save',
       undo: 'Undo',

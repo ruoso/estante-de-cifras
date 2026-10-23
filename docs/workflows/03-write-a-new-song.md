@@ -85,6 +85,19 @@ syntax costs effort instead:
   upright, as before, and now a phone turned sideways or a narrow window on a
   computer too. The editor's own width decides, not the screen's layout,
   since the side rail can leave a wide screen a narrow editor.
+
+  The preview **arranges**, as the arrange screen does (workflow 5): its
+  chords are things to tap, opening the same picker — *every Cm* or *only
+  here*, *enter a shape* — and below the chart, in the same flow, is the
+  diagram of every chord's shape for the instrument in use, named in the
+  preview's head by the instrument chip, with *choose these for every
+  unchosen chord* and *Variations* after them. A choice goes into the text
+  being edited as one change that one undo takes back; there is no trip to
+  another screen to change a shape while writing. While the text holds a
+  line that stops a save (workflow 4 §Saving), the chart is read only and
+  says so — *fix the lines marked in the text to choose shapes here* — since
+  writing a choice could lose that line. The wizard stays on the arrange
+  screen.
 - **Help** explains the few marks the format asks for, in plain words with
   examples that go straight into the song (§Help with the format), and the
   editor points to it when what was typed looks like another format (§When it

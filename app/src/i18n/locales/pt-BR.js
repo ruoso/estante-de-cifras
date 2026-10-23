@@ -1813,6 +1813,7 @@ export default {
       text: 'Texto',
       preview: 'Prévia',
       previewLabel: 'Prévia da música como ela será lida',
+      arrangeBlocked: 'Corrija as linhas marcadas no texto para escolher formas aqui.',
       addSection: 'Adicionar seção',
       save: 'Salvar',
       undo: 'Desfazer',

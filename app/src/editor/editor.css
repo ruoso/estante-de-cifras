@@ -89,6 +89,35 @@
   position: relative;
 }
 
+/* The arranging preview (workflow 4 §Editing): its head names the instrument,
+   then the chart, then every chord's diagram flowing below it. */
+.est .est-editor-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+.est .est-editor-preview-body[hidden] {
+  display: none;
+}
+.est .est-editor-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--u) * 1.5);
+}
+.est .est-editor-arrange-hint {
+  margin: 0;
+}
+.est .est-editor-arrange-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 1.25);
+}
+.est .est-editor-arrange-actions .btn.block {
+  flex: 1;
+  width: auto;
+}
+
 /* CodeMirror chrome, keyed to the theme tokens. */
 .est .est-cm {
   flex: 1;

@@ -431,9 +431,11 @@ describe('SongEditor', () => {
     const majorSeventh = speakChord(parseChord('C7+', 'brazilian').chord, { t });
     // The brazilian reading would speak another chord, so this can fail.
     expect(sharpFifth).not.toBe(majorSeventh);
+    // The preview arranges, so its chords are press targets named by the spoken
+    // chord (arrange-surface's chordLabel).
     const chart = container.querySelector('.est-editor-preview .chart');
-    await waitFor(() => expect(within(chart).getByText(sharpFifth)).toBeInTheDocument());
-    expect(within(chart).queryByText(majorSeventh)).toBeNull();
+    await waitFor(() => expect(within(chart).getByRole('button', { name: sharpFifth })).toBeInTheDocument());
+    expect(within(chart).queryByRole('button', { name: majorSeventh })).toBeNull();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
