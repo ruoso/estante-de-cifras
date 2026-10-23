@@ -80,14 +80,10 @@ which is the one you have been working in. Results are not grouped by song.
 Search covers every book. A filter narrows it to books, or to folders within
 one, and **resets at the start of each session**: a scope you have forgotten
 about hides results without saying so. While a filter is on, it is shown in
-the box, not tucked behind a button. The one exception is a session that
-starts from a book's address (`…/b/<book>`, workflow 7): it opens on that
-book's songs, the scope shown in the box like any other. Pressing a book on
-the book-management screen opens the same place.
-
-While the scope is one book or a folder in it, a bar above the results names
-the book, its state, and *Manage* for its detail (workflow 7 §A book's
-songs).
+the box, not tucked behind a button. A scope is a filter and nothing more:
+it has no address, and no bar. A book's address (`…/b/<book>`) and a book
+pressed on the shelf open the book's own page instead (workflow 7 §A book's
+page), with its own search within it.
 
 A scoped search is that book's songs, and nothing else: the books outside the
 scope are left out — no section for them, no count, no recents from them —
@@ -98,9 +94,8 @@ by clearing the chip, or from Books.
 **After a save, the scope follows the song.** When a song is saved into a
 book the scope does not hold — a new song made in *My songs*, or moved to
 another book before its first save, while the search was scoped elsewhere —
-the scope becomes the book it was saved to: the chip and the bar name that
-book, the address is that book's (`…/b/<book>`), and its section is open with
-the song in it. It never stays on the other book, where the song would not
+the scope becomes the book it was saved to: the chip names that book, and
+its section is open with the song in it. It never stays on the other book, where the song would not
 show, and it never clears, which would leave the person among every book to
 find it. A save the scope already holds leaves the scope as it is (a song
 saved outside the scoped folder widens it to the folder's book), and a save

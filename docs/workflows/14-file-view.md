@@ -130,7 +130,7 @@ history the two share, which is unaffected.
 ## The view
 
 **Where it is reached**: **Files** on a book's detail, itself reached by
-*Manage* on the book's songs (workflow 7 §A book's songs), and *show the
+*Manage* on the book's page (workflow 7 §A book's page), and *show the
 file* on a song's reading view, which opens the tree at that file. Its Back
 returns to where it was opened from. Not hidden behind a setting: advanced users find it, and others never
 need to.

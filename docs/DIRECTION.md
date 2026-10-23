@@ -490,7 +490,7 @@ languages. Its components carry no look of their own, so the visual language
   the Worker stay the same build within one session, so a schema migration
   (§3.2) only ever runs at that same launch boundary.
 - **The address follows where you are.** The destination (search, books,
-  setlists), a book's songs (`/b/<book>`) and an open song or setlist
+  setlists), a book's page (`/b/<book>`) and an open song or setlist
   (`/b/<book>/<path>`) are in the URL, so a reload, a bookmark and the
   browser's or Android's back land where the person was (workflow 7, *Links
   to books*). The screens over them — the editor, history, the file view,
@@ -651,6 +651,15 @@ workflows do not yet cover, and work that comes before building:
   book with *Manage*, which opens the book's detail, where renaming and
   *Files* now live; a book that needs you opens on its songs with *Settle*.
   No new workflow.
+- **A book's page**, decided (workflow 7 §A book's page; workflow 2 §Scope;
+  workflow 3 §Ways in) and drawn on
+  [mockups/Open-a-book.dc.html](mockups/Open-a-book.dc.html) — pressing a
+  book opens a page of its own on Books, not search with a filter on: *Books*
+  back, the book's card with **New song** (its one primary act) beside
+  *Manage*, a search
+  within the book, and every song as one flat list; an empty book says so.
+  `…/b/<book>` is that page; a search scope is a filter with no address and
+  no bar. Replaces the scoped search *Opening a book* opened. No new workflow.
 - **Search within a book**, decided (workflow 2 §The search screen, §Scope)
   and drawn on [mockups/Search-scope.dc.html](mockups/Search-scope.dc.html) —
   a scoped search is that book's songs, the scope follows a song saved into

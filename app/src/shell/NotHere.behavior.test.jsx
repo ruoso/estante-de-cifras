@@ -88,7 +88,9 @@ describe('NotHere (behavior)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: `Open ${BOOK_LABEL}’s songs` }));
     expect(location.pathname).toBe('/b/b1');
-    expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument();
+    // The book's page (books.book_page), on Books.
+    expect(screen.getByRole('heading', { level: 1, name: BOOK_LABEL })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('a song present only as deleted is not here either', () => {

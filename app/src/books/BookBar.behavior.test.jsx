@@ -3,7 +3,7 @@
 // React Aria Components, the real i18n catalogues, and the real main-thread
 // store + reducer driven through a loopback endpoint whose events we inject the
 // way the Worker posts them. The fork's *Bring them in* is pressed through the
-// search screen that hosts the bar, so the bring-in screen it opens is the real
+// book's page that hosts the bar, so the bring-in screen it opens is the real
 // one and its PREVIEW_BRING_IN is the real command. Axe (the rules that run
 // under jsdom) on every state. All names are written for this test (no song
 // text).
@@ -15,7 +15,7 @@ import { createStore } from '../worker/store.js';
 import { event, EventKind, CommandKind } from '../worker/protocol.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import BookBar from './BookBar.jsx';
-import SearchScreen from '../songs/SearchScreen.jsx';
+import BookSongs from './BookSongs.jsx';
 
 const AT = '2026-10-20T14:00:00.000Z';
 const reg = (value) => ({ value, at: AT });
@@ -110,7 +110,7 @@ describe('BookBar (books.row_opens_songs; workflow 7 L60-85)', () => {
     const { store, sent, emit } = makeStore();
     const { container } = render(
       <ThemeRoot store={store}>
-        <SearchScreen store={store} scope={{ bookId: 'srv-fork' }} onScopeChange={() => {}} />
+        <BookSongs store={store} bookId="srv-fork" />
       </ThemeRoot>,
     );
     emit(
@@ -139,7 +139,7 @@ describe('BookBar (books.row_opens_songs; workflow 7 L60-85)', () => {
     expect(screen.getByRole('heading', { name: 'Bring in saves from Choros da Ana' })).toBeInTheDocument();
     expect(lastCommand(sent, CommandKind.PREVIEW_BRING_IN).payload).toEqual({ bookId: 'srv-fork' });
 
-    // Not now returns to the book's songs, the bar above them.
+    // Not now returns to the book's page, the bar on it.
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Not now' })));
     expect(screen.queryByRole('heading', { name: 'Bring in saves from Choros da Ana' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Manage Choros da Ana' })).toBeInTheDocument();

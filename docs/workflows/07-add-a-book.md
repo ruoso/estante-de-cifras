@@ -28,16 +28,16 @@ It lists the books on the shelf, each with:
   user: *needs you*, or a fork's *Choros da Ana has 3 new saves.*
   (workflow 11).
 
-**Pressing a book opens its songs**: search scoped to that book, at its
+**Pressing a book opens its page**: the book's songs, on Books, at its
 address `…/b/<book>` (below, *Links to books*), the same place a link to it
 opens. That is the row's one action. Everything else about the book —
 renaming it on the shelf, where it lives, putting it online, sharing,
 downloading, its files, making it one's own, leaving, removing, deleting — is
-on the book's **detail**, reached from the book's songs (*A book's songs*,
-below). A book that *needs you* opens on its songs too.
+on the book's **detail**, reached from the book's page (*A book's page*,
+below). A book that *needs you* opens on its page too.
 
 On a tablet and a computer the screen is the same one list, in a column; it
-has no detail pane beside it, since pressing a book leaves for its songs.
+has no detail pane beside it, since pressing a book leaves for its page.
 
 *Add a book* offers four ways in:
 
@@ -58,22 +58,38 @@ only through its recovery email (workflow 13).
 
 Cloning shows its progress and can be cancelled.
 
-## A book's songs
+## A book's page
 
-A book open is search scoped to it (workflow 2 §Scope): the scope in the
-box, and above the results a bar naming the book —
+A book open is a page of its own on Books — not the search screen with a
+filter on: the Books tab stays the one lit, and the page is about the book.
+Top to bottom:
 
-- its **title**, and the row's meta line: where it lives, whether one can
-  save, how many songs;
-- its **sync state** in words, when it is not in step (workflow 8);
-- **Manage**, a button whose accessible name is *Manage {book}*: it opens
-  the book's detail.
+- **Books**, going back to where the book was opened from: the shelf, or, on
+  a page opened from its address, the shelf all the same;
+- a card naming the book: its **title**, the page's heading, and the row's
+  meta line — where it lives, whether one can save, how many songs; its
+  **sync state** in words, when it is not in step (workflow 8); and, in a
+  row at its foot, **New song**, the page's one primary act — a new song in
+  this book (workflow 3 §Ways in), only in a book the person can save to and
+  not while it is still coming down onto the device — and **Manage**, a
+  word, not an icon, whose accessible name is *Manage {book}*: it opens the
+  book's detail;
+- *Save all*, with the count, when songs in the book have unsaved changes
+  (workflow 4 §Several songs at once);
+- a field, *Search in this book*: typing narrows the list to what matches,
+  titles, artists, sections, words and chords, as search does (workflow 2);
+  nothing matching says where it looked and offers *Create "{query}"*, a new
+  song in this book;
+- the book's **songs**, every one, as one flat list — a row per song, its
+  artist and, for a song in a folder, the folder; never the book again. A
+  song opens to be read, and Back returns to the page.
 
-The bar shows whenever the scope is one book or a folder in it — from the
-book's address, a row on this screen, or the *Search only in {book}* filter
-on a book's section in search — and stays while typing. Clearing the scope
-(the chip's ✕) is the whole shelf again, and the bar goes; going back
-returns to where the book was opened from.
+A new book's page says *No songs in this book yet.*, with New song above it;
+a book still being read says so in words, never as an empty book.
+
+The page's address is the book's, `…/b/<book>`: a song opened from it has its
+own, and its Back lands on the page. Pressing the Books tab from another
+destination opens the shelf, not a page left open there.
 
 Two things that wait on the user sit in the bar as a notice, with their one
 action:
@@ -86,10 +102,10 @@ action:
 - **A fork whose original has new saves** (workflow 11): *Choros da Ana has
   3 new saves.* with **Bring them in**.
 
-**The detail** opens over the book's songs: on a phone it takes the screen,
+**The detail** opens over the book's page: on a phone it takes the screen,
 with *Back to {book}*; on a tablet and a computer it takes the main pane,
-beside the book's songs in the side pane, as a song does. It is not an
-address of its own: reloading lands on the book's songs.
+beside the book's page in the side pane, as a song does. It is not an
+address of its own: reloading lands on the book's page.
 
 Its app bar is Back, the title, **Rename** — the label on this shelf only —
 and, at its right end, **Share**, for whoever shares the book: its owner,
@@ -122,7 +138,7 @@ sends a student. It names the book, not its git URL, which is the service's
 business. What the link lets its holder do is workflow 10's.
 
 The same address is where the app is while the book is open: `…/b/<book>`
-is search scoped to that book — its songs — and `…/b/<book>/<path>` is a
+is the book's page — its songs — and `…/b/<book>/<path>` is a
 song or a setlist in it. Reloading, bookmarking or going back lands there
 again. An address for something not on this device opens a plain screen
 instead, never an empty song:

@@ -77,18 +77,18 @@ test('search: the results scroll, the field and the tab bar stay (DIRECTION §4)
   await checkA11y();
 });
 
-test('books: a book’s songs scroll inside the destination under its bar, the tab bar stays (DIRECTION §4)', async ({
+test('books: a book’s page scrolls inside the destination, its bar with it, the tab bar stays (DIRECTION §4)', async ({
   page,
   checkA11y,
 }) => {
   await openExampleBook(page);
   await gotoTab(page, 'Books');
-  // Pressing the book opens its songs, the bar naming it above them
-  // (books.row_opens_songs; workflow 7 §A book's songs).
+  // Pressing the book opens its page (books.book_page; workflow 7 §A book's
+  // page): the whole page scrolls, so a short phone keeps room for the songs.
   await page.getByRole('button', { name: new RegExp(`^${escape(EXAMPLE_BOOK)}`) }).first().click();
   await expect(page.locator('.book-bar')).toBeVisible();
   await shortenViewport(page);
-  await expectScrollsInside(page, { stayInView: [page.getByRole('searchbox'), tabBar(page)] });
+  await expectScrollsInside(page, { stayInView: [tabBar(page)] });
   await checkA11y();
 });
 

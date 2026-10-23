@@ -272,8 +272,8 @@ describe('AppShell paused book panel (behavior)', () => {
     emit(event(EventKind.SYNC, { bookId: CONFLICT_BOOK, phase: 'needs_you', at: CONFLICT_AT }));
     fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
     fireEvent.click(screen.getByRole('button', { name: /^Choros da Ana/ }));
-    // The book's songs, not the panel: Search scoped to the book, its bar's notice.
-    expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
+    // The book's page, not the panel: on Books, its bar's notice.
+    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
     expect(location.pathname).toBe(`/b/${CONFLICT_BOOK}`);
     expect(screen.queryByRole('list', { name: 'In conflict' })).not.toBeInTheDocument();
     // The press engaged the merge, as it always did, so the bar can count.
@@ -320,13 +320,14 @@ describe('AppShell paused book panel (behavior)', () => {
     render(<AppShell store={store} />);
     openNeedsYouBook(emit);
     fireEvent.click(screen.getByRole('tab', { name: 'Setlists' }));
-    // Re-open from Books, then the panel's Back returns to the book's songs.
+    // Re-open from Books — the tab opens on the shelf (books.book_page) — then
+    // the panel's Back returns to the book's page.
     settleFromBooks(emit);
     expect(screen.getByRole('list', { name: 'In conflict' })).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole('main')).getByRole('button', { name: 'Back' }));
     // Back is the history's (above depth 0, a popstate jsdom fires on a task).
     await waitFor(() => expect(screen.queryByRole('list', { name: 'In conflict' })).not.toBeInTheDocument());
-    expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('button', { name: 'Manage Choros da Ana' })).toBeInTheDocument();
   });
 
@@ -345,8 +346,8 @@ describe('AppShell paused book panel (behavior)', () => {
 });
 
 
-// behavior (books.row_opens_songs) — a book on the shelf opens on its songs: the
-// row's press is the place `{ tab: 'search', book }`, pushed; *Manage* on the
+// behavior (books.row_opens_songs, books.book_page) — a book on the shelf opens
+// on its page: the row's press is the place `{ tab: 'books', book }`, pushed; *Manage* on the
 // bar opens the detail as a layer; Files opens over the detail; removing the
 // book lands on Books. Pins workflow 7 L28-34 and L86-95, workflow 14 L132-134.
 describe('AppShell — a book opens on its songs (books.row_opens_songs)', () => {
@@ -369,23 +370,58 @@ describe('AppShell — a book opens on its songs (books.row_opens_songs)', () =>
     fireEvent.click(screen.getByRole('button', { name: /^Exercícios/ }));
   }
 
-  it('pressing a Books row selects Search scoped to the book at /b/<book>; Back returns to Books (workflow 7 L28-34)', async () => {
+  it('pressing a Books row opens the book’s page on Books at /b/<book>; Back returns to the shelf (workflow 7 §A book’s page)', async () => {
     installMatchMedia(false);
     const { store, sent, emit } = bookStore();
     const { container } = render(<AppShell store={store} />);
     openBookSongs(emit);
 
-    expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
     expect(location.pathname).toBe(`/b/${BOOK}`);
-    expect(history.state.place).toEqual({ tab: 'search', book: BOOK });
-    expect(container.querySelector('.search .scope')).toHaveTextContent('Exercícios');
+    expect(history.state.place).toEqual({ tab: 'books', book: BOOK });
+    expect(screen.getByRole('heading', { level: 1, name: 'Exercícios' })).toBeInTheDocument();
+    expect(container.querySelector('.search .scope')).toBeNull();
     expect(screen.getByRole('button', { name: 'Manage Exercícios' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New song in Exercícios' })).toBeInTheDocument();
     expect([...sent].reverse().find((m) => m.kind === CommandKind.BROWSE).payload.scope).toEqual({ books: [BOOK] });
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
-    // A pushed step: the browser's Back returns to Books.
+    // A pushed step: the browser's Back returns to the shelf.
     act(() => history.back());
-    await waitFor(() => expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true'));
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Books' })).toBeInTheDocument());
+    expect(location.pathname).toBe('/books');
+
+    // The page's own *Books* does the same.
+    fireEvent.click(screen.getByRole('button', { name: /^Exercícios/ }));
+    expect(location.pathname).toBe(`/b/${BOOK}`);
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Books' }));
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Books' })).toBeInTheDocument());
+    expect(location.pathname).toBe('/books');
+  });
+
+  it('the Books tab pressed from another destination opens on the shelf, not the book’s page left there', async () => {
+    installMatchMedia(false);
+    const { store, emit } = bookStore();
+    render(<AppShell store={store} />);
+    openBookSongs(emit);
+    fireEvent.click(screen.getByRole('tab', { name: 'Search' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Books' })).toBeInTheDocument();
+    // The shelf is the entry beneath: the history steps back onto it.
+    await waitFor(() => expect(location.pathname).toBe('/books'));
+  });
+
+  it('a book’s page opened from its address steps back to the shelf, with no history beneath it', async () => {
+    installMatchMedia(false);
+    window.history.replaceState(null, '', `/b/${BOOK}`);
+    const { store, emit } = bookStore();
+    render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, SHELF));
+    expect(screen.getByRole('heading', { level: 1, name: 'Exercícios' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Books' }));
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Books' })).toBeInTheDocument());
     expect(location.pathname).toBe('/books');
   });
 
@@ -446,7 +482,9 @@ describe('AppShell — a book opens on its songs (books.row_opens_songs)', () =>
     expect(within(split.querySelector('.pane.main')).getByRole('button', { name: 'Back to Exercícios' })).toBeInTheDocument();
     const side = split.querySelector('.pane.side');
     expect(within(side).getByRole('button', { name: 'Manage Exercícios' })).toBeInTheDocument();
-    expect(side.querySelector('.search .scope')).toHaveTextContent('Exercícios');
+    expect(within(side).getByRole('heading', { level: 1, name: 'Exercícios' })).toBeInTheDocument();
+    // The detail's Back is the way back here: the page beside it has no Books.
+    expect(within(side).queryByRole('button', { name: 'Back to Books' })).toBeNull();
     wide = false;
   });
 

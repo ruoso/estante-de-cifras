@@ -479,7 +479,7 @@ describe('AppShell routing (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
-  it('a deep URL opens its screen — a song, with its book as the scope', async () => {
+  it('a deep URL opens its screen — a song, with its book’s page beneath it', async () => {
     history.replaceState(null, '', SONG_URL);
     const { store, sent, emit } = makeStore();
     render(<AppShell store={store} />);
@@ -495,11 +495,11 @@ describe('AppShell routing (behavior)', () => {
     expect(location.pathname).toBe(SONG_URL);
     expect(document.querySelector('[aria-busy="true"]')).toBeNull();
 
-    // Its Back lands on the book's songs (workflow 2 §Scope): search, scoped.
+    // Its Back lands on the book's page (books.book_page), on Books.
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(location.pathname).toBe('/b/b1');
-    expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Search songs, words and chords' })).toHaveTextContent(BOOK_LABEL);
+    expect(screen.getByRole('heading', { level: 1, name: BOOK_LABEL })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('a deep URL opens its screen — a setlist', () => {
@@ -536,13 +536,14 @@ describe('AppShell routing (behavior)', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: new RegExp(OTHER_TITLE) })).toHaveFocus());
   });
 
-  it("a deep URL opens its screen — a book's songs", () => {
+  it("a deep URL opens its screen — a book's page", () => {
     history.replaceState(null, '', '/b/b1');
     const { store, emit } = makeStore();
     render(<AppShell store={store} />);
     emit(event(EventKind.SHELF, SHELF));
-    expect(screen.getByRole('button', { name: 'Clear filter' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Search songs, words and chords' })).toHaveTextContent(BOOK_LABEL);
+    expect(screen.getByRole('heading', { level: 1, name: BOOK_LABEL })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: `Manage ${BOOK_LABEL}` })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
     expect(location.pathname).toBe('/b/b1');
   });
 
@@ -561,7 +562,7 @@ describe('AppShell routing (behavior)', () => {
   // songs.search_scope_follows — workflow 2 §Scope, *After a save, the scope
   // follows the song*; §The search screen (a section's open state lasts the
   // session); DIRECTION §3.7 (the address follows where you are).
-  it('the scope follows a save: scoped to a book, a new song saved into My songs leaves Search scoped to My songs at its address, no step of its own; axe clean', async () => {
+  it('the scope follows a save: scoped to a book, a new song saved into My songs leaves Search scoped to My songs, no step of its own; axe clean', async () => {
     const MINE = 'l-mine';
     const shelf = {
       ...SHELF,
@@ -579,9 +580,10 @@ describe('AppShell routing (behavior)', () => {
     emit(event(EventKind.SHELF, shelf));
     emit(browseOf([BOOK, MINE]));
 
-    // Scoped to Banda do Bairro: a step of its own, at the book's address.
+    // Scoped to Banda do Bairro: a filter, no address of its own (the book's
+    // address is its page — books.book_page).
     fireEvent.click(screen.getByRole('button', { name: `Search only in ${BOOK_LABEL}` }));
-    expect(location.pathname).toBe('/b/b1');
+    expect(location.pathname).toBe('/');
     const scopedDepth = history.state.depth;
     emit(browseOf([BOOK]));
     expect(screen.queryByRole('button', { name: /^My songs/ })).toBeNull();
@@ -602,12 +604,11 @@ describe('AppShell routing (behavior)', () => {
     await act(async () => {
       await popped;
     });
-    expect(location.pathname).toBe(`/b/${MINE}`);
+    expect(location.pathname).toBe('/');
     expect(history.length).toBe(lengthWithEditor);
     expect(history.state.depth).toBe(scopedDepth);
     expect(history.state.layers).toEqual([]);
     expect(screen.getByRole('group', { name: 'Search songs, words and chords' })).toHaveTextContent('My songs');
-    expect(screen.getByRole('button', { name: 'Manage My songs' })).toBeInTheDocument();
 
     // Its section is open with the song in it, under its own count; the book
     // the scope left is not listed.
@@ -629,11 +630,6 @@ describe('AppShell routing (behavior)', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Search' }));
     expect(screen.getByRole('button', { name: /^My songs.*1 song$/ })).toHaveAttribute('aria-expanded', 'false');
-
-    // One Back goes where Back went from the scoped search: the unscoped one.
-    await traverse(() => history.back());
-    expect(location.pathname).toBe('/');
-    expect(history.state.depth).toBe(scopedDepth - 1);
   });
 
   it('the scope follows a save: an edit saved in the scoped book leaves the scope and address untouched', async () => {
@@ -647,8 +643,8 @@ describe('AppShell routing (behavior)', () => {
       }),
     );
     fireEvent.click(screen.getByRole('button', { name: `Search only in ${BOOK_LABEL}` }));
-    expect(location.pathname).toBe('/b/b1');
-    // Its section is open (the bar's book): open the song, then edit it.
+    expect(location.pathname).toBe('/');
+    // Its section is open (the scope's one book): open the song, then edit it.
     fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${SONG_TITLE}`) }));
     emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
     expect(location.pathname).toBe(SONG_URL);
@@ -663,7 +659,7 @@ describe('AppShell routing (behavior)', () => {
     expect(location.pathname).toBe(SONG_URL);
     expect(history.state.depth).toBe(depth - 1);
     await traverse(() => history.back());
-    expect(location.pathname).toBe('/b/b1');
+    expect(location.pathname).toBe('/');
     expect(screen.getByRole('group', { name: 'Search songs, words and chords' })).toHaveTextContent(BOOK_LABEL);
   });
 
@@ -707,8 +703,7 @@ describe('AppShell routing (behavior)', () => {
     await traverse(goBack);
     expect(location.pathname).toBe(`/b/${newId}`);
     expect(history.state.place.book).toBe(newId);
-    expect(screen.getByRole('searchbox')).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Search songs, words and chords' })).toHaveTextContent(BOOK_LABEL);
+    expect(screen.getByRole('heading', { level: 1, name: BOOK_LABEL })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /doesn’t open a book/ })).not.toBeInTheDocument();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   }

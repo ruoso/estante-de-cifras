@@ -1,0 +1,33 @@
+/* book-songs.css — a book's page (books.book_page; the Open-a-book board). The
+   bar, rows, pill and buttons are the theme's and the search screen's
+   vocabulary; this file only stacks them. No colours of its own. */
+
+/* The whole page is the destination's scroller (shell.full_height): the bar,
+   New song and the field scroll away with the songs, so a short phone still
+   has room for the list; the tab bar stays. */
+.book-songs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+  overflow-y: auto;
+}
+
+.book-songs > * {
+  flex: none;
+}
+
+/* The search screen's results scroll on their own; here they are in flow. */
+.book-songs > .book-songs-results {
+  overflow: visible;
+}
+
+/* *‹ Books* sits at the page's start, its glyph flush with the content edge. */
+.book-songs-back {
+  align-self: flex-start;
+  padding-left: 0;
+  padding-right: calc(var(--u) * 1.5);
+  gap: 2px;
+}
+

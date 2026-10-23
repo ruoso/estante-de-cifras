@@ -529,7 +529,7 @@ describe('SearchScreen (behavior)', () => {
 // books.row_opens_songs — the bar above a book's songs (workflow 7 §A book's
 // songs L60-73; workflow 2 §Scope): it shows while the scope is one book or a
 // folder in it, stays while typing, and goes when ✕ clears the scope.
-describe('SearchScreen — the book’s bar (books.row_opens_songs)', () => {
+describe('SearchScreen — a scope is a filter only (books.book_page)', () => {
   const SHELF = event(EventKind.SHELF, {
     books: {},
     local: {
@@ -556,71 +556,16 @@ describe('SearchScreen — the book’s bar (books.row_opens_songs)', () => {
     return <SearchScreen store={store} scope={scope} onScopeChange={setScope} />;
   }
 
-  // The tab stops in reading order (jsdom does no tabbing of its own).
-  const tabStops = (container) =>
-    [...container.querySelectorAll('button, input, [tabindex]')].filter(
-      (el) => !el.disabled && el.getAttribute('tabindex') !== '-1',
-    );
-
-  it('with scope {bookId} the bar sits between the box and the results: after ✕, before the first result in tab order; axe clean (workflow 7 L60-67)', async () => {
-    const { store, emit } = makeStore();
-    const { container } = render(<Scoped store={store} initial={{ bookId: 'l-mine' }} />);
-    emit(SHELF);
-    emit(BROWSE);
-
-    const bar = container.querySelector('.book-bar');
-    expect(within(bar).getByRole('heading', { name: 'My songs' })).toBeInTheDocument();
-    const box = container.querySelector('.search');
-    const results = container.querySelector('.search-results');
-    expect(box.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(bar.compareDocumentPosition(results) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-
-    const stops = tabStops(container);
-    const clear = screen.getByRole('button', { name: 'Clear filter' });
-    const manage = screen.getByRole('button', { name: 'Manage My songs' });
-    const first = within(results).getAllByRole('button')[0];
-    expect(stops.indexOf(clear)).toBeLessThan(stops.indexOf(manage));
-    expect(stops.indexOf(manage)).toBeLessThan(stops.indexOf(first));
-    expect(await checkWcag21aa(container)).toHaveNoViolations();
-  });
-
-  it('shows for *Search only in* ({books:[id]}) and for a folder in the book ({bookId, prefix}) (workflow 7 L69-73)', () => {
-    const one = makeStore();
-    const { unmount } = render(<Scoped store={one.store} initial={{ books: ['l-mine'] }} />);
-    one.emit(SHELF);
-    expect(screen.getByRole('button', { name: 'Manage My songs' })).toBeInTheDocument();
-    unmount();
-
-    const folder = makeStore();
-    render(<Scoped store={folder.store} initial={{ bookId: 'l-ex', prefix: 'escalas' }} />);
-    folder.emit(SHELF);
-    expect(screen.getByRole('button', { name: 'Manage Exercícios' })).toBeInTheDocument();
-  });
-
-  it('stays while typing, and ✕ clears the scope and the bar goes (workflow 7 L69-73; workflow 2 §Scope)', () => {
-    const { store, emit } = makeStore();
-    render(<Scoped store={store} initial={{ bookId: 'l-mine' }} />);
-    emit(SHELF);
-
-    type('manhã');
-    expect(screen.getByRole('button', { name: 'Manage My songs' })).toBeInTheDocument();
-
-    act(() => fireEvent.click(screen.getByRole('button', { name: 'Clear filter' })));
-    expect(screen.queryByRole('button', { name: /^Manage/ })).toBeNull();
-    expect(document.querySelector('.book-bar')).toBeNull();
-  });
-
-  it('a two-book scope or no scope shows no bar (workflow 2 §Scope)', () => {
-    const two = makeStore();
-    const { unmount } = render(<Scoped store={two.store} initial={{ books: ['l-mine', 'l-ex'] }} />);
-    two.emit(SHELF);
-    expect(document.querySelector('.book-bar')).toBeNull();
-    unmount();
-
-    const none = makeStore();
-    render(<Scoped store={none.store} initial={null} />);
-    none.emit(SHELF);
-    expect(document.querySelector('.book-bar')).toBeNull();
+  it('no scope draws a bar: one book, several, a folder or none — the bar is on the book’s page (books.book_page)', () => {
+    for (const initial of [{ bookId: 'l-mine' }, { books: ['l-mine'] }, { books: ['l-mine', 'l-ex'] }, { bookId: 'l-ex', prefix: 'escalas' }, null]) {
+      const { store, emit } = makeStore();
+      const { unmount } = render(<Scoped store={store} initial={initial} />);
+      emit(SHELF);
+      emit(BROWSE);
+      expect(document.querySelector('.book-bar')).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Manage/ })).toBeNull();
+      unmount();
+    }
   });
 
   it('a song in a book that needs you reads *conflict* once the book is engaged (workflow 9 §Meeting one)', () => {
@@ -637,7 +582,7 @@ describe('SearchScreen — the book’s bar (books.row_opens_songs)', () => {
         deleted: [],
       }),
     );
-    // The scoped book's section is open: its songs list under the bar.
+    // The scoped book's section is open: its songs list under the box.
     expect(screen.getByRole('button', { name: /^My songs/ })).toHaveAttribute('aria-expanded', 'true');
     const row = screen.getByRole('button', { name: /^Manhã na varanda/ });
     expect(within(row).getByText('conflict')).toBeInTheDocument();

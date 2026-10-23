@@ -45,6 +45,12 @@ export async function gotoTab(page, name) {
       });
     await expect(page.locator('.book-detail')).toHaveCount(0);
   }
+  // A book's page is on Books, the tab already selected: its own *Books* is
+  // the way to the shelf (books.book_page).
+  const backToBooks = page.locator('.book-songs').getByRole('button', { name: 'Back to Books' });
+  if (name === 'Books' && (await backToBooks.count())) {
+    await backToBooks.first().click();
+  }
   await page.getByRole('tab', { name }).click();
   if (name !== 'Search') {
     await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
@@ -187,8 +193,8 @@ export async function makeLocalBook(page, name) {
   await expect(page.getByRole('button', { name: new RegExp(`^${escape(name)}`) })).toBeVisible();
 }
 
-// Books → the book's row: its songs, search scoped to it at `…/b/<book>`, the
-// bar naming it above them (books.row_opens_songs; workflow 7 L28-34).
+// Books → the book's row: the book's page at `…/b/<book>`, the bar naming it
+// above its songs (books.book_page; workflow 7 §A book's page).
 export async function openBookSongs(page, name) {
   await gotoTab(page, 'Books');
   await page.getByRole('button', { name: new RegExp(`^${escape(name)}`) }).click();

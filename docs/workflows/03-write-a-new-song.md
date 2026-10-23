@@ -11,6 +11,9 @@ workflow 5; editing it afterwards is workflow 4.
   the query as its title.
 - **From the empty shelf**: *write a song* (workflow 1).
 - **From a book's section** on the search screen: *new song in this book*.
+- **From a book's page**: **New song**, the page's primary act, and
+  *Create "{query}"* when its search finds nothing (workflow 7 §A book's
+  page).
 - **From the file view**, in the folder being looked at (workflow 14).
 - **By pasting**: much of what people write is copied from somewhere else, a
   cifra site or a message, so pasting a whole song is a way in of its own,

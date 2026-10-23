@@ -9,7 +9,7 @@
   flex-shrink: 0;
 }
 
-/* The title, meta and badge in a column, Manage beside them (board L105-108). */
+/* The title, meta and badge in a column (board L105-108). */
 .book-bar-head {
   display: flex;
   align-items: flex-start;
@@ -24,8 +24,21 @@
   min-width: 0;
 }
 
+.book-bar-text h1,
 .book-bar-text h2 {
   margin: 0;
+}
+
+/* New song and Manage in one row at the card's foot (books.book_page); they
+   wrap under each other only when a narrow card has no room for both. */
+.book-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--u);
+}
+
+.book-bar-actions .search-create-icon {
+  color: inherit;
 }
 
 /* The notice's words, its one button at the end of the line (board L109). */

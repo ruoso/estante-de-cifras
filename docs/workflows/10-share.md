@@ -32,7 +32,7 @@ Every screen that states the limit says it the one way, in digits as that
 count is: *up to 50 people*. The sharing screen's hint reads *Invite people
 to read or edit this book — up to 50 people.*; the book's detail no longer
 has a Share card to say it, since Share is in its app bar (workflow 7 §A
-book's songs).
+book's page).
 
 When the book is full, an invitation stops admitting anyone: opening it says
 the book has reached its limit, and the owner is told someone tried. Making

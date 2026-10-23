@@ -17,13 +17,13 @@
   <div class="board-head">
     <div class="board-num">Workflow 7</div>
     <h1 class="board-title">Opening a book</h1>
-    <p class="board-sub">Pressing a book on the shelf opens its songs — search scoped to it, at its address — and the row says how many it holds. Above the book's songs a bar names it, says in words what waits on you, and Manage opens its detail, where Rename and Files now live.</p>
+    <p class="board-sub">Pressing a book on the shelf opens its page, on Books, at its address — not search with a filter on — and the row says how many songs it holds. The page names the book in a bar that says in words what waits on you, with Manage for its detail, where Rename and Files live; New song, beside Manage in the card, is its one primary act; a field searches within the book, and below, every song, flat.</p>
   </div>
 
   <div class="devices">
     <!-- Phones -->
     <div class="dev-col">
-      <div class="dev-label"><b>Phone</b> · the shelf, then a book's songs</div>
+      <div class="dev-label"><b>Phone</b> · the shelf, then a book's page</div>
       <div class="dev-pair">
         <div class="dev phone">
           <div class="screen">
@@ -44,7 +44,7 @@
                   </a>
                 </sc-for>
               </div>
-              <p class="t-small">Pressing a book opens its songs. Everything else about it is on its detail, from there.</p>
+              <p class="t-small">Pressing a book opens its page. Everything else about it is on its detail, from there.</p>
               <button class="btn" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14-5l-2 2M4 4v4h4M4 13a8 8 0 0 0 14 5l2-2M20 20v-4h-4"></path></svg>Sync now</button>
             </div>
             <div class="tabbar">
@@ -63,13 +63,15 @@
               <button class="btn icon" aria-label="Account"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></button>
             </div>
             <div style="padding: 0 16px 12px; display: flex; flex-direction: column; gap: 12px">
-              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span class="scope">My songs</span><span style="flex: 1"></span><button class="btn icon" aria-label="Clear filter" style="min-height: 32px; min-width: 32px; padding: 4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+              <button class="btn quiet" aria-label="Back to Books" style="align-self: flex-start; padding-left: 0; gap: 2px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>Books</button>
               <div class="card pad">
                 <div style="display: flex; align-items: center; gap: 10px">
                   <span style="display: flex; flex-direction: column; flex: 1; min-width: 0"><span class="t-h2">My songs</span><span class="t-small">On Estante · can save · 14 songs</span></span>
-                  <button class="btn" aria-label="Manage My songs">Manage</button>
+                  
                 </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap"><button class="btn primary" aria-label="New song in My songs"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New song</button><button class="btn" aria-label="Manage My songs">Manage</button></div>
               </div>
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span class="t-small" style="flex: 1">Search in this book</span></div>
             </div>
             <div class="scroll" style="padding-top: 0">
               <div class="list">
@@ -79,8 +81,8 @@
               </div>
             </div>
             <div class="tabbar">
-              <button class="tab on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Search</button>
-              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>Books</button>
+              <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>Search</button>
+              <button class="tab on"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z"></path></svg>Books</button>
               <button class="tab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"></path></svg>Setlists</button>
             </div>
           </div>
@@ -90,13 +92,13 @@
 
     <!-- Tablet -->
     <div class="dev-col">
-      <div class="dev-label"><b>Tablet</b> · a book that needs you opens on its songs, with Settle one press away</div>
+      <div class="dev-label"><b>Tablet</b> · a book that needs you opens on its page, with Settle one press away</div>
       <div class="dev tablet">
         <div class="split">
           <div class="pane side">
             <div style="padding: 18px 16px 12px; display: flex; flex-direction: column; gap: 12px">
               <div style="display: flex; align-items: center; gap: 8px"><span class="t-h1" style="flex: 1">Estante</span><span class="chip accent">Guitar</span></div>
-              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span class="scope">Choros da Ana</span><span style="flex: 1"></span><button class="btn icon" aria-label="Clear filter" style="min-height: 32px; min-width: 32px; padding: 4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
+              <button class="btn quiet" aria-label="Back to Books" style="align-self: flex-start; padding-left: 0; gap: 2px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>Books</button>
               <div class="card pad">
                 <div style="display: flex; align-items: flex-start; gap: 10px">
                   <span style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0">
@@ -104,10 +106,12 @@
                     <span class="t-small">On Estante · can save · 32 songs</span>
                     <span class="badges"><span class="badge conflict">needs you</span></span>
                   </span>
-                  <button class="btn" aria-label="Manage Choros da Ana">Manage</button>
+                  
                 </div>
                 <div class="notice conflict" style="align-items: center"><span>2 songs need you.</span><button class="btn" style="margin-left: auto" aria-label="Settle conflicts in Choros da Ana">Settle</button></div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap"><button class="btn primary" aria-label="New song in Choros da Ana"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New song</button><button class="btn" aria-label="Manage Choros da Ana">Manage</button></div>
               </div>
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span class="t-small" style="flex: 1">Search in this book</span></div>
             </div>
             <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
               <div class="list">
@@ -147,13 +151,12 @@
 
     <!-- Desktop -->
     <div class="dev-col">
-      <div class="dev-label"><b>Computer</b> · Manage opens the book's detail beside its songs, with Rename and Files</div>
+      <div class="dev-label"><b>Computer</b> · Manage opens the book's detail beside its page, with Rename and Files</div>
       <div class="dev desktop">
         <div class="split">
           <div class="pane side">
             <div style="padding: 18px 16px 12px; display: flex; flex-direction: column; gap: 12px">
               <div style="display: flex; align-items: center; gap: 8px"><span class="t-h1" style="flex: 1">Estante</span><span class="chip accent">Guitar</span></div>
-              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span class="scope">Banda do Bairro</span><span style="flex: 1"></span><button class="btn icon" aria-label="Clear filter" style="min-height: 32px; min-width: 32px; padding: 4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div>
               <div class="card pad">
                 <div style="display: flex; align-items: flex-start; gap: 10px">
                   <span style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0">
@@ -161,9 +164,11 @@
                     <span class="t-small">On Estante · can save · 21 songs</span>
                     <span class="badges"><span class="badge unsaved">2 saves waiting to go up</span></span>
                   </span>
-                  <button class="btn primary" aria-label="Manage Banda do Bairro">Manage</button>
+                  
                 </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap"><button class="btn primary" aria-label="New song in Banda do Bairro"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New song</button><button class="btn" aria-label="Manage Banda do Bairro">Manage</button></div>
               </div>
+              <div class="search"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><span class="t-small" style="flex: 1">Search in this book</span></div>
             </div>
             <div style="padding: 0 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
               <div class="list">

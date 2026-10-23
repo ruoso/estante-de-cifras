@@ -17,7 +17,6 @@ import { createSongFromSearch, escape } from '../lib/journeys-core.js';
 const BOOK = 'Roda de Choro';
 const MY_SONGS = 'My songs';
 const SONG = 'Valsa do Quintal Vazio';
-const BOOK_URL = /\/b\/[^/]+$/;
 
 test('scoped to one book, a new song saved into My songs leaves Search scoped to My songs, the song in its open section; the open state lasts the session', async ({
   page,
@@ -27,21 +26,18 @@ test('scoped to one book, a new song saved into My songs leaves Search scoped to
   await makeLocalBook(page, BOOK);
   await gotoTab(page, 'Search');
   await scopeToBook(page, BOOK);
-  await expect(page).toHaveURL(BOOK_URL);
-  const bookUrl = page.url();
 
   // Nothing matches in the book: Create makes the song in My songs, and the
   // first save returns to Search.
   await createSongFromSearch(page, SONG);
   await expect(page.getByRole('searchbox').first()).toBeVisible();
 
-  // The scope followed the song: the chip and the bar name My songs, at its
-  // own address (workflow 2 §Scope, *After a save*).
+  // The scope followed the song: the chip names My songs (workflow 2 §Scope,
+  // *After a save*). A scope is a filter, not an address: a book's address is
+  // its page (books.book_page).
   const box = page.locator('.search').first();
   await expect(box.locator('.scope')).toContainText(MY_SONGS);
-  await expect(page.locator('.book-bar').first().getByRole('heading', { name: MY_SONGS })).toBeVisible();
-  await expect(page).toHaveURL(BOOK_URL);
-  expect(page.url()).not.toBe(bookUrl);
+  await expect(page).toHaveURL(/\/$/);
 
   // With the box empty, My songs' section is open with the song under its
   // own count; the book the scope left has no section, and nothing reads

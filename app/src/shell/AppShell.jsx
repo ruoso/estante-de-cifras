@@ -35,6 +35,7 @@ import NewSongHost from '../songs/NewSongHost.jsx';
 import EditSongHost from '../songs/EditSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
 import BookDetail from '../books/BookDetail.jsx';
+import BookSongs from '../books/BookSongs.jsx';
 import SetlistsScreen from '../books/SetlistsScreen.jsx';
 import SetlistView from '../books/SetlistView.jsx';
 import SetlistPlay from '../books/SetlistPlay.jsx';
@@ -65,7 +66,7 @@ import NotHere from './NotHere.jsx';
 import RecoveryBanner from './RecoveryBanner.jsx';
 import { useAccountStatus } from './use-account-status.js';
 import { offersFirstRunSignIn, showsRecoveryBanner } from './account-status.js';
-import { bookOfScope, isSetlistPath, sameItem } from './place.js';
+import { isSetlistPath, sameItem } from './place.js';
 import { bootEntry, usePlaceHistory } from './use-place-history.js';
 import { followScope, moveBookEntry } from '../songs/search-query.js';
 import './shell.css';
@@ -231,9 +232,6 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBookSongs, onOp
           onExpandedBooksChange={search.onExpandedBooksChange}
           onAddToSetlist={onAddToSetlist}
           onOpenSetlist={onOpenSetlist}
-          onManageBook={bookActs.onManage}
-          onSettleBook={bookActs.onSettle}
-          onNeedsYou={bookActs.onNeedsYou}
         />
       ) : key === 'books' ? (
         // The Add-a-book sheet's "By link" (paste a link → the invited flow) and
@@ -293,9 +291,15 @@ export default function AppShell({
   // waits in `resolving` until the shelf (and the book's tree) say it is here.
   const [boot] = useState(bootEntry);
   const [selected, setSelected] = useState(boot.place.tab ?? DESTINATIONS[0]);
-  // The search scope, lifted here (shell.routing Decision 1) so a book's address
-  // can set it and back can return to it; SearchScreen is controlled by it.
+  // The search scope, lifted here so it lasts the session across a tab switch
+  // and a full-screen host; SearchScreen is controlled by it.
   const [scope, setScope] = useState(null);
+  // The book whose page is open on the Books destination (books.book_page), or
+  // null for the shelf: part of the place, so its address is `/b/<book>` and
+  // Back returns to it. What is typed in its search field lives beside it, so
+  // it outlives a song opened from the page; a book opened anew starts empty.
+  const [bookPage, setBookPage] = useState(null);
+  const [bookQuery, setBookQuery] = useState('');
   // Which of Search's book sections are open (`Map<bookId, boolean>`), held here
   // beside the scope so it lasts the session — a tab switch and a full-screen
   // host unmount SearchScreen — and is gone on reload, as the scope is
@@ -517,12 +521,12 @@ export default function AppShell({
   const pendingDiscardRef = useRef(null);
 
   // The place shown now and the surfaces open over it (shell.routing): what the
-  // address and the history entry say. A one-book scope is part of the place on
-  // search only; the layers are listed in a fixed order.
-  const scopedBook = selected === 'search' ? bookOfScope(scope) : null;
+  // address and the history entry say. A book's page is part of the place on
+  // Books only; the layers are listed in a fixed order.
+  const pageBook = selected === 'books' ? bookPage : null;
   const place = {
     tab: selected,
-    ...(scopedBook ? { book: scopedBook } : {}),
+    ...(pageBook ? { book: pageBook } : {}),
     ...(openSong ? { song: { bookId: openSong.bookId, path: openSong.path } } : {}),
     ...(openSetlist ? { setlist: { bookId: openSetlist.bookId, path: openSetlist.path } } : {}),
   };
@@ -610,17 +614,16 @@ export default function AppShell({
     },
     explorer: () => setExploring(null),
   };
-  // Set the place's slots: the tab, the one-book scope (on search), the open
-  // song and setlist.
+  // Set the place's slots: the tab, the book's page (on Books), the open song
+  // and setlist.
   const applyPlace = (next) => {
     // A setlist is always on the Setlists tab (books.setlist_chrome Decision 3),
     // as place.js reads a setlist's address.
     setSelected(next.setlist ? 'setlists' : next.tab);
-    if (next.tab === 'search') {
-      setScope((prev) => {
-        if (next.book) return bookOfScope(prev) === next.book ? prev : { bookId: next.book };
-        return bookOfScope(prev) ? null : prev;
-      });
+    if (next.tab === 'books') {
+      const book = next.book ?? null;
+      if (book !== bookPage) setBookQuery('');
+      setBookPage(book);
     }
     setOpenSong(next.song ?? null);
     setOpenSetlist(next.setlist ?? null);
@@ -636,7 +639,7 @@ export default function AppShell({
     const bookId = item?.bookId ?? next.book ?? null;
     const unchanged = item
       ? sameItem(item, next.song ? openSong : openSetlist)
-      : !bookId || bookId === bookOfScope(scope);
+      : !bookId || bookId === bookPage;
     if (bookId && !unchanged) {
       setResolving({ place: next, checkItem: false, treeReady: false });
     } else {
@@ -644,7 +647,7 @@ export default function AppShell({
       applyPlace(next);
     }
   };
-  const { back, renameBook, followSong, pushNext, replaceNext } = usePlaceHistory({
+  const { back, renameBook, followSong, pushNext } = usePlaceHistory({
     boot,
     place,
     layers,
@@ -695,8 +698,8 @@ export default function AppShell({
   // the wizard, sharing and the setlist surfaces — and a save made from any of
   // them lands in the fork. Each `{ bookId, … }` surface keeps the rest of its
   // state; the file view's is the id itself. A put-online changes the book's id
-  // the same way (BOOK_ONLINE, shell.routing Decision 8). The search scope
-  // follows too, and the current history entry is replaced with the new id's
+  // the same way (BOOK_ONLINE, shell.routing Decision 8). The search scope and
+  // the book's page follow too, and the current history entry is replaced with the new id's
   // address rather than a step pushed.
   const followBookId = ({ previousBookId, bookId: forkId }) => {
     if (!previousBookId || !forkId || previousBookId === forkId) return;
@@ -710,6 +713,7 @@ export default function AppShell({
       }
       return prev.bookId === previousBookId ? { ...prev, bookId: forkId } : prev;
     });
+    setBookPage((prev) => (prev === previousBookId ? forkId : prev));
     setEditingSong(follow);
     setOpenSong(follow);
     setHistory(follow);
@@ -729,7 +733,7 @@ export default function AppShell({
   useWorkerEvent(store, EventKind.BOOK_FORKED, (payload) => {
     if (!bookDetail || bookDetail.bookId !== payload?.previousBookId) return;
     setBookDetail(null);
-    setScope(null);
+    setBookPage(null);
     setForkLanding(payload);
     setSelected('books');
   });
@@ -899,12 +903,10 @@ export default function AppShell({
   // songs.search_scope_follows Constraint 1-2): a song saved into a book the
   // scope does not hold moves the scope to that book, its section open; a scope
   // that holds it, or no scope, is left as it is. For every save, from any host
-  // and any tab — the scope is shell state. The move is part of the save, not a
-  // step: on search it rewrites the history entry the save lands on.
+  // and any tab — the scope is shell state, and no part of an address.
   useWorkerEvent(store, EventKind.SAVED, ({ bookId, path, paths }) => {
     const next = followScope(scope, bookId, path ?? paths?.[0]);
     if (next === scope) return;
-    if (selected === 'search' && bookOfScope(next) !== bookOfScope(scope)) replaceNext();
     setScope(next);
     setExpandedBooks((prev) => (prev.get(bookId) === true ? prev : new Map(prev).set(bookId, true)));
   });
@@ -1023,7 +1025,7 @@ export default function AppShell({
   // An address for something not on this device (shell.routing; workflow 7
   // §Links to books): the plain not-here screen, never an empty song. The URL
   // stays at the address. Back leaves for search (or the entry below); *Go to
-  // Books* opens the Books destination; *Open {book}'s songs* scopes search to
+  // Books* opens the Books destination; *Open {book}'s songs* opens the page of
   // the book that is here.
   if (verdict === 'book' || verdict === 'song' || verdict === 'setlist') {
     const notHereBook = (resolving.place.song ?? resolving.place.setlist)?.bookId ?? resolving.place.book;
@@ -1038,7 +1040,7 @@ export default function AppShell({
           bookLabel={verdict === 'book' ? '' : titleFor(entry?.book ?? {}, t('books.untitled'))}
           onBack={() => back(() => leave({ tab: 'search' }))}
           onGoToBooks={() => leave({ tab: 'books' })}
-          onOpenBook={() => leave({ tab: 'search', book: notHereBook })}
+          onOpenBook={() => leave({ tab: 'books', book: notHereBook })}
         />,
     );
   }
@@ -1094,8 +1096,9 @@ export default function AppShell({
   // {book}* on the book's detail (no path) and a song's *Show the file* (its
   // path).
   const openFiles = (bookId, path = null) => setOpenFile({ bookId, path });
-  // A book pressed on the Books tab opens its songs: search scoped to it, at
-  // `…/b/<book>`, a pushed step so Back returns to Books (workflow 7 L28-34).
+  // A book pressed on the Books tab opens its page (books.book_page), at
+  // `…/b/<book>`, a pushed step so Back returns to the shelf (workflow 7 §A
+  // book's page).
   // A book that needs you is engaged as it opens, as pressing it always did
   // (OPEN_CONFLICTS; workflow 9 §Meeting one), so its bar counts the songs that
   // wait on the person; its panel opens only from *Settle*.
@@ -1105,8 +1108,9 @@ export default function AppShell({
       store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
     }
     pushNext();
-    setSelected('search');
-    setScope({ bookId });
+    setSelected('books');
+    setBookPage(bookId);
+    setBookQuery('');
   };
   // The bar's acts on a book's songs (books.row_opens_songs).
   const bookActs = {
@@ -1119,6 +1123,7 @@ export default function AppShell({
   // are no songs to return to, so the shelf shows (workflow 7 L94-95).
   const leaveGoneBook = () => {
     setBookDetail(null);
+    setBookPage(null);
     setScope(null);
     setSelected('books');
   };
@@ -1172,10 +1177,13 @@ export default function AppShell({
   // books.setlist_chrome Decision 4). So does a rail tab beside the paused book
   // panel (a tablet or a computer), through the panel's own close
   // (sync.conflicts_polish constraint 5).
+  // The Books tab pressed from another destination opens on the shelf: a book's
+  // page is reached from its row, and left by its *Books* (books.book_page).
   const selectTab = (key) => {
     setForkLanding(null);
     if (openSetlist) setOpenSetlist(null);
     if (conflictsBook) closers.conflicts();
+    if (key === 'books') setBookPage(null);
     setSelected(key);
   };
   const search = {
@@ -1188,11 +1196,32 @@ export default function AppShell({
     onExpandedBooksChange: setExpandedBooks,
   };
 
+  // A book's page (books.book_page): the Books destination's content while a
+  // book is open on it. Its *Books* steps back — to the shelf it was opened
+  // from, or, at the bottom of the history (opened from its address), to the
+  // shelf all the same.
+  const bookPageView = (bookId) => (
+    <BookSongs
+      store={store}
+      bookId={bookId}
+      query={bookQuery}
+      onQueryChange={setBookQuery}
+      onBack={() => back(() => setBookPage(null))}
+      onOpenSong={setOpenSong}
+      onOpenSetlist={openSetlistOnTab}
+      onWriteSong={startNewSong}
+      onAddToSetlist={setAddingToSetlist}
+      onManage={bookActs.onManage}
+      onSettle={bookActs.onSettle}
+      onNeedsYou={bookActs.onNeedsYou}
+    />
+  );
+
   // The shell itself: the destinations under their tab bar (phone) or beside the
   // rail (tablet, computer). `booksView` takes the Books panel's place — the
   // paused book panel on a wide layout (sync.conflicts_polish constraint 5;
   // W09#4) — as `setlistView` takes the Setlists panel's on the phone.
-  const renderShell = ({ booksView = null, setlistView = null, sharingScreen = null } = {}) => (
+  const renderShell = ({ booksView = bookPage ? bookPageView(bookPage) : null, setlistView = null, sharingScreen = null } = {}) => (
     <>
       <Tabs
         className={sharingScreen ? 'shell shell-covered' : 'shell'}
@@ -1250,7 +1279,7 @@ export default function AppShell({
               {DESTINATIONS.map((key) => destinationTab(key, 'tab'))}
             </TabList>
             <main className={setlistView ? 'scroll scroll-setlist' : 'scroll'} aria-busy={resolving ? true : undefined}>
-              {destinationPanels(store, setSelected, startNewSong, openBookSongs, setOpenSong, () => setSignIn({}), openByLink, openSetlistOnTab, setAddingToSetlist, search, restore, setlistView, bookActs, signInMine, setUpload, null, offerSignIn)}
+              {destinationPanels(store, setSelected, startNewSong, openBookSongs, setOpenSong, () => setSignIn({}), openByLink, openSetlistOnTab, setAddingToSetlist, search, restore, setlistView, bookActs, signInMine, setUpload, booksView, offerSignIn)}
             </main>
           </div>
         )}
@@ -1419,7 +1448,7 @@ export default function AppShell({
   }
 
   // A book's detail (books.row_opens_songs; workflow 7 L86-95): a layer over the
-  // book's songs. On a computer it takes the main pane beside them, as a song
+  // book's page. On a computer it takes the main pane beside it, as a song
   // does (SongReading's split); below that it is a full screen with *Back to
   // {book}*. Files opens over it (above), and its Back returns here; Back from
   // the detail returns to the book's songs.
@@ -1460,21 +1489,23 @@ export default function AppShell({
           <div className="split book-detail-split">
             <div className="pane side">
               <HeaderChrome store={store} className="rail-head" onInstruments={openInstruments} />
-              <SearchScreen
+              {/* The book's page beside its detail; its own *Books* is the
+                  detail's Back here, so it shows none. */}
+              <BookSongs
                 store={store}
+                bookId={bookDetail.bookId}
+                query={bookQuery}
+                onQueryChange={setBookQuery}
+                onBack={null}
                 onOpenSong={(song) => {
                   setBookDetail(null);
                   setOpenSong(song);
                 }}
+                onOpenSetlist={openSetlistOnTab}
                 onWriteSong={startNewSong}
-                query={searchQuery}
-                onQueryChange={setSearchQuery}
-                scope={scope}
-                onScopeChange={setScope}
-                expandedBooks={expandedBooks}
-                onExpandedBooksChange={setExpandedBooks}
-                onManageBook={bookActs.onManage}
-                onSettleBook={bookActs.onSettle}
+                onAddToSetlist={setAddingToSetlist}
+                onManage={bookActs.onManage}
+                onSettle={bookActs.onSettle}
                 onNeedsYou={bookActs.onNeedsYou}
               />
             </div>

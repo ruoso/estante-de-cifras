@@ -24,6 +24,7 @@ import { t } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
 import { syncDisplayFor } from '../sync-display.js';
 import { titleFor, orderedBooks, forkLineFor, bookMetaFor } from './book-display.js';
+import { CreateIcon } from '../songs/song-rows.jsx';
 import './book-bar.css';
 
 // The sync-state badge, shown only when the engine's `sync` fact for the book is
@@ -50,13 +51,18 @@ export function SyncBadge({ entry, originalGone = false }) {
  * `onSettle(bookId)` opens its conflicts; `onBringIn(bookId, { book, original })`
  * opens the bring-in preview for a fork.
  */
-export default function BookBar({ store, bookId, onManage = () => {}, onSettle = () => {}, onBringIn = () => {} }) {
+// `headingLevel` is 1 on a book's own page, where the title names the screen
+// (books.book_page). `onNewSong`, when given, puts **New song** — the page's
+// one primary act — first in the card's row of buttons, Manage beside it; a
+// book the person cannot save to is given none.
+export default function BookBar({ store, bookId, headingLevel = 2, onNewSong = null, onManage = () => {}, onSettle = () => {}, onBringIn = () => {} }) {
   const shelf = useSlice(store, 'shelf');
   const sync = useSlice(store, 'sync');
   const originals = useSlice(store, 'originals');
   const index = useSlice(store, 'index');
   const songCounts = useSlice(store, 'songCounts');
   const conflicts = useSlice(store, 'conflicts');
+  const Heading = headingLevel === 1 ? 'h1' : 'h2';
 
   const entry = orderedBooks(shelf).find((e) => e.id === bookId);
   const book = entry?.book;
@@ -77,16 +83,13 @@ export default function BookBar({ store, bookId, onManage = () => {}, onSettle =
     <section className="card pad book-bar" aria-labelledby={`book-bar-${bookId}`}>
       <div className="book-bar-head">
         <span className="book-bar-text">
-          <h2 className="t-h2" id={`book-bar-${bookId}`}>
+          <Heading className="t-h2" id={`book-bar-${bookId}`}>
             {title}
-          </h2>
+          </Heading>
           {fork ? <span className="t-small">{t('books.fromOriginal', { original: fork.from })}</span> : null}
           <span className="t-small">{meta}</span>
           <SyncBadge entry={sync?.[bookId]} originalGone={Boolean(fork?.gone)} />
         </span>
-        <Button className="btn" aria-label={t('books.manageLabel', { book: title })} onPress={() => onManage(bookId)}>
-          {t('books.manage')}
-        </Button>
       </div>
       {needsYou ? (
         <div className="notice conflict book-bar-notice">
@@ -116,6 +119,21 @@ export default function BookBar({ store, bookId, onManage = () => {}, onSettle =
           </Button>
         </div>
       ) : null}
+      <div className="book-bar-actions">
+        {onNewSong ? (
+          <Button
+            className="btn primary"
+            aria-label={t('newSong.inThisBook', { book: title })}
+            onPress={() => onNewSong(bookId)}
+          >
+            <CreateIcon />
+            {t('books.pageNewSong')}
+          </Button>
+        ) : null}
+        <Button className="btn" aria-label={t('books.manageLabel', { book: title })} onPress={() => onManage(bookId)}>
+          {t('books.manage')}
+        </Button>
+      </div>
     </section>
   );
 }

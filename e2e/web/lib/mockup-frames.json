@@ -63,25 +63,25 @@
   "board": "Open-a-book",
   "index": 1,
   "kind": "phone",
-  "label": "Phone · the shelf, then a book's songs"
+  "label": "Phone · the shelf, then a book's page"
  },
  {
   "board": "Open-a-book",
   "index": 2,
   "kind": "phone",
-  "label": "Phone · the shelf, then a book's songs"
+  "label": "Phone · the shelf, then a book's page"
  },
  {
   "board": "Open-a-book",
   "index": 3,
   "kind": "tablet",
-  "label": "Tablet · a book that needs you opens on its songs, with Settle one press away"
+  "label": "Tablet · a book that needs you opens on its page, with Settle one press away"
  },
  {
   "board": "Open-a-book",
   "index": 4,
   "kind": "desktop",
-  "label": "Computer · Manage opens the book's detail beside its songs, with Rename and Files"
+  "label": "Computer · Manage opens the book's detail beside its page, with Rename and Files"
  },
  {
   "board": "Recovery-email",

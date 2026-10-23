@@ -1,19 +1,19 @@
 // place.js — where the person is, and its address (shell.routing; DIRECTION
 // §3.7 "The address follows where you are"; workflow 7 §Links to books).
 //
-// A place is the destination tab, the one book search is scoped to, and the
+// A place is the destination tab, the book whose page is open on Books, and the
 // open song or setlist:
 //
 //   { tab: 'search' | 'books' | 'setlists',
-//     book?:    bookId,              — search scoped to that one book
+//     book?:    bookId,              — that book's page, on Books (books.book_page)
 //     song?:    { bookId, path },    — the open song
 //     setlist?: { bookId, path } }   — the open setlist
 //
-// and its address is one of `/`, `/books`, `/setlists`, `/b/<book>` (search
-// scoped to the book) or `/b/<book>/<path>` (a song, or a setlist when the path
+// and its address is one of `/`, `/books`, `/setlists`, `/b/<book>` (the book's
+// page) or `/b/<book>/<path>` (a song, or a setlist when the path
 // ends in `.setlist.md`). With a song open over a setlist (a song opened from
 // the setlist), the address is the song's. Everything else about the screen —
-// the typed query, a folder or several-book scope, the editor or history open
+// the typed query, any search scope, the editor or history open
 // over a song — is not part of an address (Decisions 2 and 3).
 //
 // Pure and DOM-free (pinned by place.test.js): it reads and writes a pathname
@@ -33,36 +33,36 @@ export function isSetlistPath(path) {
 
 // The place an address names, or null when the pathname is not an address (the
 // app then opens on search with the URL replaced by `/`). A song's address
-// carries its book as the search scope, so its Back lands on the book's songs
-// (workflow 2 §Scope).
+// carries its book's page beneath it, so its Back lands on the book's songs
+// (workflow 7 §A book's page).
 export function placeFromUrl(pathname) {
   if (typeof pathname !== 'string') return null;
   for (const [tab, url] of Object.entries(TAB_PATHS)) {
     if (pathname === url) return { tab };
   }
   const book = bookRoute(pathname);
-  if (book) return { tab: 'search', book };
+  if (book) return { tab: 'books', book };
   const item = bookSongRoute(pathname);
   if (item) {
     if (isSetlistPath(item.path)) return { tab: 'setlists', setlist: item };
-    return { tab: 'search', book: item.bookId, song: item };
+    return { tab: 'books', book: item.bookId, song: item };
   }
   return null;
 }
 
 // The address of a place: the open song's, else the open setlist's, else the
-// scoped book's (on search), else the tab's.
+// open book page's (on Books), else the tab's.
 export function urlFromPlace(place) {
   if (!place) return '/';
   if (place.song) return bookSongPath(place.song.bookId, place.song.path);
   if (place.setlist) return bookSongPath(place.setlist.bookId, place.setlist.path);
-  if (place.book && place.tab === 'search') return bookPath(place.book);
+  if (place.book && place.tab === 'books') return bookPath(place.book);
   return TAB_PATHS[place.tab] ?? '/';
 }
 
 // The one book a search scope narrows to, or null: `{ bookId }` (no folder) or
-// `{ books: [id] }` (the per-book *Search only in* button). Folder and
-// several-book scopes are not addresses (Decision 2).
+// `{ books: [id] }` (the per-book *Search only in* button). No search scope is
+// an address: a book's address is its page (books.book_page).
 export function bookOfScope(scope) {
   if (!scope) return null;
   if (Array.isArray(scope.books)) return scope.books.length === 1 ? scope.books[0] : null;
@@ -87,7 +87,7 @@ export function samePlace(a, b) {
 }
 
 // Whether moving from `from` to `to` opens something — a song, a setlist, or a
-// one-book scope on the same tab — and so is a history step (a push). A tab
+// book's page on the same tab — and so is a history step (a push). A tab
 // switch alone, and anything closing, is not (Decision 4).
 export function isOpening(from, to) {
   if (!from || !to) return false;

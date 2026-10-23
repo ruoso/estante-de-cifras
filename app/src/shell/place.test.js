@@ -9,11 +9,11 @@ const CASES = [
   ['/', { tab: 'search' }],
   ['/books', { tab: 'books' }],
   ['/setlists', { tab: 'setlists' }],
-  ['/b/choros-da-ana', { tab: 'search', book: 'choros-da-ana' }],
+  ['/b/choros-da-ana', { tab: 'books', book: 'choros-da-ana' }],
   [
     '/b/choros-da-ana/choro/tarde-clara.cifra.md',
     {
-      tab: 'search',
+      tab: 'books',
       book: 'choros-da-ana',
       song: { bookId: 'choros-da-ana', path: 'choro/tarde-clara.cifra.md' },
     },
@@ -32,16 +32,16 @@ describe('placeFromUrl — the place an address names', () => {
   }
 
   it('a book address with a trailing slash is the book', () => {
-    expect(placeFromUrl('/b/choros-da-ana/')).toEqual({ tab: 'search', book: 'choros-da-ana' });
+    expect(placeFromUrl('/b/choros-da-ana/')).toEqual({ tab: 'books', book: 'choros-da-ana' });
   });
 
-  it("a song's address carries its book as the search scope (workflow 2 §Scope)", () => {
+  it("a song's address carries its book's page beneath it (books.book_page)", () => {
     expect(placeFromUrl('/b/livro/x.cifra.md').book).toBe('livro');
   });
 
   it('decodes percent-encoded ids and path segments (spaces, accents)', () => {
     expect(placeFromUrl('/b/sr_abc%20123/pasta%20velha/uma%20can%C3%A7%C3%A3o.cifra.md')).toEqual({
-      tab: 'search',
+      tab: 'books',
       book: 'sr_abc 123',
       song: { bookId: 'sr_abc 123', path: 'pasta velha/uma canção.cifra.md' },
     });
@@ -70,7 +70,7 @@ describe('urlFromPlace — the address of a place', () => {
 
   it('encodes ids and path segments, and round-trips them', () => {
     const place = {
-      tab: 'search',
+      tab: 'books',
       book: 'livro de ação',
       song: { bookId: 'livro de ação', path: 'pasta velha/uma canção.cifra.md' },
     };
@@ -90,12 +90,12 @@ describe('urlFromPlace — the address of a place', () => {
     ).toBe('/b/b1/x.cifra.md');
   });
 
-  it("a scoped book is an address on search only; another tab keeps the tab's", () => {
-    expect(urlFromPlace({ tab: 'books', book: 'b1' })).toBe('/books');
+  it("a book's page is an address on Books only; another tab keeps the tab's", () => {
+    expect(urlFromPlace({ tab: 'search', book: 'b1' })).toBe('/');
   });
 });
 
-describe('bookOfScope — only a one-book scope is an address (Decision 2)', () => {
+describe('bookOfScope — the one book a search scope narrows to', () => {
   it('reads { bookId } and a one-book { books }', () => {
     expect(bookOfScope({ bookId: 'b1' })).toBe('b1');
     expect(bookOfScope({ books: ['b1'] })).toBe('b1');
@@ -109,15 +109,15 @@ describe('bookOfScope — only a one-book scope is an address (Decision 2)', () 
 });
 
 describe('isOpening — what is a history step (Decisions 3-4)', () => {
-  it('opening a song, a setlist or a one-book scope is', () => {
+  it("opening a song, a setlist or a book's page is", () => {
     expect(isOpening({ tab: 'search' }, { tab: 'search', song: { bookId: 'b', path: 'x.cifra.md' } })).toBe(true);
     expect(isOpening({ tab: 'setlists' }, { tab: 'setlists', setlist: { bookId: 'b', path: 's.setlist.md' } })).toBe(true);
-    expect(isOpening({ tab: 'search' }, { tab: 'search', book: 'b' })).toBe(true);
+    expect(isOpening({ tab: 'books' }, { tab: 'books', book: 'b' })).toBe(true);
   });
 
   it('a tab switch, or anything closing, is not', () => {
     expect(isOpening({ tab: 'search' }, { tab: 'books' })).toBe(false);
-    expect(isOpening({ tab: 'books' }, { tab: 'search', book: 'b' })).toBe(false);
+    expect(isOpening({ tab: 'search' }, { tab: 'books', book: 'b' })).toBe(false);
     expect(isOpening({ tab: 'search', song: { bookId: 'b', path: 'x' } }, { tab: 'search' })).toBe(false);
   });
 });

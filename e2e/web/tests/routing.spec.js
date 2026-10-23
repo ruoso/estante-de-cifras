@@ -4,8 +4,7 @@ import {
   openSongFromSearch,
   openSongInEditor,
   editFromReading,
-  scopeToBook,
-  gotoTab,
+  openBookSongs,
   saveSurface,
 } from '../lib/journeys.js';
 import { SONG, enterArrange } from '../lib/journeys-core.js';
@@ -36,10 +35,10 @@ test('a song opened, reloaded and still open', async ({ page, checkA11y }) => {
 
 test('back from a song to its book', async ({ page, checkA11y }) => {
   await openExampleBook(page);
-  await scopeToBook(page, EXAMPLE_BOOK);
+  await openBookSongs(page, EXAMPLE_BOOK);
   await expect(page).toHaveURL(BOOK_URL);
   const bookUrl = page.url();
-  await checkA11y(); // search scoped to the book
+  await checkA11y(); // the book's page
 
   await openSongFromSearch(page, SONG.search, SONG.title);
   await expect(page).toHaveURL(SONG_URL);
@@ -48,9 +47,9 @@ test('back from a song to its book', async ({ page, checkA11y }) => {
   await page.goBack();
   await expect(page).toHaveURL(bookUrl);
   await expect(page.getByRole('group', { name: SONG.title })).toHaveCount(0);
-  await expect(page.locator('.scope')).toContainText(EXAMPLE_BOOK);
-  await expect(page.getByRole('button', { name: 'Clear filter' })).toBeVisible();
-  await checkA11y(); // back on the book's songs
+  await expect(page.getByRole('heading', { level: 1, name: EXAMPLE_BOOK })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Back to Books' })).toBeVisible();
+  await checkA11y(); // back on the book's page
 });
 
 test('back closes the editor before the song', async ({ page }) => {
@@ -78,7 +77,7 @@ test('back closes the editor before the song', async ({ page }) => {
 // song).
 async function songUnderArrangeFromBook(page) {
   await openExampleBook(page);
-  await scopeToBook(page, EXAMPLE_BOOK);
+  await openBookSongs(page, EXAMPLE_BOOK);
   await expect(page).toHaveURL(BOOK_URL);
   const bookUrl = page.url();
   await openSongFromSearch(page, SONG.search, SONG.title);
@@ -89,7 +88,7 @@ async function songUnderArrangeFromBook(page) {
 async function expectBackOnTheBook(page, bookUrl) {
   await expect(page).toHaveURL(bookUrl);
   await expect(page.getByRole('group', { name: SONG.title })).toHaveCount(0);
-  await expect(page.locator('.scope')).toContainText(EXAMPLE_BOOK);
+  await expect(page.getByRole('heading', { level: 1, name: EXAMPLE_BOOK })).toBeVisible();
 }
 
 test('back after a reload under arrange leaves the song', async ({ page, checkA11y }) => {
@@ -132,8 +131,7 @@ test('back after a fork and a reload lands on the fork', async ({ browser, page 
   await hostedBookWithSong(page, BOOK, SONG_TITLE);
   const bia = await biaJoins(browser, page, { book: BOOK, role: 'Reader', query: QUERY, songTitle: SONG_TITLE });
   try {
-    await gotoTab(bia.page, 'Search');
-    await scopeToBook(bia.page, BOOK);
+    await openBookSongs(bia.page, BOOK);
     await expect(bia.page).toHaveURL(BOOK_URL);
     const originalUrl = bia.page.url();
 
@@ -164,7 +162,7 @@ test('back after a fork and a reload lands on the fork', async ({ browser, page 
     await expect(bia.page).toHaveURL(BOOK_URL);
     expect(bia.page.url()).not.toBe(originalUrl);
     await expect(bia.page.getByRole('heading', { name: /This link doesn’t open a book/ })).toHaveCount(0);
-    await expect(bia.page.locator('.scope')).toContainText(BOOK);
+    await expect(bia.page.getByRole('heading', { level: 1, name: BOOK })).toBeVisible();
     expect(await analyzeBothThemes(bia.page)).toEqual([]); // axe: the fork's songs
   } finally {
     await bia.context.close();

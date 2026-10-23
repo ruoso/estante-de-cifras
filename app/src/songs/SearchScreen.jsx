@@ -14,10 +14,9 @@
 // ADDITION to the song results (workflow 2 L26-40, Decision 4). A scope filter
 // narrows the search to a book and shows as a chip inside the box; it is
 // ephemeral view state, so it resets each session (workflow 2 L60-65, Decision
-// 8). While the scope is one book (or a folder in it), the bar naming the book
-// sits between the box and the results — its meta, its state in words,
-// *Manage*, and what waits on the person (books.row_opens_songs; workflow 7
-// §A book's songs). Every interactive part is a React Aria Component with a
+// 8). A scope is a filter only: a book's own page — its bar, *Manage*, what
+// waits on the person — is BookSongs, on the Books destination
+// (books.book_page; workflow 7 §A book's page). Every interactive part is a React Aria Component with a
 // keyboard path and an accessible name; every badge and the "still loading"
 // state carry a word, never colour alone (mockups README L26).
 
@@ -35,19 +34,16 @@ import { t, currentLocale } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
-import { canSaveFor, fillDisplayFor, orderedBooks, saveTargetFor } from '../books/book-display.js';
+import { fillDisplayFor, orderedBooks, saveTargetFor } from '../books/book-display.js';
 import {
   recognizeChord,
   scopePayload,
   INITIAL_SCOPE,
-  songTitle,
-  folderOf,
   inScope,
   moveBookEntry,
 } from './search-query.js';
 import FirstRun from './FirstRun.jsx';
-import BookBar from '../books/BookBar.jsx';
-import BringIn from '../books/BringIn.jsx';
+import { keyOf, SearchIcon, canWriteTo, CreateIcon, SongRow, SetlistRow } from './song-rows.jsx';
 import { bookOfScope } from '../shell/place.js';
 import SaveSheet from './SaveSheet.jsx';
 import { showsFirstRun, bookLabelFor as resolveBookLabel } from './first-run.js';
@@ -60,33 +56,6 @@ import './search.css';
 // bursts while still feeling immediate. The browse/recents the pre-typing state
 // shows need no debounce — they are not re-queried per character.
 const SEARCH_DEBOUNCE_MS = 120;
-
-// The NUL join key for a location (bookId + path) — the same separator the
-// index uses; it cannot occur in a book id or a path.
-const keyOf = (bookId, path) => `${bookId}\u0000${path}`;
-
-// The magnifier drawn in the box (W02 lines 35-37); decorative, named by the
-// field's label.
-function SearchIcon() {
-  return (
-    <svg
-      className="icon"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <circle cx="11" cy="11" r="7" />
-      <path d="M20 20l-3.5-3.5" />
-    </svg>
-  );
-}
 
 // The accent-tinted grid drawn on the explore row (W02 lines 39-43); decorative.
 function ExploreIcon() {
@@ -110,38 +79,6 @@ function ExploreIcon() {
   );
 }
 
-// Whether a new song may be started into a book from its section (workflow 3
-// §Which book L28): a shared book only when the user can push to it
-// (`canSaveFor`: owner or editor), a local book (in `shelf.local`, including *My
-// songs*) always. A book with no shelf entry is treated as local/on-device.
-function canWriteTo(shelf, bookId) {
-  const shared = shelf?.books?.[bookId];
-  if (shared) return canSaveFor('shared', shared) === true;
-  return true;
-}
-
-// The plus on a "create / new song" affordance (W03 Create row, "new song in
-// this book"); decorative, named by its row name or the button's aria-label.
-function CreateIcon() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-      className="search-create-icon"
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
 // The funnel on a book's "search only here" button; decorative, named by the
 // button's aria-label.
 function FilterIcon() {
@@ -159,126 +96,6 @@ function FilterIcon() {
       focusable="false"
     >
       <path d="M3 5h18l-7 8v6l-4-2v-4z" />
-    </svg>
-  );
-}
-
-// The badges a result carries, each labelled with a word (mockups README L26,
-// acceptance 4). Order mirrors the mockup: voiced, then unsaved/conflict. Only
-// the flags that apply render; `voicedFor`/`conflict` are the seam their owning
-// tasks fill (Decision 7), so they simply stay absent until then.
-function Badges({ item, instrument }) {
-  const badges = [];
-  if (item.voicedFor) {
-    badges.push(
-      <span key="voiced" className="badge voiced">
-        {t('search.voicedFor', { instrument })}
-      </span>,
-    );
-  }
-  if (item.unsaved) {
-    badges.push(
-      <span key="unsaved" className="badge unsaved dot">
-        {t('search.unsaved')}
-      </span>,
-    );
-  }
-  if (item.conflict) {
-    badges.push(
-      <span key="conflict" className="badge conflict dot">
-        {t('search.conflict')}
-      </span>,
-    );
-  }
-  if (!badges.length) return null;
-  return <span className="badges">{badges}</span>;
-}
-
-// One song row — a result, a recent, or a song inside a book section. Activating
-// it (click or keyboard, via RAC Button) opens the song (workflow 2: "Opening a
-// result shows the song to be read"); the reading view is `songs.reading`, so
-// here it is the `onOpen` seam. Shows the title (or the file name for a titleless
-// song), where it lives (book, and folder when not at the root), and badges.
-function SongRow({ item, bookLabel, instrument, onOpen, onAddToSetlist }) {
-  const folder = folderOf(item.path);
-  const where = folder
-    ? t('search.where', { book: bookLabel, folder })
-    : bookLabel;
-  // The row says the title and artist, and where it lives: book, and folder
-  // only when not at the root (workflow 2 L46-49). The artist leads the meta
-  // line, then the location.
-  const meta = [item.artist, where].filter(Boolean).join(' · ');
-  const title = songTitle(item.title, t('newSong.untitled'));
-  // Add-to-setlist is on every song (workflow 12 §Building one): a trailing icon
-  // button beside the open action. A button cannot nest inside a RAC Button, so
-  // the row is a flex container with the open Button and this one as siblings
-  // (the BookSection header precedent).
-  return (
-    <div className="row search-row">
-      <Button
-        className="search-row-open"
-        onPress={() => onOpen({ bookId: item.bookId, path: item.path })}
-      >
-        <span className="grow">
-          <span className="name">{title}</span>
-          <span className="meta">{meta}</span>
-        </span>
-        <Badges item={item} instrument={instrument} />
-      </Button>
-      {onAddToSetlist ? (
-        <Button
-          className="btn icon search-add-setlist"
-          aria-label={t('search.addToSetlist', { title })}
-          onPress={() =>
-            onAddToSetlist({ bookId: item.bookId, path: item.path, title: item.title || null })
-          }
-        >
-          <AddToSetlistIcon />
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-// One setlist row in the typed-query results (books.setlist_search, workflow 12
-// §The file L34: "Setlists are found by the same search as songs, marked as
-// setlists. Opening one lists its songs."). A setlist is MARKED by the word
-// "Setlist" (mockups README L26 — status by a word, never colour alone), shows
-// its title and where it lives (book, and folder when not at the root — never
-// the file name, DIRECTION §4 L470), and is NOT offered Add-to-setlist (that is
-// for songs). The badge sits inside the open Button, so the button's accessible
-// name carries the title AND that it is a setlist (acceptance 2). Activating it
-// routes to the existing setlist view through `onOpenSetlist` (Decision 5).
-function SetlistRow({ item, bookLabel, onOpen }) {
-  const folder = folderOf(item.path);
-  const where = folder
-    ? t('search.where', { book: bookLabel, folder })
-    : bookLabel;
-  const title = songTitle(item.title, t('newSong.untitled'));
-  return (
-    <div className="row search-row">
-      <Button
-        className="search-row-open"
-        onPress={() => onOpen({ bookId: item.bookId, path: item.path })}
-      >
-        <span className="grow">
-          <span className="name">{title}</span>
-          <span className="meta">{where}</span>
-        </span>
-        <span className="badges">
-          <span className="badge setlist">{t('search.setlist')}</span>
-        </span>
-      </Button>
-    </div>
-  );
-}
-
-// The Add-to-setlist glyph on a song row — a list with a plus.
-function AddToSetlistIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 6h10M4 12h10M4 18h7M17 15v6M14 18h6" />
     </svg>
   );
 }
@@ -428,13 +245,6 @@ function searchedBooks(scope, shelf, bookIds, bookLabelFor) {
   }
 }
 
-// The book the bar names: the scope's one book (`bookOfScope`), or the book a
-// folder scope `{ bookId, prefix }` is in (workflow 7 L69-73). A several-book
-// scope, or none, has no bar.
-function barBookOf(scope) {
-  return bookOfScope(scope) ?? (scope?.bookId && scope.prefix ? scope.bookId : null);
-}
-
 function scopeChipLabel(scope, bookLabelFor) {
   if (!scope) return '';
   if (Array.isArray(scope.books)) return scope.books.map(bookLabelFor).join(', ');
@@ -466,12 +276,6 @@ export default function SearchScreen({
   // 5). Uncontrolled, it is local state, as the scope is.
   expandedBooks: controlledExpanded,
   onExpandedBooksChange,
-  // The bar's acts (books.row_opens_songs): *Manage* opens the book's detail,
-  // *Settle* its conflicts; a bring-in that meets the person's own edits hands
-  // the book to the conflicts (workflow 11).
-  onManageBook = () => {},
-  onSettleBook = () => {},
-  onNeedsYou = () => {},
 }) {
   const searchSlice = useSlice(store, 'search');
   const indexSlice = useSlice(store, 'index');
@@ -510,9 +314,6 @@ export default function SearchScreen({
   // Save all opens the one save sheet over a book's changed songs (workflow 4
   // §Several songs at once). Ephemeral view state: `{ bookId, paths, bookLabel }`.
   const [saveAll, setSaveAll] = useState(null);
-  // The bring-in screen (books.bring_in, Decision 3), opened from a fork's bar:
-  // `{ bookId, book, original }` while open, in place of the search screen.
-  const [bringIn, setBringIn] = useState(null);
   // A book became its fork (books.fork): the scope and an open save-all follow
   // the new id, so the save lands in the fork and the search stays narrowed to
   // the same book.
@@ -634,27 +435,6 @@ export default function SearchScreen({
     return hit ? { ...item, conflict: true } : item;
   };
   const results = searchSlice.results.map(inConflict);
-  const barBook = barBookOf(scope);
-
-  // A fork's bring-in takes the screen (Decision 3; W11 board #3): a merge or
-  // *Not now* returns to the book's songs; a collision hands off to conflicts.
-  if (bringIn) {
-    return (
-      <div className="search-screen">
-        <BringIn
-          store={store}
-          bookId={bringIn.bookId}
-          book={bringIn.book}
-          original={bringIn.original}
-          onClose={() => setBringIn(null)}
-          onNeedsYou={(bookId) => {
-            setBringIn(null);
-            onNeedsYou(bookId);
-          }}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="search-screen">
@@ -690,15 +470,6 @@ export default function SearchScreen({
         </SearchField>
       </Group>
 
-      {barBook ? (
-        <BookBar
-          store={store}
-          bookId={barBook}
-          onManage={onManageBook}
-          onSettle={onSettleBook}
-          onBringIn={(bookId, names) => setBringIn({ bookId, ...names })}
-        />
-      ) : null}
 
       {/* The results scroll under the heading and the search pill, which stay
           in view (shell.full_height). */}
@@ -856,9 +627,9 @@ export default function SearchScreen({
                       canWrite={canWriteTo(shelf, id)}
                       onAddToSetlist={onAddToSetlist}
                       markConflict={inConflict}
-                      // A book with no entry opens iff it is the bar's book
-                      // (books.row_opens_songs); an entry is how it was left.
-                      isExpanded={expandedBooks.has(id) ? expandedBooks.get(id) : id === barBook}
+                      // A book with no entry opens iff the scope is that one
+                      // book; an entry is how it was left.
+                      isExpanded={expandedBooks.has(id) ? expandedBooks.get(id) : id === bookOfScope(scope)}
                       onExpandedChange={(open) =>
                         setExpandedBooks((prev) => new Map(prev).set(id, open))
                       }
