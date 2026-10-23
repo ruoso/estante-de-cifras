@@ -184,6 +184,14 @@ describe('surfaceShelf elsewhere and mySongs (unit)', () => {
     expect(elsewhere.some((e) => e.bookId === 'local-gone')).toBe(false);
   });
 
+  it('leaves out a row dismissed on this device, and only that one', () => {
+    const { elsewhere } = surfaceShelf(model, THIS_DEVICE, [{ deviceId: OTHER_DEVICE, bookId: 'local-rasc' }]);
+    expect(elsewhere.map((e) => e.bookId)).toEqual(['local-valsas']);
+    // The same book id under another device is a different row.
+    const other = surfaceShelf(model, THIS_DEVICE, [{ deviceId: THIRD_DEVICE, bookId: 'local-rasc' }]);
+    expect(other.elsewhere.map((e) => e.bookId)).toEqual(['local-valsas', 'local-rasc']);
+  });
+
   it('a device with no devices entry (or an unknown token) is kind other', () => {
     const unknown = {
       ...model,

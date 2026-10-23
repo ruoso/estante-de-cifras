@@ -89,6 +89,12 @@ export const CommandKind = Object.freeze({
   // commit) and replies with a RECENTS event. `songs.reading` calls this on
   // open; the search screen displays it.
   RECORD_RECENT: 'record_recent',
+  // Put away one *only on your …* row of the shelf on this device (workflow 13
+  // §Books that were only on the other device). Payload `{ deviceId, bookId }`,
+  // the pair naming the shelf's `elsewhere` item; the Worker records it in the
+  // device-local `meta` store (NOT the home book — the marker is the other
+  // device's) and re-surfaces SHELF without it.
+  DISMISS_ELSEWHERE: 'dismiss_elsewhere',
   // The shelf write path (books.shelf, workflow 7). CREATE_BOOK `{ title }`
   // makes an empty local songbook with no account — `git.init` +
   // §2.1 scaffold + one commit — writes its `shelf.local` entry through the

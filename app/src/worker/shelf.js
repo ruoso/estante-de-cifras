@@ -23,7 +23,9 @@
 // §Books that were only on the other device lists each by title — *only on
 // your iPhone: Rascunhos* — with the kind that device wrote for itself in
 // `devices` (home-book-format §4.2, §7). `mySongs`, the register naming the
-// account's *My songs*, is passed through when present.
+// account's *My songs*, is passed through when present. An `elsewhere` item
+// the reader dismissed on this device (`dismissed`, the device-local list in
+// dismissed-elsewhere.js) is left out.
 //
 // Pure: no I/O, no logging, no labels, links or secrets in any message
 // (standing rules). Plain ESM, Worker-only; imports only `isRegister`.
@@ -118,19 +120,24 @@ function elsewhereBooks(model, deviceId) {
  * way; `elsewhere` lists the other devices' live local books (`elsewhereBooks`);
  * `mySongs` is the account's *My songs* register, only when the model holds
  * one. A non-object/array model, or an absent `books`/`local`, yields the empty
- * sub-map; `{}` → `{ books: {}, local: {}, elsewhere: [] }`.
+ * sub-map; `{}` → `{ books: {}, local: {}, elsewhere: [] }`. An `elsewhere`
+ * item named in `dismissed` (`{ deviceId, bookId }`) is left out.
  *
  * @param {Object} model the parsed shelf.json (an absent file is `{}`)
  * @param {string} deviceId this device's id (§2.3), the `local` namespace key
+ * @param {Array<{ deviceId: string, bookId: string }>} [dismissed] the rows
+ *   dismissed on this device
  * @returns {{ books: Object, local: Object, elsewhere: Array, mySongs?: Object }}
  */
-export function surfaceShelf(model, deviceId) {
+export function surfaceShelf(model, deviceId, dismissed = []) {
   if (!isPlainObject(model)) return { books: {}, local: {}, elsewhere: [] };
   const localNs = isPlainObject(model.local) ? model.local[deviceId] : undefined;
   const out = {
     books: projectBooks(model.books),
     local: projectBooks(localNs),
-    elsewhere: elsewhereBooks(model, deviceId),
+    elsewhere: elsewhereBooks(model, deviceId).filter(
+      (e) => !dismissed.some((d) => d.deviceId === e.deviceId && d.bookId === e.bookId),
+    ),
   };
   if (isRegister(model.mySongs)) out.mySongs = model.mySongs;
   return out;

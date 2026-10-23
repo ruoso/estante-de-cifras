@@ -733,14 +733,34 @@ describe('BooksScreen on a new device (account.new_device, behavior)', () => {
     const line = screen.getByText('Only on your Android phone: Rascunhos');
     const row = line.closest('.elsewhere-row');
     expect(within(row).getByText('Put it online there to have it here.')).toBeInTheDocument();
-    // Not a link or a button that opens: nothing interactive in it.
-    expect(within(row).queryByRole('button')).toBeNull();
+    // Nothing that opens it: its one button is the dismiss, no link.
+    expect(within(row).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Dismiss: Only on your Android phone: Rascunhos',
+    ]);
     expect(within(row).queryByRole('link')).toBeNull();
     expect(line.closest('button')).toBeNull();
     // After the shelf's own books.
     const rows = [...container.querySelectorAll('.book-row, .elsewhere-row')];
     expect(rows[rows.length - 1]).toBe(row);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('its Dismiss sends DISMISS_ELSEWHERE for that row, and the re-surfaced shelf drops it', async () => {
+    const { store, sent, emit } = makeStore();
+    const { container } = renderScreen(store);
+    seed(emit);
+
+    act(() =>
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss: Only on your Android phone: Rascunhos' })),
+    );
+    expect(lastCommand(sent, CommandKind.DISMISS_ELSEWHERE).payload).toEqual({
+      deviceId: 'dev-phone',
+      bookId: 'l-rasc',
+    });
+
+    emit(event(EventKind.SHELF, { ...SHELF, elsewhere: [] }));
+    expect(screen.queryByText('Only on your Android phone: Rascunhos')).toBeNull();
+    expect(container.querySelector('.elsewhere')).toBeNull();
   });
 });
 

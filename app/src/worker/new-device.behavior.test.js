@@ -463,6 +463,39 @@ describe('a new device (account.new_device, workflow 13)', () => {
     await waitEvent(b, EventKind.SHELF_FILL, (p) => p.bookId === serviceId && p.state === 'ready', mark);
   }, 90000);
 
+  it('an only-on row dismissed stays away on this device, across a restart, and the home book keeps the marker', async () => {
+    const a = await makeDevice(service, { userAgent: UA_ANDROID_PHONE });
+    await open(service, a);
+    await signIn(service, a);
+    const rascId = await localBookWithSong(a, 'Rascunhos');
+    const ideiasId = await localBookWithSong(a, 'Ideias');
+    await syncHome(a);
+
+    const b = await makeDevice(service);
+    await open(service, b);
+    await signIn(service, b);
+    expect(lastPayload(b, EventKind.SHELF).elsewhere.map((e) => e.bookId)).toEqual([rascId, ideiasId]);
+    const headBefore = await resolveRef({ fs: b.fs(), dir: b.dir(HOME_BOOK_ID), ref: 'main' });
+
+    b.send(command(CommandKind.DISMISS_ELSEWHERE, { deviceId: a.deviceId, bookId: rascId }));
+    await waitFor(
+      () => expect(lastPayload(b, EventKind.SHELF).elsewhere.map((e) => e.bookId)).toEqual([ideiasId]),
+      WAIT,
+    );
+    // Device-local: no home-book commit, the other device's marker untouched.
+    expect(await resolveRef({ fs: b.fs(), dir: b.dir(HOME_BOOK_ID), ref: 'main' })).toBe(headBefore);
+    const remoteShelf = JSON.parse(await remoteFile(service.home, 'shelf.json'));
+    expect(remoteShelf.local[a.deviceId][rascId].title.value).toBe('Rascunhos');
+
+    // A new Worker over the same IndexedDB still leaves it out.
+    const restarted = await makeDevice(service, { idb: b.idb, name: b.name, signedIn: true });
+    restarted.send(command(CommandKind.OPEN, { device: {} }));
+    await waitFor(
+      () => expect(lastPayload(restarted, EventKind.SHELF)?.elsewhere.map((e) => e.bookId)).toEqual([ideiasId]),
+      WAIT,
+    );
+  }, 90000);
+
   it('not signed in: a 401 at start attaches nothing; sign-out after an attach strips the service id with the remote', async () => {
     const b = await makeDevice(service);
     await open(service, b);

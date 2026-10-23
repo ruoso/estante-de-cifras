@@ -177,6 +177,8 @@ export default {
     onlyOn: 'Only on your {device}: {title}',
     onlyOnOther: 'Only on another device: {title}',
     onlyOnHelp: 'Put it online there to have it here.',
+    onlyOnDismiss: 'Dismiss',
+    onlyOnDismissLabel: 'Dismiss: {line}',
     // A book's songs (books.row_opens_songs; workflow 7 §A book's songs): the
     // bar's Manage and Settle, and the detail's Back, Rename and Files card.
     manage: 'Manage',

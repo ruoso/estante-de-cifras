@@ -55,6 +55,7 @@ import { deriveSongFilename, firstSaveName } from '../songs/song-filename.js';
 import { defaultSaveMessage } from '../songs/save-note.js';
 import { createSearchIndex } from './search-index.js';
 import { createRecents } from './recents.js';
+import { createDismissedElsewhere } from './dismissed-elsewhere.js';
 import { surfacePreferences } from './preferences.js';
 import { surfaceShelf, nextShelfPosition, planShelfBackfill } from './shelf.js';
 import { readmeTitle } from './readme-title.js';
@@ -362,6 +363,7 @@ export function createWorkerLogic(port, options = {}) {
   let searchIndex = null;
   let indexHydration = null;
   let recents = null;
+  let dismissedElsewhere = null;
   let changeCheck = null;
   let booksClient = null;
   let online = null;
@@ -564,6 +566,14 @@ export function createWorkerLogic(port, options = {}) {
   function ensureRecents() {
     if (!recents) recents = createRecents();
     return recents;
+  }
+
+  // The device-local list of dismissed *only on your …* rows, composed once
+  // (workflow 13 §Books that were only on the other device). Like recents it
+  // never touches the home book: the markers it hides are another device's.
+  function ensureDismissedElsewhere() {
+    if (!dismissedElsewhere) dismissedElsewhere = createDismissedElsewhere();
+    return dismissedElsewhere;
   }
 
   // The change-check HTTP client, composed once over the injected `fetch`
@@ -1109,7 +1119,23 @@ export function createWorkerLogic(port, options = {}) {
       file: 'shelf.json',
     });
     const deviceId = await ensureHomeBook().ensureDeviceId({ idb, name, version });
-    port.postMessage(event(EventKind.SHELF, surfaceShelf(model, deviceId)));
+    const dismissed = await ensureDismissedElsewhere().read(await ensureOpen());
+    port.postMessage(event(EventKind.SHELF, surfaceShelf(model, deviceId, dismissed)));
+  }
+
+  // Put away one *only on your …* row on this device (workflow 13 §Books that
+  // were only on the other device): record the dismissal in the device-local
+  // `meta` store — pruning those that name no live row any more — and
+  // re-surface SHELF without it. No commit, no push.
+  async function dismissElsewhere({ deviceId: otherId, bookId }) {
+    const model = await ensureHomeBook().read({
+      bookId: HOME_BOOK_ID,
+      file: 'shelf.json',
+    });
+    const deviceId = await ensureHomeBook().ensureDeviceId({ idb, name, version });
+    const live = surfaceShelf(model, deviceId).elsewhere;
+    const dismissed = await ensureDismissedElsewhere().dismiss(await ensureOpen(), { deviceId: otherId, bookId }, live);
+    port.postMessage(event(EventKind.SHELF, surfaceShelf(model, deviceId, dismissed)));
   }
 
   // Clone a hosted book onto this device and record it on the shelf
@@ -2310,6 +2336,14 @@ export function createWorkerLogic(port, options = {}) {
             const db = await ensureOpen();
             const list = await ensureRecents().record(db, { bookId, path });
             port.postMessage(event(EventKind.RECENTS, { recents: list }));
+            break;
+          }
+          case CommandKind.DISMISS_ELSEWHERE: {
+            // Put away an *only on your …* row on this device and re-surface
+            // SHELF without it (workflow 13 §Books that were only on the other
+            // device). Device-local: the home book is untouched.
+            const { deviceId, bookId } = message.payload;
+            await dismissElsewhere({ deviceId, bookId });
             break;
           }
           case CommandKind.SYNC: {

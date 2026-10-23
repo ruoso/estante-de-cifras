@@ -196,8 +196,10 @@ function RestoreNotice({ preferences, instruments, onDismiss }) {
 // The books only on another device of the account (account.new_device
 // acceptance 5; workflow 13 §Books that were only on the other device; W13 board
 // frame 2): *Only on your iPhone: Rascunhos* / *Put it online there to have it
-// here.* Not rows that open — nothing of them is on this device.
-function ElsewhereRows({ elsewhere }) {
+// here.* Not rows that open — nothing of them is on this device. Each is a
+// warning the reader can dismiss: DISMISS_ELSEWHERE puts it away on this device
+// for good, and the SHELF re-surface drops the row.
+function ElsewhereRows({ elsewhere, onDismiss }) {
   if (!elsewhere?.length) return null;
   return (
     <div className="elsewhere">
@@ -205,10 +207,19 @@ function ElsewhereRows({ elsewhere }) {
         const copy = elsewhereCopyFor(entry, { t });
         return (
           <div className="notice elsewhere-row" key={`${entry.deviceId}/${entry.bookId}`}>
-            <span>
-              <b>{copy.line}</b>
-            </span>
-            <span className="t-small">{copy.help}</span>
+            <div className="elsewhere-text">
+              <span>
+                <b>{copy.line}</b>
+              </span>
+              <span className="t-small">{copy.help}</span>
+            </div>
+            <Button
+              className="btn quiet"
+              aria-label={t('books.onlyOnDismissLabel', { line: copy.line })}
+              onPress={() => onDismiss(entry)}
+            >
+              {t('books.onlyOnDismiss')}
+            </Button>
           </div>
         );
       })}
@@ -814,7 +825,12 @@ export default function BooksScreen({
           {t('books.empty')}
         </p>
       )}
-      <ElsewhereRows elsewhere={shelf?.elsewhere} />
+      <ElsewhereRows
+        elsewhere={shelf?.elsewhere}
+        onDismiss={({ deviceId, bookId }) =>
+          store.send(command(CommandKind.DISMISS_ELSEWHERE, { deviceId, bookId }))
+        }
+      />
       {/* Said once, on BOOK_FORKED (W11 board #2 :88): the fork took the
           original's place, so nothing shows twice. */}
       {forkedNote ? (

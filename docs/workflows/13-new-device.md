@@ -208,6 +208,13 @@ lists it by title too, so the new device can say *only on your iPhone: My
 songs — put it online there to have it here*, rather than letting it look
 lost.
 
+That line is a warning, not a book: nothing of it opens here, and it has a
+**Dismiss**. Dismissing puts it away **on this device**, for good — across
+restarts, kept with the device's own things like recents, not in the home
+book. The home book's marker is the other device's to keep, and the next new
+device should still be told. If the book is put online after all, it comes
+in like any shared book; if it is removed there, the line goes on its own.
+
 The device is named by its kind — *your iPhone*, *your iPad*, *your Android
 phone*, *your Mac*, *your Windows computer* — which each device writes down
 for itself in the home book when it signs in, worked out from the browser;

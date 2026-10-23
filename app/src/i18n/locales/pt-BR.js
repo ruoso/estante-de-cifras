@@ -163,6 +163,8 @@ export default {
     onlyOn: 'Só no seu {device}: {title}',
     onlyOnOther: 'Só em outro dispositivo: {title}',
     onlyOnHelp: 'Coloque-o online lá para tê-lo aqui.',
+    onlyOnDismiss: 'Dispensar',
+    onlyOnDismissLabel: 'Dispensar: {line}',
     // O detalhe de cada livro (books.online, workflow 7 L46-63, L128-137; W07).
     // A book's songs (books.row_opens_songs; workflow 7 §A book's songs): the
     // bar's Manage and Settle, and the detail's Back, Rename and Files card.
