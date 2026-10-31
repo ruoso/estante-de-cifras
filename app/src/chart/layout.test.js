@@ -570,3 +570,51 @@ describe('chartRows — markEmpty (workflow 2 L124-126; Decision 3)', () => {
     expect(chartRows(mixed(), {})).toEqual(chartRows(mixed()));
   });
 });
+
+// Measures line up in columns down a section's chart lines (Explore Chords'
+// chart-layout, DESIGN.md §2.6): a measure position is as many columns wide as
+// its busiest line splits it, a measure with fewer chords spans the rest.
+describe('chartRows — aligned chart lines', () => {
+  const chartText = (lines) => parse(`# T\n\n## Chart\n\`\`\`\n${lines.join('\n')}\n\`\`\`\n`);
+  const barsOf = (rows) => rows.filter((r) => r.type === 'bars');
+
+  it('shares one grid down a block, widening a measure position to its busiest line', () => {
+    const rows = chartRows(chartText(['C | G | Am | F', 'C Am | G | F G | C', 'F | G | C']));
+    const [a, b, c] = barsOf(rows);
+    expect(a.grid).toBe(b.grid);
+    expect(b.grid).toBe(c.grid);
+    expect(a.grid.widths).toEqual([2, 1, 2, 1]);
+    expect(a.grid.columns).toBe(6);
+    // A single chord spans its position; a split one takes a column each.
+    expect(a.spans).toEqual([[2], [1], [2], [1]]);
+    expect(b.spans).toEqual([[1, 1], [1], [1, 1], [1]]);
+    // A shorter line uses the first positions only.
+    expect(c.spans).toEqual([[2], [1], [2]]);
+  });
+
+  it('puts the remainder on the last chord where the split does not divide', () => {
+    const rows = chartRows(chartText(['C D E | G', 'C D | G']));
+    const [, b] = barsOf(rows);
+    expect(b.grid.widths).toEqual([3, 1]);
+    expect(b.spans[0]).toEqual([1, 2]);
+  });
+
+  it('keeps a blank line inside the block, and a sung line or a run breaks it', () => {
+    const blank = chartRows(chartText(['C | G', '', 'Am | F']));
+    const [x, y] = barsOf(blank);
+    expect(x.grid).toBe(y.grid);
+    expect(blank.find((r) => r.type === 'gap').grid).toBe(x.grid);
+
+    const run = chartRows(chartText(['C | G', 'Am E F#m', 'Am | F']));
+    const [p, q] = barsOf(run);
+    expect(p.grid).not.toBe(q.grid);
+    expect(run.find((r) => r.type === 'run').grid).toBeUndefined();
+  });
+
+  it('never aligns across sections', () => {
+    const rows = chartRows(parse('# T\n\n## A\n```\nC D | G\n```\n\n## B\n```\nC | G\n```\n'));
+    const [a, b] = barsOf(rows);
+    expect(a.grid).not.toBe(b.grid);
+    expect(b.grid.widths).toEqual([1, 1]);
+  });
+});

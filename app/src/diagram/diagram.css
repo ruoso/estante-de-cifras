@@ -98,6 +98,32 @@
   fill: var(--ink);
 }
 
+/* The chord's name over the drawing, in the chart's face and colour, and what
+   the shape sounds pushed to its right (Explore Chords' print legend). It takes
+   the drawing's width rather than setting it — `width: 0; min-width: 100%` — so
+   a long name wraps instead of stretching the cell and leaving a row ragged. */
+.chord-diagram__name {
+  align-self: stretch;
+  width: 0;
+  min-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0 6px;
+  font-family: var(--font-chart);
+  line-height: 1.15;
+}
+.chord-diagram__chord {
+  color: var(--chord);
+  font-weight: 700;
+  font-size: 14px;
+}
+.chord-diagram__sounded {
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
 /* The kind word beside the drawing (mockups README line 26; .shape .who in
    theme.css). */
 .chord-diagram__who {

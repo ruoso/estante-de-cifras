@@ -610,6 +610,10 @@ export default {
       openString: 'Soltar a corda {n}',
       setFret: 'Corda {n}, casa {fret}',
       help: 'Toque uma corda numa casa para pôr um dedo; toque acima da pestana para abafar ou soltar a corda.',
+      towardsNut: 'Em direção à pestana',
+      upTheNeck: 'Subir no braço',
+      frets: 'Casas {from}–{to}',
+      sketch: 'Forma até agora: {shorthand}',
       readout: 'Notas que ela tem',
       fretMuted: 'abafada',
       fretOpen: 'solta',
@@ -850,6 +854,11 @@ export default {
     diagramNeckVerticalMeta: 'O padrão · a pestana no alto',
     diagramNeckHorizontal: 'Horizontal',
     diagramNeckHorizontalMeta: 'A pestana à esquerda, as casas para a direita',
+    chordNames: 'Nomes dos acordes',
+    chordNamesWritten: 'Como escritos',
+    chordNamesWrittenMeta: 'O padrão · os nomes da própria cifra',
+    chordNamesVoiced: 'Como soam',
+    chordNamesVoicedMeta: 'O que a sua forma soa, como D7/A',
     diagramsNote:
       'Muda como um formato é desenhado, nunca quais formatos são encontrados. Todos os diagramas seguem esta escolha.',
     languageNote: 'Usa o idioma do seu navegador até você escolher um.',
@@ -1464,6 +1473,7 @@ export default {
 
   chart: {
     label: 'Cifra',
+    barsScroll: 'Linhas de acordes, role para o lado',
     verbatim: 'Bloco {info}',
     spoken: {
       noChord: 'sem acorde',
@@ -1543,6 +1553,8 @@ export default {
     more: 'Mais',
     fullScreen: 'Tela cheia',
     leaveFullScreen: 'Sair da tela cheia',
+    namesVoiced: 'Nomear os acordes como soam',
+    namesWritten: 'Nomear os acordes como escritos',
     // Os títulos dos grupos do menu ⋯ (songs.menu_grouping; fluxo 2): cada
     // título é o nome que o leitor de tela dá ao grupo.
     menuThisSong: 'Esta música',

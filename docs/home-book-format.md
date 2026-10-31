@@ -198,7 +198,8 @@ A flat map of singleton preferences, each a register:
   "authorName": { "value": "Marina Souza", "at": "2026-10-05T14:29:12.500Z" },
   "density":    { "value": "roomy",   "at": "2026-10-15T09:12:00.000Z" },
   "diagramHanded":      { "value": "left",       "at": "2026-10-15T09:12:04.000Z" },
-  "diagramOrientation": { "value": "horizontal", "at": "2026-10-15T09:12:07.000Z" }
+  "diagramOrientation": { "value": "horizontal", "at": "2026-10-15T09:12:07.000Z" },
+  "chordNames":         { "value": "voiced",     "at": "2026-10-31T10:02:00.000Z" }
 }
 ```
 
@@ -228,9 +229,13 @@ A flat map of singleton preferences, each a register:
   or `"horizontal"`, the neck lying across (workflow 16 §How diagrams are
   drawn). Absent until chosen; while absent, vertical. Choosing vertical again
   writes the tombstone.
+- `chordNames` — how the chart names a chord: `"written"`, as the song wrote
+  it, or `"voiced"`, as the chosen shape sounds it (`D7/A` over a `D7` whose
+  shape puts the fifth lowest; workflow 2 §Reading a song). Absent until chosen;
+  while absent, written. Choosing written again writes the tombstone.
 
-A reader treats a value of `theme`, `density`, `diagramHanded` or
-`diagramOrientation` it does not know as absent — the default — and leaves the
+A reader treats a value of `theme`, `density`, `diagramHanded`,
+`diagramOrientation` or `chordNames` it does not know as absent — the default — and leaves the
 register as it is: an older app meeting a newer value draws the default, never
 fails.
 

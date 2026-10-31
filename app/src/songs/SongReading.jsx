@@ -63,7 +63,9 @@ import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import SearchScreen from './SearchScreen.jsx';
 import { bookLabelFor } from './first-run.js';
 import { songTitle } from './search-query.js';
-import { transposeStatus, chartChordList } from './reading-view.js';
+import { transposeStatus, chartChordList, voicedNames, shapeNames } from './reading-view.js';
+import { fitPrintColumns } from './print-columns.js';
+import { resolveChordNaming } from '../theme/resolve.js';
 import { READING_ACTIONS_WIDE_QUERY } from '../shell/layout-mode.js';
 import './reading.css';
 
@@ -394,6 +396,21 @@ export default function SongReading({
     fingering: v.fingering,
   }));
   const unvoiced = model ? unvoiceableKeys(model, resolved, { dialect: notation }) : [];
+  // The chart names its chords as written, or — the reader's choice, kept in the
+  // home book (`chordNames`) — as the shapes shown sound them.
+  const naming = resolveChordNaming(preferences);
+  const renamed = naming === 'voiced' ? voicedNames(shapes, notation) : null;
+  const setNaming = (next) => store.send(command(CommandKind.SET_CHORD_NAMES, { naming: next }));
+
+  // Print fills the paper: just before the dialog opens, measure the narrowest
+  // column the song fits in, so the print stylesheet can set as many of them
+  // side by side as the paper takes (print-columns.js).
+  const sheetRef = useRef(null);
+  useEffect(() => {
+    const fit = () => fitPrintColumns(sheetRef.current);
+    globalThis.addEventListener?.('beforeprint', fit);
+    return () => globalThis.removeEventListener?.('beforeprint', fit);
+  }, []);
 
   // The accent notice: nobody has chosen shapes for this tuning in this song, so
   // every chord takes a default and the page offers arrange (workflow 2 L75-77).
@@ -539,11 +556,22 @@ export default function SongReading({
       </div>
     );
   } else if (model) {
-    chart = <Chart model={model} size={mode === 'wide' ? 20 : undefined} label={displayTitle} markEmpty />;
+    chart = <Chart model={model} size={mode === 'wide' ? 20 : undefined} label={displayTitle} markEmpty chordNames={renamed} />;
   }
 
+  // The sheet's own head, for paper only: on screen the app bar names the song,
+  // and print hides the app bar.
+  const printHead = (
+    <div className="reading-print-head">
+      <span className="t-h1">{displayTitle}</span>
+      <span className="t-small">
+        {[artist, chipLabel(entry)].filter(Boolean).join(' · ')}
+      </span>
+    </div>
+  );
+
   const sheet = (
-    <div className="reading-sheet">
+    <div className="reading-sheet" ref={sheetRef}>
       {chart}
       {shapes.length ? (
         // The tablet's bordered card beside the chart (W02#3 L130-139); the
@@ -561,6 +589,7 @@ export default function SongReading({
                 fingering={s.fingering}
                 kind={s.source}
                 context={{ chord: parseChord(s.symbol, notation).chord, dialect, instrument }}
+                {...shapeNames(s, { notation, renamed })}
               />
             ))}
           </div>
@@ -601,6 +630,7 @@ export default function SongReading({
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
           tabIndex={0}
         >
+          {printHead}
           {sheet}
           {/* A merge held back while full screen (Decision 3 of sync.read_in_place):
               a quiet footnote at the end of the sheet, naming the most recent
@@ -641,6 +671,7 @@ export default function SongReading({
             else if (key === 'showFile') onShowFile({ bookId, path });
             else if (key === 'arrange') onArrange({ bookId, path });
             else if (key === 'fullScreen') setFullScreen(true);
+            else if (key === 'chordNames') setNaming(naming === 'voiced' ? 'written' : 'voiced');
           }}
         >
           {/* Three named groups in the workflow's order (songs.menu_grouping;
@@ -664,6 +695,9 @@ export default function SongReading({
           <MenuSection>
             <Header className="t-h3">{t('reading.menuView')}</Header>
             <MenuItem id="fullScreen">{t('reading.fullScreen')}</MenuItem>
+            <MenuItem id="chordNames">
+              {naming === 'voiced' ? t('reading.namesWritten') : t('reading.namesVoiced')}
+            </MenuItem>
           </MenuSection>
         </Menu>
       </Popover>
@@ -764,6 +798,7 @@ export default function SongReading({
           </Button>
         </div>
       ) : null}
+      {printHead}
       {sheet}
     </div>
   );

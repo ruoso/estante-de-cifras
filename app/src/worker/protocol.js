@@ -282,13 +282,15 @@ export const CommandKind = Object.freeze({
   // §4.1), each on the SET_THEME template, one command per register so two
   // devices changing one each both survive. SET_DENSITY `{ density }` — one of
   // DENSITIES; SET_DIAGRAM_HANDED `{ handed }` — one of HANDS;
-  // SET_DIAGRAM_ORIENTATION `{ orientation }` — one of ORIENTATIONS (resolve.js).
-  // The default (comfortable, right, vertical) clears the register to a
+  // SET_DIAGRAM_ORIENTATION `{ orientation }` — one of ORIENTATIONS (resolve.js);
+  // SET_CHORD_NAMES `{ naming }` — one of CHORD_NAMINGS.
+  // The default (comfortable, right, vertical, written) clears the register to a
   // tombstone, never the literal default. An invalid value is rejected (no
   // write). Offline, auto-committed, never pushed.
   SET_DENSITY: 'set_density',
   SET_DIAGRAM_HANDED: 'set_diagram_handed',
   SET_DIAGRAM_ORIENTATION: 'set_diagram_orientation',
+  SET_CHORD_NAMES: 'set_chord_names',
   // Record that the first-open "Chord shapes shown for guitar." prompt was answered
   // (songs.first_song, workflow 1 §The instrument). MARK_INSTRUMENT_PROMPT_SEEN
   // `{}`: the Worker provisions a local home book if none exists and

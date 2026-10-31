@@ -1112,11 +1112,11 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
   const appbar = (container) => container.querySelector('.appbar.reading-chrome');
   // The grouped order (songs.menu_grouping; workflow 2 §The song's menu;
   // review_polish item 5): This song, Take it along, View.
-  const EIGHT = ['Edit', 'Arrange for Guitar', 'History', 'Show the file', 'Add to setlist', 'Share', 'Print', 'Full screen'];
+  const EIGHT = ['Edit', 'Arrange for Guitar', 'History', 'Show the file', 'Add to setlist', 'Share', 'Print', 'Full screen', 'Name chords as voiced'];
   const GROUPS = [
     ['This song', ['Edit', 'Arrange for Guitar', 'History', 'Show the file']],
     ['Take it along', ['Add to setlist', 'Share', 'Print']],
-    ['View', ['Full screen']],
+    ['View', ['Full screen', 'Name chords as voiced']],
   ];
   const DEVICES = [
     { device: 'phone', mode: 'narrow', computer: false },
@@ -1160,7 +1160,7 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
         onShare: vi.fn(),
         onShowFile: vi.fn(),
       };
-      const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
+      const { store, commands } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
       const { container } = await openAndWait(store, { mode, ...handlers });
       const more = within(appbar(container)).getByRole('button', { name: 'More' });
 
@@ -1209,6 +1209,8 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
       expect(handlers.onShare).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
       await reach('Show the file');
       expect(handlers.onShowFile).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
+      await reach('Name chords as voiced');
+      expect(commands.filter((c) => c.kind === CommandKind.SET_CHORD_NAMES).at(-1).payload).toEqual({ naming: 'voiced' });
       // Last, since full screen hides the app bar.
       await reach('Full screen');
       await screen.findByRole('button', { name: 'Leave full screen' });

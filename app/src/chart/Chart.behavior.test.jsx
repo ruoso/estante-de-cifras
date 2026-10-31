@@ -225,3 +225,34 @@ describe('Chart — a chord past the end of the words (songs.trailing_chord_gap)
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });
+
+describe('Chart — aligned measures and chord names', () => {
+  beforeEach(() => setLocale('en'));
+  const ALIGNED = '# T\n\n## Chart\n```\nC | G | Am | F\nC Am | G | F G | C\n```\n';
+
+  it('draws a section\'s chart lines in one grid, each measure spanning its columns', () => {
+    const { container } = renderChart(<Chart model={parse(ALIGNED)} />);
+    const grid = container.querySelector('.chart .bargrid');
+    expect(grid.querySelectorAll('.barline')).toHaveLength(2);
+    expect(grid.style.gridTemplateColumns).toContain('repeat(2,');
+    const [first, second] = grid.querySelectorAll('.barline');
+    expect([...first.querySelectorAll('.m')].map((m) => m.style.gridColumn)).toEqual(['span 2', 'span 1', 'span 2', 'span 1']);
+    expect([...second.querySelectorAll('.m')][0].querySelectorAll('.cell')).toHaveLength(2);
+    // The measures still draw their chords in order, the count still announced.
+    const glyphs = (m) => [...m.querySelectorAll('.g')].map((g) => g.textContent).join(' ');
+    expect([...second.querySelectorAll('.m')].map(glyphs)).toEqual(['C Am', 'G', 'F G', 'C']);
+    expect(within(second).getAllByRole('listitem')).toHaveLength(4);
+  });
+
+  it('names a chord as its shape sounds it when given chordNames, and speaks that name', () => {
+    const model = parse('# T\n\n```\nD7 | G\n```\n');
+    const names = new Map([['D7', { symbol: 'D7/A', chord: null }]]);
+    const { container } = renderChart(<Chart model={model} chordNames={names} />);
+    expect([...container.querySelectorAll('.chart .m .g')].map((g) => g.textContent)).toEqual(['D7/A', 'G']);
+  });
+
+  it('is axe-clean with an aligned block', async () => {
+    const { container } = renderChart(<Chart model={parse(ALIGNED)} />);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});

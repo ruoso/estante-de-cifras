@@ -7,7 +7,7 @@
 // unsaved edit stays (Decision 1).
 //
 // The arranging itself — the tappable chart, the picker, the shapes, variations
-// and the enter-a-shape screen — is `useArrange` (arrange-surface.jsx), shared
+// and enter a shape — is `useArrange` (arrange-surface.jsx), shared
 // with the editor's preview. This screen is its chrome, and the place its
 // choices land: each one is written to the working copy through the existing
 // `WRITE` command (Decision 2). The Worker owns durability; the view never
@@ -88,11 +88,7 @@ export default function SongArrange({
 
   return (
     <div className={`screen arrange-screen${mode === 'wide' ? ' arrange-wide' : ''}`}>
-      {arrange.enterScreen}
-
-      {/* Arrange itself — kept mounted (hidden) while a shape is entered, so the
-          chord that opened the picker is there to take focus back. */}
-      <div className="arrange-mode" hidden={arrange.entering}>
+      <div className="arrange-mode">
         <div className="appbar arrange-chrome">
           {mode === 'wide' ? null : (
             <Button className="btn icon" aria-label={t('arrange.back')} onPress={onBack}>

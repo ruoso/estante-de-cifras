@@ -5,6 +5,8 @@
 // unit-tested without a render.
 
 import { transposedKeyName } from '../core/transpose.js';
+import { parseChord } from '../core/notation/parse.js';
+import { voicedAsLabel, voicedAsSymbol } from '../render/index.js';
 
 /**
  * The transposed row the reading view shows while a song is read away from its
@@ -63,4 +65,46 @@ export function chartChordList(parsed) {
     out.push({ key: item.key, symbol: item.symbol });
   }
   return out;
+}
+
+/**
+ * What each chord sounds as on its shape, where that is not what the chart
+ * wrote (Explore Chords §6.2; the `chordNames` preference): by §2.4 voicing
+ * key, the sounded symbol — `D7/A` for a `D7` whose shape puts the fifth lowest —
+ * and its parsed chord, for the spoken name. A chord the shape sounds as written
+ * is left out, so the chart names it as written.
+ *
+ * @param {{ key: string, symbol: string, fingering: object }[]} shapes
+ * @param {string} notation  the song's own dialect
+ * @returns {Map<string, { symbol: string, chord: object|null }>}
+ */
+export function voicedNames(shapes, notation) {
+  const names = new Map();
+  for (const shape of shapes) {
+    const chord = parseChord(shape.symbol, notation).chord;
+    if (!chord) continue;
+    const symbol = voicedAsSymbol(shape.fingering, { chord, dialect: notation, name: shape.symbol });
+    if (symbol) names.set(shape.key, { symbol, chord: parseChord(symbol, notation).chord ?? null });
+  }
+  return names;
+}
+
+/**
+ * The words over a shape's diagram: the chord's name as the chart draws it and,
+ * when the chart keeps the written names, what the shape sounds beside it
+ * (`D7` · `D7/A`, or `Am` · `no root`), so the two can be compared. Once the
+ * chart is named as voiced the sounded name is the name, and there is no second
+ * one to show.
+ *
+ * @param {{ key: string, symbol: string, fingering: object }} shape
+ * @param {{ notation: string, renamed?: Map<string, { symbol: string }>|null }} options
+ * @returns {{ name: string, sounded: string|null }}
+ */
+export function shapeNames(shape, { notation, renamed = null }) {
+  if (renamed) return { name: renamed.get(shape.key)?.symbol ?? shape.symbol, sounded: null };
+  const chord = parseChord(shape.symbol, notation).chord;
+  const sounded = chord
+    ? voicedAsLabel(shape.fingering, { chord, dialect: notation, full: true, name: shape.symbol })
+    : null;
+  return { name: shape.symbol, sounded };
 }

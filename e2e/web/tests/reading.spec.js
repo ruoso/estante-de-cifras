@@ -67,11 +67,11 @@ test('opens and reads a song; the chart and the shapes render', async ({ page, c
 // workflow 15 L62-75). Print and Share are not activated here (Decision 6).
 // songs.menu_grouping: three named groups in workflow 2's order (§The song's
 // menu; review_polish item 5) — This song, Take it along, View.
-const MENU = ['Edit', 'Arrange for Guitar', 'History', 'Show the file', 'Add to setlist', 'Share', 'Print', 'Full screen'];
+const MENU = ['Edit', 'Arrange for Guitar', 'History', 'Show the file', 'Add to setlist', 'Share', 'Print', 'Full screen', 'Name chords as voiced'];
 const MENU_GROUPS = [
   ['This song', ['Edit', 'Arrange for Guitar', 'History', 'Show the file']],
   ['Take it along', ['Add to setlist', 'Share', 'Print']],
-  ['View', ['Full screen']],
+  ['View', ['Full screen', 'Name chords as voiced']],
 ];
 
 test('the reading chrome as drawn: the header, the ⋯ menu and the shapes', async ({ page, checkA11y }, testInfo) => {

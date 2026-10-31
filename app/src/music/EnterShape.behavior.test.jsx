@@ -144,4 +144,59 @@ describe('EnterShape (behavior)', () => {
     expect(starred).toBeTruthy();
     expect(starred.shorthand).toBe('x32010');
   });
+
+  // The board (Explore Chords' shape dialog): the big diagram is tapped, a fret
+  // toggling a finger and the row above the nut cycling open / muted, and the
+  // radios follow it — the two are one shape.
+  const hit = (string, fret) => document.querySelector(`.enter-shape-board .ec-hit[data-string="${string}"][data-fret="${fret}"]`);
+
+  it('places and lifts a finger by tapping the board, and opens or mutes a string above the nut', async () => {
+    renderEnter();
+    open();
+    await screen.findByRole('heading', { name: 'Enter a shape' });
+
+    // String 5 (index 1) at fret 3, then again to lift it.
+    act(() => fireEvent.click(hit(1, 3)));
+    expect(screen.getByRole('radio', { name: 'String 5, fret 3' })).toBeChecked();
+    expect(document.querySelector('.enter-shape-board svg .ec-dot')).toBeTruthy();
+    act(() => fireEvent.click(hit(1, 3)));
+    expect(screen.getByRole('radio', { name: 'Mute string 5' })).toBeChecked();
+
+    // Above the nut: muted → open → muted.
+    act(() => fireEvent.click(hit(0, 'marker')));
+    expect(screen.getByRole('radio', { name: 'Open string 6' })).toBeChecked();
+    act(() => fireEvent.click(hit(0, 'marker')));
+    expect(screen.getByRole('radio', { name: 'Mute string 6' })).toBeChecked();
+  });
+
+  it('moves its window up the neck, and the radios offer the frets it shows', async () => {
+    renderEnter();
+    open();
+    await screen.findByRole('heading', { name: 'Enter a shape' });
+    expect(screen.getByText('Frets 1–6')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Towards the nut' })).toBeDisabled();
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Up the neck' })));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Up the neck' })));
+    expect(screen.getByText('Frets 3–8')).toBeInTheDocument();
+    expect(hit(2, 8)).toBeTruthy();
+    expect(hit(2, 2)).toBeNull();
+    act(() => fireEvent.click(hit(2, 8)));
+    expect(screen.getByRole('radio', { name: 'String 4, fret 8' })).toBeChecked();
+  });
+
+  it('draws the board the way the reader draws diagrams: left-handed mirrors the strings, horizontal lays the neck across', async () => {
+    const prefs = { diagramHanded: { value: 'left', at: 'x' }, diagramOrientation: { value: 'horizontal', at: 'x' } };
+    const store = { subscribe: () => () => {}, slice: (name) => (name === 'preferences' ? prefs : EMPTY), open: () => {} };
+    render(
+      <ThemeRoot store={store}>
+        <EnterShape instrument={guitar} chord={C} chordSymbol="C" dialect="brazilian" onStar={() => {}} />
+      </ThemeRoot>,
+    );
+    open();
+    await screen.findByRole('heading', { name: 'Enter a shape' });
+    expect(document.querySelector('.enter-shape-board svg')).toHaveClass('ec-diagram-horizontal');
+    // The hit targets carry the logical string whichever way it is drawn.
+    act(() => fireEvent.click(hit(1, 3)));
+    expect(screen.getByRole('radio', { name: 'String 5, fret 3' })).toBeChecked();
+  });
 });

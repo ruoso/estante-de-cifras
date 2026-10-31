@@ -311,12 +311,12 @@ describe('SongArrange — the picker', () => {
   });
 });
 
-// Entering a shape is a screen of arrange, not a dialog over the picker
-// (songs.arrange_polish Decision 2; board W05#3): its own app bar, the context
-// line and the help, the shared builder naming each note's part in the chord,
-// the foreign-note notice; Back reopens the picker as it was, *Choose this
-// shape* writes as a listed candidate does. Pins the workflow 5 delta lines
-// 43-51 and W05#3.
+// Entering a shape is a dialog over the chart, in place of the picker — the song
+// stays where it was behind it (W05#3): the context line and the help, the big
+// diagram to tap and the shared builder naming each note's part in the chord,
+// the foreign-note notice; Escape or Cancel reopens the picker as it was,
+// *Choose this shape* writes as a listed candidate does. Pins the workflow 5
+// delta lines 43-51 and W05#3.
 describe('SongArrange — entering a shape inline', () => {
   // Cm already chosen at the key, so *Only here* writes a footnote (§8.5.1
   // branch 4 — [[only-here-needs-prechosen-key]]).
@@ -349,22 +349,21 @@ describe('SongArrange — entering a shape inline', () => {
   const rowText = (name) =>
     [...rowOf(name).querySelectorAll('.name, .meta, .enter-shape-notename, .badge')].map((n) => n.textContent).join(' · ');
 
-  it('opens a screen — no dialog — reads the roles, the summary and the notice; axe clean', async () => {
+  it('opens a dialog over the chart — reads the roles, the summary and the notice; axe clean', async () => {
     const { store } = makeStore({ text: CHOSEN, entry: guitarEntry() });
     const { container } = await openArrange(store);
     await toScreen();
 
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByRole('heading', { level: 1, name: 'Enter a shape for Cm' })).toBeInTheDocument();
-    expect(container.querySelector('.arrange-enter-place').textContent).toMatch(
+    const dialog = await screen.findByRole('dialog', { name: 'Enter a shape for Cm' });
+    expect(within(dialog).getByRole('heading', { name: 'Enter a shape for Cm' })).toBeInTheDocument();
+    expect(dialog.querySelector('.arrange-enter-place').textContent).toMatch(
       /^Tarde Clara · Primeira Parte, bar 1 · only here\.?$/,
     );
     expect(
       screen.getByText('Tap a string at a fret to place a finger; tap above the nut to mute or open it.'),
     ).toBeInTheDocument();
-    // The instrument is named, not a switch (Decision 3): no chip button here.
-    expect(screen.queryByRole('button', { name: /change instrument/ })).toBeNull();
-    expect(screen.getByText('Guitar')).toBeInTheDocument();
+    // The song is still there behind it: the chart was never swapped out.
+    expect(container.querySelector('.chart')).toBeTruthy();
 
     await enterX35544();
     expect(rowText('A2')).toBe('A2 · fret 3 · C · root');
@@ -379,12 +378,13 @@ describe('SongArrange — entering a shape inline', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   }, AXE_OVER_PICKER);
 
-  it('Back reopens the picker on Cm with Only here still on, focus on Enter a shape', async () => {
+  it('Escape reopens the picker on Cm with Only here still on, focus on Enter a shape', async () => {
     const { store } = makeStore({ text: CHOSEN, entry: guitarEntry() });
     await openArrange(store);
     await toScreen();
 
-    await click(screen.getByRole('button', { name: 'Back' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Enter a shape for Cm' });
+    await pressKey(dialog, 'Escape');
     const picker = await screen.findByRole('dialog', { name: 'Shapes for Cm' });
     expect(within(picker).getByRole('button', { name: 'Only here' })).toHaveAttribute('aria-pressed', 'true');
     await waitFor(() => expect(within(picker).getByRole('button', { name: 'Enter a shape' })).toHaveFocus());
@@ -432,10 +432,12 @@ describe('SongArrange — entering a shape inline', () => {
     act(() => row.focus());
     await pressKey(row, 'Enter');
 
-    // The screen's heading has focus on arrival (Back sits before it); Tab goes
-    // into the grid.
-    const heading = screen.getByRole('heading', { level: 1, name: 'Enter a shape for Cm' });
-    await waitFor(() => expect(heading).toHaveFocus());
+    // The dialog has focus on arrival; Tab passes the board's window control
+    // (Towards the nut is off at the nut) and goes into the grid.
+    const dialog = await screen.findByRole('dialog', { name: 'Enter a shape for Cm' });
+    await waitFor(() => expect(dialog).toHaveFocus());
+    await tab();
+    expect(document.activeElement).toHaveAttribute('aria-label', 'Up the neck');
     await tab();
     expect(document.activeElement).toHaveAttribute('aria-label', 'Mute string 6');
     // Tab to string 5's group, arrow across it to fret 3.

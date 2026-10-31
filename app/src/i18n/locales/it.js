@@ -610,6 +610,10 @@ export default {
       openString: 'Lascia vuota la corda {n}',
       setFret: 'Corda {n}, tasto {fret}',
       help: 'Tocca una corda su un tasto per mettere un dito; tocca sopra il capotasto per soffocarla o lasciarla vuota.',
+      towardsNut: 'Verso il capotasto',
+      upTheNeck: 'Su per il manico',
+      frets: 'Tasti {from}–{to}',
+      sketch: 'Forma finora: {shorthand}',
       readout: 'Note che contiene',
       fretMuted: 'soffocata',
       fretOpen: 'vuota',
@@ -850,6 +854,11 @@ export default {
     diagramNeckVerticalMeta: 'Predefinito · il capotasto in alto',
     diagramNeckHorizontal: 'Orizzontale',
     diagramNeckHorizontalMeta: 'Il capotasto a sinistra, i tasti verso destra',
+    chordNames: 'Nomi degli accordi',
+    chordNamesWritten: 'Come scritti',
+    chordNamesWrittenMeta: 'Il predefinito · i nomi della sigla stessa',
+    chordNamesVoiced: 'Come suonano',
+    chordNamesVoicedMeta: 'Ciò che suona la tua forma, come D7/A',
     diagramsNote:
       'Cambia come si disegna una posizione, mai quali posizioni si trovano. Ogni diagramma la segue.',
     languageNote: 'Usa la lingua del tuo browser finché non ne scegli una.',
@@ -1464,6 +1473,7 @@ export default {
 
   chart: {
     label: 'Spartito',
+    barsScroll: 'Righe di accordi, scorri di lato',
     verbatim: 'Blocco {info}',
     spoken: {
       noChord: 'nessun accordo',
@@ -1543,6 +1553,8 @@ export default {
     more: 'Altro',
     fullScreen: 'Schermo intero',
     leaveFullScreen: 'Esci da schermo intero',
+    namesVoiced: 'Nomina gli accordi come suonano',
+    namesWritten: 'Nomina gli accordi come scritti',
     // I titoli dei gruppi del menu ⋯ (songs.menu_grouping; flusso 2): ogni
     // titolo è il nome che lo screen reader dà al gruppo.
     menuThisSong: 'Questo brano',

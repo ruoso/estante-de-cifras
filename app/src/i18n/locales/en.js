@@ -655,6 +655,10 @@ export default {
       openString: 'Open string {n}',
       setFret: 'String {n}, fret {fret}',
       help: 'Tap a string at a fret to place a finger; tap above the nut to mute or open it.',
+      towardsNut: 'Towards the nut',
+      upTheNeck: 'Up the neck',
+      frets: 'Frets {from}–{to}',
+      sketch: 'Shape so far: {shorthand}',
       readout: 'Notes it holds',
       fretMuted: 'muted',
       fretOpen: 'open',
@@ -922,6 +926,11 @@ export default {
     diagramNeckVerticalMeta: 'The default · the nut at the top',
     diagramNeckHorizontal: 'Horizontal',
     diagramNeckHorizontalMeta: 'The nut at the left, frets to the right',
+    chordNames: 'Chord names',
+    chordNamesWritten: 'As written',
+    chordNamesWrittenMeta: 'The default · the chart’s own names',
+    chordNamesVoiced: 'As voiced',
+    chordNamesVoicedMeta: 'What your shape sounds, such as D7/A',
     diagramsNote:
       'Changes how a shape is drawn, never which shapes are found. Every diagram follows it.',
     languageNote: 'Uses your browser’s language until you choose one.',
@@ -1606,6 +1615,7 @@ export default {
 
   chart: {
     label: 'Chart',
+    barsScroll: 'Chord lines, scroll sideways',
     // A verbatim fence's accessible name (songs.render_notes; cifra.md §1.9),
     // `info` its info string with the first letter capitalised ("Tab block").
     verbatim: '{info} block',
@@ -1707,6 +1717,8 @@ export default {
     more: 'More',
     fullScreen: 'Full screen',
     leaveFullScreen: 'Leave full screen',
+    namesVoiced: 'Name chords as voiced',
+    namesWritten: 'Name chords as written',
     // The ⋯ menu's group headers (songs.menu_grouping; workflow 2 §The song's
     // menu): each header is the visible name a screen reader gives the group.
     menuThisSong: 'This song',

@@ -191,34 +191,16 @@
   border-color: var(--accent);
 }
 
-/* Arrange's own chrome and body, kept mounted while a shape is entered by hand
-   (songs.arrange_polish Decision 2) so the chord that opened the picker can take
-   focus back: transparent to the screen's flex column when shown, gone when the
-   enter-a-shape screen replaces it. */
+/* Arrange's own chrome and body: transparent to the screen's flex column. */
 .arrange-mode {
   display: contents;
 }
-.arrange-mode[hidden] {
-  display: none;
-}
 
-/* The enter-a-shape screen (W05#3): its app bar's title is the screen's h1; the
-   instrument is named in chip styling, not a switch (Decision 3). */
-.arrange-enter-title {
-  margin: 0;
-}
-.arrange-enter-title:focus {
-  outline: none;
-}
-.arrange-mention {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.arrange-enter-scroll {
-  overflow-y: auto;
-  gap: calc(var(--u) * 3);
+/* Enter a shape (W05#3), a dialog over the chart: wide enough for the board
+   beside the read-out (`.enter-shape-screen`, music.css), the context line
+   under its heading. */
+.dialog.arrange-enter {
+  width: min(760px, 94vw);
 }
 .arrange-enter-context {
   margin: 0;

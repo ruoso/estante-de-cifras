@@ -30,6 +30,11 @@ export const HANDS = Object.freeze(['right', 'left']);
 export const DEFAULT_HAND = 'right';
 export const ORIENTATIONS = Object.freeze(['vertical', 'horizontal']);
 export const DEFAULT_ORIENTATION = 'vertical';
+// How the chart names a chord (the `chordNames` register, home-book-format
+// §4.1): as the song wrote it, or as its chosen shape sounds it (Explore Chords
+// §6.2) — `D7/A` over a `D7` whose shape puts the fifth lowest.
+export const CHORD_NAMINGS = Object.freeze(['written', 'voiced']);
+export const DEFAULT_CHORD_NAMING = 'written';
 
 // Resolve the applied theme from the chosen theme and whether the device is in
 // dark mode. An explicit theme is returned unchanged whatever the device asks;
@@ -62,4 +67,11 @@ export function resolveDiagramDisplay(preferences) {
     handed: HANDS.includes(handed) ? handed : DEFAULT_HAND,
     orientation: ORIENTATIONS.includes(orientation) ? orientation : DEFAULT_ORIENTATION,
   };
+}
+
+// How the chart names its chords, from the preferences slice: the register's
+// value when in CHORD_NAMINGS, else as written.
+export function resolveChordNaming(preferences) {
+  const value = preferences?.chordNames?.value;
+  return CHORD_NAMINGS.includes(value) ? value : DEFAULT_CHORD_NAMING;
 }

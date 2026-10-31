@@ -816,10 +816,7 @@ export default function SongEditor({
             // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
             tabIndex={0}
           >
-            {arrange.enterScreen}
-            {/* Kept mounted (hidden) while a shape is entered, so the chord
-                that opened the picker is there to take focus back. */}
-            <div className="est-editor-preview-body" hidden={arrange.entering}>
+            <div className="est-editor-preview-body">
               <div className="est-editor-preview-head">
                 <div className="t-h3">{t('editor.source.preview')}</div>
                 {song && arrange.entry ? <InstrumentChip store={store} onOpen={arrange.openInstruments} /> : null}

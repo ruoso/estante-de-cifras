@@ -83,6 +83,8 @@ import {
   DEFAULT_HAND,
   ORIENTATIONS,
   DEFAULT_ORIENTATION,
+  CHORD_NAMINGS,
+  DEFAULT_CHORD_NAMING,
 } from '../theme/resolve.js';
 import { LOCALE_IDS } from '../i18n/index.js';
 
@@ -119,6 +121,13 @@ const DISPLAY_REGISTERS = {
     values: ORIENTATIONS,
     fallback: DEFAULT_ORIENTATION,
     error: 'invalid orientation',
+  },
+  [CommandKind.SET_CHORD_NAMES]: {
+    register: 'chordNames',
+    field: 'naming',
+    values: CHORD_NAMINGS,
+    fallback: DEFAULT_CHORD_NAMING,
+    error: 'invalid chord naming',
   },
 };
 
@@ -2011,7 +2020,8 @@ export function createWorkerLogic(port, options = {}) {
           }
           case CommandKind.SET_DENSITY:
           case CommandKind.SET_DIAGRAM_HANDED:
-          case CommandKind.SET_DIAGRAM_ORIENTATION: {
+          case CommandKind.SET_DIAGRAM_ORIENTATION:
+          case CommandKind.SET_CHORD_NAMES: {
             // Persist a display preference to the home book
             // (shell.display_preferences; home-book-format §4.1), on the
             // SET_THEME template: validate against the register's value set at

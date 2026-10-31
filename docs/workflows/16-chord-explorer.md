@@ -148,8 +148,8 @@ explicit act in workflow 5.
 
 *Enter a shape* sits at the top of the results, the same by-hand builder the
 song picker offers (Explore Chords' DESIGN §2.11, the shared affordance) — here
-a dialog over the results, in a song a screen of arrange (workflow 5, Choosing
-a shape): a big diagram where tapping a string at a fret places a finger and
+a dialog over the results, in a song a dialog over the chart (workflow 5,
+Choosing a shape): a big diagram, drawn as the reader's diagrams are, where tapping a string at a fret places a finger and
 tapping again lifts it, tapping above the nut mutes or opens the string, with a
 per-string read-out of the notes it sounds, each named by its part in the chord
 (*root*, *minor third*, *fifth*), and any that are foreign to the chord marked

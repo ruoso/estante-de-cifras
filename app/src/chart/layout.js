@@ -258,11 +258,60 @@ export function chartRows(model, { markEmpty = false } = {}) {
         rows.push(rowForLine(line, { section: sectionIndex, part: partIndex, line: lineIndex }));
       });
     });
+    alignBars(rows, start);
     if (markEmpty && section.name && !hasContent(rows.slice(start))) {
       rows.splice(start, 0, { type: 'empty' });
     }
   });
   return rows;
+}
+
+// How a measure with `count` chords fills `width` columns: evenly where the
+// count divides, the remainder on its last chord where it does not; an empty
+// measure takes none (it spans the whole width as one blank cell).
+function spansFor(count, width) {
+  if (count === 0) return [];
+  const base = Math.floor(width / count);
+  const remainder = width - base * count;
+  return Array.from({ length: count }, (_, j) => base + (j === count - 1 ? remainder : 0));
+}
+
+// Line the measures of a section's chart lines up in columns, as on a written
+// chart, so the third bar of one line sits over the third bar of the next
+// (Explore Chords' chart-layout, DESIGN.md §2.6). A block is a run of bars rows
+// with nothing but blank lines between them; every bars row in it shares one
+// `grid` — `widths[m]`, the most chords any of its lines puts in measure `m`,
+// and `columns`, their sum — and carries `spans`, the columns each of its cells
+// covers, so a bar split two ways reads as two half-width cells under the bars
+// around it. A sung line joins no grid: its phrases have nothing to do with the
+// next line's, and padding them to a column would only spread the words. The
+// blank lines inside a block carry the grid too, so the view can keep them in it.
+function alignBars(rows, start) {
+  let i = start;
+  while (i < rows.length) {
+    if (rows[i].type !== 'bars') {
+      i += 1;
+      continue;
+    }
+    let last = i;
+    for (let j = i; j < rows.length && (rows[j].type === 'bars' || rows[j].type === 'gap'); j += 1) {
+      if (rows[j].type === 'bars') last = j;
+    }
+    const block = rows.slice(i, last + 1);
+    const widths = [];
+    for (const row of block) {
+      if (row.type !== 'bars') continue;
+      row.cells.forEach((cells, m) => {
+        widths[m] = Math.max(widths[m] ?? 1, cells.length);
+      });
+    }
+    const grid = { widths, columns: widths.reduce((sum, w) => sum + w, 0) };
+    for (const row of block) {
+      row.grid = grid;
+      if (row.type === 'bars') row.spans = row.cells.map((cells, m) => spansFor(cells.length, widths[m]));
+    }
+    i = last + 1;
+  }
 }
 
 // Whether any of these rows draws something besides a section name or a gap.

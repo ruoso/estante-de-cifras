@@ -116,6 +116,23 @@ describe('ChordDiagram — hand and neck from DiagramDisplayContext (workflow 16
     }
   }
 
+  it('names the chord over the drawing, with what the shape sounds beside it, hidden from the reader', () => {
+    const { container } = renderDiagram(
+      <ChordDiagram fingering={openC} context={context} kind="song" name="C" sounded="C/E" />
+    );
+    const label = container.querySelector('.chord-diagram__name');
+    expect(label).toHaveAttribute('aria-hidden', 'true');
+    expect(label.querySelector('.chord-diagram__chord')).toHaveTextContent('C');
+    expect(label.querySelector('.chord-diagram__sounded')).toHaveTextContent('C/E');
+    // The image keeps its own name; the visible label adds nothing to it.
+    expect(screen.getByRole('img', { name: /x32010/ })).toBeInTheDocument();
+  });
+
+  it('draws no name when given none', () => {
+    const { container } = renderDiagram(<ChordDiagram fingering={openC} context={context} kind="song" />);
+    expect(container.querySelector('.chord-diagram__name')).toBeNull();
+  });
+
   it('draws the defaults with no provider: right-handed and vertical', () => {
     const { container } = renderDiagram(
       <ChordDiagram fingering={openC} context={context} kind="song" />

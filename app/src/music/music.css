@@ -288,10 +288,49 @@
   }
 }
 
-.enter-shape-preview {
+/* The board: the big diagram a shape is tapped onto, centred in its card and
+   never wider than it (the SVG keeps its aspect). Its hit targets are
+   invisible until a pointer is over one, which shows where a tap will land. */
+.enter-shape-board {
+  align-self: center;
+  max-width: 100%;
+}
+.enter-shape-board .ec-diagram {
+  max-width: 100%;
+  height: auto;
+}
+.enter-shape-board .ec-hit {
+  fill: var(--chord);
+  fill-opacity: 0;
+  cursor: pointer;
+}
+.enter-shape-board .ec-hit:hover {
+  fill-opacity: 0.18;
+}
+
+/* Moving the board's window along the neck: ← Frets 1–6 →. */
+.enter-shape-position {
   display: flex;
+  align-items: center;
   justify-content: center;
-  min-height: 1px;
+  gap: calc(var(--u) * 1.5);
+}
+.enter-shape-window {
+  min-width: 7em;
+  text-align: center;
+}
+
+/* The radio grid stays out of sight until it holds focus (the keyboard's way
+   in), then shows under the board — the skip-link pattern, so no keyboard user
+   sets a string they cannot see. */
+.enter-shape-grid:not(:focus-within) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* The explorer's title is fixed copy the boards draw whole (W16#1-2): it keeps

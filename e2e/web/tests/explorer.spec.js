@@ -152,12 +152,15 @@ test('a shape entered by hand and starred is "your shape" in the reading view, a
   await page.getByRole('button', { name: /^Enter a shape/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Enter a shape' });
   await expect(dialog).toBeVisible();
-  // x-2-0-0-0-3 on D A D G B E: a G chord, placed finger by finger.
-  await dialog.getByRole('radio', { name: 'String 5, fret 2' }).click();
-  await dialog.getByRole('radio', { name: 'Open string 4' }).click();
-  await dialog.getByRole('radio', { name: 'Open string 3' }).click();
-  await dialog.getByRole('radio', { name: 'Open string 2' }).click();
-  await dialog.getByRole('radio', { name: 'String 1, fret 3' }).click();
+  // x-2-0-0-0-3 on D A D G B E: a G chord, tapped onto the board finger by
+  // finger (strings by logical index, the row above the nut opens a string).
+  const tap = (string, fret) => dialog.locator(`.enter-shape-board .ec-hit[data-string="${string}"][data-fret="${fret}"]`).click();
+  await tap(1, 2);
+  await tap(2, 'marker');
+  await tap(3, 'marker');
+  await tap(4, 'marker');
+  await tap(5, 3);
+  await expect(dialog.getByRole('radio', { name: 'String 1, fret 3' })).toBeChecked();
   await checkA11y(); // the enter-a-shape dialog with a shape placed
   await dialog.getByRole('button', { name: /^Star G,/ }).click();
   await expect(dialog).toBeHidden();

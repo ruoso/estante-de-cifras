@@ -68,8 +68,11 @@
   align-items: center;
 }
 
-/* The sheet — the chart, then the shapes — the one thing print keeps. */
+/* The sheet — the chart, then the shapes — the one thing print keeps. Its
+   print column width is measured just before printing (print-columns.js) and
+   set inline over this fallback. */
 .reading-sheet {
+  --print-column: 20em;
   display: flex;
   flex-direction: column;
   gap: calc(var(--u) * 2);
@@ -240,14 +243,90 @@
     overflow: visible;
     padding: 0;
   }
-  .reading-split .reading-sheet {
+  /* Every box the sheet sits in goes back to plain block flow: Chrome does not
+     page a multicol well inside flex containers (the shell's, the screen's, the
+     split's) and leaves a blank page after it. */
+  .est:has(.reading-sheet),
+  .est:has(.reading-sheet) *:has(.reading-sheet) {
+    display: block !important;
+  }
+  /* The song's title and who it is by, over the sheet and outside its columns:
+     a spanning head at the start of a multicol pushes everything after it onto
+     the next page. */
+  .reading-print-head {
+    display: flex;
     flex-direction: column;
+    gap: 2px;
+    margin-bottom: calc(var(--u) * 1.5);
+  }
+  /* The sheet as columns as narrow as its longest sung line
+     (print-columns.js), as many side by side as the paper takes. Filled, not
+     balanced: a column runs to the foot of the page before the next starts, so a
+     song that wants most of one column is not shared out into two short ones.
+     The chart and the shapes flow in it as blocks, the shapes taking the room
+     the last column has left rather than a page of their own. */
+  .reading-sheet,
+  .reading-split .reading-sheet {
+    display: block;
+    column-width: var(--print-column);
+    column-gap: 1cm;
+    column-fill: auto;
+  }
+  .reading-sheet .chart {
+    display: block;
+  }
+  /* A chart block wider than a column spans them all, like a wide figure,
+     rather than forcing the whole sheet into one column. Never scrolled on
+     paper, never split across a page or column. */
+  .reading-sheet .chart [data-print-span='all'] {
+    column-span: all;
+  }
+  /* Inline-level, so the block is one unit the columns place whole: Chrome
+     fragments a block-level grid of subgrids out of order across columns. */
+  .reading-sheet .chart .bargrid {
+    display: inline-grid;
+    vertical-align: top;
+    overflow: visible;
+    max-width: none;
+  }
+  .reading-sheet .chart .bargrid,
+  .reading-sheet .chart .sung,
+  .reading-sheet .chart .barline,
+  .reading-sheet .chart .runline {
+    break-inside: avoid;
+  }
+  .reading-sheet .chart .sec-name {
+    break-after: avoid;
+  }
+  .reading-sheet .reading-shapes,
+  .reading-split .reading-shapes {
+    width: auto;
+    margin-top: calc(var(--u) * 1.5);
+  }
+  .reading-shapes .shapes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--u) * 1) calc(var(--u) * 1.5);
+  }
+  .reading-shapes .chord-diagram {
+    break-inside: avoid;
   }
   /* Print the shapes, not the tablet's card around them. */
   .reading-shapes.card {
     border: none;
     background: none;
     padding: 0;
+  }
+  .reading-shapes.card .shapes {
+    display: flex;
+  }
+}
+
+/* The print-only head (above): nothing on screen, where the app bar names the
+   song. */
+@media screen {
+  .reading-print-head {
+    display: none;
   }
 }
 

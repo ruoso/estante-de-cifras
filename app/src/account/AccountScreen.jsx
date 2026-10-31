@@ -61,6 +61,7 @@ import {
   THEMES,
   resolveDensity,
   resolveDiagramDisplay,
+  resolveChordNaming,
 } from '../theme/resolve.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import { parseChord } from '../core/notation/parse.js';
@@ -146,6 +147,12 @@ const HAND_OPTIONS = [
 const NECK_OPTIONS = [
   { id: 'vertical', name: 'diagramNeckVertical', meta: 'diagramNeckVerticalMeta' },
   { id: 'horizontal', name: 'diagramNeckHorizontal', meta: 'diagramNeckHorizontalMeta' },
+];
+// How the chart names its chords: `id` is what SET_CHORD_NAMES carries
+// (CHORD_NAMINGS).
+const NAMING_OPTIONS = [
+  { id: 'written', name: 'chordNamesWritten', meta: 'chordNamesWrittenMeta' },
+  { id: 'voiced', name: 'chordNamesVoiced', meta: 'chordNamesVoicedMeta' },
 ];
 
 // The live diagram sample: C x32010 on a standard-tuned guitar, as the board
@@ -424,6 +431,8 @@ export default function AccountScreen({
     store.send(command(CommandKind.SET_DIAGRAM_HANDED, { handed }));
   const chooseNeck = (orientation) =>
     store.send(command(CommandKind.SET_DIAGRAM_ORIENTATION, { orientation }));
+  const chosenNaming = resolveChordNaming(preferences);
+  const chooseNaming = (naming) => store.send(command(CommandKind.SET_CHORD_NAMES, { naming }));
 
   // 'loading' | 'in' | 'out' | 'error' — "signed in" read afresh from a 200 vs
   // 401 each time the screen opens (Constraints; Decision 3).
@@ -642,6 +651,24 @@ export default function AccountScreen({
           onChange={chooseNeck}
         >
           {NECK_OPTIONS.map((opt) => (
+            <PickerRow
+              key={opt.id}
+              value={opt.id}
+              name={t(`account.${opt.name}`)}
+              meta={<span className="account-meta-long">{t(`account.${opt.meta}`)}</span>}
+            />
+          ))}
+        </RadioGroup>
+      </div>
+      <div className="account-diagram-group">
+        <span className="t-small account-diagram-label">{t('account.chordNames')}</span>
+        <RadioGroup
+          className="list account-list account-tiles"
+          aria-label={t('account.chordNames')}
+          value={chosenNaming}
+          onChange={chooseNaming}
+        >
+          {NAMING_OPTIONS.map((opt) => (
             <PickerRow
               key={opt.id}
               value={opt.id}

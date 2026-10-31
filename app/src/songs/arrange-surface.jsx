@@ -9,10 +9,8 @@
 //   - `chart`, the song's chart with its chords as press targets;
 //   - `shapesStrip`, the diagram of every chord's shape for the instrument;
 //   - `variationSelector`, `chooseEveryButton`, `openAddVariation`;
-//   - `enterScreen` (the enter-a-shape screen, or null) and `entering`, while
-//     which the host hides its own body — kept mounted so the chord that opened
-//     the picker can take focus back;
-//   - `overlays`, the picker, the instruments and the add-variation dialog.
+//   - `overlays`, the picker, enter a shape, the instruments and the
+//     add-variation dialog.
 //
 // A choice is a mutated model, canonicalised by `write` and handed to the
 // host's `onText` — the arrange screen sends it to the working copy (WRITE);
@@ -66,7 +64,8 @@ import FingeringGroups from '../music/FingeringGroups.jsx';
 import { ShapeBuilder } from '../music/EnterShape.jsx';
 import { PlusIcon } from '../music/icons.jsx';
 import { groupViewModel, spokenShorthand } from '../music/fingering-groups.js';
-import { chartChordList } from './reading-view.js';
+import { chartChordList, voicedNames, shapeNames } from './reading-view.js';
+import { resolveChordNaming } from '../theme/resolve.js';
 import { occurrenceAt, unchosenPlan, toShape } from './arrange-choices.js';
 import './arrange.css';
 
@@ -95,38 +94,6 @@ function WarnIcon() {
   );
 }
 
-// The enter-a-shape screen's frame (W05#3): its own app bar — Back, the title as
-// the screen's heading, and the instrument named in chip styling but not a
-// switch (Decision 3) — the context line and the board's help, then the builder.
-// The heading takes focus on arrival so the screen announces itself.
-function EnterShapeScreen({ title, instrumentLabel, context, onBack, children }) {
-  const headingRef = useRef(null);
-  useEffect(() => {
-    headingRef.current?.focus();
-  }, []);
-  return (
-    <>
-      <div className="appbar arrange-chrome">
-        <Button className="btn icon" aria-label={t('arrange.back')} onPress={onBack}>
-          <BackIcon />
-        </Button>
-        <h1 ref={headingRef} tabIndex={-1} className="title arrange-enter-title">
-          {title}
-        </h1>
-        <span className="chip accent arrange-mention">{instrumentLabel}</span>
-      </div>
-      <div className="scroll arrange-enter-scroll">
-        <p className="t-small arrange-enter-context">
-          <span className="arrange-enter-place">{context}.</span>
-          {' '}
-          <span>{t('explorer.enter.help')}</span>
-        </p>
-        {children}
-      </div>
-    </>
-  );
-}
-
 /**
  * The arranging state and pieces for one song's text (see the file comment).
  *
@@ -151,14 +118,14 @@ export function useArrange({ store, bookId, path, text, onText, mode = 'narrow',
   const [varName, setVarName] = useState('');
   const [varCopy, setVarCopy] = useState(true);
   const [varError, setVarError] = useState(null);
-  // The enter-a-shape screen (Decision 2): the picker's occurrence and scope it
-  // was opened from, so Back / Cancel reopen the picker as it was.
+  // Enter a shape (Decision 2): the picker's occurrence and scope it was opened
+  // from, so Cancel reopens the picker as it was. A dialog over the chart, not a
+  // screen of its own: the song stays where it was behind it.
   const [entering, setEntering] = useState(null); // { picker, scope } | null
   // Focus goes to the *Enter a shape* row when the picker reopens from the screen.
   const [focusEnterRow, setFocusEnterRow] = useState(false);
   const [instrumentsOpen, setInstrumentsOpen] = useState(false);
-  // The chord that opened the picker: focus returns to it from the screen (its
-  // node stays mounted, hidden, while the screen shows).
+  // The chord that opened the picker: focus returns to it from enter a shape.
   const chordRef = useRef(null);
   const enterRowRef = useRef(null);
   // Reopened from the screen, the picker puts focus on the *Enter a shape* row
@@ -224,6 +191,9 @@ export function useArrange({ store, bookId, path, text, onText, mode = 'narrow',
     fingering: v.fingering,
   }));
   const anyUnchosen = shapes.some((s) => s.source !== 'song');
+  // Named as the reading view names them (the `chordNames` preference), so the
+  // chord tapped is the chord read.
+  const renamed = resolveChordNaming(preferences) === 'voiced' ? voicedNames(shapes, notation) : null;
   const tuningShapes = (entry?.shapes ?? []).filter((s) => s.tuning === entry?.tuning);
 
   // Persist a mutated model: canonicalise and hand the result to the host.
@@ -265,7 +235,7 @@ export function useArrange({ store, bookId, path, text, onText, mode = 'narrow',
     setPicker(null);
   };
 
-  // *Enter a shape*: close the picker and open the screen on the same occurrence
+  // *Enter a shape*: close the picker and open the dialog on the same occurrence
   // and scope.
   const enterShape = () => {
     setEntering({ picker, scope });
@@ -273,11 +243,12 @@ export function useArrange({ store, bookId, path, text, onText, mode = 'narrow',
     setPicker(null);
   };
 
-  // Back / Cancel: arrange again, the picker reopened as it was. The chord is
+  // Cancel (or Escape, or the scrim): arrange again, the picker reopened as it was. The chord is
   // focused first (synchronously, once visible) so the reopened picker returns
   // focus to it when it closes; inside the picker focus lands on the row.
   const leaveEntering = () => {
     const back = entering;
+    if (!back) return;
     flushSync(() => setEntering(null));
     chordRef.current?.focus?.();
     setScope(back.scope);
@@ -425,6 +396,7 @@ export function useArrange({ store, bookId, path, text, onText, mode = 'narrow',
       model={model}
       size={chartProps.size}
       label={chartProps.label ?? model.title ?? undefined}
+      chordNames={renamed}
       {...(canWrite ? { markOf: () => 'tap', onChordPress: openPicker, chordLabel } : null)}
     />
   ) : null;
@@ -439,6 +411,7 @@ export function useArrange({ store, bookId, path, text, onText, mode = 'narrow',
             fingering={s.fingering}
             kind={s.source}
             context={{ chord: parseChord(s.symbol, notation).chord, dialect, instrument }}
+            {...shapeNames(s, { notation, renamed })}
           />
         ))}
       </div>
@@ -466,28 +439,6 @@ export function useArrange({ store, bookId, path, text, onText, mode = 'narrow',
     return params.section ? t('arrange.enterContext', params) : t('arrange.enterContextNoSection', params);
   })();
   const enteringChord = entering ? parseChord(entering.picker.symbol, notation).chord : null;
-
-  const enterScreen =
-    entering && enteringChord && instrument ? (
-      <EnterShapeScreen
-        title={t('arrange.enterShapeTitle', { chord: entering.picker.symbol })}
-        instrumentLabel={instrumentLabel}
-        context={enterContext}
-        onBack={leaveEntering}
-      >
-        <ShapeBuilder
-          className="enter-shape-screen"
-          instrument={instrument}
-          chord={enteringChord}
-          chordSymbol={entering.picker.symbol}
-          dialect={dialect}
-          primary={enterPrimary}
-          onCancel={leaveEntering}
-          showHelp={false}
-          headingLevel={2}
-        />
-      </EnterShapeScreen>
-    ) : null;
 
   const overlays = (
     <>
@@ -566,6 +517,45 @@ export function useArrange({ store, bookId, path, text, onText, mode = 'narrow',
         </Modal>
       </ModalOverlay>
 
+      {/* Enter a shape (W05#3): the shared builder in a dialog over the chart,
+          headed by the chord and where its choice applies — *Primeira Parte,
+          bar 3 · only here*. Closing it any way but choosing reopens the picker. */}
+      <ModalOverlay
+        className="scrim center"
+        isOpen={entering != null && enteringChord != null && instrument != null}
+        onOpenChange={(open) => {
+          if (!open) leaveEntering();
+        }}
+        isDismissable
+      >
+        <Modal className="dialog enter-shape arrange-enter">
+          <Dialog className="enter-shape-dialog">
+            {entering && enteringChord && instrument ? (
+              <>
+                <Heading slot="title" className="t-h2">
+                  {t('arrange.enterShapeTitle', { chord: entering.picker.symbol })}
+                </Heading>
+                <p className="t-small arrange-enter-context">
+                  <span className="arrange-enter-place">{enterContext}.</span>
+                  {' '}
+                  <span>{t('explorer.enter.help')}</span>
+                </p>
+                <ShapeBuilder
+                  className="enter-shape-screen"
+                  instrument={instrument}
+                  chord={enteringChord}
+                  chordSymbol={entering.picker.symbol}
+                  dialect={dialect}
+                  primary={enterPrimary}
+                  onCancel={leaveEntering}
+                  showHelp={false}
+                />
+              </>
+            ) : null}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+
       <InstrumentsOverlay store={store} isOpen={instrumentsOpen} onClose={() => setInstrumentsOpen(false)} />
 
       {/* Add a variation (Decision 7). */}
@@ -623,8 +613,6 @@ export function useArrange({ store, bookId, path, text, onText, mode = 'narrow',
     model,
     entry,
     instrumentLabel,
-    entering: entering != null,
-    enterScreen,
     chart,
     shapesStrip,
     variationSelector,

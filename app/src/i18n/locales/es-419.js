@@ -610,6 +610,10 @@ export default {
       openString: 'Dejar al aire la cuerda {n}',
       setFret: 'Cuerda {n}, traste {fret}',
       help: 'Toca una cuerda en un traste para poner un dedo; toca sobre la cejilla para apagarla o dejarla al aire.',
+      towardsNut: 'Hacia la cejuela',
+      upTheNeck: 'Subir por el mástil',
+      frets: 'Trastes {from}–{to}',
+      sketch: 'Forma hasta ahora: {shorthand}',
       readout: 'Notas que contiene',
       fretMuted: 'apagada',
       fretOpen: 'al aire',
@@ -851,6 +855,11 @@ export default {
     diagramNeckVerticalMeta: 'Predeterminado · la cejuela arriba',
     diagramNeckHorizontal: 'Horizontal',
     diagramNeckHorizontalMeta: 'La cejuela a la izquierda, los trastes hacia la derecha',
+    chordNames: 'Nombres de los acordes',
+    chordNamesWritten: 'Como están escritos',
+    chordNamesWrittenMeta: 'El predeterminado · los nombres del propio cifrado',
+    chordNamesVoiced: 'Como suenan',
+    chordNamesVoicedMeta: 'Lo que suena tu forma, como D7/A',
     diagramsNote:
       'Cambia cómo se dibuja una posición, nunca qué posiciones se encuentran. Todos los diagramas la siguen.',
     languageNote: 'Usa el idioma de tu navegador hasta que elijas uno.',
@@ -1465,6 +1474,7 @@ export default {
 
   chart: {
     label: 'Cifrado',
+    barsScroll: 'Líneas de acordes, desplázate hacia el costado',
     verbatim: 'Bloque {info}',
     spoken: {
       noChord: 'sin acorde',
@@ -1544,6 +1554,8 @@ export default {
     more: 'Más',
     fullScreen: 'Pantalla completa',
     leaveFullScreen: 'Salir de pantalla completa',
+    namesVoiced: 'Nombrar los acordes como suenan',
+    namesWritten: 'Nombrar los acordes como están escritos',
     // Los títulos de los grupos del menú ⋯ (songs.menu_grouping; flujo 2): cada
     // título es el nombre que el lector de pantalla da al grupo.
     menuThisSong: 'Esta canción',

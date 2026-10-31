@@ -402,6 +402,17 @@
 .chart .barline { display: flex; flex-wrap: wrap; padding: 4px 0; }
 .chart .m { min-width: 4.2em; padding: 0 0.7em; border-left: 2px solid var(--ink-2); color: var(--chord); font-weight: 700; white-space: pre; }
 .chart .m:last-child { border-right: 2px solid var(--ink-2); }
+/* An aligned block of chart lines (chart/layout.js alignBars): the measures sit
+   in shared columns, so a bar is found in the same place on every line while
+   playing. Each line is a subgrid of the block and each measure a subgrid of its
+   line, its chords spanning the columns the layout gave them. A block wider than
+   the chart scrolls sideways rather than wrapping, which would undo the
+   alignment. */
+.chart .bargrid { display: grid; justify-content: start; row-gap: 2px; max-width: 100%; overflow-x: auto; }
+.chart .bargrid .barline { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; }
+.chart .bargrid .gap { grid-column: 1 / -1; }
+.chart .bargrid .m { display: grid; grid-template-columns: subgrid; min-width: 0; padding: 0; }
+.chart .bargrid .m .cell { padding: 0 0.35em 0 0.7em; white-space: pre; }
 .chart .runline { color: var(--chord); font-weight: 700; word-spacing: 0.6em; padding: 4px 0; }
 .chart .words { color: var(--ink); padding: 2px 0; }
 .chart .gap { height: 0.7em; }

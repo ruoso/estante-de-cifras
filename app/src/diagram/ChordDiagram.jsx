@@ -38,8 +38,10 @@ import './diagram.css';
  * @param {'song'|'yours'|'default'} [props.kind]
  * @param {number} [props.size]  the renderer's scale multiplier
  * @param {string} [props.className]  extra classes on the host
+ * @param {string} [props.name]  the chord's name, drawn over the diagram
+ * @param {string|null} [props.sounded]  what the shape sounds, beside the name
  */
-export default function ChordDiagram({ fingering, context, kind = 'song', size, className }) {
+export default function ChordDiagram({ fingering, context, kind = 'song', size, className, name, sounded }) {
   const { modifier, word } = diagramKind(kind);
   const { handed, orientation } = useContext(DiagramDisplayContext);
   const options = size != null ? { handed, orientation, size } : { handed, orientation };
@@ -57,6 +59,16 @@ export default function ChordDiagram({ fingering, context, kind = 'song', size, 
         (className ? ` ${className}` : '')
       }
     >
+      {/* The name over the drawing, so a row of shapes says which chord each
+          is (and, beside it, what the shape sounds where that differs). Hidden
+          from assistive tech: the SVG's own label opens with the same chord and
+          says what it is voiced as, so reading both would say it twice. */}
+      {name ? (
+        <span className="chord-diagram__name" aria-hidden="true">
+          <span className="chord-diagram__chord">{name}</span>
+          {sounded ? <span className="chord-diagram__sounded">{sounded}</span> : null}
+        </span>
+      ) : null}
       <span className="chord-diagram__box" dangerouslySetInnerHTML={{ __html: svg }} />
       {/* The kind word is adjacent visible text, read by assistive tech in
           document order — not folded into the SVG's aria-label, which would say

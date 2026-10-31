@@ -96,6 +96,26 @@ export function renderNeck(fingering, options = {}) {
     }
   }
 
+  // Click targets, as the chord box draws them (chord-box.js): the column left
+  // of the nut sets open or muted, each cell after it a fret, all off the same
+  // geometry as the grid. `data-string` is the logical string, mirroring undone.
+  if (options.hits) {
+    const logical = (d) => (model.handed === 'left' ? stringCount - 1 - d : d);
+    const half = UNIT / 2;
+    for (let d = 0; d < stringCount; d += 1) {
+      out.push(
+        `<rect class="ec-hit ec-hit-marker" data-string="${logical(d)}" data-fret="marker" ` +
+          `x="${marginLeft - UNIT}" y="${y(d) - half}" width="${UNIT}" height="${UNIT}" />`
+      );
+      for (let c = 0; c < fretsShown; c += 1) {
+        out.push(
+          `<rect class="ec-hit" data-string="${logical(d)}" data-fret="${startFret + c}" ` +
+            `x="${x(c)}" y="${y(d) - half}" width="${UNIT}" height="${UNIT}" />`
+        );
+      }
+    }
+  }
+
   const label = options.label ?? fingering.shorthand;
 
   return (

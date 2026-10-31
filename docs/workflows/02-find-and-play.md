@@ -128,9 +128,26 @@ does: the chart, then the shapes, a page at a time on a phone.
   wizard (workflow 5), and the editor's preview and colouring (workflow 4).
   The preference is how the user reads a symbol they type (the search box,
   the explorer).
+- **The chart reads like a written chart.** The measures of a section's
+  chord lines sit in columns, so the third bar of one line is under the third
+  bar of the next; a bar split between two chords takes two half-width cells
+  under the bars around it (Explore Chords §2.6). A sung line keeps its own
+  spacing.
+- **Each shape is named.** Over each diagram, the chord it is for, and beside
+  it what the shape sounds where that differs (`D7` · `D7/A`, `Am` · *no
+  root*).
+- **Chords named as voiced.** The song's menu (View) and the account's
+  preferences switch the chart to name each chord as its shape sounds it —
+  `D7/A` where the shape puts the fifth lowest — so a player reads the chord
+  under their fingers. It is a preference (`chordNames`, the home book); the
+  song is never changed.
 
 From the reading view the song can be edited (workflow 4), its history
-opened (workflow 6), transposed (below), and printed.
+opened (workflow 6), transposed (below), and printed. Print uses the paper: the song is
+set in as many columns as the page takes, each as narrow as its longest sung
+line, filled to the foot of the page before the next begins; a chord block too
+wide for a column spans them all, and the shapes follow in the room the last
+column leaves.
 
 ### Nothing written yet
 

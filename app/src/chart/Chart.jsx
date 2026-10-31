@@ -30,7 +30,7 @@
 // line-addressed seam (`markOf`), which may return the mark alone or the mark
 // plus the §7 phrase the consumer computed.
 
-import { Fragment } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from 'react-aria-components';
 import { chartRows } from './layout.js';
 import { speakVoice, regionAnnouncement, verbatimLabel } from './reading.js';
@@ -73,7 +73,13 @@ function Glyph({ text, voice, speakSlot, className }) {
 // is a voiced chord, else the glyph with its spoken name. The button's
 // accessible name is the consumer's `chordLabel(token)` when given, else the §3
 // spoken chord name, so an interactive chord always announces its name.
-function ChordSlot({ text, token, voice, ctx, glyphClass }) {
+function ChordSlot({ text: written, token, voice: writtenVoice, ctx, glyphClass }) {
+  // Named as the chosen shape sounds it, when the reader asked for that and the
+  // shape sounds something else (`chordNames`, Explore Chords §6.2): the glyph
+  // and its spoken name both follow, so the two never disagree.
+  const renamed = token ? ctx.chordNames?.get(token.key) : null;
+  const text = renamed ? renamed.symbol : written;
+  const voice = renamed && writtenVoice?.type === 'chord' ? { ...writtenVoice, chord: renamed.chord ?? writtenVoice.chord } : writtenVoice;
   if (ctx.onChordPress && token) {
     const name = ctx.chordLabel ? ctx.chordLabel(token) : ctx.speakSlot(voice) ?? text;
     return (
@@ -104,13 +110,64 @@ function Segment({ segment, ctx }) {
 }
 
 // A chord-only measure's cells, space-separated as the joined string would be.
-function Cells({ cells, ctx }) {
-  return cells.map((cell, j) => (
-    <Fragment key={j}>
-      {j > 0 ? ' ' : null}
-      <ChordSlot text={cell.text} token={cell.token} voice={cell.voice} ctx={ctx} glyphClass="g" />
-    </Fragment>
-  ));
+// On an aligned bars row each cell is its own grid item, spanning the columns
+// the layout gave it (`spans`); the space between them is then whitespace a grid
+// does not draw, kept so the measure reads as the joined string still.
+function Cells({ cells, ctx, spans }) {
+  return cells.map((cell, j) => {
+    const slot = <ChordSlot text={cell.text} token={cell.token} voice={cell.voice} ctx={ctx} glyphClass="g" />;
+    return (
+      <Fragment key={j}>
+        {j > 0 ? ' ' : null}
+        {spans ? (
+          <span className="cell" style={{ gridColumn: `span ${spans[j]}` }}>
+            {slot}
+          </span>
+        ) : (
+          slot
+        )}
+      </Fragment>
+    );
+  });
+}
+
+// The column template of an aligned block (layout.js `alignBars`): each measure
+// position as many columns as its busiest line splits it into. A column is as
+// narrow as the widest chord in it allows and grows to its share of a
+// measure's comfortable width (4.2em) where there is room — so a block shrinks
+// to fit a phone before it ever has to scroll.
+function gridTemplate(grid) {
+  return grid.widths
+    .map((w) => (w === 1 ? 'minmax(min-content, 4.2em)' : `repeat(${w}, minmax(min-content, calc(4.2em / ${w})))`))
+    .join(' ');
+}
+
+// An aligned block. When even its narrowest columns are wider than the chart it
+// scrolls sideways, and only then does it become a named, focusable region, so
+// a keyboard can scroll it (axe scrollable-region-focusable) without adding a
+// tab stop to every block that fits.
+function BarGrid({ grid, children }) {
+  const ref = useRef(null);
+  const [scrolls, setScrolls] = useState(false);
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node || typeof ResizeObserver === 'undefined') return undefined;
+    const check = () => setScrolls(node.scrollWidth > node.clientWidth + 1);
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      className="bargrid"
+      style={{ gridTemplateColumns: gridTemplate(grid) }}
+      {...(scrolls ? { role: 'group', 'aria-label': t('chart.barsScroll'), tabIndex: 0 } : null)}
+    >
+      {children}
+    </div>
+  );
 }
 
 function Row({ row, mark, ctx }) {
@@ -136,12 +193,13 @@ function Row({ row, mark, ctx }) {
           {row.cells.map((cells, i) => {
             const number = row.numbers?.[i];
             const stated = number?.stated && number?.number != null;
+            const width = row.grid?.widths[i];
             return (
-              <span key={i} className="m" role="listitem">
+              <span key={i} className="m" role="listitem" style={width ? { gridColumn: `span ${width}` } : undefined}>
                 {stated ? (
                   <span className="visually-hidden">{t('chart.spoken.bar', { n: number.number })} </span>
                 ) : null}
-                <Cells cells={cells} ctx={ctx} />
+                <Cells cells={cells} ctx={ctx} spans={row.spans?.[i]} />
               </span>
             );
           })}
@@ -193,24 +251,41 @@ function Row({ row, mark, ctx }) {
 // share a 'conf' or 'def' mark into one bounded region (§7); every other row is
 // its own unit. Only this component knows row adjacency, so the bounding lives
 // here (the refinement's Decision); 'tap' and the plain chart are never bounded.
+//
+// A region never crosses the edge of an aligned block of bars (`row.grid`): each
+// unit carries the block it sits in, and the component wraps a run of units of
+// one block in the grid that lines their measures up.
 function renderUnits(rows, markOf) {
   const units = [];
   let region = null;
   rows.forEach((row, i) => {
     const { mark, phrase } = resolveMark(markOf, row.address);
+    const grid = row.grid ?? null;
     if (mark === 'conf' || mark === 'def') {
-      if (region && region.mark === mark) {
+      if (region && region.mark === mark && region.grid === grid) {
         region.items.push({ row, i });
       } else {
-        region = { mark, phrase, items: [{ row, i }] };
-        units.push({ kind: 'region', region });
+        region = { mark, phrase, grid, items: [{ row, i }] };
+        units.push({ kind: 'region', region, grid });
       }
     } else {
       region = null;
-      units.push({ kind: 'row', row, i, mark });
+      units.push({ kind: 'row', row, i, mark, grid });
     }
   });
   return units;
+}
+
+// Fold the units into what the chart draws: a unit outside any block as it is,
+// and a run of units in one block inside that block's grid.
+function blocks(units) {
+  const out = [];
+  for (const unit of units) {
+    const last = out[out.length - 1];
+    if (unit.grid && last?.grid === unit.grid) last.units.push(unit);
+    else out.push({ grid: unit.grid, units: [unit] });
+  }
+  return out;
 }
 
 /**
@@ -229,12 +304,15 @@ function renderUnits(rows, markOf) {
  *   the accessible name of a pressable chord; default the §3 spoken chord name
  * @param {boolean} [props.markEmpty]  say *Nothing written here yet.* under a
  *   named section with nothing in it — the reading view only (songs.empty_states)
+ * @param {Map<string, { symbol: string, chord?: object }>} [props.chordNames]
+ *   by §2.4 voicing key, the name to draw a chord under instead of the written
+ *   one — what its chosen shape sounds (`voicedNames`); default: as written
  */
-export default function Chart({ model, markOf, size, label, className, onChordPress, chordLabel, markEmpty }) {
+export default function Chart({ model, markOf, size, label, className, onChordPress, chordLabel, markEmpty, chordNames }) {
   const rows = chartRows(model, { markEmpty });
   const speak = (chord, opts) => speakChord(chord, { t, ...opts });
   const speakSlot = (voice) => speakVoice(voice, { speak, t });
-  const ctx = { onChordPress, chordLabel, speakSlot };
+  const ctx = { onChordPress, chordLabel, speakSlot, chordNames };
   const units = renderUnits(rows, markOf);
   // `--chart-size` is a custom property the adopted CSS reads; a number is taken
   // as pixels, a string passed through (e.g. '20px').
@@ -246,18 +324,27 @@ export default function Chart({ model, markOf, size, label, className, onChordPr
       aria-label={label ?? t('chart.label')}
       style={style}
     >
-      {units.map((unit, u) => {
-        if (unit.kind === 'row') {
-          return <Row key={u} row={unit.row} mark={unit.mark} ctx={ctx} />;
-        }
-        const ann = regionAnnouncement(unit.region.mark, { t, phrase: unit.region.phrase });
+      {blocks(units).map((block) => {
+        const drawn = block.units.map((unit) => {
+          if (unit.kind === 'row') {
+            return <Row key={unit.i} row={unit.row} mark={unit.mark} ctx={ctx} />;
+          }
+          const ann = regionAnnouncement(unit.region.mark, { t, phrase: unit.region.phrase });
+          return (
+            <div key={`r${unit.region.items[0].i}`} className={`region region-${unit.region.mark}`} role="group" aria-label={ann.enter}>
+              {unit.region.items.map(({ row, i }) => (
+                <Row key={i} row={row} mark={unit.region.mark} ctx={ctx} />
+              ))}
+              <span className="visually-hidden">{ann.exit}</span>
+            </div>
+          );
+        });
+        if (!block.grid) return drawn;
+        const first = block.units[0];
         return (
-          <div key={u} className={`region region-${unit.region.mark}`} role="group" aria-label={ann.enter}>
-            {unit.region.items.map(({ row, i }) => (
-              <Row key={i} row={row} mark={unit.region.mark} ctx={ctx} />
-            ))}
-            <span className="visually-hidden">{ann.exit}</span>
-          </div>
+          <BarGrid key={`g${first.i ?? first.region.items[0].i}`} grid={block.grid}>
+            {drawn}
+          </BarGrid>
         );
       })}
     </div>

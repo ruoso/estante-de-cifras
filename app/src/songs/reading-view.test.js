@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from 'cifra-md';
-import { transposeStatus, chartChordList } from './reading-view.js';
+import { transposeStatus, chartChordList, voicedNames, shapeNames } from './reading-view.js';
+import { parseChord } from '../core/notation/parse.js';
+import { instrumentInstance } from '../core/instrument.js';
+import { fingeringFromFrets } from '../core/search.js';
 
 const FENCE = '```';
 const song = (chart) => ['# Song', '## A', FENCE, chart, FENCE].join('\n') + '\n';
@@ -55,5 +58,25 @@ describe('chartChordList — the chords the shapes section draws, in order', () 
 
   it('is empty for a song with no chords', () => {
     expect(chartChordList(parse('# Song\n'))).toEqual([]);
+  });
+});
+
+// Naming chords as voiced (the `chordNames` preference; Explore Chords §6.2).
+describe('voicedNames / shapeNames', () => {
+  const guitar = instrumentInstance({ catalogId: '6guitar', strings: 'E2 A2 D3 G3 B3 E4', fretCount: 22 });
+  const C = parseChord('C').chord;
+  const shape = (frets) => ({ key: 'C', symbol: 'C', fingering: fingeringFromFrets(frets, C, guitar) });
+
+  it('renames a chord whose shape puts another tone lowest, and leaves one played as written', () => {
+    expect(voicedNames([shape([0, 3, 2, 0, 1, 0])], 'american').get('C').symbol).toBe('C/E');
+    expect(voicedNames([shape(['x', 3, 2, 0, 1, 0])], 'american').has('C')).toBe(false);
+  });
+
+  it('labels a diagram with the written name and what it sounds, or the sounded name alone once renamed', () => {
+    const inverted = shape([0, 3, 2, 0, 1, 0]);
+    expect(shapeNames(inverted, { notation: 'american' })).toEqual({ name: 'C', sounded: 'C/E' });
+    const renamed = voicedNames([inverted], 'american');
+    expect(shapeNames(inverted, { notation: 'american', renamed })).toEqual({ name: 'C/E', sounded: null });
+    expect(shapeNames(shape(['x', 3, 2, 0, 1, 0]), { notation: 'american' })).toEqual({ name: 'C', sounded: null });
   });
 });

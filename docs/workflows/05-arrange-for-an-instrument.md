@@ -46,13 +46,18 @@ grouped by position, with *enter a shape* at the top (its DESIGN §2.11).
 Choosing one writes `- Cm: x35543` into the block for this tuning and the
 variation in use, creating the block if there is none.
 
-*Enter a shape* opens a screen of the mode, not a dialog over the picker
-(board W05, the tablet): *Enter a shape for Cm*, a line saying where and how
-far it applies (*Choro da Chuva · Primeira Parte, bar 3 · only here*), the big
-diagram, and beside it *Notes it holds* — the notes it sounds, then one row per
+*Enter a shape* opens a dialog in place of the picker, over the chart — never
+another screen, so the song (or the editor's text) stays where it was behind
+it: *Enter a shape for Cm*, a line saying where and how far it applies (*Choro
+da Chuva · Primeira Parte, bar 3 · only here*), the big diagram, drawn as the
+reader's diagrams are (left-handed, horizontal), empty to begin with — tap a
+string at a fret to place a finger and again to lift it, tap above the nut to
+open or mute the string, the arrows move it along the neck; the keyboard sets
+the same strings through a row of choices per string that shows when it takes
+focus — and beside it *Notes it holds* — the notes it sounds, then one row per
 string with its fret, its note and that note's part in the chord (*root*,
 *minor third*, *fifth*), or *not in Cm* for a foreign one, which a notice spells
-out and does not block (*You can still choose this shape*). *Cancel* or *Back*
+out and does not block (*You can still choose this shape*). *Cancel* or Escape
 returns to the picker as it was; *Choose this shape* writes it as any other
 choice does.
 

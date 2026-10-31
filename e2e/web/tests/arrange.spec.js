@@ -85,20 +85,22 @@ test('only here warns, and a shape by hand can be chosen', async ({ page, checkA
   await picker(page).getByRole('button', { name: 'Only here' }).click();
   await expect(page.getByText(/marks this bar in the chart/)).toBeVisible();
 
-  // Enter a shape by hand: a screen of arrange, not a dialog over the picker
-  // (songs.arrange_polish Decision 2; W05#3; workflow 5 L43-51).
+  // Enter a shape by hand: a dialog over the chart in place of the picker, the
+  // song still behind it (W05#3; workflow 5 §Choosing a shape).
   await picker(page).getByRole('button', { name: 'Enter a shape' }).click();
-  const heading = page.getByRole('heading', { level: 1, name: 'Enter a shape for G' });
+  const heading = page.getByRole('dialog', { name: 'Enter a shape for G' });
   await expect(heading).toBeVisible();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('.arrange-enter-place')).toHaveText(/· only here\.$/);
 
   // G with an F on the high E string, 3 2 0 x x 1 — root, major third,
-  // fifth, and a note not in G.
-  await page.getByRole('radio', { name: 'String 6, fret 3' }).click();
-  await page.getByRole('radio', { name: 'String 5, fret 2' }).click();
-  await page.getByRole('radio', { name: 'Open string 4' }).click();
-  await page.getByRole('radio', { name: 'String 1, fret 1' }).click();
+  // fifth, and a note not in G — tapped onto the board's diagram (strings by
+  // logical index, low E = 0; the row above the nut opens a muted string).
+  const tap = (string, fret) => heading.locator(`.enter-shape-board .ec-hit[data-string="${string}"][data-fret="${fret}"]`).click();
+  await tap(0, 3);
+  await tap(1, 2);
+  await tap(2, 'marker');
+  await tap(5, 1);
+  await expect(heading.getByRole('radio', { name: 'String 6, fret 3' })).toBeChecked();
   const readout = page.getByRole('region', { name: 'Notes it holds' });
   const row = (name) => readout.getByRole('listitem').filter({ has: page.locator('.name', { hasText: name }) });
   await expect(row('E2 · low E')).toContainText('root');
@@ -118,7 +120,7 @@ test('only here warns, and a shape by hand can be chosen', async ({ page, checkA
     expect(list.x, 'the read-out sits beside the card').toBeGreaterThanOrEqual(card.x + card.width - 1);
   }
   await mockup(page, 'W05-arrange', 3);
-  await checkA11y(); // the enter-a-shape screen with the notice
+  await checkA11y(); // the enter-a-shape dialog with the notice
 
   // Choose it: written as a listed candidate is, back to arrange.
   await page.getByRole('button', { name: /^Choose G,/ }).click();
