@@ -2051,6 +2051,24 @@ export function createWorkerLogic(port, options = {}) {
             await ensureFs().flush();
             break;
           }
+          case CommandKind.MARK_TOUR_OFFERED: {
+            // Record that the tour offer was answered (workflow 18 §The tour),
+            // on the MARK_INSTRUMENT_PROMPT_SEEN template below: the
+            // `tourOffered` register, re-surfaced and flushed so a reload
+            // never offers it again. Carries only the boolean.
+            const author = await resolveAuthor();
+            const home = ensureHomeBook();
+            await home.ensureLocal({ author });
+            await home.set({
+              bookId: HOME_BOOK_ID,
+              file: 'preferences.json',
+              changes: [{ path: ['tourOffered'], value: true }],
+              author,
+            });
+            await surfaceHomeBookPreferences();
+            await ensureFs().flush();
+            break;
+          }
           case CommandKind.MARK_INSTRUMENT_PROMPT_SEEN: {
             // Record that the first-open instrument prompt was answered, asked
             // once (songs.first_song, workflow 1 §The instrument): provision a

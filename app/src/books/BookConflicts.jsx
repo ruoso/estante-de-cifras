@@ -20,6 +20,7 @@ import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import { conflictSummary } from '../songs/conflict-text.js';
 import './book-conflicts.css';
+import HelpButton from '../help/Help.jsx';
 
 export default function BookConflicts({ store, bookId, title, embedded = false, onSettle, onClose }) {
   const conflicts = useSlice(store, 'conflicts');
@@ -56,6 +57,7 @@ export default function BookConflicts({ store, bookId, title, embedded = false, 
         )}
         <span className="title">{title}</span>
         <span className="badge conflict dot">{t('books.needsYou')}</span>
+        <HelpButton page="conflicts" />
       </div>
 
       {book && (

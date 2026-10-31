@@ -44,6 +44,7 @@ import {
 import { NewInvitationDialog, TERMS_KEY } from './NewInvitation.jsx';
 import { BackIcon, CopyLinkButton, LoadState, errorCopy, useSharing } from './sharing-parts.jsx';
 import './sharing.css';
+import HelpButton from '../help/Help.jsx';
 
 // The first readers listed before *Show {n} more readers* (W10 #3).
 const READERS_SHOWN = 4;
@@ -378,6 +379,7 @@ export default function PeopleScreen({
         ) : role ? (
           <span className="chip">{role === 'editor' ? t('sharing.youAreEditor') : t('sharing.youAreReader')}</span>
         ) : null}
+        <HelpButton page="sharing" />
       </div>
       <div className="scroll est-sharing-scroll est-sharing-page">{body}</div>
       {removing ? (

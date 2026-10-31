@@ -919,6 +919,7 @@ describe("the detail as drawn (workflow 7 §A book's songs; W07 #4)", () => {
       'Back to Choros da Ana',
       'Rename Choros da Ana',
       'Share',
+      'Help: A book',
     ]);
     // Exactly one Share, in the app bar; the scroll body has none, and no card.
     expect(within(appbar).getByRole('button', { name: 'Share', exact: true })).toBeInTheDocument();
@@ -1021,7 +1022,7 @@ describe("the detail as drawn (workflow 7 §A book's songs; W07 #4)", () => {
     // Nothing reorders the path with a positive tabIndex: DOM order is Tab order.
     expect(stops.filter((el) => el.tabIndex > 0)).toEqual([]);
     const names = stops.map((el) => el.getAttribute('aria-label') ?? el.textContent);
-    expect(names.slice(0, 4)).toEqual(['Back to Choros da Ana', 'Rename Choros da Ana', 'Share', 'Download']);
+    expect(names.slice(0, 5)).toEqual(['Back to Choros da Ana', 'Rename Choros da Ana', 'Share', 'Help: A book', 'Download']);
     expect(names.at(-1)).toBe('Delete the book');
     // Each stop takes focus in turn.
     for (const el of stops) {

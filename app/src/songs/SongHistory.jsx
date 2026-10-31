@@ -38,6 +38,7 @@ import { buildHistoryView, beforeTextOf } from './history-view.js';
 import { lineDiff } from './line-diff.js';
 import { useLayoutMode } from '../shell/AppShell.jsx';
 import './song-history.css';
+import HelpButton from '../help/Help.jsx';
 
 // The computer split only has room past this width; below it (the phone and the
 // tablet) the list and the version are one column at a time. The shell's single
@@ -532,6 +533,7 @@ export default function SongHistory({
             <div className="appbar est-history-appbar">
               <span className="title">{openRow ? openRow.note : t('history.title')}</span>
               {actionButtons}
+              <HelpButton page="history" />
             </div>
             <div className="scroll est-history-detail">
               {openRow ? (
@@ -567,6 +569,7 @@ export default function SongHistory({
             <span className="badge unsaved dot">{t('history.unsavedChanges')}</span>
           ) : null}
           {actionButtons}
+          <HelpButton page="history" />
         </div>
         <div className="scroll est-history-body">
           {openRow ? (
@@ -598,6 +601,7 @@ export default function SongHistory({
           <div className="appbar est-history-appbar">
             <BackButton label={t('history.backToHistory')} onPress={backToList} />
             <span className="title">{t('history.songInBook', { title: displayTitle, book: openRow.whenDate })}</span>
+            <HelpButton page="history" />
           </div>
           <div className="scroll est-history-body">
             {detailHeader}
@@ -610,6 +614,7 @@ export default function SongHistory({
           <div className="appbar est-history-appbar">
             <BackButton label={t('history.backToSong')} onPress={onBack} />
             <span className="title">{t('history.title')}</span>
+            <HelpButton page="history" />
           </div>
           <div className="scroll est-history-body">
             <div className="est-history-list-head">

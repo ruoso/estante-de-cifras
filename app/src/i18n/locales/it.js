@@ -2760,4 +2760,260 @@ export default {
       confirm: 'Rimuovi',
     },
   },
+  // Help on every page and the tour (workflow 18): each page's help
+  // ({ title, summary, points }) and the tour's cards ({ title, body }).
+  help: {
+    kicker: 'Aiuto',
+    close: 'Chiudi l’aiuto',
+    buttonFor: 'Aiuto: {page}',
+    canDo: 'Cosa puoi fare qui',
+    others: 'Altre pagine',
+    backTo: 'Torna a {page}',
+    tourLine: 'Sei nuovo, o vuoi un ripasso?',
+    takeTour: 'Fai il giro',
+    offer: 'Nuovo su Estante? Un breve giro mostra come funziona.',
+    offerTake: 'Fai il giro',
+    offerLater: 'No, grazie',
+    pages: {
+      search: {
+        title: 'Ricerca',
+        summary:
+          'Trova un brano in tutti i libri della tua libreria, dal titolo, dall’artista o dal testo. Un accordo scritto qui apre l’esploratore di accordi.',
+        points: [
+          'Scrivi parte di un titolo, un artista, una sezione, un verso che ricordi, o degli accordi.',
+          'Cerca solo in un libro.',
+          'Apri un risultato per leggerlo e suonarlo, o aggiungilo a una scaletta.',
+          'Esplora un accordo, come Cm7, per vedere tutti i modi di suonarlo.',
+          'Incolla un brano intero per iniziarne uno nuovo.',
+        ],
+      },
+      books: {
+        title: 'Libri',
+        summary:
+          'La tua libreria: tutti i libri di brani di questo dispositivo. Un libro è un insieme di brani e scalette, tenuto in pari su ogni dispositivo e con tutti quelli con cui è condiviso.',
+        points: [
+          'Apri un libro per vederne i brani e le scalette.',
+          'Scrivi un brano nuovo.',
+          'Aggiungi un libro da un link che qualcuno ti ha mandato, o da uno zip.',
+          'Apri il libro di esempio per provare.',
+          'Salva tutto, quando ci sono brani con modifiche non ancora salvate.',
+        ],
+      },
+      book: {
+        title: 'Un libro',
+        summary:
+          'Un libro di brani: i suoi brani, le scalette, i file e, quando è su Estante, le persone che lo condividono.',
+        points: [
+          'Apri un brano per leggerlo, o iniziane uno nuovo con Nuovo brano.',
+          'Crea una scaletta dalla scheda Scalette.',
+          'Gestisci il libro: rinominalo, mettilo online, scaricalo, guardane i file, fallo tuo, o toglilo da questa libreria.',
+          'Condividilo: invita persone a leggerlo o modificarlo, una volta online.',
+        ],
+      },
+      setlists: {
+        title: 'Scalette',
+        summary:
+          'Tutte le scalette di tutti i libri: brani nell’ordine in cui li suoni, ciascuno nella tonalità in cui lo suoni.',
+        points: [
+          'Apri una scaletta per vederne i brani.',
+          'Crea una nuova scaletta in un libro.',
+          'Suona una scaletta dall’inizio alla fine, un brano dopo l’altro.',
+        ],
+      },
+      setlist: {
+        title: 'Una scaletta',
+        summary:
+          'Brani in ordine, ciascuno nella tonalità in cui lo suoni. Riproduci li scorre uno a uno, tenendo lo schermo acceso.',
+        points: [
+          'Apri un brano dalla sua riga.',
+          'Suonala dall’inizio alla fine, un brano dopo l’altro.',
+          'Modificala: trascina i brani per ordinarli, dai a ciascuno una tonalità e una nota, aggiungi o togli brani.',
+          'Condividila con le persone del libro.',
+        ],
+      },
+      song: {
+        title: 'Leggere un brano',
+        summary:
+          'Il brano come sigla, poi la forma di ogni accordo sul tuo strumento. Ciò che mostra segue lo strumento in uso.',
+        points: [
+          'Trasponi per leggerlo in un’altra tonalità; il brano in sé non cambia.',
+          'Leggilo a schermo intero, senza nient’altro.',
+          'Nomina gli accordi come suonano, per vedere l’accordo che suona la tua forma.',
+          'Dal menu, arrangialo per il tuo strumento, modificalo, guardane la cronologia, stampalo o aggiungilo a una scaletta.',
+        ],
+      },
+      editor: {
+        title: 'Modificare un brano',
+        summary:
+          'Il testo del brano, in cifra.md, accanto a un’anteprima di come si legge. Le modifiche sono conservate mentre scrivi e diventano una versione quando salvi.',
+        points: [
+          'Scrivi gli accordi dentro i blocchi, ciascuno sopra le parole a cui va.',
+          'Usa l’Aiuto dell’editor per il formato: parti, battute, ritornelli e note.',
+          'Tocca un accordo nell’anteprima per sceglierne la forma.',
+          'Salva per tenere una versione che gli altri vedono; fino ad allora la modifica resta solo su questo dispositivo.',
+        ],
+      },
+      arrange: {
+        title: 'Arrangiare',
+        summary:
+          'Scegliere come si suona ogni accordo sul tuo strumento. Una forma scelta qui viene scritta nel brano, per tutti quelli che lo suonano con la stessa accordatura.',
+        points: [
+          'Tocca un accordo per vederne le forme, dalla più facile, e sceglierne una.',
+          'Scegli per tutti gli accordi con quel nome, o solo per questo.',
+          'Inserisci una forma a mano su un diagramma grande, se la tua non è nell’elenco.',
+          'Scegli queste per ogni accordo non ancora scelto, in un colpo solo.',
+          'Tieni più variazioni, come una serie più semplice per un allievo.',
+        ],
+      },
+      wizard: {
+        title: 'La procedura guidata',
+        summary:
+          'Sceglie una forma per ogni accordo del brano in un colpo solo, secondo una regola che scegli tu — il percorso più scorrevole tra gli accordi, vicino al capotasto, e altre.',
+        points: [
+          'Scegli una regola; Come funziona spiega cosa fa ciascuna.',
+          'Guarda il piano: le forme che sceglierebbe e quanti accordi cambierebbero.',
+          'Scrivi il piano sopra la variazione in uso, o in una nuova variazione.',
+        ],
+      },
+      history: {
+        title: 'Cronologia',
+        summary:
+          'Ogni versione salvata del brano: chi l’ha salvata, quando, e cosa è cambiato.',
+        points: [
+          'Apri una versione per vedere cosa è cambiato.',
+          'Ripristina una versione precedente; torna non salvata, e salvarla crea una nuova versione. Niente della cronologia va perso.',
+        ],
+      },
+      conflicts: {
+        title: 'Conflitti',
+        summary:
+          'Quando le stesse righe di un brano sono state cambiate in due posti, l’app mostra entrambe e chiede quale tenere.',
+        points: [
+          'Passa da un conflitto all’altro: il tuo accanto al loro.',
+          'Tieni il tuo, tieni il loro, o tienili entrambi.',
+          'Oppure modifica il testo tu stesso, da una parte o dall’altra.',
+          'Il libro aspetta, al sicuro, finché ogni conflitto è risolto.',
+        ],
+      },
+      files: {
+        title: 'File',
+        summary:
+          'I file di cui è fatto un libro, così come sono salvati: brani, scalette, cartelle e tutto il resto — e la cronologia del libro.',
+        points: [
+          'Apri un file per vederlo com’è scritto, e modificalo come testo.',
+          'Crea un brano, una scaletta, una cartella o un README.',
+          'Rinomina o elimina un file; i link verso di esso sono aggiornati nello stesso salvataggio.',
+          'Salva tutti i file modificati in una versione.',
+          'Guarda ogni versione dell’intero libro, e ripristinane una.',
+        ],
+      },
+      sharing: {
+        title: 'Condividere',
+        summary:
+          'Le persone che condividono un libro e cosa può fare ciascuna: leggerlo, o anche modificarlo.',
+        points: [
+          'Invita qualcuno con un link, come lettore o come editor.',
+          'Cambia cosa può fare qualcuno, o toglilo.',
+          'Ritira un invito non ancora usato.',
+        ],
+      },
+      explorer: {
+        title: 'Esploratore di accordi',
+        summary:
+          'Tutti i modi di suonare un accordo sul tuo strumento, dal più facile, raggruppati per posizione sul manico.',
+        points: [
+          'Cambia l’accordo in alto.',
+          'Mostra altre forme in una posizione.',
+          'Metti la stella a una forma per farla tua; la tua forma è usata dove un brano non ne ha scelta una.',
+          'Inserisci una forma a mano su un diagramma grande.',
+        ],
+      },
+      instruments: {
+        title: 'Strumenti',
+        summary:
+          'Gli strumenti che suoni, ciascuno con la sua accordatura. Quello in uso decide ogni forma che l’app mostra.',
+        points: [
+          'Cambia lo strumento in uso.',
+          'Aggiungi uno strumento o un’accordatura tua.',
+          'Guarda e togli le tue forme.',
+          'Imposta le regole di esecuzione: quali forme contano come suonabili per te.',
+        ],
+      },
+      account: {
+        title: 'Account',
+        summary:
+          'Il tuo account su Estante e le tue preferenze: tema, dimensione, lingua, come si disegnano i diagrammi e i nomi degli accordi, e il tuo nome.',
+        points: [
+          'Accedi, o crea un account, per tenere i libri online e condividerli.',
+          'Scegli un tema, una densità e una lingua.',
+          'Disegna i diagrammi per mancini o orizzontali, e nomina gli accordi come scritti o come suonano.',
+          'Aggiungi un’email di recupero, o esci.',
+        ],
+      },
+      addBook: {
+        title: 'Aggiungere un libro',
+        summary:
+          'Un libro arriva in libreria da un link che qualcuno ti ha mandato, o da uno zip di un libro.',
+        points: [
+          'Incolla un link a un libro su Estante per aprirlo.',
+          'Scegli uno zip di un libro, con o senza la cronologia; vedi cosa contiene prima che venga aggiunto.',
+        ],
+      },
+    },
+    tour: {
+      label: 'Giro',
+      count: '{n} di {total}',
+      skip: 'Salta il giro',
+      back: 'Indietro',
+      next: 'Avanti',
+      done: 'Fatto',
+      sampleLabel: 'Una riga di sigla',
+      sample: '# Una riga di sigla\n\n```\nG            Em\nCanta piano e leggero\n```\n',
+      welcome: {
+        title: 'Benvenuto in Estante',
+        body:
+          'Estante è una libreria di libri di brani da cui suonare. Un libro contiene brani e scalette — tuoi, o di qualcuno che li condivide con te — e funziona su ogni dispositivo che usi.',
+      },
+      search: {
+        title: 'Trova un brano',
+        body:
+          'La Ricerca guarda in tutti i libri della tua libreria insieme: un titolo, un artista, o un verso che ricordi.',
+      },
+      read: {
+        title: 'Leggi e suona',
+        body:
+          'Un brano si legge come sigla, gli accordi sopra le parole a cui vanno. Trasponilo nella tua tonalità, o leggilo a schermo intero mentre suoni.',
+      },
+      instrument: {
+        title: 'Il tuo strumento',
+        body:
+          'Il chip in alto dice quale strumento è in uso. Ogni forma di accordo lo segue — chitarra, cavaquinho, ukulele o un’accordatura tua.',
+      },
+      arrange: {
+        title: 'Arrangia',
+        body:
+          'Tocca un accordo per scegliere come lo suoni. La scelta viene scritta nel brano, così tutti con lo stesso strumento lo suonano allo stesso modo.',
+      },
+      edit: {
+        title: 'Scrivi e modifica',
+        body:
+          'Scrivi un brano o cambiane uno nell’editor, con l’anteprima accanto. Salva tiene una versione; la Cronologia le mostra tutte, e chi le ha fatte.',
+      },
+      setlists: {
+        title: 'Scalette',
+        body:
+          'Metti i brani nell’ordine in cui li suoni, ciascuno nella sua tonalità, e suonali uno dopo l’altro.',
+      },
+      offline: {
+        title: 'Funziona senza rete',
+        body:
+          'Tutto funziona offline, e le modifiche partono quando c’è di nuovo rete. Accedi per tenere i libri online e condividerli.',
+      },
+      help: {
+        title: 'L’aiuto è sempre qui',
+        body:
+          'Il punto interrogativo su ogni pagina dice a cosa serve. Da lì puoi rifare questo giro.',
+      },
+    },
+  },
 };

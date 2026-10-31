@@ -1,0 +1,133 @@
+/* Help and the tour (workflow 18). Layout only — colour comes from the theme
+   tokens through the shared classes (.dialog, .btn, .card, .t-*). */
+
+.help-panel,
+.help-tour {
+  width: min(560px, 94vw);
+  box-sizing: border-box;
+  max-height: calc(100% - var(--u) * 4);
+  overflow-y: auto;
+}
+
+.help-dialog,
+.help-tour-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.5);
+  outline: none;
+}
+
+.help-dialog .sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.help-kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+.help-title {
+  margin: 0;
+}
+.help-title:focus {
+  outline: none;
+}
+.help-back {
+  align-self: flex-start;
+}
+.help-summary {
+  margin: calc(var(--u) * 0.75) 0 0;
+}
+.help-subhead {
+  margin: calc(var(--u) * 1.5) 0 calc(var(--u) * 0.75);
+}
+.help-points {
+  margin: 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.75);
+}
+
+/* Other pages: every page's help by name, as a wrapping row of quiet links. */
+.help-others {
+  border-top: 1px solid var(--line);
+}
+.help-index {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 0.75);
+}
+.help-index-item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--ink);
+  padding: calc(var(--u) * 0.5) calc(var(--u) * 1.25);
+  font: 600 14px var(--font-ui);
+  cursor: pointer;
+}
+.help-index-item[data-focus-visible] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.help-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--u);
+  padding-top: calc(var(--u) * 1.5);
+  border-top: 1px solid var(--line);
+}
+
+/* The tour's card. */
+.help-tour-count {
+  margin: 0;
+}
+.help-tour-title {
+  margin: 0;
+}
+.help-tour-body {
+  margin: calc(var(--u) * 1) 0 0;
+}
+.help-tour-picture {
+  display: flex;
+  justify-content: center;
+}
+.help-tour-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.help-tour-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line);
+}
+.help-tour-dots span.on {
+  background: var(--accent);
+}
+.help-tour-actions {
+  display: flex;
+  gap: var(--u);
+  justify-content: flex-end;
+}
+.help-tour-skip {
+  margin-right: auto;
+}
+
+/* The first-open offer under the header (workflow 18 §The tour). */
+.tour-offer {
+  align-items: center;
+}
+.screen > .tour-offer,
+.pane.main > .tour-offer {
+  flex: none;
+  margin: var(--u) calc(var(--u) * 2) 0;
+}

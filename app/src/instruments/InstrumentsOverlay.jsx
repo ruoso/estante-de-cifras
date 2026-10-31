@@ -35,6 +35,7 @@ import {
 } from './instrument-helpers.js';
 import { INSTRUMENTS_WIDE_QUERY } from '../shell/layout-mode.js';
 import './instruments.css';
+import HelpButton from '../help/Help.jsx';
 
 // The computer rail (music.instruments_layout Decision 2; see
 // `INSTRUMENTS_WIDE_QUERY`). The same `matchMedia`/`useSyncExternalStore` seam
@@ -197,6 +198,7 @@ export default function InstrumentsOverlay({ store, isOpen, onClose }) {
             <PlusIcon />
           </Button>
         )}
+        <HelpButton page="instruments" />
       </div>
       <div className="scroll instr-scroll">
         {instruments.length ? (

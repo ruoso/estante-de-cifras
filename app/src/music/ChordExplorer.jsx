@@ -35,6 +35,7 @@ import EnterShape from './EnterShape.jsx';
 import { groupViewModel, spokenShorthand } from './fingering-groups.js';
 import { BackIcon, StarIcon } from './icons.jsx';
 import './music.css';
+import HelpButton from '../help/Help.jsx';
 
 export default function ChordExplorer({
   store,
@@ -258,6 +259,7 @@ export default function ChordExplorer({
       </Button>
       <span className="title explorer-title">{t('explorer.title')}</span>
       {mode === 'wide' ? null : <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />}
+      <HelpButton page="explorer" />
     </div>
   );
 

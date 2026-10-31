@@ -29,6 +29,11 @@ export const initialState = {
   // producer that reads the home book (storage.preferences_surface) is deferred,
   // so while absent the app's theme is automatic, following the device.
   preferences: {},
+  // Whether the Worker has surfaced the preferences at all yet: `{}` above is
+  // both "none chosen" and "not read yet", and the first-open tour offer
+  // (workflow 18) must tell them apart so it never flashes on a device that
+  // has answered it. Turns true on the first PREFERENCES and stays true.
+  preferencesSurfaced: false,
   // The home book's shelf (shelf.json), surfaced as `{ books, local }`: two
   // nested maps of `{value, at}` registers — the shared books keyed by book id
   // (each `label`/`link`/`position`), and this device's local-only books (each
@@ -442,7 +447,9 @@ export function reduce(state, message) {
       // with the reported map of registers. Only this slice moves; a component
       // watching, say, `save` keeps its reference and does not re-render
       // ("only what shows it moves"). An absent payload resets to empty.
-      return { ...state, preferences: message.payload ?? {} };
+      return state.preferencesSurfaced
+        ? { ...state, preferences: message.payload ?? {} }
+        : { ...state, preferences: message.payload ?? {}, preferencesSurfaced: true };
 
     case EventKind.SHELF:
       // The home book's shelf surfaced (or changed): replace the slice with the

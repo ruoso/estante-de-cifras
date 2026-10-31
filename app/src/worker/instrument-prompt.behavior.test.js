@@ -149,3 +149,23 @@ describe('MARK_INSTRUMENT_PROMPT_SEEN — the "answered" flag (songs.first_song)
     }
   });
 });
+
+// The tour offer's flag (workflow 18 §The tour), on the same template.
+describe('MARK_TOUR_OFFERED — the tour offer answered (workflow 18)', () => {
+  it('writes one tourOffered register, re-surfaces PREFERENCES, and survives a reload', async () => {
+    const w = makeWorker();
+    w.store.open();
+    await until(() => expect(w.store.slice('connection').status).toBe('ready'));
+
+    w.store.send(command(CommandKind.MARK_TOUR_OFFERED, { author: AUTHOR }));
+    await until(() => expect(w.store.slice('preferences').tourOffered?.value).toBe(true));
+    expect(w.lastEvent(EventKind.PREFERENCES).payload.tourOffered?.value).toBe(true);
+
+    const endpoint = createLoopbackEndpoint((port) =>
+      createWorkerLogic(port, { indexedDB: w.idb, name: w.name, fetch: () => Promise.reject(new Error('offline')) }),
+    );
+    const store2 = createStore(endpoint);
+    store2.open();
+    await until(() => expect(store2.slice('preferences').tourOffered?.value).toBe(true));
+  });
+});

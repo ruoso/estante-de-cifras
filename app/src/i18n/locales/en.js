@@ -2932,4 +2932,260 @@ export default {
       confirm: 'Remove',
     },
   },
+  // Help on every page and the tour (workflow 18): each page's help
+  // ({ title, summary, points }) and the tour's cards ({ title, body }).
+  help: {
+    kicker: 'Help',
+    close: 'Close help',
+    buttonFor: 'Help: {page}',
+    canDo: 'What you can do here',
+    others: 'Other pages',
+    backTo: 'Back to {page}',
+    tourLine: 'New here, or want a refresher?',
+    takeTour: 'Take the tour',
+    offer: 'New to Estante? A short tour shows how it works.',
+    offerTake: 'Take the tour',
+    offerLater: 'No, thanks',
+    pages: {
+      search: {
+        title: 'Search',
+        summary:
+          'Finds a song across every book on your shelf, by its title, its artist or its words. A chord typed here opens the chord explorer.',
+        points: [
+          'Type part of a title, an artist, a section, a line you remember, or chords.',
+          'Search only in one book.',
+          'Open a result to read and play it, or add it to a setlist.',
+          'Explore a chord, such as Cm7, to see every way to play it.',
+          'Paste a whole song to start a new one with it.',
+        ],
+      },
+      books: {
+        title: 'Books',
+        summary:
+          'Your shelf: every songbook on this device. A book is a set of songs and setlists, kept in step on every device and with everyone it is shared with.',
+        points: [
+          'Open a book to see its songs and setlists.',
+          'Write a song; it goes into My songs if you do not choose a book.',
+          'Add a book from a link someone sent you, or from files.',
+          'Open the example book to try things out.',
+          'Save all, when songs have changes not saved yet.',
+        ],
+      },
+      book: {
+        title: 'A book',
+        summary:
+          'One songbook: its songs, its setlists, its files and, when it is on Estante, the people who share it.',
+        points: [
+          'Open a song to read it, or start a new one with New song.',
+          'Make a setlist from the Setlists tab.',
+          'Manage the book: rename it, put it online, download it, see its files, make it your own, or remove it from this shelf.',
+          'Share it: invite people to read or edit it, once it is online.',
+        ],
+      },
+      setlists: {
+        title: 'Setlists',
+        summary:
+          'Every setlist from every book: songs in the order you play them, each in the key you play it.',
+        points: [
+          'Open a setlist to see its songs.',
+          'Make a new setlist in a book.',
+          'Play a setlist through, one song after the other.',
+        ],
+      },
+      setlist: {
+        title: 'A setlist',
+        summary:
+          'Songs in order, each in the key you play it in. Play goes through them one by one, with the screen kept awake.',
+        points: [
+          'Open a song from its row.',
+          'Play it through, one song after the next.',
+          'Edit it: drag songs into order, give each a key and a note, add or remove songs.',
+          'Share it with the book’s people.',
+        ],
+      },
+      song: {
+        title: 'Reading a song',
+        summary:
+          'The song as a chart, then the shape of every chord on your instrument. What it shows follows the instrument in use.',
+        points: [
+          'Transpose to read it in another key; the song itself does not change.',
+          'Read it full screen, with nothing else on it.',
+          'Name chords as voiced, to see the chord your shape sounds.',
+          'Arrange it for your instrument, edit it, see its history, print it or add it to a setlist from the menu.',
+        ],
+      },
+      editor: {
+        title: 'Editing a song',
+        summary:
+          'The song’s text, in cifra.md, beside a preview of how it reads. Changes are kept as you type and saved as a version when you say so.',
+        points: [
+          'Write chords in fences, each over the words they go with.',
+          'Use Help in the editor for the format: parts, bars, repeats and notes.',
+          'Tap a chord in the preview to choose its shape.',
+          'Save to keep a version others can see; until then the change is only on this device.',
+        ],
+      },
+      arrange: {
+        title: 'Arranging',
+        summary:
+          'Choosing how each chord is played on your instrument. A shape chosen here is written into the song, for everyone who plays it on the same tuning.',
+        points: [
+          'Tap a chord to see its shapes, easiest first, and choose one.',
+          'Choose for every chord with that name, or only this one.',
+          'Enter a shape by hand on a big diagram, if yours is not in the list.',
+          'Choose these for every chord not chosen yet, in one go.',
+          'Keep several variations, such as a simpler set for a student.',
+        ],
+      },
+      wizard: {
+        title: 'The wizard',
+        summary:
+          'Chooses a shape for every chord of the song at once, by a policy you pick — the smoothest path between chords, down at the nut, and others.',
+        points: [
+          'Choose a policy; How it works says what each one does.',
+          'See the plan: the shapes it would choose, and how many chords would change.',
+          'Write the plan over the variation in use, or into a new variation.',
+        ],
+      },
+      history: {
+        title: 'History',
+        summary:
+          'Every saved version of the song: who saved it, when, and what changed.',
+        points: [
+          'Open a version to see what changed in it.',
+          'Restore an older version; it comes back unsaved, and saving it makes a new version. Nothing in the history is lost.',
+        ],
+      },
+      conflicts: {
+        title: 'Conflicts',
+        summary:
+          'When the same lines of a song were changed in two places, the app shows both and asks which to keep.',
+        points: [
+          'Go through each conflict: yours beside theirs.',
+          'Keep mine, take theirs, or keep both.',
+          'Or edit the text yourself, from either side.',
+          'The book waits, safely, until every conflict is settled.',
+        ],
+      },
+      files: {
+        title: 'Files',
+        summary:
+          'The files a book is made of, as they are stored: songs, setlists, folders and anything else in it — and the book’s history.',
+        points: [
+          'Open a file to see it as written, and edit it as plain text.',
+          'Make a new song, setlist, folder or README.',
+          'Rename or delete a file; links to it are updated in the same save.',
+          'Save every changed file in one version.',
+          'See every version of the whole book, and restore one.',
+        ],
+      },
+      sharing: {
+        title: 'Sharing',
+        summary:
+          'The people who share a book and what each can do: read it, or also edit it.',
+        points: [
+          'Invite someone with a link, as a reader or an editor.',
+          'Change what someone can do, or remove them.',
+          'Withdraw an invitation not yet used.',
+        ],
+      },
+      explorer: {
+        title: 'Chord explorer',
+        summary:
+          'Every way to play one chord on your instrument, easiest first and grouped by where it sits on the neck.',
+        points: [
+          'Change the chord at the top.',
+          'Show more shapes in a position.',
+          'Star a shape to make it yours; your shape is used wherever a song has not chosen one.',
+          'Enter a shape by hand on a big diagram.',
+        ],
+      },
+      instruments: {
+        title: 'Instruments',
+        summary:
+          'The instruments you play, each with its tuning. The one in use decides every shape the app shows.',
+        points: [
+          'Switch the instrument in use.',
+          'Add an instrument or a tuning of your own.',
+          'See and remove your shapes.',
+          'Set the voicing rules: which shapes count as playable for you.',
+        ],
+      },
+      account: {
+        title: 'Account',
+        summary:
+          'Your account on Estante and your preferences: theme, size, language, how diagrams and chord names are drawn, and your name.',
+        points: [
+          'Sign in, or make an account, to keep books online and share them.',
+          'Choose a theme, a density and a language.',
+          'Draw diagrams left-handed or across, and name chords as written or as voiced.',
+          'Add a recovery email, or sign out.',
+        ],
+      },
+      addBook: {
+        title: 'Adding a book',
+        summary:
+          'A book comes onto the shelf from a link someone sent you, or from a zip of a book.',
+        points: [
+          'Paste a link to a book on Estante to open it.',
+          'Choose a zip of a book, with or without its history; you see what is in it before it is added.',
+        ],
+      },
+    },
+    tour: {
+      label: 'Tour',
+      count: '{n} of {total}',
+      skip: 'Skip tour',
+      back: 'Back',
+      next: 'Next',
+      done: 'Done',
+      sampleLabel: 'A chart line',
+      sample: '# A chart line\n\n```\nG            Em\nSing it slow and easy\n```\n',
+      welcome: {
+        title: 'Welcome to Estante',
+        body:
+          'Estante is a shelf of songbooks you play from. A book holds songs and setlists — your own, or one someone shares with you — and it works on every device you use.',
+      },
+      search: {
+        title: 'Find a song',
+        body:
+          'Search looks through every book on your shelf at once: a title, an artist, or a line you remember.',
+      },
+      read: {
+        title: 'Read and play',
+        body:
+          'A song reads as a chart, chords over the words they go with. Transpose it to your key, or read it full screen while you play.',
+      },
+      instrument: {
+        title: 'Your instrument',
+        body:
+          'The chip at the top says which instrument is in use. Every chord shape follows it — guitar, cavaquinho, ukulele or a tuning of your own.',
+      },
+      arrange: {
+        title: 'Arrange',
+        body:
+          'Tap a chord to choose how you play it. Your choice is written into the song, so everyone on the same instrument plays it the same way.',
+      },
+      edit: {
+        title: 'Write and edit',
+        body:
+          'Write a song or change one in the editor, with a preview beside it. Save keeps a version; History shows every one, and who made it.',
+      },
+      setlists: {
+        title: 'Setlists',
+        body:
+          'Put songs in the order you play them, each in its key, and play them through one after the other.',
+      },
+      offline: {
+        title: 'Works without a network',
+        body:
+          'Everything works offline, and changes go out when there is a network again. Sign in to keep books online and share them with others.',
+      },
+      help: {
+        title: 'Help is always here',
+        body:
+          'The question mark on every page says what that page is for. You can take this tour again from there.',
+      },
+    },
+  },
 };

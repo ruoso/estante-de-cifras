@@ -37,6 +37,10 @@
 .editor-chrome-bottom > .btn {
   flex: 1;
 }
+/* Help keeps its icon's width beside the two word buttons (workflow 18). */
+.editor-chrome-bottom > .help-button {
+  flex: none;
+}
 
 /* The saved-song host's body: one column below the computer, three on it —
    the Unsaved pane, the editor, and on Save the panel (W04#4 L162-207). */

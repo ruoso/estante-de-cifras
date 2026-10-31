@@ -17,6 +17,7 @@
 import { Button } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import './editor-chrome.css';
+import HelpButton from '../help/Help.jsx';
 
 function BackIcon() {
   return (
@@ -67,6 +68,9 @@ export default function EditorChrome({
         <Button ref={saveButtonRef} className="btn primary" onPress={onSave}>
           {t('editor.source.save')}
         </Button>
+        {/* Help about the editor (workflow 18); on a phone the bar has no room
+            beside the title, so it sits in the bottom bar instead. */}
+        {phone ? null : <HelpButton page="editor" />}
       </div>
       {phone && unsaved ? (
         <div className="editor-chrome-strip" role="status">
@@ -83,6 +87,7 @@ export default function EditorChrome({
           <Button className="btn" onPress={onDiscard}>
             {t('saveSheet.discard')}
           </Button>
+          <HelpButton page="editor" />
         </div>
       ) : null}
     </div>

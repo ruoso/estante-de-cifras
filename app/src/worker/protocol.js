@@ -301,6 +301,12 @@ export const CommandKind = Object.freeze({
   // SET_IDENTITY_NAME and USE_INSTRUMENT). It carries only the device commit
   // identity and the boolean — no song text, no path.
   MARK_INSTRUMENT_PROMPT_SEEN: 'mark_instrument_prompt_seen',
+  // Record that the first-open tour offer was answered (workflow 18 §The tour).
+  // MARK_TOUR_OFFERED `{}` writes the `tourOffered` register into
+  // preferences.json, as MARK_INSTRUMENT_PROMPT_SEEN does its flag, and
+  // re-surfaces PREFERENCES so the shell stops offering it — here and, after
+  // sync, on the account's other devices. Offline, auto-committed, never pushed.
+  MARK_TOUR_OFFERED: 'mark_tour_offered',
   // The file view's reads and file operations (books.file_view, workflow 14).
   // BOOK_TREE `{ bookId }` walks the working tree and replies with a TREE event
   // (every allowed file with its working-copy status). MOVE_FILE `{ bookId,

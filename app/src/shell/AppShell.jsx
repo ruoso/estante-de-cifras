@@ -20,11 +20,12 @@
 // task) fill them. The shell is usable with no account and no book (Workflow 1).
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
+import { Button, Tabs, TabList, Tab, TabPanel } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { getAppStore } from '../worker/store.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
+import Tour from '../help/Tour.jsx';
 import SearchScreen from '../songs/SearchScreen.jsx';
 import SongReading from '../songs/SongReading.jsx';
 import SongHistory from '../songs/SongHistory.jsx';
@@ -369,6 +370,12 @@ export default function AppShell({
   const [restoreDismissed, setRestoreDismissed] = useState(false);
   const restore = { dismissed: restoreDismissed, onDismiss: () => setRestoreDismissed(true) };
   const mySongsChoice = useSlice(store, 'mySongsChoice');
+  // The first-open tour (workflow 18 §The tour): offered under the shell's
+  // header until answered either way (the `tourOffered` register), and open
+  // while `touring`. Never on the invited door — that screen is not the shell.
+  const preferences = useSlice(store, 'preferences');
+  const preferencesSurfaced = useSlice(store, 'preferencesSurfaced');
+  const [touring, setTouring] = useState(false);
   const [mySongsLater, setMySongsLater] = useState(false);
 
   // The recovery email's confirm page (account.recovery_email; workflow 13
@@ -1217,6 +1224,33 @@ export default function AppShell({
     />
   );
 
+  // The help the shell's header opens: the book's page while one is open in the
+  // Books destination, else the destination itself (workflow 18).
+  const shellHelpPage = bookPage ? 'book' : selected;
+  // The tour offer (workflow 18 §The tour): an inline notice under the header,
+  // never a modal, until answered. Either answer writes `tourOffered`; *Take the
+  // tour* also opens it. Waits for the preferences slice, so it never flashes
+  // on a device that has already answered.
+  const markTourOffered = () => store.send(command(CommandKind.MARK_TOUR_OFFERED, {}));
+  const tourOffer =
+    preferencesSurfaced && !preferences?.tourOffered ? (
+      <div className="notice accent tour-offer">
+        <span>{t('help.offer')}</span>
+        <Button
+          className="btn"
+          onPress={() => {
+            markTourOffered();
+            setTouring(true);
+          }}
+        >
+          {t('help.offerTake')}
+        </Button>
+        <Button className="btn quiet" onPress={markTourOffered}>
+          {t('help.offerLater')}
+        </Button>
+      </div>
+    ) : null;
+
   // The shell itself: the destinations under their tab bar (phone) or beside the
   // rail (tablet, computer). `booksView` takes the Books panel's place — the
   // paused book panel on a wide layout (sync.conflicts_polish constraint 5;
@@ -1242,6 +1276,7 @@ export default function AppShell({
                 className="side-head"
                 onInstruments={openInstruments}
                 onAccount={() => setAccount(true)}
+                helpPage={shellHelpPage}
               />
               <TabList className="rail" aria-label={t('shell.nav')}>
                 {DESTINATIONS.map((key) => destinationTab(key, 'rail'))}
@@ -1251,6 +1286,7 @@ export default function AppShell({
                 opens over this destination once the device says it is here. */}
             <main className="pane main" aria-busy={resolving ? true : undefined}>
               {banner}
+              {tourOffer}
               <div className="scroll">
                 {destinationPanels(store, setSelected, startNewSong, openBookSongs, setOpenSong, () => setSignIn({}), openByLink, openSetlistOnTab, setAddingToSetlist, search, restore, null, bookActs, signInMine, setUpload, booksView, offerSignIn)}
               </div>
@@ -1268,9 +1304,11 @@ export default function AppShell({
                 className="instr-top"
                 onInstruments={openInstruments}
                 onAccount={() => setAccount(true)}
+                helpPage={shellHelpPage}
               />
             )}
             {banner}
+            {setlistView ? null : tourOffer}
             {/* The TabList renders before the TabPanels so RAC can register the
                 tab ids the panels reference (react-aria tabs link panel↔tab by a
                 shared base id set when the list mounts); the tab bar is placed
@@ -1291,6 +1329,7 @@ export default function AppShell({
         isOpen={instrumentsOpen}
         onClose={() => setInstrumentsOpen(false)}
       />
+      <Tour isOpen={touring} onClose={() => setTouring(false)} />
       {addingToSetlist ? (
         <AddToSetlist
           store={store}

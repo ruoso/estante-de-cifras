@@ -10,6 +10,7 @@
 import { Button } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import InstrumentChip from '../instruments/InstrumentChip.jsx';
+import HelpButton from '../help/Help.jsx';
 
 // The header account affordance (account.account_screen acceptance 1; DIRECTION
 // §6 line 545; mockup Theme-picker — "reached from the header"). Shell chrome
@@ -38,11 +39,15 @@ export function AccountButton({ onOpen }) {
   );
 }
 
-export default function HeaderChrome({ store, className, onInstruments, onAccount }) {
+// `helpPage` puts Help beside the account button, about the destination shown
+// (workflow 18 §Help on every page); the rail heads beside a deep screen pass
+// none, since that screen's own app bar carries its help.
+export default function HeaderChrome({ store, className, onInstruments, onAccount, helpPage }) {
   return (
     <div className={`header-chrome ${className ?? ''}`.trim()}>
       <span className="t-h1 wordmark">{t('app.wordmark')}</span>
       <InstrumentChip store={store} onOpen={onInstruments} />
+      {helpPage ? <HelpButton page={helpPage} /> : null}
       {onAccount ? <AccountButton onOpen={onAccount} /> : null}
     </div>
   );

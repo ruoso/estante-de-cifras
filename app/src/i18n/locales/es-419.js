@@ -2759,4 +2759,260 @@ export default {
       confirm: 'Quitar',
     },
   },
+  // Help on every page and the tour (workflow 18): each page's help
+  // ({ title, summary, points }) and the tour's cards ({ title, body }).
+  help: {
+    kicker: 'Ayuda',
+    close: 'Cerrar la ayuda',
+    buttonFor: 'Ayuda: {page}',
+    canDo: 'Lo que puedes hacer aquí',
+    others: 'Otras páginas',
+    backTo: 'Volver a {page}',
+    tourLine: '¿Eres nuevo, o quieres repasar?',
+    takeTour: 'Hacer el recorrido',
+    offer: '¿Eres nuevo en Estante? Un recorrido corto muestra cómo funciona.',
+    offerTake: 'Hacer el recorrido',
+    offerLater: 'No, gracias',
+    pages: {
+      search: {
+        title: 'Búsqueda',
+        summary:
+          'Encuentra una canción en todos los libros de tu estante, por el título, el artista o la letra. Un acorde escrito aquí abre el explorador de acordes.',
+        points: [
+          'Escribe parte de un título, un artista, una sección, un verso que recuerdes, o acordes.',
+          'Busca solo en un libro.',
+          'Abre un resultado para leerlo y tocarlo, o agrégalo a un repertorio.',
+          'Explora un acorde, como Cm7, para ver todas las formas de tocarlo.',
+          'Pega una canción entera para empezar una nueva con ella.',
+        ],
+      },
+      books: {
+        title: 'Libros',
+        summary:
+          'Tu estante: todos los libros de canciones de este dispositivo. Un libro es un conjunto de canciones y repertorios, al día en todos tus dispositivos y con todos con quienes se comparte.',
+        points: [
+          'Abre un libro para ver sus canciones y repertorios.',
+          'Escribe una canción nueva.',
+          'Agrega un libro desde un enlace que alguien te envió, o desde un zip.',
+          'Abre el libro de ejemplo para probar.',
+          'Guardar todo, cuando hay canciones con cambios sin guardar.',
+        ],
+      },
+      book: {
+        title: 'Un libro',
+        summary:
+          'Un libro de canciones: sus canciones, sus repertorios, sus archivos y, cuando está en Estante, las personas que lo comparten.',
+        points: [
+          'Abre una canción para leerla, o empieza una nueva con Nueva canción.',
+          'Haz un repertorio desde la pestaña Repertorios.',
+          'Administra el libro: cámbiale el nombre, ponlo en línea, descárgalo, mira sus archivos, hazlo tuyo, o quítalo de este estante.',
+          'Compártelo: invita a personas a leerlo o editarlo, una vez en línea.',
+        ],
+      },
+      setlists: {
+        title: 'Repertorios',
+        summary:
+          'Todos los repertorios de todos los libros: canciones en el orden en que las tocas, cada una en el tono en que la tocas.',
+        points: [
+          'Abre un repertorio para ver sus canciones.',
+          'Haz un repertorio nuevo en un libro.',
+          'Toca un repertorio de principio a fin, una canción tras otra.',
+        ],
+      },
+      setlist: {
+        title: 'Un repertorio',
+        summary:
+          'Canciones en orden, cada una en el tono en que la tocas. Reproducir las recorre una por una, con la pantalla siempre encendida.',
+        points: [
+          'Abre una canción desde su fila.',
+          'Tócalo de principio a fin, una canción tras otra.',
+          'Edítalo: arrastra las canciones para ordenarlas, da a cada una un tono y una nota, agrega o quita canciones.',
+          'Compártelo con las personas del libro.',
+        ],
+      },
+      song: {
+        title: 'Leer una canción',
+        summary:
+          'La canción como cifrado, y luego la forma de cada acorde en tu instrumento. Lo que muestra sigue al instrumento en uso.',
+        points: [
+          'Transpón para leerla en otro tono; la canción en sí no cambia.',
+          'Léela en pantalla completa, sin nada más.',
+          'Nombra los acordes como suenan, para ver el acorde que suena tu forma.',
+          'Desde el menú, arréglala para tu instrumento, edítala, mira su historial, imprímela o agrégala a un repertorio.',
+        ],
+      },
+      editor: {
+        title: 'Editar una canción',
+        summary:
+          'El texto de la canción, en cifra.md, junto a una vista previa de cómo se lee. Los cambios se guardan mientras escribes y se vuelven una versión cuando guardas.',
+        points: [
+          'Escribe los acordes dentro de bloques, cada uno sobre las palabras con las que va.',
+          'Usa la Ayuda del editor para el formato: partes, compases, repeticiones y notas.',
+          'Toca un acorde en la vista previa para elegir su forma.',
+          'Guarda para conservar una versión que los demás ven; hasta entonces el cambio queda solo en este dispositivo.',
+        ],
+      },
+      arrange: {
+        title: 'Arreglar',
+        summary:
+          'Elegir cómo se toca cada acorde en tu instrumento. Una forma elegida aquí queda escrita en la canción, para todos los que la tocan con la misma afinación.',
+        points: [
+          'Toca un acorde para ver sus formas, de la más fácil a la más difícil, y elige una.',
+          'Elige para todos los acordes con ese nombre, o solo para este.',
+          'Ingresa una forma a mano en un diagrama grande, si la tuya no está en la lista.',
+          'Elige estas para cada acorde aún sin elegir, de una vez.',
+          'Ten varias variaciones, como un juego más simple para un alumno.',
+        ],
+      },
+      wizard: {
+        title: 'El asistente',
+        summary:
+          'Elige una forma para cada acorde de la canción de una vez, según una política que eliges — el camino más suave entre acordes, cerca de la cejuela, y otras.',
+        points: [
+          'Elige una política; Cómo funciona explica qué hace cada una.',
+          'Mira el plan: las formas que elegiría y cuántos acordes cambiarían.',
+          'Escribe el plan sobre la variación en uso, o en una variación nueva.',
+        ],
+      },
+      history: {
+        title: 'Historial',
+        summary:
+          'Todas las versiones guardadas de la canción: quién la guardó, cuándo y qué cambió.',
+        points: [
+          'Abre una versión para ver qué cambió en ella.',
+          'Restaura una versión anterior; vuelve sin guardar, y guardarla crea una versión nueva. Nada del historial se pierde.',
+        ],
+      },
+      conflicts: {
+        title: 'Conflictos',
+        summary:
+          'Cuando las mismas líneas de una canción se cambiaron en dos lugares, la app muestra ambas y pregunta cuál conservar.',
+        points: [
+          'Recorre cada conflicto: el tuyo junto al suyo.',
+          'Quédate con el tuyo, con el suyo, o con ambos.',
+          'O edita el texto tú mismo, desde cualquiera de los dos.',
+          'El libro espera, a salvo, hasta que todo conflicto esté resuelto.',
+        ],
+      },
+      files: {
+        title: 'Archivos',
+        summary:
+          'Los archivos de los que está hecho un libro, tal como se guardan: canciones, repertorios, carpetas y lo demás — y el historial del libro.',
+        points: [
+          'Abre un archivo para verlo tal como está escrito, y edítalo como texto.',
+          'Crea una canción, un repertorio, una carpeta o un README.',
+          'Cambia el nombre de un archivo o bórralo; los enlaces a él se actualizan en el mismo guardado.',
+          'Guarda todos los archivos cambiados en una versión.',
+          'Mira todas las versiones del libro entero, y restaura una.',
+        ],
+      },
+      sharing: {
+        title: 'Compartir',
+        summary:
+          'Las personas que comparten un libro y lo que cada una puede hacer: leerlo, o también editarlo.',
+        points: [
+          'Invita a alguien con un enlace, como lector o editor.',
+          'Cambia lo que alguien puede hacer, o quítalo.',
+          'Retira una invitación aún no usada.',
+        ],
+      },
+      explorer: {
+        title: 'Explorador de acordes',
+        summary:
+          'Todas las formas de tocar un acorde en tu instrumento, de la más fácil a la más difícil, agrupadas por su posición en el mástil.',
+        points: [
+          'Cambia el acorde arriba.',
+          'Muestra más formas en una posición.',
+          'Marca una forma con la estrella para hacerla tuya; tu forma se usa donde una canción no eligió ninguna.',
+          'Ingresa una forma a mano en un diagrama grande.',
+        ],
+      },
+      instruments: {
+        title: 'Instrumentos',
+        summary:
+          'Los instrumentos que tocas, cada uno con su afinación. El que está en uso decide cada forma que muestra la app.',
+        points: [
+          'Cambia el instrumento en uso.',
+          'Agrega un instrumento o una afinación propia.',
+          'Mira y quita tus formas.',
+          'Ajusta las reglas de ejecución: qué formas cuentan como tocables para ti.',
+        ],
+      },
+      account: {
+        title: 'Cuenta',
+        summary:
+          'Tu cuenta en Estante y tus preferencias: tema, tamaño, idioma, cómo se dibujan los diagramas y los nombres de los acordes, y tu nombre.',
+        points: [
+          'Inicia sesión, o crea una cuenta, para tener libros en línea y compartirlos.',
+          'Elige un tema, una densidad y un idioma.',
+          'Dibuja los diagramas para zurdos o acostados, y nombra los acordes como están escritos o como suenan.',
+          'Agrega un correo de recuperación, o cierra sesión.',
+        ],
+      },
+      addBook: {
+        title: 'Agregar un libro',
+        summary:
+          'Un libro llega al estante desde un enlace que alguien te envió, o desde un zip de un libro.',
+        points: [
+          'Pega un enlace a un libro en Estante para abrirlo.',
+          'Elige un zip de un libro, con o sin su historial; ves lo que contiene antes de agregarlo.',
+        ],
+      },
+    },
+    tour: {
+      label: 'Recorrido',
+      count: '{n} de {total}',
+      skip: 'Saltar el recorrido',
+      back: 'Atrás',
+      next: 'Siguiente',
+      done: 'Listo',
+      sampleLabel: 'Una línea de cifrado',
+      sample: '# Una línea de cifrado\n\n```\nG            Em\nCanta despacito y suave\n```\n',
+      welcome: {
+        title: 'Te damos la bienvenida a Estante',
+        body:
+          'Estante es un estante de libros de canciones para tocar. Un libro guarda canciones y repertorios — tuyos, o de alguien que los comparte contigo — y funciona en todos tus dispositivos.',
+      },
+      search: {
+        title: 'Encuentra una canción',
+        body:
+          'La Búsqueda busca en todos los libros de tu estante a la vez: un título, un artista, o un verso que recuerdes.',
+      },
+      read: {
+        title: 'Lee y toca',
+        body:
+          'Una canción se lee como cifrado, los acordes sobre las palabras con las que van. Transpónla a tu tono, o léela en pantalla completa mientras tocas.',
+      },
+      instrument: {
+        title: 'Tu instrumento',
+        body:
+          'El chip de arriba dice qué instrumento está en uso. Cada forma de acorde lo sigue — guitarra, cavaquinho, ukelele o una afinación propia.',
+      },
+      arrange: {
+        title: 'Arregla',
+        body:
+          'Toca un acorde para elegir cómo lo tocas. Tu elección queda escrita en la canción, y todos con el mismo instrumento la tocan igual.',
+      },
+      edit: {
+        title: 'Escribe y edita',
+        body:
+          'Escribe una canción o cambia una en el editor, con la vista previa al lado. Guardar conserva una versión; el Historial las muestra todas, y quién las hizo.',
+      },
+      setlists: {
+        title: 'Repertorios',
+        body:
+          'Pon las canciones en el orden en que las tocas, cada una en su tono, y tócalas una tras otra.',
+      },
+      offline: {
+        title: 'Funciona sin conexión',
+        body:
+          'Todo funciona sin conexión, y los cambios salen cuando vuelve a haber red. Inicia sesión para tener libros en línea y compartirlos.',
+      },
+      help: {
+        title: 'La ayuda siempre está aquí',
+        body:
+          'El signo de pregunta en cada página dice para qué sirve. Desde ahí puedes volver a hacer este recorrido.',
+      },
+    },
+  },
 };

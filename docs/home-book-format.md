@@ -233,6 +233,9 @@ A flat map of singleton preferences, each a register:
   it, or `"voiced"`, as the chosen shape sounds it (`D7/A` over a `D7` whose
   shape puts the fifth lowest; workflow 2 §Reading a song). Absent until chosen;
   while absent, written. Choosing written again writes the tombstone.
+- `tourOffered` — `true` once the first-open tour offer has been answered,
+  either way (workflow 18 §The tour). Absent until then; while absent, the
+  shell offers the tour.
 
 A reader treats a value of `theme`, `density`, `diagramHanded`,
 `diagramOrientation` or `chordNames` it does not know as absent — the default — and leaves the

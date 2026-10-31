@@ -54,6 +54,7 @@ import { sourcesFor, citation } from '../data/sources.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import { inUseHasChoices, existingFor } from './wizard-choices.js';
 import './wizard.css';
+import HelpButton from '../help/Help.jsx';
 
 // The computer split (see ARRANGE_WIDE_QUERY): the same `matchMedia` /
 // `useSyncExternalStore` seam the reading view uses; a missing `matchMedia`
@@ -530,6 +531,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
               <Button className="btn primary" onPress={onDone}>
                 {t('arrange.done')}
               </Button>
+              <HelpButton page="wizard" />
             </div>
             {/* The preview scrolls and holds no control, so it takes focus itself:
                 a named region the keyboard can reach and scroll (axe
@@ -579,6 +581,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
           <CloseIcon />
         </Button>
         <span className="title">{songTitle(model?.title, t('newSong.untitled'))}</span>
+        <HelpButton page="wizard" />
       </div>
       <div className="scroll wizard-scroll">
         <div className="wizard-body">

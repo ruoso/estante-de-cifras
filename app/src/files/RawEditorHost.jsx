@@ -11,6 +11,7 @@ import { Button } from 'react-aria-components';
 import SongEditor from '../editor/SongEditor.jsx';
 import { t } from '../i18n/index.js';
 import { TrashIcon } from './icons.jsx';
+import HelpButton from '../help/Help.jsx';
 
 export default function RawEditorHost({
   store,
@@ -47,6 +48,7 @@ export default function RawEditorHost({
           >
             <TrashIcon />
           </Button>
+          <HelpButton page="files" />
         </div>
       ) : null}
       <SongEditor

@@ -68,6 +68,7 @@ import { fitPrintColumns } from './print-columns.js';
 import { resolveChordNaming } from '../theme/resolve.js';
 import { READING_ACTIONS_WIDE_QUERY } from '../shell/layout-mode.js';
 import './reading.css';
+import HelpButton from '../help/Help.jsx';
 
 // Keep an offset inside an octave: beyond ±11 is a redundant re-spelling of a
 // smaller one, and the key name wraps anyway.
@@ -861,6 +862,7 @@ export default function SongReading({
                 {t('reading.share')}
               </Button>
               {moreMenu}
+              <HelpButton page="song" />
             </div>
             {wideBody}
           </div>
@@ -885,6 +887,7 @@ export default function SongReading({
               {transposeControl}
               {editButton}
               {moreMenu}
+              <HelpButton page="song" />
             </div>
             {wideBody}
           </div>
@@ -903,6 +906,7 @@ export default function SongReading({
           {titleSpan}
           {transposeControl}
           {moreMenu}
+          <HelpButton page="song" />
         </div>
         {body}
         <div className="reading-actionbar reading-chrome">

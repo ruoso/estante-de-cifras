@@ -35,6 +35,7 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import { titleFor, canSaveFor, orderedBooks } from './book-display.js';
 import PreviewRows from './PreviewRows.jsx';
 import './upload-preview.css';
+import HelpButton from '../help/Help.jsx';
 
 function CancelIcon() {
   return (
@@ -271,6 +272,7 @@ export default function UploadPreview({
           <CancelIcon />
         </Button>
         <span className="title">{t('books.uploadTitle', { name: fileName })}</span>
+        <HelpButton page="addBook" />
       </div>
 
       <div className="scroll upload-body">

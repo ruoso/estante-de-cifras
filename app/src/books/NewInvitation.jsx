@@ -37,6 +37,7 @@ import { invitationSongLink } from './book-route.js';
 import { roomLeft } from './people.js';
 import { BackIcon, CopyLinkButton, errorCopy, SendLinkButton, useSharing } from './sharing-parts.jsx';
 import './sharing.css';
+import HelpButton from '../help/Help.jsx';
 
 const EXPIRY_CHOICES = ['day', 'week', 'month', 'until-withdrawn'];
 const EXPIRY_KEY = {
@@ -277,6 +278,7 @@ export default function NewInvitationScreen({ bookId, title, sharingClient, onBa
         <h1 className="title" id="est-newinv-title">
           {t('sharing.newInvitation')}
         </h1>
+        <HelpButton page="sharing" />
       </div>
       <div className="scroll est-sharing-scroll est-sharing-page">
         <FormOrLink
