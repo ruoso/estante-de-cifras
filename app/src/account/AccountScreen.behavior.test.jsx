@@ -1021,7 +1021,8 @@ describe('Recovery email', () => {
       await screen.findByText('No recovery email');
       const shown = banner();
       expect(shown).toBeInTheDocument();
-      expect(within(shown).getAllByRole('button').map((b) => b.textContent)).toEqual(['Add one']);
+      expect(within(shown).getAllByRole('button').map((b) => b.textContent)).toEqual(['No recovery email yet.', 'Add one']);
+      fireEvent.click(within(shown).getByRole('button', { name: 'No recovery email yet.' }));
       expect(shown).toHaveTextContent(
         'No recovery email yet. If you lose your passkeys, you lose this account and your books on Estante.',
       );

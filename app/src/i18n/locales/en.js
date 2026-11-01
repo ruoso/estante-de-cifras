@@ -928,9 +928,9 @@ export default {
     diagrams: 'Chord diagrams',
     diagramHand: 'Hand',
     diagramHandRight: 'Right-handed',
-    diagramHandRightMeta: 'The default · lowest string on the left',
+    diagramHandRightMeta: 'The default · the string nearest your face on the left',
     diagramHandLeft: 'Left-handed',
-    diagramHandLeftMeta: 'Mirrored · lowest string on the right',
+    diagramHandLeftMeta: 'Mirrored · the string nearest your face on the right',
     diagramNeck: 'Neck',
     diagramNeckVertical: 'Vertical',
     diagramNeckVerticalMeta: 'The default · the nut at the top',
@@ -1175,8 +1175,9 @@ export default {
     fileNameLabel: 'File name',
     fileNameHelp:
       'Named once, from the title. Changing the title later edits its heading, not the file.',
-    nameLabel: 'Your name, as it will appear in a song’s history',
-    nameHelp: 'Asked once. After you sign in, your account’s name is offered instead.',
+    nameLabel: 'Your name',
+    nameHelp: 
+      'Every change you save is signed with it, in a song’s history and for the people you share a book with. Asked once; change it on the account screen.',
     // A field the save needs and does not have says so under it, and the
     // pending Save says it in a word (songs.save_feedback Constraints 3-4).
     nameMissing: 'Enter your name to save.',
@@ -1864,7 +1865,8 @@ export default {
     fallbackName: 'Instrument',
     tuning: 'Tuning',
     strings: 'Strings',
-    stringsHelp: 'Lowest string first. Any comma-separated pitch list works, including re-entrant tunings.',
+    stringsHelp:
+      'From the string nearest your face (the thickest, on a guitar). Any comma-separated pitch list works, including re-entrant tunings like a ukulele’s G4 C4 E4 A4.',
     style: 'How you play',
     styleHelp:
       'It sets which shapes you are offered: fingerstyle allows a muted string in the middle of a chord, strumming does not. The instrument screen can change it later.',
@@ -2135,7 +2137,7 @@ export default {
         voicings: {
           heading: '8. How to play a chord',
           text:
-            'Below a line of ---, a heading with the instrument’s strings, then each chord with its frets from the lowest string; x for a string not played. Arranging for an instrument writes these for you.',
+            'Below a line of ---, a heading with the instrument’s strings, then each chord with its frets from the string nearest your face; x for a string not played. Arranging for an instrument writes these for you.',
           example: '---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- G: 320003\n- C: x32010',
         },
       },
@@ -2880,7 +2882,7 @@ export default {
       customOption: 'Custom tuning',
       customPlaceholder: 'E2 A2 D3 G3 B3 E4',
       tuningHelp:
-        'The tuning is what makes the instrument: each string’s note, lowest string first, with its octave (E2 A2 D3 G3 B3 E4). For a capo, raise every string by as many frets — there is no capo field.',
+        'The tuning is what makes the instrument: each string’s note with its octave, from the string nearest your face (E2 A2 D3 G3 B3 E4 on a guitar, G4 C4 E4 A4 on a ukulele). For a capo, raise every string by as many frets — there is no capo field.',
       name: 'Name',
       howYouPlay: 'How you play',
       howYouPlayHelp: 'The preset. Tune the individual rules later, on the instrument’s screen.',

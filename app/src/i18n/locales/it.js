@@ -856,9 +856,9 @@ export default {
     diagrams: 'Diagrammi degli accordi',
     diagramHand: 'Mano',
     diagramHandRight: 'Destrorso',
-    diagramHandRightMeta: 'Predefinito · la corda più grave a sinistra',
+    diagramHandRightMeta: 'Predefinito · la corda più vicina al viso a sinistra',
     diagramHandLeft: 'Mancino',
-    diagramHandLeftMeta: 'Specchiato · la corda più grave a destra',
+    diagramHandLeftMeta: 'Specchiato · la corda più vicina al viso a destra',
     diagramNeck: 'Manico',
     diagramNeckVertical: 'Verticale',
     diagramNeckVerticalMeta: 'Predefinito · il capotasto in alto',
@@ -1078,8 +1078,9 @@ export default {
     fileNameLabel: 'Nome del file',
     fileNameHelp:
       'Nominato una volta sola, dal titolo. Cambiare il titolo in seguito ne modifica l’intestazione, non il file.',
-    nameLabel: 'Il tuo nome, come apparirà nella cronologia di una canzone',
-    nameHelp: 'Chiesto una volta. Dopo l’accesso, viene offerto il nome del tuo account al suo posto.',
+    nameLabel: 'Il tuo nome',
+    nameHelp: 
+      'Ogni modifica che salvi porta questo nome, nella cronologia della canzone e per chi condivide un libro con te. Chiesto una volta; cambialo nella schermata dell’account.',
     nameMissing: 'Inserisci il tuo nome per salvare.',
     songNameMissing: 'Dai un nome al brano per salvare.',
     saving: 'Salvataggio…',
@@ -1694,7 +1695,7 @@ export default {
     tuning: 'Accordatura',
     strings: 'Corde',
     stringsHelp:
-      'Dalla corda più grave alla più acuta. Va bene qualsiasi elenco di note separate da virgole, comprese le accordature rientranti.',
+      'Dalla corda più vicina al viso (la più spessa, su una chitarra). Va bene qualsiasi elenco di note separate da virgole, comprese le accordature rientranti come quella dell’ukulele, G4 C4 E4 A4.',
     style: 'Come suoni',
     styleHelp:
       'Decide quali forme ti vengono proposte: con il fingerstyle una corda stoppata in mezzo all\'accordo è ammessa, con lo strumming no. La schermata dello strumento lo cambia in seguito.',
@@ -1960,7 +1961,7 @@ export default {
         voicings: {
           heading: '8. Come suonare un accordo',
           text:
-            'Sotto una riga di ---, un titolo con le corde dello strumento, poi ogni accordo con i suoi tasti dalla corda più grave; x per una corda che non si suona. Arrangiare per uno strumento li scrive per te.',
+            'Sotto una riga di ---, un titolo con le corde dello strumento, poi ogni accordo con i suoi tasti dalla corda più vicina al viso; x per una corda che non si suona. Arrangiare per uno strumento li scrive per te.',
           example: '---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- G: 320003\n- C: x32010',
         },
       },
@@ -2708,7 +2709,7 @@ export default {
       customOption: 'Accordatura personalizzata',
       customPlaceholder: 'E2 A2 D3 G3 B3 E4',
       tuningHelp:
-        'L’accordatura è ciò che fa lo strumento: la nota di ogni corda, dalla più grave, con la sua ottava (E2 A2 D3 G3 B3 E4). Per un capotasto, alza ogni corda dello stesso numero di tasti — non c’è un campo capotasto.',
+        'L’accordatura è ciò che fa lo strumento: la nota di ogni corda con la sua ottava, dalla corda più vicina al viso (E2 A2 D3 G3 B3 E4 su una chitarra, G4 C4 E4 A4 su un ukulele). Per un capotasto, alza ogni corda dello stesso numero di tasti — non c’è un campo capotasto.',
       name: 'Nome',
       howYouPlay: 'Come suoni',
       howYouPlayHelp: 'Il preset. Regola le singole regole dopo, nella schermata dello strumento.',

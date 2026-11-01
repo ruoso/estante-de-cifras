@@ -138,8 +138,11 @@ in the shell on every screen:
 > and your books on Estante. — **Add one**
 
 - **Not dismissible**, and not on a timer: it goes only when the address is
-  confirmed. So it is kept to one compact row — the sentence, *Add one* beside
-  it, in the small size — and never grows into a block above every song. A pending address — the link sent, not yet opened — keeps it,
+  confirmed. So it is kept to one compact row — the warning, *No recovery
+  email yet.*, with *Add one* beside it, in the small size — and never grows
+  into a block above every song. The title is a disclosure: pressed, the row
+  grows the sentence that says why (*If you lose your passkeys…*), and pressed
+  again it folds back (the persona exploration of 2026-11-01). A pending address — the link sent, not yet opened — keeps it,
   since a link not opened is no way back in.
 - **Add one** opens the account screen at its Recovery email region, focus on
   the region (its field, in the *none* state). The banner is on the account

@@ -212,7 +212,8 @@ shorthand:
 
 - **Hand** — **Right-handed** (the default) or **Left-handed**, the strings
   drawn in the opposite order: on the vertical chord box an exact mirror, the
-  lowest string on the right, as a left-handed player sees their own
+  string nearest the player's face on the right (the lowest, on a guitar; the
+  re-entrant G, on a ukulele), as a left-handed player sees their own
   instrument.
 - **Neck** — **Vertical** (the default), the chord box with the nut at the top,
   or **Horizontal**, the neck lying across with the nut at the left and the

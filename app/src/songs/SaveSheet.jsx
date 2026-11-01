@@ -242,7 +242,9 @@ function SaveForm({
         >
           <Label>{t('saveSheet.nameLabel')}</Label>
           <Input className="input" ref={nameRef} />
-          <span className="t-small">{t('saveSheet.nameHelp')}</span>
+          <Text slot="description" className="t-small">
+            {t('saveSheet.nameHelp')}
+          </Text>
           <FieldError className="t-small est-save-field-error" role="alert">
             {t('saveSheet.nameMissing')}
           </FieldError>

@@ -614,13 +614,22 @@ describe('Recovery-email banner', () => {
     });
   }
 
-  it('reads in words, is not dismissible and is not a live region: one button, Add one', async () => {
+  it('reads in words, is not dismissible and is not a live region: its title folds the why, and Add one', async () => {
     renderShell({ email: null, pending: null });
     const shown = await screen.findByRole('region', { name: BANNER });
+    // One compact row: the title and Add one; the sentence that says why is
+    // folded under the title until it is pressed.
+    expect(within(shown).getAllByRole('button').map((b) => b.textContent)).toEqual([BANNER, 'Add one']);
+    const toggle = within(shown).getByRole('button', { name: BANNER });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(within(shown).getByText(/If you lose your passkeys/)).not.toBeVisible();
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(shown).toHaveTextContent(
       'No recovery email yet. If you lose your passkeys, you lose this account and your books on Estante.',
     );
-    expect(within(shown).getAllByRole('button').map((b) => b.textContent)).toEqual(['Add one']);
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(['status', 'alert']).not.toContain(shown.getAttribute('role'));
     expect(shown).not.toHaveAttribute('aria-live');
     expect(shown.querySelector('[aria-live], [role="status"], [role="alert"]')).toBeNull();

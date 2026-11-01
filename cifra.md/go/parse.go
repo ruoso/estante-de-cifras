@@ -961,7 +961,7 @@ func (p *songParser) voicingsLine(raw string, lineno int, blk *block, skipping b
 		tn, err := parseTuning(tuningText)
 		if err != nil {
 			p.diagText("bad-block-heading", lineno,
-				"not a tuning: "+pyReprStr(tuningText)+". A tuning is the open strings as pitches with octave numbers, lowest string first, like E2 A2 D3 G3 B3 E4 for a guitar or G4 C4 E4 A4 for a ukulele",
+				"not a tuning: "+pyReprStr(tuningText)+". A tuning is the open strings as pitches with octave numbers, from the string nearest the player's face, like E2 A2 D3 G3 B3 E4 for a guitar or G4 C4 E4 A4 for a ukulele",
 				raw)
 			return nil, true
 		}

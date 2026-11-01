@@ -49,13 +49,19 @@ const DESTINATIONS = ['Search', 'Books', 'Setlists'];
 
 const banner = (page) => page.getByRole('region', { name: BANNER, exact: true });
 
-// The banner as the boards draw it: in words, with one button, Add one.
+// The banner as the boards draw it: one compact row, its title folding the
+// sentence that says why, and Add one.
 async function expectBanner(page) {
   const shown = banner(page);
   await expect(shown).toBeVisible();
-  await expect(shown).toContainText('If you lose your passkeys, you lose this account and your books on Estante.');
-  await expect(shown.getByRole('button')).toHaveCount(1);
+  await expect(shown.getByRole('button')).toHaveCount(2);
   await expect(shown.getByRole('button', { name: 'Add one' })).toBeVisible();
+  const why = shown.getByText('If you lose your passkeys, you lose this account and your books on Estante.');
+  await expect(why).toBeHidden();
+  await shown.getByRole('button', { name: BANNER, exact: true }).click();
+  await expect(why).toBeVisible();
+  await shown.getByRole('button', { name: BANNER, exact: true }).click();
+  await expect(why).toBeHidden();
 }
 
 // The banner on each of the three destinations (or its absence).

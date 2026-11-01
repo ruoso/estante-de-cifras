@@ -150,8 +150,12 @@ describe('save sheet — who made the change (§Who made the change)', () => {
     emit(event(EventKind.SAVE_PREVIEW, { bookId: BOOK, previews: [preview()] }));
 
     // The name field is shown and Save waits for it.
-    const field = screen.getByRole('textbox', { name: /Your name/ });
+    const field = screen.getByRole('textbox', { name: 'Your name' });
     expect(field).toBeInTheDocument();
+    // It says why it asks (the persona exploration of 2026-11-01).
+    expect(field).toHaveAccessibleDescription(
+      'Every change you save is signed with it, in a song’s history and for the people you share a book with. Asked once; change it on the account screen.',
+    );
     expect(await checkWcag21aa(screen.getByRole('dialog'))).toHaveNoViolations();
 
     act(() => fireEvent.change(field, { target: { value: 'Ana' } }));

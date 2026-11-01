@@ -856,9 +856,9 @@ export default {
     diagrams: 'Diagramas de acordes',
     diagramHand: 'Mão',
     diagramHandRight: 'Destro',
-    diagramHandRightMeta: 'O padrão · corda mais grave à esquerda',
+    diagramHandRightMeta: 'O padrão · a corda mais perto do rosto à esquerda',
     diagramHandLeft: 'Canhoto',
-    diagramHandLeftMeta: 'Espelhado · corda mais grave à direita',
+    diagramHandLeftMeta: 'Espelhado · a corda mais perto do rosto à direita',
     diagramNeck: 'Braço',
     diagramNeckVertical: 'Vertical',
     diagramNeckVerticalMeta: 'O padrão · a pestana no alto',
@@ -1078,8 +1078,9 @@ export default {
     fileNameLabel: 'Nome do arquivo',
     fileNameHelp:
       'Nomeado uma vez, a partir do título. Mudar o título depois edita o cabeçalho, não o arquivo.',
-    nameLabel: 'Seu nome, como aparecerá no histórico de uma música',
-    nameHelp: 'Perguntado uma vez. Depois de entrar, o nome da sua conta é oferecido no lugar.',
+    nameLabel: 'Seu nome',
+    nameHelp: 
+      'Cada alteração que você salva leva este nome, no histórico da música e para quem divide um livro com você. Perguntado uma vez; mude na tela da conta.',
     nameMissing: 'Digite seu nome para salvar.',
     songNameMissing: 'Dê um nome à música para salvar.',
     saving: 'Salvando…',
@@ -1693,7 +1694,7 @@ export default {
     tuning: 'Afinação',
     strings: 'Cordas',
     stringsHelp:
-      'Da corda mais grave para a mais aguda. Qualquer lista de notas separadas por vírgula serve, inclusive afinações reentrantes.',
+      'A partir da corda mais perto do rosto (a mais grossa, no violão). Qualquer lista de notas separadas por vírgula serve, inclusive afinações reentrantes como a do ukulele, G4 C4 E4 A4.',
     style: 'Como você toca',
     styleHelp:
       'Define quais formas aparecem: no dedilhado uma corda abafada no meio do acorde é permitida, na batida não. A tela do instrumento muda isso depois.',
@@ -1958,7 +1959,7 @@ export default {
         voicings: {
           heading: '8. Como tocar um acorde',
           text:
-            'Abaixo de uma linha de ---, um título com as cordas do instrumento, depois cada acorde com as casas a partir da corda mais grave; x para uma corda que não é tocada. Arranjar para um instrumento escreve isso para você.',
+            'Abaixo de uma linha de ---, um título com as cordas do instrumento, depois cada acorde com as casas a partir da corda mais perto do rosto; x para uma corda que não é tocada. Arranjar para um instrumento escreve isso para você.',
           example: '---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- G: 320003\n- C: x32010',
         },
       },
@@ -2701,7 +2702,7 @@ export default {
       customOption: 'Afinação personalizada',
       customPlaceholder: 'E2 A2 D3 G3 B3 E4',
       tuningHelp:
-        'A afinação é o que define o instrumento: a nota de cada corda, da mais grave para a mais aguda, com a oitava (E2 A2 D3 G3 B3 E4). Para um capotraste, suba todas as cordas o mesmo número de casas — não há campo de capotraste.',
+        'A afinação é o que define o instrumento: a nota de cada corda com a oitava, a partir da corda mais perto do rosto (E2 A2 D3 G3 B3 E4 no violão, G4 C4 E4 A4 no ukulele). Para um capotraste, suba todas as cordas o mesmo número de casas — não há campo de capotraste.',
       name: 'Nome',
       howYouPlay: 'Como você toca',
       howYouPlayHelp: 'O preset. Ajuste as regras individuais depois, na tela do instrumento.',

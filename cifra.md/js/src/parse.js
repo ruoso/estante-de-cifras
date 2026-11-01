@@ -606,7 +606,7 @@ class Parser {
           "bad-block-heading",
           lineno,
           `not a tuning: ${pyRepr(tuningText)}. A tuning is the open strings as pitches with octave numbers, ` +
-            "lowest string first, like E2 A2 D3 G3 B3 E4 for a guitar or G4 C4 E4 A4 for a ukulele",
+            "from the string nearest the player's face, like E2 A2 D3 G3 B3 E4 for a guitar or G4 C4 E4 A4 for a ukulele",
           raw,
         );
         return [null, true];

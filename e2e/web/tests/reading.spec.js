@@ -155,16 +155,16 @@ test('transposes and remembers the offset across a reload', async ({ page, check
   await openSongFromSearch(page, SEARCH, SONG_TITLE);
 
   // Step up a semitone through the transpose popover, then close it: the one
-  // row carries the state (songs.transpose_chrome AC1) — the keyless song says
-  // its first chord's move, never a bare offset, and the way back to "the
-  // written key" (Decision 4).
+  // row carries the state (songs.transpose_chrome AC1) — the keyless song is
+  // named by the key its first chord gives, never a bare offset, and the way
+  // back names that key (workflow 2 §Transposing).
   await page.getByRole('button', { name: 'Transpose' }).click();
   await page.getByRole('button', { name: 'Up a semitone' }).click();
-  await expect(page.getByRole('dialog').getByText(/^\S+ → \S+ \(\+1\)$/)).toBeVisible();
+  await expect(page.getByRole('dialog').getByText(/^\S+ \(\+1\)$/)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(page.getByText(/^Transposed: \S+ → \S+ \(\+1\)$/)).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Back to the written key' })).toHaveCount(1);
+  await expect(page.getByText(/^Transposed to \S+ \(\+1\)$/)).toHaveCount(1);
+  await expect(page.getByRole('button', { name: /^Back to \S+$/ })).toHaveCount(1);
   await checkA11y(); // transposed state
 
   // Reload and reopen — the offset is remembered per song in the home book.

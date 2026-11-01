@@ -230,8 +230,8 @@ nothing it does not need. It is bundled with the app, so it opens offline.
    ````
 
 8. **How to play a chord** — *Below a line of ---, a heading with the
-   instrument's strings, then each chord with its frets from the lowest
-   string; x for a string not played. Arranging for an instrument writes these
+   instrument's strings, then each chord with its frets from the string
+   nearest your face; x for a string not played. Arranging for an instrument writes these
    for you (workflow 5).*
 
    ```

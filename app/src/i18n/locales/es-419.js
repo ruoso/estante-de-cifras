@@ -857,9 +857,9 @@ export default {
     diagrams: 'Diagramas de acordes',
     diagramHand: 'Mano',
     diagramHandRight: 'Diestro',
-    diagramHandRightMeta: 'Predeterminado · la cuerda más grave a la izquierda',
+    diagramHandRightMeta: 'Predeterminado · la cuerda más cercana a la cara a la izquierda',
     diagramHandLeft: 'Zurdo',
-    diagramHandLeftMeta: 'En espejo · la cuerda más grave a la derecha',
+    diagramHandLeftMeta: 'En espejo · la cuerda más cercana a la cara a la derecha',
     diagramNeck: 'Mástil',
     diagramNeckVertical: 'Vertical',
     diagramNeckVerticalMeta: 'Predeterminado · la cejuela arriba',
@@ -1079,8 +1079,9 @@ export default {
     fileNameLabel: 'Nombre de archivo',
     fileNameHelp:
       'Se nombra una sola vez, a partir del título. Cambiar el título después edita su encabezado, no el archivo.',
-    nameLabel: 'Tu nombre, tal como aparecerá en el historial de una canción',
-    nameHelp: 'Se pregunta una vez. Al iniciar sesión, se ofrece el nombre de tu cuenta en su lugar.',
+    nameLabel: 'Tu nombre',
+    nameHelp: 
+      'Cada cambio que guardas lleva este nombre, en el historial de la canción y para quienes comparten un libro contigo. Se pregunta una vez; cámbialo en la pantalla de la cuenta.',
     nameMissing: 'Escribe tu nombre para guardar.',
     songNameMissing: 'Ponle un nombre a la canción para guardar.',
     saving: 'Guardando…',
@@ -1694,7 +1695,7 @@ export default {
     tuning: 'Afinación',
     strings: 'Cuerdas',
     stringsHelp:
-      'De la cuerda más grave a la más aguda. Sirve cualquier lista de notas separadas por comas, incluidas las afinaciones reentrantes.',
+      'Desde la cuerda más cercana a la cara (la más gruesa, en una guitarra). Sirve cualquier lista de notas separadas por comas, incluidas las afinaciones reentrantes como la del ukelele, G4 C4 E4 A4.',
     style: 'Cómo tocas',
     styleHelp:
       'Define qué formas se ofrecen: con los dedos se permite una cuerda apagada en medio del acorde; al rasguear, no. La pantalla del instrumento lo cambia después.',
@@ -1960,7 +1961,7 @@ export default {
         voicings: {
           heading: '8. Cómo tocar un acorde',
           text:
-            'Debajo de una línea de ---, un encabezado con las cuerdas del instrumento, y luego cada acorde con sus trastes desde la cuerda más grave; x para una cuerda que no se toca. Hacer un arreglo para un instrumento los escribe por ti.',
+            'Debajo de una línea de ---, un encabezado con las cuerdas del instrumento, y luego cada acorde con sus trastes desde la cuerda más cercana a la cara; x para una cuerda que no se toca. Hacer un arreglo para un instrumento los escribe por ti.',
           example: '---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- G: 320003\n- C: x32010',
         },
       },
@@ -2707,7 +2708,7 @@ export default {
       customOption: 'Afinación personalizada',
       customPlaceholder: 'E2 A2 D3 G3 B3 E4',
       tuningHelp:
-        'La afinación es lo que define el instrumento: la nota de cada cuerda, de la más grave a la más aguda, con su octava (E2 A2 D3 G3 B3 E4). Para una cejilla, sube cada cuerda los mismos trastes — no hay campo de cejilla.',
+        'La afinación es lo que define el instrumento: la nota de cada cuerda con su octava, desde la cuerda más cercana a la cara (E2 A2 D3 G3 B3 E4 en una guitarra, G4 C4 E4 A4 en un ukelele). Para una cejilla, sube cada cuerda los mismos trastes — no hay campo de cejilla.',
       name: 'Nombre',
       howYouPlay: 'Cómo tocas',
       howYouPlayHelp: 'El preset. Ajusta las reglas individuales después, en la pantalla del instrumento.',
