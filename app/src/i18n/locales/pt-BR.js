@@ -17,6 +17,8 @@ export default {
   },
 
   shell: {
+    // A save landed (SavedNotice); `{book}` the book's name.
+    savedTo: 'Salvo em {book}',
     nav: 'Destinos',
     search: 'Busca',
     books: 'Livros',
@@ -100,6 +102,8 @@ export default {
     renameTitle: 'Renomear “{name}”',
     renameField: 'Nome na sua estante',
     empty: 'Nenhum livro ainda. Adicione um livro para começar.',
+    emptySignedOut: 'Ainda não há livros neste aparelho. Os livros guardados no Estante voltam quando você entra, ou adicione um livro para começar.',
+    emptySignIn: 'Entrar',
     syncing: 'sincronizando',
     savesWaiting: {
       one: '{count} alteração aguardando para subir',
@@ -188,7 +192,7 @@ export default {
     sharedBy: 'compartilhado por {owner}',
     shared: 'compartilhado',
     youOwn: 'Você é o dono',
-    youCanSave: 'Você pode salvar',
+    youCanSave: 'Você pode editar',
     readOnly: 'Somente leitura',
     putOnline: 'Colocar online',
     putOnlineBody:
@@ -388,7 +392,7 @@ export default {
     },
     fullCallout: '{book} está cheio. Este link não deixa ninguém entrar até você remover alguém.',
     seeWhoJoins: 'Você vai ver quem entra por ele, e pode retirá-lo a qualquer momento.',
-    createLink: 'Criar link',
+    createLink: 'Criar link de convite',
     linkReady: 'Aqui está o link. Envie como quiser; dá para copiá-lo de novo enquanto ele ainda deixar alguém entrar.',
     linkLabel: 'Link do convite',
     copy: 'Copiar',
@@ -483,7 +487,7 @@ export default {
     conflict: 'conflito',
     where: '{book} · {folder}/',
     addToSetlist: 'Adicionar {title} a um repertório',
-    addToSetlistWord: 'Repertório',
+    addToSetlistWord: 'Pôr no repertório',
     setlist: 'Repertório',
   },
 
@@ -548,6 +552,7 @@ export default {
     newSetlistTitle: 'Novo repertório',
     newSetlistNameLabel: 'Nome do repertório',
     newSetlistNamePlaceholder: 'Nome do repertório',
+    newSetlistNameNeeded: 'Dê um nome para criar.',
     newSetlistNoBook: 'O livro desta música é só para leitura e Minhas músicas não está neste aparelho, então não há livro onde guardar um novo repertório.',
     create: 'Criar',
     // The New setlist dialog's book choice, and Add to setlist's made step
@@ -570,7 +575,7 @@ export default {
     nextHeading: 'Próxima',
     nextItem: '{number}. {title}',
     note: 'Observação: {note}',
-    hint: 'Deslize, toque numa borda ou use um pedal',
+    hint: 'Para mudar de música: deslize, toque na borda da tela ou use um pedal',
     announce: '{title}, {i} de {n}',
     announceNext: 'Próxima: {title}',
     empty: 'Este repertório ainda não tem músicas para tocar.',
@@ -1542,6 +1547,7 @@ export default {
     variationDefault: 'Padrão',
     transpose: 'Transpor',
     transposeTitle: 'Transpor a visualização',
+    transposeHint: 'Cada passo é meio tom. Dois passos fazem um tom.',
     down: 'Um semitom abaixo',
     up: 'Um semitom acima',
     writtenKey: 'Tom escrito',
@@ -1843,6 +1849,8 @@ export default {
       text: 'Texto',
       preview: 'Prévia',
       previewLabel: 'Prévia da música como ela será lida',
+      // A voicing block's notes under the preview; `{block}` its name.
+      blockNotes: 'Notas em {block}:',
       arrangeBlocked: 'Corrija as linhas marcadas no texto para escolher formas aqui.',
       addSection: 'Adicionar seção',
       // The name a section added by Add section comes with, selected to retype.
@@ -1977,6 +1985,7 @@ export default {
     // saved version (sync.in_place_notices; W08#3 L96, W04 L107/L158).
     unsaved: 'alterações não salvas',
     // A new song, never saved (EditorChrome).
+    editingWritten: 'Você lê esta música transposta ({offset}). Aqui ela está como foi escrita, no tom original.',
     notSavedYet: 'ainda não salva',
     // The phone's unsaved strip and the computer's Unsaved pane (songs.editor_chrome;
     // W04#1 L35-38, W04#4 L163-168).

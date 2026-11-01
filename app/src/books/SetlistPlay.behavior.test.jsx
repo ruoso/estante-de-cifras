@@ -248,7 +248,7 @@ describe('SetlistPlay — the setlist player', () => {
     expect(screen.getByText('2. No Key Song')).toBeInTheDocument();
     expect(screen.getByText('Note: gentle')).toBeInTheDocument();
     // Position of three playable songs (Gone Song is skipped, never counted).
-    expect(screen.getByText('1 of 5 · screen kept awake')).toBeInTheDocument();
+    expect(screen.getByText('1 of 5 · screen stays on')).toBeInTheDocument();
     await pressKey('ArrowRight'); // No Key Song
     await screen.findByRole('group', { name: 'No Key Song' });
     // From here the Next card points straight at Own Tune — Gone Song is gone.
@@ -287,7 +287,7 @@ describe('SetlistPlay — the setlist player', () => {
     const { wakeLock, onStop } = renderPlayer(store);
     await screen.findByRole('group', { name: 'In G Song' });
     expect(wakeLock.request).toHaveBeenCalledWith('screen');
-    expect(screen.getByText(/screen kept awake/)).toBeInTheDocument();
+    expect(screen.getByText(/screen stays on/)).toBeInTheDocument();
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Stop playing' })));
     expect(onStop).toHaveBeenCalled();
     expect(wakeLock.release).toHaveBeenCalled();
@@ -385,7 +385,7 @@ describe('SetlistPlay — opened at a song (books.setlist_row_opens)', () => {
     const store = makeStore({ texts });
     renderPlayer(store, { startAt: 2 });
     await screen.findByRole('group', { name: 'In G Song' });
-    expect(screen.getByText('2 of 2 · screen kept awake')).toBeInTheDocument();
+    expect(screen.getByText('2 of 2 · screen stays on')).toBeInTheDocument();
     const bar = screen.getByRole('button', { name: 'Stop playing' }).closest('.play-bar');
     expect(within(bar).getByText('In A')).toBeInTheDocument();
     expect(screen.getByText('Setlist key A · written in G')).toBeInTheDocument();
@@ -393,7 +393,7 @@ describe('SetlistPlay — opened at a song (books.setlist_row_opens)', () => {
 
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Previous song' })));
     await screen.findByRole('group', { name: 'No Key Song' });
-    expect(screen.getByText('1 of 2 · screen kept awake')).toBeInTheDocument();
+    expect(screen.getByText('1 of 2 · screen stays on')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Previous song' })).toBeDisabled();
   });
 
@@ -417,7 +417,7 @@ describe('SetlistPlay — opened at a song (books.setlist_row_opens)', () => {
     const store = makeStore({ texts });
     renderPlayer(store, { startAt: 1 });
     await screen.findByRole('group', { name: 'No Key Song' });
-    expect(screen.getByText('1 of 2 · screen kept awake')).toBeInTheDocument();
+    expect(screen.getByText('1 of 2 · screen stays on')).toBeInTheDocument();
   });
 
   it('is axe clean opened at a song with a note', async () => {

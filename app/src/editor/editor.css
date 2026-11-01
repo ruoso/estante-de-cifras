@@ -342,3 +342,9 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* A voicing block's notes under the preview's chart, line for line. */
+.est-editor-block-notes {
+  white-space: pre-line;
+  margin-top: var(--u);
+}

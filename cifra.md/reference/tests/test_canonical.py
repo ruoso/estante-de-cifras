@@ -355,10 +355,12 @@ class TestVoicings:
         text = fenced("C | Cx7(#11b13)") + VOICED + "- C: x32010\n- Cx7(#11b13): x3x330\n- N.C.: xxxxxx\n"
         assert canon(text) == fenced("C | Cx7(#11b13)") + VOICED + "- C: x32010\n- Cx7(#11b13): x3x330\n"
 
-    def test_legacy_forms_are_not_converted(self):
-        # Appendix A: a `key = frets` line is notes to this reader, and stays notes.
-        text = fenced("C") + VOICED + "C = x32010\n"
-        assert canon(text) == text
+    def test_equals_form_is_a_voicing(self):
+        # §7.4, Appendix A.7: the earlier `key = frets` form is a voicing,
+        # written as a list item; one that is not frets stays notes.
+        assert canon(fenced("C") + VOICED + "C = x32010\n") == fenced("C") + VOICED + "- C: x32010\n"
+        notes = fenced("C") + VOICED + "Capo = 2nd fret\n"
+        assert canon(notes) == notes
 
 
 # --- §4.5, §8.4.5 sung lines ------------------------------------------------------------------------

@@ -845,6 +845,17 @@ export default function SongEditor({
               ) : (
                 <Chart model={parsed} label={t('editor.source.previewLabel')} />
               )}
+              {/* A voicing block's notes — its lines that are not voicings —
+                  shown as written, so nothing typed there is lost from view
+                  (cifra.md §7.4; the Sedutor report of 2026-11-01). */}
+              {(parsed?.blocks ?? [])
+                .filter((b) => (b.notes ?? []).some((line) => line.trim() !== ''))
+                .map((b, i) => (
+                  <p className="t-small est-editor-block-notes" key={`${b.label}:${i}`}>
+                    <b>{t('editor.source.blockNotes', { block: b.label || t('reading.variationDefault') })}</b>{' '}
+                    {b.notes.filter((line) => line.trim() !== '').join('\n')}
+                  </p>
+                ))}
             </div>
           </div>
         )}

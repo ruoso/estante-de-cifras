@@ -77,7 +77,7 @@ test('Share on a song in My songs: only on this device, sign in, put online, the
   // (workflow 10 §Nobody in the book yet) — the phone's invite button, the
   // panel's Create link section.
   const inviteButton = surface.getByRole('button', { name: 'Invite someone to this song' });
-  const create = surface.getByRole('button', { name: 'Create link' });
+  const create = surface.getByRole('button', { name: 'Create invitation link' });
   const inviteControl = onPhone() ? inviteButton : create;
   await expect(inviteControl).toBeVisible();
   await expect(surface.getByText('0 of 50').first()).toBeVisible();

@@ -134,9 +134,27 @@ or has the wrong number of strings (§7.5), is a **problem**. A reader MUST
 skip it, MUST report it with the text of the item, and MUST continue with
 the rest of the block. A writer MUST NOT write problems back; see §8.
 
-A line in a block that is not a list item, not a heading, not the rule and
-not blank is **notes**, as in the chart (§1.9): kept as read, in order,
-and not interpreted. Blank lines are not significant. A rule after the
+A line in a block of the form `key = frets` — a key with no whitespace or
+`=` in it, then `=`, then a fret string (§7.5), with or without its
+fingering — is the earlier way of writing a voicing (Appendix A.7), and a
+reader MUST read it as the item `- key: frets`: it is a voicing, or a
+problem when the frets do not fit the tuning, exactly as that item would be.
+Canonical form writes it as the item. A line of that shape whose right side
+is not a fret string, `Capo = 2nd fret`, is notes.
+
+```
+## Voicings: E2 A2 D3 G3 B3 E4
+A = x02220
+Capo = 2nd fret
+```
+
+holds the voicing `A` and the notes line *Capo = 2nd fret*.
+
+A line in a block that is not a list item, not a `key = frets` voicing,
+not a heading, not the rule and not blank is **notes**, as in the chart
+(§1.9): kept as read, in order, and not interpreted. An application shows
+a block's notes with its voicings, so that nothing written there is lost
+from view. Blank lines are not significant. A rule after the
 first is reported and not kept (§1.6), and so is anything in the voicings
 part before its first block heading.
 

@@ -22,6 +22,7 @@ import {
   ModalOverlay,
   Radio,
   RadioGroup,
+  Text,
   TextField,
 } from 'react-aria-components';
 import { t } from '../i18n/index.js';
@@ -79,6 +80,12 @@ export default function NewSetlistDialog({
                 <TextField className="field" value={name} onChange={setName} autoFocus>
                   <Label>{t('setlists.newSetlistNameLabel')}</Label>
                   <Input className="input" placeholder={t('setlists.newSetlistNamePlaceholder')} />
+                  {/* Why Create waits (the UX review of 2026-11-01). */}
+                  {name.trim() ? null : (
+                    <Text slot="description" className="t-small">
+                      {t('setlists.newSetlistNameNeeded')}
+                    </Text>
+                  )}
                 </TextField>
               ) : (
                 <p className="t-small" role="status">

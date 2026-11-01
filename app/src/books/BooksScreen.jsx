@@ -644,6 +644,11 @@ export default function BooksScreen({
   // Mine on Estante's sign-in (books.add_book_chooser Decision 4), called with
   // the sign-in step to open at: 'method' or 'email'.
   onSignIn = () => {},
+  // Signed out, the empty shelf says the account's books are safe on Estante
+  // and offers the first-run sign-in that brings them back (the persona
+  // exploration of 2026-11-01).
+  offerSignIn = false,
+  onSignInFirstRun = () => {},
   // A zip picked from the sheet's Upload row, `{ bytes, fileName }`: the shell
   // opens the full-screen upload preview (books.add_book_chooser Decision 5).
   onUpload = () => {},
@@ -821,9 +826,16 @@ export default function BooksScreen({
           ))}
         </div>
       ) : (
-        <p className="t-small empty" role="status">
-          {t('books.empty')}
-        </p>
+        <div className="empty books-empty">
+          <p className="t-small" role="status">
+            {t(offerSignIn ? 'books.emptySignedOut' : 'books.empty')}
+          </p>
+          {offerSignIn ? (
+            <Button className="btn" onPress={() => onSignInFirstRun()}>
+              {t('books.emptySignIn')}
+            </Button>
+          ) : null}
+        </div>
       )}
       <ElsewhereRows
         elsewhere={shelf?.elsewhere}

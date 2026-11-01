@@ -326,8 +326,10 @@ func TestCanonVoicings(t *testing.T) {
 		// a key an unknown token uses is kept.
 		{chartDoc("C | Cx7(#11b13)") + voiced + "- C: x32010\n- Cx7(#11b13): x3x330\n- N.C.: xxxxxx\n",
 			chartDoc("C | Cx7(#11b13)") + voiced + "- C: x32010\n- Cx7(#11b13): x3x330\n"},
-		// Appendix A legacy forms are not converted: a `key = frets` line is notes.
-		{chartDoc("C") + voiced + "C = x32010\n", chartDoc("C") + voiced + "C = x32010\n"},
+		// The earlier `key = frets` form is a voicing, written as a list item
+		// (§7.4, Appendix A.7); one that is not frets stays notes.
+		{chartDoc("C") + voiced + "C = x32010\n", chartDoc("C") + voiced + "- C: x32010\n"},
+		{chartDoc("C") + voiced + "Capo = 2nd fret\n", chartDoc("C") + voiced + "Capo = 2nd fret\n"},
 	}
 	for _, c := range cases {
 		wantCanon(t, c.in, c.out)

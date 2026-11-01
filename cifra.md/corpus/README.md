@@ -100,6 +100,7 @@ The setlist reading entries (spec §10):
 | 45-setlist-paths | Percent-encoding of the canonical set, non-ASCII kept raw, dot-segments removed, a leading `..`, an accent after a percent-encoded byte (§10.5, §10.9.2) |
 | 46-setlist-link-text | Link text kept as written and not refreshed: escapes, inline Markdown, nested brackets (§10.4.1, §10.9.3) |
 | 47-setlist-text-layer | A BOM, CR and CR LF line ends, tabs, trailing spaces and non-NFC input, normalised in the canonical text (§10.2, §10.9.1) |
+| 48-equals-voicings | The earlier `key = frets` voicing form read as list items, with a fingering, frets that do not fit the tuning reported, and a `Capo = 2nd fret` line kept as notes (§7.4, Appendix A.7) |
 
 ## Merge entries
 

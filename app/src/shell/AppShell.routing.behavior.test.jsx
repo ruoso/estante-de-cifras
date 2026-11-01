@@ -1142,7 +1142,7 @@ describe('AppShell share surfaces (behavior)', () => {
   };
   // Create link on the shown invitation, then Done on the made link.
   async function createThenDone(within_ = screen) {
-    fireEvent.click(await within_.findByRole('button', { name: 'Create link' }));
+    fireEvent.click(await within_.findByRole('button', { name: 'Create invitation link' }));
     expect(await screen.findByRole('textbox', { name: 'Invitation link' })).toHaveValue(
       'https://estante.app/i/tok-done',
     );
@@ -1243,7 +1243,7 @@ describe('AppShell share surfaces (behavior)', () => {
     trigger.focus();
     fireEvent.click(trigger);
     const dialog = await screen.findByRole('dialog', { name: 'New invitation' });
-    fireEvent.click(await within(dialog).findByRole('button', { name: 'Create link' }));
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Create invitation link' }));
     await within(dialog).findByRole('textbox', { name: 'Invitation link' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New invitation' })).toBeNull());
@@ -1444,7 +1444,7 @@ describe('AppShell share surfaces (behavior)', () => {
 
     fireEvent.click(within(people).getByRole('button', { name: 'New invitation' }));
     const dialog = await screen.findByRole('dialog', { name: 'New invitation' });
-    fireEvent.click(await within(dialog).findByRole('button', { name: 'Create link' }));
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Create invitation link' }));
     expect(await within(dialog).findByRole('textbox', { name: 'Invitation link' })).toHaveValue(
       'https://estante.app/i/tok-done',
     );
@@ -1543,7 +1543,7 @@ describe('AppShell share surfaces (behavior)', () => {
     emit(event(EventKind.SOURCE, { bookId: SERVICE, path: SONG_PATH, text: SONG_TEXT }));
 
     const same = screen.getByRole('complementary', { name: `Share ${SONG_TITLE}` });
-    expect(await within(same).findByRole('button', { name: 'Create link' })).toBeInTheDocument();
+    expect(await within(same).findByRole('button', { name: 'Create invitation link' })).toBeInTheDocument();
     expect(within(same).getByText('Invite someone to this song')).toBeInTheDocument();
     await waitFor(() => expect(bookCalls).toContain(`/api/books/${SERVICE}/members`));
     expect(bookCalls.every((p) => p.startsWith(`/api/books/${SERVICE}/`))).toBe(true);
@@ -1661,7 +1661,7 @@ describe('AppShell share surfaces (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     fireEvent.click(await within(sheet).findByRole('button', { name: 'Invite someone to this setlist' }));
-    fireEvent.click(await within(sheet).findByRole('button', { name: 'Create link' }));
+    fireEvent.click(await within(sheet).findByRole('button', { name: 'Create invitation link' }));
     expect(await within(sheet).findByRole('textbox', { name: 'Invitation link' })).toHaveValue(
       `https://estante.app/i/tok-done#${SETLIST_PATH}`,
     );
@@ -1750,7 +1750,7 @@ describe('AppShell share surfaces (behavior)', () => {
     expect(within(same).getByRole('textbox', { name: 'Setlist address' })).toHaveValue(
       `${location.origin}/b/${SERVICE}/${SETLIST_PATH}`,
     );
-    expect(await within(same).findByRole('button', { name: 'Create link' })).toBeInTheDocument();
+    expect(await within(same).findByRole('button', { name: 'Create invitation link' })).toBeInTheDocument();
     expect(within(same).getByText('Invite someone to this setlist')).toBeInTheDocument();
     await waitFor(() => expect(bookCalls).toContain(`/api/books/${SERVICE}/members`));
     expect(bookCalls.every((p) => p.startsWith(`/api/books/${SERVICE}/`))).toBe(true);

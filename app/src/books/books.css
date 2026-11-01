@@ -101,6 +101,13 @@
   color: var(--ink-2);
 }
 
+.books-screen .books-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--u);
+}
+
 /* The Add-a-book chooser (books.add_book_chooser; W07 #2 L79-99): four rows,
    each an accent icon, a name and a meta line. A row that is a button wears the
    theme's .row (a RAC Button resets the native button look here); the meta line

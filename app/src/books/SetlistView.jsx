@@ -629,6 +629,12 @@ export default function SetlistView({
           );
         }}
       </GridList>
+      {/* Add song sits with the songs it adds to, not in the bar: the bar is
+          Done, the status and Save, so leaving and saving read apart (the
+          persona exploration of 2026-11-01). Play is the read view's. */}
+      <Button ref={addSongRef} className="btn setlist-add-song" onPress={() => setAddingSong(true)}>
+        <Icon d={PLUS} size={18} /> {t('setlists.addSong')}
+      </Button>
 
       {repointAt != null ? (
         <InBookPicker
@@ -703,8 +709,8 @@ export default function SetlistView({
     <div className="setlist-screen">
       {/* Two groups (shell.narrow_fixes Decision 2): the head — Done, the
           title and the book name under it, as the read view's .setlist-head —
-          and the actions, the status word first and Save last, wrapping as a
-          unit onto a second row on a phone. One row on the computer (W12). */}
+          and the actions, the status word, Discard and Save last, wrapping as
+          a unit onto a second row on a phone. One row on the computer (W12). */}
       <div className="appbar setlist-edit-bar">
         <div className="setlist-bar-head">
           <Button className="btn" onPress={done}>
@@ -717,12 +723,6 @@ export default function SetlistView({
         </div>
         <div className="setlist-bar-actions">
           {statusWord ? <span className="badge unsaved dot">{statusWord}</span> : null}
-          <Button ref={addSongRef} className="btn" onPress={() => setAddingSong(true)}>
-            <Icon d={PLUS} size={18} /> {t('setlists.addSong')}
-          </Button>
-          <Button className="btn" isDisabled={!playable} onPress={() => onPlay({ bookId, path })}>
-            <Icon d={PLAY} size={18} fill /> {t('setlists.play')}
-          </Button>
           {unsaved ? (
             <Button className="btn" onPress={discard}>{t('setlists.discard')}</Button>
           ) : null}

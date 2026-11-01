@@ -17,6 +17,8 @@ export default {
   },
 
   shell: {
+    // A save landed (SavedNotice); `{book}` the book's name.
+    savedTo: 'Salvato in {book}',
     nav: 'Destinazioni',
     search: 'Cerca',
     books: 'Libri',
@@ -100,6 +102,8 @@ export default {
     renameTitle: 'Rinomina “{name}”',
     renameField: 'Nome nella tua libreria',
     empty: 'Ancora nessun libro. Aggiungi un libro per iniziare.',
+    emptySignedOut: 'Ancora nessun libro su questo dispositivo. I libri conservati su Estante tornano quando accedi, oppure aggiungi un libro per iniziare.',
+    emptySignIn: 'Accedi',
     syncing: 'sincronizzazione',
     savesWaiting: {
       one: '{count} salvataggio in attesa di caricamento',
@@ -188,7 +192,7 @@ export default {
     sharedBy: 'condiviso da {owner}',
     shared: 'condiviso',
     youOwn: 'È tuo',
-    youCanSave: 'Puoi salvare',
+    youCanSave: 'Puoi modificare',
     readOnly: 'Sola lettura',
     putOnline: 'Metti online',
     putOnlineBody:
@@ -388,7 +392,7 @@ export default {
     },
     fullCallout: '{book} è al completo. Questo link non farà entrare nessuno finché non rimuovi qualcuno.',
     seeWhoJoins: 'Vedrai chi entra tramite esso, e puoi ritirarlo in qualsiasi momento.',
-    createLink: 'Crea link',
+    createLink: 'Crea link di invito',
     linkReady: 'Ecco il link. Invialo come preferisci; puoi copiarlo di nuovo finché può ancora far entrare qualcuno.',
     linkLabel: 'Link dell’invito',
     copy: 'Copia',
@@ -483,7 +487,7 @@ export default {
     conflict: 'conflitto',
     where: '{book} · {folder}/',
     addToSetlist: 'Aggiungi {title} a una scaletta',
-    addToSetlistWord: 'Scaletta',
+    addToSetlistWord: 'Aggiungi alla scaletta',
     setlist: 'Scaletta',
   },
 
@@ -548,6 +552,7 @@ export default {
     newSetlistTitle: 'Nuova scaletta',
     newSetlistNameLabel: 'Nome della scaletta',
     newSetlistNamePlaceholder: 'Nome della scaletta',
+    newSetlistNameNeeded: 'Dagli un nome per crearla.',
     newSetlistNoBook: 'Il libro di questa canzone è in sola lettura e I miei brani non è su questo dispositivo, quindi non c’è un libro in cui tenere una nuova scaletta.',
     create: 'Crea',
     // The New setlist dialog's book choice, and Add to setlist's made step
@@ -570,7 +575,7 @@ export default {
     nextHeading: 'Prossimo',
     nextItem: '{number}. {title}',
     note: 'Nota: {note}',
-    hint: 'Scorri, tocca un bordo o usa un pedale',
+    hint: 'Per cambiare canzone: scorri, tocca il bordo dello schermo o usa un pedale',
     announce: '{title}, {i} di {n}',
     announceNext: 'Prossimo: {title}',
     empty: 'Questa scaletta non ha ancora brani da suonare.',
@@ -1542,6 +1547,7 @@ export default {
     variationDefault: 'Predefinita',
     transpose: 'Trasponi',
     transposeTitle: 'Trasponi la vista',
+    transposeHint: 'Ogni passo è un semitono. Due passi fanno un tono.',
     down: 'Un semitono più in basso',
     up: 'Un semitono più in alto',
     writtenKey: 'Tonalità scritta',
@@ -1844,6 +1850,8 @@ export default {
       text: 'Testo',
       preview: 'Anteprima',
       previewLabel: 'Anteprima della canzone come verrà letta',
+      // A voicing block's notes under the preview; `{block}` its name.
+      blockNotes: 'Note in {block}:',
       arrangeBlocked: 'Correggi le righe segnate nel testo per scegliere le forme qui.',
       addSection: 'Aggiungi sezione',
       // The name a section added by Add section comes with, selected to retype.
@@ -1980,6 +1988,7 @@ export default {
     // saved version (sync.in_place_notices; W08#3 L96, W04 L107/L158).
     unsaved: 'modifiche non salvate',
     // A new song, never saved (EditorChrome).
+    editingWritten: 'Leggi questa canzone trasposta ({offset}). Qui è com’è scritta, nella sua tonalità.',
     notSavedYet: 'non ancora salvata',
     // The phone's unsaved strip and the computer's Unsaved pane (songs.editor_chrome;
     // W04#1 L35-38, W04#4 L163-168).

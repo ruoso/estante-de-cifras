@@ -45,6 +45,8 @@ export const LINE_CLASSES = Object.freeze([
 
 const THEMATIC_BREAK = /^ {0,3}([-*_])( *\1){2,} *$/;
 const LIST_ITEM = /^ {0,3}-\s+[^:]+:/; // `- key:` — a property or a voicing item
+// `key = frets`, the earlier voicing form; what follows `=` is frets-shaped.
+const EQUALS_VOICING = /^ {0,3}[^\s=]+ *= *[0-9xX(][0-9xX\-\s()]*$/;
 const BRACKET_MARKER = /^\[.*\]$/; // `[Intro]`-style heading inside a chart
 const BAR_SEP = /^\|+$/;
 const BEAT_OR_COUNT = /^(?:[./%-]+|x\d+)$/i;
@@ -157,6 +159,9 @@ export function classifyLines(text) {
       fenceIsMusic = open.info === '' || open.info === 'cifra';
       return 'md';
     }
+
+    // The earlier `key = frets` voicing form (cifra.md §7.4, Appendix A.7).
+    if (inVoicings && EQUALS_VOICING.test(line)) return 'voicing';
 
     if (LIST_ITEM.test(line)) {
       if (inVoicings) return 'voicing';

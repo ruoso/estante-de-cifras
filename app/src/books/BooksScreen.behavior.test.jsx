@@ -536,6 +536,20 @@ describe('BooksScreen (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
+  it('empty shelf, signed out: says the books on Estante come back, and offers Sign in', async () => {
+    const { store } = makeStore();
+    const onSignInFirstRun = vi.fn();
+    const { container } = renderScreen(store, { offerSignIn: true, onSignInFirstRun });
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'No books on this device yet. Books kept on Estante come back when you sign in, or add a book to start.',
+    );
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Sign in' })));
+    expect(onSignInFirstRun).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Add a book' })).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
   // books.fork AC5 — the fork on the shelf (workflow 11 §What a fork is,
   // §Following the original; W11 board #2 :68-97 and #4 :153).
   describe('a fork on the shelf (books.fork; W11 board #2, #4)', () => {

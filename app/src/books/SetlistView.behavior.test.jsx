@@ -1002,7 +1002,11 @@ describe('SetlistView — the editor bar groups (shell.narrow_fixes)', () => {
     expect(within(actions).queryByText('Banda do Bairro')).toBeNull();
 
     const words = [...actions.children].map((el) => el.textContent.trim());
-    expect(words).toEqual(['unsaved changes', 'Add song', 'Play', 'Discard', 'Save']);
+    // Add song sits under the songs, and Play is the read view's: the bar is
+    // leaving, the status and saving (the persona exploration of 2026-11-01).
+    expect(words).toEqual(['unsaved changes', 'Discard', 'Save']);
+    expect(within(bar).queryByRole('button', { name: 'Add song' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Add song' })).toBeInTheDocument();
     expect(actions.children[0]).toHaveClass('badge', 'unsaved');
 
     // Tab order is DOM order: no positive tabindex, and the bar's focusable
@@ -1013,8 +1017,6 @@ describe('SetlistView — the editor bar groups (shell.narrow_fixes)', () => {
     for (const el of focusable) expect(Number(el.getAttribute('tabindex') ?? 0)).toBeLessThanOrEqual(0);
     expect(focusable.map((el) => el.getAttribute('aria-label') || el.textContent.trim())).toEqual([
       'Done',
-      'Add song',
-      'Play',
       'Discard',
       'Save',
     ]);

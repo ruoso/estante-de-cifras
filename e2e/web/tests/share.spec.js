@@ -334,7 +334,7 @@ test('share from a song: the member address, and an invitation that opens on the
 
   // The song invitation: the link carries the song as a fragment.
   if (onPhone()) await surface.getByRole('button', { name: 'Invite someone to this song' }).click();
-  await surface.getByRole('button', { name: 'Create link' }).click();
+  await surface.getByRole('button', { name: 'Create invitation link' }).click();
   const link = await surface.getByRole('textbox', { name: 'Invitation link' }).inputValue();
   expect(link).toContain('/i/');
   expect(link).toContain('#');
@@ -417,7 +417,7 @@ test('share from a setlist: the member address, and an invitation that opens on 
   expect(await analyzeBothThemes(page)).toEqual([]); // axe: share-on-a-setlist
 
   if (onPhone()) await surface.getByRole('button', { name: 'Invite someone to this setlist' }).click();
-  await surface.getByRole('button', { name: 'Create link' }).click();
+  await surface.getByRole('button', { name: 'Create invitation link' }).click();
   const link = await surface.getByRole('textbox', { name: 'Invitation link' }).inputValue();
   expect(link).toContain('/i/');
   expect(link).toMatch(/#.+\.setlist\.md$/);

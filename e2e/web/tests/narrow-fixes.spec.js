@@ -178,7 +178,7 @@ test('the setlist editor, unsaved: the bar wraps by group, the book name and the
   const save = bar.getByRole('button', { name: 'Save', exact: true });
   const book = bar.getByText(EXAMPLE_BOOK, { exact: true });
   const hint = page.getByText('Key and note apply in this setlist only', { exact: true });
-  const actions = ['Add song', 'Play', 'Discard'].map((name) => bar.getByRole('button', { name, exact: true }));
+  const actions = ['Discard'].map((name) => bar.getByRole('button', { name, exact: true }));
   const row = page.locator('.setlist-edit-row').filter({ has: key });
 
   await atEachWidthAndTheme(page, testInfo, checkA11y, async (where) => {

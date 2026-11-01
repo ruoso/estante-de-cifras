@@ -65,7 +65,9 @@ import {
 } from '../theme/resolve.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import { parseChord } from '../core/notation/parse.js';
-import { fromCatalog } from '../core/instrument.js';
+import { fromCatalog, instrumentInstance } from '../core/instrument.js';
+import { defaultVoicing } from '../core/voicings.js';
+import { inUseEntry } from '../instruments/instrument-helpers.js';
 import { fingeringFromFrets } from '../core/search.js';
 import { orderedBooks } from '../books/book-display.js';
 import { useSlice } from '../worker/useStore.js';
@@ -162,6 +164,29 @@ const NAMING_OPTIONS = [
 const SAMPLE_GUITAR = fromCatalog('6guitar');
 const SAMPLE_CHORD = parseChord('C').chord;
 const SAMPLE_SHAPE = fingeringFromFrets(['x', 3, 2, 0, 1, 0], SAMPLE_CHORD, SAMPLE_GUITAR);
+
+// The sample follows the instrument in use (the persona exploration of
+// 2026-11-01: a ukulele player saw a guitar here): its C, the shape a song
+// would show by default. The guitar's known shape when no instrument is in use
+// or none is playable.
+export function diagramSample(instrumentsSlice) {
+  const entry = inUseEntry(instrumentsSlice);
+  if (!entry) return { instrument: SAMPLE_GUITAR, fingering: SAMPLE_SHAPE };
+  try {
+    const instrument = instrumentInstance({
+      catalogId: entry.catalogId,
+      label: entry.label ?? undefined,
+      strings: entry.tuning,
+      fretCount: entry.fretCount,
+      heuristics: entry.config,
+    });
+    const fingering = defaultVoicing(SAMPLE_CHORD, instrument);
+    if (fingering) return { instrument, fingering };
+  } catch {
+    // An instrument the core cannot build draws the guitar's sample.
+  }
+  return { instrument: SAMPLE_GUITAR, fingering: SAMPLE_SHAPE };
+}
 
 // The density sample: one chart line at the option's chart size. Decorative —
 // the name and description carry the meaning — so hidden from assistive tech.
@@ -393,6 +418,7 @@ export default function AccountScreen({
   sharingClient = DEFAULT_SHARING_CLIENT,
 }) {
   const preferences = useSlice(store, 'preferences');
+  const sample = diagramSample(useSlice(store, 'instruments'));
   // The shelf tells us locally whether this device holds an account's books
   // (shared books only appear under a session). That is the one signed-in signal
   // available with no network — the probe below can only re-derive "signed in"
@@ -618,8 +644,8 @@ export default function AccountScreen({
       <div className="account-diagram-sample">
         <div className="card account-diagram-sample-card">
           <ChordDiagram
-            fingering={SAMPLE_SHAPE}
-            context={{ chord: SAMPLE_CHORD, instrument: SAMPLE_GUITAR }}
+            fingering={sample.fingering}
+            context={{ chord: SAMPLE_CHORD, instrument: sample.instrument }}
             kind="song"
           />
         </div>

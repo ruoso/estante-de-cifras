@@ -90,7 +90,7 @@ test('plays a setlist through, in the setlist key, skipping a missing song', asy
   // Line (item 2) straight to Walking to the Market (item 3).
   await expect(page.getByRole('group', { name: 'Morning on the Porch' })).toBeVisible();
   await expect(page.getByText('3. Walking to the Market')).toBeVisible();
-  await expect(page.getByText(/screen kept awake/)).toBeVisible();
+  await expect(page.getByText(/screen stays on/)).toBeVisible();
   await checkA11y(); // the player, first song
 
   // Next and previous by the on-screen edge buttons (the keyboard/AT path).
@@ -187,11 +187,11 @@ test('shows the screen is kept awake while playing, and leaves the player on Sto
 
   // The status word is shown only when the browser supports the Wake Lock API
   // (books/wake-lock.js), i.e. the app asked for the screen lock.
-  await expect(page.getByText(/screen kept awake/)).toBeVisible();
+  await expect(page.getByText(/screen stays on/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Stop playing' }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'A Short Set' })).toBeVisible();
-  await expect(page.getByText(/screen kept awake/)).toHaveCount(0);
+  await expect(page.getByText(/screen stays on/)).toHaveCount(0);
 });
 
 // ---- hosted sync-waiting leg: the device signs in and hosts a book; a second

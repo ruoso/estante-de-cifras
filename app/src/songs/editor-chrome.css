@@ -58,6 +58,11 @@
   flex-direction: column;
 }
 
+.edit-song-main > .edit-song-written {
+  flex: none;
+  margin: var(--u) calc(var(--u) * 2) 0;
+}
+
 .edit-song-main > .est-editor {
   flex: 1;
   min-height: 0;

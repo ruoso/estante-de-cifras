@@ -563,6 +563,36 @@ describe('SongReading — the variation picker (workflow 2 L73-74, L120-125)', (
     await waitFor(() => expect(screen.getByLabelText('Variation')).toHaveTextContent('Up the neck'));
   });
 
+  // Two blocks written the earlier way, `key = frets` (cifra.md §7.4,
+  // Appendix A.7): each is a variation of its own shapes, and switching draws
+  // the other's; a line of a block that is not a voicing shows under the
+  // shapes (the Sedutor report of 2026-11-01).
+  it('switches between two blocks written key = frets, and shows a block’s notes', async () => {
+    const equals = song({
+      chart: 'C',
+      voicings: [
+        '## Voicings: E2 A2 D3 G3 B3 E4',
+        'C = x32010',
+        'Capo = 2nd fret',
+        '',
+        '## Up the neck: E2 A2 D3 G3 B3 E4',
+        'C = 8-10-10-9-8-8',
+      ],
+    });
+    const { store } = makeStore({ text: equals, entry: guitarEntry() });
+    const { container } = await openAndWait(store);
+    const diagram = () => container.querySelector('.reading-shapes .chord-diagram').outerHTML;
+    // The block's shape, not a default: no *default* word on it.
+    expect(within(container.querySelector('.reading-shapes')).queryByText('default')).toBeNull();
+    expect(screen.getByText('Capo = 2nd fret')).toBeInTheDocument();
+    const open = diagram();
+
+    await click(screen.getByLabelText('Variation'));
+    await click(await screen.findByRole('option', { name: 'Up the neck' }));
+    await waitFor(() => expect(diagram()).not.toBe(open));
+    expect(screen.queryByText('Capo = 2nd fret')).toBeNull();
+  });
+
   it('hides the picker while transposed', async () => {
     const { store } = makeStore({ text: twoVariations, entry: guitarEntry(), transposition: 2 });
     await openAndWait(store);

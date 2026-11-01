@@ -75,7 +75,7 @@ describe('the New invitation screen (W10 #2)', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Editor' }));
     fireEvent.click(screen.getByRole('radio', { name: 'A month' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Limit how many can use it' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Create link' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create invitation link' }));
 
     const field = await screen.findByRole('textbox', { name: 'Invitation link' });
     expect(field).toHaveValue('https://estante.app/i/tok123');
@@ -97,7 +97,7 @@ describe('the New invitation screen (W10 #2)', () => {
       await screen.findByText('Choros da Ana is full. This link won’t let anyone in until you remove someone.'),
     ).toBeInTheDocument();
     expect(screen.queryByText(/has room for/)).toBeNull();
-    const create = screen.getByRole('button', { name: 'Create link' });
+    const create = screen.getByRole('button', { name: 'Create invitation link' });
     expect(create).not.toBeDisabled();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
@@ -126,7 +126,7 @@ describe('the made link: Send where the device can share (workflow 10 §Sending 
     const { client: c } = client();
     const view = renderScreen(c);
     await screen.findByText(/has room for 13 more people/);
-    fireEvent.click(screen.getByRole('button', { name: 'Create link' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create invitation link' }));
     const field = await screen.findByRole('textbox', { name: 'Invitation link' });
     return { ...view, field };
   };

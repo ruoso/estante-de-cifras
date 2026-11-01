@@ -17,6 +17,8 @@ export default {
   },
 
   shell: {
+    // A save landed (SavedNotice); `{book}` the book's name.
+    savedTo: 'Saved to {book}',
     nav: 'Destinations',
     search: 'Search',
     books: 'Books',
@@ -109,6 +111,8 @@ export default {
     renameTitle: 'Rename “{name}”',
     renameField: 'Name on your shelf',
     empty: 'No books yet. Add a book to start.',
+    emptySignedOut: 'No books on this device yet. Books kept on Estante come back when you sign in, or add a book to start.',
+    emptySignIn: 'Sign in',
     syncing: 'syncing',
     savesWaiting: {
       one: '{count} save waiting to go up',
@@ -201,7 +205,7 @@ export default {
     sharedBy: 'shared by {owner}',
     shared: 'shared',
     youOwn: 'You own it',
-    youCanSave: 'You can save',
+    youCanSave: 'You can edit',
     readOnly: 'Read only',
     putOnline: 'Put online',
     putOnlineBody:
@@ -412,7 +416,7 @@ export default {
     },
     fullCallout: '{book} is full. This link won’t let anyone in until you remove someone.',
     seeWhoJoins: 'You’ll see who joins through it, and can withdraw it at any time.',
-    createLink: 'Create link',
+    createLink: 'Create invitation link',
     linkReady: 'Here is the link. Send it however you like; you can copy it again while it can let someone in.',
     linkLabel: 'Invitation link',
     copy: 'Copy',
@@ -509,7 +513,7 @@ export default {
     conflict: 'conflict',
     where: '{book} · {folder}/',
     addToSetlist: 'Add {title} to a setlist',
-    addToSetlistWord: 'Setlist',
+    addToSetlistWord: 'Add to setlist',
     // The word that marks a setlist result in the one song search
     // (books.setlist_search, workflow 12 L33-34; mockups README L26 — status by
     // a word, never colour alone).
@@ -588,6 +592,7 @@ export default {
     newSetlistTitle: 'New setlist',
     newSetlistNameLabel: 'Setlist name',
     newSetlistNamePlaceholder: 'Setlist name',
+    newSetlistNameNeeded: 'Name it to create it.',
     newSetlistNoBook: "This song's book is read-only and My songs isn't on this device, so there is no book to keep a new setlist in.",
     create: 'Create',
     // The New setlist dialog's book choice, and Add to setlist's made step
@@ -605,14 +610,14 @@ export default {
     previous: 'Previous song',
     next: 'Next song',
     position: '{i} of {n}',
-    positionAwake: '{i} of {n} · screen kept awake',
+    positionAwake: '{i} of {n} · screen stays on',
     inKey: 'In {key}',
     setlistKey: 'Setlist key {key} · written in {songKey}',
     setlistKeyNote: 'Setlist key {key}',
     nextHeading: 'Next',
     nextItem: '{number}. {title}',
     note: 'Note: {note}',
-    hint: 'Swipe, tap an edge, or use a pedal',
+    hint: 'To change song: swipe, tap the edge of the screen, or press a pedal',
     announce: '{title}, {i} of {n}',
     announceNext: 'Next: {title}',
     empty: 'This setlist has no songs to play yet.',
@@ -1703,6 +1708,7 @@ export default {
     // The transpose control and its status (workflow 2 L135-146; W02 L181-186).
     transpose: 'Transpose',
     transposeTitle: 'Transpose the view',
+    transposeHint: 'Each step is a semitone. Two steps make a whole tone.',
     down: 'Down a semitone',
     up: 'Up a semitone',
     writtenKey: 'Written key',
@@ -2015,6 +2021,8 @@ export default {
       text: 'Text',
       preview: 'Preview',
       previewLabel: 'Preview of the song as it will be read',
+      // A voicing block's notes under the preview; `{block}` its name.
+      blockNotes: 'Notes in {block}:',
       arrangeBlocked: 'Fix the lines marked in the text to choose shapes here.',
       addSection: 'Add section',
       // The name a section added by Add section comes with, selected to retype.
@@ -2158,6 +2166,9 @@ export default {
     unsaved: 'unsaved changes',
     // A new song, never saved (EditorChrome).
     notSavedYet: 'not saved yet',
+    // A song read transposed is still edited as written (the persona
+    // exploration of 2026-11-01). `{offset}` a signed semitone count.
+    editingWritten: 'You are reading this song transposed ({offset}). Here it is as written, in its own key.',
     // The phone's unsaved strip and the computer's Unsaved pane (songs.editor_chrome;
     // W04#1 L35-38, W04#4 L163-168).
     keptOnDevice: 'Kept on this device',

@@ -138,4 +138,12 @@ describe("classifyLines — the song's own notation (cifra.md §5.6)", () => {
     const c = classifyLines(['# T', '', '```', 'C', '```', '', 'G | C | D'].join('\n'));
     expect(c[6]).toBe('text');
   });
+
+  it('colours the earlier key = frets voicing as a voicing; a note of that shape stays plain (cifra.md §7.4)', () => {
+    const c = classifyLines(
+      ['# T', '', '```', 'A', '```', '', '---', '', '## Voicings: E2 A2 D3 G3 B3 E4', 'A = x02220', 'Capo = 2nd fret'].join('\n'),
+    );
+    expect(c[9]).toBe('voicing');
+    expect(c[10]).toBe('text');
+  });
 });

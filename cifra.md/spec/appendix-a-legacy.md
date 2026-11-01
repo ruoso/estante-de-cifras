@@ -79,8 +79,9 @@ canonical form does.
 ## A.7 `key = frets` voicing lines
 
 Earlier documents wrote a voicing as a bare line, `Cm[2] = 8-10-10-8-8-8`,
-rather than a list item. A reader MAY accept the form. Conversion: rewrite
-as `- Cm[2]: 8-10-10-8-8-8`.
+rather than a list item. A reader MUST read the form as that item, when
+what follows the `=` is a fret string (§7.4). Conversion: rewrite as
+`- Cm[2]: 8-10-10-8-8-8`, which is what canonical form does.
 
 ## A.8 Several documents for one song
 

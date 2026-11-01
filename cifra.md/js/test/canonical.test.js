@@ -297,10 +297,11 @@ describe("voicings (§8.2, §8.4.6)", () => {
     expect(canon(text)).toBe(fenced("C | Cx7(#11b13)") + VOICED + "- C: x32010\n- Cx7(#11b13): x3x330\n");
   });
 
-  test("legacy forms are not converted", () => {
-    // Appendix A: a `key = frets` line is notes to this reader, and stays notes.
-    const text = fenced("C") + VOICED + "C = x32010\n";
-    expect(canon(text)).toBe(text);
+  test("the earlier key = frets form is a voicing, written as a list item (§7.4, Appendix A.7)", () => {
+    expect(canon(fenced("C") + VOICED + "C = x32010\n")).toBe(fenced("C") + VOICED + "- C: x32010\n");
+    // One that is not frets stays notes.
+    const notes = fenced("C") + VOICED + "Capo = 2nd fret\n";
+    expect(canon(notes)).toBe(notes);
   });
 });
 

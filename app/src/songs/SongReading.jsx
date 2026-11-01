@@ -501,6 +501,10 @@ export default function SongReading({
               +
             </Button>
           </div>
+          {/* Each step is a semitone; a singer asks for a tone (the persona
+              exploration of 2026-11-01). The way back stays in the meta row
+              (songs.transpose_chrome AC4). */}
+          <p className="t-small reading-transpose-hint">{t('reading.transposeHint')}</p>
         </Dialog>
       </Popover>
     </DialogTrigger>
@@ -537,6 +541,16 @@ export default function SongReading({
   // chord is on a non-song shape (a word, never colour alone — the diagrams carry
   // "default" / "your shape", the caption names the colours).
   const anyNonSong = shapes.some((s) => s.source !== 'song');
+  // The notes written in the voicing block in use (cifra.md §7.4: shown with
+  // its voicings, so nothing written there is lost from view). Only at the
+  // written key, where the block's own shapes are the ones drawn.
+  const inUseVariation = variations.includes(variation) ? variation : (variations[0] ?? '');
+  const blockNotes = transposed
+    ? []
+    : (baseModel?.blocks ?? [])
+        .filter((b) => b.tuning?.id === tuningId && (b.label ?? '') === inUseVariation)
+        .flatMap((b) => b.notes ?? [])
+        .filter((line) => line.trim() !== '');
   let caption = null;
   if (transposed && shapes.length) {
     caption = writtenKey
@@ -611,6 +625,7 @@ export default function SongReading({
               />
             ))}
           </div>
+          {blockNotes.length ? <p className="t-small reading-block-notes">{blockNotes.join('\n')}</p> : null}
           {caption ? <p className="t-small">{caption}</p> : null}
         </section>
       ) : null}

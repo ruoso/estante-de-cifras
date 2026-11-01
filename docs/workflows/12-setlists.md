@@ -111,7 +111,10 @@ claim it was changed.
 an icon-only Back was: it returns to the setlist as read, keeping every
 change, as leaving any unsaved change asks nothing (workflow 4). Save and
 Discard stay as they are; Done is the one way out, not a second one beside
-Back.
+Back. The bar holds only leaving, the status and saving — Done, the title,
+*unsaved changes*, Discard and Save — so the two do not read alike: **Add
+song** sits under the songs it adds to, and Play is the read view's (the
+persona exploration of 2026-11-01).
 
 *Add song*, in a setlist being edited, searches the setlist's book. A song
 already in the setlist is still listed, and says so in words — *Already in

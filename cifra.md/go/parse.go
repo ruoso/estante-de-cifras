@@ -37,6 +37,8 @@ var (
 	chordTokenRE     = regexp.MustCompile(`^(.*?)(?:\[([0-9]+)\])?$`)
 	lyricMarkerRE    = regexp.MustCompile(`^( *)>( ?)`)
 	fingeringRE      = regexp.MustCompile(`^(.*?) *\(([^()]*)\) *$`)
+	// `key = frets`, the earlier voicing form (§7.4, Appendix A.7).
+	equalsVoicingRE = regexp.MustCompile(`^ {0,3}([^\s=]+) *= *(.*)$`)
 )
 
 const repeatMark = "%"
@@ -982,12 +984,28 @@ func (p *songParser) voicingsLine(raw string, lineno int, blk *block, skipping b
 	if skipping {
 		return blk, skipping
 	}
+	item, isItem := "", false
 	if m := songListItemRE.FindStringSubmatch(raw); m != nil {
+		item, isItem = m[1], true
+	} else if blk != nil {
+		// The earlier form, `key = frets` (§7.4, Appendix A.7): a voicing when
+		// what follows the `=` is a fret string; otherwise notes.
+		if em := equalsVoicingRE.FindStringSubmatch(raw); em != nil {
+			bare := em[2]
+			if fm := fingeringRE.FindStringSubmatch(bare); fm != nil {
+				bare = fm[1]
+			}
+			if _, ok := parseFrets(bare); ok {
+				item, isItem = em[1]+":"+em[2], true
+			}
+		}
+	}
+	if isItem {
 		if blk == nil {
 			p.diagText("item-outside-block", lineno, "a voicing before any block heading; not kept", raw)
 			return blk, skipping
 		}
-		keyPart, fretsText, hasSep := partition(m[1], ":")
+		keyPart, fretsText, hasSep := partition(item, ":")
 		key := strings.Trim(keyPart, " ")
 		if !hasSep || key == "" || strings.Contains(key, " ") {
 			p.diagText("bad-voicing", lineno, "a voicing is `- key: frets`; this line is not kept", raw)

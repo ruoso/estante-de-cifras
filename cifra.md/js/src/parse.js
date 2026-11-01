@@ -46,6 +46,13 @@ const WORD = /[^ ]+/g;
 
 const REPEAT = "%";
 const FINGERING = /^(.*?) *\(([^()]*)\) *$/;
+// `key = frets`, the earlier voicing form (§7.4, Appendix A.7).
+const EQUALS_VOICING = /^ {0,3}([^\s=]+) *= *(.*)$/;
+
+function stripFingering(text) {
+  const m = FINGERING.exec(text);
+  return m ? m[1] : text;
+}
 
 // Lowercase only ASCII A–Z, as the reference's `ascii_lower` does.
 export function asciiLower(text) {
@@ -624,12 +631,19 @@ class Parser {
     }
     if (skipping) return [block, skipping];
     const lm = LIST_ITEM.exec(raw);
-    if (lm) {
+    let item = lm ? lm[1] || "" : null;
+    if (item === null && block !== null) {
+      // The earlier form, `key = frets` (§7.4, Appendix A.7): a voicing when
+      // what follows the `=` is a fret string; otherwise notes.
+      const em = EQUALS_VOICING.exec(raw);
+      if (em && parseFrets(stripFingering(em[2])) !== null) item = `${em[1]}:${em[2]}`;
+    }
+    if (item !== null) {
       if (block === null) {
         this.diag("item-outside-block", lineno, "a voicing before any block heading; not kept", raw);
         return [block, skipping];
       }
-      const content = lm[1] || "";
+      const content = item;
       const ci = content.indexOf(":");
       const sep = ci !== -1;
       let key = sep ? content.slice(0, ci) : content;

@@ -190,7 +190,7 @@ function newInvitationForm(page) {
 }
 
 // From the people screen (or the phone's sheet): New invitation → role / expiry
-// / use limit → Create link. Returns the invitation URL and leaves the made
+// / use limit → Create invitation link. Returns the invitation URL and leaves the made
 // link showing; `finishInvite` clicks Done.
 export async function createInvitationIn(scope, { role = 'Reader', expiry, limit } = {}) {
   const page = scope.page();
@@ -204,7 +204,7 @@ export async function createInvitationIn(scope, { role = 'Reader', expiry, limit
     await form.getByText('Limit how many can use it', { exact: true }).click();
     await form.getByRole('textbox', { name: 'Number of uses' }).fill(String(limit));
   }
-  await form.getByRole('button', { name: 'Create link' }).click();
+  await form.getByRole('button', { name: 'Create invitation link' }).click();
   const link = await form.getByRole('textbox', { name: 'Invitation link' }).inputValue();
   expect(link).toContain('/i/');
   return link;

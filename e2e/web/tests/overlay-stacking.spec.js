@@ -105,7 +105,7 @@ test('Share, an account made from it, Done: the sheet and then New invitation ar
   await putOnline.click();
   await expect(surface.getByRole('textbox', { name: 'Song address' })).toBeVisible({ timeout: 30000 });
   if (onPhone()) await surface.getByRole('button', { name: 'Invite someone to this song' }).click();
-  await expect(surface.getByRole('button', { name: 'Create link' })).toBeVisible();
+  await expect(surface.getByRole('button', { name: 'Create invitation link' })).toBeVisible();
   await expectUncovered(surface, 'the New invitation form');
   expect(await analyzeBothThemes(page)).toEqual([]); // axe: the owner's song invite
 });

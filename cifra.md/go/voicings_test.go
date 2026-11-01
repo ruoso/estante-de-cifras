@@ -151,3 +151,24 @@ func TestUkuleleTuningFourStrings(t *testing.T) {
 		t.Errorf("C frets = %v", objArray(voicingByKey(block, "C"), "frets"))
 	}
 }
+
+// §7.4, Appendix A.7: `key = frets`, the earlier voicing form, is a voicing
+// when what follows the `=` is a fret string; otherwise it is notes.
+func TestEqualsFormIsAVoicing(t *testing.T) {
+	m := parseSong(t, "## A\n```\nA\n```\n\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\nA = x02220\nCapo = 2nd fret\nE = 02210\n")
+	blk := objArray(m, "blocks")[0].(*Object)
+	vs := objArray(blk, "voicings")
+	if len(vs) != 1 || objString(vs[0].(*Object), "key") != "A" {
+		t.Fatalf("voicings = %v, want [A]", vs)
+	}
+	if notes := objArray(blk, "notes"); len(notes) != 1 || notes[0] != "Capo = 2nd fret" {
+		t.Errorf("notes = %v, want [Capo = 2nd fret]", notes)
+	}
+	codes := []string{}
+	for _, d := range objArray(m, "diagnostics") {
+		codes = append(codes, objString(d.(*Object), "code"))
+	}
+	if len(codes) != 1 || codes[0] != "bad-voicing" {
+		t.Errorf("diagnostics = %v, want [bad-voicing] for E's five frets", codes)
+	}
+}

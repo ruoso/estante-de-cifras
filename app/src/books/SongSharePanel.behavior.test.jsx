@@ -172,7 +172,7 @@ describe('a song’s share panel (W10 #4)', () => {
       before(within(panel).getByText('For people already in the book'), within(panel).getByText('Invite someone to this song')),
     ).toBe(true);
     fireEvent.click(within(panel).getByRole('radio', { name: 'Editor' }));
-    fireEvent.click(within(panel).getByRole('button', { name: 'Create link' }));
+    fireEvent.click(within(panel).getByRole('button', { name: 'Create invitation link' }));
     const link = await within(panel).findByRole('textbox', { name: 'Invitation link' });
     expect(link).toHaveValue('https://estante.app/i/tok#choro/carinhoso.cifra.md');
     expect(calls.find((c) => c.method === 'POST').body).toEqual({ role: 'editor', expiry: 'week' });
@@ -195,7 +195,7 @@ describe('a song’s share panel (W10 #4)', () => {
     expect(within(panel).getByText(/^Nobody yet/)).toBeInTheDocument();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
-    fireEvent.click(within(panel).getByRole('button', { name: 'Create link' }));
+    fireEvent.click(within(panel).getByRole('button', { name: 'Create invitation link' }));
     const link = await within(panel).findByRole('textbox', { name: 'Invitation link' });
     const send = within(panel).getByRole('button', { name: 'Send' });
     const copies = within(panel).getAllByRole('button', { name: 'Copy' });
@@ -232,7 +232,7 @@ describe('a song’s share panel (W10 #4)', () => {
 
     await within(panel).findByText('37 of 50');
     expect(within(panel).getByText('Ana, Marina Costa')).toBeInTheDocument();
-    expect(within(panel).queryByRole('button', { name: 'Create link' })).toBeNull();
+    expect(within(panel).queryByRole('button', { name: 'Create invitation link' })).toBeNull();
     fireEvent.click(within(panel).getByRole('button', { name: 'Copy' }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://estante.app/b/bk/choro/carinhoso.cifra.md'));
     expect(await within(panel).findByRole('button', { name: 'Copied' })).toBeInTheDocument();
@@ -322,7 +322,7 @@ describe('Share on a setlist, wide (workflow 10 §Sharing a song or a setlist)',
     expect(await within(panel).findByText('Invite someone to this setlist')).toBeInTheDocument();
     expect(within(panel).getByText('The invitation brings them into Choros da Ana, and opens on Lesson 3 once they’ve signed in.')).toBeInTheDocument();
     await within(panel).findByText('Expires in a week · no limit on uses');
-    fireEvent.click(within(panel).getByRole('button', { name: 'Create link' }));
+    fireEvent.click(within(panel).getByRole('button', { name: 'Create invitation link' }));
     const link = await within(panel).findByRole('textbox', { name: 'Invitation link' });
     expect(link.value.endsWith('#lessons/lesson-3.setlist.md')).toBe(true);
     const post = calls.find((c) => c.method === 'POST');
@@ -351,7 +351,7 @@ describe('Share on a setlist, wide (workflow 10 §Sharing a song or a setlist)',
       'https://estante.app/b/bk/lessons/lesson-3.setlist.md',
     );
     expect(within(panel).queryByText('Invite someone to this setlist')).toBeNull();
-    expect(within(panel).queryByRole('button', { name: 'Create link' })).toBeNull();
+    expect(within(panel).queryByRole('button', { name: 'Create invitation link' })).toBeNull();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 

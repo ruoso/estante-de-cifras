@@ -251,6 +251,8 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBookSongs, onOp
             forked={bookActs.forkLanding}
             onByLink={onByLink}
             onSignIn={onSignInMine}
+            onSignInFirstRun={onSignIn}
+            offerSignIn={offerSignIn}
             onUpload={onUpload}
             restoreDismissed={restore.dismissed}
             onDismissRestored={restore.onDismiss}

@@ -149,7 +149,8 @@ test('from a book section: new song in this book lands the song in that book', a
   // It is in the example book: searching finds it, and its where is that book.
   await page.getByRole('searchbox').fill('Jetty at Dawn');
   await expect(page.getByText('Jetty at Dawn')).toBeVisible();
-  await expect(page.getByText(/Example Book/)).toBeVisible();
+  // In the results, not the passing *Saved to Example Book* notice.
+  await expect(page.locator('.shell-panel').getByText(/Example Book/)).toBeVisible();
 });
 
 test('offline: a new song can be written and saved, and persists', async ({ page }) => {

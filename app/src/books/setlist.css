@@ -322,3 +322,9 @@
 .setlist-made {
   font-weight: 600;
 }
+
+/* Add song, under the songs it adds to (the persona exploration of 2026-11-01). */
+.setlist-add-song {
+  align-self: flex-start;
+  margin: var(--u) 0;
+}

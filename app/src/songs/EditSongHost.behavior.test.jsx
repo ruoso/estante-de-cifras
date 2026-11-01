@@ -469,3 +469,18 @@ describe('the editor chrome as drawn (songs.editor_chrome; W04 board; workflow 4
     });
   });
 });
+
+describe('edit while read transposed (workflow 4 §Editing; the persona exploration of 2026-11-01)', () => {
+  it('says the text is the song as written, not the key it is read in', () => {
+    const { store, emit } = makeStore();
+    renderHost(store, 'srv-e');
+    emit(SHELF);
+    emit(event(EventKind.SOURCE, { bookId: 'srv-e', path: PATH, text: TEXT }));
+    expect(screen.queryByRole('note')).toBeNull();
+
+    emit(event(EventKind.SONG, { bookId: 'srv-e', path: PATH, transposition: 2, variations: {} }));
+    expect(screen.getByRole('note')).toHaveTextContent(
+      'You are reading this song transposed (+2). Here it is as written, in its own key.',
+    );
+  });
+});

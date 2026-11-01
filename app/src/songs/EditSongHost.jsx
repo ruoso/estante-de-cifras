@@ -29,6 +29,8 @@ import SaveSheet from './SaveSheet.jsx';
 import DiscardConfirm from './DiscardConfirm.jsx';
 import './new-song.css';
 
+const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
+
 // The computer's three columns engage from EDITOR_WIDE_QUERY (Decision 8): the
 // same `matchMedia`/`useSyncExternalStore` seam the shell and the reading view
 // use; a missing `matchMedia` (jsdom) reads as not-wide.
@@ -91,6 +93,9 @@ export default function EditSongHost({
   // book opens the make-it-your-own offer, not the form. The host's own id
   // follows BOOK_FORKED (AppShell), so the editor re-reads the fork.
   const shelf = useSlice(store, 'shelf');
+  // A song read transposed is edited as written: say so above the text, so a
+  // chord typed here in the written key is not mistaken for the one read.
+  const transposition = useSlice(store, 'song')?.[bookId]?.[path]?.transposition ?? 0;
   const target = saveTargetFor(shelf, bookId, t('books.untitled'));
   const panelOpen = computer && saveOpen;
   const closeSave = () => {
@@ -122,6 +127,11 @@ export default function EditSongHost({
       <div className="edit-song-body">
         {computer ? <UnsavedPane store={store} current={current} onEdit={editAnother} /> : null}
         <div className="edit-song-main">
+          {transposition ? (
+            <p className="notice accent edit-song-written" role="note">
+              {t('editor.editingWritten', { offset: signed(transposition) })}
+            </p>
+          ) : null}
           <SongEditor
             key={`${bookId}:${path}:${reloadKey}`}
             store={store}

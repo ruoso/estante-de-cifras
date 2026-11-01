@@ -18,6 +18,7 @@ import { recoveryEmailToken } from './account/recovery-email-route.js';
 import { invitationToken } from './account/invitation-route.js';
 import { songAnchorFromHash } from './books/book-route.js';
 import { getAppStore } from './worker/store.js';
+import SavedNotice from './shell/SavedNotice.jsx';
 
 // The chart's dev gallery is reachable only at `#dev/chart` — absent from the
 // tab bar and from normal navigation, it is the e2e-web mount point for the
@@ -226,6 +227,8 @@ export default function App({ store = getAppStore() }) {
             token root and the locale boundary so it is themed and translated; it
             renders nothing until a new version is waiting. */}
         <UpdateReady />
+        {/* The word that a save landed, over every surface (SavedNotice). */}
+        <SavedNotice store={store} />
       </LocaleRoot>
     </ThemeRoot>
   );

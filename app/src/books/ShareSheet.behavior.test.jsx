@@ -244,7 +244,7 @@ describe('a song’s Share sheet on a phone (workflow 10 §Sharing a song)', () 
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Invite someone to this song' }));
     expect(within(sheet).getByText(/opens on Carinhoso once they’ve signed in/)).toBeInTheDocument();
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Create link' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Create invitation link' }));
     const link = await within(sheet).findByRole('textbox', { name: 'Invitation link' });
     expect(link).toHaveValue('https://estante.app/i/tok#choro/carinhoso.cifra.md');
     expect(calls.find((c) => c.method === 'POST').body).toEqual({ role: 'reader', expiry: 'week' });
@@ -274,7 +274,7 @@ describe('a song’s Share sheet on a phone (workflow 10 §Sharing a song)', () 
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     fireEvent.click(invite);
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Create link' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Create invitation link' }));
     const link = await within(sheet).findByRole('textbox', { name: 'Invitation link' });
     expect(link).toHaveValue('https://estante.app/i/tok#choro/carinhoso.cifra.md');
     const send = within(sheet).getByRole('button', { name: 'Send' });
@@ -383,7 +383,7 @@ describe('a setlist’s Share sheet on a phone', () => {
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Invite someone to this setlist' }));
     expect(within(sheet).getByText(/opens on Lesson 3 once they’ve signed in/)).toBeInTheDocument();
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Create link' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Create invitation link' }));
     const link = await within(sheet).findByRole('textbox', { name: 'Invitation link' });
     expect(link).toHaveValue('https://estante.app/i/tok#lessons/lesson-3.setlist.md');
     expect(calls.find((c) => c.method === 'POST').body).toEqual({ role: 'reader', expiry: 'week' });

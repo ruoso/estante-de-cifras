@@ -1425,6 +1425,15 @@ describe('SongEditor — a marked line says why', () => {
     expect(editorRef.current.state.doc.toString()).toBe(TYPED_UNDER);
   });
 
+  it('the preview shows a voicing block’s notes; a key = frets line is a voicing, not a note (cifra.md §7.4)', async () => {
+    const SONG = ['# Sedutor', '', '## A', '```', 'A7', '```', '', '---', '', '## Normal: E2 A2 D3 G3 B3 E4', 'A7 = x02020', 'Capo = 2nd fret', ''].join('\n');
+    const { container } = await mount(SONG);
+    const notesEl = container.querySelector('.est-editor-block-notes');
+    expect(notesEl).toHaveTextContent('Notes in Normal: Capo = 2nd fret');
+    expect(notesEl).not.toHaveTextContent('A7');
+    expect(container.querySelector('.cm-line.est-err')).toBeNull();
+  });
+
   it('a marker line has no note', async () => {
     const SONG = [
       '# Rascunho',

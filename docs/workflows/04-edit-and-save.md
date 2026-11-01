@@ -9,7 +9,10 @@ when someone else changed it too is workflows 8 and 9.
 ## Editing
 
 A song opens to be read; *edit* opens the editor on its text (workflow 3
-describes the editor). Every change goes to the working copy as it is made,
+describes the editor). The text is the song as written: a song read
+transposed says so above it — *You are reading this song transposed (+2).
+Here it is as written, in its own key.* — so a chord typed there in the
+written key is not taken for the one read. Every change goes to the working copy as it is made,
 and the song shows *unsaved changes* — in its own header, and as a badge in
 search — until it is saved or the changes are discarded; on a phone the
 header says it on a line of its own, *unsaved changes · Kept on this device*.
@@ -55,6 +58,9 @@ chords*, with **Undo**. It is the writer's choice, never done unasked: a line
 outside the music may be meant as a note.
 
 ## Saving
+
+A save that lands says so for a few seconds, low on the screen and over
+nothing — *Saved to Roda de Choro* — a song, several or a setlist alike.
 
 *Save* opens a short sheet with two things on it:
 

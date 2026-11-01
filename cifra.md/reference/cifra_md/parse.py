@@ -37,6 +37,13 @@ CLOSING_SEQUENCE = re.compile(r"(?:^| )#+$")
 
 REPEAT = "%"
 FINGERING = re.compile(r"^(.*?) *\(([^()]*)\) *$")
+# `key = frets`, the earlier voicing form (§7.4, Appendix A.7).
+EQUALS_VOICING = re.compile(r"^ {0,3}([^\s=]+) *= *(.*)$")
+
+
+def _strip_fingering(text: str) -> str:
+    m = FINGERING.match(text)
+    return m.group(1) if m else text
 
 
 def ascii_lower(text: str) -> str:
@@ -562,11 +569,18 @@ class _Parser:
         if skipping:
             return block, skipping
         lm = LIST_ITEM.match(raw)
-        if lm:
+        item = (lm.group(1) or "") if lm else None
+        if item is None and block is not None:
+            # The earlier form, `key = frets` (§7.4, Appendix A.7): a voicing
+            # when what follows the `=` is a fret string; otherwise notes.
+            em = EQUALS_VOICING.match(raw)
+            if em and parse_frets(_strip_fingering(em.group(2))) is not None:
+                item = f"{em.group(1)}:{em.group(2)}"
+        if item is not None:
             if block is None:
                 self.diag("item-outside-block", lineno, "a voicing before any block heading; not kept", raw)
                 return block, skipping
-            key, sep, frets_text = (lm.group(1) or "").partition(":")
+            key, sep, frets_text = item.partition(":")
             key = key.strip(" ")
             if not sep or not key or " " in key:
                 self.diag("bad-voicing", lineno, "a voicing is `- key: frets`; this line is not kept", raw)

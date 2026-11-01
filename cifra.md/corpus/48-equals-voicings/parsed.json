@@ -1,0 +1,353 @@
+{
+  "title": "Voicings Written With Equals",
+  "properties": [
+    {
+      "key": "notation",
+      "value": "brazilian"
+    }
+  ],
+  "sections": [
+    {
+      "name": "A",
+      "heading": "markdown",
+      "anchor": null,
+      "body": [
+        {
+          "type": "music",
+          "lines": [
+            {
+              "kind": "chart",
+              "measures": [
+                {
+                  "bar": null,
+                  "items": [
+                    {
+                      "type": "chord",
+                      "symbol": "Gm6/Bb",
+                      "index": 1,
+                      "key": "Gm6/Bb",
+                      "chord": {
+                        "root": {
+                          "letter": "G",
+                          "accidental": 0
+                        },
+                        "quality": "minor",
+                        "extensions": [
+                          {
+                            "degree": 6,
+                            "alter": 0
+                          }
+                        ],
+                        "bass": {
+                          "letter": "B",
+                          "accidental": -1
+                        }
+                      }
+                    }
+                  ],
+                  "number": 1,
+                  "stated": false
+                },
+                {
+                  "bar": "|",
+                  "items": [
+                    {
+                      "type": "chord",
+                      "symbol": "Dm/A",
+                      "index": 1,
+                      "key": "Dm/A",
+                      "chord": {
+                        "root": {
+                          "letter": "D",
+                          "accidental": 0
+                        },
+                        "quality": "minor",
+                        "extensions": [],
+                        "bass": {
+                          "letter": "A",
+                          "accidental": 0
+                        }
+                      }
+                    }
+                  ],
+                  "number": 2,
+                  "stated": false
+                },
+                {
+                  "bar": "|",
+                  "items": [
+                    {
+                      "type": "chord",
+                      "symbol": "A7",
+                      "index": 1,
+                      "key": "A7",
+                      "chord": {
+                        "root": {
+                          "letter": "A",
+                          "accidental": 0
+                        },
+                        "quality": "major",
+                        "extensions": [
+                          {
+                            "degree": 7,
+                            "alter": -1
+                          }
+                        ],
+                        "bass": null
+                      }
+                    }
+                  ],
+                  "number": 3,
+                  "stated": false
+                },
+                {
+                  "bar": "|",
+                  "items": [
+                    {
+                      "type": "chord",
+                      "symbol": "D7",
+                      "index": 1,
+                      "key": "D7",
+                      "chord": {
+                        "root": {
+                          "letter": "D",
+                          "accidental": 0
+                        },
+                        "quality": "major",
+                        "extensions": [
+                          {
+                            "degree": 7,
+                            "alter": -1
+                          }
+                        ],
+                        "bass": null
+                      }
+                    }
+                  ],
+                  "number": 4,
+                  "stated": false
+                }
+              ],
+              "closeBar": null
+            }
+          ]
+        }
+      ],
+      "groups": []
+    }
+  ],
+  "blocks": [
+    {
+      "label": "Up the neck",
+      "tuning": {
+        "text": "E2 A2 D3 G3 B3 E4",
+        "pitches": [
+          {
+            "note": {
+              "letter": "E",
+              "accidental": 0
+            },
+            "octave": 2
+          },
+          {
+            "note": {
+              "letter": "A",
+              "accidental": 0
+            },
+            "octave": 2
+          },
+          {
+            "note": {
+              "letter": "D",
+              "accidental": 0
+            },
+            "octave": 3
+          },
+          {
+            "note": {
+              "letter": "G",
+              "accidental": 0
+            },
+            "octave": 3
+          },
+          {
+            "note": {
+              "letter": "B",
+              "accidental": 0
+            },
+            "octave": 3
+          },
+          {
+            "note": {
+              "letter": "E",
+              "accidental": 0
+            },
+            "octave": 4
+          }
+        ],
+        "id": "40 45 50 55 59 64"
+      },
+      "voicings": [
+        {
+          "key": "A7",
+          "symbol": "A7",
+          "index": 1,
+          "frets": [
+            "x",
+            4,
+            2,
+            0,
+            2,
+            5
+          ]
+        },
+        {
+          "key": "D7",
+          "symbol": "D7",
+          "index": 1,
+          "frets": [
+            "x",
+            "x",
+            4,
+            5,
+            3,
+            5
+          ],
+          "fingers": [
+            null,
+            null,
+            1,
+            3,
+            2,
+            4
+          ]
+        },
+        {
+          "key": "Dm/A",
+          "symbol": "Dm/A",
+          "index": 1,
+          "frets": [
+            "x",
+            "x",
+            3,
+            2,
+            3,
+            5
+          ]
+        },
+        {
+          "key": "Gm6/Bb",
+          "symbol": "Gm6/Bb",
+          "index": 1,
+          "frets": [
+            "x",
+            "x",
+            0,
+            0,
+            5,
+            6
+          ]
+        }
+      ],
+      "notes": [
+        "Capo = 2nd fret"
+      ]
+    },
+    {
+      "label": "Open",
+      "tuning": {
+        "text": "E2 A2 D3 G3 B3 E4",
+        "pitches": [
+          {
+            "note": {
+              "letter": "E",
+              "accidental": 0
+            },
+            "octave": 2
+          },
+          {
+            "note": {
+              "letter": "A",
+              "accidental": 0
+            },
+            "octave": 2
+          },
+          {
+            "note": {
+              "letter": "D",
+              "accidental": 0
+            },
+            "octave": 3
+          },
+          {
+            "note": {
+              "letter": "G",
+              "accidental": 0
+            },
+            "octave": 3
+          },
+          {
+            "note": {
+              "letter": "B",
+              "accidental": 0
+            },
+            "octave": 3
+          },
+          {
+            "note": {
+              "letter": "E",
+              "accidental": 0
+            },
+            "octave": 4
+          }
+        ],
+        "id": "40 45 50 55 59 64"
+      },
+      "voicings": [
+        {
+          "key": "A7",
+          "symbol": "A7",
+          "index": 1,
+          "frets": [
+            "x",
+            0,
+            2,
+            0,
+            2,
+            0
+          ]
+        },
+        {
+          "key": "D7",
+          "symbol": "D7",
+          "index": 1,
+          "frets": [
+            "x",
+            "x",
+            0,
+            2,
+            1,
+            2
+          ]
+        },
+        {
+          "key": "Gm6/Bb",
+          "symbol": "Gm6/Bb",
+          "index": 1,
+          "frets": [
+            "x",
+            1,
+            0,
+            0,
+            3,
+            0
+          ]
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "sung": false,
+  "sungAt": null,
+  "diagnostics": []
+}
