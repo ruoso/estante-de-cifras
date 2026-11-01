@@ -17,10 +17,10 @@ import { installWebLocks } from '../test/web-locks.js';
 // through the real command/event path, on the preferences-surface rig (loopback
 // + fake-indexeddb + a local git remote), as preferences-theme-language does
 // for theme and language. SET_DENSITY, SET_DIAGRAM_HANDED and
-// SET_DIAGRAM_ORIENTATION and SET_CHORD_NAMES each write one register
-// (`density`, `diagramHanded`, `diagramOrientation`, `chordNames`) to the home book's preferences.json, auto-commit it
+// SET_DIAGRAM_ORIENTATION, SET_CHORD_NAMES and SET_BAR_NUMBERS each write one register
+// (`density`, `diagramHanded`, `diagramOrientation`, `chordNames`, `barNumbers`) to the home book's preferences.json, auto-commit it
 // without pushing, and re-surface PREFERENCES carrying it; choosing the default
-// afterwards (comfortable, right, vertical) writes the tombstone, never the
+// afterwards (comfortable, right, vertical, written, hidden) writes the tombstone, never the
 // literal default; an invalid value emits ERROR and writes nothing; two
 // registers set in turn both survive (separate registers — design Decision 1).
 //
@@ -103,6 +103,7 @@ describe('the display preference writes (behavior)', () => {
       fallback: 'vertical',
     },
     { kind: CommandKind.SET_CHORD_NAMES, field: 'naming', register: 'chordNames', chosen: 'voiced', fallback: 'written' },
+    { kind: CommandKind.SET_BAR_NUMBERS, field: 'barNumbers', register: 'barNumbers', chosen: 'shown', fallback: 'hidden' },
   ];
 
   for (const { kind, field, register, chosen, fallback } of CASES) {

@@ -141,6 +141,16 @@ does: the chart, then the shapes, a page at a time on a phone.
   `D7/A` where the shape puts the fifth lowest — so a player reads the chord
   under their fingers. It is a preference (`chordNames`, the home book); the
   song is never changed.
+- **Bar numbers, when asked for.** A song that is all chart counts its bars
+  (cifra.md §2.8): from 1, and from whatever number an `@9` states — at the
+  start of a bar, or on a heading for its first bar. *Show bar numbers* in the
+  song's menu (View) puts the number of each line's first bar in the margin,
+  small and quiet, and a number stated mid-line over the bar that states it,
+  so a jump never reads as the count going on. Off until asked; a preference
+  (`barNumbers`, the home book), and the printed sheet carries the numbers
+  when the page does. Not offered for a song with words in it: under a line of
+  words a chord can last four bars or half of one, and the text does not say
+  which.
 
 From the reading view the song can be edited (workflow 4), its history
 opened (workflow 6), transposed (below), and printed. Print uses the paper: the song is
@@ -172,7 +182,8 @@ gives the group — and a separator between them, in this order:
 - **This song** — Edit, Arrange for {instrument} (left out while the song is
   transposed, below), History, Show the file;
 - **Take it along** — Add to setlist, Share, Print;
-- **View** — Full screen.
+- **View** — Full screen, Name chords as voiced (or as written), and, for
+  a song that is all chart, Show bar numbers (or Hide).
 
 ### Where a chord's shape comes from
 

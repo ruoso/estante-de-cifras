@@ -276,4 +276,54 @@ describe('Chart — aligned measures and chord names', () => {
     const { container } = renderChart(<Chart model={parse(ALIGNED)} />);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
+
+  // Bar numbers (songs.bar_numbers; cifra.md §2.8): counted from 1, an `@N`
+  // stating a bar's number and setting the count from there, a heading's `@N`
+  // its first bar's.
+  const NUMBERED = '# T\n\n## A\n```\nDm | G7 | C7 | F\nBb | A7 | @17 Dm | %\n```\n\n## Coda @21\n```\nGm | A7\n```\n';
+  const margins = (container) => [...container.querySelectorAll('.barline .barnum')].map((n) => n.textContent);
+
+  it('draws no bar numbers until asked', () => {
+    const { container } = renderChart(<Chart model={parse(NUMBERED)} />);
+    expect(container.querySelector('.chart')).not.toHaveClass('numbered');
+    expect(container.querySelector('.barnum, .barnum-at')).toBeNull();
+  });
+
+  it("shows each line's first bar in the margin and a stated number over its bar", async () => {
+    const { container } = renderChart(<Chart model={parse(NUMBERED)} barNumbers />);
+    expect(container.querySelector('.chart')).toHaveClass('numbered');
+    expect(margins(container)).toEqual(['1', '5', '21']);
+    // The jump mid-line shows where it happens, or the count would read 5, 6, 7, 8.
+    const second = container.querySelectorAll('.bargrid .barline')[1];
+    const measures = [...second.querySelectorAll('.m')];
+    expect(measures.map((m) => m.querySelector('.barnum-at')?.textContent ?? null)).toEqual([null, null, '17', null]);
+    // A heading's number is its first bar's, in the margin, not drawn twice.
+    const coda = container.querySelectorAll('.bargrid')[1];
+    expect(coda.querySelector('.barnum-at')).toBeNull();
+    // The margin is a column of the block, ahead of its measures.
+    expect(container.querySelector('.bargrid').style.gridTemplateColumns.startsWith('minmax(1.8em, max-content) ')).toBe(true);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('says the numbers it shows, and only once', () => {
+    const { container } = renderChart(<Chart model={parse(NUMBERED)} barNumbers />);
+    // The drawn numbers are out of the tree; the measure they number says it.
+    for (const n of container.querySelectorAll('.barnum, .barnum-at')) expect(n).toHaveAttribute('aria-hidden', 'true');
+    const [first, second] = container.querySelectorAll('.bargrid .barline');
+    const spoken = (line) =>
+      within(line)
+        .getAllByRole('listitem')
+        .map((m) => m.querySelector('.visually-hidden')?.textContent.trim() ?? null)
+        .filter((text) => text?.startsWith('bar'));
+    expect(spoken(first)).toEqual(['bar 1:']);
+    expect(spoken(second)).toEqual(['bar 5:', 'bar 17:']);
+    // Still an ordered list of its measures: the margin is no item of it.
+    expect(within(second).getAllByRole('listitem')).toHaveLength(4);
+  });
+
+  it('has nothing to number in a sung song', () => {
+    const { container } = renderChart(<Chart model={parse(SONG)} barNumbers />);
+    expect(container.querySelector('.chart')).not.toHaveClass('numbered');
+    expect(container.querySelector('.barnum')).toBeNull();
+  });
 });

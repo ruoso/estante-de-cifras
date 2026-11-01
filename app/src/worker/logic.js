@@ -87,6 +87,8 @@ import {
   DEFAULT_ORIENTATION,
   CHORD_NAMINGS,
   DEFAULT_CHORD_NAMING,
+  BAR_NUMBERINGS,
+  DEFAULT_BAR_NUMBERING,
 } from '../theme/resolve.js';
 import { LOCALE_IDS } from '../i18n/index.js';
 
@@ -130,6 +132,13 @@ const DISPLAY_REGISTERS = {
     values: CHORD_NAMINGS,
     fallback: DEFAULT_CHORD_NAMING,
     error: 'invalid chord naming',
+  },
+  [CommandKind.SET_BAR_NUMBERS]: {
+    register: 'barNumbers',
+    field: 'barNumbers',
+    values: BAR_NUMBERINGS,
+    fallback: DEFAULT_BAR_NUMBERING,
+    error: 'invalid bar numbering',
   },
 };
 
@@ -2107,7 +2116,8 @@ export function createWorkerLogic(port, options = {}) {
           case CommandKind.SET_DENSITY:
           case CommandKind.SET_DIAGRAM_HANDED:
           case CommandKind.SET_DIAGRAM_ORIENTATION:
-          case CommandKind.SET_CHORD_NAMES: {
+          case CommandKind.SET_CHORD_NAMES:
+          case CommandKind.SET_BAR_NUMBERS: {
             // Persist a display preference to the home book
             // (shell.display_preferences; home-book-format §4.1), on the
             // SET_THEME template: validate against the register's value set at

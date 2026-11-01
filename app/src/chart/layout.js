@@ -415,6 +415,19 @@ function alignBars(rows, start) {
   }
 }
 
+/**
+ * Whether a song's chart has bar numbers to show (cifra.md §2.8; songs.bar_numbers):
+ * its reader counted the bars, which it does only for a song that is all chart
+ * — under a line of words a chord can last four bars or half of one, so a sung
+ * song is never numbered.
+ *
+ * @param {object[]} rows  `chartRows` render rows
+ * @returns {boolean}
+ */
+export function hasBarNumbers(rows) {
+  return rows.some((row) => row.type === 'bars' && row.numbers?.some((n) => n?.number != null));
+}
+
 // Whether any of these rows draws something besides a section name or a gap.
 function hasContent(rows) {
   return rows.some((row) => row.type !== 'section' && row.type !== 'gap' && row.type !== 'empty');
@@ -431,4 +444,25 @@ function hasContent(rows) {
  */
 export function isEmptySong(model) {
   return !hasContent(chartRows(model));
+}
+
+/**
+ * Whether a song has bar numbers to show — what decides that the reading view
+ * offers *Show bar numbers* at all. Read off the model's chart lines directly,
+ * the measures `chartRows` turns into the numbered bars rows, so the reading
+ * view does not lay the chart out a second time on every render.
+ *
+ * @param {object} [model]  the reader's plain-object model
+ * @returns {boolean}
+ */
+export function isNumberedSong(model) {
+  return (model?.sections ?? []).some((section) =>
+    (section.body ?? []).some(
+      (part) =>
+        part.type === 'music' &&
+        (part.lines ?? []).some(
+          (line) => line.kind === 'chart' && !line.run && line.measures.some((m) => m.number != null),
+        ),
+    ),
+  );
 }

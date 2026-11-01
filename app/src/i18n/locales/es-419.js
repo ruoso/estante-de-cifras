@@ -1582,6 +1582,8 @@ export default {
     leaveFullScreen: 'Salir de pantalla completa',
     namesVoiced: 'Nombrar los acordes como suenan',
     namesWritten: 'Nombrar los acordes como están escritos',
+    barNumbersShow: 'Mostrar los números de compás',
+    barNumbersHide: 'Ocultar los números de compás',
     // Los títulos de los grupos del menú ⋯ (songs.menu_grouping; flujo 2): cada
     // título es el nombre que el lector de pantalla da al grupo.
     menuThisSong: 'Esta canción',
@@ -2010,7 +2012,6 @@ export default {
     variationTaken: 'Ya hay una variación llamada «{name}» para este instrumento.',
     variationCancel: 'Cancelar',
     variationConfirm: 'Agregar',
-    chartBarNumbers: 'Mostrar los números de compás',
     chartVoicedAs: 'Nombrar los acordes de la cifra por lo que suenan las formas',
     back: '← Todas las canciones',
     titleLabel: 'Título de la canción',

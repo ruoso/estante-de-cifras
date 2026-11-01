@@ -32,7 +32,7 @@
 
 import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from 'react-aria-components';
-import { chartRows } from './layout.js';
+import { chartRows, hasBarNumbers } from './layout.js';
 import { speakVoice, regionAnnouncement, verbatimLabel } from './reading.js';
 import { speakChord } from '../render/chord-speech.js';
 import { t } from '../i18n/index.js';
@@ -189,17 +189,22 @@ function Cells({ cells, ctx, spans }) {
 // narrow as the widest chord in it allows and grows to its share of a
 // measure's comfortable width (4.2em) where there is room — so a block shrinks
 // to fit a phone before it ever has to scroll.
-function gridTemplate(grid) {
-  return grid.widths
-    .map((w) => (w === 1 ? 'minmax(min-content, 4.2em)' : `repeat(${w}, minmax(min-content, calc(4.2em / ${w})))`))
-    .join(' ');
+function gridTemplate(grid, numbered) {
+  const columns = grid.widths.map((w) =>
+    w === 1 ? 'minmax(min-content, 4.2em)' : `repeat(${w}, minmax(min-content, calc(4.2em / ${w})))`,
+  );
+  // The bar-number margin (songs.bar_numbers): one column ahead of the
+  // measures, wide enough for three digits whatever the block holds, so every
+  // block of a song starts its bars at one edge; a fourth digit widens it.
+  if (numbered) columns.unshift('minmax(1.8em, max-content)');
+  return columns.join(' ');
 }
 
 // An aligned block. When even its narrowest columns are wider than the chart it
 // scrolls sideways, and only then does it become a named, focusable region, so
 // a keyboard can scroll it (axe scrollable-region-focusable) without adding a
 // tab stop to every block that fits.
-function BarGrid({ grid, children }) {
+function BarGrid({ grid, numbered, children }) {
   const ref = useRef(null);
   const [scrolls, setScrolls] = useState(false);
   useLayoutEffect(() => {
@@ -215,7 +220,7 @@ function BarGrid({ grid, children }) {
     <div
       ref={ref}
       className="bargrid"
-      style={{ gridTemplateColumns: gridTemplate(grid) }}
+      style={{ gridTemplateColumns: gridTemplate(grid, numbered) }}
       {...(scrolls ? { role: 'group', 'aria-label': t('chart.barsScroll'), tabIndex: 0 } : null)}
     >
       {children}
@@ -288,21 +293,47 @@ function Row({ row, mark, ctx }) {
           ))}
         </div>
       );
-    case 'bars':
+    case 'bars': {
       // An ordered list of measures (§5): the reader announces "list, N items,
       // item 1 …", so the count and each measure's position are spoken, and a
       // stated bar number (cifra.md §2.8) leads its measure. The `|` is a CSS
       // border, never a character, so it is never read.
+      //
+      // With the bar numbers shown (songs.bar_numbers), the line's first bar
+      // sits in the margin — a column of its own ahead of the block's measures,
+      // so the columns still line up — and a number stated mid-line shows over
+      // the bar that states it, or the count would read on through the jump.
+      // Both are drawn hidden from the tree; the measure they number says
+      // "bar N" in the visually-hidden layer instead.
+      const margin = ctx.barNumbers ? row.numbers?.findIndex((n) => n?.number != null) ?? -1 : -1;
       return (
         <div className={`barline${markCls}${row.marks?.some((m) => m.ending || m.count) ? ' voltas' : ''}`} role="list">
+          {ctx.barNumbers ? (
+            <span className="barnum" aria-hidden="true">
+              {margin >= 0 ? row.numbers[margin].number : null}
+            </span>
+          ) : null}
           {row.cells.map((cells, i) => {
             const number = row.numbers?.[i];
-            const stated = number?.stated && number?.number != null;
+            const counted = number?.number != null;
+            const stated = counted && number.stated;
+            const inline = ctx.barNumbers && stated && i !== margin;
+            const spoken = stated || (counted && i === margin);
             const width = row.grid?.widths[i];
             const marks = row.marks?.[i];
             return (
-              <span key={i} className={measureClass(marks)} role="listitem" style={width ? { gridColumn: `span ${width}` } : undefined}>
-                {stated ? (
+              <span
+                key={i}
+                className={`${measureClass(marks)}${inline ? ' barnum-on' : ''}`}
+                role="listitem"
+                style={width ? { gridColumn: `span ${width}` } : undefined}
+              >
+                {inline ? (
+                  <span className="barnum-at" aria-hidden="true">
+                    {number.number}
+                  </span>
+                ) : null}
+                {spoken ? (
                   <span className="visually-hidden">{t('chart.spoken.bar', { n: number.number })} </span>
                 ) : null}
                 <RuleMarks marks={marks} side="start" />
@@ -313,6 +344,7 @@ function Row({ row, mark, ctx }) {
           })}
         </div>
       );
+    }
     case 'run':
       // A run/intro line is a plain sequence, not an ordered measure group (§5).
       return (
@@ -415,19 +447,25 @@ function blocks(units) {
  * @param {Map<string, { symbol: string, chord?: object }>} [props.chordNames]
  *   by §2.4 voicing key, the name to draw a chord under instead of the written
  *   one — what its chosen shape sounds (`voicedNames`); default: as written
+ * @param {boolean} [props.barNumbers]  show the bars' numbers (cifra.md §2.8):
+ *   each line's first bar in the margin and a stated number over its bar — the
+ *   reading view's choice (songs.bar_numbers); a sung song has none to show
  */
-export default function Chart({ model, markOf, size, label, className, onChordPress, chordLabel, markEmpty, chordNames }) {
+export default function Chart({ model, markOf, size, label, className, onChordPress, chordLabel, markEmpty, chordNames, barNumbers }) {
   const rows = chartRows(model, { markEmpty });
+  // Only a song whose reader counted its bars has numbers to show (cifra.md
+  // §2.8: never a sung one), so the margin is never drawn empty.
+  const numbered = Boolean(barNumbers) && hasBarNumbers(rows);
   const speak = (chord, opts) => speakChord(chord, { t, ...opts });
   const speakSlot = (voice) => speakVoice(voice, { speak, t });
-  const ctx = { onChordPress, chordLabel, speakSlot, chordNames };
+  const ctx = { onChordPress, chordLabel, speakSlot, chordNames, barNumbers: numbered };
   const units = renderUnits(rows, markOf);
   // `--chart-size` is a custom property the adopted CSS reads; a number is taken
   // as pixels, a string passed through (e.g. '20px').
   const style = size != null ? { '--chart-size': typeof size === 'number' ? `${size}px` : size } : undefined;
   return (
     <div
-      className={`chart${className ? ` ${className}` : ''}`}
+      className={`chart${numbered ? ' numbered' : ''}${className ? ` ${className}` : ''}`}
       role="group"
       aria-label={label ?? t('chart.label')}
       style={style}
@@ -450,7 +488,7 @@ export default function Chart({ model, markOf, size, label, className, onChordPr
         if (!block.grid) return drawn;
         const first = block.units[0];
         return (
-          <BarGrid key={`g${first.i ?? first.region.items[0].i}`} grid={block.grid}>
+          <BarGrid key={`g${first.i ?? first.region.items[0].i}`} grid={block.grid} numbered={numbered}>
             {drawn}
           </BarGrid>
         );

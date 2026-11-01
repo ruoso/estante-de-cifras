@@ -161,6 +161,11 @@ function makeStore({ text, entry, transposition = 0, variations = {}, preference
           prefs.instrumentPromptSeen = register(true);
           port.postMessage(event(EventKind.PREFERENCES, { ...prefs }));
           break;
+        case CommandKind.SET_BAR_NUMBERS:
+          // As the Worker writes it: the default is a tombstone.
+          prefs.barNumbers = register(p.barNumbers === 'hidden' ? null : p.barNumbers);
+          port.postMessage(event(EventKind.PREFERENCES, { ...prefs }));
+          break;
         case CommandKind.OPEN_SOURCE:
           port.postMessage(event(EventKind.SOURCE, { bookId: p.bookId, path: p.path, text: currentText }));
           break;
@@ -1170,11 +1175,11 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
   const appbar = (container) => container.querySelector('.appbar.reading-chrome');
   // The grouped order (songs.menu_grouping; workflow 2 §The song's menu;
   // review_polish item 5): This song, Take it along, View.
-  const EIGHT = ['Edit', 'Arrange for Guitar', 'History', 'Show the file', 'Add to setlist', 'Share', 'Print', 'Full screen', 'Name chords as voiced'];
+  const EIGHT = ['Edit', 'Arrange for Guitar', 'History', 'Show the file', 'Add to setlist', 'Share', 'Print', 'Full screen', 'Name chords as voiced', 'Show bar numbers'];
   const GROUPS = [
     ['This song', ['Edit', 'Arrange for Guitar', 'History', 'Show the file']],
     ['Take it along', ['Add to setlist', 'Share', 'Print']],
-    ['View', ['Full screen', 'Name chords as voiced']],
+    ['View', ['Full screen', 'Name chords as voiced', 'Show bar numbers']],
   ];
   const DEVICES = [
     { device: 'phone', mode: 'narrow', computer: false },
@@ -1269,10 +1274,14 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
       expect(handlers.onShowFile).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
       await reach('Name chords as voiced');
       expect(commands.filter((c) => c.kind === CommandKind.SET_CHORD_NAMES).at(-1).payload).toEqual({ naming: 'voiced' });
+      await reach('Show bar numbers');
+      expect(lastCommand(commands, CommandKind.SET_BAR_NUMBERS).payload).toEqual({ barNumbers: 'shown' });
       // Last, since full screen hides the app bar.
       await reach('Full screen');
       await screen.findByRole('button', { name: 'Leave full screen' });
-    });
+      // Ten items walked and pressed by the keyboard, with axe: past Vitest's 5 s
+      // default when the full suite loads the machine (as ChordExplorer's HEAVY).
+    }, 20000);
 
     it(`⋯ on the ${device} while transposed: still three groups, no Arrange for in This song`, async () => {
       installWidths(computer);
@@ -1471,5 +1480,64 @@ describe('SongReading header chrome (behavior)', () => {
     expect(await screen.findByRole('button', { name: 'Arrange for Guitar' })).toBeInTheDocument();
     expect(screen.getByText('This song doesn’t say yet how to play its chords on Guitar, so each chord shows its easiest shape.')).toBeInTheDocument();
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+});
+
+// Bar numbers (songs.bar_numbers; cifra.md §2.8): off until the reader asks, a
+// View item of ⋯ that the home book remembers (`barNumbers`), offered only for a
+// song whose bars are counted, and drawn by the chart the print sheet prints.
+describe('SongReading — bar numbers (songs.bar_numbers)', () => {
+  const seen = { instrumentInUse: register('g1'), instrumentPromptSeen: register(true) };
+  const CHART = 'Dm | G7 | C7 | F\nBb | A7 | @17 Dm | %';
+  const margins = () =>
+    [...screen.getByRole('group', { name: 'Tarde Clara' }).querySelectorAll('.barnum')].map((n) => n.textContent);
+  const choose = async (name) => {
+    await click(screen.getByRole('button', { name: 'More' }));
+    const menu = await screen.findByRole('menu', { name: 'More' });
+    await click(within(menu).getByRole('menuitem', { name }));
+    await waitFor(() => expect(screen.queryByRole('menu', { name: 'More' })).toBeNull());
+  };
+
+  it('shows the numbers when asked, in the margin and at a stated jump, and hides them again', async () => {
+    const { store, commands } = makeStore({ text: song({ chart: CHART }), entry: guitarEntry(), preferences: seen });
+    await openAndWait(store);
+    const chart = () => screen.getByRole('group', { name: 'Tarde Clara' });
+    expect(chart()).not.toHaveClass('numbered');
+    expect(margins()).toEqual([]);
+
+    await choose('Show bar numbers');
+    expect(lastCommand(commands, CommandKind.SET_BAR_NUMBERS).payload).toEqual({ barNumbers: 'shown' });
+    await waitFor(() => expect(margins()).toEqual(['1', '5']));
+    expect(chart().querySelector('.barnum-at')).toHaveTextContent('17');
+    // The printed sheet is this chart: the numbers go to paper with it.
+    expect(chart().closest('.reading-sheet')).not.toBeNull();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+
+    await choose('Hide bar numbers');
+    expect(lastCommand(commands, CommandKind.SET_BAR_NUMBERS).payload).toEqual({ barNumbers: 'hidden' });
+    await waitFor(() => expect(margins()).toEqual([]));
+  });
+
+  it('reads the choice from the home book on open', async () => {
+    const { store } = makeStore({
+      text: song({ chart: CHART }),
+      entry: guitarEntry(),
+      preferences: { ...seen, barNumbers: register('shown') },
+    });
+    await openAndWait(store);
+    await waitFor(() => expect(margins()).toEqual(['1', '5']));
+  });
+
+  it('offers no bar numbers for a song with words, whatever the home book says', async () => {
+    const { store } = makeStore({
+      text: song({ chart: 'G         C\nsome words here' }),
+      entry: guitarEntry(),
+      preferences: { ...seen, barNumbers: register('shown') },
+    });
+    await openAndWait(store);
+    expect(screen.getByRole('group', { name: 'Tarde Clara' }).querySelector('.barnum')).toBeNull();
+    await click(screen.getByRole('button', { name: 'More' }));
+    const menu = await screen.findByRole('menu', { name: 'More' });
+    expect(within(menu).queryByRole('menuitem', { name: /bar numbers/ })).toBeNull();
   });
 });

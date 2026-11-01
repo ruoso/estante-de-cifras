@@ -1581,6 +1581,8 @@ export default {
     leaveFullScreen: 'Sair da tela cheia',
     namesVoiced: 'Nomear os acordes como soam',
     namesWritten: 'Nomear os acordes como escritos',
+    barNumbersShow: 'Mostrar os números dos compassos',
+    barNumbersHide: 'Ocultar os números dos compassos',
     // Os títulos dos grupos do menu ⋯ (songs.menu_grouping; fluxo 2): cada
     // título é o nome que o leitor de tela dá ao grupo.
     menuThisSong: 'Esta música',
@@ -2007,7 +2009,6 @@ export default {
     variationTaken: 'Já existe uma variação chamada “{name}” para este instrumento.',
     variationCancel: 'Cancelar',
     variationConfirm: 'Adicionar',
-    chartBarNumbers: 'Mostrar os números dos compassos',
     chartVoicedAs: 'Nomear os acordes da cifra pelo que os desenhos soam',
     back: '← Todas as músicas',
     titleLabel: 'Nome da música',

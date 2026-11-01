@@ -1581,6 +1581,8 @@ export default {
     leaveFullScreen: 'Esci da schermo intero',
     namesVoiced: 'Nomina gli accordi come suonano',
     namesWritten: 'Nomina gli accordi come scritti',
+    barNumbersShow: 'Mostra i numeri di battuta',
+    barNumbersHide: 'Nascondi i numeri di battuta',
     // I titoli dei gruppi del menu ⋯ (songs.menu_grouping; flusso 2): ogni
     // titolo è il nome che lo screen reader dà al gruppo.
     menuThisSong: 'Questo brano',
@@ -2010,7 +2012,6 @@ export default {
     variationTaken: 'C’è già una variazione chiamata “{name}” per questo strumento.',
     variationCancel: 'Annulla',
     variationConfirm: 'Aggiungi',
-    chartBarNumbers: 'Mostrare i numeri di battuta',
     chartVoicedAs: 'Chiamare gli accordi della cifra come suonano le forme',
     back: '← Tutte le canzoni',
     titleLabel: 'Titolo della canzone',

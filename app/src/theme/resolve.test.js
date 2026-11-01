@@ -3,6 +3,7 @@ import {
   resolveTheme,
   resolveDensity,
   resolveDiagramDisplay,
+  resolveBarNumbers,
   themeClasses,
   DEFAULT_DENSITY,
   DENSITIES,
@@ -128,5 +129,18 @@ describe('resolveDiagramDisplay (home-book-format §4.1 L222-233)', () => {
         diagramOrientation: { value: 'horizontal', at: 't' },
       }),
     ).toEqual({ handed: 'right', orientation: 'horizontal' });
+  });
+});
+
+describe('resolveBarNumbers (home-book-format §4.1)', () => {
+  it('is hidden while the register is absent, tombstoned or unknown', () => {
+    expect(resolveBarNumbers(undefined)).toBe('hidden');
+    expect(resolveBarNumbers({})).toBe('hidden');
+    expect(resolveBarNumbers({ barNumbers: { value: null, at: 't' } })).toBe('hidden');
+    expect(resolveBarNumbers({ barNumbers: { value: 'loud', at: 't' } })).toBe('hidden');
+  });
+
+  it('is shown once the reader asks for the numbers', () => {
+    expect(resolveBarNumbers({ barNumbers: { value: 'shown', at: 't' } })).toBe('shown');
   });
 });

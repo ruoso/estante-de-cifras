@@ -199,7 +199,8 @@ A flat map of singleton preferences, each a register:
   "density":    { "value": "roomy",   "at": "2026-10-15T09:12:00.000Z" },
   "diagramHanded":      { "value": "left",       "at": "2026-10-15T09:12:04.000Z" },
   "diagramOrientation": { "value": "horizontal", "at": "2026-10-15T09:12:07.000Z" },
-  "chordNames":         { "value": "voiced",     "at": "2026-10-31T10:02:00.000Z" }
+  "chordNames":         { "value": "voiced",     "at": "2026-10-31T10:02:00.000Z" },
+  "barNumbers":         { "value": "shown",      "at": "2026-11-01T10:30:00.000Z" }
 }
 ```
 
@@ -233,12 +234,16 @@ A flat map of singleton preferences, each a register:
   it, or `"voiced"`, as the chosen shape sounds it (`D7/A` over a `D7` whose
   shape puts the fifth lowest; workflow 2 §Reading a song). Absent until chosen;
   while absent, written. Choosing written again writes the tombstone.
+- `barNumbers` — whether a chart that counts its bars (cifra.md §2.8) shows
+  their numbers: `"hidden"` or `"shown"` (workflow 2 §Reading a song).
+  Absent until chosen; while absent, hidden. Choosing hidden again writes the
+  tombstone.
 - `tourOffered` — `true` once the first-open tour offer has been answered,
   either way (workflow 18 §The tour). Absent until then; while absent, the
   shell offers the tour.
 
 A reader treats a value of `theme`, `density`, `diagramHanded`,
-`diagramOrientation` or `chordNames` it does not know as absent — the default — and leaves the
+`diagramOrientation`, `chordNames` or `barNumbers` it does not know as absent — the default — and leaves the
 register as it is: an older app meeting a newer value draws the default, never
 fails.
 

@@ -59,13 +59,13 @@ import { songVariations } from '../core/song-variations.js';
 import { parseChord } from '../core/notation/parse.js';
 import { DEFAULT_DIALECT, songDialect } from '../core/notation/dialects.js';
 import Chart from '../chart/Chart.jsx';
-import { isEmptySong } from '../chart/layout.js';
+import { isEmptySong, isNumberedSong } from '../chart/layout.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import { bookLabelFor } from './first-run.js';
 import { songTitle } from './search-query.js';
 import { transposeStatus, chartChordList, chordKeyName, voicedNames, shapeNames } from './reading-view.js';
 import { fitPrintColumns } from './print-columns.js';
-import { resolveChordNaming } from '../theme/resolve.js';
+import { resolveBarNumbers, resolveChordNaming } from '../theme/resolve.js';
 import { READING_ACTIONS_WIDE_QUERY } from '../shell/layout-mode.js';
 import './reading.css';
 
@@ -400,6 +400,14 @@ export default function SongReading({
   const naming = resolveChordNaming(preferences);
   const renamed = naming === 'voiced' ? voicedNames(shapes, notation) : null;
   const setNaming = (next) => store.send(command(CommandKind.SET_CHORD_NAMES, { naming: next }));
+  // Bar numbers (songs.bar_numbers; cifra.md §2.8): the reader's choice, kept in
+  // the home book (`barNumbers`), off until asked for. Offered only for a song
+  // whose bars are counted — never one with words in it, where a chord can last
+  // four bars or half of one and the text does not say which. Print draws the
+  // same chart, so the sheet carries the numbers when the page does.
+  const numbered = isNumberedSong(model);
+  const barNumbers = numbered && resolveBarNumbers(preferences) === 'shown';
+  const setBarNumbers = (next) => store.send(command(CommandKind.SET_BAR_NUMBERS, { barNumbers: next }));
 
   // Print fills the paper: just before the dialog opens, measure the narrowest
   // column the song fits in, so the print stylesheet can set as many of them
@@ -586,7 +594,7 @@ export default function SongReading({
       </div>
     );
   } else if (model) {
-    chart = <Chart model={model} size={mode === 'wide' ? 20 : undefined} label={displayTitle} markEmpty chordNames={renamed} />;
+    chart = <Chart model={model} size={mode === 'wide' ? 20 : undefined} label={displayTitle} markEmpty chordNames={renamed} barNumbers={barNumbers} />;
   }
 
   // The sheet's own head, for paper only: on screen the app bar names the song,
@@ -710,6 +718,7 @@ export default function SongReading({
             else if (key === 'arrange') onArrange({ bookId, path, title: baseModel?.title });
             else if (key === 'fullScreen') setFullScreen(true);
             else if (key === 'chordNames') setNaming(naming === 'voiced' ? 'written' : 'voiced');
+            else if (key === 'barNumbers') setBarNumbers(barNumbers ? 'hidden' : 'shown');
           }}
         >
           {/* Three named groups in the workflow's order (songs.menu_grouping;
@@ -736,6 +745,11 @@ export default function SongReading({
             <MenuItem id="chordNames">
               {naming === 'voiced' ? t('reading.namesWritten') : t('reading.namesVoiced')}
             </MenuItem>
+            {numbered ? (
+              <MenuItem id="barNumbers">
+                {barNumbers ? t('reading.barNumbersHide') : t('reading.barNumbersShow')}
+              </MenuItem>
+            ) : null}
           </MenuSection>
         </Menu>
       </Popover>

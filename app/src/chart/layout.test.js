@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { parse } from 'cifra-md';
-import { chartRows, isEmptySong } from './layout.js';
+import { chartRows, isEmptySong, isNumberedSong } from './layout.js';
 import { template } from '../editor/template.js';
 
 // A chord item in the reader's shape; the chart reads `symbol`, `column` and
@@ -523,6 +523,25 @@ describe('chartRows — a chord past the end of the words', () => {
     expect(firstEmpty.segments.map((s) => s.tail)).toEqual([false, false]);
     const lead = sungLine([{ bar: null, items: [{ type: 'lead', column: 0, words: 'Oh ' }, chord('G', 3, 'yes')] }]);
     expect(lead.segments.map((s) => s.tail)).toEqual([false, false]);
+  });
+});
+
+// Whether a song has bar numbers to show (songs.bar_numbers; cifra.md §2.8):
+// the reader counts the bars of a song that is all chart, never a sung one.
+describe('isNumberedSong — cifra.md §2.8', () => {
+  const FENCE = '```';
+  it('is true for a song that is all chart, its rows carrying the count', () => {
+    const m = parse(['# T', '', FENCE, 'Dm | G7', '@9 C | F', FENCE, ''].join('\n'));
+    expect(isNumberedSong(m)).toBe(true);
+    const bars = chartRows(m).filter((r) => r.type === 'bars');
+    expect(bars.map((r) => r.numbers.map((n) => n.number))).toEqual([[1, 2], [9, 10]]);
+    expect(bars[1].numbers[0].stated).toBe(true);
+  });
+
+  it('is false for a sung song, and for one with nothing to count', () => {
+    expect(isNumberedSong(parse(['# T', '', FENCE, 'G      C', 'some words here', FENCE, ''].join('\n')))).toBe(false);
+    expect(isNumberedSong(parse(['# T', '', FENCE, 'G C Am', FENCE, ''].join('\n')))).toBe(false);
+    expect(isNumberedSong(null)).toBe(false);
   });
 });
 

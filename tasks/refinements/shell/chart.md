@@ -274,7 +274,9 @@ is one of the two drawings the rest of the app is built on, which is why Area
   (no bar lines, §2.1) renders as a `.runline`. Bar numbers are **not** drawn
   (the governing chart mockup shows none, and §4.7 gives a sung document no
   numbers); song history's "Verse bar 5" wording (DIRECTION §4) is the
-  history view's concern, not the chart's.
+  history view's concern, not the chart's. *(Since songs.bar_numbers: a song
+  that is all chart may show them, on the reader's request —
+  `tasks/refinements/songs/bar_numbers.md`.)*
 - **Colour and typeface are the only things that change with the theme.**
   All colour comes from the tokens through the adopted chart CSS
   (`app/src/theme/theme.css` lines 210–229); the chart authors none. The

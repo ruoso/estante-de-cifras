@@ -192,7 +192,10 @@ the metre, which is what a chart line is for).
 
 - A measure carrying a **bar number** (a numbering anchor, cifra.md §2.8) leads
   with its number: *bar 5: …*. A reader MUST NOT number the measures of a sung
-  line (cifra.md §2.8).
+  line (cifra.md §2.8). With the bar numbers shown (workflow 2 §Reading a
+  song), the measure whose number sits in the margin — each line's first —
+  leads with it too, so what is drawn is what is said; the drawn numbers
+  themselves are hidden from the tree, never read twice.
 - The **no-chord mark** `N.C.` (cifra.md §2.6) reads *no chord*.
 - A `.run`/**intro** line — chord-only with no bar rules — reads its chords in
   order as a plain sequence, **not** an ordered measure group (there is no

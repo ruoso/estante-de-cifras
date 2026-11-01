@@ -35,6 +35,10 @@ export const DEFAULT_ORIENTATION = 'vertical';
 // §6.2) — `D7/A` over a `D7` whose shape puts the fifth lowest.
 export const CHORD_NAMINGS = Object.freeze(['written', 'voiced']);
 export const DEFAULT_CHORD_NAMING = 'written';
+// Whether a chart's bars show their numbers (the `barNumbers` register,
+// home-book-format §4.1; cifra.md §2.8): off until the reader asks for them.
+export const BAR_NUMBERINGS = Object.freeze(['hidden', 'shown']);
+export const DEFAULT_BAR_NUMBERING = 'hidden';
 
 // Resolve the applied theme from the chosen theme and whether the device is in
 // dark mode. An explicit theme is returned unchanged whatever the device asks;
@@ -74,4 +78,11 @@ export function resolveDiagramDisplay(preferences) {
 export function resolveChordNaming(preferences) {
   const value = preferences?.chordNames?.value;
   return CHORD_NAMINGS.includes(value) ? value : DEFAULT_CHORD_NAMING;
+}
+
+// Whether the chart shows its bar numbers, from the preferences slice: the
+// register's value when in BAR_NUMBERINGS, else hidden.
+export function resolveBarNumbers(preferences) {
+  const value = preferences?.barNumbers?.value;
+  return BAR_NUMBERINGS.includes(value) ? value : DEFAULT_BAR_NUMBERING;
 }

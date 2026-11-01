@@ -1746,6 +1746,8 @@ export default {
     leaveFullScreen: 'Leave full screen',
     namesVoiced: 'Name chords as voiced',
     namesWritten: 'Name chords as written',
+    barNumbersShow: 'Show bar numbers',
+    barNumbersHide: 'Hide bar numbers',
     // The ⋯ menu's group headers (songs.menu_grouping; workflow 2 §The song's
     // menu): each header is the visible name a screen reader gives the group.
     menuThisSong: 'This song',
@@ -2190,7 +2192,6 @@ export default {
     variationTaken: 'There is already a variation called “{name}” for this instrument.',
     variationCancel: 'Cancel',
     variationConfirm: 'Add',
-    chartBarNumbers: 'Show bar numbers',
     chartVoicedAs: 'Name the chords in the chart by what the shapes sound',
     back: '← All songs',
     titleLabel: 'Song title',
