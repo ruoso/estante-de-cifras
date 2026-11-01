@@ -602,11 +602,11 @@ describe('SongReading — transpose (workflow 2 L111-146; W02 L181-186)', () => 
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 
-  it('names no key for a keyless song, but shows its first chord\'s move (acceptance 3)', async () => {
-    const { store } = makeStore({ text: song({ chart: 'C  F  G' }), entry: guitarEntry(), transposition: 3 });
+  it('names a keyless song by the key its first chord gives (acceptance 3)', async () => {
+    const { store } = makeStore({ text: song({ chart: 'Am  F  G' }), entry: guitarEntry(), transposition: 3 });
     await openAndWait(store);
-    expect(screen.getByText('Transposed: C → Eb (+3)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Back to the written key' })).toBeInTheDocument();
+    expect(screen.getByText('Transposed to Cm (+3)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to Am' })).toBeInTheDocument();
   });
 });
 
@@ -647,7 +647,7 @@ describe('SongReading — the popovers on the popover surface (shell.popover_sur
     await click(screen.getByRole('button', { name: 'Transpose' }));
     const dialog = await screen.findByRole('dialog', { name: 'Transpose the view' });
     expectPopoverSurface(dialog);
-    expect(within(dialog).getByText('Written key')).toBeInTheDocument();
+    expect(within(dialog).getByText('Key of C')).toBeInTheDocument();
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
     await escape();
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

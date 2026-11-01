@@ -1707,11 +1707,8 @@ export default {
     writtenKey: 'Written key',
     transposedToKey: 'Transposed to {key} ({offset})',
     transposedBy: 'Transposed ({offset})',
-    // A song naming no key: its first chord, as written and as now read.
-    transposedChord: 'Transposed: {from} → {to} ({offset})',
     // The stepper's reading between − and +, while transposed.
     keyNow: '{key} ({offset})',
-    chordNow: '{from} → {to} ({offset})',
     backToKey: 'Back to {key}',
     backToWritten: 'Back to the written key',
     arrangingOff: 'Arranging is off while transposed',

@@ -248,9 +248,10 @@ shown plainly while it applies — *transposed to D (+2)* — with a way back to
 the written key, and in full screen too, beside the title: on stage the chords
 must not look like the written ones without a word. The Transpose stepper
 reads the key it is in between − and + (*Key of C*, then *D♭ (+1)*). A song
-that names no key still says what a transposition does, by its first chord as
-written and as now read: *Transposed: C → D♭ (+1)*, never a bare number of
-semitones (the persona exploration of 2026-10-31).
+that names no key is named by the key its first chord gives, the chord's root
+and *m* when it is minor, since most songs open on their key: *Key of Am*,
+then *Transposed to B♭m (+1)* and *Back to Am*, never a bare number of
+semitones (the persona explorations of 2026-10-31 and 2026-11-01).
 
 **It is for reading.** While transposed:
 

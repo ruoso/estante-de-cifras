@@ -63,7 +63,7 @@ import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import SearchScreen from './SearchScreen.jsx';
 import { bookLabelFor } from './first-run.js';
 import { songTitle } from './search-query.js';
-import { transposeStatus, chartChordList, voicedNames, shapeNames } from './reading-view.js';
+import { transposeStatus, chartChordList, chordKeyName, voicedNames, shapeNames } from './reading-view.js';
 import { fitPrintColumns } from './print-columns.js';
 import { resolveChordNaming } from '../theme/resolve.js';
 import { READING_ACTIONS_WIDE_QUERY } from '../shell/layout-mode.js';
@@ -418,15 +418,14 @@ export default function SongReading({
   // Only at the written key — while transposed the shapes are deliberately not
   // the song's, which a different caption explains.
   const noVoicings = offset === 0 && Boolean(model) && chordList.length > 0 && variations.length === 0;
-  // A song that names no key still says what a transposition does: its first
-  // chord, as written and as now read (`C → Db`), so the reader is never left
-  // with a bare number of semitones.
-  const firstChord = baseModel ? chartChordList(baseModel)[0]?.symbol : null;
-  const firstNow = chordList[0]?.symbol ?? null;
-  const chordMove = !writtenKey && firstChord && firstNow ? { from: firstChord, to: firstNow } : null;
+  // A song that names no key is named by the key its first chord gives, as
+  // written and as now read (`C` → `Db`), so the reader is never left with a
+  // bare number of semitones.
+  const startKey = writtenKey ? null : chordKeyName(baseModel ? chartChordList(baseModel)[0]?.symbol : null, notation);
+  const startKeyNow = writtenKey ? null : chordKeyName(chordList[0]?.symbol, notation);
   const instrumentLabel = chipLabel(entry) || t('search.instrument');
 
-  const status = transposeStatus(writtenKey, offset);
+  const status = transposeStatus(writtenKey, offset, { from: startKey, to: startKeyNow });
   const transposed = offset !== 0;
 
   const setTransposition = (semitones) =>
@@ -446,9 +445,7 @@ export default function SongReading({
     ? null
     : status.keyName
       ? t('reading.transposedToKey', { key: status.keyName, offset: signed(status.offset) })
-      : chordMove
-        ? t('reading.transposedChord', { ...chordMove, offset: signed(status.offset) })
-        : t('reading.transposedBy', { offset: signed(status.offset) });
+      : t('reading.transposedBy', { offset: signed(status.offset) });
   const transposedParts = status
     ? [
         <span key="chip" className="chip accent">
@@ -465,12 +462,12 @@ export default function SongReading({
       ]
     : null;
 
-  // What the stepper reads between − and +: the key it is in, named where the
-  // song names one; else the first chord's move; else the bare offset.
+  // What the stepper reads between − and +: the key it is in, the song's own
+  // or the one its first chord gives; else the bare offset.
   const transposeNow = () => {
-    if (!transposed) return writtenKey ? t('reading.keyOf', { key: writtenKey }) : t('reading.writtenKey');
+    const at = writtenKey ?? startKey;
+    if (!transposed) return at ? t('reading.keyOf', { key: at }) : t('reading.writtenKey');
     if (status?.keyName) return t('reading.keyNow', { key: status.keyName, offset: signed(offset) });
-    if (chordMove) return t('reading.chordNow', { ...chordMove, offset: signed(offset) });
     return signed(offset);
   };
 

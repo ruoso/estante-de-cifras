@@ -6,6 +6,7 @@
 
 import { transposedKeyName } from '../core/transpose.js';
 import { parseChord } from '../core/notation/parse.js';
+import { formatNote } from 'cifra-md';
 import { voicedAsLabel, voicedAsSymbol } from '../render/index.js';
 
 /**
@@ -20,12 +21,35 @@ import { voicedAsLabel, voicedAsSymbol } from '../render/index.js';
  *
  * @param {string|null|undefined} key  the song's `key` property, as written
  * @param {number} offset  the signed semitone offset the song is read at
+ * @param {{ from: string|null, to: string|null }} [start]  for a song with no
+ *   key, the key its first chord gives, as written and as now read (chordKeyName)
  * @returns {{ offset: number, keyName: string|null, writtenKey: string|null }|null}
  */
-export function transposeStatus(key, offset) {
+export function transposeStatus(key, offset, start = null) {
   if (!offset) return null;
   const keyName = transposedKeyName(key, offset);
-  return { offset, keyName, writtenKey: keyName ? key.trim() : null };
+  if (keyName) return { offset, keyName, writtenKey: key.trim() };
+  // A song that names no key is named by the key its first chord gives, as
+  // written and as now read (`startKey`), so the reader always sees a key.
+  if (start?.from && start?.to) return { offset, keyName: start.to, writtenKey: start.from };
+  return { offset, keyName: null, writtenKey: null };
+}
+
+/**
+ * The key a chord gives a song that names none (workflow 2 §Transposing): its
+ * root, and `m` when it is minor — `Am7` gives `Am`, `Eb/G` gives `Eb`. Most
+ * songs open on their key, so the first chord stands for it. Null for a symbol
+ * the notation does not read as a chord.
+ *
+ * @param {string|null|undefined} symbol a chord as the chart spells it
+ * @param {string} notation the song's own dialect
+ * @returns {string|null}
+ */
+export function chordKeyName(symbol, notation) {
+  if (!symbol) return null;
+  const chord = parseChord(symbol, notation).chord;
+  if (!chord?.root) return null;
+  return formatNote(chord.root) + (chord.quality === 'minor' ? 'm' : '');
 }
 
 /** Every chord item in the chart, in document order (chart.js layout order). */

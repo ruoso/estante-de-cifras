@@ -1546,11 +1546,8 @@ export default {
     writtenKey: 'Tom escrito',
     transposedToKey: 'Transposta para {key} ({offset})',
     transposedBy: 'Transposta ({offset})',
-    // A song naming no key: its first chord, as written and as now read.
-    transposedChord: 'Transposta: {from} → {to} ({offset})',
     // The stepper's reading between − and +, while transposed.
     keyNow: '{key} ({offset})',
-    chordNow: '{from} → {to} ({offset})',
     backToKey: 'Voltar para {key}',
     backToWritten: 'Voltar ao tom escrito',
     arrangingOff: 'Arranjo desativado enquanto transposta',
