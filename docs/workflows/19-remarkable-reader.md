@@ -3,7 +3,8 @@
 The reMarkable reader ([`docs/remarkable-reader.md`](../remarkable-reader.md))
 shows the account's books on a reMarkable 2: the shelf, a book's songs and
 setlists, a song at any key, a setlist played through. It writes nothing. This
-document decides its screens.
+document decides its screens; they are drawn, one bit at the panel's own size, in
+[`docs/reader-mockups/`](../reader-mockups/).
 
 They are not the web app's screens made smaller. The web app redraws freely —
 a list scrolls, a popover opens over the page, a number ticks, a field shows a

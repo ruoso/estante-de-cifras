@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>A song with words, page 1 of 2</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#000}
+</style>
+</helmet>
+<div style="width: 1404px; height: 1872px; box-sizing: border-box; background: #fff; color: #000; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column;">
+  <header style="height: 140px; box-sizing: border-box; border-bottom: 3px solid #000; padding: 0 40px; display: flex; align-items: center; gap: 32px;">
+    <button style="height: 100px; padding: 0 16px; border: none; background: #fff; color: #000; font-family: inherit; font-size: 38px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      Back
+    </button>
+    <span style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+      <span style="font-size: 46px; font-weight: 700; line-height: 1.1;">Tarde Clara</span>
+      <span style="font-size: 30px;">Pedro Araújo</span>
+    </span>
+    <button aria-label="Key: A, two semitones up from G" style="height: 96px; padding: 0 36px; border: 3px solid #000; background: #fff; color: #000; font-family: inherit; font-size: 40px; font-weight: 700; border-radius: 12px;">A (+2)</button>
+  </header>
+  <main style="flex: 1; box-sizing: border-box; display: flex; flex-direction: column; min-height: 0;">
+    <div style="flex: 1; box-sizing: border-box; padding: 36px 48px 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 64px; font-family: 'Figtree', system-ui, sans-serif;">
+      <sc-for list="{{cols}}" as="col" hint-placeholder-count="2">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <sc-for list="{{col.rows}}" as="r" hint-placeholder-count="6">
+            <sc-if value="{{r.isSec}}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top: 22px; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-size: 30px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">{{r.text}}</div>
+            </sc-if>
+            <sc-if value="{{r.isBars}}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; margin: 10px 0; border-right: 3px solid #000;">
+                <sc-for list="{{r.ms}}" as="m" hint-placeholder-count="4">
+                  <span style="flex: 1; border-left: 3px solid #000; padding: 4px 0 4px 18px; font-size: 40px; font-weight: 700;">{{m.c}}</span>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{r.isSung}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-wrap: wrap; margin: 4px 0;">
+                <sc-for list="{{r.segs}}" as="sg" hint-placeholder-count="2">
+                  <span style="display: inline-flex; flex-direction: column;">
+                    <span style="height: 50px; font-size: 38px; font-weight: 700; white-space: pre; line-height: 50px;">{{sg.c}}</span>
+                    <span style="font-size: 44px; white-space: pre; line-height: 56px;">{{sg.w}}</span>
+                  </span>
+                </sc-for>
+              </div>
+            </sc-if>
+          </sc-for>
+        </div>
+      </sc-for>
+    </div>
+    <section aria-label="Shapes on this page" style="height: 380px; box-sizing: border-box; border-top: 3px solid #000; padding: 20px 48px 0; display: flex; flex-direction: column; gap: 12px;">
+      <span style="font-size: 30px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">Shapes on this page</span>
+      <div style="display: flex; gap: 72px;">
+        <sc-for list="{{shapes}}" as="s" hint-placeholder-count="4">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <span style="font-family: 'Figtree', system-ui, sans-serif; font-size: 40px; font-weight: 700;">{{s.name}}</span>
+            <div role="img" aria-label="{{s.label}}" style="position: relative; width: 170px; height: 222px;">
+              <sc-for list="{{s.frets}}" as="f" hint-placeholder-count="6">
+                <span style="position: absolute; left: 10px; top: {{f.top}}px; width: 153px; height: {{f.h}}px; background: #000;"></span>
+              </sc-for>
+              <sc-for list="{{s.strings}}" as="st" hint-placeholder-count="6">
+                <span style="position: absolute; left: {{st.left}}px; top: 44px; width: 3px; height: 172px; background: #000;"></span>
+              </sc-for>
+              <sc-for list="{{s.marks}}" as="mk" hint-placeholder-count="2">
+                <span style="position: absolute; left: {{mk.left}}px; top: 0; width: 24px; text-align: center; font-size: 30px; font-weight: 700; line-height: 36px;">{{mk.t}}</span>
+              </sc-for>
+              <sc-for list="{{s.dots}}" as="d" hint-placeholder-count="3">
+                <span style="position: absolute; left: {{d.left}}px; top: {{d.top}}px; width: 26px; height: 26px; border-radius: 50%; background: #000;"></span>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </main>
+  <footer style="height: 100px; box-sizing: border-box; border-top: 3px solid #000; padding: 0 40px 0 48px; display: flex; align-items: center; gap: 24px;">
+    <button style="height: 84px; padding: 0 8px; border: none; background: #fff; color: #000; font-family: inherit; font-size: 34px; font-weight: 700; text-decoration: underline;">Hide shapes</button>
+    <span style="flex: 1;"></span>
+    <button aria-label="Previous page" style="width: 96px; height: 80px; border: 3px solid #000; background: #fff; color: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+    </button>
+    <span style="font-size: 34px; min-width: 150px; text-align: center;">1 of 2</span>
+    <button aria-label="Next page" style="width: 96px; height: 80px; border: 3px solid #000; background: #fff; color: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+    </button>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1404,"height":1872}}'>
+class Component extends DCLogic {
+  renderVals() {
+    // The chart's rows, as chartRows hands them over: sections, bar lines,
+    // and sung lines as segments (each chord over the words it is attached to).
+    const sec = (text) => ({ isSec: true, text });
+    const bars = (t) => ({ isBars: true, ms: t.split('|').map((c) => ({ c: c.trim() })) });
+    const sung = (pairs) => ({ isSung: true, segs: pairs.map(([c, w]) => ({ c: c || ' ', w })) });
+    const cols = [
+      { rows: [
+        sec('Intro'),
+        bars('A | E | F#m | D'),
+        sec('Primeira parte'),
+        sung([['A', 'Quando eu te '], ['E', 'vi passar']]),
+        sung([['F#m', 'naquela tarde '], ['D', 'clara']]),
+        sung([['A', 'o sol desceu '], ['E', 'devagar']]),
+        sung([['D', 'e a rua ficou '], ['E', 'parada']]),
+      ] },
+      { rows: [
+        sec('Refrão'),
+        sung([['D', 'Fica mais um '], ['A', 'pouco']]),
+        sung([['E', 'que a noite ainda é '], ['F#m', 'cedo']]),
+        sung([['D', 'fica, que o meu '], ['A', 'canto']]),
+        sung([['E', 'não tem mais '], ['A', 'segredo']]),
+        bars('D | E | A | A'),
+      ] },
+    ];
+    const SP = 30, FH = 34, TOP = 44;
+    const box = (name, frets) => {
+      const fs = frets.split('').map((c) => (c === 'x' ? 'x' : Number(c)));
+      const played = fs.filter((f) => f !== 'x' && f > 0);
+      const max = played.length ? Math.max(...played) : 0;
+      const start = max > 5 ? Math.min(...played) : 1;
+      const dots = [];
+      const marks = [];
+      fs.forEach((f, i) => {
+        if (f === 'x') marks.push({ left: 10 + i * SP - 11, t: 'x' });
+        else if (f === 0) marks.push({ left: 10 + i * SP - 11, t: 'o' });
+        else dots.push({ left: 10 + i * SP - 12, top: Math.round(TOP + (f - start + 0.5) * FH - 13) });
+      });
+      return {
+        name,
+        label: `${name}: ${frets}`,
+        strings: fs.map((_, i) => ({ left: 10 + i * SP })),
+        frets: [0, 1, 2, 3, 4, 5].map((j) => ({ top: TOP + j * FH, h: j === 0 && start === 1 ? 8 : 3 })),
+        dots,
+        marks,
+      };
+    };
+    return {
+      cols,
+      shapes: [box('A', 'x02220'), box('E', '022100'), box('F#m', '244222'), box('D', 'xx0232')],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A setlist</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#000}
+</style>
+</helmet>
+<div style="width: 1404px; height: 1872px; box-sizing: border-box; background: #fff; color: #000; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column;">
+  <header style="height: 140px; box-sizing: border-box; border-bottom: 3px solid #000; padding: 0 40px; display: flex; align-items: center; gap: 32px;">
+    <button style="height: 100px; padding: 0 16px; border: none; background: #fff; color: #000; font-family: inherit; font-size: 38px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      Back
+    </button>
+    <span style="flex: 1; font-size: 46px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Bar do Zé, 10 October</span>
+    <button style="height: 96px; padding: 0 48px; border: 3px solid #000; background: #000; color: #fff; font-family: inherit; font-size: 38px; font-weight: 700; border-radius: 12px;">Play</button>
+  </header>
+  <main style="flex: 1; box-sizing: border-box; padding: 0 48px; display: flex; flex-direction: column;">
+    <div style="height: 96px; display: flex; align-items: center; font-size: 34px; border-bottom: 2px solid #000;">Banda do Bairro · 6 songs</div>
+    <sc-for list="{{items}}" as="it" hint-placeholder-count="6">
+      <button style="min-height: 150px; box-sizing: border-box; border: none; border-bottom: 2px solid #000; background: #fff; color: #000; font-family: inherit; text-align: left; padding: 24px 0; display: flex; align-items: flex-start; gap: 32px;">
+        <span style="width: 64px; font-size: 44px; font-weight: 700; text-align: right; line-height: 1.2;">{{it.n}}</span>
+        <span style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
+          <span style="font-size: 44px; font-weight: 700; line-height: 1.2;">{{it.title}}</span>
+          <sc-if value="{{it.hasNote}}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 32px; font-style: italic;">{{it.note}}</span>
+          </sc-if>
+        </span>
+        <span style="font-size: 38px; font-weight: 700; line-height: 1.3;">{{it.key}}</span>
+      </button>
+    </sc-for>
+  </main>
+  <footer style="height: 100px; box-sizing: border-box; border-top: 3px solid #000; padding: 0 40px 0 48px; display: flex; align-items: center; gap: 24px;">
+    <span style="flex: 1;"></span>
+    <span style="font-size: 34px;">1 of 1</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1404,"height":1872}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const items = [
+      { title: 'Tarde Clara', key: 'in A', note: '' },
+      { title: 'Carinhoso', key: 'in G', note: 'Start slow; the band comes in the second time.' },
+      { title: 'Asa Branca', key: 'in G', note: '' },
+      { title: 'Lamento', key: 'missing', note: 'Not in the book any more — skipped by Play.' },
+      { title: 'Desafinado', key: 'in F', note: '' },
+      { title: 'Aquarela', key: 'in D', note: 'Last song: all together on the chorus.' },
+    ];
+    return {
+      items: items.map((it, i) => ({ ...it, n: String(i + 1), hasNote: it.note !== '' })),
+    };
+  }
+}
+</script>
+</body>
+</html>

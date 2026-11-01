@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The shelf</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#000}
+</style>
+</helmet>
+<div style="width: 1404px; height: 1872px; box-sizing: border-box; background: #fff; color: #000; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column;">
+  <header style="height: 140px; box-sizing: border-box; border-bottom: 3px solid #000; padding: 0 40px 0 48px; display: flex; align-items: center; gap: 32px;">
+    <span style="flex: 1; font-size: 46px; font-weight: 700;">Estante</span>
+    <button style="height: 96px; padding: 0 40px; border: 3px solid #000; background: #fff; color: #000; font-family: inherit; font-size: 36px; font-weight: 700; border-radius: 12px;">Sync</button>
+  </header>
+  <main style="flex: 1; box-sizing: border-box; padding: 0 48px; display: flex; flex-direction: column;">
+    <div style="height: 96px; display: flex; align-items: center; font-size: 34px; border-bottom: 2px solid #000;">Synced at 14:32</div>
+    <sc-for list="{{books}}" as="b" hint-placeholder-count="5">
+      <button style="height: 150px; box-sizing: border-box; border: none; border-bottom: 2px solid #000; background: #fff; color: #000; font-family: inherit; text-align: left; padding: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px;">
+        <span style="font-size: 46px; font-weight: 700;">{{b.name}}</span>
+        <span style="font-size: 32px;">{{b.meta}}</span>
+      </button>
+    </sc-for>
+  </main>
+  <footer style="height: 100px; box-sizing: border-box; border-top: 3px solid #000; padding: 0 40px 0 48px; display: flex; align-items: center; gap: 24px;">
+    <button style="height: 84px; padding: 0 8px; border: none; background: #fff; color: #000; font-family: inherit; font-size: 34px; font-weight: 700; text-decoration: underline;">Settings</button>
+    <span style="flex: 1;"></span>
+    <span style="font-size: 34px;">1 of 1</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1404,"height":1872}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      books: [
+        { name: 'My songs', meta: '18 songs · 2 setlists' },
+        { name: 'Banda do Bairro', meta: '64 songs · 9 setlists' },
+        { name: 'Choros da Ana', meta: '32 songs · 4 setlists' },
+        { name: 'Roda de quinta', meta: '41 songs · 3 setlists' },
+        { name: 'Aulas de violão', meta: '25 songs · 6 setlists' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

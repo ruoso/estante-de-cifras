@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>The shapes you know hidden</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#000}
+</style>
+</helmet>
+<div style="width: 1404px; height: 1872px; box-sizing: border-box; background: #fff; color: #000; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column;">
+  <header style="height: 140px; box-sizing: border-box; border-bottom: 3px solid #000; padding: 0 40px; display: flex; align-items: center; gap: 32px;">
+    <button style="height: 100px; padding: 0 16px; border: none; background: #fff; color: #000; font-family: inherit; font-size: 38px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      Back
+    </button>
+    <span style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+      <span style="font-size: 46px; font-weight: 700; line-height: 1.1;">Noites Cariocas</span>
+      <span style="font-size: 30px;">Jacob do Bandolim</span>
+    </span>
+    <button aria-label="Key: G, as written" style="height: 96px; min-width: 120px; padding: 0 36px; border: 3px solid #000; background: #fff; color: #000; font-family: inherit; font-size: 40px; font-weight: 700; border-radius: 12px;">G</button>
+  </header>
+  <main style="flex: 1; box-sizing: border-box; display: flex; flex-direction: column; min-height: 0;">
+    <div style="flex: 1; box-sizing: border-box; padding: 20px 48px 0; display: flex; flex-direction: column; gap: 10px; font-family: 'Figtree', system-ui, sans-serif;">
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="14">
+        <sc-if value="{{r.isSec}}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top: 14px; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-size: 34px; font-weight: 700;">{{r.text}}</div>
+        </sc-if>
+        <sc-if value="{{r.isBars}}" hint-placeholder-val="{{ true }}">
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));">
+            <sc-for list="{{r.ms}}" as="m" hint-placeholder-count="4">
+              <div style="height: 72px; box-sizing: border-box; border-left: {{m.bl}}; border-right: {{m.br}}; padding: 0 0 0 20px; display: flex; align-items: center; gap: 28px; font-size: 40px; font-weight: 700;">
+                <sc-for list="{{m.cs}}" as="c" hint-placeholder-count="1">
+                  <span style="white-space: nowrap;">{{c.c}}</span>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </sc-for>
+    </div>
+    <section aria-label="Shapes on this page" style="box-sizing: border-box; border-top: 3px solid #000; padding: 12px 40px 20px 48px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="height: 72px; display: flex; align-items: center; gap: 20px;">
+        <span style="flex: 1; font-size: 28px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">Shapes on this page · 8 · 11 hidden</span>
+        <button style="height: 72px; padding: 0 32px; border: 3px solid #000; background: #fff; color: #000; font-family: inherit; font-size: 30px; font-weight: 700; border-radius: 12px;">Show hidden</button>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); row-gap: 8px;">
+        <sc-for list="{{shapes}}" as="s" hint-placeholder-count="8">
+          <button style="border: none; padding: 0; background: #fff; color: #000; display: flex; flex-direction: column; align-items: center; gap: 0;">
+            <span style="font-family: 'Figtree', system-ui, sans-serif; font-size: 32px; font-weight: 700; white-space: nowrap;">{{s.name}}</span>
+            <span role="img" aria-label="{{s.label}}" style="position: relative; display: block; width: 124px; height: 168px;">
+              <sc-for list="{{s.frets}}" as="f" hint-placeholder-count="6">
+                <span style="position: absolute; left: 12px; top: {{f.top}}px; width: 102px; height: {{f.h}}px; background: #000;"></span>
+              </sc-for>
+              <sc-for list="{{s.strings}}" as="st" hint-placeholder-count="6">
+                <span style="position: absolute; left: {{st.left}}px; top: 32px; width: 2px; height: 132px; background: #000;"></span>
+              </sc-for>
+              <sc-for list="{{s.marks}}" as="mk" hint-placeholder-count="2">
+                <span style="position: absolute; left: {{mk.left}}px; top: 0; width: 20px; text-align: center; font-size: 24px; font-weight: 700; line-height: 30px;">{{mk.t}}</span>
+              </sc-for>
+              <sc-for list="{{s.dots}}" as="d" hint-placeholder-count="3">
+                <span style="position: absolute; left: {{d.left}}px; top: {{d.top}}px; width: 22px; height: 22px; border-radius: 50%; background: #000; color: #fff; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-size: 16px; font-weight: 700; line-height: 22px; text-align: center;">{{d.fg}}</span>
+              </sc-for>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+  </main>
+  <footer style="height: 100px; box-sizing: border-box; border-top: 3px solid #000; padding: 0 40px 0 48px; display: flex; align-items: center; gap: 24px;">
+    <button style="height: 84px; padding: 0 8px; border: none; background: #fff; color: #000; font-family: inherit; font-size: 34px; font-weight: 700; text-decoration: underline;">Hide shapes</button>
+    <span style="flex: 1;"></span>
+    <button aria-label="Previous page" style="width: 96px; height: 80px; border: 3px solid #000; background: #fff; color: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+    </button>
+    <span style="font-size: 34px; min-width: 150px; text-align: center;">1 of 2</span>
+    <button aria-label="Next page" style="width: 96px; height: 80px; border: 3px solid #000; background: #fff; color: #000; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+    </button>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1404,"height":1872}}'>
+class Component extends DCLogic {
+  renderVals() {
+    // Noites Cariocas after the player hid the eleven shapes they know (G6,
+    // Am, Am7, D7, G, Em7, E7, C, A7, G7, Dm): the strip needs one row, and
+    // the page gains the first rows of B — three pages become two.
+    const BAR = '3px solid #000';
+    const barRow = (line, label) => {
+      const parts = line.replace(/\|\s*$/, '').split('|').map((m) => m.trim());
+      const ms = parts.map((m, i) => ({
+        cs: m.split(/\s+/).filter(Boolean).map((c) => ({ c })),
+        bl: BAR,
+        br: i === parts.length - 1 ? BAR : 'none',
+      }));
+      if (label) ms.unshift({ cs: [{ c: label }], bl: 'none', br: 'none' });
+      return { isBars: true, ms };
+    };
+    const sec = (text) => ({ isSec: true, text });
+    const rows = [
+      sec('A'),
+      barRow('G6 | % | C#° | %'),
+      barRow('G6 | G6 E7/G# | Am E7/B | Am/C'),
+      barRow('Am Am(7M) | Am7 | % | D7'),
+      barRow('D7 | D7(#5) | G Em7 | Am7 D7'),
+      barRow('G6 | % | C#° | %'),
+      barRow('G6 | E7 | Am E7/B | Am/C'),
+      barRow('C | Bb° | G6 | E7'),
+      barRow('A7 | D7 |'),
+      sec('Endings'),
+      barRow('G6 | D7', '1st'),
+      barRow('G6 | %', 'to B'),
+      barRow('G | %', 'to C'),
+      sec('B'),
+      barRow('G7 | % | C | %'),
+      barRow('A7/C# | % | Dm | %'),
+    ];
+    const SP = 20, FH = 26, TOP = 32, X0 = 12;
+    const box = (name, frets, fingers) => {
+      const fs = frets.split('').map((c) => (c === 'x' ? 'x' : Number(c)));
+      const fg = (fingers || '').split(' ');
+      const played = fs.filter((f) => f !== 'x' && f > 0);
+      const max = played.length ? Math.max(...played) : 0;
+      const start = max > 5 ? Math.min(...played) : 1;
+      const dots = [];
+      const marks = [];
+      fs.forEach((f, i) => {
+        if (f === 'x') marks.push({ left: X0 + i * SP - 10, t: 'x' });
+        else if (f === 0) marks.push({ left: X0 + i * SP - 10, t: 'o' });
+        else dots.push({ left: X0 + i * SP - 11, top: Math.round(TOP + (f - start + 0.5) * FH - 11), fg: fg[i] && fg[i] !== '-' ? fg[i] : '' });
+      });
+      return {
+        name,
+        label: `${name}: ${frets}`,
+        strings: fs.map((_, i) => ({ left: X0 + i * SP })),
+        frets: [0, 1, 2, 3, 4, 5].map((j) => ({ top: TOP + j * FH, h: j === 0 && start === 1 ? 6 : 2 })),
+        dots,
+        marks,
+      };
+    };
+    return {
+      rows,
+      shapes: [
+        box('C#°', 'x45320', '- 3 4 2 1 -'),
+        box('E7/G#', '420400', '2 1 - 3 - -'),
+        box('E7/B', 'x20100', '- 2 - 1 - -'),
+        box('Am/C', 'x32210', '- 4 2 3 1 -'),
+        box('Am(7M)', 'x02110', '- - 3 1 2 -'),
+        box('D7(#5)', 'xx0312', '- - - 3 1 2'),
+        box('Bb°', 'x12020', '- 1 2 - 3 -'),
+        box('A7/C#', 'x42025', '- 3 1 - 2 4'),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

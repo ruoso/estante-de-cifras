@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>A choro, shapes hidden</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#000}a:hover{color:#000}
+</style>
+</helmet>
+<div style="width: 1404px; height: 1872px; box-sizing: border-box; background: #fff; color: #000; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column;">
+  <header style="height: 140px; box-sizing: border-box; border-bottom: 3px solid #000; padding: 0 40px; display: flex; align-items: center; gap: 32px;">
+    <button style="height: 100px; padding: 0 16px; border: none; background: #fff; color: #000; font-family: inherit; font-size: 38px; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      Back
+    </button>
+    <span style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+      <span style="font-size: 46px; font-weight: 700; line-height: 1.1;">Três Estrelinhas</span>
+      <span style="font-size: 30px;">Anacleto de Medeiros</span>
+    </span>
+    <button aria-label="Key: A, named by the first chord" style="height: 96px; min-width: 120px; padding: 0 36px; border: 3px solid #000; background: #fff; color: #000; font-family: inherit; font-size: 40px; font-weight: 700; border-radius: 12px;">A</button>
+  </header>
+  <main style="flex: 1; box-sizing: border-box; padding: 16px 48px 0; display: flex; flex-direction: column; gap: 8px; font-family: 'Figtree', system-ui, sans-serif; min-height: 0;">
+    <sc-for list="{{rows}}" as="r" hint-placeholder-count="16">
+      <sc-if value="{{r.isSec}}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top: 10px; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; font-size: 34px; font-weight: 700;">{{r.text}}</div>
+      </sc-if>
+      <sc-if value="{{r.isBars}}" hint-placeholder-val="{{ true }}">
+        <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));">
+          <sc-for list="{{r.ms}}" as="m" hint-placeholder-count="4">
+            <div style="height: 70px; box-sizing: border-box; border-left: {{m.bl}}; border-right: {{m.br}}; padding: 0 0 0 18px; display: flex; align-items: center; gap: 20px; font-size: 38px; font-weight: 700;">
+              <sc-for list="{{m.cs}}" as="c" hint-placeholder-count="1">
+                <span style="white-space: nowrap;">{{c.c}}</span>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </sc-for>
+  </main>
+  <footer style="height: 100px; box-sizing: border-box; border-top: 3px solid #000; padding: 0 40px 0 48px; display: flex; align-items: center; gap: 24px;">
+    <button style="height: 84px; padding: 0 8px; border: none; background: #fff; color: #000; font-family: inherit; font-size: 34px; font-weight: 700; text-decoration: underline;">Show shapes</button>
+    <span style="flex: 1;"></span>
+    <span style="font-size: 34px; min-width: 150px; text-align: center;">1 of 1</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1404,"height":1872}}'>
+class Component extends DCLogic {
+  renderVals() {
+    // The whole of Três Estrelinhas, with the shapes hidden: the chart takes
+    // the whole page, and the song fits on one.
+    const BAR = '3px solid #000';
+    const barRow = (line, label) => {
+      const parts = line.replace(/\|\s*$/, '').split('|').map((m) => m.trim());
+      const ms = parts.map((m, i) => ({
+        cs: m.split(/\s+/).filter(Boolean).map((c) => ({ c })),
+        bl: BAR,
+        br: i === parts.length - 1 ? BAR : 'none',
+      }));
+      if (label) ms.unshift({ cs: [{ c: label }], bl: 'none', br: 'none' });
+      return { isBars: true, ms };
+    };
+    const sec = (text) => ({ isSec: true, text });
+    return {
+      rows: [
+        sec('A'),
+        barRow('A7/C# A7 | Dm | F7/A F7 | Bb'),
+        barRow('Gm6/Bb A7 | Dm | Gm6/Bb A7 | Dm'),
+        barRow('A7/C# A7 | D7 D/C | Gm/Bb D7/A | Gm'),
+        barRow('Em7(b5) | Dm/F | A7'),
+        sec('Endings'),
+        barRow('Dm', 'repeat'),
+        barRow('Dm F7', 'to C'),
+        sec('B'),
+        barRow('Am7(b5) D7/F# | Gm | Bm7(b5) E7/G# | Am'),
+        barRow('Bb B° | F/C D7/A | G7 C7 | F'),
+        sec('C'),
+        barRow('Bb F7/C | Bb/D | Cm G7/B | Cm'),
+        barRow('Eb Ebm | Bb/D | Cm6 D7/A | Gm'),
+        barRow('C7 | F7 | Bb7 | Eb'),
+        barRow('Eb E° | Bb/F G7 | C7 F7 | Bb'),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
