@@ -36,6 +36,7 @@ import NewSongHost from '../songs/NewSongHost.jsx';
 import EditSongHost from '../songs/EditSongHost.jsx';
 import BooksScreen from '../books/BooksScreen.jsx';
 import BookDetail from '../books/BookDetail.jsx';
+import BookPrint from '../books/BookPrint.jsx';
 import BookSongs from '../books/BookSongs.jsx';
 import SetlistsScreen from '../books/SetlistsScreen.jsx';
 import SetlistView from '../books/SetlistView.jsx';
@@ -384,6 +385,10 @@ export default function AppShell({
   // null, opened by *Manage* on the bar above the book's songs. A layer over
   // them, never an address: a reload lands on `…/b/<book>`.
   const [bookDetail, setBookDetail] = useState(null);
+  // The book's print (books.print; workflow 7 §Printing the book): `{ bookId }`
+  // or null, opened by *Print* on the book's detail. A full screen over the
+  // detail, like the file view; Back returns to the detail.
+  const [printingBook, setPrintingBook] = useState(null);
   // A fork made from the book's detail lands on the shelf, the fork in the
   // original's place with its one-time note (books.fork; W11 #2): the
   // BOOK_FORKED payload the Books screen opens with, or null.
@@ -519,6 +524,7 @@ export default function AppShell({
     songConflict && 'songConflict',
     history && 'history',
     openFile && 'files',
+    printingBook && 'print',
     people && 'people',
     newInvitation && 'newInvitation',
     editing && 'newSong',
@@ -564,6 +570,7 @@ export default function AppShell({
       setHistory(null);
     },
     files: () => setOpenFile(null),
+    print: () => setPrintingBook(null),
     people: (kept) => {
       setPeople(null);
       setShareReturn(shareReturnFor(kept, { fromInvitation: false }));
@@ -706,6 +713,7 @@ export default function AppShell({
     setSharingSetlist(follow);
     setPlayingSetlist(follow);
     setOpenFile(follow);
+    setPrintingBook(follow);
     setBookDetail(follow);
   };
   useWorkerEvent(store, EventKind.BOOK_FORKED, followBookId);
@@ -1448,6 +1456,15 @@ export default function AppShell({
   // setlist's Manage leads here, and Back returns to the setlist.
   if (sharingScreen && (openSong || openSetlist || bookDetail)) return framed(sharingScreen);
 
+  // The book's print (books.print): a full screen over the book's detail, with
+  // no banner — it is the page that goes to paper. Back returns to the detail.
+  if (printingBook) {
+    return framed(
+      <BookPrint store={store} bookId={printingBook.bookId} onBack={() => back(closers.print)} />,
+      { withBanner: false },
+    );
+  }
+
   // The file view is a full screen over the shell (books.file_view Decision 7),
   // exactly as the new-song editor host is; Back returns to the shell.
   if (openFile) {
@@ -1478,6 +1495,7 @@ export default function AppShell({
         onGone={leaveGoneBook}
         onShare={shareBook}
         onFiles={(bookId) => openFiles(bookId)}
+        onPrint={(bookId) => setPrintingBook({ bookId })}
         onReselect={(bookId) => setBookDetail({ bookId })}
         autoFocusShare={shareReturn === 'book'}
         onShareFocusReturned={() => setShareReturn(null)}

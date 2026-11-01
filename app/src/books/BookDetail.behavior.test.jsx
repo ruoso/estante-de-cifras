@@ -814,9 +814,9 @@ describe('Rename, Files and Back on the detail (books.row_opens_songs)', () => {
     emit(hostedShelf());
 
     // The full drawn order (workflow 7 §A book's songs; W07 #4): Files follows
-    // Download, then the closing group with Delete last.
+    // Download, then Print, then the closing group with Delete last.
     const headings = [...container.querySelectorAll('.card > .t-h2')].map((h) => h.textContent);
-    expect(headings).toEqual(['Download', 'Files', 'Remove from my shelf', 'Delete the book']);
+    expect(headings).toEqual(['Download', 'Files', 'Print', 'Remove from my shelf', 'Delete the book']);
     expect(headings.indexOf('Files')).toBe(headings.indexOf('Download') + 1);
     const card = [...container.querySelectorAll('.card')].find((c) => c.querySelector('.t-h2')?.textContent === 'Files');
     expect(within(card).getByText('Every file in the book, as it is stored.')).toBeInTheDocument();
@@ -830,6 +830,26 @@ describe('Rename, Files and Back on the detail (books.row_opens_songs)', () => {
       fireEvent.keyUp(button, { key: 'Enter' });
     });
     expect(files).toEqual(['srv-1']);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('the Print card follows Files with its line, and its button (*Print {book}*) calls onPrint (workflow 7 §Printing the book)', async () => {
+    const printed = [];
+    const { store, emit } = makeStore();
+    const { container } = renderDetail(store, {
+      bookId: 'srv-1',
+      kind: 'shared',
+      onPrint: (id) => printed.push(id),
+    });
+    emit(hostedShelf());
+    const headings = [...container.querySelectorAll('.card > .t-h2')].map((h) => h.textContent);
+    expect(headings.indexOf('Print')).toBe(headings.indexOf('Files') + 1);
+    const card = [...container.querySelectorAll('.card')].find((c) => c.querySelector('.t-h2')?.textContent === 'Print');
+    expect(within(card).getByText(/behind an index you can tap through/)).toBeInTheDocument();
+    const button = within(card).getByRole('button', { name: 'Print Choros da Ana' });
+    expect(button).toHaveTextContent('Print');
+    fireEvent.click(button);
+    expect(printed).toEqual(['srv-1']);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
@@ -927,7 +947,7 @@ describe("the detail as drawn (workflow 7 §A book's songs; W07 #4)", () => {
     expect(screen.getAllByRole('button', { name: 'Share', exact: true })).toHaveLength(1);
     expect(headingsOf(container)).not.toContain('Share');
 
-    expect(headingsOf(container)).toEqual(['Download', 'Files', 'Remove from my shelf', 'Delete the book']);
+    expect(headingsOf(container)).toEqual(['Download', 'Files', 'Print', 'Remove from my shelf', 'Delete the book']);
     // The rule: after Files, before Remove, with no words of its own.
     const rule = within(body).getByRole('separator');
     expect(rule).toHaveClass('detail-rule');
@@ -949,7 +969,7 @@ describe("the detail as drawn (workflow 7 §A book's songs; W07 #4)", () => {
     const appbar = container.querySelector('.appbar');
     expect(within(appbar).getByRole('button', { name: 'Share', exact: true })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Share', exact: true })).toHaveLength(1);
-    expect(headingsOf(container)).toEqual(['Download', 'Files', 'Fork', 'Remove from my shelf', 'Leave this book']);
+    expect(headingsOf(container)).toEqual(['Download', 'Files', 'Print', 'Fork', 'Remove from my shelf', 'Leave this book']);
     expect(screen.queryByRole('button', { name: 'Delete the book' })).toBeNull();
     const rule = screen.getByRole('separator');
     expect(follows(cardOf(container, 'Fork'), rule)).toBe(true);
@@ -964,7 +984,7 @@ describe("the detail as drawn (workflow 7 §A book's songs; W07 #4)", () => {
     emit(localShelf());
 
     expect(screen.queryByRole('button', { name: 'Share', exact: true })).toBeNull();
-    expect(headingsOf(container)).toEqual(['Put online', 'Download', 'Files', 'Remove from my shelf']);
+    expect(headingsOf(container)).toEqual(['Put online', 'Download', 'Files', 'Print', 'Remove from my shelf']);
     const rule = screen.getByRole('separator');
     expect(follows(cardOf(container, 'Files'), rule)).toBe(true);
     expect(follows(rule, cardOf(container, 'Remove from my shelf'))).toBe(true);
@@ -983,6 +1003,7 @@ describe("the detail as drawn (workflow 7 §A book's songs; W07 #4)", () => {
       'No longer shared with you',
       'Download',
       'Files',
+      'Print',
       'Remove from my shelf',
     ]);
     const rule = screen.getByRole('separator');

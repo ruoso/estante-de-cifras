@@ -117,7 +117,8 @@ device has no Share there: its Put online card says how it is opened up
 Below, top to bottom: the chips; the book's state — put online, the original
 gone (workflow 11), the notices of lost access, *can't save here* and taken
 down; **Download**; **Files** — *Every file in the book, as it is stored.* —
-opening the file view (workflow 14); **Fork** (workflow 11). Then, set apart
+opening the file view (workflow 14); **Print** (below); **Fork** (workflow
+11). Then, set apart
 by a rule with space above it — not a heading, since only Delete reaches
 anyone but this person and this device — the **closing group**: *Remove from
 my shelf*, *Leave this book*, and last *Delete the book* in its danger style.
@@ -195,6 +196,43 @@ every song and setlist with its whole history, and unsaved changes as they
 are. Upload it to bring the book back.*
 
 The zip is written by the zip writer Explore Chords already has.
+
+## Printing the book
+
+*Print*, on any book, is the book as a songbook: *Every song in the book,
+each on its own page, behind an index you can tap through. Print it on
+paper, or save it as a PDF for a tablet or an e-reader.* It opens a full
+screen over the detail — Back returns to it — with **Print** in its bar and,
+below, the preview of what goes to paper.
+
+- **The index** comes first, on its own page: the book's name, the
+  instrument the shapes are for, and every song in the book's order, each
+  row its title and artist and each a link to the song. On paper the rows
+  take as many columns as the page does, and each row is roomy enough to
+  hit with a finger.
+- **Each song** starts a new page, drawn as the reading view prints it
+  (workflow 2): its chart in as many columns as the page takes, then its
+  shapes. It is the song **as the person reads it**: in the key they
+  transposed it to, named under its title, and with the shapes their
+  instrument and their own shapes give.
+- **Every page of a song** carries, at its top, the book's name and
+  *↑ Index*, a link back to the index — a song that runs over three pages
+  has it on all three.
+
+The links are the document's own. Printed to paper they are only words; but
+the print dialog's *Save as PDF* keeps them as links inside the PDF, so on a
+tablet or an e-reader — a reMarkable, which has no back button — a tap on a
+row opens the song and a tap on *↑ Index* comes back. Nothing is uploaded
+and no file is made by the app: the PDF is the browser's.
+
+*Print* waits until every song is read in — *Getting the songs ready: 12 of
+40* — and then says what it will print: *40 songs, as you read them: in your
+key, with your shapes. To keep it as a file, choose Save as PDF in the print
+dialog.* A book with no songs says *No songs in this book yet.* and Print is
+off. On screen the index's links scroll to the song; the address does not
+change.
+
+Setlists are not printed yet: the book is its songs.
 
 ## Uploading a book
 

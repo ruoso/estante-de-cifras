@@ -1,0 +1,172 @@
+/* The book's print (books.print; workflow 7 §Printing the book). On screen, the
+   preview under one bar: the index, then each song's sheet. On paper (and in a
+   PDF saved from the print dialog), the index on its own page(s) and each song
+   starting a new page, with the way back to the index on every page. */
+
+.book-print-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 3);
+}
+
+.book-print-doc {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 4);
+}
+
+.book-print-index {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+}
+
+/* The index's rows are what a finger taps on an e-reader: a whole row is the
+   link, roomy enough to hit. */
+.book-print-toc {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.book-print-toc a {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--u) * 1.5);
+  padding: var(--u) 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+}
+.book-print-toc-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+}
+.book-print-toc-artist {
+  color: var(--ink-2);
+}
+
+.book-print-song {
+  border-top: 1px solid var(--line);
+  padding-top: calc(var(--u) * 2);
+}
+
+/* The song's layout table (BookPrint.jsx) reads as plain blocks on screen; it
+   is a table only on paper, where its header row repeats on every page. */
+.book-print-pages,
+.book-print-pages thead,
+.book-print-pages tbody,
+.book-print-pages tr,
+.book-print-pages td {
+  display: block;
+  padding: 0;
+}
+
+/* The running head: the book, and the way back to the index. */
+.book-print-pages .book-print-running {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: calc(var(--u) * 2);
+  margin-bottom: calc(var(--u) * 1.5);
+}
+.book-print-running-book {
+  color: var(--ink-2);
+}
+.book-print-to-index {
+  color: var(--ink);
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.book-print-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: calc(var(--u) * 1.5);
+}
+.book-print-head h2 {
+  margin: 0;
+}
+
+.book-print-body .reading-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2);
+}
+
+@media print {
+  .book-print > .appbar,
+  .book-print-status {
+    display: none !important;
+  }
+  .book-print-scroll,
+  .book-print-doc {
+    display: block;
+  }
+  .book-print-index {
+    display: block;
+    break-after: page;
+  }
+  .book-print-index h2 {
+    margin-top: calc(var(--u) * 2);
+  }
+  /* The rows in as many columns as the paper takes. */
+  .book-print-toc {
+    column-width: 7cm;
+    column-gap: 1cm;
+  }
+  .book-print-toc li {
+    break-inside: avoid;
+  }
+  .book-print-toc a {
+    padding: 7pt 0;
+  }
+  /* Each song starts a page, and its layout table is a table again, so its
+     header row repeats at the top of every page the song runs over. Specific
+     enough to win over the reading view's print rule that sets every box
+     around a sheet back to block flow. */
+  .est .book-print .book-print-doc .book-print-song {
+    border: none;
+    padding: 0;
+    break-before: page;
+  }
+  .est .book-print .book-print-song .book-print-pages {
+    display: table !important;
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .est .book-print .book-print-pages thead {
+    display: table-header-group !important;
+  }
+  .est .book-print .book-print-pages tbody {
+    display: table-row-group !important;
+  }
+  .est .book-print .book-print-pages tr {
+    display: table-row !important;
+  }
+  .est .book-print .book-print-pages td {
+    display: table-cell !important;
+  }
+  .book-print-pages thead td {
+    padding-bottom: calc(var(--u) * 1.5);
+    vertical-align: baseline;
+  }
+  .book-print-running-book {
+    width: 100%;
+  }
+  /* Big enough to hit with a finger on an e-reader. */
+  .book-print-running-link {
+    text-align: right;
+  }
+  .book-print-to-index {
+    font-size: 14pt;
+    padding-left: 1cm;
+  }
+}
+
+/* A song's Shapes heading stays with its diagrams on paper. */
+@media print {
+  .book-print-body .reading-shapes h3 {
+    break-after: avoid;
+  }
+}

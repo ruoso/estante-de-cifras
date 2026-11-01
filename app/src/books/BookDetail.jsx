@@ -10,7 +10,7 @@
 // repository, workflow 7 L16-18), and a **Files** card after Download opens the
 // file view (workflow 14 §The view). **Share** sits at the app bar's right end
 // (books.detail_as_drawn; workflow 7 §A book's songs; W07 #4), and the body runs
-// in the board's order: chips, state cards, Download, Files, Fork, then a rule
+// in the board's order: chips, state cards, Download, Files, Print, Fork, then a rule
 // and the closing group — Remove, Leave, and Delete last. This component is the
 // detail only — the title row, the chips, the act cards and their confirmations.
 //
@@ -83,6 +83,15 @@ function FilesIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
+    </svg>
+  );
+}
+
+// The printer on Print; decorative, the button is named by its aria-label.
+function PrintIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2M6 14h12v7H6z" />
     </svg>
   );
 }
@@ -364,7 +373,8 @@ function PutOnlineDialog({ title, onConfirm }) {
  * (put-online adopts the service id — Decision 3); `onShare(bookId)` opens the
  * book's sharing where the shell puts it — the Share sheet on a phone, the
  * people screen on a tablet or a computer (books.share_people); `onFiles(bookId)`
- * opens the book's file view (workflow 14 §The view). `autoFocusShare` sends
+ * opens the book's file view (workflow 14 §The view); `onPrint(bookId)` opens
+ * the book's print (books.print, workflow 7 §Printing the book). `autoFocusShare` sends
  * focus to *Share* once — the shell sets it when a sharing screen over this
  * detail closes and the detail re-mounts (shell.surface_restore_focus) — then
  * calls `onShareFocusReturned`. `mode` ('narrow' | 'wide', the shell's layout
@@ -379,6 +389,7 @@ export default function BookDetail({
   onReselect = () => {},
   onShare = () => {},
   onFiles = () => {},
+  onPrint = () => {},
   autoFocusShare = false,
   onShareFocusReturned = () => {},
   mode = 'narrow',
@@ -658,6 +669,22 @@ export default function BookDetail({
           >
             <FilesIcon />
             {t('fileView.filesEntry')}
+          </Button>
+        </div>
+
+        {/* The book as a songbook (books.print): every song behind a tappable
+            index, to print or to save as a PDF for an e-reader. */}
+        <div className="card pad">
+          <span className="t-h2">{t('books.printBook')}</span>
+          <p className="t-small">{t('books.printBookBody')}</p>
+          <Button
+            className="btn"
+            style={{ alignSelf: 'flex-start' }}
+            aria-label={t('books.printBookTitle', { book: title })}
+            onPress={() => onPrint(bookId)}
+          >
+            <PrintIcon />
+            {t('books.printBook')}
           </Button>
         </div>
 

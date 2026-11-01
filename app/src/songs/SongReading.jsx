@@ -26,7 +26,7 @@
 // portal into the `.est` root through ThemeRoot's UNSAFE_PortalProvider
 // (shell.portal_provider), so RAC menus and popovers are themed and labelled.
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Button,
   Dialog,
@@ -44,7 +44,6 @@ import {
   SelectValue,
   Separator,
 } from 'react-aria-components';
-import { parse } from 'cifra-md';
 import { t } from '../i18n/index.js';
 import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
@@ -52,20 +51,12 @@ import InstrumentChip, { inUseEntry } from '../instruments/InstrumentChip.jsx';
 import { chipLabel } from '../instruments/instrument-helpers.js';
 import { BarEnd } from '../shell/HeaderChrome.jsx';
 import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
-import { instrumentInstance, openMidis } from '../core/instrument.js';
-import { resolveSongVoicings, unvoiceableKeys } from '../core/voicings.js';
-import { transpose } from '../core/transpose.js';
-import { songVariations } from '../core/song-variations.js';
-import { parseChord } from '../core/notation/parse.js';
-import { DEFAULT_DIALECT, songDialect } from '../core/notation/dialects.js';
 import Chart from '../chart/Chart.jsx';
-import { isEmptySong, isNumberedSong } from '../chart/layout.js';
-import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import { bookLabelFor } from './first-run.js';
 import { songTitle } from './search-query.js';
-import { transposeStatus, chartChordList, chordKeyName, voicedNames, shapeNames } from './reading-view.js';
+import { readSongSheet, shapesCaption, transposedLabel as transposedLabelFor } from './song-sheet.js';
+import SongShapes from './SongShapes.jsx';
 import { fitPrintColumns } from './print-columns.js';
-import { resolveBarNumbers, resolveChordNaming } from '../theme/resolve.js';
 import { READING_ACTIONS_WIDE_QUERY } from '../shell/layout-mode.js';
 import './reading.css';
 
@@ -96,10 +87,6 @@ function subscribeReadingActions(onChange) {
 }
 function readReadingActions() {
   return readingActionsQuery()?.matches ?? false;
-}
-
-function songProperty(parsed, name) {
-  return parsed?.properties?.find((p) => p?.key === name)?.value ?? null;
 }
 
 // The up/down arrows drawn in the transpose popover and the reading glyph in the
@@ -222,7 +209,6 @@ export default function SongReading({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoFocusShare, computer, fullScreen]);
-  const shapesHeadingId = useId();
   const [instrumentsOpen, setInstrumentsOpen] = useState(false);
 
   // A background sync landed a new version of this song (sync.read_in_place,
@@ -331,82 +317,42 @@ export default function SongReading({
   }, [text, update]);
 
   const reading = songSlice?.[bookId]?.[path] ?? { transposition: 0, variations: {} };
-  const offset = reading.transposition ?? 0;
-  const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
   const entry = inUseEntry(instrumentsSlice);
-
-  // The instrument instance the music core searches on, re-derived when the chip
-  // changes it (React Compiler memoises these pure derivations).
-  let instrument = null;
-  if (entry) {
-    try {
-      instrument = instrumentInstance({
-        catalogId: entry.catalogId,
-        label: entry.label ?? undefined,
-        strings: entry.tuning,
-        fretCount: entry.fretCount,
-        heuristics: entry.config,
-      });
-    } catch {
-      instrument = null;
-    }
-  }
-  const tuningId = instrument ? openMidis(instrument).join(' ') : '';
-
-  // Parse the working copy, then transpose the view (offset 0 leaves it as
-  // written). The written key — for the chip's destination and the "Back to"
-  // label — is read from the untransposed song (its `key` is left as written,
-  // cifra.md §8.6).
-  //
-  // The chart is read, transposed and voiced in the song's own notation
-  // (cifra.md §5.6; workflow 2 §Reading a song, "The song's notation reads its
-  // chords"); `dialect`, the preference, only spells chords for this user.
-  const baseModel = text ? parse(text) : null;
-  const notation = songDialect(baseModel);
-  const model = baseModel ? transpose(baseModel, offset, { dialect: notation }) : null;
-  const writtenKey = songProperty(baseModel, 'key');
-  const artist = songProperty(baseModel, 'artist');
+  // What the sheet draws (song-sheet.js): the song parsed, read at its
+  // transposition in its own notation (cifra.md §5.6), and every chord resolved
+  // in the §7.6 order — the chain the book's print composes too. The written key
+  // — for the chip's destination and the "Back to" label — is the untransposed
+  // song's (cifra.md §8.6). React Compiler memoises the pure derivation.
+  const songSheet = readSongSheet({ text, reading, entry, preferences });
+  const {
+    offset,
+    transposed,
+    tuningId,
+    baseModel,
+    model,
+    writtenKey,
+    artist,
+    variation,
+    variations,
+    chordList,
+    symbolByKey,
+    unvoiced,
+    naming,
+    renamed,
+    numbered,
+    barNumbers,
+    startKey,
+    status,
+  } = songSheet;
   const bookLabel = bookLabelFor(shelf, bookId, t('books.untitled'));
   // A titleless song is *Untitled song*, never its path (songs.no_raw_ids;
   // workflow 3 L37-41).
   const displayTitle = songTitle(baseModel?.title, t('newSong.untitled'));
-
-  const variation = reading.variations?.[tuningId] ?? '';
-  const variations = baseModel && tuningId ? songVariations(baseModel, tuningId) : [];
-
-  // Resolve every chord in the §7.6 order. While transposed the song's own
-  // voicings are suppressed (the rewritten symbols no longer match them), so
-  // every shape falls to yours or the default (workflow 2 L120-125).
-  const resolved =
-    instrument && model
-      ? resolveSongVoicings(model, instrument, {
-          variation,
-          shapes: entry?.shapes ?? [],
-          ignoreSongVoicings: offset !== 0,
-          dialect: notation,
-        })
-      : new Map();
-  const chordList = model ? chartChordList(model) : [];
-  const symbolByKey = new Map(chordList.map((c) => [c.key, c.symbol]));
-  const shapes = [...resolved.entries()].map(([key, v]) => ({
-    key,
-    symbol: symbolByKey.get(key) ?? key,
-    source: v.source,
-    fingering: v.fingering,
-  }));
-  const unvoiced = model ? unvoiceableKeys(model, resolved, { dialect: notation }) : [];
-  // The chart names its chords as written, or — the reader's choice, kept in the
-  // home book (`chordNames`) — as the shapes shown sound them.
-  const naming = resolveChordNaming(preferences);
-  const renamed = naming === 'voiced' ? voicedNames(shapes, notation) : null;
   const setNaming = (next) => store.send(command(CommandKind.SET_CHORD_NAMES, { naming: next }));
-  // Bar numbers (songs.bar_numbers; cifra.md §2.8): the reader's choice, kept in
-  // the home book (`barNumbers`), off until asked for. Offered only for a song
+  // Bar numbers (songs.bar_numbers; cifra.md §2.8): offered only for a song
   // whose bars are counted — never one with words in it, where a chord can last
   // four bars or half of one and the text does not say which. Print draws the
   // same chart, so the sheet carries the numbers when the page does.
-  const numbered = isNumberedSong(model);
-  const barNumbers = numbered && resolveBarNumbers(preferences) === 'shown';
   const setBarNumbers = (next) => store.send(command(CommandKind.SET_BAR_NUMBERS, { barNumbers: next }));
 
   // Print fills the paper: just before the dialog opens, measure the narrowest
@@ -424,15 +370,7 @@ export default function SongReading({
   // Only at the written key — while transposed the shapes are deliberately not
   // the song's, which a different caption explains.
   const noVoicings = offset === 0 && Boolean(model) && chordList.length > 0 && variations.length === 0;
-  // A song that names no key is named by the key its first chord gives, as
-  // written and as now read (`C` → `Db`), so the reader is never left with a
-  // bare number of semitones.
-  const startKey = writtenKey ? null : chordKeyName(baseModel ? chartChordList(baseModel)[0]?.symbol : null, notation);
-  const startKeyNow = writtenKey ? null : chordKeyName(chordList[0]?.symbol, notation);
   const instrumentLabel = chipLabel(entry) || t('search.instrument');
-
-  const status = transposeStatus(writtenKey, offset, { from: startKey, to: startKeyNow });
-  const transposed = offset !== 0;
 
   const setTransposition = (semitones) =>
     store.send(command(CommandKind.SET_TRANSPOSITION, { bookId, path, semitones }));
@@ -447,11 +385,7 @@ export default function SongReading({
   // mockups W02#4 L181-186): the chip naming the key, the way back to the written
   // key, and the "arranging is off" note. Both keys named, or neither
   // (transposeStatus). Shown only while transposed.
-  const transposedLabel = !status
-    ? null
-    : status.keyName
-      ? t('reading.transposedToKey', { key: status.keyName, offset: signed(status.offset) })
-      : t('reading.transposedBy', { offset: signed(status.offset) });
+  const transposedLabel = transposedLabelFor(songSheet, t);
   const transposedParts = status
     ? [
         <span key="chip" className="chip accent">
@@ -542,29 +476,10 @@ export default function SongReading({
       </Select>
     ) : null;
 
-  // The shapes caption (mockups README L26; W02 L138, L206): while transposed,
-  // why the shapes are not the song's; otherwise, how to read the kinds when any
-  // chord is on a non-song shape (a word, never colour alone — the diagrams carry
-  // "default" / "your shape", the caption names the colours).
-  const anyNonSong = shapes.some((s) => s.source !== 'song');
-  // The notes written in the voicing block in use (cifra.md §7.4: shown with
-  // its voicings, so nothing written there is lost from view). Only at the
-  // written key, where the block's own shapes are the ones drawn.
-  const inUseVariation = variations.includes(variation) ? variation : (variations[0] ?? '');
-  const blockNotes = transposed
-    ? []
-    : (baseModel?.blocks ?? [])
-        .filter((b) => b.tuning?.id === tuningId && (b.label ?? '') === inUseVariation)
-        .flatMap((b) => b.notes ?? [])
-        .filter((line) => line.trim() !== '');
-  let caption = null;
-  if (transposed && shapes.length) {
-    caption = writtenKey
-      ? t('reading.transposedCaptionKey', { key: writtenKey })
-      : t('reading.transposedCaption');
-  } else if (anyNonSong) {
-    caption = t('reading.shapesCaption');
-  }
+  // The shapes caption (mockups README L26; W02 L138, L206): a word, never
+  // colour alone — the diagrams carry "default" / "your shape", the caption
+  // names the colours (song-sheet.js).
+  const caption = shapesCaption(songSheet, t);
 
   // The shapes heading (Decision 4): *Shapes in {key}* while transposed (W02#4);
   // otherwise the phone's plain *Shapes* (W02#2, the chip just above in the meta
@@ -579,7 +494,7 @@ export default function SongReading({
   // reads as a notice with Edit in place of the chart, inside a group carrying
   // the chart's name (Decision 2); an empty section in a song with content says
   // so under its name (the chart's `markEmpty`, the reading view only).
-  const empty = Boolean(model) && isEmptySong(model);
+  const { empty } = songSheet;
   let chart = null;
   if (empty) {
     chart = (
@@ -611,30 +526,15 @@ export default function SongReading({
   const sheet = (
     <div className="reading-sheet" ref={sheetRef}>
       {chart}
-      {shapes.length ? (
-        // The tablet's bordered card beside the chart (W02#3 L130-139); the
-        // computer's unbordered column (W02#4 L198-207); the phone's plain
-        // section (W02#2 L86-92). Named by its visible heading.
-        <section
-          className={tablet ? 'reading-shapes card pad' : 'reading-shapes'}
-          aria-labelledby={shapesHeadingId}
-        >
-          <h2 className="t-h3" id={shapesHeadingId}>{shapesHeading}</h2>
-          <div className="shapes">
-            {shapes.map((s) => (
-              <ChordDiagram
-                key={s.key}
-                fingering={s.fingering}
-                kind={s.source}
-                context={{ chord: parseChord(s.symbol, notation).chord, dialect, instrument }}
-                {...shapeNames(s, { notation, renamed })}
-              />
-            ))}
-          </div>
-          {blockNotes.length ? <p className="t-small reading-block-notes">{blockNotes.join('\n')}</p> : null}
-          {caption ? <p className="t-small">{caption}</p> : null}
-        </section>
-      ) : null}
+      {/* The tablet's bordered card beside the chart (W02#3 L130-139); the
+          computer's unbordered column (W02#4 L198-207); the phone's plain
+          section (W02#2 L86-92). */}
+      <SongShapes
+        sheet={songSheet}
+        heading={shapesHeading}
+        caption={caption}
+        className={tablet ? 'reading-shapes card pad' : 'reading-shapes'}
+      />
       {unvoiced.length ? (
         <p className="t-small reading-unvoiced" role="status">
           {t('reading.unvoiced', { list: unvoiced.map((k) => symbolByKey.get(k) ?? k).join(', ') })}
