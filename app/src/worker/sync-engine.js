@@ -44,6 +44,9 @@ import {
   readBlob,
   walk,
   TREE,
+  writeRef,
+  deleteRef,
+  resetIndex,
 } from 'isomorphic-git';
 import { parse, diff } from 'cifra-md';
 import { authorFrom } from './author.js';
@@ -104,6 +107,149 @@ function isMergeConflict(err) {
     err?.code === 'MergeConflictError' ||
     err?.code === 'MergeNotSupportedError'
   );
+}
+
+// Put a book whose HEAD is off `main` back on it, keeping every save made off
+// it. A book is only ever meant to sit on `main`, but a discard used to detach
+// it (working-copy.js: isomorphic-git `checkout` with ref 'HEAD' writes the
+// bare oid), and every save after that committed off the branch — invisible
+// to sync, which pushes `main` only. HEAD on any other branch is treated the
+// same (nothing checks one out today; this is the safety net), that branch's
+// tip standing in for the detached commit — a branch naming no commit has
+// nothing to carry and HEAD simply goes back. Three cases, none of which loses
+// a commit:
+//   - HEAD descends from `main` (the saves made since): fast-forward `main` to
+//     HEAD, so they are local-ahead and the pass pushes them;
+//   - `main` already contains HEAD: nothing to carry over;
+//   - they diverged: merge the detached line INTO `main` by the cifra-aware
+//     rules (`mergeDriver`), the same hidden "Merge" commit sync makes — but
+//     only over a CLEAN working tree. A merge rewrites the working copy, and
+//     unsaved work is never merged under: with unsaved edits the book is left
+//     exactly as it is ('deferred') until they are saved (committing them onto
+//     the detached line) or discarded, and the next pass merges then. Should
+//     the merge conflict (or no driver/identity is given), the detached line
+//     is kept — under `refs/detached/<oid>`, or by its own branch when HEAD
+//     was on one — HEAD goes back on `main` with the
+//     index reset to it and the working tree untouched — the detached songs
+//     then read as unsaved edits the person can save.
+// The fast-forward and contained cases move only refs, never a file, so they
+// run whatever the working tree holds.
+// A HEAD in neither git form (corrupted) is hard-reset to `main` ('reset').
+// Resolves the case taken ('fast_forward' | 'contained' | 'deferred' |
+// 'merged' | 'kept' | 'reset'), or null when HEAD was already on `main`. Caller holds
+// the book's lock.
+export async function reattachHead({ fs, dir, mergeDriver = null, identity = null }) {
+  let raw;
+  try {
+    raw = (await fs.promises.readFile(`${dir}/.git/HEAD`, 'utf8')).trim();
+  } catch {
+    return null; // no repository
+  }
+  if (raw === 'ref: refs/heads/main') return null; // where a book belongs
+  // `stray` names the branch HEAD sits on instead of `main`, if any.
+  const stray = raw.startsWith('ref: ') ? raw.slice(5).trim() : null;
+  let detached = null;
+  if (stray) {
+    try {
+      detached = await resolveRef({ fs, dir, ref: stray });
+    } catch {
+      detached = null; // a branch with no commit: nothing to carry over
+    }
+  } else if (/^[0-9a-f]{40}$/.test(raw)) {
+    detached = raw;
+  }
+  let main = null;
+  try {
+    main = await resolveRef({ fs, dir, ref: 'refs/heads/main' });
+  } catch {
+    main = null;
+  }
+  const attach = () =>
+    writeRef({ fs, dir, ref: 'HEAD', value: 'refs/heads/main', symbolic: true, force: true });
+
+  if (!stray && !detached) {
+    // A corrupted HEAD — empty, truncated, garbage: git writes only the two
+    // forms above. It names no commit, so there is nothing to carry over, and
+    // until it is fixed every git operation on the book fails. Hard-reset to
+    // `main` (HEAD, index and working tree), as `git reset --hard main`. With no
+    // `main` commit there is nothing to reset to: leave it.
+    if (!main) return null;
+    await attach();
+    await checkout({ fs, dir, ref: 'main', force: true });
+    await fs.flush?.();
+    return 'reset';
+  }
+
+  if (!detached) {
+    // HEAD on a branch with no commit: no save was ever made there.
+    await attach();
+    await fs.flush?.();
+    return 'contained';
+  }
+  if (!main || main === detached || (await isDescendent({ fs, dir, oid: detached, ancestor: main, depth: -1 }))) {
+    // The working tree and index already match the detached head: moving the
+    // branch under them is all it takes.
+    if (main !== detached) {
+      await writeRef({ fs, dir, ref: 'refs/heads/main', value: detached, force: true });
+    }
+    await attach();
+    await fs.flush?.();
+    return 'fast_forward';
+  }
+  if (await isDescendent({ fs, dir, oid: main, ancestor: detached, depth: -1 })) {
+    await attach();
+    await fs.flush?.();
+    return 'contained';
+  }
+
+  // Diverged. Merge only what is committed: any unsaved edit (against the
+  // detached head it was made on) defers the whole repair, touching nothing.
+  const dirty = (await statusMatrix({ fs, dir })).some(
+    ([, head, workdir, stage]) => !(head === 1 && workdir === 1 && stage === 1) && !(head === 0 && workdir === 0),
+  );
+  if (dirty) return 'deferred';
+  // Keep the detached line reachable whatever happens next (a stray branch
+  // already keeps its own).
+  const keep = stray ? null : `refs/detached/${detached}`;
+  if (keep) await writeRef({ fs, dir, ref: keep, value: detached, force: true });
+  await attach();
+  let merged = false;
+  if (mergeDriver && identity) {
+    try {
+      const author = await identity();
+      await igMerge({
+        fs,
+        dir,
+        ours: 'main',
+        theirs: detached,
+        author,
+        committer: author,
+        abortOnConflict: true,
+        mergeDriver,
+        message: 'Merge', // content-free, as sync's own merge (workflow 6)
+      });
+      merged = true;
+    } catch {
+      merged = false; // a conflict, or a merge isomorphic-git cannot make
+    }
+  }
+  if (merged) {
+    // isomorphic-git moves the ref but not the working tree: bring it to the
+    // merge. Safe to force — the tree was clean (nothing unsaved to lose).
+    await checkout({ fs, dir, ref: 'main', force: true });
+    if (keep) await deleteRef({ fs, dir, ref: keep });
+    await fs.flush?.();
+    return 'merged';
+  }
+  // Not merged: HEAD is on `main`, but the index still holds the detached
+  // tree. Reset it to `main` so the detached songs read as plain unsaved edits
+  // and a later save commits only the files it names.
+  const rows = await statusMatrix({ fs, dir });
+  for (const [filepath] of rows) {
+    await resetIndex({ fs, dir, filepath, ref: 'main' });
+  }
+  await fs.flush?.();
+  return 'kept';
 }
 
 // The origin-tracking head of a book's `main`, or null when it was never
@@ -397,6 +543,18 @@ export function createSyncEngine(deps = {}) {
   }
 
   const mergeBook = deps.mergeBook ?? defaultMergeBook;
+  // Put a detached book back on `main` (reattachHead); a diverged detached
+  // line merges in by the cifra rules, with the device's commit identity.
+  const repairHead =
+    deps.repairHead ??
+    ((bookId) =>
+      reattachHead({
+        fs,
+        dir: bookDir(bookId),
+        mergeDriver,
+        // Resolved only when a diverged line actually needs a merge commit.
+        identity: async () => authorFrom(await resolveAuthor(), now()),
+      }));
 
   // The `*.cifra.md` songs whose bytes differ between two commits' trees — a
   // tree walk comparing blob oids, mirroring history.js's `changedFiles`
@@ -713,6 +871,26 @@ export function createSyncEngine(deps = {}) {
       // takes nothing new until settled or abandoned. Keep it reading *needs you*
       // and do no fetch/merge/push this pass (Decision 4).
       emitFact(bookId, 'needs_you');
+      return;
+    }
+    // A book left on a detached HEAD has its saves off `main`, where neither
+    // `localAhead` nor the push can see them: put it back on `main` first, so
+    // those saves count as waiting and go up this pass (reattachHead). Best
+    // effort — a failure leaves the book as it was for the next pass.
+    // Diverged with unsaved edits, it is left detached ('deferred') and this
+    // book sits the pass out: sync's own merge force-checks-out `main`, which
+    // would strand the detached saves and clobber the working copy. Saving or
+    // discarding the edits cleans the tree, and that save's pass merges it.
+    let repaired = null;
+    try {
+      repaired = await locks.withLock(bookId, async () =>
+        (await bookPresent(bookId)) ? repairHead(bookId) : null,
+      );
+    } catch {
+      /* the next pass tries again */
+    }
+    if (repaired === 'deferred') {
+      emitFact(bookId, 'syncing');
       return;
     }
     const change = news?.get(bookId);

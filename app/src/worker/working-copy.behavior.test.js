@@ -456,10 +456,40 @@ describe('the working copy, save and discard (behavior)', () => {
         gone = true;
       }
       expect(gone).toBe(true);
+
+      // The discard left the book on `main`: it did not detach HEAD (the bug
+      // that sent every later save off the branch, where sync never pushed it).
+      // Read through a fresh filesystem — `ctx.fs` caches the clone-time tree.
+      const headFile = async () => {
+        const fresh = ctx.reopen();
+        return (await fresh.fs.promises.readFile(`${fresh.dir}/.git/HEAD`, 'utf8')).trim();
+      };
+      const mainNow = async () => {
+        const fresh = ctx.reopen();
+        return resolveRef({ fs: fresh.fs, dir: fresh.dir, ref: 'refs/heads/main' });
+      };
+      expect(await headFile()).toBe('ref: refs/heads/main');
+      // So the next save moves `main` itself.
+      const before = await mainNow();
+      ctx.store.send(
+        command(CommandKind.WRITE, { bookId: ctx.bookId, path: 'song.cifra.md', text: edited }),
+      );
+      ctx.store.send(
+        command(CommandKind.SAVE, {
+          bookId: ctx.bookId,
+          paths: ['song.cifra.md'],
+          message: 'Edit after a discard',
+          author: IDENTITY,
+        }),
+      );
+      await until(() => expect(ctx.status()).toBe('saved'));
+      await settled(ctx.bookId);
+      expect(await mainNow()).not.toBe(before);
+      expect(await headFile()).toBe('ref: refs/heads/main');
     } finally {
       await ctx.cleanup();
     }
-  });
+  }, 20000);
 
   // storage.fs_flush behavior case 1: a save's flush makes the commit durable
   // against the 500ms superblock debounce. The in-test synchronous turn never

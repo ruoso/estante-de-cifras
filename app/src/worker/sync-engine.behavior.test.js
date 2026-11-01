@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { add, commit, readBlob, readCommit, resolveRef } from 'isomorphic-git';
+import { add, commit, readBlob, readCommit, remove, resolveRef, statusMatrix } from 'isomorphic-git';
 import { createFileSystem } from './fs.js';
 import { createGitLayer } from './git.js';
 import { createGitHttpClient } from './git-http.js';
@@ -755,4 +755,207 @@ describe('sync engine over a real remote (behavior)', () => {
     }
   });
 
+  // A discard used to leave a book on a detached HEAD (working-copy.js), and
+  // every save after it committed off `main` — so sync, which pushes `main`
+  // only, never sent them up and other devices never saw them. The pass puts
+  // HEAD back on `main` first (reattachHead), and the stranded saves go up.
+  it('pushes saves made on a detached HEAD and puts the book back on main', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      const base = await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const b = await makeDeviceB(remote);
+      await b.fs.promises.writeFile(`${b.dir}/.git/HEAD`, `${base}\n`); // detached at main
+      const stranded = await b.commitLocal('fresh.cifra.md', '# Fresh\n\nA fresh line\n', 'add a fresh song');
+      // The save moved HEAD only: `main` still equals the origin.
+      expect(await b.head()).toBe(base);
+
+      const { engine, facts } = engineFor(b, { changed: [] });
+      await engine.pass();
+
+      expect(await remoteHead(remote.repoDir)).toBe(stranded);
+      expect(await b.head()).toBe(stranded);
+      expect((await b.fs.promises.readFile(`${b.dir}/.git/HEAD`, 'utf8')).trim()).toBe('ref: refs/heads/main');
+      expect(lastPhase(facts)).toBe('in_step');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  // A detached line and `main` that each moved: build it on device B — `main`
+  // takes a save of SONG2, a detached line from `base` takes `files`.
+  async function divergedDevice(remote, files) {
+    const base = await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+    const b = await makeDeviceB(remote);
+    const onMain = await b.commitLocal(SONG2, '# Other\n\nOn main\n', 'a save on main');
+    await b.fs.promises.writeFile(`${b.dir}/.git/HEAD`, `${base}\n`);
+    await b.fs.promises.unlink(`${b.dir}/${SONG2}`);
+    await remove({ fs: b.fs, dir: b.dir, filepath: SONG2 }); // the index back to `base` too
+    let stranded = null;
+    for (const [file, content] of Object.entries(files)) {
+      stranded = await b.commitLocal(file, content, `detached save of ${file}`);
+    }
+    return { b, base, onMain, stranded };
+  }
+  const headFile = async (b) => (await b.fs.promises.readFile(`${b.dir}/.git/HEAD`, 'utf8')).trim();
+  const hasRef = (b, ref) => resolveRef({ fs: b.fs, dir: b.dir, ref }).then(() => true, () => false);
+
+  it('merges a detached line that diverged from main into it, and pushes the merge', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      const { b, onMain, stranded } = await divergedDevice(remote, {
+        'fresh.cifra.md': '# Fresh\n\nA fresh line\n',
+      });
+
+      const { engine, facts } = engineFor(b, { changed: [] });
+      await engine.pass();
+
+      // Back on main, now a two-parent merge of both lines, and pushed.
+      expect(await headFile(b)).toBe('ref: refs/heads/main');
+      const merged = await b.head();
+      const { commit: mc } = await readCommit({ fs: b.fs, dir: b.dir, oid: merged });
+      expect(mc.parent).toEqual([onMain, stranded]);
+      expect(await remoteHead(remote.repoDir)).toBe(merged);
+      // Both songs are in the working copy, committed (nothing left unsaved).
+      expect(await b.read('fresh.cifra.md')).toBe('# Fresh\n\nA fresh line\n');
+      expect(await b.read(SONG2)).toBe('# Other\n\nOn main\n');
+      expect(await b.headBlob('fresh.cifra.md')).toBe('# Fresh\n\nA fresh line\n');
+      expect(await hasRef(b, `refs/detached/${stranded}`)).toBe(false);
+      expect(lastPhase(facts)).toBe('in_step');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('never merges a diverged detached line over unsaved edits: the book waits, untouched, until they are saved', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      const { b, onMain, stranded } = await divergedDevice(remote, {
+        'fresh.cifra.md': '# Fresh\n\nA fresh line\n',
+      });
+      const UNSAVED = BASE_SONG.replace('First verse line', 'an unsaved work-in-progress line');
+      await b.fs.promises.writeFile(`${b.dir}/${SONG}`, UNSAVED);
+
+      const { engine, facts } = engineFor(b, { changed: [] });
+      await engine.pass();
+
+      // Nothing moved: still detached on the same commit, main not merged nor
+      // pushed, the unsaved edit byte-for-byte where it was.
+      expect(await headFile(b)).toBe(stranded);
+      expect(await b.head()).toBe(onMain);
+      expect(await remoteHead(remote.repoDir)).not.toBe(onMain);
+      expect(await b.read(SONG)).toBe(UNSAVED);
+      expect(lastPhase(facts)).toBe('syncing');
+
+      // The edit is saved (onto the detached line, as the app would): the tree
+      // is clean, and the next pass merges everything and pushes it.
+      const saved = await b.commitLocal(SONG, UNSAVED, 'save the edit');
+      await engine.pass();
+      expect(await headFile(b)).toBe('ref: refs/heads/main');
+      const { commit: mc } = await readCommit({ fs: b.fs, dir: b.dir, oid: await b.head() });
+      expect(mc.parent).toEqual([onMain, saved]);
+      expect(await b.headBlob(SONG)).toBe(UNSAVED);
+      expect(await remoteHead(remote.repoDir)).toBe(await b.head());
+      expect(lastPhase(facts)).toBe('in_step');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('keeps a detached line whose merge conflicts, its songs left as unsaved edits on main', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      // Both lines change the same line of the same song.
+      const base = await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const b = await makeDeviceB(remote);
+      const onMain = await b.commitLocal(SONG, VERSE_EDIT_REMOTE, 'a save on main');
+      await b.fs.promises.writeFile(`${b.dir}/.git/HEAD`, `${base}\n`);
+      await b.fs.promises.writeFile(`${b.dir}/${SONG}`, BASE_SONG);
+      const stranded = await b.commitLocal(SONG, VERSE_EDIT_DEVICE, 'a detached save');
+
+      const { engine } = engineFor(b, { changed: [] });
+      await engine.pass();
+
+      // Back on main (pushed); the detached line kept under a ref; its song in
+      // the working copy as an unsaved edit over main's version.
+      expect(await headFile(b)).toBe('ref: refs/heads/main');
+      expect(await b.head()).toBe(onMain);
+      expect(await remoteHead(remote.repoDir)).toBe(onMain);
+      expect(await resolveRef({ fs: b.fs, dir: b.dir, ref: `refs/detached/${stranded}` })).toBe(stranded);
+      expect(await b.read(SONG)).toBe(VERSE_EDIT_DEVICE);
+      const [row] = await statusMatrix({ fs: b.fs, dir: b.dir, filepaths: [SONG] });
+      expect(row).toEqual([SONG, 1, 2, 1]); // committed, modified, index at main
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  // Nothing in the app checks out another branch today; the repair still puts
+  // a book found on one back on `main`, the branch's saves carried over.
+  it('puts a book found on another branch back on main, pushing that branch\'s saves', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const b = await makeDeviceB(remote);
+      await b.fs.promises.writeFile(`${b.dir}/.git/HEAD`, 'ref: refs/heads/other\n');
+      await b.fs.promises.writeFile(`${b.dir}/.git/refs/heads/other`, `${await b.head()}\n`);
+      const onBranch = await b.commitLocal('fresh.cifra.md', '# Fresh\n\nA fresh line\n', 'a save on other');
+
+      const { engine, facts } = engineFor(b, { changed: [] });
+      await engine.pass();
+
+      expect(await headFile(b)).toBe('ref: refs/heads/main');
+      expect(await b.head()).toBe(onBranch);
+      expect(await remoteHead(remote.repoDir)).toBe(onBranch);
+      expect(lastPhase(facts)).toBe('in_step');
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('merges a diverged other branch into main, leaving no detached ref behind', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      const base = await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const b = await makeDeviceB(remote);
+      const onMain = await b.commitLocal(SONG2, '# Other\n\nOn main\n', 'a save on main');
+      await b.fs.promises.writeFile(`${b.dir}/.git/refs/heads/other`, `${base}\n`);
+      await b.fs.promises.writeFile(`${b.dir}/.git/HEAD`, 'ref: refs/heads/other\n');
+      await b.fs.promises.unlink(`${b.dir}/${SONG2}`);
+      await remove({ fs: b.fs, dir: b.dir, filepath: SONG2 });
+      const onBranch = await b.commitLocal('fresh.cifra.md', '# Fresh\n\nA fresh line\n', 'a save on other');
+
+      const { engine } = engineFor(b, { changed: [] });
+      await engine.pass();
+
+      expect(await headFile(b)).toBe('ref: refs/heads/main');
+      const { commit: mc } = await readCommit({ fs: b.fs, dir: b.dir, oid: await b.head() });
+      expect(mc.parent).toEqual([onMain, onBranch]);
+      expect(await remoteHead(remote.repoDir)).toBe(await b.head());
+      expect(await hasRef(b, `refs/detached/${onBranch}`)).toBe(false);
+    } finally {
+      await remote.stop();
+    }
+  });
+
+  it('hard-resets a book with a corrupted HEAD to main, and syncs it again', async () => {
+    const remote = await startGitHttpRemote();
+    try {
+      await advanceRemote(remote, { [SONG]: BASE_SONG }, 'seed the base song');
+      const b = await makeDeviceB(remote);
+      const saved = await b.commitLocal('fresh.cifra.md', '# Fresh\n\nA fresh line\n', 'a save on main');
+      await b.fs.promises.writeFile(`${b.dir}/${SONG}`, 'an edit the reset drops\n');
+      await b.fs.promises.writeFile(`${b.dir}/.git/HEAD`, '\0\0garbage');
+
+      const { engine, facts } = engineFor(b, { changed: [] });
+      await engine.pass();
+
+      expect(await headFile(b)).toBe('ref: refs/heads/main');
+      expect(await b.head()).toBe(saved);
+      expect(await b.read(SONG)).toBe(BASE_SONG); // working tree back to main
+      expect(await remoteHead(remote.repoDir)).toBe(saved); // and the pass pushed
+      expect(lastPhase(facts)).toBe('in_step');
+    } finally {
+      await remote.stop();
+    }
+  });
 });

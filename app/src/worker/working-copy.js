@@ -262,7 +262,11 @@ export function createWorkingCopy({ fs, git, locks } = {}) {
             if (err?.code !== 'ENOENT') throw err;
           }
         } else {
-          await gitCheckout({ fs, dir, ref: 'HEAD', filepaths: [path], force: true });
+          // `noUpdateHead`: with a `ref` given, isomorphic-git also rewrites
+          // HEAD, and `'HEAD'` does not expand to a branch — so it writes the
+          // bare oid and DETACHES the book. Every later save then commits off
+          // `main`, which sync never pushes. Restore the file only.
+          await gitCheckout({ fs, dir, ref: 'HEAD', filepaths: [path], force: true, noUpdateHead: true });
         }
       }
       // Force the inode table out now (fs.js Decision 6), still inside the
