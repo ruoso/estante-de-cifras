@@ -53,6 +53,105 @@ power button after a reboot (xovi-tripletap), and an OS update needs its
 hashtable rebuilt; both are xovi's, not ours. The reader's own install is
 copying one folder.
 
+### 2.1 Installing it, step by step
+
+What a person does, from a reMarkable 2 out of the box to the reader paired and
+reading. The task that ships it (`reader.install`) turns this into
+`remarkable/INSTALL.md`, with what each step shows when it worked and what to do
+when it did not, and `remarkable/scripts/install.sh` for step 4. Community
+tools named here (Vellum, xovi, AppLoad, xovi-tripletap) change between
+releases: the guide links each one's own instructions and says which versions
+it was written against.
+
+**1. What is needed.**
+
+- A reMarkable 2 on reMarkable OS **3.20 or later** (*Settings → General →
+  About* shows the version; xovi needs 3.20).
+- A computer with `ssh` and `scp` (macOS and Linux have them; Windows 10 and
+  later has OpenSSH).
+- Either the USB cable, or the tablet and the computer on the same Wi-Fi.
+- An Estante account, signed in on a phone or a computer, for pairing.
+
+**2. Reaching the tablet as root.**
+
+1. On the tablet: *Settings → General → Help → About → Copyrights and
+   licenses*. At the bottom are the **root password** and the tablet's
+   **IP addresses**. An rM2 needs no developer mode.
+2. By USB: plug it in; the tablet is at `10.11.99.1`.
+   `ssh root@10.11.99.1`, and the password from step 1.
+3. By Wi-Fi: the Wi-Fi address from the same page.
+   `ssh root@<address>`. (Wi-Fi SSH is on by default on an rM2.)
+4. Optional, so the password is asked once: `ssh-copy-id root@<address>`.
+
+**3. Installing xovi and AppLoad.** The reader is an AppLoad app; AppLoad is
+an extension of xovi, which hooks into the tablet's own interface.
+
+1. With **Vellum**, the package manager for current reMarkable OS: install
+   Vellum as its instructions say, then `vellum add xovi`, and AppLoad with its
+   dependency `qt-resource-rebuilder` the same way.
+2. Or with a community installer for the rM2 (for example
+   remarkable-xovi-installer), as its instructions say.
+3. Rebuild xovi's hashtable for this OS version, as the installer says
+   (xovi's `rebuild_hashtable`); it is needed again after every OS update.
+4. Install **xovi-tripletap**: xovi does not start on its own after a reboot,
+   and tripletap starts it with **three presses of the power button**. A plain
+   reboot always returns to the tablet's own interface, which is what keeps a
+   broken extension from locking the tablet out.
+5. Start xovi (three presses). AppLoad's icon appears in the tablet's
+   interface.
+
+**4. Installing the reader.**
+
+- By its script, from a computer:
+  `RM_IP=<address> ./install.sh`. It asks the tablet its architecture
+  (`uname -m`: `armv7l` for the rM2), downloads that app folder from
+  `/device/` on the site, keeps any installed reader as the previous one, and
+  copies the new one to `/home/root/xovi/exthome/appload/estante/`.
+- Or by hand: download the app folder for the rM2 (armv7) from the site's
+  `/device/`, unpack it, and
+  `scp -r estante root@<address>:/home/root/xovi/exthome/appload/`.
+
+Then, on the tablet, open AppLoad and press **Reload**: *Estante* is listed.
+
+**5. Opening and pairing.**
+
+1. Open *Estante* from AppLoad. It says *Pair with your account*.
+2. Press it: it shows a code and an address — *go to estantedecifras.app/pair
+   and enter KQ7-4TM*.
+3. On a phone or a computer signed in to Estante, open that address, enter the
+   code and confirm *Pair your reMarkable*.
+4. The tablet shows the shelf and syncs the books. From then on the reader
+   opens on the shelf, and keeps syncing in the background while it runs.
+
+**6. Updating it, and the tablet's own updates.**
+
+- The reader's music code and screens **update themselves** at sync (§8). A
+  new backend, when one comes, is installed as in step 4; its settings say so
+  when it is needed (*Update the reader on your reMarkable*).
+- **reMarkable OS updates** can stop xovi until its hashtable is rebuilt for the
+  new version (step 3.3), and tripletap may need its version step again; the
+  reader itself is untouched in `/home/root`. Turning automatic OS updates off
+  (*Settings → General → Software*) and updating by hand avoids being caught
+  out before a gig.
+- **Removing it**: *Sign out* in the reader's settings, then
+  `ssh root@<address> rm -r /home/root/xovi/exthome/appload/estante` and
+  Reload in AppLoad. Its synced books and state are in
+  `/home/root/.local/share/estante/`, removed by *Sign out* or by hand.
+
+**7. When something goes wrong.**
+
+- *No AppLoad icon*: xovi is not running — three presses of the power button;
+  after an OS update, rebuild the hashtable first.
+- *Estante not in AppLoad's list*: the folder is not at
+  `/home/root/xovi/exthome/appload/estante/` with its `manifest.json` at the
+  top — check with `ls`; then Reload.
+- *It opens but says nothing*: the backend did not start — the folder for the
+  wrong architecture, or `backend/entry` not executable (`chmod +x`).
+- *Pairing fails*: the code lasts ten minutes; get a new one. The tablet must
+  be on Wi-Fi.
+- *Not connected*: the reader shows what it last synced and says when; it syncs
+  again when Wi-Fi is back.
+
 ## 3. Architecture
 
 ```
@@ -313,8 +412,7 @@ The site serves the device's payload beside the app, from the same image:
 | Unit (Go) | protocol framing, store, sync logic against fakes | `remarkable/`, `go test` |
 | Integration | The **built** bundle loaded in goja: the example book read at all twelve keys, against a cache table the app's own fill produced; every host call; no polyfill missing | `remarkable/`, `go test`, needs `app/dist/device/` |
 | Integration (stack) | Pairing, then a sync, against the compose stack the gate already runs | `remarkable/`, `go test` with the stack's URL |
-| Frontend | The QML in AppLoad's PC emulator — by hand at first | `remarkable/qml/` |
-| Device | The spike's run script, extended: install, open, measure | by hand |
+| Frontend | The QML, in Qt Quick's software renderer offscreen, against scripted backend messages | `remarkable/qml/tests`, the gate |
 
 **The gate** runs `remarkable/`'s checks after the app's (whose build makes the
 bundle), and cross-builds the backend for **amd64** (the tests' host),
@@ -337,8 +435,8 @@ backend for armv7 and arm64 and compiles the QML (`rcc`), and copies them into
 - **xovi and OS updates.** Each reMarkable OS update can break xovi until it is
   rebuilt; the reader inherits that. Automatic OS updates are best left off.
 - **Diagrams drawn live** (§7): about 350 items a page, created on xochitl's UI
-  thread on a Cortex-A7, unmeasured. Phase 2 measures it; caching by
-  `grabToImage`, then backend-stamped bitmaps, are the steps if it is slow.
+  thread on a Cortex-A7, unmeasured. Caching by `grabToImage`, then
+  backend-stamped bitmaps, are the steps if it proves slow in use.
 - **Drawing speed.** How fast QML lays out a long sung song on the rM2 is
   unmeasured; paging (§7) bounds what is drawn at once.
 - **AppLoad is GPL-3.** The backend is a separate process speaking a socket
@@ -347,20 +445,19 @@ backend for armv7 and arm64 and compiles the QML (`rcc`), and copies them into
 - **Keys on the device vs. the account** (§5.4): kept on the device. Letting a
   key chosen at the stand reach the account would make the reader write — a
   later decision, not this one.
-- **How the panel updates** (workflow 19 §What is checked on the device): the
-  screens assume region-by-region updates with a fast one-bit waveform; phase 2
-  measures it before the screens are built.
+- **How the panel updates** (workflow 19 §What the screens assume): the
+  screens assume region-by-region updates with a fast one-bit waveform; what
+  the panel does in use revises workflow 19.
 
 ## 12. The order of work
 
 1. **Plumbing.** The bundle's entry and `build:device` in the app; the
    `remarkable/` module with the engine, a `sheet` command, and the
    integration test over the built bundle; the gate step and the three builds.
-2. **The frontend, offline.** AppLoad hello world on the device; the song
-   screen drawing rows and diagrams from a local book — diagrams as live QML
-   primitives from the model (§7), with a page of sixteen shapes timed for its
-   draw and its turn; the shelf and book screens. Measured on the rM2, with
-   which updates flash (workflow 19).
+2. **The frontend, offline.** The AppLoad app — its folder, its QML root
+   talking to the backend — then the song screen drawing rows and diagrams
+   from a local book, diagrams as live QML primitives from the model (§7); the
+   shelf and book screens. Tested in the QML harness, not on a device.
 3. **Sync, by hand.** The backend syncs with a session pasted in for
    development: home book, books, change check.
 4. **Pairing.** The API, the service, the web app's *Pair a device*, the

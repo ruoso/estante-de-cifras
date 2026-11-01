@@ -174,12 +174,7 @@ the listed leaves are not `complete 100` and have every predecessor
   `launch.domain`, 50%) whose remaining work is something only a human can
   do (registering a domain, pointing DNS, creating an account with a
   provider) is not an agent task. Skip it; if a milestone ends up waiting on
-  nothing else, that is a human-intervention stop. The same holds for a leaf
-  whose deliverable is a measurement or a check on hardware only the human
-  holds — the reMarkable, for `reader.appload_measure` and `reader.install`:
-  an implementer may prepare what the human will run, but the measurement
-  is the human's, so when such a leaf is all that is READY, stop for human
-  intervention and say what to run.
+  nothing else, that is a human-intervention stop.
 - **Cross-worktree conflict filter** — inspect the driver-provided worktree
   coordination snapshot before choosing a READY leaf. Do not pick the same
   task, the same active workstream, or a task likely to edit the same

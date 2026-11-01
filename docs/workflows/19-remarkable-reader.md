@@ -336,10 +336,8 @@ is the web app's.
 | Sync, anywhere else | 0 | — |
 | Pairing approved / code expired | 1 | content |
 
-## What is checked on the device
+## What the screens assume
 
 These rules assume the panel is updated region by region, with a fast
-black-and-white update for one-bit changes. Phase 2 of the reader
-(`remarkable-reader.md` §12) measures, on the rM2, which updates flash and how
-long a page takes to appear, and this document is revised by what it finds —
-before any screen is built past the song.
+black-and-white update for one-bit changes. What the panel does in use —
+which updates flash, how long a page takes to appear — revises this document.
