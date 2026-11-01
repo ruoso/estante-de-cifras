@@ -210,10 +210,18 @@ below, the preview of what goes to paper.
   artists in alphabetical order, each a small heading over its songs' titles
   in alphabetical order, as the reader's language sorts them (accents and
   case aside), and the songs that name no artist last, under *No artist
-  named*. Each row is a link to the song. On paper the rows take as many
+  named*. A song by several authors — its artist written *Pixinguinha /
+  Benedito Lacerda* or *Pixinguinha, João de Barros, Alberto Ribeiro*, split
+  on `/`, `,` and `;` but never on *e* or *&*, which as often join a duo
+  that is one name — is listed under **each** of them, so it is found by any
+  author. Each row is a link to the song. On paper the rows take as many
   columns as the page does, an artist's name never left at a column's foot,
   and each row is roomy enough to hit with a finger.
-- **Each song** starts a new page, in the index's order, drawn as the
+- **The index by title** follows, on a page of its own: every song once, in
+  alphabetical order, its authors beside it as the song writes them.
+- **Each song** starts a new page, once, where it first comes in the index
+  by artist — every row for it, under any author or by title, leads there —
+  drawn as the
   reading view prints it (workflow 2): its chart in as many columns as the
   page takes, then its shapes. It is the song **as the person reads it**: in
   the key they transposed it to, named under its title, and with the shapes
@@ -225,9 +233,10 @@ below, the preview of what goes to paper.
   A teacher's book carries the full arrangement and the student's simpler one
   side by side. A song read transposed prints once: its own shapes do not
   apply in another key, so every variation would print alike.
-- **Every page of a song** carries, at its top, the book's name and
-  *↑ Index*, a link back to the index — a song that runs over three pages
-  has it on all three.
+- **Every page of a song** carries, at its top, the book's name and a way
+  back to each index — *↑ Artists* to the index by artist, *↑ Titles* to the
+  index by title — so a song that runs over three pages has both on all
+  three.
 
 The links are the document's own. Printed to paper they are only words; but
 the print dialog's *Save as PDF* keeps them as links inside the PDF, so on a

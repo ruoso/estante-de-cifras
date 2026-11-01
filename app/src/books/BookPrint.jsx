@@ -35,7 +35,7 @@ import { songTitle } from '../songs/search-query.js';
 import { readSongSheet, shapesCaption, captionExplainsMarks, transposedLabel, tuningIdOf } from '../songs/song-sheet.js';
 import SongShapes from '../songs/SongShapes.jsx';
 import { fitPrintColumns } from '../songs/print-columns.js';
-import { INDEX_ANCHOR, songAnchor, printProgress, printCopies, songsByArtist } from './book-print.js';
+import { INDEX_ANCHOR, TITLE_INDEX_ANCHOR, songAnchor, printProgress, printCopies, songsByArtist, songsByTitle } from './book-print.js';
 import '../songs/reading.css';
 import './book-print.css';
 
@@ -106,9 +106,14 @@ function PrintedSong({ index, song, text, reading, variation = null, tuningId, e
           <tr className="book-print-running">
             <td className="t-small book-print-running-book">{bookLabel}</td>
             <td className="book-print-running-link">
+              {/* A way back to each index, on every page (books.print_authors). */}
               <JumpLink to={INDEX_ANCHOR} className="book-print-to-index">
                 <span aria-hidden="true">↑ </span>
-                {t('books.printBookToIndex')}
+                {t('books.printBookToArtists')}
+              </JumpLink>
+              <JumpLink to={TITLE_INDEX_ANCHOR} className="book-print-to-index">
+                <span aria-hidden="true">↑ </span>
+                {t('books.printBookToTitles')}
               </JumpLink>
             </td>
           </tr>
@@ -194,20 +199,29 @@ export default function BookPrint({ store, bookId, onBack = () => {} }) {
   // per variation it has for the instrument in use (books.print_variations).
   // The index lists the same copies under the same artists, each linking to its
   // own pages, numbered in print order.
-  const groups = songsByArtist(songs, {
-    locale: currentLocale(),
-    titleOf: (s) => songTitle(s.title, t('newSong.untitled')),
-  });
-  let at = 0;
-  const grouped = groups.map(({ artist, songs: list }) => ({
-    artist,
-    copies: list.flatMap((s) =>
-      printCopies({ text: texts[s.path]?.text ?? '', reading: songSlice?.[bookId]?.[s.path] ?? null, tuningId }).map(
-        (variation) => ({ song: s, variation, index: at++ }),
-      ),
-    ),
-  }));
-  const copies = grouped.flatMap((g) => g.copies);
+  //
+  // A song by several authors (books.print_authors) is listed under each of
+  // them, and its pages print once, where it first comes in the index; every
+  // row for it links there. After the index by artist comes the index by title:
+  // every song once, alphabetically, its authors beside it.
+  const sortOpts = { locale: currentLocale(), titleOf: (s) => songTitle(s.title, t('newSong.untitled')) };
+  const groups = songsByArtist(songs, sortOpts);
+  const copiesOf = (s) =>
+    printCopies({ text: texts[s.path]?.text ?? '', reading: songSlice?.[bookId]?.[s.path] ?? null, tuningId });
+  const copies = [];
+  const pageOf = new Map(); // `${path}:${variation}` → its page's place
+  const rowsFor = (s) =>
+    copiesOf(s).map((variation) => {
+      const id = `${s.path}:${variation ?? ''}`;
+      if (!pageOf.has(id)) {
+        pageOf.set(id, copies.length);
+        copies.push({ song: s, variation, index: copies.length });
+      }
+      return { song: s, variation, index: pageOf.get(id) };
+    });
+  const grouped = groups.map(({ artist, songs: list }) => ({ artist, rows: list.flatMap(rowsFor) }));
+  const byTitle = songsByTitle(songs, sortOpts).flatMap(rowsFor);
+  const byTitleHeadingId = useId();
   const instrumentLabel = chipLabel(entry);
   const bookLabel = bookLabelFor(shelf, bookId, t('books.untitled'));
   const indexHeadingId = useId();
@@ -241,13 +255,13 @@ export default function BookPrint({ store, bookId, onBack = () => {} }) {
             {instrumentLabel ? (
               <p className="t-small">{t('books.printBookShapesFor', { instrument: instrumentLabel })}</p>
             ) : null}
-            <h2 className="t-h3">{t('books.printBookIndex')}</h2>
+            <h2 className="t-h3">{t('books.printBookByArtist')}</h2>
             <div className="book-print-toc">
-              {grouped.map(({ artist, copies: list }) => (
+              {grouped.map(({ artist, rows }) => (
                 <section className="book-print-toc-group" key={artist ?? ''} aria-label={artist ?? t('books.printBookNoArtist')}>
                   <h3 className="book-print-toc-artist">{artist ?? t('books.printBookNoArtist')}</h3>
                   <ol>
-                    {list.map(({ song: s, variation, index }) => (
+                    {rows.map(({ song: s, variation, index }) => (
                       <li key={`${s.path}:${variation ?? ''}`}>
                         <JumpLink to={songAnchor(index)}>
                           <span className="book-print-toc-title">{songTitle(s.title, t('newSong.untitled'))}</span>
@@ -261,6 +275,26 @@ export default function BookPrint({ store, bookId, onBack = () => {} }) {
                 </section>
               ))}
             </div>
+            <section id={TITLE_INDEX_ANCHOR} className="book-print-by-title" aria-labelledby={byTitleHeadingId}>
+              <h2 className="t-h3" id={byTitleHeadingId}>
+                {t('books.printBookByTitle')}
+              </h2>
+              <div className="book-print-toc">
+                <ol>
+                  {byTitle.map(({ song: s, variation, index }) => (
+                    <li key={`${s.path}:${variation ?? ''}`}>
+                      <JumpLink to={songAnchor(index)}>
+                        <span className="book-print-toc-title">{songTitle(s.title, t('newSong.untitled'))}</span>
+                        {variation !== null ? (
+                          <span className="t-small book-print-toc-variation">{variationLabel(variation)}</span>
+                        ) : null}
+                        {s.artist ? <span className="t-small book-print-toc-by">{s.artist}</span> : null}
+                      </JumpLink>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </section>
           </nav>
           {copies.map(({ song: s, variation, index }) =>
             texts[s.path] ? (

@@ -111,14 +111,16 @@ function renderPrint(store, onBack = vi.fn()) {
 }
 
 const printButton = () => screen.getByRole('button', { name: t('books.printBook') });
+// The two indexes (books.print_authors): by artist first, then by title.
+const byArtist = () => screen.getByRole('navigation').querySelector('.book-print-toc');
+const byTitle = () => screen.getByRole('region', { name: t('books.printBookByTitle') });
 
 describe('BookPrint — the book as a songbook', () => {
   it('lists every song in the index, each a link to its own page', async () => {
     const { store } = makeStore();
     const { container } = renderPrint(store);
     await screen.findByRole('heading', { level: 2, name: 'Slow Tide' });
-    const index = screen.getByRole('navigation');
-    const links = within(index).getAllByRole('link');
+    const links = within(byArtist()).getAllByRole('link');
     expect(links.map((a) => a.textContent)).toEqual(['Harbour Lights', 'Slow Tide']);
     // Each index link points at the page that song's heading is on.
     for (const [i, link] of links.entries()) {
@@ -128,16 +130,19 @@ describe('BookPrint — the book as a songbook', () => {
     }
   });
 
-  it('gives every song a way back to the index', async () => {
+  it('gives every song a way back to each index, by artist and by title (books.print_authors)', async () => {
     const { store } = makeStore();
     const { container } = renderPrint(store);
     await screen.findByRole('heading', { level: 2, name: 'Slow Tide' });
     const index = screen.getByRole('navigation');
-    const back = screen.getAllByRole('link', { name: t('books.printBookToIndex') });
-    expect(back).toHaveLength(2);
-    for (const link of back) {
-      expect(container.querySelector(link.getAttribute('href'))).toBe(index);
+    for (const article of container.querySelectorAll('.book-print-song')) {
+      const toArtists = within(article).getByRole('link', { name: t('books.printBookToArtists') });
+      const toTitles = within(article).getByRole('link', { name: t('books.printBookToTitles') });
+      // By artist is where the index begins; by title is its own section.
+      expect(container.querySelector(toArtists.getAttribute('href'))).toBe(index);
+      expect(container.querySelector(toTitles.getAttribute('href'))).toBe(byTitle());
     }
+    expect(container.querySelectorAll('.book-print-song')).toHaveLength(2);
   });
 
   it('prints each song as it is read: in its key, the transposition named', async () => {
@@ -172,7 +177,7 @@ describe('BookPrint — the book as a songbook', () => {
     renderPrint(store);
     await screen.findByRole('heading', { level: 2, name: 'Slow Tide' });
     const before = window.location.hash;
-    const link = within(screen.getByRole('navigation')).getByRole('link', { name: 'Slow Tide' });
+    const link = within(byArtist()).getByRole('link', { name: 'Slow Tide' });
     fireEvent.click(link);
     expect(window.location.hash).toBe(before);
     expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
@@ -239,8 +244,7 @@ describe('BookPrint — one copy per variation', () => {
     await screen.findByRole('heading', { level: 2, name: 'Slow Tide' });
 
     // Harbour Lights twice — Default, then Easy — and Slow Tide once.
-    const index = screen.getByRole('navigation');
-    const links = within(index).getAllByRole('link');
+    const links = within(byArtist()).getAllByRole('link');
     expect(links.map((a) => a.textContent)).toEqual([
       'Harbour LightsDefault',
       'Harbour LightsEasy',
@@ -260,7 +264,8 @@ describe('BookPrint — one copy per variation', () => {
     expect(shapeOf(copies[1], 'G')).toMatch(/^G, 320033,/);
     expect(shapeOf(copies[1], 'C')).toMatch(/^C, x3201x,/);
     // Every copy has its way back.
-    expect(screen.getAllByRole('link', { name: t('books.printBookToIndex') })).toHaveLength(3);
+    expect(screen.getAllByRole('link', { name: t('books.printBookToArtists') })).toHaveLength(3);
+    expect(screen.getAllByRole('link', { name: t('books.printBookToTitles') })).toHaveLength(3);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });
@@ -284,11 +289,10 @@ describe('BookPrint — by artist, in alphabetical order', () => {
     const { store } = makeStore({ songs: SET, texts: SET_TEXTS });
     const { container } = renderPrint(store);
     await screen.findByRole('heading', { level: 2, name: 'Morning' });
-    const index = screen.getByRole('navigation');
 
     // Artists alphabetical (one Ana Lima however it is capitalised), the songs
     // with no artist last; titles alphabetical within, accents aside.
-    const groups = within(index).getAllByRole('region');
+    const groups = within(byArtist()).getAllByRole('region');
     expect(groups.map((g) => within(g).getByRole('heading', { level: 3 }).textContent)).toEqual([
       'Ana Lima',
       'Bruno Cruz',
@@ -302,6 +306,77 @@ describe('BookPrint — by artist, in alphabetical order', () => {
     // The pages follow the index.
     const pages = [...container.querySelectorAll('.book-print-song h2')].map((h) => h.textContent);
     expect(pages).toEqual(['Água Clara', 'Zebra Waltz', 'Brisa', 'Morning', 'No Name Yet']);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+});
+
+// books.print_authors — a song by several authors is found under each of them;
+// its pages print once, and every row for it leads there. After the index by
+// artist comes the index by title, every song once with its authors beside it.
+describe('BookPrint — each author, and an index by title', () => {
+  const song = (title, artist) =>
+    [`# ${title}`, ...(artist ? [`- artist: ${artist}`] : []), '', '## A', '```', 'G | C', '```', ''].join('\n');
+  const SET = [
+    { path: 'v.cifra.md', title: 'Vou Vivendo', artist: 'Pixinguinha / Benedito Lacerda' },
+    { path: 'c.cifra.md', title: 'Cochichando', artist: 'Pixinguinha, João de Barros, Alberto Ribeiro' },
+    { path: 's.cifra.md', title: 'Sedutor', artist: 'Pixinguinha' },
+    { path: 'a.cifra.md', title: 'Apanhei-te Cavaquinho', artist: 'Ernesto Nazareth' },
+  ].map((s) => ({ ...s, unsaved: false }));
+  const SET_TEXTS = Object.fromEntries(SET.map((s) => [s.path, song(s.title, s.artist)]));
+
+  it('lists a song under each of its authors, prints it once, and every row for it leads to that page', async () => {
+    const { store } = makeStore({ songs: SET, texts: SET_TEXTS });
+    const { container } = renderPrint(store);
+    await screen.findByRole('heading', { level: 2, name: 'Sedutor' });
+
+    const groups = within(byArtist()).getAllByRole('region');
+    expect(
+      groups.map((g) => [
+        within(g).getByRole('heading', { level: 3 }).textContent,
+        within(g).getAllByRole('link').map((a) => a.textContent),
+      ]),
+    ).toEqual([
+      ['Alberto Ribeiro', ['Cochichando']],
+      ['Benedito Lacerda', ['Vou Vivendo']],
+      ['Ernesto Nazareth', ['Apanhei-te Cavaquinho']],
+      ['João de Barros', ['Cochichando']],
+      ['Pixinguinha', ['Cochichando', 'Sedutor', 'Vou Vivendo']],
+    ]);
+
+    // Each song prints once, where it first comes in the index.
+    const pages = [...container.querySelectorAll('.book-print-song h2')].map((h) => h.textContent);
+    expect(pages).toEqual(['Cochichando', 'Vou Vivendo', 'Apanhei-te Cavaquinho', 'Sedutor']);
+    // Every row for Cochichando — under three authors, and by title — leads to its one page.
+    const targets = screen
+      .getAllByRole('link', { name: /^Cochichando/ })
+      .map((a) => container.querySelector(a.getAttribute('href')));
+    expect(targets).toHaveLength(4);
+    expect(new Set(targets).size).toBe(1);
+    expect(within(targets[0]).getByRole('heading', { level: 2 }).textContent).toBe('Cochichando');
+    // The page's byline keeps the authors as the song writes them.
+    expect(within(targets[0]).getByText(/Pixinguinha, João de Barros, Alberto Ribeiro/)).toBeInTheDocument();
+  });
+
+  it('follows the index by artist with every song once, by title, its authors beside it', async () => {
+    const { store } = makeStore({ songs: SET, texts: SET_TEXTS });
+    const { container } = renderPrint(store);
+    await screen.findByRole('heading', { level: 2, name: 'Sedutor' });
+
+    const index = screen.getByRole('navigation');
+    expect(within(index).getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
+      t('books.printBookByArtist'),
+      t('books.printBookByTitle'),
+    ]);
+    expect(within(byTitle()).getAllByRole('link').map((a) => a.textContent)).toEqual([
+      'Apanhei-te CavaquinhoErnesto Nazareth',
+      'CochichandoPixinguinha, João de Barros, Alberto Ribeiro',
+      'SedutorPixinguinha',
+      'Vou VivendoPixinguinha / Benedito Lacerda',
+    ]);
+    for (const link of within(byTitle()).getAllByRole('link')) {
+      const page = container.querySelector(link.getAttribute('href'));
+      expect(within(page).getByRole('heading', { level: 2 }).textContent).toBe(link.querySelector('.book-print-toc-title').textContent);
+    }
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });

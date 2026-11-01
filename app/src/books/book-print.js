@@ -5,8 +5,10 @@
 import { parse } from 'cifra-md';
 import { songVariations } from '../core/song-variations.js';
 
-// The index's anchor: every page's way back points here.
+// The indexes' anchors: every page has a way back to each (books.print_authors)
+// — the index by artist, where the index begins, and the index by title.
 export const INDEX_ANCHOR = 'book-print-index';
+export const TITLE_INDEX_ANCHOR = 'book-print-index-titles';
 
 // A song's anchor, by its place in the book's order. By place, not by path: a
 // path may hold characters a fragment would have to escape, and the print only
@@ -36,11 +38,28 @@ export function printCopies({ text, reading = null, tuningId }) {
 }
 
 /**
- * The book's songs as the print orders them (books.print_order): grouped by
- * artist, the artists in alphabetical order and each artist's songs by title,
- * the songs that name no artist in a last group of their own (`artist: null`).
- * Compared as the reader's language sorts (accents and case aside), and a
- * song with no title by the name it shows (`titleOf`).
+ * The authors a song's `artist` names (books.print_authors): the field split on
+ * `/`, `,` and `;` — *Pixinguinha / Benedito Lacerda*, *Pixinguinha, João de
+ * Barros, Alberto Ribeiro* — each trimmed, blanks dropped. Not on *e*, *and* or
+ * *&*: those as often join a duo that is one name (*Tonico e Tinoco*).
+ *
+ * @param {string|null|undefined} artist
+ * @returns {string[]}
+ */
+export function splitArtists(artist) {
+  return String(artist ?? '')
+    .split(/[/,;]/)
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
+/**
+ * The book's songs as the print's index by artist lists them (books.print_order,
+ * books.print_authors): grouped by author — a song with several listed under
+ * each of them — the authors in alphabetical order and each author's songs by
+ * title, the songs that name no artist in a last group of their own
+ * (`artist: null`). Compared as the reader's language sorts (accents and case
+ * aside), and a song with no title by the name it shows (`titleOf`).
  *
  * @param {{ path: string, title?: string|null, artist?: string|null }[]} songs
  * @param {object} [opts]
@@ -52,16 +71,31 @@ export function songsByArtist(songs, { locale, titleOf = (s) => s.title ?? '' } 
   const collator = new Intl.Collator(locale, { sensitivity: 'base', numeric: true });
   const groups = new Map();
   for (const song of songs) {
-    const artist = song.artist?.trim() || null;
-    // One group per artist however it is capitalised or accented.
-    const key = artist === null ? null : [...groups.keys()].find((k) => k !== null && collator.compare(k, artist) === 0) ?? artist;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(song);
+    const authors = splitArtists(song.artist);
+    for (const artist of authors.length ? authors : [null]) {
+      // One group per author however it is capitalised or accented.
+      const key =
+        artist === null ? null : ([...groups.keys()].find((k) => k !== null && collator.compare(k, artist) === 0) ?? artist);
+      if (!groups.has(key)) groups.set(key, []);
+      if (!groups.get(key).includes(song)) groups.get(key).push(song);
+    }
   }
   const byTitle = (a, b) => collator.compare(titleOf(a), titleOf(b)) || collator.compare(a.path, b.path);
   return [...groups.entries()]
     .sort(([a], [b]) => (a === null ? 1 : b === null ? -1 : collator.compare(a, b)))
     .map(([artist, list]) => ({ artist, songs: [...list].sort(byTitle) }));
+}
+
+/**
+ * The book's songs as the print's index by title lists them (books.print_authors):
+ * every song once, by the title it shows, as the reader's language sorts.
+ *
+ * @param {{ path: string, title?: string|null }[]} songs
+ * @param {{ locale?: string, titleOf?: (song: object) => string }} [opts]
+ */
+export function songsByTitle(songs, { locale, titleOf = (s) => s.title ?? '' } = {}) {
+  const collator = new Intl.Collator(locale, { sensitivity: 'base', numeric: true });
+  return [...songs].sort((a, b) => collator.compare(titleOf(a), titleOf(b)) || collator.compare(a.path, b.path));
 }
 
 /**

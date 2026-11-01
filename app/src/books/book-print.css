@@ -54,6 +54,13 @@
   text-transform: uppercase;
   color: var(--ink-2);
 }
+/* The index by title (books.print_authors): each row its authors as written. */
+.book-print-by-title {
+  margin-top: calc(var(--u) * 3);
+}
+.book-print-toc-by {
+  color: var(--ink-2);
+}
 /* Which variation a copy is, beside its title (books.print_variations). */
 .book-print-toc-variation {
   font-weight: 700;
@@ -91,6 +98,10 @@
   color: var(--ink);
   font-size: 16px;
   white-space: nowrap;
+}
+/* Two ways back side by side: to the index by artist and by title. */
+.book-print-to-index + .book-print-to-index {
+  margin-left: calc(var(--u) * 2.5);
 }
 
 .book-print-head {
@@ -132,6 +143,11 @@
   }
   .book-print-toc li {
     break-inside: avoid;
+  }
+  /* The index by title starts a page of its own after the index by artist. */
+  .book-print-by-title {
+    break-before: page;
+    margin-top: 0;
   }
   /* An artist's name is never left at the foot of a column without a song. */
   .book-print-toc-artist {

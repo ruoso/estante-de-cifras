@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INDEX_ANCHOR, printCopies, printProgress, songAnchor, songsByArtist } from './book-print.js';
+import { INDEX_ANCHOR, printCopies, printProgress, songAnchor, songsByArtist, songsByTitle, splitArtists } from './book-print.js';
 
 describe('book-print', () => {
   it('names each song by its place, apart from the index', () => {
@@ -86,6 +86,58 @@ describe('book-print', () => {
         titleOf: (s) => s.title ?? 'Untitled song',
       });
       expect(groups[0].songs.map((s) => s.path)).toEqual(['2', '1']);
+    });
+  });
+
+  // books.print_authors
+  describe('splitArtists', () => {
+    it('splits on slash, comma and semicolon, trimming each name', () => {
+      expect(splitArtists('Pixinguinha / Benedito Lacerda')).toEqual(['Pixinguinha', 'Benedito Lacerda']);
+      expect(splitArtists('Pixinguinha, João de Barros, Alberto Ribeiro')).toEqual([
+        'Pixinguinha',
+        'João de Barros',
+        'Alberto Ribeiro',
+      ]);
+      expect(splitArtists('K-Ximbinho/Del Loro; Ana')).toEqual(['K-Ximbinho', 'Del Loro', 'Ana']);
+    });
+    it('keeps a duo joined by e, and, & as one name; none for a blank or missing field', () => {
+      expect(splitArtists('Tonico e Tinoco')).toEqual(['Tonico e Tinoco']);
+      expect(splitArtists('Kleiton & Kledir')).toEqual(['Kleiton & Kledir']);
+      expect(splitArtists(' / ')).toEqual([]);
+      expect(splitArtists(null)).toEqual([]);
+    });
+  });
+
+  describe('songsByArtist with several authors', () => {
+    it('lists a song under each author, once each, merged with that author’s other songs', () => {
+      const groups = songsByArtist(
+        [
+          { path: '1', title: 'Vou Vivendo', artist: 'Pixinguinha / Benedito Lacerda' },
+          { path: '2', title: 'Sedutor', artist: 'pixinguinha' },
+          { path: '3', title: 'Duplo', artist: 'Ana, Ana' },
+        ],
+        { locale: 'pt-BR' },
+      );
+      expect(groups.map((g) => [g.artist, g.songs.map((s) => s.title)])).toEqual([
+        ['Ana', ['Duplo']],
+        ['Benedito Lacerda', ['Vou Vivendo']],
+        ['Pixinguinha', ['Sedutor', 'Vou Vivendo']],
+      ]);
+    });
+  });
+
+  describe('songsByTitle', () => {
+    it('sorts every song once by the title it shows, as the language sorts', () => {
+      const sorted = songsByTitle(
+        [
+          { path: '1', title: 'Vou Vivendo' },
+          { path: '2', title: 'Água' },
+          { path: '3', title: null },
+          { path: '4', title: 'abril' },
+        ],
+        { locale: 'pt-BR', titleOf: (s) => s.title ?? 'Untitled song' },
+      );
+      expect(sorted.map((s) => s.path)).toEqual(['4', '2', '3', '1']);
     });
   });
 });
