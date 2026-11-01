@@ -398,6 +398,11 @@ export function createWorkerLogic(port, options = {}) {
   let filling = null;
   let fillAgain = false;
   let reconcileWanted = false;
+  // Held while signing out: no fill pass may start, and none may clone, between
+  // the removal of the account's books and the tombstoning of their shelf
+  // entries — a pass in that gap saw a live entry with no clone and brought the
+  // book straight back (the CI flake of 2026-11-01).
+  let fillPaused = 0;
   let lastOffer = null;
 
   function ensureOpen() {
@@ -1521,6 +1526,7 @@ export function createWorkerLogic(port, options = {}) {
   // is tried again by the next fill (a sync pass, a home sync, the next start).
   // Only an attached home book's shelf is filled.
   async function fillOnce() {
+    if (fillPaused) return;
     if (!(await homeRemote()).url) return;
     const shelf = await ensureHomeBook().read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
     const present = new Set();
@@ -1532,6 +1538,7 @@ export function createWorkerLogic(port, options = {}) {
     for (const { bookId } of queue) emitFill(bookId, 'waiting', 0);
     let landed = false;
     for (const { bookId, link } of queue) {
+      if (fillPaused) break;
       emitFill(bookId, 'cloning', 0);
       try {
         await clearPartialClone(bookId);
@@ -1605,6 +1612,10 @@ export function createWorkerLogic(port, options = {}) {
   // command: nothing the user does waits on a clone (Constraints).
   function kickFill({ reconcile = false } = {}) {
     if (reconcile) reconcileWanted = true;
+    // Signing out: start nothing; the next kick after it does the work. (A
+    // loop that broke out before its first await would also finish before
+    // `filling` is assigned, and leave it set for good.)
+    if (fillPaused) return Promise.resolve();
     if (filling) {
       fillAgain = true;
       return filling;
@@ -1613,6 +1624,7 @@ export function createWorkerLogic(port, options = {}) {
       try {
         do {
           fillAgain = false;
+          if (fillPaused) break; // a later pass of the loop, after an await
           if (reconcileWanted) {
             reconcileWanted = false;
             await reconcileShelf().catch(() => {});
@@ -3158,63 +3170,72 @@ export function createWorkerLogic(port, options = {}) {
             // and its remote is stripped idempotently. All local, no network —
             // POST /api/auth/signout is the main thread's, after this (Decision 4).
             const { mode } = message.payload;
-            // Authorship reverts going forward only (account.commit_author
-            // Constraint 9; sign_out.md:360-363): the account id is cleared
-            // FIRST, so this teardown's own shelf write and every later commit
-            // are local. Nothing already written is rewritten back (sign_out
-            // Constraint 4).
-            await writeMetaFields({ accountId: null });
-            const author = await resolveAuthor();
             const keep = mode === 'keep';
-            const home = ensureHomeBook();
-            await home.ensureLocal({ author });
-            const deviceId = await home.ensureDeviceId({ idb, name, version });
-            const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
-            const online = ensureOnline();
-            const shared = shelf?.books ?? {};
-            const sharedIds = Object.keys(shared).filter((id) => shared[id]?.label?.value != null);
-            const localShelf = shelf?.local?.[deviceId] ?? {};
-            const localIds = Object.keys(localShelf).filter(
-              (id) => localShelf[id]?.title?.value != null,
-            );
-            await ensureIndexHydrated();
-            const index = ensureSearchIndex();
-            const changes = [];
             const removedIds = [];
-            if (keep) {
-              // Each shared book becomes a local book: strip its remote, migrate
-              // its register. The clone, working copy and history stay in place, so
-              // the index entries stay valid (the id does not change).
-              for (const id of sharedIds) {
-                await online.detach({ bookId: id });
-                changes.push(
-                  ...keepAsLocalChanges({
-                    bookId: id,
-                    deviceId,
-                    label: shared[id]?.label?.value ?? null,
-                    position: shared[id]?.position?.value ?? null,
-                  }),
-                  ...ownerTombstone(shelf, id),
-                );
+            // No fill while the account's books leave: wait out a pass in
+            // flight, and start none until the shelf says they are gone and the
+            // home book is detached (after which a pass has nothing to fill).
+            fillPaused += 1;
+            try {
+              if (filling) await filling.catch(() => {});
+              // Authorship reverts going forward only (account.commit_author
+              // Constraint 9; sign_out.md:360-363): the account id is cleared
+              // FIRST, so this teardown's own shelf write and every later commit
+              // are local. Nothing already written is rewritten back (sign_out
+              // Constraint 4).
+              await writeMetaFields({ accountId: null });
+              const author = await resolveAuthor();
+              const home = ensureHomeBook();
+              await home.ensureLocal({ author });
+              const deviceId = await home.ensureDeviceId({ idb, name, version });
+              const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+              const online = ensureOnline();
+              const shared = shelf?.books ?? {};
+              const sharedIds = Object.keys(shared).filter((id) => shared[id]?.label?.value != null);
+              const localShelf = shelf?.local?.[deviceId] ?? {};
+              const localIds = Object.keys(localShelf).filter(
+                (id) => localShelf[id]?.title?.value != null,
+              );
+              await ensureIndexHydrated();
+              const index = ensureSearchIndex();
+              const changes = [];
+              if (keep) {
+                // Each shared book becomes a local book: strip its remote, migrate
+                // its register. The clone, working copy and history stay in place, so
+                // the index entries stay valid (the id does not change).
+                for (const id of sharedIds) {
+                  await online.detach({ bookId: id });
+                  changes.push(
+                    ...keepAsLocalChanges({
+                      bookId: id,
+                      deviceId,
+                      label: shared[id]?.label?.value ?? null,
+                      position: shared[id]?.position?.value ?? null,
+                    }),
+                    ...ownerTombstone(shelf, id),
+                  );
+                }
+                // Already-local books are left untouched.
+              } else {
+                for (const id of [...sharedIds, ...localIds]) {
+                  const kind = sharedIds.includes(id) ? 'shared' : 'local';
+                  await online.remove({ bookId: id });
+                  changes.push(...removeChanges({ bookId: id, deviceId, kind }));
+                  if (kind === 'shared') changes.push(...ownerTombstone(shelf, id));
+                  await persistIndexChanges(index.removeBook(id));
+                  removedIds.push(id);
+                }
               }
-              // Already-local books are left untouched.
-            } else {
-              for (const id of [...sharedIds, ...localIds]) {
-                const kind = sharedIds.includes(id) ? 'shared' : 'local';
-                await online.remove({ bookId: id });
-                changes.push(...removeChanges({ bookId: id, deviceId, kind }));
-                if (kind === 'shared') changes.push(...ownerTombstone(shelf, id));
-                await persistIndexChanges(index.removeBook(id));
-                removedIds.push(id);
+              if (changes.length) {
+                await home.set({ bookId: HOME_BOOK_ID, file: 'shelf.json', changes, author });
               }
+              // The home book stays; strip its remote idempotently so no signed-out
+              // device keeps tracking and a later new_device attach has a clean slate
+              // (Constraint 9 — a no-op today, since nothing attaches it yet).
+              await online.detach({ bookId: HOME_BOOK_ID });
+            } finally {
+              fillPaused -= 1;
             }
-            if (changes.length) {
-              await home.set({ bookId: HOME_BOOK_ID, file: 'shelf.json', changes, author });
-            }
-            // The home book stays; strip its remote idempotently so no signed-out
-            // device keeps tracking and a later new_device attach has a clean slate
-            // (Constraint 9 — a no-op today, since nothing attaches it yet).
-            await online.detach({ bookId: HOME_BOOK_ID });
             // The books removed from this device were this account's: the next
             // one to sign in here starts with every one of its books. Signing
             // back in to this one brings its books back the same way — the

@@ -331,6 +331,19 @@ export function createSyncEngine(deps = {}) {
   const pushBook = deps.pushBook ?? ((bookId) => git.push({ dir: bookDir(bookId) }));
   const localAhead = deps.localAhead ?? defaultLocalAhead;
   const treeDirty = deps.treeDirty ?? defaultTreeDirty;
+  // Whether the book is still on this device: its `.git` is there. A pass
+  // waits for the book's lock, and while it waits the book may be removed
+  // (Remove from my shelf, signing out); the fetch must not write it back.
+  const bookPresent =
+    deps.bookPresent ??
+    (async (bookId) => {
+      try {
+        await fs.promises.stat(`${bookDir(bookId)}/.git`);
+        return true;
+      } catch {
+        return false;
+      }
+    });
 
   // Merge the fetched origin into local `main` by the cifra-aware rules, make
   // the hidden two-parent merge commit (or fast-forward), and bring the working
@@ -748,6 +761,10 @@ export function createSyncEngine(deps = {}) {
     const author = await resolveAuthor();
 
     const outcome = await locks.withLock(bookId, async () => {
+      // Removed while this pass waited for the lock: nothing to sync, and a
+      // fetch now would bring a book back that the person took off this device
+      // (the CI flake of 2026-11-01: signing out, then a pass recreating it).
+      if (!(await bookPresent(bookId))) return 'removed';
       // The incoming merge is no longer deferred over an unsaved edit — it is
       // merged under it (sync.unsaved supersedes the dirty-tree guard). A book
       // only reads `syncing` now when a lost race on a dirty retry cannot finish

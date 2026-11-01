@@ -547,26 +547,50 @@ describe('SetlistView — editor', () => {
 
     const handles = screen.getAllByRole('button', { name: 'Drag to reorder' });
     const first = handles[0];
-    await act(async () => {
-      first.focus();
-      fireEvent.keyDown(first, { key: 'Enter' });
-      fireEvent.keyUp(first, { key: 'Enter' });
-    });
-    // Move the pick-up down past the second item and drop.
-    await act(async () => {
-      fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' });
-      fireEvent.keyUp(document.activeElement, { key: 'ArrowDown' });
-    });
-    await act(async () => {
-      fireEvent.keyDown(document.activeElement, { key: 'Enter' });
-      fireEvent.keyUp(document.activeElement, { key: 'Enter' });
-    });
+    // RAC's drag session is global: a drag left open by a failure here would
+    // carry into every later test, so it is always ended (the CI cascade of
+    // 2026-11-01). Each step waits for the one before on a slow runner rather
+    // than assuming it landed at once.
+    try {
+      await act(async () => {
+        first.focus();
+        fireEvent.keyDown(first, { key: 'Enter' });
+        fireEvent.keyUp(first, { key: 'Enter' });
+      });
+      await waitFor(() => expect(screen.getByText(/^Started dragging/)).toBeInTheDocument(), { timeout: 5000 });
+      // Move the pick-up down past the second item, whichever drop target RAC
+      // starts on, and drop. The focused drop indicator says where it is; the
+      // live announcement lags it (RAC debounces it).
+      const target = () =>
+        document.activeElement?.getAttribute('aria-label') === 'Insert between Corcovado and Asa Branca'
+          ? document.activeElement
+          : null;
+      for (let step = 0; step < 4 && !target(); step += 1) {
+        await act(async () => {
+          fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' });
+          fireEvent.keyUp(document.activeElement, { key: 'ArrowDown' });
+        });
+      }
+      await waitFor(() => expect(target()).toBeInTheDocument(), { timeout: 5000 });
+      await act(async () => {
+        fireEvent.keyDown(document.activeElement, { key: 'Enter' });
+        fireEvent.keyUp(document.activeElement, { key: 'Enter' });
+      });
 
-    await waitFor(() => {
-      const text = getText();
-      expect(text.indexOf('Corcovado')).toBeLessThan(text.indexOf('Garota de Ipanema'));
-    });
-  });
+      await waitFor(
+        () => {
+          const text = getText();
+          expect(text.indexOf('Corcovado')).toBeLessThan(text.indexOf('Garota de Ipanema'));
+        },
+        { timeout: 5000 },
+      );
+    } finally {
+      await act(async () => {
+        fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+        fireEvent.keyUp(document.activeElement ?? document.body, { key: 'Escape' });
+      });
+    }
+  }, 20000);
 
   it('shows the unsaved word after an edit, which Save clears', async () => {
     const { store } = makeStore();

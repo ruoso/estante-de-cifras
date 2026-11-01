@@ -37,6 +37,7 @@ function makeEngine(overrides = {}) {
     pushBook: overrides.pushBook,
     localAhead: overrides.localAhead ?? (async () => true),
     treeDirty: overrides.treeDirty ?? (async () => false),
+    bookPresent: overrides.bookPresent ?? (async () => true),
     countAhead: overrides.countAhead ?? (async () => 1),
     syncHome: overrides.syncHome,
     surfaceHome: overrides.surfaceHome,
@@ -48,6 +49,21 @@ function makeEngine(overrides = {}) {
 
 const lastPhase = (facts, bookId = 'book1') =>
   [...facts].reverse().find((f) => f.bookId === bookId)?.phase;
+
+describe('a book removed while its pass waited for the lock', () => {
+  it('is not fetched, merged or pushed back onto the device', async () => {
+    const fetchBook = vi.fn(async () => {});
+    const mergeBook = vi.fn(async () => ({ merged: true }));
+    const pushBook = vi.fn(async () => {});
+    const { engine } = makeEngine({ fetchBook, mergeBook, pushBook, bookPresent: async () => false });
+
+    await engine.pass();
+
+    expect(fetchBook).not.toHaveBeenCalled();
+    expect(mergeBook).not.toHaveBeenCalled();
+    expect(pushBook).not.toHaveBeenCalled();
+  });
+});
 
 describe('sync engine retry policy (unit)', () => {
   it('retries a lost race fetch→merge→push up to three times, then leaves the book syncing', async () => {
