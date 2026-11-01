@@ -131,3 +131,40 @@ export function variationsOf(songsModel, songRef) {
   }
   return out;
 }
+
+/**
+ * The songs.json changes that carry a book's per-song reading state to the id
+ * it is known by now (§4.5): putting a local book online gives it a service id
+ * (workflow 7), and the transposition and the variations in use are the
+ * user's, not the book's, so they follow the songs. Each live register under a
+ * `<fromBookId>/…` ref is written under `<toBookId>/…` and tombstoned at the
+ * old ref (§5.3). Pure; empty when the book has no reading state.
+ *
+ * @param {object} songsModel the parsed songs.json (an absent file is `{}`)
+ * @param {string} fromBookId the id the songs were read under
+ * @param {string} toBookId the id they are read under now
+ * @returns {Array<{ path: string[], value: any }>}
+ */
+export function rekeySongStateChanges(songsModel, fromBookId, toBookId) {
+  const changes = [];
+  if (!songsModel || typeof songsModel !== 'object' || fromBookId === toBookId) return changes;
+  const prefix = `${fromBookId}/`;
+  const live = (register) => isRegister(register) && register.value !== null;
+  for (const ref of Object.keys(songsModel)) {
+    if (!ref.startsWith(prefix)) continue;
+    const to = `${toBookId}/${ref.slice(prefix.length)}`;
+    const entry = songsModel[ref];
+    if (!entry || typeof entry !== 'object') continue;
+    if (live(entry.transposition)) {
+      changes.push({ path: [to, 'transposition'], value: entry.transposition.value });
+      changes.push({ path: [ref, 'transposition'], value: null });
+    }
+    const variations = entry.variation && typeof entry.variation === 'object' ? entry.variation : {};
+    for (const tuning of Object.keys(variations)) {
+      if (!live(variations[tuning])) continue;
+      changes.push({ path: [to, 'variation', tuning], value: variations[tuning].value });
+      changes.push({ path: [ref, 'variation', tuning], value: null });
+    }
+  }
+  return changes;
+}

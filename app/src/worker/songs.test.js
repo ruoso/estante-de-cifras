@@ -6,6 +6,7 @@ import {
   variationChange,
   variationsOf,
   songRefOf,
+  rekeySongStateChanges,
 } from './songs.js';
 
 // home-book-format §4.5 (songs.json, the `transposition` register) and §2.3 (the
@@ -168,5 +169,30 @@ describe('songRefOf — the §2.3 ref the reading state is keyed by', () => {
     // A decomposed path (NFD) normalises to the same key the canonical writer stores.
     const nfd = 'Chico/Construção.cifra.md'; // c + combining cedilla
     expect(songRefOf('b7c1', nfd)).toBe(songRefOf('b7c1', 'Chico/Construção.cifra.md'));
+  });
+});
+
+describe('rekeySongStateChanges — reading state follows a book to its new id', () => {
+  const AT = '2026-10-31T10:00:00.000Z';
+  const reg = (value) => ({ value, at: AT });
+
+  it('moves live transpositions and variations, tombstoning the old refs; leaves other books alone', () => {
+    const model = {
+      'local-1/a.cifra.md': { transposition: reg(-2), variation: { 'G4 C4 E4 A4': reg(''), 'E2': reg(null) } },
+      'local-1/b.cifra.md': { transposition: reg(null) },
+      'srv-9/c.cifra.md': { transposition: reg(3) },
+    };
+    expect(rekeySongStateChanges(model, 'local-1', 'srv-1')).toEqual([
+      { path: ['srv-1/a.cifra.md', 'transposition'], value: -2 },
+      { path: ['local-1/a.cifra.md', 'transposition'], value: null },
+      { path: ['srv-1/a.cifra.md', 'variation', 'G4 C4 E4 A4'], value: '' },
+      { path: ['local-1/a.cifra.md', 'variation', 'G4 C4 E4 A4'], value: null },
+    ]);
+  });
+
+  it('is empty for an absent model, an unknown book or the same id', () => {
+    expect(rekeySongStateChanges({}, 'a', 'b')).toEqual([]);
+    expect(rekeySongStateChanges(null, 'a', 'b')).toEqual([]);
+    expect(rekeySongStateChanges({ 'a/x': { transposition: reg(1) } }, 'a', 'a')).toEqual([]);
   });
 });

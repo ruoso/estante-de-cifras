@@ -93,6 +93,12 @@ function InBookPicker({ store, bookId, onPick, onCancel, titleText, confirmLabel
   const list = useMemo(() => songs.filter((r) => r.bookId === bookId), [songs, bookId]);
   const others = useMemo(() => (elsewhere ? songs.filter((r) => r.bookId !== bookId) : []), [songs, bookId, elsewhere]);
   const bookName = (id) => titleFor(orderedBooks(shelf).find((e) => e.id === id)?.book ?? {}, t('books.untitled'));
+  // Opened by a press on Add song (or a row's re-point): the field is where the
+  // next keystroke goes (the persona exploration of 2026-10-31).
+  const fieldRef = useRef(null);
+  useEffect(() => {
+    fieldRef.current?.focus();
+  }, []);
 
   const onQuery = (value) => {
     setQuery(value);
@@ -128,7 +134,7 @@ function InBookPicker({ store, bookId, onPick, onCancel, titleText, confirmLabel
     <div className="setlist-repoint">
       {titleText ? <span className="t-h3">{titleText}</span> : null}
       <SearchField className="search" aria-label={t('setlists.searchLabel')} value={query} onChange={onQuery}>
-        <Input className="setlist-search-input" placeholder={t('setlists.searchPlaceholder')} />
+        <Input ref={fieldRef} className="setlist-search-input" placeholder={t('setlists.searchPlaceholder')} />
       </SearchField>
       {list.length === 0 && others.length === 0 && query ? (
         <p className="t-small">{t('setlists.noResults')}</p>

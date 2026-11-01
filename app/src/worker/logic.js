@@ -11,7 +11,7 @@
 // anyway, only the schema `meta`.
 
 import { parse, parseSetlist } from 'cifra-md';
-import { getConfig, setConfig, resolveRef, readBlob } from 'isomorphic-git';
+import { getConfig, setConfig, resolveRef, readBlob, listFiles } from 'isomorphic-git';
 import { event, EventKind, COMMAND, CommandKind } from './protocol.js';
 import {
   MIGRATIONS,
@@ -73,6 +73,7 @@ import {
   variationsOf,
   variationChange,
   songRefOf,
+  rekeySongStateChanges,
 } from './songs.js';
 import { authorFrom, createAuthorResolver, noReplyAddress } from './author.js';
 import { reauthorBook } from './reauthor.js';
@@ -1219,6 +1220,15 @@ export function createWorkerLogic(port, options = {}) {
     await indexOneBook(serviceId);
     await ensureFs().flush();
     port.postMessage(event(EventKind.BOOK_CLONED, { bookId: serviceId }));
+  }
+
+  // Re-key a book's per-song reading state in the home book's songs.json from
+  // the id it had to the id it has now (songs.js rekeySongStateChanges).
+  async function carrySongState(fromBookId, toBookId, author) {
+    const home = ensureHomeBook();
+    const songs = await home.read({ bookId: HOME_BOOK_ID, file: 'songs.json' });
+    const changes = rekeySongStateChanges(songs, fromBookId, toBookId);
+    if (changes.length) await home.set({ bookId: HOME_BOOK_ID, file: 'songs.json', changes, author });
   }
 
   // Remove one book from this device (workflow 7 §Removing a book): delete the
@@ -2824,6 +2834,11 @@ export function createWorkerLogic(port, options = {}) {
               ],
               author,
             });
+            // Each song's transposition and variations in use follow it to the
+            // service id (home-book-format §4.5): a song read in F before it
+            // went online is still read in F (the persona exploration of
+            // 2026-10-31).
+            await carrySongState(localId, serviceId, author);
             await surfaceHomeBookShelf();
             // Keep the search index in step with the re-keyed directory
             // (books.online_reindex acceptance 2): drop the stale `localId`
@@ -2947,6 +2962,9 @@ export function createWorkerLogic(port, options = {}) {
               ],
               author,
             });
+            // The songs carry over to the fork (workflow 11), and with them how
+            // each is read: its transposition and variations in use.
+            await carrySongState(bookId, forkId, author);
             await surfaceHomeBookShelf();
             // The search entries move with the id (the online_reindex
             // obligation): drop the original's, index the relocated tree. Docs
@@ -3078,11 +3096,26 @@ export function createWorkerLogic(port, options = {}) {
             // The titles the Leave confirmation lists beside its count
             // (books.leave; Leave-book board L74). Never logged.
             const unsavedTitlesIn = (id) => unsavedIn(id).map((s) => s.title || s.path);
+            // A local book with nothing in it — no song, saved or not, and no
+            // file but its README (an untouched *My songs*) — loses nothing on
+            // removal, so it is not offered for download (the persona
+            // exploration of 2026-10-31).
+            const holdsNothing = async (id) => {
+              if (songCountOf(id) > 0 || unsavedSongsIn(id) > 0) return false;
+              try {
+                const files = await listFiles({ fs: surveyFs, dir: surveyGit.bookDir(id), ref: 'HEAD' });
+                return files.every((f) => f === 'README.md');
+              } catch {
+                return false;
+              }
+            };
+            const removed = await readRemovedHere();
             const books = [];
             const shared = shelf?.books ?? {};
             for (const id of Object.keys(shared)) {
               const title = shared[id]?.label?.value;
               if (title == null) continue; // tombstoned register — not on the shelf
+              if (removed.has(id)) continue; // removed from this device — nothing here
               const dir = surveyGit.bookDir(id);
               books.push({
                 id,
@@ -3108,6 +3141,7 @@ export function createWorkerLogic(port, options = {}) {
                 unsavedSongs: unsavedSongsIn(id),
                 unsavedTitles: unsavedTitlesIn(id),
                 onEstante: false,
+                ...((await holdsNothing(id)) ? { empty: true } : {}),
               });
             }
             port.postMessage(event(EventKind.SIGN_OUT_SURVEY, { books }));

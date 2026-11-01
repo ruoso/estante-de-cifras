@@ -52,9 +52,11 @@
 /* The editor's app bar carries the most controls of any bar in the app (Done,
    title, book, the status badge, Add song, Play, Discard, Save); on a phone
    they cannot fit one row, so let the bar wrap rather than overflow its right
-   edge (where Save would sit under a neighbour, uncliquable). Harmless on the
-   wider read-view bar and the computer, which never overflow. */
-.setlist-screen .appbar {
+   edge (where Save would sit under a neighbour, uncliquable). Only the
+   editor's: the read view's bar fits a row once its title ellipsizes, and
+   wrapping it dropped Help alone onto a second row on a phone (the persona
+   exploration of 2026-10-31). */
+.setlist-screen .appbar.setlist-edit-bar {
   flex-wrap: wrap;
 }
 /* The editor bar wraps by group, not item by item (shell.narrow_fixes

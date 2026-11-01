@@ -28,6 +28,13 @@ describe('aggregateSignOutSurvey', () => {
     expect(downloadGuard).toEqual([]);
   });
 
+  it('does not offer to download a local book that holds nothing (an untouched My songs)', () => {
+    const { downloadGuard } = aggregateSignOutSurvey([
+      { id: 'my', title: 'My songs', kind: 'local', role: null, savesWaiting: 0, unsavedSongs: 0, onEstante: false, empty: true },
+    ]);
+    expect(downloadGuard).toEqual([]);
+  });
+
   it('guards a purely-local book for download, never under "not yet on Estante"', () => {
     // Even if a local book has local commits, it belongs to the download guard
     // ("only on this computer", mockup line 192) — not the on-Estante warning.

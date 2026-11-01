@@ -422,6 +422,8 @@ describe('SetlistView — editor', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Add song' })));
 
     const searchField = await screen.findByRole('searchbox', { name: 'Search for a song' });
+    // The press on Add song puts the next keystroke in the field.
+    expect(searchField).toHaveFocus();
     await act(async () => fireEvent.change(searchField, { target: { value: 'tarde' } }));
     const pick = await screen.findByRole('button', { name: /Tarde Clara/ });
     await act(async () => fireEvent.click(pick));

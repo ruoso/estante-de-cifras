@@ -426,6 +426,36 @@ describe('reindex on put-online / remove / delete (books.online_reindex)', () =>
     return localId;
   }
 
+  it('put-online carries each song’s transposition and variation in use to the service id', async () => {
+    const remote = await startGitHttpRemote({ seed: false });
+    const serviceId = `srv-${rand()}`;
+    try {
+      const w = await makeWorker(remote, serviceId);
+      const localId = await seedIndexedLocalBook(w);
+      w.send(command(CommandKind.SET_TRANSPOSITION, { bookId: localId, path: SONG_PATH, semitones: -2 }));
+      w.send(command(CommandKind.SET_VARIATION, { bookId: localId, path: SONG_PATH, tuning: 'E2 A2 D3 G3 B3 E4', variation: 'Easy' }));
+      await waitFor(() => {
+        const song = lastEvent(w.events, EventKind.SONG)?.payload;
+        expect(song?.transposition).toBe(-2);
+        expect(song?.variations).toEqual({ 'E2 A2 D3 G3 B3 E4': 'Easy' });
+      });
+
+      await putOnline(w, localId);
+      w.send(command(CommandKind.OPEN_SONG, { bookId: serviceId, path: SONG_PATH }));
+      await waitFor(() => {
+        const song = lastEvent(w.events, EventKind.SONG)?.payload;
+        expect(song?.bookId).toBe(serviceId);
+        expect(song.transposition).toBe(-2);
+        expect(song.variations).toEqual({ 'E2 A2 D3 G3 B3 E4': 'Easy' });
+      });
+      // Nothing is left under the id the book no longer has.
+      const songs = JSON.parse(await w.readHome('songs.json'));
+      expect(songs[`${localId}/${SONG_PATH}`].transposition.value).toBeNull();
+    } finally {
+      await remote.stop();
+    }
+  });
+
   it('put-online re-indexes under the service id, not the local id, with no re-parse', async () => {
     const remote = await startGitHttpRemote({ seed: false });
     const serviceId = `srv-${rand()}`;

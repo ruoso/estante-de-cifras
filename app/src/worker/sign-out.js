@@ -21,7 +21,8 @@
  *
  * @param {Array<{ id: string, title: string, kind: 'local' | 'shared',
  *   role: string | null, savesWaiting: number, unsavedSongs: number,
- *   onEstante: boolean }>} books
+ *   onEstante: boolean, empty?: boolean }>} books — `empty`: a local book
+ *   holding nothing to lose, never offered for download
  * @returns {{ notYetOnEstante: Array<{ id, title, unsavedSongs, savesWaiting }>,
  *   downloadGuard: Array<{ id, title }> }}
  */
@@ -35,7 +36,7 @@ export function aggregateSignOutSurvey(books = []) {
     if (onEstante && (unsavedSongs > 0 || savesWaiting > 0)) {
       notYetOnEstante.push({ id: book.id, title: book.title, unsavedSongs, savesWaiting });
     }
-    if (book.kind === 'local' || !onEstante) {
+    if ((book.kind === 'local' || !onEstante) && !book.empty) {
       downloadGuard.push({ id: book.id, title: book.title });
     }
   }
