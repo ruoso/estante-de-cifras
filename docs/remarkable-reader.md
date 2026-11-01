@@ -109,7 +109,7 @@ and keeps no state the backend would need.
 
 **No port of the music core.** The reader runs the web app's own code — the
 cifra.md reader (`cifra.md/js`), `app/src/core` (transpose, voicings, the
-cache port), the chart's row layout and the chord-box SVG — bundled by
+cache port), the chart's row layout and the chord box's diagram model — bundled by
 rolldown to ES2017 and evaluated in goja, the pure-Go JavaScript engine. A
 change to the app's music reaches the reader by rebuilding the bundle.
 
@@ -120,7 +120,7 @@ Go host and the bundle:
 | Call | Does |
 |---|---|
 | `load(entry, table)` | The instrument in use, as the Worker surfaces it, and its default-shape table (§4.1) |
-| `sheet(text, offset, opts)` | One song at one key: its rows (`chartRows`), its shapes (resolved §7.6 order, through the cache) as diagram SVGs, its notes, key and title |
+| `sheet(text, offset, opts)` | One song at one key: its rows (`chartRows`), its shapes (resolved §7.6 order, through the cache) as diagram models (`diagramModel`), its notes, key and title |
 | `setlist(text, …)` | A setlist's playable items and each one's key (workflow 12) |
 | `misses()` | Chords the cache did not hold, for the background fill (§4.1) |
 
@@ -234,7 +234,7 @@ they do not know.
 | 102 `pairing` | → frontend | `{ code, url, expiresAt }` |
 | 103 `shelf` | → frontend | the books, in shelf order: `{ books: [{ bookId, title, songs, setlists }] }` |
 | 104 `book` | → frontend | `{ bookId, title, songs: [{ path, title, artist }], setlists: [{ path, title }] }` |
-| 105 `sheet` | → frontend | `{ bookId, path, title, artist, key, offset, rows, shapes: [{ symbol, svg, source }], notes }` |
+| 105 `sheet` | → frontend | `{ bookId, path, title, artist, key, offset, rows, shapes: [{ symbol, model }], notes }` — `model` the diagram model (§7) |
 | 106 `setlist` | → frontend | `{ bookId, path, title, items: [{ path, title, offset }] }` |
 
 `rows` are `chartRows` exactly as the web app's chart receives them —
@@ -252,9 +252,33 @@ the next page prepared ahead; big targets. The screens: pairing, the shelf, a
 book (with its letter row), a song (paged chart, a shapes strip per page, the
 key grid), a setlist and its Play.
 
-A diagram is the bundle's chord-box SVG shown as an image. The SVG's look
-comes from the web app's stylesheet classes; the bundle inlines it for the
-device, in one bit, so Qt's SVG renderer draws it without a stylesheet.
+**A diagram is drawn in QML, from its model.** The bundle hands over the chord
+box's diagram model (`diagramModel`: strings, frets shown, the start fret, the
+nut, each dot's string, row and finger, the open and muted marks) — plain data,
+no SVG. The frontend draws it with Qt Quick's own primitives: pixel-aligned
+`Rectangle`s for the strings, frets and nut, rounded ones for the dots, `Text`
+in the reader's face for the fingers and the fret number. Large and compact
+are one component at two sizes.
+
+Why not the SVG the web app draws: measured with Qt 6.12's SVG renderer, the
+chord box as the app emits it draws only its dots — every stroke, the nut and
+the fingers' colour live in the web app's stylesheet classes, which an SVG
+alone does not carry. With a `<style>` block inlined it draws correctly, but
+at 0.34–0.59 ms a diagram on a laptop — perhaps 5–15 ms on the rM2, 80–240 ms
+for a page of sixteen — on xochitl's own UI thread, and anti-aliased in 256
+greys against the one-bit rule.
+
+**Live first; cache, then stamp, if it is slow.** A page of sixteen shapes is
+some 350 primitive items, built on every page drawn. If that proves too slow on
+the rM2, the next step is to draw each voicing once and keep it: `grabToImage`
+renders the drawn diagram to an image, cached by tuning, frets, fingers and
+size — in memory, and on disk across sessions — and pages show one `Image` per
+diagram; the grabs are made when a song opens, before its first page, so no
+page is drawn twice. If anti-aliased grey then shows on the panel, the last
+step is a stamped one-bit bitmap made by the backend from the same model: a
+prototype composes a diagram in 0.01 ms and encodes it as PBM — a one-bit
+format Qt reads natively — in 0.02 ms, on a laptop. The interface stays the
+model in every case.
 
 ## 8. Updates
 
@@ -312,9 +336,9 @@ backend for armv7 and arm64 and compiles the QML (`rcc`), and copies them into
 
 - **xovi and OS updates.** Each reMarkable OS update can break xovi until it is
   rebuilt; the reader inherits that. Automatic OS updates are best left off.
-- **Qt's SVG renderer** may not draw everything the chord box uses. To check in
-  the emulator first; the fallback is drawing the diagram in QML from the
-  bundle's diagram model (`diagramModel`) instead of its SVG.
+- **Diagrams drawn live** (§7): about 350 items a page, created on xochitl's UI
+  thread on a Cortex-A7, unmeasured. Phase 2 measures it; caching by
+  `grabToImage`, then backend-stamped bitmaps, are the steps if it is slow.
 - **Drawing speed.** How fast QML lays out a long sung song on the rM2 is
   unmeasured; paging (§7) bounds what is drawn at once.
 - **AppLoad is GPL-3.** The backend is a separate process speaking a socket
@@ -333,8 +357,10 @@ backend for armv7 and arm64 and compiles the QML (`rcc`), and copies them into
    `remarkable/` module with the engine, a `sheet` command, and the
    integration test over the built bundle; the gate step and the three builds.
 2. **The frontend, offline.** AppLoad hello world on the device; the song
-   screen drawing rows and diagrams from a local book; the shelf and book
-   screens. Measured on the rM2.
+   screen drawing rows and diagrams from a local book — diagrams as live QML
+   primitives from the model (§7), with a page of sixteen shapes timed for its
+   draw and its turn; the shelf and book screens. Measured on the rM2, with
+   which updates flash (workflow 19).
 3. **Sync, by hand.** The backend syncs with a session pasted in for
    development: home book, books, change check.
 4. **Pairing.** The API, the service, the web app's *Pair a device*, the
