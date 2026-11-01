@@ -54,4 +54,10 @@ task milestones "Milestones" {
     depends cifra_go.conformance, cifra_go.merge, format.cross_check, format.conflicts_schema, format.setlist_schema, format.render_hyphen
     note "The second implementation complete with git-merge-cifra, and three implementations compared in CI."
   }
+
+  task m7_reader "M7: Reading on a reMarkable" {
+    milestone
+    depends milestones.m5_complete, reader.bundle, reader.module, reader.engine, reader.protocol, reader.store, reader.qml_harness, reader.appload_measure, reader.qml_chart, reader.song_screen, reader.browse_screens, reader.play, reader.sync, reader.missed_shapes, reader.pair_design, reader.device_pairing, reader.pair_web, reader.key_without_property, reader.pairing, reader.payload, reader.self_update, reader.install
+    note "A reMarkable 2 paired with the account reads its shelf, its books and setlists, any song at any key with the shapes of the instrument in use, and plays a setlist through — read-only, kept in sync, updating its music code from the site. docs/remarkable-reader.md, docs/workflows/19-remarkable-reader.md."
+  }
 }

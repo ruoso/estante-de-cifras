@@ -1,0 +1,136 @@
+# 85 — The reMarkable reader
+#
+# A read-only Estante client for the reMarkable 2: an AppLoad app inside the
+# stock UI, a QML frontend that only draws and a Go backend that syncs with
+# go-git and runs the web app's own music code, bundled, in goja. Designed in
+# docs/remarkable-reader.md and docs/workflows/19-remarkable-reader.md (screens
+# designed by their e-ink redraws); the device-side numbers that shaped it
+# (goja on an rM2, the default-shape cache, diagram rendering) are in the
+# design's §4.2 and §7. The device is fully read-only: nothing it does is
+# written to the account. Builds for amd64 (the tests' host), armv7 (the rM2)
+# and arm64 (the Paper Pro).
+
+task reader "The reMarkable reader" {
+  task bundle "The device bundle, built with the app" {
+    effort 1.5d
+    allocate team
+    note "The reader runs the web app's own music code, never a port: app/src/device/entry.js exposes the host API, version 1, as globalThis.estante — load(entry, table) for the instrument in use and its default-shape table, sheet(text, offset, opts) for one song at one key (chartRows rows, shapes resolved in the §7.6 order through the shape cache as diagram models, never SVG, notes, key and title), setlist(text, ...) for a setlist's playable items with each one's key and note, misses() for what the cache did not hold — with app/src/device/polyfills.js for what goja lacks (structuredClone as JSON, TextDecoder and TextEncoder, Intl.PluralRules). npm run build gains build:device: rolldown to one ES2017 IIFE carrying one locale, written to dist/device/bundle.<hash>.js beside dist/device/manifest.json (version, hostApi, the core's SHAPE_CACHE_SALT, the bundle's path and SHA-256); the PWA's Workbox config ignores device/** so browsers never precache it. The build also writes, as a test fixture for the reader, the example book's default-shape table as the Worker's fillDefaultShapes makes it. Docs: docs/remarkable-reader.md §3.1, §4, §8; the goja spike's polyfills. Tests: unit (the entry under Node: the example book's songs at all twelve keys, rows and shape models, a setlist with keys and notes, misses counted; the manifest's fields and hash; the Workbox config leaves device/ out of the precache)."
+  }
+  task module "The reader's Go module, in the gate and in DIRECTION" {
+    effort 0.5d
+    allocate team
+    note "Stand up remarkable/ at the repository root: a Go module with cmd/estante-reader (the AppLoad backend binary, its subcommands to come) sharing no code with service/ (DIRECTION §3.6). scripts/gate runs its go vet, go test and go build after the app's checks, so the built bundle exists for its tests, and cross-builds it for amd64, armv7 (GOARCH=arm GOARM=7, the rM2) and arm64 (the Paper Pro), all CGO-free, so a change that breaks an ARM build fails the gate. DIRECTION §3.6's table gains the reader as a component. Docs: docs/remarkable-reader.md §3.1, §9. Tests: unit (the command builds and answers --version); the gate's three cross-builds."
+  }
+  task engine "The engine: the bundle in goja" {
+    effort 2d
+    allocate team
+    depends !bundle, !module
+    note "remarkable/internal/engine: one goja runtime, owned by one goroutine, that loads a bundle and its manifest, refuses a hostApi it does not speak, and exposes the host API to Go. It keeps each open song's parsed model and each shape rebuilt from the cache (fingeringFromFrets) in memory for as long as the backend runs (the design's §4), and never runs the shape search on the reading path. estante-reader sheet prints one song's sheet at a key as JSON, and estante-reader bench re-measures the reading path (the goja spike, kept). Docs: docs/remarkable-reader.md §4, §4.1, §4.2. Tests: unit (a bundle of another hostApi refused; the memo returns the same rebuilt shape); integration (the built app/dist/device bundle loaded in goja: the example book and a book of chord-heavy choros read at all twelve keys against the build's default-shape fixture with no misses; every host call answered; nothing the bundle needs missing from the polyfills)."
+  }
+  task protocol "The AppLoad socket and the reader's messages" {
+    effort 1d
+    allocate team
+    depends !module
+    note "remarkable/internal/protocol: the AppLoad backend protocol, as rm-appload's source defines it — a SOCK_SEQPACKET unix socket at argv[1] (net.Dial unixpacket), each message an 8-byte header (int32 type, int32 length, native order) then a UTF-8 payload of at most 10 MiB; type -1 terminate, -2 a frontend attached, -3 it detached. Over it, the reader's message table of the design's §6, each payload JSON, a type the other side does not know ignored. Docs: docs/remarkable-reader.md §3.2, §6. Tests: unit (framing over a socketpair both ways; the size limit; the system messages; an unknown type ignored; each message of §6 round-trips)."
+  }
+  task store "The reader's store and its own state" {
+    effort 1d
+    allocate team
+    depends !module
+    note "remarkable/internal/store: the device's files under /home/root/.local/share/estante/ — the session (mode 0600), the clones, the current and last good bundle with its manifest — and the reader's own state, kept on the device and never written to the account: the key chosen for a song, the place in a setlist, whether shapes are shown, and the shapes hidden because they are known (by tuning, chord and frets). Written atomically, read back across restarts. Docs: docs/remarkable-reader.md §3.2, §5.4, §10; docs/workflows/19-remarkable-reader.md §A song. Tests: unit (each piece of state round-trips across a restart; a torn write leaves the previous state; the session file's mode)."
+  }
+  task qml_harness "QML tests in the gate" {
+    effort 1d
+    allocate team
+    depends !module
+    note "The frontend is QML run by AppLoad inside xochitl; its tests run where the gate runs. Pin a Qt for the gate (for example PySide6 from pip, offscreen, with Qt Quick's software renderer, as the rM2 has no GPU) and a qmltestrunner over remarkable/qml/tests, with a stand-in for AppLoad's net.asivery.AppLoad module that records sendMessage and plays messageReceived, so a screen is tested against scripted backend messages. Docs: docs/remarkable-reader.md §9. Tests: one QML test of the harness itself (a component receives a scripted message and answers), run by the gate."
+  }
+  task appload_measure "AppLoad on the rM2: hello world, and what a page costs" {
+    effort 1d
+    allocate team
+    depends !engine, !protocol
+    note "The first build that runs on the device: the AppLoad app folder (manifest.json, icon.png, resources.rcc built with rcc, backend/entry), installed over SSH on an rM2 with xovi and AppLoad. It draws a page of sixteen chord diagrams live from their models with Qt Quick primitives (the design's §7) beside a page of bars, and measures on the device how long a page takes to appear and to turn, and which updates flash. The numbers are written into docs/remarkable-reader.md §4.2 and §11, and workflow 19 §What is checked on the device is revised by them; if live diagrams are too slow, the design's next steps (grabToImage caching, then stamped bitmaps) are taken in reader.qml_chart. Tests: none — a device measurement, recorded in the design."
+  }
+  task qml_chart "The chart and its diagrams, in QML" {
+    effort 3d
+    allocate team
+    depends !appload_measure, !qml_harness
+    note "remarkable/qml: a song's sheet drawn from the backend's sheet message — every row type chartRows produces (section, bars, run, sung with each chord over its words, words, notes, verbatim, gap, empty) in the chart face — and paginated as workflow 19 decides: two columns when the longest sung line fits half the page, else one; a song of bars four to a row, an ending a row with its label; a sung line, a block of bars and a section name with its first line never split; the next page laid out before it is asked for. The chord diagram is one component at two sizes (large, four or five across; compact, eight to a row) drawn from the diagram model with pixel-aligned Rectangles, rounded dots and the fingers in the reader's face, black on white. Docs: docs/workflows/19-remarkable-reader.md §The screen, §A song; docs/remarkable-reader.md §7. Tests: behavior (QML: each row type drawn; a song paginated with no line split; the choro of 31 bars on one page with shapes hidden; a diagram's dots, marks, nut and fret number from its model)."
+  }
+  task song_screen "The song screen" {
+    effort 3d
+    allocate team
+    depends !qml_chart, !store
+    note "The reader's song screen as workflow 19 draws it: the bar (Back, title and artist, the key button), the paged chart, the foot (Hide shapes or Show shapes, the page and its arrows); turning by the page's left and right thirds, a swipe or the arrows; the shapes strip with the chords on this page in the order they first appear, its height fixed for the song by its busiest page, paging itself with its own arrows past sixteen shapes; the key grid in place of the strip, a key chosen not stepped to, As written and Your key named, the choice kept on the device; Hide shapes laying the song out again from the bar at the top; a tapped diagram asking to hide that voicing in every song, Show hidden and the count in the strip head. Every action one redraw of the region the table in workflow 19 names, the tapped control inverted at once. Docs: docs/workflows/19-remarkable-reader.md §The refresh budget, §A song, §What it costs. Tests: behavior (QML: each action changes only its region and once — the key grid, a strip page, hiding a voicing, hiding the shapes; a key chosen in one step; the strip paged at seventeen shapes; the state sent to the backend to keep)."
+  }
+  task browse_screens "Pairing, the shelf, a book, a setlist, settings" {
+    effort 2d
+    allocate team
+    depends !song_screen
+    note "The reader's other screens as workflow 19 draws them, against the backend's messages: Not paired and the pairing code (still until approved or expired); the shelf in the home book's order with Sync and the one sync line that changes by itself; a book with setlists first, then songs, ten rows a page, and two rows of thirteen letters for a book of more than two pages, only the letters that start a song drawn; a setlist with each song's key and note, a missing song said; Settings (the account, the sync time, the shapes hidden with Show all again, the version, Sign out with its one question). Background news never redraws a screen. Docs: docs/workflows/19-remarkable-reader.md §Pairing, §The shelf, §A book, §A setlist, §When something has changed. Tests: behavior (QML: rows paged ten to a page; a letter goes to its page in one redraw; absent letters not drawn; a sync arriving while a book is open changes nothing until the shelf is opened again; the pairing page still until a pairing message)."
+  }
+  task play "Playing a setlist through" {
+    effort 1.5d
+    allocate team
+    depends !browse_screens
+    note "Play on the reader: the song screen with the place and the song in the bar (3 of 12 · Garota) and the setlist's key on the key button, a song without a key property given the setlist's key as a note (workflow 12 §The key); next on a song's last page goes to the next song's first page, laid out in advance, previous to the previous song's last; each song's last page ends with the next song's title and key and its note, the setlist item's - note:; a missing song skipped; Back returns to the setlist at the song. Docs: docs/workflows/19-remarkable-reader.md §A setlist; docs/workflows/12-setlists.md §The key, §Playing through; cifra.md spec chapter 10. Tests: behavior (QML: across songs one redraw a turn; the next song's first page ready before the turn; the Next line with the note; a missing song skipped); integration (the engine's setlist call over a setlist with keys, notes and a missing item)."
+  }
+  task sync "Syncing the shelf, read-only" {
+    effort 3d
+    allocate team
+    depends !store, !engine
+    note "remarkable/internal/sync: with a session (pasted in for development until pairing lands), fetch the home book with go-git and read it by the home book format — shelf.json for the books and their order, instruments.json and preferences.json for the instrument in use, shapes.json, songs.json for saved transpositions and variations, shapes-default-cache.json for the defaults under the bundle's salt, another non-decommissioned salt when its own is absent (format §4.6); clone each book on the shelf on first sight, then one POST /api/shelf/change-check for the whole shelf and a fetch only of what moved; at backend start, when the frontend attaches, on Sync, and every fifteen minutes on Wi-Fi. Never a push. A fetch never changes the song on screen (workflow 19 §When something has changed). A book no longer shared leaves the shelf on its next opening. Docs: docs/remarkable-reader.md §5.2, §5.3; docs/home-book-format.md; api/openapi.yaml changeCheck, getHomeBook. Tests: unit (the home book read: instrument in use, my shapes, transpositions, the cache table and the salt rule); behavior (against a local git remote: clone, fetch only what moved, no push ever attempted); e2e-api (against the compose stack: a book pushed by a web client appears on the reader after a sync)."
+  }
+  task missed_shapes "Shapes the cache did not hold, found in the background" {
+    effort 1d
+    allocate team
+    depends !engine, !song_screen
+    note "A chord the default-shape cache does not hold is never searched on the reading path (over a second a chord on an rM2): its place in the strip is left empty, and the backend searches it afterwards at low priority, keeps it in memory, and the found shape shows on the next page drawn — never by redrawing the page on screen (workflow 19 rule 5). Nothing is written to the home book. Docs: docs/remarkable-reader.md §4.1. Tests: unit (a miss queued, searched once, kept); behavior (QML: a found shape does not redraw the open page, and is on the next one)."
+  }
+  task pair_design "Pairing a device, decided" {
+    effort 0.5d
+    allocate team
+    note "A reMarkable cannot do a passkey, so it is paired like a television (docs/remarkable-reader.md §5.1): it shows a short code and an address, and the person, signed in on a phone or a computer, enters the code there. Decide the web side in workflow 13: where Pair a device lives (an address, estantedecifras.app/pair, and the account screen), its one page (the code field, the confirmation Pair your reMarkable naming what it will be able to do — read every book on the shelf, never change one), what an unknown, expired or used code says, and how a paired reader appears among the signed-in devices (your reMarkable) and is signed out from there. Copy in the four locales. Tests: none — design deliverable (workflow 13 edits and its board)."
+  }
+  task device_pairing "Pairing a device, and a read-only session, in the service" {
+    effort 2d
+    allocate team
+    depends !pair_design
+    note "The service side of pairing (docs/remarkable-reader.md §5.1): POST /api/devices/pair/begin (no session) returns a short code, an address and a poll token; POST /api/devices/pair/approve (a signed-in session) approves a code for the account; POST /api/devices/pair/poll with the token answers pending, expired, or — once — the new session. Codes live ten minutes, are single-use and rate-limited, and are never logged. The session it makes is the account's, listed among its signed-in devices with its kind, revocable like any, and read-only by scope: receive-pack and every API write refuse it. api/openapi.yaml extended first. Tests: behavior (begin, approve, poll through the handlers against Postgres; an expired, a reused and an unknown code; the rate limit; a read-only session refused a push and a write, allowed a fetch and a change check); e2e-api (a client begins, a signed-in client approves, the first polls and clones a book with the session, and its push is refused)."
+  }
+  task pair_web "Pair a device, in the web app" {
+    effort 1d
+    allocate team
+    depends !pair_design, !device_pairing
+    note "The web side of pairing as workflow 13 decides it: estantedecifras.app/pair (and its way in from the account screen) takes a reMarkable code, says what the device will be able to do, and approves it; an unknown, expired or used code is said in words; the paired reader is listed among the signed-in devices as your reMarkable and can be signed out there. Copy in the four locales. Tests: behavior (the page: a code approved, each refusal said; the device listed; axe); e2e-web (a code begun against the stack is approved from the page on the three viewports, and the device appears among the signed-in devices)."
+  }
+  task key_without_property "A song with no key property, named by its key" {
+    effort 0.5d
+    allocate team
+    note "A song that states no key is named by the key of its first chord (reading-view.js chordKeyName over the first chart chord), so a choro that opens on its dominant reads as that dominant: Três Estrelinhas, in D minor, opening on A7/C#, shows A on the key button, in the web app and on the reader. Name it from the music instead — for example the last chord, on which such pieces end, or no key when the chart does not say — in the music core, so every place that names a key agrees (the web app transpose control, the reader key button, a setlist key shown as a note). Source: the reader design review with a book of choros, 2026-11-01. Tests: unit (the key of a song opening on its dominant, of one with no chords, of one that states its key); behavior (the reading view key chip for such a song)."
+  }
+  task pairing "Pairing the reader, and signing it out" {
+    effort 1d
+    allocate team
+    depends !sync, !browse_screens, !device_pairing
+    note "The reader's side of pairing: Pair with your account begins a pairing with the service, shows its code and address, polls with the token only it holds, and on approval keeps the read-only session in the store (mode 0600) and opens the shelf; an expired code is said, with Get a new code; Sign out ends the session with the service, removes the books from the device and returns to Not paired. Docs: docs/remarkable-reader.md §5.1; docs/workflows/19-remarkable-reader.md §Pairing. Tests: unit (the poll: pending, approved, expired); behavior (QML: the pairing page still until a message changes it); e2e-api (against the compose stack: the reader begins, a signed-in web client approves, the reader syncs; a push with the reader's session refused)."
+  }
+  task payload "The device payload, served from the site" {
+    effort 1d
+    allocate team
+    depends !qml_chart, !engine
+    note "The Dockerfile gains a stage that builds estante-reader for armv7 and arm64 and compiles the QML into resources.rcc, copied into /srv/app/device/ beside the bundle the app's build put there, the manifest naming each with its SHA-256 and the backend's hostApi; the service's app handler serves the content-hashed device files as immutable and the manifest as revalidated (service/internal/server/app.go cacheControl). Docs: docs/remarkable-reader.md §8, §9. Tests: unit (cacheControl for device files); e2e-api (against the compose stack: /device/manifest.json and every file it names served, each hash matching)."
+  }
+  task self_update "The bundle and the QML update themselves" {
+    effort 2d
+    allocate team
+    depends !payload, !sync
+    note "At sync the backend reads /device/manifest.json; a bundle or QML it does not have, whose hostApi it speaks, is downloaded, its SHA-256 checked, kept beside the last good one, and switched to on the next frontend attach (the bundle) or launch (the QML); a bundle that fails to evaluate is dropped and the last good one kept; a backend too old for the current bundle keeps its own and the settings say Update the reader on your reMarkable. The backend binary itself is never replaced by this task: it runs as root, and its signed self-update is a later decision. Docs: docs/remarkable-reader.md §8, §10. Tests: unit (the choice of what to fetch; a bad hash refused; a hostApi too new refused); behavior (against an httptest server: an update fetched, switched on attach, a broken bundle rolled back to the last good)."
+  }
+  task install "Installing the reader" {
+    effort 0.5d
+    allocate team
+    depends !payload
+    note "remarkable/README.md and a script that installs the reader on a reMarkable over SSH (RM_IP, as the goja spike's script did): what has to be there first (reMarkable OS 3.20 or later, xovi and AppLoad by Vellum or an installer, xovi-tripletap), copying the app folder for the device's architecture from the site's /device/ payload, and what an OS update asks of xovi. Docs: docs/remarkable-reader.md §2. Tests: none — an install script and its document; checked by hand on an rM2."
+  }
+}

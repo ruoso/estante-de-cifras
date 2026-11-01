@@ -21,8 +21,8 @@ So `cifra_js.package` is `tasks/refinements/cifra_js/package.md`.
 
 Areas, matching `tasks/05-…80-*.tji`: `format`, `cifra_js`, `cifra_go`,
 `design`, `foundation`, `service`, `hook`, `storage`, `sync`, `shell`,
-`music`, `songs`, `books`, `account`, `launch`. (`bootstrap` is
-complete and has none.)
+`music`, `songs`, `books`, `account`, `launch`, `reader` (the reMarkable
+reader, `tasks/85-reader.tji`). (`bootstrap` is complete and has none.)
 
 ### The format lives in `cifra.md/`
 
