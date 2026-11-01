@@ -636,6 +636,7 @@ describe('sync engine following an original (unit)', () => {
       pushBook: vi.fn(async () => {}),
       localAhead: async () => false,
       treeDirty: async () => false,
+      bookPresent: async () => true,
       countAhead: async () => 0,
       readOriginals: async () => originals,
       recordOriginal,
