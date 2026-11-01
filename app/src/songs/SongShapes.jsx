@@ -9,7 +9,18 @@ import { parseChord } from '../core/notation/parse.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import { shapeNames } from './reading-view.js';
 
-export default function SongShapes({ sheet, heading, caption = null, className = 'reading-shapes', headingLevel = 2 }) {
+// `captionScreenOnly`: the caption explains the on-screen marks (ink, colour,
+// *default*), which paper does not carry — every shape prints alike (workflow
+// 2) — so it does not print (songs.print_no_defaults); the transposed caption
+// does.
+export default function SongShapes({
+  sheet,
+  heading,
+  caption = null,
+  captionScreenOnly = false,
+  className = 'reading-shapes',
+  headingLevel = 2,
+}) {
   const headingId = useId();
   if (!sheet.shapes.length) return null;
   const { notation, dialect, instrument, renamed } = sheet;
@@ -29,7 +40,7 @@ export default function SongShapes({ sheet, heading, caption = null, className =
         ))}
       </div>
       {sheet.blockNotes.length ? <p className="t-small reading-block-notes">{sheet.blockNotes.join('\n')}</p> : null}
-      {caption ? <p className="t-small">{caption}</p> : null}
+      {caption ? <p className={`t-small${captionScreenOnly ? ' reading-shapes-marks' : ''}`}>{caption}</p> : null}
     </section>
   );
 }

@@ -32,7 +32,7 @@ import { BarEnd } from '../shell/HeaderChrome.jsx';
 import Chart from '../chart/Chart.jsx';
 import { bookLabelFor } from '../songs/first-run.js';
 import { songTitle } from '../songs/search-query.js';
-import { readSongSheet, shapesCaption, transposedLabel } from '../songs/song-sheet.js';
+import { readSongSheet, shapesCaption, captionExplainsMarks, transposedLabel } from '../songs/song-sheet.js';
 import SongShapes from '../songs/SongShapes.jsx';
 import { fitPrintColumns } from '../songs/print-columns.js';
 import { INDEX_ANCHOR, songAnchor, printProgress } from './book-print.js';
@@ -118,6 +118,7 @@ function PrintedSong({ index, song, text, reading, entry, preferences, bookLabel
                   sheet={sheet}
                   heading={keyed && sheet.status?.keyName ? t('reading.shapesInKey', { key: sheet.status.keyName }) : t('reading.shapes')}
                   caption={shapesCaption(sheet, t)}
+                  captionScreenOnly={captionExplainsMarks(sheet)}
                   headingLevel={3}
                 />
                 {sheet.unvoiced.length ? (

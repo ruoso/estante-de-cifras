@@ -133,6 +133,28 @@
   letter-spacing: 0.02em;
 }
 
+/* On paper a shape is a shape (workflow 2: "on paper they print alike, since
+   a student needs the shape, not its provenance"; songs.print_no_defaults):
+   neither *default* nor *your shape* is marked, and both are drawn as the
+   song's own, in ink. The caption that explains the marks does not print
+   either. */
+@media print {
+  .chord-diagram--default .chord-diagram__who,
+  .chord-diagram--yours .chord-diagram__who {
+    display: none;
+  }
+  .chord-diagram--default .ec-dot,
+  .chord-diagram--default .ec-barre,
+  .chord-diagram--yours .ec-dot,
+  .chord-diagram--yours .ec-barre {
+    fill: var(--ink);
+  }
+  .chord-diagram--default .ec-finger,
+  .chord-diagram--yours .ec-finger {
+    fill: var(--surface);
+  }
+}
+
 /* A horizontal neck (shell.display_preferences; workflow 16 §How diagrams are
    drawn) is wider than it is tall: let it shrink to its row rather than
    overflow a phone's grid cell, keeping its aspect ratio. Left-handed needs no

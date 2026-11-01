@@ -257,6 +257,9 @@ describe('SongReading — the chart and the shapes (workflow 2 L69-77, L88-108)'
     // The caption names the three looks, each by a word (songs.shape_words;
     // workflow 2 §Where a chord's shape comes from).
     expect(within(shapes).getByText('In ink: the song’s own shape. In colour: a shape you chose. In outline, marked default: the app’s suggestion.')).toBeInTheDocument();
+    // It explains marks paper does not carry, so it is the one print leaves out
+    // (songs.print_no_defaults; the print rule is e2e's to see).
+    expect(within(shapes).getByText(/^In ink:/)).toHaveClass('reading-shapes-marks');
 
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
@@ -295,6 +298,8 @@ describe('SongReading — the chart and the shapes (workflow 2 L69-77, L88-108)'
 
     // songs.shape_words; workflow 2 L159-163.
     expect(screen.getByText('This song doesn’t say yet how to play its chords on Guitar, so each chord shows its easiest shape.')).toBeInTheDocument();
+    // An offer to arrange is for the screen, not paper (songs.print_no_defaults).
+    expect(screen.getByText(/^This song doesn’t say yet/).closest('.notice')).toHaveClass('reading-no-voicings');
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
     await click(screen.getByRole('button', { name: 'Arrange for Guitar' }));
     expect(onArrange).toHaveBeenCalledWith({ bookId: BOOK, path: PATH, title: 'Tarde Clara' });
@@ -1479,6 +1484,8 @@ describe('SongReading header chrome (behavior)', () => {
 
     expect(await screen.findByRole('button', { name: 'Arrange for Guitar' })).toBeInTheDocument();
     expect(screen.getByText('This song doesn’t say yet how to play its chords on Guitar, so each chord shows its easiest shape.')).toBeInTheDocument();
+    // An offer to arrange is for the screen, not paper (songs.print_no_defaults).
+    expect(screen.getByText(/^This song doesn’t say yet/).closest('.notice')).toHaveClass('reading-no-voicings');
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 });

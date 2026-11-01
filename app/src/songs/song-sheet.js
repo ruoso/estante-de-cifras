@@ -153,6 +153,11 @@ export function readSongSheet({ text, reading = null, entry = null, preferences 
  * @param {ReturnType<typeof readSongSheet>} sheet
  * @param {(key: string, vars?: object) => string} t
  */
+/** Whether the caption is the one explaining the marks — not printed. */
+export function captionExplainsMarks(sheet) {
+  return !(sheet.transposed && sheet.shapes.length) && sheet.shapes.some((s) => s.source !== 'song');
+}
+
 export function shapesCaption(sheet, t) {
   if (sheet.transposed && sheet.shapes.length) {
     return sheet.writtenKey

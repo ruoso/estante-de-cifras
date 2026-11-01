@@ -199,7 +199,9 @@ and the spec leaves the default to the app. Here it is, in order:
 
 Each is marked for what it is: the song's choice plain, *your shape*, or
 *default*. On paper they print alike, since a student needs the shape, not
-its provenance.
+its provenance: no *default* or *your shape*, every shape in ink, and neither
+the caption that explains the marks nor the notice that offers to arrange the
+song — the reading view's print and the book's alike.
 
 The shapes carry a caption that says what each look means, with the mark's
 own word in it: *In ink: the song’s own shape. In colour: a shape you chose.

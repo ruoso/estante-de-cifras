@@ -54,7 +54,7 @@ import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
 import Chart from '../chart/Chart.jsx';
 import { bookLabelFor } from './first-run.js';
 import { songTitle } from './search-query.js';
-import { readSongSheet, shapesCaption, transposedLabel as transposedLabelFor } from './song-sheet.js';
+import { readSongSheet, shapesCaption, captionExplainsMarks, transposedLabel as transposedLabelFor } from './song-sheet.js';
 import SongShapes from './SongShapes.jsx';
 import { fitPrintColumns } from './print-columns.js';
 import { READING_ACTIONS_WIDE_QUERY } from '../shell/layout-mode.js';
@@ -533,6 +533,7 @@ export default function SongReading({
         sheet={songSheet}
         heading={shapesHeading}
         caption={caption}
+        captionScreenOnly={captionExplainsMarks(songSheet)}
         className={tablet ? 'reading-shapes card pad' : 'reading-shapes'}
       />
       {unvoiced.length ? (
@@ -750,7 +751,7 @@ export default function SongReading({
       {/* Once the first-open prompt is answered: until then it is the one
           notice about shapes, so a phone's first song is not pushed under two. */}
       {noVoicings && !instrumentPrompt ? (
-        <div className="notice accent">
+        <div className="notice accent reading-no-voicings">
           <span>{t('reading.noVoicings', { instrument: instrumentLabel })}</span>
           <Button className="act btn quiet" onPress={() => onArrange({ bookId, path, title: baseModel?.title })}>
             {t('reading.arrangeFor', { instrument: instrumentLabel })}
