@@ -24,6 +24,12 @@ export function songProperty(parsed, name) {
   return parsed?.properties?.find((p) => p?.key === name)?.value ?? null;
 }
 
+/** The §6.3 identity of the instrument in use's tuning, or '' with none. */
+export function tuningIdOf(entry) {
+  const instrument = instrumentFor(entry);
+  return instrument ? openMidis(instrument).join(' ') : '';
+}
+
 // The instrument instance the music core searches on, or null when there is no
 // entry or it does not make one.
 function instrumentFor(entry) {

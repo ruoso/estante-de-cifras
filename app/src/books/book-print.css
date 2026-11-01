@@ -23,10 +23,15 @@
 
 /* The index's rows are what a finger taps on an e-reader: a whole row is the
    link, roomy enough to hit. */
-.book-print-toc {
+.book-print-toc ol {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+/* The songs under their artist (books.print_order): the artist a small heading
+   over its titles, which no longer repeat it. */
+.book-print-toc-group {
+  margin-bottom: calc(var(--u) * 2);
 }
 .book-print-toc a {
   display: flex;
@@ -42,6 +47,16 @@
   font-size: 18px;
 }
 .book-print-toc-artist {
+  margin: 0 0 calc(var(--u) * 0.5);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+/* Which variation a copy is, beside its title (books.print_variations). */
+.book-print-toc-variation {
+  font-weight: 700;
   color: var(--ink-2);
 }
 
@@ -117,6 +132,10 @@
   }
   .book-print-toc li {
     break-inside: avoid;
+  }
+  /* An artist's name is never left at the foot of a column without a song. */
+  .book-print-toc-artist {
+    break-after: avoid;
   }
   .book-print-toc a {
     padding: 7pt 0;

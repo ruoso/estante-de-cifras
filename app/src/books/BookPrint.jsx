@@ -23,7 +23,7 @@
 
 import { useEffect, useId, useMemo, useRef } from 'react';
 import { Button } from 'react-aria-components';
-import { t } from '../i18n/index.js';
+import { t, currentLocale } from '../i18n/index.js';
 import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import { inUseEntry } from '../instruments/InstrumentChip.jsx';
@@ -32,10 +32,10 @@ import { BarEnd } from '../shell/HeaderChrome.jsx';
 import Chart from '../chart/Chart.jsx';
 import { bookLabelFor } from '../songs/first-run.js';
 import { songTitle } from '../songs/search-query.js';
-import { readSongSheet, shapesCaption, captionExplainsMarks, transposedLabel } from '../songs/song-sheet.js';
+import { readSongSheet, shapesCaption, captionExplainsMarks, transposedLabel, tuningIdOf } from '../songs/song-sheet.js';
 import SongShapes from '../songs/SongShapes.jsx';
 import { fitPrintColumns } from '../songs/print-columns.js';
-import { INDEX_ANCHOR, songAnchor, printProgress } from './book-print.js';
+import { INDEX_ANCHOR, songAnchor, printProgress, printCopies, songsByArtist } from './book-print.js';
 import '../songs/reading.css';
 import './book-print.css';
 
@@ -63,14 +63,22 @@ function JumpLink({ to, className, children, ...rest }) {
   );
 }
 
+// A variation by its name; the song's unnamed one is *Default*.
+const variationLabel = (v) => (v === '' ? t('reading.variationDefault') : v);
+
 // One song's pages: the running head (the book, and the way back to the index)
-// repeated on each page, then the song's own head and its sheet.
-function PrintedSong({ index, song, text, reading, entry, preferences, bookLabel, instrumentLabel }) {
+// repeated on each page, then the song's own head and its sheet. `variation`
+// (books.print_variations): one copy of a song with several, printed with that
+// variation's shapes and named in its byline; null prints the song as read.
+function PrintedSong({ index, song, text, reading, variation = null, tuningId, entry, preferences, bookLabel, instrumentLabel }) {
   const headingId = useId();
-  const sheet = readSongSheet({ text, reading, entry, preferences });
+  const readAs =
+    variation === null ? reading : { ...reading, variations: { ...(reading?.variations ?? {}), [tuningId]: variation } };
+  const sheet = readSongSheet({ text, reading: readAs, entry, preferences });
   const title = songTitle(sheet.baseModel?.title ?? song.title, t('newSong.untitled'));
   const keyed = transposedLabel(sheet, t);
-  const byline = [sheet.artist, instrumentLabel, keyed].filter(Boolean).join(' · ');
+  const named = variation === null ? null : variationLabel(variation);
+  const byline = [sheet.artist, instrumentLabel, named, keyed].filter(Boolean).join(' · ');
 
   let chart = null;
   if (sheet.empty) {
@@ -180,6 +188,26 @@ export default function BookPrint({ store, bookId, onBack = () => {} }) {
   const texts = source?.[bookId] ?? {};
   const progress = printProgress(songs, texts);
   const entry = inUseEntry(instrumentsSlice);
+  const tuningId = tuningIdOf(entry);
+  // What prints, and in what order: the songs grouped by artist, artists and
+  // titles in alphabetical order (books.print_order), each song once or once
+  // per variation it has for the instrument in use (books.print_variations).
+  // The index lists the same copies under the same artists, each linking to its
+  // own pages, numbered in print order.
+  const groups = songsByArtist(songs, {
+    locale: currentLocale(),
+    titleOf: (s) => songTitle(s.title, t('newSong.untitled')),
+  });
+  let at = 0;
+  const grouped = groups.map(({ artist, songs: list }) => ({
+    artist,
+    copies: list.flatMap((s) =>
+      printCopies({ text: texts[s.path]?.text ?? '', reading: songSlice?.[bookId]?.[s.path] ?? null, tuningId }).map(
+        (variation) => ({ song: s, variation, index: at++ }),
+      ),
+    ),
+  }));
+  const copies = grouped.flatMap((g) => g.copies);
   const instrumentLabel = chipLabel(entry);
   const bookLabel = bookLabelFor(shelf, bookId, t('books.untitled'));
   const indexHeadingId = useId();
@@ -214,25 +242,36 @@ export default function BookPrint({ store, bookId, onBack = () => {} }) {
               <p className="t-small">{t('books.printBookShapesFor', { instrument: instrumentLabel })}</p>
             ) : null}
             <h2 className="t-h3">{t('books.printBookIndex')}</h2>
-            <ol className="book-print-toc">
-              {songs.map((s, i) => (
-                <li key={s.path}>
-                  <JumpLink to={songAnchor(i)}>
-                    <span className="book-print-toc-title">{songTitle(s.title, t('newSong.untitled'))}</span>
-                    {s.artist ? <span className="t-small book-print-toc-artist">{s.artist}</span> : null}
-                  </JumpLink>
-                </li>
+            <div className="book-print-toc">
+              {grouped.map(({ artist, copies: list }) => (
+                <section className="book-print-toc-group" key={artist ?? ''} aria-label={artist ?? t('books.printBookNoArtist')}>
+                  <h3 className="book-print-toc-artist">{artist ?? t('books.printBookNoArtist')}</h3>
+                  <ol>
+                    {list.map(({ song: s, variation, index }) => (
+                      <li key={`${s.path}:${variation ?? ''}`}>
+                        <JumpLink to={songAnchor(index)}>
+                          <span className="book-print-toc-title">{songTitle(s.title, t('newSong.untitled'))}</span>
+                          {variation !== null ? (
+                            <span className="t-small book-print-toc-variation">{variationLabel(variation)}</span>
+                          ) : null}
+                        </JumpLink>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
               ))}
-            </ol>
+            </div>
           </nav>
-          {songs.map((s, i) =>
+          {copies.map(({ song: s, variation, index }) =>
             texts[s.path] ? (
               <PrintedSong
-                key={s.path}
-                index={i}
+                key={`${s.path}:${variation ?? ''}`}
+                index={index}
                 song={s}
                 text={texts[s.path].text ?? ''}
                 reading={songSlice?.[bookId]?.[s.path] ?? null}
+                variation={variation}
+                tuningId={tuningId}
                 entry={entry}
                 preferences={preferences}
                 bookLabel={bookLabel}

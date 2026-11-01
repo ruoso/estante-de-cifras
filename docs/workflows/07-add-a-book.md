@@ -206,15 +206,25 @@ screen over the detail — Back returns to it — with **Print** in its bar and,
 below, the preview of what goes to paper.
 
 - **The index** comes first, on its own page: the book's name, the
-  instrument the shapes are for, and every song in the book's order, each
-  row its title and artist and each a link to the song. On paper the rows
-  take as many columns as the page does, and each row is roomy enough to
-  hit with a finger.
-- **Each song** starts a new page, drawn as the reading view prints it
-  (workflow 2): its chart in as many columns as the page takes, then its
-  shapes. It is the song **as the person reads it**: in the key they
-  transposed it to, named under its title, and with the shapes their
-  instrument and their own shapes give.
+  instrument the shapes are for, and every song **grouped by artist** — the
+  artists in alphabetical order, each a small heading over its songs' titles
+  in alphabetical order, as the reader's language sorts them (accents and
+  case aside), and the songs that name no artist last, under *No artist
+  named*. Each row is a link to the song. On paper the rows take as many
+  columns as the page does, an artist's name never left at a column's foot,
+  and each row is roomy enough to hit with a finger.
+- **Each song** starts a new page, in the index's order, drawn as the
+  reading view prints it (workflow 2): its chart in as many columns as the
+  page takes, then its shapes. It is the song **as the person reads it**: in
+  the key they transposed it to, named under its title, and with the shapes
+  their instrument and their own shapes give.
+- **A song with several variations** for the instrument (workflow 5) prints
+  **once for each**, Default first: each copy with that variation's shapes,
+  the variation named after the instrument under the title (*Guitar ·
+  Easy*), and each its own row in the index, the variation beside the title.
+  A teacher's book carries the full arrangement and the student's simpler one
+  side by side. A song read transposed prints once: its own shapes do not
+  apply in another key, so every variation would print alike.
 - **Every page of a song** carries, at its top, the book's name and
   *↑ Index*, a link back to the index — a song that runs over three pages
   has it on all three.

@@ -198,6 +198,7 @@ export default {
     },
     printBookEmpty: 'Todavía no hay canciones en este libro.',
     printBookIndex: 'Canciones',
+    printBookNoArtist: 'Sin artista indicado',
     printBookShapesFor: 'Formas para {instrument}',
     printBookToIndex: 'Índice',
     private: 'privado',

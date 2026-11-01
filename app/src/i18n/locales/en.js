@@ -212,6 +212,7 @@ export default {
     },
     printBookEmpty: 'No songs in this book yet.',
     printBookIndex: 'Songs',
+    printBookNoArtist: 'No artist named',
     printBookShapesFor: 'Shapes for {instrument}',
     printBookToIndex: 'Index',
     private: 'private',
