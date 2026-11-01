@@ -118,17 +118,54 @@
   align-items: flex-start;
   gap: calc(var(--u) * 4);
 }
-/* Chart beside the fixed-width shapes on a wide pane; should the pane be too
-   narrow for both, the shapes wrap below and the chart keeps the full line
-   rather than flex-shrinking to zero width (which reads as hidden). */
+/* Chart beside the shapes on a wide pane. The chart takes the width its own
+   lines need, never more; the shapes take what is left, their diagrams in as
+   many columns as fit, so a song with many chords is not one tall column
+   beside an empty margin, scrolling for nothing (the report of 2026-11-01).
+   The shapes never go below 230px; should the pane be too narrow for both
+   the shapes wrap below, and the chart keeps the full line rather than
+   flex-shrinking to zero width (which reads as hidden). */
 .reading-split .reading-sheet .chart {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: 100%;
 }
 .reading-split .reading-shapes {
-  width: 300px;
-  flex: none;
+  flex: 1 1 300px;
+  min-width: 230px;
 }
+/* On the computer the shapes flow around the chart, as text around a
+   picture: beside it while it lasts, then the full width below it, so no
+   width goes unused and nothing scrolls that need not (the report of
+   2026-11-01). The chart floats at the width its lines need; the diagrams,
+   inline boxes, fill each line beside and under it. The tablet's card keeps
+   its own box (below). Screen only: print lays the sheet out itself. */
+@media screen {
+  .reading-split .reading-sheet:not(:has(.reading-shapes.card)) {
+    display: flow-root;
+  }
+  .reading-split .reading-sheet:not(:has(.reading-shapes.card)) > .chart {
+    float: left;
+    max-width: 100%;
+    margin: 0 calc(var(--u) * 4) calc(var(--u) * 2) 0;
+  }
+  .reading-split .reading-sheet:not(:has(.reading-shapes.card)) > .reading-shapes {
+    display: block;
+    width: auto;
+    min-width: 0;
+  }
+  .reading-split .reading-sheet:not(:has(.reading-shapes.card)) > .reading-shapes > * + * {
+    margin-top: calc(var(--u) * 1.25);
+  }
+  .reading-split .reading-sheet:not(:has(.reading-shapes.card)) .shapes {
+    display: block;
+  }
+  .reading-split .reading-sheet:not(:has(.reading-shapes.card)) .shapes > .chord-diagram {
+    vertical-align: top;
+    margin: 0 calc(var(--u) * 1.5) calc(var(--u) * 1.5) 0;
+  }
+}
+
 /* The tablet's shapes card beside the chart (W02#3 L130-139, W01#3
    L124-134): about 230px, the diagrams in two columns, the caption under them.
    With no search rail the chart and the card share the line. */
@@ -136,11 +173,13 @@
   flex-wrap: nowrap;
 }
 .reading-split .reading-shapes.card {
-  width: 230px;
+  min-width: 230px;
 }
+/* The card's diagrams in as many columns as its width holds — two at its
+   narrowest, as W02#3 draws it. */
 .reading-shapes.card .shapes {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   gap: calc(var(--u) * 1.5);
 }
 
