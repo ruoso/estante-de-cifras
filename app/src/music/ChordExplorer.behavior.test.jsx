@@ -193,7 +193,9 @@ describe('the chord explorer (behavior)', () => {
     } finally {
       await remote.stop();
     }
-  });
+    // A long journey with axe passes: 2.5–4 s alone, past the 5 s default when
+    // the gate loads the machine.
+  }, 20000);
 
   it('gives a full keyboard path to every star, show more, and enter a shape', async () => {
     const remote = await startGitHttpRemote();

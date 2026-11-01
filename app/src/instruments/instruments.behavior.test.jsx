@@ -219,7 +219,9 @@ describe('the instrument surface (behavior)', () => {
 
     const prefs = await readHome(idb, name, 'preferences.json');
     expect(typeof prefs.instrumentInUse.value).toBe('string');
-  });
+    // A long journey with axe passes: 2.5–4 s alone, past the 5 s default when
+    // the gate loads the machine.
+  }, 20000);
 
   it('names the instrument in use by its one short label: a default label shortened, a user name kept (shell.header_chrome)', async () => {
     const { store } = makeFreshWorker('chip');
