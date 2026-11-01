@@ -763,7 +763,7 @@ export default function BooksScreen({
             <SyncGlyph />
           </span>
         ) : null}
-        <Button className="btn sync-now" onPress={syncNow}>
+        <Button className="btn quiet sync-now" onPress={syncNow}>
           {t('books.syncNow')}
         </Button>
         <AddBookSheet

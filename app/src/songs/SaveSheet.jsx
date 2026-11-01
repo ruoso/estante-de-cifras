@@ -275,13 +275,19 @@ function SaveForm({
             <Label>{t('saveSheet.bookLabel')}</Label>
             <Input className="input est-save-readonly" />
           </TextField>
-          <TextField className="field" value={fileName} isReadOnly>
-            <Label>{t('saveSheet.fileNameLabel')}</Label>
-            <Input className="input t-mono est-save-readonly" />
-            <Text slot="description" className="t-small">
-              {t('saveSheet.fileNameHelp')}
-            </Text>
-          </TextField>
+          {/* The file it takes matters to whoever keeps the book's files, not to
+              saving a song: there to open, not in the way (the persona
+              exploration of 2026-10-31). */}
+          <details className="est-save-file">
+            <summary className="t-small">{t('saveSheet.fileShow')}</summary>
+            <TextField className="field" value={fileName} isReadOnly>
+              <Label>{t('saveSheet.fileNameLabel')}</Label>
+              <Input className="input t-mono est-save-readonly" />
+              <Text slot="description" className="t-small">
+                {t('saveSheet.fileNameHelp')}
+              </Text>
+            </TextField>
+          </details>
         </>
       )}
 

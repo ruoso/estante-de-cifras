@@ -318,16 +318,16 @@ describe('book-display: bookMetaFor (where · role · count — workflow 7 L19-2
   beforeAll(() => setLocale('en'));
 
   it('says where, the role and the song count', () => {
-    expect(bookMetaFor('local', {}, { count: 2, t })).toBe('On this device · can save · 2 songs');
-    expect(bookMetaFor('shared', { role: reg('reader') }, { count: 1, t })).toBe('On Estante · reader · 1 song');
+    expect(bookMetaFor('local', {}, { count: 2, t })).toBe('On this device · you can edit · 2 songs');
+    expect(bookMetaFor('shared', { role: reg('reader') }, { count: 1, t })).toBe('On Estante · read only · 1 song');
   });
 
   it('says can save for a book the user owns (books.owner_can_save, workflow 7 L19)', () => {
-    expect(bookMetaFor('shared', { role: reg('owner') }, { count: 3, t })).toBe('On Estante · can save · 3 songs');
+    expect(bookMetaFor('shared', { role: reg('owner') }, { count: 3, t })).toBe('On Estante · you can edit · 3 songs');
   });
 
   it('says still loading while the index builds or before a count arrives, and leaves out an unknown role', () => {
-    expect(bookMetaFor('local', {}, { count: 2, building: true, t })).toBe('On this device · can save · still loading');
+    expect(bookMetaFor('local', {}, { count: 2, building: true, t })).toBe('On this device · you can edit · still loading');
     expect(bookMetaFor('shared', {}, { t })).toBe('On Estante · still loading');
   });
 });
@@ -419,6 +419,15 @@ describe('book-display: savableBooks / newSetlistBook (books.setlist_making)', (
     // My songs a reader book (never offered): the first savable one instead.
     const readOnly = { books: SHELF.books, local: {}, mySongs: reg('srv-read') };
     expect(newSetlistBook(readOnly, savableBooks(readOnly, 'Untitled book'))).toBe('srv-own');
+  });
+
+  it('is the fullest savable book when My songs holds no song and another holds some', () => {
+    const savable = savableBooks(SHELF, 'Untitled book');
+    expect(newSetlistBook(SHELF, savable, { 'local-my-songs': 0, 'srv-own': 2, 'srv-edit': 5 })).toBe('srv-edit');
+    // My songs with a song keeps its place; so does an empty shelf, or counts not in yet.
+    expect(newSetlistBook(SHELF, savable, { 'local-my-songs': 1, 'srv-edit': 5 })).toBe('local-my-songs');
+    expect(newSetlistBook(SHELF, savable, { 'local-my-songs': 0, 'srv-edit': 0 })).toBe('local-my-songs');
+    expect(newSetlistBook(SHELF, savable, {})).toBe('local-my-songs');
   });
 
   it('is null with no savable book', () => {

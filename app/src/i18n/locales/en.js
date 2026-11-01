@@ -103,8 +103,8 @@ export default {
     save: 'Save',
     onDevice: 'On this device',
     onEstante: 'On Estante',
-    canSave: 'can save',
-    reader: 'reader',
+    canSave: 'you can edit',
+    reader: 'read only',
     renameLabel: 'Rename {name}',
     renameTitle: 'Rename “{name}”',
     renameField: 'Name on your shelf',
@@ -386,6 +386,8 @@ export default {
       'A song is shared with its book, {book}. Only people you invite can open it, each with their own account.',
     needsOnline: '{book} is only on this device. Put it online to invite people.',
     needsOnlineSignIn: 'Sign in to put it online',
+    needsOnlineAccount: 'Sharing needs an account: sign in, or make one, and the book goes online private — only the people you invite, up to 50, can open it.',
+    needsOnlineWhat: 'It goes online private: nobody sees it until you invite them — up to 50 people.',
     needsOnlinePutting: 'Putting it online…',
     songInviteBody: 'The invitation brings them into {book}, and opens on {song} once they’ve signed in.',
     setlistShareIntro:
@@ -507,6 +509,7 @@ export default {
     conflict: 'conflict',
     where: '{book} · {folder}/',
     addToSetlist: 'Add {title} to a setlist',
+    addToSetlistWord: 'Setlist',
     // The word that marks a setlist result in the one song search
     // (books.setlist_search, workflow 12 L33-34; mockups README L26 — status by
     // a word, never colour alone).
@@ -560,6 +563,13 @@ export default {
     cancel: 'Cancel',
     pointHere: 'Point here',
     noResults: 'No songs found.',
+    searchPlaceholder: 'Type a song’s title',
+    noneInBook: 'No song in {book} matches.',
+    inOtherBooks: 'In other books — copied into {book} when added',
+    emptySetlist: 'No songs in this setlist yet. Add them with Edit, or with Add to setlist on any song.',
+    emptyEditing: 'No songs yet. Add the first with Add song.',
+    showFile: 'Show the file',
+    hideFile: 'Hide the file',
     // A picker row for a song already in the setlist (workflow 12 §Building one).
     alreadyIn: 'Already in this setlist · {places}',
     // The raw *.setlist.md side pane (wide, read-only).
@@ -1110,7 +1120,7 @@ export default {
     unsaved: 'unsaved',
     untitled: 'Untitled song',
     notationNote:
-      'The notation comes from your preference, so the song reads the same to everyone.',
+      'Chords are written in the chord notation set in your account, and the song says which, so it reads the same to everyone.',
   },
 
   // The make-it-your-own sheet (books.fork, workflow 11 §Ways in; W11 board #1).
@@ -1161,6 +1171,7 @@ export default {
     // A new song's first save names the book and the file it takes
     // (songs.first_save_fields, W03#4); the file name itself is never translated.
     bookLabel: 'Book',
+    fileShow: 'The song’s file',
     fileNameLabel: 'File name',
     fileNameHelp:
       'Named once, from the title. Changing the title later edits its heading, not the file.',
@@ -1626,6 +1637,10 @@ export default {
     spoken: {
       noChord: 'no chord',
       bar: 'bar {n}:',
+      repeatOpen: 'repeat from here',
+      repeatClose: 'back to the start of the repeat',
+      times: '{n} times',
+      ending: 'ending {n}',
       needsYou: 'needs you',
       conflict: 'a conflict',
       endOfConflict: 'end of conflict',
@@ -1692,6 +1707,11 @@ export default {
     writtenKey: 'Written key',
     transposedToKey: 'Transposed to {key} ({offset})',
     transposedBy: 'Transposed ({offset})',
+    // A song naming no key: its first chord, as written and as now read.
+    transposedChord: 'Transposed: {from} → {to} ({offset})',
+    // The stepper's reading between − and +, while transposed.
+    keyNow: '{key} ({offset})',
+    chordNow: '{from} → {to} ({offset})',
     backToKey: 'Back to {key}',
     backToWritten: 'Back to the written key',
     arrangingOff: 'Arranging is off while transposed',
@@ -1998,6 +2018,8 @@ export default {
       previewLabel: 'Preview of the song as it will be read',
       arrangeBlocked: 'Fix the lines marked in the text to choose shapes here.',
       addSection: 'Add section',
+      // The name a section added by Add section comes with, selected to retype.
+      newSectionName: 'Section {n}',
       save: 'Save',
       undo: 'Undo',
       pasteFenced: 'The pasted song is now inside a fence, so it reads as music.',
@@ -2136,6 +2158,8 @@ export default {
     // The editor app bar's word mark while the working text differs from the last
     // saved version (sync.in_place_notices; W08#3 L96, W04 L107/L158).
     unsaved: 'unsaved changes',
+    // A new song, never saved (EditorChrome).
+    notSavedYet: 'not saved yet',
     // The phone's unsaved strip and the computer's Unsaved pane (songs.editor_chrome;
     // W04#1 L35-38, W04#4 L163-168).
     keptOnDevice: 'Kept on this device',
@@ -2860,7 +2884,7 @@ export default {
       customOption: 'Custom tuning',
       customPlaceholder: 'E2 A2 D3 G3 B3 E4',
       tuningHelp:
-        'The tuning is the instrument’s identity — the same spelling a song’s voicing block uses (cifra.md §6). A capo is a tuning; there is no capo field.',
+        'The tuning is what makes the instrument: each string’s note, lowest string first, with its octave (E2 A2 D3 G3 B3 E4). For a capo, raise every string by as many frets — there is no capo field.',
       name: 'Name',
       howYouPlay: 'How you play',
       howYouPlayHelp: 'The preset. Tune the individual rules later, on the instrument’s screen.',
@@ -3038,7 +3062,7 @@ export default {
         ],
       },
       wizard: {
-        title: 'The wizard',
+        title: 'Choosing every shape',
         summary:
           'Chooses a shape for every chord of the song at once, by a policy you pick — the smoothest path between chords, down at the nut, and others.',
         points: [
@@ -3057,7 +3081,7 @@ export default {
         ],
       },
       conflicts: {
-        title: 'Conflicts',
+        title: 'When two changes meet',
         summary:
           'When the same lines of a song were changed in two places, the app shows both and asks which to keep.',
         points: [
@@ -3087,6 +3111,7 @@ export default {
           'Invite someone with a link, as a reader or an editor.',
           'Change what someone can do, or remove them.',
           'Withdraw an invitation not yet used.',
+          'A book only on this device goes online first, which needs an account: sign in, or make one.',
         ],
       },
       explorer: {

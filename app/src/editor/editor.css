@@ -136,6 +136,9 @@
   border-radius: var(--radius);
   color: var(--ink);
   font: 14px/1.5 var(--font-code);
+  /* The source is read mark by mark: a coding font's ligatures would draw a
+     heading's `##` as one joined glyph, which reads as a space and a `#`. */
+  font-variant-ligatures: none;
 }
 
 .est .cm-editor.cm-focused {
@@ -201,6 +204,12 @@
   line-height: 1.35;
   padding: 2px 6px 4px 6px;
   white-space: normal;
+  /* The content is as wide as its widest line, and a note's unbroken width
+     would count as one: zero width, but at least the content's, so the words
+     wrap within the editor instead of running past a phone's edge. */
+  width: 0;
+  min-width: 100%;
+  box-sizing: border-box;
 }
 
 .est .cm-line.est-mk {

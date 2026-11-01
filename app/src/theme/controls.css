@@ -147,3 +147,11 @@
   min-width: 0;
   margin: 0;
 }
+
+/* A disabled button looks it: Save with nothing to save, Play with no song to
+   play. React Aria marks it `data-disabled`; a disabled control is exempt from
+   the contrast minimum, and its name still says what it would do. */
+.est .btn[data-disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

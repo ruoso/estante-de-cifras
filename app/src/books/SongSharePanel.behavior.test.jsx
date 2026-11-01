@@ -265,7 +265,7 @@ describe('a song’s share panel on a book only on this device', () => {
     const panel = screen.getByRole('complementary', { name: 'Share Carinhoso' });
     expect(within(panel).getByText('My songs is only on this device. Put it online to invite people.')).toBeInTheDocument();
     expect(
-      within(panel).getByText('Only on this device: nobody else can see it. Put it online to invite people — up to 50.'),
+      within(panel).getByText('It goes online private: nobody sees it until you invite them — up to 50 people.'),
     ).toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: 'Put online' })).toBeInTheDocument();
     expect(within(panel).queryByRole('textbox', { name: 'Song address' })).toBeNull();

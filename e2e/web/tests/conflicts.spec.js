@@ -71,7 +71,7 @@ async function ownerAndAna(browser, page, songs, { query, title }) {
 
   const ana = await joinByInvite(browser, link, BOOK);
   contexts.push(ana.context);
-  await expect(ana.page.getByText('On Estante · can save')).toBeVisible();
+  await expect(ana.page.getByText('On Estante · you can edit')).toBeVisible();
   await waitUntilSearchable(ana.page, query, title);
 
   const url = await bookGitUrl(page, BOOK);

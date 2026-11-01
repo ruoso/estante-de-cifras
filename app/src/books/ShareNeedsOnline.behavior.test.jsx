@@ -48,9 +48,9 @@ describe('Share on a book only on this device (workflow 10 §Sharing a song)', (
     const { container, sent } = renderBody();
 
     expect(screen.getByText('My songs is only on this device. Put it online to invite people.')).toBeInTheDocument();
-    // The local book's one sentence (books.put_online_confirm Constraint 1).
+    // What putting it online does, said once (the persona exploration of 2026-10-31).
     expect(
-      screen.getByText('Only on this device: nobody else can see it. Put it online to invite people — up to 50.'),
+      screen.getByText('It goes online private: nobody sees it until you invite them — up to 50 people.'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sign in to put it online' })).toBeNull();
     expect(await checkWcag21aa(container)).toHaveNoViolations();

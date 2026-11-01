@@ -335,15 +335,15 @@ describe('the editor chrome on a new song (songs.editor_chrome; W03 board)', () 
       const appbar = appbarOf(container);
       const strip = screen.queryByRole('status');
       if (device === 'phone') {
-        // Unsaved from the start: the strip, above the which-book bar.
-        expect(strip).toHaveTextContent('unsaved changes');
+        // Not saved yet from the start: the strip, above the which-book bar.
+        expect(strip).toHaveTextContent('not saved yet');
         expect(strip).toHaveTextContent('Kept on this device');
         const inBook = screen.getByText(/In My songs/);
         expect(strip.compareDocumentPosition(inBook) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(within(appbar).queryByRole('button', { name: 'Discard changes' })).toBeNull();
       } else {
         expect(strip).toBeNull();
-        expect(appbar).toHaveTextContent('unsaved changes');
+        expect(appbar).toHaveTextContent('not saved yet');
         expect(within(appbar).getByRole('button', { name: 'Discard changes' })).toBeInTheDocument();
       }
       expect(await checkWcag21aa(container)).toHaveNoViolations();

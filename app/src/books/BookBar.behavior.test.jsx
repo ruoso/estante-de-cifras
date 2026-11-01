@@ -52,7 +52,7 @@ describe('BookBar (books.row_opens_songs; workflow 7 L60-85)', () => {
     emit(event(EventKind.SYNC, { bookId: 'l-mine', phase: 'in_step', at: AT }));
 
     expect(screen.getByRole('heading', { level: 2, name: 'My songs' })).toBeInTheDocument();
-    expect(screen.getByText('On this device · can save · 14 songs')).toBeInTheDocument();
+    expect(screen.getByText('On this device · you can edit · 14 songs')).toBeInTheDocument();
     // In step: no badge, no notice, nothing engaged.
     expect(container.querySelector('.badge')).toBeNull();
     expect(container.querySelector('.notice')).toBeNull();

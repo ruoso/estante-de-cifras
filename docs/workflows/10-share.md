@@ -201,9 +201,10 @@ A song or a setlist in a book that is only on this device — *My songs*
 before it goes online, or any book made here — has no one to share it with
 yet. Its
 *Share* opens the same panel or sheet, and says so in words: *this book is
-only on this device; put it online to invite people*, with the same line
-*Put online* carries in the book's detail (workflow 7 §Putting a book
-online: it goes online private). It offers *Put online* there; signed out,
+only on this device; put it online to invite people*, then what comes next,
+once: signed in, *it goes online private: nobody sees it until you invite
+them — up to 50 people*; signed out, *sharing needs an account: sign in, or
+make one, and the book goes online private*. It offers *Put online* there; signed out,
 it offers *Sign in to put it online* first, which opens the one sign-in
 surface (workflow 13 §Signing in, or making an account) and comes back to
 the same panel, where *Put online* is then one more press. Once the book is

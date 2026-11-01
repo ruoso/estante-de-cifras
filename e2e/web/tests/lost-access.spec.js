@@ -58,7 +58,7 @@ test('losing access: the owner removes an editor; the member sees no longer shar
     await enableVirtualAuthenticator(joiner.page);
     await acceptInvitation(joiner.page, link);
     await expect(joiner.page.getByRole('button', { name: bookRow })).toBeVisible();
-    await expect(joiner.page.getByText('On Estante · can save')).toBeVisible();
+    await expect(joiner.page.getByText('On Estante · you can edit')).toBeVisible();
     await waitUntilSearchable(joiner.page, 'Roda', SONG_TITLE);
 
     // The owner removes the member in the Share dialog (typed-name confirm).

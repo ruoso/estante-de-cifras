@@ -89,6 +89,82 @@ function voiceFor(item) {
   }
 }
 
+// The repeat marks of spec §3 — a group's opening and closing marks, its count,
+// its endings — take no words and no column of their own (§4.4), but a reader
+// must still see them: they say what is played again. Each becomes a mark drawn
+// against the chord beside it — an opening mark or an ending before the next
+// chord, a closing mark or a count after the one before — as written, never
+// expanded (§3: a reader is never required to expand a repeat). On a bars row
+// the bar-line marks, the endings and a group's count are drawn on the measure
+// instead (`measureMarks`), so only brackets and a line's count reach here.
+function markFor(item) {
+  switch (item.type) {
+    case 'mark':
+      return { kind: item.open ? 'open' : 'close', notation: item.notation };
+    case 'count':
+      return { kind: 'count', times: item.times };
+    case 'ending':
+      return { kind: 'ending', number: item.number };
+    default:
+      return null;
+  }
+}
+
+const leadsChord = (mark) => mark.kind === 'open' || mark.kind === 'ending';
+
+// Items in order → the marks to draw before and after each word-taking item
+// (`SEGMENT_TYPES`), keyed by its position among them; `skip(item)` leaves an
+// item to the caller. A mark with no chord on the side it leans to goes to the
+// other side; a run with no chord at all draws none.
+function marksAround(items, skip = () => false) {
+  const around = [];
+  let pending = [];
+  let count = 0;
+  for (const item of items) {
+    if (SEGMENT_TYPES.has(item.type)) {
+      around[count] = { before: pending, after: [] };
+      pending = [];
+      count += 1;
+      continue;
+    }
+    if (skip(item)) continue;
+    const mark = markFor(item);
+    if (!mark) continue;
+    if (leadsChord(mark) || count === 0) pending.push(mark);
+    else around[count - 1].after.push(mark);
+  }
+  if (pending.length && count > 0) around[count - 1].after.push(...pending);
+  return around;
+}
+
+// A bars row's measure → what is drawn on its bar lines (spec §3.2-§3.4): a
+// repeat opens on its left rule, closes on its right, with the group's count
+// over the closing rule and an ending's number over the measure it begins.
+function measureMarks(measure) {
+  const marks = { open: false, close: false, count: null, ending: null };
+  for (const item of measure.items) {
+    if (item.type === 'mark' && item.notation === 'barline') {
+      if (item.open) marks.open = true;
+      else marks.close = true;
+    } else if (item.type === 'ending') marks.ending = item.number;
+    else if (item.type === 'count' && marks.close) marks.count = item.times;
+  }
+  return marks;
+}
+
+// A predicate, fresh for each measure and read through its items in order:
+// whether the measure draws this item on its rule itself (`measureMarks`).
+function onTheRule() {
+  let closed = false;
+  return (item) => {
+    if (item.type === 'mark' && item.notation === 'barline') {
+      if (!item.open) closed = true;
+      return true;
+    }
+    return item.type === 'ending' || (item.type === 'count' && closed);
+  };
+}
+
 // A sung line → a row of segments built from the measure-making items in column
 // order. Segments are grouped per measure so the hyphen never bridges across a
 // bar rule (a word does not continue over a bar between measures); within a
@@ -104,6 +180,7 @@ function voiceFor(item) {
 function sungRow(line, address) {
   const segments = [];
   let previousWords = null;
+  const marks = marksAround(line.measures.flatMap((measure) => measure.items));
   line.measures.forEach((measure, measureIndex) => {
     const items = [];
     measure.items.forEach((item, itemIndex) => {
@@ -122,6 +199,7 @@ function sungRow(line, address) {
         tail,
         token: tokenFor(item, address, measureIndex, itemIndex),
         voice: voiceFor(item),
+        ...withMarks(marks[segments.length]),
       });
     });
   });
@@ -141,13 +219,29 @@ function measureCell(measure) {
 // column order (the structured parallel of `measureCell`, for the interactive
 // arrange chart). Each cell is `{ text, token }`; `token` is null for a
 // non-chord glyph.
-function measureTokens(measure, address, measureIndex) {
+function measureTokens(measure, address, measureIndex, skip) {
   const cells = [];
+  const marks = marksAround(measure.items, skip);
   measure.items.forEach((item, itemIndex) => {
     if (!SEGMENT_TYPES.has(item.type)) return;
-    cells.push({ text: chordText(item), token: tokenFor(item, address, measureIndex, itemIndex), voice: voiceFor(item) });
+    cells.push({
+      text: chordText(item),
+      token: tokenFor(item, address, measureIndex, itemIndex),
+      voice: voiceFor(item),
+      ...withMarks(marks[cells.length]),
+    });
   });
   return cells;
+}
+
+// The `before`/`after` marks of one item, only where it has some, so a chart
+// with no repeats renders exactly as before.
+function withMarks(around) {
+  if (!around) return {};
+  const out = {};
+  if (around.before.length) out.before = around.before;
+  if (around.after.length) out.after = around.after;
+  return out;
 }
 
 // A chord-only (chart) line → a run row when it carries no bar lines (§2.1,
@@ -166,7 +260,12 @@ function chartRow(line, address) {
   return {
     type: 'bars',
     measures: line.measures.map(measureCell),
-    cells: line.measures.map((measure, measureIndex) => measureTokens(measure, address, measureIndex)),
+    cells: line.measures.map((measure, measureIndex) => measureTokens(measure, address, measureIndex, onTheRule())),
+    // What each measure draws on its bar lines (spec §3): present only on a row
+    // that has a repeat, an ending or a group's count.
+    ...(line.measures.some((measure) => measure.items.some(onTheRule()))
+      ? { marks: line.measures.map(measureMarks) }
+      : {}),
     // The running bar number and whether an anchor is stated on each measure
     // (cifra.md §2.8, set by the reader's `numberBars` on chart lines): the
     // screen-reader reading leads a stated measure with "bar N:" (§5), and a
@@ -241,7 +340,9 @@ export function chartRows(model, { markEmpty = false } = {}) {
   const rows = [];
   const sections = model?.sections ?? [];
   sections.forEach((section, sectionIndex) => {
-    if (section.name) rows.push({ type: 'section', name: section.name });
+    // A count at the end of a heading plays the whole section that many times
+    // (spec §3.3, §1.7.4); it is drawn beside the name.
+    if (section.name) rows.push({ type: 'section', name: section.name, ...(section.times ? { times: section.times } : {}) });
     const start = rows.length;
     (section.body ?? []).forEach((part, partIndex) => {
       if (part.type === 'notes') {

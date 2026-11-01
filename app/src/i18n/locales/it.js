@@ -94,8 +94,8 @@ export default {
     save: 'Salva',
     onDevice: 'Su questo dispositivo',
     onEstante: 'Su Estante',
-    canSave: 'puoi salvare',
-    reader: 'lettore',
+    canSave: 'puoi modificare',
+    reader: 'sola lettura',
     renameLabel: 'Rinomina {name}',
     renameTitle: 'Rinomina “{name}”',
     renameField: 'Nome nella tua libreria',
@@ -362,6 +362,8 @@ export default {
       'Un brano si condivide con il suo libro, {book}. Solo chi inviti può aprirlo, ognuno con il proprio account.',
     needsOnline: '{book} è solo su questo dispositivo. Mettilo online per invitare altre persone.',
     needsOnlineSignIn: 'Accedi per metterlo online',
+    needsOnlineAccount: 'Condividere richiede un account: accedi, o creane uno, e il libro va online privato — solo le persone che inviti, fino a 50, possono aprirlo.',
+    needsOnlineWhat: 'Va online privato: nessuno lo vede finché non inviti qualcuno — fino a 50 persone.',
     needsOnlinePutting: 'Lo sto mettendo online…',
     songInviteBody: 'L’invito la porta in {book} e apre su {song} una volta che ha effettuato l’accesso.',
     setlistShareIntro:
@@ -481,6 +483,7 @@ export default {
     conflict: 'conflitto',
     where: '{book} · {folder}/',
     addToSetlist: 'Aggiungi {title} a una scaletta',
+    addToSetlistWord: 'Scaletta',
     setlist: 'Scaletta',
   },
 
@@ -524,6 +527,13 @@ export default {
     cancel: 'Annulla',
     pointHere: 'Punta qui',
     noResults: 'Nessun brano trovato.',
+    searchPlaceholder: 'Scrivi il titolo di una canzone',
+    noneInBook: 'Nessuna canzone di {book} corrisponde.',
+    inOtherBooks: 'In altri libri — copiate in {book} quando aggiunte',
+    emptySetlist: 'Ancora nessuna canzone in questa scaletta. Aggiungile con Modifica, o con Aggiungi alla scaletta da qualsiasi canzone.',
+    emptyEditing: 'Ancora nessun brano. Aggiungi il primo con Aggiungi brano.',
+    showFile: 'Mostra il file',
+    hideFile: 'Nascondi il file',
     alreadyIn: 'Già in questa scaletta · {places}',
     relativeNote: 'I link partono da {folder}, così continuano a funzionare ovunque vengano copiati i file del libro.',
     addToSetlistTitle: 'Aggiungi alla scaletta',
@@ -1023,7 +1033,7 @@ export default {
     unsaved: 'non salvato',
     untitled: 'Brano senza titolo',
     notationNote:
-      'La notazione viene dalla tua preferenza, così il brano si legge uguale per tutti.',
+      'Gli accordi si scrivono nella notazione scelta nel tuo account, e il brano dice quale, così si legge uguale per tutti.',
   },
 
   // Il foglio per rendere tuo il libro (books.fork, workflow 11; W11 #1).
@@ -1064,6 +1074,7 @@ export default {
     songNameLabel: 'Dai un nome alla canzone',
     songNameHelp: 'Usato come titolo e nome del file.',
     bookLabel: 'Libro',
+    fileShow: 'Il file della canzone',
     fileNameLabel: 'Nome del file',
     fileNameHelp:
       'Nominato una volta sola, dal titolo. Cambiare il titolo in seguito ne modifica l’intestazione, non il file.',
@@ -1478,6 +1489,10 @@ export default {
     spoken: {
       noChord: 'nessun accordo',
       bar: 'battuta {n}:',
+      repeatOpen: 'ripetere da qui',
+      repeatClose: 'tornare all’inizio della ripetizione',
+      times: '{n} volte',
+      ending: 'finale {n}',
       needsYou: 'serve te',
       conflict: 'un conflitto',
       endOfConflict: 'fine del conflitto',
@@ -1531,6 +1546,11 @@ export default {
     writtenKey: 'Tonalità scritta',
     transposedToKey: 'Trasposta in {key} ({offset})',
     transposedBy: 'Trasposta ({offset})',
+    // A song naming no key: its first chord, as written and as now read.
+    transposedChord: 'Trasposta: {from} → {to} ({offset})',
+    // The stepper's reading between − and +, while transposed.
+    keyNow: '{key} ({offset})',
+    chordNow: '{from} → {to} ({offset})',
     backToKey: 'Torna a {key}',
     backToWritten: 'Torna alla tonalità scritta',
     arrangingOff: 'L’arrangiamento è disattivato mentre è trasposta',
@@ -1828,6 +1848,8 @@ export default {
       previewLabel: 'Anteprima della canzone come verrà letta',
       arrangeBlocked: 'Correggi le righe segnate nel testo per scegliere le forme qui.',
       addSection: 'Aggiungi sezione',
+      // The name a section added by Add section comes with, selected to retype.
+      newSectionName: 'Sezione {n}',
       save: 'Salva',
       undo: 'Annulla',
       pasteFenced: 'La canzone incollata ora è dentro un recinto, quindi viene letta come musica.',
@@ -1960,6 +1982,8 @@ export default {
     // The editor app bar's word mark while the working text differs from the last
     // saved version (sync.in_place_notices; W08#3 L96, W04 L107/L158).
     unsaved: 'modifiche non salvate',
+    // A new song, never saved (EditorChrome).
+    notSavedYet: 'non ancora salvata',
     // The phone's unsaved strip and the computer's Unsaved pane (songs.editor_chrome;
     // W04#1 L35-38, W04#4 L163-168).
     keptOnDevice: 'Conservate su questo dispositivo',
@@ -2688,7 +2712,7 @@ export default {
       customOption: 'Accordatura personalizzata',
       customPlaceholder: 'E2 A2 D3 G3 B3 E4',
       tuningHelp:
-        'L’accordatura è l’identità dello strumento — la stessa grafia che usa il blocco di voicing di una canzone (cifra.md §6). Un capotasto è un’accordatura; non c’è un campo capotasto.',
+        'L’accordatura è ciò che fa lo strumento: la nota di ogni corda, dalla più grave, con la sua ottava (E2 A2 D3 G3 B3 E4). Per un capotasto, alza ogni corda dello stesso numero di tasti — non c’è un campo capotasto.',
       name: 'Nome',
       howYouPlay: 'Come suoni',
       howYouPlayHelp: 'Il preset. Regola le singole regole dopo, nella schermata dello strumento.',
@@ -2866,7 +2890,7 @@ export default {
         ],
       },
       wizard: {
-        title: 'La procedura guidata',
+        title: 'Scegliere tutte le forme',
         summary:
           'Sceglie una forma per ogni accordo del brano in un colpo solo, secondo una regola che scegli tu — il percorso più scorrevole tra gli accordi, vicino al capotasto, e altre.',
         points: [
@@ -2885,7 +2909,7 @@ export default {
         ],
       },
       conflicts: {
-        title: 'Conflitti',
+        title: 'Quando due modifiche si incontrano',
         summary:
           'Quando le stesse righe di un brano sono state cambiate in due posti, l’app mostra entrambe e chiede quale tenere.',
         points: [
@@ -2915,6 +2939,7 @@ export default {
           'Invita qualcuno con un link, come lettore o come editor.',
           'Cambia cosa può fare qualcuno, o toglilo.',
           'Ritira un invito non ancora usato.',
+          'Un libro solo su questo dispositivo va prima online, e per questo serve un account: accedi, o creane uno.',
         ],
       },
       explorer: {

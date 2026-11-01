@@ -49,7 +49,9 @@ export default function ShareNeedsOnline({ store, bookId, bookTitle, accountStat
   return (
     <div className="est-sharing-body">
       <p className="t-small">{t('sharing.needsOnline', { book: bookTitle })}</p>
-      <p className="t-small">{t('books.putOnlineBody')}</p>
+      {/* What happens next, said once: signed out, that sharing needs an
+          account first; signed in, that it goes online private. */}
+      <p className="t-small">{t(offersSignIn ? 'sharing.needsOnlineAccount' : 'sharing.needsOnlineWhat')}</p>
       {failureKey ? (
         <p className="notice warn" role="alert">
           {t(failureKey)}

@@ -187,6 +187,8 @@ test('the setlist raw pane scrolls sideways inside itself to a long line’s end
   if (isPhone(testInfo)) return;
 
   await editSetlist(page);
+  // The file shows beside the editor when asked for.
+  await page.getByRole('button', { name: 'Show the file' }).click();
   const raw = page.locator('.setlist-raw');
   await expect(raw).toBeVisible();
   await expectFits(page);

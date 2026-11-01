@@ -206,6 +206,17 @@ time its chord appeared there; in a shared book that would put one person's
 habits into everyone's song at their next save. Writing them in is an
 explicit act instead (workflow 5).
 
+### Repeats
+
+The chart keeps a song's repeats as written (cifra.md §3), never expanded: a
+group opens on a double bar with two dots and closes on two dots and a double
+bar, its count (*×3*) over the closing bar; an ending's number sits over the
+bar it begins, under a bracket, as on paper; a cifra's brackets, `( … )`, and a
+line's count are written beside the chords they enclose; a heading's count
+follows the section's name (*A ×2*). A screen reader hears each in words —
+*repeat from here*, *back to the start of the repeat*, *3 times*, *ending 1* —
+and a repeated bar keeps its column in the aligned chart.
+
 ## Transposing
 
 The reading view can transpose a song, up or down by semitones. **It changes
@@ -234,7 +245,12 @@ whichever of the sharp or the flat spelling gives the song fewer accidentals.
 **It is remembered per song.** A singer does that song in D, every time. The
 transposition is kept in the home book, beside the variation in use, and is
 shown plainly while it applies — *transposed to D (+2)* — with a way back to
-the written key.
+the written key, and in full screen too, beside the title: on stage the chords
+must not look like the written ones without a word. The Transpose stepper
+reads the key it is in between − and + (*Key of C*, then *D♭ (+1)*). A song
+that names no key still says what a transposition does, by its first chord as
+written and as now read: *Transposed: C → D♭ (+1)*, never a bare number of
+semitones (the persona exploration of 2026-10-31).
 
 **It is for reading.** While transposed:
 

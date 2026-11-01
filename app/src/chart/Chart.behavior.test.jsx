@@ -251,6 +251,27 @@ describe('Chart — aligned measures and chord names', () => {
     expect([...container.querySelectorAll('.chart .m .g')].map((g) => g.textContent)).toEqual(['D7/A', 'G']);
   });
 
+  const REPEATS = '# T\n\n## A x2\n```\n|: Dm | G7 |1. C | A7 :|2. C | C |\n|: D | A7 :| x3\n( Cm  Am7 )\n```\n';
+
+  it('draws repeats as written, and says each in words (spec §3)', async () => {
+    const { container } = renderChart(<Chart model={parse(REPEATS)} />);
+    expect(container.querySelector('.sec-name')).toHaveTextContent('A ×2 2 times');
+    const [first, second] = container.querySelectorAll('.bargrid .barline');
+    const measures = [...first.querySelectorAll('.m')];
+    expect(measures.map((m) => m.className)).toEqual(['m rep-open', 'm', 'm', 'm rep-close', 'm', 'm']);
+    expect(measures[2].querySelector('.volta')).toHaveTextContent('1.');
+    expect(measures[4].querySelector('.volta')).toHaveTextContent('2.');
+    expect(within(measures[0]).getByText('repeat from here')).toHaveClass('visually-hidden');
+    expect(within(measures[3]).getByText(/back to the start of the repeat/)).toBeInTheDocument();
+    expect(second.querySelector('.m.rep-close .rep-count')).toHaveTextContent('×3');
+    expect(within(second).getByText(/3 times/)).toHaveClass('visually-hidden');
+    // A bracket is written beside its chord, hidden from the tree, said in words.
+    const run = container.querySelector('.runline');
+    expect([...run.querySelectorAll('.rep')].map((r) => r.textContent)).toEqual(['(', ')']);
+    expect(run.querySelectorAll('.rep[aria-hidden="true"]')).toHaveLength(2);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
   it('is axe-clean with an aligned block', async () => {
     const { container } = renderChart(<Chart model={parse(ALIGNED)} />);
     expect(await checkWcag21aa(container)).toHaveNoViolations();

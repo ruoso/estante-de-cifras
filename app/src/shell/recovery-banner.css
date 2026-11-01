@@ -8,10 +8,11 @@
   flex: none;
   flex-wrap: nowrap;
   margin: 0 calc(var(--u) * 2) var(--u);
-  padding: calc(var(--u) * 1.25) calc(var(--u) * 1.5);
+  padding: var(--u) calc(var(--u) * 1.5);
   gap: calc(var(--u) * 1.25);
-  align-items: flex-start;
-  font-size: 14px;
+  align-items: center;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 /* The shell-wide wrapper and the wide main pane start the banner at the top
@@ -27,14 +28,24 @@
   color: var(--unsaved);
 }
 
-/* The sentence, then *Add one* under it, as the boards draw it. */
+/* The sentence with *Add one* beside it: the banner cannot be dismissed
+   (workflow 13), so it takes as little of the screen as it can — one row,
+   never a block above every song (the persona exploration of 2026-10-31). */
 .recovery-banner > .recovery-banner-body {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--u);
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+}
+
+.recovery-banner-body > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.recovery-banner-body > .btn {
+  flex: none;
 }
 
 /* A screen without header chrome (a song being read, the editor, history…):

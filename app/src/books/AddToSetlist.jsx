@@ -258,7 +258,6 @@ export default function AddToSetlist({ store, song, onClose, onOpenSetlist = () 
                       ),
                     })}
                   </span>
-                  <span className="t-small t-mono">{song.path}</span>
                 </div>
               ) : null}
 

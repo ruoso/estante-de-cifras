@@ -212,6 +212,20 @@
 .reading-exit-full {
   flex: none;
 }
+/* A transposed song's chip: beside the title where there is room, else on a
+   line of its own under it — never squeezing the title out. */
+.reading-fullscreen-top {
+  flex-wrap: wrap;
+}
+.reading-fullscreen-key {
+  order: 3;
+  flex: none;
+}
+@media (max-width: 600px) {
+  .reading-fullscreen-key {
+    flex-basis: 100%;
+  }
+}
 /* The waiting footnote (W08#4 L153-156): right-aligned, quiet, no banner. */
 .reading-update-waiting {
   display: flex;

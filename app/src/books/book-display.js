@@ -202,15 +202,26 @@ export function savableBooks(shelf, untitled) {
 /**
  * The book a new setlist starts in when nothing chose one (workflow 12
  * §Building one; workflow 3 §Which book): *My songs*, found by id
- * (`mySongsIdFor`, never by its label), when it is among the savable books,
- * else the first savable book, else `null`.
+ * (`mySongsIdFor`, never by its label), when it is among the savable books —
+ * unless `songCounts` says it holds no song while another savable book holds
+ * some, when the fullest such book — else the first savable book, else `null`.
  *
  * @param {{ books?: Object, local?: Object, mySongs?: Object }} shelf the `shelf` slice
  * @param {Array<{ id: string }>} savable `savableBooks(shelf, …)`
+ * @param {Object<string, number>} [songCounts] the `songCounts` slice
  * @returns {string | null}
  */
-export function newSetlistBook(shelf, savable) {
+export function newSetlistBook(shelf, savable, songCounts = null) {
   const mine = mySongsIdFor(shelf);
+  const count = (id) => (typeof songCounts?.[id] === 'number' ? songCounts[id] : null);
+  // A setlist holds songs of its own book only, so an empty *My songs* is no
+  // place to start one while another book has songs: the book with the most
+  // songs is chosen instead (the persona exploration of 2026-10-31).
+  if (mine && savable.some((b) => b.id === mine) && count(mine) !== 0) return mine;
+  const fullest = savable
+    .filter((b) => (count(b.id) ?? 0) > 0)
+    .sort((a, b) => count(b.id) - count(a.id))[0];
+  if (fullest) return fullest.id;
   if (mine && savable.some((b) => b.id === mine)) return mine;
   return savable[0]?.id ?? null;
 }

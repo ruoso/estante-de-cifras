@@ -507,10 +507,16 @@ export default function SongEditor({
     // voicings appendix the new section must land before the rule, or
     // canonicalise drops it on save (section-insert.js; spec §1.5/§8.2), padded
     // by a blank line on each side.
-    const head = '## \n```\n';
-    const { from, insert, offset } = sectionInsertion(view.state.doc.toString(), `${head}\n\`\`\``);
-    const cursor = from + offset + head.length; // the empty line between the fences
-    view.dispatch({ changes: { from, insert }, selection: { anchor: cursor }, scrollIntoView: true });
+    // The new section comes named — *Section 2*, numbered after the ones there —
+    // with the name selected, so typing renames it and a section left as it is
+    // still reads as one (never "(untitled)" in what a save says changed).
+    const doc = view.state.doc.toString();
+    const count = doc.split('\n').filter((line) => /^##\s/.test(line) && !/^##\s*Voicings\b/i.test(line)).length;
+    const name = t('editor.source.newSectionName', { n: count + 1 });
+    const head = `## ${name}\n\`\`\`\n`;
+    const { from, insert, offset } = sectionInsertion(doc, `${head}\n\`\`\``);
+    const nameAt = from + offset + 3;
+    view.dispatch({ changes: { from, insert }, selection: { anchor: nameAt, head: nameAt + name.length }, scrollIntoView: true });
     view.focus();
   };
 

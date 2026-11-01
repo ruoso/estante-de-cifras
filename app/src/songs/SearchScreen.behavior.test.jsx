@@ -101,7 +101,7 @@ describe('SearchScreen (behavior)', () => {
     );
 
     // Marked by the WORD "Setlist" (status by a word, never colour alone).
-    expect(screen.getByText('Setlist')).toBeInTheDocument();
+    expect(screen.getByText('Setlist', { selector: '.badge' })).toBeInTheDocument();
     // Title and where it lives — never the *.setlist.md file name (DIRECTION §4 L470).
     expect(screen.getByText('Minha Noite')).toBeInTheDocument();
     expect(screen.getByText('Choros da Lia · shows/')).toBeInTheDocument();

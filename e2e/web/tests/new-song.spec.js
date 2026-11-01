@@ -101,9 +101,9 @@ test('from search (no match): Create "{query}" opens the template titled with th
   await expect(bar.locator('.title')).toHaveText('Moonlit Pier');
   await expect(bar.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
   if (testInfo.project.name === 'phone') {
-    // Unsaved from the start: the strip under the header (Decision 2).
+    // Not saved yet from the start: the strip under the header (Decision 2).
     const strip = page.getByRole('status').filter({ hasText: 'Kept on this device' });
-    await expect(strip).toContainText('unsaved changes');
+    await expect(strip).toContainText('not saved yet');
   }
   await mockup(page, 'W03-write-a-new-song', 2);
   await checkA11y(); // the new song's editor
@@ -221,6 +221,8 @@ test('the header follows the first heading, and the first save is a dialog on ta
   // songs.first_save_fields: the first save names the book and the file it
   // takes, read-only, with the hint (W03#4 L179-187) — before the frame.
   await expect(dialog.getByRole('textbox', { name: 'Book' })).toHaveValue('My songs');
+  // The file is folded under a line of its own.
+  await dialog.getByText('The song’s file').click();
   const fileName = dialog.getByRole('textbox', { name: 'File name' });
   await expect(fileName).toHaveValue('mare-mansa.cifra.md');
   await expect(fileName).toHaveAccessibleDescription(FILE_NAME_HINT);
@@ -246,6 +248,7 @@ test('a second song with a taken title is named with -2', async ({ page, checkA1
   await replaceSong(page, MARE_MANSA);
   await saveThroughSheet(page, {
     onSheet: async (sheet) => {
+      await sheet.getByText('The song’s file').click();
       await expect(sheet.getByRole('textbox', { name: 'File name' })).toHaveValue('mare-mansa.cifra.md');
     },
   });
@@ -256,6 +259,7 @@ test('a second song with a taken title is named with -2', async ({ page, checkA1
   await saveThroughSheet(page, {
     onSheet: async (sheet) => {
       await expect(sheet.getByRole('textbox', { name: 'Book' })).toHaveValue('My songs');
+      await sheet.getByText('The song’s file').click();
       await expect(sheet.getByRole('textbox', { name: 'File name' })).toHaveValue('mare-mansa-2.cifra.md');
       await checkA11y(); // the first save open, with the fields
     },

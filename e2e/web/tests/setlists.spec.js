@@ -268,10 +268,10 @@ test('a deleted song becomes a missing item, pointed at another song and saved',
   // Point it at a present song via the in-book search.
   await page.getByRole('button', { name: 'Point it at a song' }).first().click();
   await page.getByRole('searchbox', { name: 'Search for a song' }).fill('Walking');
-  await expect(page.getByRole('button', { name: /walking-to-the-market/ }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Walking/ }).first()).toBeVisible();
   await checkA11y(); // the in-book picker, its results listed (Estante and Palco, shell.palco_contrast)
   await mockup(page, 'W12-setlists', 4); // a missing link being repointed (computer)
-  await page.getByRole('button', { name: /walking-to-the-market/ }).first().click();
+  await page.getByRole('button', { name: /^Walking/ }).first().click();
   await page.getByRole('button', { name: 'Point here' }).click();
 
   // The item is actually fixed: no missing notice or repoint action remains,
@@ -463,10 +463,10 @@ test('a setlist made from the Setlists tab opens in its editor, and songs go in 
 
   // Songs go in, from the setlist's own book.
   await addSongInEditor(page, 'Morning');
-  await page.getByRole('button', { name: /morning-on-the-porch/ }).first().click();
+  await page.getByRole('button', { name: /^Morning/ }).first().click();
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await addSongInEditor(page, 'Walking');
-  await page.getByRole('button', { name: /walking-to-the-market/ }).first().click();
+  await page.getByRole('button', { name: /^Walking/ }).first().click();
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   const names = page.locator('.setlist-edit-row .name');
   await expect(names).toHaveText(['Morning on the Porch', 'Walking to the Market']);

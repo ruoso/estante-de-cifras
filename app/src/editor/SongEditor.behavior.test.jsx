@@ -82,7 +82,7 @@ describe('SongEditor', () => {
     expect(editorRef.current.state.doc.toString()).not.toContain('Em');
   });
 
-  it('adds a section and puts the cursor on the empty line inside its fence, by keyboard', () => {
+  it('adds a named section, its name selected to retype, by keyboard', () => {
     const { store, emit } = makeStore();
     emit(event(EventKind.PREFERENCES, { notation: { value: 'brazilian', at: 1 } }));
     const editorRef = { current: null };
@@ -95,10 +95,14 @@ describe('SongEditor', () => {
     });
 
     const state = editorRef.current.state;
-    const cursorLine = state.doc.lineAt(state.selection.main.head);
-    expect(cursorLine.text).toBe(''); // the empty line
-    expect(state.doc.line(cursorLine.number - 1).text).toBe('```'); // fence open above
-    expect(state.doc.line(cursorLine.number + 1).text).toBe('```'); // fence close below
+    const { from, to } = state.selection.main;
+    const line = state.doc.lineAt(from);
+    // The template's Intro is the first section, so this is the second.
+    expect(line.text).toBe('## Section 2');
+    expect(state.sliceDoc(from, to)).toBe('Section 2'); // typing replaces it
+    expect(state.doc.line(line.number + 1).text).toBe('```'); // its fence below
+    expect(state.doc.line(line.number + 2).text).toBe('');
+    expect(state.doc.line(line.number + 3).text).toBe('```');
   });
 
   it('adds a section in the body (not the voicings appendix) on a song with voicings, and the section survives a save', async () => {
@@ -138,7 +142,7 @@ describe('SongEditor', () => {
     const doc = state.doc.toString();
     // The new section's heading + empty fence lands in the chart, before the
     // rule and the voicing block — not at the document end inside the appendix.
-    const headingAt = doc.indexOf('\n## \n'); // the new empty `## ` heading line
+    const headingAt = doc.indexOf('\n## Section 2\n'); // the new section's heading line
     const ruleAt = doc.indexOf('\n---\n');
     const voicingsAt = doc.indexOf('## Voicings:');
     expect(headingAt).toBeGreaterThan(-1);
@@ -147,23 +151,20 @@ describe('SongEditor', () => {
     // A blank line separates the new section from the following rule.
     expect(doc).toContain('```\n\n---\n');
 
-    // The cursor sits on the empty line inside the new fence.
-    const cursorLine = state.doc.lineAt(state.selection.main.head);
-    expect(cursorLine.text).toBe('');
-    expect(state.doc.line(cursorLine.number - 1).text).toBe('```'); // fence open above
-    expect(state.doc.line(cursorLine.number + 1).text).toBe('```'); // fence close below
+    // The new section's name is selected, to retype.
+    expect(state.sliceDoc(state.selection.main.from, state.selection.main.to)).toBe('Section 2');
 
     // The save round-trips the new section: canonicalising the buffer the way
-    // the Worker's save does (write ∘ parse) keeps the section in the chart (an
-    // empty section serialises as `##`), before the voicings part — whereas the
-    // same section appended AFTER the rule is dropped (spec §8.2).
+    // the Worker's save does (write ∘ parse) keeps the section in the chart,
+    // before the voicings part — whereas the same section appended AFTER the
+    // rule is dropped (spec §8.2).
     const saved = write(parse(doc));
-    const savedHeadingAt = saved.indexOf('\n##\n');
+    const savedHeadingAt = saved.indexOf('\n## Section 2\n');
     const savedVoicingsAt = saved.indexOf('## Voicings:');
     expect(savedHeadingAt).toBeGreaterThan(-1);
     expect(savedHeadingAt).toBeLessThan(savedVoicingsAt);
-    const preFix = `${SONG}\n## \n\`\`\`\n\n\`\`\``; // the pre-fix behaviour: append at document end
-    expect(write(parse(preFix))).not.toContain('\n##\n');
+    const preFix = `${SONG}\n## Section 2\n\`\`\`\n\n\`\`\``; // the pre-fix behaviour: append at document end
+    expect(write(parse(preFix))).not.toContain('\n## Section 2\n');
 
     // No UI change — the editor stays accessible.
     expect(await checkWcag21aa(container)).toHaveNoViolations();
@@ -879,7 +880,7 @@ describe('SongEditor under a host-owned chrome', () => {
 
     // The published Add section inserts a section.
     act(() => addSectionRef.current());
-    expect(editorRef.current.state.doc.toString()).toMatch(/## \n```\n\n```\n?$/);
+    expect(editorRef.current.state.doc.toString()).toMatch(/## Section 2\n```\n\n```\n?$/);
 
     // A debounced write fires onWrite after the WRITE is sent.
     const writes = () => sent.filter((m) => m.kind === CommandKind.WRITE).length;

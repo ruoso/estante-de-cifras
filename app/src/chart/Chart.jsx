@@ -91,6 +91,59 @@ function ChordSlot({ text: written, token, voice: writtenVoice, ctx, glyphClass 
   return <Glyph text={text} voice={voice} speakSlot={ctx.speakSlot} className={glyphClass} />;
 }
 
+// A repeat mark beside a chord (spec §3, layout.js `marksAround`): the mark as
+// written, hidden from the tree, and what it means said in words in its place.
+function markGlyph(mark) {
+  switch (mark.kind) {
+    case 'open':
+      return mark.notation === 'barline' ? '|:' : '(';
+    case 'close':
+      return mark.notation === 'barline' ? ':|' : ')';
+    case 'count':
+      return `×${mark.times}`;
+    default:
+      return `${mark.number}.`;
+  }
+}
+
+function markSpoken(mark) {
+  switch (mark.kind) {
+    case 'open':
+      return t('chart.spoken.repeatOpen');
+    case 'close':
+      return t('chart.spoken.repeatClose');
+    case 'count':
+      return t('chart.spoken.times', { n: mark.times });
+    default:
+      return t('chart.spoken.ending', { n: mark.number });
+  }
+}
+
+function Marks({ marks }) {
+  if (!marks) return null;
+  return marks.map((mark, i) => (
+    <Fragment key={i}>
+      <span className="rep" aria-hidden="true">
+        {markGlyph(mark)}
+      </span>
+      <span className="visually-hidden"> {markSpoken(mark)} </span>
+    </Fragment>
+  ));
+}
+
+// A chord slot with the repeat marks written beside it, when it has any.
+function MarkedSlot({ item, text, glyphClass, ctx }) {
+  const slot = <ChordSlot text={text} token={item.token} voice={item.voice} ctx={ctx} glyphClass={item.before || item.after ? null : glyphClass} />;
+  if (!item.before && !item.after) return slot;
+  return (
+    <span className={glyphClass}>
+      <Marks marks={item.before} />
+      {slot}
+      <Marks marks={item.after} />
+    </span>
+  );
+}
+
 // One sung segment: the chord in `.c` stacked over its words in `.w`, DOM order
 // chord-then-words so the reading is chord-then-word-run (§2). The spoken name
 // sits before the word-run; the centred-hyphen `.fill` is decorative and hidden
@@ -100,7 +153,7 @@ function ChordSlot({ text: written, token, voice: writtenVoice, ctx, glyphClass 
 function Segment({ segment, ctx }) {
   return (
     <span className={segment.tail ? 's tail' : 's'}>
-      <ChordSlot text={segment.chord} token={segment.token} voice={segment.voice} ctx={ctx} glyphClass="c" />
+      <MarkedSlot item={segment} text={segment.chord} ctx={ctx} glyphClass="c" />
       <span className="w">
         {segment.words}
         {segment.hyphen ? <span className="fill" aria-hidden="true" /> : null}
@@ -115,7 +168,7 @@ function Segment({ segment, ctx }) {
 // does not draw, kept so the measure reads as the joined string still.
 function Cells({ cells, ctx, spans }) {
   return cells.map((cell, j) => {
-    const slot = <ChordSlot text={cell.text} token={cell.token} voice={cell.voice} ctx={ctx} glyphClass="g" />;
+    const slot = <MarkedSlot item={cell} text={cell.text} ctx={ctx} glyphClass="g" />;
     return (
       <Fragment key={j}>
         {j > 0 ? ' ' : null}
@@ -170,11 +223,63 @@ function BarGrid({ grid, children }) {
   );
 }
 
+// A measure's bar-line repeats (layout.js `measureMarks`): the rules themselves
+// are drawn by the theme from the class — a double rule with its two dots, as on
+// a written chart — and the ending's number and the group's count sit over the
+// measure. Every piece is positioned out of the measure's grid, so a block's
+// columns line up whether or not a bar repeats; each is said in words.
+function measureClass(marks) {
+  if (!marks) return 'm';
+  return `m${marks.open ? ' rep-open' : ''}${marks.close ? ' rep-close' : ''}`;
+}
+
+function RuleMarks({ marks, side }) {
+  if (!marks) return null;
+  if (side === 'start') {
+    return (
+      <>
+        {marks.ending ? (
+          <span className="volta" aria-hidden="true">
+            {marks.ending}.
+          </span>
+        ) : null}
+        {marks.ending ? <span className="visually-hidden">{t('chart.spoken.ending', { n: marks.ending })} </span> : null}
+        {marks.open ? <span className="visually-hidden">{t('chart.spoken.repeatOpen')} </span> : null}
+      </>
+    );
+  }
+  return (
+    <>
+      {marks.close ? <span className="visually-hidden"> {t('chart.spoken.repeatClose')}</span> : null}
+      {marks.count ? (
+        <>
+          <span className="rep-count" aria-hidden="true">
+            ×{marks.count}
+          </span>
+          <span className="visually-hidden"> {t('chart.spoken.times', { n: marks.count })}</span>
+        </>
+      ) : null}
+    </>
+  );
+}
+
 function Row({ row, mark, ctx }) {
   const markCls = mark ? ` mark-${mark}` : '';
   switch (row.type) {
     case 'section':
-      return <div className="sec-name">{row.name}</div>;
+      return (
+        <div className="sec-name">
+          {row.name}
+          {row.times ? (
+            <>
+              <span className="sec-times" aria-hidden="true">
+                {' '}×{row.times}
+              </span>
+              <span className="visually-hidden"> {t('chart.spoken.times', { n: row.times })}</span>
+            </>
+          ) : null}
+        </div>
+      );
     case 'sung':
       return (
         <div className={`sung${markCls}`}>
@@ -189,17 +294,20 @@ function Row({ row, mark, ctx }) {
       // stated bar number (cifra.md §2.8) leads its measure. The `|` is a CSS
       // border, never a character, so it is never read.
       return (
-        <div className={`barline${markCls}`} role="list">
+        <div className={`barline${markCls}${row.marks?.some((m) => m.ending || m.count) ? ' voltas' : ''}`} role="list">
           {row.cells.map((cells, i) => {
             const number = row.numbers?.[i];
             const stated = number?.stated && number?.number != null;
             const width = row.grid?.widths[i];
+            const marks = row.marks?.[i];
             return (
-              <span key={i} className="m" role="listitem" style={width ? { gridColumn: `span ${width}` } : undefined}>
+              <span key={i} className={measureClass(marks)} role="listitem" style={width ? { gridColumn: `span ${width}` } : undefined}>
                 {stated ? (
                   <span className="visually-hidden">{t('chart.spoken.bar', { n: number.number })} </span>
                 ) : null}
+                <RuleMarks marks={marks} side="start" />
                 <Cells cells={cells} ctx={ctx} spans={row.spans?.[i]} />
+                <RuleMarks marks={marks} side="end" />
               </span>
             );
           })}

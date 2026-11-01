@@ -66,7 +66,7 @@ describe('BookSongs — a book’s page (books.book_page)', () => {
     expect(lastCommand(sent, CommandKind.BROWSE).payload).toEqual({ scope: { books: ['l-ex'] } });
 
     expect(screen.getByRole('heading', { level: 1, name: 'Exercícios' })).toBeInTheDocument();
-    expect(container.querySelector('.book-bar')).toHaveTextContent('On this device · can save · 2 songs');
+    expect(container.querySelector('.book-bar')).toHaveTextContent('On this device · you can edit · 2 songs');
 
     // Every song, flat: no book section to open, no book named on each row; a
     // song in a folder says its folder.

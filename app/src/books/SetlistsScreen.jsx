@@ -43,7 +43,8 @@ export default function SetlistsScreen({ store, onOpenSetlist = () => {} }) {
   const creatingRef = useRef(null);
 
   const savable = useMemo(() => savableBooks(shelf, t('books.untitled')), [shelf]);
-  const defaultBookId = useMemo(() => newSetlistBook(shelf, savable), [shelf, savable]);
+  const songCounts = useSlice(store, 'songCounts');
+  const defaultBookId = useMemo(() => newSetlistBook(shelf, savable, songCounts), [shelf, savable, songCounts]);
 
   useEffect(() => {
     inFlightRef.current = true;

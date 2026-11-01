@@ -28,9 +28,9 @@ panel, and *Back to* returns to the page's own. The pages it covers:
 | Reading a song  | the reading view (workflow 2)                            |
 | Editing a song  | the editor (workflows 3, 4)                              |
 | Arranging       | arranging for an instrument (workflow 5)                 |
-| The wizard      | choosing every shape at once (workflow 5)                |
+| Choosing every shape | choosing every shape at once, the wizard (workflow 5) |
 | History         | a song's history (workflow 6)                            |
-| Conflicts       | when two changes meet (workflow 9)                       |
+| When two changes meet | conflicts (workflow 9)                          |
 | Files           | a book's files (workflow 14)                             |
 | Sharing         | the people of a book and invitations (workflow 10)       |
 | Chord explorer  | every shape of one chord (workflow 16)                   |

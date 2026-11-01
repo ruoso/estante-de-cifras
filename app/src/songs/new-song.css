@@ -11,6 +11,9 @@
 .new-song .est-editor {
   flex: 1;
   min-height: 0;
+  /* The same gutter as the bars above and the note below, so the text's frame
+     and the bar's last button never sit against the window's edge. */
+  padding: calc(var(--u) * 1.5) calc(var(--u) * 2) 0;
 }
 
 /* The which-book bar above the editor (W03): an icon, the "In {book}" label,

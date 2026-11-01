@@ -151,14 +151,14 @@ test.describe('add by link', () => {
       await makeAccount(joiner.page);
 
       await expect(joiner.page.getByRole('button', { name: /^Choros da Ana/ })).toBeVisible();
-      await expect(joiner.page.getByText('On Estante · can save')).toBeVisible();
+      await expect(joiner.page.getByText('On Estante · you can edit')).toBeVisible();
       expect(await analyzeBothThemes(joiner.page)).toEqual([]); // axe: the shelf
       await mockup(joiner.page, 'W07-add-a-book', 1);
 
       // 2) The reader invitation: already signed in, clones as reader.
       await acceptInvitation(joiner.page, readerLink, { signedIn: true });
       await expect(joiner.page.getByRole('button', { name: /^Turma de quarta/ })).toBeVisible();
-      await expect(joiner.page.getByText('On Estante · reader')).toBeVisible();
+      await expect(joiner.page.getByText('On Estante · read only')).toBeVisible();
 
       // 3) A withdrawn link: "This link doesn't open a book", naming nothing,
       // in a dialog over the shelf (books.invited_presentation; W01 #4).
@@ -251,7 +251,7 @@ test.describe('add by link', () => {
       await signedInDevice(first.page);
       await acceptInvitation(first.page, link, { signedIn: true });
       await expect(first.page.getByRole('button', { name: /^Turma de quinta/ })).toBeVisible();
-      await expect(first.page.getByText('On Estante · reader')).toBeVisible();
+      await expect(first.page.getByText('On Estante · read only')).toBeVisible();
 
       // The owner's roster: the invitation is used up, one person joined.
       dialog = await openSharing(page, 'Turma de quinta');
@@ -308,7 +308,7 @@ test.describe('add by link', () => {
 
       // The book is cloned onto the shelf with the invitation's role.
       await expect(joiner.page.getByRole('button', { name: /^Choros da Ana/ })).toBeVisible();
-      await expect(joiner.page.getByText('On Estante · reader')).toBeVisible();
+      await expect(joiner.page.getByText('On Estante · read only')).toBeVisible();
     } finally {
       await joiner.context.close();
     }
@@ -447,7 +447,7 @@ test.describe('add by link', () => {
       // The row's meta leads with where it lives, then the owner's can-save
       // word, then its song count (books.row_opens_songs,
       // books.owner_can_save; workflow 7 L19-23).
-      await expect(other.page.getByText(/^On Estante · can save · (\d+ songs?|still loading)$/)).toBeVisible();
+      await expect(other.page.getByText(/^On Estante · you can edit · (\d+ songs?|still loading)$/)).toBeVisible();
     } finally {
       await other.context.close();
     }

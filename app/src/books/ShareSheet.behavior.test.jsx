@@ -347,7 +347,7 @@ describe('a song’s Share sheet on a book only on this device', () => {
     const sheet = await screen.findByRole('dialog', { name: 'Share Carinhoso' });
     expect(within(sheet).getByText('My songs is only on this device. Put it online to invite people.')).toBeInTheDocument();
     expect(
-      within(sheet).getByText('Only on this device: nobody else can see it. Put it online to invite people — up to 50.'),
+      within(sheet).getByText('Sharing needs an account: sign in, or make one, and the book goes online private — only the people you invite, up to 50, can open it.'),
     ).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Sign in to put it online' })).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Put online' })).toBeNull();

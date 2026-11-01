@@ -176,6 +176,25 @@
   flex: none;
   margin-right: calc(var(--u) * 0.75);
   color: var(--ink-2);
+  gap: calc(var(--u) * 0.5);
+}
+.search-row-chev {
+  flex: none;
+  color: var(--ink-2);
+}
+/* The Add-to-setlist word shows only where a row has room for it. */
+.search-add-word {
+  display: none;
+}
+@media (min-width: 700px) {
+  .search-add-setlist {
+    width: auto;
+    padding: 0 calc(var(--u) * 1.25);
+  }
+  .search-add-word {
+    display: inline;
+    font: 600 13px var(--font-ui);
+  }
 }
 
 .book-trigger .caret {

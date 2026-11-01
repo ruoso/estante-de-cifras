@@ -41,6 +41,7 @@ function BackIcon() {
 export default function EditorChrome({
   title,
   unsaved,
+  isNew,
   layout,
   backLabel,
   onBack,
@@ -51,7 +52,9 @@ export default function EditorChrome({
   children,
 }) {
   const phone = layout === 'phone';
-  const mark = <span className="badge unsaved dot">{t('editor.unsaved')}</span>;
+  // A song never saved has no changes yet, only itself: it is *not saved yet*,
+  // as a new setlist is; one that was saved has *unsaved changes*.
+  const mark = <span className="badge unsaved dot">{t(isNew ? 'editor.notSavedYet' : 'editor.unsaved')}</span>;
   return (
     <div className="screen new-song editor-chrome">
       <div className="appbar">

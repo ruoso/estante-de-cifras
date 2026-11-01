@@ -176,7 +176,7 @@ describe('chartRows — sung lines', () => {
     ]);
   });
 
-  it('drops the non-attached structural tokens (mark, count, ending) — they take no segment', () => {
+  it('writes the structural tokens (mark, count) beside the chords around them — they take no segment', () => {
     const rows = chartRows(
       model([
         section('Verse', [
@@ -202,12 +202,22 @@ describe('chartRows — sung lines', () => {
       ]),
     );
     const sung = rows.find((r) => r.type === 'sung');
-    // The dropped structural tokens do not shift the chord's raw item index: Cm
-    // is item 3 (after the nochord, count and mark), the index cifra-md's §8.5
-    // `itemAt` uses.
+    // The structural tokens do not shift the chord's raw item index: Cm is item 3
+    // (after the nochord, count and mark), the index cifra-md's §8.5 `itemAt`
+    // uses. The count closes on the chord before it, the bracket opens on the
+    // chord after it (spec §3).
     expect(sung.segments).toEqual([
-      { chord: 'N.C.', words: 'la ', hyphen: false, tail: false, token: null, voice: { type: 'nochord' } },
       {
+        chord: 'N.C.',
+        words: 'la ',
+        hyphen: false,
+        tail: false,
+        token: null,
+        voice: { type: 'nochord' },
+        after: [{ kind: 'count', times: 2 }],
+      },
+      {
+        before: [{ kind: 'open', notation: 'bracket' }],
         chord: 'Cm',
         words: 'la',
         hyphen: false,
@@ -241,6 +251,36 @@ describe('chartRows — chord-only lines', () => {
     const bars = rows.find((r) => r.type === 'bars');
     expect(bars.measures).toEqual(['C Am', 'F', 'G']);
     expect(bars.address).toEqual({ section: 0, part: 0, line: 0 });
+  });
+
+  it('keeps a chart\'s repeats as written: bar-line repeats, counts and endings on the measure, brackets beside the chord, a heading\'s count beside the name (spec §3)', () => {
+    const fence = '```';
+    const rows = chartRows(
+      parse(
+        `# T\n\n## A x2\n${fence}\n|: D | A7 :| x2\n|: Dm | G7 |1. C | A7 :|2. C | C |\n( Cm  Am7 )\n${fence}\n`,
+      ),
+    );
+    expect(rows[0]).toEqual({ type: 'section', name: 'A', times: 2 });
+    const [first, second] = rows.filter((r) => r.type === 'bars');
+    expect(first.marks).toEqual([
+      { open: true, close: false, count: null, ending: null },
+      { open: false, close: true, count: 2, ending: null },
+    ]);
+    // The rule draws them, so no cell carries them too.
+    expect(first.cells.flat().some((cell) => cell.before || cell.after)).toBe(false);
+    expect(second.marks.map((m) => m.ending)).toEqual([null, null, 1, null, 2, null]);
+    expect(second.marks[3].close).toBe(true);
+    const run = rows.find((r) => r.type === 'run');
+    expect(run.tokens.map((cell) => [cell.before, cell.text, cell.after])).toEqual([
+      [[{ kind: 'open', notation: 'bracket' }], 'Cm', undefined],
+      [undefined, 'Am7', [{ kind: 'close', notation: 'bracket' }]],
+    ]);
+  });
+
+  it('marks no measure on a row without repeats', () => {
+    const fence = '```';
+    const bars = chartRows(parse(`# T\n\n## A\n${fence}\nC | G | Am | F\n${fence}\n`)).find((r) => r.type === 'bars');
+    expect(bars.marks).toBeUndefined();
   });
 
   it('carries each chord-only cell its pressable token with the §8.5 occurrence (arrange seam, Decision 3)', () => {

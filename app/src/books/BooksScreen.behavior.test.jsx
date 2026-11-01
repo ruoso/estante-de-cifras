@@ -70,7 +70,7 @@ const lastCommand = (sent, kind) => [...sent].reverse().find((m) => m.kind === k
 describe('BooksScreen (behavior)', () => {
   // books.owner_can_save: a book the signed-in person put online (or forked) is
   // shelved with role `owner`; its row says *can save* in a word (workflow 7 L19).
-  it('an owner-role row reads *On Estante · can save · …* (books.owner_can_save, workflow 7 L19)', async () => {
+  it('an owner-role row reads *On Estante · you can edit · …* (books.owner_can_save, workflow 7 L19)', async () => {
     const { store, emit } = makeStore();
     const { container } = renderScreen(store);
     emit(
@@ -80,7 +80,7 @@ describe('BooksScreen (behavior)', () => {
       }),
     );
     const row = screen.getByText('Roda de Sábado').closest('.book-row');
-    expect(within(row).getByText('On Estante · can save · still loading')).toBeInTheDocument();
+    expect(within(row).getByText('On Estante · you can edit · still loading')).toBeInTheDocument();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
@@ -101,8 +101,8 @@ describe('BooksScreen (behavior)', () => {
     // Where it lives and can save are words, never colour alone; with no count
     // yet the meta says *still loading* (books.row_opens_songs; workflow 7
     // L21-23).
-    expect(screen.getByText('On this device · can save · still loading')).toBeInTheDocument();
-    expect(screen.getByText('On Estante · can save · still loading')).toBeInTheDocument();
+    expect(screen.getByText('On this device · you can edit · still loading')).toBeInTheDocument();
+    expect(screen.getByText('On Estante · you can edit · still loading')).toBeInTheDocument();
 
     // Ordered by position: the local book (0) before the shared book (1).
     const titles = [...container.querySelectorAll('.book-row .name')].map((n) => n.textContent);
@@ -436,19 +436,19 @@ describe('BooksScreen (behavior)', () => {
 
   // books.row_opens_songs — the row says how many songs the book holds, from
   // the Worker's count on INDEX_STATUS (workflow 7 L21-23).
-  it('the row reads *On this device · can save · 2 songs*, and *still loading* while the book builds (workflow 7 L21-23)', async () => {
+  it('the row reads *On this device · you can edit · 2 songs*, and *still loading* while the book builds (workflow 7 L21-23)', async () => {
     const { store, emit } = makeStore();
     const { container } = renderScreen(store);
     emit(event(EventKind.SHELF, { books: {}, local: { 'l-1': { title: reg('Exercícios'), position: reg(0) } } }));
 
     emit(event(EventKind.INDEX_STATUS, { bookId: 'l-1', state: 'ready', songs: 2 }));
-    expect(screen.getByText('On this device · can save · 2 songs')).toBeInTheDocument();
+    expect(screen.getByText('On this device · you can edit · 2 songs')).toBeInTheDocument();
 
     emit(event(EventKind.INDEX_STATUS, { bookId: 'l-1', state: 'building' }));
-    expect(screen.getByText('On this device · can save · still loading')).toBeInTheDocument();
+    expect(screen.getByText('On this device · you can edit · still loading')).toBeInTheDocument();
 
     emit(event(EventKind.INDEX_STATUS, { bookId: 'l-1', state: 'ready', songs: 1 }));
-    expect(screen.getByText('On this device · can save · 1 song')).toBeInTheDocument();
+    expect(screen.getByText('On this device · you can edit · 1 song')).toBeInTheDocument();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
@@ -570,7 +570,7 @@ describe('BooksScreen (behavior)', () => {
       expect(screen.getAllByText('Choros da Ana')).toHaveLength(1);
       // The fork is the user's own (role `owner`): it says *can save*
       // (books.owner_can_save, workflow 7 L19).
-      expect(screen.getByText('On Estante · can save · still loading')).toBeInTheDocument();
+      expect(screen.getByText('On Estante · you can edit · still loading')).toBeInTheDocument();
       expect(screen.getByText('from Choros da Ana')).toBeInTheDocument();
       expect(screen.queryByText(/new save/)).toBeNull();
 
@@ -714,9 +714,9 @@ describe('BooksScreen on a new device (account.new_device, behavior)', () => {
     expect(within(rowOf('Valsas')).getByText('next in line')).toBeInTheDocument();
     // The owner-role rows say *can save*, the reader one *reader* — words
     // (books.owner_can_save, workflow 7 L19).
-    expect(within(rowOf('Banda do Bairro')).getByText(/^On Estante · can save · /)).toBeInTheDocument();
-    expect(within(rowOf('Valsas')).getByText(/^On Estante · can save · /)).toBeInTheDocument();
-    expect(within(rowOf('Choros da Ana')).getByText(/^On Estante · reader · /)).toBeInTheDocument();
+    expect(within(rowOf('Banda do Bairro')).getByText(/^On Estante · you can edit · /)).toBeInTheDocument();
+    expect(within(rowOf('Valsas')).getByText(/^On Estante · you can edit · /)).toBeInTheDocument();
+    expect(within(rowOf('Choros da Ana')).getByText(/^On Estante · read only · /)).toBeInTheDocument();
     // Only the cloning book draws a bar.
     expect(screen.getAllByRole('progressbar')).toHaveLength(1);
     // The shelf's count is announced politely.

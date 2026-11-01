@@ -237,7 +237,7 @@ describe('the editor chrome as drawn (songs.editor_chrome; W04 board; workflow 4
     expect(within(bar).queryByRole('button', { name: 'Save' })).toBeNull();
     // The bottom bar's Add section is the editor's.
     act(() => fireEvent.click(within(bottom).getByRole('button', { name: 'Add section' })));
-    expect(editorRef.current.state.doc.toString()).toMatch(/## \n```\n\n```\n?$/);
+    expect(editorRef.current.state.doc.toString()).toMatch(/## Section 3\n```\n\n```\n?$/);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     // Save opens the bottom sheet.

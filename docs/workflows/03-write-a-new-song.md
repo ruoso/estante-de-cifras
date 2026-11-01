@@ -23,7 +23,12 @@ workflow 5; editing it afterwards is workflow 4.
 
 A new song is a new file in the working copy of its book. It is safe from the
 first keystroke, and it appears in search with an *unsaved* badge like any
-other unsaved work.
+other unsaved work. Its editor says **not saved yet**, as a new setlist does,
+rather than *unsaved changes*: nothing has changed yet, it is only new.
+
+Its first save names the book it goes to; the file it takes is folded under
+*The song's file*, there for whoever keeps the book's files, not in the way of
+saving a song.
 
 ### Which book
 
@@ -77,7 +82,10 @@ syntax costs effort instead:
   ```
   ````
 
-- **Add section** writes a heading and a fence, and puts the cursor inside.
+- **Add section** writes a named heading — *Section 2*, numbered after the
+  sections there — and a fence, with the name selected, so typing renames it
+  and a section left as it is still has a name (never *(untitled)* in what a
+  save says changed).
 - **A preview** of the song as it will be read sits beside the text when the
   editor itself is **at least 640px wide** — a text of at least 280px beside
   the 340px preview, and the gap between. Narrower, whatever the device, it is

@@ -98,7 +98,10 @@ anything else. Here the song comes first, so:
 - **The first time a song is opened**, the reading view says *Chord shapes
   shown for guitar.* once, with **Change instrument** and **Keep guitar**.
   That is the moment the choice shows, so it is the moment to ask. Keeping
-  guitar, or changing the instrument, means it is not asked again.
+  guitar, or changing the instrument — from the prompt or from the chip —
+  means it is not asked again. Until it is answered it is the one notice about
+  shapes: the song's *doesn't say yet how to play its chords* waits for it, so
+  a phone's first song is not pushed under two.
 
 ## The home book
 

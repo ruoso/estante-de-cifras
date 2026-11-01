@@ -68,6 +68,7 @@ export default function NewSongHost({
     <EditorChrome
       title={title}
       unsaved
+      isNew
       layout={phone ? 'phone' : 'wide'}
       backLabel={t('newSong.back')}
       onBack={onBack}

@@ -35,7 +35,7 @@ test('a book’s songs open from the Books tab, a song plays from there, and Man
   await gotoTab(page, 'Books');
   const row = page.getByRole('button', { name: new RegExp(`^${EXAMPLE_BOOK}`) });
   await expect(row).toBeVisible();
-  await expect(row).toContainText(/On this device · can save · \d+ songs/);
+  await expect(row).toContainText(/On this device · you can edit · \d+ songs/);
   await expect(page.getByRole('button', { name: `Files in ${EXAMPLE_BOOK}` })).toHaveCount(0);
   await expect(page.getByRole('button', { name: `Rename ${EXAMPLE_BOOK}` })).toHaveCount(0);
   await expect(page.getByText('Pick a book to see its details.')).toHaveCount(0);

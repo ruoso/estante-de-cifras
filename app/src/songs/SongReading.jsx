@@ -418,6 +418,12 @@ export default function SongReading({
   // Only at the written key — while transposed the shapes are deliberately not
   // the song's, which a different caption explains.
   const noVoicings = offset === 0 && Boolean(model) && chordList.length > 0 && variations.length === 0;
+  // A song that names no key still says what a transposition does: its first
+  // chord, as written and as now read (`C → Db`), so the reader is never left
+  // with a bare number of semitones.
+  const firstChord = baseModel ? chartChordList(baseModel)[0]?.symbol : null;
+  const firstNow = chordList[0]?.symbol ?? null;
+  const chordMove = !writtenKey && firstChord && firstNow ? { from: firstChord, to: firstNow } : null;
   const instrumentLabel = chipLabel(entry) || t('search.instrument');
 
   const status = transposeStatus(writtenKey, offset);
@@ -436,12 +442,17 @@ export default function SongReading({
   // mockups W02#4 L181-186): the chip naming the key, the way back to the written
   // key, and the "arranging is off" note. Both keys named, or neither
   // (transposeStatus). Shown only while transposed.
+  const transposedLabel = !status
+    ? null
+    : status.keyName
+      ? t('reading.transposedToKey', { key: status.keyName, offset: signed(status.offset) })
+      : chordMove
+        ? t('reading.transposedChord', { ...chordMove, offset: signed(status.offset) })
+        : t('reading.transposedBy', { offset: signed(status.offset) });
   const transposedParts = status
     ? [
         <span key="chip" className="chip accent">
-          {status.keyName
-            ? t('reading.transposedToKey', { key: status.keyName, offset: signed(status.offset) })
-            : t('reading.transposedBy', { offset: signed(status.offset) })}
+          {transposedLabel}
         </span>,
         <Button key="back" className="btn quiet" onPress={() => setTransposition(0)}>
           {status.writtenKey
@@ -453,6 +464,15 @@ export default function SongReading({
         </span>,
       ]
     : null;
+
+  // What the stepper reads between − and +: the key it is in, named where the
+  // song names one; else the first chord's move; else the bare offset.
+  const transposeNow = () => {
+    if (!transposed) return writtenKey ? t('reading.keyOf', { key: writtenKey }) : t('reading.writtenKey');
+    if (status?.keyName) return t('reading.keyNow', { key: status.keyName, offset: signed(offset) });
+    if (chordMove) return t('reading.chordNow', { ...chordMove, offset: signed(offset) });
+    return signed(offset);
+  };
 
   // The one transpose control renders as an app-bar icon (phone) or a labelled
   // button (the tablet's app bar, the computer's meta row — Decision 3).
@@ -478,7 +498,7 @@ export default function SongReading({
               −
             </Button>
             <span className="reading-transpose-now" aria-live="polite">
-              {transposed ? signed(offset) : t('reading.writtenKey')}
+              {transposeNow()}
             </span>
             <Button className="btn icon" aria-label={t('reading.up')} onPress={() => setTransposition(clampOffset(offset + 1))}>
               +
@@ -616,6 +636,13 @@ export default function SongReading({
             already named by it. */}
         <div className="reading-fullscreen-top">
           <span className="t-h2 reading-fullscreen-title">{displayTitle}</span>
+          {/* A transposed song says so here too: on stage the chords must not
+              look like the written ones without a word. */}
+          {status ? (
+            <span className="reading-fullscreen-key">
+              <span className="chip accent">{transposedLabel}</span>
+            </span>
+          ) : null}
           <Button className="btn quiet reading-exit-full" onPress={leaveFullScreen}>
             {t('reading.leaveFullScreen')}
           </Button>
@@ -716,7 +743,12 @@ export default function SongReading({
   // flag, the re-surfaced slice hides the notice); *Change instrument* also opens
   // the existing roster. An inline notice in the scroll body, never a modal — it
   // must not aria-hide the chrome or chart (Decision 4; project memory).
-  const showInstrumentPrompt = !preferences?.instrumentInUse && !preferences?.instrumentPromptSeen;
+  // An instrument added from the roster is put in use there, and only the
+  // instruments slice is surfaced again — so it, not the preferences' register,
+  // says one is in use; otherwise the prompt would go on naming a guitar the
+  // chip no longer shows.
+  const showInstrumentPrompt =
+    !preferences?.instrumentInUse && !instrumentsSlice?.inUseId && !preferences?.instrumentPromptSeen;
   const markInstrumentPromptSeen = () =>
     store.send(command(CommandKind.MARK_INSTRUMENT_PROMPT_SEEN, {}));
   const instrumentPrompt = showInstrumentPrompt ? (
@@ -791,7 +823,9 @@ export default function SongReading({
       {instrumentPrompt}
       {updateNotice}
       {metaRow}
-      {noVoicings ? (
+      {/* Once the first-open prompt is answered: until then it is the one
+          notice about shapes, so a phone's first song is not pushed under two. */}
+      {noVoicings && !instrumentPrompt ? (
         <div className="notice accent">
           <span>{t('reading.noVoicings', { instrument: instrumentLabel })}</span>
           <Button className="act btn quiet" onPress={() => onArrange({ bookId, path })}>

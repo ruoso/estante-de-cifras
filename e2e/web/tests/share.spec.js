@@ -133,7 +133,7 @@ test('the two-person sharing journey: invite, join, edit to a clean merge, the p
     // place, then Not now on Add a recovery email.
     await makeAccount(joiner.page);
     await expect(joiner.page.getByRole('button', { name: new RegExp(`^${escape(BOOK)}`) })).toBeVisible();
-    await expect(joiner.page.getByText('On Estante · can save')).toBeVisible();
+    await expect(joiner.page.getByText('On Estante · you can edit')).toBeVisible();
     await ownerNameOnService(joiner.page, 'Bia Rocha');
 
     // 3) Both edit the shared song and sync to a clean merge. The joiner opens
@@ -284,7 +284,7 @@ test("the owner copies an open invitation's link again, and a third person joins
 
   const third = await joinThrough(browser, copied);
   try {
-    await expect(third.page.getByText('On Estante · reader')).toBeVisible();
+    await expect(third.page.getByText('On Estante · read only')).toBeVisible();
   } finally {
     await third.context.close();
   }

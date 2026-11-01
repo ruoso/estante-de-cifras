@@ -30,7 +30,9 @@ git host:
 It is short enough to define in the cifra.md specification, as a companion to the
 song format, so that other tools can read it.
 
-Where the setlist's file is shown beside its editor, a line under it says why
+On a wide screen the editor can show the setlist's file beside it, when asked
+(*Show the file*, under the list): the list is the setlist, and the text it is
+kept as is for the curious. Where the file is shown, a line under it says why
 the links look as they do, without git's words: *The links start from
 {folder}, so they keep working wherever the book’s files are copied.*
 
@@ -74,7 +76,9 @@ nowhere to keep a setlist and the button is not there. It asks for a name and,
 only when more than one book can be saved to, **which book** — every book the
 person can save to, and no other, with *My songs* chosen to begin with (the
 first such book when *My songs* is not one), as a new song's book is chosen
-(workflow 3 §Which book). The setlist goes at the root of that book, holding
+(workflow 3 §Which book) — except while *My songs* holds no song and another
+book does: a setlist holds only its own book's songs, so the fullest book is
+chosen instead (the persona exploration of 2026-10-31). The setlist goes at the root of that book, holding
 only its title, and opens at once in its editor, *not saved yet*, with *Add
 song* ready: a teacher planning a lesson starts from the lesson, not from a
 song. With no setlists yet, the tab says *No setlists yet. Make one with New
@@ -112,7 +116,17 @@ Back.
 *Add song*, in a setlist being edited, searches the setlist's book. A song
 already in the setlist is still listed, and says so in words — *Already in
 this setlist · 1*, with its places — so nobody adds it twice by accident; it
-can still be added again, since a setlist may come back to a song.
+can still be added again, since a setlist may come back to a song. A row names
+the song and its folder, never its file. Songs found only in other books are
+listed under it, *In other books — copied into {book} when added*, and **Copy
+and add** copies one in, as Add to setlist does from a song (§Songs from
+another book) — so a search never just says nothing was found while the song
+is on the shelf.
+
+**An empty setlist says how to fill it**, and offers no *Play* until a song is
+there to play: *No songs in this setlist yet. Add them with Edit, or with Add
+to setlist on any song.*; in its editor, *No songs yet. Add the first with Add
+song.*
 
 ## Sharing one
 

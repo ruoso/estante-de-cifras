@@ -147,7 +147,14 @@ function makeStore({ text, entry, transposition = 0, variations = {}, preference
           port.postMessage(event(EventKind.PREFERENCES, { ...prefs }));
           port.postMessage(event(EventKind.SHELF, {}));
           port.postMessage(
-            event(EventKind.INSTRUMENTS, { instruments: [entry], inUseId: entry.id, standard: entry }),
+            // As the Worker surfaces it: an instrument is in use only once the
+            // register says so; until then the standard guitar stands in.
+            event(
+              EventKind.INSTRUMENTS,
+              prefs.instrumentInUse
+                ? { instruments: [entry], inUseId: entry.id, standard: entry }
+                : { instruments: [], inUseId: null, standard: entry },
+            ),
           );
           break;
         case CommandKind.MARK_INSTRUMENT_PROMPT_SEEN:
@@ -192,6 +199,9 @@ function makeStore({ text, entry, transposition = 0, variations = {}, preference
       currentText = next;
     },
     emitMerged: (payload) => workerPort.postMessage(event(EventKind.MERGED, payload)),
+    // Surface the roster again, as the Worker does after an instrument change
+    // (it re-surfaces instruments, not preferences).
+    emitInstruments: (payload) => workerPort.postMessage(event(EventKind.INSTRUMENTS, payload)),
   };
 }
 
@@ -592,10 +602,10 @@ describe('SongReading — transpose (workflow 2 L111-146; W02 L181-186)', () => 
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 
-  it('shows the signed offset without a key name for a keyless song (acceptance 3)', async () => {
+  it('names no key for a keyless song, but shows its first chord\'s move (acceptance 3)', async () => {
     const { store } = makeStore({ text: song({ chart: 'C  F  G' }), entry: guitarEntry(), transposition: 3 });
     await openAndWait(store);
-    expect(screen.getByText('Transposed (+3)')).toBeInTheDocument();
+    expect(screen.getByText('Transposed: C → Eb (+3)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Back to the written key' })).toBeInTheDocument();
   });
 });
@@ -717,7 +727,8 @@ describe('the transposed row names the key, once (songs.transpose_chrome; W02#4)
       const dialog = await screen.findByRole('dialog', { name: 'Transpose the view' });
       await click(within(dialog).getByRole('button', { name: 'Up a semitone' }));
 
-      await waitFor(() => expect(within(dialog).getByText('+3')).toBeInTheDocument());
+      // The stepper reads the key it is in now, the offset beside it.
+      await waitFor(() => expect(within(dialog).getByText('Bb (+3)')).toBeInTheDocument());
       expect(within(dialog).getByRole('button', { name: 'Down a semitone' })).toBeInTheDocument();
       expect(within(dialog).getAllByRole('button')).toHaveLength(2);
       expect(within(dialog).queryByText(/Transposed/)).toBeNull();
@@ -932,6 +943,20 @@ describe('SongReading — the first-open instrument prompt (songs.first_song, wo
     });
     await openAndWait(store);
     expect(screen.queryByText(promptText)).not.toBeInTheDocument();
+  });
+
+  it('is the one notice about shapes until answered, and goes once an instrument is put in use from the roster', async () => {
+    const ukulele = { ...guitarEntry(), id: 'u1', label: 'Ukulele' };
+    const { store, emitInstruments } = makeStore({ text: song({}), entry: guitarEntry(), preferences: {} });
+    await openAndWait(store);
+    expect(screen.getByText(promptText)).toBeInTheDocument();
+    // The no-shapes notice waits for the prompt to be answered.
+    expect(screen.queryByText(/doesn’t say yet how to play its chords/)).toBeNull();
+
+    // Adding an instrument puts it in use; only the roster is surfaced again.
+    act(() => emitInstruments({ instruments: [ukulele], inUseId: 'u1', standard: guitarEntry() }));
+    await waitFor(() => expect(screen.queryByText(promptText)).toBeNull());
+    expect(screen.getByText(/doesn’t say yet how to play its chords on Ukulele/)).toBeInTheDocument();
   });
 
   it('exposes Keep guitar and Change instrument as keyboard-reachable, keyboard-operable buttons (§3.7)', async () => {

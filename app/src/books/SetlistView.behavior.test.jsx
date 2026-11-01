@@ -333,6 +333,9 @@ describe('SetlistView — Share (workflow 12 §Sharing one)', () => {
     await screen.findByText('Garota de Ipanema');
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Edit' })));
     await screen.findByRole('grid', { name: 'Songs · drag to reorder' });
+    // The file is shown only when asked for.
+    expect(screen.queryByText(/The links start from/)).toBeNull();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Show the file' })));
     // The setlist sits at the book root, so its folder reads as /.
     const note = screen.getByText('The links start from /, so they keep working wherever the book’s files are copied.');
     expect(note).toBeInTheDocument();
@@ -446,13 +449,41 @@ describe('SetlistView — editor', () => {
     await openEditor(store);
     await openAddSong('o');
 
-    const marked = await screen.findByRole('button', { name: /bossa\/corcovado\.cifra\.md/ });
+    const marked = await screen.findByRole('button', { name: /^Corcovado/ });
     expect(marked).toHaveAccessibleName(expect.stringContaining('Already in this setlist · 2'));
-    const other = screen.getByRole('button', { name: /mpb\/tarde-clara\.cifra\.md/ });
+    const other = screen.getByRole('button', { name: /^Tarde Clara/ });
     expect(other).not.toHaveAccessibleName(expect.stringContaining('Already in this setlist'));
     // The selection state is unchanged by the mark.
     expect(marked).toHaveAttribute('aria-pressed', 'false');
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('lists a song found only in another book under it, and Copy and add sends it to be copied in (workflow 12 §Songs from another book)', async () => {
+    const results = [{ bookId: 'elsewhere', path: 'samba/aquarela.cifra.md', title: 'Aquarela' }];
+    const { store, commands } = makeStore({ results });
+    await openEditor(store);
+    await openAddSong('aqua');
+
+    // Not the bare "No songs found.": the other book's song is offered.
+    expect(await screen.findByText(/No song in .* matches\./)).toBeInTheDocument();
+    const group = screen.getByRole('group', { name: /In other books — copied into/ });
+    const pick = within(group).getByRole('button', { name: /^Aquarela/ });
+    expect(pick).not.toHaveAccessibleName(/cifra\.md/); // the song, never its file
+    await act(async () => fireEvent.click(pick));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy and add' })));
+    const sent = commands.filter((m) => m.kind === CommandKind.ADD_TO_SETLIST).at(-1);
+    expect(sent.payload).toMatchObject({
+      targetBookId: BOOK,
+      song: { bookId: 'elsewhere', path: 'samba/aquarela.cifra.md', title: 'Aquarela' },
+    });
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('offers no Play on a setlist with no songs, and says how to add one', async () => {
+    const { store } = makeStore({ text: '# Empty\n' });
+    renderSetlist(store);
+    expect(await screen.findByText(/No songs in this setlist yet/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
   });
 
   it('still adds a marked song, appending a second item linking it', async () => {
@@ -476,7 +507,7 @@ describe('SetlistView — editor', () => {
     const { store, commands } = makeStore({ results: WITH_CORCOVADO });
     await openEditor(store);
     await openAddSong('tarde');
-    const tarde = await screen.findByRole('button', { name: /mpb\/tarde-clara\.cifra\.md/ });
+    const tarde = await screen.findByRole('button', { name: /^Tarde Clara/ });
     expect(tarde).not.toHaveAccessibleName(expect.stringContaining('Already in this setlist'));
     await act(async () => fireEvent.click(tarde));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Add' })));
@@ -484,7 +515,7 @@ describe('SetlistView — editor', () => {
     expect(commands.some((c) => c.kind === CommandKind.SAVE)).toBe(false);
 
     await openAddSong('tarde');
-    const again = await screen.findByRole('button', { name: /mpb\/tarde-clara\.cifra\.md/ });
+    const again = await screen.findByRole('button', { name: /^Tarde Clara/ });
     expect(again).toHaveAccessibleName(expect.stringContaining('Already in this setlist · 4'));
   });
 
@@ -498,7 +529,7 @@ describe('SetlistView — editor', () => {
     await act(async () => fireEvent.change(searchField, { target: { value: 'asa' } }));
     // Scope to the repoint result (its name carries the path), not the row's
     // "Remove Asa Branca" button.
-    const pick = await screen.findByRole('button', { name: /forro\/asa-branca\.cifra\.md/ });
+    const pick = await screen.findByRole('button', { name: /^Asa Branca/ });
     await act(async () => fireEvent.click(pick));
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Point here' })));
 
@@ -889,7 +920,7 @@ describe('setlists in Palco (shell.palco_contrast)', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Point it at a song' })));
     const searchField = await screen.findByRole('searchbox', { name: 'Search for a song' });
     await act(async () => fireEvent.change(searchField, { target: { value: 'a' } }));
-    const pick = await screen.findByRole('button', { name: /forro\/asa-branca\.cifra\.md/ });
+    const pick = await screen.findByRole('button', { name: /^Asa Branca/ });
 
     const results = container.querySelector('.setlist-repoint').querySelectorAll('button.row');
     expect(results).toHaveLength(RESULTS.length);

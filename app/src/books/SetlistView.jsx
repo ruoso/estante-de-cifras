@@ -74,64 +74,92 @@ const GRIP = ['M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01'];
 const TRASH = ['M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3'];
 const DOTS = ['M5 12h.01M12 12h.01M19 12h.01'];
 
-// The in-book song picker that drives both Add-song and the missing-item
-// repoint: a search field scoped to the setlist's own book, its results, and a
-// pick. A setlist points only into its own book, so the search is book-scoped.
-// `inSetlist` (book-root path → ascending item numbers, from placesBySong) marks
-// a song already in the setlist in words; it stays pickable, since a setlist may
-// come back to a song (workflow 12 §Building one; setlist_picker_fixes
-// Decision 1).
-function InBookPicker({ store, bookId, onPick, onCancel, titleText, confirmLabel, inSetlist }) {
+// The song picker that drives both Add-song and the missing-item repoint: a
+// search field, its results in the setlist's own book, and a pick. A setlist
+// points only into its own book; so for Add song (`elsewhere`), a song found
+// only in another book is listed under it, saying it will be copied in — the
+// rule Add to setlist follows from a song (workflow 12 §Songs from another
+// book) — rather than leaving the search to say nothing was found. `inSetlist`
+// (book-root path → ascending item numbers, from placesBySong) marks a song
+// already in the setlist in words; it stays pickable, since a setlist may come
+// back to a song (workflow 12 §Building one; setlist_picker_fixes Decision 1).
+// A row names the song and, when it sits in one, its folder — never its file.
+function InBookPicker({ store, bookId, onPick, onCancel, titleText, confirmLabel, inSetlist, elsewhere = null }) {
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState(null);
   const results = useSlice(store, 'search');
-  const list = useMemo(() => {
-    const all = results?.results ?? [];
-    return all.filter((r) => r.bookId === bookId);
-  }, [results, bookId]);
+  const shelf = useSlice(store, 'shelf');
+  const songs = useMemo(() => (results?.results ?? []).filter((r) => r.kind !== 'setlist'), [results]);
+  const list = useMemo(() => songs.filter((r) => r.bookId === bookId), [songs, bookId]);
+  const others = useMemo(() => (elsewhere ? songs.filter((r) => r.bookId !== bookId) : []), [songs, bookId, elsewhere]);
+  const bookName = (id) => titleFor(orderedBooks(shelf).find((e) => e.id === id)?.book ?? {}, t('books.untitled'));
 
   const onQuery = (value) => {
     setQuery(value);
     setPicked(null);
-    store.send(command(CommandKind.SEARCH, { query: value, scope: { books: [bookId] } }));
+    store.send(command(CommandKind.SEARCH, { query: value, ...(elsewhere ? {} : { scope: { books: [bookId] } }) }));
   };
+
+  const row = (r) => {
+    const isSel = picked?.bookId === r.bookId && picked?.path === r.path;
+    const places = r.bookId === bookId ? inSetlist?.get(r.path) : null;
+    const folder = folderOf(r.path).replace(/\/$/, '');
+    const where = [r.bookId === bookId ? null : bookName(r.bookId), folder || null].filter(Boolean).join(' · ');
+    return (
+      <Button
+        key={`${r.bookId}:${r.path}`}
+        className={`row${isSel ? ' sel' : ''}`}
+        aria-pressed={isSel}
+        onPress={() => setPicked(r)}
+      >
+        <span className="grow">
+          <span className="name">{songTitle(r.title, t('newSong.untitled'))}</span>
+          {where ? <span className="meta">{where}</span> : null}
+          {places?.length ? (
+            <span className="meta">{t('setlists.alreadyIn', { places: places.join(', ') })}</span>
+          ) : null}
+        </span>
+      </Button>
+    );
+  };
+  const copying = picked && picked.bookId !== bookId;
 
   return (
     <div className="setlist-repoint">
       {titleText ? <span className="t-h3">{titleText}</span> : null}
       <SearchField className="search" aria-label={t('setlists.searchLabel')} value={query} onChange={onQuery}>
-        <Input className="setlist-search-input" />
+        <Input className="setlist-search-input" placeholder={t('setlists.searchPlaceholder')} />
       </SearchField>
-      {list.length === 0 && query ? (
+      {list.length === 0 && others.length === 0 && query ? (
         <p className="t-small">{t('setlists.noResults')}</p>
       ) : (
-        <div className="list" role="group" aria-label={t('setlists.searchLabel')}>
-          {list.map((r) => {
-            const isSel = picked?.path === r.path;
-            const places = inSetlist?.get(r.path);
-            return (
-              <Button
-                key={r.path}
-                className={`row${isSel ? ' sel' : ''}`}
-                aria-pressed={isSel}
-                onPress={() => setPicked(r)}
-              >
-                <span className="grow">
-                  <span className="name">{songTitle(r.title, t('newSong.untitled'))}</span>
-                  <span className="meta t-mono">{r.path}</span>
-                  {places?.length ? (
-                    <span className="meta">{t('setlists.alreadyIn', { places: places.join(', ') })}</span>
-                  ) : null}
-                </span>
-              </Button>
-            );
-          })}
-        </div>
+        <>
+          {list.length === 0 && query ? <p className="t-small">{t('setlists.noneInBook', { book: bookName(bookId) })}</p> : null}
+          {list.length ? (
+            <div className="list" role="group" aria-label={t('setlists.searchLabel')}>
+              {list.map(row)}
+            </div>
+          ) : null}
+          {others.length ? (
+            <>
+              <span className="t-small setlist-elsewhere-head" id={`elsewhere-${bookId}`}>
+                {t('setlists.inOtherBooks', { book: bookName(bookId) })}
+              </span>
+              <div className="list" role="group" aria-labelledby={`elsewhere-${bookId}`}>
+                {others.map(row)}
+              </div>
+            </>
+          ) : null}
+        </>
       )}
       <div className="actions">
         <Button className="btn quiet" onPress={onCancel}>{t('setlists.cancel')}</Button>
-        <Button className="btn primary" isDisabled={!picked} onPress={() => onPick(picked)}>
-          {confirmLabel}
+        <Button
+          className="btn primary"
+          isDisabled={!picked}
+          onPress={() => (copying ? elsewhere(picked) : onPick(picked))}
+        >
+          {copying ? t('setlists.copyAndAdd') : confirmLabel}
         </Button>
       </div>
     </div>
@@ -178,6 +206,7 @@ export default function SetlistView({
   const [touched, setTouched] = useState(false);
   const [addingSong, setAddingSong] = useState(false);
   const [repointAt, setRepointAt] = useState(null);
+  const [showFile, setShowFile] = useState(false);
 
   useEffect(() => {
     store.send(command(CommandKind.OPEN_SOURCE, { bookId, path }));
@@ -271,6 +300,27 @@ export default function SetlistView({
     apply(addSong(current, { text: linkFor(result), path: relFor(result.path) }));
     setAddingSong(false);
   };
+  // A song from another book: the Worker copies it into this book and adds it
+  // to the setlist as written in the working copy — which holds every edit made
+  // here, since each is written as it is made — and SETLIST_UPDATED brings the
+  // setlist back in from there.
+  const addFromElsewhere = (result) => {
+    store.send(
+      command(CommandKind.ADD_TO_SETLIST, {
+        targetBookId: bookId,
+        setlistPath: path,
+        song: { bookId: result.bookId, path: result.path, title: result.title ?? null },
+      }),
+    );
+    setAddingSong(false);
+  };
+  useWorkerEvent(store, EventKind.SETLIST_UPDATED, (payload) => {
+    if (payload?.bookId !== bookId || payload?.setlistPath !== path) return;
+    setModel(null);
+    setTouched(true);
+    store.send(command(CommandKind.OPEN_SOURCE, { bookId, path }));
+    store.send(command(CommandKind.BOOK_TREE, { bookId }));
+  });
   const repointPicked = (result) => {
     apply(pointItemAtSong(current, repointAt, { text: linkFor(result), path: relFor(result.path) }));
     setRepointAt(null);
@@ -368,6 +418,8 @@ export default function SetlistView({
   }
 
   const missingRows = rows.filter((r) => r.missing);
+  // Nothing to play until one song is there to open: Play waits for it.
+  const playable = rows.some((r) => !r.missing);
   const title = current.title || path.slice(path.lastIndexOf('/') + 1);
 
   // ---- read view ----------------------------------------------------------
@@ -385,9 +437,10 @@ export default function SetlistView({
           </span>
           {statusWord ? <span className="badge unsaved dot setlist-head-status">{statusWord}</span> : null}
         </div>
-        <Button ref={playRef} className="btn primary block" onPress={() => onPlay({ bookId, path })}>
+        <Button ref={playRef} className="btn primary block" isDisabled={!playable} onPress={() => onPlay({ bookId, path })}>
           <Icon d={PLAY} fill /> {t('setlists.play')}
         </Button>
+        {rows.length === 0 ? <p className="t-small setlist-empty">{t('setlists.emptySetlist')}</p> : null}
         <div className="list">
           {rows.map((row) => {
             const body = (
@@ -494,12 +547,21 @@ export default function SetlistView({
   }
 
   // ---- editor -------------------------------------------------------------
+  // The file itself, beside the editor on a wide screen, only when asked for:
+  // the list is the setlist, and the text it is kept as is for the curious.
+  const fileToggle =
+    mode === 'wide' ? (
+      <Button className="btn quiet setlist-file-toggle" aria-expanded={showFile} onPress={() => setShowFile((v) => !v)}>
+        {showFile ? t('setlists.hideFile') : t('setlists.showFile')}
+      </Button>
+    ) : null;
   const editorBody = (
     <div className="scroll">
       <div className="section-label">
         <span className="t-h3">{t('setlists.songsLabel')}</span>
         <span className="t-small">{t('setlists.keyNoteHint')}</span>
       </div>
+      {rows.length === 0 && !addingSong ? <p className="t-small setlist-empty">{t('setlists.emptyEditing')}</p> : null}
       <GridList
         className="list setlist-edit-list"
         aria-label={t('setlists.songsLabel')}
@@ -583,6 +645,7 @@ export default function SetlistView({
           onPick={addPicked}
           onCancel={() => setAddingSong(false)}
           inSetlist={inSetlist}
+          elsewhere={addFromElsewhere}
         />
       ) : null}
 
@@ -601,11 +664,12 @@ export default function SetlistView({
           ))}
         </div>
       ) : null}
+      {fileToggle}
     </div>
   );
 
   const sidePane =
-    mode === 'wide' ? (
+    mode === 'wide' && showFile ? (
       <div className="pane side setlist-side">
         <div className="scroll">
           <span className="t-mono setlist-filename" id={rawNameId}>{path}</span>
@@ -650,7 +714,7 @@ export default function SetlistView({
           <Button ref={addSongRef} className="btn" onPress={() => setAddingSong(true)}>
             <Icon d={PLUS} size={18} /> {t('setlists.addSong')}
           </Button>
-          <Button className="btn" onPress={() => onPlay({ bookId, path })}>
+          <Button className="btn" isDisabled={!playable} onPress={() => onPlay({ bookId, path })}>
             <Icon d={PLAY} size={18} fill /> {t('setlists.play')}
           </Button>
           {unsaved ? (
@@ -661,7 +725,9 @@ export default function SetlistView({
           </Button>
         </div>
       </div>
-      {sidePane ? (
+      {/* One tree on a wide screen whether the file shows or not, so showing it
+          keeps what is typed in Add song. */}
+      {mode === 'wide' ? (
         <div className="split">
           <div className="pane main">{editorBody}</div>
           {sidePane}

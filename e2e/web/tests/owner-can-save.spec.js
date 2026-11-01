@@ -27,10 +27,10 @@ test('a book put online, then a song added to a new setlist in it from the song 
   // Sign in, make a book, write a song, put it online (workflow 13; books.online).
   await hostedBookWithSong(page, BOOK, SONG_TITLE);
 
-  // The shelf: the owned book reads *On Estante · can save* (workflow 7 L19).
+  // The shelf: the owned book reads *On Estante · you can edit* (workflow 7 L19).
   await gotoTab(page, 'Books');
   const row = page.getByRole('button', { name: new RegExp(`^${BOOK}`) });
-  await expect(row).toContainText('On Estante · can save');
+  await expect(row).toContainText('On Estante · you can edit');
   await checkA11y();
 
   // The song view → Add to setlist → New setlist…: the picker names the owned

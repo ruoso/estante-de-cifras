@@ -155,14 +155,15 @@ test('transposes and remembers the offset across a reload', async ({ page, check
   await openSongFromSearch(page, SEARCH, SONG_TITLE);
 
   // Step up a semitone through the transpose popover, then close it: the one
-  // row carries the state (songs.transpose_chrome AC1) — the keyless song gets
-  // the offset alone and the way back to "the written key" (Decision 4).
+  // row carries the state (songs.transpose_chrome AC1) — the keyless song says
+  // its first chord's move, never a bare offset, and the way back to "the
+  // written key" (Decision 4).
   await page.getByRole('button', { name: 'Transpose' }).click();
   await page.getByRole('button', { name: 'Up a semitone' }).click();
-  await expect(page.getByRole('dialog').getByText('+1', { exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog').getByText(/^\S+ → \S+ \(\+1\)$/)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(page.getByText('Transposed (+1)', { exact: true })).toHaveCount(1);
+  await expect(page.getByText(/^Transposed: \S+ → \S+ \(\+1\)$/)).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Back to the written key' })).toHaveCount(1);
   await checkA11y(); // transposed state
 
@@ -199,7 +200,8 @@ test('a transposed song names its key once, clear of the chart (W02#4)', async (
   const stepper = page.getByRole('dialog');
   await stepper.getByRole('button', { name: 'Up a semitone' }).click();
   await stepper.getByRole('button', { name: 'Up a semitone' }).click();
-  await expect(stepper.getByText('+2', { exact: true })).toBeVisible();
+  // The stepper reads the key it is in now.
+  await expect(stepper.getByText('A (+2)', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(stepper).toBeHidden();
 
