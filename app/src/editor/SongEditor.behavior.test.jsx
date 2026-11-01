@@ -204,6 +204,60 @@ describe('SongEditor', () => {
     expect(editorRef.current.state.doc.toString()).toBe('## Intro\n\n');
   });
 
+  // songs.paste_wrap_narrow: only a cifra from elsewhere is fenced.
+  it('pastes back what it copied, and words with no chords, as they are — no fence, no notice', async () => {
+    const { store, emit } = makeStore();
+    const editorRef = { current: null };
+    const SONG = '# Maré Mansa\n\n## Verso\n```\nAm  G\nA maré veio mansa\n```\n\n';
+    const { container } = render(
+      <SongEditor store={store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} onSave={() => {}} />,
+    );
+    emit(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: SONG }));
+    await waitFor(() => expect(editorRef.current.state.doc.toString()).toBe(SONG));
+    const content = container.querySelector('.cm-content');
+    const view = editorRef.current;
+
+    // Copy the section — its heading, its fence and its chords — from the
+    // editor, then paste it after the fence: it goes in as it was copied.
+    const from = SONG.indexOf('## Verso');
+    const to = SONG.indexOf('```\n\n') + 4;
+    act(() => view.dispatch({ selection: { anchor: from, head: to } }));
+    act(() => {
+      fireEvent.copy(content, { clipboardData: { setData: () => {}, clearData: () => {}, getData: () => '' } });
+    });
+    const copied = SONG.slice(from, to);
+    act(() => view.dispatch({ selection: { anchor: view.state.doc.length } }));
+    firePaste(content, copied);
+    expect(view.state.doc.toString()).toBe(SONG + copied);
+    expect(screen.queryByRole('status')).toBeNull();
+
+    // A chord line copied out of the fence and pasted back outside it is this
+    // editor's own too: no fence is added (the chords-outside notice can still
+    // offer one).
+    const chordLine = 'Am  G';
+    const at = view.state.doc.toString().indexOf(chordLine);
+    act(() => view.dispatch({ selection: { anchor: at, head: at + chordLine.length } }));
+    act(() => {
+      fireEvent.copy(content, { clipboardData: { setData: () => {}, clearData: () => {}, getData: () => '' } });
+    });
+    act(() => view.dispatch({ selection: { anchor: view.state.doc.length } }));
+    const beforePaste = view.state.doc.toString();
+    firePaste(content, chordLine);
+    expect(view.state.doc.toString()).toBe(beforePaste + chordLine);
+
+    // Words with no chords, from elsewhere: a note, pasted as it is.
+    act(() => view.dispatch({ selection: { anchor: view.state.doc.length } }));
+    const beforeNote = view.state.doc.toString();
+    firePaste(content, '\nPlay it slow');
+    expect(view.state.doc.toString()).toBe(`${beforeNote}\nPlay it slow`);
+    expect(view.state.doc.toString()).not.toContain('```\nPlay it slow');
+
+    // A cifra from elsewhere still is fenced.
+    act(() => view.dispatch({ selection: { anchor: view.state.doc.length } }));
+    firePaste(content, '\nDm  E7\nvem de longe');
+    expect(view.state.doc.toString()).toContain('```\n\nDm  E7\nvem de longe\n```');
+  });
+
   it('stops the save on a voicing the reader cannot read, and proceeds once it is gone', async () => {
     const { store, emit } = makeStore();
     const onSave = vi.fn();

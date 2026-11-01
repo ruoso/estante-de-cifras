@@ -39,6 +39,7 @@ import { lineDiagnostics, lineNoteText } from './diagnostic-words.js';
 import { sectionInsertion } from './section-insert.js';
 import { saveBlockers, stopMessageKey } from './save-blockers.js';
 import { isSongPath, formatHint } from './unknown-words.js';
+import { songDialect } from '../core/notation/dialects.js';
 import { exampleInsertion } from './format-help.js';
 import FormatHelp from './FormatHelp.jsx';
 import { EDITOR_SPLIT_MIN_WIDTH, editorSplits } from './editor-split.js';
@@ -97,6 +98,25 @@ function minimalChange(oldStr, newStr) {
   }
   return { from, to: oldEnd, insert: newStr.slice(from, newEnd) };
 }
+
+// The text CodeMirror puts on the clipboard for a copy or a cut: the selected
+// ranges, or — with nothing selected — the cursor's whole lines (its line-wise
+// copy), each joined by the document's line break.
+function copiedText(state) {
+  const selected = state.selection.ranges.filter((r) => !r.empty).map((r) => state.sliceDoc(r.from, r.to));
+  if (selected.length) return selected.join(state.lineBreak);
+  const lines = [];
+  let upto = -1;
+  for (const { from } of state.selection.ranges) {
+    const line = state.doc.lineAt(from);
+    if (line.number > upto) lines.push(line.text);
+    upto = line.number;
+  }
+  return lines.join(state.lineBreak);
+}
+
+// The same clip, whatever line breaks the system clipboard handed back.
+const sameClip = (a, b) => a.replace(/\r\n?/g, '\n') === b.replace(/\r\n?/g, '\n');
 
 export default function SongEditor({
   store,
@@ -207,6 +227,10 @@ export default function SongEditor({
   const viewRef = useRef(null);
   const changeHandlerRef = useRef(() => {});
   const pasteHandlerRef = useRef(() => false);
+  // What this editor last put on the clipboard (a copy or a cut), so pasting it
+  // back is a plain paste — CodeMirror's own, line-wise copies included — never
+  // a cifra from elsewhere to fence (songs.paste_wrap_narrow).
+  const lastCopiedRef = useRef(null);
   const writeTimer = useRef(null);
   const onWriteRef = useRef(onWrite);
   const pendingWrite = useRef(null);
@@ -269,13 +293,16 @@ export default function SongEditor({
     pasteHandlerRef.current = (event, view) => {
       const pasted = event.clipboardData?.getData('text/plain') ?? '';
       if (!pasted) return false;
+      // Copied from this editor: CodeMirror pastes it as it does any paste.
+      if (lastCopiedRef.current !== null && sameClip(pasted, lastCopiedRef.current)) return false;
       event.preventDefault();
       const sel = view.state.selection.main;
       const before = view.state.doc.sliceString(0, sel.from);
       // A `#` heading (even an empty one) is a title slot; the first pasted line
       // is promoted only when the song has no heading at all.
-      const hasTitle = parse(view.state.doc.toString()).title !== null;
-      const result = fencePaste({ text: before, pasted, hasTitle });
+      const model = parse(view.state.doc.toString());
+      const hasTitle = model.title !== null;
+      const result = fencePaste({ text: before, pasted, hasTitle, dialect: songDialect(model) });
       // The title (when promoted) is inserted at the document head and the
       // fenced body at the paste point, in one transaction — one undo reverts
       // both. Both may be insertions at offset 0 (an empty doc): that is
@@ -322,6 +349,16 @@ export default function SongEditor({
         }),
         EditorView.domEventHandlers({
           paste: (event, cmView) => pasteHandlerRef.current(event, cmView),
+        }),
+        // Observers run before CodeMirror's own copy/cut, while the selection is
+        // still the one being copied: remember the text it will put there.
+        EditorView.domEventObservers({
+          copy: (event, cmView) => {
+            lastCopiedRef.current = copiedText(cmView.state);
+          },
+          cut: (event, cmView) => {
+            lastCopiedRef.current = copiedText(cmView.state);
+          },
         }),
         // The cursor's line, for the bracket notice's timing and the spoken
         // note of a reported line.

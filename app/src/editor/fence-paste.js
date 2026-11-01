@@ -1,17 +1,25 @@
 // The paste-into-a-fence transform (songs.editor; workflow 3 §Pasting a cifra
 // L87-95; mockup W03 paste notice). Text pasted from a cifra site is chords
 // over words with `[Intro]`-style headings and no fences — outside a fence the
-// reader would read it as notes, not music (spec §1.9 L350-375). So when a
+// reader would read it as notes, not music (spec §1.9 L350-375). So when such a
 // paste lands OUTSIDE any fence the editor wraps it in a music fence, and — when
 // the song has no title yet — lifts the first pasted line out to become the `#`
 // title. Both happen in one reversible move (the editor applies the returned
 // changes as a single CodeMirror transaction, so one undo reverts the whole
 // thing).
 //
+// Only such a paste (songs.paste_wrap_narrow): one that holds a line of chords
+// and none of cifra.md's own structure — no fence, no `#` heading. Text that
+// already carries fences or sections is cifra.md and goes in as it is; words
+// alone (a note, a line of lyrics) are not music to fence; and what was copied
+// from this editor never reaches here (the editor pastes it natively). A chord
+// line pasted unwrapped is still caught by the *chords outside the music* notice
+// and its *Put it in the music*.
+//
 // Pure: no React, no CodeMirror. The editor decides the paste point; this helper
 // decides the transform from the text before that point.
 
-import { fenceOpen, closesFence, mdHeading } from 'cifra-md';
+import { fenceOpen, closesFence, mdHeading, readsAsChords } from 'cifra-md';
 
 const FENCE = '```';
 
@@ -32,6 +40,20 @@ function endsInsideFence(before) {
   return fence !== null;
 }
 
+// Does the pasted text read as a cifra from elsewhere — chords over words, with
+// no cifra.md structure of its own? At least one line reads as chords (the
+// reader's own test, in the song's notation, once a site's `[Intro]`-style
+// labels are set aside), and no line opens a fence or is a `#` heading.
+const BRACKET_LABEL = /\[[^\]]*\]/g;
+function readsAsForeignCifra(pasted, dialect) {
+  const lines = pasted.split(/\r\n|\r|\n/);
+  if (lines.some((line) => fenceOpen(line) !== null || mdHeading(line) !== null)) return false;
+  return lines.some((line) => {
+    const chords = line.replace(BRACKET_LABEL, ' ').trim();
+    return chords !== '' && readsAsChords(chords, dialect);
+  });
+}
+
 /**
  * Decide how a paste should be transformed.
  *
@@ -41,6 +63,8 @@ function endsInsideFence(before) {
  *   an open fence.
  * @param {string} args.pasted the pasted text.
  * @param {boolean} args.hasTitle whether the song already has a `#` title.
+ * @param {string} [args.dialect] the song's chord notation, for telling a chord
+ *   line (`readsAsChords`); the reader's default when absent.
  * @returns {{
  *   insideFence: boolean,
  *   wrapped: boolean,
@@ -52,9 +76,12 @@ function endsInsideFence(before) {
  *   paste lands inside a fence nothing is transformed (`insert` is the pasted
  *   text verbatim).
  */
-export function fencePaste({ text = '', pasted = '', hasTitle = true } = {}) {
+export function fencePaste({ text = '', pasted = '', hasTitle = true, dialect } = {}) {
   if (endsInsideFence(text)) {
     return { insideFence: true, wrapped: false, titled: false, insert: pasted, title: null };
+  }
+  if (!readsAsForeignCifra(pasted, dialect)) {
+    return { insideFence: false, wrapped: false, titled: false, insert: pasted, title: null };
   }
 
   let body = pasted;

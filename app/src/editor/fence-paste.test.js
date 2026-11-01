@@ -45,6 +45,32 @@ describe('fencePaste', () => {
     expect(r.title).toBeNull();
   });
 
+  // songs.paste_wrap_narrow: only a cifra from elsewhere is fenced.
+  it('pastes words with no chords as they are, outside a fence', () => {
+    const r = fencePaste({ text: '# Song\n\n## Notes\n', pasted: 'Play it slow\nand let it ring', hasTitle: false });
+    expect(r).toEqual({ insideFence: false, wrapped: false, titled: false, insert: 'Play it slow\nand let it ring', title: null });
+  });
+
+  it('pastes cifra.md that carries its own fences or sections as it is', () => {
+    const withFence = '## Verse\n```\nAm  G\nwords\n```\n';
+    expect(fencePaste({ text: '# Song\n\n', pasted: withFence, hasTitle: true })).toMatchObject({
+      wrapped: false,
+      insert: withFence,
+    });
+    const withSection = '## Chorus\nAm  G\nwords';
+    expect(fencePaste({ text: '# Song\n\n', pasted: withSection, hasTitle: false })).toMatchObject({
+      wrapped: false,
+      titled: false,
+      insert: withSection,
+    });
+  });
+
+  it('reads a chord line behind a site’s bracket label, and in the song’s notation', () => {
+    expect(fencePaste({ text: '', pasted: '[Intro] Am  G', hasTitle: true }).wrapped).toBe(true);
+    expect(fencePaste({ text: '', pasted: '[Intro]', hasTitle: true }).wrapped).toBe(false);
+    expect(fencePaste({ text: '', pasted: 'C7M  A7(13)\npalavras', hasTitle: true, dialect: 'brazilian' }).wrapped).toBe(true);
+  });
+
   it('returns the title and the fenced body together, for one reversible move', () => {
     // The editor applies `title` at the document head and `insert` at the paste
     // point in a single CodeMirror transaction, so one undo reverts both.

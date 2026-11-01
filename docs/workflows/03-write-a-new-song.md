@@ -124,14 +124,21 @@ headings, and no fences. A song with no fence at all is still read as music,
 each part as if fenced (cifra.md §1.9.1), so a song typed straight in, chords
 over words under a `## Verse`, plays as typed. But once the song has a fence,
 the template's first part's included, a line outside every fence is a note.
-So **when pasted text lands outside any fence, the editor puts it inside
-one**, and says so in a message that offers to undo.
+So **when a cifra from elsewhere lands outside any fence, the editor puts it
+inside one**, and says so in a message that offers to undo. A cifra from
+elsewhere is pasted text with a line of chords in it (a site's `[Intro]`-style
+labels aside) and none of cifra.md's own structure: no fence, no `#` heading.
+Everything else goes in as it was copied: text copied in this same editor
+(moving a section, repeating a verse, a chord line included), text that
+already carries fences or sections, and words with no chords, which a note is.
+A chord line that lands outside the music that way is still caught by *chords
+outside the music* below, whose *Put it in the music* fences it.
 
-When the song has no title yet, the first line of what was pasted becomes the
-title, under the same message.
+When the song has no title yet and the paste is fenced, the first line of
+what was pasted becomes the title, under the same message.
 
-A cifra that writes its chords inside the words, `[G]Walk the [C]road`, is
-fenced like any other; it is then the case below.
+A cifra that writes its chords inside the words, `[G]Walk the [C]road`, has
+no line of chords, so it goes in as it is; it is then the case below.
 
 ### Help with the format
 

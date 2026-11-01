@@ -63,7 +63,7 @@ test('the preview sits beside the text when the editor is wide enough and a tap 
   await mockup(page, 'W03-write-a-new-song', 4); // text and preview side by side
 });
 
-test('pasting a cifra outside a fence wraps it in a fence, with an Undo (real clipboard)', async ({
+test('pasting a cifra from elsewhere outside a fence wraps it in a fence, with an Undo; a copy from the editor pastes as it is (real clipboard)', async ({
   page,
   context,
   checkA11y,
@@ -75,20 +75,31 @@ test('pasting a cifra outside a fence wraps it in a fence, with an Undo (real cl
   await expect(content).toBeVisible();
   await mockup(page, 'W03-write-a-new-song', 2); // the template
 
-  // Put the cifra on the system clipboard the way a person does: write it in
-  // the editor, select it, Ctrl+C. (insertText: multi-line on every input path.)
-  const CIFRA = 'Verse one\nAm  G  F  E7\na line of words';
+  // Plain prose, so a paste lands outside any fence. (insertText: multi-line on
+  // every input path.)
   await content.click();
-  await page.keyboard.press('Control+a');
-  await page.keyboard.press('Delete');
-  await page.keyboard.insertText(CIFRA);
-  await page.keyboard.press('Control+a');
-  await page.keyboard.press('Control+c');
-
-  // Start over with plain prose, so the paste lands outside any fence.
   await page.keyboard.press('Control+a');
   await page.keyboard.insertText('# Pasted\n\nSomething to play:\n\n');
   await page.keyboard.press('Control+End');
+
+  // Copied in this editor and pasted back, text goes in as it was copied — no
+  // fence, no notice (songs.paste_wrap_narrow), even a line of chords.
+  await page.keyboard.insertText('Am  G');
+  await page.keyboard.press('Shift+Home');
+  await page.keyboard.press('Control+c');
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Control+v');
+  await expect(content).not.toContainText('```');
+  await expect(page.getByRole('status').filter({ hasText: 'inside a fence' })).toHaveCount(0);
+  await page.keyboard.press('Control+a');
+  await page.keyboard.insertText('# Pasted\n\nSomething to play:\n\n');
+  await page.keyboard.press('Control+End');
+
+  // A cifra copied from somewhere else — a site, another app — is on the system
+  // clipboard: pasted outside a fence, it is fenced.
+  const CIFRA = 'Verse one\nAm  G  F  E7\na line of words';
+  await page.evaluate((text) => navigator.clipboard.writeText(text), CIFRA);
   await page.keyboard.press('Control+v');
 
   // The paste notice — on a phone the new song's unsaved strip is a status too
