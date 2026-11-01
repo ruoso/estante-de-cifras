@@ -76,7 +76,7 @@ func IsHomeBook(lookup func(string) (string, bool)) bool {
 	return ok && v == kindHome
 }
 
-// The five settings files a home book may hold, all at the root (§2.1). The two
+// The six settings files a home book may hold, all at the root (§2.1). The two
 // fixed-name files (README.md, .gitattributes) reuse the hook.contents constants
 // readmeName/gitattributesName, held to the home book's own §2.2 bytes below.
 var homeSettingsFiles = map[string]struct{}{
@@ -85,6 +85,10 @@ var homeSettingsFiles = map[string]struct{}{
 	"instruments.json": {},
 	"shapes.json":      {},
 	"songs.json":       {},
+	// The app's default shapes, kept as a cache (§4.6): held to the envelope
+	// and canonical form like every settings file; the table inside a register
+	// is the reader's to tolerate, not checked here.
+	"shapes-default-cache.json": {},
 }
 
 // expectedHomeReadme is the exact bytes a home book's README.md holds (§2.2 lines
@@ -560,11 +564,11 @@ func homeReason(path, detail string) string {
 	return refusal(MainRef, path+" "+detail)
 }
 
-// reasonDisallowedHomePath: a path that is not one of the home book's seven §2.1
+// reasonDisallowedHomePath: a path that is not one of the home book's eight §2.1
 // files (a folder, another file).
 func reasonDisallowedHomePath(path string) string {
 	return refusal(MainRef, fmt.Sprintf(
-		"%s is not an allowed path for a home book (only preferences.json, shelf.json, instruments.json, shapes.json, songs.json, a root README.md, and a root .gitattributes)",
+		"%s is not an allowed path for a home book (only preferences.json, shelf.json, instruments.json, shapes.json, songs.json, shapes-default-cache.json, a root README.md, and a root .gitattributes)",
 		path))
 }
 

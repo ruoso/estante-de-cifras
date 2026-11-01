@@ -66,6 +66,7 @@ import {
   standardMaterialization,
   STANDARD_INSTRUMENT_ID,
 } from './instruments.js';
+import { CACHE_FILE, fillDefaultShapes } from './default-shape-fill.js';
 import { defaultPresetFor } from '../core/instrument.js';
 import {
   transpositionOf,
@@ -1301,14 +1302,71 @@ export function createWorkerLogic(port, options = {}) {
   // nothing (no instrument label, tuning or shape; standing rule).
   async function surfaceHomeBookInstruments() {
     const home = ensureHomeBook();
-    const [instruments, preferences, shapes] = await Promise.all([
+    const { surfaced } = await readSurfacedInstruments(home);
+    port.postMessage(event(EventKind.INSTRUMENTS, surfaced));
+  }
+
+  // The roster payload from the home book's instrument files and the
+  // default-shape cache (home-book §4.3, §4.4, §4.6). Lock-free local reads.
+  async function readSurfacedInstruments(home) {
+    const [instruments, preferences, shapes, defaultShapes] = await Promise.all([
       home.read({ bookId: HOME_BOOK_ID, file: 'instruments.json' }),
       home.read({ bookId: HOME_BOOK_ID, file: 'preferences.json' }),
       home.read({ bookId: HOME_BOOK_ID, file: 'shapes.json' }),
+      home.read({ bookId: HOME_BOOK_ID, file: CACHE_FILE }),
     ]);
-    port.postMessage(
-      event(EventKind.INSTRUMENTS, surfaceInstruments({ instruments, preferences, shapes })),
-    );
+    return { surfaced: surfaceInstruments({ instruments, preferences, shapes, defaultShapes }), defaultShapes };
+  }
+
+  // Fill the default-shape cache (home-book §4.6) for songs just saved: every
+  // chord of each, in all twelve keys, on the instrument in use — searched here,
+  // where the search is cheap, so a slower device and every later read find it
+  // done. Runs after the save's reply, never holding it; one fill at a time, so
+  // two saves in a row do not rewrite the same table from the same stale read.
+  // A fill that found nothing new writes nothing. Its commit goes out with the
+  // next sync pass, which it does not trigger. Logs nothing (no song text, no
+  // shape).
+  let defaultShapeFill = Promise.resolve();
+  function fillDefaultShapesAfterSave(bookId, paths) {
+    const songPaths = (paths ?? []).filter((p) => typeof p === 'string' && p.endsWith('.cifra.md'));
+    if (!songPaths.length) return defaultShapeFill;
+    defaultShapeFill = defaultShapeFill
+      .then(async () => {
+        const dir = ensureGit().bookDir(bookId);
+        const texts = [];
+        for (const path of songPaths) {
+          try {
+            texts.push(await ensureFs().promises.readFile(`${dir}/${path}`, 'utf8'));
+          } catch {
+            // Saved as a deletion: nothing to search.
+          }
+        }
+        if (!texts.length) return;
+        const home = ensureHomeBook();
+        const { surfaced, defaultShapes } = await readSurfacedInstruments(home);
+        // The instrument in use, as the main thread picks it (inUseEntry).
+        const entry =
+          (surfaced.inUseId && surfaced.instruments.find((e) => e.id === surfaced.inUseId)) ||
+          surfaced.standard;
+        const changes = await fillDefaultShapes({
+          texts,
+          entry,
+          cacheModel: defaultShapes,
+          // Let the Worker's other commands run between keys.
+          yieldNow: () => new Promise((resolve) => setTimeout(resolve, 0)),
+        });
+        if (!changes.length) return;
+        const author = await resolveAuthor();
+        await home.ensureLocal({ author });
+        await home.set({ bookId: HOME_BOOK_ID, file: CACHE_FILE, changes, author });
+        await surfaceHomeBookInstruments();
+        await ensureFs().flush();
+        // No sync of its own: the save already asked for one, and a cache
+        // commit is never urgent — it goes out with the next sync pass.
+      })
+      // A cache that could not be filled is only a slower read later.
+      .catch(() => {});
+    return defaultShapeFill;
   }
 
   // Materialize the synthesized standard guitar under its reserved id before a
@@ -1997,6 +2055,9 @@ export function createWorkerLogic(port, options = {}) {
               await persistIndexChanges(changes);
               postIndexReady(bookId);
               await forgetRemovedRecents(bookId, removed);
+              // The saved songs' default shapes, in every key (home-book §4.6):
+              // after the reply, never holding it.
+              fillDefaultShapesAfterSave(bookId, paths);
               // After a save, run a sync pass: it is what pushes the save — at
               // once with a network, at the next sync without (songs.save_feedback
               // Constraint 1; workflow 4 §Save pushes, workflow 8 L18). Coalesced
@@ -3632,6 +3693,7 @@ export function createWorkerLogic(port, options = {}) {
                 await reindexOrRemove({ bookId, path: fromPath, unsaved: false }),
               );
               await persistIndexChanges(changes);
+              fillDefaultShapesAfterSave(bookId, [toPath]);
               // The after-save sync pass pushes the first save, as SAVE's does
               // (songs.save_feedback Constraint 1; workflow 8 L18).
               ensureSyncScheduler().trigger();

@@ -13,7 +13,9 @@ import {
   instrumentRemoval,
   standardMaterialization,
   STANDARD_INSTRUMENT_ID,
+  defaultShapesFor,
 } from './instruments.js';
+import { SHAPE_CACHE_SALT } from '../core/shape-cache.js';
 
 const AT = '2026-10-06T12:00:00.000Z';
 const reg = (value) => ({ value, at: AT });
@@ -272,5 +274,27 @@ describe('instrumentRemoval (change-set builder)', () => {
     expect(instrumentRemoval({ id: 'g1', ...only }).preferences).toEqual([
       { path: ['instrumentInUse'], value: null },
     ]);
+  });
+});
+
+describe('the default-shape table on each entry (home-book §4.6)', () => {
+  const TUNING = 'E2 A2 D3 G3 B3 E4';
+  const table = { fingerprint: '0123456789abcdef', shapes: { 'C major': 'x32010', 'B minor': null } };
+  const reg = (value) => ({ at: '2026-11-01T00:00:00.000Z', value });
+
+  it("carries this app's salt's table, and only that one", () => {
+    const defaultShapes = {
+      [STANDARD_INSTRUMENT_ID]: { [TUNING]: { [SHAPE_CACHE_SALT]: reg(table), 'another-salt': reg({ fingerprint: 'x', shapes: {} }) } },
+    };
+    expect(surfaceInstruments({ defaultShapes }).standard.defaultShapes).toEqual(table);
+    expect(defaultShapesFor({ [STANDARD_INSTRUMENT_ID]: { [TUNING]: { 'another-salt': reg(table) } } }, STANDARD_INSTRUMENT_ID, TUNING)).toBeNull();
+  });
+
+  it('is null with no table, a tombstone, or a malformed one', () => {
+    expect(surfaceInstruments({}).standard.defaultShapes).toBeNull();
+    const at = (value) => ({ [STANDARD_INSTRUMENT_ID]: { [TUNING]: { [SHAPE_CACHE_SALT]: reg(value) } } });
+    expect(defaultShapesFor(at(null), STANDARD_INSTRUMENT_ID, TUNING)).toBeNull();
+    expect(defaultShapesFor(at({ shapes: {} }), STANDARD_INSTRUMENT_ID, TUNING)).toBeNull();
+    expect(defaultShapesFor(at({ fingerprint: 'f', shapes: { C: 7 } }), STANDARD_INSTRUMENT_ID, TUNING)).toBeNull();
   });
 });

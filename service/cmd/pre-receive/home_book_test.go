@@ -99,6 +99,32 @@ func TestPreReceiveHomeBook(t *testing.T) {
 		}
 	})
 
+	t.Run("a default-shape cache is accepted (§4.6)", func(t *testing.T) {
+		_, work := newHomeRepo(t, hooksDir)
+		writeCanonicalHome(t, work)
+		writeAt(t, work, "shapes-default-cache.json", []byte("{\n"+
+			"  \"standard\": {\n"+
+			"    \"E2 A2 D3 G3 B3 E4\": {\n"+
+			"      \"defaults-1\": {\n"+
+			"        \"at\": \"2026-11-01T12:00:00.000Z\",\n"+
+			"        \"value\": {\n"+
+			"          \"fingerprint\": \"0123456789abcdef\",\n"+
+			"          \"shapes\": {\n"+
+			"            \"A minor\": \"x02210\",\n"+
+			"            \"C major (9:0,13:0)\": null\n"+
+			"          }\n"+
+			"        }\n"+
+			"      }\n"+
+			"    }\n"+
+			"  }\n"+
+			"}\n"))
+		mustGit(t, work, "add", ".")
+		mustGit(t, work, "commit", "-m", "Update shapes-default-cache.json")
+		if out, err := gitWithEnv(t, work, homeEnv(), "push", "origin", "main"); err != nil {
+			t.Fatalf("a canonical default-shape cache should be accepted: %v\n%s", err, out)
+		}
+	})
+
 	t.Run("a song pushed to a home book is refused", func(t *testing.T) {
 		_, work := newHomeRepo(t, hooksDir)
 		writeCanonicalHome(t, work)

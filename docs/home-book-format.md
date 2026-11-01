@@ -83,13 +83,16 @@ A home book holds exactly these, all at the root, and nothing else:
   values (§4.3).
 - `shapes.json` — *my shapes*, keyed by instrument, tuning and chord (§4.4).
 - `songs.json` — per song, the transposition and the variation in use (§4.5).
+- `shapes-default-cache.json` — the app's default shapes, kept as a cache so a
+  slow device need not search for them, keyed by instrument, tuning and cache
+  salt (§4.6).
 - `README.md` — titling the repository, exactly as the app writes it (§2.2).
 - `.gitattributes` — exactly as the app writes it (§2.2).
 
 There are no folders and no other files. A settings file that is absent is
 read as the empty map `{}`: the app creates each lazily, the first time it has
 something to put in it, and the merger treats a side that lacks a file as
-having an empty one (§5). Each of the five settings files is independent; a
+having an empty one (§5). Each of the six settings files is independent; a
 preference change rewrites only `preferences.json`, so the git history of a
 home book stays legible and a push carries a one-file diff.
 
@@ -133,7 +136,7 @@ rules of §6.3 and checked by the validator against these exact bytes (§8).
   so MUST NOT be a shared register — in the home book it appears only as a
   **namespace key**, in `shelf.json`'s local books and device kinds (§4.2,
   §7); it is also the owner key of the device-local recents the Worker keeps
-  in that `meta` store, outside the home book (§4.6). Because a device writes only under its own id,
+  in that `meta` store, outside the home book (§4.7). Because a device writes only under its own id,
   two devices' per-device home-book state syncs without ever colliding.
 - **Book id.** For a book hosted on the service, the id the service gives the
   repository ([`api/openapi.yaml`](../api/openapi.yaml)); it is stable across
@@ -146,7 +149,7 @@ rules of §6.3 and checked by the validator against these exact bytes (§8).
   `b7c1…/Chico Buarque/Construção.cifra.md`. The path is the song's path as
   §2.1 of DIRECTION finds it, NFC-normalised (§6.3). A song ref is the key
   under which per-song state (§4.5) is held in the home book, and also the key
-  under which the device-local recents list is kept (§4.6) — the latter outside
+  under which the device-local recents list is kept (§4.7) — the latter outside
   the home book.
 
 ## 3. The register envelope
@@ -415,7 +418,128 @@ song ref (§2.3):
 - `variation` — a map keyed by tuning, each a register whose value names the
   variation in use for that tuning. The variation id is opaque.
 
-### 4.6 Recents (not a home-book file)
+### 4.6 `shapes-default-cache.json`
+
+The app's **default shapes** — the shape the music core's search suggests for a
+chord no song has voiced and the user has saved none for (workflow 2 §Where a
+chord's shape comes from, step 3) — **kept as a cache**. The search is cheap on
+a computer and slow on a small device: a reader on an e-ink tablet takes over a
+second a chord, and reading a song in another key searches every chord again.
+So a fast device writes what it found here, and every device that reads the
+home book finds the shapes already searched.
+
+It is a cache and nothing else. **No setting lives here**: the defaults are a
+pure function of the chord, the instrument and its rules, so deleting the file
+loses nothing but time, and a reader that finds no entry for a chord searches
+for it itself, exactly as if the file were absent. *My shapes* (§4.4) and a
+song's own shapes still come first (workflow 2); a cached default only ever
+stands where a computed one would.
+
+Keyed by instrument id, then tuning, like `shapes.json` (§4.4), then by the
+**cache salt**; the leaf is **one register whose value is the whole table** for
+that instrument, tuning and salt:
+
+```json
+{
+  "<instrument-id>": {
+    "<tuning>": {
+      "<salt>": {
+        "value": {
+          "fingerprint": "<opaque>",
+          "shapes": {
+            "<chord>": <opaque shape, or null>
+          }
+        },
+        "at": "…"
+      }
+    }
+  }
+}
+```
+
+- The **salt** — an opaque string the music core defines and **changes
+  explicitly**, by hand, whenever a change to its search can change a shape the
+  search suggests. It is not derived from the code or a release number: a
+  release that leaves the search alone keeps the salt, and every table written
+  under it stays good. The salt is a key, not a field, so two versions of the
+  app never contend for one table (below).
+- The **decommissioned salts** — a list the music core defines beside its own
+  salt: salts **deliberately retired** because no supported client carries
+  them any more. A salt is added to the list by hand, as a decision about which
+  clients are still supported — an e-ink reader on an old release included —
+  never because it is merely old. The list only grows; a decommissioned salt is
+  never used again, for any table.
+- `fingerprint` — **opaque**: what the search reads besides the chord, as the
+  music core reduces it — the instrument's definition and its voicing rules
+  (§4.3), its fret count, the tuning. Equal inputs MUST give equal
+  fingerprints. A table whose fingerprint is not the one a reader computes for
+  the instrument as it is now was searched under other rules and is read as
+  absent.
+- `shapes` — the defaults, keyed by the chord as the music core identifies it:
+  the key is the core's, opaque to this format, and two symbols the core calls
+  one chord (`Cmaj7`, `C7M`) share an entry. Each value is the **opaque
+  shape**, in the form `shapes.json` holds one (§4.4) — a fret shorthand, from
+  which the core rebuilds exactly the shape its search returned. A chord the
+  search voices **no** shape for is held as `null`: that is the most expensive
+  search there is, and the answer is as worth keeping as a shape. (`null` here
+  is a value inside the table, not a tombstone: tombstones are registers, §5.3,
+  and the table is one register's value.)
+
+**Which salt a reader uses.** No reader uses the table of a decommissioned
+salt. A reader that can afford to search — the web app
+— MUST use only the table of its own salt, so a change to the search shows as
+soon as the app carrying it runs, not after the next fill. A reader that cannot
+— a device too slow to search on demand — uses the table of its own salt, and
+MAY use another salt's table when its own is absent, provided it is not
+decommissioned: a shape another version of the search suggested is still the
+app's suggestion, and better than a chord drawn with none.
+
+**Why one register per table, not one per chord.** The merge is a union (§5.2):
+a key one device drops comes back from another that still holds it, unless it is
+tombstoned (§5.3). A cache whose rules change would otherwise keep every stale
+entry or a tombstone for each. As one register, a table is replaced whole: a
+writer rewriting it after the rules change drops the stale shapes with it.
+Two devices filling one table at once resolve by §5.1 and one side's additions
+are lost — which costs only a search the next fill redoes.
+
+**Why the salt is a key.** A salt is not ordered, so one held in the table could
+not say which of two tables is newer: two devices running different versions of
+the app would each find the other's table wrong and rewrite it, back and forth,
+for as long as both run. Keyed by salt, each version writes only its own table
+and reads past the other's; a device whose app lags — an e-ink reader updated
+less often than a browser — still finds the table written for its salt.
+
+A writer:
+
+- MUST write only the table of its own salt, and MUST NOT rewrite another
+  salt's — except to retire it:
+- MUST, whenever it writes the file, **tombstone (§5.3) every table under a
+  decommissioned salt** it finds there, for every instrument and tuning. This
+  is how an old salt leaves the file: deliberately, by the list, on the next
+  write of any writer that carries it. A client too old to know the list may
+  write its table back; it is unsupported by then, and the next supported
+  writer retires the table again;
+- SHOULD fill its table as songs are saved — every chord of each saved song,
+  in every key it can be read in (the written key and the eleven
+  transpositions) — after the save, never holding it, and write the table only
+  when the fill found something new, so the cache costs at most one commit per
+  save and none on a save that added no chord;
+- MUST write a new table, not extend the old one, when the fingerprint it
+  computes differs from the table's;
+- MUST keep the file within the per-file size limit (§8). A table is small — a
+  few hundred chords is tens of kilobytes — but a writer that would pass the
+  limit MUST make room by tombstoning (§5.3) whole tables, other salts' first
+  and then those of instruments not in use, rather than write a file the
+  validator refuses. Short of the limit, a table under a salt that is neither
+  its own nor decommissioned is left alone: some supported client may still
+  read it.
+
+Which devices fill the cache, and when, is the app's to decide; nothing in this
+format depends on it. A reader MUST tolerate a table it cannot read — a value
+that is not an object with these two keys, an unknown fingerprint, a shape it
+does not understand — by treating it as absent.
+
+### 4.7 Recents (not a home-book file)
 
 The recently opened songs are **device-local and not synced** (workflow 2
 L17-20; DIRECTION §3.2). They are **not** a home-book file: the app keeps them
@@ -562,7 +686,7 @@ The home book's per-device state is the **local-only-book markers** and the
   under its own id, the §5 merge unions the namespaces (a map union) and never
   has to reconcile two devices' markers.
 
-**Recents are also per-device, but are not a home-book file** (§4.6). They are
+**Recents are also per-device, but are not a home-book file** (§4.7). They are
 device-local and not synced (workflow 2 L17-20): never written into the home
 book, so there is no cross-device "most recently played" to go by (workflow 13)
 and nothing to merge. Unlike a local-only-book marker, a device's recents are
@@ -575,12 +699,12 @@ position (§2.3), so per-device state cannot leak into the account-wide settings
 
 ## 8. Allowed kinds and validation
 
-The home book's allowed kinds are the seven files of §2.1 at the root, and
+The home book's allowed kinds are the eight files of §2.1 at the root, and
 nothing else. This is the whitelist the validator (`hook.home_book`) enforces
 for a home book, in place of the songbook whitelist of workflow 14. A push to a
 home book is refused whole, naming what failed, if it carries:
 
-- any path other than the seven of §2.1, or any folder, symlink, submodule,
+- any path other than the eight of §2.1, or any folder, symlink, submodule,
   non-regular or executable file;
 - a `*.cifra.md` or `*.setlist.md` song or setlist — those belong in a songbook,
   not the home book;
@@ -591,6 +715,15 @@ home book is refused whole, naming what failed, if it carries:
 - a `README.md` or `.gitattributes` that is not the exact bytes of §2.2;
 - a file over the per-file size limit (the **256 KB** of workflow 14 applies;
   a home book is far smaller) or a home book over its account's limits.
+
+The validator holds `shapes-default-cache.json` to the envelope and canonical
+form like every settings file; it does not read the table inside a register,
+whose shape is the reader's to tolerate (§4.6).
+
+**Adding a file to §2.1 is ordered.** A validator that predates a file refuses a
+push that carries it, so the validator MUST accept a new file before any writer
+writes it: the service ships first, and the app writes the file only after.
+`shapes-default-cache.json` is the first file added this way.
 
 The validator checks every blob reachable from a new commit, not only the last
 one, and the one-ref, fast-forward-only and no-stowaway guards of workflow 14
@@ -624,7 +757,7 @@ implement.
 
 ## Open questions
 
-Two matters are accepted design limitations, not blockers, and neither is a
+Three matters are accepted design limitations, not blockers, and none is a
 WBS task:
 
 - **Wall-clock skew under last-write-wins.** `at` is a device's wall clock, so
@@ -643,3 +776,12 @@ WBS task:
   every device is known to have merged past it — is an optimisation, not
   required for correctness, and reads harmlessly today (an extra tombstone only
   ever loses to a later value or re-confirms a deletion). Deferred.
+
+- **Retired tables' tombstones.** A table under a decommissioned salt is
+  retired by a tombstone (§4.6), and the tombstone stays, like every tombstone
+  (§5.3), so a device still holding the table cannot bring it back. They are a
+  few dozen bytes each, one per instrument, tuning and retired salt; a table
+  under a salt that is old but not yet decommissioned stays whole until the
+  list names it, since a writer cannot know that no supported client reads it.
+  Pruning the tombstones is the same optimisation as tombstone pruning above,
+  and deferred with it.

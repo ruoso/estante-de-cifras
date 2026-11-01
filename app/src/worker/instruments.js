@@ -13,6 +13,8 @@
 //   shapes.json      → <id>.<tuning>.<chord>.value = a fret-string shorthand.
 //   preferences.json → instrumentInUse.value = an instrument id (absent means
 //     the standard guitar — fromCatalog('6guitar','Standard'), nothing stored).
+//   shapes-default-cache.json → <id>.<tuning>.<salt>.value = the default-shape
+//     table (§4.6), surfaced as `defaultShapes` for this app's salt only.
 //
 // Rebuild-on-load vs. keep-exactly (workflow 15 L124-161): an instrument whose
 // rules name a preset is rebuilt from it (`configFor`), so a later preset
@@ -28,6 +30,7 @@ import {
   isReentrant,
   defaultPresetFor,
 } from '../core/instrument.js';
+import { SHAPE_CACHE_SALT, isShapeTable } from '../core/shape-cache.js';
 
 // The built-in default every absent in-use register resolves to (workflow 1
 // L72-78): the standard guitar, spelled as cifra.md §6 spells it (uppercase
@@ -111,10 +114,21 @@ function shapesForId(shapesModel, id) {
   return out;
 }
 
+// The default-shape table for one instrument and tuning under this app's salt
+// (§4.6), or null when there is none or it is not a well-formed table. The web
+// app reads only its own salt's table, so a change to the search shows as soon
+// as the app carrying it runs. The fingerprint is checked where it is used
+// (shape-cache.js), against the instrument as built.
+export function defaultShapesFor(cacheModel, id, tuning) {
+  const reg = cacheModel?.[id]?.[tuning]?.[SHAPE_CACHE_SALT];
+  if (!isRegister(reg) || !isShapeTable(reg.value)) return null;
+  return reg.value;
+}
+
 // Project one instruments.json entry to a roster entry, or null when it is a
 // tombstone (a removed instrument) or malformed (dropped rather than surfaced —
 // a malformed home book is the validator's concern, not the slice's).
-function buildEntry(id, node, shapesModel) {
+function buildEntry(id, node, shapesModel, cacheModel) {
   if (!node || typeof node !== 'object') return null;
   const defReg = node.definition;
   if (!isRegister(defReg)) return null;
@@ -143,6 +157,7 @@ function buildEntry(id, node, shapesModel) {
     presetId,
     config,
     shapes: shapesForId(shapesModel, id),
+    defaultShapes: defaultShapesFor(cacheModel, id, tuning),
   };
 }
 
@@ -153,7 +168,7 @@ function buildEntry(id, node, shapesModel) {
 // first star (music.explorer_standard_shapes; home-book §4.4). Its `shapes` is
 // empty: once materialized it is surfaced by `buildEntry` with live shapes like
 // any other instrument, and this synthesized entry is no longer emitted.
-function standardEntry() {
+function standardEntry(cacheModel) {
   const instrument = instrumentInstance({
     catalogId: STANDARD_CATALOG,
     strings: STANDARD_TUNING,
@@ -172,6 +187,7 @@ function standardEntry() {
     presetId,
     config,
     shapes: [],
+    defaultShapes: defaultShapesFor(cacheModel, STANDARD_INSTRUMENT_ID, STANDARD_TUNING),
   };
 }
 
@@ -182,14 +198,14 @@ function standardEntry() {
  * the synthesized standard-guitar fallback entry (null once the standard has been
  * materialized under the reserved id, so the roster entry is the single standard).
  *
- * @param {{ instruments?: object, preferences?: object, shapes?: object }} models
+ * @param {{ instruments?: object, preferences?: object, shapes?: object, defaultShapes?: object }} models
  * @returns {{ instruments: object[], inUseId: string|null, standard: object|null }}
  */
-export function surfaceInstruments({ instruments = {}, preferences = {}, shapes = {} } = {}) {
+export function surfaceInstruments({ instruments = {}, preferences = {}, shapes = {}, defaultShapes = {} } = {}) {
   const roster = [];
   if (instruments && typeof instruments === 'object' && !Array.isArray(instruments)) {
     for (const id of Object.keys(instruments)) {
-      const entry = buildEntry(id, instruments[id], shapes);
+      const entry = buildEntry(id, instruments[id], shapes, defaultShapes);
       if (entry) roster.push(entry);
     }
   }
@@ -205,7 +221,7 @@ export function surfaceInstruments({ instruments = {}, preferences = {}, shapes 
   return {
     instruments: roster,
     inUseId,
-    standard: materializedStandard ? null : standardEntry(),
+    standard: materializedStandard ? null : standardEntry(defaultShapes),
   };
 }
 

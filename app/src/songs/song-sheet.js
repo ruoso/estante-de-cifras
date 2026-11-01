@@ -13,6 +13,7 @@
 import { parse } from 'cifra-md';
 import { instrumentInstance, openMidis } from '../core/instrument.js';
 import { resolveSongVoicings, unvoiceableKeys } from '../core/voicings.js';
+import { createShapeCache } from '../core/shape-cache.js';
 import { transpose } from '../core/transpose.js';
 import { songVariations } from '../core/song-variations.js';
 import { DEFAULT_DIALECT, songDialect } from '../core/notation/dialects.js';
@@ -45,6 +46,24 @@ function instrumentFor(entry) {
   } catch {
     return null;
   }
+}
+
+// The session's default-shape cache for an instrument entry (core/shape-cache.js;
+// home-book §4.6): seeded from the table the Worker surfaces with the entry, and
+// keeping every default searched since, so a chord is searched once a session
+// at most — a transposition, a reopened song, a printed book. Keyed by the entry
+// object: a new INSTRUMENTS event brings new entries (a refilled table, changed
+// rules) and a fresh cache with them. The Worker fills the stored table when a
+// song is saved; what is searched here stays in memory.
+const shapeCaches = new WeakMap();
+function shapeCacheFor(entry, instrument) {
+  if (!entry || !instrument || typeof entry !== 'object') return undefined;
+  let cache = shapeCaches.get(entry);
+  if (!cache) {
+    cache = createShapeCache({ instrument, table: entry.defaultShapes ?? null });
+    shapeCaches.set(entry, cache);
+  }
+  return cache;
 }
 
 /**
@@ -86,6 +105,7 @@ export function readSongSheet({ text, reading = null, entry = null, preferences 
           shapes: entry?.shapes ?? [],
           ignoreSongVoicings: offset !== 0,
           dialect: notation,
+          cache: shapeCacheFor(entry, instrument),
         })
       : new Map();
   const chordList = model ? chartChordList(model) : [];

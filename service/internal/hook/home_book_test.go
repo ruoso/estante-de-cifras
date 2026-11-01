@@ -47,7 +47,27 @@ const canonicalOpaqueRegister = "{\n" +
 	"  }\n" +
 	"}\n"
 
-// TestClassifyHomePath pins the §2.1/§8 whitelist: the five settings files and the
+// canonicalShapeCache is a canonical shapes-default-cache.json (§4.6): one
+// register per instrument, tuning and salt whose value is the whole table,
+// a chord with no shape held as null inside it. The table is not walked.
+const canonicalShapeCache = "{\n" +
+	"  \"standard\": {\n" +
+	"    \"E2 A2 D3 G3 B3 E4\": {\n" +
+	"      \"defaults-1\": {\n" +
+	"        \"at\": \"2026-11-01T12:00:00.000Z\",\n" +
+	"        \"value\": {\n" +
+	"          \"fingerprint\": \"0123456789abcdef\",\n" +
+	"          \"shapes\": {\n" +
+	"            \"A minor\": \"x02210\",\n" +
+	"            \"C major (9:0,13:0)\": null\n" +
+	"          }\n" +
+	"        }\n" +
+	"      }\n" +
+	"    }\n" +
+	"  }\n" +
+	"}\n"
+
+// TestClassifyHomePath pins the §2.1/§8 whitelist: the six settings files and the
 // two fixed-name files at the root, a song/setlist flagged as such, everything
 // else disallowed.
 func TestClassifyHomePath(t *testing.T) {
@@ -60,6 +80,7 @@ func TestClassifyHomePath(t *testing.T) {
 		{"instruments.json", homeSettings},
 		{"shapes.json", homeSettings},
 		{"songs.json", homeSettings},
+		{"shapes-default-cache.json", homeSettings},
 		{"README.md", homeReadme},
 		{".gitattributes", homeGitattributes},
 		{"cancao.cifra.md", homeSongOrSetlist},
@@ -89,6 +110,7 @@ func TestHomeSettingsCanonicalAccepted(t *testing.T) {
 		{"preferences", canonicalPreferences},
 		{"opaque register value with value/at keys", canonicalOpaqueRegister},
 		{"empty map", "{}\n"},
+		{"shapes-default-cache", canonicalShapeCache},
 	} {
 		if r := settingsReason(c.name+".json", []byte(c.content)); r != "" {
 			t.Errorf("%s: a canonical settings file should be accepted, got refusal %q", c.name, r)

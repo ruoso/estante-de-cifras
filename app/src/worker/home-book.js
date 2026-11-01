@@ -59,6 +59,9 @@ export const SETTINGS_FILES = Object.freeze([
   'instruments.json',
   'shapes.json',
   'songs.json',
+  // The app's default shapes, kept as a cache (§4.6): merged key by key like
+  // the rest, its leaves being whole tables, one per instrument, tuning and salt.
+  'shapes-default-cache.json',
 ]);
 
 // The EXACT bytes of README.md and .gitattributes (§2.2): UTF-8, LF, one

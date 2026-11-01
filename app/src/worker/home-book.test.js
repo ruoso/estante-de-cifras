@@ -38,13 +38,14 @@ describe('SETTINGS_FILES (home-book-format.md §2.1; storage.recents_reconcile)'
   // DIRECTION §3.2; recents live in the `meta` store — songs.search Decision 2).
   // The `sync` merge loop iterates this constant, so recents.json's absence here
   // means it is never iterated, never written, never pushed.
-  it('is exactly the five settings files and does NOT include recents.json', () => {
+  it('is exactly the six settings files and does NOT include recents.json', () => {
     expect([...SETTINGS_FILES]).toEqual([
       'preferences.json',
       'shelf.json',
       'instruments.json',
       'shapes.json',
       'songs.json',
+      'shapes-default-cache.json',
     ]);
     expect(SETTINGS_FILES).not.toContain('recents.json');
   });

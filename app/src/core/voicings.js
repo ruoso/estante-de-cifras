@@ -27,7 +27,8 @@ import { parseChord } from './notation/parse.js';
 import { DEFAULT_DIALECT } from './notation/dialects.js';
 import { sameChord } from './chord.js';
 import { searchFingerings, fingeringFromFrets } from './search.js';
-import { parseShorthand } from './fretstring.js';
+import { parseShorthand, shorthandOf } from './fretstring.js';
+import { shapeCacheKey } from './shape-cache.js';
 import { openMidis, parseTuning } from './instrument.js';
 import { pitchToMidi } from './pitch.js';
 
@@ -45,9 +46,31 @@ import { pitchToMidi } from './pitch.js';
  * open-first with empty groups skipped, so that is the first shape of the first
  * group.
  *
+ * A host may hand in a `cache` (shape-cache.js): a hit is rebuilt from its frets
+ * with `fingeringFromFrets` — exactly the shape the search returned, finger for
+ * finger — and a miss is searched and offered back, a chord with no shape as
+ * `null`, so the most expensive miss is not searched twice.
+ *
+ * @param {object} [options]
+ * @param {import('./shape-cache.js').ShapeCache} [options.cache]
  * @returns {import('./search.js').Fingering|null} null if nothing is playable
  */
-export function defaultVoicing(chord, instrument) {
+export function defaultVoicing(chord, instrument, { cache } = {}) {
+  if (!cache) return searchDefault(chord, instrument);
+  const key = shapeCacheKey(chord, instrument);
+  const hit = cache.lookup(key);
+  if (hit === null) return null;
+  if (typeof hit === 'string') {
+    const frets = parseShorthand(hit);
+    const fingering = frets && fingeringFromFrets(frets, chord, instrument);
+    if (fingering) return fingering;
+  }
+  const found = searchDefault(chord, instrument);
+  cache.offer(key, found ? shorthandOf(found.frets) : null);
+  return found;
+}
+
+function searchDefault(chord, instrument) {
   const result = searchFingerings(chord, instrument);
   return result.groups[0]?.fingerings[0] ?? null;
 }
@@ -146,12 +169,14 @@ function withSongFingers(fingering, songFingers) {
  *   and transposed it in. My shapes' chord keys are always read in
  *   `DEFAULT_DIALECT`, the dialect `shapes.json` writes them in (home-book
  *   format §4.4), so a star matches by chord whatever the song's dialect.
+ * @param {import('./shape-cache.js').ShapeCache} [options.cache]  the host's
+ *   default-shape cache (shape-cache.js), consulted for step 3 only
  * @returns {Map<string, ResolvedVoicing>}  key → resolution, in chart order
  */
 export function resolveSongVoicings(
   parsed,
   instrument,
-  { variation = '', shapes = [], ignoreSongVoicings = false, dialect = DEFAULT_DIALECT } = {}
+  { variation = '', shapes = [], ignoreSongVoicings = false, dialect = DEFAULT_DIALECT, cache } = {}
 ) {
   const tuningId = instrumentTuningId(instrument);
   const block = ignoreSongVoicings ? null : selectBlock(parsed, tuningId, variation);
@@ -202,7 +227,7 @@ export function resolveSongVoicings(
 
     // 3. The app's default (computed once per symbol).
     if (!defaultsBySymbol.has(item.symbol)) {
-      defaultsBySymbol.set(item.symbol, defaultVoicing(chord, instrument));
+      defaultsBySymbol.set(item.symbol, defaultVoicing(chord, instrument, { cache }));
     }
     const fallback = defaultsBySymbol.get(item.symbol);
     if (fallback) out.set(item.key, { source: 'default', fingering: fallback });
