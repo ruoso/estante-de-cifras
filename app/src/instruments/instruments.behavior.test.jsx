@@ -11,6 +11,12 @@
 // Pins workflow 15; home-book §4.3–§4.4; mockup W15; DIRECTION §3.7 L407-414.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+// Every test here is a long journey with axe passes over many diagrams —
+// 2.5 to 4 seconds alone, past Vitest's 5-second default whenever the gate
+// loads the machine (timeouts in most loaded runs on 2026-11-01). The whole
+// file gets the room the suite's other axe-heavy tests have.
+vi.setConfig({ testTimeout: 20000 });
 import { useState } from 'react';
 import { IDBFactory } from 'fake-indexeddb';
 import { render, screen, within, waitFor, act, fireEvent } from '@testing-library/react';
@@ -219,9 +225,7 @@ describe('the instrument surface (behavior)', () => {
 
     const prefs = await readHome(idb, name, 'preferences.json');
     expect(typeof prefs.instrumentInUse.value).toBe('string');
-    // A long journey with axe passes: 2.5–4 s alone, past the 5 s default when
-    // the gate loads the machine.
-  }, 20000);
+  });
 
   it('names the instrument in use by its one short label: a default label shortened, a user name kept (shell.header_chrome)', async () => {
     const { store } = makeFreshWorker('chip');

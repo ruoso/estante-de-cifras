@@ -10,7 +10,13 @@
 // keyboard path through fingerings, starring"; workflow 16 L38-191; DIRECTION
 // §3.2, §3.7; home-book §4.4.
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+// Every test here is a long journey with axe passes over many diagrams —
+// 2.5 to 4 seconds alone, past Vitest's 5-second default whenever the gate
+// loads the machine (timeouts in most loaded runs on 2026-11-01). The whole
+// file gets the room the suite's other axe-heavy tests have.
+vi.setConfig({ testTimeout: 20000 });
 import { IDBFactory } from 'fake-indexeddb';
 import { render, screen, within, waitFor, act, fireEvent } from '@testing-library/react';
 import { createFileSystem } from '../worker/fs.js';
@@ -193,9 +199,7 @@ describe('the chord explorer (behavior)', () => {
     } finally {
       await remote.stop();
     }
-    // A long journey with axe passes: 2.5–4 s alone, past the 5 s default when
-    // the gate loads the machine.
-  }, 20000);
+  });
 
   it('gives a full keyboard path to every star, show more, and enter a shape', async () => {
     const remote = await startGitHttpRemote();
