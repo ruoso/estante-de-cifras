@@ -103,7 +103,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: calc(var(--u) * 1.5);
+}
+/* The heading takes the room, so Run the wizard and the instrument chip sit
+   together at the end of the head (songs.wizard_review). */
+.est .est-editor-preview-head > .t-h3 {
+  flex: 1;
 }
 .est .est-editor-arrange-hint {
   margin: 0;

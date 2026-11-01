@@ -233,17 +233,47 @@ describe('SongWizard — step two, the preview (written to nothing)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
-  it('says every chord already has the shape when the plan changes nothing', async () => {
+  it('when the plan changes nothing, says so and offers nothing to write (songs.wizard_review)', async () => {
     const { store, commands } = makeStore({
       text: song({ voicings: OPEN_BLOCK }),
       entry: guitarEntry(),
     });
-    await openWizard(store);
+    const { container } = await openWizard(store);
 
     await toPreview('Down at the nut');
 
-    expect(screen.getByText('Every chord already has the shape this would choose.')).toBeInTheDocument();
+    expect(screen.getByText(/^Every chord already has the shape this would choose, so there is nothing to write\./)).toBeInTheDocument();
+    // No where-to-put-it question, no Write the plan: only the way back.
+    expect(screen.queryByRole('radiogroup', { name: 'Where to put the plan' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Write the plan' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    // Every shape is the song's already: each reads *as now*.
+    const words = [...container.querySelectorAll('.wizard-preview .chord-diagram__who')].map((w) => w.textContent);
+    expect(words).toEqual(['as now', 'as now', 'as now', 'as now']);
     expect(lastCommand(commands, CommandKind.WRITE)).toBeUndefined();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('names every shape it previews, marks which ones change, and counts chords, not the places they are played (songs.wizard_review)', async () => {
+    // G is played three times: the count is of the four chords.
+    const { store } = makeStore({
+      text: song({ chart: 'G | C | G | Am | G | Em', voicings: OPEN_BLOCK }),
+      entry: guitarEntry(),
+    });
+    const { container } = await openWizard(store);
+    await toPreview('Choro, beside a seven-string');
+
+    const diagrams = [...container.querySelectorAll('.wizard-preview .chord-diagram')];
+    const names = diagrams.map((d) => d.querySelector('.chord-diagram__chord')?.textContent);
+    expect(names).toEqual(['G', 'C', 'Am', 'Em']);
+    // The choro shapes are inversions: what each sounds is named beside it.
+    const sounded = diagrams.map((d) => d.querySelector('.chord-diagram__sounded')?.textContent ?? null);
+    expect(sounded.some((name) => name && name.includes('/'))).toBe(true);
+    const words = diagrams.map((d) => d.querySelector('.chord-diagram__who')?.textContent);
+    const changing = words.filter((w) => w === 'new shape').length;
+    expect(changing).toBeGreaterThan(0);
+    expect(words.every((w) => w === 'new shape' || w === 'as now')).toBe(true);
+    expect(screen.getByText(`${changing} of 4 chords would change.`)).toBeInTheDocument();
   });
 });
 
@@ -259,7 +289,7 @@ describe('SongWizard — into a new variation first', () => {
 
     // Into a new variation is first and selected; over this one second.
     const newVar = screen.getByRole('radio', { name: /Into a new variation/ });
-    const over = screen.getByRole('radio', { name: /Over Default/ });
+    const over = screen.getByRole('radio', { name: /Replace “Default”/ });
     expect(newVar).toBeChecked();
     expect(over).not.toBeChecked();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
@@ -298,19 +328,18 @@ describe('SongWizard — into a new variation first', () => {
 
 // The computer split (songs.arrange_polish Decision 6-8; W05#4 L164-231): at
 // ARRANGE_WIDE_QUERY the wizard sits in a 380px side pane beside a main pane
-// dressed as arrange, whose chart previews the plan; below it the full-screen
+// whose chart previews the plan; below it the full-screen
 // layout stays. The step back reads **Back** in both. Pins the workflow 5 delta
 // lines 91-93 and W05#4.
 describe('SongWizard — the computer split', () => {
   const sidePane = (container) => container.querySelector('.pane.side');
   const mainPane = (container) => container.querySelector('.pane.main');
 
-  it('on a computer: the plan step and its actions in the side pane, the preview chart beside it; Done closes with no WRITE; axe clean', async () => {
+  it('on a computer: the plan step and its actions in the side pane, the preview chart beside it; ✕ is the one way out, with no WRITE; axe clean', async () => {
     installWidths('computer');
-    const onDone = vi.fn();
     const onBack = vi.fn();
     const { store, commands } = makeStore({ text: song({ voicings: OPEN_BLOCK }), entry: guitarEntry() });
-    const { container } = await openWizard(store, { mode: 'wide', onDone, onBack });
+    const { container } = await openWizard(store, { mode: 'wide', onBack });
     expect(sidePane(container)).toBeTruthy();
     const side = within(sidePane(container));
     const main = within(mainPane(container));
@@ -334,7 +363,8 @@ describe('SongWizard — the computer split', () => {
     expect(main.getByText('Arranging · Guitar')).toBeInTheDocument();
     // A mention, not a switch: no instrument chip button in the wizard.
     expect(screen.queryByRole('button', { name: /change instrument/ })).toBeNull();
-    expect(main.getByRole('button', { name: 'Done' })).toBeInTheDocument();
+    // No second way out beside ✕ (songs.wizard_review).
+    expect(main.queryByRole('button', { name: 'Done' })).toBeNull();
     expect(main.getByText('Preview of the plan')).toBeInTheDocument();
     expect(main.getByRole('group', { name: 'Tarde Clara' })).toBeInTheDocument();
     fireEvent.change(side.getByRole('textbox', { name: 'Name for this variation' }), {
@@ -348,10 +378,9 @@ describe('SongWizard — the computer split', () => {
     await click(side.getByRole('button', { name: 'Back' }));
     expect(side.getByRole('group', { name: 'Choose a policy' })).toBeInTheDocument();
 
-    // Done closes the wizard and arrange together; nothing is written.
-    await click(main.getByRole('button', { name: 'Done' }));
-    expect(onDone).toHaveBeenCalledTimes(1);
-    expect(onBack).not.toHaveBeenCalled();
+    // ✕ closes the wizard; nothing is written.
+    await click(side.getByRole('button', { name: 'Cancel' }));
+    expect(onBack).toHaveBeenCalledTimes(1);
     expect(lastCommand(commands, CommandKind.WRITE)).toBeUndefined();
   }, 20000);
 
@@ -379,7 +408,7 @@ describe('SongWizard — over this one, and the no-choices shortcut', () => {
     await openWizard(store);
 
     await toPreview('The smoothest path');
-    await click(screen.getByRole('radio', { name: /Over Default/ }));
+    await click(screen.getByRole('radio', { name: /Replace “Default”/ }));
     await click(screen.getByRole('button', { name: 'Write the plan' }));
 
     const write = lastCommand(commands, CommandKind.WRITE);

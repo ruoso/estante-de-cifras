@@ -120,7 +120,7 @@ test('offers into a new variation first and over this one second; a fresh variat
   // With choices in the in-use variation, both options are offered, new first.
   await toPreview(page);
   await expect(page.getByRole('radio', { name: /Into a new variation/ })).toBeChecked();
-  const over = page.getByRole('radio', { name: /Over Default/ });
+  const over = page.getByRole('radio', { name: /Replace “Default”/ });
   await expect(over).toBeVisible();
 
   // Over this one replaces the in-use variation's shapes and returns to the
@@ -296,12 +296,48 @@ test('on a computer the wizard sits beside the chart', async ({ page, checkA11y 
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.getByRole('group', { name: 'Choose a policy' })).toBeVisible();
 
-  // On the computer, Done leaves the wizard for the editor that raised it, focus
-  // back on Run the wizard.
-  if (testInfo.project.name === 'computer') {
-    await page.getByRole('button', { name: 'Done', exact: true }).click();
-    await expect(page.locator('.wizard-split')).toHaveCount(0);
-    await expect(arrangePreview(page)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Run the wizard' })).toBeFocused();
-  }
+  // ✕ is the one way out (no second Done beside it, songs.wizard_review): back
+  // to the editor that raised it, focus on Run the wizard.
+  await expect(page.getByRole('button', { name: 'Done', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.locator('.wizard-screen')).toHaveCount(0);
+  await expect(arrangePreview(page)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run the wizard' })).toBeFocused();
+});
+
+// songs.wizard_review — the plan says which shape is which and which change: every
+// diagram it previews carries its chord's name (and, for an inversion, what it
+// sounds) and *new shape* or *as now*; the count is of chords, not of the places
+// they are played (the example song plays five chords twenty times); and a plan
+// that changes nothing offers nothing to write.
+test('the plan names its shapes and counts chords; a plan that changes nothing offers nothing to write', async ({
+  page,
+  checkA11y,
+}) => {
+  await openExampleBook(page);
+  await openSong(page);
+  await enterArrange(page);
+  // Run the wizard is in sight where the preview begins, beside the instrument.
+  const head = arrangePreview(page).locator('.est-editor-preview-head');
+  await expect(head.getByRole('button', { name: 'Run the wizard' })).toBeInViewport();
+
+  await toPreview(page, 'Choro, beside a seven-string');
+  const plan = page.locator('.wizard-preview, .wizard-main-shapes').first();
+  const diagrams = plan.locator('.chord-diagram');
+  await expect(diagrams).toHaveCount(5);
+  await expect(plan.locator('.chord-diagram__chord')).toHaveText(['G', 'C', 'D', 'Em', 'Am']);
+  await expect(plan.locator('.chord-diagram__sounded')).toHaveText(['G/B', 'C/E', 'D/F#', 'Em/G', 'Am/C']);
+  await expect(plan.locator('.chord-diagram__who')).toHaveText(Array(5).fill('new shape'));
+  await expect(page.getByText('5 of 5 chords would change.')).toBeVisible();
+  await checkA11y(); // the plan, named
+
+  // Down at the nut is what the song already has: nothing to write.
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
+  await page.getByRole('button', { name: 'Down at the nut' }).click();
+  await page.getByRole('button', { name: 'See the plan' }).click();
+  await expect(page.getByText(/^Every chord already has the shape this would choose, so there is nothing to write\./)).toBeVisible();
+  await expect(plan.locator('.chord-diagram__who')).toHaveText(Array(5).fill('as now'));
+  await expect(writePlan(page)).toHaveCount(0);
+  await expect(page.getByRole('radiogroup', { name: 'Where to put the plan' })).toHaveCount(0);
+  await checkA11y(); // nothing to write
 });

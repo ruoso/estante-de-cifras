@@ -6,7 +6,7 @@
 // (DIRECTION §3.7); this is display logic only.
 
 import { CATALOG, catalogEntry, parseTuning } from '../core/instrument.js';
-import { formatPitch } from '../core/pitch.js';
+import { formatPitch, pitchToMidi } from '../core/pitch.js';
 import { fingeringFromFrets } from '../core/search.js';
 import { parseShorthand } from '../core/fretstring.js';
 import { instrumentInstance } from '../core/instrument.js';
@@ -56,6 +56,31 @@ export const PRESET_IDS = ['beginner', 'strumming', 'fingerstyle', 'jazz', 'bass
 // throws `fault('emptyTuning')` on nothing parseable — the add form catches it.
 export function tuningText(input) {
   return parseTuning(input).map(formatPitch).join(' ');
+}
+
+// What to call a voicing block's tuning on screen (songs.wizard_review): the
+// label of the user's instrument whose strings sound those pitches — the in-use
+// one first, then the roster, then the standard guitar — else the tuning as the
+// song writes it (a tuning nobody here plays, or one written by name). Pitches
+// are compared by what they sound, so `Eb` and `D#` are one string.
+export function tuningLabelFor(slice, text) {
+  let wanted;
+  try {
+    wanted = parseTuning(text).map(pitchToMidi).join(' ');
+  } catch {
+    return text;
+  }
+  const { instruments = [], inUseId = null, standard = null } = slice ?? {};
+  const inUse = instruments.find((e) => e.id === inUseId);
+  for (const entry of [inUse, ...instruments, standard]) {
+    if (!entry?.tuning) continue;
+    try {
+      if (parseTuning(entry.tuning).map(pitchToMidi).join(' ') === wanted) return chipLabel(entry);
+    } catch {
+      // an entry with a tuning that does not parse names nothing
+    }
+  }
+  return text;
 }
 
 // A catalogue entry's display name, from i18n (`catalog.<id>`), else its raw

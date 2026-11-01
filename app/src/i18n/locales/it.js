@@ -1132,6 +1132,11 @@ export default {
       voicingAdded: 'per {tuning}: {chord} aggiunto',
       voicingRemoved: 'per {tuning}: {chord} rimosso',
       voicingChanged: 'per {tuning}: {chord} cambiato',
+      voicingVariationAdded: '“{variation}” aggiunta per {tuning}',
+      voicingVariationRemoved: '“{variation}” rimossa per {tuning}',
+      voicingAddedIn: 'per {tuning}, “{variation}”: {chord} aggiunto',
+      voicingRemovedIn: 'per {tuning}, “{variation}”: {chord} rimosso',
+      voicingChangedIn: 'per {tuning}, “{variation}”: {chord} cambiato',
     },
   },
 
@@ -2187,7 +2192,7 @@ export default {
       one: '{count} battuta',
       other: '{count} battute',
     },
-    nothing: 'Ogni accordo ha già la forma che questo scegliereb­be.',
+    nothing: 'Ogni accordo ha già la forma che questo sceglierebbe, quindi non c’è niente da scrivere. Torna indietro per provare un altro modo.',
     missing: 'Nessuna forma per {list}.',
     how: 'Come funziona',
     howTitle: 'Come sceglie',
@@ -2201,16 +2206,18 @@ export default {
     previewTitle: 'Le forme che sceglierebbe',
     planReady: 'Il piano è pronto',
     planReadyPrompt:
-      '{variation} ha già forme scelte in questo brano. Mettere il piano accanto a esse, o sopra di esse?',
+      '“{variation}” ha già forme scelte in questo brano. Mettere il piano accanto a esse, o al loro posto?',
     choiceLabel: 'Dove mettere il piano',
     newVariation: 'In una nuova variazione',
-    newVariationHint: '{variation} resta com’è',
-    over: 'Sopra {variation}',
-    overHint: 'Sostituisce ciò che è scelto lì',
+    newVariationHint: '“{variation}” resta com’è',
+    over: 'Sostituire “{variation}”',
+    overHint: 'Le forme scelte lì lasciano il posto al piano',
     defaultName: 'Nuove forme',
     editNote:
       'In entrambi i casi è una modifica nella copia di lavoro: il foglio di salvataggio mostra cosa ha scelto, e annullare la disfa.',
     write: 'Scrivi il piano',
+    shapeChanges: 'forma nuova',
+    shapeKept: 'come ora',
   },
 
   shape: {

@@ -40,9 +40,12 @@ import './diagram.css';
  * @param {string} [props.className]  extra classes on the host
  * @param {string} [props.name]  the chord's name, drawn over the diagram
  * @param {string|null} [props.sounded]  what the shape sounds, beside the name
+ * @param {string} [props.note]  a word under the shape in place of its kind's —
+ *   the wizard's *new shape* / *as now* (songs.wizard_review)
  */
-export default function ChordDiagram({ fingering, context, kind = 'song', size, className, name, sounded }) {
-  const { modifier, word } = diagramKind(kind);
+export default function ChordDiagram({ fingering, context, kind = 'song', size, className, name, sounded, note }) {
+  const { modifier, word: kindWord } = diagramKind(kind);
+  const word = note ?? kindWord;
   const { handed, orientation } = useContext(DiagramDisplayContext);
   const options = size != null ? { handed, orientation, size } : { handed, orientation };
   // The renderer returns a trusted, app-generated SVG string with role="img"

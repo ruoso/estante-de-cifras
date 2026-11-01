@@ -14,16 +14,30 @@
 //
 // Pure presentation: it renders the records `diff` produced (cifra_js.diff) through
 // the pure, localized `renderChange` — musical tokens pass as data, never translated
-// (Decision 3). It holds no state and reads no slice. `t` is read from the
+// (Decision 3). It holds no state; the one thing it reads is the instruments, through
+// the shell's `ShellChrome` store, to name a voicing block's tuning by the instrument
+// that plays it (songs.wizard_review) — outside the shell, the tuning as written. `t` is read from the
 // module-level i18n (the whole view re-renders on a language change).
 
+import { useCallback, useContext } from 'react';
 import { Button } from 'react-aria-components';
+import { useSlice } from '../worker/useStore.js';
+import { ShellChrome } from '../shell/HeaderChrome.jsx';
+import { tuningLabelFor } from '../instruments/instrument-helpers.js';
 import { t } from '../i18n/index.js';
 import { renderChange } from './render-change.js';
 import { blockLabelText } from './restorable-blocks.js';
 
-function ChangeRow({ change, i }) {
-  const { where, what } = renderChange(change, t);
+// Outside the shell there is no store to read: an inert one names nothing.
+const NO_STORE = { subscribe: () => () => {}, slice: () => null };
+function useTuningLabel() {
+  const shell = useContext(ShellChrome);
+  const instruments = useSlice(shell?.store ?? NO_STORE, 'instruments');
+  return useCallback((text) => tuningLabelFor(instruments, text), [instruments]);
+}
+
+function ChangeRow({ change, i, tuningLabel }) {
+  const { where, what } = renderChange(change, t, { tuningLabel });
   return (
     <div className="d" key={`${where}:${what}:${i}`}>
       <span className="k">{where}</span>
@@ -39,8 +53,12 @@ function ChangeRow({ change, i }) {
  * @param {Array<{ kind: string, label: string, ref: object, changes: object[] }>} [props.blocks]
  *   restorable blocks (grouped mode); with `onRestoreBlock`, each gets a restore button
  * @param {(block: object) => void} [props.onRestoreBlock] raise a per-block restore
+ * @param {(text: string) => string} [props.tuningLabel] names a voicing block's
+ *   tuning by the instrument that plays it (the host reads the instruments)
  */
-export default function DiffRows({ changes, blocks, onRestoreBlock }) {
+export default function DiffRows({ changes, blocks, onRestoreBlock, tuningLabel: given }) {
+  const fromShell = useTuningLabel();
+  const tuningLabel = given ?? fromShell;
   // Grouped, per-block restore mode (songs.restore_part): each block the version
   // differs in carries its rows and a *Restore this block* affordance.
   if (blocks && onRestoreBlock) {
@@ -58,7 +76,7 @@ export default function DiffRows({ changes, blocks, onRestoreBlock }) {
             >
               <div className="est-restore-rows">
                 {block.changes.map((change, i) => (
-                  <ChangeRow change={change} i={i} key={`${block.label}:${i}`} />
+                  <ChangeRow change={change} i={i} tuningLabel={tuningLabel} key={`${block.label}:${i}`} />
                 ))}
               </div>
               <Button
@@ -80,7 +98,7 @@ export default function DiffRows({ changes, blocks, onRestoreBlock }) {
   return (
     <div className="diff">
       {changes.map((change, i) => (
-        <ChangeRow change={change} i={i} key={`${change.kind}:${i}`} />
+        <ChangeRow change={change} i={i} tuningLabel={tuningLabel} key={`${change.kind}:${i}`} />
       ))}
     </div>
   );

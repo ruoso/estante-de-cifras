@@ -895,6 +895,14 @@ export default function SongEditor({
             <div className="est-editor-preview-body">
               <div className="est-editor-preview-head">
                 <div className="t-h3">{t('editor.source.preview')}</div>
+                {/* Run the wizard sits in the preview's head, beside the instrument
+                    it plans for, where the preview is first seen — not after the
+                    whole chart (songs.wizard_review). */}
+                {song && onRunWizard ? (
+                  <Button ref={wizardButtonRef} className="btn" isDisabled={!canArrange} onPress={runWizard}>
+                    {t('arrange.runWizard')}
+                  </Button>
+                ) : null}
                 {song && arrange.entry ? <InstrumentChip store={store} onOpen={arrange.openInstruments} /> : null}
               </div>
               {song ? (
@@ -910,11 +918,6 @@ export default function SongEditor({
                     <Button className="btn" isDisabled={!canArrange} onPress={arrange.openAddVariation}>
                       {t('arrange.variations')}
                     </Button>
-                    {onRunWizard ? (
-                      <Button ref={wizardButtonRef} className="btn" isDisabled={!canArrange} onPress={runWizard}>
-                        {t('arrange.runWizard')}
-                      </Button>
-                    ) : null}
                   </div>
                 </>
               ) : (

@@ -47,23 +47,35 @@ function whereOf(record, t) {
 }
 
 // The what column: what changed at that location.
-function whatOf(record, t) {
+function whatOf(record, t, tuningLabel) {
   const { kind, op, before, after } = record;
   const w = record.where ?? {};
 
   if (kind === 'voicing') {
-    const tuning = w.tuning ?? '';
+    // The tuning by the instrument that plays it, where the host can tell
+    // (*Guitar*, not *E2 A2 D3 G3 B3 E4*), and a named variation by its name
+    // (songs.wizard_review); the default variation needs no name.
+    const tuning = tuningLabel(w.tuning ?? '');
+    const variation = w.variation ?? '';
+    const named = variation !== '';
     if (w.key == null) {
-      // A whole voicing block added or removed: "added for {tuning}".
+      // A whole voicing block added or removed: "added for {tuning}", or the
+      // variation by name: "“Easy” added for Guitar".
+      if (named) {
+        return op === 'removed'
+          ? t('saveSheet.change.voicingVariationRemoved', { tuning, variation })
+          : t('saveSheet.change.voicingVariationAdded', { tuning, variation });
+      }
       return op === 'removed'
         ? t('saveSheet.change.voicingBlockRemoved', { tuning })
         : t('saveSheet.change.voicingBlockAdded', { tuning });
     }
     // One voicing within a block, named by its chord (the block's key).
     const chord = w.key;
-    if (op === 'removed') return t('saveSheet.change.voicingRemoved', { tuning, chord });
-    if (op === 'added') return t('saveSheet.change.voicingAdded', { tuning, chord });
-    return t('saveSheet.change.voicingChanged', { tuning, chord });
+    const params = { tuning, chord, variation };
+    if (op === 'removed') return t(named ? 'saveSheet.change.voicingRemovedIn' : 'saveSheet.change.voicingRemoved', params);
+    if (op === 'added') return t(named ? 'saveSheet.change.voicingAddedIn' : 'saveSheet.change.voicingAdded', params);
+    return t(named ? 'saveSheet.change.voicingChangedIn' : 'saveSheet.change.voicingChanged', params);
   }
 
   if (kind === 'section') {
@@ -86,8 +98,11 @@ function whatOf(record, t) {
  *
  * @param {{ kind: string, op: string, where: object, before: *, after: * }} change
  * @param {(key: string, params?: object) => string} t
+ * @param {{ tuningLabel?: (text: string) => string }} [opts] how to name a
+ *   voicing block's tuning — the user's instrument that plays it; the tuning as
+ *   written when absent
  * @returns {{ where: string, what: string }}
  */
-export function renderChange(change, t) {
-  return { where: whereOf(change, t), what: whatOf(change, t) };
+export function renderChange(change, t, { tuningLabel = (text) => text } = {}) {
+  return { where: whereOf(change, t), what: whatOf(change, t, tuningLabel) };
 }

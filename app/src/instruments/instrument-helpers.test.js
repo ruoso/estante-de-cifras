@@ -7,6 +7,7 @@ import {
   defaultLabel,
   inUseEntry,
   rosterEntries,
+  tuningLabelFor,
   tuningName,
   tuningText,
 } from './instrument-helpers.js';
@@ -155,5 +156,26 @@ describe('rosterEntries', () => {
     ]) {
       expect(rosterEntries(slice).inUseId).toBe(inUseEntry(slice)?.id);
     }
+  });
+});
+
+// songs.wizard_review — a voicing block's tuning named by the instrument that
+// plays it, in the save sheet and history.
+describe('tuningLabelFor', () => {
+  const guitar = { id: 'g', catalogId: '6guitar', tuning: 'E2 A2 D3 G3 B3 E4', label: null };
+  const uke = { id: 'u', catalogId: 'ukulele', tuning: 'G4 C4 E4 A4', label: 'My uke' };
+  const slice = { instruments: [guitar, uke], inUseId: 'g', standard: guitar };
+  it('names the roster instrument whose strings sound the tuning', () => {
+    expect(tuningLabelFor(slice, 'E2 A2 D3 G3 B3 E4')).toBe(chipLabel(guitar));
+    expect(tuningLabelFor(slice, 'G4 C4 E4 A4')).toBe('My uke');
+  });
+  it('compares by sound, so an enharmonic spelling is the same string', () => {
+    const dropEb = { id: 'e', catalogId: '6guitar', tuning: 'Eb2 Ab2 Db3 Gb3 Bb3 Eb4', label: 'Half step down' };
+    expect(tuningLabelFor({ instruments: [dropEb] }, 'D#2 G#2 C#3 F#3 A#3 D#4')).toBe('Half step down');
+  });
+  it('keeps the tuning as written when nobody here plays it, or it is not a tuning', () => {
+    expect(tuningLabelFor(slice, 'D3 G3 B3 D4')).toBe('D3 G3 B3 D4');
+    expect(tuningLabelFor(slice, 'cavaquinho')).toBe('cavaquinho');
+    expect(tuningLabelFor(null, 'E2 A2 D3 G3 B3 E4')).toBe('E2 A2 D3 G3 B3 E4');
   });
 });

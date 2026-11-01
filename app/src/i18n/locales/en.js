@@ -1245,6 +1245,11 @@ export default {
       voicingAdded: 'for {tuning}: {chord} added',
       voicingRemoved: 'for {tuning}: {chord} removed',
       voicingChanged: 'for {tuning}: {chord} changed',
+      voicingVariationAdded: '“{variation}” added for {tuning}',
+      voicingVariationRemoved: '“{variation}” removed for {tuning}',
+      voicingAddedIn: 'for {tuning}, “{variation}”: {chord} added',
+      voicingRemovedIn: 'for {tuning}, “{variation}”: {chord} removed',
+      voicingChangedIn: 'for {tuning}, “{variation}”: {chord} changed',
     },
   },
 
@@ -2367,7 +2372,7 @@ export default {
       one: '{count} bar',
       other: '{count} bars',
     },
-    nothing: 'Every chord already has the shape this would choose.',
+    nothing: 'Every chord already has the shape this would choose, so there is nothing to write. Go back to try another way.',
     missing: 'No shape for {list}.',
     how: 'How it works',
     howTitle: 'How this chooses',
@@ -2381,16 +2386,18 @@ export default {
     previewTitle: 'The shapes it would choose',
     planReady: 'The plan is ready',
     planReadyPrompt:
-      '{variation} already has shapes chosen in this song. Put the plan beside them, or over them?',
+      '“{variation}” already has shapes chosen in this song. Put the plan beside them, or in their place?',
     choiceLabel: 'Where to put the plan',
     newVariation: 'Into a new variation',
-    newVariationHint: '{variation} stays as it is',
-    over: 'Over {variation}',
-    overHint: 'Replaces what is chosen there',
+    newVariationHint: '“{variation}” stays as it is',
+    over: 'Replace “{variation}”',
+    overHint: 'The shapes chosen there give way to the plan',
     defaultName: 'New voicings',
     editNote:
       'Either way it is an edit in the working copy: the save sheet shows what it chose, and discard undoes it.',
     write: 'Write the plan',
+    shapeChanges: 'new shape',
+    shapeKept: 'as now',
   },
 
   shape: {

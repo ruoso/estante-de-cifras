@@ -155,4 +155,31 @@ describe('renderChange: voicing (block and per-voicing; tuning/chord as data)', 
       ),
     ).toEqual({ where: 'Voicings', what: 'for E2 A2 D3 G3 B3 E4: Em removed' });
   });
+
+  // songs.wizard_review: a variation by its name, a tuning by its instrument.
+  const asGuitar = (text) => (text === 'E2 A2 D3 G3 B3 E4' ? 'Guitar' : text);
+  it('a named variation added or removed says its name; the tuning reads as the instrument', () => {
+    expect(
+      renderChange(rec('voicing', 'added', { tuning: 'E2 A2 D3 G3 B3 E4', variation: 'For my students' }), t, {
+        tuningLabel: asGuitar,
+      }),
+    ).toEqual({ where: 'Voicings', what: '“For my students” added for Guitar' });
+    expect(
+      renderChange(rec('voicing', 'removed', { tuning: 'E2 A2 D3 G3 B3 E4', variation: 'Easy' }), t, {
+        tuningLabel: asGuitar,
+      }),
+    ).toEqual({ where: 'Voicings', what: '“Easy” removed for Guitar' });
+  });
+  it('a voicing in a named variation says the variation', () => {
+    const at = { tuning: 'E2 A2 D3 G3 B3 E4', variation: 'Easy', key: 'Em' };
+    const opts = { tuningLabel: asGuitar };
+    expect(renderChange(rec('voicing', 'added', at, null, [1]), t, opts).what).toBe('for Guitar, “Easy”: Em added');
+    expect(renderChange(rec('voicing', 'changed', at, [1], [2]), t, opts).what).toBe('for Guitar, “Easy”: Em changed');
+    expect(renderChange(rec('voicing', 'removed', at, [1], null), t, opts).what).toBe('for Guitar, “Easy”: Em removed');
+  });
+  it('the default variation needs no name, and a tuning nobody plays here reads as written', () => {
+    expect(
+      renderChange(rec('voicing', 'added', { tuning: 'G4 C4 E4 A4', variation: '' }), t, { tuningLabel: asGuitar }),
+    ).toEqual({ where: 'Voicings', what: 'added for G4 C4 E4 A4' });
+  });
 });

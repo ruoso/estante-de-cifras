@@ -172,11 +172,16 @@ describe('SongEditor — the preview arranges (workflow 4 §Editing)', () => {
 });
 
 describe('SongEditor — arranging from the reading view (songs.arrange_in_editor)', () => {
-  it('Run the wizard sits in the preview’s actions, sends the pending edit first, and raises onRunWizard', async () => {
+  it('Run the wizard sits in the preview’s head, sends the pending edit first, and raises onRunWizard', async () => {
     const onRunWizard = vi.fn();
     const { container, commands, editorRef, preview } = await openEditor(SONG, { onRunWizard });
     const run = within(preview).getByRole('button', { name: 'Run the wizard' });
     expect(run).not.toBeDisabled();
+    // In the preview's head, beside the instrument chip — not after the chart
+    // (songs.wizard_review).
+    const head = preview.querySelector('.est-editor-preview-head');
+    expect(head.contains(run)).toBe(true);
+    expect(within(head).getByRole('button', { name: /change instrument/ })).toBeInTheDocument();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     // A keystroke still in the debounce reaches the working copy before the

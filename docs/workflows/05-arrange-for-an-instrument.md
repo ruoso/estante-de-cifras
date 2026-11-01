@@ -95,19 +95,36 @@ default. This is the only way *my shapes* get into a song.
 
 ## The wizard
 
-*Run the wizard*, among the preview's actions, plans the whole song at once, with the planners and
-questions Explore Chords' wizard had (its DESIGN §2.10). Its plan is written
+*Run the wizard*, in the preview's head beside the instrument chip — where
+the preview begins, not after the chart — plans the whole song at once, with
+the planners and questions Explore Chords' wizard had (its DESIGN §2.10). Its plan is written
 into the working copy like any other edit: the save sheet shows what it
 chose, and discard undoes it.
 
+Its plan is shown before anything changes, as the shapes the song would
+carry: each named for its chord, with what it sounds beside the name where
+that differs (*G/B*), and marked *new shape* or *as now*. The count is of
+chords, as the diagrams are — *3 of 5 chords would change* — not of every
+place a chord is played. A plan that changes nothing says so and offers
+nothing to write; *Back* tries another way.
+
 A variation is the way to keep a plan beside an existing arrangement rather
 than over it. So when the variation in use already has choices, the wizard
-offers **into a new variation** first, and *over this one* second.
+offers **into a new variation** first, and *replace “Default”* second — the
+variation named in quotes, since a name like *For my students* does not read
+as part of a sentence.
 
 On a computer the wizard sits in a pane beside the song's chart, which
 previews the plan's shapes as they would read; on a phone or a tablet it takes
-the screen. Its step back to the planners reads *Back*; leaving it, by *Back*,
-*Done* or after the plan is written, returns to the editor's preview.
+the screen. Its step back to the planners reads *Back*; its ✕ is the one way
+out, and it and *Write the plan* both return to the editor's preview. The
+instrument it plans for is named in words beside the song's title, not on a
+chip, since nothing there switches it.
+
+The save sheet names what the wizard wrote as a person would: the variation
+by its name and the tuning by the instrument that plays it — *“For my
+students” added for Guitar* — falling back to the tuning as written only
+when no instrument on the device plays it.
 
 ## Variations
 

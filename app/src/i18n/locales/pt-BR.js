@@ -1132,6 +1132,11 @@ export default {
       voicingAdded: 'para {tuning}: {chord} adicionado',
       voicingRemoved: 'para {tuning}: {chord} removido',
       voicingChanged: 'para {tuning}: {chord} alterado',
+      voicingVariationAdded: '“{variation}” adicionada para {tuning}',
+      voicingVariationRemoved: '“{variation}” removida para {tuning}',
+      voicingAddedIn: 'para {tuning}, “{variation}”: {chord} adicionado',
+      voicingRemovedIn: 'para {tuning}, “{variation}”: {chord} removido',
+      voicingChangedIn: 'para {tuning}, “{variation}”: {chord} alterado',
     },
   },
 
@@ -2183,7 +2188,7 @@ export default {
       one: '{count} compasso',
       other: '{count} compassos',
     },
-    nothing: 'Todo acorde já tem o desenho que este escolheria.',
+    nothing: 'Todo acorde já tem o desenho que este escolheria, então não há nada para escrever. Volte para tentar outro jeito.',
     missing: 'Nenhum desenho para {list}.',
     how: 'Como funciona',
     howTitle: 'Como esta escolha é feita',
@@ -2197,16 +2202,18 @@ export default {
     previewTitle: 'Os desenhos que ele escolheria',
     planReady: 'O plano está pronto',
     planReadyPrompt:
-      '{variation} já tem desenhos escolhidos nesta música. Pôr o plano ao lado deles, ou por cima deles?',
+      '“{variation}” já tem desenhos escolhidos nesta música. Pôr o plano ao lado deles, ou no lugar deles?',
     choiceLabel: 'Onde pôr o plano',
     newVariation: 'Em uma nova variação',
-    newVariationHint: '{variation} fica como está',
-    over: 'Por cima de {variation}',
-    overHint: 'Substitui o que está escolhido ali',
+    newVariationHint: '“{variation}” fica como está',
+    over: 'Substituir “{variation}”',
+    overHint: 'Os desenhos escolhidos ali dão lugar ao plano',
     defaultName: 'Novos desenhos',
     editNote:
       'De qualquer forma é uma edição na cópia de trabalho: a folha de salvamento mostra o que ele escolheu, e descartar desfaz.',
     write: 'Escrever o plano',
+    shapeChanges: 'desenho novo',
+    shapeKept: 'como está',
   },
 
   shape: {

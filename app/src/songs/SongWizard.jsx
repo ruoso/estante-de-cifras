@@ -24,12 +24,17 @@
 // re-mounts on close and shows the new variation.
 //
 // On a computer (ARRANGE_WIDE_QUERY; songs.arrange_polish Decision 6, W05#4) the
-// wizard sits in a 380px side pane beside a main pane dressed as arrange — the
-// song's title, the instrument named after the mode (a mention, not a switch:
-// Decision 3) and **Done** — whose chart previews the plan, its shapes in a
-// *Shapes · {variation}* column (no variation selector: the target does not
-// exist until written, Decision 7). **Done** leaves the wizard for the editor
-// (songs.arrange_in_editor). Below it the wizard keeps its full screen.
+// wizard sits in a 380px side pane beside a main pane — the song's title and
+// the instrument named in words (a mention, not a switch: Decision 3) — whose
+// chart previews the plan, its shapes in a *Shapes · {variation}* column (no
+// variation selector: the target does not exist until written, Decision 7).
+// The side's ✕ is the one way out, back to the editor (songs.wizard_review
+// dropped the second *Done*). Below it the wizard keeps its full screen.
+//
+// Every shape it previews is named — the chord, and what the shape sounds
+// where that differs — and marked *new shape* or *as now*; the count is of
+// chords, as the diagrams are; and a plan that changes nothing offers nothing
+// to write (songs.wizard_review).
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Button, Disclosure, DisclosurePanel, Heading, Input, Label, Radio, RadioGroup, TextField } from 'react-aria-components';
@@ -43,7 +48,7 @@ import { chipLabel } from '../instruments/instrument-helpers.js';
 import { resolveSongVoicings } from '../core/voicings.js';
 import { ARRANGE_WIDE_QUERY } from '../shell/layout-mode.js';
 import Chart from '../chart/Chart.jsx';
-import { chartChordList } from './reading-view.js';
+import { chartChordList, shapeNames } from './reading-view.js';
 import { parseChord } from '../core/notation/parse.js';
 import { instrumentInstance, openMidis } from '../core/instrument.js';
 import { fingeringFromFrets } from '../core/search.js';
@@ -112,7 +117,7 @@ function Sources({ ids }) {
   );
 }
 
-export default function SongWizard({ store, bookId, path, mode = 'narrow', onBack = () => {}, onDone = onBack }) {
+export default function SongWizard({ store, bookId, path, mode = 'narrow', onBack = () => {} }) {
   const split = useSyncExternalStore(subscribeArrangeWide, readArrangeWide, readArrangeWide);
   // Bring the song in on mount (idempotent — arrange already opened it): the text
   // to parse (OPEN_SOURCE) and the reading state for the variation in use
@@ -194,7 +199,18 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
   const needsChoice = model ? inUseHasChoices(model, tuningText, variation) : false;
 
   // The preview shapes: one diagram per distinct chord, the fingering built from
-  // the planner's frets exactly as the song will carry it.
+  // the planner's frets exactly as the song will carry it, named as the song's
+  // shapes are (the chord, and what the shape sounds where that differs) and
+  // marked *new shape* or *as now* (songs.wizard_review). A chord changes when
+  // any place it is played gets a shape the song does not already have there.
+  const unchangedAt = new Set(planResult?.unchanged ?? []);
+  const changedKeys = new Set();
+  if (planResult) {
+    for (const at of planResult.shapes.keys()) {
+      const key = planResult.reading.line[at]?.ref.key;
+      if (key != null && !unchangedAt.has(at)) changedKeys.add(key);
+    }
+  }
   const previewShapes = [];
   if (planResult) {
     const seen = new Set();
@@ -204,12 +220,22 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
       const fingering = line.chord ? fingeringFromFrets(frets, line.chord, instrument) : null;
       if (!fingering) continue;
       seen.add(line.ref.key);
-      previewShapes.push({ key: line.ref.key, symbol: line.ref.symbol, chord: line.chord, fingering });
+      const shape = { key: line.ref.key, symbol: line.ref.symbol, chord: line.chord, fingering };
+      previewShapes.push({
+        ...shape,
+        ...shapeNames(shape, { notation }),
+        note: changedKeys.has(shape.key) ? t('wizard.shapeChanges') : t('wizard.shapeKept'),
+      });
     }
   }
 
-  const total = planResult ? planResult.shapes.size : 0;
-  const changed = planResult ? total - planResult.unchanged.length : 0;
+  // Counted by chord, as the diagrams are — *3 of 5 chords would change* — not
+  // by every place a chord is played.
+  const total = previewShapes.length;
+  const changed = previewShapes.filter((sh) => changedKeys.has(sh.key)).length;
+  // A plan that changes nothing has nothing to write: no *where to put it*, no
+  // *Write the plan* — only the way back to another policy.
+  const nothingToWrite = Boolean(planResult) && total > 0 && changed === 0;
   const missingList = planResult
     ? [...new Set(planResult.missing.map((at) => planResult.reading.line[at]?.ref.symbol).filter(Boolean))]
     : [];
@@ -280,7 +306,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
           <h1 className="t-h1">{t('wizard.title')}</h1>
           <p className="t-small">{t('wizard.help')}</p>
         </>
-      ) : needsChoice ? (
+      ) : needsChoice && !nothingToWrite ? (
         <>
           <h1 className="t-h1">{t('wizard.planReady')}</h1>
           <p className="t-small">{t('wizard.planReadyPrompt', { variation: variationName(variation) })}</p>
@@ -378,7 +404,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
   // line (or the nothing-changes state), and the chords it could not voice.
   const previewNotes = (
     <>
-      {total > 0 && changed === 0 ? (
+      {nothingToWrite ? (
         <p className="t-small wizard-summary" role="status">
           {t('wizard.nothing')}
         </p>
@@ -406,6 +432,9 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
               fingering={s.fingering}
               kind="song"
               context={{ chord: s.chord, dialect, instrument }}
+              name={s.name}
+              sounded={s.sounded}
+              note={s.note}
             />
           ))}
         </div>
@@ -416,7 +445,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
   // new variation* (first, named) or *over this one* — a radiogroup, never a list
   // of buttons (accessibility; [[role-list-of-rac-buttons-fails-axe]]).
   const choiceSection =
-    stage === 'preview' && needsChoice ? (
+    stage === 'preview' && needsChoice && !nothingToWrite ? (
       <RadioGroup
         className="wizard-choice"
         value={choice}
@@ -474,9 +503,11 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
           <Button className="btn grow" onPress={() => setStage('policy')}>
             {t('wizard.back')}
           </Button>
-          <Button className="btn primary grow" onPress={writePlan}>
-            {t('wizard.write')}
-          </Button>
+          {nothingToWrite ? null : (
+            <Button className="btn primary grow" onPress={writePlan}>
+              {t('wizard.write')}
+            </Button>
+          )}
         </>
       )}
     </div>
@@ -496,12 +527,11 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
           ? resolveSongVoicings(model, instrument, { variation, shapes: entry?.shapes ?? [], dialect: notation })
           : new Map();
       const symbols = new Map((model ? chartChordList(model) : []).map((c) => [c.key, c.symbol]));
-      columnShapes = [...current.entries()].map(([key, v]) => ({
-        key,
-        chord: parseChordSafe(symbols.get(key) ?? key, notation),
-        fingering: v.fingering,
-        kind: v.source,
-      }));
+      columnShapes = [...current.entries()].map(([key, v]) => {
+        const symbol = symbols.get(key) ?? key;
+        const shape = { key, symbol, chord: parseChordSafe(symbol, notation), fingering: v.fingering, kind: v.source };
+        return { ...shape, ...shapeNames(shape, { notation }) };
+      });
     }
     return (
       <div className="screen wizard-screen wizard-split">
@@ -516,21 +546,21 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
             <div className="scroll wizard-side-scroll">
               {header}
               {stage === 'policy' ? policyStep : choiceSection}
-              {stage === 'preview' ? <p className="t-small wizard-editnote">{t('wizard.editNote')}</p> : null}
+              {stage === 'preview' && !nothingToWrite ? <p className="t-small wizard-editnote">{t('wizard.editNote')}</p> : null}
             </div>
             {actions}
           </div>
           <div className="pane main wizard-main">
             <div className="appbar wizard-main-bar">
               <span className="title">{songTitle(model?.title, t('newSong.untitled'))}</span>
+              {/* The instrument the plan is for, said, not a control: nothing
+                  here switches it (songs.wizard_review — a chip read as one).
+                  The way out is the side's ✕; there is no second Done. */}
               {entry ? (
-                <span className="chip accent wizard-mention">
+                <span className="t-small wizard-mention">
                   {t('arrange.modeChip', { instrument: chipLabel(entry) })}
                 </span>
               ) : null}
-              <Button className="btn primary" onPress={onDone}>
-                {t('arrange.done')}
-              </Button>
               <BarEnd help="wizard" chip={false} />
             </div>
             {/* The preview scrolls and holds no control, so it takes focus itself:
@@ -562,6 +592,9 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
                         fingering={sh.fingering}
                         kind={sh.kind ?? 'song'}
                         context={{ chord: sh.chord, dialect, instrument }}
+                        name={sh.name}
+                        sounded={sh.sounded}
+                        note={sh.note}
                       />
                     ))}
                   </div>
@@ -588,7 +621,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
           <div className="wizard-controls">
             {header}
             {stage === 'policy' ? policyStep : choiceSection}
-            {stage === 'preview' ? (
+            {stage === 'preview' && !nothingToWrite ? (
               <p className="t-small wizard-editnote">{t('wizard.editNote')}</p>
             ) : null}
           </div>

@@ -1133,6 +1133,11 @@ export default {
       voicingAdded: 'para {tuning}: {chord} añadido',
       voicingRemoved: 'para {tuning}: {chord} quitado',
       voicingChanged: 'para {tuning}: {chord} cambiado',
+      voicingVariationAdded: '“{variation}” añadida para {tuning}',
+      voicingVariationRemoved: '“{variation}” quitada para {tuning}',
+      voicingAddedIn: 'para {tuning}, “{variation}”: {chord} añadido',
+      voicingRemovedIn: 'para {tuning}, “{variation}”: {chord} quitado',
+      voicingChangedIn: 'para {tuning}, “{variation}”: {chord} cambiado',
     },
   },
 
@@ -2185,7 +2190,7 @@ export default {
       one: '{count} compás',
       other: '{count} compases',
     },
-    nothing: 'Cada acorde ya tiene la forma que esto elegiría.',
+    nothing: 'Cada acorde ya tiene la forma que esto elegiría, así que no hay nada que escribir. Vuelve para probar otra manera.',
     missing: 'Ninguna forma para {list}.',
     how: 'Cómo funciona',
     howTitle: 'Cómo elige esto',
@@ -2199,16 +2204,18 @@ export default {
     previewTitle: 'Las formas que elegiría',
     planReady: 'El plan está listo',
     planReadyPrompt:
-      '{variation} ya tiene formas elegidas en esta canción. ¿Poner el plan al lado de ellas, o encima de ellas?',
+      '“{variation}” ya tiene formas elegidas en esta canción. ¿Poner el plan al lado de ellas, o en su lugar?',
     choiceLabel: 'Dónde poner el plan',
     newVariation: 'En una variación nueva',
-    newVariationHint: '{variation} queda como está',
-    over: 'Encima de {variation}',
-    overHint: 'Reemplaza lo que está elegido ahí',
+    newVariationHint: '“{variation}” queda como está',
+    over: 'Reemplazar “{variation}”',
+    overHint: 'Las formas elegidas ahí dejan su lugar al plan',
     defaultName: 'Formas nuevas',
     editNote:
       'De cualquier modo es una edición en la copia de trabajo: la hoja de guardado muestra lo que eligió, y descartar lo deshace.',
     write: 'Escribir el plan',
+    shapeChanges: 'forma nueva',
+    shapeKept: 'como está',
   },
 
   shape: {
