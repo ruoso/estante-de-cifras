@@ -2,11 +2,12 @@
 // collaborators: React Aria Components, i18n, the pure voicing-plan engine and
 // `cifra-md`'s §8.5 ops + canonical writer, over a loopback-backed store seeded
 // with the PREFERENCES / SHELF / INSTRUMENTS / SOURCE / SONG slices (the
-// SongArrange rig). The plan's effect is read back by reparsing the recorded
+// SongEditor arrange rig). The plan's effect is read back by reparsing the recorded
 // `WRITE` command's text; the preview writes nothing. axe at WCAG 2.1 AA over
 // each state. Fixtures are songs written for the purpose, never anyone's
-// copyrighted words. No CodeMirror stub is needed — the wizard is a surface of
-// policies, diagrams and a text field.
+// copyrighted words. The wizard is a surface of policies, diagrams and a text
+// field; only the focus-return harness mounts the editor, whose CodeMirror needs
+// the geometry stub below.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useState } from 'react';
@@ -22,8 +23,16 @@ import { checkWcag21aa } from '../a11y/axe.js';
 import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SongWizard from './SongWizard.jsx';
-import SongArrange from './SongArrange.jsx';
+import SongEditor from '../editor/SongEditor.jsx';
 import { installWidths } from '../test/widths.js';
+
+// CodeMirror's measure pass needs geometry jsdom lacks (the editor harness).
+Range.prototype.getClientRects = function getClientRects() {
+  return [];
+};
+Range.prototype.getBoundingClientRect = function getBoundingClientRect() {
+  return { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON() {} };
+};
 
 const GUITAR_TUNING = 'E2 A2 D3 G3 B3 E4';
 const UKULELE_TUNING = 'G4 C4 E4 A4';
@@ -96,7 +105,7 @@ function ukuleleEntry() {
   };
 }
 
-// The loopback-backed stub Worker (the SongArrange rig): seeds the slices on
+// The loopback-backed stub Worker: seeds the slices on
 // OPEN, answers the reads, records every command, and re-surfaces SONG on
 // SET_VARIATION. WRITE is silent (durability only) — recorded, no event.
 function makeStore({ text, entry, variations = {}, notation = null }) {
@@ -396,9 +405,10 @@ describe('SongWizard — over this one, and the no-choices shortcut', () => {
   });
 });
 
-// A minimal harness mirroring AppShell's wiring: arrange opens the wizard over
-// itself, and closing it re-mounts arrange with focus sent back to the
-// Run-the-wizard button (songs.wizard_ui Decision 1; the AppShell focus return).
+// A minimal harness mirroring AppShell's wiring: the editor's preview opens the
+// wizard over the editor, and closing it re-mounts the editor with focus sent
+// back to the Run-the-wizard button (songs.wizard_ui Decision 1;
+// songs.arrange_in_editor; the AppShell focus return).
 function Harness({ store }) {
   const [wizard, setWizard] = useState(null);
   const [ret, setRet] = useState(false);
@@ -417,11 +427,12 @@ function Harness({ store }) {
     );
   }
   return (
-    <SongArrange
+    <SongEditor
       store={store}
       bookId={BOOK}
       path={PATH}
-      mode="narrow"
+      layoutMode="narrow"
+      startOnPreview
       onRunWizard={(args) => setWizard(args)}
       autoFocusWizard={ret}
       onWizardFocusReturned={() => setRet(false)}
@@ -429,7 +440,7 @@ function Harness({ store }) {
   );
 }
 
-describe('SongWizard — a keyboard path, and focus back to arrange', () => {
+describe('SongWizard — a keyboard path, and focus back to the editor', () => {
   it('runs open → policy → stylistic question → preview → new → write by keyboard, returning focus to Run the wizard', async () => {
     const { store, commands } = makeStore({
       text: song({ voicings: OPEN_BLOCK }),
@@ -441,10 +452,10 @@ describe('SongWizard — a keyboard path, and focus back to arrange', () => {
       </ThemeRoot>,
     );
     act(() => store.open());
-    await waitFor(() => expect(screen.getByRole('group', { name: 'Tarde Clara' })).toBeInTheDocument());
+    const runBtn = await screen.findByRole('button', { name: 'Run the wizard' });
+    await waitFor(() => expect(runBtn).not.toBeDisabled());
 
-    // Open the wizard from arrange with the keyboard.
-    const runBtn = screen.getByRole('button', { name: 'Run the wizard' });
+    // Open the wizard from the editor's preview with the keyboard.
     runBtn.focus();
     expect(runBtn).toHaveFocus();
     await pressKey(runBtn, 'Enter');
@@ -476,7 +487,7 @@ describe('SongWizard — a keyboard path, and focus back to arrange', () => {
     writeBtn.focus();
     await pressKey(writeBtn, 'Enter');
 
-    // The plan was written, and focus is back on arrange's Run-the-wizard button.
+    // The plan was written, and focus is back on the editor's Run-the-wizard button.
     expect(lastCommand(commands, CommandKind.WRITE)).toBeTruthy();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Run the wizard' })).toHaveFocus());
   });

@@ -707,7 +707,7 @@ export default function SongReading({
             else if (key === 'print') window.print();
             else if (key === 'share') onShare({ bookId, path });
             else if (key === 'showFile') onShowFile({ bookId, path });
-            else if (key === 'arrange') onArrange({ bookId, path });
+            else if (key === 'arrange') onArrange({ bookId, path, title: baseModel?.title });
             else if (key === 'fullScreen') setFullScreen(true);
             else if (key === 'chordNames') setNaming(naming === 'voiced' ? 'written' : 'voiced');
           }}
@@ -838,7 +838,7 @@ export default function SongReading({
       {noVoicings && !instrumentPrompt ? (
         <div className="notice accent">
           <span>{t('reading.noVoicings', { instrument: instrumentLabel })}</span>
-          <Button className="act btn quiet" onPress={() => onArrange({ bookId, path })}>
+          <Button className="act btn quiet" onPress={() => onArrange({ bookId, path, title: baseModel?.title })}>
             {t('reading.arrangeFor', { instrument: instrumentLabel })}
           </Button>
         </div>
@@ -953,7 +953,7 @@ export default function SongReading({
         {body}
         <div className="reading-actionbar reading-chrome">
           {!transposed ? (
-            <Button className="btn grow" onPress={() => onArrange({ bookId, path })}>
+            <Button className="btn grow" onPress={() => onArrange({ bookId, path, title: baseModel?.title })}>
               {t('reading.arrange')}
             </Button>
           ) : null}

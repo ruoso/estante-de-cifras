@@ -1598,7 +1598,6 @@ export default {
   },
 
   arrange: {
-    back: 'Atrás',
     done: 'Listo',
     modeChip: 'Arreglando · {instrument}',
     modeHint: 'Toca un acorde para elegir su forma',

@@ -1,21 +1,9 @@
-/* The arrange surface (songs.arrange, board W05). Layout only — every colour
+/* Arranging (songs.arrange, board W05) — the editor's preview since
+   songs.arrange_in_editor: the chart's press targets, the shapes, the picker,
+   the variation dialogs. Layout only — every colour
    comes from the theme tokens through the shared classes (.appbar, .chip.accent,
    .seg, .scrim/.sheet/.grip, .notice.unsaved, .row.explore, .shapes, .btn), so
    the surface re-themes with no code in it (the chart/diagram invariant). */
-
-.arrange-screen {
-  flex: 1;
-  min-height: 0;
-}
-
-.arrange-scroll {
-  overflow-y: auto;
-  gap: calc(var(--u) * 2);
-}
-
-.arrange-hint {
-  margin: 0;
-}
 
 /* The variation selector row above the shapes (shown only with >1 variation). */
 .arrange-variation-row {
@@ -25,43 +13,10 @@
   flex-wrap: wrap;
 }
 
-/* Chart, then the shapes strip. On a wide pane they sit side by side (the
-   computer board); on a phone they stack. */
-.arrange-body {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--u) * 2);
-}
-.arrange-wide .arrange-body {
-  flex-direction: row;
-  align-items: flex-start;
-  gap: calc(var(--u) * 4);
-}
-.arrange-wide .arrange-body .chart {
-  flex: 1;
-  min-width: 0;
-}
-.arrange-wide .arrange-shapes {
-  width: 300px;
-  flex: none;
-}
-
 .arrange-shapes {
   display: flex;
   flex-direction: column;
   gap: calc(var(--u) * 1.25);
-}
-
-/* The bottom action bar (Run the wizard · Variations). */
-.arrange-actionbar {
-  display: flex;
-  gap: calc(var(--u) * 1.25);
-  padding: calc(var(--u) * 1.5) calc(var(--u) * 2) calc(var(--u) * 2.75);
-  border-top: 1px solid var(--line);
-  background: var(--surface);
-}
-.arrange-actionbar .btn.grow {
-  flex: 1;
 }
 
 /* A chord in the chart turned into a press target (the interactive seam). It
@@ -189,11 +144,6 @@
 .arrange-copy[data-selected] .arrange-copy-box {
   background: var(--accent);
   border-color: var(--accent);
-}
-
-/* Arrange's own chrome and body: transparent to the screen's flex column. */
-.arrange-mode {
-  display: contents;
 }
 
 /* Enter a shape (W05#3), a dialog over the chart: wide enough for the board

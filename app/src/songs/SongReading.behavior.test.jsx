@@ -292,7 +292,7 @@ describe('SongReading — the chart and the shapes (workflow 2 L69-77, L88-108)'
     expect(screen.getByText('This song doesn’t say yet how to play its chords on Guitar, so each chord shows its easiest shape.')).toBeInTheDocument();
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
     await click(screen.getByRole('button', { name: 'Arrange for Guitar' }));
-    expect(onArrange).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
+    expect(onArrange).toHaveBeenCalledWith({ bookId: BOOK, path: PATH, title: 'Tarde Clara' });
 
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
@@ -1256,7 +1256,7 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
       await reach('Edit');
       expect(handlers.onEdit).toHaveBeenCalledWith({ bookId: BOOK, path: PATH, title: 'Tarde Clara' });
       await reach('Arrange for Guitar');
-      expect(handlers.onArrange).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
+      expect(handlers.onArrange).toHaveBeenCalledWith({ bookId: BOOK, path: PATH, title: 'Tarde Clara' });
       await reach('History');
       expect(handlers.onOpenHistory).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
       await reach('Add to setlist');

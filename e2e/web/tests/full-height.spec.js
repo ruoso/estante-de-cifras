@@ -133,7 +133,7 @@ test('account: the account screen scrolls inside itself', async ({ page, checkA1
   await checkA11y();
 });
 
-test('arrange: the song scrolls under the app bar', async ({ page, checkA11y }) => {
+test('arranging: the editor’s preview scrolls under the app bar', async ({ page, checkA11y }) => {
   await openExampleBook(page);
   await openSong(page);
   await enterArrange(page);

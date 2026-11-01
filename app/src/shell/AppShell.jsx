@@ -31,7 +31,6 @@ import SearchScreen from '../songs/SearchScreen.jsx';
 import SongReading from '../songs/SongReading.jsx';
 import SongHistory from '../songs/SongHistory.jsx';
 import SaveSheet from '../songs/SaveSheet.jsx';
-import SongArrange from '../songs/SongArrange.jsx';
 import SongWizard from '../songs/SongWizard.jsx';
 import NewSongHost from '../songs/NewSongHost.jsx';
 import EditSongHost from '../songs/EditSongHost.jsx';
@@ -436,18 +435,14 @@ export default function AppShell({
   // A version or block restored from the history opens the save sheet over it
   // (workflow 6 L59-62): saving the restored text makes a new version.
   const [restoredSaveOpen, setRestoredSaveOpen] = useState(false);
-  // The arrange surface, raised from the reading view's `onArrange` seam
-  // (songs.arrange Decision 1): `{ bookId, path }` or null. A full-screen surface
-  // mounted over the open song — **Done** clears it and returns to reading with
-  // the working copy's unsaved edit intact. Ephemeral view state, no router, like
-  // `openSong` itself.
-  const [arranging, setArranging] = useState(null);
-  // The voicing wizard, raised from arrange's `onRunWizard` seam
-  // (songs.wizard_ui Decision 1): `{ bookId, path }` or null. It is a surface
-  // mounted over arrange; closing it (Back, or after Write the plan) returns to
-  // arrange, which re-mounts and re-reads the working copy (WRITE is silent), so
-  // a new variation shows. `wizardReturn` holds whether to send focus back to
-  // arrange's Run-the-wizard button on that re-mount (its node is replaced).
+  // The voicing wizard, raised from the editor preview's `onRunWizard` seam
+  // (songs.wizard_ui Decision 1; songs.arrange_in_editor — arranging is the
+  // editor's preview, there is no arrange surface of its own): `{ bookId, path }`
+  // or null. It is a surface mounted over the editor; closing it (Back, Done, or
+  // after Write the plan) returns to the editor, which re-mounts and re-reads the
+  // working copy (WRITE is silent), so a new variation shows. `wizardReturn`
+  // holds whether to send focus back to the editor's Run-the-wizard button on
+  // that re-mount (its node is replaced).
   const [wizard, setWizard] = useState(null);
   const [wizardReturn, setWizardReturn] = useState(false);
   // The conflict surfaces (sync.conflicts, workflow 9): `conflictsBook` is the
@@ -529,7 +524,6 @@ export default function AppShell({
     editing && 'newSong',
     editingSong && 'editor',
     wizard && 'wizard',
-    arranging && 'arrange',
     playingSetlist && 'play',
     exploring && 'explorer',
   ].filter(Boolean);
@@ -588,13 +582,12 @@ export default function AppShell({
       setEditing(null);
     },
     editor: () => setEditingSong(null),
-    wizard: () => {
+    wizard: (kept) => {
       setWizard(null);
-      // Focus goes back to Run the wizard only when arrange is still there to
-      // re-mount (the computer split's Done closes it too).
-      if (arranging) setWizardReturn(true);
+      // Focus goes back to Run the wizard only when the editor is still there to
+      // re-mount.
+      if (editingSong && stays('editor', kept)) setWizardReturn(true);
     },
-    arrange: () => setArranging(null),
     play: () => {
       setPlayReturn(playingSetlist?.at ?? 'play');
       setPlayingSetlist(null);
@@ -681,8 +674,8 @@ export default function AppShell({
 
   // A book became its fork (books.fork, workflow 11): the device's copy now lives
   // under the fork's id, so every open surface holding the original's id follows
-  // it — the editor host, the file view, the open song and its history, arrange,
-  // the wizard, sharing and the setlist surfaces — and a save made from any of
+  // it — the editor host, the file view, the open song and its history, the
+  // wizard, sharing and the setlist surfaces — and a save made from any of
   // them lands in the fork. Each `{ bookId, … }` surface keeps the rest of its
   // state; the file view's is the id itself. A put-online changes the book's id
   // the same way (BOOK_ONLINE, shell.routing Decision 8). The search scope and
@@ -704,7 +697,6 @@ export default function AppShell({
     setEditingSong(follow);
     setOpenSong(follow);
     setHistory(follow);
-    setArranging(follow);
     setWizard(follow);
     setSharing(follow);
     setShareSheet(follow);
@@ -1531,8 +1523,27 @@ export default function AppShell({
     );
   }
 
+  // The voicing wizard (songs.wizard_ui): the action behind the editor
+  // preview's **Run the wizard** (songs.arrange_in_editor), a surface mounted
+  // over the editor. Checked before `editingSong` so it sits over it; **Back**,
+  // **Done** and **Write the plan** close it and flag the editor to send focus
+  // back to its Run-the-wizard button as it re-mounts.
+  if (wizard) {
+    return framed(
+        <SongWizard
+          store={store}
+          bookId={wizard.bookId}
+          path={wizard.path}
+          mode={mode}
+          onBack={() => back(closers.wizard)}
+        />,
+    );
+  }
+
   // Editing an existing song (workflow 4): a full screen over the reading view;
   // Back and a save return to it (the unsaved edit stays in the working copy).
+  // The reading view's *Arrange* opens it too, on its preview
+  // (songs.arrange_in_editor): arranging is the editor's preview.
   if (editingSong) {
     return framed(
         <EditSongHost
@@ -1542,55 +1553,14 @@ export default function AppShell({
           onBack={() => back(closers.editor)}
           onOpenHistory={setHistory}
           onEdit={({ bookId, path, title }) => setEditingSong({ bookId, path, songTitle: title ?? '' })}
-          editorRef={editorRef}
-        />,
-    );
-  }
-
-  // The voicing wizard (songs.wizard_ui): the action behind arrange's **Run the
-  // wizard** affordance, a surface mounted over arrange. Checked before
-  // `arranging` so it sits over it; **Back** / **Write the plan** close it and
-  // flag arrange to send focus back to its Run-the-wizard button as it re-mounts.
-  if (wizard) {
-    return framed(
-        <SongWizard
-          store={store}
-          bookId={wizard.bookId}
-          path={wizard.path}
-          mode={mode}
-          onBack={() => back(closers.wizard)}
-          onDone={() => {
-            // The computer split's **Done** keeps arrange's meaning: back to
-            // reading, leaving the wizard and arrange together (songs.arrange_polish
-            // Decision 8; nothing was written — the plan lives in memory). The
-            // wizard's entry is stepped back as its Back does; arrange closes at
-            // once, so the entry back lands on is the reading view's and the
-            // history hook steps over it.
-            back(closers.wizard);
-            setArranging(null);
-            setWizardReturn(false);
+          onRunWizard={(args) => {
+            // Back from the wizard the editor opens where it was: on its preview.
+            setEditingSong((prev) => (prev ? { ...prev, arrange: true } : prev));
+            setWizard(args);
           }}
-        />,
-    );
-  }
-
-  // Arranging a song (songs.arrange): the mode entered from the reading view's
-  // `onArrange` seam, a full screen over the open song. **Done** returns to
-  // reading (the working copy's unsaved edit stays). Checked before `openSong`
-  // so it sits over the reading view that raised it. *Run the wizard* opens the
-  // wizard surface above (songs.wizard_ui); on its close arrange re-mounts and
-  // `autoFocusWizard` returns focus to the button that opened it.
-  if (arranging) {
-    return framed(
-        <SongArrange
-          store={store}
-          bookId={arranging.bookId}
-          path={arranging.path}
-          mode={mode}
-          onBack={() => back(closers.arrange)}
-          onRunWizard={(args) => setWizard(args)}
           autoFocusWizard={wizardReturn}
           onWizardFocusReturned={() => setWizardReturn(false)}
+          editorRef={editorRef}
         />,
     );
   }
@@ -1601,7 +1571,7 @@ export default function AppShell({
   // (shell.one_bar). The toolbar's edit / add-to-setlist / share
   // are affordance seams their owning tasks wire (songs.editor, books.setlists,
   // books.share); this task renders them and raises the callbacks (Decision 6).
-  // Arrange is wired (`onArrange` opens the arrange surface above); history is
+  // Arrange is wired (`onArrange` opens the editor on its preview); history is
   // wired too — `onOpenHistory` opens SongHistory (checked above), so both the
   // merge notice and the History button land on history in-app.
   if (openSong) {
@@ -1654,7 +1624,9 @@ export default function AppShell({
           mode={mode}
           onBack={() => back(() => setOpenSong(null))}
           onEdit={({ bookId, path, title }) => setEditingSong({ bookId, path, songTitle: title ?? '' })}
-          onArrange={setArranging}
+          onArrange={({ bookId, path, title }) =>
+            setEditingSong({ bookId, path, songTitle: title ?? '', arrange: true })
+          }
           onOpenHistory={setHistory}
           onShare={setSharing}
           onShowFile={({ bookId, path }) => openFiles(bookId, path)}

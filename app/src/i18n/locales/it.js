@@ -1598,7 +1598,6 @@ export default {
   },
 
   arrange: {
-    back: 'Indietro',
     done: 'Fatto',
     modeChip: 'Arrangiando · {instrument}',
     modeHint: 'Tocca un accordo per scegliere la sua forma',

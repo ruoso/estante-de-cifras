@@ -30,8 +30,11 @@ export async function toSearch(page) {
 
 // ---- arrange (workflow 5) -----------------------------------------------------
 
+// Where a song is arranged: the editor's preview (songs.arrange_in_editor).
+export const arrangePreview = (page) => page.locator('.est-editor-preview');
+
 // From the reading view: the narrow action bar's Arrange, or the wide "More"
-// overflow's "Arrange for …".
+// overflow's "Arrange for …" — both open the editor on its preview.
 export async function enterArrange(page) {
   const direct = page.getByRole('button', { name: 'Arrange', exact: true });
   if (await direct.isVisible().catch(() => false)) {
@@ -40,11 +43,11 @@ export async function enterArrange(page) {
     await page.getByRole('button', { name: 'More' }).click();
     await page.getByRole('menuitem', { name: /^Arrange for/ }).click();
   }
-  await expect(page.getByText(/Arranging ·/)).toBeVisible();
+  await expect(arrangePreview(page).getByText('Tap a chord to choose its shape')).toBeVisible();
 }
 
-// A chord in the arrange chart: a button named by its spoken chord.
-export const arrangeChord = (page) => page.locator('.chart').getByRole('button').first();
+// A chord in the preview's chart: a button named by its spoken chord.
+export const arrangeChord = (page) => arrangePreview(page).locator('.chart').getByRole('button').first();
 export const picker = (page) => page.getByRole('dialog');
 export const candidate = (scope) => scope.getByRole('button', { name: /^Choose \S+,/ }).first();
 // The strip shows a word under every shape the song does not choose itself
@@ -69,13 +72,10 @@ export async function addEmptyVariation(page, name) {
   await expect(page.getByRole('button', { name })).toBeVisible();
 }
 
-// Arrange's Done, then the reading view's Edit, then the editor's Save → the
-// save sheet. `inspect(sheet)` can assert on what the sheet lists before it is
-// confirmed. Returns once the commit landed (the sheet closed).
+// The editor's Save, arranging done in its preview → the save sheet.
+// `inspect(sheet)` can assert on what the sheet lists before it is confirmed.
+// Returns once the commit landed (the sheet closed).
 export async function saveArrangementThroughSheet(page, { note, name = 'Marina Souza', inspect } = {}) {
-  await page.getByRole('button', { name: 'Done', exact: true }).click();
-  await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
-  await expect(page.locator('.cm-content')).toBeVisible();
   await settleEdits(page);
   await page.getByRole('button', { name: 'Save', exact: true }).first().click();
   const sheet = saveSurface(page);
@@ -129,7 +129,7 @@ export async function closeInstruments(page) {
 
 // ---- the voicing wizard (workflow 5) ------------------------------------------
 
-// From arrange: Run the wizard, choose a policy and preview it (the plan's
+// From the editor's preview: Run the wizard, choose a policy and preview it (the plan's
 // Write the plan button shows).
 export async function toPreview(page, name = 'The smoothest path') {
   await page.getByRole('button', { name: 'Run the wizard' }).click();

@@ -11,19 +11,25 @@ the song may be someone else's, and the arrangement is shared.
 Every change here is an edit like any other (workflow 4): it goes to the
 working copy, shows as unsaved, and is saved or discarded the same way.
 
-Arranging happens in two places. The **arrange screen** below is the way in
-from reading, made for a phone. The **editor's preview** arranges too
-(workflow 3 §The editor): the same tappable chart, picker, shapes and
-variations beside the text, so changing a chord's shape while writing never
-means leaving the editor. Only the wizard is the arrange screen's alone.
+Arranging happens in one place: the **editor's preview** (workflow 3 §The
+editor). Its chart's chords are things to tap, with the picker, the shapes,
+the variations and the wizard beside the text, so changing a chord's shape
+while writing never means leaving the editor, and arranging never means
+learning a second screen that does a subset of the same thing.
 
-## Arranging is a mode
+## Arranging is editing
 
 From the reading view, *arrange* — or *arrange for cavaquinho*, on a song
-with nothing chosen for this instrument — turns the song's chords into things
-to tap, and *done* turns them back. Outside the mode, tapping a chord only
-shows its diagram larger. A phone on a music stand gets tapped by accident
-mid-song, and an accidental tap must never change the song.
+with nothing chosen for this instrument — opens the editor on its preview
+(on a phone, the *Preview* side of its Text | Preview switch; where the text
+and the preview sit side by side, both), and *Back* returns to reading.
+Outside the editor, tapping a chord only shows its diagram larger. A phone on
+a music stand gets tapped by accident mid-song, and an accidental tap must
+never change the song.
+
+While the text holds a line that would stop a save, the preview reads but
+takes no taps, and says so: a choice is written by rewriting the song, which
+could drop that line.
 
 In the mode, chords with a chosen shape show it, and chords without one show
 what they fall back to (workflow 2), marked *your shape* or *default*.
@@ -31,12 +37,11 @@ what they fall back to (workflow 2), marked *your shape* or *default*.
 Arranging is not offered while the song is transposed (workflow 2): it writes
 voicings for the chords as written.
 
-The mode is named in the header by the instrument chip itself, which reads
-*Arranging · Guitar* — the chip's one short label (workflow 15, The roster)
-after the mode — and opens the instruments as it does everywhere, so arranging
-for another instrument is a switch away. A step inside the mode that works on
-one tuning's strings (entering a shape by hand, the wizard's plan) names the
-instrument the same way but does not switch it.
+The instrument is named by the preview's instrument chip, beside the shapes it
+decides — the screen's one chip — and opens the instruments as it does
+everywhere, so arranging for another instrument is a switch away. A step that
+works on one tuning's strings (entering a shape by hand, the wizard's plan)
+names the instrument as *Arranging · Guitar* but does not switch it.
 
 ## Choosing a shape
 
@@ -90,7 +95,7 @@ default. This is the only way *my shapes* get into a song.
 
 ## The wizard
 
-*Run the wizard* plans the whole song at once, with the planners and
+*Run the wizard*, among the preview's actions, plans the whole song at once, with the planners and
 questions Explore Chords' wizard had (its DESIGN §2.10). Its plan is written
 into the working copy like any other edit: the save sheet shows what it
 chose, and discard undoes it.
@@ -100,8 +105,9 @@ than over it. So when the variation in use already has choices, the wizard
 offers **into a new variation** first, and *over this one* second.
 
 On a computer the wizard sits in a pane beside the song's chart, which
-previews the plan's shapes as they would read in arrange; on a phone or a
-tablet it takes the screen. Its step back to the planners reads *Back*.
+previews the plan's shapes as they would read; on a phone or a tablet it takes
+the screen. Its step back to the planners reads *Back*; leaving it, by *Back*,
+*Done* or after the plan is written, returns to the editor's preview.
 
 ## Variations
 
@@ -112,7 +118,8 @@ As Explore Chords had them (its DESIGN §2.13):
 - adding one starts empty, or as a copy of the one in use;
 - a name already in use is refused;
 - the selector appears only when a tuning has more than one, above the
-  shapes in arrange mode and among the reading view's display options.
+  shapes in the editor's preview and among the reading view's display
+  options.
 
 Which one is in use is remembered per song and tuning, in the home book
 (workflow 2).

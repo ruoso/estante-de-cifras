@@ -391,17 +391,22 @@ describe('AppShell routing (behavior)', () => {
     expect(screen.queryByRole('button', { name: 'Clear filter' })).not.toBeInTheDocument();
   });
 
-  it('back after a reload under arrange and the wizard leaves the song', async () => {
+  it('back after a reload under arranging and the wizard leaves the song', async () => {
     const first = makeStore();
     render(<AppShell store={first.store} />);
     openSongFromSearch(first.emit);
     const guitar = guitarEntry();
     first.emit(event(EventKind.INSTRUMENTS, { instruments: [guitar], inUseId: guitar.id, standard: guitar }));
+    // Arrange opens the editor on its preview (songs.arrange_in_editor), whose
+    // Run the wizard raises the wizard over it.
     fireEvent.click(screen.getByRole('button', { name: 'Arrange' }));
-    expect(history.state.layers).toEqual(['arrange']);
-    fireEvent.click(screen.getByRole('button', { name: 'Run the wizard' }));
+    expect(history.state.layers).toEqual(['editor']);
+    first.emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
+    const run = await screen.findByRole('button', { name: 'Run the wizard' });
+    await waitFor(() => expect(run).not.toBeDisabled());
+    fireEvent.click(run);
     await waitFor(() => expect(screen.getByRole('button', { name: 'The smoothest path' })).toBeInTheDocument());
-    expect(history.state.layers).toEqual(['wizard', 'arrange']);
+    expect(history.state.layers).toEqual(['editor', 'wizard']);
 
     // A reload keeps the address and drops both layers.
     cleanup();
@@ -412,7 +417,7 @@ describe('AppShell routing (behavior)', () => {
     emit(event(EventKind.SOURCE, { bookId: BOOK, path: SONG_PATH, text: SONG_TEXT }));
     expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
 
-    // Both the arrange-only entry and the bare song entry are passed over.
+    // Both the arranging-only entries and the bare song entry are passed over.
     await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
     await waitFor(() => expect(location.pathname).toBe('/'));
     expect(screen.queryByRole('group', { name: SONG_TITLE })).not.toBeInTheDocument();

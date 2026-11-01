@@ -1,13 +1,13 @@
 // SongWizard — the voicing wizard (songs.wizard_ui, workflow 5; board W05, the
-// computer drawing). The action behind arrange's **Run the wizard** affordance:
-// arrange raises `onRunWizard({ bookId, path })`, and AppShell mounts this
-// surface over arrange (ephemeral view state, no router — mirroring `arranging`
-// itself). It is two steps (docs/DESIGN.md §2.10): choose a policy — the
+// computer drawing). The action behind the editor preview's **Run the wizard**
+// (songs.arrange_in_editor): the editor raises `onRunWizard({ bookId, path })`,
+// and AppShell mounts this surface over the editor (ephemeral view state, no
+// router). It is two steps (docs/DESIGN.md §2.10): choose a policy — the
 // planners that make sense on this instrument, each with *How it works* and the
 // works it cites, and the choro's one stylistic question — then see the shapes it
 // would choose, as the same diagrams the song will carry, before anything
 // changes. Accepting writes the plan into the working copy like any other arrange
-// edit, then returns to arrange (Decision 1).
+// edit, then returns to the editor (Decision 1).
 //
 // The view drives the pure engine and never re-plans or re-ranks (Decision 5):
 // the policy list is `plannersFor(instrument)`, the stylistic question is seeded
@@ -20,16 +20,16 @@
 // exactly — the engine's mutated model → cifra.md `write` → `WRITE`, and
 // `SET_VARIATION` for a new block — with no new Worker command (Decision 4). The
 // Worker owns durability; the view never touches IndexedDB or git (DIRECTION
-// §3.7). WRITE is silent, so arrange re-reads the working copy when it re-mounts
-// on close and shows the new variation.
+// §3.7). WRITE is silent, so the editor re-reads the working copy when it
+// re-mounts on close and shows the new variation.
 //
 // On a computer (ARRANGE_WIDE_QUERY; songs.arrange_polish Decision 6, W05#4) the
 // wizard sits in a 380px side pane beside a main pane dressed as arrange — the
 // song's title, the instrument named after the mode (a mention, not a switch:
 // Decision 3) and **Done** — whose chart previews the plan, its shapes in a
 // *Shapes · {variation}* column (no variation selector: the target does not
-// exist until written, Decision 7). **Done** leaves the wizard and arrange
-// together (Decision 8). Below it the wizard keeps its full screen.
+// exist until written, Decision 7). **Done** leaves the wizard for the editor
+// (songs.arrange_in_editor). Below it the wizard keeps its full screen.
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Button, Disclosure, DisclosurePanel, Heading, Input, Label, Radio, RadioGroup, TextField } from 'react-aria-components';

@@ -6,9 +6,8 @@
 // tuning, pitches — as its accessible description (shell.header_chrome);
 // pressing it asks the shell to open the overlay. A React Aria `Button` with an
 // accessible name that says what it does; the chip carries the instrument as a
-// word, never colour alone. A screen in a mode names the mode on the chip itself
-// through `labelFor` (arrange: *Arranging · Guitar* — songs.arrange_polish
-// Decision 1), so it stays the one chip on the screen.
+// word, never colour alone. A screen may name a mode on the chip through
+// `labelFor` (songs.arrange_polish Decision 1).
 
 import { useId } from 'react';
 import { Button } from 'react-aria-components';

@@ -8,7 +8,7 @@
 // Where it sits (workflow 10 §Who sees whom, **Where it sits**): on a phone the
 // New invitation screen (#2), a full screen over the shell mounted from AppShell
 // with Back through its closers; on a tablet or a computer a centred dialog over
-// the people screen (the SongArrange precedent, sheet-narrow / centred-wide). A
+// the people screen (the arrange picker precedent, sheet-narrow / centred-wide). A
 // song's sheet and panel carry the same form inline.
 //
 // The link a create returns can be copied again later from the people screen

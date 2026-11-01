@@ -163,7 +163,7 @@ describe('ThemeRoot portal provider (behavior)', () => {
 // controls.css). A RAC `Button className="row"` is a native <button>; without
 // the reset it kept the UA's light ButtonFace fill, border and font, so Palco's
 // light ink sat on a light row. This pins the baseline every Button.row screen
-// relies on (ShareSheet, SetlistsScreen, FirstRun, EnterShape, SongArrange, …)
+// relies on (ShareSheet, SetlistsScreen, FirstRun, EnterShape, the arrange picker, …)
 // in each of the three themes, with the real stylesheets in the cascade.
 describe('the button.row baseline (shell.palco_contrast)', () => {
   let removeStyles;

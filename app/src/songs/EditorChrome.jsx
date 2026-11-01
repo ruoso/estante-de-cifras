@@ -73,8 +73,10 @@ export default function EditorChrome({
         </Button>
         {/* The end of the bar (shell.one_bar): Help about the editor (workflow
             18) and the account. On a phone the bar has no room beside the title
-            for either, so both sit at the end of the bottom bar instead. */}
-        {phone ? null : <BarEnd help="editor" />}
+            for either, so both sit at the end of the bottom bar instead. The
+            instrument chip is the preview's, where the song is arranged — one
+            chip on the screen (songs.arrange_in_editor). */}
+        {phone ? null : <BarEnd help="editor" chip={false} />}
       </div>
       {phone && unsaved ? (
         <div className="editor-chrome-strip" role="status">

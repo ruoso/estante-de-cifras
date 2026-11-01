@@ -73,8 +73,8 @@ test('back closes the editor before the song', async ({ page }) => {
 // shell.routing_reload_scope_step — a reload under a screen over the song
 // keeps only the song's address; back then leaves the song for the book's
 // songs, passing over the entries the reload left showing the same song.
-// Pins DIRECTION §3.7 and workflow 5 (arrange and the wizard as screens over a
-// song).
+// Pins DIRECTION §3.7 and workflow 5 (arranging in the editor, and the wizard
+// over it, as screens over a song — songs.arrange_in_editor).
 async function songUnderArrangeFromBook(page) {
   await openExampleBook(page);
   await openBookSongs(page, EXAMPLE_BOOK);
@@ -91,13 +91,13 @@ async function expectBackOnTheBook(page, bookUrl) {
   await expect(page.getByRole('heading', { level: 1, name: EXAMPLE_BOOK })).toBeVisible();
 }
 
-test('back after a reload under arrange leaves the song', async ({ page, checkA11y }) => {
+test('back after a reload under arranging leaves the song', async ({ page, checkA11y }) => {
   const bookUrl = await songUnderArrangeFromBook(page);
 
   await page.reload();
   await expect(page.getByRole('group', { name: SONG.title }).first()).toBeVisible();
   await expect(page).toHaveURL(SONG_URL);
-  await checkA11y(); // the song, reloaded without arrange
+  await checkA11y(); // the song, reloaded without the editor
 
   await page.goBack();
   await expectBackOnTheBook(page, bookUrl);

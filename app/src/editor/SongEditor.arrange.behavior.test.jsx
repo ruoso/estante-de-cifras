@@ -1,5 +1,6 @@
-// behavior (workflow 4 §Editing; workflow 5) — the editor's preview arranges:
-// the arrange screen's tappable chart, picker and shapes over the live buffer,
+// behavior (workflow 4 §Editing; workflow 5; songs.arrange_in_editor) — the
+// editor's preview is where a song is arranged: the tappable chart, picker,
+// shapes and Run the wizard over the live buffer,
 // a choice landing in the buffer as one undoable change and persisted through
 // the editor's own debounced WRITE. Real collaborators: CodeMirror, React Aria
 // Components, i18n, the music core and `cifra-md`'s §8.5 ops and writer, over a
@@ -94,12 +95,20 @@ const click = async (el) => {
   });
 };
 
-async function openEditor(text) {
+async function openEditor(text, props = {}) {
   const { store, commands } = makeStore(text);
   const editorRef = { current: null };
   const utils = render(
     <ThemeRoot store={store}>
-      <SongEditor store={store} bookId={BOOK} path={PATH} layoutMode="wide" editorRef={editorRef} onSave={() => {}} />
+      <SongEditor
+        store={store}
+        bookId={BOOK}
+        path={PATH}
+        layoutMode="wide"
+        editorRef={editorRef}
+        onSave={() => {}}
+        {...props}
+      />
     </ThemeRoot>,
   );
   act(() => store.open());
@@ -158,5 +167,45 @@ describe('SongEditor — the preview arranges (workflow 4 §Editing)', () => {
     );
     expect(within(preview.querySelector('.chart')).queryAllByRole('button')).toHaveLength(0);
     expect(within(preview).getByRole('button', { name: 'Choose these for every unchosen chord' })).toBeDisabled();
+    expect(within(preview).queryByRole('button', { name: 'Run the wizard' })).toBeNull();
+  });
+});
+
+describe('SongEditor — arranging from the reading view (songs.arrange_in_editor)', () => {
+  it('Run the wizard sits in the preview’s actions, sends the pending edit first, and raises onRunWizard', async () => {
+    const onRunWizard = vi.fn();
+    const { container, commands, editorRef, preview } = await openEditor(SONG, { onRunWizard });
+    const run = within(preview).getByRole('button', { name: 'Run the wizard' });
+    expect(run).not.toBeDisabled();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // A keystroke still in the debounce reaches the working copy before the
+    // wizard reads it.
+    act(() => {
+      editorRef.current.dispatch({ changes: { from: editorRef.current.state.doc.length, insert: '\n' } });
+    });
+    const typed = editorRef.current.state.doc.toString();
+    await click(run);
+    expect(commands.filter((c) => c.kind === CommandKind.WRITE).at(-1)?.payload.text).toBe(typed);
+    expect(onRunWizard).toHaveBeenCalledWith({ bookId: BOOK, path: PATH });
+  });
+
+  it('a song with a line that stops the save offers the wizard disabled', async () => {
+    const BLOCKED = SONG + '\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n\n- Cm: not-a-shape\n';
+    const { preview } = await openEditor(BLOCKED, { onRunWizard: () => {} });
+    await waitFor(() => expect(within(preview).getByRole('button', { name: 'Run the wizard' })).toBeDisabled());
+  });
+
+  it('opens on the preview on a phone when Arrange asked for it, and on the text otherwise', async () => {
+    const shown = async (props) => {
+      const { container, unmount } = await openEditor(SONG, { layoutMode: 'narrow', ...props });
+      const tab = within(container).getByRole('radio', { name: 'Preview' });
+      const selected = tab.getAttribute('aria-checked') === 'true';
+      const hasPreview = container.querySelector('.est-editor-preview') !== null;
+      unmount();
+      return { selected, hasPreview };
+    };
+    expect(await shown({ startOnPreview: true })).toEqual({ selected: true, hasPreview: true });
+    expect(await shown({})).toEqual({ selected: false, hasPreview: false });
   });
 });

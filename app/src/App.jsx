@@ -8,7 +8,6 @@ import ChartGallery from './chart/gallery/ChartGallery.jsx';
 import EditorDev from './editor/EditorDev.jsx';
 import HistoryDev from './songs/HistoryDev.jsx';
 import ReadingDev from './songs/ReadingDev.jsx';
-import ArrangeDev from './songs/ArrangeDev.jsx';
 import WizardDev from './songs/WizardDev.jsx';
 import FilesDev from './files/FilesDev.jsx';
 import SetlistsDev from './books/SetlistsDev.jsx';
@@ -54,17 +53,10 @@ function isReadingDev() {
   return typeof location !== 'undefined' && location.hash.startsWith('#dev/reading');
 }
 
-// The arrange surface's dev mount, `#dev/arrange` — mirroring `#dev/reading`
-// (songs.arrange Decision 1). Its real entry is the reading view's `onArrange`
-// seam (wired here in AppShell); the dev mount stands the surface up at
-// `#dev/arrange?book=…&path=…` so its behavior and e2e run on every viewport.
-function isArrangeDev() {
-  return typeof location !== 'undefined' && location.hash.startsWith('#dev/arrange');
-}
-
-// The wizard surface's dev mount, `#dev/wizard` — mirroring `#dev/arrange`
-// (songs.wizard_ui Decision 1). Its real entry is arrange's `onRunWizard` seam
-// (wired here in AppShell); the dev mount stands the surface up at
+// The wizard surface's dev mount, `#dev/wizard` — mirroring `#dev/reading`
+// (songs.wizard_ui Decision 1). Its real entry is the editor preview's
+// `onRunWizard` seam (songs.arrange_in_editor), wired here in AppShell; the
+// dev mount stands the surface up at
 // `#dev/wizard?book=…&path=…` so its behavior and e2e run on every viewport.
 function isWizardDev() {
   return typeof location !== 'undefined' && location.hash.startsWith('#dev/wizard');
@@ -206,8 +198,6 @@ export default function App({ store = getAppStore() }) {
           <HistoryDev store={store} />
         ) : isReadingDev() ? (
           <ReadingDev store={store} />
-        ) : isArrangeDev() ? (
-          <ArrangeDev store={store} />
         ) : isWizardDev() ? (
           <WizardDev store={store} />
         ) : isFilesDev() ? (

@@ -1,10 +1,9 @@
 // arrange-surface — the arranging itself (songs.arrange, workflow 5; board W05),
-// shared by the two places a song is arranged: the arrange screen (SongArrange,
-// the mode entered from reading) and the editor's preview (SongEditor, workflow
-// 4 §Editing). Both turn the song's chords into things to tap, open the same
-// picker, write the same §8.5 ops and show the same shapes; they differ only in
-// their chrome and in where a choice lands. So the state and the pieces live
-// here, as a hook that hands each host its parts to lay out:
+// laid out by the editor's preview (SongEditor, workflow 4 §Editing), the one
+// place a song is arranged since songs.arrange_in_editor retired the separate
+// arrange screen. It turns the song's chords into things to tap, opens the
+// picker, writes the §8.5 ops and shows the shapes; the state and the pieces
+// live here, as a hook that hands the host its parts to lay out:
 //
 //   - `chart`, the song's chart with its chords as press targets;
 //   - `shapesStrip`, the diagram of every chord's shape for the instrument;
@@ -13,8 +12,7 @@
 //     add-variation dialog.
 //
 // A choice is a mutated model, canonicalised by `write` and handed to the
-// host's `onText` — the arrange screen sends it to the working copy (WRITE);
-// the editor puts it into its buffer as one undoable change. `canWrite: false`
+// host's `onText` — the editor puts it into its buffer as one undoable change. `canWrite: false`
 // leaves the chart readable but not tappable (the editor while its text holds a
 // line `write` would drop).
 //
@@ -74,14 +72,6 @@ import './arrange.css';
 function barNumber(model, occurrence) {
   const { section, part, line, measure } = occurrence;
   return model?.sections?.[section]?.body?.[part]?.lines?.[line]?.measures?.[measure]?.number ?? null;
-}
-
-export function BackIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
 }
 
 // The warning triangle on the "only here" notice (aria-hidden; the word carries

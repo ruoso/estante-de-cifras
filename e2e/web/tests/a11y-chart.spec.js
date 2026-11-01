@@ -86,17 +86,15 @@ test('an arrange chord is a keyboard-reachable button named by its spoken chord 
   await startApp(page);
   await openSongFromSearch(page, 'Gallery', CHART_TITLE);
 
-  // Enter arrange from the reading view: the narrow action bar's Arrange, or the
-  // wide "More" overflow's "Arrange for …".
+  // Arrange from the reading view — the narrow action bar's Arrange, or the wide
+  // "More" overflow's "Arrange for …" — opens the editor on its preview.
   if (testInfo.project.name === 'phone') {
     await page.getByRole('button', { name: 'Arrange', exact: true }).click();
   } else {
     await page.getByRole('button', { name: 'More' }).click();
     await page.getByRole('menuitem', { name: /^Arrange for/ }).click();
   }
-  await expect(page.getByText(/Arranging ·/)).toBeVisible();
-
-  const arrange = page.getByRole('group', { name: CHART_TITLE }).first();
+  const arrange = page.getByRole('group', { name: 'Preview of the song as it will be read' });
   await expect(arrange).toBeVisible();
 
   // Every voiced chord is a button whose accessible name is the §3 spoken name,

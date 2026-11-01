@@ -1768,7 +1768,6 @@ export default {
   // instrument in use, `{chord}` a chord symbol (a musical token, never
   // translated), `{shorthand}` its spoken fret string, `{name}` a variation name.
   arrange: {
-    back: 'Back',
     done: 'Done',
     modeChip: 'Arranging · {instrument}',
     modeHint: 'Tap a chord to choose its shape',

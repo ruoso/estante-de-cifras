@@ -6,6 +6,7 @@ import { overlaps } from '../lib/fit.js';
 import {
   SONG,
   enterArrange,
+  arrangePreview,
   arrangeChord,
   picker,
   candidate,
@@ -20,13 +21,12 @@ import {
 
 // e2e-web — arranging a song end to end on the three viewports (songs.arrange,
 // workflow 5). The example book is seeded through the UI, a song is opened from
-// search, arrange is entered from the reading view, a chord is tapped, and a
-// shape is chosen — with axe at WCAG 2.1 AA on the arrange screen and the open
-// picker. Then: only here and enter-a-shape; the whole journey by keyboard on
+// search, Arrange opens the editor on its preview (songs.arrange_in_editor), a
+// chord is tapped, and a shape is chosen — with axe at WCAG 2.1 AA on the
+// arranging preview and the open picker. Then: only here and enter-a-shape; the whole journey by keyboard on
 // the computer; a new variation; a choice saved through the save sheet and still
 // chosen after a reload; "Choose these for every unchosen chord"; arrange hidden
-// while transposed; and choosing a shape offline. phone is the narrow screen;
-// tablet and computer are the wide side-by-side. Pins workflow 5 L14-41, L43-49,
+// while transposed; and choosing a shape offline. Pins workflow 5 L14-41, L43-49,
 // L30-31, L52-61, L75-85; workflow 2 L135-146; the .tji e2e clause; offline-first.
 
 const openSong = (page) => openSongFromSearch(page, SONG.search, SONG.title);
@@ -44,7 +44,7 @@ test('arranges a song for guitar: tap a chord, choose a shape', async ({ page, c
   await expect(arrangeChord(page)).toBeVisible();
   await expect(page.getByRole('region', { name: 'Shapes' })).toBeVisible();
   await mockup(page, 'W05-arrange', 1);
-  await checkA11y(); // the arrange screen
+  await checkA11y(); // the arranging preview
 
   // Tap a chord → the picker opens (Every <chord> is the default scope).
   await arrangeChord(page).click();
@@ -57,16 +57,16 @@ test('arranges a song for guitar: tap a chord, choose a shape', async ({ page, c
   await expect(picker(page)).toBeHidden();
   await expect(arrangeChord(page)).toBeVisible();
 
-  // The header's one chip is the instrument chip carrying the mode
-  // (songs.arrange_polish Decision 1; workflow 15 L62-69, workflow 5 L28-33):
-  // it reads *Arranging · Guitar* and opens the instruments. A cavaquinho added
-  // from it becomes the one in use, and the chip follows.
+  // The screen's one chip is the preview's, beside the shapes it decides
+  // (songs.arrange_in_editor; workflow 15 L62-69, workflow 5 L28-33): it names
+  // the instrument and opens the instruments. A cavaquinho added from it becomes
+  // the one in use, and the chip follows.
   await expect(chip(page)).toHaveCount(1);
-  await expect(chip(page)).toHaveText('Arranging · Guitar');
+  await expect(arrangePreview(page).getByRole('button', { name: /change instrument/ })).toHaveText('Guitar');
   await addInstrument(page, { catalogue: 'Cavaquinho', listed: 'Cavaquinho' });
   await closeInstruments(page);
   await expect(chip(page)).toHaveCount(1);
-  await expect(chip(page)).toHaveText('Arranging · Cavaquinho');
+  await expect(chip(page)).toHaveText('Cavaquinho');
   await expect(arrangeChord(page)).toBeVisible();
 });
 

@@ -2,10 +2,11 @@
 // a song's cifra.md text: the text loaded from the working copy (or a template
 // for a new song), coloured by cifra.md structure, persisted back on every
 // (debounced) edit, with a preview beside it when the editor is wide enough and
-// a tap away when it is not — a preview that arranges, as the arrange screen
-// does (workflow 4 §Editing): its chords open the shape picker and every
-// chord's diagram follows the chart, a choice landing in the buffer as one
-// undoable change — paste-into-a-fence with undo, a voicing the reader cannot read
+// a tap away when it is not — a preview that arranges (workflow 4 §Editing;
+// workflow 5): its chords open the shape picker, every chord's diagram follows
+// the chart, and *Run the wizard* plans every shape at once
+// (songs.arrange_in_editor), a choice landing in the buffer as one undoable
+// change — paste-into-a-fence with undo, a voicing the reader cannot read
 // stopping the save, and every line the reader reports saying why in words —
 // under the line, and to a screen reader when the cursor arrives
 // (songs.editor_errors_in_words).
@@ -123,6 +124,15 @@ export default function SongEditor({
   onTitleChange,
   onWrite,
   showPreview: previewAllowed = true,
+  // Arranging (songs.arrange_in_editor): the reading view's *Arrange* opens the
+  // editor on its preview when the two do not sit side by side, and the host's
+  // `onRunWizard` raises the voicing wizard from the preview's actions. The
+  // wizard is a surface over the editor, so on its close the editor re-mounts;
+  // `autoFocusWizard` sends focus back to the button that opened it.
+  startOnPreview = false,
+  onRunWizard,
+  autoFocusWizard = false,
+  onWizardFocusReturned = () => {},
 }) {
   const preferences = useSlice(store, 'preferences');
   const sourceSlice = useSlice(store, 'source');
@@ -133,7 +143,11 @@ export default function SongEditor({
   // from the live buffer (Decision 2). CodeMirror owns the editable truth; this
   // follows it through the update listener.
   const [text, setText] = useState('');
-  const [previewTab, setPreviewTab] = useState(false);
+  const [previewTab, setPreviewTab] = useState(startOnPreview);
+  // The first measure keeps the preview *Arrange* asked for; a later crossing
+  // follows focus (below).
+  const startOnPreviewRef = useRef(startOnPreview);
+  const wizardButtonRef = useRef(null);
   // The editor's own width — the body the two panes share — decides the split
   // (songs.editor_split_width; workflow 3 §The editor L78-84). Kept in state
   // only when it lands on the other side of the rule, so a resize does not
@@ -500,6 +514,24 @@ export default function SongEditor({
     chartProps: { label: t('editor.source.previewLabel') },
   });
 
+  // The wizard reads the working copy, so the pending edit goes first.
+  const runWizard = () => {
+    flushWrite();
+    onRunWizard?.({ bookId, path });
+  };
+  // Back from the wizard: the editor re-mounted under it, so focus goes to the
+  // fresh Run-the-wizard button once the text has loaded (it is disabled until
+  // the song parses). One-shot; the host clears the flag once honoured.
+  const wizardFocusDone = useRef(false);
+  useEffect(() => {
+    if (!autoFocusWizard || wizardFocusDone.current || !loaded || !canArrange) return;
+    const button = wizardButtonRef.current;
+    if (!button) return;
+    wizardFocusDone.current = true;
+    button.focus();
+    onWizardFocusReturned();
+  });
+
   const addSection = () => {
     const view = viewRef.current;
     if (!view) return;
@@ -620,8 +652,9 @@ export default function SongEditor({
       if (sameSide) return;
       bodyWidthRef.current = width;
       if (width && width < EDITOR_SPLIT_MIN_WIDTH) {
-        setPreviewTab(Boolean(previewRef.current?.contains(document.activeElement)));
+        setPreviewTab(startOnPreviewRef.current || Boolean(previewRef.current?.contains(document.activeElement)));
       }
+      startOnPreviewRef.current = false;
       setBodyWidth(width);
     };
     measure(body.getBoundingClientRect().width);
@@ -840,6 +873,11 @@ export default function SongEditor({
                     <Button className="btn" isDisabled={!canArrange} onPress={arrange.openAddVariation}>
                       {t('arrange.variations')}
                     </Button>
+                    {onRunWizard ? (
+                      <Button ref={wizardButtonRef} className="btn" isDisabled={!canArrange} onPress={runWizard}>
+                        {t('arrange.runWizard')}
+                      </Button>
+                    ) : null}
                   </div>
                 </>
               ) : (

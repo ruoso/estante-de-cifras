@@ -16,6 +16,11 @@
 // this host on SAVED or Back; `onEdit` opens another unsaved song from the pane.
 // A discard reverts the working copy, so the editor is remounted to re-read the
 // reverted text, as the dev mount does.
+//
+// Arranging happens here too (songs.arrange_in_editor): `editing.arrange` — the
+// reading view's *Arrange* — opens the editor on its preview, and the preview's
+// *Run the wizard* raises `onRunWizard`, the wizard AppShell mounts over this
+// host; `autoFocusWizard` returns focus to that button when the host re-mounts.
 
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { t } from '../i18n/index.js';
@@ -56,6 +61,9 @@ export default function EditSongHost({
   onEdit = () => {},
   editorRef,
   onMakeYourOwn = () => {},
+  onRunWizard,
+  autoFocusWizard = false,
+  onWizardFocusReturned,
 }) {
   const { bookId, path, songTitle } = editing;
   const editorWide = useSyncExternalStore(subscribeEditorWide, readEditorWide, readEditorWide);
@@ -149,6 +157,10 @@ export default function EditSongHost({
             flushRef={flushRef}
             saveRef={saveRef}
             addSectionRef={phone ? addSectionRef : undefined}
+            startOnPreview={Boolean(editing.arrange)}
+            onRunWizard={onRunWizard}
+            autoFocusWizard={autoFocusWizard}
+            onWizardFocusReturned={onWizardFocusReturned}
           />
         </div>
         <SaveSheet
