@@ -27,7 +27,7 @@ const BOOK_URL = /\/b\/[^/]+$/;
 test('a book’s songs open from the Books tab, a song plays from there, and Manage leads to the detail and Files', async ({
   page,
   checkA11y,
-}, testInfo) => {
+}) => {
   await openExampleBook(page);
 
   // Books: the row says how many songs, and is the row's one action — no
@@ -77,21 +77,18 @@ test('a book’s songs open from the Books tab, a song plays from there, and Man
   await expect(page).toHaveURL(bookUrl);
 
   // Manage opens the book's detail (workflow 7 L86-95): full screen with Back
-  // on the phone and the tablet, the main pane beside the book's songs on the
-  // computer. Not an address: the URL stays the book's songs.
+  // on every device, nothing beside it (shell.one_bar). Not an address: the URL
+  // stays the book's songs.
   await page.getByRole('button', { name: `Manage ${EXAMPLE_BOOK}` }).first().click();
   const detail = page.locator('.book-detail');
   await expect(detail).toBeVisible();
   await expect(detail.getByRole('button', { name: `Back to ${EXAMPLE_BOOK}` })).toBeVisible();
   await expect(detail.getByRole('button', { name: `Rename ${EXAMPLE_BOOK}` })).toBeVisible();
   await expect(page).toHaveURL(bookUrl);
-  if (testInfo.project.name === 'computer') {
-    const side = page.locator('.book-detail-split .pane.side');
-    await expect(side.getByRole('heading', { level: 1, name: EXAMPLE_BOOK })).toBeVisible();
-    await expect(side.locator('.search-row-open', { hasText: SONG }).first()).toBeVisible();
-  } else {
-    await expect(page.getByRole('tab', { name: 'Books' })).toBeHidden();
-  }
+  await expect(page.locator('.pane.side')).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: 'Books' })).toBeHidden();
+  // The detail's one bar ends with the account, as every bar does.
+  await expect(detail.locator('.appbar').getByRole('button', { name: 'Account', exact: true })).toBeVisible();
   await checkA11y(); // the book's detail
 
   // Files opens the file view on the book (workflow 14 §The view); its Back

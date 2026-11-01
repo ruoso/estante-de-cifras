@@ -1,13 +1,14 @@
-// The responsive navigation shell (shell.layout): the frame every later screen
-// lives in. It renders inside ThemeRoot's `.est` root and chooses one of two
-// layouts by viewport — a bottom tab bar on the phone, a sidebar + detail
-// `.split` on tablet and computer — flipping live as the viewport crosses the
-// breakpoint.
+// The responsive navigation shell (shell.layout, shell.one_bar): the frame every
+// later screen lives in. It renders inside ThemeRoot's `.est` root and chooses
+// one of two layouts by viewport — a bottom tab bar on the phone, the tabs in
+// the top bar on tablet and computer — flipping live as the viewport crosses the
+// breakpoint. There is no sidebar: every device draws one bar at the top of
+// every screen (HeaderChrome), the content below it.
 //
 // The destination switcher is one controlled React Aria Components `Tabs`
 // instance (Decision): its `TabList` is the bottom `.tabbar` on the phone and
-// the sidebar rail on tablet/computer, its `TabPanel`s are the destination
-// regions. RAC gives the roving-tabindex keyboard path, arrow / Home / End
+// a row of tabs in the top bar on tablet/computer, its `TabPanel`s are the
+// destination regions. RAC gives the roving-tabindex keyboard path, arrow / Home / End
 // movement, `aria-selected` state and the accessible tab/tabpanel roles — "React
 // Aria for every interactive part" without hand-rolled ARIA. The selected
 // destination is view state (`useState`), not Worker data: navigation location
@@ -58,9 +59,9 @@ import AccountScreen from '../account/AccountScreen.jsx';
 import MySongsChoice from '../account/MySongsChoice.jsx';
 import FileView from '../files/FileView.jsx';
 import ChordExplorer from '../music/ChordExplorer.jsx';
-import HeaderChrome from './HeaderChrome.jsx';
+import HeaderChrome, { ShellChrome } from './HeaderChrome.jsx';
 import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
-import { DESTINATIONS, READING_ACTIONS_WIDE_QUERY, WIDE_QUERY, layoutMode } from './layout-mode.js';
+import { DESTINATIONS, WIDE_QUERY, layoutMode } from './layout-mode.js';
 import { bookFileSet } from '../books/setlist-display.js';
 import { initialState } from '../worker/reducer.js';
 import NotHere from './NotHere.jsx';
@@ -90,26 +91,6 @@ function subscribeViewport(onChange) {
 
 function readWide() {
   return wideQuery()?.matches ?? false;
-}
-
-// Whether a wide layout is the computer's (READING_ACTIONS_WIDE_QUERY), where a
-// book's detail takes the main pane beside its songs as a song does
-// (books.row_opens_songs Decision *The detail splits where a song does*).
-function computerQuery() {
-  return typeof globalThis.matchMedia === 'function'
-    ? globalThis.matchMedia(READING_ACTIONS_WIDE_QUERY)
-    : null;
-}
-
-function subscribeComputer(onChange) {
-  const query = computerQuery();
-  if (!query?.addEventListener) return () => {};
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
-}
-
-function readComputer() {
-  return computerQuery()?.matches ?? false;
 }
 
 // The current layout mode, re-read live whenever the viewport crosses the
@@ -154,19 +135,17 @@ function DestinationIcon({ name }) {
 }
 
 // One destination tab, styled for the layout it sits in: a `.tab` (`.on` when
-// selected) column in the phone tab bar, a `.row` (`.sel` when selected) in the
-// sidebar rail. The selected state is carried by `aria-selected` (a word to
-// assistive tech, from RAC), never colour alone (mockups README lines 26-27);
-// `.tab.on` / `.row.sel` are the drawn accent on top of that.
+// selected) column in the phone tab bar, a `.top-tab` pill (`.on` when selected)
+// in the tablet/computer top bar. The selected state is carried by
+// `aria-selected` (a word to assistive tech, from RAC), never colour alone
+// (mockups README lines 26-27); `.on` is the drawn accent on top of that.
 function destinationTab(key, variant) {
   const label = t(`shell.${key}`);
-  if (variant === 'rail') {
+  if (variant === 'top') {
     return (
-      <Tab key={key} id={key} className={({ isSelected }) => `row${isSelected ? ' sel' : ''}`}>
+      <Tab key={key} id={key} className={({ isSelected }) => `top-tab${isSelected ? ' on' : ''}`}>
         <DestinationIcon name={key} />
-        <span className="grow">
-          <span className="name">{label}</span>
-        </span>
+        {label}
       </Tab>
     );
   }
@@ -242,7 +221,7 @@ function destinationPanels(store, onNavigate, onWriteSong, onOpenBookSongs, onOp
         // (books.add_book_chooser Decision 4), and `onUpload` opens the
         // full-screen upload preview (Decision 5). Pressing a book opens its
         // songs (books.row_opens_songs). On a wide layout a book that needs
-        // you opens its paused panel here, the rail beside it
+        // you opens its paused panel here, under the top bar's tabs
         // (sync.conflicts_polish constraint 5; W09#4).
         openBookView ?? (
           <BooksScreen
@@ -278,7 +257,6 @@ export default function AppShell({
   authClient = DEFAULT_AUTH_CLIENT,
 }) {
   const mode = useLayoutMode();
-  const computer = useSyncExternalStore(subscribeComputer, readComputer, readComputer) && mode === 'wide';
   // What the shell knows of the account, from the service's answer
   // (account.sign_in_two_doors): whether the cold row offers signing in, and
   // whether the recovery-email banner shows. The client is read once: one
@@ -346,7 +324,7 @@ export default function AppShell({
 
   // The upload preview (books.upload_ui Decision 1; books.add_book_chooser
   // Decision 5): a full-screen surface over the shell on every viewport, with no
-  // rail, side pane or tab bar beside it (W07 #3). `{ bytes, fileName }` of the
+  // bar or tabs of the shell's around it (W07 #3). `{ bytes, fileName }` of the
   // zip picked from the Add-a-book sheet while open; `null` closed.
   const [upload, setUpload] = useState(null);
 
@@ -424,7 +402,7 @@ export default function AppShell({
   const [exploring, setExploring] = useState(null);
   // The open song, set from a tapped search result (songs.reading Decision 5):
   // `{ bookId, path }` or null. Like the editor host and the file view, it is a
-  // full-screen surface over the shell (narrow) / the master-detail (wide), and
+  // full-screen surface over the shell on every layout, and
   // ephemeral view state — no router, no store slice (shell.layout Decision).
   const [openSong, setOpenSong] = useState(null);
   // The sharing surface over the open song (books.share): `{ bookId, path }` or
@@ -480,8 +458,8 @@ export default function AppShell({
   const [conflictsBook, setConflictsBook] = useState(null);
   const [songConflict, setSongConflict] = useState(null);
   // The setlist surface (books.setlists, workflow 12): `openSetlist` is the
-  // opened setlist `{ bookId, path }` (a full-screen surface over the shell /
-  // master-detail, like `openSong`); `addingToSetlist` is the song the
+  // opened setlist `{ bookId, path }` (a full-screen surface over the shell,
+  // like `openSong`); `addingToSetlist` is the song the
   // Add-to-setlist dialog is adding `{ bookId, path, title? }`, raised from the
   // reading view's and the search rows' `onAddToSetlist` seam — a RAC Modal
   // portaled into `.est` over whatever surface raised it. Ephemeral, no router.
@@ -930,6 +908,35 @@ export default function AppShell({
   // re-target so a later new song does not consume it.
   const exitEditing = () => back(closers.newSong);
 
+  // What every screen's bar ends with (shell.one_bar): the chip, Help and the
+  // account, lent through ShellChrome so a screen adds them with one `BarEnd`.
+  // The instruments open in the one overlay mounted here, over whatever surface
+  // is showing; the account screen is a layer, so closing it returns there. The
+  // two surfaces drawn above that layer — sign-in and the recovery email's
+  // confirm page — close first, so the account button always lands on the
+  // account screen (whose not-signed-in card leads back to signing in).
+  const chrome = {
+    store,
+    mode,
+    accountStatus: accountStatus.status,
+    onInstruments: () => setInstrumentsOpen(true),
+    onAccount: () => {
+      setSignIn(null);
+      setRecoveryConfirm(null);
+      setAccount(true);
+    },
+  };
+  return (
+    <ShellChrome.Provider value={chrome}>
+      {renderSurface()}
+      <InstrumentsOverlay store={store} isOpen={instrumentsOpen} onClose={() => setInstrumentsOpen(false)} />
+    </ShellChrome.Provider>
+  );
+
+  // The surface on show, from the layers open over the place (checked in order,
+  // the first that is open wins). A function so every surface sits inside the
+  // ShellChrome provider above; it reads the component's state and draws.
+  function renderSurface() {
   // The recovery email's confirm page, checked before every other surface so a
   // `/recovery-email/<token>` boot shows it on any device, signed in or not
   // (account.recovery_email Decision 6).
@@ -1177,13 +1184,12 @@ export default function AppShell({
     );
   }
 
-  const openInstruments = () => setInstrumentsOpen(true);
   // The cold row's *Sign in or make an account*, only while no one is signed in
   // (workflow 1 §Cold).
   const offerSignIn = offersFirstRunSignIn(accountStatus);
   // A destination tab pressed under an open setlist (the phone) leaves it: a tab
   // switch plus a close, so the entry is replaced (routing Decision 4;
-  // books.setlist_chrome Decision 4). So does a rail tab beside the paused book
+  // books.setlist_chrome Decision 4). So does a tab above the paused book
   // panel (a tablet or a computer), through the panel's own close
   // (sync.conflicts_polish constraint 5).
   // The Books tab pressed from another destination opens on the shelf: a book's
@@ -1253,8 +1259,8 @@ export default function AppShell({
       </div>
     ) : null;
 
-  // The shell itself: the destinations under their tab bar (phone) or beside the
-  // rail (tablet, computer). `booksView` takes the Books panel's place — the
+  // The shell itself: the destinations above their tab bar (phone) or under the
+  // one top bar's tabs (tablet, computer; shell.one_bar). `booksView` takes the Books panel's place — the
   // paused book panel on a wide layout (sync.conflicts_polish constraint 5;
   // W09#4) — as `setlistView` takes the Setlists panel's on the phone.
   const renderShell = ({ booksView = bookPage ? bookPageView(bookPage) : null, setlistView = null, sharingScreen = null } = {}) => (
@@ -1262,53 +1268,35 @@ export default function AppShell({
       <Tabs
         className={sharingScreen ? 'shell shell-covered' : 'shell'}
         hidden={sharingScreen ? true : undefined}
-        orientation={mode === 'wide' ? 'vertical' : 'horizontal'}
         selectedKey={selected}
         onSelectionChange={selectTab}
       >
         {mode === 'wide' ? (
-          <div className="split">
-            <div className="pane side">
-              {/* The side header (shell.header_chrome; W01/W02 computer): the
-                  wordmark, the instrument chip — the one shared piece of shell
-                  chrome (music.instruments Decision 1) — and the account
-                  affordance (account.account_screen). */}
-              <HeaderChrome
-                store={store}
-                className="side-head"
-                onInstruments={openInstruments}
-                onAccount={() => setAccount(true)}
-                helpPage={shellHelpPage}
-              />
-              <TabList className="rail" aria-label={t('shell.nav')}>
-                {DESTINATIONS.map((key) => destinationTab(key, 'rail'))}
+          <div className="screen screen-wide">
+            {/* The one bar (shell.one_bar): the wordmark, the destinations as
+                tabs, then the chip, Help and the account at its end — the
+                phone's header row with the tab bar folded into it. */}
+            <HeaderChrome className="top-bar" helpPage={shellHelpPage}>
+              <TabList className="top-tabs" aria-label={t('shell.nav')}>
+                {DESTINATIONS.map((key) => destinationTab(key, 'top'))}
               </TabList>
-            </div>
+            </HeaderChrome>
+            {banner}
+            {tourOffer}
             {/* Busy while an address resolves (shell.routing): what it names
                 opens over this destination once the device says it is here. */}
-            <main className="pane main" aria-busy={resolving ? true : undefined}>
-              {banner}
-              {tourOffer}
-              <div className="scroll">
-                {destinationPanels(store, setSelected, startNewSong, openBookSongs, setOpenSong, () => setSignIn({}), openByLink, openSetlistOnTab, setAddingToSetlist, search, restore, null, bookActs, signInMine, setUpload, booksView, offerSignIn)}
-              </div>
+            <main className="scroll shell-main" aria-busy={resolving ? true : undefined}>
+              {destinationPanels(store, setSelected, startNewSong, openBookSongs, setOpenSong, () => setSignIn({}), openByLink, openSetlistOnTab, setAddingToSetlist, search, restore, null, bookActs, signInMine, setUpload, booksView, offerSignIn)}
             </main>
           </div>
         ) : (
           <div className="screen">
             {/* The phone's header row above every destination
-                (shell.header_chrome; W01/W02 phone 1): wordmark, chip, account;
-                `order: -1` keeps it above the scrolling detail. Not over an
-                open setlist, whose own app bar is the first row (W12 phone #1). */}
-            {setlistView ? null : (
-              <HeaderChrome
-                store={store}
-                className="instr-top"
-                onInstruments={openInstruments}
-                onAccount={() => setAccount(true)}
-                helpPage={shellHelpPage}
-              />
-            )}
+                (shell.header_chrome; W01/W02 phone 1): wordmark, chip, Help,
+                account; `order: -1` keeps it above the scrolling detail. Not
+                over an open setlist, whose own app bar is the first row (W12
+                phone #1). */}
+            {setlistView ? null : <HeaderChrome className="instr-top" helpPage={shellHelpPage} />}
             {banner}
             {setlistView ? null : tourOffer}
             {/* The TabList renders before the TabPanels so RAC can register the
@@ -1326,11 +1314,6 @@ export default function AppShell({
       </Tabs>
       {sharingScreen ? banner : null}
       {sharingScreen}
-      <InstrumentsOverlay
-        store={store}
-        isOpen={instrumentsOpen}
-        onClose={() => setInstrumentsOpen(false)}
-      />
       <Tour isOpen={touring} onClose={() => setTouring(false)} />
       {addingToSetlist ? (
         <AddToSetlist
@@ -1387,8 +1370,8 @@ export default function AppShell({
 
   // The book-level paused panel (sync.conflicts, workflow 9 §The rest) for a
   // book with an in-progress merge. On a phone, a full screen over the shell; on
-  // a tablet or a computer, the Books destination's content in the main pane,
-  // the header chrome and the rail beside it — "the book needs you; the rest of
+  // a tablet or a computer, the Books destination's content under the top bar,
+  // its tabs still there — "the book needs you; the rest of
   // it carries on" (sync.conflicts_polish constraint 5; W09#4 L184-205).
   // *Settle* opens the per-song resolver above; Back returns to the shell.
   if (conflictsBook) {
@@ -1489,10 +1472,9 @@ export default function AppShell({
   }
 
   // A book's detail (books.row_opens_songs; workflow 7 L86-95): a layer over the
-  // book's page. On a computer it takes the main pane beside it, as a song
-  // does (SongReading's split); below that it is a full screen with *Back to
-  // {book}*. Files opens over it (above), and its Back returns here; Back from
-  // the detail returns to the book's songs.
+  // book's page, a full screen with *Back to {book}* on every device (no split:
+  // shell.one_bar). Files opens over it (above), and its Back returns here; Back
+  // from the detail returns to the book's songs.
   if (bookDetail) {
     const detailEntry = orderedBooks(shelf).find((e) => e.id === bookDetail.bookId);
     const detail = (
@@ -1524,38 +1506,6 @@ export default function AppShell({
         }}
       />
     ) : null;
-    if (computer) {
-      return framed(
-        <>
-          <div className="split book-detail-split">
-            <div className="pane side">
-              <HeaderChrome store={store} className="rail-head" onInstruments={openInstruments} />
-              {/* The book's page beside its detail; its own *Books* is the
-                  detail's Back here, so it shows none. */}
-              <BookSongs
-                store={store}
-                bookId={bookDetail.bookId}
-                query={bookQuery}
-                onQueryChange={setBookQuery}
-                onBack={null}
-                onOpenSong={(song) => {
-                  setBookDetail(null);
-                  setOpenSong(song);
-                }}
-                onOpenSetlist={openSetlistOnTab}
-                onWriteSong={startNewSong}
-                onAddToSetlist={setAddingToSetlist}
-                onManage={bookActs.onManage}
-                onSettle={bookActs.onSettle}
-                onNeedsYou={bookActs.onNeedsYou}
-              />
-            </div>
-            <div className="pane main">{detail}</div>
-          </div>
-          <InstrumentsOverlay store={store} isOpen={instrumentsOpen} onClose={() => setInstrumentsOpen(false)} />
-        </>,
-      );
-    }
     return framed(
       <>
         <div className="book-detail-layer">{detail}</div>
@@ -1646,10 +1596,9 @@ export default function AppShell({
   }
 
   // A song is open to be read (songs.reading): a full screen over the shell on
-  // the phone (Back returns to search), the computer's master-detail on tablet
-  // and computer (search in `.pane.side`, the reading view in `.pane.main` —
-  // SongReading draws the split itself, sharing the open-song seam so a result
-  // in the side pane switches songs). The toolbar's edit / add-to-setlist / share
+  // every device, Back returning to search with the query still typed — on a
+  // tablet and a computer too, the song alone, no search rail beside it
+  // (shell.one_bar). The toolbar's edit / add-to-setlist / share
   // are affordance seams their owning tasks wire (songs.editor, books.setlists,
   // books.share); this task renders them and raises the callbacks (Decision 6).
   // Arrange is wired (`onArrange` opens the arrange surface above); history is
@@ -1704,7 +1653,6 @@ export default function AppShell({
           path={openSong.path}
           mode={mode}
           onBack={() => back(() => setOpenSong(null))}
-          onOpenSong={setOpenSong}
           onEdit={({ bookId, path, title }) => setEditingSong({ bookId, path, songTitle: title ?? '' })}
           onArrange={setArranging}
           onOpenHistory={setHistory}
@@ -1747,8 +1695,8 @@ export default function AppShell({
 
   // The opened setlist (books.setlists, workflow 12). Play (books.play) enters
   // the player above; Back returns to where it was opened from. On tablet and
-  // computer it is a full-screen surface over the master-detail, no rail beside
-  // it (W12 #3, #4); on the phone it sits in the Setlists tab panel with the tab
+  // computer it is a full-screen surface with its own one bar (W12 #3, #4;
+  // shell.one_bar); on the phone it sits in the Setlists tab panel with the tab
   // bar below it and no header row above (books.setlist_chrome; W12 phone #1;
   // header_chrome Decision 8).
   // Its Share (books.setlist_invitation) is the song's surfaces in setlist
@@ -1826,4 +1774,5 @@ export default function AppShell({
   }
 
   return renderShell({ setlistView, sharingScreen });
+  }
 }

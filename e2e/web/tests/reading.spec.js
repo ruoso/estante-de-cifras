@@ -34,13 +34,9 @@ test('opens and reads a song; the chart and the shapes render', async ({ page, c
   // read beside it in document order.
   await expect(diagram.getByRole('img')).toHaveAccessibleName(/[0-9x]{3,}/);
 
-  // On the computer, search sits beside the song (master-detail, W02#4); the
-  // phone and the tablet read on the whole screen with no search box (W02#2-3).
-  if (testInfo.project.name === 'computer') {
-    await expect(page.getByRole('searchbox')).toBeVisible();
-  } else {
-    await expect(page.getByRole('searchbox')).toHaveCount(0);
-  }
+  // Every device reads the song on the whole screen, no search box beside it
+  // (W02#2-3; shell.one_bar — the computer's search rail is gone).
+  await expect(page.getByRole('searchbox')).toHaveCount(0);
 
   await mockup(page, 'W02-find-and-play', 2);
   await checkA11y(); // default reading state
@@ -100,7 +96,11 @@ test('the reading chrome as drawn: the header, the ⋯ menu and the shapes', asy
     const shapesBox = await shapes.boundingBox();
     expect(shapesBox.x, 'the shapes card sits beside the chart').toBeGreaterThanOrEqual(chartBox.x + chartBox.width);
   } else {
-    await expect(page.locator('.reading-side .rail-head').getByRole('button', { name: 'Guitar, change instrument' })).toBeVisible();
+    // The song alone, no search rail beside it; the chip ends the bar
+    // (shell.one_bar).
+    await expect(page.getByRole('searchbox')).toHaveCount(0);
+    await expect(page.locator('.pane.side')).toHaveCount(0);
+    await expect(bar.getByRole('button', { name: 'Guitar, change instrument' })).toBeVisible();
     for (const name of ['Edit', 'History', 'Add to setlist', 'Print', 'Share']) {
       await expect(bar.getByRole('button', { name, exact: true })).toBeVisible();
     }
@@ -233,7 +233,7 @@ test('a transposed song names its key once, clear of the chart (W02#4)', async (
   await expect(page.getByText('Key of G', { exact: true })).toBeVisible();
 });
 
-test('reads the song, its shapes and the chord explorer offline', async ({ page }, testInfo) => {
+test('reads the song, its shapes and the chord explorer offline', async ({ page }) => {
   // Seed online first so the book is on the device, then cut the network.
   await openExampleBook(page);
   await expect(page.getByRole('searchbox')).toBeVisible();
@@ -253,11 +253,8 @@ test('reads the song, its shapes and the chord explorer offline', async ({ page 
       await openSongFromSearch(offlinePage, SEARCH, SONG_TITLE);
       await expect(offlinePage.locator('.reading-sheet .chart')).toBeVisible();
       await expect(offlinePage.locator('.reading-shapes')).toBeVisible();
-      // Search beside the song on the computer only (songs.reading_chrome
-      // Decision 1).
-      if (testInfo.project.name === 'computer') {
-        await expect(offlinePage.getByRole('searchbox')).toBeVisible();
-      }
+      // No search beside the song on any device (shell.one_bar).
+      await expect(offlinePage.getByRole('searchbox')).toHaveCount(0);
     },
   });
 });

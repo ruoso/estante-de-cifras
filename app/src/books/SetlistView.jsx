@@ -51,7 +51,7 @@ import { orderedBooks, titleFor } from './book-display.js';
 import { setlistRows, bookFileSet, folderOf, placesBySong } from './setlist-display.js';
 import { songTitle } from '../songs/search-query.js';
 import './setlist.css';
-import HelpButton from '../help/Help.jsx';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 
 // A `key` as §10.7.1 writes it — a root then `m` for minor; mirrored locally so
 // the field can flag a value the format would not read (the chord layer is not
@@ -414,7 +414,7 @@ export default function SetlistView({
             <Icon d={BACK} size={24} />
           </Button>
           <span className="title">{t('setlists.title')}</span>
-          <HelpButton page="setlist" />
+          <BarEnd help="setlist" />
         </div>
         <div className="scroll">
           <p className="t-small">{t('setlists.loading')}</p>
@@ -535,7 +535,7 @@ export default function SetlistView({
               </Menu>
             </Popover>
           </MenuTrigger>
-          <HelpButton page="setlist" />
+          <BarEnd help="setlist" />
         </div>
         {wide && panel ? (
           <div className="setlist-with-panel">

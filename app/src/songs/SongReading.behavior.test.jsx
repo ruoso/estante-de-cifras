@@ -1122,19 +1122,21 @@ describe('SongReading — a merge landing while open (sync.read_in_place, workfl
   });
 });
 
-describe('SongReading — the wide master-detail (shell.layout)', () => {
-  it('places search beside the song on the computer', async () => {
+describe('SongReading — the wide layout (shell.layout, shell.one_bar)', () => {
+  it('reads the song alone on the computer: no search rail beside it, no sidebar', async () => {
     installWidths(true);
     const { store } = makeStore({ text: song({}), entry: guitarEntry() });
-    render(
+    const { container } = render(
       <ThemeRoot store={store}>
         <SongReading store={store} bookId={BOOK} path={PATH} mode="wide" />
       </ThemeRoot>,
     );
     act(() => store.open());
     await waitFor(() => expect(screen.getByRole('group', { name: 'Tarde Clara' })).toBeInTheDocument());
-    // The search box sits in the side pane beside the reading view.
-    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+    // Back returns to search; nothing of it is drawn beside the song.
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(container.querySelector('.pane.side')).toBeNull();
+    expect(container.querySelector('.wordmark')).toBeNull();
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 
@@ -1157,8 +1159,9 @@ describe('SongReading — the wide master-detail (shell.layout)', () => {
 // action on every device (the .tji note; workflow 2 L86-87), the phone's app bar
 // and bottom bar (W02#2), the tablet's whole pane with the chip and Transpose in
 // its app bar and the shapes in a card (W01#3, W02#3, W12#3), the computer's
-// search rail and full row (W02#4). One chip per screen (shell.header_chrome
-// Decision 7); the full row from READING_ACTIONS_WIDE_QUERY (shell.narrow_fit).
+// full row with no search rail (W02#4; shell.one_bar). One chip per screen
+// (shell.header_chrome Decision 7); the full row from READING_ACTIONS_WIDE_QUERY
+// (shell.narrow_fit).
 describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', () => {
   // The standard-guitar fallback the Worker sends when nothing is set up.
   const standardEntry = () => ({ ...guitarEntry(), id: 'standard', label: null });
@@ -1341,22 +1344,26 @@ describe('SongReading — the reading chrome as drawn (songs.reading_chrome)', (
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 
-  it('computer: the full row, the chip in the rail, Transpose heading the meta row, axe clean (W02#4)', async () => {
+  it('computer: the full row, the chip at the bar’s end, Transpose heading the meta row, axe clean (W02#4; shell.one_bar)', async () => {
     installWidths(true);
     const { store } = makeStore({ text: song({}), entry: standardEntry(), preferences: seen });
     const { container } = await openAndWait(store, { mode: 'wide' });
 
-    const bar = within(appbar(container));
+    const barEl = appbar(container);
+    const bar = within(barEl);
     for (const name of ['Edit', 'History', 'Add to setlist', 'Print', 'Share', 'More']) {
       expect(bar.getByRole('button', { name })).toBeInTheDocument();
     }
-    expect(bar.queryByRole('button', { name: /change instrument/ })).toBeNull();
     expect(bar.queryByRole('button', { name: 'Transpose' })).toBeNull();
 
-    const head = container.querySelector('.reading-side .rail-head');
-    expect(head).toHaveTextContent(/^Estante/);
-    await waitFor(() => expect(within(head).getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
-    expect(within(head).queryByRole('button', { name: 'Account' })).toBeNull();
+    // The one bar ends with the chip and Help (the account joins them inside
+    // the shell, which lends it: AppShell's own tests pin it there). No rail.
+    expect(container.querySelector('.rail-head')).toBeNull();
+    const chip = await waitFor(() => bar.getByRole('button', { name: 'Guitar, change instrument' }));
+    const help = bar.getByRole('button', { name: /^Help/ });
+    const more = bar.getByRole('button', { name: 'More' });
+    expect(more.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(chip.compareDocumentPosition(help) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(chips()).toHaveLength(1);
 
     const meta = container.querySelector('.reading-meta');

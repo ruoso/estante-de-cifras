@@ -103,12 +103,8 @@
   flex-basis: 240px;
 }
 
-/* The wide layouts: the computer's master-detail (search beside the song,
-   W02#4) and the tablet's whole pane (.reading-tablet, W02#3), which shares the
-   split's single main pane. */
-.reading-split .pane.side {
-  overflow: hidden;
-}
+/* The wide layouts: the computer's and the tablet's whole pane (.reading-tablet,
+   W02#3), the song alone under its one bar (no search rail: shell.one_bar). */
 .reading-split .pane.main .reading-scroll {
   padding: calc(var(--u) * 2) calc(var(--u) * 3);
 }
@@ -298,8 +294,7 @@
   .reading-instrument-prompt,
   .reading-update-notice,
   .reading-fullscreen-top,
-  .reading-update-waiting,
-  .reading-split .pane.side {
+  .reading-update-waiting {
     display: none !important;
   }
   .reading-scroll,

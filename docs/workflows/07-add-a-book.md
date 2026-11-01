@@ -102,10 +102,9 @@ action:
 - **A fork whose original has new saves** (workflow 11): *Choros da Ana has
   3 new saves.* with **Bring them in**.
 
-**The detail** opens over the book's page: on a phone it takes the screen,
-with *Back to {book}*; on a tablet and a computer it takes the main pane,
-beside the book's page in the side pane, as a song does. It is not an
-address of its own: reloading lands on the book's page.
+**The detail** opens over the book's page and takes the whole screen on every
+device, with *Back to {book}* — nothing beside it, as a song is read alone.
+It is not an address of its own: reloading lands on the book's page.
 
 Its app bar is Back, the title, **Rename** — the label on this shelf only —
 and, at its right end, **Share**, for whoever shares the book: its owner,

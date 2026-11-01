@@ -163,20 +163,21 @@ async function openResolver(page) {
 }
 
 // The paused panel as W09#4 draws it (sync.conflicts_polish constraints 4-5):
-// on a tablet or a computer it sits in the main pane with the rail beside it,
-// on a phone it is the full screen; and the in-conflict row's title starts at
+// on a tablet or a computer it sits under the top bar, the destinations' tabs
+// above it (shell.one_bar), on a phone it is the full screen; and the
+// in-conflict row's title starts at
 // the row's own padding, with no list indent, its summary line under it.
 async function expectPanelAsDrawn(page, testInfo) {
   const list = page.getByRole('list', { name: 'In conflict' });
   await expect(list).toBeVisible();
-  const rail = page.getByRole('tablist', { name: 'Destinations' });
+  const tabs = page.getByRole('tablist', { name: 'Destinations' });
   if (testInfo.project.name === 'phone') {
-    await expect(rail).toBeHidden();
+    await expect(tabs).toBeHidden();
   } else {
-    await expect(rail).toBeVisible();
-    const railBox = await rail.boundingBox();
+    await expect(tabs).toBeVisible();
+    const tabsBox = await tabs.boundingBox();
     const listBox = await list.boundingBox();
-    expect(railBox.x + railBox.width).toBeLessThanOrEqual(listBox.x); // beside it
+    expect(tabsBox.y + tabsBox.height).toBeLessThanOrEqual(listBox.y); // above it
   }
   const listBox = await list.boundingBox();
   const title = list.getByRole('listitem').filter({ hasText: SONG_TITLE }).getByText(SONG_TITLE, { exact: true });

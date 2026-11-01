@@ -9,9 +9,10 @@
 // The whole screen runs on the device, offline, needing no account.
 //
 // An in-memory surface, no router (shell.layout; design.explorer Decision): it
-// composes its own `.appbar`, Back returns to search. On the computer it sits
-// beside the search results (board L173-244) by embedding the search screen in the
-// side pane, the two sharing the one symbol.
+// composes its own `.appbar`, Back returns to search (with the query, which this
+// screen's chord field keeps in step). One screen on every device: there is no
+// search rail beside it (shell.one_bar). `mode` places the chip: at the end of
+// the bar on a tablet or computer, beside the chord field on the phone.
 
 import { useState } from 'react';
 import { Button, Input, Label, TextField, ToggleButton } from 'react-aria-components';
@@ -21,7 +22,7 @@ import { command, CommandKind } from '../worker/protocol.js';
 import InstrumentChip, { inUseEntry } from '../instruments/InstrumentChip.jsx';
 import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
 import { chipLabel } from '../instruments/instrument-helpers.js';
-import HeaderChrome from '../shell/HeaderChrome.jsx';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 import { instrumentInstance } from '../core/instrument.js';
 import { parseChord } from '../core/notation/parse.js';
 import { formatChord } from '../core/notation/format.js';
@@ -29,13 +30,11 @@ import { flipSymbol } from '../core/notation/flip.js';
 import { searchFingerings } from '../core/search.js';
 import { sameChord } from '../core/chord.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
-import SearchScreen from '../songs/SearchScreen.jsx';
 import FingeringGroups from './FingeringGroups.jsx';
 import EnterShape from './EnterShape.jsx';
 import { groupViewModel, spokenShorthand } from './fingering-groups.js';
 import { BackIcon, StarIcon } from './icons.jsx';
 import './music.css';
-import HelpButton from '../help/Help.jsx';
 
 export default function ChordExplorer({
   store,
@@ -226,11 +225,16 @@ export default function ChordExplorer({
 
   // The chord input sits above the scrolling results, so it stays reachable
   // while they scroll (workflow 16 §Scrolling and moving through it); the chip
-  // is in the app bar above both on narrow, at the head of the search rail on
-  // wide (one chip per screen, shell.header_chrome Decision 7).
+  // is at the end of the app bar on a tablet or a computer, beside the chord
+  // field on the phone — one chip per screen (shell.header_chrome Decision 7).
+  const chipNode = <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />;
   const detail = (
     <>
       <div className="explorer-head">
+        {/* The phone's chip sits by the chord it shapes: the bar has no room
+            for it beside the title, Help and the account (shell.one_bar), as
+            the reading view keeps its phone chip in the meta row. */}
+        {mode === 'wide' ? null : chipNode}
         <TextField className="field explorer-input" value={text} onChange={changeText}>
           <Label className="t-h3">{t('explorer.chord')}</Label>
           <Input className="input" autoCapitalize="off" autoCorrect="off" spellCheck={false} />
@@ -258,35 +262,21 @@ export default function ChordExplorer({
         <BackIcon />
       </Button>
       <span className="title explorer-title">{t('explorer.title')}</span>
-      {mode === 'wide' ? null : <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />}
-      <HelpButton page="explorer" />
+      {/* The chip (tablet and computer), Help and the account end the bar
+          (shell.one_bar); the chip is this screen's own, opening its own
+          roster. On the phone it sits by the chord field instead. */}
+      <BarEnd help="explorer" chip={mode === 'wide' ? chipNode : false} />
     </div>
   );
 
   return (
     <>
-      {mode === 'wide' ? (
-        <div className="split explorer-split">
-          <div className="pane side explorer-side">
-            <HeaderChrome store={store} className="rail-head" onInstruments={() => setInstrumentsOpen(true)} />
-            <SearchScreen
-              store={store}
-              query={text}
-              onQueryChange={changeText}
-              onExploreChord={(c, q) => changeText(q)}
-            />
-          </div>
-          <div className="pane main">
-            {appbar}
-            {detail}
-          </div>
-        </div>
-      ) : (
-        <div className="screen explorer-screen">
-          {appbar}
-          {detail}
-        </div>
-      )}
+      {/* One screen on every device, the chord's own field above the results
+          (no search rail beside it: shell.one_bar). */}
+      <div className="screen explorer-screen">
+        {appbar}
+        {detail}
+      </div>
       <InstrumentsOverlay
         store={store}
         isOpen={instrumentsOpen}

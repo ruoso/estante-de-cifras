@@ -81,22 +81,26 @@ describe('AppShell (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 
-  it('wide: renders the .split sidebar rail and the <main> detail, switches the detail on activation, axe-clean', async () => {
+  it('wide: the destinations are tabs in the one top bar, no sidebar; the <main> below switches on activation, axe-clean', async () => {
     installMatchMedia(true);
     const { container } = render(<AppShell />);
 
-    // The sidebar + detail split is drawn, not the tab bar (theme.css 143-149).
-    expect(container.querySelector('.split')).toBeInTheDocument();
+    // One bar across the top holds the tabs (shell.one_bar): no sidebar, no
+    // split, no phone tab bar.
+    const bar = container.querySelector('.top-bar');
+    expect(bar).toBeInTheDocument();
+    expect(container.querySelector('.split')).not.toBeInTheDocument();
+    expect(container.querySelector('.pane.side')).not.toBeInTheDocument();
     expect(container.querySelector('.tabbar')).not.toBeInTheDocument();
-    expect(container.querySelector('.pane.side')).toBeInTheDocument();
 
     // The <main> detail landmark is preserved and holds the destination region.
     const main = screen.getByRole('main');
     expect(within(main).getByRole('heading', { level: 1 })).toHaveTextContent('Search');
 
-    // The three destinations are reachable from the sidebar rail.
-    const tabs = screen.getAllByRole('tab');
+    // The three destinations are tabs in the top bar, in the drawn order.
+    const tabs = within(bar).getAllByRole('tab');
     expect(tabs.map((tab) => tab.textContent)).toEqual(DESTINATION_LABELS);
+    expect(within(bar).getByRole('tablist')).toHaveAttribute('aria-orientation', 'horizontal');
 
     // Activating Setlists switches the detail.
     fireEvent.click(screen.getByRole('tab', { name: 'Setlists' }));
@@ -113,9 +117,10 @@ describe('AppShell (behavior)', () => {
     expect(container.querySelector('.tabbar')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
 
-    // Cross into the wide range: the split replaces the tab bar, Books survives.
+    // Cross into the wide range: the top bar's tabs replace the tab bar, Books
+    // survives.
     viewport.set(true);
-    expect(container.querySelector('.split')).toBeInTheDocument();
+    expect(container.querySelector('.top-bar [role="tablist"]')).toBeInTheDocument();
     expect(container.querySelector('.tabbar')).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Books');
@@ -157,9 +162,9 @@ describe('AppShell (behavior)', () => {
 
 // The header as drawn (shell.header_chrome): the *Estante* wordmark, the one
 // short instrument chip carrying the full identity as its description, and the
-// account button — above every destination on a phone, in the side header on a
-// tablet or computer. Pins workflow 1 §The instrument (as amended) and W01 phone
-// 1 / computer.
+// account button — above every destination on a phone, in the one top bar
+// beside the tabs on a tablet or computer (shell.one_bar). Pins workflow 1
+// §The instrument (as amended) and W01 phone 1 / computer.
 describe('AppShell header chrome (behavior)', () => {
   // The standard-guitar fallback the Worker sends when no instrument is set up
   // (label null; worker/instruments.js standardEntry).
@@ -197,7 +202,7 @@ describe('AppShell header chrome (behavior)', () => {
 
   for (const [layout, wide, headClass] of [
     ['narrow', false, '.instr-top'],
-    ['wide', true, '.side-head'],
+    ['wide', true, '.top-bar'],
   ]) {
     it(`${layout}: wordmark, chip and account on Search, Books and Setlists, axe-clean`, async () => {
       installMatchMedia(wide);
@@ -217,8 +222,9 @@ describe('AppShell header chrome (behavior)', () => {
 });
 
 describe('AppShell paused book panel (behavior)', () => {
-  // --- sync.conflicts_polish constraint 5: the paused book panel beside the
-  // rail on a wide layout (W09#4 L184-205), a full screen on the phone.
+  // --- sync.conflicts_polish constraint 5: the paused book panel in the Books
+  // destination under the top bar on a wide layout (W09#4 L184-205;
+  // shell.one_bar), a full screen on the phone.
   const CONFLICT_BOOK = 'b1';
   const CONFLICT_AT = '2026-10-16T00:00:00.000Z';
   const CONFLICT_SHELF = {
@@ -289,7 +295,7 @@ describe('AppShell paused book panel (behavior)', () => {
     expect(screen.getByRole('list', { name: 'In conflict' })).toBeInTheDocument();
   });
 
-  it('wide: a book needing you opens its panel in the main pane, the rail beside it; a rail tab leaves it (constraint 5; W09#4 L184-205)', async () => {
+  it('wide: a book needing you opens its panel in the main region, the top bar’s tabs above it; a tab leaves it (constraint 5; W09#4 L184-205)', async () => {
     installMatchMedia(true);
     const { store, emit } = conflictStore();
     const { container } = render(<AppShell store={store} />);
@@ -300,16 +306,17 @@ describe('AppShell paused book panel (behavior)', () => {
     const list = within(main).getByRole('list', { name: 'In conflict' });
     expect(list).toBeInTheDocument();
     expect(within(main).getByText('needs you')).toBeInTheDocument();
-    // The rail stays beside it, Books selected, in the side pane.
-    const rail = screen.getByRole('tablist', { name: 'Destinations' });
-    expect(rail.closest('.pane.side')).toBeTruthy();
-    expect(within(rail).getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
+    // The destinations stay in the top bar above it, Books selected
+    // (shell.one_bar: "the book needs you; the rest of it carries on").
+    const tabs = screen.getByRole('tablist', { name: 'Destinations' });
+    expect(tabs.closest('.top-bar')).toBeTruthy();
+    expect(within(tabs).getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
     // Not a second screen over the shell.
     expect(container.querySelector('.est-bookconf-screen')).toBeNull();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
-    // A rail tab leaves the panel.
-    fireEvent.click(within(rail).getByRole('tab', { name: 'Search' }));
+    // A tab leaves the panel.
+    fireEvent.click(within(tabs).getByRole('tab', { name: 'Search' }));
     expect(screen.queryByRole('list', { name: 'In conflict' })).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
   });
@@ -462,7 +469,7 @@ describe('AppShell — a book opens on its songs (books.row_opens_songs)', () =>
     expect(history.state.layers).toEqual(['bookDetail']);
   });
 
-  it('on a computer the detail takes the main pane beside the book’s songs (Decision *The detail splits where a song does*)', () => {
+  it('on a computer the detail is a full screen of its own, no split beside it; its bar ends with the chip, Help and account (shell.one_bar)', () => {
     let wide = true;
     globalThis.matchMedia = (media) => ({
       media,
@@ -477,14 +484,17 @@ describe('AppShell — a book opens on its songs (books.row_opens_songs)', () =>
     openBookSongs(emit);
     fireEvent.click(screen.getByRole('button', { name: 'Manage Exercícios' }));
 
-    const split = container.querySelector('.book-detail-split');
-    expect(split).toBeTruthy();
-    expect(within(split.querySelector('.pane.main')).getByRole('button', { name: 'Back to Exercícios' })).toBeInTheDocument();
-    const side = split.querySelector('.pane.side');
-    expect(within(side).getByRole('button', { name: 'Manage Exercícios' })).toBeInTheDocument();
-    expect(within(side).getByRole('heading', { level: 1, name: 'Exercícios' })).toBeInTheDocument();
-    // The detail's Back is the way back here: the page beside it has no Books.
-    expect(within(side).queryByRole('button', { name: 'Back to Books' })).toBeNull();
+    expect(container.querySelector('.book-detail-split')).toBeNull();
+    expect(container.querySelector('.pane.side')).toBeNull();
+    const layer = container.querySelector('.book-detail-layer');
+    expect(within(layer).getByRole('button', { name: 'Back to Exercícios' })).toBeInTheDocument();
+    // The book's songs are not drawn beside it: Back is the way to them.
+    expect(screen.queryByRole('button', { name: 'Manage Exercícios' })).toBeNull();
+    // The one bar's end, as on every screen.
+    const bar = layer.querySelector('.appbar');
+    expect(within(bar).getByRole('button', { name: /change instrument/ })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: /^Help/ })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: 'Account' })).toBeInTheDocument();
     wide = false;
   });
 
@@ -597,13 +607,10 @@ describe('Recovery-email banner', () => {
     it(`${layout}: below the header chrome and before the destination, on every destination, axe clean`, async () => {
       const { container } = renderShell({ email: null, pending: null }, { wide });
       const shown = await screen.findByRole('region', { name: BANNER });
-      const header = container.querySelector(wide ? '.side-head' : '.instr-top');
-      if (wide) {
-        expect(shown.closest('.pane.main')).toBeTruthy();
-        expect(shown.closest('.pane.side')).toBeNull();
-      } else {
-        expect(follows(header, shown)).toBe(true);
-      }
+      // Under the one bar on every layout (shell.one_bar), never inside it.
+      const header = container.querySelector(wide ? '.top-bar' : '.instr-top');
+      expect(follows(header, shown)).toBe(true);
+      expect(header.contains(shown)).toBe(false);
       for (const destination of ['Search', 'Books', 'Setlists']) {
         fireEvent.click(screen.getByRole('tab', { name: destination }));
         const now = banner();

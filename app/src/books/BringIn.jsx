@@ -29,6 +29,7 @@ import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import PreviewRows, { previewName } from './PreviewRows.jsx';
 import './upload-preview.css';
 import './bring-in.css';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 
 function BackIcon() {
   return (
@@ -183,6 +184,7 @@ export default function BringIn({ store, bookId, book, original, onClose = () =>
         <h1 className="title" tabIndex={-1} ref={headingRef}>
           {t('books.bringInTitle', { original })}
         </h1>
+        <BarEnd />
       </div>
 
       <div className="scroll upload-body bring-in-body">

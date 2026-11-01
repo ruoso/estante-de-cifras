@@ -26,6 +26,7 @@ import { thisDeviceFor } from '../books/book-display.js';
 import PreviewRows from '../books/PreviewRows.jsx';
 import '../books/upload-preview.css';
 import './account.css';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 
 function CheckIcon() {
   return (
@@ -129,6 +130,7 @@ export default function MySongsChoice({ store, choice, onClose = () => {}, onNee
         <Button className="btn quiet" onPress={later}>
           {t('newDevice.later')}
         </Button>
+        <BarEnd />
       </div>
 
       <div className="scroll my-songs-body">

@@ -47,20 +47,9 @@
   flex: none;
 }
 
-/* The detail as a layer over the book's songs (books.row_opens_songs): on a
-   computer it takes the main pane beside the book's songs, as a song does
-   (SongReading's split); the side pane holds the scoped search. */
-.book-detail-split {
-  flex: 1;
-  min-height: 0;
-}
-
-.book-detail-split .pane.side {
-  overflow: hidden;
-}
-
-/* Below the computer the detail is a full screen of its own (the phone and the
-   tablet), its Back returning to the book's songs. */
+/* The detail as a layer over the book's songs (books.row_opens_songs): a full
+   screen of its own on every device (no split: shell.one_bar), its Back
+   returning to the book's songs. */
 .book-detail-layer {
   flex: 1;
   min-height: 0;

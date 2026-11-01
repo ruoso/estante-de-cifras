@@ -421,41 +421,20 @@ describe('AppShell routing (behavior)', () => {
   });
 
   it('after a reload, a same-song step reached past another song is real', async () => {
-    // The computer layout: the search beside the song opens another song (a
-    // push). The tablet reads without the rail (songs.reading_chrome Decision 1).
-    globalThis.matchMedia = (media) => ({
-      media,
-      matches: media === WIDE_QUERY || media === READING_ACTIONS_WIDE_QUERY,
-      addEventListener() {},
-      removeEventListener() {},
-    });
-    const results = [
-      { bookId: BOOK, path: SONG_PATH, title: SONG_TITLE, artist: '', score: 3, unsaved: false },
-      { bookId: BOOK, path: OTHER_PATH, title: OTHER_TITLE, artist: '', score: 2, unsaved: false },
-    ];
+    // A history whose entries are S, then T, then S again with the editor over
+    // it — the stack a search rail beside the song once pushed. No screen pushes
+    // a song straight over a song now (shell.one_bar: no rail), but the tab's
+    // history can still hold such a stack (one written before, or walked back
+    // into), so the entries are written as the shell writes them
+    // (`{ place, layers, depth }`) and the reload is made over them.
     const entries = [...ENTRIES, { path: OTHER_PATH, status: null }];
-    const first = makeStore();
-    render(<AppShell store={first.store} />);
-    first.emit(event(EventKind.SHELF, SHELF));
-    const openFromSearch = (title, path, text) => {
-      act(() => {
-        fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'a' } });
-      });
-      first.emit(event(EventKind.SEARCH_RESULTS, { query: 'a', results }));
-      fireEvent.click(screen.getAllByRole('button', { name: new RegExp(title) })[0]);
-      first.emit(event(EventKind.SOURCE, { bookId: BOOK, path, text }));
-    };
-    // S, then T, then S again, then the editor over S.
-    openFromSearch(SONG_TITLE, SONG_PATH, SONG_TEXT);
-    openFromSearch(OTHER_TITLE, OTHER_PATH, OTHER_TEXT);
-    expect(location.pathname).toBe(OTHER_URL);
-    openFromSearch(SONG_TITLE, SONG_PATH, SONG_TEXT);
-    expect(location.pathname).toBe(SONG_URL);
+    const songPlace = (path) => ({ tab: 'search', song: { bookId: BOOK, path } });
+    history.replaceState({ place: { tab: 'search' }, layers: [], depth: 0 }, '', '/');
+    history.pushState({ place: songPlace(SONG_PATH), layers: [], depth: 1 }, '', SONG_URL);
+    history.pushState({ place: songPlace(OTHER_PATH), layers: [], depth: 2 }, '', OTHER_URL);
+    history.pushState({ place: songPlace(SONG_PATH), layers: ['editor'], depth: 3 }, '', SONG_URL);
     expect(history.state.depth).toBe(3);
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-    expect(history.state.layers).toEqual(['editor']);
 
-    cleanup();
     const { store, emit } = makeStore();
     const { container } = render(<AppShell store={store} />);
     emit(event(EventKind.SHELF, SHELF));
@@ -903,7 +882,7 @@ describe('AppShell setlist chrome on a phone (behavior)', () => {
     expect(screen.getByRole('tab', { name: 'Setlists' })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('wide, unchanged: an open setlist has no tab bar and no rail', () => {
+  it('wide, unchanged: an open setlist has no tab bar and no top-bar tabs', () => {
     globalThis.matchMedia = (media) => ({
       media,
       matches: media === WIDE_QUERY,
@@ -915,7 +894,7 @@ describe('AppShell setlist chrome on a phone (behavior)', () => {
     openSetlistFromDestination(emit);
     expect(screen.queryByRole('tablist')).toBeNull();
     expect(container.querySelector('.tabbar')).toBeNull();
-    expect(container.querySelector('.rail')).toBeNull();
+    expect(container.querySelector('.top-tabs')).toBeNull();
   });
 });
 
@@ -1759,7 +1738,7 @@ describe('AppShell share surfaces (behavior)', () => {
 
 // behavior (books.add_book_chooser) — the Add-a-book chooser's seams into the
 // shell: the upload preview is a full-screen surface (Decision 5; W07 #3;
-// upload_ui Decision 1): no rail beside it, Cancel returns to Books with the rail
+// upload_ui Decision 1): no top bar over it, Cancel returns to Books with the tabs
 // back. Its sign-in seams are pinned below, with every other entry into the one
 // sign-in surface.
 describe('AppShell and the Add-a-book chooser (behavior)', () => {
@@ -1784,7 +1763,7 @@ describe('AppShell and the Add-a-book chooser (behavior)', () => {
     return screen.getByRole('dialog', { name: 'Add a book' });
   }
 
-  it('the upload preview is a full-screen surface: no rail beside it, and Cancel returns to Books with the rail back (W07 #3)', async () => {
+  it('the upload preview is a full-screen surface: no top bar over it, and Cancel returns to Books with the tabs back (W07 #3)', async () => {
     globalThis.matchMedia = (media) => ({
       media,
       matches: media === WIDE_QUERY,
@@ -1793,7 +1772,7 @@ describe('AppShell and the Add-a-book chooser (behavior)', () => {
     });
     const { store, emit, sent } = makeStore();
     const { container } = render(<AppShell store={store} />);
-    expect(screen.getByRole('tablist', { name: 'Destinations' })).toHaveClass('rail');
+    expect(screen.getByRole('tablist', { name: 'Destinations' })).toHaveClass('top-tabs');
 
     const dialog = openSheetOnBooks(emit);
     const input = dialog.querySelector('input[type="file"]');
@@ -1806,7 +1785,7 @@ describe('AppShell and the Add-a-book chooser (behavior)', () => {
     await screen.findByRole('button', { name: 'Cancel the upload' });
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.getByText('Upload banda.zip')).toBeInTheDocument();
-    // Nothing of the shell beside or under it: no rail, no tab bar.
+    // Nothing of the shell beside or under it: no tabs, no tab bar.
     expect(screen.queryByRole('tablist', { name: 'Destinations' })).toBeNull();
     expect(screen.queryByRole('tablist', { hidden: true })).toBeNull();
     expect(container.querySelector('.pane.main')).toBeNull();
@@ -1815,7 +1794,7 @@ describe('AppShell and the Add-a-book chooser (behavior)', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel the upload' }));
-    expect(screen.getByRole('tablist', { name: 'Destinations' })).toHaveClass('rail');
+    expect(screen.getByRole('tablist', { name: 'Destinations' })).toHaveClass('top-tabs');
     expect(screen.getByRole('tab', { name: 'Books' })).toHaveAttribute('aria-selected', 'true');
   });
 });

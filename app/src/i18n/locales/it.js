@@ -832,6 +832,8 @@ export default {
 
   account: {
     open: 'Account',
+    statusIn: 'Accesso effettuato',
+    statusOut: 'Accesso non effettuato',
     title: 'Account',
     back: 'Indietro',
     preferences: 'Preferenze',

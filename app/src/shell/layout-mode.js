@@ -6,8 +6,8 @@
 // is unit-testable without a DOM.
 
 // Two layouts split on one breakpoint (Decision): narrow (phone) is the bottom
-// tab bar; wide (tablet and computer) is the sidebar + detail split — tablet and
-// computer share the wide split.
+// tab bar; wide (tablet and computer) folds the tabs into the one top bar
+// (shell.one_bar — there is no sidebar) — tablet and computer share it.
 //
 // The refinement's Decision names 768px, reasoning from the *drawn* tablet
 // budget (820px, docs/mockups/theme.css line 126). But the e2e-web harness runs
@@ -15,7 +15,7 @@
 // 712px wide — below 768 — so a 768 breakpoint would render the real test
 // tablet as a phone, contradicting the refinement's own intent that "tablet and
 // computer share the wide split" and that the e2e reaches each destination on
-// tablet via the sidebar rail. The breakpoint is therefore 600px (the
+// tablet from the wide layout's tabs. The breakpoint is therefore 600px (the
 // conventional tablet line), which sits cleanly between the actual phone
 // (Pixel 7, 412px) and tablet (712px) viewports: phone → narrow, tablet and
 // computer (1280px) → wide, as designed. (Flagged in the return summary.)

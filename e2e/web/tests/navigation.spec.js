@@ -3,7 +3,8 @@
  * phone (Pixel 7), tablet (Galaxy Tab S4) and computer (Desktop Chrome) runs
  * this spec (no project testMatch filter, playwright.config.js), so each proves:
  * the app loads at the one origin, the drawn per-viewport layout is the phone
- * tab bar below the breakpoint and the sidebar + detail split above it, the
+ * tab bar below the breakpoint and the tabs in the one top bar above it (no
+ * sidebar: shell.one_bar), the
  * three destinations Search · Books · Setlists are each reached and their
  * region/heading shown, and the axe fixture is clean on each destination — with
  * contrast actually running here in a real browser (the jsdom scope note).
@@ -12,7 +13,7 @@
  * computer, axe on each"), DIRECTION §4 lines 430-435, and the drawn layout
  * (docs/mockups/GUIDE.md line 34). The destination switcher is RAC Tabs, so each
  * destination is a `tab` with its visible label as accessible name on every
- * viewport, reached the same way (tap the tab bar / activate the sidebar rail).
+ * viewport, reached the same way (tap the tab bar / the top bar's tabs).
  */
 import { test, expect } from '../lib/axe.js';
 import { startApp } from '../lib/journeys.js';
@@ -20,7 +21,7 @@ import { startApp } from '../lib/journeys.js';
 const DESTINATIONS = ['Search', 'Books', 'Setlists'];
 // The shell's layout breakpoint (app/src/shell/layout-mode.js): phone (Pixel 7,
 // 412px) → the tab bar; tablet (Galaxy Tab S4, 712px) and computer (1280px) →
-// the split. Re-declared here, not imported, because the app and the harness
+// the top bar's tabs. Re-declared here, not imported, because the app and the harness
 // share no code (DIRECTION §3.6 line 288).
 const WIDE_BREAKPOINT = 600;
 
@@ -31,15 +32,23 @@ test('each destination is reached and axe-clean on this viewport', async ({
   await startApp(page);
 
   // The drawn layout for this viewport: the phone tab bar below the breakpoint,
-  // the sidebar + detail split above it (GUIDE.md 34; the two-layouts Decision).
+  // the tabs in the one top bar above it — never a sidebar (GUIDE.md 34;
+  // shell.one_bar).
   await expect(page.getByRole('main')).toBeVisible();
+  await expect(page.locator('.pane.side')).toHaveCount(0);
   const width = page.viewportSize().width;
   if (width < WIDE_BREAKPOINT) {
     await expect(page.locator('.tabbar')).toBeVisible();
-    await expect(page.locator('.split')).toHaveCount(0);
+    await expect(page.locator('.top-bar')).toHaveCount(0);
   } else {
-    await expect(page.locator('.split')).toBeVisible();
+    const bar = page.locator('.top-bar');
+    await expect(bar.getByRole('tablist', { name: 'Destinations' })).toBeVisible();
     await expect(page.locator('.tabbar')).toHaveCount(0);
+    // The bar spans the window, above the destination.
+    const barBox = await bar.boundingBox();
+    const mainBox = await page.getByRole('main').boundingBox();
+    expect(barBox.width).toBeGreaterThanOrEqual(width - 1);
+    expect(barBox.y + barBox.height).toBeLessThanOrEqual(mainBox.y + 0.5);
   }
 
   // Each destination is reached, its region/heading shown, and axe is clean

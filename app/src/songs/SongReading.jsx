@@ -18,10 +18,11 @@
 //
 // No router, mirroring ChordExplorer: narrow is a full screen over the shell
 // with its own app bar and Back; wide below READING_ACTIONS_WIDE_QUERY is the
-// tablet's whole-pane reading (W01#3, W02#3, W12#3 — no search rail, the chip
-// and Transpose in the app bar, the shapes in a card); at and above it, the
-// computer's master-detail — search in `.pane.side`, the reading view in
-// `.pane.main` (songs.reading_chrome Decision 1). Overlays
+// tablet's whole-pane reading (W01#3, W02#3, W12#3 — the chip and Transpose in
+// the app bar, the shapes in a card); at and above it, the computer's, the song
+// alone with every action in its bar (songs.reading_chrome Decision 1). No
+// search rail beside the song: there is no sidebar (shell.one_bar), and Back
+// returns to search with the query still typed. Overlays
 // portal into the `.est` root through ThemeRoot's UNSAFE_PortalProvider
 // (shell.portal_provider), so RAC menus and popovers are themed and labelled.
 
@@ -49,7 +50,7 @@ import { useSlice, useWorkerEvent } from '../worker/useStore.js';
 import { command, CommandKind, EventKind } from '../worker/protocol.js';
 import InstrumentChip, { inUseEntry } from '../instruments/InstrumentChip.jsx';
 import { chipLabel } from '../instruments/instrument-helpers.js';
-import HeaderChrome from '../shell/HeaderChrome.jsx';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 import InstrumentsOverlay from '../instruments/InstrumentsOverlay.jsx';
 import { instrumentInstance, openMidis } from '../core/instrument.js';
 import { resolveSongVoicings, unvoiceableKeys } from '../core/voicings.js';
@@ -60,7 +61,6 @@ import { DEFAULT_DIALECT, songDialect } from '../core/notation/dialects.js';
 import Chart from '../chart/Chart.jsx';
 import { isEmptySong } from '../chart/layout.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
-import SearchScreen from './SearchScreen.jsx';
 import { bookLabelFor } from './first-run.js';
 import { songTitle } from './search-query.js';
 import { transposeStatus, chartChordList, chordKeyName, voicedNames, shapeNames } from './reading-view.js';
@@ -68,7 +68,6 @@ import { fitPrintColumns } from './print-columns.js';
 import { resolveChordNaming } from '../theme/resolve.js';
 import { READING_ACTIONS_WIDE_QUERY } from '../shell/layout-mode.js';
 import './reading.css';
-import HelpButton from '../help/Help.jsx';
 
 // Keep an offset inside an octave: beyond ±11 is a redundant re-spelling of a
 // smaller one, and the key name wraps anyway.
@@ -172,7 +171,6 @@ export default function SongReading({
   onArrange = () => {},
   onAddToSetlist = () => {},
   onShare = () => {},
-  onOpenSong = () => {},
   // Show the file (songs.show_the_file; workflow 14 §The view L132-135): the
   // file view opened at this song's file.
   onShowFile = () => {},
@@ -810,7 +808,7 @@ export default function SongReading({
   // transposed state's controls, Decision 3); the tablet's Transpose and chip
   // are in its app bar; the phone's chip is here (W02 phone 2) and its Transpose
   // an app-bar icon. One chip per screen (shell.header_chrome Decision 7): the
-  // computer's heads the search rail. While transposed the written key's chip
+  // tablet's and computer's end their bar. While transposed the written key's chip
   // gives way to the transposed state (W02#4: Transpose · byline · chip · Back ·
   // arranging is off), on every device.
   const metaRow = (
@@ -876,21 +874,20 @@ export default function SongReading({
     body
   );
 
+  // The chip at the end of a tablet's or computer's bar (shell.one_bar): this
+  // screen's own, opening its own roster, so the reading view keeps working on
+  // its own. The phone's chip is in the meta row instead (one chip per screen).
+  const barChip = <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />;
+
   if (computer) {
     return (
       <>
+        {/* The song alone under its one bar, no search rail (shell.one_bar):
+            Back · title · the full row (W02 computer L172-179), shortcuts to
+            items ⋯ also holds — it fits from READING_ACTIONS_WIDE_QUERY
+            (shell.narrow_fit) — then the chip, Help and the account. */}
         <div className="split reading-split">
-          <div className="pane side reading-side">
-            {/* Search beside the song (the computer's master-detail): a result
-                tapped here switches the open song through the same seam. Left
-                uncontrolled so it holds and edits its own query. Its head carries
-                the wordmark and the chip outside the scroller (W02 computer). */}
-            <HeaderChrome store={store} className="rail-head" onInstruments={() => setInstrumentsOpen(true)} />
-            <SearchScreen store={store} onOpenSong={onOpenSong} />
-          </div>
           <div className="pane main">
-            {/* The full row (W02 computer L172-179), shortcuts to items ⋯ also
-                holds; it fits from READING_ACTIONS_WIDE_QUERY (shell.narrow_fit). */}
             <div className="appbar reading-chrome">
               {backButton}
               {titleSpan}
@@ -908,7 +905,7 @@ export default function SongReading({
                 {t('reading.share')}
               </Button>
               {moreMenu}
-              <HelpButton page="song" />
+              <BarEnd help="song" chip={barChip} />
             </div>
             {wideBody}
           </div>
@@ -921,19 +918,18 @@ export default function SongReading({
   if (tablet) {
     return (
       <>
-        {/* The tablet reads the song on the whole pane, no search rail (W01#3,
-            W02#3, W12#3; Decision 1): Back · title · chip · Transpose · Edit · ⋯,
-            the chip here because there is no rail to head. */}
+        {/* The tablet reads the song on the whole pane (W01#3, W02#3, W12#3;
+            Decision 1): Back · title · Transpose · Edit · ⋯, then the chip,
+            Help and the account (shell.one_bar). */}
         <div className="split reading-split reading-tablet">
           <div className="pane main">
             <div className="appbar reading-chrome">
               {backButton}
               {titleSpan}
-              <InstrumentChip store={store} onOpen={() => setInstrumentsOpen(true)} />
               {transposeControl}
               {editButton}
               {moreMenu}
-              <HelpButton page="song" />
+              <BarEnd help="song" chip={barChip} />
             </div>
             {wideBody}
           </div>
@@ -952,7 +948,7 @@ export default function SongReading({
           {titleSpan}
           {transposeControl}
           {moreMenu}
-          <HelpButton page="song" />
+          <BarEnd help="song" chip={false} />
         </div>
         {body}
         <div className="reading-actionbar reading-chrome">

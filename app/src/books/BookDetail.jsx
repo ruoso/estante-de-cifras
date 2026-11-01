@@ -58,7 +58,7 @@ import MakeYourOwn from './MakeYourOwn.jsx';
 import LeaveDialog, { WarnIcon } from './LeaveDialog.jsx';
 import { useOnline } from '../account/use-online.js';
 import './book-detail.css';
-import HelpButton from '../help/Help.jsx';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 
 function DownloadIcon() {
   return (
@@ -541,7 +541,7 @@ export default function BookDetail({
             {t('books.share')}
           </Button>
         ) : null}
-        <HelpButton page="book" />
+        <BarEnd help="book" />
       </div>
 
       <div className="scroll book-detail-body">

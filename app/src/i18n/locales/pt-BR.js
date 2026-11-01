@@ -832,6 +832,8 @@ export default {
 
   account: {
     open: 'Conta',
+    statusIn: 'Você entrou',
+    statusOut: 'Você não entrou',
     title: 'Conta',
     back: 'Voltar',
     preferences: 'Preferências',

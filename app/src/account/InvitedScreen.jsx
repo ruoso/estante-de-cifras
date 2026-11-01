@@ -25,6 +25,7 @@ import { useEffect, useRef } from 'react';
 import { Button } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import './account.css';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 
 // The key glyph of the passkey card (W01 L77); decorative.
 function PasskeyIcon() {
@@ -146,6 +147,7 @@ export default function InvitedScreen({ onClose = () => {} }) {
           <CloseIcon />
         </Button>
         <span className="title">{t('invited.brand')}</span>
+        <BarEnd />
       </div>
       <div className="scroll account-scroll invited-scroll">
         <div className="account-card">

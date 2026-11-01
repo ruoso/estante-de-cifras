@@ -92,7 +92,7 @@ syntax costs effort instead:
   *Text | Preview*, one at a time, with *Help* beside it: a phone held
   upright, as before, and now a phone turned sideways or a narrow window on a
   computer too. The editor's own width decides, not the screen's layout,
-  since the side rail can leave a wide screen a narrow editor.
+  since a narrow window can leave even a computer a narrow editor.
 
   The preview **arranges**, as the arrange screen does (workflow 5): its
   chords are things to tap, opening the same picker — *every Cm* or *only

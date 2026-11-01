@@ -16,6 +16,7 @@ import { useEffect, useRef } from 'react';
 import { Button } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import '../account/account.css';
+import { BarEnd } from './HeaderChrome.jsx';
 
 function BackIcon() {
   return (
@@ -62,6 +63,7 @@ export default function NotHere({
           <BackIcon />
         </Button>
         <span className="title">{t('notHere.brand')}</span>
+        <BarEnd />
       </div>
       <div className="scroll account-scroll">
         <div className="account-card">

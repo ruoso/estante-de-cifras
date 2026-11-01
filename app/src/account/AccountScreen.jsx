@@ -85,7 +85,7 @@ import RecoveryBanner from '../shell/RecoveryBanner.jsx';
 import { showsRecoveryBanner } from '../shell/account-status.js';
 import { createCredential, isCancellation } from './webauthn-json.js';
 import './account.css';
-import HelpButton from '../help/Help.jsx';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 
 // The real client, bound to the browser's fetch; the behavior level injects a
 // loopback double instead (like SignIn / the sharing surfaces).
@@ -1004,7 +1004,7 @@ export default function AccountScreen({
       <div className="appbar">
         {backButton}
         <span className="title">{t('account.title')}</span>
-        <HelpButton page="account" />
+        <BarEnd help="account" account={false} />
       </div>
       {banner}
       <div className="scroll account-scroll">

@@ -34,7 +34,7 @@ import { resolveSongVoicings } from '../core/voicings.js';
 import { parseShorthand } from '../core/fretstring.js';
 import { fingeringFromFrets } from '../core/search.js';
 import './song-conflict.css';
-import HelpButton from '../help/Help.jsx';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 
 // A chord diagram for one voicing side, built from the conflict's tuning, chord
 // and fret shorthand — the same ChordDiagram the arrange screen draws. Null when
@@ -336,7 +336,7 @@ export default function SongConflict({ store, bookId, path, onClose }) {
       </Button>
       <span className="title">{song.title}</span>
       <span className="badge conflict dot">{t('bookConflicts.conflictBadge')}</span>
-      <HelpButton page="conflicts" />
+      <BarEnd help="conflicts" />
     </div>
   );
 

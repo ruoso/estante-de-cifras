@@ -832,6 +832,8 @@ export default {
 
   account: {
     open: 'Cuenta',
+    statusIn: 'Sesión iniciada',
+    statusOut: 'Sin sesión iniciada',
     title: 'Cuenta',
     back: 'Atrás',
     preferences: 'Preferencias',

@@ -28,8 +28,8 @@ export async function startApp(page, path = '/') {
   await waitForServiceWorker(page);
 }
 
-// One of the three destinations (phone tab bar; the same tabs on the wide
-// layouts' rail). Waits for the destination's heading.
+// One of the three destinations (phone tab bar; the same tabs in the wide
+// layouts' top bar). Waits for the destination's heading.
 export async function gotoTab(page, name) {
   // A book's detail is a layer over its songs, with no tabs beside it
   // (books.row_opens_songs): step back through *Back to {book}* first. The

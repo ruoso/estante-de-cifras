@@ -121,15 +121,6 @@
   color: var(--unsaved);
 }
 
-/* The computer master-detail: search on the side, the explorer beside it. */
-.explorer-split {
-  height: 100%;
-}
-
-.explorer-side {
-  overflow-y: auto;
-}
-
 /* The by-hand shape dialog. The string×fret grid, read-out and preview make it
    taller than a phone, so cap it to the viewport and let it scroll — otherwise
    the Choose/Star action at the bottom falls off-screen and can't be reached

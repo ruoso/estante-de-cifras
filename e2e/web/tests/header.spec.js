@@ -5,8 +5,9 @@
 // computer's search rail beside a song without the wordmark or the chip (W01#1,
 // W02#1, W02#4). This pins the fix: the header reads *Estante*, the one short
 // chip (*Guitar*, its full tuning the accessible description) and *Account* on
-// every destination, none of them clipped; the rail beside a song or the chord
-// explorer carries the wordmark and the chip; and one chip per screen. Pins
+// every destination, none of them clipped; and one chip per screen. Since
+// shell.one_bar there is no rail: a song and the chord explorer each draw one
+// bar ending with the chip, Help and the account, on every device. Pins
 // workflow 1 §The instrument and workflow 15 §The roster, and switching (as
 // amended). Real-UI journeys only; axe at WCAG 2.1 AA on every screen touched.
 
@@ -20,8 +21,8 @@ const STANDARD_DESCRIPTION = 'Guitar (6-string), Standard tuning: E2 A2 D3 G3 B3
 const PHONE_FRAME = { width: 370, height: 824 };
 
 // The shell's header row: the phone's strip above every destination, or the
-// tablet/computer side header.
-const shellHeader = (page) => page.locator('.instr-top, .side-head').filter({ visible: true });
+// tablet/computer top bar with the tabs (shell.one_bar).
+const shellHeader = (page) => page.locator('.instr-top, .top-bar').filter({ visible: true });
 const visibleChips = (page) => chip(page).filter({ visible: true });
 
 // The wordmark, the chip and the account button lie inside the viewport, do
@@ -103,40 +104,55 @@ test('the header on every destination: wordmark, a short unclipped chip, account
   await mockup(page, 'W02-find-and-play', 1);
 });
 
-test('one chip per screen: the rail beside a song and beside the explorer', async ({ page, checkA11y }, testInfo) => {
+test('one bar, one chip: a song and the explorer end their bar with the chip and the account', async ({ page, checkA11y }, testInfo) => {
   const wide = testInfo.project.name !== 'phone';
   await openExampleBook(page);
 
-  // A song open: on the computer the search rail beside it is headed by the
-  // wordmark and the chip; the tablet reads without a rail, the chip in the
-  // reading app bar (W02#3, songs.reading_chrome Decision 1); on the phone the
-  // chip sits in the song's meta row.
+  // A song open: no rail beside it on any device (shell.one_bar). On a tablet
+  // or a computer the chip ends the reading bar, before Help and the account;
+  // on the phone the chip sits in the song's meta row and the bar ends with
+  // Help and the account.
   await openSongFromSearch(page, SONG.search, SONG.title);
+  await expect(page.locator('.rail-head, .pane.side')).toHaveCount(0);
   await expect(visibleChips(page)).toHaveCount(1);
   await expect(visibleChips(page)).toHaveText('Guitar');
-  if (testInfo.project.name === 'computer') {
-    const head = page.locator('.reading-side .rail-head');
-    await expect(head.locator('.wordmark')).toHaveText('Estante');
-    await expect(head.getByRole('button', { name: 'Guitar, change instrument' })).toBeVisible();
-  } else if (testInfo.project.name === 'tablet') {
-    await expect(page.locator('.rail-head')).toHaveCount(0);
-    await expect(
-      page.locator('.appbar.reading-chrome').getByRole('button', { name: 'Guitar, change instrument' }),
-    ).toBeVisible();
+  const readingBar = page.locator('.appbar.reading-chrome').first();
+  await expect(readingBar.getByRole('button', { name: 'Account', exact: true })).toBeVisible();
+  if (wide) {
+    await expect(readingBar.getByRole('button', { name: 'Guitar, change instrument' })).toBeVisible();
   }
+  await expectBarInViewport(page, readingBar);
   await mockup(page, 'W02-find-and-play', 4);
   await checkA11y();
 
-  // The chord explorer, opened from the search destination: one chip, at the
-  // rail head on wide, in its app bar on the phone.
+  // The chord explorer, opened from the search destination: one screen, its
+  // one chip ending its app bar on a tablet or computer and beside the chord
+  // field on the phone, the account at the bar's end on every device.
   await startApp(page);
   await toSearch(page);
   await openExplorerFor(page, 'A');
+  await expect(page.locator('.rail-head, .pane.side')).toHaveCount(0);
   await expect(visibleChips(page)).toHaveCount(1);
-  if (wide) {
-    await expect(page.locator('.explorer-side .rail-head').getByRole('button', { name: /change instrument/ })).toBeVisible();
-  }
+  const explorerBar = page.locator('.explorer-screen .appbar');
+  const chipHome = wide ? explorerBar : page.locator('.explorer-head');
+  await expect(chipHome.getByRole('button', { name: /change instrument/ })).toBeVisible();
+  await expect(explorerBar.getByRole('button', { name: 'Account', exact: true })).toBeVisible();
+  await expectBarInViewport(page, explorerBar);
 });
+
+// Every control in a bar lies inside the viewport: the account at the bar's end
+// is never pushed past the edge (shell.one_bar).
+async function expectBarInViewport(page, bar) {
+  const viewport = page.viewportSize();
+  const buttons = bar.getByRole('button');
+  const count = await buttons.count();
+  for (let i = 0; i < count; i++) {
+    const box = await buttons.nth(i).boundingBox();
+    if (!box) continue;
+    expect(box.x, `bar control ${i} starts inside the viewport`).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width, `bar control ${i} ends inside the viewport`).toBeLessThanOrEqual(viewport.width + 0.5);
+  }
+}
 
 test('a guitar in Drop D reads "Guitar · Drop D", still unclipped', async ({ page, checkA11y }, testInfo) => {
   await startApp(page);

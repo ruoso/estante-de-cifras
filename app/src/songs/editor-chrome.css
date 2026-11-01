@@ -37,8 +37,10 @@
 .editor-chrome-bottom > .btn {
   flex: 1;
 }
-/* Help keeps its icon's width beside the two word buttons (workflow 18). */
-.editor-chrome-bottom > .help-button {
+/* Help and the account keep their icons' width beside the two word buttons
+   (workflow 18; shell.one_bar — on a phone the bottom bar ends like every bar). */
+.editor-chrome-bottom > .help-button,
+.editor-chrome-bottom > .account-open {
   flex: none;
 }
 

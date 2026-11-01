@@ -179,4 +179,11 @@ task shell "Shell" {
     depends !narrow_fixes
     note "The Add a book sheet’s close ✕ sits beside its title instead of at the sheet’s right edge, where the Share sheet and every other sheet put it. One header for every sheet (title, then close at the end), as the boards draw it. Source: persona exploration 2026-10-20 (Haiku agents as guitar teachers driving the app with playwright-cli on a local stack; findings verified live and against the code). Tests: behavior (each sheet header’s close is its last control; axe); e2e-web (Add a book on the three viewports, the close at the right edge; axe, mockup W07). Refinement: tasks/refinements/shell/sheet_close_placement.md"
   }
+  task one_bar "One bar on every screen; no sidebar" {
+    effort 2d
+    allocate team
+    complete 100
+    depends !header_chrome, !narrow_fit
+    note "On a tablet and a computer a 340px sidebar holds the header and three destination rows — the phone's three tabs — and nothing else (48% of the 712px tablet's width); once anything opens, the left pane turns into something else (search beside a song, the book's page beside its detail, nothing beside a setlist) and the destinations and the account disappear. The account button lives only on the three destinations' header; every deeper screen draws its own bar without it. Replace the sidebar with one bar on every screen, in the phone's format: on the destinations the wordmark, the Search · Books · Setlists tabs (tablet and computer) and, at its end, the instrument chip, Help and the account; on a deeper screen Back, the title and the screen's actions, then the same end. No split panes in the shell: the computer reads a song alone (no search rail) and a book's detail takes the whole screen. The account says whether someone is signed in. Source: sidebar review 2026-11-01 (screenshots of the running app; the design canvas Estante without the sidebar). Tests: behavior (the tabs in the top bar, no split; every bar ends with chip, Help and account; the detail and the reading view with no side pane; axe); e2e-web (the destinations reached from the top bar on tablet and computer, the account reachable from a deeper screen, nothing clipped on the three viewports). Refinement: tasks/refinements/shell/one_bar.md"
+  }
 }

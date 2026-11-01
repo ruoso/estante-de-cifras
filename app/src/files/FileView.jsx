@@ -31,7 +31,7 @@ import { buildTree, changedFiles, fileKind, splitPath } from './file-tree.js';
 import { createChoices, folderBeingLookedAt, folderNameProblem, namesIn } from './new-file.js';
 import { ChevronLeftIcon, ClockIcon, MoreIcon } from './icons.jsx';
 import './file-view.css';
-import HelpButton from '../help/Help.jsx';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 
 // `initialPath` (songs.show_the_file Decision 1): the file to open the view at —
 // the reading view's *Show the file* — seeding the selection once; null (Files
@@ -263,7 +263,7 @@ export default function FileView({ store, bookId, mode, initialPath = null, onBa
       </Button>
       <span className="title">{title}</span>
       {right}
-      <HelpButton page="files" />
+      <BarEnd help="files" />
     </div>
   );
 
@@ -411,7 +411,7 @@ export default function FileView({ store, bookId, mode, initialPath = null, onBa
               </Menu>
             </Popover>
           </MenuTrigger>
-          <HelpButton page="files" />
+          <BarEnd help="files" />
         </div>
         <div className="file-view-meta">
           <span className="t-small grow">

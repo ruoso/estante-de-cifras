@@ -149,8 +149,8 @@ in the shell on every screen:
   screen too, where *Add one* moves to the region below.
 - **Where it sits.** Below the header chrome, never inside it: on a phone
   between the header row (*Estante*, the instrument chip, the account
-  affordance) and the destination; on a tablet and a computer across the head
-  of the main pane, beside the rail, not in it. It does not scroll with the
+  affordance) and the destination; on a tablet and a computer under the one
+  bar across the top, not in it. It does not scroll with the
   screen, and it takes its own room rather than covering anything. The notice
   that a new version of the app is ready (DIRECTION §3.7) stays as it is — a
   passing, dismissible notice floating over the top of the screen — and is

@@ -18,6 +18,7 @@ import { Button } from 'react-aria-components';
 import { t } from '../i18n/index.js';
 import { createAuthClient, AuthError } from './auth-client.js';
 import './account.css';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 
 // The real client, bound to the browser's fetch; the behavior level injects a
 // loopback double instead.
@@ -155,6 +156,7 @@ export default function RecoveryEmailConfirm({ token, authClient = DEFAULT_CLIEN
     <div className="screen account-screen">
       <div className="appbar">
         <span className="title">{t('recoveryConfirm.brand')}</span>
+        <BarEnd />
       </div>
       <div className="scroll account-scroll">
         <div className="account-card">{content}</div>

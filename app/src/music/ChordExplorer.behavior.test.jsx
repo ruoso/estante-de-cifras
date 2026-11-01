@@ -403,14 +403,13 @@ describe('the chord explorer (behavior)', () => {
   });
 });
 
-// The header chrome around the explorer (shell.header_chrome): on wide the search
-// rail is headed by the wordmark and the chip and the app bar carries none — one
-// chip per screen, reachable above both scrollers (Decision 7); on narrow the
-// chip sits in the app bar. Pins workflow 16 L29-31 (as amended) and L154-156.
+// The header chrome around the explorer (shell.header_chrome, shell.one_bar): one
+// screen on every device, no search rail beside it; the chip sits in the app bar
+// — one chip per screen (Decision 7). Pins workflow 16 L29-31 (as amended).
 describe('the chord explorer header chrome (behavior)', () => {
   const chips = () => screen.getAllByRole('button', { name: /, change instrument$/ });
 
-  it('wide: the rail head carries Estante and the chip, the app bar none, axe clean', async () => {
+  it('wide: one screen, no search rail beside it; the chip ends its app bar, axe clean (shell.one_bar)', async () => {
     const remote = await startGitHttpRemote();
     try {
       await seedRemote(remote, instrumentSeed('g1', { catalogId: '6guitar', tuning: GUITAR_TUNING, fretCount: 22 }));
@@ -419,10 +418,11 @@ describe('the chord explorer header chrome (behavior)', () => {
       act(() => store.open());
       await screen.findByText('Open', {}, SLOW);
 
-      const head = container.querySelector('.explorer-side .rail-head');
-      expect(head).toHaveTextContent(/^Estante/);
-      await waitFor(() => expect(within(head).getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
-      expect(within(container.querySelector('.pane.main .appbar')).queryByRole('button', { name: /change instrument/ })).toBeNull();
+      expect(container.querySelector('.pane.side')).toBeNull();
+      expect(container.querySelector('.rail-head')).toBeNull();
+      expect(container.querySelector('.wordmark')).toBeNull();
+      const appbar = container.querySelector('.appbar');
+      await waitFor(() => expect(within(appbar).getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
       expect(chips()).toHaveLength(1);
 
       expect(await checkWcag21aa(document.body)).toHaveNoViolations();
@@ -431,7 +431,7 @@ describe('the chord explorer header chrome (behavior)', () => {
     }
   }, HEAVY);
 
-  it('narrow: the chip sits in the app bar', async () => {
+  it('narrow: the chip sits beside the chord field, the app bar left to the title, Help and the account (shell.one_bar)', async () => {
     const remote = await startGitHttpRemote();
     try {
       await seedRemote(remote, instrumentSeed('g1', { catalogId: '6guitar', tuning: GUITAR_TUNING, fretCount: 22 }));
@@ -440,8 +440,9 @@ describe('the chord explorer header chrome (behavior)', () => {
       act(() => store.open());
       await screen.findByText('Open', {}, SLOW);
 
-      const appbar = container.querySelector('.appbar');
-      await waitFor(() => expect(within(appbar).getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
+      const head = container.querySelector('.explorer-head');
+      await waitFor(() => expect(within(head).getByRole('button', { name: 'Guitar, change instrument' })).toBeInTheDocument());
+      expect(within(container.querySelector('.appbar')).queryByRole('button', { name: /change instrument/ })).toBeNull();
       expect(container.querySelector('.wordmark')).toBeNull();
       expect(chips()).toHaveLength(1);
     } finally {

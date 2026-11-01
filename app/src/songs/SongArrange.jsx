@@ -31,7 +31,7 @@ import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import InstrumentChip from '../instruments/InstrumentChip.jsx';
 import { useArrange, BackIcon } from './arrange-surface.jsx';
-import HelpButton from '../help/Help.jsx';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 
 export default function SongArrange({
   store,
@@ -107,7 +107,7 @@ export default function SongArrange({
           <Button className="btn primary" onPress={onBack}>
             {t('arrange.done')}
           </Button>
-          <HelpButton page="arrange" />
+          <BarEnd help="arrange" chip={false} />
         </div>
 
         <div className="scroll arrange-scroll">

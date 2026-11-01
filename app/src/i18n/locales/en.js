@@ -903,6 +903,9 @@ export default {
   // localized instant.
   account: {
     open: 'Account',
+    // Said with the account button, after its name: whether someone is signed in.
+    statusIn: 'Signed in',
+    statusOut: 'Not signed in',
     title: 'Account',
     back: 'Back',
     // Preferences.

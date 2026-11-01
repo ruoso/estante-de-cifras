@@ -102,9 +102,11 @@ test('the explorer: its title and the chip are whole, the chip clear of the word
   await expect(headerChip).toHaveCount(1);
   await expectFits(page, { whole: [title, headerChip] });
 
-  // Where the chip shares the header row with the wordmark (and Account), it
-  // overlaps neither.
-  const row = page.locator('.header-chrome').filter({ has: headerChip });
+  // On a tablet or computer the chip shares the explorer's one bar with Help
+  // and Account; on the phone it sits beside the chord field, the bar too short
+  // for it (shell.one_bar). Wherever it is, it overlaps no neighbour.
+  const row = page.locator('.appbar, .explorer-head').filter({ has: headerChip });
+  await expect(row).toHaveCount(1);
   if (await row.count()) {
     const chipBox = await headerChip.boundingBox();
     const neighbours = [row.locator('.wordmark'), row.getByRole('button', { name: 'Account', exact: true })];

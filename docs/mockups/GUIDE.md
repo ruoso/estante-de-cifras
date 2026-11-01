@@ -31,7 +31,7 @@ what those documents decided — real states, real copy, no invention beyond the
 
 ## Visual vocabulary (all in theme.css)
 
-App chrome: `.appbar` (+ `.title`), `.screen`, `.scroll`, `.split` with `.pane.side` + `.pane.main` (computer, tablet landscape-ish splits), `.tabbar` + `.tab` (`.on`) — the phone tab bar is **Search · Books · Setlists** (W02).
+App chrome: `.appbar` (+ `.title`), `.screen`, `.scroll`, `.tabbar` + `.tab` (`.on`) — the phone tab bar is **Search · Books · Setlists** (W02). **No sidebar** (shell.one_bar, 2026-11-01): every screen on every device draws one bar at its top, in the phone's format. A destination's bar is *Estante*, then (tablet and computer) the three destinations as tabs, then the instrument chip, Help and the account; a deeper screen's bar is Back, the title and its actions, then the same chip, Help and account at its end. Tablet and computer draw the phone's layout, wider. `.split` with `.pane.side` + `.pane.main` is only for a screen's own master-detail (history's versions, the wizard beside arrange, the instruments' roster, the account's rail) — never the shell's navigation, never search beside a song. Boards drawn before that date still show the sidebar.
 Controls: `.btn` (`.primary`, `.quiet`, `.danger`, `.icon`, `.block`), `.input`, `.field` + `label`, `.search` (`.focus`, `.scope` chip inside for a scope filter), `.seg` (segmented, `button.on`), `.toggle` (`.on`), `.check` (`.on`).
 Status (always a word): `.badge` + `.unsaved|.conflict|.ok|.voiced`, `.dot` modifier; `.chip`, `.chip.accent` (instrument chip).
 Lists: `.list` > `.row` (`.sel`, `.explore`) with `.grow` > `.name` + `.meta`, `.badges`, `.section-label`; `.card` (`.pad`).

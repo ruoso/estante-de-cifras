@@ -34,6 +34,7 @@ import { createCredential, getCredential, isCancellation } from './webauthn-json
 import { shouldOfferPasskey } from './offer-passkey.js';
 import RecoveryEmailStep from './RecoveryEmailStep.jsx';
 import './account.css';
+import { BarEnd } from '../shell/HeaderChrome.jsx';
 
 // The real client, bound to the browser's fetch; the behavior level injects a
 // loopback double instead.
@@ -437,6 +438,7 @@ export default function SignIn({
           <CloseIcon />
         </Button>
         <span className="title">{t('signIn.brand')}</span>
+        <BarEnd />
       </div>
       <div className={lead ? 'scroll account-scroll invited-scroll' : 'scroll account-scroll'}>
         <div className="account-card">{content}</div>
