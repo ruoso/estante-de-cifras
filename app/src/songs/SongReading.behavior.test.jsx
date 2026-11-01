@@ -689,6 +689,10 @@ describe('SongReading — the popovers on the popover surface (shell.popover_sur
     expectPopoverSurface(dialog);
     expect(within(dialog).getByText('Key of C')).toBeInTheDocument();
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    // React Aria moves focus into the popover a frame after it opens; Escape
+    // pressed before that lands on the page and closes nothing (a flake under
+    // load). Wait until focus is inside.
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
     await escape();
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
@@ -697,6 +701,7 @@ describe('SongReading — the popovers on the popover surface (shell.popover_sur
     const listbox = await screen.findByRole('listbox');
     expectPopoverSurface(listbox);
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+    await waitFor(() => expect(listbox.contains(document.activeElement)).toBe(true));
     await escape();
     await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
 
