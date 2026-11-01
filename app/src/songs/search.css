@@ -189,8 +189,9 @@
 @media (min-width: 700px) {
   /* With its word, it is a button you can see: an outline, so the word does
      not read as a label beside the song (the persona exploration of
-     2026-11-01). */
-  .search-add-setlist {
+     2026-11-01). As specific as theme.css's `.btn.icon`, whose fixed 44px
+     would otherwise win and clip the word past the row's edge. */
+  .btn.icon.search-add-setlist {
     width: auto;
     padding: 0 calc(var(--u) * 1.25);
     border-color: var(--line);
