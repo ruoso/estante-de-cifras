@@ -3,27 +3,189 @@
   "properties": [],
   "sections": [
     {
-      "name": "",
-      "heading": null,
+      "name": "Tom",
+      "heading": "label",
       "anchor": null,
       "body": [
         {
-          "type": "notes",
-          "text": "Tom: G\n\n[Intro] C  G  Am  F\n\nG           D\nQuando eu te vi passar"
+          "type": "music",
+          "lines": [
+            {
+              "kind": "chart",
+              "measures": [
+                {
+                  "bar": null,
+                  "items": [
+                    {
+                      "type": "chord",
+                      "symbol": "G",
+                      "index": 1,
+                      "key": "G",
+                      "chord": {
+                        "root": {
+                          "letter": "G",
+                          "accidental": 0
+                        },
+                        "quality": "major",
+                        "extensions": [],
+                        "bass": null
+                      }
+                    }
+                  ]
+                }
+              ],
+              "closeBar": null,
+              "run": true
+            }
+          ]
+        }
+      ],
+      "groups": []
+    },
+    {
+      "name": "Intro",
+      "heading": "bracket",
+      "anchor": null,
+      "body": [
+        {
+          "type": "music",
+          "lines": [
+            {
+              "kind": "chart",
+              "measures": [
+                {
+                  "bar": null,
+                  "items": [
+                    {
+                      "type": "chord",
+                      "symbol": "C",
+                      "index": 1,
+                      "key": "C",
+                      "chord": {
+                        "root": {
+                          "letter": "C",
+                          "accidental": 0
+                        },
+                        "quality": "major",
+                        "extensions": [],
+                        "bass": null
+                      }
+                    },
+                    {
+                      "type": "chord",
+                      "symbol": "G",
+                      "index": 1,
+                      "key": "G",
+                      "chord": {
+                        "root": {
+                          "letter": "G",
+                          "accidental": 0
+                        },
+                        "quality": "major",
+                        "extensions": [],
+                        "bass": null
+                      }
+                    },
+                    {
+                      "type": "chord",
+                      "symbol": "Am",
+                      "index": 1,
+                      "key": "Am",
+                      "chord": {
+                        "root": {
+                          "letter": "A",
+                          "accidental": 0
+                        },
+                        "quality": "minor",
+                        "extensions": [],
+                        "bass": null
+                      }
+                    },
+                    {
+                      "type": "chord",
+                      "symbol": "F",
+                      "index": 1,
+                      "key": "F",
+                      "chord": {
+                        "root": {
+                          "letter": "F",
+                          "accidental": 0
+                        },
+                        "quality": "major",
+                        "extensions": [],
+                        "bass": null
+                      }
+                    }
+                  ]
+                }
+              ],
+              "closeBar": null,
+              "run": true
+            },
+            {
+              "kind": "break"
+            },
+            {
+              "kind": "sung",
+              "measures": [
+                {
+                  "bar": null,
+                  "items": [
+                    {
+                      "type": "chord",
+                      "symbol": "G",
+                      "index": 1,
+                      "key": "G",
+                      "chord": {
+                        "root": {
+                          "letter": "G",
+                          "accidental": 0
+                        },
+                        "quality": "major",
+                        "extensions": [],
+                        "bass": null
+                      },
+                      "column": 0,
+                      "words": "Quando eu te"
+                    },
+                    {
+                      "type": "chord",
+                      "symbol": "D",
+                      "index": 1,
+                      "key": "D",
+                      "chord": {
+                        "root": {
+                          "letter": "D",
+                          "accidental": 0
+                        },
+                        "quality": "major",
+                        "extensions": [],
+                        "bass": null
+                      },
+                      "column": 12,
+                      "words": " vi passar"
+                    }
+                  ]
+                }
+              ],
+              "closeBar": null,
+              "forced": false
+            }
+          ]
         }
       ],
       "groups": []
     }
   ],
   "blocks": [],
-  "sung": false,
-  "sungAt": null,
+  "sung": true,
+  "sungAt": 7,
   "diagnostics": [
     {
-      "code": "unfenced-music",
-      "message": "this reads as a line of chords, but it is outside a fence, so it is notes; put the music between ``` lines (or ~~~)",
-      "line": 6,
-      "text": "G           D"
+      "code": "heading-looks-like-key",
+      "message": "`Tom: G` reads as a section called 'Tom' holding one chord; if it is the song's key, write `- key: G` in the properties",
+      "line": 2,
+      "text": "Tom: G"
     },
     {
       "code": "bad-block-heading",

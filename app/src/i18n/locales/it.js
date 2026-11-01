@@ -1895,7 +1895,6 @@ export default {
       'bad-voicing': 'una diteggiatura che non si può leggere.',
       'bad-fingering': 'le dita di questa diteggiatura non si possono leggere, quindi restano fuori.',
       'notes-outside-block': 'dopo la riga ---, restano solo blocchi di diteggiature.',
-      'unfenced-music': 'questo si legge come accordi, ma è fuori dalla musica, quindi resta una nota.',
       'stray-mark': 'un segno di ripetizione senza gruppo da aprire o chiudere.',
       'ending-outside-group': 'un finale fuori da un gruppo di ripetizione.',
       'count-out-of-place': 'un conteggio di ripetizioni che non segue un gruppo e non chiude la riga.',

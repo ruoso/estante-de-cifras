@@ -186,8 +186,9 @@ template or paste a cifra from the web.
 
 1. **Music goes between fences.** The lines ` ``` ` (or `~~~`, easier on a
    keyboard where the backtick is a dead key) mark where the chords and
-   words are. A chart pasted without them is notes, and a reader will tell
-   you so, but it will not play.
+   words are. A song with no fence at all is read as if each section were
+   fenced, so a pasted cifra plays; but once there is one fence, anything
+   outside a fence is notes.
 2. **One `---`, after the last section.** The rule is where the song ends
    and the voicings begin. A `---` between two verses, Markdown habit, puts
    every verse after it into the voicings part, where it is not read.
@@ -222,7 +223,8 @@ belong in the property list under the title, `- key: G`, not in the music.
   and `C∆7` are the same chord. A document keeps the spelling its author
   used; a reader knows what it means.
 - **Degrade gracefully.** Music is what is inside a fence; everything else
-  is notes and is never interpreted. Inside a fence, a token that does not
+  is notes and is never interpreted (a chart with no fence at all is read
+  as if fenced). Inside a fence, a token that does not
   parse is still shown, and a voicing that does not parse is reported and
   skipped. A reader never silently discards what it did not understand:
   it keeps it, or reports it.

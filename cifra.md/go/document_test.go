@@ -214,3 +214,46 @@ func TestVerbatimFenceKeepsInfoAndText(t *testing.T) {
 		t.Errorf("verbatim text = %q", objString(verb, "text"))
 	}
 }
+
+// --- §1.9.1 an unfenced chart -------------------------------------------------
+
+func partTypes(sec *Object) []string {
+	var out []string
+	for _, pEl := range objArray(sec, "body") {
+		out = append(out, objString(pEl.(*Object), "type"))
+	}
+	return out
+}
+
+func TestUnfencedChartReadsEachSectionAsAFence(t *testing.T) {
+	m := parseSong(t, "# T\n\n## Verse\nG     D\nQuando eu te vi\n\n## Chorus\n[Ponte] C | G\n")
+	if d := objArray(m, "diagnostics"); len(d) != 0 {
+		t.Errorf("diagnostics = %v, want none", d)
+	}
+	secs := songSections(m)
+	if len(secs) != 3 {
+		t.Fatalf("sections = %d, want 3", len(secs))
+	}
+	for i, want := range []string{"Verse", "Chorus", "Ponte"} {
+		if n := objString(secs[i].(*Object), "name"); n != want {
+			t.Errorf("section %d name = %q, want %q", i, n, want)
+		}
+	}
+	if got := partTypes(sectionAt(m, 0)); len(got) != 1 || got[0] != "music" {
+		t.Errorf("Verse parts = %v, want [music]", got)
+	}
+	if got := partTypes(sectionAt(m, 1)); len(got) != 0 {
+		t.Errorf("Chorus parts = %v, want none", got)
+	}
+}
+
+func TestProseOrAFenceKeepsTheNotes(t *testing.T) {
+	for _, src := range []string{
+		"# T\n\nPlay it softly.\n",
+		"# T\n\nC G Am F\n\n## A\n```\nC\n```\n",
+	} {
+		if got := partTypes(sectionAt(parseSong(t, src), 0)); len(got) != 1 || got[0] != "notes" {
+			t.Errorf("%q: parts = %v, want [notes]", src, got)
+		}
+	}
+}

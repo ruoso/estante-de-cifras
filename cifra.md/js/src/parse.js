@@ -57,6 +57,28 @@ export function asciiLower(text) {
 }
 
 // Strip only U+0020 from both ends — never other Unicode whitespace.
+/**
+ * Whether a line, read inside a fence, would be a chord line holding at least
+ * one chord or no-chord mark (§1.9.1): the test that makes a chart with no
+ * fence unfenced music, and that tells an editor a line outside the fences of
+ * a fenced chart looks like music.
+ *
+ * @param {string} text one line, as the text layer prepares it (§1.3)
+ * @param {string} dialect a dialect id (§5.6)
+ * @returns {boolean}
+ */
+export function readsAsChords(text, dialect) {
+  const shape = lineShape(text, dialect);
+  if (shape.scan === null || shape.kind !== "chords") return false;
+  return shape.scan.measures.some((m) => m.items.some((it) => it.type === "chord" || it.type === "nochord"));
+}
+
+// End an implicit fence (§1.9.1): the blank lines before the heading or the
+// rule that ends it are not part of it.
+function closeImplicit(part) {
+  while (part.raw.length && !part.raw[part.raw.length - 1][1]) part.raw.pop();
+}
+
 function stripSpaces(text) {
   return text.replace(/^ +/, "").replace(/ +$/, "");
 }
@@ -415,6 +437,10 @@ class Parser {
     let inVoicings = false;
     let block = null;
     let skipping = false;
+    // A chart with no fence whose lines read as chords is music (§1.9.1):
+    // each run of lines between Markdown headings is read as one fence, the
+    // implicit fence (char ""), which no line closes.
+    const unfenced = this.readsUnfenced(start);
 
     for (let idx = start; idx < this.lines.length; idx += 1) {
       const raw = this.lines[idx];
@@ -423,6 +449,20 @@ class Parser {
       if (inVoicings) {
         [block, skipping] = this.voicingsLine(raw, lineno, block, skipping);
         continue;
+      }
+
+      if (unfenced) {
+        const ends = RULE.test(raw) || mdHeading(raw) !== null;
+        if (fence !== null && ends) {
+          closeImplicit(part);
+          fence = null;
+          part = null;
+        } else if (fence === null && !ends) {
+          if (!raw) continue;
+          fence = { char: "", length: 0, line: lineno };
+          part = { type: "music", raw: [], _opening: true, _section: section };
+          section.body.push(part);
+        }
       }
 
       if (fence !== null) {
@@ -518,7 +558,9 @@ class Parser {
       part.raw.push([lineno, raw]);
     }
 
-    if (fence !== null) {
+    if (fence !== null && !fence.char) {
+      closeImplicit(part);
+    } else if (fence !== null) {
       this.diag("unclosed-fence", fence.line, "a fence was opened and never closed; it runs to the end of the document");
       if (part !== null && part.type === "verbatim") {
         while (part.raw.length && !part.raw[part.raw.length - 1]) part.raw.pop();
@@ -691,7 +733,6 @@ class Parser {
           while (lines.length && !lines[lines.length - 1][1]) lines.pop();
           if (lines.length) {
             body.push({ type: "notes", text: lines.map(([, t]) => t).join("\n") });
-            if (shaped.length === 0) this.unfencedCheck(lines);
           }
         } else if (part.type === "verbatim") {
           body.push({ type: "verbatim", info: part.info, text: part.raw.join("\n") });
@@ -726,23 +767,19 @@ class Parser {
     }
   }
 
-  unfencedCheck(lines) {
-    if (this.diagnostics.some((d) => d.code === "unfenced-music")) return;
-    for (const [lineno, text] of lines) {
-      if (mdHeading(text) || LIST_ITEM.test(text)) continue;
-      const shape = lineShape(text, this.dialect);
-      if (shape.scan === null) continue;
-      const chords = shape.scan.measures.flatMap((m) => m.items).filter((it) => it.type === "chord" || it.type === "nochord");
-      if (shape.kind === "chords" && chords.length) {
-        this.diag(
-          "unfenced-music",
-          lineno,
-          "this reads as a line of chords, but it is outside a fence, so it is notes; put the music between ``` lines (or ~~~)",
-          text,
-        );
-        return;
-      }
+  // Is the chart unfenced music (§1.9.1)? It is when it has no fence at all
+  // and one of its lines, other than a Markdown heading or a list item, reads
+  // as a line of chords: a song typed or pasted without fences.
+  readsUnfenced(start) {
+    let found = false;
+    for (let idx = start; idx < this.lines.length; idx += 1) {
+      const text = this.lines[idx];
+      if (RULE.test(text)) break;
+      if (fenceOpen(text)) return false;
+      if (found || mdHeading(text) || LIST_ITEM.test(text)) continue;
+      found = readsAsChords(text, this.dialect);
     }
+    return found;
   }
 
   assemble(part, sung) {

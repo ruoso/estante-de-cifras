@@ -120,9 +120,12 @@ reads the same to someone whose preference differs.
 ### Pasting a cifra
 
 Text pasted from a cifra site is chords over words with `[Intro]`-style
-headings, and no fences. Outside a fence it would be read as notes — kept,
-but not as music. So **when pasted text lands outside any fence, the editor
-puts it inside one**, and says so in a message that offers to undo.
+headings, and no fences. A song with no fence at all is still read as music,
+each part as if fenced (cifra.md §1.9.1), so a song typed straight in, chords
+over words under a `## Verse`, plays as typed. But once the song has a fence,
+the template's first part's included, a line outside every fence is a note.
+So **when pasted text lands outside any fence, the editor puts it inside
+one**, and says so in a message that offers to undo.
 
 When the song has no title yet, the first line of what was pasted becomes the
 title, under the same message.
@@ -274,9 +277,10 @@ with **Show me how**, which opens the help at the topic that answers it:
   (`[Am]`, `[G7]`), or, in notes, a chord in brackets followed at once by a
   letter (`[G]Walk`): *Line 4 looks like chords in brackets. Here a chord goes
   on its own line, above its words.* Opens at *Chords over words*.
-- **Chords outside the music** — the song has no music fence and a line of it
-  would read as chords, which is what the reader reports for a chart never
-  fenced (§1.9): *Line 4 looks like chords, but it is outside the music, so it
+- **Chords outside the music** — the song has a fence, and a line outside
+  every fence would read as chords inside one: typed under the template's
+  first part, say, rather than in it (§1.9). A song with no fence at all is
+  not this case; it reads as music (§1.9.1). *Line 4 looks like chords, but it is outside the music, so it
   is kept as a note. Music goes between two lines of three backticks.* Opens
   at *Parts and the music fence*. This notice also offers **Put it in the
   music**, which fences the line's paragraph in one undoable step (workflow 4

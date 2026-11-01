@@ -256,3 +256,30 @@ class TestRule:
         doc = parse("```\nC\n```\n## Voicings: E2 A2\n")
         assert doc["blocks"] == []
         assert names(doc) == ["", "Voicings: E2 A2"]
+
+
+class TestUnfencedChart:
+    """§1.9.1: a chart with no fence whose lines read as chords is music."""
+
+    def test_each_section_is_one_fence(self):
+        doc = parse("# T\n\n## Verse\nG     D\nQuando eu te vi\n\n## Chorus\n[Ponte] C | G\n")
+        assert doc["diagnostics"] == []
+        assert [(s["name"], [p["type"] for p in s["body"]]) for s in doc["sections"]] == [
+            ("Verse", ["music"]),
+            ("Chorus", []),
+            ("Ponte", ["music"]),
+        ]
+        assert doc["sung"] is True
+
+    def test_prose_alone_stays_notes(self):
+        doc = parse("# T\n\nPlay it softly.\n")
+        assert [p["type"] for p in doc["sections"][0]["body"]] == ["notes"]
+
+    def test_a_fence_anywhere_keeps_the_notes(self):
+        doc = parse("# T\n\nC G Am F\n\n## A\n```\nC\n```\n")
+        assert [p["type"] for p in doc["sections"][0]["body"]] == ["notes"]
+
+    def test_the_rule_still_ends_the_chart(self):
+        doc = parse("# T\n\nC | G\n\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- C: x32010\n")
+        assert symbols(doc) == ["C", "G"]
+        assert doc["blocks"][0]["voicings"][0]["key"] == "C"

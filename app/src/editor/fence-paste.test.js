@@ -91,14 +91,13 @@ describe('fenceAround', () => {
     );
   });
 
-  it('the result parses with no unfenced-music and the line reads as bars', () => {
-    const text = '# Rascunho\n\n| Am7 | D7 | Gm7 | C7 |\n';
-    expect(parse(text).diagnostics.map((d) => d.code)).toContain('unfenced-music');
-    const out = apply(text, fenceAround(text, 3));
+  it('the result reads the line as bars', () => {
+    const text = '# Rascunho\n\n```\nC\n```\n\n| Am7 | D7 | Gm7 | C7 |\n';
+    const out = apply(text, fenceAround(text, 7));
     const doc = parse(out);
-    expect(doc.diagnostics.map((d) => d.code)).not.toContain('unfenced-music');
+    expect(doc.diagnostics).toEqual([]);
     const parts = doc.sections.flatMap((s) => s.body);
     const measures = parts.flatMap((p) => (p.lines ?? []).flatMap((l) => l.measures ?? []));
-    expect(measures.map((m) => m.items.map((i) => i.symbol).join(' '))).toEqual(['Am7', 'D7', 'Gm7', 'C7']);
+    expect(measures.map((m) => m.items.map((i) => i.symbol).join(' '))).toEqual(['C', 'Am7', 'D7', 'Gm7', 'C7']);
   });
 });

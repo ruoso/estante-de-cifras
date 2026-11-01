@@ -187,9 +187,21 @@ describe("fences and notes (§1.9)", () => {
     expect(m.sections[0].body[0].type).toBe("music");
   });
 
-  test("notes that read as chords outside any fence are reported", () => {
-    const m = parse("C G Am F\n");
-    expect(codes(m)).toContain("unfenced-music");
+  test("a chart with no fence whose lines read as chords is music, a fence per section (§1.9.1)", () => {
+    const m = parse("# T\n\n## Verse\nG     D\nQuando eu te vi\n\n## Chorus\n[Ponte] C | G\n");
+    expect(m.diagnostics).toEqual([]);
+    expect(m.sections.map((s) => [s.name, s.body.map((p) => p.type)])).toEqual([
+      ["Verse", ["music"]],
+      ["Chorus", []],
+      ["Ponte", ["music"]],
+    ]);
+    expect(m.sung).toBe(true);
+  });
+
+  test("a chart with a fence, or with no line of chords, keeps its notes", () => {
+    expect(parse("# T\n\nPlay it softly.\n").sections[0].body[0].type).toBe("notes");
+    const fenced = parse("# T\n\nC G Am F\n\n## A\n```\nC\n```\n");
+    expect(fenced.sections[0].body[0].type).toBe("notes");
   });
 
   test("a label heading holding one chord is reported as a key", () => {

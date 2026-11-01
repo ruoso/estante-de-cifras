@@ -64,7 +64,8 @@ and drop.
 
 **Line.** One line of text. Every line inside a fence is a cifra-style
 heading, a chord line, a lyric line, or blank; every line outside one is a
-heading, a fence, the rule, or notes (§1.5).
+heading, a fence, the rule, or notes (§1.5), unless the chart has no fence
+at all and reads as music, when it is read as if fenced (§1.9.1).
 
 **Chord line.** A line whose content is chords and chart punctuation (§2).
 
@@ -216,7 +217,8 @@ Two consequences for writers:
 
 - The rule MUST be preceded by a blank line. In Markdown, `---` directly
   under a line of text turns that text into a heading.
-- Music outside a fence is not music (§1.9). A writer MUST fence every
+- Music outside a fence is notes (§1.9), with one exception for a song
+  typed or pasted with no fence at all (§1.9.1). A writer MUST fence every
   chord line and lyric line it emits.
 
 ## 0.6 Processing order
@@ -228,7 +230,9 @@ several constructs could otherwise claim the same line. The order is:
 1. The title and properties (§1.4), only at the very start of the
    document.
 2. Fences (§1.9). A fence opens a run of music that ends at the next
-   fence; nothing inside it is a Markdown heading, the rule or notes.
+   fence; nothing inside it is a Markdown heading, the rule or notes. In
+   an unfenced chart (§1.9.1), every run of lines between Markdown
+   headings, the rule and the ends of the chart is read as a fence.
 3. Outside a fence: the rule (§1.6), and the first rule ends the chart.
 4. Outside a fence, in the chart: a Markdown heading (§1.7.1) opens a
    section. Any other line is notes (§1.9).

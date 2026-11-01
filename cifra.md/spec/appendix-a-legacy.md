@@ -67,12 +67,14 @@ whose first line is `# Verse` is indistinguishable from a song titled
 
 ## A.6 Unfenced music
 
-Earlier documents had no fences: every line of the chart was music. A
-reader MAY accept such a document by treating the whole chart as one fence
-per section, in which case Markdown headings are still headings (they were
-in the old form) and nothing is notes.
+Earlier documents had no fences: every line of the chart was music. Such
+a document is an unfenced chart (§1.9.1) as soon as one of its lines reads
+as chords, and a reader reads it as one fence per run of lines between
+headings: Markdown headings are still headings, as they were in the old
+form, and nothing is notes.
 
-Conversion: wrap the music of each section in a fence.
+Conversion: wrap the music of each section in a fence, which is what
+canonical form does.
 
 ## A.7 `key = frets` voicing lines
 

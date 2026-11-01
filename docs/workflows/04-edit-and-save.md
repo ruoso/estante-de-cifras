@@ -35,18 +35,18 @@ reads as a chord is the case the notice points to the help for.
 **A line the editor marks says why, in words, where it is.** A line the
 format cannot read as written — the line the reader reports (cifra.md §0,
 `diagnostics`): a voicing it cannot read, a repeat with nothing before it,
-chords in a chart with no music fence — is marked in the text, and the mark
-is never colour alone. Right under the line, as part of the text's flow, a
-short note says what is wrong in the user's language: *Line 7: this reads as
-chords, but it is outside the music, so it is kept as a note.* The note is
+a repeat mark with no group — is marked in the text, and the mark is never
+colour alone. Right under the line, as part of the text's flow, a short note
+says what is wrong in the user's language: *Line 7: a repeat mark with no
+group to open or close.* The note is
 there as long as the line is reported, cursor on it or not, and goes the
 moment the text no longer holds the case. A screen reader hears the same
 words when the cursor reaches the line — once, on arriving, not again with
 every key typed on it. The note is words only; it holds nothing to press,
 because it sits inside the text being edited.
 
-When the marked line is chords outside the music, the notice that names it
-(workflow 3 §When it looks like another format) offers, beside **Show me
+When a line is chords outside the music of a fenced song, the notice that
+names it (workflow 3 §When it looks like another format) offers, beside **Show me
 how**, to **Put it in the music**: the paragraph the line is in — its run of
 lines up to a blank line, a heading or a property — goes between two lines of
 three backticks, in one step that one undo reverses. The editor then says so

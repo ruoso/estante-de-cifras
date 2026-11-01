@@ -213,7 +213,8 @@ and `## #` is a heading whose text is empty.
 ## Chorus
 ```
 
-A Markdown heading is recognised only outside a fence (§1.9). Heading
+A Markdown heading is recognised only outside a fence (§1.9); in an
+unfenced chart it ends the implicit fence before it (§1.9.1). Heading
 level is significant in one place only: a level-1 heading that is
 the first non-blank line of the document is the title (§1.4.1). Every other
 Markdown heading, of any level, is a section heading in the chart or a
@@ -368,11 +369,6 @@ Rules:
   blank lines at the end of the document are not part of it. A reader
   MUST report it. Canonical form closes it after its last line (§8.4.3).
 - Fences are not recognised in the voicings part. A fence there is notes.
-- A chart with no fence at all, one of whose notes lines would read as a
-  chord line, is almost always a paste that was never fenced. A reader MUST
-  report it, naming the first such line and saying that music goes between
-  fences. A chart that has at least one fence is not checked: its notes are
-  notes.
 - `~~~` is a fence as much as ` ``` ` is, and is easier to type on a
   keyboard where the backtick is a dead key.
 
@@ -381,6 +377,45 @@ block in a monospaced face and keeps its line breaks, so the chords stay
 over the syllables they were written over. It is also what makes the
 format safe to annotate: anything a reader cannot parse is, by position,
 not music.
+
+### 1.9.1 An unfenced chart
+
+A song typed straight into an editor, or pasted from a cifra site, often
+has no fence at all: a title, perhaps a `## Verse`, and then chords over
+words. Read by the rules above it is all notes, and the person who wrote
+it sees no music. So:
+
+A chart that has **no fence at all**, and one of whose lines would read
+as a chord line, is an **unfenced chart**. A line is checked when it is
+not a Markdown heading (of any level) and not a list item; it reads as a
+chord line when it would be one inside a fence (§2.1, §4.2) and holds at
+least one chord or no-chord mark. A fence anywhere in the chart, verbatim
+or music, means the chart is not unfenced: its author knows the rule, and
+its notes are notes.
+
+An unfenced chart is read as if each of its runs of music had been
+fenced. An implicit fence opens at a line, in the chart, that is not
+blank, not a Markdown heading and not the rule, when no implicit fence is
+open; it is closed by the next Markdown heading, the rule or the end of
+the document, and the blank lines just before that close are not part of
+it. Every line inside an implicit fence is read as it would be inside a
+fence: cifra-style headings open sections (§1.7.2, §1.7.3), `//` lines are
+annotations, and the rest are chord lines, lyric lines or blank. Nothing
+in an unfenced chart is notes.
+
+```
+# Asa Branca
+- notation: brazilian
+
+## Verse
+G           D
+Quando oiei a terra ardendo
+```
+
+reads as a section *Verse* holding a sung line, exactly as if its two
+lines were between fences. Reading an unfenced chart is not an error and
+is not reported. Canonical form fences the music (§8.4.3), so a song that
+was typed without fences gains them the first time a writer writes it.
 
 ## Open questions
 

@@ -1893,7 +1893,6 @@ export default {
       'bad-voicing': 'um dedilhado que não pode ser lido.',
       'bad-fingering': 'os dedos deste dedilhado não podem ser lidos, então ficam de fora.',
       'notes-outside-block': 'depois da linha ---, só ficam blocos de dedilhados.',
-      'unfenced-music': 'isto é lido como acordes, mas está fora da música, então fica como nota.',
       'stray-mark': 'um sinal de repetição sem grupo para abrir ou fechar.',
       'ending-outside-group': 'uma casa de final fora de um grupo de repetição.',
       'count-out-of-place': 'uma contagem de repetição que não segue um grupo nem termina a linha.',

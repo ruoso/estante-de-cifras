@@ -11,7 +11,7 @@ here.
 |---|---|---|---|
 | 1 | Notation dialect | Declared by the `notation` property; default `brazilian` (§1.4.3) | An application preference, not in the text |
 | 2 | Title and properties | Level-1 heading as the first line, then a `- key: value` list (§1.4) | Title kept outside the text; a leading `# Title` would be read as a section |
-| 2b | Fences | Music is inside fenced blocks; everything else in the chart is notes (§1.9) | No fences; every non-heading line is music |
+| 2b | Fences | Music is inside fenced blocks; everything else in the chart is notes (§1.9), unless the chart has no fence at all and reads as chords (§1.9.1) | No fences; every non-heading line is music |
 | 2c | Voicing syntax | List items `- key: frets` (§7.4) | Bare lines `key = frets` |
 | 2a | Heading levels | `#` is the title; sections and blocks are `##` (§1.7.1) | Level ignored; sections are written `#` |
 | 3 | Block heading recognition | By position: every `#` heading after the rule is a block; label, colon, tuning (§7.2) | Anywhere in the document, by whether the heading text names a tuning; `for`, `(`, `-`, `–` accepted as separators |

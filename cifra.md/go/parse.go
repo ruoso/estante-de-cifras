@@ -802,6 +802,11 @@ func (p *songParser) run() Model {
 		}
 	}
 
+	// A chart with no fence whose lines read as chords is music (§1.9.1):
+	// each run of lines between Markdown headings is read as one fence, the
+	// implicit fence (char 0), which no line closes.
+	unfenced := p.readsUnfenced(start)
+
 	for idx := start; idx < len(p.lines); idx++ {
 		line := p.lines[idx]
 		lineno := idx + 1
@@ -809,6 +814,23 @@ func (p *songParser) run() Model {
 		if inVoicings {
 			blk, skipping = p.voicingsLine(line, lineno, blk, skipping)
 			continue
+		}
+
+		if unfenced {
+			_, _, heading := mdHeading(line)
+			ends := ruleRE.MatchString(line) || heading
+			if fnc != nil && ends {
+				closeImplicit(part)
+				fnc = nil
+				part = nil
+			} else if fnc == nil && !ends {
+				if line == "" {
+					continue
+				}
+				fnc = &fence{char: 0, length: 0, line: lineno}
+				part = &songPart{typ: "music", opening: true, section: section}
+				section.body = append(section.body, part)
+			}
 		}
 
 		if fnc != nil {
@@ -902,7 +924,9 @@ func (p *songParser) run() Model {
 		part.raw = append(part.raw, rawLine{lineno: lineno, text: line})
 	}
 
-	if fnc != nil {
+	if fnc != nil && fnc.char == 0 {
+		closeImplicit(part)
+	} else if fnc != nil {
 		p.diag("unclosed-fence", fnc.line, "a fence was opened and never closed; it runs to the end of the document")
 		if part != nil && part.typ == "verbatim" {
 			for len(part.raw) > 0 && part.raw[len(part.raw)-1].text == "" {
@@ -1105,9 +1129,6 @@ func (p *songParser) finishSections() {
 						texts[i] = rl.text
 					}
 					newBody = append(newBody, &songPart{typ: "notes", text: strings.Join(texts, "\n")})
-					if len(shaped) == 0 {
-						p.unfencedCheck(lines)
-					}
 				}
 			case "verbatim":
 				texts := make([]string, len(part.raw))
@@ -1156,17 +1177,31 @@ func (p *songParser) finishSections() {
 	}
 }
 
-func (p *songParser) unfencedCheck(lines []rawLine) {
-	for _, d := range p.diagnostics {
-		if objString(d, "code") == "unfenced-music" {
-			return
-		}
+// closeImplicit ends an implicit fence (§1.9.1): the blank lines before the
+// heading or the rule that ends it are not part of it.
+func closeImplicit(part *songPart) {
+	for len(part.raw) > 0 && part.raw[len(part.raw)-1].text == "" {
+		part.raw = part.raw[:len(part.raw)-1]
 	}
-	for _, rl := range lines {
-		if isHeadingLine(rl.text) || songListItemRE.MatchString(rl.text) {
+}
+
+// readsUnfenced reports whether the chart is unfenced music (§1.9.1): it has
+// no fence at all, and one of its lines, other than a Markdown heading or a
+// list item, reads as a line of chords — a song typed or pasted without fences.
+func (p *songParser) readsUnfenced(start int) bool {
+	found := false
+	for idx := start; idx < len(p.lines); idx++ {
+		text := p.lines[idx]
+		if ruleRE.MatchString(text) {
+			break
+		}
+		if _, _, _, ok := fenceOpen(text); ok {
+			return false
+		}
+		if found || isHeadingLine(text) || songListItemRE.MatchString(text) {
 			continue
 		}
-		sh := lineShape(rl.text, p.dialect)
+		sh := lineShape(text, p.dialect)
 		if sh.scan == nil {
 			continue
 		}
@@ -1179,11 +1214,9 @@ func (p *songParser) unfencedCheck(lines []rawLine) {
 				}
 			}
 		}
-		if sh.kind == "chords" && chords > 0 {
-			p.diagText("unfenced-music", rl.lineno, "this reads as a line of chords, but it is outside a fence, so it is notes; put the music between ``` lines (or ~~~)", rl.text)
-			return
-		}
+		found = sh.kind == "chords" && chords > 0
 	}
+	return found
 }
 
 func (p *songParser) assemble(part *songPart, sung bool) []*Object {

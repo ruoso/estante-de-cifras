@@ -126,4 +126,16 @@ describe("classifyLines — the song's own notation (cifra.md §5.6)", () => {
     // The same song in a notation the reader knows is not reported.
     expect(classifyLines(songIn('american'))[0]).toBe('md');
   });
+
+  it('colours a song with no fence as music, each part as if fenced (spec §1.9.1)', () => {
+    const c = classifyLines(
+      ['# Asa Branca', '- notation: brazilian', '', '## Verse', 'G           D', 'Quando oiei a terra ardendo', ''].join('\n'),
+    );
+    expect(c.slice(0, 7)).toEqual(['md', 'md', 'text', 'md', 'ch', 'lyric', 'text']);
+  });
+
+  it('keeps words outside the fences of a fenced song plain', () => {
+    const c = classifyLines(['# T', '', '```', 'C', '```', '', 'G | C | D'].join('\n'));
+    expect(c[6]).toBe('text');
+  });
 });

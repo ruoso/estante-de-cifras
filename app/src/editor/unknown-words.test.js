@@ -129,28 +129,38 @@ describe('bracketChordsInNotes (workflow 3 §When it looks like another format; 
   });
 });
 
-describe('unfencedChordsLine (spec §1.9; Decision 2)', () => {
-  test("the line of the reader's unfenced-music report, or null", () => {
-    expect(unfencedChordsLine(parse('# Tarde Clara\n\n## Intro\nG | C | D\n'))).toBe(4);
-    expect(unfencedChordsLine(parse(fenced('G | C | D')))).toBeNull();
+describe('unfencedChordsLine (spec §1.9, §1.9.1; Decision 2)', () => {
+  const typedUnder = '# Tarde Clara\n\n## Intro\n```\nC\n```\n\n## Verse\nG | C | D\n';
+
+  test('a line of chords outside the fences of a fenced song, or null', () => {
+    expect(unfencedChordsLine(typedUnder)).toBe(9);
+    expect(unfencedChordsLine(fenced('G | C | D'))).toBeNull();
+  });
+
+  test('a song with no fence at all is not checked: the reader reads it as music', () => {
+    expect(unfencedChordsLine('# Tarde Clara\n\n## Intro\nG | C | D\n')).toBeNull();
+  });
+
+  test('words outside the fences, and the voicings past the rule, are not chords', () => {
+    expect(unfencedChordsLine('# T\n\n```\nC\n```\n\nPlay it softly.\n')).toBeNull();
+    expect(unfencedChordsLine('# T\n\n```\nC\n```\n\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- C: x32010\n')).toBeNull();
   });
 });
 
 describe('formatHint (workflow 3 §When it looks like another format; Decisions 1, 4)', () => {
-  const unfenced = '# Tarde Clara\n\n## Intro\nG | C | D\n';
+  const unfenced = '# Tarde Clara\n\n## Intro\n```\nC\n```\n\n## Verse\nG | C | D\n';
 
-  test('chords outside the music under ## Intro with no fence: the unfenced case, at Parts', () => {
-    expect(formatHint({ text: unfenced, cursorLine: 1 })).toEqual({ kind: 'unfenced', line: 4, topic: 'parts' });
+  test('chords outside the music of a fenced song: the unfenced case, at Parts', () => {
+    expect(formatHint({ text: unfenced, cursorLine: 1 })).toEqual({ kind: 'unfenced', line: 9, topic: 'parts' });
   });
 
-  test('none once any fence exists (the reader checks only a song with no music fence)', () => {
-    const text = `${unfenced}\n## Verse\n\`\`\`\nG | C |\n\`\`\`\n`;
-    expect(formatHint({ text, cursorLine: 1 })).toBeNull();
+  test('none for a song with no fence at all (the reader reads it as music, §1.9.1)', () => {
+    expect(formatHint({ text: '# Tarde Clara\n\n## Intro\nG | C | D\n', cursorLine: 1 })).toBeNull();
   });
 
   test('chords in brackets come first, headings and notes together, the first line that counts', () => {
-    const text = `# Tarde Clara\n\n[G]Walk the road\n\n## Intro\nG | C | D\n`;
-    expect(formatHint({ text, cursorLine: 1 })).toEqual({ kind: 'bracket', line: 3, topic: 'chords' });
+    const text = `${unfenced}\n## Words\n[G]Walk the road\n`;
+    expect(formatHint({ text, cursorLine: 1 })).toEqual({ kind: 'bracket', line: 12, topic: 'chords' });
     const both = `# Tarde Clara\n\n[G]Walk the road\n\`\`\`\n[Am]Teste\n\`\`\`\n`;
     expect(formatHint({ text: both, cursorLine: 3 })).toEqual({ kind: 'bracket', line: 5, topic: 'chords' });
   });
@@ -163,14 +173,14 @@ describe('formatHint (workflow 3 §When it looks like another format; Decisions 
       line: 3,
       topic: 'chords',
     });
-    expect(formatHint({ text: unfenced, cursorLine: 4 })).toBeNull();
+    expect(formatHint({ text: unfenced, cursorLine: 9 })).toBeNull();
   });
 
   test('a dismissed kind yields the other', () => {
-    const text = `# Tarde Clara\n\n[G]Walk the road\n\n## Intro\nG | C | D\n`;
+    const text = `${unfenced}\n## Words\n[G]Walk the road\n`;
     expect(formatHint({ text, cursorLine: 1, dismissed: new Set(['bracket']) })).toEqual({
       kind: 'unfenced',
-      line: 6,
+      line: 9,
       topic: 'parts',
     });
     expect(formatHint({ text, cursorLine: 1, dismissed: new Set(['bracket', 'unfenced']) })).toBeNull();

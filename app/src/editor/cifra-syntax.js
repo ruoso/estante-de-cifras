@@ -20,6 +20,7 @@ import {
 } from 'cifra-md';
 import { songDialect } from '../core/notation/dialects.js';
 import { lineDiagnostics } from './diagnostic-words.js';
+import { isUnfenced } from './music-lines.js';
 
 // The class vocabulary (each maps to an `est-<class>` CSS class on the line):
 //   md       — markdown structure: the `#` title, `- property:` lines, `##`
@@ -101,6 +102,9 @@ export function classifyLines(text) {
   let fenceIsMusic = false;
   let inPreamble = true; // before the first heading / fence / rule
   let inVoicings = false; // after the first top-level rule (spec §7)
+  // A chart with no fence that the reader read as music (spec §1.9.1): its
+  // lines outside the headings are coloured as if fenced.
+  const unfenced = isUnfenced(lines, doc);
 
   return lines.map((line, i) => {
     const lineNo = i + 1;
@@ -157,7 +161,11 @@ export function classifyLines(text) {
     if (LIST_ITEM.test(line)) {
       if (inVoicings) return 'voicing';
       if (inPreamble) return 'md';
-      return 'text';
+      if (!unfenced) return 'text';
+    }
+
+    if (unfenced && !inVoicings && line.trim() !== '') {
+      return looksLikeChords(line, dialect) ? 'ch' : 'lyric';
     }
 
     return 'text';

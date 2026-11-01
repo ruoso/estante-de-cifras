@@ -1895,7 +1895,6 @@ export default {
       'bad-voicing': 'una digitación que no se puede leer.',
       'bad-fingering': 'los dedos de esta digitación no se pueden leer, así que quedan fuera.',
       'notes-outside-block': 'después de la línea ---, solo se conservan bloques de digitaciones.',
-      'unfenced-music': 'esto se lee como acordes, pero está fuera de la música, así que se guarda como nota.',
       'stray-mark': 'un signo de repetición sin grupo que abrir o cerrar.',
       'ending-outside-group': 'un final fuera de un grupo de repetición.',
       'count-out-of-place': 'una cuenta de repeticiones que no sigue a un grupo ni termina la línea.',

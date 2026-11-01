@@ -2066,7 +2066,6 @@ export default {
       'bad-voicing': 'a voicing that can’t be read.',
       'bad-fingering': 'the fingers given for this voicing can’t be read, so they are left out.',
       'notes-outside-block': 'after the rule, only voicing blocks are kept.',
-      'unfenced-music': 'this reads as chords, but it is outside the music, so it is kept as a note.',
       'stray-mark': 'a repeat mark with no group to open or close.',
       'ending-outside-group': 'an ending outside a repeat group.',
       'count-out-of-place': 'a repeat count that follows no repeat group and does not end the line.',

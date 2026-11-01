@@ -25,7 +25,6 @@ export const DIAGNOSTIC_CODES = Object.freeze([
   'bad-voicing',
   'bad-fingering',
   'notes-outside-block',
-  'unfenced-music',
   'stray-mark',
   'ending-outside-group',
   'count-out-of-place',

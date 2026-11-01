@@ -72,6 +72,11 @@ export { parse } from "./parse.js";
 // positions. Not corpus-facing (songs.unknown_tokens_loud refinement §Decisions).
 export { unknownTokens } from "./parse.js";
 
+// Whether one line would read as chords inside a fence (spec §1.9.1): the test
+// behind an unfenced chart, for an application to find music written outside
+// the fences of a fenced one. Not corpus-facing.
+export { readsAsChords } from "./parse.js";
+
 // Canonical writer: model -> canonical text (spec §8). `write` is
 // `serialize ∘ canonical` with the §8.1 marked-text refusal; `canonical` is the
 // §8.2/§8.3/§4.5 model-level canonicaliser. `MarkedTextError` and `isCanonical`

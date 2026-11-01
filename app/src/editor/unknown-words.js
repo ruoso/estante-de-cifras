@@ -8,8 +8,9 @@
 //
 // Pure: no React, no CodeMirror.
 
-import { parse, unknownTokens, isChord, fenceOpen, closesFence, mdHeading } from 'cifra-md';
+import { parse, unknownTokens, isChord, readsAsChords, fenceOpen, closesFence, mdHeading } from 'cifra-md';
 import { songDialect } from '../core/notation/dialects.js';
+import { musicLines, RULE, LIST_ITEM } from './music-lines.js';
 
 /**
  * Whether a path is a song a person is writing — a `*.cifra.md` file, or a new
@@ -75,32 +76,19 @@ export function chordBracketHeadings(text) {
     .filter((name) => name && isChord(name, dialect));
   if (names.length === 0) return [];
 
-  // The bracket headings of the music fences, in order (a fence with another
-  // info string is verbatim, so its lines are no headings).
+  // The bracket headings of the music, in order (a fence with another info
+  // string is verbatim, so its lines are no headings).
   const lines = text.split('\n');
+  const music = musicLines(lines, doc);
   const candidates = [];
-  let fence = null;
-  let music = false;
   lines.forEach((raw, idx) => {
-    if (fence) {
-      if (closesFence(raw, fence)) {
-        fence = null;
-        return;
-      }
-      if (!music) return;
-      // A bracket heading may follow another on its line (`[Intro][Am]`).
-      let rest = raw;
-      let m;
-      while ((m = BRACKET.exec(rest)) && m[1]) {
-        candidates.push({ line: idx + 1, name: firstWord(m[1]) });
-        rest = rest.slice(m[0].length);
-      }
-      return;
-    }
-    const fo = fenceOpen(raw);
-    if (fo) {
-      fence = { char: fo.char, length: fo.length };
-      music = !fo.info || fo.info === 'cifra';
+    if (!music[idx]) return;
+    // A bracket heading may follow another on its line (`[Intro][Am]`).
+    let rest = raw;
+    let m;
+    while ((m = BRACKET.exec(rest)) && m[1]) {
+      candidates.push({ line: idx + 1, name: firstWord(m[1]) });
+      rest = rest.slice(m[0].length);
     }
   });
 
@@ -115,9 +103,6 @@ export function chordBracketHeadings(text) {
   return out;
 }
 
-// A list item, as the reader defines one (js/src/parse.js LIST_ITEM): the
-// title's details and the voicings' lines, never notes to check.
-const LIST_ITEM = /^ {0,3}[-*+](?: +(.*))?$/;
 // A bracketed name followed at once by a letter: `[G]Walk` (ChordPro's way).
 const BRACKET_IN_WORDS = /\[ *([^\]\s]+) *\](?=\p{L})/gu;
 
@@ -135,10 +120,13 @@ const BRACKET_IN_WORDS = /\[ *([^\]\s]+) *\](?=\p{L})/gu;
  */
 export function bracketChordsInNotes(text) {
   if (!text.includes('[')) return [];
-  const dialect = songDialect(parse(text));
+  const doc = parse(text);
+  const dialect = songDialect(doc);
+  const lines = text.split('\n');
+  const music = musicLines(lines, doc);
   const out = [];
   let fence = null;
-  text.split('\n').forEach((raw, idx) => {
+  lines.forEach((raw, idx) => {
     if (fence) {
       if (closesFence(raw, fence)) fence = null;
       return;
@@ -148,7 +136,7 @@ export function bracketChordsInNotes(text) {
       fence = { char: fo.char, length: fo.length };
       return;
     }
-    if (mdHeading(raw) || LIST_ITEM.test(raw)) return;
+    if (music[idx] || mdHeading(raw) || LIST_ITEM.test(raw)) return;
     for (const m of raw.matchAll(BRACKET_IN_WORDS)) {
       if (isChord(m[1], dialect)) {
         out.push({ line: idx + 1 });
@@ -160,15 +148,46 @@ export function bracketChordsInNotes(text) {
 }
 
 /**
- * The line of the reader's *chords outside the music* report — a song with no
- * music fence holding a line that reads as chords (spec §1.9, the format's
- * MUST-report; songs.format_help Decision 2) — or null.
+ * The first line of *chords outside the music* — in a song that has a fence,
+ * a line outside every fence, before the rule, that would read as chords
+ * inside one (`readsAsChords`; songs.format_help Decision 2) — or null. A song
+ * with no fence at all is not checked: the reader reads it as music, each
+ * section as if fenced (spec §1.9.1). Once one fence is there, a line outside
+ * it is notes, which a song typed under the template's first section is.
  *
- * @param {{diagnostics: {code: string, line: number}[]}} parsed the reader's model
+ * @param {string} text
+ * @param {object} [parsed] the reader's model of `text` (for its notation)
  * @returns {number|null}
  */
-export function unfencedChordsLine(parsed) {
-  return parsed.diagnostics.find((d) => d.code === 'unfenced-music')?.line ?? null;
+export function unfencedChordsLine(text, parsed) {
+  const lines = text.split('\n');
+  let fenced = false;
+  for (const raw of lines) {
+    if (RULE.test(raw)) break;
+    if (fenceOpen(raw)) {
+      fenced = true;
+      break;
+    }
+  }
+  if (!fenced) return null;
+  const dialect = songDialect(parsed ?? parse(text));
+  let fence = null;
+  for (let idx = 0; idx < lines.length; idx += 1) {
+    const raw = lines[idx];
+    if (fence) {
+      if (closesFence(raw, fence)) fence = null;
+      continue;
+    }
+    const fo = fenceOpen(raw);
+    if (fo) {
+      fence = { char: fo.char, length: fo.length };
+      continue;
+    }
+    if (RULE.test(raw)) return null;
+    if (!raw.trim() || mdHeading(raw) || LIST_ITEM.test(raw)) continue;
+    if (readsAsChords(raw.trimEnd(), dialect)) return idx + 1;
+  }
+  return null;
 }
 
 /**
@@ -198,7 +217,7 @@ export function formatHint({ text, parsed, cursorLine, pastedLines = new Set(), 
     if (line !== undefined) return { kind: 'bracket', line, topic: 'chords' };
   }
   if (!dismissed.has('unfenced')) {
-    const line = unfencedChordsLine(parsed ?? parse(text));
+    const line = unfencedChordsLine(text, parsed);
     if (line !== null && counts(line)) return { kind: 'unfenced', line, topic: 'parts' };
   }
   return null;

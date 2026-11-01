@@ -129,12 +129,6 @@ func TestDiagnosticCodesMessagesAndLines(t *testing.T) {
 			"a fence was opened and never closed; it runs to the end of the document",
 		},
 		{
-			"unfenced-music",
-			"G C D\n",
-			"unfenced-music", 1,
-			"this reads as a line of chords, but it is outside a fence, so it is notes; put the music between ``` lines (or ~~~)",
-		},
-		{
 			"stray-mark",
 			"## S\n```\nDm )\n```\n",
 			"stray-mark", 3,

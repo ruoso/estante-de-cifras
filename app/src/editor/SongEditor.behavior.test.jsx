@@ -1050,11 +1050,13 @@ describe('SongEditor format help', () => {
   });
 
   it('chords outside the music: the notice names the line and opens at Parts and the music fence', async () => {
-    const UNFENCED = ['# Tarde Clara', '', '## Intro', 'G | C | D', ''].join('\n');
+    // Typed under the template's first part: that part's fence is there, so a
+    // line outside it is a note (spec §1.9.1).
+    const UNFENCED = ['# Tarde Clara', '', '## Intro', '```', 'C', '```', '', '## Verse', 'G | C | D', ''].join('\n');
     const { editorRef, container } = await mount(UNFENCED);
-    const notice = t('editor.source.unfencedChords', { line: 4 });
+    const notice = t('editor.source.unfencedChords', { line: 9 });
     expect(notice).toBe(
-      'Line 4 looks like chords, but it is outside the music, so it is kept as a note. Music goes between two lines of three backticks.',
+      'Line 9 looks like chords, but it is outside the music, so it is kept as a note. Music goes between two lines of three backticks.',
     );
     // The notice — beside it, the red line's live region (songs.editor_errors_in_words).
     const notices = () => screen.getAllByRole('status').filter((s) => !s.classList.contains('est-line-announce'));
@@ -1076,7 +1078,7 @@ describe('SongEditor format help', () => {
       editorRef.current.dispatch({ changes: { from: end, insert: '\n[G]Walk the road\n' }, selection: { anchor: 0 } });
     });
     expect(screen.queryByText(notice)).toBeNull();
-    expect(screen.getByText(t('editor.source.bracketChords', { line: 6 }))).toBeInTheDocument();
+    expect(screen.getByText(t('editor.source.bracketChords', { line: 11 }))).toBeInTheDocument();
   });
 
   it('bracket chords in notes raise the bracket notice', async () => {
@@ -1284,8 +1286,12 @@ describe('the split follows the editor\'s own width (songs.editor_split_width)',
 describe('SongEditor — a marked line says why', () => {
   afterEach(() => setLocale('en'));
 
-  const RASCUNHO = '# Rascunho\n\n| Am7 | D7 | Gm7 | C7 |\n';
-  const BAR_NOTE = 'Line 3: this reads as chords, but it is outside the music, so it is kept as a note.';
+  // No fence at all: the bars are music (spec §1.9.1), and the stray `)` is
+  // what the reader reports.
+  const RASCUNHO = '# Rascunho\n\n| Am7 | D7 | Gm7 | C7 ) |\n';
+  const BAR_NOTE = 'Line 3: a repeat mark with no group to open or close.';
+  // A fence above it: the bars are a note, which the notice offers to fence.
+  const TYPED_UNDER = '# Rascunho\n\n```\nC\n```\n\n| Am7 | D7 | Gm7 | C7 |\n';
 
   async function mount(text) {
     const env = makeStore();
@@ -1307,7 +1313,7 @@ describe('SongEditor — a marked line says why', () => {
   it('a reported line carries its note in words', async () => {
     const { container, editorRef } = await mount(RASCUNHO);
     const bar = lineEl(container, 3);
-    expect(bar).toHaveTextContent('| Am7 | D7 | Gm7 | C7 |');
+    expect(bar).toHaveTextContent('| Am7 | D7 | Gm7 | C7 ) |');
     expect(bar).toHaveClass('est-err');
     // Directly under the red line, in words, hidden from the textbox's reading.
     const note = bar.nextElementSibling;
@@ -1317,15 +1323,11 @@ describe('SongEditor — a marked line says why', () => {
     expect(notes(container)).toHaveLength(1);
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
-    // Fenced by hand: the line reads as bars, and the red and its note go.
+    // Mended by hand: the stray mark goes, and the red and its note with it.
     act(() => {
       const line = editorRef.current.state.doc.line(3);
-      editorRef.current.dispatch({
-        changes: [
-          { from: line.from, insert: '```\n' },
-          { from: line.to, insert: '\n```' },
-        ],
-      });
+      const at = line.from + line.text.indexOf(' )');
+      editorRef.current.dispatch({ changes: { from: at, to: at + 2 } });
     });
     expect(notes(container)).toHaveLength(0);
     expect(container.querySelector('.cm-line.est-err')).toBeNull();
@@ -1351,7 +1353,7 @@ describe('SongEditor — a marked line says why', () => {
       const end = editorRef.current.state.doc.line(3).to;
       editorRef.current.dispatch({ changes: { from: end, insert: ' ' }, selection: { anchor: end + 1 }, userEvent: 'input.type' });
     });
-    expect(editorRef.current.state.doc.line(3).text).toBe('| Am7 | D7 | Gm7 | C7 | ');
+    expect(editorRef.current.state.doc.line(3).text).toBe('| Am7 | D7 | Gm7 | C7 ) | ');
     expect(watch.takeRecords()).toEqual([]);
     watch.disconnect();
     expect(region).toHaveTextContent(BAR_NOTE);
@@ -1385,42 +1387,42 @@ describe('SongEditor — a marked line says why', () => {
   });
 
   it('Put it in the music fences the paragraph and Undo reverts it', async () => {
-    const { container, editorRef } = await mount(RASCUNHO);
+    const { container, editorRef } = await mount(TYPED_UNDER);
     // The cursor is off the line (on the title), so the notice counts it and
     // offers the fix beside Show me how.
     expect(editorRef.current.state.doc.lineAt(editorRef.current.state.selection.main.head).number).toBe(1);
     const offer = screen.getByRole('button', { name: 'Put it in the music' });
     const notice = offer.closest('[role="status"]');
-    expect(notice).toHaveTextContent(t('editor.source.unfencedChords', { line: 3 }));
+    expect(notice).toHaveTextContent(t('editor.source.unfencedChords', { line: 7 }));
     expect(within(notice).getByRole('button', { name: 'Show me how' })).toBeInTheDocument();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     act(() => fireEvent.click(offer));
-    expect(editorRef.current.state.doc.toString()).toBe('# Rascunho\n\n```\n| Am7 | D7 | Gm7 | C7 |\n```\n');
-    expect(lineEl(container, 4)).not.toHaveClass('est-err');
+    expect(editorRef.current.state.doc.toString()).toBe('# Rascunho\n\n```\nC\n```\n\n```\n| Am7 | D7 | Gm7 | C7 |\n```\n');
+    expect(lineEl(container, 8)).not.toHaveClass('est-err');
     expect(notes(container)).toHaveLength(0);
     // The chart now reads it as bars.
     expect(container.querySelector('.est-editor-preview')).toHaveTextContent('Gm7');
     // The cursor stays on the same text, and the text has focus back.
     expect(editorRef.current.state.selection.main.head).toBe(0);
     expect(editorRef.current.hasFocus).toBe(true);
-    const wrap = screen.getByText(/^Line 3 is now inside the music/).closest('[role="status"]');
-    expect(wrap).toHaveTextContent('Line 3 is now inside the music, so it reads as chords.');
+    const wrap = screen.getByText(/^Line 7 is now inside the music/).closest('[role="status"]');
+    expect(wrap).toHaveTextContent('Line 7 is now inside the music, so it reads as chords.');
     expect(screen.queryByRole('button', { name: 'Put it in the music' })).toBeNull();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
 
     act(() => fireEvent.click(within(wrap).getByRole('button', { name: t('editor.source.undo') })));
-    expect(editorRef.current.state.doc.toString()).toBe(RASCUNHO);
+    expect(editorRef.current.state.doc.toString()).toBe(TYPED_UNDER);
     expect(screen.queryByText(/is now inside the music/)).toBeNull();
-    expect(lineEl(container, 3).nextElementSibling).toHaveTextContent(BAR_NOTE);
+    expect(screen.getByRole('button', { name: 'Put it in the music' })).toBeInTheDocument();
 
     // Again, reverted this time with one Mod-z: the same text, byte for byte.
     act(() => fireEvent.click(screen.getByRole('button', { name: 'Put it in the music' })));
-    expect(editorRef.current.state.doc.toString()).not.toBe(RASCUNHO);
+    expect(editorRef.current.state.doc.toString()).not.toBe(TYPED_UNDER);
     act(() => {
       undo(editorRef.current);
     });
-    expect(editorRef.current.state.doc.toString()).toBe(RASCUNHO);
+    expect(editorRef.current.state.doc.toString()).toBe(TYPED_UNDER);
   });
 
   it('a marker line has no note', async () => {

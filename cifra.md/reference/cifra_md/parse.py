@@ -75,6 +75,13 @@ def closes_fence(line: str, fence) -> bool:
     return bool(m) and m.group(1)[0] == fence[0] and len(m.group(1)) >= fence[1]
 
 
+def close_implicit(part) -> None:
+    """End an implicit fence (§1.9.1): the blank lines before the heading or
+    the rule that ends it are not part of it."""
+    while part["raw"] and not part["raw"][-1][1]:
+        part["raw"].pop()
+
+
 def substantive(it: dict) -> bool:
     """Does the item make a measure (§2.2)? Marks, counts and ending markers
     do not, including an ending marker demoted to an unknown token (§3.4)."""
@@ -390,6 +397,10 @@ class _Parser:
         in_voicings = False
         block = None
         skipping = False
+        # A chart with no fence whose lines read as chords is music (§1.9.1):
+        # each run of lines between Markdown headings is read as one fence,
+        # the implicit fence ("", 0, line), which no line closes.
+        unfenced = self.reads_unfenced(start)
 
         for idx in range(start, len(self.lines)):
             raw = self.lines[idx]
@@ -398,6 +409,19 @@ class _Parser:
             if in_voicings:
                 block, skipping = self.voicings_line(raw, lineno, block, skipping)
                 continue
+
+            if unfenced:
+                ends = RULE.match(raw) or md_heading(raw)
+                if fence is not None and ends:
+                    close_implicit(part)
+                    fence = None
+                    part = None
+                elif fence is None and not ends:
+                    if not raw:
+                        continue
+                    fence = ("", 0, lineno)
+                    part = {"type": "music", "raw": [], "_opening": True, "_section": section}
+                    section["body"].append(part)
 
             if fence is not None:
                 if closes_fence(raw, fence):
@@ -482,7 +506,9 @@ class _Parser:
                 section["body"].append(part)
             part["raw"].append((lineno, raw))
 
-        if fence is not None:
+        if fence is not None and not fence[0]:
+            close_implicit(part)
+        elif fence is not None:
             self.diag("unclosed-fence", fence[2], "a fence was opened and never closed; it runs to the end of the document")
             if part is not None and part["type"] == "verbatim":
                 while part["raw"] and not part["raw"][-1]:
@@ -624,8 +650,6 @@ class _Parser:
                         lines.pop()
                     if lines:
                         body.append({"type": "notes", "text": "\n".join(t for _, t in lines)})
-                        if not shaped:
-                            self.unfenced_check(lines)
                 elif part["type"] == "verbatim":
                     body.append({"type": "verbatim", "info": part["info"], "text": "\n".join(part["raw"])})
                 else:
@@ -654,27 +678,26 @@ class _Parser:
                         line.pop("_words", None)
                         line.pop("_line", None)
 
-    def unfenced_check(self, lines):
-        """A chart with no fence at all whose notes look like chord lines is
-        almost certainly a paste that was never fenced (§1.9)."""
-        if any(d["code"] == "unfenced-music" for d in self.diagnostics):
-            return
-        for lineno, text in lines:
-            if MD_HEADING.match(text) or LIST_ITEM.match(text):
+    def reads_unfenced(self, start):
+        """Is the chart unfenced music (§1.9.1)? It is when it has no fence at
+        all and one of its lines, other than a Markdown heading or a list
+        item, reads as a line of chords: a song typed or pasted without
+        fences."""
+        found = False
+        for idx in range(start, len(self.lines)):
+            text = self.lines[idx]
+            if RULE.match(text):
+                break
+            if fence_open(text):
+                return False
+            if found or MD_HEADING.match(text) or LIST_ITEM.match(text):
                 continue
             shape = line_shape(text, self.dialect)
             if shape["scan"] is None:
                 continue
             chords = [it for m in shape["scan"]["measures"] for it in m["items"] if it["type"] in ("chord", "nochord")]
-            if shape["kind"] == "chords" and chords:
-                self.diag(
-                    "unfenced-music",
-                    lineno,
-                    "this reads as a line of chords, but it is outside a fence, so it is notes; "
-                    "put the music between ``` lines (or ~~~)",
-                    text,
-                )
-                return
+            found = shape["kind"] == "chords" and bool(chords)
+        return found
 
     def assemble(self, part, sung):
         """The lines of one music part. A run of blank lines between two

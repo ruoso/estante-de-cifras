@@ -10,7 +10,8 @@ Every line inside a fence (§1.9) in the chart that is not a cifra-style
 heading, not blank and not a lyric line (§4) is a chord line. In a document
 that has no words, that is every such line, and a reader that does not
 implement §4 treats every such line as a chord line. Lines outside a fence
-are never chord lines.
+are never chord lines, except in an unfenced chart, which is read as if
+fenced (§1.9.1).
 
 ```
 C  Am | F  G
