@@ -2217,6 +2217,11 @@ export default {
     write: 'Escribir el plan',
     shapeChanges: 'forma nueva',
     shapeKept: 'como está',
+    reading: 'Leyendo la canción…',
+    failed: 'El asistente no pudo hacer un plan para esta canción, así que nada cambió. Qué salió mal: {reason}',
+    noChords: 'El asistente no encontró en esta canción ningún acorde al que elegirle una forma, así que no hay nada que escribir.',
+    undrawn: 'También en el plan, sin diagrama para mostrar: {list}.',
+    writeFailed: 'El plan no se pudo escribir en la canción, así que nada cambió. Qué salió mal: {reason}',
   },
 
   shape: {

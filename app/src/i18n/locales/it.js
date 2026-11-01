@@ -2219,6 +2219,11 @@ export default {
     write: 'Scrivi il piano',
     shapeChanges: 'forma nuova',
     shapeKept: 'come ora',
+    reading: 'Lettura del brano…',
+    failed: 'L’assistente non è riuscito a fare un piano per questo brano, quindi non è cambiato nulla. Cosa è andato storto: {reason}',
+    noChords: 'L’assistente non ha trovato in questo brano nessun accordo a cui scegliere una forma, quindi non c’è niente da scrivere.',
+    undrawn: 'Anche nel piano, senza diagramma da mostrare: {list}.',
+    writeFailed: 'Il piano non è stato scritto nel brano, quindi non è cambiato nulla. Cosa è andato storto: {reason}',
   },
 
   shape: {

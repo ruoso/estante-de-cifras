@@ -23,6 +23,20 @@ import { checkWcag21aa } from '../a11y/axe.js';
 import { setLocale } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SongWizard from './SongWizard.jsx';
+
+// The planner as the app has it, unless a test asks it to break
+// (songs.wizard_loud): the one way to make a plan fail on purpose.
+const planner = vi.hoisted(() => ({ fail: false }));
+vi.mock('../core/voicing-plan/index.js', async (importOriginal) => {
+  const real = await importOriginal();
+  return {
+    ...real,
+    planVoicings: (...args) => {
+      if (planner.fail) throw new Error('the planner broke');
+      return real.planVoicings(...args);
+    },
+  };
+});
 import SongEditor from '../editor/SongEditor.jsx';
 import { installWidths } from '../test/widths.js';
 
@@ -53,6 +67,7 @@ beforeEach(() => {
 afterEach(() => {
   delete globalThis.matchMedia;
   vi.restoreAllMocks();
+  planner.fail = false;
 });
 
 // A purpose-written song: optional `- key: value` properties, a chord-only
@@ -108,11 +123,12 @@ function ukuleleEntry() {
 // The loopback-backed stub Worker: seeds the slices on
 // OPEN, answers the reads, records every command, and re-surfaces SONG on
 // SET_VARIATION. WRITE is silent (durability only) — recorded, no event.
-function makeStore({ text, entry, variations = {}, notation = null }) {
+function makeStore({ text, entry, variations = {}, notation = null, holdSource = false }) {
   const commands = [];
+  let port;
   const state = { variations: { ...variations } };
   const prefs = { instrumentInUse: register(entry.id), ...(notation ? { notation } : {}) };
-  const endpoint = createLoopbackEndpoint((port) => ({
+  const endpoint = createLoopbackEndpoint((p0) => (port = p0, {
     handle(message) {
       commands.push(message);
       const p = message.payload ?? {};
@@ -123,7 +139,7 @@ function makeStore({ text, entry, variations = {}, notation = null }) {
           port.postMessage(event(EventKind.INSTRUMENTS, { instruments: [entry], inUseId: entry.id, standard: entry }));
           break;
         case CommandKind.OPEN_SOURCE:
-          port.postMessage(event(EventKind.SOURCE, { bookId: p.bookId, path: p.path, text }));
+          if (!holdSource) port.postMessage(event(EventKind.SOURCE, { bookId: p.bookId, path: p.path, text }));
           break;
         case CommandKind.OPEN_SONG:
           port.postMessage(event(EventKind.SONG, { bookId: p.bookId, path: p.path, transposition: 0, ...state }));
@@ -137,7 +153,14 @@ function makeStore({ text, entry, variations = {}, notation = null }) {
       }
     },
   }));
-  return { store: createStore(endpoint), commands };
+  // Answer the song's text by hand (a held-back OPEN_SOURCE, or a stale entry
+  // seeded before the wizard mounts).
+  const sendSource = async (body) => {
+    await act(async () => {
+      port.postMessage(event(EventKind.SOURCE, { bookId: BOOK, path: PATH, text: body }));
+    });
+  };
+  return { store: createStore(endpoint), commands, sendSource };
 }
 
 function renderWizard(store, props = {}) {
@@ -560,5 +583,95 @@ describe("SongWizard — the song's own notation (workflow 5 §The wizard; cifra
     const block = blockOf(write.payload.text);
     expect(block.voicings.map((v) => v.key).sort()).toEqual(['C7(4)', 'C7+']);
     expect(write.payload.text).toContain('- notation: american');
+  });
+});
+
+// songs.wizard_loud — the wizard never fails silently: it says while the song is
+// still being read, plans only on the text this open read (never a stale one),
+// and says why when a plan cannot be made, when there is no chord to plan, when
+// a planned shape has no diagram, and when the plan cannot be written.
+describe('SongWizard — never silent', () => {
+  it('reads the song before planning: says so, holds See the plan, and ignores a stale text', async () => {
+    const { store, commands, sendSource } = makeStore({
+      text: song({}),
+      entry: guitarEntry(),
+      holdSource: true,
+    });
+    // A text from an earlier open is in the slice when the wizard mounts — the
+    // editor's, before edits the wizard must not plan over.
+    await sendSource('# Old\n');
+    const { container } = renderWizard(store);
+    act(() => store.open());
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Choose a policy' })).toBeInTheDocument());
+    expect(screen.getByText('Reading the song…')).toBeInTheDocument();
+    await click(screen.getByRole('button', { name: 'Down at the nut' }));
+    expect(screen.getByRole('button', { name: 'See the plan' })).toBeDisabled();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // This open's text arrives: the wizard plans on it.
+    await sendSource(song({}));
+    expect(screen.queryByText('Reading the song…')).toBeNull();
+    await click(screen.getByRole('button', { name: 'See the plan' }));
+    expect(screen.getByText('4 of 4 chords would change.')).toBeInTheDocument();
+    expect(lastCommand(commands, CommandKind.WRITE)).toBeUndefined();
+  });
+
+  it('says what went wrong when no plan can be made, logs it, and offers nothing to write', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    planner.fail = true;
+    const { store, commands } = makeStore({ text: song({}), entry: guitarEntry() });
+    const { container } = await openWizard(store);
+    await toPreview('Choro, beside a seven-string');
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'The wizard could not make a plan for this song, so nothing was changed. What went wrong: the planner broke',
+    );
+    expect(screen.queryByRole('button', { name: 'Write the plan' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(error).toHaveBeenCalledWith('Voicing wizard:', expect.any(Error));
+    expect(lastCommand(commands, CommandKind.WRITE)).toBeUndefined();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('says there is no chord to plan in a song with none, and offers nothing to write', async () => {
+    const { store } = makeStore({ text: '# Só letra\n\n## A\nNo chords, just words.\n', entry: guitarEntry() });
+    await openWizard(store);
+    await toPreview('The smoothest path');
+    expect(screen.getByText('The wizard found no chord in this song to choose a shape for, so there is nothing to write.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Write the plan' })).toBeNull();
+  });
+
+  it('counts and names a planned shape the diagram cannot draw, and still writes it', async () => {
+    // E7 over D after B7/D# under the beginner rules (Apanhei-te Cavaquinho's B
+    // part): the choro plan's x20454 is past what those rules finger, so it has
+    // no diagram — but it is the plan's.
+    const inst = instrumentInstance({ catalogId: '6guitar', strings: GUITAR_TUNING, fretCount: 22 });
+    const entry = { ...guitarEntry(), config: configFor(inst, 'beginner') };
+    const { store, commands } = makeStore({ text: song({ chart: 'Em | F#7/E | B7/D# | E7/D' }), entry });
+    const { container } = await openWizard(store);
+    await toPreview('Choro, beside a seven-string');
+
+    expect(screen.getByText('4 of 4 chords would change.')).toBeInTheDocument();
+    expect(screen.getByText(/^Also in the plan, with no diagram to show them: E7\/D \(x20454\)\.$/)).toBeInTheDocument();
+    expect(container.querySelectorAll('.wizard-preview .chord-diagram')).toHaveLength(3);
+    await click(screen.getByRole('button', { name: 'Write the plan' }));
+    expect(lastCommand(commands, CommandKind.WRITE).payload.text).toContain('- E7/D: x20454');
+  });
+
+  it('says so when the plan cannot be written, and stays on the plan', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // A conflict left in the text: the writer refuses a song that still holds
+    // a marker line (cifra.md §8.1).
+    const conflicted = song({}).replace('## Primeira Parte', '<<<<<<< ours\n## Primeira Parte');
+    const onBack = vi.fn();
+    const { store, commands } = makeStore({ text: conflicted, entry: guitarEntry() });
+    await openWizard(store, { onBack });
+    await toPreview('Down at the nut');
+    await click(screen.getByRole('button', { name: 'Write the plan' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/^The plan could not be written into the song, so nothing was changed\. What went wrong: \S/);
+    expect(onBack).not.toHaveBeenCalled();
+    expect(lastCommand(commands, CommandKind.WRITE)).toBeUndefined();
+    expect(error).toHaveBeenCalled();
   });
 });

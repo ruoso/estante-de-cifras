@@ -323,3 +323,16 @@
 .wizard-main-shapes h2 {
   margin: 0;
 }
+
+/* What went wrong, said where the action is (songs.wizard_loud): the write's
+   failure takes the action bar's whole width above its buttons. */
+.wizard-actionbar {
+  flex-wrap: wrap;
+}
+.wizard-write-failed {
+  flex-basis: 100%;
+  margin: 0;
+}
+.wizard-failed {
+  margin: 0;
+}

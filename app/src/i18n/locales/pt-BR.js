@@ -2215,6 +2215,11 @@ export default {
     write: 'Escrever o plano',
     shapeChanges: 'desenho novo',
     shapeKept: 'como está',
+    reading: 'Lendo a música…',
+    failed: 'O assistente não conseguiu fazer um plano para esta música, então nada mudou. O que deu errado: {reason}',
+    noChords: 'O assistente não achou nesta música nenhum acorde para escolher um desenho, então não há nada para escrever.',
+    undrawn: 'Também no plano, sem diagrama para mostrar: {list}.',
+    writeFailed: 'O plano não pôde ser escrito na música, então nada mudou. O que deu errado: {reason}',
   },
 
   shape: {

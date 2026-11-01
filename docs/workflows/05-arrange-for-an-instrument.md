@@ -108,6 +108,15 @@ chords, as the diagrams are — *3 of 5 chords would change* — not of every
 place a chord is played. A plan that changes nothing says so and offers
 nothing to write; *Back* tries another way.
 
+The wizard never goes quiet. Until the song's text is in, it says it is
+reading the song and *See the plan* waits; it plans only on the text it has
+just read, never on one left from an earlier open. When no plan can be made it
+says so and what went wrong, and offers nothing to write; a song with no chord
+to shape says that; a planned shape the diagram cannot draw under the
+instrument's rules is still counted and written, and named in words (*Also in
+the plan, with no diagram to show them: E7/D (x20454)*); and when the plan
+cannot be written into the song it says so and stays on the plan.
+
 A variation is the way to keep a plan beside an existing arrangement rather
 than over it. So when the variation in use already has choices, the wizard
 offers **into a new variation** first, and *replace “Default”* second — the

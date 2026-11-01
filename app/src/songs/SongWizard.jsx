@@ -58,6 +58,7 @@ import { planIntoNewVariation, applyPlan } from '../core/voicing-plan/apply.js';
 import { sourcesFor, citation } from '../data/sources.js';
 import ChordDiagram from '../diagram/ChordDiagram.jsx';
 import { inUseHasChoices, existingFor } from './wizard-choices.js';
+import { songVariations } from '../core/song-variations.js';
 import './wizard.css';
 import { BarEnd } from '../shell/HeaderChrome.jsx';
 
@@ -140,8 +141,21 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
   const [choice, setChoice] = useState('new'); // 'new' | 'over', when a choice is offered
   const [varName, setVarName] = useState(() => t('wizard.defaultName'));
   const [varError, setVarError] = useState(null);
+  // Why the plan could not be written into the song, when it could not
+  // (songs.wizard_loud): said where Write the plan is, never a silent no-op.
+  const [writeError, setWriteError] = useState(null);
 
-  const text = sourceSlice?.[bookId]?.[path]?.text ?? '';
+  // The song's text as THIS mount's OPEN_SOURCE returns it (songs.wizard_loud).
+  // The slice may still hold an entry from an earlier open — stale once the
+  // working copy moved (the editor's edits, a discard) — and planning on it
+  // writes a plan for a text that is no longer there, or for none at all. So the
+  // entry present at mount is ignored, as the editor's is: every SOURCE reply
+  // lands as a new object. Until it lands the wizard says it is reading the song.
+  const [staleSourceEntry] = useState(() => sourceSlice?.[bookId]?.[path]);
+  const sourceEntry = sourceSlice?.[bookId]?.[path];
+  const freshEntry = sourceEntry && sourceEntry !== staleSourceEntry ? sourceEntry : null;
+  const loaded = Boolean(freshEntry);
+  const text = freshEntry?.text ?? '';
   // The preference spells a chord's name for the user (the diagrams below,
   // workflow 16 §Viewing by notation); the song is read and planned in its own
   // notation (cifra.md §5.6; workflow 2 §Reading a song).
@@ -149,6 +163,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
   const entry = inUseEntry(instrumentsSlice);
 
   let instrument = null;
+  let instrumentError = null;
   if (entry) {
     try {
       instrument = instrumentInstance({
@@ -158,8 +173,9 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
         fretCount: entry.fretCount,
         heuristics: entry.config,
       });
-    } catch {
+    } catch (e) {
       instrument = null;
+      instrumentError = e;
     }
   }
 
@@ -182,6 +198,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
   // has, so the "would change" count is right.
   const existing = model ? existingFor(model, tuningText, variation) : new Map();
   let planResult = null;
+  let planError = null;
   if (model && instrument && plannerId) {
     try {
       planResult = planVoicings(plannerId, model, instrument, {
@@ -189,10 +206,19 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
         existing,
         choices,
       });
-    } catch {
+    } catch (e) {
       planResult = null;
+      planError = e;
     }
   }
+  // A failure is said on screen and logged with its stack, once per kind of
+  // failure, so a report can name what broke (songs.wizard_loud).
+  const failure = instrumentError ?? planError;
+  const failureText = failure ? String(failure?.message ?? failure) : null;
+  useEffect(() => {
+    if (failure) console.error('Voicing wizard:', failure);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [failureText]);
 
   // Whether the variation in use already holds choices: the branch that decides
   // *new / over* vs writing straight in (Workflow 5 L70-72, Decision 3).
@@ -212,14 +238,26 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
     }
   }
   const previewShapes = [];
+  // A planned shape the diagram cannot draw (its fingering is past what the
+  // instrument's rules can finger — E7/D's x20454 under *beginner*) is still
+  // written: it is counted and named in words, never dropped (songs.wizard_loud).
+  const undrawn = [];
   if (planResult) {
     const seen = new Set();
     for (const [at, frets] of planResult.shapes) {
       const line = planResult.reading.line[at];
       if (!line || line.ref.key == null || seen.has(line.ref.key)) continue;
-      const fingering = line.chord ? fingeringFromFrets(frets, line.chord, instrument) : null;
-      if (!fingering) continue;
       seen.add(line.ref.key);
+      let fingering = null;
+      try {
+        fingering = line.chord ? fingeringFromFrets(frets, line.chord, instrument) : null;
+      } catch {
+        fingering = null;
+      }
+      if (!fingering) {
+        undrawn.push({ key: line.ref.key, symbol: line.ref.symbol, frets });
+        continue;
+      }
       const shape = { key: line.ref.key, symbol: line.ref.symbol, chord: line.chord, fingering };
       previewShapes.push({
         ...shape,
@@ -231,11 +269,14 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
 
   // Counted by chord, as the diagrams are — *3 of 5 chords would change* — not
   // by every place a chord is played.
-  const total = previewShapes.length;
-  const changed = previewShapes.filter((sh) => changedKeys.has(sh.key)).length;
+  const total = previewShapes.length + undrawn.length;
+  const changed =
+    previewShapes.filter((sh) => changedKeys.has(sh.key)).length + undrawn.filter((u) => changedKeys.has(u.key)).length;
   // A plan that changes nothing has nothing to write: no *where to put it*, no
-  // *Write the plan* — only the way back to another policy.
-  const nothingToWrite = Boolean(planResult) && total > 0 && changed === 0;
+  // *Write the plan* — only the way back to another policy. Nor has a plan that
+  // could not be made, or one that found no chord to shape: each says why.
+  const noPlan = stage === 'preview' && (Boolean(failure) || !planResult || total === 0);
+  const nothingToWrite = noPlan || (Boolean(planResult) && total > 0 && changed === 0);
   const missingList = planResult
     ? [...new Set(planResult.missing.map((at) => planResult.reading.line[at]?.ref.symbol).filter(Boolean))]
     : [];
@@ -262,7 +303,10 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
     let out;
     try {
       out = write(doc);
-    } catch {
+    } catch (e) {
+      // Said, not swallowed: the wizard stays open on the plan (songs.wizard_loud).
+      console.error('Voicing wizard: the plan could not be written', e);
+      setWriteError(String(e?.message ?? e));
       return false;
     }
     store.send(command(CommandKind.WRITE, { bookId, path, text: out }));
@@ -276,6 +320,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
   // use. Either way it is an ordinary unsaved working-copy edit.
   const writePlan = () => {
     if (!model || !planResult) return;
+    setWriteError(null);
     const doc = parse(text);
     if (needsChoice && choice === 'new') {
       const name = varName.trim();
@@ -286,8 +331,14 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
       let next;
       try {
         next = planIntoNewVariation(doc, planResult, { tuning: tuningText, name });
-      } catch {
-        setVarError(t('arrange.variationTaken', { name }));
+      } catch (e) {
+        // A taken name is the one refusal addVariation makes on purpose; say
+        // anything else as what it is.
+        if (songVariations(doc, tuningId).includes(name)) setVarError(t('arrange.variationTaken', { name }));
+        else {
+          console.error('Voicing wizard: the new variation could not be made', e);
+          setWriteError(String(e?.message ?? e));
+        }
         return;
       }
       if (!persist(next)) return;
@@ -321,6 +372,18 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
   // not a list of buttons: [[role-list-of-rac-buttons-fails-axe]]). Each policy
   // carries its name and text, a *How it works* disclosure, and its citations;
   // the choro's stylistic question appears under it once it is chosen.
+  // Before any policy: whether the song is in yet, and whether the instrument
+  // could be read — said, so an empty list or a dead *See the plan* is never
+  // the only sign (songs.wizard_loud).
+  const songState = !loaded ? (
+    <p className="t-small wizard-reading" role="status">
+      {t('wizard.reading')}
+    </p>
+  ) : instrumentError ? (
+    <p className="notice conflict wizard-failed" role="alert">
+      {t('wizard.failed', { reason: failureText })}
+    </p>
+  ) : null;
   const policyStep = (
     <div className="wizard-policies" role="group" aria-label={t('wizard.policyLabel')}>
       {planners.map((p) => {
@@ -402,7 +465,16 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
 
   // The preview: the diagrams the song will carry, a "{n} of {m} would change"
   // line (or the nothing-changes state), and the chords it could not voice.
-  const previewNotes = (
+  const undrawnList = undrawn.map((u) => `${u.symbol} (${u.frets.join('')})`).join(', ');
+  const previewNotes = failure ? (
+    <p className="notice conflict wizard-failed" role="alert">
+      {t('wizard.failed', { reason: failureText })}
+    </p>
+  ) : !planResult || total === 0 ? (
+    <p className="t-small wizard-summary" role="status">
+      {t('wizard.noChords')}
+    </p>
+  ) : (
     <>
       {nothingToWrite ? (
         <p className="t-small wizard-summary" role="status">
@@ -417,6 +489,11 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
       {missingList.length ? (
         <p className="t-small wizard-missing" role="status">
           {t('wizard.missing', { list: missingList.join(', ') })}
+        </p>
+      ) : null}
+      {undrawn.length ? (
+        <p className="t-small wizard-undrawn" role="status">
+          {t('wizard.undrawn', { list: undrawnList })}
         </p>
       ) : null}
     </>
@@ -494,8 +571,13 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
 
   const actions = (
     <div className="wizard-actionbar wizard-chrome">
+      {writeError ? (
+        <p className="notice conflict wizard-failed wizard-write-failed" role="alert">
+          {t('wizard.writeFailed', { reason: writeError })}
+        </p>
+      ) : null}
       {stage === 'policy' ? (
-        <Button className="btn primary grow" isDisabled={!plannerId} onPress={() => setStage('preview')}>
+        <Button className="btn primary grow" isDisabled={!plannerId || !loaded} onPress={() => setStage('preview')}>
           {t('wizard.preview')}
         </Button>
       ) : (
@@ -545,6 +627,7 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
             </div>
             <div className="scroll wizard-side-scroll">
               {header}
+              {stage === 'policy' ? songState : null}
               {stage === 'policy' ? policyStep : choiceSection}
               {stage === 'preview' && !nothingToWrite ? <p className="t-small wizard-editnote">{t('wizard.editNote')}</p> : null}
             </div>
@@ -620,7 +703,8 @@ export default function SongWizard({ store, bookId, path, mode = 'narrow', onBac
         <div className="wizard-body">
           <div className="wizard-controls">
             {header}
-            {stage === 'policy' ? policyStep : choiceSection}
+            {stage === 'policy' ? songState : null}
+              {stage === 'policy' ? policyStep : choiceSection}
             {stage === 'preview' && !nothingToWrite ? (
               <p className="t-small wizard-editnote">{t('wizard.editNote')}</p>
             ) : null}

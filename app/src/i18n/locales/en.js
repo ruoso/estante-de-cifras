@@ -2399,6 +2399,11 @@ export default {
     write: 'Write the plan',
     shapeChanges: 'new shape',
     shapeKept: 'as now',
+    reading: 'Reading the song…',
+    failed: 'The wizard could not make a plan for this song, so nothing was changed. What went wrong: {reason}',
+    noChords: 'The wizard found no chord in this song to choose a shape for, so there is nothing to write.',
+    undrawn: 'Also in the plan, with no diagram to show them: {list}.',
+    writeFailed: 'The plan could not be written into the song, so nothing was changed. What went wrong: {reason}',
   },
 
   shape: {
