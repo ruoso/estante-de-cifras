@@ -12,6 +12,7 @@ import WizardDev from './songs/WizardDev.jsx';
 import FilesDev from './files/FilesDev.jsx';
 import SetlistsDev from './books/SetlistsDev.jsx';
 import UpdateReady from './pwa/UpdateReady.jsx';
+import InstallOffer from './pwa/InstallOffer.jsx';
 import { signInToken } from './account/sign-in-route.js';
 import { recoveryEmailToken } from './account/recovery-email-route.js';
 import { invitationToken } from './account/invitation-route.js';
@@ -217,6 +218,10 @@ export default function App({ store = getAppStore() }) {
             token root and the locale boundary so it is themed and translated; it
             renders nothing until a new version is waiting. */}
         <UpdateReady />
+        {/* The offer to install the app (shell.pwa): the browser's install
+            dialog, or the iOS Share-sheet hint; nothing once installed or
+            dismissed, and it stands aside while the update notice shows. */}
+        <InstallOffer />
         {/* The word that a save landed, over every surface (SavedNotice). */}
         <SavedNotice store={store} />
       </LocaleRoot>

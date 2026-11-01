@@ -1,0 +1,24 @@
+/* The install offer (shell.pwa): the update notice's look, but low on the
+   screen, just above the phone tab bar (the saved word's place), so a first
+   visit's header and tour offer stay uncovered. Non-modal: it traps no focus. */
+.install-offer {
+  position: fixed;
+  bottom: calc(var(--u) * 10);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  align-items: center;
+  width: max-content;
+  max-width: min(520px, calc(100vw - var(--u) * 4));
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
+
+.install-offer .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.install-offer .actions {
+  margin: 0;
+  flex-wrap: nowrap;
+}

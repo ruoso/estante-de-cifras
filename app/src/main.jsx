@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App.jsx';
 import { updateStore } from './pwa/update-state.js';
+import { installStore } from './pwa/install-state.js';
 import { getAppStore } from './worker/store.js';
 import { createSyncTriggers } from './sync-triggers.js';
 
@@ -26,6 +27,12 @@ const updateSW = registerSW({
     updateStore.onNeedRefresh(updateSW);
   },
 });
+
+// Listen for the browser saying the app can be installed (or, on iOS, decide
+// to show the Share → Add to Home Screen hint), for the install offer
+// (pwa/InstallOffer.jsx). Started before the first render so an early
+// beforeinstallprompt is not missed.
+installStore.start(window);
 
 // Forward the two DOM-only sync triggers (foreground, network back) to the
 // Worker's scheduler through the one app store (sync.engine). Wired at the entry

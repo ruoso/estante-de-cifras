@@ -2219,22 +2219,17 @@ export default {
 
   confirm: { cancel: 'Cancelar', confirm: 'Excluir' },
 
-  install: {
-    title: 'Adicione o Explore Chords à tela inicial',
-    label: 'Instalar este app',
-    promptHelp: 'Ele abre como um app e continua funcionando sem rede — útil numa aula.',
-    iosHelp:
-      'Toque em Compartilhar e depois em "Adicionar à Tela de Início". Ele passa a abrir como um app e funciona sem rede.',
-    install: 'Instalar',
-    notNow: 'Agora não',
-    gotIt: 'Entendi',
-    never: 'Não perguntar de novo',
-  },
-
   update: {
     ready: 'Uma nova versão está pronta.',
     reload: 'Recarregar agora',
     dismiss: 'Dispensar',
+  },
+
+  install: {
+    offer: 'Coloque a Estante na sua tela inicial: ela abre como um app e funciona offline.',
+    ios: 'Coloque a Estante na sua tela inicial: toque em Compartilhar e depois em Adicionar à Tela de Início.',
+    install: 'Instalar',
+    dismiss: 'Agora não',
   },
 
   announce: {

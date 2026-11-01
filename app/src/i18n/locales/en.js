@@ -2402,18 +2402,6 @@ export default {
 
   confirm: { cancel: 'Cancel', confirm: 'Delete' },
 
-  install: {
-    title: 'Add Explore Chords to your home screen',
-    label: 'Install this app',
-    promptHelp: 'It opens like an app and keeps working with no network — handy in a lesson.',
-    iosHelp:
-      'Tap Share, then "Add to Home Screen". It then opens like an app and keeps working with no network.',
-    install: 'Install',
-    notNow: 'Not now',
-    gotIt: 'Got it',
-    never: "Don't ask again",
-  },
-
   // The PWA update notice (shell.pwa): a quiet, dismissible status that a new
   // version is waiting. `reload` takes it now; `dismiss` hides the notice and
   // the update applies on the next launch.
@@ -2421,6 +2409,13 @@ export default {
     ready: 'A new version is ready.',
     reload: 'Reload now',
     dismiss: 'Dismiss',
+  },
+
+  install: {
+    offer: 'Put Estante on your home screen: it opens like an app and works offline.',
+    ios: 'Put Estante on your home screen: tap Share, then Add to Home Screen.',
+    install: 'Install',
+    dismiss: 'Not now',
   },
 
   announce: {
