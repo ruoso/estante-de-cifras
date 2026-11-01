@@ -35,7 +35,7 @@ import { createChangeCheckClient } from './change-check-client.js';
 import { createBooksClient } from './books-client.js';
 import { createAccountClient } from './account-client.js';
 import { deviceHintOf, deviceKindOf } from './device-kind.js';
-import { fillQueue } from './shelf-fill.js';
+import { fillQueue, reconcileWithEstante } from './shelf-fill.js';
 import { mySongsOffer } from './my-songs-choice.js';
 import { createOnline } from './online.js';
 import { createFork } from './fork.js';
@@ -56,6 +56,7 @@ import { defaultSaveMessage } from '../songs/save-note.js';
 import { createSearchIndex } from './search-index.js';
 import { createRecents } from './recents.js';
 import { createDismissedElsewhere } from './dismissed-elsewhere.js';
+import { createRemovedHere } from './removed-here.js';
 import { surfacePreferences } from './preferences.js';
 import { surfaceShelf, nextShelfPosition, planShelfBackfill } from './shelf.js';
 import { readmeTitle } from './readme-title.js';
@@ -373,6 +374,7 @@ export function createWorkerLogic(port, options = {}) {
   let indexHydration = null;
   let recents = null;
   let dismissedElsewhere = null;
+  let removedHere = null;
   let changeCheck = null;
   let booksClient = null;
   let online = null;
@@ -394,6 +396,7 @@ export function createWorkerLogic(port, options = {}) {
   let attaching = null;
   let filling = null;
   let fillAgain = false;
+  let reconcileWanted = false;
   let lastOffer = null;
 
   function ensureOpen() {
@@ -583,6 +586,16 @@ export function createWorkerLogic(port, options = {}) {
   function ensureDismissedElsewhere() {
     if (!dismissedElsewhere) dismissedElsewhere = createDismissedElsewhere();
     return dismissedElsewhere;
+  }
+
+  // The account's books removed from this device (removed-here.js).
+  function ensureRemovedHere() {
+    if (!removedHere) removedHere = createRemovedHere();
+    return removedHere;
+  }
+
+  async function readRemovedHere() {
+    return ensureRemovedHere().read(await ensureOpen());
   }
 
   // The change-check HTTP client, composed once over the injected `fetch`
@@ -1129,7 +1142,8 @@ export function createWorkerLogic(port, options = {}) {
     });
     const deviceId = await ensureHomeBook().ensureDeviceId({ idb, name, version });
     const dismissed = await ensureDismissedElsewhere().read(await ensureOpen());
-    port.postMessage(event(EventKind.SHELF, surfaceShelf(model, deviceId, dismissed)));
+    const removed = await readRemovedHere();
+    port.postMessage(event(EventKind.SHELF, surfaceShelf(model, deviceId, dismissed, removed)));
   }
 
   // Put away one *only on your …* row on this device (workflow 13 §Books that
@@ -1144,7 +1158,8 @@ export function createWorkerLogic(port, options = {}) {
     const deviceId = await ensureHomeBook().ensureDeviceId({ idb, name, version });
     const live = surfaceShelf(model, deviceId).elsewhere;
     const dismissed = await ensureDismissedElsewhere().dismiss(await ensureOpen(), { deviceId: otherId, bookId }, live);
-    port.postMessage(event(EventKind.SHELF, surfaceShelf(model, deviceId, dismissed)));
+    const removed = await readRemovedHere();
+    port.postMessage(event(EventKind.SHELF, surfaceShelf(model, deviceId, dismissed, removed)));
   }
 
   // Clone a hosted book onto this device and record it on the shelf
@@ -1198,19 +1213,25 @@ export function createWorkerLogic(port, options = {}) {
       ],
       author,
     });
+    // Back on this device: a removal here is undone (removed-here.js).
+    await ensureRemovedHere().mark(await ensureOpen(), serviceId, false);
     await surfaceHomeBookShelf();
     await indexOneBook(serviceId);
     await ensureFs().flush();
     port.postMessage(event(EventKind.BOOK_CLONED, { bookId: serviceId }));
   }
 
-  // Remove one book from this device (workflow 7 L128-135): delete the local
-  // repository and tombstone the shelf register so the row drops (§5.3). A local
-  // book's `title`/`position` registers are tombstoned; a hosted book's
-  // `label`/`link`/`position`/`role`. The one teardown REMOVE_BOOK and
-  // LEAVE_BOOK share (books.leave Constraint 3); the reply event is the
-  // caller's. Touches no network.
-  async function removeFromShelf({ bookId, author }) {
+  // Remove one book from this device (workflow 7 §Removing a book): delete the
+  // local repository so the row drops. A local book's `title`/`position`
+  // registers are tombstoned (§5.3) — they are this device's own namespace. A
+  // hosted book stays on the account's shelf, which is every device's: it is
+  // removed from THIS device only, kept in the device-local removed list
+  // (removed-here.js), so its other devices keep it and a new device still
+  // brings it down. Only `everywhere` — leaving the book, which ends the
+  // membership on all of them — tombstones its `label`/`link`/`position`/`role`.
+  // The one teardown REMOVE_BOOK and LEAVE_BOOK share (books.leave Constraint
+  // 3); the reply event is the caller's. Touches no network.
+  async function removeFromShelf({ bookId, author, everywhere = false }) {
     const home = ensureHomeBook();
     await home.ensureLocal({ author });
     const deviceId = await home.ensureDeviceId({ idb, name, version });
@@ -1222,14 +1243,17 @@ export function createWorkerLogic(port, options = {}) {
           { path: ['local', deviceId, bookId, 'title'], value: null },
           { path: ['local', deviceId, bookId, 'position'], value: null },
         ]
-      : [
-          { path: ['books', bookId, 'label'], value: null },
-          { path: ['books', bookId, 'link'], value: null },
-          { path: ['books', bookId, 'position'], value: null },
-          { path: ['books', bookId, 'role'], value: null },
-          ...ownerTombstone(shelf, bookId),
-        ];
-    await home.set({ bookId: HOME_BOOK_ID, file: 'shelf.json', changes, author });
+      : everywhere
+        ? [
+            { path: ['books', bookId, 'label'], value: null },
+            { path: ['books', bookId, 'link'], value: null },
+            { path: ['books', bookId, 'position'], value: null },
+            { path: ['books', bookId, 'role'], value: null },
+            ...ownerTombstone(shelf, bookId),
+          ]
+        : [];
+    if (!isLocal && !everywhere) await ensureRemovedHere().mark(await ensureOpen(), bookId, true);
+    if (changes.length) await home.set({ bookId: HOME_BOOK_ID, file: 'shelf.json', changes, author });
     await surfaceHomeBookShelf();
     // The clone is gone; drop the book's index entries so a SEARCH in this
     // session no longer surfaces a book the device no longer holds
@@ -1493,7 +1517,7 @@ export function createWorkerLogic(port, options = {}) {
     for (const bookId of Object.keys(shelf?.books ?? {})) {
       if (await hasCommits(bookId)) present.add(bookId);
     }
-    const queue = fillQueue(shelf, present);
+    const queue = fillQueue(shelf, present, await readRemovedHere());
     if (!queue.length) return;
     for (const { bookId } of queue) emitFill(bookId, 'waiting', 0);
     let landed = false;
@@ -1531,10 +1555,46 @@ export function createWorkerLogic(port, options = {}) {
     if (landed) await evaluateMySongsOffer();
   }
 
+  // Keep the shelf in step with the account's books on Estante (workflow 13
+  // §What comes down; shelf-fill.js reconcileWithEstante): put back every book
+  // the account has that the shelf does not list — never written there, or
+  // tombstoned by an older removal or sign-out — save those removed from this
+  // device and a fork's original, so the fill brings them down here and the
+  // home book's sync brings them to every other device. A book kept as a local
+  // book at sign-out is the account's again: its remote goes back, and the
+  // engine syncs it. Best effort: offline, or signed out, it does nothing.
+  async function reconcileShelf() {
+    if (!(await homeRemote()).url) return;
+    let listed;
+    try {
+      listed = await ensureBooksClient().list();
+    } catch {
+      return;
+    }
+    const home = ensureHomeBook();
+    const deviceId = await home.ensureDeviceId({ idb, name, version });
+    const shelf = await home.read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
+    const { changes, rejoin } = reconcileWithEstante(listed, shelf, deviceId, await readRemovedHere());
+    if (!changes.length) return;
+    await home.set({ bookId: HOME_BOOK_ID, file: 'shelf.json', changes, author: await resolveAuthor() });
+    for (const { bookId, link } of rejoin) {
+      if (!(await hasCommits(bookId))) continue;
+      await ensureLocks().withLock(bookId, () =>
+        ensureGit().setRemote({ dir: ensureGit().bookDir(bookId), url: link }),
+      );
+    }
+    await surfaceHomeBookShelf();
+    await ensureFs().flush();
+    ensureSyncScheduler().trigger();
+  }
+
   // Start a fill in the background, or ask the running one to go round again
-  // (a home sync brought new books while it was cloning). Never awaited by a
+  // (a home sync brought new books while it was cloning). With `reconcile`, the
+  // shelf is first brought in step with the account's books on Estante — at
+  // start, at sign-in and on *Sync now*, not on every pass. Never awaited by a
   // command: nothing the user does waits on a clone (Constraints).
-  function kickFill() {
+  function kickFill({ reconcile = false } = {}) {
+    if (reconcile) reconcileWanted = true;
     if (filling) {
       fillAgain = true;
       return filling;
@@ -1543,6 +1603,10 @@ export function createWorkerLogic(port, options = {}) {
       try {
         do {
           fillAgain = false;
+          if (reconcileWanted) {
+            reconcileWanted = false;
+            await reconcileShelf().catch(() => {});
+          }
           await fillOnce();
         } while (fillAgain);
       } catch {
@@ -1589,8 +1653,8 @@ export function createWorkerLogic(port, options = {}) {
 
   // What follows a home sync (the engine's, or SYNC_HOME): the fill picks up any
   // book it brought, and the *My songs* question is asked again. Background.
-  function afterHomeSync() {
-    kickFill();
+  function afterHomeSync({ reconcile = false } = {}) {
+    kickFill({ reconcile });
     evaluateMySongsOffer().catch(() => {});
   }
 
@@ -1610,7 +1674,7 @@ export function createWorkerLogic(port, options = {}) {
       await surfaceHomeBookShelf();
       await ensureFs().flush();
     }
-    kickFill();
+    kickFill({ reconcile: true });
     await evaluateMySongsOffer();
   }
 
@@ -1753,7 +1817,7 @@ export function createWorkerLogic(port, options = {}) {
               event(EventKind.HOME_ATTACHED, { attached: result.attached, restored: result.restored }),
             );
             if (result.attached) {
-              kickFill();
+              kickFill({ reconcile: true });
               await evaluateMySongsOffer();
             }
             break;
@@ -2382,7 +2446,9 @@ export function createWorkerLogic(port, options = {}) {
             // SYNC commands (a foreground flap, *sync now* mashed) collapses.
             // Fire-and-forget: nothing the user does waits on sync (DIRECTION
             // §1), so no event or reply rides this command — the engine emits
-            // per-book SYNC facts as the pass moves.
+            // per-book SYNC facts as the pass moves. The fill after it first
+            // brings the shelf in step with the account's books on Estante.
+            reconcileWanted = true;
             ensureSyncScheduler().trigger();
             break;
           }
@@ -2408,8 +2474,9 @@ export function createWorkerLogic(port, options = {}) {
             // shape a sync merged reaches the `instruments` slice
             // (music.instruments; "re-emitted when sync changes a register").
             await surfaceHomeBookInstruments();
-            // The fill picks up what the sync brought (account.new_device).
-            afterHomeSync();
+            // The fill picks up what the sync brought (account.new_device), and
+            // the shelf is brought in step with the account's books on Estante.
+            afterHomeSync({ reconcile: true });
             break;
           }
           case CommandKind.OPEN_CONFLICTS: {
@@ -2948,7 +3015,7 @@ export function createWorkerLogic(port, options = {}) {
             }
             const shelf = await ensureHomeBook().read({ bookId: HOME_BOOK_ID, file: 'shelf.json' });
             if (shelf?.books?.[bookId]?.label?.value != null) {
-              await removeFromShelf({ bookId, author: await resolveAuthor() });
+              await removeFromShelf({ bookId, author: await resolveAuthor(), everywhere: true });
             }
             port.postMessage(event(EventKind.BOOK_LEFT, { bookId }));
             break;
@@ -3114,6 +3181,13 @@ export function createWorkerLogic(port, options = {}) {
             // device keeps tracking and a later new_device attach has a clean slate
             // (Constraint 9 — a no-op today, since nothing attaches it yet).
             await online.detach({ bookId: HOME_BOOK_ID });
+            // The books removed from this device were this account's: the next
+            // one to sign in here starts with every one of its books. Signing
+            // back in to this one brings its books back the same way — the
+            // tombstones above are only this device's leaving, and the shelf's
+            // reconciliation with Estante puts each live book back
+            // (reconcileShelf).
+            await ensureRemovedHere().clear(await ensureOpen());
             await ensureFs().flush();
             // SIGNED_OUT first, THEN the shelf re-surface: in remove mode the
             // emptied shelf unmounts the account screen's offline sign-out region
@@ -3261,7 +3335,7 @@ export function createWorkerLogic(port, options = {}) {
             port.postMessage(
               event(EventKind.MINE, {
                 status: 'ready',
-                books: booksNotOnShelf(listed, shelf, deviceId),
+                books: booksNotOnShelf(listed, shelf, deviceId, await readRemovedHere()),
               }),
             );
             // The listing is also where an on-shelf member's book learns its

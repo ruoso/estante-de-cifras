@@ -202,6 +202,21 @@ account keeps it. The home book holds the list of books on the shelf: each
 one's link, and the user's label for it. Access itself is the account's,
 held by the service, so nothing secret is written down.
 
+### Every book the account has
+
+What a device brings down is **every book the account has on Estante** —
+owned, shared with it, its forks — not only what the home book happens to
+list. At start, at sign-in and when it syncs, a signed-in device asks the
+service for the account's books and puts back on the shelf any the home book
+does not list: one never written there, or one an older version took off the
+account's shelf when it was removed from a single device or when a device
+signed out. The home book carries the repair to the account's other devices.
+Two books are not put back: one **removed from this device** (workflow 7
+§Removing a book), which only *Mine on Estante* brings back here, and a
+fork's **original**, which the fork replaced on the shelf (workflow 11).
+Offline, the shelf is what the home book lists, and the rest waits for the
+network.
+
 ### Books that were only on the other device
 
 A local book never put online has nothing on Estante to clone. The home book
@@ -301,6 +316,12 @@ Signing out asks whether to **remove this account's books from this device**
 books no longer synced. Either way, saves not yet pushed and unsaved changes
 are counted and warned about first, and a book that is only on this device is
 never removed without the download being offered.
+
+Signing out leaves the account's shelf as it is. Signing back in on this
+device brings every book back (§Every book the account has), and a book kept
+as a local book is the account's again — synced, with what was changed while
+signed out. The books removed from this device are forgotten with the
+account: the next person to sign in here gets all of theirs.
 
 ## Later
 

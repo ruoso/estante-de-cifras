@@ -103,6 +103,17 @@ async function makeService() {
         service.created.push({ id, title, remote });
         return response(201, { id, title, role: 'owner', visibility: 'private', gitUrl: remote.url });
       }
+      if (url === '/api/books' && method === 'GET') {
+        if (!device.signedIn) return response(401, { code: 'unauthorized' });
+        const books = service.created.map(({ id, title, remote }) => ({
+          id,
+          title,
+          role: 'owner',
+          visibility: 'private',
+          gitUrl: remote.url,
+        }));
+        return response(200, { books });
+      }
       if (url === '/api/shelf/change-check') {
         service.changeChecks.push(JSON.parse(init.body));
         return response(200, { books: [] });
@@ -520,6 +531,113 @@ describe('a new device (account.new_device, workflow 13)', () => {
     expect((await signIn(service, b)).attached).toBe(true);
     expect(await config(b, 'remote.origin.estanteid')).toBe(HOME_ID);
   }, 60000);
+
+  it('signing out and back in brings every book back: the shelf is put back from the account’s books on Estante', async () => {
+    const a = await makeDevice(service);
+    await open(service, a);
+    await signIn(service, a);
+    const bookId = await putOnline(
+      service,
+      a,
+      await localBookWithSong(a, 'Banda do Bairro', 'marcha-teste.cifra.md', song('Marcha de Teste', 'um dois feijão')),
+    );
+    await syncHome(a);
+
+    // Signing out removes the book here and tombstones it in this device's
+    // home book; signing back in merges those tombstones into the account's.
+    await ask(a, command(CommandKind.SIGN_OUT, { mode: 'remove', author: IDENTITY }), EventKind.SIGNED_OUT);
+    expect(lastPayload(a, EventKind.SHELF).books[bookId]?.link?.value ?? null).toBeNull();
+    const mark = a.events.length;
+    await signIn(service, a);
+
+    // The account still has the book on Estante, so it comes down again…
+    await waitEvent(a, EventKind.SHELF_FILL, (p) => p.bookId === bookId && p.state === 'ready', mark);
+    expect((await readShelf(a)).books[bookId].link.value).toBe(service.created[0].remote.url);
+    expect((await search(a, 'Marcha')).some((r) => r.bookId === bookId)).toBe(true);
+    // …and the account's shelf has it again, so a new device brings it down too.
+    await syncHome(a);
+    const b = await makeDevice(service);
+    await open(service, b);
+    const markB = b.events.length;
+    await signIn(service, b);
+    await waitEvent(b, EventKind.SHELF_FILL, (p) => p.bookId === bookId && p.state === 'ready', markB);
+  }, 90000);
+
+  it('a book kept as local at sign-out is the account’s again at sign-in, its unsaved edit kept', async () => {
+    const a = await makeDevice(service);
+    await open(service, a);
+    await signIn(service, a);
+    const bookId = await putOnline(
+      service,
+      a,
+      await localBookWithSong(a, 'Banda do Bairro', 'marcha-teste.cifra.md', song('Marcha de Teste', 'um dois feijão')),
+    );
+    await syncHome(a);
+    await ask(a, command(CommandKind.SIGN_OUT, { mode: 'keep', author: IDENTITY }), EventKind.SIGNED_OUT);
+    expect(lastPayload(a, EventKind.SHELF).local[bookId]).toBeTruthy();
+    await write(a, bookId, 'marcha-teste.cifra.md', song('Marcha de Teste', 'cinco seis arroz'));
+
+    await signIn(service, a);
+    await waitFor(() => {
+      const shelf = lastPayload(a, EventKind.SHELF);
+      expect(shelf.books[bookId]?.link?.value).toBe(service.created[0].remote.url);
+      expect(shelf.local[bookId]?.position?.value ?? null).toBeNull();
+    }, WAIT);
+    expect(await getConfig({ fs: a.fs(), dir: a.dir(bookId), path: 'remote.origin.url' })).toBe(
+      service.created[0].remote.url,
+    );
+    const text = await a.fs().promises.readFile(`${a.dir(bookId)}/marcha-teste.cifra.md`, 'utf8');
+    expect(text).toContain('cinco seis arroz');
+  }, 90000);
+
+  it('removing a book here keeps it on the account’s other devices; Mine on Estante offers it back', async () => {
+    const a = await makeDevice(service);
+    await open(service, a);
+    await signIn(service, a);
+    const bookId = await putOnline(
+      service,
+      a,
+      await localBookWithSong(a, 'Banda do Bairro', 'marcha-teste.cifra.md', song('Marcha de Teste', 'um dois feijão')),
+    );
+    await syncHome(a);
+    const b = await makeDevice(service);
+    await open(service, b);
+    const mark = b.events.length;
+    await signIn(service, b);
+    await waitEvent(b, EventKind.SHELF_FILL, (p) => p.bookId === bookId && p.state === 'ready', mark);
+
+    await ask(b, command(CommandKind.REMOVE_BOOK, { bookId, author: IDENTITY }), EventKind.BOOK_REMOVED);
+    expect(lastPayload(b, EventKind.SHELF).books[bookId]).toBeUndefined();
+    // The account's shelf still lists it: A keeps it after a home sync.
+    await syncHome(b);
+    await syncHome(a);
+    expect(lastPayload(a, EventKind.SHELF).books[bookId]?.link?.value).toBe(service.created[0].remote.url);
+
+    // B does not bring it down again — not on a sync, not at the next start.
+    const before = b.events.length;
+    b.send(command(CommandKind.SYNC, { reason: 'test' }));
+    await syncHome(b);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(find(b, EventKind.SHELF_FILL, (p) => p.bookId === bookId, before)).toBeUndefined();
+    const restarted = await makeDevice(service, { idb: b.idb, name: b.name, signedIn: true });
+    await ask(restarted, command(CommandKind.OPEN, { device: {} }), EventKind.RECENTS);
+    await waitFor(() => expect(lastPayload(restarted, EventKind.SHELF)).toBeTruthy(), WAIT);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(find(restarted, EventKind.SHELF_FILL, (p) => p.bookId === bookId)).toBeUndefined();
+    expect(lastPayload(restarted, EventKind.SHELF).books[bookId]).toBeUndefined();
+
+    // Mine on Estante offers it, and adding it brings it back to stay.
+    const mine = await ask(restarted, command(CommandKind.LIST_MINE, {}), EventKind.MINE);
+    const offered = mine.books.find((x) => x.id === bookId);
+    expect(offered).toBeTruthy();
+    await ask(
+      restarted,
+      command(CommandKind.ADD_MINE, { bookId, gitUrl: offered.gitUrl, label: offered.label, role: offered.role }),
+      EventKind.BOOK_CLONED,
+    );
+    expect(lastPayload(restarted, EventKind.SHELF).books[bookId]?.link?.value).toBe(offered.gitUrl);
+    expect((await ask(restarted, command(CommandKind.LIST_MINE, {}), EventKind.MINE)).books).toEqual([]);
+  }, 120000);
 
   it('the change check names the home book by its service id, never “home”', async () => {
     const b = await makeDevice(service);

@@ -269,12 +269,16 @@ are carried on top of it, still unsaved.
 
 Two different acts:
 
-- **Remove from my shelf** deletes the local clone only. With unsaved
-  changes or saves not yet pushed, it says what would be lost and asks. For a
-  book that is only on this device, it says the book will be gone for good,
-  and offers the download first. Removing keeps a member's membership, so
-  *Mine on Estante* offers the book again; ending it is *Leave this book*
-  (workflow 10 §Leaving a book).
+- **Remove from my shelf** deletes the local clone only, **on this device
+  only**: the account's other devices keep the book, and a new device still
+  brings it down (workflow 13 §What comes down). This device remembers the
+  removal for itself, so the book does not come back here on its own. With
+  unsaved changes or saves not yet pushed, it says what would be lost and
+  asks. For a book that is only on this device, it says the book will be gone
+  for good, and offers the download first. Removing keeps a member's
+  membership, so *Mine on Estante* offers the book again, and adding it there
+  undoes the removal; ending the membership, on every device, is *Leave this
+  book* (workflow 10 §Leaving a book).
 - **Delete the book**, only for its owner, deletes it from Estante for
   everyone, and asks for the book's name to be typed.
 

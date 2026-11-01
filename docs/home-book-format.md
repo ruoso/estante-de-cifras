@@ -292,6 +292,12 @@ namespaced by device id) and which shared book is the account's *My songs*
   account, the owner's name; and, for a fork, `original`.
   **No credential is written** — access itself is the account's, held by the
   service, so nothing secret is written down (workflow 13).
+  `books` is every device's: a book **removed from one device** (workflow 7
+  §Removing a book) keeps its entry, and the device keeps the removal for
+  itself, outside the home book. An entry is tombstoned only when the book
+  leaves the account's shelf — left, deleted, replaced by a fork — and a
+  device puts back any book the account has on Estante that `books` does not
+  list (workflow 13 §What comes down).
 - `owner` — present only on a book someone else shared with the account
   (`role` `"editor"` or `"reader"`), and only when the owner has a name: the
   owner's `authorName` (§4.1) as the service last gave it (`ownerName` in

@@ -46,6 +46,15 @@ describe('booksNotOnShelf', () => {
     expect(out.map((b) => b.id)).toEqual(['b-choros', 'b-turma']);
   });
 
+  it('offers again a book removed from this device that the account’s shelf still lists', () => {
+    const shelf = {
+      books: { 'b-choros': { label: reg('Choros da Ana'), link: reg('https://e/git/b-choros'), role: reg('reader') } },
+      local: {},
+    };
+    const out = booksNotOnShelf(listBooks, shelf, DEVICE, new Set(['b-choros']));
+    expect(out.map((b) => b.id)).toEqual(['b-choros', 'b-turma']);
+  });
+
   it('excludes a book held in this device’s local namespace too', () => {
     const shelf = {
       books: {},

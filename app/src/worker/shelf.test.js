@@ -37,6 +37,17 @@ describe('surfaceShelf (unit)', () => {
     expect(payload.local).toEqual({});
   });
 
+  it('leaves out a shared book removed from this device', () => {
+    const model = {
+      books: {
+        'b-1': { label: { value: 'Turma de quarta', at: AT1 }, link: { value: 'https://example.test/b-1.git', at: AT1 } },
+        'b-2': { label: { value: 'Rodas de samba', at: AT2 }, link: { value: 'https://example.test/b-2.git', at: AT2 } },
+      },
+    };
+    const payload = surfaceShelf(model, THIS_DEVICE, [], new Set(['b-1']));
+    expect(Object.keys(payload.books)).toEqual(['b-2']);
+  });
+
   // sync.fork_follow AC7: a fork's `original` is one register whose value is an
   // object — projected whole, as are the `role` register and the rest.
   it('projects a fork\'s `original` register whole, with `role` (§4.2)', () => {

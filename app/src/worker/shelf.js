@@ -121,19 +121,24 @@ function elsewhereBooks(model, deviceId) {
  * `mySongs` is the account's *My songs* register, only when the model holds
  * one. A non-object/array model, or an absent `books`/`local`, yields the empty
  * sub-map; `{}` → `{ books: {}, local: {}, elsewhere: [] }`. An `elsewhere`
- * item named in `dismissed` (`{ deviceId, bookId }`) is left out.
+ * item named in `dismissed` (`{ deviceId, bookId }`) is left out, and so is a
+ * shared book named in `removed` — removed from this device, while it stays on
+ * the account's shelf for its other devices (removed-here.js).
  *
  * @param {Object} model the parsed shelf.json (an absent file is `{}`)
  * @param {string} deviceId this device's id (§2.3), the `local` namespace key
  * @param {Array<{ deviceId: string, bookId: string }>} [dismissed] the rows
  *   dismissed on this device
+ * @param {Set<string>} [removed] the shared books removed from this device
  * @returns {{ books: Object, local: Object, elsewhere: Array, mySongs?: Object }}
  */
-export function surfaceShelf(model, deviceId, dismissed = []) {
+export function surfaceShelf(model, deviceId, dismissed = [], removed = new Set()) {
   if (!isPlainObject(model)) return { books: {}, local: {}, elsewhere: [] };
   const localNs = isPlainObject(model.local) ? model.local[deviceId] : undefined;
+  const books = projectBooks(model.books);
+  for (const id of removed) delete books[id];
   const out = {
-    books: projectBooks(model.books),
+    books,
     local: projectBooks(localNs),
     elsewhere: elsewhereBooks(model, deviceId).filter(
       (e) => !dismissed.some((d) => d.deviceId === e.deviceId && d.bookId === e.bookId),

@@ -33,7 +33,9 @@ function onShelf(entry) {
  * namespace (`shelf.local[deviceId][id]`) — and included otherwise, carrying its
  * `role` and `gitUrl` so the add can clone it with no extra fetch and show the
  * granted role. A fully-tombstoned shelf entry counts as absent (the book was
- * removed from this device and can be added back).
+ * removed from this device and can be added back), and so does an entry named
+ * in `removed`: a book removed from this device stays on the account's shelf
+ * for its other devices (worker/removed-here.js), and is offered here again.
  *
  * A member's book also carries the owner's name (`ownerName`, books.owner_name)
  * when the service gave one, so the row's Leave can name the owner and the add
@@ -45,15 +47,16 @@ function onShelf(entry) {
  * @param {{ books?: Object, local?: Object }} shelf the parsed shelf.json model
  *   (nested `{value, at}` registers; an absent file is `{}`)
  * @param {string} deviceId this device's local namespace key (§7)
+ * @param {Set<string>} [removed] the books removed from this device
  * @returns {Array<{ id: string, label: string, gitUrl: string, role: string,
  *   ownerName?: string }>}
  */
-export function booksNotOnShelf(listBooks, shelf, deviceId) {
+export function booksNotOnShelf(listBooks, shelf, deviceId, removed = new Set()) {
   const held = new Set();
   const books = shelf && typeof shelf === 'object' ? shelf.books : null;
   if (books && typeof books === 'object') {
     for (const id of Object.keys(books)) {
-      if (onShelf(books[id])) held.add(id);
+      if (onShelf(books[id]) && !removed.has(id)) held.add(id);
     }
   }
   const localNs =

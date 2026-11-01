@@ -356,12 +356,15 @@ describe('online (workflow 7 L46-63, L128-137)', () => {
         expect(lastEvent(w.events, EventKind.BOOK_REMOVED)?.payload.bookId).toBe(serviceId);
       });
 
-      // The local clone is gone and the shelf entry is tombstoned…
+      // The local clone is gone and the row leaves this device's shelf…
       await expect(w.fs.promises.readdir(w.git.bookDir(serviceId))).rejects.toMatchObject({
         code: 'ENOENT',
       });
+      expect(lastEvent(w.events, EventKind.SHELF)?.payload.books[serviceId]).toBeUndefined();
+      // …while the account's shelf keeps it, for its other devices (workflow 7
+      // §Removing a book: this device's copy only)…
       const shelf = JSON.parse(await w.readHome('shelf.json'));
-      expect(shelf.books[serviceId].label.value).toBeNull();
+      expect(shelf.books[serviceId].label.value).toBe('Keep on Estante');
       // …but the service book is untouched: the remote still holds the commit.
       expect(await remoteHead(remote.repoDir)).toBe(headOnRemote);
     } finally {
