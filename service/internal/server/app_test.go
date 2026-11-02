@@ -307,6 +307,28 @@ func TestEmailedLinkRoutesServeShell(t *testing.T) {
 	}
 }
 
+// TestPairAddressServesShell pins the address a reMarkable shows (reader.pair_web
+// Decision 6; workflow 13 §Where it lives; pairing.go pairURL = base + "/pair"):
+// GET /pair and /pair/ answer the shell's index.html, with the origin-wide
+// noindex header, so the app opens its Pair a device page there.
+func TestPairAddressServesShell(t *testing.T) {
+	ts := httptest.NewServer(newTestHandler(t))
+	defer ts.Close()
+
+	for _, path := range []string{"/pair", "/pair/"} {
+		resp, body := get(t, ts.URL, path)
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("GET %s status = %d, want 200", path, resp.StatusCode)
+		}
+		if body != testShell {
+			t.Errorf("GET %s body = %q, want the shell's index.html", path, body)
+		}
+		if got := resp.Header.Get("X-Robots-Tag"); got != "noindex" {
+			t.Errorf("GET %s X-Robots-Tag = %q, want noindex", path, got)
+		}
+	}
+}
+
 // TestFailFastOnMissingBundle pins the missing-bundle requirement: building the
 // handler against an app-root with no index.html returns an error, not a
 // booting server.

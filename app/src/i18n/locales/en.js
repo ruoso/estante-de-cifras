@@ -1110,6 +1110,37 @@ export default {
     leaveNotConfirmedBody: 'Nothing has changed. Try again when you are ready.',
     leaveRefused: 'That passkey did not confirm this account. Try again.',
     leaveNowEmail: 'This account now has an email — type it to confirm.',
+    // Pairing a reMarkable, on the account screen (reader.pair_web; workflow 13
+    // §Among the signed-in devices, §The account screen).
+    pairDevice: 'Pair a device',
+    pairDeviceLine: 'Read your books on a reMarkable. It shows a code; enter it here.',
+    remarkable: 'your reMarkable',
+    readsOnly: 'Reads only',
+    remarkableSignOutTitle: 'Sign your reMarkable out?',
+    remarkableSignOutBody: 'It stops reading your books the next time it syncs, and they are removed from it. Nothing in your account changes.',
+  },
+
+  // The Pair a device page (reader.pair_web; workflow 13 §Pairing a reMarkable).
+  // *Get a new code* is the reader's own English button, named as it shows.
+  pair: {
+    back: 'Back',
+    title: 'Pair a device',
+    signInLead: 'Sign in to the account whose books the reMarkable should read.',
+    intro: 'Enter the code your reMarkable shows.',
+    codeLabel: 'Code',
+    codeHint: 'Six letters and numbers, like KQ7-4TM',
+    canDoHeading: 'What your reMarkable will be able to do.',
+    canDo: 'Read every book on your shelf, with your instruments and preferences. It can never change one: it saves nothing and sends nothing back. It stays paired until you sign it out, here or on the reMarkable.',
+    warning: 'Only enter a code shown on your own reMarkable, in front of you: whoever’s device shows it will read your books.',
+    submit: 'Pair your reMarkable',
+    paired: 'Your reMarkable is paired. Its shelf appears on it in a moment.',
+    done: 'Done',
+    offline: 'You’re offline. Pairing needs a connection.',
+    malformed: 'A code is six letters and numbers, like KQ7-4TM.',
+    unknown: 'No reMarkable is showing that code. Check it against its screen and try again.',
+    expired: 'That code has expired. Press Get a new code on your reMarkable, and enter the new one.',
+    used: 'That code was already used. If your reMarkable is not paired, press Get a new code on it.',
+    rateLimited: 'Too many tries. Wait a few minutes and try again.',
   },
 
   // The recovery email's confirm page, opened by the emailed link

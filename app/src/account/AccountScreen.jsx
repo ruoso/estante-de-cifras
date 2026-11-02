@@ -415,6 +415,10 @@ export default function AccountScreen({
   // is called once it is done, for AppShell to close the account surface. A
   // no-op by default (the dialog still tears down).
   onSignOut = () => {},
+  // **Pair a device** at the foot of Signed-in devices (reader.pair_web;
+  // workflow 13 §The account screen): AppShell opens the pairing page over this
+  // screen, and its Back returns here.
+  onPairDevice = () => {},
   sharingClient = DEFAULT_SHARING_CLIENT,
 }) {
   const preferences = useSlice(store, 'preferences');
@@ -787,26 +791,35 @@ export default function AccountScreen({
       <div className="t-h3 account-section">{t('account.devices')}</div>
       <div className="list account-list">
         {sessions.map((session) => {
-          const label = session.device || t('account.unknownDevice');
+          // A paired reMarkable is listed by its kind, never a browser's
+          // description and never *This device* — the page that approved it is
+          // a browser's (reader.pair_web; workflow 13 §Among the signed-in
+          // devices). An unknown future kind keeps today's label.
+          const remarkable = session.kind === 'remarkable';
+          const label = remarkable ? t('account.remarkable') : session.device || t('account.unknownDevice');
+          const current = session.current && !remarkable;
           return (
             <div className="row account-row" key={session.id}>
               <span className="grow">
-                <span className="name">{session.current ? t('account.thisDevice') : label}</span>
+                <span className="name">{current ? t('account.thisDevice') : label}</span>
                 <span className="meta">
-                  {session.current
+                  {current
                     ? t('account.inUseNow', { device: label })
                     : t('account.lastUsed', { time: formatDateTime(session.lastUsedAt, true) })}
                 </span>
               </span>
-              {session.current ? null : (
+              {session.readOnly ? <span className="badge">{t('account.readsOnly')}</span> : null}
+              {current ? null : (
                 <ConfirmDialog
                   trigger={
                     <Button className="btn" aria-label={t('account.signOutLabel', { device: label })}>
                       {t('account.signOut')}
                     </Button>
                   }
-                  title={t('account.signOutTitle', { device: label })}
-                  body={t('account.signOutBody')}
+                  title={
+                    remarkable ? t('account.remarkableSignOutTitle') : t('account.signOutTitle', { device: label })
+                  }
+                  body={remarkable ? t('account.remarkableSignOutBody') : t('account.signOutBody')}
                   confirmLabel={t('account.signOutConfirm')}
                   onConfirm={() => revoke(session)}
                 />
@@ -814,6 +827,12 @@ export default function AccountScreen({
             </div>
           );
         })}
+      </div>
+      <div className="account-pair-foot">
+        <Button className="btn" onPress={onPairDevice}>
+          {t('account.pairDevice')}
+        </Button>
+        <p className="t-small">{t('account.pairDeviceLine')}</p>
       </div>
     </>
   );

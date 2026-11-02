@@ -1026,6 +1026,37 @@ export default {
     leaveNotConfirmedBody: 'Nada ha cambiado. Inténtalo de nuevo cuando estés listo.',
     leaveRefused: 'Esa llave de acceso no confirmó esta cuenta. Inténtalo de nuevo.',
     leaveNowEmail: 'Esta cuenta ahora tiene un correo — escríbelo para confirmar.',
+    // Pairing a reMarkable, on the account screen (reader.pair_web; workflow 13
+    // §Among the signed-in devices, §The account screen).
+    pairDevice: 'Vincular un dispositivo',
+    pairDeviceLine: 'Lee tus libros en un reMarkable. Te muestra un código; escríbelo aquí.',
+    remarkable: 'tu reMarkable',
+    readsOnly: 'Solo lectura',
+    remarkableSignOutTitle: '¿Cerrar la sesión de tu reMarkable?',
+    remarkableSignOutBody: 'Deja de leer tus libros la próxima vez que se sincronice, y se eliminan de él. Nada cambia en tu cuenta.',
+  },
+
+  // The Pair a device page (reader.pair_web; workflow 13 §Pairing a reMarkable).
+  // *Get a new code* is the reader's own English button, named as it shows.
+  pair: {
+    back: 'Atrás',
+    title: 'Vincular un dispositivo',
+    signInLead: 'Inicia sesión en la cuenta cuyos libros leerá el reMarkable.',
+    intro: 'Escribe el código que muestra tu reMarkable.',
+    codeLabel: 'Código',
+    codeHint: 'Seis letras y números, como KQ7-4TM',
+    canDoHeading: 'Lo que podrá hacer tu reMarkable.',
+    canDo: 'Leer todos los libros de tu estantería, con tus instrumentos y preferencias. Nunca podrá cambiar ninguno: no guarda nada ni envía nada de vuelta. Seguirá vinculado hasta que cierres su sesión, aquí o en el reMarkable.',
+    warning: 'Escribe solo un código que aparezca en tu propio reMarkable, frente a ti: quien tenga el dispositivo que lo muestra leerá tus libros.',
+    submit: 'Vincular tu reMarkable',
+    paired: 'Tu reMarkable está vinculado. Su estantería aparecerá en él en un momento.',
+    done: 'Listo',
+    offline: 'Estás sin conexión. Vincular necesita conexión.',
+    malformed: 'Un código tiene seis letras y números, como KQ7-4TM.',
+    unknown: 'Ningún reMarkable está mostrando ese código. Compáralo con su pantalla e inténtalo de nuevo.',
+    expired: 'Ese código venció. Toca Get a new code en tu reMarkable y escribe el nuevo.',
+    used: 'Ese código ya se usó. Si tu reMarkable no está vinculado, toca Get a new code en él.',
+    rateLimited: 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.',
   },
 
   // The recovery email's confirm page, opened by the emailed link

@@ -1025,6 +1025,37 @@ export default {
     leaveNotConfirmedBody: 'Nada mudou. Tente de novo quando estiver pronto.',
     leaveRefused: 'Essa chave de acesso não confirmou esta conta. Tente de novo.',
     leaveNowEmail: 'Esta conta agora tem um e-mail — digite-o para confirmar.',
+    // Pairing a reMarkable, on the account screen (reader.pair_web; workflow 13
+    // §Among the signed-in devices, §The account screen).
+    pairDevice: 'Parear um aparelho',
+    pairDeviceLine: 'Leia seus livros num reMarkable. Ele mostra um código; digite-o aqui.',
+    remarkable: 'seu reMarkable',
+    readsOnly: 'Só leitura',
+    remarkableSignOutTitle: 'Encerrar a sessão do seu reMarkable?',
+    remarkableSignOutBody: 'Ele para de ler seus livros na próxima sincronização, e eles são removidos dele. Nada muda na sua conta.',
+  },
+
+  // The Pair a device page (reader.pair_web; workflow 13 §Pairing a reMarkable).
+  // *Get a new code* is the reader's own English button, named as it shows.
+  pair: {
+    back: 'Voltar',
+    title: 'Parear um aparelho',
+    signInLead: 'Entre na conta cujos livros o reMarkable vai ler.',
+    intro: 'Digite o código que o seu reMarkable mostra.',
+    codeLabel: 'Código',
+    codeHint: 'Seis letras e números, como KQ7-4TM',
+    canDoHeading: 'O que o seu reMarkable vai poder fazer.',
+    canDo: 'Ler todos os livros da sua estante, com seus instrumentos e preferências. Ele nunca muda nenhum: não salva nada e não envia nada de volta. Fica pareado até você encerrar a sessão dele, aqui ou no reMarkable.',
+    warning: 'Só digite um código que aparece no seu próprio reMarkable, na sua frente: quem tiver o aparelho que o mostra vai ler os seus livros.',
+    submit: 'Parear seu reMarkable',
+    paired: 'Seu reMarkable está pareado. A estante aparece nele em instantes.',
+    done: 'Pronto',
+    offline: 'Você está sem conexão. Parear precisa de conexão.',
+    malformed: 'Um código tem seis letras e números, como KQ7-4TM.',
+    unknown: 'Nenhum reMarkable está mostrando esse código. Confira na tela dele e tente de novo.',
+    expired: 'Esse código expirou. Toque em Get a new code no seu reMarkable e digite o novo.',
+    used: 'Esse código já foi usado. Se o seu reMarkable não estiver pareado, toque em Get a new code nele.',
+    rateLimited: 'Tentativas demais. Espere alguns minutos e tente de novo.',
   },
 
   // The recovery email's confirm page, opened by the emailed link

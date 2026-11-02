@@ -16,6 +16,7 @@ import InstallOffer from './pwa/InstallOffer.jsx';
 import { signInToken } from './account/sign-in-route.js';
 import { recoveryEmailToken } from './account/recovery-email-route.js';
 import { invitationToken } from './account/invitation-route.js';
+import { isPairPath } from './account/pair-route.js';
 import { songAnchorFromHash } from './books/book-route.js';
 import { getAppStore } from './worker/store.js';
 import SavedNotice from './shell/SavedNotice.jsx';
@@ -123,6 +124,14 @@ function bootInvitationToken() {
   return typeof location === 'undefined' ? null : invitationToken(location.pathname);
 }
 
+// The address a reMarkable shows, `/pair` (reader.pair_web; workflow 13 §Where
+// it lives), boots the app at its Pair a device page. It holds no token and no
+// code; read once at boot, like the token paths, before the shell's own reading
+// of the address (which would take an unknown path for search).
+function bootPair() {
+  return typeof location !== 'undefined' && isPairPath(location.pathname);
+}
+
 // An invitation link may carry the shared song as a client-only `#<path>`
 // fragment (books.share Decision 2). It is meaningful only alongside an
 // invitation link, and the URL is cleaned at boot (dropping the fragment), so it
@@ -177,16 +186,19 @@ export default function App({ store = getAppStore() }) {
   const [inviteToken] = useState(bootInvitationToken);
   // An invitation's `#<path>` song fragment, captured once the same way.
   const [inviteSongAnchor] = useState(bootInviteSongAnchor);
+  // The pairing address, read once; the address is then cleaned to `/` like the
+  // token paths (Decision 2), so a reload shows the shelf.
+  const [pairOpen] = useState(bootPair);
   // The places themselves — `/`, `/books`, `/setlists`, `/b/<book>[/<path>]` —
   // are AppShell's (shell.routing): it reads the address at boot and writes it
   // as the person moves, replacing a token path with the place the flow lands
   // on. This cleans a token path to `/` too, for a boot that mounts no shell,
   // keeping whatever entry state the shell already wrote.
   useEffect(() => {
-    if ((redeemToken || recoveryToken || inviteToken) && typeof history !== 'undefined') {
+    if ((redeemToken || recoveryToken || inviteToken || pairOpen) && typeof history !== 'undefined') {
       history.replaceState(history.state, '', '/');
     }
-  }, [redeemToken, recoveryToken, inviteToken]);
+  }, [redeemToken, recoveryToken, inviteToken, pairOpen]);
 
   return (
     <ThemeRoot store={store}>
@@ -212,6 +224,7 @@ export default function App({ store = getAppStore() }) {
             recoveryToken={recoveryToken}
             inviteToken={inviteToken}
             inviteSongAnchor={inviteSongAnchor}
+            pairOpen={pairOpen}
           />
         )}
         {/* The PWA update notice (shell.pwa) sits over the shell, inside the

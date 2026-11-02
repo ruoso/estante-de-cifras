@@ -408,6 +408,110 @@ describe('Signed-in devices (workflow 13 L77-79; acceptance 5)', () => {
     expect(signedOutHere).toBe(0);
     expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
   });
+
+  // reader.pair_web — a paired reMarkable among the signed-in devices (workflow
+  // 13 §Among the signed-in devices L418–434; board Pair-a-device Computer).
+  const remarkables = [
+    { id: 'r1', current: false, lastUsedAt: '2026-10-11T09:00:00.000Z', kind: 'remarkable', readOnly: true },
+    { id: 'r2', current: false, lastUsedAt: '2026-10-09T18:30:00.000Z', kind: 'remarkable', readOnly: true },
+  ];
+  function withRemarkables(over = {}) {
+    return signedInClient({
+      'GET /api/account/sessions': () => ({
+        body: {
+          sessions: [
+            { id: 's1', current: true, lastUsedAt: '2026-10-12T10:00:00.000Z', device: 'Chrome on Linux' },
+            ...remarkables,
+          ],
+        },
+      }),
+      ...over,
+    });
+  }
+
+  it('the device listed: your reMarkable, Reads only as a word, its last use, never This device; two are two rows (L418–426)', async () => {
+    const { client } = withRemarkables();
+    const { container } = renderAccount(bareStore(), { client });
+
+    const names = await screen.findAllByText('your reMarkable');
+    expect(names).toHaveLength(2);
+    const rows = names.map((name) => name.closest('.row'));
+    for (const row of rows) {
+      expect(within(row).getByText('Reads only')).toBeInTheDocument();
+      expect(within(row).getByText(/^last used /)).toBeInTheDocument();
+      expect(within(row).queryByText('This device')).toBeNull();
+      expect(within(row).getByRole('button', { name: 'Sign your reMarkable out' })).toBeInTheDocument();
+    }
+    // Told apart by when each was last used.
+    expect(within(rows[0]).getByText(/^last used /).textContent).not.toBe(
+      within(rows[1]).getByText(/^last used /).textContent,
+    );
+    // Only the browser's own session is This device.
+    expect(screen.getAllByText('This device')).toHaveLength(1);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+  });
+
+  it('a reMarkable is never This device, even were it current', async () => {
+    const { client } = signedInClient({
+      'GET /api/account/sessions': () => ({
+        body: { sessions: [{ ...remarkables[0], current: true }] },
+      }),
+    });
+    renderAccount(bareStore(), { client });
+
+    await screen.findByText('your reMarkable');
+    expect(screen.queryByText('This device')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Sign your reMarkable out' })).toBeInTheDocument();
+  });
+
+  it('signed out there: Sign your reMarkable out? with its body; confirm revokes and the row goes, axe clean (L428–434)', async () => {
+    const { client, calls } = withRemarkables({
+      'DELETE /api/account/sessions/r1': () => ({ status: 204 }),
+    });
+    renderAccount(bareStore(), { client });
+
+    await screen.findAllByText('your reMarkable');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sign your reMarkable out' })[0]);
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Sign your reMarkable out?')).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        'It stops reading your books the next time it syncs, and they are removed from it. Nothing in your account changes.',
+      ),
+    ).toBeInTheDocument();
+    expect(await checkWcag21aa(dialog)).toHaveNoViolations();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sign out' }));
+
+    await waitFor(() =>
+      expect(calls.filter((c) => c.method === 'DELETE').map((c) => c.path)).toEqual(['/api/account/sessions/r1']),
+    );
+    await waitFor(() => expect(screen.getAllByText('your reMarkable')).toHaveLength(1));
+  });
+
+  it('Cancel on Sign your reMarkable out? sends nothing', async () => {
+    const { client, calls } = withRemarkables();
+    renderAccount(bareStore(), { client });
+
+    await screen.findAllByText('your reMarkable');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sign your reMarkable out' })[0]);
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false);
+    expect(screen.getAllByText('your reMarkable')).toHaveLength(2);
+  });
+
+  it('the foot: Pair a device with its line opens the pairing page, axe clean with the row (L288–293)', async () => {
+    const { client } = withRemarkables();
+    let opened = 0;
+    const { container } = renderAccount(bareStore(), { client, onPairDevice: () => (opened += 1) });
+
+    const pair = await screen.findByRole('button', { name: 'Pair a device' });
+    expect(screen.getByText('Read your books on a reMarkable. It shows a code; enter it here.')).toBeInTheDocument();
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    fireEvent.click(pair);
+    expect(opened).toBe(1);
+  });
 });
 
 describe('Passkeys (workflow 13 L80; acceptance 6)', () => {

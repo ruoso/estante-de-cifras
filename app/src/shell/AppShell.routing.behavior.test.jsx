@@ -780,6 +780,53 @@ describe('AppShell routing (behavior)', () => {
     expect(screen.getByRole('group', { name: SONG_TITLE })).toBeInTheDocument();
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
+
+  // reader.pair_web — workflow 13 §Where it lives L341–354: the address the
+  // reMarkable shows opens the Pair a device page over the shell, whose Back
+  // goes to the shelf; opened from the account screen's foot, Back returns to
+  // the account screen.
+  const signedInAuth = () =>
+    makeAuth({
+      'GET /api/account/sessions': () => ({
+        body: { sessions: [{ id: 's1', current: true, lastUsedAt: AT, device: 'Firefox on Linux' }] },
+      }),
+      'GET /api/account/passkeys': () => ({ body: { passkeys: [] } }),
+      'GET /api/account/recovery-email': () => ({ body: { email: 'a@example.test', pending: null } }),
+    });
+
+  it('booted with pairOpen, the Pair a device page is the surface; Back goes to the shelf', async () => {
+    const { store, emit } = makeStore();
+    const { client } = signedInAuth();
+    render(<AppShell store={store} authClient={client} pairOpen />);
+    emit(event(EventKind.SHELF, SHELF));
+
+    expect(await screen.findByRole('textbox', { name: 'Code' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Pair a device' })).toBeInTheDocument();
+    expect(history.state.layers).toEqual(['pair']);
+    expect(location.pathname).toBe('/');
+
+    await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    expect(screen.queryByRole('heading', { level: 1, name: 'Pair a device' })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Search' })).toHaveAttribute('aria-selected', 'true');
+    expect(history.state.layers).toEqual([]);
+  });
+
+  it('from the account screen’s foot, the page opens over it and Back returns to the account screen', async () => {
+    const { store, emit } = makeStore();
+    const { client } = signedInAuth();
+    render(<AppShell store={store} authClient={client} />);
+    emit(event(EventKind.SHELF, SHELF));
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Account/ })[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Pair a device' }));
+    expect(await screen.findByRole('textbox', { name: 'Code' })).toBeInTheDocument();
+    expect(history.state.layers).toEqual(['account', 'pair']);
+
+    await traverse(() => fireEvent.click(screen.getByRole('button', { name: 'Back' })));
+    expect(screen.queryByRole('textbox', { name: 'Code' })).toBeNull();
+    expect(await screen.findByRole('button', { name: 'Pair a device' })).toBeInTheDocument();
+    expect(history.state.layers).toEqual(['account']);
+  });
 });
 
 // behavior (books.setlist_chrome) — on a phone an open setlist sits in the

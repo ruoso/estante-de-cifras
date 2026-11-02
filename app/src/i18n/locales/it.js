@@ -1025,6 +1025,37 @@ export default {
     leaveNotConfirmedBody: 'Non è cambiato nulla. Riprova quando sei pronto.',
     leaveRefused: 'Quella passkey non ha confermato questo account. Riprova.',
     leaveNowEmail: 'Questo account ora ha un’email — digitala per confermare.',
+    // Pairing a reMarkable, on the account screen (reader.pair_web; workflow 13
+    // §Among the signed-in devices, §The account screen).
+    pairDevice: 'Associa un dispositivo',
+    pairDeviceLine: 'Leggi i tuoi libri su un reMarkable. Mostra un codice: inseriscilo qui.',
+    remarkable: 'il tuo reMarkable',
+    readsOnly: 'Solo lettura',
+    remarkableSignOutTitle: 'Far uscire il tuo reMarkable?',
+    remarkableSignOutBody: 'Smette di leggere i tuoi libri alla prossima sincronizzazione, e vengono rimossi. Nel tuo account non cambia niente.',
+  },
+
+  // The Pair a device page (reader.pair_web; workflow 13 §Pairing a reMarkable).
+  // *Get a new code* is the reader's own English button, named as it shows.
+  pair: {
+    back: 'Indietro',
+    title: 'Associa un dispositivo',
+    signInLead: 'Accedi all’account di cui il reMarkable leggerà i libri.',
+    intro: 'Inserisci il codice che mostra il tuo reMarkable.',
+    codeLabel: 'Codice',
+    codeHint: 'Sei lettere e numeri, come KQ7-4TM',
+    canDoHeading: 'Cosa potrà fare il tuo reMarkable.',
+    canDo: 'Leggere ogni libro del tuo scaffale, con i tuoi strumenti e le tue preferenze. Non potrà mai modificarne uno: non salva niente e non rimanda indietro niente. Resta associato finché non lo fai uscire, qui o sul reMarkable.',
+    warning: 'Inserisci solo un codice mostrato dal tuo reMarkable, davanti a te: chi ha il dispositivo che lo mostra leggerà i tuoi libri.',
+    submit: 'Associa il tuo reMarkable',
+    paired: 'Il tuo reMarkable è associato. Il suo scaffale apparirà tra poco.',
+    done: 'Fatto',
+    offline: 'Sei offline. Per associare serve una connessione.',
+    malformed: 'Un codice ha sei lettere e numeri, come KQ7-4TM.',
+    unknown: 'Nessun reMarkable mostra questo codice. Controllalo sul suo schermo e riprova.',
+    expired: 'Questo codice è scaduto. Premi Get a new code sul tuo reMarkable e inserisci quello nuovo.',
+    used: 'Questo codice è già stato usato. Se il tuo reMarkable non è associato, premi Get a new code su di esso.',
+    rateLimited: 'Troppi tentativi. Aspetta qualche minuto e riprova.',
   },
 
   // The recovery email's confirm page, opened by the emailed link

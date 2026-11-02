@@ -56,6 +56,7 @@ import InvitedScreen, { InvitedLead, InvitedFooter } from '../account/InvitedScr
 import { createAuthClient } from '../account/auth-client.js';
 import InvitedRefusal from '../account/InvitedRefusal.jsx';
 import AccountScreen from '../account/AccountScreen.jsx';
+import PairDevice from '../account/PairDevice.jsx';
 import MySongsChoice from '../account/MySongsChoice.jsx';
 import FileView from '../files/FileView.jsx';
 import ChordExplorer from '../music/ChordExplorer.jsx';
@@ -254,6 +255,7 @@ export default function AppShell({
   recoveryToken = null,
   inviteToken = null,
   inviteSongAnchor = null,
+  pairOpen = false,
   authClient = DEFAULT_AUTH_CLIENT,
 }) {
   const mode = useLayoutMode();
@@ -339,6 +341,13 @@ export default function AppShell({
   // Recovery email region (account.sign_in_two_doors).
   const [account, setAccount] = useState(false);
   const openRecoveryEmail = () => setAccount({ focus: 'recovery' });
+  // The Pair a device page (reader.pair_web; workflow 13 §Pairing a reMarkable):
+  // a surface over the shell like the account screen (Decision 1), opened by the
+  // address the reMarkable shows (`/pair`, App.jsx) or by **Pair a device** at
+  // the foot of the account screen's Signed-in devices, which stays open beneath
+  // it. `null` is closed; otherwise `{ from: 'address' | 'account' }` — its Back
+  // returns to the shelf or to the account screen accordingly.
+  const [pair, setPair] = useState(pairOpen ? { from: 'address' } : null);
   // A song read full screen drops the banner with the rest of the chrome
   // (workflow 13 §The banner, *Full screen*); SongReading reports it.
   const [readingFull, setReadingFull] = useState(false);
@@ -519,6 +528,7 @@ export default function AppShell({
   };
   const layers = [
     account && 'account',
+    pair && 'pair',
     bookDetail && 'bookDetail',
     conflictsBook && 'conflicts',
     songConflict && 'songConflict',
@@ -559,6 +569,7 @@ export default function AppShell({
       setAccount(false);
       refreshAccount();
     },
+    pair: () => setPair(null),
     bookDetail: () => {
       setBookDetail(null);
       setShareReturn(null);
@@ -934,6 +945,7 @@ export default function AppShell({
     onAccount: () => {
       setSignIn(null);
       setRecoveryConfirm(null);
+      setPair(null);
       setAccount(true);
     },
   };
@@ -1016,6 +1028,34 @@ export default function AppShell({
     </div>
   );
 
+  // The Pair a device page (reader.pair_web): checked before the account screen,
+  // which stays open beneath it when its foot opened the page. Back closes it
+  // through the history (to the account screen, or the shelf when the address
+  // opened it); **Done** opens the account screen, whose own probe lists the
+  // reader just paired (Decision 8). Signed out, the page is the one sign-in
+  // surface under its own lead: a session made there attaches the home book as
+  // any sign-in does, and closing it before one exists returns to the shelf.
+  if (pair) {
+    return framed(
+      <PairDevice
+        authClient={auth}
+        onClose={() => back(closers.pair)}
+        onOpenAccount={() => {
+          setPair(null);
+          setAccount(true);
+        }}
+        onSignedIn={(signedIn) => {
+          store.send(command(CommandKind.ATTACH_HOME, signedIn?.id ? { accountId: signedIn.id } : {}));
+          refreshAccount();
+        }}
+        onCloseSignIn={() => {
+          setPair(null);
+          setAccount(false);
+        }}
+      />,
+    );
+  }
+
   // The account screen (account.account_screen): a full screen over the shell,
   // checked after SignIn so the not-signed-in card's *Sign in or make an account*
   // opens the SignIn surface above it and returns here on close (the account
@@ -1033,6 +1073,7 @@ export default function AppShell({
         focusRecovery={account?.focus === 'recovery'}
         onClose={() => back(closers.account)}
         onSignIn={() => setSignIn({})}
+        onPairDevice={() => setPair({ from: 'account' })}
         onSignOut={() => {
           setAccount(false);
           refreshAccount();

@@ -260,7 +260,15 @@ describe('LEAVE_BOOK (books.leave; workflow 10 §Leaving a book)', () => {
     }
   });
 
-  it('(c) unreachable, 401 and 409 each reply LEAVE_FAILED and touch nothing local (L119-120, L128-130)', async () => {
+  // One case per refusal, each on its own fresh worker and remote: every
+  // test-side read of the shared lightning-fs store waits out the Worker
+  // instance's 500 ms idle hand-off (and vice versa), so running all three
+  // refusals in one test stacked ~9 hand-offs near the default timeout.
+  it.each([
+    ['unreachable', 'throw', 'network'],
+    ['401', 401, 'refused'],
+    ['409', 409, 'refused'],
+  ])('(c) %s replies LEAVE_FAILED and touches nothing local (L119-120, L128-130)', async (_label, answer, reason) => {
     const remote = await startGitHttpRemote({ seed: false });
     const bookId = `srv-${rand()}`;
     let stopped = false;
@@ -283,27 +291,21 @@ describe('LEAVE_BOOK (books.leave; workflow 10 §Leaving a book)', () => {
       expect(before.savesWaiting).toBe(1);
       const shelfBefore = JSON.parse(await w.readHome('shelf.json')).books[bookId];
 
-      for (const [answer, reason] of [
-        ['throw', 'network'],
-        [401, 'refused'],
-        [409, 'refused'],
-      ]) {
-        w.leave.answer = answer;
-        const { reply, after } = await leaveBook(w, bookId);
-        expect(reply).toMatchObject({ kind: EventKind.LEAVE_FAILED, payload: { bookId, reason } });
-        // Nothing was torn down: no shelf re-surface, no index drop, no BOOK_LEFT.
-        expect(after.some((e) => e.kind === EventKind.BOOK_LEFT)).toBe(false);
-        expect(after.some((e) => e.kind === EventKind.SHELF)).toBe(false);
+      w.leave.answer = answer;
+      const { reply, after } = await leaveBook(w, bookId);
+      expect(reply).toMatchObject({ kind: EventKind.LEAVE_FAILED, payload: { bookId, reason } });
+      // Nothing was torn down: no shelf re-surface, no index drop, no BOOK_LEFT.
+      expect(after.some((e) => e.kind === EventKind.BOOK_LEFT)).toBe(false);
+      expect(after.some((e) => e.kind === EventKind.SHELF)).toBe(false);
 
-        // The clone, its working copy and the unpushed commit are as they were…
-        const text = await w.fs.promises.readFile(`${w.git.bookDir(bookId)}/${SONG_PATH}`, 'utf8');
-        expect(text).toContain('tchau');
-        expect((await surveyOf(w, bookId)).savesWaiting).toBe(before.savesWaiting);
-        // …and so is the shelf entry and the book's place in the index.
-        expect(JSON.parse(await w.readHome('shelf.json')).books[bookId]).toEqual(shelfBefore);
-        expect((await searchOnce(w, SONG_TERM)).some((r) => r.bookId === bookId)).toBe(true);
-      }
-      expect(leaveCalls(w, bookId)).toHaveLength(3);
+      // The clone, its working copy and the unpushed commit are as they were…
+      const text = await w.fs.promises.readFile(`${w.git.bookDir(bookId)}/${SONG_PATH}`, 'utf8');
+      expect(text).toContain('tchau');
+      expect((await surveyOf(w, bookId)).savesWaiting).toBe(before.savesWaiting);
+      // …and so is the shelf entry and the book's place in the index.
+      expect(JSON.parse(await w.readHome('shelf.json')).books[bookId]).toEqual(shelfBefore);
+      expect((await searchOnce(w, SONG_TERM)).some((r) => r.bookId === bookId)).toBe(true);
+      expect(leaveCalls(w, bookId)).toHaveLength(1);
     } finally {
       if (!stopped) await remote.stop();
     }

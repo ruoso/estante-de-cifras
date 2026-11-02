@@ -130,8 +130,9 @@ task reader "The reMarkable reader" {
   task pair_web "Pair a device, in the web app" {
     effort 1d
     allocate team
+    complete 100
     depends !pair_design, !device_pairing
-    note "The web side of pairing as workflow 13 decides it: estantedecifras.app/pair (and its way in from the account screen) takes a reMarkable code, says what the device will be able to do, and approves it; an unknown, expired or used code is said in words; the paired reader is listed among the signed-in devices as your reMarkable and can be signed out there. Copy in the four locales. Tests: behavior (the page: a code approved, each refusal said; the device listed; axe); e2e-web (a code begun against the stack is approved from the page on the three viewports, and the device appears among the signed-in devices)."
+    note "The web side of pairing as workflow 13 decides it: estantedecifras.app/pair (and its way in from the account screen) takes a reMarkable code, says what the device will be able to do, and approves it; an unknown, expired or used code is said in words; the paired reader is listed among the signed-in devices as your reMarkable and can be signed out there. Copy in the four locales. Tests: behavior (the page: a code approved, each refusal said; the device listed; axe); e2e-web (a code begun against the stack is approved from the page on the three viewports, and the device appears among the signed-in devices). Refinement: tasks/refinements/reader/pair_web.md"
   }
   task key_without_property "A song with no key property, named by its key" {
     effort 0.5d

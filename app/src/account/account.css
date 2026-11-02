@@ -821,3 +821,64 @@ label.signout-card > span:first-child input {
   flex: none;
   display: flex;
 }
+
+/* The Pair a device page (reader.pair_web; board Pair-a-device.dc.html): the
+   code typed large in the mono face, what the reMarkable can do in a card, the
+   warning line in the ink colour, the offline notice with its glyph, and the
+   paired outcome's check beside its line with Done under it. Layout only. */
+.pair-code {
+  font-size: 22px;
+  letter-spacing: 0.08em;
+}
+
+.pair-can-do {
+  gap: var(--u);
+}
+
+.pair-can-do > h2,
+.pair-can-do > p {
+  margin: 0;
+}
+
+.pair-warning {
+  color: var(--ink);
+  margin: 0;
+}
+
+.pair-offline {
+  align-items: center;
+  gap: calc(var(--u) * 1.25);
+}
+
+.pair-offline > svg {
+  flex: none;
+}
+
+.pair-paired {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.75);
+  margin-top: calc(var(--u) * 1.5);
+}
+
+.pair-paired .t-h1 {
+  margin: 0;
+}
+
+.pair-actions {
+  justify-content: flex-start;
+}
+
+/* The devices list: Pair a device at the section's foot, beside its line
+   (workflow 13 §The account screen; board Computer). */
+.account-pair-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(var(--u) * 2);
+}
+
+.account-pair-foot > .t-small {
+  color: var(--ink-2);
+  margin: 0;
+}

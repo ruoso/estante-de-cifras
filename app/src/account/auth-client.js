@@ -30,7 +30,8 @@ export class AuthError extends Error {
     this.name = 'AuthError';
     // 'unauthorized' | 'network' | 'not_found' | 'mismatch' | 'rate_limited' |
     // 'link_invalid' | 'address_taken' | 'refused' | 'confirm_by_email' |
-    // 'last_way_in' | 'bad_request'
+    // 'last_way_in' | 'bad_request' | 'pair_unknown' | 'pair_expired' |
+    // 'pair_used' | 'read_only'
     this.kind = kind;
     this.status = status ?? null;
     this.code = code ?? null;
@@ -56,6 +57,12 @@ const KIND_BY_CODE = {
   confirm_by_email: 'confirm_by_email',
   last_way_in: 'last_way_in',
   bad_request: 'bad_request',
+  // Approving a reMarkable's pairing code (reader.pair_web; api/openapi.yaml
+  // approveDevicePairing): 404 / 410 / 409, and 403 under a read-only session.
+  pair_code_unknown: 'pair_unknown',
+  pair_code_expired: 'pair_expired',
+  pair_code_used: 'pair_used',
+  read_only: 'read_only',
 };
 
 // Type a non-ok response into an AuthError: 401 → unauthorized, 429 →
@@ -300,6 +307,17 @@ export function createAuthClient({ fetch: injected } = {}) {
     // `rate_limited`. Sets no cookie: it never signs in.
     async confirmRecoveryEmail(token) {
       return emptyOf(await postJson(fetchImpl, '/api/recovery-email/confirm', { token }));
+    },
+
+    // --- pairing a reMarkable (reader.pair_web; workflow 13 §Pairing a
+    // reMarkable) ------------------------------------------------------------
+    // POST `{ code }` under the session → 204 (the reader's session is minted
+    // now, so it is listed at once). The code is sent as typed — the service
+    // takes any case, dash or spaces. 401 → `unauthorized`; 403 → `read_only`;
+    // 404 → `pair_unknown`; 409 → `pair_used`; 410 → `pair_expired`; 429 →
+    // `rate_limited`. The code is never logged or kept.
+    async approveDevicePairing(code) {
+      return emptyOf(await postJson(fetchImpl, '/api/devices/pair/approve', { code }));
     },
   };
 }
