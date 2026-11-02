@@ -23,7 +23,10 @@ import (
 	"estantedecifras.app/remarkable/internal/sync"
 )
 
-// fakeSyncer records Run (and the context it was given) and Trigger.
+// fakeSyncer records Run (and the context it was given) and Trigger, answers
+// Snapshot with the snapshot the test sets, and counts each book's holds and
+// each call of their releases (not idempotent here, so a second release of
+// one hold shows).
 type fakeSyncer struct {
 	mu       gosync.Mutex
 	runs     int
@@ -32,14 +35,49 @@ type fakeSyncer struct {
 	started  chan struct{}
 	ended    chan struct{}
 	trigged  chan struct{}
+	snap     *sync.Snapshot
+	holds    map[string]int
+	releases map[string]int
 }
 
 func newFakeSyncer() *fakeSyncer {
 	return &fakeSyncer{
-		started: make(chan struct{}),
-		ended:   make(chan struct{}),
-		trigged: make(chan struct{}, 16),
+		started:  make(chan struct{}),
+		ended:    make(chan struct{}),
+		trigged:  make(chan struct{}, 16),
+		holds:    map[string]int{},
+		releases: map[string]int{},
 	}
+}
+
+func (f *fakeSyncer) Snapshot() *sync.Snapshot {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.snap
+}
+
+func (f *fakeSyncer) setSnapshot(sn *sync.Snapshot) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.snap = sn
+}
+
+func (f *fakeSyncer) Hold(bookID string) func() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.holds[bookID]++
+	return func() {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.releases[bookID]++
+	}
+}
+
+// held is bookID's holds and releases so far.
+func (f *fakeSyncer) held(bookID string) (holds, releases int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.holds[bookID], f.releases[bookID]
 }
 
 func (f *fakeSyncer) Run(ctx context.Context) {
@@ -103,9 +141,20 @@ func (p *peer) recv() frame {
 	return f
 }
 
+// read is syscall.Read, retried when a signal (the Go runtime's preemption
+// among them) interrupts it.
+func read(fd int, buf []byte) (int, error) {
+	for {
+		n, err := syscall.Read(fd, buf)
+		if err != syscall.EINTR {
+			return n, err
+		}
+	}
+}
+
 func (p *peer) tryRecv() (frame, error) {
 	hdr := make([]byte, 8)
-	n, err := syscall.Read(p.fd, hdr)
+	n, err := read(p.fd, hdr)
 	if err != nil {
 		return frame{}, err
 	}
@@ -116,7 +165,7 @@ func (p *peer) tryRecv() (frame, error) {
 	size := int(binary.NativeEndian.Uint32(hdr[4:8]))
 	if size > 0 {
 		f.payload = make([]byte, size)
-		if n, err = syscall.Read(p.fd, f.payload); err != nil {
+		if n, err = read(p.fd, f.payload); err != nil {
 			return frame{}, err
 		}
 		f.payload = f.payload[:n]
@@ -362,12 +411,13 @@ func TestPeerCloseEndsServe(t *testing.T) {
 	}
 }
 
-// Design §6: a view message (reader.backend_views, to come), an unknown type
-// and a malformed payload get no answer, and the loop goes on.
+// Design §6: an unknown type and a malformed payload — an open's among them —
+// get no answer, and the loop goes on: a following hello is still answered.
+// (An open is answered now: reader.backend_views, views_test.go.)
 func TestOtherMessagesIgnored(t *testing.T) {
 	s := serve(t, nil)
-	s.peer.send(protocol.TypeOpen, `{"view":"shelf"}`)
 	s.peer.send(77, "{}")
+	s.peer.send(protocol.TypeOpen, `{"view":`)
 	s.peer.send(protocol.TypeHello, "{not json")
 	s.peer.silent()
 	s.peer.send(protocol.TypeHello, "{}")

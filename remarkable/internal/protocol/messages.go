@@ -213,17 +213,18 @@ type BookSetlist struct {
 // Sheet (105): one song read at one key. Shapes carries every shape of the
 // song, each marked Hidden or not: the frontend lays the pages out.
 type Sheet struct {
-	BookID  string          `json:"bookId"`
-	Path    string          `json:"path"`
-	Title   string          `json:"title"`
-	Artist  string          `json:"artist"`
-	Key     SheetKey        `json:"key"`
-	Offset  int             `json:"offset"`
-	Rows    json.RawMessage `json:"rows"`
-	Shapes  []SheetShape    `json:"shapes"`
-	Notes   json.RawMessage `json:"notes"`
-	KeyNote *string         `json:"keyNote"`
-	Play    *SheetPlay      `json:"play,omitempty"`
+	BookID   string          `json:"bookId"`
+	Path     string          `json:"path"`
+	Title    string          `json:"title"`
+	Artist   string          `json:"artist"`
+	Key      SheetKey        `json:"key"`
+	Offset   int             `json:"offset"`
+	TuningID string          `json:"tuningId"`
+	Rows     json.RawMessage `json:"rows"`
+	Shapes   []SheetShape    `json:"shapes"`
+	Notes    json.RawMessage `json:"notes"`
+	KeyNote  *string         `json:"keyNote"`
+	Play     *SheetPlay      `json:"play,omitempty"`
 }
 
 // SheetKey is the song's key as written, as named now, and the account's
@@ -236,11 +237,12 @@ type SheetKey struct {
 }
 
 // SheetShape is one shape of the strip: the chord's identity, its symbol, its
-// frets, its diagram model (raw, §7) and whether it is hidden.
+// frets, its diagram model (raw, §7) and whether it is hidden. A chord the
+// cache did not hold keeps its place with Frets nil and Model null (§4.1).
 type SheetShape struct {
 	Chord  string          `json:"chord"`
 	Symbol string          `json:"symbol"`
-	Frets  string          `json:"frets"`
+	Frets  *string         `json:"frets"`
 	Model  json.RawMessage `json:"model"`
 	Hidden bool            `json:"hidden"`
 }
@@ -270,14 +272,15 @@ type Setlist struct {
 	At     *int          `json:"at,omitempty"`
 }
 
-// SetlistItem is one item of a setlist: its song, key and note, the offset it
-// plays at, and whether its song is missing from the book.
+// SetlistItem is one item of a setlist, every item listed in order: its song
+// (Path "" for an unlinked item), its title, its own key and note properties
+// as written, and whether it is missing (an unlinked item, or a song the book
+// lacks).
 type SetlistItem struct {
 	Path    string  `json:"path"`
 	Title   string  `json:"title"`
 	Key     *string `json:"key"`
 	Note    *string `json:"note"`
-	Offset  int     `json:"offset"`
 	Missing bool    `json:"missing"`
 }
 

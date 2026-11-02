@@ -203,7 +203,12 @@ One process, four parts:
   the session (mode 0600), the clones, the current bundle and its manifest,
   and the reader's own small state (§5.4).
 - **engine** (§4) — one goja runtime, owned by one goroutine, running the
-  bundle. Everything the frontend shows is computed here.
+  bundle. All the music the frontend shows is computed here: a song's sheet
+  and a setlist's items. The book screen's listing — each song's title and
+  artist, each setlist's title and count — is read with cifra.md's Go
+  implementation (`cifra.md/go`, the format's, as the service reads it),
+  since a parse per song in goja (~80 ms on an rM2) would make a book of
+  three hundred songs take half a minute to open.
 
 ### 3.3 The frontend (QML)
 
@@ -227,8 +232,8 @@ Go host and the bundle:
 |---|---|
 | `instrument(files)` | From the home book's `instruments.json`, `preferences.json`, `shapes.json` and `shapes-default-cache.json` (as parsed JSON, absent as `{}`), the instrument in use as the Worker surfaces it and the default-shape table §4.1 chooses for it — the bundle's own salt, else another non-decommissioned salt's table whose fingerprint fits — for `load` (reader.sync) |
 | `load(entry, table)` | The instrument in use, as the Worker surfaces it, and its default-shape table (§4.1) |
-| `sheet(text, offset, opts)` | One song at one key: its rows (`chartRows`), its shapes (resolved §7.6 order, through the cache) as diagram models (`diagramModel`), its notes, key and title |
-| `setlist(text, …)` | A setlist's playable items and each one's key (workflow 12) |
+| `sheet(text, offset, opts)` | One song at one key: its rows (`chartRows`), its shapes (resolved §7.6 order, through the cache) as diagram models (`diagramModel`) with their frets, its notes, key and title, and the tuning id it was read on. `opts`: the preferences, the song's `songs.json` variations (by tuning; the bundle picks the instrument's), the saved transposition (named as `key.saved`), a setlist's target key |
+| `setlist(text, …)` | A setlist's playable items and each one's key (workflow 12), and every item in order, each marked missing or not, for the setlist screen |
 | `misses()` | Chords the cache did not hold, for the background fill (§4.1) |
 | `held()` | What the session keeps: songs parsed, shapes rebuilt, rebuilds so far, misses queued (for the host's checks and `bench`) |
 
@@ -367,8 +372,8 @@ know, and a field they do not know.
 | 102 `pairing` | → frontend | `{ code, url, expiresAt }`, or `{ expired: true }`, or `{ offline: true }` |
 | 103 `shelf` | → frontend | the books, in shelf order: `{ books: [{ bookId, title, songs, setlists }] }` — `songs` and `setlists` counts |
 | 104 `book` | → frontend | `{ bookId, title, songs: [{ path, title, artist }], setlists: [{ path, title, songs }] }` |
-| 105 `sheet` | → frontend | `{ bookId, path, title, artist, key: { written, named, saved }, offset, rows, shapes: [{ chord, symbol, frets, model, hidden }], notes, keyNote, play? }` — `model` the diagram model (§7); `saved` the account's key (`songs.json`) when it has one; `play` `{ setlist, at, of, next }`, `next` `{ title, key, note }` or `null` |
-| 106 `setlist` | → frontend | `{ bookId, path, title, items: [{ path, title, key, note, offset, missing }], at? }` — `at` the item last played, for Back |
+| 105 `sheet` | → frontend | `{ bookId, path, title, artist, key: { written, named, saved }, offset, tuningId, rows, shapes: [{ chord, symbol, frets, model, hidden }], notes, keyNote, play? }` — `model` the diagram model (§7); `saved` the account's key (`songs.json`) when it has one; `tuningId` the tuning the shapes are for, which `hideShape` and `showShape` name; a chord the cache did not hold keeps its place in `shapes` with `model` and `frets` `null`, its place in the strip left empty (§4.1); `play` `{ setlist, at, of, next }`, `next` `{ title, key, note }` or `null` |
+| 106 `setlist` | → frontend | `{ bookId, path, title, items: [{ path, title, key, note, missing }], at? }` — every item in order; `path` the song's book-root path (`""` for an unlinked item); `key` the item's own `key` property (`null` when it has none); `at` the item last played, for Back |
 | 107 `settings` | → frontend | `{ account, version, hiddenShapes }` — the account paired with, the reader's version, how many voicings are hidden |
 
 `rows` are `chartRows` exactly as the web app's chart receives them —
@@ -379,6 +384,24 @@ frontend lays the pages out, so a sheet carries every shape of the song, each
 marked `hidden` or not; the strip of a page, its count of hidden shapes and
 *Show hidden* are drawn from that. A tuning, a chord and its frets name a
 voicing to hide: the frets, not the spelling (workflow 19 §A song).
+
+**What the backend answers.** Every `open` is answered with its view, read
+from the last sync's snapshot: `shelf` and `settings` at once, `book` from the
+book at the snapshot's head, `sheet` and `setlist` through the engine. A song
+opens at the key chosen on the device for it, else the account's saved
+transposition, else as written; played from a setlist, at the setlist's key.
+The book of the view on screen is held (its clone kept on disk), and that view
+keeps the snapshot it was opened from: a `key`, a `hideShape` or a `showShape`
+redraws the open song from the same version, and a setlist being played reads
+every song from the version it started with, until an `open` leaves it (Back).
+A book the latest snapshot no longer has is read from the held one, so a song
+open from it stays readable until Back (workflow 19 §When something has
+changed). An `open` that cannot be answered as asked — the book or the file
+gone, no bundle loaded — is answered with the nearest view that can be (the
+book, else the shelf). `key` answers the redrawn `sheet`; `hideShape`,
+`showShape` and `showAllShapes` the redrawn `sheet` when a song is open, else
+`settings`; `shapesShown` answers `state`; `place` is kept and answered with
+nothing.
 
 ## 7. The screens
 

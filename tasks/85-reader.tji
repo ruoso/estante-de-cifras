@@ -61,8 +61,9 @@ task reader "The reMarkable reader" {
   task backend_views "The backend answers the views' messages" {
     effort 2d
     allocate team
+    complete 100
     depends !app_folder, !sync
-    note "The backend answers the frontend's view messages: open (shelf, book, song, setlist, settings) with 103 shelf, 104 book, 105 sheet (the engine's Sheet mapped onto section 6's payload, the key from the store over songs.json), 106 setlist, 107 settings from the sync snapshot, the engine and the store. It also handles key, place, hideShape, showShape, showAllShapes and shapesShown, kept in the store and answered with the re-drawn sheet or settings. signOut and pair are left to reader.pairing. Source of debt: tasks/refinements/reader/app_folder.md (reader.app_folder). Docs: docs/remarkable-reader.md section 6, section 5.4; workflow 19 A song, A setlist. Tests: unit (over a socketpair with a store holding a local book written for the purpose and the built bundle: each open answered, a key kept across a restart, a hidden voicing marked hidden in the next sheet, a song from a book gone still answered until Back)."
+    note "The backend answers the frontend's view messages: open (shelf, book, song, setlist, settings) with 103 shelf, 104 book, 105 sheet (the engine's Sheet mapped onto section 6's payload, the key from the store over songs.json), 106 setlist, 107 settings from the sync snapshot, the engine and the store. It also handles key, place, hideShape, showShape, showAllShapes and shapesShown, kept in the store and answered with the re-drawn sheet or settings. signOut and pair are left to reader.pairing. Source of debt: tasks/refinements/reader/app_folder.md (reader.app_folder). Docs: docs/remarkable-reader.md section 6, section 5.4; workflow 19 A song, A setlist. Tests: unit (over a socketpair with a store holding a local book written for the purpose and the built bundle: each open answered, a key kept across a restart, a hidden voicing marked hidden in the next sheet, a song from a book gone still answered until Back). Refinement: tasks/refinements/reader/backend_views.md"
   }
   task qml_chart "The chart and its diagrams, in QML" {
     effort 3d

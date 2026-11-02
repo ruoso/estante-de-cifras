@@ -360,16 +360,19 @@ func runCommand(args []string) error {
 		return err
 	}
 	// The engine is optional: without a bundle (reader.self_update brings it)
-	// sync runs and loads no instrument. A bundle that fails to open is none.
-	var eng sync.Engine
+	// sync runs and loads no instrument, and the views answer no music. A
+	// bundle that fails to open is none. Each side is handed a nil interface
+	// then, never a nil *engine.Engine inside one (which would not be nil).
+	var syncEng sync.Engine
+	var viewEng backend.Engine
 	if dir, ok := st.BundleDir(); ok {
 		if e, err := engine.Open(dir); err == nil {
 			defer e.Close()
-			eng = e
+			syncEng, viewEng = e, e
 		}
 	}
 	relay := backend.NewRelay()
-	syncer := sync.New(st, eng, sync.Options{OnStatus: relay.StatusFunc()})
+	syncer := sync.New(st, syncEng, sync.Options{OnStatus: relay.StatusFunc()})
 
 	conn, err := protocol.Dial(fs.Arg(0))
 	if err != nil {
@@ -377,7 +380,10 @@ func runCommand(args []string) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
-	err = backend.Serve(ctx, conn, backend.Deps{Store: st, Syncer: syncer, Relay: relay, Now: time.Now})
+	err = backend.Serve(ctx, conn, backend.Deps{
+		Store: st, Syncer: syncer, Relay: relay, Now: time.Now,
+		Engine: viewEng, Version: version,
+	})
 	if err != nil && ctx.Err() != nil {
 		// A signal is an ending like terminate.
 		return nil

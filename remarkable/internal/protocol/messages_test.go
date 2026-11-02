@@ -5,6 +5,7 @@ package protocol
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
@@ -24,12 +25,15 @@ var (
 func sampleSheet() Sheet {
 	return Sheet{
 		BookID: "b1", Path: "a.cifra.md", Title: "Maré Mansa", Artist: "Grupo da Praça",
-		Key:    SheetKey{Written: ptr("C"), Named: ptr("D"), Saved: ptr("D")},
-		Offset: 2,
-		Rows:   rawRows,
+		Key:      SheetKey{Written: ptr("C"), Named: ptr("D"), Saved: ptr("D")},
+		Offset:   2,
+		TuningID: "40 45 50 55 59 64",
+		Rows:     rawRows,
 		Shapes: []SheetShape{
-			{Chord: "C:maj7", Symbol: "C7M", Frets: "x45320", Model: rawModel, Hidden: true},
-			{Chord: "D:", Symbol: "D", Frets: "xx0232", Model: rawModel},
+			{Chord: "C:maj7", Symbol: "C7M", Frets: ptr("x45320"), Model: rawModel, Hidden: true},
+			{Chord: "D:", Symbol: "D", Frets: ptr("xx0232"), Model: rawModel},
+			// A pending chord keeps its place: no frets, no model (§4.1).
+			{Chord: "F#:dim7", Symbol: "F#°", Frets: nil, Model: json.RawMessage("null")},
 		},
 		Notes:   rawNotes,
 		KeyNote: nil,
@@ -59,8 +63,9 @@ func every() []Message {
 			Setlists: []BookSetlist{{Path: "gig.setlist.md", Title: "Sábado", Songs: 12}}},
 		sampleSheet(),
 		Setlist{BookID: "b1", Path: "gig.setlist.md", Title: "Sábado", At: ptr(2), Items: []SetlistItem{
-			{Path: "a.cifra.md", Title: "Maré Mansa", Key: ptr("D"), Note: ptr("devagar"), Offset: 2},
-			{Path: "gone.cifra.md", Title: "gone", Missing: true},
+			{Path: "a.cifra.md", Title: "Maré Mansa", Key: ptr("D"), Note: ptr("devagar")},
+			{Path: "gone.cifra.md", Title: "gone", Key: ptr("E"), Note: ptr("se der"), Missing: true},
+			{Path: "", Title: "a tocar ainda", Missing: true},
 		}},
 		Settings{Account: "ana@example.org", Version: "0.7.0", HiddenShapes: 11},
 	}
@@ -127,19 +132,22 @@ func TestWireNames(t *testing.T) {
 			`{"bookId":"b1","title":"Roda","songs":[{"path":"a.cifra.md","title":"Maré","artist":"Grupo"}],"setlists":[{"path":"gig.setlist.md","title":"Sábado","songs":12}]}`},
 		{Sheet{BookID: "b1", Path: "a.cifra.md", Title: "Maré", Artist: "Grupo",
 			Key:    SheetKey{Written: ptr("C"), Named: ptr("D"), Saved: ptr("D")},
-			Offset: 2, Rows: []byte(`[]`),
-			Shapes: []SheetShape{{Chord: "C:maj7", Symbol: "C7M", Frets: "x45320", Model: []byte(`{}`), Hidden: true}},
-			Notes:  []byte(`[]`), KeyNote: nil,
+			Offset: 2, TuningID: "40 45 50 55 59 64", Rows: []byte(`[]`),
+			Shapes: []SheetShape{
+				{Chord: "C:maj7", Symbol: "C7M", Frets: ptr("x45320"), Model: []byte(`{}`), Hidden: true},
+				{Chord: "F#:dim7", Symbol: "F#°", Frets: nil, Model: nil},
+			},
+			Notes: []byte(`[]`), KeyNote: nil,
 			Play: &SheetPlay{Setlist: "gig.setlist.md", At: 11, Of: 12, Next: nil}},
-			`{"bookId":"b1","path":"a.cifra.md","title":"Maré","artist":"Grupo","key":{"written":"C","named":"D","saved":"D"},"offset":2,"rows":[],"shapes":[{"chord":"C:maj7","symbol":"C7M","frets":"x45320","model":{},"hidden":true}],"notes":[],"keyNote":null,"play":{"setlist":"gig.setlist.md","at":11,"of":12,"next":null}}`},
+			`{"bookId":"b1","path":"a.cifra.md","title":"Maré","artist":"Grupo","key":{"written":"C","named":"D","saved":"D"},"offset":2,"tuningId":"40 45 50 55 59 64","rows":[],"shapes":[{"chord":"C:maj7","symbol":"C7M","frets":"x45320","model":{},"hidden":true},{"chord":"F#:dim7","symbol":"F#°","frets":null,"model":null,"hidden":false}],"notes":[],"keyNote":null,"play":{"setlist":"gig.setlist.md","at":11,"of":12,"next":null}}`},
 		{Sheet{BookID: "b1", Path: "a.cifra.md", Title: "Maré", Artist: "",
 			Key: SheetKey{}, Rows: []byte(`[]`), Shapes: []SheetShape{}, Notes: []byte(`[]`), KeyNote: ptr("named by its last chord")},
-			`{"bookId":"b1","path":"a.cifra.md","title":"Maré","artist":"","key":{"written":null,"named":null,"saved":null},"offset":0,"rows":[],"shapes":[],"notes":[],"keyNote":"named by its last chord"}`},
-		{sheetWithNext(), `{"bookId":"","path":"","title":"","artist":"","key":{"written":null,"named":null,"saved":null},"offset":0,"rows":[],"shapes":[],"notes":[],"keyNote":null,"play":{"setlist":"gig.setlist.md","at":2,"of":12,"next":{"title":"Asa","key":"G","note":"capo 2"}}}`},
+			`{"bookId":"b1","path":"a.cifra.md","title":"Maré","artist":"","key":{"written":null,"named":null,"saved":null},"offset":0,"tuningId":"","rows":[],"shapes":[],"notes":[],"keyNote":"named by its last chord"}`},
+		{sheetWithNext(), `{"bookId":"","path":"","title":"","artist":"","key":{"written":null,"named":null,"saved":null},"offset":0,"tuningId":"","rows":[],"shapes":[],"notes":[],"keyNote":null,"play":{"setlist":"gig.setlist.md","at":2,"of":12,"next":{"title":"Asa","key":"G","note":"capo 2"}}}`},
 		{Setlist{BookID: "b1", Path: "gig.setlist.md", Title: "Sábado", Items: []SetlistItem{
-			{Path: "a.cifra.md", Title: "Maré", Key: ptr("D"), Note: ptr("devagar"), Offset: 2},
+			{Path: "a.cifra.md", Title: "Maré", Key: ptr("D"), Note: ptr("devagar")},
 			{Path: "gone.cifra.md", Title: "gone", Missing: true}}, At: ptr(0)},
-			`{"bookId":"b1","path":"gig.setlist.md","title":"Sábado","items":[{"path":"a.cifra.md","title":"Maré","key":"D","note":"devagar","offset":2,"missing":false},{"path":"gone.cifra.md","title":"gone","key":null,"note":null,"offset":0,"missing":true}],"at":0}`},
+			`{"bookId":"b1","path":"gig.setlist.md","title":"Sábado","items":[{"path":"a.cifra.md","title":"Maré","key":"D","note":"devagar","missing":false},{"path":"gone.cifra.md","title":"gone","key":null,"note":null,"missing":true}],"at":0}`},
 		{Setlist{BookID: "b1", Path: "gig.setlist.md", Title: "Sábado", Items: []SetlistItem{}}, `{"bookId":"b1","path":"gig.setlist.md","title":"Sábado","items":[]}`},
 		{Settings{Account: "ana@example.org", Version: "0.7.0", HiddenShapes: 11}, `{"account":"ana@example.org","version":"0.7.0","hiddenShapes":11}`},
 	}

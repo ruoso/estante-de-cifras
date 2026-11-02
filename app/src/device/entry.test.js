@@ -65,6 +65,7 @@ const { SHAPE_CACHE_SALT, shapeCacheKey } = await import('../core/shape-cache.js
 const { transpose } = await import('../core/transpose.js');
 const { songDialect, DEFAULT_DIALECT } = await import('../core/notation/dialects.js');
 const { parseChord } = await import('../core/notation/parse.js');
+const { shorthandOf } = await import('../core/fretstring.js');
 const { chartRows } = await import('../chart/layout.js');
 const { diagramModel } = await import('../render/diagram.js');
 const { readSongSheet, instrumentFor } = await import('../songs/song-sheet.js');
@@ -497,5 +498,103 @@ describe('instrument (reader.sync)', () => {
     const empty = estante.instrument({ instruments: {}, preferences: {}, shapes: {}, defaultShapes: {} });
     expect(empty.table).toBeNull();
     expect(JSON.parse(JSON.stringify(empty))).toStrictEqual(empty);
+  });
+});
+
+// reader.backend_views: what the reader's sheet and setlist screens need from
+// the bundle so the Go host keeps no music (design §4 host API, §6 `105`,
+// `106`; refinement Constraint 1).
+describe('sheet for the reader (reader.backend_views; §6 105)', () => {
+  it("picks the instrument's tuning from the songs.json variations, over `variation`", () => {
+    // A song written for this test with two blocks for the standard tuning,
+    // the default and one called High.
+    const text = [
+      '# Test Two Ways',
+      '- key: C',
+      '',
+      '```',
+      'C | G | C',
+      '```',
+      '',
+      '---',
+      '',
+      '## Voicings: E2 A2 D3 G3 B3 E4',
+      '- C: x32010',
+      '- G: 320003',
+      '',
+      '## High: E2 A2 D3 G3 B3 E4',
+      '- C: x35553',
+      '- G: 355433',
+      '',
+    ].join('\n');
+    const tuning = estante.sheet(text, 0).tuningId;
+    const high = estante.sheet(text, 0, { variations: { [tuning]: 'High', '1 2 3': '' }, variation: '' });
+    expect(high.shapes.map((s) => s.frets)).toEqual(['x35553', '355433']);
+    const open = estante.sheet(text, 0, { variations: { '1 2 3': 'High' }, variation: 'High' });
+    expect(open.shapes.map((s) => s.frets)).toEqual(['x32010', '320003']);
+    expect(estante.sheet(text, 0, { variation: 'High' }).shapes.map((s) => s.frets)).toEqual(['x35553', '355433']);
+  });
+
+  it("returns the session's tuning id", () => {
+    const got = estante.sheet(song('walking-to-the-market.cifra.md'), 0);
+    expect(got.tuningId).toBe(estante.load(ENTRY, TABLE).tuningId);
+    expect(got.tuningId).toBe('40 45 50 55 59 64');
+  });
+
+  it("returns each resolved shape's frets as shorthandOf its fingering", () => {
+    const viewEntry = { ...ENTRY, defaultShapes: TABLE };
+    for (const { text } of SONGS) {
+      for (const offset of [0, 3]) {
+        const got = estante.sheet(text, offset);
+        const view = readSongSheet({ text, reading: { transposition: offset }, entry: viewEntry });
+        expect(got.shapes.length).toBeGreaterThan(0);
+        got.shapes.forEach((shape, i) => {
+          expect(shape.frets).toBe(shorthandOf(view.shapes[i].fingering.frets));
+        });
+      }
+    }
+  });
+
+  it('names key.saved at savedOffset, by the rule of key.named', () => {
+    const walking = song('walking-to-the-market.cifra.md');
+    expect(estante.sheet(walking, 0).key.saved).toBeNull();
+    const got = estante.sheet(walking, 0, { savedOffset: 3 });
+    expect(got.key.saved).toBe(estante.sheet(walking, 3).key.named);
+    expect(got.key.saved).toBe('Bb');
+    expect(got.key.named).toBe('G');
+    // A song with no key is named by its last chord at the saved offset.
+    const ferry = song('the-ferry-line.cifra.md');
+    for (const at of [0, 3, 5]) {
+      expect(estante.sheet(ferry, at, { savedOffset: 3 }).key.saved).toBe(estante.sheet(ferry, 3).key.named);
+    }
+    expect(estante.sheet(ferry, 0, { savedOffset: 0 }).key.saved).toBe(estante.sheet(ferry, 0).key.named);
+  });
+});
+
+describe('setlist rows for the reader (reader.backend_views; §6 106)', () => {
+  it('returns every item in order, a missing link and an unlinked item marked', () => {
+    const text = [
+      '# Test With a Gap',
+      '',
+      '1. [Morning on the Porch](morning-on-the-porch.cifra.md)',
+      '2. [Lost Song](lost-song.cifra.md)',
+      '   - key: D',
+      '   - note: count it in slowly',
+      '3. Something we have not written yet',
+      '4. [Walking to the Market](walking-to-the-market.cifra.md)',
+      '   - key: A',
+      '',
+    ].join('\n');
+    const got = estante.setlist(text, 'with-a-gap.setlist.md', SONGS.map((s) => s.name));
+    expect(got.rows).toEqual([
+      { at: 0, number: 1, title: 'Morning on the Porch', path: 'morning-on-the-porch.cifra.md', key: null, note: null, missing: false },
+      { at: 1, number: 2, title: 'Lost Song', path: 'lost-song.cifra.md', key: 'D', note: 'count it in slowly', missing: true },
+      { at: 2, number: 3, title: 'Something we have not written yet', path: null, key: null, note: null, missing: true },
+      { at: 3, number: 4, title: 'Walking to the Market', path: 'walking-to-the-market.cifra.md', key: 'A', note: null, missing: false },
+    ]);
+    // Items and missing are as before.
+    expect(got.items.map((i) => i.path)).toEqual(['morning-on-the-porch.cifra.md', 'walking-to-the-market.cifra.md']);
+    expect(got.missing).toBe(2);
+    expect(JSON.parse(JSON.stringify(got))).toStrictEqual(got);
   });
 });

@@ -17,10 +17,20 @@ const Interval = 15 * time.Minute
 const passTimeout = 10 * time.Minute
 
 // Run passes until ctx ends: once at start, once after each Trigger
-// (coalesced), and on each Interval tick while Online.
+// (coalesced), and on each Interval tick while Online. Before its first pass
+// it loads the instrument from the home book already on disk, so a reader
+// started offline reads with the instrument it synced last (offline first);
+// the digest then makes the first online pass load nothing twice. With no
+// home book on disk it loads nothing.
 func (s *Syncer) Run(ctx context.Context) {
 	tick, stop := s.newTicker(Interval)
 	defer stop()
+	if s.eng != nil && s.st != nil {
+		if home := readHome(s.st.HomeDir()); len(home) > 0 {
+			// A failure leaves the engine as it was; the pass tries again.
+			_ = s.loadInstrument(ctx, home)
+		}
+	}
 	s.runPass(ctx)
 	for {
 		select {

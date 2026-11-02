@@ -6,8 +6,8 @@
 // attaches or asks for one, and ends on AppLoad's terminate or when the
 // socket closes.
 //
-// The views (open, key, place, the shapes' messages) are reader.backend_views':
-// until then they are read and answered with nothing.
+// The views — open, key, place and the shapes' messages — are answered in
+// views.go (reader.backend_views); signOut and pair are reader.pairing's.
 package backend
 
 import (
@@ -23,10 +23,14 @@ import (
 )
 
 // Syncer is the sync schedule Serve runs (*sync.Syncer satisfies it): Run
-// passes until its context ends, Trigger asks for one more pass.
+// passes until its context ends, Trigger asks for one more pass, Snapshot is
+// the last pass's snapshot the views read, and Hold keeps a book's clone on
+// disk while a view reads it.
 type Syncer interface {
 	Run(ctx context.Context)
 	Trigger()
+	Snapshot() *sync.Snapshot
+	Hold(bookID string) (release func())
 }
 
 // Deps are Serve's collaborators.
@@ -39,8 +43,17 @@ type Deps struct {
 	// Relay carries the syncer's statuses to the connection: its StatusFunc
 	// is the syncer's sync.Options.OnStatus. Nil: no status but the first.
 	Relay *Relay
-	// Now is the clock (time.Now when nil), for the views to come.
+	// Now is the clock (time.Now when nil).
 	Now func() time.Time
+	// Engine computes the music the views show; nil when no bundle is
+	// installed or it failed to open (then songs and setlists answer their
+	// book). Never a typed-nil pointer.
+	Engine Engine
+	// Version is the reader's version, which Settings names.
+	Version string
+
+	// onParse is told of each file the book listing parses (tests only).
+	onParse func()
 }
 
 // Relay holds the last sync status and, while Serve runs, the connection a
@@ -128,6 +141,8 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 	}()
 	// ctx's end unblocks Next by closing conn.
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
+	v := newViews(ctx, conn, relay, b)
+	defer v.close()
 	defer func() {
 		stop()
 		cancelSync()
@@ -160,7 +175,9 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 		case protocol.Detached:
 			// The schedule goes on without a frontend.
 		default:
-			// The views: reader.backend_views.
+			if err := v.handle(m); err != nil {
+				return err
+			}
 		}
 	}
 }

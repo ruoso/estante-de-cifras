@@ -1,0 +1,835 @@
+package backend
+
+// unit — the views (reader.backend_views; docs/remarkable-reader.md §3.2, §6
+// "What the backend answers"; workflow 19). Each test runs Serve over the real
+// SOCK_SEQPACKET pair(t), with a real store in a temporary directory holding a
+// book and a home book written here with go-git, the real sync snapshot over
+// that store (sync.New(st, nil, …).Snapshot(), which reads disk only) handed
+// out by the fake syncer, and the real engine: the built device bundle,
+// loaded with the example book's entry and table. A missing build fails, and
+// never skips ("run npm run build in app/"). The songs are app/example-book's,
+// written for the project; with-a-gap.setlist.md is written for these tests.
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"log"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	gosync "sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
+	"github.com/go-git/go-git/v5/plumbing/object"
+
+	"estantedecifras.app/remarkable/internal/engine"
+	"estantedecifras.app/remarkable/internal/protocol"
+	"estantedecifras.app/remarkable/internal/store"
+	"estantedecifras.app/remarkable/internal/sync"
+)
+
+const (
+	appDir      = "../../../app"
+	bundleDir   = appDir + "/dist/device"
+	fixtureFile = appDir + "/dist-test/device/example-book.default-shapes.json"
+	exampleBook = appDir + "/example-book"
+
+	testBook    = "bk-test"
+	noClone     = "bk-not-cloned"
+	testLabel   = "Songs for the porch"
+	testVersion = "0.9.0-test"
+
+	walking  = "walking-to-the-market.cifra.md"
+	ferry    = "the-ferry-line.cifra.md"
+	morning  = "morning-on-the-porch.cifra.md"
+	shortSet = "a-short-set.setlist.md"
+	withGap  = "with-a-gap.setlist.md"
+)
+
+// withAGap links the three songs, one absent song (with a key and a note)
+// and one unlinked item; written for these tests.
+const withAGap = `# With a Gap
+
+1. [Morning on the Porch](morning-on-the-porch.cifra.md)
+2. [Lost Song](lost-song.cifra.md)
+   - key: D
+   - note: bring the capo
+3. [The Ferry Line](the-ferry-line.cifra.md)
+4. A tune still to be written
+   - note: hum it for now
+5. [Walking to the Market](walking-to-the-market.cifra.md)
+`
+
+// --- the engine: the built bundle, opened once ---
+
+var built struct {
+	once   gosync.Once
+	e      *engine.Engine
+	tuning string
+	err    error
+}
+
+func builtEngine(t *testing.T) *engine.Engine {
+	t.Helper()
+	built.once.Do(func() {
+		if _, err := os.Stat(filepath.Join(bundleDir, engine.ManifestFile)); err != nil {
+			built.err = err
+			return
+		}
+		raw, err := os.ReadFile(fixtureFile)
+		if err != nil {
+			built.err = err
+			return
+		}
+		var fx struct {
+			Entry json.RawMessage `json:"entry"`
+			Table json.RawMessage `json:"table"`
+		}
+		if built.err = json.Unmarshal(raw, &fx); built.err != nil {
+			return
+		}
+		if built.e, built.err = engine.Open(bundleDir); built.err != nil {
+			return
+		}
+		l, err := built.e.Load(context.Background(), fx.Entry, fx.Table)
+		built.err, built.tuning = err, l.TuningID
+	})
+	if built.err != nil {
+		t.Fatalf("%v — run npm run build in app/", built.err)
+	}
+	return built.e
+}
+
+// --- the fixture book and home book, committed with go-git ---
+
+func exampleText(t *testing.T, name string) string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(exampleBook, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
+// commit commits files as the whole tree of a new commit on refs/heads/main
+// of the bare repository at dir (made when absent), and answers its hash.
+func commit(t *testing.T, dir string, files map[string]string) string {
+	t.Helper()
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		os.RemoveAll(dir) // the store makes home/ empty
+		if repo, err = git.PlainInit(dir, true); err != nil {
+			t.Fatal(err)
+		}
+		main := plumbing.ReferenceName("refs/heads/main")
+		if err := repo.Storer.SetReference(plumbing.NewSymbolicReference(plumbing.HEAD, main)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	put := func(o interface {
+		Encode(plumbing.EncodedObject) error
+	}) plumbing.Hash {
+		obj := repo.Storer.NewEncodedObject()
+		if err := o.Encode(obj); err != nil {
+			t.Fatal(err)
+		}
+		h, err := repo.Storer.SetEncodedObject(obj)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return h
+	}
+	names := make([]string, 0, len(files))
+	for n := range files {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	tree := &object.Tree{}
+	for _, n := range names {
+		blob := repo.Storer.NewEncodedObject()
+		blob.SetType(plumbing.BlobObject)
+		w, _ := blob.Writer()
+		w.Write([]byte(files[n]))
+		w.Close()
+		h, err := repo.Storer.SetEncodedObject(blob)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tree.Entries = append(tree.Entries, object.TreeEntry{Name: n, Mode: filemode.Regular, Hash: h})
+	}
+	sig := object.Signature{Name: "Test", Email: "test@example.org", When: time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)}
+	c := &object.Commit{Author: sig, Committer: sig, Message: "test\n", TreeHash: put(tree)}
+	if ref, err := repo.Reference("refs/heads/main", true); err == nil {
+		c.ParentHashes = []plumbing.Hash{ref.Hash()}
+	}
+	h := put(c)
+	if err := repo.Storer.SetReference(plumbing.NewHashReference("refs/heads/main", h)); err != nil {
+		t.Fatal(err)
+	}
+	return h.String()
+}
+
+func reg(v any) map[string]any { return map[string]any{"at": "2026-10-06T12:00:00.000Z", "value": v} }
+
+// homeFiles is the home book: shelf.json with the test book (labelled) and a
+// book with no clone, and songs.json with The Ferry Line at transposition 3
+// and a variation for a tuning no fixture holds. Without the test book when
+// shelved is false.
+func homeFiles(t *testing.T, shelved bool) map[string]string {
+	t.Helper()
+	books := map[string]any{
+		noClone: map[string]any{"link": reg("https://example.test/git/" + noClone), "position": reg(2)},
+	}
+	if shelved {
+		books[testBook] = map[string]any{
+			"link": reg("https://example.test/git/" + testBook), "position": reg(1), "label": reg(testLabel),
+		}
+	}
+	songs := map[string]any{
+		testBook + "/" + ferry: map[string]any{
+			"transposition": reg(3),
+			"variation":     map[string]any{"62 67 71 74": reg("Up the neck")},
+		},
+	}
+	return map[string]string{"shelf.json": mustMarshal(t, map[string]any{"books": books}), "songs.json": mustMarshal(t, songs)}
+}
+
+func mustMarshal(t *testing.T, v any) string {
+	t.Helper()
+	raw, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
+}
+
+// viewsFixture is a store at root with the book and the home book on disk.
+type viewsFixture struct {
+	root string
+	st   *store.Store
+	book map[string]string
+}
+
+func newViewsFixture(t *testing.T) *viewsFixture {
+	t.Helper()
+	root := t.TempDir()
+	st, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := &viewsFixture{root: root, st: st, book: map[string]string{withGap: withAGap}}
+	for _, n := range []string{walking, ferry, morning, shortSet} {
+		f.book[n] = exampleText(t, n)
+	}
+	f.commitBook(t)
+	commit(t, st.HomeDir(), homeFiles(t, true))
+	return f
+}
+
+func (f *viewsFixture) commitBook(t *testing.T) {
+	t.Helper()
+	dir, err := f.st.BookDir(testBook)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commit(t, dir, f.book)
+}
+
+// snapshot is the real snapshot of what the store holds now.
+func (f *viewsFixture) snapshot() *sync.Snapshot {
+	return sync.New(f.st, nil, sync.Options{}).Snapshot()
+}
+
+// reopen opens the store again on the same root (a restart).
+func (f *viewsFixture) reopen(t *testing.T) {
+	t.Helper()
+	st, err := store.Open(f.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.st = st
+}
+
+// viewsServe is one Serve over the fixture.
+type viewsServe struct {
+	peer   *peer
+	syncer *fakeSyncer
+	parses *atomic.Int64
+	stop   func()
+}
+
+func (f *viewsFixture) serve(t *testing.T, eng Engine) *viewsServe {
+	t.Helper()
+	conn, p := pair(t)
+	s := &viewsServe{peer: p, syncer: newFakeSyncer(), parses: &atomic.Int64{}}
+	s.syncer.snap = f.snapshot()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	deps := Deps{
+		Store: f.st, Syncer: s.syncer, Relay: NewRelay(), Engine: eng, Version: testVersion,
+		onParse: func() { s.parses.Add(1) },
+	}
+	go func() { done <- Serve(ctx, conn, deps) }()
+	s.stop = gosync.OnceFunc(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("Serve did not return after its context ended")
+		}
+	})
+	t.Cleanup(s.stop)
+	select {
+	case <-s.syncer.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Serve did not start the syncer's Run")
+	}
+	return s
+}
+
+// send writes one message to the backend as JSON.
+func (s *viewsServe) send(t *testing.T, typ int32, v any) {
+	t.Helper()
+	s.peer.send(typ, mustMarshal(t, v))
+}
+
+// expect reads one message, fails unless it is typ, and decodes it into v.
+func (s *viewsServe) expect(t *testing.T, typ int32, v any) {
+	t.Helper()
+	f := s.peer.recv()
+	if f.typ != typ {
+		t.Fatalf("got message %d %.120s, want %d", f.typ, f.payload, typ)
+	}
+	if err := json.Unmarshal(f.payload, v); err != nil {
+		t.Fatalf("message %d: %v", typ, err)
+	}
+}
+
+func (s *viewsServe) openSong(t *testing.T, path string, extra map[string]any) protocol.Sheet {
+	t.Helper()
+	o := map[string]any{"view": "song", "bookId": testBook, "path": path}
+	for k, v := range extra {
+		o[k] = v
+	}
+	s.send(t, protocol.TypeOpen, o)
+	var sheet protocol.Sheet
+	s.expect(t, protocol.TypeSheet, &sheet)
+	return sheet
+}
+
+func (s *viewsServe) sheet(t *testing.T) protocol.Sheet {
+	t.Helper()
+	var sheet protocol.Sheet
+	s.expect(t, protocol.TypeSheet, &sheet)
+	return sheet
+}
+
+func strp(s *string) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return *s
+}
+
+// namedAt is the engine's own name for a song's key at offset — the oracle,
+// so the test keeps no music rule either.
+func namedAt(t *testing.T, text string, offset int) string {
+	t.Helper()
+	s, err := builtEngine(t).Sheet(context.Background(), text, offset, engine.SheetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strp(s.Key.Named)
+}
+
+// --- the tests ---
+
+// TestOpenShelf pins design §6 103 and workflow 19 §The shelf: the book with
+// its label and its counts; a shelf entry without a clone is not listed.
+func TestOpenShelf(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "shelf"})
+	var shelf protocol.Shelf
+	s.expect(t, protocol.TypeShelf, &shelf)
+	want := []protocol.ShelfBook{{BookID: testBook, Title: testLabel, Songs: 3, Setlists: 2}}
+	if len(shelf.Books) != 1 || shelf.Books[0] != want[0] {
+		t.Errorf("shelf %+v, want %+v", shelf.Books, want)
+	}
+	s.peer.silent()
+}
+
+// TestOpenBook pins workflow 19 §A book and the web app's browse order: the
+// setlists by path with their counts (song and unlinked items), then the
+// songs by path with their titles and artists.
+func TestOpenBook(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "book", "bookId": testBook})
+	var book protocol.Book
+	s.expect(t, protocol.TypeBook, &book)
+	if book.BookID != testBook || book.Title != testLabel {
+		t.Errorf("book %q %q", book.BookID, book.Title)
+	}
+	wantSets := []protocol.BookSetlist{
+		{Path: shortSet, Title: "A Short Set", Songs: 3},
+		{Path: withGap, Title: "With a Gap", Songs: 5},
+	}
+	if mustMarshal(t, book.Setlists) != mustMarshal(t, wantSets) {
+		t.Errorf("setlists %+v, want %+v", book.Setlists, wantSets)
+	}
+	wantSongs := []protocol.BookSong{
+		{Path: morning, Title: "Morning on the Porch", Artist: ""},
+		{Path: ferry, Title: "The Ferry Line", Artist: ""},
+		{Path: walking, Title: "Walking to the Market", Artist: ""},
+	}
+	if mustMarshal(t, book.Songs) != mustMarshal(t, wantSongs) {
+		t.Errorf("songs %+v, want %+v", book.Songs, wantSongs)
+	}
+}
+
+// TestBookListingMemoised pins Decision 1: the listing is read once per
+// (book, head) — a second opening at the same head parses nothing — and a new
+// head is read again.
+func TestBookListingMemoised(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	var book protocol.Book
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "book", "bookId": testBook})
+	s.expect(t, protocol.TypeBook, &book)
+	first := s.parses.Load()
+	if first != 5 {
+		t.Fatalf("%d files parsed, want the 5 songs and setlists", first)
+	}
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "shelf"})
+	s.expect(t, protocol.TypeShelf, &protocol.Shelf{})
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "book", "bookId": testBook})
+	s.expect(t, protocol.TypeBook, &book)
+	if n := s.parses.Load(); n != first {
+		t.Errorf("a second opening at the same head parsed %d files", n-first)
+	}
+
+	f.book[walking] = strings.Replace(f.book[walking], "# Walking to the Market", "# Walking to the Market Again", 1)
+	f.commitBook(t)
+	s.syncer.setSnapshot(f.snapshot())
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "book", "bookId": testBook})
+	s.expect(t, protocol.TypeBook, &book)
+	if n := s.parses.Load(); n != 2*first {
+		t.Errorf("a new head parsed %d files, want %d", n-first, first)
+	}
+	if book.Songs[2].Title != "Walking to the Market Again" {
+		t.Errorf("new head's title %q", book.Songs[2].Title)
+	}
+}
+
+// TestOpenSongAsWritten pins design §6 105 and workflow 19 §A song: the song
+// at its written key, the engine's rows byte for byte, the tuning of the
+// Load, every shape with its chord, frets and model, none hidden.
+func TestOpenSongAsWritten(t *testing.T) {
+	f := newViewsFixture(t)
+	e := builtEngine(t)
+	s := f.serve(t, e)
+	got := s.openSong(t, walking, nil)
+	if strp(got.Key.Written) != "G" || strp(got.Key.Named) != "G" || got.Key.Saved != nil || got.Offset != 0 {
+		t.Errorf("key %s/%s/%s at %d, want G/G/<nil> at 0", strp(got.Key.Written), strp(got.Key.Named), strp(got.Key.Saved), got.Offset)
+	}
+	if got.Title != "Walking to the Market" || got.Artist != "" || got.BookID != testBook || got.Path != walking {
+		t.Errorf("sheet %q %q %q %q", got.Title, got.Artist, got.BookID, got.Path)
+	}
+	want, err := e.Sheet(context.Background(), f.book[walking], 0, engine.SheetOptions{Preferences: f.snapshot().Preferences()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got.Rows, want.Rows) {
+		t.Error("rows differ from the engine's")
+	}
+	if got.TuningID != built.tuning || got.TuningID == "" {
+		t.Errorf("tuning %q, Load's %q", got.TuningID, built.tuning)
+	}
+	if len(got.Shapes) == 0 || len(got.Shapes) != len(want.Shapes) {
+		t.Fatalf("%d shapes, engine's %d", len(got.Shapes), len(want.Shapes))
+	}
+	for i, sh := range got.Shapes {
+		if sh.Chord != want.Shapes[i].Key || sh.Frets == nil || *sh.Frets == "" ||
+			len(sh.Model) == 0 || string(sh.Model) == "null" || sh.Hidden {
+			t.Errorf("shape %d: %+v", i, sh)
+		}
+	}
+}
+
+// TestOpenSongAtSavedKey pins design §5.4 and workflow 19 *Your key*: a song
+// with a saved transposition opens at it, and key.saved names it.
+func TestOpenSongAtSavedKey(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	got := s.openSong(t, ferry, nil)
+	want := namedAt(t, f.book[ferry], 3)
+	if got.Offset != 3 || strp(got.Key.Saved) != want || strp(got.Key.Named) != want {
+		t.Errorf("offset %d, saved %s, named %s; want 3 and %s", got.Offset, strp(got.Key.Saved), strp(got.Key.Named), want)
+	}
+	if want == namedAt(t, f.book[ferry], 0) {
+		t.Fatal("the saved key names the key as written")
+	}
+}
+
+// TestKeyKeptAcrossARestart pins design §5.4 and protocol Decision 4: a key
+// chosen is kept in the store across a restart, and As written ({offset:null})
+// reads at the saved transposition again.
+func TestKeyKeptAcrossARestart(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	s.openSong(t, ferry, nil)
+	s.send(t, protocol.TypeKey, map[string]any{"offset": 5})
+	if got := s.sheet(t); got.Offset != 5 {
+		t.Errorf("key 5 answered offset %d", got.Offset)
+	}
+	s.stop()
+
+	f.reopen(t)
+	s = f.serve(t, builtEngine(t))
+	if got := s.openSong(t, ferry, nil); got.Offset != 5 {
+		t.Errorf("after a restart, offset %d, want 5", got.Offset)
+	}
+	s.send(t, protocol.TypeKey, map[string]any{"offset": nil})
+	if got := s.sheet(t); got.Offset != 3 {
+		t.Errorf("As written answered offset %d, want the saved 3", got.Offset)
+	}
+	if _, ok := f.st.Key(testBook, ferry); ok {
+		t.Error("As written kept a key")
+	}
+}
+
+// TestOpenOffsetIsOneOff pins Constraint 2: an open's offset is for that
+// answer only.
+func TestOpenOffsetIsOneOff(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	if got := s.openSong(t, ferry, map[string]any{"offset": 7}); got.Offset != 7 {
+		t.Errorf("open at 7 read at %d", got.Offset)
+	}
+	if got := s.openSong(t, ferry, nil); got.Offset != 3 {
+		t.Errorf("a later open read at %d, want the saved 3", got.Offset)
+	}
+	if got := s.openSong(t, walking, map[string]any{"offset": 7}); got.Offset != 7 {
+		t.Errorf("open at 7 read at %d", got.Offset)
+	}
+	if got := s.openSong(t, walking, nil); got.Offset != 0 {
+		t.Errorf("a later open read at %d, want 0", got.Offset)
+	}
+	if _, ok := f.st.Key(testBook, walking); ok {
+		t.Error("a one-off offset was kept")
+	}
+}
+
+// TestHiddenVoicingMarkedInNextSheet pins workflow 19 L222–239 and store
+// Decision 5: a voicing hidden is named by its tuning, chord and frets, is
+// hidden in every song, shown again on showShape, and counted in Settings.
+func TestHiddenVoicingMarkedInNextSheet(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+
+	// A voicing two songs share: the same chord, the same frets.
+	first := s.openSong(t, walking, nil)
+	var other string
+	var shared protocol.SheetShape
+	for _, name := range []string{morning, ferry} {
+		sheet := s.openSong(t, name, nil)
+		for _, a := range first.Shapes {
+			for _, b := range sheet.Shapes {
+				if shared.Frets == nil && a.Frets != nil && b.Frets != nil && a.Chord == b.Chord && *a.Frets == *b.Frets {
+					shared, other = a, name
+				}
+			}
+		}
+	}
+	if shared.Frets == nil {
+		t.Fatal("no voicing shared between the example songs")
+	}
+	s.openSong(t, walking, nil)
+
+	v := protocol.HideShape{TuningID: first.TuningID, Chord: shared.Chord, Frets: *shared.Frets}
+	s.send(t, protocol.TypeHideShape, v)
+	got := s.sheet(t)
+	for _, sh := range got.Shapes {
+		want := sh.Chord == shared.Chord && sh.Frets != nil && *sh.Frets == *shared.Frets
+		if sh.Hidden != want {
+			t.Errorf("shape %s %s hidden %v, want %v", sh.Chord, strp(sh.Frets), sh.Hidden, want)
+		}
+	}
+
+	again := s.openSong(t, other, nil)
+	found := false
+	for _, sh := range again.Shapes {
+		if sh.Chord == shared.Chord && sh.Frets != nil && *sh.Frets == *shared.Frets {
+			found = true
+			if !sh.Hidden {
+				t.Error("the voicing is not hidden in the other song")
+			}
+		} else if sh.Hidden {
+			t.Errorf("shape %s hidden in the other song", sh.Chord)
+		}
+	}
+	if !found {
+		t.Fatal("the other song lost the shared voicing")
+	}
+
+	s.send(t, protocol.TypeShowShape, protocol.ShowShape(v))
+	for _, sh := range s.sheet(t).Shapes {
+		if sh.Hidden {
+			t.Errorf("shape %s still hidden after showShape", sh.Chord)
+		}
+	}
+
+	var settings protocol.Settings
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
+	s.expect(t, protocol.TypeSettings, &settings)
+	s.send(t, protocol.TypeHideShape, v)
+	s.expect(t, protocol.TypeSettings, &settings)
+	if settings.HiddenShapes != 1 {
+		t.Errorf("hideShape from settings: hiddenShapes %d, want 1", settings.HiddenShapes)
+	}
+	s.send(t, protocol.TypeShowAllShapes, map[string]any{})
+	s.expect(t, protocol.TypeSettings, &settings)
+	if settings.HiddenShapes != 0 {
+		t.Errorf("showAllShapes: hiddenShapes %d, want 0", settings.HiddenShapes)
+	}
+}
+
+// TestShapesShownAnswersState pins Decision 8: shapesShown is kept and
+// answered with 101 state.
+func TestShapesShownAnswersState(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	s.openSong(t, walking, nil)
+	s.send(t, protocol.TypeShapesShown, map[string]any{"shown": false})
+	got, _ := s.peer.state()
+	if got.ShapesShown {
+		t.Error("state says shapes shown")
+	}
+	if f.st.ShapesShown() {
+		t.Error("the store says shapes shown")
+	}
+	s.peer.silent()
+}
+
+// TestOpenSetlistWithMissing pins workflow 19 §A setlist and protocol
+// Decision 5: every item in order, the absent song and the unlinked item
+// missing with their key and note as written; place is kept, answered with
+// nothing, and carried as at on the next opening.
+func TestOpenSetlistWithMissing(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	open := map[string]any{"view": "setlist", "bookId": testBook, "path": withGap}
+	s.send(t, protocol.TypeOpen, open)
+	var set protocol.Setlist
+	s.expect(t, protocol.TypeSetlist, &set)
+	d, capo, hum := "D", "bring the capo", "hum it for now"
+	want := []protocol.SetlistItem{
+		{Path: morning, Title: "Morning on the Porch"},
+		{Path: "lost-song.cifra.md", Title: "Lost Song", Key: &d, Note: &capo, Missing: true},
+		{Path: ferry, Title: "The Ferry Line"},
+		{Path: "", Title: "A tune still to be written", Note: &hum, Missing: true},
+		{Path: walking, Title: "Walking to the Market"},
+	}
+	if set.Title != "With a Gap" || set.At != nil || mustMarshal(t, set.Items) != mustMarshal(t, want) {
+		t.Errorf("setlist %q at %v items %s,\n want %s", set.Title, set.At, mustMarshal(t, set.Items), mustMarshal(t, want))
+	}
+	if strings.Contains(string(mustMarshal(t, set)), `"offset"`) {
+		t.Error("an item carries an offset")
+	}
+
+	s.send(t, protocol.TypePlace, protocol.Place{BookID: testBook, Setlist: withGap, At: 2})
+	s.peer.silent()
+	s.send(t, protocol.TypeOpen, open)
+	s.expect(t, protocol.TypeSetlist, &set)
+	if set.At == nil || *set.At != 2 {
+		t.Errorf("reopened at %v, want 2", set.At)
+	}
+}
+
+// TestPlaySheet pins workflow 19 L297–305 and workflow 12 §The key: a played
+// song reads at the setlist's key, with its place, the count of playable
+// items and the next one.
+func TestPlaySheet(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	got := s.openSong(t, walking, map[string]any{"play": map[string]any{"setlist": shortSet, "at": 2}})
+	if got.Offset != 2 || strp(got.Key.Named) != "A" {
+		t.Errorf("played at %d in %s, want 2 in A", got.Offset, strp(got.Key.Named))
+	}
+	if got.Play == nil || *got.Play != (protocol.SheetPlay{Setlist: shortSet, At: 2, Of: 3}) {
+		t.Errorf("play %+v, want a-short-set 2 of 3, no next", got.Play)
+	}
+
+	got = s.openSong(t, morning, map[string]any{"play": map[string]any{"setlist": shortSet, "at": 0}})
+	if got.Play == nil || got.Play.At != 0 || got.Play.Of != 3 || got.Play.Next == nil {
+		t.Fatalf("play %+v", got.Play)
+	}
+	if n := got.Play.Next; n.Title != "The Ferry Line" || n.Key != nil || n.Note != nil {
+		t.Errorf("next %+v, want The Ferry Line with no key and no note", n)
+	}
+}
+
+// TestPlayKeepsItsVersion pins workflow 19 L313–315: a setlist being played
+// keeps the version it started with until Back.
+func TestPlayKeepsItsVersion(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	play := func(at int) map[string]any {
+		return map[string]any{"play": map[string]any{"setlist": shortSet, "at": at}}
+	}
+	s.openSong(t, morning, play(0))
+
+	f.book[ferry] = strings.Replace(f.book[ferry], "# The Ferry Line", "# The Ferry Line, Revised", 1)
+	f.commitBook(t)
+	s.syncer.setSnapshot(f.snapshot())
+
+	if got := s.openSong(t, ferry, play(1)); got.Title != "The Ferry Line" {
+		t.Errorf("while playing, read %q, want the version Play started with", got.Title)
+	}
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "setlist", "bookId": testBook, "path": shortSet})
+	s.expect(t, protocol.TypeSetlist, &protocol.Setlist{})
+	if got := s.openSong(t, ferry, play(1)); got.Title != "The Ferry Line, Revised" {
+		t.Errorf("after Back, read %q, want the new version", got.Title)
+	}
+}
+
+// TestSongFromAGoneBookUntilBack pins workflow 19 L316–317 and sync's Hold:
+// a song open from a book gone stays readable until Back, the hold is
+// released once on leaving, and the gone book then answers the shelf.
+func TestSongFromAGoneBookUntilBack(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	s.openSong(t, walking, nil)
+
+	commit(t, f.st.HomeDir(), homeFiles(t, false))
+	s.syncer.setSnapshot(f.snapshot())
+	if s.syncer.Snapshot().Book(testBook) != nil {
+		t.Fatal("the new snapshot still has the book")
+	}
+
+	s.send(t, protocol.TypeKey, map[string]any{"offset": 1})
+	if got := s.sheet(t); got.Offset != 1 || got.Path != walking {
+		t.Errorf("key on the gone book's song: %s at %d", got.Path, got.Offset)
+	}
+	if got := s.openSong(t, ferry, nil); got.Path != ferry || got.Title != "The Ferry Line" {
+		t.Errorf("another song of the gone book: %q", got.Title)
+	}
+	if h, r := s.syncer.held(testBook); h != 1 || r != 0 {
+		t.Errorf("holds %d, releases %d while reading; want 1, 0", h, r)
+	}
+
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "shelf"})
+	var shelf protocol.Shelf
+	s.expect(t, protocol.TypeShelf, &shelf)
+	if len(shelf.Books) != 0 {
+		t.Errorf("shelf %+v, want no book", shelf.Books)
+	}
+	if h, r := s.syncer.held(testBook); h != 1 || r != 1 {
+		t.Errorf("holds %d, releases %d after Back; want 1, 1", h, r)
+	}
+
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "song", "bookId": testBook, "path": walking})
+	s.expect(t, protocol.TypeShelf, &shelf)
+	if h, r := s.syncer.held(testBook); h != r {
+		t.Errorf("holds %d, releases %d; want every hold released", h, r)
+	}
+}
+
+// TestUnanswerableOpenFallsBack pins Constraints 7 and 8: the nearest view
+// that can be answered — an absent song its book, an unknown book the shelf,
+// and with no engine a song or a setlist its book, while shelf, book and
+// settings still answer.
+func TestUnanswerableOpenFallsBack(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	var book protocol.Book
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "song", "bookId": testBook, "path": "absent.cifra.md"})
+	s.expect(t, protocol.TypeBook, &book)
+	if book.BookID != testBook {
+		t.Errorf("fell back to book %q", book.BookID)
+	}
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "setlist", "bookId": testBook, "path": "absent.setlist.md"})
+	s.expect(t, protocol.TypeBook, &book)
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "book", "bookId": "bk-unknown"})
+	s.expect(t, protocol.TypeShelf, &protocol.Shelf{})
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "song", "bookId": "bk-unknown", "path": walking})
+	s.expect(t, protocol.TypeShelf, &protocol.Shelf{})
+	s.stop()
+
+	s = f.serve(t, nil)
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "song", "bookId": testBook, "path": walking})
+	s.expect(t, protocol.TypeBook, &book)
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "setlist", "bookId": testBook, "path": shortSet})
+	s.expect(t, protocol.TypeBook, &book)
+	if len(book.Songs) != 3 || len(book.Setlists) != 2 {
+		t.Errorf("book with no engine: %d songs, %d setlists", len(book.Songs), len(book.Setlists))
+	}
+	var shelf protocol.Shelf
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "shelf"})
+	s.expect(t, protocol.TypeShelf, &shelf)
+	if len(shelf.Books) != 1 {
+		t.Errorf("shelf with no engine: %+v", shelf.Books)
+	}
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "book", "bookId": testBook})
+	s.expect(t, protocol.TypeBook, &book)
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
+	s.expect(t, protocol.TypeSettings, &protocol.Settings{})
+}
+
+// TestOpenSettings pins workflow 19 L149–152: the account paired with, the
+// reader's version and the hidden count.
+func TestOpenSettings(t *testing.T) {
+	f := newViewsFixture(t)
+	must(t, f.st.SetSession(store.Session{Origin: "https://example.test", Token: "t", Account: "reader@example.org"}))
+	must(t, f.st.Hide(store.Voicing{TuningID: "40 45 50 55 59 64", Chord: "C:", Frets: "x32010"}))
+	s := f.serve(t, builtEngine(t))
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
+	var got protocol.Settings
+	s.expect(t, protocol.TypeSettings, &got)
+	want := protocol.Settings{Account: "reader@example.org", Version: testVersion, HiddenShapes: 1}
+	if got != want {
+		t.Errorf("settings %+v, want %+v", got, want)
+	}
+}
+
+// TestNothingLogged pins Constraint 9 (design §10): the views log nothing —
+// no title, no song text — whatever they answer.
+func TestNothingLogged(t *testing.T) {
+	var buf bytes.Buffer
+	saved := log.Writer()
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(saved) })
+
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "shelf"})
+	s.expect(t, protocol.TypeShelf, &protocol.Shelf{})
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "book", "bookId": testBook})
+	s.expect(t, protocol.TypeBook, &protocol.Book{})
+	s.openSong(t, walking, nil)
+	s.send(t, protocol.TypeKey, map[string]any{"offset": 4})
+	s.sheet(t)
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "setlist", "bookId": testBook, "path": withGap})
+	s.expect(t, protocol.TypeSetlist, &protocol.Setlist{})
+	s.openSong(t, ferry, map[string]any{"play": map[string]any{"setlist": shortSet, "at": 1}})
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "song", "bookId": testBook, "path": "absent.cifra.md"})
+	s.expect(t, protocol.TypeBook, &protocol.Book{})
+	s.stop()
+
+	if buf.Len() != 0 {
+		t.Errorf("the views logged %d bytes", buf.Len())
+	}
+	for _, words := range []string{"Walking to the Market", "The Ferry Line", "With a Gap", "Lost Song"} {
+		if strings.Contains(buf.String(), words) {
+			t.Errorf("the log names %q", words)
+		}
+	}
+}

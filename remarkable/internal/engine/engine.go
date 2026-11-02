@@ -107,28 +107,37 @@ type Loaded struct {
 	Held        int     `json:"held"`
 }
 
-// SheetOptions are sheet's options: the voicing variation, the preferences
-// register model (raw), and a setlist's target key.
+// SheetOptions are sheet's options: the voicing variation (for the session's
+// tuning), the song's songs.json variations by tuning id (which win over
+// Variation when given: the bundle picks its own session's tuning from them),
+// the preferences register model (raw), a setlist's target key, and the
+// account's saved transposition (nil when none), named as Key.Saved.
 type SheetOptions struct {
 	Variation   string
+	Variations  map[string]string
 	Preferences json.RawMessage
 	TargetKey   string
+	SavedOffset *int
 }
 
-// SheetKey is the song's key as written, as named now, and its status.
+// SheetKey is the song's key as written, as named now, as named at the saved
+// transposition (nil without one), and its status.
 type SheetKey struct {
 	Written *string         `json:"written"`
 	Named   *string         `json:"named"`
+	Saved   *string         `json:"saved"`
 	Status  json.RawMessage `json:"status"`
 }
 
-// Shape is one chord's shape on the strip: resolved, with its source and its
-// diagram model (raw), or pending (its place kept, queued for the search).
+// Shape is one chord's shape on the strip: resolved, with its source, its
+// frets (the fret shorthand) and its diagram model (raw), or pending (its
+// place kept, queued for the search).
 type Shape struct {
 	Key     string          `json:"key"`
 	Symbol  string          `json:"symbol"`
 	Source  string          `json:"source,omitempty"`
 	Pending bool            `json:"pending,omitempty"`
+	Frets   string          `json:"frets,omitempty"`
 	Diagram json.RawMessage `json:"diagram,omitempty"`
 }
 
@@ -144,6 +153,7 @@ type Sheet struct {
 	Unvoiced   []string        `json:"unvoiced"`
 	Notes      json.RawMessage `json:"notes"`
 	KeyNote    *string         `json:"keyNote"`
+	TuningID   string          `json:"tuningId"`
 }
 
 // SetlistItem is one playable item of a setlist.
@@ -156,11 +166,26 @@ type SetlistItem struct {
 	Note   *string `json:"note"`
 }
 
-// Setlist is a setlist's playable items, and how many cannot be played.
+// SetlistRow is one item of a setlist as the setlist screen lists it: a song
+// link (Path its book-root path) or an unlinked item (Path nil), its key and
+// note as written, and whether it cannot be played.
+type SetlistRow struct {
+	At      int     `json:"at"`
+	Number  int     `json:"number"`
+	Title   string  `json:"title"`
+	Path    *string `json:"path"`
+	Key     *string `json:"key"`
+	Note    *string `json:"note"`
+	Missing bool    `json:"missing"`
+}
+
+// Setlist is a setlist's playable items, how many cannot be played, and every
+// item in order (Rows), each marked missing or not.
 type Setlist struct {
 	Title   *string       `json:"title"`
 	Items   []SetlistItem `json:"items"`
 	Missing int           `json:"missing"`
+	Rows    []SetlistRow  `json:"rows"`
 }
 
 // Miss is a chord the table did not hold, queued for the background search.
@@ -585,7 +610,8 @@ func (e *Engine) Load(ctx context.Context, entry, table json.RawMessage) (Loaded
 	return l, decode("load", res, &l)
 }
 
-// Sheet reads one song at offset (or at opts.TargetKey). A text that is not
+// Sheet reads one song at offset (or at opts.TargetKey), with the shapes of
+// the loaded instrument; the answer names the tuning it was read on. A text that is not
 // UTF-8 crosses as null, which the bundle answers as unreadable (cifra.md
 // §1.3 step 1) — JSON would otherwise replace its bad bytes with U+FFFD and
 // read it anyway.
@@ -595,10 +621,12 @@ func (e *Engine) Sheet(ctx context.Context, text string, offset int, opts SheetO
 		song = &text
 	}
 	o := struct {
-		Variation   string          `json:"variation"`
-		Preferences json.RawMessage `json:"preferences"`
-		TargetKey   *string         `json:"targetKey"`
-	}{Variation: opts.Variation, Preferences: orNull(opts.Preferences)}
+		Variation   string            `json:"variation"`
+		Variations  map[string]string `json:"variations,omitempty"`
+		Preferences json.RawMessage   `json:"preferences"`
+		TargetKey   *string           `json:"targetKey"`
+		SavedOffset *int              `json:"savedOffset"`
+	}{Variation: opts.Variation, Variations: opts.Variations, Preferences: orNull(opts.Preferences), SavedOffset: opts.SavedOffset}
 	if opts.TargetKey != "" {
 		o.TargetKey = &opts.TargetKey
 	}

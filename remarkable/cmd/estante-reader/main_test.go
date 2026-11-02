@@ -424,7 +424,7 @@ func listen(t *testing.T) (string, <-chan *appLoad) {
 
 // servesHelloAndTerminate drives one run: the backend dials, answers a hello
 // with a state, and returns 0 on AppLoad's terminate (−1 close).
-func servesHelloAndTerminate(t *testing.T, args []string, accepted <-chan *appLoad) {
+func servesHelloAndTerminate(t *testing.T, args []string, accepted <-chan *appLoad, then ...func(*appLoad)) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
 	code := make(chan int, 1)
@@ -449,6 +449,9 @@ func servesHelloAndTerminate(t *testing.T, args []string, accepted <-chan *appLo
 	if _, ok := m.(protocol.State); !ok {
 		t.Fatalf("got %T, want protocol.State", m)
 	}
+	for _, f := range then {
+		f(a)
+	}
 	a.send(protocol.TypeTerminate, "close")
 	select {
 	case got := <-code:
@@ -464,11 +467,35 @@ func servesHelloAndTerminate(t *testing.T, args []string, accepted <-chan *appLo
 }
 
 // TestRunServesTheSocket pins reader.app_folder's run: it dials the socket,
-// answers hello with a state (design §6), and exits 0 on terminate.
+// answers hello with a state (design §6), and exits 0 on terminate; and
+// reader.backend_views': open{settings} is answered with 107 settings naming
+// the binary's version (workflow 19 §The shelf, Settings).
 func TestRunServesTheSocket(t *testing.T) {
 	root := t.TempDir()
 	sock, accepted := listen(t)
-	servesHelloAndTerminate(t, []string{"run", "--root", root, sock}, accepted)
+	servesHelloAndTerminate(t, []string{"run", "--root", root, sock}, accepted, func(a *appLoad) {
+		a.send(protocol.TypeOpen, `{"view":"settings"}`)
+		for {
+			m, err := a.conn.Next()
+			if err != nil {
+				t.Fatalf("receive: %v", err)
+			}
+			if _, ok := m.(protocol.State); ok {
+				continue // a sync status may come first
+			}
+			s, ok := m.(protocol.Settings)
+			if !ok {
+				t.Fatalf("got %T, want protocol.Settings", m)
+			}
+			if s.Version != version {
+				t.Errorf("settings version %q, want the binary's %q", s.Version, version)
+			}
+			if s.HiddenShapes != 0 || s.Account != "" {
+				t.Errorf("settings %+v, want no account and nothing hidden", s)
+			}
+			return
+		}
+	})
 	if _, err := os.Stat(filepath.Join(root, "bundle")); err != nil {
 		t.Errorf("the store was not opened at --root: %v", err)
 	}

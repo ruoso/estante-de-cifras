@@ -357,3 +357,93 @@ func TestMemoReturnsSameRebuiltShape(t *testing.T) {
 		t.Errorf("a different table kept the session: %+v", h)
 	}
 }
+
+// TestSheetCarriesFretsAndTuning pins what reader.backend_views needs of a
+// sheet (design §4 host API, §6 105): every resolved shape of the example
+// book carries its frets, the sheet names the tuning of the Load it was read
+// on, and a saved transposition is named as Key.Saved by the rule of Named.
+func TestSheetCarriesFretsAndTuning(t *testing.T) {
+	f := readFixture(t, "example-book.default-shapes.json")
+	e := openBuilt(t)
+	ctx := context.Background()
+	loaded, err := e.Load(ctx, f.Entry, f.Table)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if loaded.TuningID == "" {
+		t.Fatal("Load named no tuning")
+	}
+	for i, song := range f.Songs {
+		text := f.text(t, song)
+		for _, k := range []int{0, 5} {
+			got, err := e.Sheet(ctx, text, k, SheetOptions{})
+			if err != nil {
+				t.Fatalf("song %d at %d: %v", i, k, err)
+			}
+			if got.TuningID != loaded.TuningID {
+				t.Errorf("song %d at %d: tuning %q, Load's %q", i, k, got.TuningID, loaded.TuningID)
+			}
+			if len(got.Shapes) == 0 {
+				t.Errorf("song %d at %d: no shapes", i, k)
+			}
+			for _, s := range got.Shapes {
+				if !s.Pending && s.Frets == "" {
+					t.Errorf("song %d at %d: shape %q has no frets", i, k, s.Key)
+				}
+			}
+			if got.Key.Saved != nil {
+				t.Errorf("song %d at %d: saved %q with no saved offset", i, k, *got.Key.Saved)
+			}
+		}
+		three := 3
+		saved, err := e.Sheet(ctx, text, 0, SheetOptions{SavedOffset: &three})
+		if err != nil {
+			t.Fatal(err)
+		}
+		at3, err := e.Sheet(ctx, text, 3, SheetOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if at3.Key.Named == nil || saved.Key.Saved == nil || *saved.Key.Saved != *at3.Key.Named {
+			t.Errorf("song %d: saved %v, named at 3 %v", i, saved.Key.Saved, at3.Key.Named)
+		}
+	}
+}
+
+// TestSetlistRows pins the setlist screen's rows (design §4 host API, §6
+// 106): a link to a song the book lacks is listed in Rows, in its place,
+// marked Missing, while Items and Missing are as before.
+func TestSetlistRows(t *testing.T) {
+	f := readFixture(t, "example-book.default-shapes.json")
+	e := openBuilt(t)
+	ctx := context.Background()
+	present := []string{}
+	for _, s := range f.Songs {
+		if s != "the-ferry-line.cifra.md" {
+			present = append(present, s)
+		}
+	}
+	set, err := e.Setlist(ctx, f.text(t, f.Setlist), f.Setlist, present)
+	if err != nil {
+		t.Fatalf("Setlist: %v", err)
+	}
+	if set.Missing != 1 || len(set.Items) != 2 {
+		t.Errorf("items %d, missing %d; want 2 and 1", len(set.Items), set.Missing)
+	}
+	if len(set.Rows) != 3 {
+		t.Fatalf("%d rows, want 3", len(set.Rows))
+	}
+	for i, r := range set.Rows {
+		if r.At != i || r.Path == nil {
+			t.Errorf("row %d: %+v", i, r)
+			continue
+		}
+		want := *r.Path == "the-ferry-line.cifra.md"
+		if r.Missing != want {
+			t.Errorf("row %d (%s): missing %v, want %v", i, *r.Path, r.Missing, want)
+		}
+	}
+	if set.Rows[2].Key == nil || *set.Rows[2].Key != "A" {
+		t.Errorf("row 2 key %v, want A", set.Rows[2].Key)
+	}
+}

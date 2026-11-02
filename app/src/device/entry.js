@@ -25,7 +25,8 @@ import { parse, parseSetlist } from 'cifra-md';
 import { HOST_API } from './host-api.js';
 import { SHAPE_CACHE_SALT, DECOMMISSIONED_SALTS, createShapeCache, shapeCacheKey } from '../core/shape-cache.js';
 import { parseChord } from '../core/notation/parse.js';
-import { transposedKeyName } from '../core/transpose.js';
+import { shorthandOf } from '../core/fretstring.js';
+import { transpose, transposedKeyName } from '../core/transpose.js';
 import { songKeyName } from '../core/song-key.js';
 import { readSongSheet, instrumentFor, songProperty, tuningIdOf } from '../songs/song-sheet.js';
 import { chartRows } from '../chart/layout.js';
@@ -114,10 +115,14 @@ function load(entry, table) {
 
 /**
  * A song's sheet, read at `offset` (or at the setlist's `targetKey`), as plain
- * data. `opts` is `{ variation?, preferences?, targetKey? }`.
+ * data. `opts` is `{ variation?, variations?, preferences?, targetKey?,
+ * savedOffset? }`: `variations` is the song's `songs.json` map by tuning id —
+ * the session's own tuning picks from it, and it wins over `variation`, which
+ * applies to the session's tuning — and `savedOffset` is the account's saved
+ * transposition, named as `key.saved` by the same rule as `key.named`.
  */
 function sheet(text, offset = 0, opts = {}) {
-  const { variation = '', preferences = null, targetKey = null } = opts ?? {};
+  const { variation = '', variations = null, preferences = null, targetKey = null, savedOffset = null } = opts ?? {};
   const parsed = parsedOf(text);
   if (!parsed) return { error: 'unreadable' };
 
@@ -137,7 +142,7 @@ function sheet(text, offset = 0, opts = {}) {
     parsed,
     reading: {
       transposition: at,
-      variations: variation && session.tuningId ? { [session.tuningId]: variation } : {},
+      variations: readingVariations(variations, variation),
     },
     entry: session.entry,
     preferences,
@@ -170,6 +175,9 @@ function sheet(text, offset = 0, opts = {}) {
   // the model as read. Null only for a song with no key and no chords. It is a
   // name only — a setlist key on a keyless song stays `keyNote` (§10.7.1).
   const named = transposedKeyName(read.writtenKey, read.offset) ?? songKeyName(read.model, read.notation);
+  // The account's saved key (workflow 19 §A song, *Your key*): the song named as
+  // it would be read at the saved transposition, by the same rule.
+  const saved = Number.isInteger(savedOffset) ? savedKeyName(read, savedOffset, named) : null;
 
   const { handed } = resolveDiagramDisplay(preferences);
   const resolved = new Map(read.shapes.map((s) => [s.key, s]));
@@ -177,7 +185,13 @@ function sheet(text, offset = 0, opts = {}) {
   for (const { key, symbol } of read.chordList) {
     const shape = resolved.get(key);
     if (shape) {
-      shapes.push({ key, symbol: shape.symbol, source: shape.source, diagram: diagramModel(shape.fingering, { handed }) });
+      shapes.push({
+        key,
+        symbol: shape.symbol,
+        source: shape.source,
+        frets: shorthandOf(shape.fingering.frets),
+        diagram: diagramModel(shape.fingering, { handed }),
+      });
     } else if (pending.has(key)) {
       shapes.push({ key, symbol, pending: true });
     }
@@ -186,7 +200,12 @@ function sheet(text, offset = 0, opts = {}) {
   return {
     title: parsed.title ?? null,
     artist: read.artist ?? null,
-    key: { written: read.writtenKey ?? null, named: named ?? null, status: read.status ?? null },
+    key: {
+      written: read.writtenKey ?? null,
+      named: named ?? null,
+      saved: saved ?? null,
+      status: read.status ?? null,
+    },
     offset: read.offset,
     transposed: read.transposed,
     rows: chartRows(read.model),
@@ -194,12 +213,35 @@ function sheet(text, offset = 0, opts = {}) {
     unvoiced,
     notes: read.blockNotes,
     keyNote,
+    tuningId: session.tuningId,
   };
+}
+
+// The `songs.json` variations by tuning id, as readSongSheet takes them: the
+// whole map when given (readSongSheet picks the session's tuning from it), else
+// the one `variation` applied to the session's tuning.
+function readingVariations(variations, variation) {
+  if (variations && typeof variations === 'object') return { ...variations };
+  return variation && session.tuningId ? { [session.tuningId]: variation } : {};
+}
+
+// The song's key named at `savedOffset`: the written key transposed, else the
+// key the last chord gives in the model read at that offset (the same rule as
+// `named`; the read model is reused when the offsets agree).
+function savedKeyName(read, savedOffset, named) {
+  const at = normalOffset(savedOffset);
+  if (read.writtenKey) return transposedKeyName(read.writtenKey, at);
+  if (at === read.offset) return named;
+  if (!read.baseModel) return null;
+  return songKeyName(transpose(read.baseModel, at, { dialect: read.notation }), read.notation);
 }
 
 /**
  * A setlist's playable items, in order, each with the book-root path it
- * resolved to; `missing` counts the items that cannot be played.
+ * resolved to; `missing` counts the items that cannot be played; and `rows`,
+ * every item in order (songs and unlinked items, as `setlistRows` gives them)
+ * for the setlist screen, each marked `missing` or not — an unlinked item's
+ * `path` is null.
  */
 function setlist(text, setlistPath, bookPaths) {
   const model = parseSetlist(String(text ?? ''));
@@ -212,7 +254,21 @@ function setlist(text, setlistPath, bookPaths) {
     key: row.key ?? null,
     note: row.note ?? null,
   }));
-  return { title: model.title ?? null, items, missing: rows.length - items.length };
+  const all = rows.map((row) => ({
+    at: row.at,
+    number: row.number,
+    title: row.title,
+    path: row.resolvedPath ?? null,
+    key: row.key ?? null,
+    note: row.note ?? null,
+    missing: row.missing,
+  }));
+  return {
+    title: model.title ?? null,
+    items,
+    missing: rows.length - items.length,
+    rows: all,
+  };
 }
 
 /** The queued misses, `[{ chord, symbol, dialect }]`; cleared only by `load`. */

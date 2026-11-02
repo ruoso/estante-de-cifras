@@ -230,3 +230,87 @@ func TestNotPairedSendsNothing(t *testing.T) {
 		t.Errorf("%d requests without a session", n)
 	}
 }
+
+// TestRunLoadsInstrumentFromDisk pins Constraint 6 of reader.backend_views
+// (DIRECTION offline first): with a home book on disk and the service
+// unreachable, Run loads the instrument once, before its first pass — which
+// fails offline and loads nothing.
+func TestRunLoadsInstrumentFromDisk(t *testing.T) {
+	f := newFakeService(t)
+	twoBooks(t, f)
+	st := newTestStore(t, f)
+	mustPass(t, newTestSyncer(t, f, st, newFakeEngine()))
+	f.srv.Close()
+
+	eng := newFakeEngine()
+	type seen struct {
+		status Status
+		loads  int
+	}
+	statuses := make(chan seen, 8)
+	s := New(st, eng, Options{
+		HTTPClient: f.srv.Client(),
+		Online:     func() bool { return true },
+		OnStatus:   func(x Status) { statuses <- seen{x, eng.loadCount()} },
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { s.Run(ctx); close(done) }()
+	t.Cleanup(func() { cancel(); <-done })
+
+	next := func() seen {
+		t.Helper()
+		select {
+		case x := <-statuses:
+			return x
+		case <-time.After(10 * time.Second):
+			t.Fatal("no status from the first pass")
+		}
+		return seen{}
+	}
+	if begin := next(); !begin.status.Syncing || begin.loads != 1 {
+		t.Fatalf("pass began %+v with %d loads, want syncing with 1 load before it", begin.status, begin.loads)
+	}
+	if end := next(); end.status.Error != ErrorOffline || end.loads != 1 {
+		t.Fatalf("pass ended %+v with %d loads, want offline with 1", end.status, end.loads)
+	}
+	eng.mu.Lock()
+	defer eng.mu.Unlock()
+	if got := len(eng.files); got != 1 {
+		t.Errorf("%d instrument choices, want 1", got)
+	}
+	if string(eng.loads[0][0]) != string(eng.answer.Entry) {
+		t.Errorf("loaded %s, want the bundle's choice", eng.loads[0][0])
+	}
+}
+
+// TestRunWithNoHomeBookLoadsNothing pins Constraint 6's other half: nothing on
+// disk, nothing loaded before the pass.
+func TestRunWithNoHomeBookLoadsNothing(t *testing.T) {
+	f := newFakeService(t)
+	st := newTestStore(t, f)
+	f.srv.Close()
+	eng := newFakeEngine()
+	ended := make(chan int, 4)
+	s := New(st, eng, Options{
+		HTTPClient: f.srv.Client(),
+		Online:     func() bool { return true },
+		OnStatus: func(x Status) {
+			if !x.Syncing {
+				ended <- eng.loadCount()
+			}
+		},
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { s.Run(ctx); close(done) }()
+	t.Cleanup(func() { cancel(); <-done })
+	select {
+	case n := <-ended:
+		if n != 0 {
+			t.Errorf("%d loads with no home book on disk", n)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the first pass never ended")
+	}
+}
