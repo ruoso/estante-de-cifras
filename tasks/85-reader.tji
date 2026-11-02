@@ -146,8 +146,9 @@ task reader "The reMarkable reader" {
   task payload "The device payload, served from the site" {
     effort 1d
     allocate team
+    complete 100
     depends !qml_chart, !engine
-    note "The Dockerfile gains a stage that builds estante-reader for armv7 and arm64 and compiles the QML into resources.rcc, copied into /srv/app/device/ beside the bundle the app's build put there, the manifest naming each with its SHA-256 and the backend's hostApi; the service's app handler serves the content-hashed device files as immutable and the manifest as revalidated (service/internal/server/app.go cacheControl). Docs: docs/remarkable-reader.md §8, §9. Tests: unit (cacheControl for device files); e2e-api (against the compose stack: /device/manifest.json and every file it names served, each hash matching)."
+    note "The Dockerfile gains a stage that builds estante-reader for armv7 and arm64 and compiles the QML into resources.rcc, copied into /srv/app/device/ beside the bundle the app's build put there, the manifest naming each with its SHA-256 and the backend's hostApi; the service's app handler serves the content-hashed device files as immutable and the manifest as revalidated (service/internal/server/app.go cacheControl). Docs: docs/remarkable-reader.md §8, §9. Tests: unit (cacheControl for device files); e2e-api (against the compose stack: /device/manifest.json and every file it names served, each hash matching). Refinement: tasks/refinements/reader/payload.md"
   }
   task self_update "The bundle and the QML update themselves" {
     effort 2d

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"net/http"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -150,12 +151,29 @@ func isReserved(urlPath string) bool {
 // path that names a file with an extension. A navigation (no extension, not
 // under assets/, or any path under an emailed-link route or an app address)
 // falls back to index.html instead.
+//
+// Every path under device/ is an asset, extension or not: the reader's
+// payload (docs/remarkable-reader.md §8) names its backends with no extension,
+// and a client that hashes what it fetched must get a 404, never the shell
+// (reader.payload Decision 7).
 func isAssetRequest(name string) bool {
 	if isLinkRoute(name) || isAppRoute(name) {
 		return false
 	}
-	return strings.HasPrefix(name, "assets/") || path.Ext(name) != ""
+	return name == deviceDir || strings.HasPrefix(name, deviceDir+"/") ||
+		strings.HasPrefix(name, "assets/") || path.Ext(name) != ""
 }
+
+// deviceDir is where the image lays out the reMarkable reader's payload,
+// beside the app (docs/remarkable-reader.md §8; reader.payload).
+const deviceDir = "device"
+
+// deviceImmutable matches the payload's content-hashed names: the bundle, the
+// compiled QML and each architecture's backend, each carrying the first eight
+// hex digits of its SHA-256. The manifest and the two folder archives keep
+// fixed names and revalidate, as does any other name under device/.
+var deviceImmutable = regexp.MustCompile(
+	`^device/(bundle\.[0-9a-f]{8}\.js|resources\.[0-9a-f]{8}\.rcc|estante-reader-(armv7|arm64)\.[0-9a-f]{8})$`)
 
 // isLinkRoute reports whether a bundle-relative path lies beneath one of the
 // app's emailed-link routes (a first segment in linkRoutes, with a token
@@ -204,6 +222,11 @@ func contentType(name string) string {
 		// knows .png, but the content type is pinned here with the rest so the
 		// bundle's types are not left to content sniffing.
 		return "image/png"
+	case strings.HasSuffix(name, ".tar.gz"):
+		// The reader's AppLoad folders, served under device/ (reader.payload;
+		// docs/remarkable-reader.md §8). The compiled QML (.rcc) and the
+		// extensionless backends fall to application/octet-stream.
+		return "application/gzip"
 	case strings.HasSuffix(name, ".woff2"):
 		// The themes' self-hosted typefaces, emitted by Vite as hashed
 		// assets/*.woff2 (shell.fonts). Go's mime table does not know .woff2.
@@ -216,7 +239,15 @@ func contentType(name string) string {
 // for the content-hashed bundle (assets/* and workbox-*.js), revalidate for
 // everything else (the shell, the service worker, the manifest, and the
 // SPA-fallback response, all served under their own un-fingerprinted names).
+// Under device/, only the payload's content-hashed names are immutable
+// (deviceImmutable); the manifest and the folders revalidate (design §8).
 func cacheControl(name string) string {
+	if strings.HasPrefix(name, deviceDir+"/") {
+		if deviceImmutable.MatchString(name) {
+			return cacheImmutable
+		}
+		return cacheRevalidate
+	}
 	base := path.Base(name)
 	if strings.HasPrefix(name, "assets/") ||
 		(strings.HasPrefix(base, "workbox-") && strings.HasSuffix(base, ".js")) {

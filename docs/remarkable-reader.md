@@ -108,7 +108,8 @@ an extension of xovi, which hooks into the tablet's own interface.
   `/device/` on the site, keeps any installed reader as the previous one, and
   copies the new one to `/home/root/xovi/exthome/appload/estante/`.
 - Or by hand: download the app folder for the rM2 (armv7) from the site's
-  `/device/`, unpack it, and
+  `/device/estante-armv7.tar.gz`, unpack it (`tar xzf estante-armv7.tar.gz`),
+  and
   `scp -r estante root@<address>:/home/root/xovi/exthome/appload/`.
 
 Then, on the tablet, open AppLoad and press **Reload**: *Estante* is listed.
@@ -484,12 +485,30 @@ The site serves the device's payload beside the app, from the same image:
 
 ```
 /device/manifest.json          { version, hostApi, salt, bundle: { path, sha256 },
-                                 qml: { path, sha256 }, backend: { armv7: {…}, arm64: {…} } }
+                                 qml: { path, sha256 },
+                                 backend: { armv7: { path, sha256, version, hostApi }, arm64: {…} },
+                                 folder:  { armv7: { path, sha256 }, arm64: {…} } }
 /device/bundle.<hash>.js
 /device/resources.<hash>.rcc
-/device/estante-reader-armv7-<version>
-/device/estante-reader-arm64-<version>
+/device/estante-reader-armv7.<hash>
+/device/estante-reader-arm64.<hash>
+/device/estante-armv7.tar.gz
+/device/estante-arm64.tar.gz
 ```
+
+Every file is named in the manifest with its SHA-256; `<hash>` is the first
+eight hex digits of it. The manifest's `version` is the payload's: the first
+twelve hex digits of the SHA-256 over its files' `path sha256` lines, sorted,
+so it changes exactly when a served byte does. `hostApi` is the bundle's; each
+backend's `hostApi` is the one it speaks, and its `version` is the one it
+prints and the settings show — a digest of the sources it was built from and
+the Go toolchain, stamped at link time. The two `.tar.gz` are the AppLoad
+folder for each architecture (`estante/`, as `remarkable/tools/appfolder`
+assembles it, carrying the same `resources.rcc` and backend bytes the manifest
+names): what a person downloads to install (§2.1) and what `install.sh` fetches,
+under a fixed name. The content-hashed files are served as immutable; the
+manifest and the two folders are revalidated. A `/device/` path that names no
+file is a 404, never the app's shell.
 
 - The **bundle** and the **QML** update themselves: at sync, when the manifest
   names a new one whose `hostApi` this backend speaks, the backend downloads
@@ -518,9 +537,11 @@ bundle), and cross-builds the backend for **amd64** (the tests' host),
 **armv7** (the rM2) and **arm64** (the Paper Pro), so a change that breaks an
 ARM build fails the gate; it then assembles the armv7 and arm64 app folders
 and loads each folder's `resources.rcc` the way AppLoad does, so a QML file the
-folder does not carry, or one that does not compile, fails it too. The **Dockerfile** gains a stage that builds the
-backend for armv7 and arm64 and compiles the QML (`rcc`), and copies them into
-`/srv/app/device/`.
+folder does not carry, or one that does not compile, fails it too. The **Dockerfile**'s `reader` stage builds the
+backend for armv7 and arm64, compiles the QML with the gate's own pinned
+`pyside6-rcc` into each app folder (`tools/appfolder`), and lays out the payload
+of §8 with `remarkable/tools/payload` — beside the bundle the app's build made —
+into `/srv/app/device/`.
 
 ## 10. Security and privacy
 

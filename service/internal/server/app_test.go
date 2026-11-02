@@ -34,6 +34,14 @@ const testAsset = "assets/app-abc123.js"
 // assets/<family>-<hash>.woff2 (shell.fonts).
 const testFont = "assets/font-abc123.woff2"
 
+// the reader's payload in the fixture (docs/remarkable-reader.md §8): the
+// manifest and a folder archive by fixed name, a backend by content.
+const (
+	testDeviceManifest = "device/manifest.json"
+	testDeviceBackend  = "device/estante-reader-armv7.0123abcd"
+	testDeviceFolder   = "device/estante-armv7.tar.gz"
+)
+
 // newTestAppRoot writes a minimal app-root fixture (the files service.serve_app
 // must serve: the shell, a hashed asset, the service worker, a workbox chunk
 // and the manifest) to a temp dir and returns its path. Shared by the app and
@@ -57,6 +65,10 @@ func newTestAppRoot(t *testing.T) string {
 	write("manifest.webmanifest", `{"name":"Estante de Cifras"}`)
 	write("icon-192.png", "\x89PNG\r\n\x1a\n fixture icon bytes")
 	write(testFont, "wOF2 fixture font bytes")
+	// The reader's payload under device/ (reader.payload; design §8).
+	write(testDeviceManifest, `{"version":"0123456789ab","hostApi":1}`+"\n")
+	write(testDeviceBackend, "\x7fELF fixture backend bytes")
+	write(testDeviceFolder, "\x1f\x8b fixture archive bytes")
 	return dir
 }
 
@@ -303,5 +315,93 @@ func TestFailFastOnMissingBundle(t *testing.T) {
 	empty := t.TempDir()
 	if _, err := Handler(logger, empty, okPinger{}, nil); err == nil {
 		t.Fatal("Handler against an app-root with no index.html: want error, got nil")
+	}
+}
+
+// TestDeviceCacheControl pins the reader payload's cache policies
+// (docs/remarkable-reader.md §8, as edited by reader.payload): the
+// content-hashed bundle, rcc and backends are immutable; the manifest, the
+// folder archives and any other name under device/ revalidate. The app's own
+// rules are unchanged.
+func TestDeviceCacheControl(t *testing.T) {
+	for _, c := range []struct {
+		name, want string
+	}{
+		{"device/bundle.0123abcd.js", cacheImmutable},
+		{"device/resources.0123abcd.rcc", cacheImmutable},
+		{"device/estante-reader-armv7.0123abcd", cacheImmutable},
+		{"device/estante-reader-arm64.0123abcd", cacheImmutable},
+		{"device/manifest.json", cacheRevalidate},
+		{"device/estante-armv7.tar.gz", cacheRevalidate},
+		{"device/estante-arm64.tar.gz", cacheRevalidate},
+		{"device/bundle.js", cacheRevalidate},
+		{"device/estante-reader-armv7", cacheRevalidate},
+		{"device/estante-reader-x86.0123abcd", cacheRevalidate},
+		{"assets/app-abc123.js", cacheImmutable},
+		{"sw.js", cacheRevalidate},
+	} {
+		if got := cacheControl(c.name); got != c.want {
+			t.Errorf("cacheControl(%q) = %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+// TestDeviceFilesServed pins the payload's content types and cache policies
+// through the handler (design §8): the manifest is JSON and revalidated, a
+// backend is octet-stream and immutable, a folder archive is gzip and
+// revalidated.
+func TestDeviceFilesServed(t *testing.T) {
+	ts := httptest.NewServer(newTestHandler(t))
+	defer ts.Close()
+
+	for _, c := range []struct {
+		path, contentType, cache string
+	}{
+		{"/" + testDeviceManifest, "application/json", cacheRevalidate},
+		{"/" + testDeviceBackend, "application/octet-stream", cacheImmutable},
+		{"/" + testDeviceFolder, "application/gzip", cacheRevalidate},
+	} {
+		resp, _ := get(t, ts.URL, c.path)
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("GET %s status = %d, want 200", c.path, resp.StatusCode)
+		}
+		if got := resp.Header.Get("Content-Type"); got != c.contentType {
+			t.Errorf("GET %s Content-Type = %q, want %q", c.path, got, c.contentType)
+		}
+		if got := resp.Header.Get("Cache-Control"); got != c.cache {
+			t.Errorf("GET %s Cache-Control = %q, want %q", c.path, got, c.cache)
+		}
+	}
+}
+
+// TestDeviceMissingIs404 pins design §8's "a /device/ path that names no file
+// is a 404, never the app's shell": a missing hashed backend, a missing
+// extensionless one and a missing manifest each 404 rather than fall back.
+func TestDeviceMissingIs404(t *testing.T) {
+	// The fixture's device/ without its manifest, so a missing manifest is
+	// tested too.
+	root := newTestAppRoot(t)
+	if err := os.Remove(filepath.Join(root, filepath.FromSlash(testDeviceManifest))); err != nil {
+		t.Fatal(err)
+	}
+	h, err := Handler(slog.New(slog.NewJSONHandler(io.Discard, nil)), root, okPinger{}, nil)
+	if err != nil {
+		t.Fatalf("Handler: %v", err)
+	}
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+
+	for _, path := range []string{
+		"/device/estante-reader-armv7.deadbeef",
+		"/device/estante-reader-armv7",
+		"/device/manifest.json",
+	} {
+		resp, body := get(t, ts.URL, path)
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("GET %s status = %d, want 404", path, resp.StatusCode)
+		}
+		if strings.Contains(body, "data-shell") {
+			t.Errorf("GET %s returned the HTML shell, want a 404", path)
+		}
 	}
 }

@@ -115,6 +115,16 @@ listed:
 scp -r /tmp/reader/app/armv7/estante root@<address>:/home/root/xovi/exthome/appload/
 ```
 
+The site serves the reader's payload under `/device/` (design §8): the
+image's `reader` stage (the `Dockerfile`) builds both backends, stamped with
+`go run ./tools/payload digest . ../cifra.md/go`, assembles both folders with
+`tools/appfolder` and the gate's pinned `pyside6-rcc`, and lays them out beside
+the app's device bundle with `tools/payload` — content-hashed bundle, rcc and
+backends, a `manifest.json` naming each with its SHA-256, and the two folders a
+person downloads to install, `/device/estante-armv7.tar.gz` (rM2) and
+`/device/estante-arm64.tar.gz` (Paper Pro), each unpacked with `tar xzf` into
+AppLoad's directory. `app/dist/device/manifest.json` stays the bundle-only one.
+
 The module needs Go 1.26 (goja's minimum).
 
 It is its own Go module and shares no code with `service/` (DIRECTION §3.6):

@@ -3,8 +3,9 @@
 # The service's production image: one Go binary, git beside it, and the built
 # PWA, in a single small Linux image served on one origin (DIRECTION §3.6,
 # "One binary, with git beside it in the image"). Built from the repository
-# root so the context spans app/ (the PWA), service/ (the binary) and the
-# cifra.md/ subtree both of them build against;
+# root so the context spans app/ (the PWA), service/ (the binary),
+# remarkable/ (the reader's payload, served under /device/) and the cifra.md/
+# subtree they build against;
 # compose.yaml builds this image and scripts/gate builds it from the working
 # tree.
 
@@ -68,7 +69,56 @@ RUN CGO_ENABLED=0 go build -trimpath -o /out/pre-receive ./cmd/pre-receive
 # with the service's own environment. It is a CLI, not an endpoint.
 RUN CGO_ENABLED=0 go build -trimpath -o /out/estante-admin ./cmd/estante-admin
 
-# --- Stage 3: the final image — the binary, git, and the built app -----------
+# --- Stage 3: the reMarkable reader's payload (reader.payload) --------------
+# What a reMarkable fetches from /device/ (docs/remarkable-reader.md §8, §9):
+# the app's device bundle (stage 1), the QML compiled into resources.rcc, the
+# backend for armv7 (rM2) and arm64 (Paper Pro), each architecture's AppLoad
+# folder as a .tar.gz, and the manifest naming them all. The same bytes the
+# gate checks: the gate's pinned pyside6-rcc (remarkable/qml/tests/
+# requirements.txt, --require-hashes) and the same tools/appfolder run. The
+# PySide6 wheel is glibc (manylinux x86_64), so this stage is Debian on an
+# amd64 build host; the targets are cross-compiled (refinement Decisions 5, 6).
+# Go 1.26 is what remarkable/go.mod requires. The stage is discarded: the final
+# image gains only the files under /srv/app/device/.
+FROM golang:1.26-trixie AS reader
+# The offscreen Qt platform's system libraries the gate names, and a venv.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3-venv \
+      libgl1 libegl1 libxkbcommon0 libfontconfig1 libglib2.0-0 libx11-6 libx11-xcb1 libxcb1 \
+ && rm -rf /var/lib/apt/lists/*
+COPY remarkable/qml/tests/requirements.txt /tmp/qml-requirements.txt
+RUN python3 -m venv /venv \
+ && /venv/bin/pip install --no-cache-dir --require-hashes -r /tmp/qml-requirements.txt
+WORKDIR /src
+# The module files first, for a download layer only they bust. remarkable/
+# replaces github.com/ruoso/cifra.md/go with ../cifra.md/go, which from /src is
+# /cifra.md/go, as in the service stage.
+COPY remarkable/go.mod remarkable/go.sum ./
+COPY cifra.md/go/go.mod cifra.md/go/go.sum /cifra.md/go/
+RUN go mod download
+COPY cifra.md/go/ /cifra.md/go/
+COPY remarkable/ ./
+# The backend's version is a digest of the sources it is built from and the Go
+# toolchain (tools/payload digest; refinement Decision 4), stamped at link
+# time; one build per architecture feeds both the folder and the served file.
+RUN v="$(go run -p "$(nproc)" ./tools/payload digest . /cifra.md/go)" \
+ && echo "$v" > /out-version \
+ && CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
+      go build -p "$(nproc)" -trimpath -ldflags "-X main.version=$v" -o /out/arm/ ./cmd/estante-reader \
+ && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+      go build -p "$(nproc)" -trimpath -ldflags "-X main.version=$v" -o /out/arm64/ ./cmd/estante-reader \
+ && go run -p "$(nproc)" ./tools/appfolder --arch armv7 --backend /out/arm/estante-reader \
+      --qml qml --rcc /venv/bin/pyside6-rcc --out /out/app/armv7 \
+ && go run -p "$(nproc)" ./tools/appfolder --arch arm64 --backend /out/arm64/estante-reader \
+      --qml qml --rcc /venv/bin/pyside6-rcc --out /out/app/arm64
+# The app's build made the bundle and its bundle-only manifest; the payload
+# copies the bundle after checking its hash and writes the full manifest.
+COPY --from=app /build/app/dist/device /in/device
+RUN go run -p "$(nproc)" ./tools/payload --device /in/device \
+      --folder armv7=/out/app/armv7 --folder arm64=/out/app/arm64 \
+      --backend-version "$(cat /out-version)" --out /out/device
+
+# --- Stage 4: the final image — the binary, git, and the built app -----------
 FROM alpine:3.21
 # git lives beside the binary so the service can run upload-pack/receive-pack
 # over HTTP (DIRECTION §3.6); ca-certificates for the email provider's HTTPS
@@ -82,6 +132,9 @@ COPY --from=service /out/estante-admin /usr/local/bin/estante-admin
 # The built PWA, bundled now; serving it at / stays a pure Go change
 # (service.serve_app), which reads it from here.
 COPY --from=app /build/app/dist /srv/app
+# The reMarkable reader's payload beside the app (reader.payload; design §8):
+# its full manifest replaces the bundle-only one the app's build wrote there.
+COPY --from=reader /out/device/ /srv/app/device/
 # The book volume's mount point: one bare repository per book under
 # /data/books (DIRECTION §3.3); compose mounts a named volume here.
 RUN mkdir -p /data/books
