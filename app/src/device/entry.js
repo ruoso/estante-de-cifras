@@ -25,6 +25,8 @@ import { parse, parseSetlist } from 'cifra-md';
 import { HOST_API } from './host-api.js';
 import { SHAPE_CACHE_SALT, createShapeCache, shapeCacheKey } from '../core/shape-cache.js';
 import { parseChord } from '../core/notation/parse.js';
+import { transposedKeyName } from '../core/transpose.js';
+import { songKeyName } from '../core/song-key.js';
 import { readSongSheet, instrumentFor, songProperty, tuningIdOf } from '../songs/song-sheet.js';
 import { chartRows } from '../chart/layout.js';
 import { diagramModel } from '../render/diagram.js';
@@ -146,6 +148,12 @@ function sheet(text, offset = 0, opts = {}) {
     }
   }
 
+  // The song's key as it is read now (workflow 19 §A song): the written key
+  // transposed when the song states one, else the key its last chord gives in
+  // the model as read. Null only for a song with no key and no chords. It is a
+  // name only — a setlist key on a keyless song stays `keyNote` (§10.7.1).
+  const named = transposedKeyName(read.writtenKey, read.offset) ?? songKeyName(read.model, read.notation);
+
   const { handed } = resolveDiagramDisplay(preferences);
   const resolved = new Map(read.shapes.map((s) => [s.key, s]));
   const shapes = [];
@@ -161,7 +169,7 @@ function sheet(text, offset = 0, opts = {}) {
   return {
     title: parsed.title ?? null,
     artist: read.artist ?? null,
-    key: { written: read.writtenKey ?? null, status: read.status ?? null },
+    key: { written: read.writtenKey ?? null, named: named ?? null, status: read.status ?? null },
     offset: read.offset,
     transposed: read.transposed,
     rows: chartRows(read.model),

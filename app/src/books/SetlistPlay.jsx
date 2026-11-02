@@ -27,6 +27,7 @@ import { useSlice } from '../worker/useStore.js';
 import { command, CommandKind } from '../worker/protocol.js';
 import { transpose, transposedKeyName } from '../core/transpose.js';
 import { songDialect } from '../core/notation/dialects.js';
+import { songKeyName } from '../core/song-key.js';
 import Chart from '../chart/Chart.jsx';
 import { setlistRows, bookFileSet } from './setlist-display.js';
 import { playableItems, clampIndex, playKeyOffset, nextItem, startIndex } from './setlist-play.js';
@@ -199,8 +200,15 @@ export default function SetlistPlay({
   // in force — offset 0 included, so a band key equal to the written one is
   // still named — and, with no item key, only when the user's own
   // transposition moves the chart. A key shown as a note claims none.
+  // A song with no key moved by the user's own transposition is named by the
+  // key its last chord gives, as now read (core/song-key.js; workflow 2
+  // §Transposing — never transposed without a word). The name is only a name:
+  // it never computes a setlist interval (§10.7.1), so a setlist key on such a
+  // song stays a note.
   const showChip = current?.key ? !noteOnly : Boolean(offset);
-  const currentKeyName = showChip ? transposedKeyName(writtenKey, offset) : null;
+  const currentKeyName = !showChip
+    ? null
+    : (transposedKeyName(writtenKey, offset) ?? (current?.key ? null : songKeyName(model, notation)));
   // "written in" only when the setlist key actually moved the chart.
   const setlistLine = !current?.key
     ? null

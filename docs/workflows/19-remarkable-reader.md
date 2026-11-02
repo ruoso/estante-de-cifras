@@ -275,9 +275,10 @@ A key chosen here **stays on this reMarkable**, for this song, until another is
 chosen or *As written* — it is never written to the account (the reader writes
 nothing). The song opens at the account's saved key until one is chosen here.
 
-**A song with no `key` property** names its key by its first chord, as the web
-app does (*G* for a song that opens on G6); a setlist's key for such a song is
-shown as its note, not applied (workflow 12 §The key). **A song with no chords**
+**A song with no `key` property** names its key by its last chord, as the web
+app does (workflow 2 §Transposing): *Dm* for *Três Estrelinhas*, which opens on
+A7/C♯ and ends on Dm; a setlist's key for such a song is shown as its note, not
+applied (workflow 12 §The key). **A song with no chords**
 shows no key button and no strip.
 
 Costs: turn — 1; open the key grid — 1 (the strip only); choose a key — 1;

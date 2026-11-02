@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from 'cifra-md';
-import { transposeStatus, chartChordList, chordKeyName, voicedNames, shapeNames } from './reading-view.js';
+import { transposeStatus, chartChordList, voicedNames, shapeNames } from './reading-view.js';
 import { parseChord } from '../core/notation/parse.js';
 import { instrumentInstance } from '../core/instrument.js';
 import { fingeringFromFrets } from '../core/search.js';
@@ -35,24 +35,11 @@ describe('transposeStatus — the transposed row names both keys, or neither', (
     expect(transposeStatus(undefined, -1)).toEqual({ offset: -1, keyName: null, writtenKey: null });
   });
 
-  it('names a keyless song by the key its first chord gives, as written and as now read', () => {
+  it('names a keyless song by the key its chart gives, as written and as now read', () => {
     expect(transposeStatus(null, 1, { from: 'C', to: 'Db' })).toEqual({ offset: 1, keyName: 'Db', writtenKey: 'C' });
     expect(transposeStatus('Sol', 1, { from: 'C', to: 'Db' })).toEqual({ offset: 1, keyName: 'Db', writtenKey: 'C' });
-    // The song's own key wins over its first chord.
+    // The song's own key wins over the key its chart gives.
     expect(transposeStatus('G', 2, { from: 'C', to: 'D' })).toEqual({ offset: 2, keyName: 'A', writtenKey: 'G' });
-  });
-});
-
-describe('chordKeyName — the key a chord gives a song that names none', () => {
-  it('is the root, and m for a minor chord', () => {
-    expect(chordKeyName('Am7', 'brazilian')).toBe('Am');
-    expect(chordKeyName('Eb/G', 'brazilian')).toBe('Eb');
-    expect(chordKeyName('F#7M', 'brazilian')).toBe('F#');
-  });
-
-  it('is null for nothing, or for what is not a chord', () => {
-    expect(chordKeyName(null, 'brazilian')).toBeNull();
-    expect(chordKeyName('Walk', 'brazilian')).toBeNull();
   });
 });
 

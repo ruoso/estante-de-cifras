@@ -108,7 +108,8 @@ task reader "The reMarkable reader" {
   task key_without_property "A song with no key property, named by its key" {
     effort 0.5d
     allocate team
-    note "A song that states no key is named by the key of its first chord (reading-view.js chordKeyName over the first chart chord), so a choro that opens on its dominant reads as that dominant: Três Estrelinhas, in D minor, opening on A7/C#, shows A on the key button, in the web app and on the reader. Name it from the music instead — for example the last chord, on which such pieces end, or no key when the chart does not say — in the music core, so every place that names a key agrees (the web app transpose control, the reader key button, a setlist key shown as a note). Source: the reader design review with a book of choros, 2026-11-01. Tests: unit (the key of a song opening on its dominant, of one with no chords, of one that states its key); behavior (the reading view key chip for such a song)."
+    complete 100
+    note "A song that states no key is named by the key of its first chord (reading-view.js chordKeyName over the first chart chord), so a choro that opens on its dominant reads as that dominant: Três Estrelinhas, in D minor, opening on A7/C#, shows A on the key button, in the web app and on the reader. Name it from the music instead — for example the last chord, on which such pieces end, or no key when the chart does not say — in the music core, so every place that names a key agrees (the web app transpose control, the reader key button, a setlist key shown as a note). Source: the reader design review with a book of choros, 2026-11-01. Tests: unit (the key of a song opening on its dominant, of one with no chords, of one that states its key); behavior (the reading view key chip for such a song). Refinement: tasks/refinements/reader/key_without_property.md"
   }
   task pairing "Pairing the reader, and signing it out" {
     effort 1d

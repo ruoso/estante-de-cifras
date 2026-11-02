@@ -57,3 +57,31 @@ describe('the sheet and the default-shape cache (home-book §4.6)', () => {
     expect(sheet.shapes.find((s) => s.symbol === 'C').fingering.shorthand).not.toBe('x35553');
   });
 });
+
+// unit — the sheet's key for a song that states none (reader.key_without_property;
+// workflow 2 §Transposing as amended): named by the key its last chord gives,
+// as written and as now read; a stated key wins; no chords, no key.
+describe('the sheet names a keyless song by its last chord (workflow 2 §Transposing)', () => {
+  const choro = ['# Test Choro', '', '## A', FENCE, 'A7/C# | Dm | Gm | A7 | Dm', FENCE, ''].join('\n');
+
+  it('names the Dm chart Dm, and Ebm at +1', () => {
+    expect(readSongSheet({ text: choro }).startKey).toBe('Dm');
+    const up = readSongSheet({ text: choro, reading: { transposition: 1 } });
+    expect(up.startKey).toBe('Dm');
+    expect(up.status).toEqual({ offset: 1, keyName: 'Ebm', writtenKey: 'Dm' });
+  });
+
+  it('prefers a stated key over the last chord', () => {
+    const inG = ['# Test In G', '- key: G', '', '## A', FENCE, 'G | C | D7', FENCE, ''].join('\n');
+    const read = readSongSheet({ text: inG, reading: { transposition: 2 } });
+    expect(read.startKey).toBeNull();
+    expect(read.status).toMatchObject({ keyName: 'A', writtenKey: 'G' });
+  });
+
+  it('names no key for a song with no chords', () => {
+    const none = ['# Test Quiet', '', '## A', 'Play it softly.', FENCE, '', FENCE, ''].join('\n');
+    const read = readSongSheet({ text: none, reading: { transposition: 1 } });
+    expect(read.startKey).toBeNull();
+    expect(read.status.keyName).toBeNull();
+  });
+});

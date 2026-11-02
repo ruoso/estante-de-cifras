@@ -41,6 +41,7 @@ const SETLIST_TEXT = [
   '   - key: G',
   '6. [Minor Song](../minor.cifra.md)',
   '   - key: C',
+  '7. [Keyless Choro](../choro.cifra.md)',
   '',
 ].join('\n');
 
@@ -53,6 +54,9 @@ const OWN = ['# Own Tune', '- key: G', '', '## Verse', '```', 'G | C | D | G', '
 const BAND_KEY = ['# Band Key Song', '- key: G', '', '## Verse', '```', 'G | C | D | G', '```', ''].join('\n');
 // Written in Am under a setlist key of C: the modes differ (§10.7.1).
 const MINOR = ['# Minor Song', '- key: Am', '', '## Verse', '```', 'Am | Dm | E | Am', '```', ''].join('\n');
+// No key, a choro-like chart in Dm that opens on its dominant and ends on Dm
+// (written for the purpose): named by its last chord (core/song-key.js).
+const CHORO = ['# Keyless Choro', '', '## A', '```', 'A7/C# | Dm | Gm | A7 | Dm', '```', ''].join('\n');
 
 const TEXT_BY_PATH = {
   [SETLIST_PATH]: SETLIST_TEXT,
@@ -61,6 +65,7 @@ const TEXT_BY_PATH = {
   'own.cifra.md': OWN,
   'band-key.cifra.md': BAND_KEY,
   'minor.cifra.md': MINOR,
+  'choro.cifra.md': CHORO,
 };
 
 // Gone Song is referenced by the setlist but absent from the tree → missing.
@@ -70,6 +75,7 @@ const ENTRIES = [
   { path: 'own.cifra.md', status: 'clean' },
   { path: 'band-key.cifra.md', status: 'clean' },
   { path: 'minor.cifra.md', status: 'clean' },
+  { path: 'choro.cifra.md', status: 'clean' },
   { path: SETLIST_PATH, status: 'clean' },
 ];
 
@@ -77,6 +83,8 @@ const ENTRIES = [
 // key, reads under the user's own offset — chip "In A").
 const SONG_STATE = {
   'own.cifra.md': { transposition: 2, variations: {} },
+  // Keyless Choro carries +1: a keyless song moved by the user's own offset.
+  'choro.cifra.md': { transposition: 1, variations: {} },
 };
 
 function installMatchMedia(matches) {
@@ -240,6 +248,18 @@ describe('SetlistPlay — the setlist player', () => {
     expect(screen.queryByText(/Setlist key/)).not.toBeInTheDocument();
   });
 
+  it('names a keyless song under the user’s own transposition by its last chord (workflow 2 §Transposing, "never without a word")', async () => {
+    const store = makeStore();
+    const { container } = renderPlayer(store);
+    await playTo('Keyless Choro');
+    // Own offset +1 over a chart ending on Dm → chip "In Ebm" (E♭m), no setlist line.
+    const bar = screen.getByRole('button', { name: 'Stop playing' }).closest('.play-bar');
+    expect(within(bar).getByText('In Ebm')).toBeInTheDocument();
+    expect(screen.queryByText(/Setlist key/)).not.toBeInTheDocument();
+    // The chart is moved: it ends on the transposed tonic.
+    expect(chartChords(container).at(-1)).toBe('Ebm');
+  });
+
   it('skips the missing item, showing the next-song title on the Next card (AC 2, 4)', async () => {
     const store = makeStore();
     renderPlayer(store);
@@ -248,7 +268,7 @@ describe('SetlistPlay — the setlist player', () => {
     expect(screen.getByText('2. No Key Song')).toBeInTheDocument();
     expect(screen.getByText('Note: gentle')).toBeInTheDocument();
     // Position of three playable songs (Gone Song is skipped, never counted).
-    expect(screen.getByText('1 of 5 · screen stays on')).toBeInTheDocument();
+    expect(screen.getByText('1 of 6 · screen stays on')).toBeInTheDocument();
     await pressKey('ArrowRight'); // No Key Song
     await screen.findByRole('group', { name: 'No Key Song' });
     // From here the Next card points straight at Own Tune — Gone Song is gone.
@@ -301,7 +321,7 @@ describe('SetlistPlay — the setlist player', () => {
     expect(onStop).toHaveBeenCalled();
   });
 
-  it('is axe-clean on the transposed, note-only, own-transposition, equal-key and mode-mismatch states', async () => {
+  it('is axe-clean on the transposed, note-only, own-transposition, equal-key, mode-mismatch and keyless own-transposition states', async () => {
     const store = makeStore();
     const { container } = renderPlayer(store);
     await screen.findByRole('group', { name: 'In G Song' });
@@ -317,6 +337,10 @@ describe('SetlistPlay — the setlist player', () => {
     expect(await checkWcag21aa(container)).toHaveNoViolations();
     await pressKey('ArrowRight');
     await screen.findByRole('group', { name: 'Minor Song' });
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+    // The keyless song under the user's own transposition, its chip named.
+    await pressKey('ArrowRight');
+    await screen.findByRole('group', { name: 'Keyless Choro' });
     expect(await checkWcag21aa(container)).toHaveNoViolations();
   });
 });

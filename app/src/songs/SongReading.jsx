@@ -403,7 +403,7 @@ export default function SongReading({
     : null;
 
   // What the stepper reads between − and +: the key it is in, the song's own
-  // or the one its first chord gives; else the bare offset.
+  // or the one its last chord gives (core/song-key.js); else the bare offset.
   const transposeNow = () => {
     const at = writtenKey ?? startKey;
     if (!transposed) return at ? t('reading.keyOf', { key: at }) : t('reading.writtenKey');

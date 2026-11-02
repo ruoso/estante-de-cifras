@@ -113,8 +113,11 @@ function selectBlock(parsed, tuningId, variation) {
   return null;
 }
 
-/** Every chord item in the chart, in document order (with repeats of a key). */
-function* chartChords(parsed) {
+/**
+ * Every chord item in the chart, in document order (with repeats of a key) —
+ * the music core's one chord walk; `song-key.js` reads the last chord from it.
+ */
+export function* chartChords(parsed) {
   for (const section of parsed?.sections ?? []) {
     for (const part of section?.body ?? []) {
       if (part?.type !== 'music') continue;

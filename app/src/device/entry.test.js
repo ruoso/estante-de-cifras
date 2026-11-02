@@ -84,6 +84,12 @@ const SETLIST = readFileSync(new URL('a-short-set.setlist.md', BOOK), 'utf8');
 
 // Songs written for these tests.
 const IN_C = '# Test in C\n- key: C\n\n```\nC | F | G | C\n```\n';
+// No key: a choro-like chart in Dm that opens on its dominant (workflow 19 §A song).
+const CHORO = '# Test Choro\n\n```\nA7/C# | Dm | Gm | A7 | Dm\n```\n';
+// A song in G that ends away from its key.
+const IN_G_ENDS_D7 = '# Test in G\n- key: G\n\n```\nG | C | D7\n```\n';
+// No chords at all.
+const NO_CHORDS = '# Test Quiet\n\n## A\nPlay it softly.\n```\n\n```\n';
 
 const ENTRY = surfaceInstruments({}).standard;
 let TABLE;
@@ -139,10 +145,26 @@ describe('agreement with the reading view, all twelve keys (§4 "no port")', () 
     expect(Array.isArray(got.notes)).toBe(true);
   });
 
-  it('names a song with no key by its first chord when transposed', () => {
-    const got = estante.sheet(song('morning-on-the-porch.cifra.md'), 2);
-    expect(got.key.written).toBeNull();
-    expect(got.key.status).toMatchObject({ offset: 2, keyName: 'A', writtenKey: 'G' });
+  // workflow 19 §A song as amended: key.named is the key as read now.
+  it('names a song with no key by its last chord', () => {
+    const at0 = estante.sheet(CHORO, 0);
+    expect(at0.key.written).toBeNull();
+    expect(at0.key.named).toBe('Dm');
+    expect(at0.key.status).toBeNull();
+    const up = estante.sheet(CHORO, 1);
+    expect(up.key.named).toBe('Ebm');
+    expect(up.key.status).toMatchObject({ offset: 1, keyName: 'Ebm', writtenKey: 'Dm' });
+  });
+
+  it('names a song by its stated key, transposed, whatever chord it ends on', () => {
+    const got = estante.sheet(IN_G_ENDS_D7, 2);
+    expect(got.key.written).toBe('G');
+    expect(got.key.named).toBe('A');
+  });
+
+  it('names no key for a song with no chords and no key', () => {
+    expect(estante.sheet(NO_CHORDS, 0).key.named).toBeNull();
+    expect(estante.sheet(NO_CHORDS, 3).key.named).toBeNull();
   });
 
   it('answers an unreadable text without throwing', () => {
@@ -298,6 +320,14 @@ describe('target key (workflow 12 §The key)', () => {
     const got = estante.sheet(song('morning-on-the-porch.cifra.md'), 0, { targetKey: 'D' });
     expect(got.offset).toBe(0);
     expect(got.keyNote).toBe('D');
+  });
+
+  it('keeps a target key on a keyless song a note, never moved by the name its last chord gives (§10.7.1)', () => {
+    const got = estante.sheet(CHORO, 0, { targetKey: 'Em' });
+    expect(got.offset).toBe(0);
+    expect(got.keyNote).toBe('Em');
+    expect(got.key.named).toBe('Dm');
+    expect(got.key.status).toBeNull();
   });
 
   it('carries a minor target on a major song as a note', () => {

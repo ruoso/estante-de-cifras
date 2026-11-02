@@ -261,10 +261,15 @@ shown plainly while it applies — *transposed to D (+2)* — with a way back to
 the written key, and in full screen too, beside the title: on stage the chords
 must not look like the written ones without a word. The Transpose stepper
 reads the key it is in between − and + (*Key of C*, then *D♭ (+1)*). A song
-that names no key is named by the key its first chord gives, the chord's root
-and *m* when it is minor, since most songs open on their key: *Key of Am*,
-then *Transposed to B♭m (+1)* and *Back to Am*, never a bare number of
-semitones (the persona explorations of 2026-10-31 and 2026-11-01).
+that names no key is named by the key its last chord gives, the chord's root
+and *m* when it is minor, since a piece ends on its key even when it opens
+elsewhere — a choro in D minor that opens on its dominant, *A7/C♯*, still ends
+on *Dm*: *Key of Dm*, then *Transposed to E♭m (+1)* and *Back to Dm*, never a
+bare number of semitones (the persona explorations of 2026-10-31 and
+2026-11-01; the reader design review with a book of choros, 2026-11-01, which
+replaced the first chord). A song with no chords names no key. The name is
+only a name: a setlist's key is still not applied to such a song, but shown as
+a note (workflow 12 §The key).
 
 **It is for reading.** While transposed:
 

@@ -19,7 +19,8 @@ import { songVariations } from '../core/song-variations.js';
 import { DEFAULT_DIALECT, songDialect } from '../core/notation/dialects.js';
 import { isEmptySong, isNumberedSong } from '../chart/layout.js';
 import { resolveBarNumbers, resolveChordNaming } from '../theme/resolve.js';
-import { transposeStatus, chartChordList, chordKeyName, voicedNames } from './reading-view.js';
+import { songKeyName } from '../core/song-key.js';
+import { transposeStatus, chartChordList, voicedNames } from './reading-view.js';
 
 export function songProperty(parsed, name) {
   return parsed?.properties?.find((p) => p?.key === name)?.value ?? null;
@@ -144,10 +145,10 @@ export function readSongSheet({
   const numbered = isNumberedSong(model);
   const barNumbers = numbered && resolveBarNumbers(preferences) === 'shown';
 
-  // A song that names no key is named by the key its first chord gives, as
-  // written and as now read (`C` → `Db`).
-  const startKey = writtenKey ? null : chordKeyName(baseModel ? chartChordList(baseModel)[0]?.symbol : null, notation);
-  const startKeyNow = writtenKey ? null : chordKeyName(chordList[0]?.symbol, notation);
+  // A song that names no key is named by the key its last chord gives
+  // (core/song-key.js), as written and as now read (`Dm` → `Ebm`).
+  const startKey = writtenKey ? null : songKeyName(baseModel, notation);
+  const startKeyNow = writtenKey ? null : songKeyName(model, notation);
   const status = transposeStatus(writtenKey, offset, { from: startKey, to: startKeyNow });
   const transposed = offset !== 0;
 

@@ -18,7 +18,7 @@ import { defaultVoicing } from '../core/voicings.js';
 import { describeFingering } from '../render/diagram.js';
 import { checkWcag21aa } from '../a11y/axe.js';
 import { injectStyles, expectPopoverSurface } from '../test/theme-styles.js';
-import { setLocale } from '../i18n/index.js';
+import { setLocale, t } from '../i18n/index.js';
 import ThemeRoot from '../theme/ThemeRoot.jsx';
 import SongReading from './SongReading.jsx';
 import { READING_ACTIONS_WIDE_QUERY } from '../shell/layout-mode.js';
@@ -642,11 +642,34 @@ describe('SongReading — transpose (workflow 2 L111-146; W02 L181-186)', () => 
     expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 
-  it('names a keyless song by the key its first chord gives (acceptance 3)', async () => {
-    const { store } = makeStore({ text: song({ chart: 'Am  F  G' }), entry: guitarEntry(), transposition: 3 });
+  // workflow 2 §Transposing as amended (reader.key_without_property): a song
+  // with no key is named by the key its last chord gives.
+  it('names a keyless song by the key its last chord gives', async () => {
+    const { store } = makeStore({ text: song({ chart: 'A7/C#  Dm  Gm  A7  Dm' }), entry: guitarEntry(), transposition: 1 });
     await openAndWait(store);
-    expect(screen.getByText('Transposed to Cm (+3)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Back to Am' })).toBeInTheDocument();
+    expect(screen.getByText('Transposed to Ebm (+1)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to Dm' })).toBeInTheDocument();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('reads Key of Dm in the stepper for the keyless chart at its written key', async () => {
+    const { store } = makeStore({ text: song({ chart: 'A7/C#  Dm  Gm  A7  Dm' }), entry: guitarEntry() });
+    await openAndWait(store);
+    await click(screen.getByRole('button', { name: 'Transpose' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Transpose the view' });
+    expect(within(dialog).getByText('Key of Dm')).toBeInTheDocument();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+
+  it('names no key in the stepper for a song with no chords', async () => {
+    const text = ['# Tarde Clara', '', '## Verse', 'Play it softly.', FENCE, '', FENCE, ''].join('\n');
+    const { store } = makeStore({ text, entry: guitarEntry() });
+    await openAndWait(store);
+    await click(screen.getByRole('button', { name: 'Transpose' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Transpose the view' });
+    expect(within(dialog).getByText(t('reading.writtenKey'))).toBeInTheDocument();
+    expect(within(dialog).queryByText(/^Key of /)).toBeNull();
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
   });
 });
 

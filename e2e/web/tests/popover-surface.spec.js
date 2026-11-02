@@ -118,7 +118,7 @@ test('Transpose opens on a surface over the shapes caption, in every theme (M7)'
     const what = `the Transpose popover in ${theme.name}`;
 
     await expectOnSurface(popover, what);
-    await expect(dialog.getByText(/^Key of \S+$/)).toBeVisible(); // the key the keyless song's first chord gives
+    await expect(dialog.getByText(/^Key of \S+$/)).toBeVisible(); // the key the keyless song's last chord gives
     const offenders = await throughOrOver(popover);
     expect(offenders, `${what}: something shows through or over it`).toEqual([]);
     await checkA11y();
