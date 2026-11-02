@@ -69,7 +69,11 @@ opened through the views with the app's built device bundle; a few variants
 opened with a voicing hidden, the device's key, or a saved key; and
 `found-shape` holds `choro-long`'s `105 sheet` read with one chord missing
 from the table and the `108 shapes` the background search sent for it
-(reader.missed_shapes). Go's
+(reader.missed_shapes). The browse screens' tests (`tst_browse_*.qml`,
+`tst_main.qml`) read `browse-shelf`, `browse-book`, `browse-book-small`,
+`browse-setlist` and `browse-settings`: the backend's `103`, `104`, `106` and
+`107` over books built from `qml/tests/fixtures/browse-book/`, 34 songs and 3
+setlists written for the tests (reader.browse_screens). Go's
 `TestQMLFixtures` (`internal/backend/qmlfixtures_test.go`) fails when a
 committed fixture differs from what the backend answers now — after a change
 to the songs, `chartRows` or `diagramModel` — and regenerates them, once

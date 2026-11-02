@@ -84,7 +84,9 @@ move:
 - **The bar**: *Back* (a word with its arrow, never the arrow alone) at the
   left, the screen's title, and at most one action at the right.
 - **The content**: one page. Turned by a tap in its left or right third, a
-  swipe, or the foot's arrows.
+  swipe, or the foot's arrows. On a list — the shelf, a book, a setlist —
+  the rows are the targets, the whole width, so a list turns by a swipe or the
+  foot's arrows only.
 - **The foot**: where the page is (*2 of 5*) and the arrows, at its right. A
   screen with one page shows the foot without arrows rather than removing it,
   so the content never changes height.
@@ -121,7 +123,9 @@ The page then stays still: no countdown, no *waiting…* that changes. When the
 code is approved the shelf replaces it — one redraw. When it expires, the code
 is replaced by *That code has expired.* and *Get a new code* — one redraw, the
 only change the page makes on its own. With no network: *This reMarkable is not
-connected to Wi-Fi. Connect it in Settings and try again.*
+connected to Wi-Fi. Connect it in Settings and try again.*, in the code's
+place, with *Get a new code* to try again. The code page's bar has **Back**, to
+*Not paired*.
 
 Costs: open the code — 1; approved — 1; expired — 1.
 
@@ -146,13 +150,24 @@ is opened again.
 book that arrived in the sync appears in the list on the next opening of the
 shelf, not while it is on screen (rule 5).
 
+Each row's second line counts what the book holds: *32 songs · 4 setlists*,
+*1 song*; a book with no setlists says only its songs (*12 songs*) — nothing
+drawn that is not information.
+
 **Nothing yet:** *No books on your shelf yet. Books you add in Estante on your
 phone or computer come here.*
 
 At the foot's left, **Settings** — a word, not a gear — opens the one page of
-settings: the account it is paired with, the reader's version, *Sign out*
-(which asks once: *Sign out of this reMarkable? Your books are removed from it;
-nothing changes in your account.*).
+settings (bar: **Back** to the shelf · *Settings*), in this order: **Account**,
+*Paired with* and the account it is paired with; **Sync**, the shelf's sync
+line as it was when the page opened (it does not change while the page is on
+screen — rule 5's exception is the shelf's); **Shapes**, *11 shapes hidden —
+the ones you know* with **Show all again** (the count redrawn when it is
+pressed), or *No shapes hidden.* without the button; **This reader**,
+*Version 0.1.0*; and **Sign out**, which asks once: pressed, it is replaced by
+*Sign out of this reMarkable? Your books are removed from it; nothing changes
+in your account.* with **Sign out** and **Cancel** — one redraw of that part of
+the page — and the second *Sign out* signs out, returning to *Not paired*.
 
 Costs: open a book — 1; turn a page — 1; Sync — 2 small (start, end).
 
@@ -171,9 +186,15 @@ book shows two rows of thirteen letters — **A B C … Z**, two rows so each
 letter is a full-size target (rule 10) — of which only the letters that
 start a song are drawn as targets (the rest are not drawn at all, so there is
 nothing to tap that leads nowhere). A letter turns to the page where that
-letter starts — one redraw (rule 8). The letter rows are part of the fixed
-chrome and never change while the book is open. They are not shown for a book
-of two pages or fewer.
+letter starts — one redraw (rule 8). A song's letter is its title's first
+letter without its accent (*Ária* under **A**, *Ção* under **C**); a title
+that starts with a digit or a sign has no letter and is reached by turning. A
+letter that starts no song leaves its place empty, so the letters never move.
+The letter rows are part of the fixed chrome and never change while the book
+is open — none is marked as the current one. They are not shown for a book of
+two pages or fewer.
+
+Back from a song or a setlist returns to the book at the page it was left on.
 
 **Empty book:** *No songs in this book yet.*
 
@@ -302,8 +323,10 @@ close — 1 (the strip only).
 
 Bar: **Back** (to the book) · the setlist's name · at the right, **Play**.
 
-Content: its songs in order, one row each — *1*, the title, and the key it is
-played in (*in D*) — and the setlist's note for a song under it. A missing song
+Content: its songs in order, one row each — *1*, the title, and the key the
+setlist sets for it (*in D*; a song the setlist sets no key for plays in its
+own key, named on its song screen, and its row names none) — and the
+setlist's note for a song under it. A missing song
 says *missing* and is skipped by Play (workflow 12). Ten rows to a page.
 
 **Play** opens the first song; tapping a row opens Play at that song. Playing

@@ -1,0 +1,176 @@
+// A setlist (reader.browse_screens; workflow 19 §A setlist; Setlist.dc.html).
+// Three regions, fixed in place, each replaced in one place and counted in
+// `revision` (workflow 19 §What it costs):
+//
+//   the setlist answered (`show`)        bar, list, foot
+//   a page turned                        list, foot
+//
+// The bar: Back (to the book) · the setlist's name, the right slot kept for
+// Play (reader.play). The content: *Book · n songs* at its top, then the
+// items in order — number, title, the setlist's note under it, and at the
+// right *in D* when the setlist sets a key, *missing* when the song is not in
+// the book. Ten rows a page. The rows are not targets until reader.play
+// (Decision 11); they still swipe.
+import QtQuick
+import "../chart"
+import "../chart/metrics.js" as M
+import "pages.js" as Pages
+
+Item {
+    id: screen
+    objectName: "setlistScreen"
+
+    property var endpoint: null
+    readonly property Faces faces: Faces {}
+
+    readonly property ListBar bar: listBar
+    readonly property Region list: listRegion
+    readonly property ListFoot foot: listFoot
+    readonly property alias rows: rowRepeater
+    readonly property alias lineText: lineText
+    readonly property var setlist: d.setlist
+    readonly property int page: d.page
+    readonly property int pageCount: Pages.pageCount(d.items.length)
+    readonly property string pending: d.pending
+
+    width: M.screenWidth
+    height: M.barHeight + M.contentHeight + M.footHeight
+
+    // A `106 setlist`, from the book named `bookName` ("" when not known): on
+    // the page holding item `at` when it is set, else the first.
+    function show(setlist, bookName) {
+        d.setlist = setlist;
+        d.items = Pages.list(setlist && setlist.items);
+        d.page = (setlist && typeof setlist.at === "number")
+                 ? Pages.clamp(Pages.pageOf(setlist.at), d.items.length) : 0;
+        d.line = Pages.setlistLine(bookName, d.items.length);
+        d.pending = "";
+        listBar.show({ title: (setlist && setlist.title) || "", back: true, action: "", reserve: true });
+        d.commitList();
+        d.commitFoot();
+    }
+
+    QtObject {
+        id: d
+        property var setlist: null
+        property var items: []
+        property int page: 0
+        property string line: ""
+        property string pending: ""
+
+        function send(type, payload) {
+            if (screen.endpoint)
+                screen.endpoint.sendMessage(type, JSON.stringify(payload));
+        }
+
+        function commitList() {
+            const from = d.page * Pages.perPage;
+            const rows = d.items.slice(from, from + Pages.perPage).map((it, i) => ({
+                index: from + i,
+                number: String(from + i + 1),
+                title: it.title || Pages.fileName(it.path),
+                note: it.note || "",
+                right: Pages.itemRight(it)
+            }));
+            listRegion.show({ line: d.line, rows: rows });
+        }
+
+        function commitFoot() {
+            listFoot.show({ left: "", page: d.page, pageCount: screen.pageCount });
+        }
+
+        function turn(delta) {
+            const p = d.page + delta;
+            if (p < 0 || p >= screen.pageCount || d.pending !== "")
+                return;
+            d.page = p;
+            commitList();
+            commitFoot();
+        }
+    }
+
+    ListBar {
+        id: listBar
+        x: 0
+        y: 0
+        faces: screen.faces
+        pending: d.pending === "back" ? "back" : ""
+        onBackTapped: {
+            if (d.pending !== "" || d.setlist === null)
+                return;
+            d.pending = "back";
+            d.send(2, { view: "book", bookId: d.setlist.bookId });
+        }
+    }
+
+    Region {
+        id: listRegion
+        objectName: "list"
+        x: 0
+        y: M.barHeight
+        width: screen.width
+        height: M.contentHeight
+        content: ({ line: "", rows: [] })
+
+        SwipeArea {
+            onSwiped: delta => d.turn(delta)
+        }
+
+        Text {
+            id: lineText
+            objectName: "setlistLine"
+            x: M.contentSide
+            y: 0
+            width: listRegion.width - 2 * M.contentSide
+            height: M.syncLineHeight - M.listRule
+            color: "black"
+            font.family: screen.faces.ui
+            font.pixelSize: 34
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+            textFormat: Text.PlainText
+            text: listRegion.content.line || ""
+        }
+
+        Rectangle {
+            objectName: "setlistLineRule"
+            x: M.contentSide
+            y: M.syncLineHeight - M.listRule
+            width: listRegion.width - 2 * M.contentSide
+            height: M.listRule
+            color: "black"
+            antialiasing: false
+        }
+
+        Repeater {
+            id: rowRepeater
+            model: listRegion.content.rows || []
+            ListRow {
+                readonly property var item: modelData
+                faces: screen.faces
+                y: M.syncLineHeight + index * M.tallRow
+                height: M.tallRow
+                active: false
+                titleSize: 44
+                detailSize: 32
+                italicDetail: true
+                rightSize: 38
+                rightBold: true
+                number: modelData.number
+                title: modelData.title
+                detail: modelData.note
+                rightWord: modelData.right
+                onSwiped: delta => d.turn(delta)
+            }
+        }
+    }
+
+    ListFoot {
+        id: listFoot
+        x: 0
+        y: M.barHeight + M.contentHeight
+        faces: screen.faces
+        onPreviousTapped: d.turn(-1)
+        onNextTapped: d.turn(1)
+    }
+}

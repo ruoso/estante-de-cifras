@@ -146,3 +146,23 @@ var keyHeight = 100;
 var keyGap = 12;
 var keyColumnWidth = 300;
 var keyColumnGap = 48;
+
+// The lists' sizes (reader.browse_screens; workflow 19 §The screen, §The
+// shelf, §A book, §A setlist; rule 10: rows at least 120 px, controls at
+// least 100 px). Ten rows to a page. A book's row is 120 px; the shelf's and
+// a setlist's 150 px, as Shelf.dc.html and Setlist.dc.html draw them (a
+// setlist's row carries its note). A heading (*Setlists*, *Songs*) is 72 px
+// (Book.dc.html L26). The letter rows are two rows of thirteen 108 × 100 px
+// cells above the foot, so a book with them has 1432 px of content: ten rows
+// and two headings fit (1344). The line at a list's top — the shelf's sync
+// line, a setlist's *Book · n songs* — is 96 px (Shelf.dc.html L26).
+var rowsPerPage = 10;
+var listRow = 120;
+var tallRow = 150;
+var listHeading = 72;
+var listRule = 2;
+var letterCellWidth = 108;
+var letterCellHeight = 100;
+var letterColumns = 13;
+var letterRowsHeight = 2 * letterCellHeight;
+var syncLineHeight = 96;

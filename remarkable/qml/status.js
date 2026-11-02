@@ -2,7 +2,8 @@
 // the backend's last `101 state` (docs/remarkable-reader.md §6), in workflow
 // 19's own copy (§The shelf, the sync line; §Pairing, *Not paired*). Time is
 // written as a time, device local, 24-hour (the refresh budget, rule 2).
-// browse_screens moves this line onto the shelf and the Not paired page.
+// The shelf draws it as its sync line, and Settings as it was when the page
+// opened (reader.browse_screens).
 .pragma library
 
 function hhmm(iso) {
