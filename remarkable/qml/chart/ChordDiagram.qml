@@ -11,7 +11,7 @@
 // and the start fret beside row 0 when the nut is not drawn
 // (app/src/render/chord-box.js). A null model — a shape still pending — keeps
 // its place, empty, with no symbol (design §6). No default or *your shape*
-// marks (workflow 19 §A song).
+// marks (workflow 19 §A song). `inverted` draws it white on black.
 import QtQuick
 import "metrics.js" as M
 
@@ -21,6 +21,11 @@ Item {
     property var model: null
     property string symbol: ""
     property string size: "large"
+    // White on black: the tapped diagram while its question is asked
+    // (reader.song_screen; workflow 19 rule 7, §A song "inverts it").
+    property bool inverted: false
+    readonly property color ink: inverted ? "white" : "black"
+    readonly property color paper: inverted ? "black" : "white"
     // The faces to draw in (the reader's Faces); a SheetView's when given.
     property var faces: Faces {}
 
@@ -55,6 +60,21 @@ Item {
     width: implicitWidth
     height: implicitHeight
 
+    // The inverted diagram's ground, behind everything it draws.
+    Repeater {
+        model: diagram.inverted ? 1 : 0
+        Rectangle {
+            objectName: "inverse"
+            x: 0
+            y: 0
+            width: diagram.width
+            height: diagram.height
+            color: "black"
+            border.width: 0
+            antialiasing: false
+        }
+    }
+
     Repeater {
         model: diagram.drawn && diagram.symbol !== "" ? 1 : 0
         Text {
@@ -63,7 +83,7 @@ Item {
             height: diagram.g.symbolLine
             x: Math.floor((diagram.g.width - width) / 2)
             y: 0
-            color: "black"
+            color: diagram.ink
             font.family: diagram.faces.chart
             font.variableAxes: ({ "wght": 700 })
             font.pixelSize: diagram.g.symbolSize
@@ -90,7 +110,8 @@ Item {
                 y: diagram.g.top + index * diagram.g.fretSpacing
                 width: diagram.gridWidth
                 height: diagram.g.stroke
-                color: "black"
+                color: diagram.ink
+                border.width: 0
                 antialiasing: false
             }
         }
@@ -102,7 +123,8 @@ Item {
                 y: diagram.g.top
                 width: diagram.g.stroke
                 height: diagram.fretsShown * diagram.g.fretSpacing + diagram.g.stroke
-                color: "black"
+                color: diagram.ink
+                border.width: 0
                 antialiasing: false
             }
         }
@@ -114,7 +136,8 @@ Item {
                 y: diagram.g.top
                 width: diagram.gridWidth
                 height: diagram.g.nut
-                color: "black"
+                color: diagram.ink
+                border.width: 0
                 antialiasing: false
             }
         }
@@ -126,7 +149,7 @@ Item {
                 height: diagram.g.fretSpacing
                 x: diagram.gridLeft - 6 - width
                 y: diagram.g.top
-                color: "black"
+                color: diagram.ink
                 font.family: diagram.faces.ui
                 font.weight: Font.Bold
                 font.pixelSize: diagram.g.fretNumberSize
@@ -148,7 +171,8 @@ Item {
                 width: (b.toString - b.fromString) * diagram.g.stringSpacing + diagram.g.dot
                 height: diagram.g.dot
                 radius: diagram.g.dot / 2
-                color: "black"
+                color: diagram.ink
+                border.width: 0
                 antialiasing: false
                 Repeater {
                     model: diagram.hasFinger(barre.b.finger) ? 1 : 0
@@ -158,7 +182,7 @@ Item {
                         y: 0
                         width: barre.width
                         height: barre.height
-                        color: "white"
+                        color: diagram.paper
                         font.family: diagram.faces.ui
                         font.weight: Font.Bold
                         font.pixelSize: diagram.g.fingerSize
@@ -181,7 +205,8 @@ Item {
                 width: diagram.g.dot
                 height: diagram.g.dot
                 radius: diagram.g.dot / 2
-                color: "black"
+                color: diagram.ink
+                border.width: 0
                 antialiasing: false
                 Repeater {
                     model: diagram.hasFinger(dot.d.finger) ? 1 : 0
@@ -191,7 +216,7 @@ Item {
                         y: 0
                         width: dot.width
                         height: dot.height
-                        color: "white"
+                        color: diagram.paper
                         font.family: diagram.faces.ui
                         font.weight: Font.Bold
                         font.pixelSize: diagram.g.fingerSize
@@ -222,8 +247,8 @@ Item {
                         width: diagram.g.markSize
                         height: diagram.g.markSize
                         radius: diagram.g.markSize / 2
-                        color: "white"
-                        border.color: "black"
+                        color: diagram.paper
+                        border.color: diagram.ink
                         border.width: diagram.g.ringBorder
                         antialiasing: false
                     }
@@ -236,7 +261,7 @@ Item {
                         y: 0
                         width: diagram.g.markSize
                         height: diagram.g.markSize
-                        color: "black"
+                        color: diagram.ink
                         font.family: diagram.faces.ui
                         font.weight: Font.Bold
                         font.pixelSize: diagram.g.markFontSize

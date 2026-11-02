@@ -10,7 +10,57 @@ var sheet = {
   "key": {
     "written": "G",
     "named": "G",
-    "saved": null
+    "saved": null,
+    "choices": [
+      {
+        "name": "C",
+        "offset": 5
+      },
+      {
+        "name": "Db",
+        "offset": 6
+      },
+      {
+        "name": "D",
+        "offset": -5
+      },
+      {
+        "name": "Eb",
+        "offset": -4
+      },
+      {
+        "name": "E",
+        "offset": -3
+      },
+      {
+        "name": "F",
+        "offset": -2
+      },
+      {
+        "name": "F#",
+        "offset": -1
+      },
+      {
+        "name": "G",
+        "offset": 0
+      },
+      {
+        "name": "Ab",
+        "offset": 1
+      },
+      {
+        "name": "A",
+        "offset": 2
+      },
+      {
+        "name": "Bb",
+        "offset": 3
+      },
+      {
+        "name": "B",
+        "offset": 4
+      }
+    ]
   },
   "offset": 0,
   "tuningId": "40 45 50 55 59 64",

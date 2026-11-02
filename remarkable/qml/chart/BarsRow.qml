@@ -40,7 +40,7 @@ Item {
             x += bar.width;
         }
         naturalWidth = natural;
-        height = M.barHeight + M.pieceSpacing;
+        height = M.barsHeight + M.pieceSpacing;
     }
 
     Repeater {
@@ -48,7 +48,7 @@ Item {
         model: row.piece.label ? 1 : 0
         delegate: Text {
             objectName: "endingLabel"
-            y: Math.floor((M.barHeight - M.chordLine) / 2)
+            y: Math.floor((M.barsHeight - M.chordLine) / 2)
             width: Math.ceil(implicitWidth)
             height: M.chordLine
             color: "black"
@@ -87,7 +87,7 @@ Item {
             }
             // The bar's right edge: its rule, or its close; the count after it.
             readonly property int edge: width - countWidth
-            height: M.barHeight
+            height: M.barsHeight
 
             function arrange() {
                 let x = contentStart;
@@ -104,7 +104,7 @@ Item {
                 model: !bar.opens && !bar.afterClose ? 1 : 0
                 Rectangle {
                     objectName: "barRule"
-                    x: 0; y: 0; width: M.barRule; height: M.barHeight
+                    x: 0; y: 0; width: M.barRule; height: M.barsHeight
                     color: "black"; antialiasing: false
                 }
             }
@@ -113,7 +113,7 @@ Item {
                 model: bar.last && !bar.closes ? 1 : 0
                 Rectangle {
                     objectName: "barRule"
-                    x: bar.width - M.barRule; y: 0; width: M.barRule; height: M.barHeight
+                    x: bar.width - M.barRule; y: 0; width: M.barRule; height: M.barsHeight
                     color: "black"; antialiasing: false
                 }
             }
@@ -122,16 +122,16 @@ Item {
                 model: bar.opens ? 1 : 0
                 Item {
                     objectName: "repeatOpen"
-                    x: 0; y: 0; width: M.repeatSign; height: M.barHeight
-                    Rectangle { x: 0; y: 0; width: M.repeatThick; height: M.barHeight; color: "black"; antialiasing: false }
-                    Rectangle { x: M.repeatThick + M.repeatSpace; y: 0; width: M.repeatThin; height: M.barHeight; color: "black"; antialiasing: false }
+                    x: 0; y: 0; width: M.repeatSign; height: M.barsHeight
+                    Rectangle { x: 0; y: 0; width: M.repeatThick; height: M.barsHeight; color: "black"; antialiasing: false }
+                    Rectangle { x: M.repeatThick + M.repeatSpace; y: 0; width: M.repeatThin; height: M.barsHeight; color: "black"; antialiasing: false }
                     Rectangle {
-                        x: M.repeatSign - M.repeatDot; y: Math.floor(M.barHeight / 2) - M.repeatDot - 6
+                        x: M.repeatSign - M.repeatDot; y: Math.floor(M.barsHeight / 2) - M.repeatDot - 6
                         width: M.repeatDot; height: M.repeatDot; radius: M.repeatDot / 2
                         color: "black"; antialiasing: false
                     }
                     Rectangle {
-                        x: M.repeatSign - M.repeatDot; y: Math.floor(M.barHeight / 2) + 6
+                        x: M.repeatSign - M.repeatDot; y: Math.floor(M.barsHeight / 2) + 6
                         width: M.repeatDot; height: M.repeatDot; radius: M.repeatDot / 2
                         color: "black"; antialiasing: false
                     }
@@ -142,19 +142,19 @@ Item {
                 model: bar.closes ? 1 : 0
                 Item {
                     objectName: "repeatClose"
-                    x: bar.edge - M.repeatSign; y: 0; width: M.repeatSign; height: M.barHeight
+                    x: bar.edge - M.repeatSign; y: 0; width: M.repeatSign; height: M.barsHeight
                     Rectangle {
-                        x: 0; y: Math.floor(M.barHeight / 2) - M.repeatDot - 6
+                        x: 0; y: Math.floor(M.barsHeight / 2) - M.repeatDot - 6
                         width: M.repeatDot; height: M.repeatDot; radius: M.repeatDot / 2
                         color: "black"; antialiasing: false
                     }
                     Rectangle {
-                        x: 0; y: Math.floor(M.barHeight / 2) + 6
+                        x: 0; y: Math.floor(M.barsHeight / 2) + 6
                         width: M.repeatDot; height: M.repeatDot; radius: M.repeatDot / 2
                         color: "black"; antialiasing: false
                     }
-                    Rectangle { x: M.repeatDot + M.repeatSpace; y: 0; width: M.repeatThin; height: M.barHeight; color: "black"; antialiasing: false }
-                    Rectangle { x: M.repeatSign - M.repeatThick; y: 0; width: M.repeatThick; height: M.barHeight; color: "black"; antialiasing: false }
+                    Rectangle { x: M.repeatDot + M.repeatSpace; y: 0; width: M.repeatThin; height: M.barsHeight; color: "black"; antialiasing: false }
+                    Rectangle { x: M.repeatSign - M.repeatThick; y: 0; width: M.repeatThick; height: M.barsHeight; color: "black"; antialiasing: false }
                 }
             }
             Repeater {
@@ -163,7 +163,7 @@ Item {
                 Text {
                     objectName: "repeatCount"
                     x: bar.edge + M.countGap
-                    y: Math.floor((M.barHeight - M.chordLine) / 2)
+                    y: Math.floor((M.barsHeight - M.chordLine) / 2)
                     width: Math.ceil(implicitWidth)
                     height: M.chordLine
                     color: "black"
@@ -181,7 +181,7 @@ Item {
                 model: modelData.cells
                 Text {
                     objectName: "chord"
-                    y: Math.floor((M.barHeight - M.chordLine) / 2)
+                    y: Math.floor((M.barsHeight - M.chordLine) / 2)
                     width: Math.ceil(implicitWidth)
                     height: M.chordLine
                     color: "black"

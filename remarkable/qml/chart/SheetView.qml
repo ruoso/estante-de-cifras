@@ -7,7 +7,10 @@
 //     sung line and the widest row of four bars both fit one at their natural
 //     widths, else one of the full width;
 //   - lays the song out into pages (paginate.js);
-//   - draws the current page, with the next one already built, invisible.
+//   - draws the current page, with the next one already built, invisible;
+//   - answers `pagesFor(height)`, the pages at another height, from the blocks
+//     already measured (reader.song_screen: the strip's height). A new height
+//     paginates the measured blocks again; only a new sheet or width measures.
 // It draws the sheet's `rows` only — no bar, foot, strip or message; those
 // are reader.song_screen's. It computes no music: it draws the text the rows
 // carry and knows a chord by its token.key (design §3.3).
@@ -33,6 +36,8 @@ Item {
     // The reader's faces; nothing is measured before they are ready.
     readonly property Faces faces: Faces {}
     property bool facesReady: faces.ready
+    // Created and the faces loaded: a sheet given now is measured at once.
+    readonly property bool ready: d.complete && facesReady
 
     // What the layout found.
     readonly property int pageCount: d.pages.length
@@ -67,9 +72,23 @@ Item {
         return d.items[p] || null;
     }
 
+    // The pages the measured blocks would make in columns `height` tall —
+    // [{ firstRow, chords }], as `pages` — without building a page or
+    // changing the one shown (reader.song_screen: the strip's height is found
+    // by paginating at other heights, Decision 3). [] before anything is
+    // measured.
+    function pagesFor(height) {
+        const h = Math.floor(height);
+        if (d.units.length === 0 || h <= 0)
+            return [];
+        return d.summarise(Paginate.paginate(d.units, h, d.columns)).pages;
+    }
+
     onSheetChanged: d.relayout()
     onWidthChanged: d.relayout()
-    onHeightChanged: d.relayout()
+    // A new height paginates the blocks already measured again: measuring is
+    // the expensive part, and the width decides it, not the height.
+    onHeightChanged: d.repaginate()
     onFacesReadyChanged: d.relayout()
     onPageChanged: d.show()
     Component.onCompleted: {
@@ -89,27 +108,34 @@ Item {
         property int built: 0
         property var items: ({})
 
-        function clear() {
+        // Let go of the built pages and the pagination; the measured blocks
+        // stay.
+        function clearPages() {
             for (const key in items)
                 items[key].destroy();
             items = {};
             built = 0;
             prepared = -1;
-            units = [];
             layout = [];
             pages = [];
+        }
+
+        function clear() {
+            clearPages();
+            units = [];
             columns = 0;
             columnWidth = 0;
         }
 
+        // Measure every block of the sheet at the width, then paginate at the
+        // height (a height of 0 measures only).
         function relayout() {
             if (!complete)
                 return;
             clear();
             const rows = view.sheet ? Blocks.list(view.sheet.rows) : null;
             const fullWidth = Math.floor(view.width);
-            const columnHeight = Math.floor(view.height);
-            if (!view.facesReady || rows === null || fullWidth <= 0 || columnHeight <= 0)
+            if (!view.facesReady || rows === null || fullWidth <= 0)
                 return;
 
             const found = Blocks.blocks(rows);
@@ -131,8 +157,29 @@ Item {
                 found[i].breakHeights = measured[i].pieceHeights();
                 measured[i].destroy();
             }
+            units = found;
+            columns = ncol;
+            columnWidth = width;
+            repaginate();
+        }
 
-            const result = Paginate.paginate(found, columnHeight, ncol);
+        // The measured blocks into pages at the height, and the page shown.
+        function repaginate() {
+            if (!complete)
+                return;
+            clearPages();
+            const columnHeight = Math.floor(view.height);
+            if (units.length === 0 || columnHeight <= 0)
+                return;
+            const result = summarise(Paginate.paginate(units, columnHeight, columns));
+            layout = result.layout;
+            pages = result.pages;
+            show();
+        }
+
+        // paginate's answer → { pages: [{ firstRow, chords }], layout }.
+        function summarise(result) {
+            const found = units;
             const out = [];
             const slicesOut = [];
             for (const pg of result) {
@@ -168,12 +215,7 @@ Item {
                 out.push({ firstRow: firstRow, chords: chords });
                 slicesOut.push(cols);
             }
-            units = found;
-            columns = ncol;
-            columnWidth = width;
-            layout = slicesOut;
-            pages = out;
-            show();
+            return { pages: out, layout: slicesOut };
         }
 
         // Build page p, invisible, complete.

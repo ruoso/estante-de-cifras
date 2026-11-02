@@ -280,6 +280,29 @@ TestCase {
         compare(Walk.named(view, "page").filter(p => p.visible).length, 1);
     }
 
+    // reader.song_screen Decision 3: pagesFor(h) is the pages a SheetView laid
+    // out at h gives, from the blocks already measured, building no page; a
+    // height change paginates the same blocks again.
+    function test_pagesForMatchesALayout() {
+        for (const sheet of [ChoroLong.sheet, TwoColumns.sheet]) {
+            for (const [h1, h2] of [[underTwoRowStrip, M.contentHeight], [M.contentHeight, 900]]) {
+                const view = open(sheet, h1);
+                const built = view.pagesBuilt;
+                const pages = view.pages;
+                compare(view.pagesFor(h1), pages, sheet.title + " at " + h1);
+                const other = open(sheet, h2);
+                compare(view.pagesFor(h2), other.pages, sheet.title + " at " + h2);
+                compare(view.pagesBuilt, built);
+                compare(view.pages, pages);
+                compare(view.page, 0);
+                // The view itself at h2: the same pages.
+                view.height = h2;
+                compare(view.pages, other.pages);
+                compare(view.columns, other.columns);
+            }
+        }
+    }
+
     // Workflow 19 rule 1: nothing drawn incomplete — with the faces not yet
     // loaded nothing is laid out or drawn; once they are, the song is.
     function test_nothingBeforeFaces() {

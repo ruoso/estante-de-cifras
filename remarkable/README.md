@@ -60,10 +60,13 @@ platform links a few system libraries (libGL, libEGL, libxkbcommon,
 fontconfig, glib, X11/xcb client libraries); the gate names them when it
 cannot start.
 
-The chart's tests (`tst_chart_*.qml`, `tst_chord_diagram.qml`) read real
-sheets: `qml/tests/fixtures/<name>.js` is the backend's `105 sheet` for
+The chart's and the song screen's tests (`tst_chart_*.qml`,
+`tst_chord_diagram.qml`, `tst_song_*.qml`, `tst_main.qml`) read real sheets:
+`qml/tests/fixtures/<name>.js` is the backend's `105 sheet` for
 `qml/tests/fixtures/songs/<name>.cifra.md`, a song written for the tests,
-opened through the views with the app's built device bundle. Go's
+opened through the views with the app's built device bundle; a few variants
+(`choro-long-hidden`, `few-chords-up2`, `few-chords-saved`) are the same songs
+opened with a voicing hidden, the device's key, or a saved key. Go's
 `TestQMLFixtures` (`internal/backend/qmlfixtures_test.go`) fails when a
 committed fixture differs from what the backend answers now — after a change
 to the songs, `chartRows` or `diagramModel` — and regenerates them, once

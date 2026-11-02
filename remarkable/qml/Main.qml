@@ -1,13 +1,15 @@
 // The reader's QML root: the file AppLoad loads (reader.app_folder;
 // docs/remarkable-reader.md §2, §3.1, §3.3; rm-appload README §Applications'
 // format). It holds the AppLoad endpoint, says hello when created, keeps the
-// last state the backend sent and draws it as one line. It computes nothing
+// last state the backend sent and draws it as one line, and shows a `105
+// sheet` as the song screen (reader.song_screen). It computes nothing
 // the backend would need. Fixed at the rM2's portrait 1404 × 1872 (workflow
 // 19 §The screen); one bit, black on white, nothing animated, nothing drawn
 // before the first state (the refresh budget, rules 1, 2 and 6).
 import QtQuick
 import net.asivery.AppLoad 1.0
 import "status.js" as Status
+import "song"
 
 Rectangle {
     id: root
@@ -21,9 +23,12 @@ Rectangle {
 
     property alias endpoint: backend
     property alias statusLine: statusLine
+    property alias songScreen: songScreen
 
     // The last `101 state` (design §6), null until the first.
     property var backendState: null
+    // A `105 sheet` is on screen, until another view is answered.
+    property bool songShown: false
 
     // Called by AppLoad as it unloads the UI. The backend is left running, so
     // it keeps syncing in the background (design §2, §5.3).
@@ -34,16 +39,32 @@ Rectangle {
         id: backend
         applicationID: "estante"
         onMessageReceived: (type, contents) => {
-            if (type !== 101)
+            // The views this root draws (reader.song_screen Decision 11): the
+            // state, and a `105 sheet` as the song screen. The other views
+            // hide the song and show the status line until
+            // reader.browse_screens draws them.
+            if (type !== 101 && type !== 103 && type !== 104 && type !== 105
+                && type !== 106 && type !== 107)
                 return;
-            let state;
+            let payload;
             try {
-                state = JSON.parse(contents);
+                payload = JSON.parse(contents);
             } catch (e) {
                 return;
             }
-            if (state !== null && typeof state === "object")
-                root.backendState = state;
+            if (payload === null || typeof payload !== "object")
+                return;
+            if (type === 101) {
+                root.backendState = payload;
+            } else if (type === 105) {
+                songScreen.sheet = payload;
+                root.songShown = true;
+            } else {
+                // The song left: opened again, it is laid out from its first
+                // page, never taken for a re-voicing.
+                root.songShown = false;
+                songScreen.sheet = null;
+            }
         }
     }
 
@@ -56,7 +77,20 @@ Rectangle {
         color: "black"
         font.pixelSize: 36
         wrapMode: Text.WordWrap
+        visible: !root.songShown
         text: Status.statusLine(root.backendState)
+    }
+
+    // The song (workflow 19 §A song): shown by a `105 sheet`, its Back sending
+    // `2 open {view: "book"}` through the endpoint. Hide shapes is the
+    // backend's state, kept on this reMarkable (shown before the first state).
+    SongScreen {
+        id: songScreen
+        x: 0
+        y: 0
+        visible: root.songShown
+        endpoint: backend
+        shapesShown: root.backendState === null || root.backendState.shapesShown !== false
     }
 
     // Design §6 `1 hello`: JSON always, `{}` (protocol.md Decision 8).

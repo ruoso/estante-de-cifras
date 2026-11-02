@@ -25,7 +25,13 @@ var (
 func sampleSheet() Sheet {
 	return Sheet{
 		BookID: "b1", Path: "a.cifra.md", Title: "Maré Mansa", Artist: "Grupo da Praça",
-		Key:      SheetKey{Written: ptr("C"), Named: ptr("D"), Saved: ptr("D")},
+		// The key grid's choices ride along (reader.song_screen; §6 105
+		// key.choices), in the grid's order.
+		Key: SheetKey{Written: ptr("C"), Named: ptr("D"), Saved: ptr("D"), Choices: []KeyChoice{
+			{Name: "C", Offset: 0}, {Name: "Db", Offset: 1}, {Name: "D", Offset: 2}, {Name: "Eb", Offset: 3},
+			{Name: "E", Offset: 4}, {Name: "F", Offset: 5}, {Name: "Gb", Offset: 6}, {Name: "G", Offset: -5},
+			{Name: "Ab", Offset: -4}, {Name: "A", Offset: -3}, {Name: "Bb", Offset: -2}, {Name: "B", Offset: -1},
+		}},
 		Offset:   2,
 		TuningID: "40 45 50 55 59 64",
 		Rows:     rawRows,
@@ -131,7 +137,7 @@ func TestWireNames(t *testing.T) {
 		{Book{BookID: "b1", Title: "Roda", Songs: []BookSong{{Path: "a.cifra.md", Title: "Maré", Artist: "Grupo"}}, Setlists: []BookSetlist{{Path: "gig.setlist.md", Title: "Sábado", Songs: 12}}},
 			`{"bookId":"b1","title":"Roda","songs":[{"path":"a.cifra.md","title":"Maré","artist":"Grupo"}],"setlists":[{"path":"gig.setlist.md","title":"Sábado","songs":12}]}`},
 		{Sheet{BookID: "b1", Path: "a.cifra.md", Title: "Maré", Artist: "Grupo",
-			Key:    SheetKey{Written: ptr("C"), Named: ptr("D"), Saved: ptr("D")},
+			Key:    SheetKey{Written: ptr("C"), Named: ptr("D"), Saved: ptr("D"), Choices: []KeyChoice{{Name: "C", Offset: 0}, {Name: "Db", Offset: 1}}},
 			Offset: 2, TuningID: "40 45 50 55 59 64", Rows: []byte(`[]`),
 			Shapes: []SheetShape{
 				{Chord: "C:maj7", Symbol: "C7M", Frets: ptr("x45320"), Model: []byte(`{}`), Hidden: true},
@@ -139,11 +145,11 @@ func TestWireNames(t *testing.T) {
 			},
 			Notes: []byte(`[]`), KeyNote: nil,
 			Play: &SheetPlay{Setlist: "gig.setlist.md", At: 11, Of: 12, Next: nil}},
-			`{"bookId":"b1","path":"a.cifra.md","title":"Maré","artist":"Grupo","key":{"written":"C","named":"D","saved":"D"},"offset":2,"tuningId":"40 45 50 55 59 64","rows":[],"shapes":[{"chord":"C:maj7","symbol":"C7M","frets":"x45320","model":{},"hidden":true},{"chord":"F#:dim7","symbol":"F#°","frets":null,"model":null,"hidden":false}],"notes":[],"keyNote":null,"play":{"setlist":"gig.setlist.md","at":11,"of":12,"next":null}}`},
+			`{"bookId":"b1","path":"a.cifra.md","title":"Maré","artist":"Grupo","key":{"written":"C","named":"D","saved":"D","choices":[{"name":"C","offset":0},{"name":"Db","offset":1}]},"offset":2,"tuningId":"40 45 50 55 59 64","rows":[],"shapes":[{"chord":"C:maj7","symbol":"C7M","frets":"x45320","model":{},"hidden":true},{"chord":"F#:dim7","symbol":"F#°","frets":null,"model":null,"hidden":false}],"notes":[],"keyNote":null,"play":{"setlist":"gig.setlist.md","at":11,"of":12,"next":null}}`},
 		{Sheet{BookID: "b1", Path: "a.cifra.md", Title: "Maré", Artist: "",
-			Key: SheetKey{}, Rows: []byte(`[]`), Shapes: []SheetShape{}, Notes: []byte(`[]`), KeyNote: ptr("named by its last chord")},
-			`{"bookId":"b1","path":"a.cifra.md","title":"Maré","artist":"","key":{"written":null,"named":null,"saved":null},"offset":0,"tuningId":"","rows":[],"shapes":[],"notes":[],"keyNote":"named by its last chord"}`},
-		{sheetWithNext(), `{"bookId":"","path":"","title":"","artist":"","key":{"written":null,"named":null,"saved":null},"offset":0,"tuningId":"","rows":[],"shapes":[],"notes":[],"keyNote":null,"play":{"setlist":"gig.setlist.md","at":2,"of":12,"next":{"title":"Asa","key":"G","note":"capo 2"}}}`},
+			Key: SheetKey{Choices: []KeyChoice{}}, Rows: []byte(`[]`), Shapes: []SheetShape{}, Notes: []byte(`[]`), KeyNote: ptr("named by its last chord")},
+			`{"bookId":"b1","path":"a.cifra.md","title":"Maré","artist":"","key":{"written":null,"named":null,"saved":null,"choices":[]},"offset":0,"tuningId":"","rows":[],"shapes":[],"notes":[],"keyNote":"named by its last chord"}`},
+		{sheetWithNext(), `{"bookId":"","path":"","title":"","artist":"","key":{"written":null,"named":null,"saved":null,"choices":[]},"offset":0,"tuningId":"","rows":[],"shapes":[],"notes":[],"keyNote":null,"play":{"setlist":"gig.setlist.md","at":2,"of":12,"next":{"title":"Asa","key":"G","note":"capo 2"}}}`},
 		{Setlist{BookID: "b1", Path: "gig.setlist.md", Title: "Sábado", Items: []SetlistItem{
 			{Path: "a.cifra.md", Title: "Maré", Key: ptr("D"), Note: ptr("devagar")},
 			{Path: "gone.cifra.md", Title: "gone", Missing: true}}, At: ptr(0)},
@@ -167,7 +173,7 @@ func TestWireNames(t *testing.T) {
 
 // sheetWithNext is a sheet played with a next item, for TestWireNames.
 func sheetWithNext() Sheet {
-	return Sheet{Rows: []byte(`[]`), Shapes: []SheetShape{}, Notes: []byte(`[]`),
+	return Sheet{Key: SheetKey{Choices: []KeyChoice{}}, Rows: []byte(`[]`), Shapes: []SheetShape{}, Notes: []byte(`[]`),
 		Play: &SheetPlay{Setlist: "gig.setlist.md", At: 2, Of: 12, Next: &NextItem{Title: "Asa", Key: ptr("G"), Note: ptr("capo 2")}}}
 }
 

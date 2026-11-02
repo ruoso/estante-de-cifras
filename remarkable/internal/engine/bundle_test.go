@@ -186,6 +186,45 @@ func TestExampleBookTwelveKeys(t *testing.T) { twelveKeys(t, "example-book.defau
 
 func TestChorosTwelveKeys(t *testing.T) { twelveKeys(t, "choros.default-shapes.json") }
 
+// TestExampleBookKeyChoices pins the key grid's names in the built bundle
+// (reader.song_screen; design §6 105 key.choices): every example-book song
+// read at each of the twelve offsets carries twelve choices, one for each
+// offset −5…+6, each named, and the same at every offset.
+func TestExampleBookKeyChoices(t *testing.T) {
+	f := readFixture(t, "example-book.default-shapes.json")
+	e := openBuilt(t)
+	ctx := context.Background()
+	if _, err := e.Load(ctx, f.Entry, f.Table); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	for i, song := range f.Songs {
+		text := f.text(t, song)
+		var first []KeyChoice
+		for k := range 12 {
+			got, err := e.Sheet(ctx, text, k, SheetOptions{})
+			if err != nil {
+				t.Fatalf("song %d offset %d: %v", i, k, err)
+			}
+			c := got.Key.Choices
+			if len(c) != 12 {
+				t.Fatalf("song %d offset %d: %d choices, want 12", i, k, len(c))
+			}
+			seen := map[int]bool{}
+			for _, ch := range c {
+				if ch.Offset < -5 || ch.Offset > 6 || seen[ch.Offset] || ch.Name == "" {
+					t.Errorf("song %d offset %d: choice %+v", i, k, ch)
+				}
+				seen[ch.Offset] = true
+			}
+			if first == nil {
+				first = c
+			} else if !reflect.DeepEqual(c, first) {
+				t.Errorf("song %d: choices at offset %d differ from offset 0", i, k)
+			}
+		}
+	}
+}
+
 // TestEveryHostCall pins "every host call answered" and — since the engine
 // adds no globals — "nothing missing from the polyfills".
 func TestEveryHostCall(t *testing.T) {

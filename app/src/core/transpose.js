@@ -26,7 +26,7 @@
 
 import { parseChord } from './notation/parse.js';
 import { formatChord } from './notation/format.js';
-import { parseNote, transposeNote, interval, plainSpelling } from './pitch.js';
+import { parseNote, transposeNote, interval, plainSpelling, pitchClass } from './pitch.js';
 import { DEFAULT_DIALECT } from './notation/dialects.js';
 
 // The pitch class reached by moving N letter-names up from a natural note
@@ -231,6 +231,29 @@ export function transposedKeyName(key, semitones) {
   const names = read.glyphs ? GLYPH_NAMES : ASCII_NAMES;
   const n = transposeNote(read.tonic, iv);
   return n.letter + names[String(n.accidental)] + (read.minor ? 'm' : '');
+}
+
+/**
+ * The key grid's twelve keys (workflow 19 §A song, the key grid; design §6 `105
+ * sheet` `key.choices`): `{ name, offset }` for offsets −5…+6, each named by
+ * `transposedKeyName(key, offset)`, ordered by the named key's root pitch class
+ * from C — a song in C reads C (0), Db (+1) … Gb (+6), G (−5) … B (−1), and a
+ * song in G reads C (+5), Db (+6), D (−5) … B (+4). `[]` when the value is not
+ * a key.
+ *
+ * @param {string|null|undefined} key a key as written (`G`, `Em`, `B♭`)
+ * @returns {{ name: string, offset: number }[]}
+ */
+export function keyChoices(key) {
+  const read = readKey(key);
+  if (!read) return [];
+  const root = pitchClass(read.tonic);
+  const out = [];
+  for (let offset = -5; offset <= 6; offset += 1) {
+    out.push({ name: transposedKeyName(key, offset), offset });
+  }
+  const pc = (offset) => (((root + offset) % 12) + 12) % 12;
+  return out.sort((a, b) => pc(a.offset) - pc(b.offset));
 }
 
 // The key name is just a note, so it is spelled directly rather than through

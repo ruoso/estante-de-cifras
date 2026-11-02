@@ -359,7 +359,7 @@ know, and a field they do not know.
 |---|---|---|
 | 1 `hello` | → backend | `{}` — the frontend attached; the backend answers with `state` |
 | 2 `open` | → backend | `{ view: "shelf" }`, `{ view: "book", bookId }`, `{ view: "song", bookId, path, offset?, play? }`, `{ view: "setlist", bookId, path }`, `{ view: "settings" }` — `play` is `{ setlist, at }` when the song is opened playing a setlist (the setlist's path in the book, the item's index) |
-| 3 `key` | → backend | `{ offset }` for the open song; `{ offset: null }` is *As written* chosen, the choice forgotten |
+| 3 `key` | → backend | `{ offset }` for the open song; `{ offset: null }` forgets the device's choice, so the song opens at the saved key, else as written — *As written* sends it when no key is saved, `{ offset: 0 }` when one is |
 | 4 `sync` | → backend | `{}` — *Sync now* |
 | 5 `pair` | → backend | `{}` — begin pairing, or *Get a new code* |
 | 6 `signOut` | → backend | `{}` |
@@ -372,7 +372,7 @@ know, and a field they do not know.
 | 102 `pairing` | → frontend | `{ code, url, expiresAt }`, or `{ expired: true }`, or `{ offline: true }` |
 | 103 `shelf` | → frontend | the books, in shelf order: `{ books: [{ bookId, title, songs, setlists }] }` — `songs` and `setlists` counts |
 | 104 `book` | → frontend | `{ bookId, title, songs: [{ path, title, artist }], setlists: [{ path, title, songs }] }` |
-| 105 `sheet` | → frontend | `{ bookId, path, title, artist, key: { written, named, saved }, offset, tuningId, rows, shapes: [{ chord, symbol, frets, model, hidden }], notes, keyNote, play? }` — `model` the diagram model (§7); `saved` the account's key (`songs.json`) when it has one; `tuningId` the tuning the shapes are for, which `hideShape` and `showShape` name; a chord the cache did not hold keeps its place in `shapes` with `model` and `frets` `null`, its place in the strip left empty (§4.1); `play` `{ setlist, at, of, next }`, `next` `{ title, key, note }` or `null` |
+| 105 `sheet` | → frontend | `{ bookId, path, title, artist, key: { written, named, saved, choices }, offset, tuningId, rows, shapes: [{ chord, symbol, frets, model, hidden }], notes, keyNote, play? }` — `model` the diagram model (§7); `saved` the account's key (`songs.json`) when it has one; `choices` the key grid's twelve `{ name, offset }`, ordered by the key's root from C, each named by the music core from the song's as-written key (offsets −5…+6), `[]` for a song with no chords; `tuningId` the tuning the shapes are for, which `hideShape` and `showShape` name; a chord the cache did not hold keeps its place in `shapes` with `model` and `frets` `null`, its place in the strip left empty (§4.1); `play` `{ setlist, at, of, next }`, `next` `{ title, key, note }` or `null` |
 | 106 `setlist` | → frontend | `{ bookId, path, title, items: [{ path, title, key, note, missing }], at? }` — every item in order; `path` the song's book-root path (`""` for an unlinked item); `key` the item's own `key` property (`null` when it has none); `at` the item last played, for Back |
 | 107 `settings` | → frontend | `{ account, version, hiddenShapes }` — the account paired with, the reader's version, how many voicings are hidden |
 

@@ -62,7 +62,7 @@ vi.mock('../songs/song-sheet.js', async (importOriginal) => {
 
 const { parse } = await import('cifra-md');
 const { SHAPE_CACHE_SALT, shapeCacheKey } = await import('../core/shape-cache.js');
-const { transpose } = await import('../core/transpose.js');
+const { transpose, transposedKeyName } = await import('../core/transpose.js');
 const { songDialect, DEFAULT_DIALECT } = await import('../core/notation/dialects.js');
 const { parseChord } = await import('../core/notation/parse.js');
 const { shorthandOf } = await import('../core/fretstring.js');
@@ -568,6 +568,55 @@ describe('sheet for the reader (reader.backend_views; §6 105)', () => {
       expect(estante.sheet(ferry, at, { savedOffset: 3 }).key.saved).toBe(estante.sheet(ferry, 3).key.named);
     }
     expect(estante.sheet(ferry, 0, { savedOffset: 0 }).key.saved).toBe(estante.sheet(ferry, 0).key.named);
+  });
+});
+
+// reader.song_screen: the key grid's names come in the sheet, spelled by the
+// bundle (workflow 19 §A song as amended; design §6 `105 sheet` key.choices).
+describe('the key grid (reader.song_screen; §6 105 key.choices)', () => {
+  const names = (sheet) => sheet.key.choices.map((c) => c.name);
+  const offsets = (sheet) => sheet.key.choices.map((c) => c.offset);
+
+  it('names the twelve keys of the grid from the written key', () => {
+    const inC = estante.sheet(IN_C, 0);
+    expect(names(inC)).toEqual(['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']);
+    expect(offsets(inC)).toEqual([0, 1, 2, 3, 4, 5, 6, -5, -4, -3, -2, -1]);
+    // As transposedKeyName spells them (transpose.js).
+    for (const { name, offset } of inC.key.choices) expect(name).toBe(transposedKeyName('C', offset));
+    // A minor song keeps its m.
+    const minor = estante.sheet('# Test in Am\n- key: Am\n\n```\nAm | Dm | E7 | Am\n```\n', 0);
+    expect(minor.key.choices).toHaveLength(12);
+    for (const { name } of minor.key.choices) expect(name).toMatch(/m$/);
+    expect(minor.key.choices.find((c) => c.offset === 0).name).toBe('Am');
+    expect(names(minor)[0]).toBe('Cm');
+    // A song written with ♭ glyphs keeps the glyphs.
+    const glyphs = estante.sheet('# Test in B flat\n- key: B♭\n\n```\nB♭ | E♭ | F7 | B♭\n```\n', 0);
+    expect(glyphs.key.choices.find((c) => c.offset === 0).name).toBe('B♭');
+    expect(names(glyphs).some((n) => n.includes('♭'))).toBe(true);
+    expect(names(glyphs).some((n) => n.includes('b'))).toBe(false);
+  });
+
+  it('names the grid of a song with no key from its last chord', () => {
+    const got = estante.sheet(CHORO, 0);
+    expect(got.key.written).toBeNull();
+    expect(got.key.choices.find((c) => c.offset === 0).name).toBe('Dm');
+    for (const { name, offset } of got.key.choices) expect(name).toBe(transposedKeyName('Dm', offset));
+    expect([...offsets(got)].sort((a, b) => a - b)).toEqual([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it('gives no choices to a song with no chords', () => {
+    expect(estante.sheet(NO_CHORDS, 0).key.choices).toEqual([]);
+    expect(estante.sheet('# Test Keyed Quiet\n- key: G\n\nPlay it softly.\n```\n\n```\n', 0).key.choices).toEqual([]);
+  });
+
+  it('gives the same choices at every offset', () => {
+    for (const text of [IN_C, CHORO, IN_G_ENDS_D7, song('walking-to-the-market.cifra.md')]) {
+      const at0 = estante.sheet(text, 0).key.choices;
+      expect(at0).toHaveLength(12);
+      for (let offset = 1; offset < 12; offset += 1) {
+        expect(estante.sheet(text, offset).key.choices).toEqual(at0);
+      }
+    }
   });
 });
 

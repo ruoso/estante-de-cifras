@@ -456,6 +456,16 @@ func TestOpenSongAsWritten(t *testing.T) {
 	if len(got.Shapes) == 0 || len(got.Shapes) != len(want.Shapes) {
 		t.Fatalf("%d shapes, engine's %d", len(got.Shapes), len(want.Shapes))
 	}
+	// The key grid's names are the engine's, carried through (reader.song_screen;
+	// design §6 105 key.choices).
+	if len(got.Key.Choices) != 12 || len(got.Key.Choices) != len(want.Key.Choices) {
+		t.Errorf("%d key choices, engine's %d", len(got.Key.Choices), len(want.Key.Choices))
+	}
+	for i, c := range got.Key.Choices {
+		if i < len(want.Key.Choices) && (c.Name != want.Key.Choices[i].Name || c.Offset != want.Key.Choices[i].Offset) {
+			t.Errorf("key choice %d: %+v, engine's %+v", i, c, want.Key.Choices[i])
+		}
+	}
 	for i, sh := range got.Shapes {
 		if sh.Chord != want.Shapes[i].Key || sh.Frets == nil || *sh.Frets == "" ||
 			len(sh.Model) == 0 || string(sh.Model) == "null" || sh.Hidden {

@@ -227,13 +227,22 @@ type Sheet struct {
 	Play     *SheetPlay      `json:"play,omitempty"`
 }
 
-// SheetKey is the song's key as written, as named now, and the account's
-// saved key (songs.json) when it has one. A keyless song has no written or
-// named key.
+// SheetKey is the song's key as written, as named now, the account's saved
+// key (songs.json) when it has one, and the key grid's twelve choices, in the
+// order the grid draws them (empty for a song with no chords). A keyless song
+// has no written key.
 type SheetKey struct {
-	Written *string `json:"written"`
-	Named   *string `json:"named"`
-	Saved   *string `json:"saved"`
+	Written *string     `json:"written"`
+	Named   *string     `json:"named"`
+	Saved   *string     `json:"saved"`
+	Choices []KeyChoice `json:"choices"`
+}
+
+// KeyChoice is one key of the grid: its name and the offset `3 key` sends
+// for it.
+type KeyChoice struct {
+	Name   string `json:"name"`
+	Offset int    `json:"offset"`
 }
 
 // SheetShape is one shape of the strip: the chord's identity, its symbol, its

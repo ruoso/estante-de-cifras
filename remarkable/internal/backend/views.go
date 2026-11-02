@@ -449,7 +449,7 @@ func (v *views) sheet() (protocol.Sheet, error) {
 		Path:     song.path,
 		Title:    deref(s.Title),
 		Artist:   deref(s.Artist),
-		Key:      protocol.SheetKey{Written: s.Key.Written, Named: s.Key.Named, Saved: s.Key.Saved},
+		Key:      protocol.SheetKey{Written: s.Key.Written, Named: s.Key.Named, Saved: s.Key.Saved, Choices: keyChoices(s.Key.Choices)},
 		Offset:   s.Offset,
 		TuningID: s.TuningID,
 		Rows:     s.Rows,
@@ -592,4 +592,14 @@ func (v *views) redraw() error {
 		return v.answerBook()
 	}
 	return v.conn.Write(sheet)
+}
+
+// keyChoices carries the engine's key grid through unchanged (design §6 105
+// `key.choices`), an empty list rather than null when there are none.
+func keyChoices(in []engine.KeyChoice) []protocol.KeyChoice {
+	out := make([]protocol.KeyChoice, 0, len(in))
+	for _, c := range in {
+		out = append(out, protocol.KeyChoice{Name: c.Name, Offset: c.Offset})
+	}
+	return out
 }

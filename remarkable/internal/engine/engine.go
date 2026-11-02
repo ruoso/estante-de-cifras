@@ -121,12 +121,22 @@ type SheetOptions struct {
 }
 
 // SheetKey is the song's key as written, as named now, as named at the saved
-// transposition (nil without one), and its status.
+// transposition (nil without one), the key grid's twelve choices (empty for a
+// song with no chords), and its status.
 type SheetKey struct {
 	Written *string         `json:"written"`
 	Named   *string         `json:"named"`
 	Saved   *string         `json:"saved"`
+	Choices []KeyChoice     `json:"choices"`
 	Status  json.RawMessage `json:"status"`
+}
+
+// KeyChoice is one key of the key grid (workflow 19 §A song): its name, in the
+// song's own spelling as the bundle gives it, and the offset that reads the
+// song in it.
+type KeyChoice struct {
+	Name   string `json:"name"`
+	Offset int    `json:"offset"`
 }
 
 // Shape is one chord's shape on the strip: resolved, with its source, its

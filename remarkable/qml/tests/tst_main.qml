@@ -2,10 +2,13 @@
 // AppLoad loads, against the AppLoad stand-in. It says hello once, draws
 // nothing before the first state, draws each state it is sent as workflow
 // 19's line, ignores what it does not know, leaves the backend running when
-// it unloads, and has the root's contract AppLoad relies on.
+// it unloads, and has the root's contract AppLoad relies on; a `105 sheet`
+// shows the song screen (reader.song_screen Decision 11), whose Back opens
+// the book.
 import QtQuick
 import QtTest
 import ".."
+import "fixtures/few-chords.js" as FewChords
 
 TestCase {
     id: testCase
@@ -112,6 +115,48 @@ TestCase {
         compare(closeSpy.count, 1);
         closeSpy.target = null;
         closeSpy.clear();
+    }
+
+    // reader.song_screen Decision 11: a played `105 sheet` shows the song
+    // screen; another view (here `104 book`) hides it again, until
+    // reader.browse_screens draws those views.
+    function test_sheetShowsSongScreen() {
+        // In the window's root, which is shown, so what is visible is drawn.
+        const main = createTemporaryObject(mainComponent, testCase.parent);
+        main.endpoint.play(101, stateMessage({ paired: true, lastSync: localTime(14, 32) }));
+        compare(main.songShown, false);
+        verify(main.statusLine.visible);
+        verify(!main.songScreen.visible);
+        main.endpoint.play(105, FewChords.sheet);
+        verify(main.songShown);
+        verify(main.songScreen.visible);
+        compare(main.songScreen.bar.title.text, FewChords.sheet.title);
+        compare(main.songScreen.bar.keyButton.text, "G");
+        verify(!main.statusLine.visible);
+        main.endpoint.play(104, { bookId: FewChords.sheet.bookId, title: "A book", songs: [], setlists: [] });
+        compare(main.songShown, false);
+        verify(!main.songScreen.visible);
+        verify(main.statusLine.visible);
+        compare(main.statusLine.text, "Synced at 14:32");
+        // The same song opened again starts at its first page.
+        main.endpoint.play(105, FewChords.sheet);
+        mouseClick(main.songScreen.foot.next);
+        compare(main.songScreen.view.page, 1);
+        main.endpoint.play(104, { bookId: FewChords.sheet.bookId, title: "A book", songs: [], setlists: [] });
+        main.endpoint.play(105, FewChords.sheet);
+        verify(main.songShown);
+        compare(main.songScreen.view.page, 0);
+    }
+
+    // Design §6 `2 open`: Back sends one open of the song's book.
+    function test_backOpensTheBook() {
+        const main = createTemporaryObject(mainComponent, testCase.parent);
+        main.endpoint.play(105, FewChords.sheet);
+        main.endpoint.clear();
+        mouseClick(main.songScreen.bar.back);
+        compare(main.endpoint.sent.length, 1);
+        compare(main.endpoint.sent[0].type, 2);
+        compare(main.endpoint.sent[0].payload, { view: "book", bookId: FewChords.sheet.bookId });
     }
 
     SignalSpy {

@@ -215,7 +215,10 @@ needs — section A of *Noites Cariocas* alone needs sixteen. The strip's height
 is fixed for the song (the busiest page's), so the chart's pages are laid out
 once and a turn never moves the strip. A shape carries the fingers the song
 gives it. Shapes print alike — no *default* or *your shape* marks, as on paper
-— since the person needs the shape, not where it came from.
+— since the person needs the shape, not where it came from. The notes a song
+writes for its shapes (cifra.md §7.4; the web app's line under its shapes) have
+no room in the strip: they follow the chart's last row, on its last page, as a
+paragraph of notes.
 
 **The strip pages when a page needs more.** The strip holds at most two rows of
 eight. A page whose chords need more — the first page of *Três Estrelinhas*
@@ -241,7 +244,8 @@ has not said they know it; a song that writes the same chord another way
 (*C7M* for *Cmaj7*) hides it too, as my shapes match by chord, not by spelling
 (workflow 2). The strip's
 head counts what it holds back — *Shapes on this page · 8 · 11 hidden* — and
-**Show hidden** turns the strip to this page's hidden shapes, each a tap to show
+**Show hidden** turns the strip to this page's hidden shapes — its head then
+*Hidden on this page · 11*, with **Done** to turn it back — each a tap to show
 again. *Settings* says how many are hidden, with **Show all again**. The list
 is the reader's, kept on this reMarkable; it is never written to the account.
 
@@ -251,8 +255,9 @@ the top of the page, so the person stays where they were — one redraw. A choro
 of three pages may become two; *Três Estrelinhas* fits on one. *Show shapes*
 brings the strip back the same way. The choice is the reader's, kept on this
 reMarkable for every song (the reader writes nothing to the account). With the
-shapes hidden, the key grid opens over the bottom of the page and closes the
-same way — one redraw each, the chart under it unchanged.
+shapes hidden, or a strip shorter than the grid, the key grid opens over the
+bottom of the page, from the foot up, and closes the same way — one redraw
+each, the chart under it unchanged.
 
 **Turning.** The left or right third of the page, a swipe, or the foot's
 arrows. The next page is already laid out (rule 9). At the last page, *next*
@@ -273,7 +278,9 @@ the foot says *End*.
 
 The twelve keys in the song's own spelling, the current one inverted. *As
 written* and the saved key (*Your key*, from the account's `songs.json`, when
-it differs) are named. Tapping a key closes the grid and redraws the song in
+it differs) are named. The names come with the song from the reader's music
+code, never spelled by the screen. *As written* puts the song at its written
+key even when a key is saved — *Your key* is then one tap in the grid. Tapping a key closes the grid and redraws the song in
 that key from its first page — one redraw. *Close* puts the strip back — one
 redraw. A key is chosen, never stepped to (rule 8): from C to F is one tap, not
 five redraws.

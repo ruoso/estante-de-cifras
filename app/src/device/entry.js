@@ -26,7 +26,7 @@ import { HOST_API } from './host-api.js';
 import { SHAPE_CACHE_SALT, DECOMMISSIONED_SALTS, createShapeCache, shapeCacheKey } from '../core/shape-cache.js';
 import { parseChord } from '../core/notation/parse.js';
 import { shorthandOf } from '../core/fretstring.js';
-import { transpose, transposedKeyName } from '../core/transpose.js';
+import { transpose, transposedKeyName, keyChoices } from '../core/transpose.js';
 import { songKeyName } from '../core/song-key.js';
 import { readSongSheet, instrumentFor, songProperty, tuningIdOf } from '../songs/song-sheet.js';
 import { chartRows } from '../chart/layout.js';
@@ -178,6 +178,14 @@ function sheet(text, offset = 0, opts = {}) {
   // The account's saved key (workflow 19 §A song, *Your key*): the song named as
   // it would be read at the saved transposition, by the same rule.
   const saved = Number.isInteger(savedOffset) ? savedKeyName(read, savedOffset, named) : null;
+  // The key grid's twelve keys (workflow 19 §A song; design §6 `105 sheet`),
+  // named from the song as written — the written key, else the key its last
+  // chord gives untransposed — so they are the same at every offset. None for
+  // a song with no chords.
+  const asWritten = transposedKeyName(read.writtenKey, 0) !== null
+    ? read.writtenKey
+    : read.baseModel ? songKeyName(read.baseModel, read.notation) : null;
+  const choices = read.chordList.length > 0 ? keyChoices(asWritten) : [];
 
   const { handed } = resolveDiagramDisplay(preferences);
   const resolved = new Map(read.shapes.map((s) => [s.key, s]));
@@ -204,6 +212,7 @@ function sheet(text, offset = 0, opts = {}) {
       written: read.writtenKey ?? null,
       named: named ?? null,
       saved: saved ?? null,
+      choices,
       status: read.status ?? null,
     },
     offset: read.offset,
