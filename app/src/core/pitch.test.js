@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+  note,
+  plainSpelling,
   parseNote,
   formatNote,
   pitchClass,
@@ -154,5 +156,53 @@ describe('pitch (note + octave)', () => {
     for (const bad of ['E', '4', 'H2', 'E#b2']) {
       expect(() => parsePitch(bad)).toThrow();
     }
+  });
+});
+
+// music.dim7_flat_root_spelling — cifra.md §5.5 as clarified: a spelled tone may
+// carry a triple accidental; a root or bass read from text is still at most a
+// double (§5.1.1); a symbol brings a note back within a double (§5.7).
+describe('a triple accidental (§5.5, §5.1.1)', () => {
+  it('a spelled note holds a triple (and a quadruple) accidental', () => {
+    expect(note('E', -3)).toEqual({ letter: 'E', accidental: -3 });
+    expect(note('F', 3)).toEqual({ letter: 'F', accidental: 3 });
+    expect(formatNote(note('E', -3))).toBe('Ebbb');
+    expect(formatNote(note('F', 3))).toBe('F###');
+    // A §5.1.1 double root can need four: the seventh of Fbb° is Ebbbb. Past
+    // that no chord on any legal root reaches, so it is refused.
+    expect(formatNote(note('E', -4))).toBe('Ebbbb');
+    expect(formatNote(note('F', 4))).toBe('F####');
+    expect(() => note('E', -5)).toThrow(/Bad accidental/);
+    expect(() => note('F', 5)).toThrow(/Bad accidental/);
+  });
+
+  it('a root or bass is still at most a double (§5.1.1)', () => {
+    for (const text of ['Ebbb', 'F###']) {
+      expect(() => parseNote(text)).toThrow(expect.objectContaining({ code: 'badNote' }));
+    }
+  });
+
+  it('transposeNote spells a diminished seventh from a flat root (§5.5)', () => {
+    const dim7 = degreeToInterval(7, -2);
+    expect(formatNote(transposeNote(parseNote('Fb'), dim7))).toBe('Ebbb');
+    expect(formatNote(transposeNote(parseNote('Cb'), dim7))).toBe('Bbbb');
+    expect(formatNote(transposeNote(parseNote('Bbb'), dim7))).toBe('Abbb');
+    expect(formatNote(transposeNote(parseNote('Fbb'), dim7))).toBe('Ebbbb');
+  });
+
+  it.each([
+    ['Ebb', 'Ebb'],
+    ['Ebbb', 'Db'],
+    ['Bbbb', 'Ab'],
+    ['F###', 'G#'],
+    ['B###', 'C##'],
+    ['Fbbbb', 'Db'],
+    ['E####', 'G#'],
+  ])('plainSpelling keeps a double and moves a triple to the neighbouring letter: %s → %s', (from, to) => {
+    const m = /^([A-G])(b*|#*)$/.exec(from);
+    const n = note(m[1], m[2].startsWith('b') ? -m[2].length : m[2].length);
+    const plain = plainSpelling(n);
+    expect(formatNote(plain)).toBe(to);
+    expect(pitchClass(plain)).toBe(pitchClass(n));
   });
 });

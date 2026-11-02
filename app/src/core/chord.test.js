@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { parseNote, formatNote } from './pitch.js';
+import {
+  parseNote,
+  formatNote,
+  note,
+  pitchClass,
+  transposeNote,
+  plainSpelling,
+  interval,
+  LETTERS,
+  MAJOR_SCALE,
+} from './pitch.js';
+import { parseChord } from './notation/parse.js';
 import {
   chord,
   chordTones,
@@ -243,5 +254,80 @@ describe('what a shape sounds, as against what the symbol says', () => {
   it('has nothing to say about a shape that sounds nothing', () => {
     expect(voicedAs(chord(n('G')), [null, null, null, null, null, null])).toBe(null);
     expect(voicedAs(chord(n('G')), undefined)).toBe(null);
+  });
+});
+
+/**
+ * music.dim7_flat_root_spelling — cifra.md §5.5 as clarified: a tone keeps the
+ * letter d − 1 steps above the root, with as many flats as that takes, and
+ * resolving it never fails. Transposition makes these roots (workflow 2
+ * §Transposing), so each chord is read under every spelling `transpose` can
+ * choose for an offset.
+ */
+describe('a diminished seventh on a flat root (§5.5)', () => {
+  // Every interval of `pc` semitones whose letter step is the offset's flat or
+  // sharp spelling or the neighbouring letter of a white-key offset — a
+  // superset of transpose.js's candidates.
+  const spellingsOf = (pc) =>
+    [0, 1, 2, 3, 4, 5, 6].filter((s) => Math.abs(MAJOR_SCALE[s] - pc) <= 1).map((s) => interval(s, pc));
+  // A chord moved as transpose moves it: the root by the interval, written
+  // within a double (§5.1.1).
+  const moved = (c, iv) => ({ ...c, root: plainSpelling(transposeNote(c.root, iv)) });
+
+  // The tones are on the root's letter plus 0, 2, 4, 6 steps, and sound the
+  // root's pitch class plus `pcs`.
+  function expectStacked(c, pcs) {
+    const tones = chordTones(c);
+    expect(tones).toHaveLength(4);
+    const rootLetter = LETTERS.indexOf(c.root.letter);
+    tones.forEach((tone, i) => {
+      expect(tone.spelled.letter).toBe(LETTERS[(rootLetter + 2 * i) % 7]);
+      expect(tone.pitchClass).toBe((pitchClass(c.root) + pcs[i]) % 12);
+      expect(pitchClass(tone.spelled)).toBe(tone.pitchClass);
+    });
+  }
+
+  const DIM7 = [0, 3, 6, 9];
+  const HALF_DIM = [0, 3, 6, 10];
+
+  it.each(['F°', 'Bb°', 'Ab°', 'Db°'])('%s reads at all twelve keys, under every spelling', (symbol) => {
+    const written = parseChord(symbol).chord;
+    for (let pc = 0; pc < 12; pc += 1) {
+      for (const iv of spellingsOf(pc)) expectStacked(moved(written, iv), DIM7);
+    }
+  });
+
+  it('° and m7(b5) read on every root §5.1.1 allows, transposed by any interval', () => {
+    let count = 0;
+    for (const letter of LETTERS) {
+      for (const accidental of [-2, -1, 0, 1, 2]) {
+        count += 1;
+        for (const [suffix, pcs] of [['°', DIM7], ['m7(b5)', HALF_DIM]]) {
+          const written = parseChord(formatNote(note(letter, accidental)) + suffix).chord;
+          expect(written).toBeTruthy();
+          expectStacked(written, pcs);
+          for (let pc = 0; pc < 12; pc += 1) {
+            for (const iv of spellingsOf(pc)) expectStacked(moved(written, iv), pcs);
+          }
+        }
+      }
+    }
+    expect(count).toBe(35);
+  });
+
+  it.each([
+    ['Fb°', 'Fb Abb Cbb Ebbb'],
+    ['Cb°', 'Cb Ebb Gbb Bbbb'],
+    ['Bbb°', 'Bbb Dbb Fbb Abbb'],
+    ['Fbb°', 'Fbb Abbb Cbbb Ebbbb'],
+  ])('spells %s as %s (the §5.5 clarification)', (symbol, expected) => {
+    expect(describeChordTones(parseChord(symbol).chord)).toBe(expected);
+  });
+
+  it('voicedAs names a triple-flat seventh in the bass as the tone', () => {
+    // Cb° (B D F Ab) as 4x3434: G#2 F3 B3 D4 G#4 — the seventh lowest.
+    const v = voicedAs(parseChord('Cb°').chord, [44, null, 53, 59, 62, 68]);
+    expect(v.asWritten).toBe(false);
+    expect(formatNote(v.bass)).toBe('Bbbb');
   });
 });

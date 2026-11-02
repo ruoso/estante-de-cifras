@@ -123,3 +123,21 @@ describe('shapeReadout — Cm x35544 (W05#3)', () => {
     expect(many.notice).toMatch(/^The A on the A string and F on the high E string are not in C, which is C, E and G\./);
   });
 });
+
+// music.dim7_flat_root_spelling — a §5.5 tone past a double is named with the
+// triple glyph (a double then a single), never `undefined`.
+describe('shapeReadout — Fb° xx2323 (a triple-flat seventh)', () => {
+  const readout = () => shapeReadout(chordOf('Fb°'), 'Fb°', GUITAR, ['x', 'x', 2, 3, 2, 3]);
+
+  it('summarises its tones with the triple glyph', () => {
+    expect(readout().summary).toBe('F♭ · A𝄫 · C𝄫 · E𝄫♭');
+    expect(readout().rows.map((r) => r.note)).toEqual(['—', '—', 'F♭', 'C𝄫', 'E𝄫♭', 'A𝄫']);
+  });
+
+  it('has no undefined anywhere in the rows or the summary', () => {
+    const { rows, summary, notice } = readout();
+    expect(JSON.stringify(rows)).not.toMatch(/undefined/);
+    expect(summary).not.toMatch(/undefined/);
+    expect(notice).toBeNull();
+  });
+});

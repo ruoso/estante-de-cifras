@@ -3,6 +3,7 @@ import { parse } from 'cifra-md';
 import { fromCatalog } from './instrument.js';
 import { resolveSongVoicings } from './voicings.js';
 import { transpose, transposedKeyName } from './transpose.js';
+import { parseChord } from './notation/parse.js';
 
 // Pins the note's three promises: spelling by the key property or fewest
 // accidentals; no chosen shapes while transposed; view only, never the song
@@ -244,5 +245,44 @@ describe('transposedKeyName — the destination key name (wf2 L136-138)', () => 
     expect(transposedKeyName('g', 2)).toBeNull();
     expect(transposedKeyName('G major', 2)).toBeNull();
     expect(transposedKeyName('Sol', 2)).toBeNull();
+  });
+});
+
+// music.dim7_flat_root_spelling — the chart keeps workflow 2's one spelling at
+// every offset (§Transposing), the flat-on-flat roots included; only a root the
+// chosen interval would take past a double is respelled (cifra.md §5.1.1, §5.7).
+describe('transpose — a diminished seventh on a flat root at every key', () => {
+  const CHART = 'C F° Bb° Ab° Db° G7 C';
+  const TABLE = [
+    'C F° Bb° Ab° Db° G7 C',
+    'Db Gb° Cb° Bbb° Ebb° Ab7 Db',
+    'D G° C° Bb° Eb° A7 D',
+    'Eb Ab° Db° Cb° Fb° Bb7 Eb',
+    'E A° D° C° F° B7 E',
+    'F Bb° Eb° Db° Gb° C7 F',
+    'Gb Cb° Fb° Ebb° Abb° Db7 Gb',
+    'G C° F° Eb° Ab° D7 G',
+    'Ab Db° Gb° Fb° Bbb° Eb7 Ab',
+    'A D° G° F° Bb° E7 A',
+    'Bb Eb° Ab° Gb° Cb° F7 Bb',
+    'B E° A° G° C° F#7 B',
+  ];
+
+  it.each(TABLE.map((row, offset) => [offset, row]))('key C at +%i reads %s', (offset, row) => {
+    const symbols = chordSymbols(transpose(parse(keyed('C', CHART)), offset));
+    expect(symbols.join(' ')).toBe(row);
+    for (const s of symbols) expect(parseChord(s).chord).toBeTruthy();
+  });
+
+  it('a keyless D#m read up a fourth does not throw (the cost function under the augmented third)', () => {
+    expect(chordSymbols(transpose(parse(song('D#m G#7')), 5))).toEqual(['G#m', 'C#7']);
+  });
+
+  it('a transposed root never passes a double', () => {
+    // Up a fourth the fewest-accidentals spelling for Fb Fb is the augmented
+    // third (Fb → A), which takes D# to F###: written G#.
+    const symbols = chordSymbols(transpose(parse(song('Fb Fb D#°')), 5));
+    expect(symbols).toEqual(['A', 'A', 'G#°']);
+    for (const s of symbols) expect(parseChord(s).chord).toBeTruthy();
   });
 });

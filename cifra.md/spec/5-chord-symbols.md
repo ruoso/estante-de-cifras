@@ -234,6 +234,17 @@ from pitch class: `#11` on C is F♯, `b5` on C is G♭, and the seventh of
 root's letter, with the accidental that makes it *a* semitones from the
 major-scale degree. This is what keeps `Db7` from coming out as `C# F G#`.
 
+The rule holds when it needs more than a double accidental, and a reader
+MUST then write the accidental as many times as it takes rather than move
+the tone to another letter: the seventh of `Fb°7` is E♭♭♭ (`Ebbb`), the
+tones of `Bbb°7` are `Bbb Dbb Fbb Abbb`, and the seventh of `Fbb°7` is
+`Ebbbb`. A degree sits at most a double accidental from its letter in the
+major scale of the root's letter, so on a §5.1.1 root no tone needs more
+than four. Such a chord is legal — its root needs no more than §5.1.1
+allows — and a reader that resolves it MUST NOT fail. Only a root and a
+bass, which a symbol writes, are limited to a double accidental (§5.1.1); a
+tone is not.
+
 ## 5.6 Notation dialects and the four ambiguities
 
 Three dialects are named. Each is a *default reading* for the four

@@ -11,7 +11,7 @@
 
 import { formatChord } from '../core/notation/format.js';
 import { voicedAs } from '../core/chord.js';
-import { formatNote } from '../core/pitch.js';
+import { formatNote, plainSpelling } from '../core/pitch.js';
 import { t, ordinal } from '../i18n/index.js';
 
 /** Fret rows drawn in a chord box. A 4-fret span needs 4; 5 leaves air. */
@@ -128,7 +128,16 @@ function soundedSymbol(chord, sounded, dialect, name) {
   const written = name
     ? String(name).replace(/\/[A-G][b#]?$/, '')
     : formatChord({ ...chord, bass: null }, dialect);
-  return `${written}/${formatNote(sounded.bass)}`;
+  return `${written}/${bassName(sounded)}`;
+}
+
+/**
+ * The sounded bass as a symbol writes it: the spelled tone, brought within a
+ * double accidental (§5.1.2, §5.7) — a `Cb°` sounding its seventh is `/Ab`,
+ * not `/Bbbb`.
+ */
+function bassName(sounded) {
+  return formatNote(plainSpelling(sounded.bass));
 }
 
 /**
@@ -169,7 +178,7 @@ export function voicedAsLabel(fingering, { chord, dialect, full = true, name } =
   const parts = [];
   if (!sounded.asWritten) {
     parts.push(
-      full ? soundedSymbol(chord, sounded, dialect, name) : `/${formatNote(sounded.bass)}`
+      full ? soundedSymbol(chord, sounded, dialect, name) : `/${bassName(sounded)}`
     );
   }
   if (sounded.rootless) parts.push(t('diagram.noRoot'));

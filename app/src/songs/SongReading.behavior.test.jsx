@@ -673,6 +673,54 @@ describe('SongReading — transpose (workflow 2 L111-146; W02 L181-186)', () => 
   });
 });
 
+// music.dim7_flat_root_spelling — workflow 2 §Transposing reads a song at any
+// of twelve keys; flat-rooted diminished sevenths (Cb°, Bbb°, Fb°, Abb° once
+// transposed) are spelled by cifra.md §5.5 and drawn like any other chord.
+describe('SongReading — a diminished seventh on a flat root at every key (music.dim7_flat_root_spelling)', () => {
+  const ROWS = [
+    ['C F°', 'C F° Bb° Ab° Db° G7'],
+    ['Db Gb°', 'Db Gb° Cb° Bbb° Ebb° Ab7'],
+    ['D G°', 'D G° C° Bb° Eb° A7'],
+    ['Eb Ab°', 'Eb Ab° Db° Cb° Fb° Bb7'],
+    ['E A°', 'E A° D° C° F° B7'],
+    ['F Bb°', 'F Bb° Eb° Db° Gb° C7'],
+    ['Gb Cb°', 'Gb Cb° Fb° Ebb° Abb° Db7'],
+    ['G C°', 'G C° F° Eb° Ab° D7'],
+    ['Ab Db°', 'Ab Db° Gb° Fb° Bbb° Eb7'],
+    ['A D°', 'A D° G° F° Bb° E7'],
+    ['Bb Eb°', 'Bb Eb° Ab° Gb° Cb° F7'],
+    ['B E°', 'B E° A° G° C° F#7'],
+  ];
+  const open = async (transposition) => {
+    const { store } = makeStore({
+      text: song({ props: ['key: C'], chart: 'C  F° | Bb°  Ab° | Db°  G7 | C' }),
+      entry: guitarEntry(),
+      transposition,
+    });
+    await openAndWait(store);
+  };
+  const chartGlyphs = () =>
+    Array.from(screen.getByRole('group', { name: 'Tarde Clara' }).querySelectorAll('.g')).map((g) => g.textContent);
+
+  it.each(ROWS.map(([first, all], offset) => [offset, first, all]))(
+    'at +%i the chart reads %s and every chord is drawn',
+    async (offset, first, all) => {
+      await open(offset);
+      expect(chartFirstLineGlyphs()).toBe(first);
+      expect(chartGlyphs().join(' ')).toBe(`${all} ${first.split(' ')[0]}`);
+      const shapes = screen.getByRole('region', { name: /^Shapes/ });
+      expect(within(shapes).getAllByRole('img')).toHaveLength(6);
+      expect(screen.queryByText(/No playable shape for/)).toBeNull();
+    },
+  );
+
+  it('at +1 (Cb°, Bbb°, Ebb°) the reading is axe clean', async () => {
+    await open(1);
+    expect(chartGlyphs()).toContain('Bbb°');
+    expect(await checkWcag21aa(document.body)).toHaveNoViolations();
+  });
+});
+
 // shell.popover_surface (usability review M7, M9; workflow 2 L67-70): the
 // Transpose popover, the variation picker and the ⋯ menu are each drawn on the
 // shared opaque surface, inside the .est theme root, axe clean while open. Their

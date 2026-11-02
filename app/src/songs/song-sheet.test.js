@@ -85,3 +85,37 @@ describe('the sheet names a keyless song by its last chord (workflow 2 §Transpo
     expect(read.status.keyName).toBeNull();
   });
 });
+
+// music.dim7_flat_root_spelling — the reading view's sheet (which the reader's
+// bundle also reads, remarkable-reader §4) at every key of workflow 2
+// §Transposing: a chart with flat-rooted diminished sevenths is spelled as the
+// one chosen spelling gives it and every chord gets a shape (cifra.md §5.5).
+describe('a flat-rooted diminished seventh at every key (music.dim7_flat_root_spelling)', () => {
+  const dim7Text = ['# Song', '', '- key: C', '', '## A', FENCE, 'C F° Bb° Ab° Db° G7 C', FENCE, ''].join('\n');
+  const ROWS = [
+    'C F° Bb° Ab° Db° G7',
+    'Db Gb° Cb° Bbb° Ebb° Ab7',
+    'D G° C° Bb° Eb° A7',
+    'Eb Ab° Db° Cb° Fb° Bb7',
+    'E A° D° C° F° B7',
+    'F Bb° Eb° Db° Gb° C7',
+    'Gb Cb° Fb° Ebb° Abb° Db7',
+    'G C° F° Eb° Ab° D7',
+    'Ab Db° Gb° Fb° Bbb° Eb7',
+    'A D° G° F° Bb° E7',
+    'Bb Eb° Ab° Gb° Cb° F7',
+    'B E° A° G° C° F#7',
+  ];
+
+  it.each(ROWS.map((row, offset) => [offset, row]))('+%i lists %s, every chord voiced', (offset, row) => {
+    const sheet = readSongSheet({
+      text: dim7Text,
+      reading: { transposition: offset },
+      entry: surfaceInstruments({}).standard,
+    });
+    expect(sheet.chordList.map((c) => c.symbol).join(' ')).toBe(row);
+    expect(sheet.unvoiced).toEqual([]);
+    expect(sheet.shapes.map((s) => s.symbol).join(' ')).toBe(row);
+    for (const shape of sheet.shapes) expect(shape.fingering).toBeTruthy();
+  });
+});

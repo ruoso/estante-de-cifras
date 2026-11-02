@@ -127,6 +127,32 @@ describe('agreement with the reading view, all twelve keys (§4 "no port")', () 
     expect(estante.misses()).toEqual([]);
   });
 
+  // music.dim7_flat_root_spelling: the key grid (§7) reaches every key of a
+  // chart with flat-rooted diminished sevenths (Cb°, Bbb°, Fb°, Abb° once
+  // transposed; cifra.md §5.5), read as the reading view reads it. The table is
+  // filled for this chart too, as the device's home-book cache would be, since
+  // the reading path does not search; misses are not asserted.
+  it('reads a flat-rooted diminished seventh at every offset as the reading view does', async () => {
+    const text = '# Test Dim\n- key: C\n\n```\nC F° | Bb° Ab° | Db° G7 | C\n```\n';
+    const model = parse(text);
+    const writes = await fillDefaultShapes({ texts: [text], entry: ENTRY, cacheModel: {} });
+    const table = writes[0].value;
+    estante.load(ENTRY, table);
+    const viewEntry = { ...ENTRY, defaultShapes: table };
+    for (let offset = 0; offset < 12; offset += 1) {
+      let got;
+      expect(() => {
+        got = estante.sheet(text, offset);
+      }).not.toThrow();
+      expect(got.rows).toEqual(chartRows(transpose(model, offset, { dialect: songDialect(model) })));
+      const view = readSongSheet({ text, reading: { transposition: offset }, entry: viewEntry });
+      expect(got.shapes.map(({ key, symbol, source }) => ({ key, symbol, source }))).toEqual(
+        view.shapes.map(({ key, symbol, source }) => ({ key, symbol, source })),
+      );
+      expect(view.unvoiced).toEqual([]);
+    }
+  }, 60_000);
+
   it('draws left-handed when the preferences say so', () => {
     const preferences = { diagramHanded: { value: 'left', at: '2026-01-01T00:00:00.000Z' } };
     const got = estante.sheet(song('walking-to-the-market.cifra.md'), 0, { preferences });

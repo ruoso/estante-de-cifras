@@ -249,6 +249,16 @@ describe('the voiced-as label', () => {
     expect(voicedAsLabel(fingering, { chord, dialect: 'brazilian' })).toBe('Gm7/Bb, no root');
   });
 
+  // music.dim7_flat_root_spelling: the sounded bass is a spelled tone (§5.5),
+  // but a label is a chord symbol, so it is written within a double (§5.1.2,
+  // §5.7) — /Ab, never /Bbbb.
+  it('writes a triple-flat sounded bass within a double', () => {
+    // Cb° (B D F Ab) as 4x3434: the seventh lowest.
+    const { chord, fingering } = shape('Cb°', [4, 'x', 3, 4, 3, 4]);
+    expect(voicedAsLabel(fingering, { chord, dialect: 'brazilian' })).toBe('Cb°/Ab');
+    expect(voicedAsLabel(fingering, { chord, dialect: 'brazilian', full: false })).toBe('/Ab');
+  });
+
   it('reaches the accessible description too', () => {
     const { chord, fingering } = shape('Gm', ['x', 1, 0, 0, 3, 'x']);
     const text = describeFingering(fingering, {

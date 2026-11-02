@@ -86,6 +86,7 @@ task music "Music" {
   task dim7_flat_root_spelling "A diminished seventh on a flat root reads at every key" {
     effort 0.5d
     allocate team
+    complete 100
     depends !explorer
     note "Source of debt: tasks/refinements/reader/engine.md (reader.engine), found while writing the choro fixtures. Flat-rooted dim7 chords (F°, Bb°, Ab°, Db°) throw Bad accidental: -3 in app/src/core/pitch.js note(), reached through transposeNote from chordTones, because the respelled root needs a triple flat; spell the chord so it reads at every key (the reading view and the reader's bundle). Governing: cifra.md section on chord spelling; docs/remarkable-reader.md section 7. The choro fixtures use Fdim/Bbdim to avoid it. Tests: unit (chordTones and transposeNote for F°, Bb°, Ab°, Db° at all twelve keys); behavior (the reading view renders a song with a flat-rooted dim7 at every key). Refinement: tasks/refinements/music/dim7_flat_root_spelling.md"
   }

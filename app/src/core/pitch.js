@@ -21,7 +21,21 @@ const NATURAL_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 /** Semitones above the tonic for each degree of a major scale. */
 const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11];
 
-const ACCIDENTAL_NAMES = { '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: '##' };
+/**
+ * A spelled note holds up to a quadruple accidental. A chord tone spelled by
+ * cifra.md §5.5 keeps its letter, so on a flat root it can need three (the
+ * seventh of `Fb°` is `Ebbb`) and on a double-flat or double-sharp root four
+ * (the seventh of `Fbb°` is `Ebbbb`, the #9 of `E##7(#9)` `F####`): a degree
+ * sits at most a double from its letter, and a §5.1.1 root at most a double
+ * from its own. A root or bass read from text is still at most a double
+ * (§5.1.1, parseNote); plainSpelling brings a note back within a double for a
+ * symbol.
+ */
+const MAX_ACCIDENTAL = 4;
+const ACCIDENTAL_NAMES = {
+  '-4': 'bbbb', '-3': 'bbb', '-2': 'bb', '-1': 'b', 0: '',
+  1: '#', 2: '##', 3: '###', 4: '####',
+};
 
 /**
  * @typedef {{ letter: string, accidental: number }} SpelledNote
@@ -39,7 +53,7 @@ const ACCIDENTAL_NAMES = { '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: '##' };
 export function note(letter, accidental = 0) {
   const upper = String(letter).toUpperCase();
   if (!(upper in NATURAL_PC)) throw new Error(`Bad letter: ${letter}`);
-  if (!Number.isInteger(accidental) || accidental < -2 || accidental > 2) {
+  if (!Number.isInteger(accidental) || Math.abs(accidental) > MAX_ACCIDENTAL) {
     throw new Error(`Bad accidental: ${accidental}`);
   }
   return { letter: upper, accidental };
@@ -60,6 +74,23 @@ export function parseNote(text) {
 /** @param {SpelledNote} n */
 export function formatNote(n) {
   return n.letter + ACCIDENTAL_NAMES[String(n.accidental)];
+}
+
+/**
+ * The note as a chord symbol may write it (cifra.md §5.1.1, §5.7): `n` itself
+ * when its accidental is at most a double, otherwise the same pitch on the
+ * neighbouring letter in the accidental's direction (`Ebbb` → `Db`,
+ * `F###` → `G#`, `B###` → `C##`), and on again past a semitone step
+ * (`Fbbbb` → `Ebbb` → `Db`).
+ *
+ * @param {SpelledNote} n @returns {SpelledNote}
+ */
+export function plainSpelling(n) {
+  let out = n;
+  while (Math.abs(out.accidental) > 2) {
+    out = transposeNote(out, interval(out.accidental > 0 ? 1 : -1, 0));
+  }
+  return out;
 }
 
 /** @param {SpelledNote} n @returns {number} 0-11 */

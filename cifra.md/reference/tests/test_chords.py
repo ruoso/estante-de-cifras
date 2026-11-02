@@ -81,6 +81,10 @@ def tones(text, dialect="brazilian"):
         ("Fm6", "F Ab C D"),
         ("C♯m7", "C# E G# B"),
         ("D♭7", "Db F Ab Cb"),
+        # §5.5: a tone past a double keeps its letter (triple accidental).
+        ("Fb°7", "Fb Abb Cbb Ebbb"),
+        ("Bbb°7", "Bbb Dbb Fbb Abbb"),
+        ("Fbb°7", "Fbb Abbb Cbbb Ebbbb"),
     ],
 )
 def test_tones(text, expected):

@@ -26,7 +26,7 @@
 
 import { parseChord } from './notation/parse.js';
 import { formatChord } from './notation/format.js';
-import { parseNote, transposeNote, interval } from './pitch.js';
+import { parseNote, transposeNote, interval, plainSpelling } from './pitch.js';
 import { DEFAULT_DIALECT } from './notation/dialects.js';
 
 // The pitch class reached by moving N letter-names up from a natural note
@@ -197,8 +197,10 @@ export function transpose(model, semitones, { dialect = DEFAULT_DIALECT } = {}) 
     if (!c) continue; // kept verbatim
     const transposed = {
       ...c,
-      root: transposeNote(c.root, iv),
-      bass: c.bass ? transposeNote(c.bass, iv) : null,
+      // A symbol writes a root and bass of at most a double (§5.1.1); only one
+      // the chosen interval would take past a double moves letter.
+      root: plainSpelling(transposeNote(c.root, iv)),
+      bass: c.bass ? plainSpelling(transposeNote(c.bass, iv)) : null,
     };
     item.symbol = formatChord(transposed, dialect);
     // The parsed chord follows the symbol, so the chart speaks the chord it

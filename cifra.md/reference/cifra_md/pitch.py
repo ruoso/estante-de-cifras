@@ -28,7 +28,11 @@ def is_note(text: str) -> bool:
 
 
 def format_note(note: dict) -> str:
-    acc = {-2: "bb", -1: "b", 0: "", 1: "#", 2: "##"}[note["accidental"]]
+    # A spelled tone may carry more than a double accidental (§5.5): the
+    # seventh of Fb°7 is Ebbb, of Fbb°7 Ebbbb. A root or bass is still at most
+    # a double (§5.1.1).
+    n = note["accidental"]
+    acc = "#" * n if n > 0 else "b" * -n
     return note["letter"] + acc
 
 

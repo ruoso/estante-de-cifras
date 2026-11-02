@@ -340,6 +340,10 @@ describe("spelled tones from the root (§5.5)", () => {
     expect(tones("C7b5")).toBe("C E Gb Bb");
     expect(chordTones(parseChord("C°7").chord).at(-1)).toBe("Bbb");
     expect(chordTones(parseChord("C7#11").chord).at(-1)).toBe("F#"); // #11 on C is F♯
+    // §5.5 past a double: the tone keeps its letter with a triple accidental.
+    expect(tones("Fb°7")).toBe("Fb Abb Cbb Ebbb");
+    expect(tones("Bbb°7")).toBe("Bbb Dbb Fbb Abbb");
+    expect(tones("Fbb°7")).toBe("Fbb Abbb Cbbb Ebbbb");
   });
 });
 

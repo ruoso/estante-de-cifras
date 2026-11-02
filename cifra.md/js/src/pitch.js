@@ -24,7 +24,10 @@ export const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11];
 // Unicode spellings are accepted (§5.1.1 lines 24–32). The reverse map writes
 // the ASCII form (format_note in the reference).
 const ACCIDENTALS = { "": 0, "#": 1, "♯": 1, "##": 2, b: -1, "♭": -1, bb: -2 };
-const ACCIDENTAL_TEXT = { "-2": "bb", "-1": "b", 0: "", 1: "#", 2: "##" };
+// A spelled tone may carry more than a double accidental (§5.5): the seventh
+// of Fb°7 is Ebbb, of Fbb°7 Ebbbb. Only a root and a bass are limited to a
+// double (§5.1.1).
+const accidentalText = (n) => (n > 0 ? "#".repeat(n) : "b".repeat(-n));
 
 // The grammar of a note name (§5.1.1): a letter A–G (uppercase) and at most one
 // accidental. Exported as a pattern string so chord.js can build the root and
@@ -53,7 +56,7 @@ export function isNote(text) {
 // different notes and format to different text — the model preserves spelling
 // (§5.2 lines 52–54).
 export function formatNote(note) {
-  return note.letter + ACCIDENTAL_TEXT[note.accidental];
+  return note.letter + accidentalText(note.accidental);
 }
 
 // Scientific-pitch notation (§6.1): E2, F#3, Bb1, C-1. The letter may be either

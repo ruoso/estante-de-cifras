@@ -29,8 +29,12 @@ const ROLES = {
 };
 
 // A note as the read-out prints it, with the accidental glyphs the board writes
-// (`E♭`, `F♯`), never the ASCII spelling.
-const GLYPH = { '-2': '𝄫', '-1': '♭', 0: '', 1: '♯', 2: '𝄪' };
+// (`E♭`, `F♯`), never the ASCII spelling. A §5.5 tone may carry a triple or
+// quadruple accidental; Unicode has no sign for either, so it is set as a
+// double then the rest, as engravers do (`E𝄫♭`, `E𝄫𝄫`).
+const GLYPH = {
+  '-4': '𝄫𝄫', '-3': '𝄫♭', '-2': '𝄫', '-1': '♭', 0: '', 1: '♯', 2: '𝄪', 3: '𝄪♯', 4: '𝄪𝄪',
+};
 const glyphNote = (n) => n.letter + GLYPH[String(n.accidental)];
 
 const ALTER_WORD = { '-2': 'doubleFlat', '-1': 'flat', 1: 'sharp', 2: 'doubleSharp' };
