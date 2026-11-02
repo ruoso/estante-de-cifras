@@ -18,6 +18,18 @@
 //   choose a key; As written            chart, strip, foot and the key button
 //   a new song                          every region
 //   a shape found in the background     none: kept for the next page drawn
+//   a turn across songs (Play)          chart, strip, foot and the bar's
+//                                       title, the next song laid out ahead
+//   a neighbour read ahead (`109`)      none: laid out, invisible
+//
+// Played from a setlist (reader.play; workflow 19 §A setlist), the bar reads
+// *3 of 12 · Garota*, the first page opens with the item's note (and *key: D*
+// when the setlist's key cannot be applied), the last ends with *Next: Asa
+// Branca, in G* and its note, and the turns cross songs: the next song is
+// laid out ahead in a second, invisible SheetView, so a turn onto it swaps
+// the views (rule 9); the previous one is laid out on the turn, at its last
+// page. A turn whose neighbour has not arrived opens it and waits on the old
+// page (rule 1). Each song shown is sent as `11 place`, for Back.
 //
 // The pressed control inverts at once, and one whose action waits on the
 // backend stays inverted until the answer replaces its region (rule 7).
@@ -36,6 +48,9 @@ Item {
 
     // The `105 sheet` payload shown, or null.
     property var sheet: null
+    // The `106 setlist` Play started from (the setlist screen's, kept alive):
+    // a played sheet's place and neighbours are its rows (reader.play).
+    property var setlist: null
     // `shapesShown` from the last `101 state` (shown before one).
     property bool shapesShown: true
     // The AppLoad item the screen sends through (design §6).
@@ -45,8 +60,15 @@ Item {
     readonly property Item chart: chartRegion
     readonly property ShapesStrip strip: shapesStrip
     readonly property SongFoot foot: songFoot
-    readonly property SheetView view: sheetView
-    readonly property var faces: sheetView.faces
+    // The chart's view shown, and the other one, invisible, where the next
+    // song of a setlist is laid out ahead (reader.play).
+    readonly property SheetView view: d.front
+    readonly property SheetView aheadView: d.back
+    readonly property var faces: viewA.faces
+    // The played sheet's place ({ at, n, of, next, previous, note }), or null.
+    readonly property var place: d.place
+    // The neighbours held: { next, previous } — `109` payloads or null.
+    readonly property var held: d.held
     // The control waiting on the backend's answer, by name; "" for none.
     readonly property string pending: d.pending
     readonly property var stripInfo: d.stripInfo
@@ -64,14 +86,26 @@ Item {
     function found(shapes) {
         d.found(shapes);
     }
+
+    // A `109 ahead` (reader.play): held when it is the played song's next or
+    // previous playable item, the next laid out at once, invisible; anything
+    // else is ignored. Nothing is drawn (rule 5).
+    function ahead(sheet) {
+        d.ahead(sheet);
+    }
     onShapesShownChanged: d.reshape()
 
     // A sheet given before the chart can measure it is laid out once it can.
     Connections {
-        target: sheetView
+        target: viewA
         function onReadyChanged() {
-            if (d.shown === null)
-                d.receive();
+            d.whenReady();
+        }
+    }
+    Connections {
+        target: viewB
+        function onReadyChanged() {
+            d.whenReady();
         }
     }
 
@@ -88,6 +122,19 @@ Item {
         property int questionIndex: -1
         property string pending: ""
 
+        // The view shown and the one laid out ahead (reader.play).
+        property SheetView front: viewA
+        property SheetView back: viewB
+        // The played sheet's place, or null (SongState.place).
+        property var place: null
+        // The neighbours read ahead (`109`), and which the back view holds
+        // laid out: the next one's row, with its strip, −1 for none.
+        property var held: ({ next: null, previous: null })
+        property int backFor: -1
+        property var backInfo: null
+        // The row last sent as `11 place`, −1 for none.
+        property int placed: -1
+
         function send(type, payload) {
             if (screen.endpoint)
                 screen.endpoint.sendMessage(type, JSON.stringify(payload));
@@ -97,17 +144,17 @@ Item {
             return Strip.list(x);
         }
 
-        // The sheet the chart lays out: its rows, and the shapes' notes as
-        // one more notes row after the last (workflow 19 §A song as amended).
-        function chartSheet(s) {
-            const notes = list(s.notes).filter(n => typeof n === "string" && n !== "");
-            if (notes.length === 0)
-                return s;
-            return Object.assign({}, s, { rows: list(s.rows).concat([{ type: "notes", paragraphs: notes }]) });
-        }
-
         function hasShapes() {
             return d.shown !== null && list(d.shown.shapes).length > 0;
+        }
+
+        function whenReady() {
+            if (!viewA.ready || !viewB.ready)
+                return;
+            if (d.shown === null)
+                d.receive();
+            else
+                prepareNext();
         }
 
         function hasKey() {
@@ -116,9 +163,14 @@ Item {
 
         // The strip and the pages for the song as it is now.
         function fixpoint() {
-            if (!screen.shapesShown || !hasShapes())
-                return { size: "none", rows: 0, height: 0, pages: sheetView.pagesFor(M.contentHeight) };
-            return Strip.stripSize(h => sheetView.pagesFor(h), d.shown, M.contentHeight);
+            return fixpointOf(d.front, d.shown);
+        }
+
+        // The strip and the pages for sheet s, measured in view.
+        function fixpointOf(view, s) {
+            if (!screen.shapesShown || list(s && s.shapes).length === 0)
+                return { size: "none", rows: 0, height: 0, pages: view.pagesFor(M.contentHeight) };
+            return Strip.stripSize(h => view.pagesFor(h), s, M.contentHeight);
         }
 
         // The page holding a row, in a pagination: the last starting at or
@@ -133,7 +185,7 @@ Item {
         }
 
         function topRow() {
-            const p = sheetView.pages[sheetView.page];
+            const p = d.front.pages[d.front.page];
             return p && p.firstRow >= 0 ? p.firstRow : 0;
         }
 
@@ -165,20 +217,22 @@ Item {
 
         function commitBar() {
             const s = d.shown;
-            songBar.show({ title: s.title || "", artist: s.artist || "", keyLabel: keyLabel(s) });
+            songBar.show({ title: SongState.barTitle(s, d.place), artist: s.artist || "", keyLabel: keyLabel(s) });
         }
 
         function commitFoot() {
             songFoot.show({
-                page: sheetView.page,
-                pageCount: sheetView.pageCount,
-                shapes: hasShapes() ? (screen.shapesShown ? "hide" : "show") : ""
+                page: d.front.page,
+                pageCount: d.front.pageCount,
+                shapes: hasShapes() ? (screen.shapesShown ? "hide" : "show") : "",
+                before: d.place !== null && d.place.before,
+                after: d.place !== null && d.place.after
             });
         }
 
         function commitStrip() {
             const info = d.stripInfo;
-            const page = sheetView.pages[sheetView.page];
+            const page = d.front.pages[d.front.page];
             const ps = Strip.pageShapes(d.shown, page ? page.chords : []);
             let mode = d.mode;
             if (mode !== "grid" && info.size === "none")
@@ -217,27 +271,140 @@ Item {
         function receive() {
             const s = screen.sheet;
             if (!s) {
-                // No song: the next sheet is a new one. Nothing is redrawn —
-                // the screen is not shown without a song.
+                // No song: the next sheet is a new one, and nothing played is
+                // held. Nothing is redrawn — the screen is not shown without
+                // a song.
                 d.shown = null;
+                d.place = null;
+                d.held = { next: null, previous: null };
+                d.backFor = -1;
+                d.placed = -1;
                 d.pending = "";
                 return;
             }
-            if (!sheetView.ready)
+            if (!viewA.ready || !viewB.ready)
                 return;
             if (SongState.change(d.shown, s) === "revoiced") {
                 revoice(s);
                 return;
             }
             d.shown = s;
+            d.place = SongState.place(s, screen.setlist);
             d.mode = "shapes";
             d.stripPage = 0;
             d.question = null;
             d.questionIndex = -1;
-            chartRegion.measure(chartSheet(s));
+            chartRegion.measure(SongState.chartSheet(s, d.place));
             layOut(-1);
             commitBar();
             d.pending = "";
+            keepNeighbours();
+            sendPlace();
+        }
+
+        // --- playing a setlist (reader.play) ---
+
+        // The neighbours held for another place are let go; those of this
+        // one are kept (a key chosen during Play keeps them, backend_views
+        // Decision 6), the next laid out ahead if it is not already.
+        function keepNeighbours() {
+            const p = d.place;
+            const h = d.held;
+            const keep = (x, at) => x !== null && p !== null && at >= 0 && x.play.at === at
+                                    && x.play.setlist === d.shown.play.setlist && x.bookId === d.shown.bookId;
+            d.held = { next: keep(h.next, p ? p.next : -1) ? h.next : null,
+                       previous: keep(h.previous, p ? p.previous : -1) ? h.previous : null };
+            prepareNext();
+        }
+
+        // The played song shown is the place Back returns to.
+        function sendPlace() {
+            const p = d.place;
+            if (p === null || p.at === d.placed)
+                return;
+            d.placed = p.at;
+            send(11, { bookId: d.shown.bookId, setlist: d.shown.play.setlist, at: p.at });
+        }
+
+        function ahead(s) {
+            const p = d.place;
+            if (d.shown === null || p === null || !s || !s.play || typeof s.play.at !== "number")
+                return;
+            if (s.bookId !== d.shown.bookId || s.play.setlist !== d.shown.play.setlist)
+                return;
+            if (s.play.at === p.next && p.next >= 0) {
+                d.held = { next: s, previous: d.held.previous };
+                d.backFor = -1;
+                prepareNext();
+            } else if (s.play.at === p.previous && p.previous >= 0) {
+                d.held = { next: d.held.next, previous: s };
+            }
+        }
+
+        // The held next song measured and paginated in the back view, its
+        // first page (and the one after) built, invisible — before any turn
+        // (rule 9).
+        function prepareNext() {
+            const s = d.held.next;
+            if (s === null || d.backFor === s.play.at || !d.back.ready)
+                return;
+            layOutBack(s, 0);
+        }
+
+        // Sheet s laid out in the back view with its strip, showing page
+        // `page` (−1 for its last).
+        function layOutBack(s, page) {
+            const v = d.back;
+            const place = SongState.place(s, screen.setlist);
+            v.height = 0;
+            v.page = 0;
+            v.sheet = SongState.chartSheet(s, place);
+            const info = fixpointOf(v, s);
+            v.page = page >= 0 ? page : Math.max(0, info.pages.length - 1);
+            v.height = M.contentHeight - info.height;
+            d.backFor = s.play.at;
+            d.backInfo = info;
+        }
+
+        // A turn across songs: onto the next song's first page (delta +1) or
+        // the previous one's last (−1). Held, it is one commit of the chart,
+        // the strip, the foot and the bar; not yet arrived, it is opened and
+        // the old page stays until its `105` (rule 1).
+        function cross(delta) {
+            const p = d.place;
+            const at = delta > 0 ? p.next : p.previous;
+            if (at < 0 || d.pending !== "")
+                return;
+            const s = delta > 0 ? d.held.next : d.held.previous;
+            if (s === null) {
+                d.pending = "cross";
+                send(2, { view: "song", bookId: d.shown.bookId, path: screen.setlist.items[at].path,
+                          play: { setlist: d.shown.play.setlist, at: at } });
+                d.placed = at;
+                send(11, { bookId: d.shown.bookId, setlist: d.shown.play.setlist, at: at });
+                return;
+            }
+            if (delta < 0 || d.backFor !== at)
+                layOutBack(s, delta > 0 ? 0 : -1);
+            const left = d.shown;
+            const info = d.backInfo;
+            const v = d.back;
+            d.back = d.front;
+            d.front = v;
+            d.backFor = -1;
+            d.shown = s;
+            d.place = SongState.place(s, screen.setlist);
+            d.held = { next: delta < 0 ? left : null, previous: delta > 0 ? left : null };
+            d.mode = "shapes";
+            d.stripPage = 0;
+            d.question = null;
+            d.questionIndex = -1;
+            d.stripInfo = info;
+            chartRegion.swapped(M.contentHeight - info.height);
+            commitStrip();
+            commitFoot();
+            commitBar();
+            sendPlace();
         }
 
         // A `108` merged into the sheet held: no region replaced, no revision
@@ -295,6 +462,9 @@ Item {
             d.questionIndex = -1;
             layOut(row);
             d.pending = "";
+            // The next song laid out ahead again, with the strip as it is now.
+            d.backFor = -1;
+            prepareNext();
         }
 
         // --- actions ---
@@ -302,8 +472,12 @@ Item {
         function turn(delta) {
             if (d.shown === null)
                 return;
-            const p = sheetView.page + delta;
-            if (p < 0 || p >= sheetView.pageCount)
+            const p = d.front.page + delta;
+            if ((p < 0 || p >= d.front.pageCount) && d.place !== null) {
+                cross(delta);
+                return;
+            }
+            if (p < 0 || p >= d.front.pageCount)
                 return;
             d.mode = "shapes";
             d.stripPage = 0;
@@ -343,28 +517,49 @@ Item {
 
         // A new sheet measured, nothing paginated or drawn yet.
         function measure(sheet) {
-            sheetView.height = 0;
-            sheetView.sheet = sheet;
+            d.front.height = 0;
+            d.front.sheet = sheet;
         }
 
         // The measured song paginated `height` tall, showing `page` — what
         // the chart draws, replaced.
         function show(height, page) {
-            sheetView.height = 0;
-            sheetView.page = page;
+            d.front.height = 0;
+            d.front.page = page;
             chartRegion.height = height;
-            sheetView.height = height;
+            d.front.height = height;
             cd.revision += 1;
         }
 
         // The page shown, already prepared (rule 9).
         function turn(page) {
-            sheetView.page = page;
+            d.front.page = page;
             cd.revision += 1;
         }
 
+        // The views swapped: the one laid out ahead shown, `height` tall —
+        // what the chart draws, replaced (reader.play).
+        function swapped(height) {
+            chartRegion.height = height;
+            cd.revision += 1;
+        }
+
+        // Two views, one shown: the other holds the next song of a setlist,
+        // laid out ahead and invisible (reader.play; rule 9).
         SheetView {
-            id: sheetView
+            id: viewA
+            objectName: "viewA"
+            visible: d.front === viewA
+            x: M.contentSide
+            y: 0
+            width: M.chartWidth
+            height: 0
+        }
+
+        SheetView {
+            id: viewB
+            objectName: "viewB"
+            visible: d.front === viewB
             x: M.contentSide
             y: 0
             width: M.chartWidth
@@ -406,7 +601,7 @@ Item {
 
     ShapesStrip {
         id: shapesStrip
-        faces: sheetView.faces
+        faces: viewA.faces
         pending: d.pending
         onDiagramTapped: index => {
             const shape = shapesStrip.page.shapes[index];
@@ -465,11 +660,17 @@ Item {
         id: songBar
         x: 0
         y: 0
-        faces: sheetView.faces
+        faces: viewA.faces
         pending: d.pending
         visible: d.shown !== null
         onBackTapped: {
-            if (d.shown !== null)
+            if (d.shown === null)
+                return;
+            // Played, Back returns to the setlist, at the page holding the
+            // song (its `106` carries the place); else to the book.
+            if (d.place !== null)
+                d.send(2, { view: "setlist", bookId: d.shown.bookId, path: d.shown.play.setlist });
+            else
                 d.send(2, { view: "book", bookId: d.shown.bookId });
         }
         onKeyTapped: {
@@ -483,7 +684,7 @@ Item {
         id: songFoot
         x: 0
         y: M.barHeight + M.contentHeight
-        faces: sheetView.faces
+        faces: viewA.faces
         pending: d.pending
         visible: d.shown !== null
         onPreviousTapped: d.turn(-1)

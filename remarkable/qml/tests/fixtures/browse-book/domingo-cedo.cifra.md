@@ -1,6 +1,5 @@
 # Domingo Cedo
 - artist: Banda do Bairro
-- key: C
 
 ## Verse
 ```

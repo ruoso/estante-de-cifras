@@ -30,6 +30,7 @@ var copy = {
     songsHeading: "Songs",
     emptyBook: "No songs in this book yet.",
     missing: "missing",
+    play: "Play",
     account: "Account",
     syncHeading: "Sync",
     shapes: "Shapes",
@@ -189,6 +190,73 @@ function itemRight(item) {
     return "";
 }
 
+// --- playing a setlist (reader.play) ---
+//
+// The place in a setlist is an item's row index `at` in the `106`'s items
+// (design §6 `play.at`), so the same song twice is two places; a row that is
+// `missing` (a song the book lacks, an unlinked item) is never played
+// (cifra.md §10.8.2).
+
+// Whether a row can be played.
+function playable(item) {
+    return !!item && item.missing !== true && typeof item.path === "string" && item.path !== "";
+}
+
+// The first playable row's index, −1 for none.
+function firstPlayable(items) {
+    return nextPlayable(items, -1);
+}
+
+// The nearest playable row after `at`, −1 for none.
+function nextPlayable(items, at) {
+    const rows = list(items);
+    for (let i = Math.max(-1, Math.floor(at)) + 1; i < rows.length; ++i)
+        if (playable(rows[i]))
+            return i;
+    return -1;
+}
+
+// The nearest playable row before `at`, −1 for none.
+function previousPlayable(items, at) {
+    const rows = list(items);
+    for (let i = Math.min(rows.length, Math.floor(at)) - 1; i >= 0; --i)
+        if (playable(rows[i]))
+            return i;
+    return -1;
+}
+
+// The place's position among the playable rows: how many are playable up to
+// and including `at` (the *3* of *3 of 12*); 0 when `at` is not playable.
+function position(items, at) {
+    const rows = list(items);
+    if (!playable(rows[at]))
+        return 0;
+    let n = 0;
+    for (let i = 0; i <= at; ++i)
+        if (playable(rows[i]))
+            n += 1;
+    return n;
+}
+
+// The played song's bar title: "3 of 12 · Garota" (workflow 19 §A setlist).
+function playTitle(n, of, title) {
+    return n + " of " + of + " · " + (title || "");
+}
+
+// The last page's line for the next item: "Next: Asa Branca, in G", or
+// "Next: Asa Branca" when the setlist sets it no key.
+function nextLine(next) {
+    if (!next)
+        return "";
+    const title = next.title || "";
+    return next.key ? "Next: " + title + ", in " + next.key : "Next: " + title;
+}
+
+// The setlist's key as a note, when it cannot be applied (cifra.md §10.7.1).
+function keyNoteLine(keyNote) {
+    return keyNote ? "key: " + keyNote : "";
+}
+
 // --- settings ---
 
 function pairedWith(account) {
@@ -225,6 +293,12 @@ function worksUntil(expiresAt) {
 
 // --- helpers ---
 
+// An array, or an array-like (a QVariantList a property handed over), as an
+// array; anything else as [].
 function list(x) {
-    return Array.isArray(x) ? x : [];
+    if (Array.isArray(x))
+        return x;
+    if (x !== null && x !== undefined && typeof x === "object" && typeof x.length === "number")
+        return Array.prototype.slice.call(x);
+    return [];
 }

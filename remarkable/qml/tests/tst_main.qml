@@ -3,7 +3,8 @@
 // hello once, draws nothing before the first state, routes each view to its
 // screen — Not paired, the shelf (whose sync line is workflow 19's line for
 // the state), a book, a setlist, Settings, the song (reader.song_screen
-// Decision 11) — ignores what it does not know, keeps background news off
+// Decision 11), the `109 ahead` neighbours of a played song (reader.play) —
+// ignores what it does not know, keeps background news off
 // every screen but the shelf's sync line, leaves the backend running when it
 // unloads, and has the root's contract AppLoad relies on.
 import QtQuick
@@ -15,6 +16,7 @@ import "fixtures/browse-shelf.js" as BrowseShelf
 import "fixtures/browse-book.js" as BrowseBook
 import "fixtures/browse-setlist.js" as BrowseSetlist
 import "fixtures/browse-settings.js" as BrowseSettings
+import "fixtures/play-1.js" as Play1
 import "walk.js" as Walk
 
 TestCase {
@@ -387,5 +389,33 @@ TestCase {
         compare(main.songShown, false);
         compare(visibleScreens(main), ["bookScreen"]);
         compare([main.bookScreen.list.revision, main.bookScreen.foot.revision], bookRevisions);
+    }
+
+    // reader.play (design §6 109 ahead): Main hands a `109` to the song
+    // screen only while it shows a played sheet of the same setlist and book;
+    // anywhere else it changes nothing.
+    function test_routesAhead() {
+        const main = onShelf();
+        main.endpoint.play(109, clone(Play1.ahead[0]));
+        compare(visibleScreens(main), ["shelfScreen"]);
+        compare(main.songScreen.held, { next: null, previous: null });
+
+        // A song not played: ignored.
+        main.endpoint.play(105, clone(FewChords.sheet));
+        main.endpoint.play(109, clone(Play1.ahead[0]));
+        compare(main.songScreen.held, { next: null, previous: null });
+
+        // Played from the setlist on hand: held, nothing redrawn.
+        main.endpoint.play(106, clone(BrowseSetlist.setlist));
+        main.endpoint.play(105, clone(Play1.sheet));
+        verify(main.songShown);
+        const screen = main.songScreen;
+        const revisions = () => [screen.bar.revision, screen.chart.revision, screen.strip.revision,
+                                 screen.foot.revision];
+        const before = revisions();
+        main.endpoint.play(109, clone(Play1.ahead[0]));
+        compare(screen.held.next.path, Play1.ahead[0].path);
+        compare(revisions(), before);
+        compare(visibleScreens(main), ["songScreen"]);
     }
 }

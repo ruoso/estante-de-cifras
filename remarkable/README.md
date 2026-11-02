@@ -73,7 +73,9 @@ from the table and the `108 shapes` the background search sent for it
 `tst_main.qml`) read `browse-shelf`, `browse-book`, `browse-book-small`,
 `browse-setlist` and `browse-settings`: the backend's `103`, `104`, `106` and
 `107` over books built from `qml/tests/fixtures/browse-book/`, 34 songs and 3
-setlists written for the tests (reader.browse_screens). Go's
+setlists written for the tests (reader.browse_screens). Play's test
+(`tst_play.qml`) reads `play-<at>`: items of that setlist opened playing, each
+the backend's `105 sheet` and the `109 ahead`s it sent next (reader.play). Go's
 `TestQMLFixtures` (`internal/backend/qmlfixtures_test.go`) fails when a
 committed fixture differs from what the backend answers now — after a change
 to the songs, `chartRows` or `diagramModel` — and regenerates them, once

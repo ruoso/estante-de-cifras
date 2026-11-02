@@ -329,8 +329,9 @@ own key, named on its song screen, and its row names none) — and the
 setlist's note for a song under it. A missing song
 says *missing* and is skipped by Play (workflow 12). Ten rows to a page.
 
-**Play** opens the first song; tapping a row opens Play at that song. Playing
-is a song screen with three differences:
+**Play** opens the first song; tapping a row opens Play at that song (a
+*missing* row is not a target: it has nothing to open). Playing is a song screen
+with four differences:
 
 - The bar's title is the place and the song: *3 of 12 · Garota*, and the key
   button shows the setlist's key (workflow 12 §The key).
@@ -340,6 +341,15 @@ is a song screen with three differences:
 - The last page of each song ends with the next song's title and key, *Next:
   Asa Branca, in G*, and its note when it has one — the `- note:` the setlist
   file gives that item (cifra.md §10; workflow 12).
+- The first page of each song starts, above its chart, with that song's own
+  note, and with the setlist's key as a note (*key: D*) when it cannot be
+  applied — the song states no key, or the keys differ in mode (cifra.md
+  §10.7; workflow 12 §The key, §Playing through). So a song Play starts at has
+  its note, though no song before it carried it.
+
+The songs on either side of the one playing are read ahead, so a turn across
+songs is one redraw whichever way it goes. A turn faster than the reading
+ahead waits on the old page and then changes once (rule 1).
 
 Back returns to the setlist, at the page holding the song that was playing.
 

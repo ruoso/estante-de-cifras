@@ -2,7 +2,9 @@
 // song; Song.dc.html L71–83): *Hide shapes* or *Show shapes* at its left, and
 // at its right the page — *2 of 5*, *3 of 3 · End* — between its arrows. A
 // one-page song keeps its foot, without arrows, so the content never changes
-// height. 100 px, a 3 px rule over it. What it draws is replaced in one
+// height. Played from a setlist (reader.play), a song before or after it
+// gives the arrows a turn across songs, and *End* is said only on the last
+// playable item's last page. 100 px, a 3 px rule over it. What it draws is replaced in one
 // place, `show`, which bumps `revision`.
 import QtQuick
 import "../chart/metrics.js" as M
@@ -13,7 +15,8 @@ Item {
 
     property var faces
     property string pending: ""
-    // { page, pageCount, shapes: "hide" | "show" | "" }
+    // { page, pageCount, shapes: "hide" | "show" | "", before, after } —
+    // before / after: a played song has a song before / after it.
     readonly property var content: d.content
     readonly property int revision: d.revision
     readonly property alias shapesButton: shapesButton
@@ -30,11 +33,12 @@ Item {
         d.revision += 1;
     }
 
-    // "2 of 5"; "3 of 3 · End" on the last page.
+    // "2 of 5"; "3 of 3 · End" on the last page — of the last song, when
+    // played.
     function label(c) {
         if (!c || c.pageCount <= 0)
             return "";
-        const last = c.page >= c.pageCount - 1;
+        const last = c.page >= c.pageCount - 1 && c.after !== true;
         return (c.page + 1) + " of " + c.pageCount + (last ? " · End" : "");
     }
 
@@ -79,7 +83,7 @@ Item {
         id: next
         objectName: "next"
         faces: foot.faces
-        visible: foot.content.pageCount > 1
+        visible: foot.content.pageCount > 1 || foot.content.before === true || foot.content.after === true
         active: visible
         arrow: "only-right"
         width: 96
@@ -109,7 +113,7 @@ Item {
         id: previous
         objectName: "previous"
         faces: foot.faces
-        visible: foot.content.pageCount > 1
+        visible: foot.content.pageCount > 1 || foot.content.before === true || foot.content.after === true
         active: visible
         arrow: "only-left"
         width: 96

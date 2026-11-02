@@ -4,13 +4,17 @@
 //
 //   the setlist answered (`show`)        bar, list, foot
 //   a page turned                        list, foot
+//   Play or a row pressed                none but the control, inverted
 //
-// The bar: Back (to the book) · the setlist's name, the right slot kept for
-// Play (reader.play). The content: *Book · n songs* at its top, then the
-// items in order — number, title, the setlist's note under it, and at the
-// right *in D* when the setlist sets a key, *missing* when the song is not in
-// the book. Ten rows a page. The rows are not targets until reader.play
-// (Decision 11); they still swipe.
+// The bar: Back (to the book) · the setlist's name · *Play* at the right
+// (reader.play), drawn only when the setlist has something to play. The
+// content: *Book · n songs* at its top, then the items in order — number,
+// title, the setlist's note under it, and at the right *in D* when the
+// setlist sets a key, *missing* when the song is not in the book. Ten rows a
+// page. *Play* opens the first playable item, playing; a playable row opens
+// Play at it. A *missing* row is not a target (reader.play Decision 3): it
+// does not invert and sends nothing. Each sends `2 open {view: "song", play}`
+// and stays inverted until the answer replaces the screen (rule 7).
 import QtQuick
 import "../chart"
 import "../chart/metrics.js" as M
@@ -45,7 +49,8 @@ Item {
                  ? Pages.clamp(Pages.pageOf(setlist.at), d.items.length) : 0;
         d.line = Pages.setlistLine(bookName, d.items.length);
         d.pending = "";
-        listBar.show({ title: (setlist && setlist.title) || "", back: true, action: "", reserve: true });
+        listBar.show({ title: (setlist && setlist.title) || "", back: true,
+                       action: Pages.firstPlayable(d.items) >= 0 ? Pages.copy.play : "", reserve: true });
         d.commitList();
         d.commitFoot();
     }
@@ -63,6 +68,15 @@ Item {
                 screen.endpoint.sendMessage(type, JSON.stringify(payload));
         }
 
+        // Open Play at row `at`, its control `pending` held until answered.
+        function play(at, pending) {
+            if (d.pending !== "" || d.setlist === null || !Pages.playable(d.items[at]))
+                return;
+            d.pending = pending;
+            send(2, { view: "song", bookId: d.setlist.bookId, path: d.items[at].path,
+                      play: { setlist: d.setlist.path, at: at } });
+        }
+
         function commitList() {
             const from = d.page * Pages.perPage;
             const rows = d.items.slice(from, from + Pages.perPage).map((it, i) => ({
@@ -70,7 +84,8 @@ Item {
                 number: String(from + i + 1),
                 title: it.title || Pages.fileName(it.path),
                 note: it.note || "",
-                right: Pages.itemRight(it)
+                right: Pages.itemRight(it),
+                playable: Pages.playable(it)
             }));
             listRegion.show({ line: d.line, rows: rows });
         }
@@ -94,7 +109,8 @@ Item {
         x: 0
         y: 0
         faces: screen.faces
-        pending: d.pending === "back" ? "back" : ""
+        pending: d.pending === "back" || d.pending === "action" ? d.pending : ""
+        onActionTapped: d.play(Pages.firstPlayable(d.items), "action")
         onBackTapped: {
             if (d.pending !== "" || d.setlist === null)
                 return;
@@ -150,7 +166,8 @@ Item {
                 faces: screen.faces
                 y: M.syncLineHeight + index * M.tallRow
                 height: M.tallRow
-                active: false
+                active: modelData.playable === true
+                held: screen.pending === "row:" + modelData.index
                 titleSize: 44
                 detailSize: 32
                 italicDetail: true
@@ -161,6 +178,7 @@ Item {
                 detail: modelData.note
                 rightWord: modelData.right
                 onSwiped: delta => d.turn(delta)
+                onActivated: d.play(modelData.index, "row:" + modelData.index)
             }
         }
     }

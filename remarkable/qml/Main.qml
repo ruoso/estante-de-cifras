@@ -4,7 +4,8 @@
 // last state the backend sent, and routes each view the backend answers to
 // its screen (reader.browse_screens): *Not paired* and the code page, the
 // shelf, a book, a setlist, Settings, and the song (reader.song_screen),
-// handing it the `108 shapes` found in the background (reader.missed_shapes).
+// handing it the `108 shapes` found in the background (reader.missed_shapes)
+// and, while it plays a setlist, the `109 ahead` neighbours (reader.play).
 // It computes nothing the backend would need. Fixed at the rM2's portrait
 // 1404 × 1872 (workflow 19 §The screen); one bit, black on white, nothing
 // animated, nothing drawn before the first state (the refresh budget, rules
@@ -178,7 +179,7 @@ Rectangle {
         id: backend
         applicationID: "estante"
         onMessageReceived: (type, contents) => {
-            if (type < 101 || type > 108)
+            if (type < 101 || type > 109)
                 return;
             let payload;
             try {
@@ -218,6 +219,13 @@ Rectangle {
                 // next page it draws; nothing else changes.
                 if (d.view === "song")
                     songScreen.found(payload);
+                break;
+            case 109:
+                // A neighbour of the song played, read ahead (reader.play):
+                // the song screen holds it only while it shows a played sheet
+                // of the same setlist and book; nothing is drawn.
+                if (d.view === "song")
+                    songScreen.ahead(payload);
                 break;
             }
         }
@@ -265,14 +273,17 @@ Rectangle {
     }
 
     // The song (workflow 19 §A song): shown by a `105 sheet`, its Back sending
-    // `2 open {view: "book"}` through the endpoint. Hide shapes is the
-    // backend's state, kept on this reMarkable (shown before the first state).
+    // `2 open {view: "book"}` through the endpoint — or, played from a setlist
+    // (reader.play), `{view: "setlist"}`, the setlist screen's `106` giving it
+    // the place and the neighbours. Hide shapes is the backend's state, kept
+    // on this reMarkable (shown before the first state).
     SongScreen {
         id: songScreen
         x: 0
         y: 0
         visible: d.view === "song"
         endpoint: backend
+        setlist: setlistScreen.setlist
         shapesShown: root.backendState === null || root.backendState.shapesShown !== false
     }
 

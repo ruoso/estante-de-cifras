@@ -3,7 +3,8 @@
 // artist under it, and the key button — *C*, or *D (+2)* while transposed —
 // absent for a song with no chords. 140 px, a 3 px rule under it. What it
 // draws is replaced in one place, `show`, which bumps `revision`; the title
-// never changes while a song is open.
+// never changes while a song is open — played from a setlist it reads *3 of
+// 12 · Garota*, and changes with the song a turn reaches (reader.play).
 import QtQuick
 import "../chart/metrics.js" as M
 

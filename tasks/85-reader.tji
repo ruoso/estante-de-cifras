@@ -89,8 +89,9 @@ task reader "The reMarkable reader" {
   task play "Playing a setlist through" {
     effort 1.5d
     allocate team
+    complete 100
     depends !browse_screens
-    note "Play on the reader: the song screen with the place and the song in the bar (3 of 12 · Garota) and the setlist's key on the key button, a song without a key property given the setlist's key as a note (workflow 12 §The key); next on a song's last page goes to the next song's first page, laid out in advance, previous to the previous song's last; each song's last page ends with the next song's title and key and its note, the setlist item's - note:; a missing song skipped; Back returns to the setlist at the song. Docs: docs/workflows/19-remarkable-reader.md §A setlist; docs/workflows/12-setlists.md §The key, §Playing through; cifra.md spec chapter 10. Tests: behavior (QML: across songs one redraw a turn; the next song's first page ready before the turn; the Next line with the note; a missing song skipped); integration (the engine's setlist call over a setlist with keys, notes and a missing item)."
+    note "Play on the reader: the song screen with the place and the song in the bar (3 of 12 · Garota) and the setlist's key on the key button, a song without a key property given the setlist's key as a note (workflow 12 §The key); next on a song's last page goes to the next song's first page, laid out in advance, previous to the previous song's last; each song's last page ends with the next song's title and key and its note, the setlist item's - note:; a missing song skipped; Back returns to the setlist at the song. Docs: docs/workflows/19-remarkable-reader.md §A setlist; docs/workflows/12-setlists.md §The key, §Playing through; cifra.md spec chapter 10. Tests: behavior (QML: across songs one redraw a turn; the next song's first page ready before the turn; the Next line with the note; a missing song skipped); integration (the engine's setlist call over a setlist with keys, notes and a missing item). Refinement: tasks/refinements/reader/play.md"
   }
   task sync "Syncing the shelf, read-only" {
     effort 3d

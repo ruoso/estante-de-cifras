@@ -295,7 +295,9 @@ TestCase {
         screen.show(clone(BrowseSetlist.setlist), "Banda do Bairro");
         compare(screen.bar.title.text, "Bar do Zé, 10 October");
         verify(screen.bar.back.visible);
-        verify(!screen.bar.action.visible);
+        // reader.play: Play at the bar's right, the setlist having songs to play.
+        verify(screen.bar.action.visible);
+        compare(screen.bar.action.text, "Play");
         compare(screen.lineText.text, "Banda do Bairro · 14 songs");
         compare(screen.pageCount, 2);
         const r = rows(screen);
@@ -312,10 +314,14 @@ TestCase {
         compare(r[2].rightWord, "missing");
         compare(r[9].number, "10");
         compare(r[9].rightWord, "in F");
-        // Rows are not targets until reader.play (Decision 11).
-        mouseClick(r[0]);
+        // A missing row is not a target (reader.play Decision 3): no
+        // inversion, nothing sent. (A playable row opens Play: tst_play.qml.)
+        verify(!r[2].active);
+        mousePress(r[2]);
+        verify(!r[2].inverted);
+        mouseRelease(r[2]);
         compare(screen.endpoint.sent.length, 0);
-        verify(!r[0].inverted);
+        verify(!r[2].inverted);
         clean(screen);
         mouseClick(screen.foot.next);
         compare(rows(screen).map(x => x.number), ["11", "12", "13", "14"]);

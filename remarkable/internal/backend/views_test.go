@@ -331,6 +331,19 @@ func (s *viewsServe) sheet(t *testing.T) protocol.Sheet {
 	return sheet
 }
 
+// ahead reads one message and fails unless it is a 109 ahead (reader.play).
+func (s *viewsServe) ahead(t *testing.T) protocol.Sheet {
+	t.Helper()
+	var sheet protocol.Sheet
+	s.expect(t, protocol.TypeAhead, &sheet)
+	return sheet
+}
+
+// played is the open of a song played from setlist at item at.
+func played(setlist string, at int) map[string]any {
+	return map[string]any{"play": map[string]any{"setlist": setlist, "at": at}}
+}
+
 func strp(s *string) string {
 	if s == nil {
 		return "<nil>"
@@ -677,8 +690,10 @@ func TestPlaySheet(t *testing.T) {
 	if got.Play == nil || *got.Play != (protocol.SheetPlay{Setlist: shortSet, At: 2, Of: 3}) {
 		t.Errorf("play %+v, want a-short-set 2 of 3, no next", got.Play)
 	}
+	s.ahead(t) // the previous item, read ahead (reader.play)
 
 	got = s.openSong(t, morning, map[string]any{"play": map[string]any{"setlist": shortSet, "at": 0}})
+	s.ahead(t) // the next item
 	if got.Play == nil || got.Play.At != 0 || got.Play.Of != 3 || got.Play.Next == nil {
 		t.Fatalf("play %+v", got.Play)
 	}
@@ -696,6 +711,7 @@ func TestPlayKeepsItsVersion(t *testing.T) {
 		return map[string]any{"play": map[string]any{"setlist": shortSet, "at": at}}
 	}
 	s.openSong(t, morning, play(0))
+	s.ahead(t) // reader.play: the next item, read ahead
 
 	f.book[ferry] = strings.Replace(f.book[ferry], "# The Ferry Line", "# The Ferry Line, Revised", 1)
 	f.commitBook(t)
@@ -704,6 +720,8 @@ func TestPlayKeepsItsVersion(t *testing.T) {
 	if got := s.openSong(t, ferry, play(1)); got.Title != "The Ferry Line" {
 		t.Errorf("while playing, read %q, want the version Play started with", got.Title)
 	}
+	s.ahead(t)
+	s.ahead(t)
 	s.send(t, protocol.TypeOpen, map[string]any{"view": "setlist", "bookId": testBook, "path": shortSet})
 	s.expect(t, protocol.TypeSetlist, &protocol.Setlist{})
 	if got := s.openSong(t, ferry, play(1)); got.Title != "The Ferry Line, Revised" {
@@ -830,6 +848,12 @@ func TestNothingLogged(t *testing.T) {
 	s.send(t, protocol.TypeOpen, map[string]any{"view": "setlist", "bookId": testBook, "path": withGap})
 	s.expect(t, protocol.TypeSetlist, &protocol.Setlist{})
 	s.openSong(t, ferry, map[string]any{"play": map[string]any{"setlist": shortSet, "at": 1}})
+	// reader.play: the neighbours read ahead, then a place moving the open
+	// song and reading its neighbours ahead, log nothing either.
+	s.ahead(t)
+	s.ahead(t)
+	s.send(t, protocol.TypePlace, protocol.Place{BookID: testBook, Setlist: shortSet, At: 2})
+	s.ahead(t)
 	s.send(t, protocol.TypeOpen, map[string]any{"view": "song", "bookId": testBook, "path": "absent.cifra.md"})
 	s.expect(t, protocol.TypeBook, &protocol.Book{})
 	s.stop()
@@ -837,9 +861,150 @@ func TestNothingLogged(t *testing.T) {
 	if buf.Len() != 0 {
 		t.Errorf("the views logged %d bytes", buf.Len())
 	}
-	for _, words := range []string{"Walking to the Market", "The Ferry Line", "With a Gap", "Lost Song"} {
+	for _, words := range []string{"Walking to the Market", "The Ferry Line", "With a Gap", "Lost Song", "A Short Set", shortSet} {
 		if strings.Contains(buf.String(), words) {
 			t.Errorf("the log names %q", words)
 		}
+	}
+}
+
+// --- reader.play ---
+
+// TestPlaySendsNeighboursAhead pins workflow 19 §A setlist ("the songs on
+// either side … are read ahead") and rule 9: a played open answers its 105,
+// then the next playable item's sheet as 109, then the previous one's, each
+// with play and at the setlist's key, exactly as an open of it would answer;
+// at the first item only the next is sent, at the last only the previous.
+func TestPlaySendsNeighboursAhead(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	got := s.openSong(t, ferry, played(shortSet, 1))
+	if got.Path != ferry || got.Play == nil || got.Play.At != 1 {
+		t.Fatalf("opened %s play %+v", got.Path, got.Play)
+	}
+	next, prev := s.ahead(t), s.ahead(t)
+	if next.Path != walking || next.Play == nil || next.Play.At != 2 || next.Play.Of != 3 || next.Play.Next != nil {
+		t.Errorf("next ahead %s play %+v, want walking at 2 of 3, no next", next.Path, next.Play)
+	}
+	// At the setlist's key: Walking to the Market is in G, the set says A.
+	if next.Offset != 2 || strp(next.Key.Named) != "A" {
+		t.Errorf("next ahead at %d in %s, want 2 in A", next.Offset, strp(next.Key.Named))
+	}
+	if prev.Path != morning || prev.Play == nil || prev.Play.At != 0 || prev.Play.Next == nil ||
+		prev.Play.Next.Title != "The Ferry Line" {
+		t.Errorf("previous ahead %s play %+v, want morning at 0, next The Ferry Line", prev.Path, prev.Play)
+	}
+	s.peer.silent()
+
+	// Exactly what an open of the item answers (a 105's payload).
+	if open := s.openSong(t, walking, played(shortSet, 2)); mustMarshal(t, open) != mustMarshal(t, next) {
+		t.Errorf("109 for item 2 differs from its 105:\n 109 %s\n 105 %s", mustMarshal(t, next), mustMarshal(t, open))
+	}
+	// The last item: only the previous.
+	if a := s.ahead(t); a.Path != ferry || a.Play == nil || a.Play.At != 1 {
+		t.Errorf("at the last item, ahead %s play %+v, want the ferry at 1", a.Path, a.Play)
+	}
+	s.peer.silent()
+
+	// The first item: only the next.
+	s.openSong(t, morning, played(shortSet, 0))
+	if a := s.ahead(t); a.Path != ferry || a.Play == nil || a.Play.At != 1 {
+		t.Errorf("at the first item, ahead %s play %+v, want the ferry at 1", a.Path, a.Play)
+	}
+	s.peer.silent()
+
+	// A song not played reads nothing ahead.
+	s.openSong(t, ferry, nil)
+	s.peer.silent()
+}
+
+// TestPlayAheadSkipsMissing pins cifra.md §10.8.2 and workflow 12: the
+// neighbours read ahead are the nearest playable items — the absent song and
+// the unlinked item are never read ahead.
+func TestPlayAheadSkipsMissing(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	got := s.openSong(t, ferry, played(withGap, 2))
+	if got.Play == nil || got.Play.At != 2 || got.Play.Of != 3 {
+		t.Fatalf("play %+v, want with-a-gap 2 of 3", got.Play)
+	}
+	next, prev := s.ahead(t), s.ahead(t)
+	if next.Path != walking || next.Play == nil || next.Play.At != 4 {
+		t.Errorf("next ahead %s play %+v, want walking at 4", next.Path, next.Play)
+	}
+	if prev.Path != morning || prev.Play == nil || prev.Play.At != 0 {
+		t.Errorf("previous ahead %s play %+v, want morning at 0", prev.Path, prev.Play)
+	}
+	s.peer.silent()
+}
+
+// TestPlaceMovesOpenSong pins design §6 11 place as amended (reader.play
+// Decision 2): a place at another item of the setlist being played makes it
+// the open song — a key then redraws that song — and sends its neighbours
+// ahead; a place at the open item answers nothing; a place while not playing
+// is only stored.
+func TestPlaceMovesOpenSong(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	s.openSong(t, ferry, played(shortSet, 1))
+	s.ahead(t)
+	s.ahead(t)
+
+	s.send(t, protocol.TypePlace, protocol.Place{BookID: testBook, Setlist: shortSet, At: 2})
+	// Walking to the Market's neighbours: only the previous, the ferry.
+	if a := s.ahead(t); a.Path != ferry || a.Play == nil || a.Play.At != 1 {
+		t.Errorf("after the move, ahead %s play %+v, want the ferry at 1", a.Path, a.Play)
+	}
+	s.peer.silent()
+
+	s.send(t, protocol.TypeKey, map[string]any{"offset": 4})
+	got := s.sheet(t)
+	if got.Path != walking || got.Offset != 4 || got.Play == nil || got.Play.At != 2 {
+		t.Errorf("key after the move redrew %s at %d play %+v, want walking at 4, item 2", got.Path, got.Offset, got.Play)
+	}
+	s.peer.silent()
+
+	// The open item: stored, nothing answered.
+	s.send(t, protocol.TypePlace, protocol.Place{BookID: testBook, Setlist: shortSet, At: 2})
+	s.peer.silent()
+
+	// Not playing: only stored.
+	s.openSong(t, morning, nil)
+	s.send(t, protocol.TypePlace, protocol.Place{BookID: testBook, Setlist: shortSet, At: 0})
+	s.peer.silent()
+	s.send(t, protocol.TypeKey, map[string]any{"offset": 1})
+	if got := s.sheet(t); got.Path != morning {
+		t.Errorf("a place while not playing moved the open song to %s", got.Path)
+	}
+	var set protocol.Setlist
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "setlist", "bookId": testBook, "path": shortSet})
+	s.expect(t, protocol.TypeSetlist, &set)
+	if set.At == nil || *set.At != 0 {
+		t.Errorf("place kept %v, want 0", set.At)
+	}
+}
+
+// TestPlayAheadKeepsItsVersion pins workflow 19 §When something has changed:
+// a sync between the start of Play and a place still reads the neighbours —
+// and the song the place moves to — from the version Play started with.
+func TestPlayAheadKeepsItsVersion(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	s.openSong(t, morning, played(shortSet, 0))
+	s.ahead(t)
+
+	f.book[ferry] = strings.Replace(f.book[ferry], "# The Ferry Line", "# The Ferry Line, Revised", 1)
+	f.book[walking] = strings.Replace(f.book[walking], "# Walking to the Market", "# Walking to the Market, Revised", 1)
+	f.commitBook(t)
+	s.syncer.setSnapshot(f.snapshot())
+
+	s.send(t, protocol.TypePlace, protocol.Place{BookID: testBook, Setlist: shortSet, At: 1})
+	next, prev := s.ahead(t), s.ahead(t)
+	if next.Title != "Walking to the Market" || prev.Title != "Morning on the Porch" {
+		t.Errorf("while playing, read ahead %q and %q, want the version Play started with", next.Title, prev.Title)
+	}
+	s.send(t, protocol.TypeKey, map[string]any{"offset": 2})
+	if got := s.sheet(t); got.Path != ferry || got.Title != "The Ferry Line" {
+		t.Errorf("the moved song read %s %q, want the ferry as Play started with it", got.Path, got.Title)
 	}
 }

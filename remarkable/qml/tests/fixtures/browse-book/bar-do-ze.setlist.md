@@ -10,6 +10,7 @@
 4. [Chuva de Agosto](chuva-de-agosto.cifra.md)
    - key: C
 5. [Domingo Cedo](domingo-cedo.cifra.md)
+   - key: D
 6. [Eco do Morro](eco-do-morro.cifra.md)
    - note: slower than the record
 7. [Feira de Sábado](feira-de-sabado.cifra.md)

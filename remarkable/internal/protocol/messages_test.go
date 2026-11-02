@@ -80,6 +80,8 @@ func every() []Message {
 			{Chord: "F#:dim7", Symbol: "F#°", Frets: ptr("2x121x"), Model: rawModel},
 			{Chord: "B:7", Symbol: "B7", Frets: nil, Model: json.RawMessage("null")},
 		}},
+		// reader.play: a neighbour read ahead, a 105's payload with play.
+		Ahead(sampleSheet()),
 	}
 }
 
@@ -167,6 +169,8 @@ func TestWireNames(t *testing.T) {
 			{Chord: "F#:dim7", Symbol: "F#°", Frets: ptr("2x121x"), Model: []byte(`{}`)},
 			{Chord: "B:7", Symbol: "B7", Frets: nil, Model: nil}}},
 			`{"bookId":"b1","path":"a.cifra.md","offset":2,"tuningId":"40 45 50 55 59 64","shapes":[{"chord":"F#:dim7","symbol":"F#°","frets":"2x121x","model":{},"hidden":false},{"chord":"B:7","symbol":"B7","frets":null,"model":null,"hidden":false}]}`},
+		// §6 109 ahead (reader.play): exactly a 105's payload, with play.
+		{Ahead(sheetWithNext()), `{"bookId":"","path":"","title":"","artist":"","key":{"written":null,"named":null,"saved":null,"choices":[]},"offset":0,"tuningId":"","rows":[],"shapes":[],"notes":[],"keyNote":null,"play":{"setlist":"gig.setlist.md","at":2,"of":12,"next":{"title":"Asa","key":"G","note":"capo 2"}}}`},
 	}
 	for _, tc := range cases {
 		f, err := Encode(tc.m)

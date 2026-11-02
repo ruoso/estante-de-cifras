@@ -626,3 +626,80 @@ func TestChosenUnbuildableUnvoiced(t *testing.T) {
 		}
 	}
 }
+
+// playSetlist is a setlist written for TestPlaySetlistKeysNotesMissing over
+// the example book: an item with a key and a note, a song the book lacks
+// with a key and a note, and a keyless song given a key.
+const playSetlist = `# Played Through
+
+1. [Walking to the Market](walking-to-the-market.cifra.md)
+   - key: A
+   - note: let it breathe
+2. [A Song Not Here](not-here.cifra.md)
+   - key: E
+   - note: bring the copy
+3. [The Ferry Line](the-ferry-line.cifra.md)
+   - key: D
+`
+
+// TestPlaySetlistKeysNotesMissing pins reader.play through the built bundle
+// (cifra.md §10.7.1, §10.7.2, §10.8.2; workflow 12 §The key): the playable
+// items in row order, each with its row index, key and note; every row in
+// place, the absent song missing; and the keyless song read with the
+// setlist's key as a target is left as written, the key carried as a note.
+func TestPlaySetlistKeysNotesMissing(t *testing.T) {
+	f := readFixture(t, "example-book.default-shapes.json")
+	e := openBuilt(t)
+	ctx := context.Background()
+	if _, err := e.Load(ctx, f.Entry, f.Table); err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	set, err := e.Setlist(ctx, playSetlist, "played-through.setlist.md", f.Songs)
+	if err != nil {
+		t.Fatalf("Setlist: %v", err)
+	}
+	str := func(s *string) string {
+		if s == nil {
+			return "<nil>"
+		}
+		return *s
+	}
+	type item struct {
+		at              int
+		path, key, note string
+	}
+	var got []item
+	for _, it := range set.Items {
+		got = append(got, item{it.At, it.Path, str(it.Key), str(it.Note)})
+	}
+	want := []item{
+		{0, "walking-to-the-market.cifra.md", "A", "let it breathe"},
+		{2, "the-ferry-line.cifra.md", "D", "<nil>"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("items %+v, want %+v", got, want)
+	}
+	if set.Missing != 1 {
+		t.Errorf("missing %d, want 1", set.Missing)
+	}
+	if len(set.Rows) != 3 {
+		t.Fatalf("%d rows, want 3", len(set.Rows))
+	}
+	for i, r := range set.Rows {
+		if r.At != i || r.Missing != (i == 1) {
+			t.Errorf("row %d: at %d missing %v", i, r.At, r.Missing)
+		}
+	}
+	if r := set.Rows[1]; str(r.Key) != "E" || str(r.Note) != "bring the copy" || r.Title != "A Song Not Here" {
+		t.Errorf("missing row %+v, want its key and note as written", r)
+	}
+
+	ferry := f.text(t, "the-ferry-line.cifra.md")
+	s, err := e.Sheet(ctx, ferry, 0, SheetOptions{TargetKey: str(set.Items[1].Key)})
+	if err != nil {
+		t.Fatalf("Sheet: %v", err)
+	}
+	if s.Offset != 0 || str(s.KeyNote) != "D" {
+		t.Errorf("keyless song with target D: offset %d, keyNote %s; want 0 and D", s.Offset, str(s.KeyNote))
+	}
+}

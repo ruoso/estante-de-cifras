@@ -38,7 +38,7 @@ var setlist = {
     {
       "path": "domingo-cedo.cifra.md",
       "title": "Domingo Cedo",
-      "key": null,
+      "key": "D",
       "note": null,
       "missing": false
     },

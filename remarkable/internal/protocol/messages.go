@@ -13,7 +13,7 @@ import (
 	"strconv"
 )
 
-// The message types of §6. 1–11 go to the backend, 101–108 to the frontend.
+// The message types of §6. 1–11 go to the backend, 101–109 to the frontend.
 const (
 	TypeHello         int32 = 1
 	TypeOpen          int32 = 2
@@ -35,6 +35,7 @@ const (
 	TypeSetlist  int32 = 106
 	TypeSettings int32 = 107
 	TypeShapes   int32 = 108
+	TypeAhead    int32 = 109
 )
 
 // Message is one value of the table, or one of AppLoad's system messages.
@@ -127,7 +128,9 @@ type ShapesShown struct {
 	Shown bool `json:"shown"`
 }
 
-// Place (11): the setlist item being played, kept so Back returns to it.
+// Place (11): the setlist item being played, kept so Back returns to it;
+// while playing that setlist, an item other than the open song becomes the
+// open song, and its neighbours are sent as Ahead (reader.play).
 type Place struct {
 	BookID  string `json:"bookId"`
 	Setlist string `json:"setlist"`
@@ -315,6 +318,12 @@ type Shapes struct {
 	Shapes   []SheetShape `json:"shapes"`
 }
 
+// Ahead (109): a Sheet's payload, with Play, for the next or the previous
+// playable item of the setlist being played, read ahead (reader.play;
+// workflow 19 rule 9). The frontend holds it, never shows it until a turn
+// reaches it; it never changes the backend's open song.
+type Ahead Sheet
+
 func (State) Type() int32    { return TypeState }
 func (Pairing) Type() int32  { return TypePairing }
 func (Shelf) Type() int32    { return TypeShelf }
@@ -323,6 +332,7 @@ func (Sheet) Type() int32    { return TypeSheet }
 func (Setlist) Type() int32  { return TypeSetlist }
 func (Settings) Type() int32 { return TypeSettings }
 func (Shapes) Type() int32   { return TypeShapes }
+func (Ahead) Type() int32    { return TypeAhead }
 
 // --- Encoding ---
 
@@ -335,7 +345,7 @@ var names = map[int32]string{
 	TypeShapesShown: "shapesShown", TypePlace: "place",
 	TypeState: "state", TypePairing: "pairing", TypeShelf: "shelf",
 	TypeBook: "book", TypeSheet: "sheet", TypeSetlist: "setlist",
-	TypeSettings: "settings", TypeShapes: "shapes",
+	TypeSettings: "settings", TypeShapes: "shapes", TypeAhead: "ahead",
 }
 
 func decodeJSON[T Message](f Frame) (Message, error) {
@@ -389,6 +399,7 @@ var decoders = map[int32]func(Frame) (Message, error){
 	TypeSetlist:       decodeJSON[Setlist],
 	TypeSettings:      decodeJSON[Settings],
 	TypeShapes:        decodeJSON[Shapes],
+	TypeAhead:         decodeJSON[Ahead],
 }
 
 // Decode turns a frame into its message. A type not in the table is

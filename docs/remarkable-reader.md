@@ -388,7 +388,7 @@ know, and a field they do not know.
 | 8 `showShape` | → backend | `{ tuningId, chord, frets }` — show one hidden voicing again |
 | 9 `showAllShapes` | → backend | `{}` — *Show all again* |
 | 10 `shapesShown` | → backend | `{ shown }` — *Hide shapes* / *Show shapes*, for every song |
-| 11 `place` | → backend | `{ bookId, setlist, at }` — the setlist item being played, kept so Back returns to it |
+| 11 `place` | → backend | `{ bookId, setlist, at }` — the setlist item being played, kept so Back returns to it; while playing that setlist, an item other than the open song becomes the open song, and its neighbours are sent as `109` |
 | 101 `state` | → frontend | `{ paired, syncing, online, lastSync, shapesShown, error? }` — `lastSync` an RFC 3339 time or `null`; `error` a word code (`offline`, `signedOut`), never a message |
 | 102 `pairing` | → frontend | `{ code, url, expiresAt }`, or `{ expired: true }`, or `{ offline: true }` |
 | 103 `shelf` | → frontend | the books, in shelf order: `{ books: [{ bookId, title, songs, setlists }] }` — `songs` and `setlists` counts |
@@ -397,6 +397,7 @@ know, and a field they do not know.
 | 106 `setlist` | → frontend | `{ bookId, path, title, items: [{ path, title, key, note, missing }], at? }` — every item in order; `path` the song's book-root path (`""` for an unlinked item); `key` the item's own `key` property (`null` when it has none); `at` the item last played, for Back |
 | 107 `settings` | → frontend | `{ account, version, hiddenShapes }` — the account paired with, the reader's version, how many voicings are hidden |
 | 108 `shapes` | → frontend | `{ bookId, path, offset, tuningId, shapes }` — the open song's `shapes`, as its `sheet` would now carry them, sent when a background search (§4.1) has filled a place the last `sheet` left empty; the frontend fills the matching empty places of the sheet on screen and draws them on the next page it draws, never on the page shown (workflow 19 rule 5), and ignores one for another song, key or tuning |
+| 109 `ahead` | → frontend | a `105`'s payload, with `play`, for the next or the previous playable item of the setlist being played, read ahead; never shown until a turn reaches it |
 
 `rows` are `chartRows` exactly as the web app's chart receives them —
 `section`, `bars`, `run`, `sung` (segments: the chord over its words),
@@ -422,7 +423,14 @@ changed). An `open` that cannot be answered as asked — the book or the file
 gone, no bundle loaded — is answered with the nearest view that can be (the
 book, else the shelf). `key` answers the redrawn `sheet`; `hideShape`,
 `showShape` and `showAllShapes` the redrawn `sheet` when a song is open, else
-`settings`; `shapesShown` answers `state`; `place` is kept and answered with
+`settings`; `shapesShown` answers `state`. A song opened playing a setlist is
+answered with its `sheet`, then its neighbours read ahead — the next playable
+item's sheet, then the previous one's, each as `109 ahead`, read from the
+version Play started with at the setlist's key; at either end the missing
+neighbour is not sent (workflow 19 §A setlist, rule 9). `place` is kept; while
+playing that setlist, a `place` at an item other than the open song makes it
+the open song — a later `key`, `hideShape`, `showShape` or `108 shapes` is
+its — and answers its neighbours as `109`; otherwise it is answered with
 nothing.
 
 ## 7. The screens

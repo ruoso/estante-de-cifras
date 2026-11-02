@@ -80,6 +80,9 @@ type viewContext struct {
 	// playing is the setlist being played whose version (snap) is kept until
 	// an open leaves Play; "" when not playing.
 	playing string
+	// ahead is the places each neighbour last sent as 109 left empty, by its
+	// item's index (reader.play).
+	ahead map[int]map[string]bool
 }
 
 // openSong is the song on screen: its path, the open's one-off offset (nil
@@ -144,8 +147,10 @@ func (v *views) handle(m protocol.Message) error {
 		return v.relay.sendState(v.conn)
 	case protocol.Place:
 		// Kept so Back returns to it; the frontend already shows the song.
+		// While playing that setlist, an item other than the open song becomes
+		// the open song (reader.play Decision 2).
 		_ = v.st.SetPlace(m.BookID, m.Setlist, m.At)
-		return nil
+		return v.place(m)
 	}
 	return nil
 }
@@ -182,7 +187,10 @@ func (v *views) open(o protocol.Open) error {
 		if err != nil {
 			return v.answerBook()
 		}
-		return v.writeSheet(sheet)
+		if err := v.writeSheet(sheet); err != nil {
+			return err
+		}
+		return v.ahead()
 	case protocol.ViewSetlist:
 		set, err := v.setlist(o.Path)
 		if err != nil {
@@ -406,15 +414,23 @@ func str(o *cifra.Object, name string) string {
 // sheet is 105 for the open song of the current context, read from its
 // snapshot.
 func (v *views) sheet() (protocol.Sheet, error) {
+	if v.cur == nil {
+		return protocol.Sheet{}, errNoView
+	}
+	return v.sheetOf(v.cur.song, nil)
+}
+
+// sheetOf is 105 for song in the current context, read from its snapshot;
+// set is the setlist it is played from when already read (nil to read it).
+func (v *views) sheetOf(song *openSong, set *engine.Setlist) (protocol.Sheet, error) {
 	c := v.cur
-	if c == nil || c.song == nil || v.eng == nil {
+	if c == nil || song == nil || v.eng == nil {
 		return protocol.Sheet{}, errNoView
 	}
 	b := c.snap.Book(c.bookID)
 	if b == nil {
 		return protocol.Sheet{}, errNoView
 	}
-	song := c.song
 	raw, err := b.Read(song.path)
 	if err != nil {
 		return protocol.Sheet{}, errNoView
@@ -437,7 +453,7 @@ func (v *views) sheet() (protocol.Sheet, error) {
 	}
 	var play *protocol.SheetPlay
 	if song.play != nil {
-		target, p, err := v.play(b, *song.play)
+		target, p, err := v.play(b, *song.play, set)
 		if err == nil {
 			play = p
 			if song.useTarget && song.oneOff == nil {
@@ -494,21 +510,16 @@ func deref(s *string) string {
 	return *s
 }
 
-// play reads the setlist a song is played from (from the same snapshot) and
-// answers the item's key, the target, and the sheet's play: the item, how
-// many are playable, and the next playable item.
-func (v *views) play(b *sync.Book, at protocol.PlayAt) (string, *protocol.SheetPlay, error) {
-	raw, err := b.Read(at.Setlist)
-	if err != nil {
-		return "", nil, errNoView
-	}
-	paths, err := b.Paths()
-	if err != nil {
-		return "", nil, errNoView
-	}
-	set, err := v.eng.Setlist(v.ctx, string(raw), at.Setlist, paths)
-	if err != nil {
-		return "", nil, errNoView
+// play reads the setlist a song is played from (from the same snapshot, when
+// set is nil) and answers the item's key, the target, and the sheet's play:
+// the item, how many are playable, and the next playable item.
+func (v *views) play(b *sync.Book, at protocol.PlayAt, set *engine.Setlist) (string, *protocol.SheetPlay, error) {
+	if set == nil {
+		read, err := v.readSetlist(b, at.Setlist)
+		if err != nil {
+			return "", nil, err
+		}
+		set = &read
 	}
 	for i, it := range set.Items {
 		if it.At != at.At {
@@ -522,6 +533,124 @@ func (v *views) play(b *sync.Book, at protocol.PlayAt) (string, *protocol.SheetP
 		return deref(it.Key), p, nil
 	}
 	return "", nil, errNoView
+}
+
+// readSetlist is the engine's reading of the setlist at path in b.
+func (v *views) readSetlist(b *sync.Book, path string) (engine.Setlist, error) {
+	raw, err := b.Read(path)
+	if err != nil {
+		return engine.Setlist{}, errNoView
+	}
+	paths, err := b.Paths()
+	if err != nil {
+		return engine.Setlist{}, errNoView
+	}
+	set, err := v.eng.Setlist(v.ctx, string(raw), path, paths)
+	if err != nil {
+		return engine.Setlist{}, errNoView
+	}
+	return set, nil
+}
+
+// --- Play: the neighbours read ahead, the place moving the open song ---
+
+// playedSetlist is the setlist the open song is played from, read from Play's
+// held snapshot, and the open item's index among its playable items; ok is
+// false when no song is played or the item is no longer playable.
+func (v *views) playedSetlist() (set engine.Setlist, i int, ok bool) {
+	c := v.cur
+	if c == nil || c.song == nil || c.song.play == nil || c.playing == "" || v.eng == nil {
+		return engine.Setlist{}, 0, false
+	}
+	b := c.snap.Book(c.bookID)
+	if b == nil {
+		return engine.Setlist{}, 0, false
+	}
+	set, err := v.readSetlist(b, c.playing)
+	if err != nil {
+		return engine.Setlist{}, 0, false
+	}
+	for i, it := range set.Items {
+		if it.At == c.song.play.At {
+			return set, i, true
+		}
+	}
+	return engine.Setlist{}, 0, false
+}
+
+// itemSong is the open song a playable item of the played setlist would be:
+// at the setlist's key.
+func itemSong(setlist string, it engine.SetlistItem) *openSong {
+	return &openSong{path: it.Path, play: &protocol.PlayAt{Setlist: setlist, At: it.At}, useTarget: true}
+}
+
+// ahead sends the open song's neighbours as 109 (workflow 19 §A setlist, rule
+// 9): the next playable item's sheet, then the previous one's, each read as
+// an open of it would read it, from Play's held snapshot; a neighbour that
+// does not exist is not sent. It changes neither the open song nor the places
+// it left empty; the empty places of each are kept for a place that moves to
+// it (Constraint 5).
+func (v *views) ahead() error {
+	set, i, ok := v.playedSetlist()
+	if !ok {
+		return nil
+	}
+	c := v.cur
+	c.ahead = map[int]map[string]bool{}
+	for _, j := range []int{i + 1, i - 1} {
+		if j < 0 || j >= len(set.Items) {
+			continue
+		}
+		sheet, err := v.sheetOf(itemSong(c.playing, set.Items[j]), &set)
+		if err != nil {
+			continue
+		}
+		c.ahead[set.Items[j].At] = emptyPlaces(sheet.Shapes)
+		if err := v.conn.Write(protocol.Ahead(sheet)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// place makes the item a place names the open song, when it is an item of the
+// setlist being played other than the open one (reader.play Decision 2): read
+// at the setlist's key, the places its sheet leaves empty its own (a 108 then
+// names it), and its neighbours sent as 109. Anything else was only stored.
+func (v *views) place(m protocol.Place) error {
+	c := v.cur
+	if c == nil || c.song == nil || c.song.play == nil || c.playing == "" ||
+		c.bookID != m.BookID || c.playing != m.Setlist || c.song.play.At == m.At || v.eng == nil {
+		return nil
+	}
+	b := c.snap.Book(c.bookID)
+	if b == nil {
+		return nil
+	}
+	set, err := v.readSetlist(b, c.playing)
+	if err != nil {
+		return nil
+	}
+	var song *openSong
+	for _, it := range set.Items {
+		if it.At == m.At {
+			song = itemSong(c.playing, it)
+			break
+		}
+	}
+	if song == nil {
+		return nil
+	}
+	if empty, ok := c.ahead[m.At]; ok {
+		song.empty = empty
+	} else if sheet, err := v.sheetOf(song, &set); err == nil {
+		song.empty = emptyPlaces(sheet.Shapes)
+	}
+	c.song = song
+	if len(song.empty) > 0 && v.nudge != nil {
+		v.nudge()
+	}
+	return v.ahead()
 }
 
 // --- a setlist ---
