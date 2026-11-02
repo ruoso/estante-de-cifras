@@ -18,6 +18,7 @@ import "fixtures/strip-17.js" as Strip17
 import "fixtures/choro-long.js" as ChoroLong
 import "fixtures/choro-long-hidden.js" as ChoroLongHidden
 import "fixtures/choro-31.js" as Choro31
+import "fixtures/found-shape.js" as FoundShape
 import "walk.js" as Walk
 
 TestCase {
@@ -435,5 +436,71 @@ TestCase {
         mouseClick(hidden.strip.showHiddenButton);
         compare(hidden.strip.mode, "hidden");
         compare(Walk.oneBitProblems(hidden), []);
+    }
+
+    // --- a shape found in the background (reader.missed_shapes; design §6
+    // 108) ---
+
+    function foundChord() {
+        const empty = FoundShape.sheet.shapes.filter(s => s.model === null);
+        compare(empty.length, 1);
+        return empty[0].chord;
+    }
+
+    // The found chord's cell on the second page, the strip paged to it.
+    function cellOnSecondPage(screen, chord) {
+        mouseClick(screen.foot.next);
+        compare(screen.view.page, 1);
+        for (let n = 0; n < 4; ++n) {
+            for (const c of cells(screen))
+                if (c.shape.chord === chord)
+                    return c;
+            if (!screen.strip.stripNext.visible)
+                break;
+            mouseClick(screen.strip.stripNext);
+        }
+        return null;
+    }
+
+    // Design §6 108: one for another song, another key or another tuning is
+    // ignored — the held sheet's place stays empty after a turn.
+    function test_foundForAnotherSongIgnored() {
+        const chord = foundChord();
+        const others = [
+            { path: "another.cifra.md" },
+            { offset: FoundShape.shapes.offset + 1 },
+            { bookId: "bk-another" },
+            { tuningId: "38 45 50 55 59 64" }
+        ];
+        for (const other of others) {
+            const screen = open(FoundShape.sheet);
+            screen.found(Object.assign(clone(FoundShape.shapes), other));
+            const cell = cellOnSecondPage(screen, chord);
+            verify(cell !== null, JSON.stringify(other));
+            compare(cell.diagram.drawn, false, JSON.stringify(other));
+            compare(Walk.inked(cell.diagram).length, 0, JSON.stringify(other));
+        }
+    }
+
+    // §4.1, Decision 6: a 108 in which the pending chord is absent (no shape
+    // found) keeps its empty place, untappable, on the next page.
+    function test_foundWithoutShapeKeepsPlace() {
+        const chord = foundChord();
+        const screen = open(FoundShape.sheet);
+        const height = screen.strip.height;
+        const without = clone(FoundShape.shapes);
+        without.shapes = without.shapes.filter(s => s.chord !== chord);
+        screen.found(without);
+        const cell = cellOnSecondPage(screen, chord);
+        verify(cell !== null);
+        compare(cell.diagram.drawn, false);
+        compare(Walk.inked(cell.diagram).length, 0);
+        compare(screen.strip.height, height);
+        const mode = screen.strip.mode;
+        const revision = screen.strip.revision;
+        mouseClick(cell);
+        compare(screen.strip.mode, mode);
+        compare(screen.strip.revision, revision);
+        compare(sent(screen).length, 0);
     }
 }

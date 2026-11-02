@@ -10,7 +10,7 @@
 //   through a read-only view: a chord the table does not hold reads as "no
 //   shape" rather than being searched, nothing is offered back, and the chord
 //   comes back *pending* — its place kept, drawn empty — and queued for the
-//   host to search later (`misses`).
+//   host to search later (`misses`), one at a time, through `fill`.
 // - **Memory, never re-derived (§4).** Each song's parsed model is kept by its
 //   text and each default rebuilt from the table by dialect and symbol, until
 //   the next `load`. A pending default is never kept, so a later fill is seen.
@@ -26,6 +26,7 @@ import { HOST_API } from './host-api.js';
 import { SHAPE_CACHE_SALT, DECOMMISSIONED_SALTS, createShapeCache, shapeCacheKey } from '../core/shape-cache.js';
 import { parseChord } from '../core/notation/parse.js';
 import { shorthandOf } from '../core/fretstring.js';
+import { defaultVoicing } from '../core/voicings.js';
 import { transpose, transposedKeyName, keyChoices } from '../core/transpose.js';
 import { songKeyName } from '../core/song-key.js';
 import { readSongSheet, instrumentFor, songProperty, tuningIdOf } from '../songs/song-sheet.js';
@@ -286,6 +287,26 @@ function misses() {
 }
 
 /**
+ * Search one queued miss (§4.1), named by its §4.6 table key `chord`, as the
+ * web app's `defaultVoicing` would — the same search, the same cache protocol —
+ * on the instrument in use. The answer, a shape or none, is offered to the
+ * session's writable cache, never to the table `load` was given, so the next
+ * `sheet` reads it through the read-only view (a shape, or an unvoiceable
+ * chord). The miss leaves the queue only once the search completes: a search
+ * the host interrupts has offered nothing and stays queued. A chord not queued
+ * is not searched. Answers `{ chord, searched, found? }`.
+ */
+function fill(chord) {
+  const key = String(chord ?? '');
+  const miss = session.misses.get(key);
+  if (!miss || !session.cache || !session.instrument) return { chord: key, searched: false };
+  const parsed = parseChord(miss.symbol, miss.dialect).chord;
+  const found = parsed ? defaultVoicing(parsed, session.instrument, { cache: session.cache }) : null;
+  session.misses.delete(key);
+  return { chord: key, searched: true, found: Boolean(found) };
+}
+
+/**
  * What the session keeps (§4 "In memory, never re-derived"), as counts for the
  * host's checks and `bench`: songs parsed, shapes held rebuilt, rebuilds since
  * the last `load`, and misses queued.
@@ -307,6 +328,7 @@ export const estante = Object.freeze({
   sheet,
   setlist,
   misses,
+  fill,
   held,
 });
 

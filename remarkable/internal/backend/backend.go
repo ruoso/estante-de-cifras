@@ -7,7 +7,9 @@
 // socket closes.
 //
 // The views — open, key, place and the shapes' messages — are answered in
-// views.go (reader.backend_views); signOut and pair are reader.pairing's.
+// views.go (reader.backend_views); signOut and pair are reader.pairing's. The
+// background search for the shapes the table did not hold is fill.go's
+// (reader.missed_shapes): its news reaches the views on this loop.
 package backend
 
 import (
@@ -125,6 +127,10 @@ func (r *Relay) stateLocked() protocol.State {
 // start, §5.3) and, on returning, cancels it, waits for it, and closes conn.
 // Terminate and the socket's close return nil; ctx's end returns its error;
 // a broken connection returns the protocol's error, which names no payload.
+//
+// The socket is read in its own goroutine, and the loop selects over its
+// messages and the filler's news, so the views run on the loop's goroutine
+// alone.
 func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 	relay := b.Relay
 	if relay == nil {
@@ -143,15 +149,68 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	v := newViews(ctx, conn, relay, b)
 	defer v.close()
+
+	// The filler, with the engine (none without one).
+	fillCtx, cancelFill := context.WithCancel(ctx)
+	filled := make(chan struct{})
+	var found <-chan struct{}
+	if b.Engine != nil {
+		f := newFiller(b.Engine)
+		v.nudge, found = f.nudge, f.found
+		go func() {
+			defer close(filled)
+			f.run(fillCtx)
+		}()
+	} else {
+		close(filled)
+	}
+
+	// The socket's reader: each message, or its error, handed to the loop.
+	type incoming struct {
+		m   protocol.Message
+		err error
+	}
+	msgs := make(chan incoming)
+	done := make(chan struct{})
+	read := make(chan struct{})
+	go func() {
+		defer close(read)
+		for {
+			m, err := conn.Next()
+			select {
+			case msgs <- incoming{m, err}:
+			case <-done:
+				return
+			}
+			var pe *protocol.PayloadError
+			if err != nil && !errors.As(err, &pe) {
+				return
+			}
+		}
+	}()
+
 	defer func() {
 		stop()
 		cancelSync()
+		cancelFill()
+		close(done)
 		conn.Close()
 		<-ran
+		<-filled
+		<-read
 	}()
 
 	for {
-		m, err := conn.Next()
+		var in incoming
+		select {
+		case in = <-msgs:
+		case <-found:
+			if err := v.found(); err != nil {
+				return err
+			}
+			continue
+		}
+		m, err := in.m, in.err
 		var pe *protocol.PayloadError
 		switch {
 		case errors.As(err, &pe):

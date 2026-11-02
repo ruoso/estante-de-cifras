@@ -13,7 +13,7 @@ import (
 	"strconv"
 )
 
-// The message types of §6. 1–11 go to the backend, 101–107 to the frontend.
+// The message types of §6. 1–11 go to the backend, 101–108 to the frontend.
 const (
 	TypeHello         int32 = 1
 	TypeOpen          int32 = 2
@@ -34,6 +34,7 @@ const (
 	TypeSheet    int32 = 105
 	TypeSetlist  int32 = 106
 	TypeSettings int32 = 107
+	TypeShapes   int32 = 108
 )
 
 // Message is one value of the table, or one of AppLoad's system messages.
@@ -301,6 +302,19 @@ type Settings struct {
 	HiddenShapes int    `json:"hiddenShapes"`
 }
 
+// Shapes (108): the open song's shapes as its sheet would now carry them,
+// sent when the background search (§4.1) filled a place the last sheet left
+// empty. BookID, Path, Offset and TuningID name the sheet it belongs to; the
+// frontend fills its matching empty places for the pages it has yet to draw,
+// and redraws nothing (workflow 19 rule 5).
+type Shapes struct {
+	BookID   string       `json:"bookId"`
+	Path     string       `json:"path"`
+	Offset   int          `json:"offset"`
+	TuningID string       `json:"tuningId"`
+	Shapes   []SheetShape `json:"shapes"`
+}
+
 func (State) Type() int32    { return TypeState }
 func (Pairing) Type() int32  { return TypePairing }
 func (Shelf) Type() int32    { return TypeShelf }
@@ -308,6 +322,7 @@ func (Book) Type() int32     { return TypeBook }
 func (Sheet) Type() int32    { return TypeSheet }
 func (Setlist) Type() int32  { return TypeSetlist }
 func (Settings) Type() int32 { return TypeSettings }
+func (Shapes) Type() int32   { return TypeShapes }
 
 // --- Encoding ---
 
@@ -320,7 +335,7 @@ var names = map[int32]string{
 	TypeShapesShown: "shapesShown", TypePlace: "place",
 	TypeState: "state", TypePairing: "pairing", TypeShelf: "shelf",
 	TypeBook: "book", TypeSheet: "sheet", TypeSetlist: "setlist",
-	TypeSettings: "settings",
+	TypeSettings: "settings", TypeShapes: "shapes",
 }
 
 func decodeJSON[T Message](f Frame) (Message, error) {
@@ -373,6 +388,7 @@ var decoders = map[int32]func(Frame) (Message, error){
 	TypeSheet:         decodeJSON[Sheet],
 	TypeSetlist:       decodeJSON[Setlist],
 	TypeSettings:      decodeJSON[Settings],
+	TypeShapes:        decodeJSON[Shapes],
 }
 
 // Decode turns a frame into its message. A type not in the table is

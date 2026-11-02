@@ -486,3 +486,98 @@ func TestSetlistRows(t *testing.T) {
 		t.Errorf("row 2 key %v, want A", set.Rows[2].Key)
 	}
 }
+
+// tableWithout is a fixture's §4.6 table with one chord's entry removed.
+func tableWithout(t *testing.T, raw json.RawMessage, chord string) json.RawMessage {
+	t.Helper()
+	var table map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &table); err != nil {
+		t.Fatal(err)
+	}
+	var shapes map[string]json.RawMessage
+	if err := json.Unmarshal(table["shapes"], &shapes); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := shapes[chord]; !ok {
+		t.Fatalf("the table holds no %q", chord)
+	}
+	delete(shapes, chord)
+	table["shapes"] = mustJSON(t, shapes)
+	return mustJSON(t, table)
+}
+
+// TestFillQueuedMissOnce pins §4.1's background search through the real
+// bundle (reader.missed_shapes): a chord the table lacks reads pending and is
+// queued; Fill searches it and keeps the answer in the session, so the next
+// Sheet draws the shape the full table gives, and a second Fill searches
+// nothing.
+func TestFillQueuedMissOnce(t *testing.T) {
+	f := readFixture(t, "example-book.default-shapes.json")
+	e := openBuilt(t)
+	ctx := context.Background()
+	const song = "walking-to-the-market.cifra.md"
+	text := f.text(t, song)
+
+	// The full table's sheet, and the chord key of one default in it.
+	if _, err := e.Load(ctx, f.Entry, f.Table); err != nil {
+		t.Fatal(err)
+	}
+	full, err := e.Sheet(ctx, text, 2, SheetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Load(ctx, f.Entry, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Sheet(ctx, text, 2, SheetOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	all, err := e.Misses(ctx)
+	if err != nil || len(all) == 0 {
+		t.Fatalf("Misses with no table: %v, %v", all, err)
+	}
+	missing := all[0]
+
+	if _, err := e.Load(ctx, f.Entry, tableWithout(t, f.Table, missing.Chord)); err != nil {
+		t.Fatal(err)
+	}
+	before, err := e.Sheet(ctx, text, 2, SheetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pending []string
+	for _, s := range before.Shapes {
+		if s.Pending {
+			pending = append(pending, s.Symbol)
+		}
+	}
+	if !reflect.DeepEqual(pending, []string{missing.Symbol}) {
+		t.Fatalf("pending %v, want [%s]", pending, missing.Symbol)
+	}
+	if m, err := e.Misses(ctx); err != nil || len(m) != 1 || m[0] != missing {
+		t.Fatalf("Misses %+v, %v, want [%+v]", m, err, missing)
+	}
+
+	got, err := e.Fill(ctx, missing.Chord)
+	if err != nil {
+		t.Fatalf("Fill: %v", err)
+	}
+	if got != (Filled{Chord: missing.Chord, Searched: true, Found: true}) {
+		t.Errorf("Fill %+v, want searched and found", got)
+	}
+	if h, err := e.Held(ctx); err != nil || h.Misses != 0 {
+		t.Errorf("Held %+v, %v, want no misses", h, err)
+	}
+	after, err := e.Sheet(ctx, text, 2, SheetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sameJSON(t, mustJSON(t, after.Shapes), mustJSON(t, full.Shapes)) {
+		t.Errorf("shapes after the fill %s, full table's %s", mustJSON(t, after.Shapes), mustJSON(t, full.Shapes))
+	}
+
+	again, err := e.Fill(ctx, missing.Chord)
+	if err != nil || again != (Filled{Chord: missing.Chord}) {
+		t.Errorf("second Fill %+v, %v, want not searched", again, err)
+	}
+}

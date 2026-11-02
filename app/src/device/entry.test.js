@@ -310,6 +310,97 @@ describe('no search on the reading path (§4.1)', () => {
   });
 });
 
+// reader.missed_shapes: the host's background search (§4.1; §4 host API
+// `fill`), over the example book with one chord's entry removed from the table.
+describe('fill (§4.1)', () => {
+  const WALKING = () => song('walking-to-the-market.cifra.md');
+  const missingKey = () => shapeCacheKey(parseChord('A', DEFAULT_DIALECT).chord, instrumentFor(ENTRY));
+  const tableWithout = (chord) => {
+    const shapes = { ...TABLE.shapes };
+    delete shapes[chord];
+    return { ...TABLE, shapes };
+  };
+
+  it('a queued miss is searched once and kept', () => {
+    const key = missingKey();
+    estante.load(ENTRY, tableWithout(key.chord));
+    const cache = spies.caches.at(-1);
+    const offer = vi.spyOn(cache, 'offer');
+    const before = spies.search;
+
+    const pending = estante.sheet(WALKING(), 2);
+    expect(pending.shapes.filter((s) => s.pending).map((s) => s.symbol)).toEqual(['A']);
+    expect(estante.misses()).toEqual([{ chord: key.chord, symbol: 'A', dialect: DEFAULT_DIALECT }]);
+
+    expect(estante.fill(key.chord)).toEqual({ chord: key.chord, searched: true, found: true });
+    expect(estante.misses()).toEqual([]);
+    expect(estante.held().misses).toBe(0);
+
+    const filled = estante.sheet(WALKING(), 2);
+    expect(filled.shapes.some((s) => s.pending)).toBe(false);
+    // The shape the full table gives, frets and diagram alike.
+    estante.load(ENTRY, TABLE);
+    const full = estante.sheet(WALKING(), 2);
+    const a = (got) => got.shapes.find((s) => s.symbol === 'A');
+    expect(a(filled).frets).toBe(a(full).frets);
+    expect(a(filled).diagram).toEqual(a(full).diagram);
+    expect(a(filled).frets).toBe(TABLE.shapes[key.chord]);
+    expect(filled.shapes).toEqual(full.shapes);
+
+    // A completed search is never repeated: the chord is no longer queued.
+    const searches = spies.search;
+    expect(estante.fill(key.chord)).toEqual({ chord: key.chord, searched: false });
+    expect(spies.search).toBe(searches);
+    expect(spies.search - before).toBe(1);
+    expect(offer).toHaveBeenCalledTimes(1);
+    expect(offer.mock.calls[0][1]).toBe(TABLE.shapes[key.chord]);
+  });
+
+  it('fill never writes the table it was loaded with', () => {
+    const key = missingKey();
+    const table = tableWithout(key.chord);
+    const copy = structuredClone(table);
+    estante.load(ENTRY, table);
+    estante.sheet(WALKING(), 2);
+    expect(estante.fill(key.chord).searched).toBe(true);
+    expect(table).toEqual(copy);
+    expect(table.shapes[key.chord]).toBeUndefined();
+  });
+
+  it('a chord with no shape becomes unvoiced', () => {
+    // A stand-in instrument with two strings: no seventh chord fits on it.
+    const twoStrings = { ...ENTRY, id: 'test-two-strings', tuning: 'A2 D3', stringCount: 2 };
+    estante.load(twoStrings, null);
+    const text = '# Test Two Strings\n\n```\nG7 | C\n```\n';
+    const first = estante.sheet(text, 0);
+    expect(first.shapes.find((s) => s.symbol === 'G7')).toMatchObject({ pending: true });
+    const g7 = estante.misses().find((m) => m.symbol === 'G7');
+    expect(g7).toBeTruthy();
+
+    expect(estante.fill(g7.chord)).toEqual({ chord: g7.chord, searched: true, found: false });
+    const next = estante.sheet(text, 0);
+    expect(next.shapes.some((s) => s.symbol === 'G7')).toBe(false);
+    expect(next.unvoiced).toContain('G7');
+    expect(estante.misses().some((m) => m.chord === g7.chord)).toBe(false);
+  });
+
+  it('fill of a chord not queued does nothing', () => {
+    const searches = spies.search;
+    expect(estante.misses()).toEqual([]);
+    expect(estante.fill('A maj')).toEqual({ chord: 'A maj', searched: false });
+    expect(estante.fill(missingKey().chord)).toEqual({ chord: missingKey().chord, searched: false });
+    expect(spies.search).toBe(searches);
+  });
+
+  it('answers plain data', () => {
+    const key = missingKey();
+    estante.load(ENTRY, tableWithout(key.chord));
+    estante.sheet(WALKING(), 2);
+    const got = estante.fill(key.chord);
+    expect(JSON.parse(JSON.stringify(got))).toStrictEqual(got);
+  });
+});
+
 describe('memo (§4: the parsed model stays in memory)', () => {
   it('two reads of one text and offset are equal, and the second does not re-parse', () => {
     const text = song('the-ferry-line.cifra.md');

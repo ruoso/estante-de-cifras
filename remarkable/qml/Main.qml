@@ -2,7 +2,8 @@
 // docs/remarkable-reader.md §2, §3.1, §3.3; rm-appload README §Applications'
 // format). It holds the AppLoad endpoint, says hello when created, keeps the
 // last state the backend sent and draws it as one line, and shows a `105
-// sheet` as the song screen (reader.song_screen). It computes nothing
+// sheet` as the song screen (reader.song_screen), handing it the `108 shapes`
+// found in the background (reader.missed_shapes). It computes nothing
 // the backend would need. Fixed at the rM2's portrait 1404 × 1872 (workflow
 // 19 §The screen); one bit, black on white, nothing animated, nothing drawn
 // before the first state (the refresh budget, rules 1, 2 and 6).
@@ -44,7 +45,7 @@ Rectangle {
             // hide the song and show the status line until
             // reader.browse_screens draws them.
             if (type !== 101 && type !== 103 && type !== 104 && type !== 105
-                && type !== 106 && type !== 107)
+                && type !== 106 && type !== 107 && type !== 108)
                 return;
             let payload;
             try {
@@ -56,6 +57,12 @@ Rectangle {
                 return;
             if (type === 101) {
                 root.backendState = payload;
+            } else if (type === 108) {
+                // A shape found in the background for the song on screen
+                // (reader.missed_shapes): the song screen keeps it for the
+                // next page it draws; nothing else changes.
+                if (root.songShown)
+                    songScreen.found(payload);
             } else if (type === 105) {
                 songScreen.sheet = payload;
                 root.songShown = true;

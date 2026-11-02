@@ -10,6 +10,7 @@
 import QtQuick
 import QtTest
 import net.asivery.AppLoad 1.0
+import ".."
 import "../song"
 import "../song/strip.js" as Strip
 import "../chart/metrics.js" as M
@@ -17,6 +18,8 @@ import "fixtures/few-chords.js" as FewChords
 import "fixtures/few-chords-up2.js" as FewChordsUp2
 import "fixtures/strip-17.js" as Strip17
 import "fixtures/choro-long.js" as ChoroLong
+import "fixtures/found-shape.js" as FoundShape
+import "walk.js" as Walk
 
 TestCase {
     id: testCase
@@ -35,6 +38,11 @@ TestCase {
     Component {
         id: screenComponent
         SongScreen {}
+    }
+
+    Component {
+        id: mainComponent
+        Main {}
     }
 
     Component {
@@ -371,5 +379,83 @@ TestCase {
         compare(moved(before, screen), { bar: 0, chart: 0, strip: 0, foot: 0 });
         samePixels(before, screen, ["bar", "chart", "strip", "foot"]);
         compare(screen.endpoint.sent.length, 0);
+    }
+
+    // --- a shape found in the background (reader.missed_shapes; design §4.1,
+    // §6 108; workflow 19 rule 5) ---
+
+    // The chord FoundShape's 105 leaves empty.
+    function foundChord() {
+        const empty = FoundShape.sheet.shapes.filter(s => s.model === null);
+        compare(empty.length, 1);
+        return empty[0].chord;
+    }
+
+    // FoundShape's 105 played to Main, as the device delivers it, in the
+    // window's root.
+    function openFound() {
+        const main = createTemporaryObject(mainComponent, testCase.parent);
+        main.endpoint.play(105, FoundShape.sheet);
+        verify(main.songShown);
+        compare(main.songScreen.view.ready, true);
+        return main;
+    }
+
+    // The strip's cell for a chord on the page shown, paging the strip to it
+    // when it is past the first strip page; null when the page has none.
+    function cellOf(screen, chord) {
+        for (let n = 0; n < 4; ++n) {
+            for (const c of cells(screen))
+                if (c.shape.chord === chord)
+                    return c;
+            if (!screen.strip.stripNext.visible)
+                return null;
+            mouseClick(screen.strip.stripNext);
+        }
+        return null;
+    }
+
+    // Rule 5: a 108 for the song on screen moves no region's revision and
+    // changes no pixel — though the chord it fills is on the page shown.
+    function test_foundShapeDoesNotRedraw() {
+        const chord = foundChord();
+        const main = openFound();
+        const screen = main.songScreen;
+        verify(screen.view.pages[0].chords.indexOf(chord) >= 0, "the found chord is on the first page");
+        const before = snapshot(screen);
+        main.endpoint.play(108, FoundShape.shapes);
+        compare(moved(before, screen), { bar: 0, chart: 0, strip: 0, foot: 0 });
+        samePixels(before, screen, ["bar", "chart", "strip", "foot"]);
+    }
+
+    // §4.1: after the 108, a turn redraws the strip once, as any turn, and
+    // the found chord's place on the new page is drawn — where, without the
+    // 108, it is drawn empty; the strip's height stays the song's.
+    function test_foundShapeOnNextPage() {
+        const chord = foundChord();
+
+        // Without the 108: the place on the second page is empty.
+        const without = openFound().songScreen;
+        verify(without.view.pages[1].chords.indexOf(chord) >= 0, "the found chord is on the second page");
+        mouseClick(without.chart, 1200, 300);
+        compare(without.view.page, 1);
+        const empty = cellOf(without, chord);
+        verify(empty !== null);
+        compare(empty.diagram.drawn, false);
+        compare(Walk.inked(empty.diagram).length, 0);
+
+        const main = openFound();
+        const screen = main.songScreen;
+        const height = screen.strip.height;
+        main.endpoint.play(108, FoundShape.shapes);
+        const before = snapshot(screen);
+        mouseClick(screen.chart, 1200, 300);
+        compare(screen.view.page, 1);
+        compare(moved(before, screen), { bar: 0, chart: 1, strip: 1, foot: 1 });
+        compare(screen.strip.height, height);
+        const cell = cellOf(screen, chord);
+        verify(cell !== null);
+        compare(cell.diagram.drawn, true);
+        verify(Walk.inked(cell.diagram).length > 0, "the found shape's dots are drawn");
     }
 }

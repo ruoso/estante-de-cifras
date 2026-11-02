@@ -66,7 +66,10 @@ The chart's and the song screen's tests (`tst_chart_*.qml`,
 `qml/tests/fixtures/songs/<name>.cifra.md`, a song written for the tests,
 opened through the views with the app's built device bundle; a few variants
 (`choro-long-hidden`, `few-chords-up2`, `few-chords-saved`) are the same songs
-opened with a voicing hidden, the device's key, or a saved key. Go's
+opened with a voicing hidden, the device's key, or a saved key; and
+`found-shape` holds `choro-long`'s `105 sheet` read with one chord missing
+from the table and the `108 shapes` the background search sent for it
+(reader.missed_shapes). Go's
 `TestQMLFixtures` (`internal/backend/qmlfixtures_test.go`) fails when a
 committed fixture differs from what the backend answers now — after a change
 to the songs, `chartRows` or `diagramModel` — and regenerates them, once

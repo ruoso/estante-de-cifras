@@ -31,6 +31,7 @@ globalThis.estante = {
   },
   setlist: function () { return { title: null, items: [], missing: 0 }; },
   misses: function () { return []; },
+  fill: function (chord) { return { chord: chord, searched: false }; },
   held: function () { return { songs: 0, shapes: 0, rebuilt: 0, misses: 0 }; },
 };
 `
@@ -354,5 +355,111 @@ estante.misses = function () { for (;;) {} };`), nil))
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("the call in flight was never interrupted")
+	}
+}
+
+// TestFillYieldsToReading pins §4.1's lower lane: a fill that would search
+// forever is interrupted by a reading call, which is answered at once, and
+// Fill returns ErrPreempted.
+func TestFillYieldsToReading(t *testing.T) {
+	e := open(t, bundleJS("1", testSalt, `
+estante.fill = function () { for (;;) {} };`))
+	filled := make(chan error, 1)
+	go func() {
+		_, err := e.Fill(context.Background(), "A maj")
+		filled <- err
+	}()
+	time.Sleep(30 * time.Millisecond) // the fill is spinning
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	start := time.Now()
+	got, err := e.Sheet(ctx, "song", 3, SheetOptions{})
+	if err != nil || got.Offset != 3 {
+		t.Fatalf("Sheet during a fill: %+v, %v", got, err)
+	}
+	if took := time.Since(start); took > time.Second {
+		t.Errorf("Sheet waited %v behind a fill", took)
+	}
+	select {
+	case err := <-filled:
+		if !errors.Is(err, ErrPreempted) {
+			t.Errorf("Fill: %v, want ErrPreempted", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the fill was never preempted")
+	}
+	// The engine still serves both lanes.
+	if _, err := e.Held(context.Background()); err != nil {
+		t.Errorf("Held after a preempted fill: %v", err)
+	}
+}
+
+// TestFillWaitsForReading pins §4.1: a fill runs only when no reading call
+// waits — with a slow reading call in flight and a fill and a second reading
+// call queued behind it, the reading call is served first.
+func TestFillWaitsForReading(t *testing.T) {
+	e := open(t, bundleJS("1", testSalt, `
+var order = [];
+estante.held = function () {
+  var until = Date.now() + 150;
+  while (Date.now() < until) {}
+  return { songs: 0, shapes: 0, rebuilt: 0, misses: 0 };
+};
+estante.fill = function (chord) { order.push("fill"); return { chord: chord, searched: true, found: true }; };
+estante.misses = function () { order.push("misses"); return []; };
+estante.setlist = function () { return { title: order.join(","), items: [], missing: 0 }; };`))
+	ctx := context.Background()
+	var wg sync.WaitGroup
+	wg.Add(3)
+	go func() { defer wg.Done(); e.Held(ctx) }()
+	time.Sleep(30 * time.Millisecond) // held is running
+	go func() {
+		defer wg.Done()
+		if f, err := e.Fill(ctx, "A maj"); err != nil || !f.Searched || !f.Found || f.Chord != "A maj" {
+			t.Errorf("Fill: %+v, %v", f, err)
+		}
+	}()
+	time.Sleep(30 * time.Millisecond) // the fill waits
+	go func() {
+		defer wg.Done()
+		if _, err := e.Misses(ctx); err != nil {
+			t.Errorf("Misses: %v", err)
+		}
+	}()
+	wg.Wait()
+	got, err := e.Setlist(ctx, "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Title == nil || *got.Title != "misses,fill" {
+		t.Errorf("order %v, want the reading call before the fill", got.Title)
+	}
+}
+
+// TestCloseEndsFill pins that Close ends a fill in flight with ErrClosed, as
+// it ends any call.
+func TestCloseEndsFill(t *testing.T) {
+	e, err := Open(writeBundle(t, bundleJS("1", testSalt, `
+estante.fill = function () { for (;;) {} };`), nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make(chan error, 1)
+	go func() {
+		_, err := e.Fill(context.Background(), "A maj")
+		got <- err
+	}()
+	time.Sleep(20 * time.Millisecond)
+	e.Close()
+	select {
+	case err := <-got:
+		if !errors.Is(err, ErrClosed) {
+			t.Errorf("Fill: %v, want ErrClosed", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the fill in flight was never ended")
+	}
+	if _, err := e.Fill(context.Background(), "A maj"); !errors.Is(err, ErrClosed) {
+		t.Errorf("Fill after Close: %v, want ErrClosed", err)
 	}
 }

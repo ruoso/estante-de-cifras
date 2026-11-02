@@ -235,6 +235,7 @@ Go host and the bundle:
 | `sheet(text, offset, opts)` | One song at one key: its rows (`chartRows`), its shapes (resolved §7.6 order, through the cache) as diagram models (`diagramModel`) with their frets, its notes, key and title, and the tuning id it was read on. `opts`: the preferences, the song's `songs.json` variations (by tuning; the bundle picks the instrument's), the saved transposition (named as `key.saved`), a setlist's target key |
 | `setlist(text, …)` | A setlist's playable items and each one's key (workflow 12), and every item in order, each marked missing or not, for the setlist screen |
 | `misses()` | Chords the cache did not hold, for the background fill (§4.1) |
+| `fill(chord)` | Searches one queued miss (`chord`, its table key) on the instrument in use, as the web app's `defaultVoicing` would, and keeps what it finds — a shape, or none — in the session's cache, never the table it was loaded with; the miss leaves the queue (§4.1) |
 | `held()` | What the session keeps: songs parsed, shapes rebuilt, rebuilds so far, misses queued (for the host's checks and `bench`) |
 
 The polyfills goja needs and the spike found: `structuredClone` (as JSON — a
@@ -264,6 +265,17 @@ the shapes strip empty; the backend searches it afterwards, at low priority,
 and keeps it in memory. The found shape shows on the next page drawn — never by
 redrawing the page on screen (workflow 19, rule 5). It never writes the home
 book.
+
+The search is `fill(chord)`, one queued miss at a time in the order they were
+queued, on the engine's **lower lane**: it runs only when no reading call is
+waiting, and a reading call that arrives while it runs interrupts it — the miss
+stays queued and is searched again once the engine is idle — so a page, a key or
+a song never waits behind a search. A completed search is never repeated:
+found or not, the session's cache holds the answer until the next `load`. When
+a search fills a place in the song on screen, the backend sends `108 shapes`
+(§6); the frontend keeps the shape for the pages it has yet to draw and redraws
+nothing. A chord the search finds no shape for keeps its empty place until the
+song is opened again, when it is no longer a shape.
 
 ### 4.2 The budget, measured
 
@@ -375,6 +387,7 @@ know, and a field they do not know.
 | 105 `sheet` | → frontend | `{ bookId, path, title, artist, key: { written, named, saved, choices }, offset, tuningId, rows, shapes: [{ chord, symbol, frets, model, hidden }], notes, keyNote, play? }` — `model` the diagram model (§7); `saved` the account's key (`songs.json`) when it has one; `choices` the key grid's twelve `{ name, offset }`, ordered by the key's root from C, each named by the music core from the song's as-written key (offsets −5…+6), `[]` for a song with no chords; `tuningId` the tuning the shapes are for, which `hideShape` and `showShape` name; a chord the cache did not hold keeps its place in `shapes` with `model` and `frets` `null`, its place in the strip left empty (§4.1); `play` `{ setlist, at, of, next }`, `next` `{ title, key, note }` or `null` |
 | 106 `setlist` | → frontend | `{ bookId, path, title, items: [{ path, title, key, note, missing }], at? }` — every item in order; `path` the song's book-root path (`""` for an unlinked item); `key` the item's own `key` property (`null` when it has none); `at` the item last played, for Back |
 | 107 `settings` | → frontend | `{ account, version, hiddenShapes }` — the account paired with, the reader's version, how many voicings are hidden |
+| 108 `shapes` | → frontend | `{ bookId, path, offset, tuningId, shapes }` — the open song's `shapes`, as its `sheet` would now carry them, sent when a background search (§4.1) has filled a place the last `sheet` left empty; the frontend fills the matching empty places of the sheet on screen and draws them on the next page it draws, never on the page shown (workflow 19 rule 5), and ignores one for another song, key or tuning |
 
 `rows` are `chartRows` exactly as the web app's chart receives them —
 `section`, `bars`, `run`, `sung` (segments: the chord over its words),

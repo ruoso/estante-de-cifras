@@ -671,6 +671,17 @@ export default function AppShell({
   useEffect(() => {
     if (resolvingBook) store.send(command(CommandKind.BOOK_TREE, { bookId: resolvingBook }));
   }, [store, resolvingBook]);
+  // A book pressed while it read *syncing* mid-pass (openBookSongs) is engaged
+  // once its page shows it reading *needs you*; leaving the page, or engaging,
+  // ends the wait. Never again after that: an abandoned merge stays abandoned.
+  const engageOnNeedsYouRef = useRef(null);
+  const pageNeedsYou = pageBook && sync?.[pageBook]?.phase === 'needs_you' ? pageBook : null;
+  useEffect(() => {
+    if (engageOnNeedsYouRef.current !== pageBook) engageOnNeedsYouRef.current = null;
+    if (!pageNeedsYou || engageOnNeedsYouRef.current !== pageNeedsYou) return;
+    engageOnNeedsYouRef.current = null;
+    store.send(command(CommandKind.OPEN_CONFLICTS, { bookId: pageNeedsYou }));
+  }, [store, pageBook, pageNeedsYou]);
   useWorkerEvent(store, EventKind.TREE, ({ bookId }) => {
     setResolving((prev) => {
       if (!prev || prev.treeReady) return prev;
@@ -1117,11 +1128,17 @@ export default function AppShell({
   // book's page).
   // A book that needs you is engaged as it opens, as pressing it always did
   // (OPEN_CONFLICTS; workflow 9 §Meeting one), so its bar counts the songs that
-  // wait on the person; its panel opens only from *Settle*.
+  // wait on the person; its panel opens only from *Settle*. An un-engaged book
+  // is synced again on every pass, reading *syncing* for a moment before *needs
+  // you* again: a press in that moment engages once it reads *needs you* (the
+  // effect below), still once per press.
   const openBookSongs = (bookId) => {
     setForkLanding(null);
-    if (sync?.[bookId]?.phase === 'needs_you' && conflictsBook !== bookId) {
-      store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
+    if (sync?.[bookId]?.phase === 'needs_you') {
+      engageOnNeedsYouRef.current = null;
+      if (conflictsBook !== bookId) store.send(command(CommandKind.OPEN_CONFLICTS, { bookId }));
+    } else {
+      engageOnNeedsYouRef.current = bookId;
     }
     pushNext();
     setSelected('books');

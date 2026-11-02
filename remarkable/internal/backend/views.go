@@ -16,6 +16,7 @@ package backend
 // nothing: paths and titles travel only in the payloads to the frontend.
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sort"
@@ -29,11 +30,14 @@ import (
 	"estantedecifras.app/remarkable/internal/sync"
 )
 
-// Engine is what the views need of the engine (*engine.Engine satisfies it):
-// a song's sheet and a setlist's items.
+// Engine is what the views and the filler need of the engine (*engine.Engine
+// satisfies it): a song's sheet and a setlist's items; the queued misses and
+// the background search of one (§4.1, on the engine's lower lane).
 type Engine interface {
 	Sheet(ctx context.Context, text string, offset int, opts engine.SheetOptions) (engine.Sheet, error)
 	Setlist(ctx context.Context, text, setlistPath string, bookPaths []string) (engine.Setlist, error)
+	Misses(ctx context.Context) ([]engine.Miss, error)
+	Fill(ctx context.Context, chord string) (engine.Filled, error)
 }
 
 // The file kinds a book holds (the web app's search index: songs are
@@ -59,6 +63,8 @@ type views struct {
 	ver   string
 	// onParse is told of each file the book listing parses (a test seam).
 	onParse func()
+	// nudge starts the filler's round (§4.1); nil without an engine.
+	nudge func()
 
 	cur      *viewContext
 	listings map[listingKey]listing
@@ -84,6 +90,9 @@ type openSong struct {
 	oneOff    *int
 	play      *protocol.PlayAt
 	useTarget bool
+	// empty is the chords whose place the last 105 (or 108) sent left empty
+	// (§4.1): what a fill may fill.
+	empty map[string]bool
 }
 
 type listingKey struct{ bookID, head string }
@@ -173,7 +182,7 @@ func (v *views) open(o protocol.Open) error {
 		if err != nil {
 			return v.answerBook()
 		}
-		return v.conn.Write(sheet)
+		return v.writeSheet(sheet)
 	case protocol.ViewSetlist:
 		set, err := v.setlist(o.Path)
 		if err != nil {
@@ -591,7 +600,75 @@ func (v *views) redraw() error {
 	if err != nil {
 		return v.answerBook()
 	}
-	return v.conn.Write(sheet)
+	return v.writeSheet(sheet)
+}
+
+// --- the shapes found in the background (§4.1) ---
+
+// emptyPlaces is the chords of shapes whose place is drawn empty.
+func emptyPlaces(shapes []protocol.SheetShape) map[string]bool {
+	out := map[string]bool{}
+	for _, sh := range shapes {
+		if isNull(sh.Model) {
+			out[sh.Chord] = true
+		}
+	}
+	return out
+}
+
+func isNull(raw []byte) bool {
+	t := bytes.TrimSpace(raw)
+	return len(t) == 0 || bytes.Equal(t, nullJSON)
+}
+
+// writeSheet sends a 105 for the open song, keeps the places it leaves empty,
+// and nudges the filler when there is one.
+func (v *views) writeSheet(sheet protocol.Sheet) error {
+	empty := emptyPlaces(sheet.Shapes)
+	if v.cur != nil && v.cur.song != nil {
+		v.cur.song.empty = empty
+	}
+	if err := v.conn.Write(sheet); err != nil {
+		return err
+	}
+	if len(empty) > 0 && v.nudge != nil {
+		v.nudge()
+	}
+	return nil
+}
+
+// found answers the filler's news: when the open song's last sheet left a
+// place empty, it reads the song again (from the same snapshot, at the same
+// key) and, when a place it left empty now has a shape, sends 108 with the
+// whole shapes array and keeps the places still empty. Otherwise nothing.
+func (v *views) found() error {
+	c := v.cur
+	if c == nil || c.song == nil || len(c.song.empty) == 0 {
+		return nil
+	}
+	song := c.song
+	sheet, err := v.sheet()
+	if err != nil {
+		return nil
+	}
+	filled := false
+	for _, sh := range sheet.Shapes {
+		if song.empty[sh.Chord] && !isNull(sh.Model) {
+			filled = true
+			break
+		}
+	}
+	if !filled {
+		return nil
+	}
+	song.empty = emptyPlaces(sheet.Shapes)
+	return v.conn.Write(protocol.Shapes{
+		BookID:   sheet.BookID,
+		Path:     sheet.Path,
+		Offset:   sheet.Offset,
+		TuningID: sheet.TuningID,
+		Shapes:   sheet.Shapes,
+	})
 }
 
 // keyChoices carries the engine's key grid through unchanged (design §6 105

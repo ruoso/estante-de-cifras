@@ -17,6 +17,7 @@
 //                                       the top
 //   choose a key; As written            chart, strip, foot and the key button
 //   a new song                          every region
+//   a shape found in the background     none: kept for the next page drawn
 //
 // The pressed control inverts at once, and one whose action waits on the
 // backend stays inverted until the answer replaces its region (rule 7).
@@ -54,6 +55,15 @@ Item {
     height: M.barHeight + M.contentHeight + M.footHeight
 
     onSheetChanged: d.receive()
+
+    // A `108 shapes` (reader.missed_shapes; design §4.1, §6): the empty places
+    // of the sheet on screen it fills are kept for the next time the strip is
+    // drawn — a page turned, the key grid closed, a voicing hidden — and
+    // nothing is drawn now (workflow 19 rule 5). One for another song, key or
+    // tuning is ignored.
+    function found(shapes) {
+        d.found(shapes);
+    }
     onShapesShownChanged: d.reshape()
 
     // A sheet given before the chart can measure it is laid out once it can.
@@ -228,6 +238,16 @@ Item {
             layOut(-1);
             commitBar();
             d.pending = "";
+        }
+
+        // A `108` merged into the sheet held: no region replaced, no revision
+        // moved, the strip's size kept (SongState.merge).
+        function found(payload) {
+            if (d.shown === null)
+                return;
+            const merged = SongState.merge(d.shown, payload);
+            if (merged !== null)
+                d.shown = merged;
         }
 
         // The song laid out again with the strip as it is now, from its first

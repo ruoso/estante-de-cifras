@@ -9,6 +9,8 @@ import QtQuick
 import QtTest
 import ".."
 import "fixtures/few-chords.js" as FewChords
+import "fixtures/found-shape.js" as FoundShape
+import "walk.js" as Walk
 
 TestCase {
     id: testCase
@@ -162,5 +164,47 @@ TestCase {
     SignalSpy {
         id: closeSpy
         signalName: "close"
+    }
+
+    // reader.missed_shapes (design §6 108): Main hands a `108 shapes` to the
+    // song screen, and nothing else on screen changes — no region of the
+    // song, not the status line; the found shape is drawn on the next page.
+    // With no song shown, a 108 shows nothing.
+    function test_routesShapes() {
+        const main = createTemporaryObject(mainComponent, testCase.parent);
+        main.endpoint.play(101, stateMessage({ paired: true, lastSync: localTime(14, 32) }));
+        main.endpoint.play(105, FoundShape.sheet);
+        const screen = main.songScreen;
+        const chord = FoundShape.sheet.shapes.filter(s => s.model === null)[0].chord;
+        const revisions = () => [screen.bar.revision, screen.chart.revision, screen.strip.revision,
+                                 screen.foot.revision];
+        const before = revisions();
+        const status = main.statusLine.text;
+        main.endpoint.play(108, FoundShape.shapes);
+        compare(revisions(), before);
+        verify(main.songShown);
+        verify(screen.visible);
+        verify(!main.statusLine.visible);
+        compare(main.statusLine.text, status);
+        compare(screen.sheet.shapes.filter(s => s.chord === chord)[0].model, null);
+        mouseClick(screen.foot.next);
+        compare(screen.view.page, 1);
+        let cell = null;
+        for (let n = 0; n < 4 && cell === null; ++n) {
+            for (let i = 0; i < screen.strip.diagrams.count; ++i)
+                if (screen.strip.diagrams.itemAt(i).shape.chord === chord)
+                    cell = screen.strip.diagrams.itemAt(i);
+            if (cell === null && screen.strip.stripNext.visible)
+                mouseClick(screen.strip.stripNext);
+        }
+        verify(cell !== null);
+        compare(cell.diagram.drawn, true);
+
+        // No song shown: a 108 shows none.
+        main.endpoint.play(104, { bookId: FoundShape.sheet.bookId, title: "A book", songs: [], setlists: [] });
+        main.endpoint.play(108, FoundShape.shapes);
+        compare(main.songShown, false);
+        verify(!screen.visible);
+        verify(main.statusLine.visible);
     }
 }

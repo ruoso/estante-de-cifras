@@ -295,6 +295,28 @@ describe('AppShell paused book panel (behavior)', () => {
     expect(screen.getByRole('list', { name: 'In conflict' })).toBeInTheDocument();
   });
 
+  // An un-engaged book needing you is synced again on every pass, reading
+  // *syncing* for a moment: a press in that moment still engages it once it
+  // reads *needs you* again, and only once (the e2e deleted-vs-edited race).
+  it('a book pressed while a pass reads it syncing is engaged once it needs you again, once', () => {
+    installMatchMedia(false);
+    const { store, sent, emit } = conflictStore();
+    render(<AppShell store={store} />);
+    emit(event(EventKind.SHELF, CONFLICT_SHELF));
+    emit(event(EventKind.SYNC, { bookId: CONFLICT_BOOK, phase: 'syncing', at: CONFLICT_AT }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Books' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Choros da Ana/ }));
+    const engages = () => sent.filter((m) => m.kind === CommandKind.OPEN_CONFLICTS);
+    expect(engages()).toHaveLength(0);
+    emit(event(EventKind.SYNC, { bookId: CONFLICT_BOOK, phase: 'needs_you', at: CONFLICT_AT }));
+    expect(engages()).toHaveLength(1);
+    expect(engages()[0].payload).toEqual({ bookId: CONFLICT_BOOK });
+    // Another pass flips it again: no second engage for the same press.
+    emit(event(EventKind.SYNC, { bookId: CONFLICT_BOOK, phase: 'syncing', at: CONFLICT_AT }));
+    emit(event(EventKind.SYNC, { bookId: CONFLICT_BOOK, phase: 'needs_you', at: CONFLICT_AT }));
+    expect(engages()).toHaveLength(1);
+  });
+
   it('wide: a book needing you opens its panel in the main region, the top bar’s tabs above it; a tab leaves it (constraint 5; W09#4 L184-205)', async () => {
     installMatchMedia(true);
     const { store, emit } = conflictStore();

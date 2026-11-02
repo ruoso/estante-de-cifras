@@ -16,8 +16,10 @@
 // The runtime lives as long as the engine, so the bundle's memos (each song's
 // parsed model, each shape rebuilt from the table) hold for as long as the
 // backend runs; and Load is a no-op for the instrument and table already
-// loaded, since the bundle's load clears them. Nothing here searches: a chord
-// the table does not hold comes back pending (§4.1).
+// loaded, since the bundle's load clears them. The reading calls never
+// search: a chord the table does not hold comes back pending (§4.1). Fill
+// searches one such chord on a lower lane, served only while no reading call
+// waits, and interrupted by the first one that arrives (§4.1).
 //
 // The package logs nothing, and its errors name the call and the JavaScript
 // exception, never the arguments: no song text in an error (§10).
@@ -74,6 +76,10 @@ var (
 	ErrClosed = errors.New("engine: closed")
 	// ErrUnreadable is Sheet's answer for a text that does not parse.
 	ErrUnreadable = errors.New("engine: song unreadable")
+	// ErrPreempted is Fill's answer when a reading call arrived while it
+	// searched: the search was interrupted, offered nothing, and the miss
+	// stays queued for the next idle moment (§4.1).
+	ErrPreempted = errors.New("engine: fill preempted by a reading call")
 )
 
 // CallError is a host call that threw in the runtime. It carries the call's
@@ -214,14 +220,26 @@ type Held struct {
 	Misses  int `json:"misses"`
 }
 
+// Filled is fill's answer: the miss's table key, whether it was searched (it
+// was queued), and whether the search found a shape.
+type Filled struct {
+	Chord    string `json:"chord"`
+	Searched bool   `json:"searched"`
+	Found    bool   `json:"found"`
+}
+
 // Engine is an open bundle in its runtime. Its methods are safe from any
-// goroutine and run in arrival order.
+// goroutine. The reading calls — every call but Fill — run in arrival order;
+// Fill runs on a lower lane, only while no reading call waits.
 type Engine struct {
 	manifest Manifest
 	reqs     chan request
-	quit     chan struct{}
-	stopped  chan struct{}
-	once     sync.Once
+	// fills is the lower lane (§4.1): served only when reqs has nobody
+	// waiting, and preempted by the first reading call that arrives.
+	fills   chan request
+	quit    chan struct{}
+	stopped chan struct{}
+	once    sync.Once
 	// interrupt is the runtime's Interrupt, safe from any goroutine; Close
 	// uses it to stop a call that would otherwise never return.
 	interrupt func(any)
@@ -280,6 +298,7 @@ func Open(dir string) (*Engine, error) {
 	e := &Engine{
 		manifest: m,
 		reqs:     make(chan request),
+		fills:    make(chan request),
 		quit:     make(chan struct{}),
 		stopped:  make(chan struct{}),
 	}
@@ -296,7 +315,9 @@ func Open(dir string) (*Engine, error) {
 func (e *Engine) Manifest() Manifest { return e.manifest }
 
 // loop is the owner goroutine: it makes the runtime, evaluates the bundle,
-// checks what it defined, and then serves every call until Close.
+// checks what it defined, and then serves every call until Close — a waiting
+// reading call always before a fill, and a reading call that arrives during a
+// fill as soon as the fill's interrupt lands.
 func (e *Engine) loop(m Manifest, name, code string, started chan<- error) {
 	defer close(e.stopped)
 	o, err := evaluate(m, name, code)
@@ -307,12 +328,40 @@ func (e *Engine) loop(m Manifest, name, code string, started chan<- error) {
 	e.interrupt = o.rt.Interrupt
 	started <- nil
 	for {
+		var req request
 		select {
 		case <-e.quit:
 			return
-		case req := <-e.reqs:
-			req.reply <- e.serve(o, req)
+		case req = <-e.reqs:
+		default:
+			// Nobody reading waits: the lower lane may run.
+			select {
+			case <-e.quit:
+				return
+			case req = <-e.reqs:
+			case fill := <-e.fills:
+				r, preempting := e.serveFill(o, fill)
+				fill.reply <- r
+				if preempting == nil {
+					continue
+				}
+				req = *preempting
+				if e.closed() {
+					req.reply <- reply{err: ErrClosed}
+					return
+				}
+			}
 		}
+		req.reply <- e.serve(o, req)
+	}
+}
+
+func (e *Engine) closed() bool {
+	select {
+	case <-e.quit:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -436,6 +485,48 @@ func (e *Engine) serve(o *owner, req request) reply {
 	return reply{out: out, err: err}
 }
 
+// serveFill runs one request of the lower lane like serve, and also watches
+// for a reading call: one arriving interrupts the run (§4.1 "a reading call
+// interrupts it") and is handed back for the loop to serve next. A run the
+// interrupt stopped answers ErrPreempted; one that finished first answers
+// as it finished.
+func (e *Engine) serveFill(o *owner, req request) (reply, *request) {
+	if err := req.ctx.Err(); err != nil {
+		return reply{err: err}, nil
+	}
+	done := make(chan struct{})
+	var preempting *request
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case <-req.ctx.Done():
+			o.rt.Interrupt(req.ctx.Err())
+		case r := <-e.reqs:
+			preempting = &r
+			o.rt.Interrupt(ErrPreempted)
+		case <-done:
+		}
+	}()
+	out, err := req.run(o)
+	close(done)
+	wg.Wait()
+	o.rt.ClearInterrupt()
+	var interrupted *goja.InterruptedError
+	if errors.As(err, &interrupted) {
+		switch {
+		case req.ctx.Err() != nil:
+			return reply{err: req.ctx.Err()}, preempting
+		case preempting != nil && !e.closed():
+			return reply{err: ErrPreempted}, preempting
+		default:
+			return reply{err: ErrClosed}, preempting
+		}
+	}
+	return reply{out: out, err: err}, preempting
+}
+
 // do hands run to the owner goroutine and waits for its answer.
 func (e *Engine) do(ctx context.Context, run func(o *owner) ([]byte, error)) ([]byte, error) {
 	select {
@@ -443,9 +534,14 @@ func (e *Engine) do(ctx context.Context, run func(o *owner) ([]byte, error)) ([]
 		return nil, ErrClosed
 	default:
 	}
+	return e.send(ctx, e.reqs, run)
+}
+
+// send hands run to the owner goroutine on lane and waits for its answer.
+func (e *Engine) send(ctx context.Context, lane chan request, run func(o *owner) ([]byte, error)) ([]byte, error) {
 	req := request{ctx: ctx, run: run, reply: make(chan reply, 1)}
 	select {
-	case e.reqs <- req:
+	case lane <- req:
 	case <-e.quit:
 		return nil, ErrClosed
 	case <-ctx.Done():
@@ -677,6 +773,29 @@ func (e *Engine) Misses(ctx context.Context) ([]Miss, error) {
 		m = []Miss{}
 	}
 	return m, nil
+}
+
+// Fill searches one queued miss, named by its table key (Miss.Chord), on the
+// lower lane (§4.1): it waits while any reading call waits, and a reading call
+// arriving while it searches interrupts it — Fill then returns ErrPreempted,
+// and the miss stays queued. What it finds stays in the bundle session's
+// cache until the next Load that reloads; nothing is written anywhere.
+func (e *Engine) Fill(ctx context.Context, chord string) (Filled, error) {
+	select {
+	case <-e.quit:
+		return Filled{}, ErrClosed
+	default:
+	}
+	argv, err := json.Marshal([]any{chord})
+	if err != nil {
+		return Filled{}, fmt.Errorf("engine: fill: arguments: %w", err)
+	}
+	res, err := e.send(ctx, e.fills, func(o *owner) ([]byte, error) { return o.call("fill", argv) })
+	if err != nil {
+		return Filled{}, err
+	}
+	var f Filled
+	return f, decode("fill", res, &f)
 }
 
 // Held reports what the session keeps.
