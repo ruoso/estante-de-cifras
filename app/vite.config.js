@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { manifest } from './src/pwa/manifest.js';
+import { workbox } from './src/pwa/workbox.js';
 
 // The service serves the app on one origin in production (DIRECTION §3.6); in
 // development Vite proxies the API to the service so dev is one origin too
@@ -39,19 +40,9 @@ export default defineConfig({
       // with no network (DIRECTION §3.7, "installed and cached up front").
       registerType: 'prompt',
       injectRegister: null,
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        // Any navigation falls back to the app shell, so a deep link works
-        // offline as well as online.
-        navigateFallback: '/index.html',
-        cleanupOutdatedCaches: true,
-        // Take control as soon as the worker activates, so the first visit is
-        // offline-capable. skipWaiting stays off: an update must still ask
-        // before replacing what someone is using (standing offline rule — no
-        // user action is lost).
-        clientsClaim: true,
-        skipWaiting: false,
-      },
+      // The precache options — and the device payload they leave out — live in
+      // a pure module, unit-tested like the manifest (reader.bundle).
+      workbox,
       // The manifest — fields and icons — lives in a pure module so it is
       // unit-tested without pulling the plugin graph into the test environment
       // (shell.pwa Decision). VitePWA emits it as manifest.webmanifest and links

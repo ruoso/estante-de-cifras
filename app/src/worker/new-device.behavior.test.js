@@ -665,8 +665,13 @@ describe('the two My songs (account.new_device, workflow 13 §A device used befo
     await mySongsSong(a, SHARED);
     const accountBookId = await putOnline(service, a, MY_SONGS_ID);
     await syncHome(a);
-    const shelf = JSON.parse(await remoteFile(service.home, 'shelf.json'));
-    expect(shelf.mySongs.value).toBe(accountBookId);
+    // PUT_ONLINE also triggers an engine pass whose own home re-surface emits
+    // INSTRUMENTS, so syncHome can resolve before this sync's push lands: wait
+    // for the remote itself to name the book.
+    await waitFor(async () => {
+      const shelf = JSON.parse(await remoteFile(service.home, 'shelf.json'));
+      expect(shelf.mySongs?.value).toBe(accountBookId);
+    }, WAIT);
     return { a, accountBookId };
   }
 

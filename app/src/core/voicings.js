@@ -171,12 +171,18 @@ function withSongFingers(fingering, songFingers) {
  *   format §4.4), so a star matches by chord whatever the song's dialect.
  * @param {import('./shape-cache.js').ShapeCache} [options.cache]  the host's
  *   default-shape cache (shape-cache.js), consulted for step 3 only
+ * @param {Map<string, import('./search.js').Fingering|null>} [options.defaults]
+ *   a host's memo of step 3 across calls, in place of the per-call one: keyed
+ *   `${dialect}\u0000${symbol}`, because one chord can be spelled two ways and a
+ *   fingering carries its spelling. The host owns it — the device bundle keeps
+ *   the rebuilt defaults for a session (docs/remarkable-reader.md §4) and evicts
+ *   what it must see again. Absent, defaults are memoised within this call only.
  * @returns {Map<string, ResolvedVoicing>}  key → resolution, in chart order
  */
 export function resolveSongVoicings(
   parsed,
   instrument,
-  { variation = '', shapes = [], ignoreSongVoicings = false, dialect = DEFAULT_DIALECT, cache } = {}
+  { variation = '', shapes = [], ignoreSongVoicings = false, dialect = DEFAULT_DIALECT, cache, defaults } = {}
 ) {
   const tuningId = instrumentTuningId(instrument);
   const block = ignoreSongVoicings ? null : selectBlock(parsed, tuningId, variation);
@@ -192,7 +198,7 @@ export function resolveSongVoicings(
   /** @type {Map<string, ResolvedVoicing>} */
   const out = new Map();
   /** @type {Map<string, import('./search.js').Fingering|null>} memoised per symbol */
-  const defaultsBySymbol = new Map();
+  const defaultsBySymbol = defaults ?? new Map();
 
   for (const item of chartChords(parsed)) {
     if (out.has(item.key)) continue;
@@ -226,10 +232,11 @@ export function resolveSongVoicings(
     }
 
     // 3. The app's default (computed once per symbol).
-    if (!defaultsBySymbol.has(item.symbol)) {
-      defaultsBySymbol.set(item.symbol, defaultVoicing(chord, instrument, { cache }));
+    const memoKey = defaults ? `${dialect}\u0000${item.symbol}` : item.symbol;
+    if (!defaultsBySymbol.has(memoKey)) {
+      defaultsBySymbol.set(memoKey, defaultVoicing(chord, instrument, { cache }));
     }
-    const fallback = defaultsBySymbol.get(item.symbol);
+    const fallback = defaultsBySymbol.get(memoKey);
     if (fallback) out.set(item.key, { source: 'default', fingering: fallback });
   }
 

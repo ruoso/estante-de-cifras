@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# The device bundle's test fixture (reader.bundle), built beside dist/ but never served.
+dist-test/
 coverage/
 .vite/
 test-results/

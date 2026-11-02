@@ -5,7 +5,7 @@ import jsxA11y from 'eslint-plugin-jsx-a11y';
 import react from 'eslint-plugin-react';
 
 export default [
-  { ignores: ['dist/**', 'dev-dist/**', 'node_modules/**', 'coverage/**'] },
+  { ignores: ['dist/**', 'dist-test/**', 'dev-dist/**', 'node_modules/**', 'coverage/**'] },
   js.configs.recommended,
   // The React Hooks ruleset (v7) carries the React Compiler's lint rules, so a
   // component the compiler cannot safely optimise fails `npm run lint`
@@ -39,5 +39,11 @@ export default [
     // jsdom.
     files: ['**/*.{test,spec}.{js,jsx}', 'src/test/**', '*.config.js'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
+    // The device bundle's build (reader.bundle) runs in Node: its build function,
+    // the CLI that calls it, and its Vite config.
+    files: ['src/device/build.js', 'scripts/**/*.js', 'vite.device.config.js'],
+    languageOptions: { globals: globals.node },
   },
 ];

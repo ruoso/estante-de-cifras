@@ -31,9 +31,11 @@ export function tuningIdOf(entry) {
   return instrument ? openMidis(instrument).join(' ') : '';
 }
 
-// The instrument instance the music core searches on, or null when there is no
-// entry or it does not make one.
-function instrumentFor(entry) {
+/**
+ * The instrument instance the music core searches on, or null when there is no
+ * entry or it does not make one.
+ */
+export function instrumentFor(entry) {
   if (!entry) return null;
   try {
     return instrumentInstance({
@@ -74,8 +76,23 @@ function shapeCacheFor(entry, instrument) {
  * @param {{ transposition?: number, variations?: object }} [args.reading]
  * @param {object|null} [args.entry]  the instrument in use (inUseEntry)
  * @param {object|null} [args.preferences]  the `preferences` slice
+ * @param {import('../core/shape-cache.js').ShapeCache} [args.cache]  a host's
+ *   default-shape cache, in place of the session's one for `entry` — the device
+ *   bundle's read-only view (docs/remarkable-reader.md §4.1)
+ * @param {object} [args.parsed]  a parse of `text` the host already holds, so
+ *   it is not parsed again (§4: the parsed model stays in memory)
+ * @param {Map} [args.defaults]  a host's memo of the defaults across reads,
+ *   passed through to `resolveSongVoicings`
  */
-export function readSongSheet({ text, reading = null, entry = null, preferences = null }) {
+export function readSongSheet({
+  text,
+  reading = null,
+  entry = null,
+  preferences = null,
+  cache,
+  parsed,
+  defaults,
+}) {
   const offset = reading?.transposition ?? 0;
   const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
   const instrument = instrumentFor(entry);
@@ -86,7 +103,7 @@ export function readSongSheet({ text, reading = null, entry = null, preferences 
   // left as written, cifra.md §8.6). The chart is read, transposed and voiced in
   // the song's own notation (cifra.md §5.6); `dialect`, the preference, only
   // spells chords for this user.
-  const baseModel = text ? parse(text) : null;
+  const baseModel = parsed ?? (text ? parse(text) : null);
   const notation = songDialect(baseModel);
   const model = baseModel ? transpose(baseModel, offset, { dialect: notation }) : null;
   const writtenKey = songProperty(baseModel, 'key');
@@ -105,7 +122,8 @@ export function readSongSheet({ text, reading = null, entry = null, preferences 
           shapes: entry?.shapes ?? [],
           ignoreSongVoicings: offset !== 0,
           dialect: notation,
-          cache: shapeCacheFor(entry, instrument),
+          cache: cache ?? shapeCacheFor(entry, instrument),
+          defaults,
         })
       : new Map();
   const chordList = model ? chartChordList(model) : [];

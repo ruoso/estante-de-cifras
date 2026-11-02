@@ -194,3 +194,7 @@ Append one `###` block per item, newest at the bottom:
 ### 2026-10-21 — Republish the canvas and regenerate mockup frames after the W04 editor-errors frame (from `songs.editor_errors_in_words`)
 - **What**: `docs/mockups/W04-edit-and-save.dc.html` gained a phone frame 5 (a marked line says why); the board is now 3678px wide. `e2e/web/lib/mockup-frames.json` frame 5 was added by hand, so run `audit/render-mockups.mjs` to regenerate it, and republish the canvas (see the 2026-10-13 entry).
 - **Decide**: work only a person can do: publishing access and a render run.
+
+### 2026-11-01 — `syncHome` test helper cannot tell its own completion from a background sync's (from `reader.bundle`)
+- **What**: `SYNC_HOME` has no reply of its own, so the Worker behavior-test helper treats the next `INSTRUMENTS` event as its completion; a background sync (e.g. started by putting a book online) sends the same event. `new-device.behavior.test.js` flaked this way under full-suite load and was fixed locally by waiting on the remote shelf; other tests that rely on `syncHome` could flake the same way.
+- **Why parked**: test-infrastructure only — never a WBS leaf; a person decides whether `SYNC_HOME` should get an acknowledgement or each test should wait on its own observable outcome.
