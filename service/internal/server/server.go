@@ -71,6 +71,13 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 		// /api/account/home-book). It needs only the pool and the books volume
 		// (service.home_book).
 		mux.HandleFunc("GET /api/account/home-book", handleGetHomeBook(api))
+		// Pairing a device: a device with no session begins a pairing and polls
+		// for it; a signed-in account approves its code, which mints a session
+		// read-only by scope (reader.device_pairing; docs/remarkable-reader.md
+		// §5.1; api/openapi.yaml /api/devices/pair/*).
+		mux.HandleFunc("POST /api/devices/pair/begin", handleBeginDevicePairing(api))
+		mux.HandleFunc("POST /api/devices/pair/approve", handleApproveDevicePairing(api))
+		mux.HandleFunc("POST /api/devices/pair/poll", handlePollDevicePairing(api))
 		// Books: create, list, delete and fork a book — a registry row plus a
 		// bare repository on the volume (workflows 7, 11; api/openapi.yaml
 		// /api/books and /api/books/{bookId}[/fork]). These need only the pool and
@@ -132,5 +139,12 @@ func Handler(logger *slog.Logger, appRoot string, ready Pinger, api *APIDeps) (h
 	// client-side route.
 	mux.Handle("/", app)
 
-	return LogRequests(logger, NoIndex(mux)), nil
+	// The read-only guard sits in front of the mux, so a read-only session (a
+	// paired reMarkable's) is refused every write by default, whatever route
+	// later lands on the mux (reader.device_pairing Constraint 7).
+	var routed http.Handler = mux
+	if api != nil {
+		routed = ReadOnly(api.DB, mux)
+	}
+	return LogRequests(logger, NoIndex(routed)), nil
 }

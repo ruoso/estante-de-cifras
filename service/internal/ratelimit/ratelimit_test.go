@@ -256,3 +256,49 @@ func TestRecoveryEmailRulesTripAtThresholds(t *testing.T) {
 		t.Error("EmailLinkAddr shares RecoveryEmailAddr's count, want independent")
 	}
 }
+
+// TestPairingRulesInDefault pins reader.device_pairing Constraint 9 (DIRECTION
+// §3.3): NewDefault carries the three pairing rules with their caps and
+// windows — begin 30 an hour, approve failures 10 per ten minutes, poll 120 a
+// minute — each tripping exactly at its cap and rolling with its window.
+func TestPairingRulesInDefault(t *testing.T) {
+	if PairBeginsPerHourPerIP != 30 || PairApproveFailuresPer10MinPerAccount != 10 || PairPollsPerMinutePerIP != 120 {
+		t.Fatalf("pairing caps = %d/%d/%d, want 30/10/120",
+			PairBeginsPerHourPerIP, PairApproveFailuresPer10MinPerAccount, PairPollsPerMinutePerIP)
+	}
+	for _, c := range []struct {
+		rule   RuleID
+		max    int
+		window time.Duration
+	}{
+		{PairBegin, 30, time.Hour},
+		{PairApprove, 10, 10 * time.Minute},
+		{PairPoll, 120, time.Minute},
+	} {
+		clk := &fakeClock{t: time.Unix(1_700_000_000, 0)}
+		l := NewDefault(clk.now)
+		r, ok := l.rules[c.rule]
+		if !ok {
+			t.Fatalf("%s is not in NewDefault", c.rule)
+		}
+		if r.Max != c.max || r.Window != c.window {
+			t.Errorf("%s = %d per %s, want %d per %s", c.rule, r.Max, r.Window, c.max, c.window)
+		}
+		for i := 0; i < c.max; i++ {
+			if d := l.Allow(c.rule, "k1"); !d.Allowed {
+				t.Fatalf("%s: call %d of %d refused, want allowed", c.rule, i+1, c.max)
+			}
+		}
+		if d := l.Allow(c.rule, "k1"); d.Allowed {
+			t.Errorf("%s: call %d allowed, want refused at the cap", c.rule, c.max+1)
+		}
+		clk.advance(c.window - time.Second)
+		if d := l.Allow(c.rule, "k1"); d.Allowed {
+			t.Errorf("%s: allowed a second before the window rolled", c.rule)
+		}
+		clk.advance(time.Second)
+		if d := l.Allow(c.rule, "k1"); !d.Allowed {
+			t.Errorf("%s: refused once the window rolled, want allowed", c.rule)
+		}
+	}
+}

@@ -215,7 +215,9 @@ public lyrics site because a link was posted somewhere.
 **Abuse-prone requests are rate-limited.** A few requests invite abuse —
 sign-in attempts, the emailed sign-in link and the recovery email's
 verification link (they send mail), creating a book
-(workflow 14) and accepting an invitation — so the service caps how fast each
+(workflow 14), accepting an invitation, and pairing a device (beginning a
+pairing, approving a code, polling for it; workflow 13 §Pairing a reMarkable)
+— so the service caps how fast each
 may be made, refusing the excess with a *try again shortly* and no other
 effect. Where a request carries a session the cap is per account; before
 sign-in it is per client IP, and for each emailed link (the sign-in link and
@@ -398,6 +400,13 @@ Written down as a contract, `api/`, and both sides tested against it:
   recovery email); and deleting the account altogether, confirmed by its
   email or, without one, a passkey, with the cascade over the books it owns
   (workflow 17).
+- **Pairing a device**: a reMarkable begins a pairing with no session and is
+  given a short code; a signed-in account approves the code; the device, polling
+  with a token only it holds, receives once a session of the account that is
+  **read-only by scope** — listed among the signed-in devices by its kind,
+  revoked like any, and refused every write: a push, and any API request that
+  changes something, save signing itself out (workflow 13 §Pairing a
+  reMarkable; remarkable-reader.md §5.1).
 - **Books**: the user's own, listed; creating one, empty and private;
   deleting one (owner only); forking one (workflows 7, 11).
 - **The home book**: the account's one home book (§3.2), its id and git

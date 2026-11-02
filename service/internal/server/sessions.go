@@ -79,7 +79,7 @@ func handleListSessions(api *APIDeps) http.HandlerFunc {
 		// (refinement Decision 6). Resolve just bumped the current session's
 		// last_used_at, so it sorts first.
 		rows, err := api.DB.Query(ctx,
-			`SELECT id, device, last_used_at
+			`SELECT id, device, last_used_at, kind, read_only
 			 FROM sessions
 			 WHERE account_id = $1 AND revoked_at IS NULL
 			 ORDER BY last_used_at DESC`, accountID)
@@ -95,8 +95,10 @@ func handleListSessions(api *APIDeps) http.HandlerFunc {
 				id         string
 				device     *string
 				lastUsedAt time.Time
+				kind       *string
+				readOnly   bool
 			)
-			if err := rows.Scan(&id, &device, &lastUsedAt); err != nil {
+			if err := rows.Scan(&id, &device, &lastUsedAt, &kind, &readOnly); err != nil {
 				writeError(w, http.StatusInternalServerError, "internal", "Could not list sessions.")
 				return
 			}
@@ -107,6 +109,16 @@ func handleListSessions(api *APIDeps) http.HandlerFunc {
 			}
 			if device != nil && *device != "" {
 				s.Device = device
+			}
+			// A paired reader's row carries its kind and its read-only mark
+			// (reader.device_pairing; workflow 13 L418–425); a browser's has
+			// neither.
+			if kind != nil && *kind != "" {
+				s.Kind = kind
+			}
+			if readOnly {
+				t := true
+				s.ReadOnly = &t
 			}
 			list.Sessions = append(list.Sessions, s)
 		}
@@ -166,6 +178,8 @@ type sessionJSON struct {
 	Current    bool    `json:"current"`
 	LastUsedAt string  `json:"lastUsedAt"`
 	Device     *string `json:"device,omitempty"`
+	Kind       *string `json:"kind,omitempty"`
+	ReadOnly   *bool   `json:"readOnly,omitempty"`
 }
 
 type sessionList struct {

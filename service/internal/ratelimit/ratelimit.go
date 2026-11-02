@@ -50,6 +50,14 @@ const (
 	// links by asking for verifications to their address (service.recovery_email
 	// Decision *Rate limits: their own per-address bucket*).
 	RecoveryEmailAddr RuleID = "recovery_email_addr"
+	// PairBegin caps beginning a device pairing per client IP (the request has
+	// no session; reader.device_pairing Constraint 9).
+	PairBegin RuleID = "pair_begin"
+	// PairApprove caps failed pairing approvals (an unknown, expired or used
+	// code) per account, checked before and recorded on failure, as sign-in is.
+	PairApprove RuleID = "pair_approve"
+	// PairPoll caps polling for a pairing per client IP.
+	PairPoll RuleID = "pair_poll"
 )
 
 // Default thresholds (service.rate_limits Constraint 8): compile-time consts
@@ -85,6 +93,17 @@ const (
 	// RecoveryEmailsPerHourPerAddress: as for the sign-in link, five an hour to
 	// one mailbox is generous and still stops a flood.
 	RecoveryEmailsPerHourPerAddress = 5
+	// PairBeginsPerHourPerIP: a reader begins a pairing once, and again only
+	// when a code runs out; thirty an hour from one IP covers a household of
+	// readers retrying and still stops a code-farming loop.
+	PairBeginsPerHourPerIP = 30
+	// PairApproveFailuresPer10MinPerAccount: a person mistypes a code a few
+	// times; ten failures in ten minutes is past that and stops a signed-in
+	// account guessing codes.
+	PairApproveFailuresPer10MinPerAccount = 10
+	// PairPollsPerMinutePerIP: a reader polls every few seconds while it shows
+	// a code; two a second from one IP is far past that.
+	PairPollsPerMinutePerIP = 120
 )
 
 // A Rule is a fixed-window limit: at most Max events per Window for a given key.
@@ -150,6 +169,10 @@ func NewDefault(now func() time.Time) *Limiter {
 
 		RecoveryEmailAccount: {Max: RecoveryEmailsPerHourPerAccount, Window: time.Hour},
 		RecoveryEmailAddr:    {Max: RecoveryEmailsPerHourPerAddress, Window: time.Hour},
+
+		PairBegin:   {Max: PairBeginsPerHourPerIP, Window: time.Hour},
+		PairApprove: {Max: PairApproveFailuresPer10MinPerAccount, Window: 10 * time.Minute},
+		PairPoll:    {Max: PairPollsPerMinutePerIP, Window: time.Minute},
 	})
 }
 

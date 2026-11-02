@@ -272,6 +272,18 @@ func takenDownReasonForInsider(ctx context.Context, q querier, bookID, accountID
 // ESTANTE_ACCOUNT_BYTES_REMAINING). It writes the refusal and returns ok=false
 // when the caller does not pass.
 func (api *APIDeps) authorizePush(w http.ResponseWriter, r *http.Request, access bookAccess) (int64, bool) {
+	// Defence in depth behind the read-only guard (reader.device_pairing
+	// Constraint 8): a read-only session never pushes, even were the guard's
+	// allowlist ever widened by mistake.
+	readOnly, err := session.IsReadOnly(r.Context(), api.DB, r)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal", "Could not serve the repository.")
+		return 0, false
+	}
+	if readOnly {
+		writeReadOnly(w)
+		return 0, false
+	}
 	if access.role == roleReader {
 		writeError(w, http.StatusForbidden, "forbidden", "A reader cannot push to this book.")
 		return 0, false

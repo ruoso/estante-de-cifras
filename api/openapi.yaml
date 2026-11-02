@@ -86,6 +86,8 @@ paths:
                 $ref: '#/components/schemas/CredentialCreationOptions'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
 
   /api/auth/passkey/register/finish:
     post:
@@ -113,6 +115,8 @@ paths:
                 $ref: '#/components/schemas/Account'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
 
   /api/auth/passkey/authenticate/begin:
     post:
@@ -136,6 +140,8 @@ paths:
                 $ref: '#/components/schemas/CredentialRequestOptions'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
 
   /api/auth/passkey/authenticate/finish:
     post:
@@ -160,6 +166,8 @@ paths:
                 $ref: '#/components/schemas/Account'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
         '429':
           $ref: '#/components/responses/RateLimited'
 
@@ -185,6 +193,8 @@ paths:
           description: Accepted; if the address has an account, a link is on its way.
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
         '429':
           $ref: '#/components/responses/RateLimited'
 
@@ -211,6 +221,8 @@ paths:
                 $ref: '#/components/schemas/Account'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
         '429':
           $ref: '#/components/responses/RateLimited'
 
@@ -260,6 +272,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
 
   /api/account/delete/begin:
     post:
@@ -284,6 +298,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
 
   /api/account/recovery-email:
     get:
@@ -329,6 +345,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
         '429':
           $ref: '#/components/responses/RateLimited'
 
@@ -358,6 +376,8 @@ paths:
           description: Confirmed; the address is the account's recovery email.
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
         '409':
           $ref: '#/components/responses/Conflict'
         '429':
@@ -393,6 +413,8 @@ paths:
           description: Revoked.
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -419,6 +441,104 @@ paths:
                 $ref: '#/components/schemas/HomeBook'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /api/devices/pair/begin:
+    post:
+      operationId: beginDevicePairing
+      tags: [Sign-in]
+      summary: Begin pairing a device — a reMarkable — with no session (workflow 13 §Pairing a reMarkable).
+      description: >-
+        The device is given a six-character code to show, shown three-dash-three
+        (`KQ7-4TM`), from an alphabet without 0, O, 1, I and L; the address the
+        code is typed at (which holds no token); a poll token only this device
+        holds; and when the code stops being approvable — ten minutes on. The
+        code and the token are never logged and are stored only hashed
+        (docs/remarkable-reader.md §5.1). Rate-limited per client IP.
+      security:
+        - {}
+      responses:
+        '201':
+          description: The pairing begun.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevicePairing'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/devices/pair/approve:
+    post:
+      operationId: approveDevicePairing
+      tags: [Sign-in]
+      summary: Approve a device's pairing code for the signed-in account (workflow 13 §Pairing a reMarkable).
+      description: >-
+        The code is accepted in any case, with or without the dash or spaces.
+        Approving makes a new session of this account for the device — kind
+        `remarkable`, read-only by scope — listed at once among the account's
+        signed-in devices; the device collects it by polling. The refusals are
+        told apart: a code no device is showing (or that is not six characters
+        of the alphabet) is 404 `pair_code_unknown`; a code past its ten minutes
+        is 410 `pair_code_expired`; a code already approved, by this account or
+        another, is 409 `pair_code_used`. Failed approvals are rate-limited per
+        account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevicePairingApproveRequest'
+      responses:
+        '204':
+          description: Approved; the device's session is made and listed.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/devices/pair/poll:
+    post:
+      operationId: pollDevicePairing
+      tags: [Sign-in]
+      summary: Poll a pairing with its token, for the device's session (workflow 13 §Pairing a reMarkable).
+      description: >-
+        No session; the poll token in the body, never in the URL. `pending`
+        until the code is approved; `expired` once the code's ten minutes pass
+        unapproved, or the approved session goes uncollected for ten minutes
+        (it is then signed out); and — once — `approved` with the session, the
+        opaque value the device sends as the `estante_session` cookie from then
+        on. A token never given out, or whose session was already delivered, is
+        404 `pair_token_unknown`. Rate-limited per client IP.
+      security:
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevicePairingPollRequest'
+      responses:
+        '200':
+          description: Where the pairing stands.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevicePairingPoll'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
 
   /api/account/passkeys:
     get:
@@ -452,6 +572,8 @@ paths:
           description: Removed.
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -502,6 +624,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
         '413':
           $ref: '#/components/responses/TooLarge'
         '429':
@@ -545,6 +669,8 @@ paths:
                 $ref: '#/components/schemas/Book'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
         '404':
           $ref: '#/components/responses/NotFound'
         '413':
@@ -687,6 +813,8 @@ paths:
           description: Left.
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -788,6 +916,8 @@ paths:
                 $ref: '#/components/schemas/Book'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ReadOnly'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -999,7 +1129,9 @@ components:
     Forbidden:
       description: >-
         Signed in and a member, but the role is insufficient (a reader pushing,
-        or a non-owner acting as owner).
+        or a non-owner acting as owner). Or the session is read-only by scope (a
+        paired reMarkable's): `code: read_only`, refused before the role is
+        considered (see ReadOnly).
       content:
         application/json:
           schema:
@@ -1012,7 +1144,10 @@ components:
         taken_down`, the reason in the message, returned alike on an advertise
         (info/refs), a fetch (upload-pack) and a push (receive-pack). A stranger
         is told only `404` (NotFound), never that the book exists (DIRECTION
-        §3.6 lines 338-341).
+        §3.6 lines 338-341). And a push advertisement (info/refs for
+        `git-receive-pack`) or a push (receive-pack) by a session read-only by
+        scope — a paired reMarkable's — is `code: read_only` (see ReadOnly); it
+        may still fetch.
       content:
         application/json:
           schema:
@@ -1040,6 +1175,25 @@ components:
         The request is over a size or quota limit, refused before git starts
         (256 KB per file, 50 MB per book, 100 books and 200 MB per account —
         workflow 14).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ReadOnly:
+      description: >-
+        The session is read-only by scope — a paired reMarkable's
+        (docs/remarkable-reader.md §5.1, §10) — and the request would change
+        something. `code: read_only`. A read-only session may read (GET), run
+        the shelf change check, fetch, and sign itself out; every other request
+        is refused, by default.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Gone:
+      description: >-
+        The thing named has run out (a device pairing code past its ten
+        minutes, `code: pair_code_expired`).
       content:
         application/json:
           schema:
@@ -1292,6 +1446,84 @@ components:
         device:
           type: string
           description: A short device description (e.g. "Chrome on Linux"), when known.
+        kind:
+          type: string
+          enum: [remarkable]
+          description: >-
+            What kind of device holds the session, when it is not a browser: a
+            paired reMarkable (workflow 13 §Pairing a reMarkable). Never derived
+            from the User-Agent.
+        readOnly:
+          type: boolean
+          enum: [true]
+          description: >-
+            Present, and true, only on a session read-only by scope (a paired
+            reMarkable's): it reads and syncs but is refused every write.
+
+    DevicePairing:
+      type: object
+      additionalProperties: false
+      required: [code, url, pollToken, expiresAt]
+      description: A pairing begun by a device (workflow 13 §Pairing a reMarkable). Never logged.
+      properties:
+        code:
+          type: string
+          pattern: '^[2-9A-HJKMNP-Z]{3}-[2-9A-HJKMNP-Z]{3}$'
+          description: The code to show, three-dash-three, from an alphabet without 0, O, 1, I and L.
+        url:
+          type: string
+          format: uri
+          description: The address to type the code at; it holds no token.
+        pollToken:
+          type: string
+          minLength: 1
+          description: The opaque token the device polls with; only it holds it.
+        expiresAt:
+          type: string
+          format: date-time
+          description: When the code stops being approvable (ten minutes on).
+
+    DevicePairingApproveRequest:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: The code as typed — any case, with or without the dash or spaces.
+
+    DevicePairingPollRequest:
+      type: object
+      additionalProperties: false
+      required: [pollToken]
+      properties:
+        pollToken:
+          type: string
+          minLength: 1
+
+    DevicePairingPoll:
+      description: Where a pairing stands; `approved` is answered once, with the session.
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [status]
+          properties:
+            status:
+              type: string
+              enum: [pending, expired]
+        - type: object
+          additionalProperties: false
+          required: [status, session]
+          properties:
+            status:
+              type: string
+              enum: [approved]
+            session:
+              type: string
+              minLength: 1
+              description: >-
+                The new session, read-only by scope: the opaque value to send
+                as the `estante_session` cookie. Never logged.
 
     SessionList:
       type: object

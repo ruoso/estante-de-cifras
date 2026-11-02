@@ -149,3 +149,48 @@ func Resolve(ctx context.Context, db Execer, r *http.Request) (accountID string,
 	}
 	return accountID, true, nil
 }
+
+// KindRemarkable is the kind of a session minted by pairing a reMarkable
+// (reader.device_pairing; api/openapi.yaml Session.kind).
+const KindRemarkable = "remarkable"
+
+// IssueReadOnly inserts a read-only sessions row of the given kind for
+// accountID and returns its id, writing no cookie: the session is minted at a
+// pairing's approval and delivered to the device later, by poll, in a JSON
+// body (reader.device_pairing Constraint 6, Decisions 4–5). Its device label
+// is NULL — the row is described by its kind. The id is a credential and is
+// never logged.
+func IssueReadOnly(ctx context.Context, db Execer, accountID, kind string) (string, error) {
+	var id string
+	if err := db.QueryRow(ctx,
+		`INSERT INTO sessions (account_id, kind, read_only) VALUES ($1, $2, true) RETURNING id`,
+		accountID, kind).Scan(&id); err != nil {
+		return "", fmt.Errorf("session: inserting a read-only session row: %w", err)
+	}
+	return id, nil
+}
+
+// IsReadOnly reports whether the request carries the cookie of a live,
+// read-only session (reader.device_pairing Constraint 7). No cookie, a
+// malformed, unknown or revoked one, or a full session is false. Unlike
+// Resolve it does not bump last_used_at: it is the read-only guard's and the
+// push gate's look-up, ahead of whatever handler then resolves the session.
+func IsReadOnly(ctx context.Context, db Execer, r *http.Request) (bool, error) {
+	c, cErr := r.Cookie(CookieName)
+	if cErr != nil || c.Value == "" {
+		return false, nil
+	}
+	if _, pErr := uuid.Parse(c.Value); pErr != nil {
+		return false, nil
+	}
+	var readOnly bool
+	err := db.QueryRow(ctx,
+		`SELECT read_only FROM sessions WHERE id = $1 AND revoked_at IS NULL`, c.Value).Scan(&readOnly)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("session: reading a session's scope: %w", err)
+	}
+	return readOnly, nil
+}
