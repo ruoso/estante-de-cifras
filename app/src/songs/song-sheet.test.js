@@ -58,6 +58,35 @@ describe('the sheet and the default-shape cache (home-book §4.6)', () => {
   });
 });
 
+// reader.bundle_chosen_unbuildable_pending — the sheet names the keys the
+// song's own block chooses (cifra.md §7.6), only at the written key, where the
+// resolver reads that block (docs/remarkable-reader.md §4.1).
+describe('the keys the song chose', () => {
+  it("chosen names the song's own keys, only as written", () => {
+    const voiced = [
+      '# Test Chosen',
+      '',
+      '## A',
+      FENCE,
+      'C | G | Am',
+      FENCE,
+      '',
+      '---',
+      '',
+      '## Voicings: E2 A2 D3 G3 B3 E4',
+      '- C: x32010',
+      '- G: 320003',
+      '',
+    ].join('\n');
+    const entry = surfaceInstruments({}).standard;
+    const written = readSongSheet({ text: voiced, entry });
+    expect(written.chosen).toBeInstanceOf(Set);
+    expect(written.chosen).toEqual(new Set(['C', 'G']));
+    const moved = readSongSheet({ text: voiced, entry, reading: { transposition: 2 } });
+    expect(moved.chosen.size).toBe(0);
+  });
+});
+
 // unit — the sheet's key for a song that states none (reader.key_without_property;
 // workflow 2 §Transposing as amended): named by the key its last chord gives,
 // as written and as now read; a stated key wins; no chords, no key.

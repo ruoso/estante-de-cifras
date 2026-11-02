@@ -114,6 +114,28 @@ function selectBlock(parsed, tuningId, variation) {
 }
 
 /**
+ * The §2.4 voicing keys the song's own block chooses for this instrument and
+ * variation — the block `resolveSongVoicings` resolves step 1 from, by the same
+ * `selectBlock` and the same `ignoreSongVoicings` switch, so the two never
+ * disagree on which block is in use. Empty when the song's voicings are
+ * suppressed, when no block applies, or with no instrument. A key in this set
+ * that the resolver left unresolved is a chosen shape that cannot be built: by
+ * §7.6 no default may fill it (docs/remarkable-reader.md §4.1).
+ *
+ * @param {object} parsed  a cifra.md parse model
+ * @param {object} instrument  the in-use instrument instance
+ * @param {object} [options]
+ * @param {string} [options.variation]  the variation in use; `''` is the default
+ * @param {boolean} [options.ignoreSongVoicings]  as `resolveSongVoicings`'s
+ * @returns {Set<string>}
+ */
+export function songChosenKeys(parsed, instrument, { variation = '', ignoreSongVoicings = false } = {}) {
+  if (!instrument || ignoreSongVoicings) return new Set();
+  const block = selectBlock(parsed, instrumentTuningId(instrument), variation);
+  return new Set((block?.voicings ?? []).map((v) => v.key));
+}
+
+/**
  * Every chord item in the chart, in document order (with repeats of a key) —
  * the music core's one chord walk; `song-key.js` reads the last chord from it.
  */

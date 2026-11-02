@@ -153,10 +153,17 @@ function sheet(text, offset = 0, opts = {}) {
 
   // A chord left unresolved is pending when the table does not hold it — it is
   // queued for the host's search and its memo entry dropped, so a later fill is
-  // seen — and unvoiceable when the table says it has no shape.
+  // seen — and unvoiceable when the table says it has no shape. A chord the
+  // song's own block chose is never a miss (§4.1): unresolved, its chosen shape
+  // cannot be built and §7.6 lets no default fill it, so it is unvoiced from
+  // the first read, with no cache lookup, nothing queued and its memo untouched.
   const pending = new Set();
   const unvoiced = [];
   for (const key of read.unvoiced) {
+    if (read.chosen?.has(key)) {
+      unvoiced.push(key);
+      continue;
+    }
     const symbol = read.symbolByKey.get(key) ?? key;
     const chord = session.cache ? parseChord(symbol, read.notation).chord : null;
     const cacheKey = chord ? shapeCacheKey(chord, read.instrument) : null;

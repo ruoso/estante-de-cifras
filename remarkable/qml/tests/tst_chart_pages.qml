@@ -209,10 +209,11 @@ TestCase {
             }
             verify(keys.length > 0);
             compare(view.pages[p].chords, keys, "page " + p);
-            // Every key is a shape of the sheet.
+            // Every key is a shape of the sheet but Gm6, the shape the song
+            // chose that no hand can make: unvoiced, it has none (design §4.1).
             const shapes = ChoroLong.sheet.shapes.map(s => s.chord);
             for (const k of keys)
-                verify(shapes.indexOf(k) >= 0, k);
+                compare(shapes.indexOf(k) >= 0, k !== "Gm6", k);
         }
         // Every page fits its height.
         for (let p = 0; p < 3; ++p) {

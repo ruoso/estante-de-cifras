@@ -301,6 +301,58 @@ describe('no search on the reading path (§4.1)', () => {
     expect(estante.sheet(text, 2).shapes.some((s) => s.pending)).toBe(false);
   });
 
+  // reader.bundle_chosen_unbuildable_pending (§4.1 "A chord the song voices is
+  // never a miss"; cifra.md §7.6): a song written for the purpose whose block
+  // chooses a Gm6 no hand can make and a buildable G.
+  const CHOSEN_UNBUILDABLE = [
+    '# Test Chosen Unbuildable',
+    '',
+    '```',
+    'Gm6 | C | D7 | G',
+    '```',
+    '',
+    '---',
+    '',
+    '## Voicings: E2 A2 D3 G3 B3 E4',
+    '- Gm6: 3x2333',
+    '- G: 320003',
+    '',
+  ].join('\n');
+
+  it('a chosen shape that cannot be built is unvoiced, not pending', () => {
+    // The premise: the reading view leaves the chosen Gm6 unresolved as written.
+    const view = readSongSheet({ text: CHOSEN_UNBUILDABLE, reading: { transposition: 0 }, entry: ENTRY });
+    expect(view.unvoiced).toContain('Gm6');
+    expect(view.chosen.has('Gm6')).toBe(true);
+
+    estante.load(ENTRY, null);
+    const before = spies.search;
+    const got = estante.sheet(CHOSEN_UNBUILDABLE, 0);
+    expect(got.unvoiced).toEqual(['Gm6']);
+    expect(got.shapes.some((s) => s.symbol === 'Gm6' || s.key === 'Gm6')).toBe(false);
+    // Only the unchosen chords wait for the search.
+    expect(got.shapes.filter((s) => s.pending).map((s) => s.symbol)).toEqual(['C', 'D7']);
+    expect(estante.misses().some((m) => m.symbol === 'Gm6')).toBe(false);
+    expect(estante.misses().map((m) => m.symbol)).toEqual(['C', 'D7']);
+    expect(estante.held().misses).toBe(2);
+    // The buildable choice is drawn as the song's.
+    expect(got.shapes.find((s) => s.symbol === 'G')).toMatchObject({ source: 'song', frets: '320003' });
+    expect(spies.search - before).toBe(0);
+
+    // Read again: the same sheet, still nothing queued for Gm6.
+    expect(estante.sheet(CHOSEN_UNBUILDABLE, 0)).toEqual(got);
+    expect(estante.held().misses).toBe(2);
+  });
+
+  it('read at another key, the transposed chord is a miss like any other', () => {
+    estante.load(ENTRY, null);
+    const got = estante.sheet(CHOSEN_UNBUILDABLE, 2);
+    // The key stays the written one (§2.4); the symbol is the one now read.
+    expect(got.shapes.find((s) => s.symbol === 'Am6')).toEqual({ key: 'Gm6', symbol: 'Am6', pending: true });
+    expect(estante.misses().some((m) => m.symbol === 'Am6')).toBe(true);
+    expect(got.unvoiced).toEqual([]);
+  });
+
   it('load clears the miss queue', () => {
     estante.load(ENTRY, null);
     estante.sheet(song('walking-to-the-market.cifra.md'), 2);

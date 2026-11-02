@@ -108,8 +108,9 @@ task reader "The reMarkable reader" {
   task bundle_chosen_unbuildable_pending "A chosen shape that cannot be built is unvoiced from the first read" {
     effort 0.5d
     allocate team
+    complete 100
     depends !bundle, !missed_shapes
-    note "When a song's own voicing block chooses a shape the bundle cannot build (e.g. choro-long's Gm6: 3x2333), the bundle queues the chord as a pending miss, so its place shows empty and the reader searches for it, and after the search it becomes unvoiced; it should be unvoiced from the first read. Source of debt: tasks/refinements/reader/missed_shapes.md (the commit landing reader.missed_shapes). Docs: docs/remarkable-reader.md §4.1. Tests: unit (a chosen shape that cannot be built is reported unvoiced, not pending); behavior (QML: such a chord's place is left out from the first read, and no background search is queued for it)."
+    note "When a song's own voicing block chooses a shape the bundle cannot build (e.g. choro-long's Gm6: 3x2333), the bundle queues the chord as a pending miss, so its place shows empty and the reader searches for it, and after the search it becomes unvoiced; it should be unvoiced from the first read. Source of debt: tasks/refinements/reader/missed_shapes.md (the commit landing reader.missed_shapes). Docs: docs/remarkable-reader.md §4.1. Tests: unit (a chosen shape that cannot be built is reported unvoiced, not pending); behavior (QML: such a chord's place is left out from the first read, and no background search is queued for it). Refinement: tasks/refinements/reader/bundle_chosen_unbuildable_pending.md"
   }
   task pair_design "Pairing a device, decided" {
     effort 0.5d

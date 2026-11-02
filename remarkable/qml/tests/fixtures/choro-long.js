@@ -6668,13 +6668,6 @@ var sheet = {
       "hidden": false
     },
     {
-      "chord": "Gm6",
-      "symbol": "Gm6",
-      "frets": null,
-      "model": null,
-      "hidden": false
-    },
-    {
       "chord": "C7",
       "symbol": "C7",
       "frets": "x32310",

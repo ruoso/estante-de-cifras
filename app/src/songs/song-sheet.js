@@ -12,7 +12,7 @@
 
 import { parse } from 'cifra-md';
 import { instrumentInstance, openMidis } from '../core/instrument.js';
-import { resolveSongVoicings, unvoiceableKeys } from '../core/voicings.js';
+import { resolveSongVoicings, songChosenKeys, unvoiceableKeys } from '../core/voicings.js';
 import { createShapeCache } from '../core/shape-cache.js';
 import { transpose } from '../core/transpose.js';
 import { songVariations } from '../core/song-variations.js';
@@ -127,6 +127,13 @@ export function readSongSheet({
           defaults,
         })
       : new Map();
+  // The keys the song's own block chooses, by the resolver's block choice: a
+  // chosen key left unresolved can never take a default (cifra.md §7.6), which
+  // the device bundle reads to leave it unvoiced, never pending (reader §4.1).
+  const chosen =
+    instrument && model
+      ? songChosenKeys(model, instrument, { variation, ignoreSongVoicings: offset !== 0 })
+      : new Set();
   const chordList = model ? chartChordList(model) : [];
   const symbolByKey = new Map(chordList.map((c) => [c.key, c.symbol]));
   const shapes = [...resolved.entries()].map(([key, v]) => ({
@@ -180,6 +187,7 @@ export function readSongSheet({
     symbolByKey,
     shapes,
     unvoiced,
+    chosen,
     naming,
     renamed,
     numbered,

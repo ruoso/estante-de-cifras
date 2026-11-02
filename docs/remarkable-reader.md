@@ -277,6 +277,15 @@ a search fills a place in the song on screen, the backend sends `108 shapes`
 nothing. A chord the search finds no shape for keeps its empty place until the
 song is opened again, when it is no longer a shape.
 
+**A chord the song voices is never a miss.** Where the song's own voicing
+block, in the variation in use and at the key as written, chooses a shape, the
+reader draws that shape or none: cifra.md §7.6 does not fall back from a
+choice, so no default could ever fill it. A chosen shape the instrument cannot
+make into a hand (`fingeringFromFrets` refuses it) is therefore unvoiced from
+the first read — it has no place in the strip, and nothing is queued or
+searched for it. Read at another key the song's choices do not apply, and such a
+chord takes the default like any other, a miss when the table does not hold it.
+
 ### 4.2 The budget, measured
 
 goja-spike v2 on an rM2, the example book, cache filled as a save fills it

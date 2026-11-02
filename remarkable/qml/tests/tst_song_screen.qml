@@ -420,6 +420,36 @@ TestCase {
         compare(sent(screen).length, 0);
     }
 
+    // Design §4.1 "A chord the song voices is never a miss"
+    // (reader.bundle_chosen_unbuildable_pending): choro-long's block chooses a
+    // Gm6 no hand can make, so its 105 holds no place for it. Walked over every
+    // chart page and every strip page, no cell is Gm6 and the cells drawn are
+    // exactly the sheet's shapes — Gm6 left out from the first read, never an
+    // empty place — and nothing is sent.
+    function test_chosenUnbuildableLeftOut() {
+        const screen = open(ChoroLong.sheet);
+        const view = screen.view;
+        const drawn = {};
+        for (let p = 0; p < view.pageCount; ++p) {
+            while (view.page < p)
+                mouseClick(screen.foot.next);
+            compare(view.page, p);
+            for (;;) {
+                for (const c of cells(screen)) {
+                    verify(c.shape.chord !== "Gm6", "Gm6 drawn on page " + p);
+                    drawn[c.shape.chord] = true;
+                }
+                if (screen.strip.page.page >= screen.strip.page.pages - 1)
+                    break;
+                mouseClick(screen.strip.stripNext);
+            }
+        }
+        const want = ChoroLong.sheet.shapes.map(s => s.chord);
+        verify(want.indexOf("Gm6") < 0);
+        compare(Object.keys(drawn).sort(), want.slice().sort());
+        compare(sent(screen).length, 0);
+    }
+
     // Rule 6: one bit, whole pixels, in every state of the screen — the strip,
     // the grid, the question, the hidden shapes.
     function test_oneBitEveryState() {

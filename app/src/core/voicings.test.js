@@ -3,7 +3,7 @@ import { parse } from 'cifra-md';
 import { parseChord } from './notation/parse.js';
 import { fromCatalog } from './instrument.js';
 import { searchFingerings } from './search.js';
-import { defaultVoicing, resolveSongVoicings, unvoiceableKeys } from './voicings.js';
+import { defaultVoicing, resolveSongVoicings, songChosenKeys, unvoiceableKeys } from './voicings.js';
 
 const guitar = fromCatalog('6guitar');
 const uke = fromCatalog('ukulele');
@@ -289,5 +289,67 @@ describe("resolveSongVoicings — the song's own notation (cifra.md §5.6)", () 
     expect([...rb.keys()]).toEqual(['C7+', 'C7(4)', 'C7+(9)']);
     expect(unvoiceableKeys(brazilian, rb)).toEqual([]);
     expect(unvoiceableKeys(brazilian, rb, { dialect: 'brazilian' })).toEqual([]);
+  });
+});
+
+// reader.bundle_chosen_unbuildable_pending — the keys the block in use chooses,
+// by the resolver's own block choice (cifra.md §7.6; docs/remarkable-reader.md
+// §4.1 "A chord the song voices is never a miss").
+describe('songChosenKeys — the block in use (§7.6)', () => {
+  it("the block in use's keys", () => {
+    const parsed = parse(
+      song(
+        'C Am D G Em',
+        '## Voicings: E2 A2 D3 G3 B3 E4',
+        '- C: x32010',
+        '- Am: x02210',
+        '',
+        '## Up: E2 A2 D3 G3 B3 E4',
+        '- D: x57775',
+        '- G: 3x0003',
+        '',
+        '## Voicings: G4 C4 E4 A4',
+        '- Em: 0432',
+      ),
+    );
+    // Each set is the block resolveSongVoicings resolves from: its `song` keys
+    // are a subset of the set.
+    const agrees = (keys, options) => {
+      const r = resolveSongVoicings(parsed, guitar, options);
+      for (const [k, v] of r) if (v.source === 'song') expect(keys.has(k)).toBe(true);
+    };
+
+    // '' → the default block.
+    const byDefault = songChosenKeys(parsed, guitar, { variation: '' });
+    expect(byDefault).toEqual(new Set(['C', 'Am']));
+    agrees(byDefault, { variation: '' });
+    expect(songChosenKeys(parsed, guitar)).toEqual(byDefault);
+
+    // The variation's name → its block.
+    const up = songChosenKeys(parsed, guitar, { variation: 'Up' });
+    expect(up).toEqual(new Set(['D', 'G']));
+    agrees(up, { variation: 'Up' });
+
+    // A variation the tuning lacks → none, never another variation's.
+    const lacking = songChosenKeys(parsed, guitar, { variation: 'Down' });
+    expect(lacking.size).toBe(0);
+    agrees(lacking, { variation: 'Down' });
+
+    // Another tuning's block is never borrowed: the guitar never chooses Em.
+    for (const variation of ['', 'Up', 'Down']) {
+      expect(songChosenKeys(parsed, guitar, { variation }).has('Em')).toBe(false);
+    }
+    // The ukulele has its own block, and only it.
+    expect(songChosenKeys(parsed, uke)).toEqual(new Set(['Em']));
+    const noBlock = parse(song('C', '## Voicings: G4 C4 E4 A4', '- C: 0003'));
+    expect(songChosenKeys(noBlock, guitar).size).toBe(0);
+
+    // ignoreSongVoicings → none (the transpose seam).
+    const ignored = songChosenKeys(parsed, guitar, { ignoreSongVoicings: true });
+    expect(ignored.size).toBe(0);
+    agrees(ignored, { ignoreSongVoicings: true });
+
+    // No instrument → none.
+    expect(songChosenKeys(parsed, null).size).toBe(0);
   });
 });

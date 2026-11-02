@@ -581,3 +581,48 @@ func TestFillQueuedMissOnce(t *testing.T) {
 		t.Errorf("second Fill %+v, %v, want not searched", again, err)
 	}
 }
+
+// TestChosenUnbuildableUnvoiced pins reader.bundle_chosen_unbuildable_pending
+// (docs/remarkable-reader.md §4.1 "A chord the song voices is never a miss";
+// cifra.md §7.6): choro-long's voicing block chooses `Gm6: 3x2333`, which no
+// hand can make, so the built bundle reads Gm6 as unvoiced from the first read
+// — not a shape, not a pending place, not a queued miss.
+func TestChosenUnbuildableUnvoiced(t *testing.T) {
+	choros := readFixture(t, "choros.default-shapes.json")
+	raw, err := os.ReadFile("../../qml/tests/fixtures/songs/choro-long.cifra.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := openBuilt(t)
+	ctx := context.Background()
+	if _, err := e.Load(ctx, choros.Entry, choros.Table); err != nil {
+		t.Fatal(err)
+	}
+	sheet, err := e.Sheet(ctx, string(raw), 0, SheetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	unvoiced := false
+	for _, k := range sheet.Unvoiced {
+		if k == "Gm6" {
+			unvoiced = true
+		}
+	}
+	if !unvoiced {
+		t.Errorf("Gm6 not under unvoiced: %v", sheet.Unvoiced)
+	}
+	for _, s := range sheet.Shapes {
+		if s.Key == "Gm6" || s.Symbol == "Gm6" {
+			t.Errorf("Gm6 has a place in the strip: %+v", s)
+		}
+	}
+	misses, err := e.Misses(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range misses {
+		if m.Symbol == "Gm6" {
+			t.Errorf("Gm6 queued as a miss: %+v", m)
+		}
+	}
+}

@@ -395,3 +395,84 @@ func TestFillWritesNothing(t *testing.T) {
 		t.Errorf("the fill asked for %d sync passes, want none", now-triggers)
 	}
 }
+
+// chosenUnbuildable is a song written for reader.bundle_chosen_unbuildable_pending:
+// its voicing block chooses a Gm6 no hand can make (and a buildable G); its
+// other chords are ones the example book's table holds.
+const (
+	chosenPath        = "test-chosen-unbuildable.cifra.md"
+	chosenChart       = "# Test Chosen Unbuildable\n\n```\nGm6 | C | D7 | G\n```\n"
+	chosenUnbuildable = chosenChart + "\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- Gm6: 3x2333\n- G: 320003\n"
+)
+
+// fullTableEngine opens a built bundle of its own, loaded with the example
+// book's full table, closed when the test ends.
+func fullTableEngine(t *testing.T) *engine.Engine {
+	t.Helper()
+	builtEngine(t) // fails the test when the build is missing
+	raw, err := os.ReadFile(fixtureFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fx struct {
+		Entry json.RawMessage `json:"entry"`
+		Table json.RawMessage `json:"table"`
+	}
+	if err := json.Unmarshal(raw, &fx); err != nil {
+		t.Fatal(err)
+	}
+	e, err := engine.Open(bundleDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { e.Close() })
+	if _, err := e.Load(context.Background(), fx.Entry, fx.Table); err != nil {
+		t.Fatal(err)
+	}
+	return e
+}
+
+// TestChosenUnbuildableNotSearched pins docs/remarkable-reader.md §4.1 "A
+// chord the song voices is never a miss" and workflow 19 rule 1 (no search for
+// what can never be found): a song whose block chooses an unbuildable Gm6 opens
+// with no place for it and no empty place at all, and no background search
+// runs.
+func TestChosenUnbuildableNotSearched(t *testing.T) {
+	ctx := context.Background()
+	// The premise: the table holds every chord of the chart but Gm6 — the same
+	// chart with no voicing block misses Gm6 alone.
+	premise := fullTableEngine(t)
+	if _, err := premise.Sheet(ctx, chosenChart, 0, engine.SheetOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	ms, err := premise.Misses(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ms) != 1 || ms[0].Symbol != "Gm6" {
+		t.Fatalf("the unvoiced chart misses %+v, want Gm6 alone", ms)
+	}
+
+	f := newViewsFixture(t)
+	f.book[chosenPath] = chosenUnbuildable
+	f.commitBook(t)
+	probe := newFillProbe(fullTableEngine(t))
+	s := f.serve(t, probe)
+
+	sheet := s.openSong(t, chosenPath, nil)
+	if len(sheet.Shapes) != 3 {
+		t.Errorf("%d shapes in the 105, want 3 (C, D7, G)", len(sheet.Shapes))
+	}
+	for _, sh := range sheet.Shapes {
+		if sh.Symbol == "Gm6" || sh.Chord == "Gm6" {
+			t.Errorf("Gm6 has a place in the 105: %+v", sh)
+		}
+		if isNull(sh.Model) || sh.Frets == nil {
+			t.Errorf("%s is an empty place in the 105", sh.Symbol)
+		}
+	}
+	s.peer.silent()
+	if calls, _, _ := probe.counts(); calls != 0 {
+		t.Errorf("%d fills, want none", calls)
+	}
+}
