@@ -287,7 +287,10 @@ its songs are now in the account's.
   *Your name can’t be empty.*
 - **Signed-in devices**, each with when it was last used, and **sign out**
   for any of them. A lost phone is signed out from the laptop, and its
-  session stops working at its next request.
+  session stops working at its next request. A paired reMarkable is one of
+  them, *your reMarkable*, marked *Reads only* (§Pairing a reMarkable). At the
+  section's foot, **Pair a device** — *Read your books on a reMarkable. It
+  shows a code; enter it here.* — opens the pairing page.
 - **Passkeys**, listed, and removable — all but the last way in (§The last
   way in).
 - **Recovery email** (§The recovery email), below Passkeys, since it is what
@@ -326,12 +329,151 @@ as a local book is the account's again — synced, with what was changed while
 signed out. The books removed from this device are forgotten with the
 account: the next person to sign in here gets all of theirs.
 
+## Pairing a reMarkable
+
+A reMarkable has no browser, so it cannot use a passkey or open an emailed
+link. It is **paired** instead, the way a television is
+([remarkable-reader.md §5.1](../remarkable-reader.md)): the reader shows a
+short code and an address (workflow 19 §Pairing), and the person, signed in on
+a phone, a tablet or a computer, enters the code there. This section is the web
+side; the reader's pages are workflow 19's.
+
+### Where it lives
+
+- **An address**, the one the reader shows: **estantedecifras.app/pair**. It
+  opens the app at its **Pair a device** page, on whatever device it is typed
+  on. The bare domain forwards there with the path kept (DIRECTION §3.3), so
+  the short address is the one to type. It holds no token: anyone may open
+  the page, and only a signed-in account can approve a code from it.
+- **The account screen**: **Pair a device** at the foot of Signed-in devices
+  (§The account screen) opens the same page.
+
+The page is a deeper screen: its bar is **Back** — to the account screen, or to
+the shelf when the address opened it — the title *Pair a device*, then the
+chip, Help and the account. The banner (§The banner) sits above it as on any
+signed-in screen.
+
+### Not signed in
+
+The page shows *Sign in to the account whose books the reMarkable should read.*
+above the one sign-in surface (§Signing in, or making an account), drawn under
+the page's heading as the invited screen draws it, both doors and all. Signed in
+there, the page goes on to the code, on this page. An emailed sign-in link
+opens the shelf like any other (it may be opened in another tab or on another
+device); the person types the address again. A code lives ten minutes, and the
+reader's *Get a new code* is always there if it ran out.
+
+### The page
+
+One page, one field, one button. Nothing is checked before the press: the code
+is approved or refused when **Pair your reMarkable** is pressed.
+
+> **Pair a device**
+> Enter the code your reMarkable shows.
+>
+> Code — *Six letters and numbers, like KQ7-4TM*
+> [ KQ7-4TM ]
+>
+> **What your reMarkable will be able to do.** Read every book on your shelf,
+> with your instruments and preferences. It can never change one: it saves
+> nothing and sends nothing back. It stays paired until you sign it out, here
+> or on the reMarkable.
+>
+> Only enter a code shown on your own reMarkable, in front of you: whoever's
+> device shows it will read your books.
+>
+> [ Pair your reMarkable ]
+
+- **The field** takes the code as it is typed: upper or lower case, with or
+  without the dash or spaces. The code's letters leave out those that are
+  read as one another (0 and O, 1, I and L), so nothing on the screen can be
+  misread. Fewer or more than six letters and numbers is said under the field
+  on the press — *A code is six letters and numbers, like KQ7-4TM.* — and
+  nothing is sent.
+- **The warning line** is there because a code is a key: someone who sends a
+  person a code of their own, asking them to enter it, would read that
+  person's books. It is not a dialog and asks nothing; it is said where the
+  code is entered.
+- **Paired.** The page is replaced by *Your reMarkable is paired. Its shelf
+  appears on it in a moment.* with **Done**, which opens the account screen at
+  Signed-in devices, where it is now listed. The reader, polling, receives its
+  session and opens its shelf (workflow 19 §Pairing).
+- **Offline**, the button is disabled and the page says *You're offline.
+  Pairing needs a connection.* The field keeps what was typed.
+
+### A code that does not pair
+
+Each refusal is said in words under the field, which keeps what was typed and
+takes the focus, so the person can correct it and press again:
+
+- **Unknown** — no reMarkable is showing it: *No reMarkable is showing that
+  code. Check it against its screen and try again.*
+- **Expired** — older than ten minutes: *That code has expired. Press Get a new
+  code on your reMarkable, and enter the new one.*
+- **Used** — already approved, by this account or another: *That code was
+  already used. If your reMarkable is not paired, press Get a new code on it.*
+- **Too many tries** — the service's rate limit: *Too many tries. Wait a few
+  minutes and try again.*
+
+### Among the signed-in devices
+
+A paired reader is a signed-in device of the account (§The account screen),
+listed by its kind — **your reMarkable** — never a browser's description, with
+when it was last used, *Reads only* beside it as a word, and **Sign out**. Two
+paired reMarkables are two rows, told apart by when each was last used. It is
+never *This device*: the page approving it is a browser's. It writes nothing to
+the home book, so it never appears as *only on your …* (§Books that were only on
+the other device).
+
+**Sign out** asks first, as for any device: *Sign your reMarkable out?* — *It
+stops reading your books the next time it syncs, and they are removed from it.
+Nothing in your account changes.* — **Sign out** and **Cancel**. Its session
+stops working at its next request; at its next sync the reader removes the
+books and returns to *Not paired*, saying *This reMarkable was signed out from
+your account.* (workflow 19 §Pairing). Deleting the account (workflow 17) signs
+it out with every other session.
+
+### The copy, in the four locales
+
+| | en | pt-BR | es-419 | it |
+|---|---|---|---|---|
+| The account screen's button | Pair a device | Parear um aparelho | Vincular un dispositivo | Associa un dispositivo |
+| Its line | Read your books on a reMarkable. It shows a code; enter it here. | Leia seus livros num reMarkable. Ele mostra um código; digite-o aqui. | Lee tus libros en un reMarkable. Te muestra un código; escríbelo aquí. | Leggi i tuoi libri su un reMarkable. Mostra un codice: inseriscilo qui. |
+| The page's title | Pair a device | Parear um aparelho | Vincular un dispositivo | Associa un dispositivo |
+| Not signed in | Sign in to the account whose books the reMarkable should read. | Entre na conta cujos livros o reMarkable vai ler. | Inicia sesión en la cuenta cuyos libros leerá el reMarkable. | Accedi all’account di cui il reMarkable leggerà i libri. |
+| Intro | Enter the code your reMarkable shows. | Digite o código que o seu reMarkable mostra. | Escribe el código que muestra tu reMarkable. | Inserisci il codice che mostra il tuo reMarkable. |
+| Field label | Code | Código | Código | Codice |
+| Field hint | Six letters and numbers, like KQ7-4TM | Seis letras e números, como KQ7-4TM | Seis letras y números, como KQ7-4TM | Sei lettere e numeri, come KQ7-4TM |
+| What it can do (heading) | What your reMarkable will be able to do. | O que o seu reMarkable vai poder fazer. | Lo que podrá hacer tu reMarkable. | Cosa potrà fare il tuo reMarkable. |
+| What it can do | Read every book on your shelf, with your instruments and preferences. It can never change one: it saves nothing and sends nothing back. It stays paired until you sign it out, here or on the reMarkable. | Ler todos os livros da sua estante, com seus instrumentos e preferências. Ele nunca muda nenhum: não salva nada e não envia nada de volta. Fica pareado até você encerrar a sessão dele, aqui ou no reMarkable. | Leer todos los libros de tu estantería, con tus instrumentos y preferencias. Nunca podrá cambiar ninguno: no guarda nada ni envía nada de vuelta. Seguirá vinculado hasta que cierres su sesión, aquí o en el reMarkable. | Leggere ogni libro del tuo scaffale, con i tuoi strumenti e le tue preferenze. Non potrà mai modificarne uno: non salva niente e non rimanda indietro niente. Resta associato finché non lo fai uscire, qui o sul reMarkable. |
+| The warning | Only enter a code shown on your own reMarkable, in front of you: whoever's device shows it will read your books. | Só digite um código que aparece no seu próprio reMarkable, na sua frente: quem tiver o aparelho que o mostra vai ler os seus livros. | Escribe solo un código que aparezca en tu propio reMarkable, frente a ti: quien tenga el dispositivo que lo muestra leerá tus libros. | Inserisci solo un codice mostrato dal tuo reMarkable, davanti a te: chi ha il dispositivo che lo mostra leggerà i tuoi libri. |
+| The button | Pair your reMarkable | Parear seu reMarkable | Vincular tu reMarkable | Associa il tuo reMarkable |
+| Paired | Your reMarkable is paired. Its shelf appears on it in a moment. | Seu reMarkable está pareado. A estante aparece nele em instantes. | Tu reMarkable está vinculado. Su estantería aparecerá en él en un momento. | Il tuo reMarkable è associato. Il suo scaffale apparirà tra poco. |
+| Done | Done | Pronto | Listo | Fatto |
+| Offline | You're offline. Pairing needs a connection. | Você está sem conexão. Parear precisa de conexão. | Estás sin conexión. Vincular necesita conexión. | Sei offline. Per associare serve una connessione. |
+| Malformed | A code is six letters and numbers, like KQ7-4TM. | Um código tem seis letras e números, como KQ7-4TM. | Un código tiene seis letras y números, como KQ7-4TM. | Un codice ha sei lettere e numeri, come KQ7-4TM. |
+| Unknown | No reMarkable is showing that code. Check it against its screen and try again. | Nenhum reMarkable está mostrando esse código. Confira na tela dele e tente de novo. | Ningún reMarkable está mostrando ese código. Compáralo con su pantalla e inténtalo de nuevo. | Nessun reMarkable mostra questo codice. Controllalo sul suo schermo e riprova. |
+| Expired | That code has expired. Press Get a new code on your reMarkable, and enter the new one. | Esse código expirou. Toque em *Get a new code* no seu reMarkable e digite o novo. | Ese código venció. Toca *Get a new code* en tu reMarkable y escribe el nuevo. | Questo codice è scaduto. Premi *Get a new code* sul tuo reMarkable e inserisci quello nuovo. |
+| Used | That code was already used. If your reMarkable is not paired, press Get a new code on it. | Esse código já foi usado. Se o seu reMarkable não estiver pareado, toque em *Get a new code* nele. | Ese código ya se usó. Si tu reMarkable no está vinculado, toca *Get a new code* en él. | Questo codice è già stato usato. Se il tuo reMarkable non è associato, premi *Get a new code* su di esso. |
+| Too many tries | Too many tries. Wait a few minutes and try again. | Tentativas demais. Espere alguns minutos e tente de novo. | Demasiados intentos. Espera unos minutos e inténtalo de nuevo. | Troppi tentativi. Aspetta qualche minuto e riprova. |
+| The device's name | your reMarkable | seu reMarkable | tu reMarkable | il tuo reMarkable |
+| Its mark | Reads only | Só leitura | Solo lectura | Solo lettura |
+| Sign out (title) | Sign your reMarkable out? | Encerrar a sessão do seu reMarkable? | ¿Cerrar la sesión de tu reMarkable? | Far uscire il tuo reMarkable? |
+| Sign out (body) | It stops reading your books the next time it syncs, and they are removed from it. Nothing in your account changes. | Ele para de ler seus livros na próxima sincronização, e eles são removidos dele. Nada muda na sua conta. | Deja de leer tus libros la próxima vez que se sincronice, y se eliminan de él. Nada cambia en tu cuenta. | Smette di leggere i tuoi libri alla prossima sincronizzazione, e vengono rimossi. Nel tuo account non cambia niente. |
+
+The reader carries one locale, English (remarkable-reader.md §4), so its
+*Get a new code* is named in English in every locale's expired and used lines —
+the words the person sees on the reMarkable. The rest of the page is in the
+app's language.
+
 ## Later
 
 - **Pairing a device from one already signed in**: *add a device* shows a
   short code or QR code, the new device takes it, and the old one approves —
   as WhatsApp Web does. It covers the third case without email; the
-  browser's own QR flow already covers most of the second.
+  browser's own QR flow already covers most of the second. A reMarkable is
+  already paired this way the other way round (§Pairing a reMarkable); a
+  browser device is not.
 - **Saying that a book has unsaved changes on another device.**
 - **Removing the recovery email** without putting another in its place.
   Changing it covers a wrong or outdated address, and deleting the account

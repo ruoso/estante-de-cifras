@@ -212,6 +212,13 @@
    "w": 3208,
    "h": 1500,
    "title": "2. Search within a book"
+  },
+  "Pair-a-device.dc.html": {
+   "x": 0,
+   "y": 49580,
+   "w": 3208,
+   "h": 1500,
+   "title": "13 & 19. Pairing a reMarkable"
   }
  },
  "order": [
@@ -243,7 +250,8 @@
   "Open-a-book.dc.html",
   "Format-help.dc.html",
   "Review-polish.dc.html",
-  "Search-scope.dc.html"
+  "Search-scope.dc.html",
+  "Pair-a-device.dc.html"
  ],
  "notes": {
   "workflows": {

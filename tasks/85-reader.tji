@@ -117,7 +117,8 @@ task reader "The reMarkable reader" {
   task pair_design "Pairing a device, decided" {
     effort 0.5d
     allocate team
-    note "A reMarkable cannot do a passkey, so it is paired like a television (docs/remarkable-reader.md §5.1): it shows a short code and an address, and the person, signed in on a phone or a computer, enters the code there. Decide the web side in workflow 13: where Pair a device lives (an address, estantedecifras.app/pair, and the account screen), its one page (the code field, the confirmation Pair your reMarkable naming what it will be able to do — read every book on the shelf, never change one), what an unknown, expired or used code says, and how a paired reader appears among the signed-in devices (your reMarkable) and is signed out from there. Copy in the four locales. Tests: none — design deliverable (workflow 13 edits and its board)."
+    complete 100
+    note "A reMarkable cannot do a passkey, so it is paired like a television (docs/remarkable-reader.md §5.1): it shows a short code and an address, and the person, signed in on a phone or a computer, enters the code there. Decide the web side in workflow 13: where Pair a device lives (an address, estantedecifras.app/pair, and the account screen), its one page (the code field, the confirmation Pair your reMarkable naming what it will be able to do — read every book on the shelf, never change one), what an unknown, expired or used code says, and how a paired reader appears among the signed-in devices (your reMarkable) and is signed out from there. Copy in the four locales. Tests: none — design deliverable (workflow 13 edits and its board). Refinement: tasks/refinements/reader/pair_design.md"
   }
   task device_pairing "Pairing a device, and a read-only session, in the service" {
     effort 2d

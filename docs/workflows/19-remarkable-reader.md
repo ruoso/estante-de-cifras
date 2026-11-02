@@ -99,7 +99,17 @@ byte.
 
 ## Pairing
 
-The reader opens unpaired the first time, and after *Sign out*.
+The reader opens unpaired the first time, and after *Sign out*. It is unpaired
+too when its session was **signed out from the account** (workflow 13 §Among
+the signed-in devices): at its next sync the service refuses the session, the
+reader forgets the session and removes the books, as its own *Sign out* does,
+and *Not paired* shows *This reMarkable was signed out from your account.* above
+its words. Background news never redraws the screen (rule 5): a refusal met by
+a background sync replaces the page only at the next page the person opens — a
+song on screen stays readable until Back, as a book no longer shared does
+(§When something has changed) — while one met by *Sync* is shown at once, in the
+redraw that ends it. The web page the code is entered on is workflow 13's
+(§Pairing a reMarkable).
 
 **Not paired** — one page, no bar actions:
 

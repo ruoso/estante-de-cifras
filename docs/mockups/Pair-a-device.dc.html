@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>13 &amp; 19. Pairing a reMarkable</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./theme.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&amp;family=Atkinson+Hyperlegible:wght@400;700&amp;family=Figtree:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Source+Sans+3:wght@400;600;700&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="est theme-{{theme}} density-{{density}} board" style="width: 3208px; height: 1500px">
+  <div class="board-head">
+    <div class="board-num">Workflow 13</div>
+    <h1 class="board-title">Pairing a reMarkable</h1>
+    <p class="board-sub">A reMarkable cannot use a passkey, so it shows a short code and estantedecifras.app/pair; signed in on a phone, a tablet or a computer, the person enters the code on one page, whose one button is the confirmation. The paired reader is a signed-in device of the account, your reMarkable, marked Reads only, and is signed out from there.</p>
+  </div>
+
+  <div class="devices">
+    <!-- Phones -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Phone</b> · estantedecifras.app/pair opened by the address, signed in, the code typed as it came; then the expired refusal under the field, and the other three in words</div>
+      <div class="dev-pair">
+
+        <!-- Phone 1: the page, signed in, the code typed in lower case with a space -->
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar" style="gap: 6px">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Pair a device</span>
+              <span class="chip accent">Guitar</span>
+              <button class="btn icon" aria-label="Help"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"></path></svg></button>
+              <button class="btn icon" aria-label="Account, signed in as Ana"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></button>
+            </div>
+            <div class="scroll" style="gap: 16px">
+              <p class="t-body">Enter the code your reMarkable shows.</p>
+              <div class="field">
+                <label for="pd-p1-code">Code</label>
+                <input id="pd-p1-code" class="input t-mono" type="text" value="kq7 4tm" aria-describedby="pd-p1-hint" autocomplete="off" autocapitalize="characters" spellcheck="false" style="font-size: 22px; letter-spacing: 0.08em">
+                <span id="pd-p1-hint" class="t-small">Six letters and numbers, like KQ7-4TM</span>
+              </div>
+              <div class="card pad" style="gap: 8px">
+                <span class="t-h2">What your reMarkable will be able to do.</span>
+                <sc-for list="{{canDo}}" as="c" hint-placeholder-count="3">
+                  <span class="t-body">{{c.text}}</span>
+                </sc-for>
+              </div>
+              <p class="t-small" style="color: var(--ink)">Only enter a code shown on your own reMarkable, in front of you: whoever's device shows it will read your books.</p>
+              <button class="btn primary block">Pair your reMarkable</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phone 2: pressed; the expired refusal under the field, the text kept, the focus in the field -->
+        <div class="dev phone">
+          <div class="screen">
+            <div class="appbar" style="gap: 6px">
+              <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+              <span class="title">Pair a device</span>
+              <span class="chip accent">Guitar</span>
+              <button class="btn icon" aria-label="Help"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"></path></svg></button>
+              <button class="btn icon" aria-label="Account, signed in as Ana"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></button>
+            </div>
+            <div class="scroll" style="gap: 12px">
+              <p class="t-body">Enter the code your reMarkable shows.</p>
+              <div class="field">
+                <label for="pd-p2-code">Code</label>
+                <input id="pd-p2-code" class="input t-mono" type="text" value="kq7 4tm" aria-invalid="true" aria-describedby="pd-p2-hint pd-p2-err" autocomplete="off" spellcheck="false" style="font-size: 22px; letter-spacing: 0.08em; outline: 3px solid var(--accent); outline-offset: 2px; border-color: var(--conflict)">
+                <span id="pd-p2-hint" class="t-small">Six letters and numbers, like KQ7-4TM</span>
+                <div id="pd-p2-err" class="notice conflict" role="alert" style="gap: 10px"><span>That code has expired. Press <b>Get a new code</b> on your reMarkable, and enter the new one.</span></div>
+              </div>
+              <div class="card pad" style="gap: 4px">
+                <span class="t-h2">What your reMarkable will be able to do.</span>
+                <span class="t-small" style="color: var(--ink)">{{canDoLine}}</span>
+              </div>
+              <p class="t-small" style="color: var(--ink)">Only enter a code shown on your own reMarkable, in front of you: whoever's device shows it will read your books.</p>
+              <button class="btn primary block">Pair your reMarkable</button>
+              <div class="card pad" style="gap: 8px; border: 1px dashed var(--line)">
+                <span class="t-h3">The other refusals, said in the same place</span>
+                <sc-for list="{{refusals}}" as="r" hint-placeholder-count="3">
+                  <span class="t-small"><b>{{r.kind}}</b> · {{r.text}}</span>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Tablet</b> · /pair opened not signed in: the one sign-in surface under the page's heading; once signed in and pressed, the page paired; and offline</div>
+      <div class="dev tablet">
+        <div class="screen">
+          <div class="appbar" style="padding: 14px 24px">
+            <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Pair a device</span>
+            <span class="chip accent">Guitar</span>
+            <button class="btn icon" aria-label="Help"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"></path></svg></button>
+            <button class="btn icon" aria-label="Account, not signed in"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></button>
+          </div>
+          <div class="scroll" style="padding: 32px 120px; gap: 16px">
+            <h2 class="t-display">Pair a device</h2>
+            <p class="t-body" style="color: var(--ink-2)">Sign in to the account whose books the reMarkable should read.</p>
+            <div role="group" aria-labelledby="pd-t-have" style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px">
+              <h3 class="t-h2" id="pd-t-have">Already have an account?</h3>
+              <button class="btn primary block"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Use a passkey</button>
+              <button class="btn block">Email me a link</button>
+              <p class="t-small">No passkey here? The link signs you in on this tablet, and recovers your account if every device with a passkey is lost.</p>
+            </div>
+            <div role="group" aria-labelledby="pd-t-new" style="display: flex; flex-direction: column; gap: 10px; padding-top: 16px; border-top: 1px solid var(--line)">
+              <h3 class="t-h2" id="pd-t-new">New here?</h3>
+              <button class="btn block">Make an account</button>
+              <p class="t-small">Makes a new account with a passkey. Already have one? Sign in above. This would be a second, separate account.</p>
+            </div>
+            <p class="t-small">Signed in here, the page goes on to the code. An emailed link opens your shelf instead: type estantedecifras.app/pair again, and if the code ran out, press <b>Get a new code</b> on the reMarkable.</p>
+
+            <div class="section-label" style="margin-top: 16px"><span class="t-h3">Then, signed in, the code pressed and approved</span></div>
+            <div class="card pad" role="status" style="gap: 14px; border: 1px solid var(--line)">
+              <div style="display: flex; align-items: center; gap: 14px">
+                <span style="width: 44px; height: 44px; border-radius: 50%; background: var(--ok-soft); color: var(--ok); display: flex; align-items: center; justify-content: center; flex: none"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>
+                <span class="t-h1">Your reMarkable is paired. Its shelf appears on it in a moment.</span>
+              </div>
+              <div class="actions" style="justify-content: flex-start"><button class="btn primary">Done</button></div>
+              <span class="t-small">Done opens the account screen at Signed-in devices, where it is now listed.</span>
+            </div>
+
+            <div class="section-label" style="margin-top: 8px"><span class="t-h3">Offline</span></div>
+            <div class="notice" style="align-items: center; gap: 10px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M3 3l18 18M8 7a6 6 0 0 1 10 4h1a4 4 0 0 1 2 7.5M17 18H7a4 4 0 0 1-1-7.9"></path></svg><span>You're offline. Pairing needs a connection.</span></div>
+            <button class="btn primary block" disabled="disabled" aria-disabled="true" style="opacity: 0.5">Pair your reMarkable</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="dev-col">
+      <div class="dev-label"><b>Computer</b> · the account screen: your reMarkable among the signed-in devices, Reads only, Pair a device at the section's foot; signing it out</div>
+      <div class="dev desktop">
+        <div class="screen">
+          <div class="appbar" style="padding: 14px 24px">
+            <button class="btn icon" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg></button>
+            <span class="title">Account</span>
+            <span class="chip accent">Guitar</span>
+            <button class="btn icon" aria-label="Help"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"></path></svg></button>
+            <button class="btn icon" aria-label="Account, signed in as Ana"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></button>
+          </div>
+          <div class="split">
+            <div class="pane side" style="width: 300px">
+              <div style="padding: 22px 20px; display: flex; flex-direction: column; gap: 14px">
+                <span class="t-h1">Account</span>
+                <div style="display: flex; align-items: center; gap: 12px">
+                  <span style="width: 44px; height: 44px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex: none"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path></svg></span>
+                  <span style="display: flex; flex-direction: column"><span class="t-h2">Ana</span><span class="t-small">Signed in on this device</span></span>
+                </div>
+                <button class="btn block">Sign out of this computer</button>
+              </div>
+            </div>
+            <div class="pane main">
+              <div class="scroll" style="padding: 24px 32px; gap: 14px">
+                <div class="t-h3">Signed-in devices</div>
+                <div class="list">
+                  <sc-for list="{{devices}}" as="d" hint-placeholder-count="3">
+                    <div class="row"><span class="grow"><span class="name">{{d.name}}</span><span class="meta">{{d.meta}}</span></span><sc-if value="{{d.readsOnly}}" hint-placeholder-val="{{ false }}"><span class="badge">Reads only</span></sc-if><button class="btn">Sign out</button></div>
+                  </sc-for>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px">
+                  <button class="btn">Pair a device</button>
+                  <span class="t-small">Read your books on a reMarkable. It shows a code; enter it here.</span>
+                </div>
+                <div class="t-h3" style="margin-top: 8px">Passkeys</div>
+                <div class="list">
+                  <sc-for list="{{passkeys}}" as="k" hint-placeholder-count="2">
+                    <div class="row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg><span class="grow"><span class="name">{{k.name}}</span><span class="meta">{{k.meta}}</span></span><button class="btn quiet">Remove</button></div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scrim center">
+          <div class="dialog" role="alertdialog" aria-labelledby="pd-c-title" style="width: 560px">
+            <h2 class="t-h1" id="pd-c-title">Sign your reMarkable out?</h2>
+            <p class="t-body" style="color: var(--ink-2)">It stops reading your books the next time it syncs, and they are removed from it. Nothing in your account changes.</p>
+            <div class="actions">
+              <button class="btn">Cancel</button>
+              <button class="btn danger">Sign out</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["current","estante","caderno","palco"],"default":"current","section":"Visual language"},"density":{"editor":"enum","options":["compact","comfortable","roomy"],"default":"comfortable","section":"Visual language"},"$preview":{"width":3208,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      theme: this.props.theme ?? 'current',
+      density: this.props.density ?? 'comfortable',
+      canDo: [
+        { text: 'Read every book on your shelf, with your instruments and preferences.' },
+        { text: 'It can never change one: it saves nothing and sends nothing back.' },
+        { text: 'It stays paired until you sign it out, here or on the reMarkable.' },
+      ],
+      canDoLine: 'Read every book on your shelf, with your instruments and preferences. It can never change one: it saves nothing and sends nothing back. It stays paired until you sign it out, here or on the reMarkable.',
+      refusals: [
+        { kind: 'Unknown', text: 'No reMarkable is showing that code. Check it against its screen and try again.' },
+        { kind: 'Used', text: 'That code was already used. If your reMarkable is not paired, press Get a new code on it.' },
+        { kind: 'Too many tries', text: 'Too many tries. Wait a few minutes and try again.' },
+      ],
+      devices: [
+        { name: 'This device', meta: 'Edge on Windows · in use now', readsOnly: false },
+        { name: 'Phone', meta: 'Chrome on Android · last used 10 minutes ago', readsOnly: false },
+        { name: 'your reMarkable', meta: 'last used today', readsOnly: true },
+      ],
+      passkeys: [
+        { name: 'Google Password Manager', meta: 'Phone · added 12 March' },
+        { name: 'Windows Hello', meta: 'This computer · added 2 May' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
