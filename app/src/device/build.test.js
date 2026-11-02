@@ -13,12 +13,13 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { Linter } from 'eslint';
 import { parse } from 'cifra-md';
-import { buildDevice, FIXTURE_FILE, MANIFEST_FILE } from './build.js';
+import { buildDevice, FIXTURE_BOOKS, FIXTURE_FILE, MANIFEST_FILE } from './build.js';
 import { SHAPE_CACHE_SALT } from '../core/shape-cache.js';
 import { transpose } from '../core/transpose.js';
 import { songDialect } from '../core/notation/dialects.js';
 import { chartRows } from '../chart/layout.js';
 import { surfaceInstruments } from '../worker/instruments.js';
+import { fillDefaultShapes } from '../worker/default-shape-fill.js';
 
 let dir;
 let outDir;
@@ -26,6 +27,7 @@ let fixtureDir;
 let manifest;
 let bundle;
 let fixture;
+let fixtures; // by file name
 
 beforeAll(async () => {
   dir = await mkdtemp(path.join(tmpdir(), 'estante-device-'));
@@ -35,7 +37,11 @@ beforeAll(async () => {
   manifest = JSON.parse(await readFile(path.join(outDir, MANIFEST_FILE), 'utf8'));
   bundle = await readFile(path.join(outDir, manifest.bundle.path));
   fixture = JSON.parse(await readFile(path.join(fixtureDir, FIXTURE_FILE), 'utf8'));
-}, 120_000);
+  fixtures = {};
+  for (const { file } of FIXTURE_BOOKS) {
+    fixtures[file] = JSON.parse(await readFile(path.join(fixtureDir, file), 'utf8'));
+  }
+}, 240_000);
 
 afterAll(async () => {
   if (dir) await rm(dir, { recursive: true, force: true });
@@ -111,8 +117,12 @@ describe('the bundle', () => {
 });
 
 describe('the fixture (reader.engine)', () => {
+  const APP = new URL('../../', import.meta.url);
+  const texts = (f) => f.songs.map((name) => readFileSync(new URL(`${f.book}/${name}`, APP), 'utf8'));
+
   it('is the example book’s table under the standard guitar, made by the Worker’s fill', () => {
-    expect(Object.keys(fixture).sort()).toEqual(['entry', 'salt', 'songs', 'table']);
+    expect(Object.keys(fixture).sort()).toEqual(['book', 'entry', 'expected', 'salt', 'setlist', 'songs', 'table']);
+    expect(fixture.book).toBe('example-book');
     expect(fixture.salt).toBe(SHAPE_CACHE_SALT);
     expect(fixture.entry).toEqual(JSON.parse(JSON.stringify(surfaceInstruments({}).standard)));
     expect(fixture.songs).toEqual([
@@ -122,5 +132,66 @@ describe('the fixture (reader.engine)', () => {
     ]);
     expect(typeof fixture.table.fingerprint).toBe('string');
     expect(Object.keys(fixture.table.shapes).length).toBeGreaterThan(0);
+  });
+
+  it('writes one fixture per fixture book, each naming its book', () => {
+    expect(FIXTURE_BOOKS.map((b) => b.file)).toEqual([FIXTURE_FILE, 'choros.default-shapes.json']);
+    for (const { file, book } of FIXTURE_BOOKS) {
+      expect(fixtures[file].book).toBe(book);
+      expect(fixtures[file].salt).toBe(SHAPE_CACHE_SALT);
+      expect(fixtures[file].songs.length).toBeGreaterThan(0);
+    }
+    expect(fixtures['choros.default-shapes.json'].songs).toHaveLength(4);
+  });
+
+  it('holds, for each book, the Worker’s fill over its songs', async () => {
+    for (const f of Object.values(fixtures)) {
+      const writes = await fillDefaultShapes({ texts: texts(f), entry: f.entry, cacheModel: {} });
+      expect(f.table).toEqual(JSON.parse(JSON.stringify(writes[0].value)));
+    }
+  }, 120_000);
+
+  // §4.1: against the fill, nothing is pending at any of the twelve keys.
+  it('records the bundle’s answers at all twelve keys with no misses', () => {
+    for (const f of Object.values(fixtures)) {
+      expect(f.expected.load.held).toBe(Object.keys(f.table.shapes).length);
+      expect(Object.keys(f.expected.sheets)).toEqual(f.songs);
+      for (const name of f.songs) {
+        const sheets = f.expected.sheets[name];
+        expect(sheets).toHaveLength(12);
+        sheets.forEach((sheet, offset) => {
+          expect(sheet.error).toBeUndefined();
+          expect(sheet.offset).toBe(offset);
+          expect(sheet.shapes.some((s) => s.pending)).toBe(false);
+        });
+      }
+      expect(f.expected.held.misses).toBe(0);
+      expect(f.expected.held.songs).toBe(f.songs.length);
+    }
+  });
+
+  it('the choro songs are chord-heavy, read in three dialects, and parse with no diagnostic', () => {
+    const f = fixtures['choros.default-shapes.json'];
+    const models = texts(f).map((text) => parse(text));
+    for (const model of models) expect(model.diagnostics).toEqual([]);
+    expect(new Set(models.map((m) => songDialect(m)))).toEqual(new Set(['brazilian', 'american', 'realbook']));
+    const symbols = new Set(
+      Object.values(f.expected.sheets).flatMap((sheets) => sheets[0].shapes.map((s) => s.symbol)),
+    );
+    for (const pattern of [/°|dim/, /m7\(b5\)/, /7\(b9\)/, /7\(#5\)/, /7\(#11\)/, /6[(/]9/, /13/, /\//]) {
+      expect([...symbols].some((s) => pattern.test(s)), String(pattern)).toBe(true);
+    }
+  });
+
+  it('records the example set’s playable items', () => {
+    const { setlist } = fixture.expected;
+    expect(setlist.missing).toBe(0);
+    expect(setlist.items.map((i) => i.path)).toEqual([
+      'morning-on-the-porch.cifra.md',
+      'the-ferry-line.cifra.md',
+      'walking-to-the-market.cifra.md',
+    ]);
+    expect(setlist.items[2].key).toBe('A');
+    expect(fixtures['choros.default-shapes.json'].expected.setlist).toBeUndefined();
   });
 });

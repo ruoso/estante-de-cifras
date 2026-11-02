@@ -48,12 +48,16 @@ function emptySession(entry, table) {
     tuningId: instrument ? tuningIdOf(entry) : '',
     cache,
     // The read-only view the reading path sees: a miss reads as "no shape", so
-    // defaultVoicing never searches, and an offer is dropped.
+    // defaultVoicing never searches, and an offer is dropped. Each hit is one
+    // shape rebuilt from the table — defaultVoicing asks only on a memo miss —
+    // counted for `held`.
     view: cache
       ? {
           lookup(key) {
             const hit = cache.lookup(key);
-            return hit === undefined ? null : hit;
+            if (hit === undefined) return null;
+            session.rebuilt += 1;
+            return hit;
           },
           offer() {},
         }
@@ -61,6 +65,7 @@ function emptySession(entry, table) {
     parsed: new Map(), // text → parse model, or null when it would not parse
     defaults: new Map(), // `${dialect}\u0000${symbol}` → rebuilt fingering
     misses: new Map(), // §4.6 chord key → { chord, symbol, dialect }
+    rebuilt: 0, // the view's lookup hits since this load
   };
 }
 
@@ -203,6 +208,20 @@ function misses() {
   return [...session.misses.values()].map((m) => ({ ...m }));
 }
 
+/**
+ * What the session keeps (§4 "In memory, never re-derived"), as counts for the
+ * host's checks and `bench`: songs parsed, shapes held rebuilt, rebuilds since
+ * the last `load`, and misses queued.
+ */
+function held() {
+  return {
+    songs: session.parsed.size,
+    shapes: session.defaults.size,
+    rebuilt: session.rebuilt,
+    misses: session.misses.size,
+  };
+}
+
 export const estante = Object.freeze({
   hostApi: HOST_API,
   salt: SHAPE_CACHE_SALT,
@@ -210,6 +229,7 @@ export const estante = Object.freeze({
   sheet,
   setlist,
   misses,
+  held,
 });
 
 globalThis.estante = estante;

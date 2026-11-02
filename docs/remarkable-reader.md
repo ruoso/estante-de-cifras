@@ -222,6 +222,7 @@ Go host and the bundle:
 | `sheet(text, offset, opts)` | One song at one key: its rows (`chartRows`), its shapes (resolved §7.6 order, through the cache) as diagram models (`diagramModel`), its notes, key and title |
 | `setlist(text, …)` | A setlist's playable items and each one's key (workflow 12) |
 | `misses()` | Chords the cache did not hold, for the background fill (§4.1) |
+| `held()` | What the session keeps: songs parsed, shapes rebuilt, rebuilds so far, misses queued (for the host's checks and `bench`) |
 
 The polyfills goja needs and the spike found: `structuredClone` (as JSON — a
 parsed song is plain data), `TextDecoder`/`TextEncoder`, `Intl.PluralRules`.

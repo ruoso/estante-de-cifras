@@ -8,7 +8,7 @@
 # gate needs) and then delegates all verification to scripts/gate.
 #
 # Toolchain versions are read from the repo's own files (.node-version,
-# service/go.mod), never hardcoded here, so a version bump moves CI with it.
+# service/go.mod, remarkable/go.mod), never hardcoded here, so a version bump moves CI with it.
 name: gate
 
 on:
@@ -50,6 +50,19 @@ jobs:
             estante-de-cifras/service/go.mod
             estante-de-cifras/api/go.sum
             estante-de-cifras/remarkable/go.mod
+            estante-de-cifras/remarkable/go.sum
+
+      # setup-go exports GOTOOLCHAIN=local, so a module whose go line is newer
+      # than the Go above cannot fetch its toolchain: the reader's goja needs
+      # the Go remarkable/go.mod names (reader.engine). Installed second, it is
+      # the go on PATH for the whole gate; a go line is a minimum, so the
+      # service's and the other modules' builds take it too. The cache is the
+      # step above's.
+      - name: Set up Go for the reader
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: estante-de-cifras/remarkable/go.mod
+          cache: false
 
       # Python 3 for scripts/unblocked.py and the cifra.md reference's venv.
       - name: Set up Python

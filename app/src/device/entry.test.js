@@ -393,3 +393,53 @@ describe('load', () => {
     expect(estante.salt).toBe(SHAPE_CACHE_SALT);
   });
 });
+
+// reader.engine: the session's counts, so the Go host (and `bench`) can pin
+// §4 "In memory, never re-derived" from outside the runtime.
+describe('held (§4: what the session keeps)', () => {
+  const defaulted = (got) => new Set(got.shapes.filter((s) => s.source === 'default').map((s) => s.symbol)).size;
+
+  it('counts nothing right after load', () => {
+    expect(estante.held()).toEqual({ songs: 0, shapes: 0, rebuilt: 0, misses: 0 });
+  });
+
+  it('a sheet keeps its song and rebuilds each defaulted chord once', () => {
+    const got = estante.sheet(song('walking-to-the-market.cifra.md'), 3);
+    expect(defaulted(got)).toBeGreaterThan(0);
+    const held = estante.held();
+    expect(held.songs).toBe(1);
+    expect(held.rebuilt).toBe(defaulted(got));
+    expect(held.shapes).toBe(defaulted(got));
+    expect(held.misses).toBe(0);
+  });
+
+  it('a second read at the same key rebuilds nothing and re-parses nothing', () => {
+    const text = song('walking-to-the-market.cifra.md');
+    const first = estante.sheet(text, 3);
+    const after = estante.held();
+    const second = estante.sheet(text, 3);
+    expect(second).toEqual(first);
+    expect(estante.held()).toEqual(after);
+  });
+
+  it('counts the queued misses with no table', () => {
+    estante.load(ENTRY, null);
+    estante.sheet(song('walking-to-the-market.cifra.md'), 2);
+    expect(estante.misses().length).toBeGreaterThan(0);
+    expect(estante.held().misses).toBe(estante.misses().length);
+    expect(estante.held().rebuilt).toBe(0);
+  });
+
+  it('load resets every count', () => {
+    estante.sheet(song('walking-to-the-market.cifra.md'), 3);
+    estante.sheet(song('the-ferry-line.cifra.md'), 5);
+    expect(estante.held().songs).toBe(2);
+    estante.load(ENTRY, TABLE);
+    expect(estante.held()).toEqual({ songs: 0, shapes: 0, rebuilt: 0, misses: 0 });
+  });
+
+  it('answers plain data', () => {
+    const got = estante.held();
+    expect(JSON.parse(JSON.stringify(got))).toStrictEqual(got);
+  });
+});

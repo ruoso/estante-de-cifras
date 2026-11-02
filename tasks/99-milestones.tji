@@ -57,7 +57,7 @@ task milestones "Milestones" {
 
   task m7_reader "M7: Reading on a reMarkable" {
     milestone
-    depends milestones.m5_complete, reader.bundle, reader.module, reader.engine, reader.protocol, reader.store, reader.qml_harness, reader.app_folder, reader.qml_chart, reader.song_screen, reader.browse_screens, reader.play, reader.sync, reader.missed_shapes, reader.pair_design, reader.device_pairing, reader.pair_web, reader.key_without_property, reader.pairing, reader.payload, reader.self_update, reader.install
+    depends milestones.m5_complete, reader.bundle, reader.module, reader.engine, reader.protocol, reader.store, reader.qml_harness, reader.app_folder, reader.qml_chart, reader.song_screen, reader.browse_screens, reader.play, reader.sync, reader.missed_shapes, reader.pair_design, reader.device_pairing, reader.pair_web, reader.key_without_property, reader.pairing, reader.payload, reader.self_update, reader.install, music.dim7_flat_root_spelling
     note "A reMarkable 2 paired with the account reads its shelf, its books and setlists, any song at any key with the shapes of the instrument in use, and plays a setlist through — read-only, kept in sync, updating its music code from the site. docs/remarkable-reader.md, docs/workflows/19-remarkable-reader.md."
   }
 }
