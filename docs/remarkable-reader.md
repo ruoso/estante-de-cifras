@@ -176,11 +176,18 @@ Then, on the tablet, open AppLoad and press **Reload**: *Estante* is listed.
 | `app/src/device/` | The bundle's entry (§4) and its polyfills — app code, linted and tested with the app |
 | `app/dist/device/` | Built by `npm run build`: `bundle.<hash>.js` and `manifest.json` |
 | `remarkable/` | The reader: a Go module (`cmd/estante-reader`, `internal/…`) and its QML frontend (`remarkable/qml/`) |
+| `remarkable/qml/Main.qml` | The QML root AppLoad loads: the `AppLoad` endpoint (`applicationID` `estante`), `signal close`, `unloading()` — which leaves the backend running, so it keeps syncing — and `hello` sent on attach |
+| `remarkable/tools/appfolder` | Assembles the AppLoad folder for one architecture: `manifest.json` (`id` `estante`, `name` *Estante*, `entry` `/Main.qml`, `loadsBackend`, one frontend, `aspectRatio` `original`), `icon.png` (100 × 100, one bit), `resources.rcc` (every file under `remarkable/qml/` but its tests, compiled with `rcc --binary`, zlib) and `backend/entry` (the `estante-reader` binary itself, checked to be for that architecture) |
 
 `remarkable/` shares no code with `service/` (DIRECTION §3.6): it is a client,
 and agrees with the service through `api/openapi.yaml` like the others. It runs
 the app's code only as the built bundle — bytes it loads, never source it
 imports.
+
+`backend/entry` is `estante-reader` unrenamed: AppLoad runs it with the socket's
+path as its only argument (`/tmp/estante.sock`, the app folder as its working
+directory), and a sole absolute path is read as `estante-reader run` against
+the store at `/home/root/.local/share/estante/`.
 
 ### 3.2 The backend (Go)
 
@@ -449,7 +456,9 @@ The site serves the device's payload beside the app, from the same image:
 **The gate** runs `remarkable/`'s checks after the app's (whose build makes the
 bundle), and cross-builds the backend for **amd64** (the tests' host),
 **armv7** (the rM2) and **arm64** (the Paper Pro), so a change that breaks an
-ARM build fails the gate. The **Dockerfile** gains a stage that builds the
+ARM build fails the gate; it then assembles the armv7 and arm64 app folders
+and loads each folder's `resources.rcc` the way AppLoad does, so a QML file the
+folder does not carry, or one that does not compile, fails it too. The **Dockerfile** gains a stage that builds the
 backend for armv7 and arm64 and compiles the QML (`rcc`), and copies them into
 `/srv/app/device/`.
 

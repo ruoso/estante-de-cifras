@@ -54,8 +54,15 @@ task reader "The reMarkable reader" {
   task app_folder "The AppLoad app: its folder, and its QML root" {
     effort 1d
     allocate team
+    complete 100
     depends !engine, !protocol, !qml_harness
-    note "The reader as an AppLoad app, built from the tree: remarkable/qml's root (the AppLoad endpoint, applicationID estante, the close signal and unloading() AppLoad asks of a root, a hello on attach and the state the backend answers with), and the build of the app folder — manifest.json (id estante, loadsBackend, the QML entry, the original aspect ratio), icon.png, resources.rcc compiled with rcc, and backend/entry, the estante-reader backend for the folder's architecture — one folder each for armv7 and arm64. cmd/estante-reader run as backend/entry speaks the protocol of reader.protocol over the socket AppLoad passes it. Docs: docs/remarkable-reader.md §2, §3; rm-appload's README for the folder's layout. Tests: unit (the folder's manifest and layout for each architecture; the backend answering hello with state over a socketpair); behavior (QML: the root, against the AppLoad stand-in, says hello on attach and shows the state it is sent)."
+    note "The reader as an AppLoad app, built from the tree: remarkable/qml's root (the AppLoad endpoint, applicationID estante, the close signal and unloading() AppLoad asks of a root, a hello on attach and the state the backend answers with), and the build of the app folder — manifest.json (id estante, loadsBackend, the QML entry, the original aspect ratio), icon.png, resources.rcc compiled with rcc, and backend/entry, the estante-reader backend for the folder's architecture — one folder each for armv7 and arm64. cmd/estante-reader run as backend/entry speaks the protocol of reader.protocol over the socket AppLoad passes it. Docs: docs/remarkable-reader.md §2, §3; rm-appload's README for the folder's layout. Tests: unit (the folder's manifest and layout for each architecture; the backend answering hello with state over a socketpair); behavior (QML: the root, against the AppLoad stand-in, says hello on attach and shows the state it is sent). Refinement: tasks/refinements/reader/app_folder.md"
+  }
+  task backend_views "The backend answers the views' messages" {
+    effort 2d
+    allocate team
+    depends !app_folder, !sync
+    note "The backend answers the frontend's view messages: open (shelf, book, song, setlist, settings) with 103 shelf, 104 book, 105 sheet (the engine's Sheet mapped onto section 6's payload, the key from the store over songs.json), 106 setlist, 107 settings from the sync snapshot, the engine and the store. It also handles key, place, hideShape, showShape, showAllShapes and shapesShown, kept in the store and answered with the re-drawn sheet or settings. signOut and pair are left to reader.pairing. Source of debt: tasks/refinements/reader/app_folder.md (reader.app_folder). Docs: docs/remarkable-reader.md section 6, section 5.4; workflow 19 A song, A setlist. Tests: unit (over a socketpair with a store holding a local book written for the purpose and the built bundle: each open answered, a key kept across a restart, a hidden voicing marked hidden in the next sheet, a song from a book gone still answered until Back)."
   }
   task qml_chart "The chart and its diagrams, in QML" {
     effort 3d

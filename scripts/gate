@@ -382,6 +382,24 @@ if [[ $want_estante -eq 1 ]]; then
         fail "estante reader: the QML runner failed without running the must-fail test ($qml_hint)"
       fi
       echo "gate: the QML runner failed the must-fail test, as it must"
+
+      # The AppLoad folders (reader.app_folder; design §2, §9): tools/appfolder
+      # assembles estante/ for the rM2 (armv7) and the Paper Pro (arm64) from
+      # the cross-builds above and qml/, compiled by the venv's rcc, into $TMP;
+      # check_folder.py then loads each resources.rcc the way AppLoad does.
+      qml_rcc="$PWD/$qml_venv/bin/pyside6-rcc"
+      for folder in armv7:arm arm64:arm64; do
+        step "estante reader: app folder ${folder%%:*}"
+        (cd remarkable
+         go run -p "$JOBS" ./tools/appfolder --arch "${folder%%:*}" \
+           --backend "$TMP/reader/${folder#*:}/estante-reader" \
+           --qml qml --rcc "$qml_rcc" \
+           --out "$TMP/reader/app/${folder%%:*}")
+      done
+      step "estante reader: app folders load as AppLoad loads them"
+      "$qml_venv/bin/python" -I remarkable/qml/tests/check_folder.py \
+        "$TMP/reader/app/armv7/estante" "$TMP/reader/app/arm64/estante" \
+        || fail "estante reader: an app folder does not load as AppLoad loads it ($qml_hint)"
     else
       skip "estante reader: remarkable/qml/tests/ does not exist yet"
     fi

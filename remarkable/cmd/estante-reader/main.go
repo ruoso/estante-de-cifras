@@ -10,7 +10,12 @@
 //     every process on the device can read), for development until pairing
 //     lands (design §12 step 3; reader.sync);
 //   - sync runs one sync pass and prints what it did: ids, statuses and
-//     heads (reader.sync, and the e2e-api's driver).
+//     heads (reader.sync, and the e2e-api's driver);
+//   - run is the backend proper (reader.app_folder): it dials AppLoad's
+//     socket and serves the frontend (internal/backend) while the sync
+//     schedule runs. AppLoad starts backend/entry with the socket's path as
+//     its only argument (rm-appload src/library.cpp), so a sole absolute path
+//     is run against the default store (design §3.1).
 package main
 
 import (
@@ -22,11 +27,15 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"os/signal"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
+	"estantedecifras.app/remarkable/internal/backend"
 	"estantedecifras.app/remarkable/internal/engine"
+	"estantedecifras.app/remarkable/internal/protocol"
 	"estantedecifras.app/remarkable/internal/store"
 	"estantedecifras.app/remarkable/internal/sync"
 )
@@ -38,13 +47,18 @@ const usage = "usage: estante-reader --version | " +
 	"sheet --bundle DIR [--shapes FILE] [--key N] [--variation V] SONG | " +
 	"bench --bundle DIR [--shapes FILE] [--rounds N] SONG... | " +
 	"session --root DIR --origin URL (token on stdin) | " +
-	"sync --root DIR --bundle DIR"
+	"sync --root DIR --bundle DIR | " +
+	"run [--root DIR] SOCKET"
 
 // errUsage is a bad invocation: the usage line, exit 2.
 var errUsage = errors.New("usage")
 
 // stdin is what session reads the token from; a test replaces it.
 var stdin io.Reader = os.Stdin
+
+// defaultRoot is the store run uses without --root: the device's
+// (store.DefaultRoot); a test replaces it.
+var defaultRoot = store.DefaultRoot
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -67,6 +81,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 		err = sessionCommand(args[1:], stdin)
 	case len(args) > 0 && args[0] == "sync":
 		err = syncCommand(args[1:], stdout)
+	case len(args) > 0 && args[0] == "run":
+		err = runCommand(args[1:])
+	case len(args) == 1 && strings.HasPrefix(args[0], "/"):
+		// AppLoad's backend/entry /tmp/estante.sock: no subcommand starts
+		// with "/".
+		err = runCommand([]string{"--root", defaultRoot, args[0]})
+		args = []string{"run"}
 	default:
 		err = errUsage
 	}
@@ -320,4 +341,55 @@ func syncCommand(args []string, stdout io.Writer) error {
 	}
 	_, err = fmt.Fprintf(stdout, "%s\n", out)
 	return err
+}
+
+// runCommand: estante-reader run [--root DIR] SOCKET — the backend AppLoad
+// runs. It opens the store and, when a bundle is installed and opens, the
+// engine; builds the sync schedule with its statuses relayed to the frontend;
+// dials SOCKET; and serves until AppLoad's terminate or the socket's close.
+// It logs nothing: an error names its class, never a payload, a song or a
+// token.
+func runCommand(args []string) error {
+	fs := newFlags("run")
+	root := fs.String("root", defaultRoot, "")
+	if fs.Parse(args) != nil || *root == "" || fs.NArg() != 1 || fs.Arg(0) == "" {
+		return errUsage
+	}
+	st, err := store.Open(*root)
+	if err != nil {
+		return err
+	}
+	// The engine is optional: without a bundle (reader.self_update brings it)
+	// sync runs and loads no instrument. A bundle that fails to open is none.
+	var eng sync.Engine
+	if dir, ok := st.BundleDir(); ok {
+		if e, err := engine.Open(dir); err == nil {
+			defer e.Close()
+			eng = e
+		}
+	}
+	relay := backend.NewRelay()
+	syncer := sync.New(st, eng, sync.Options{OnStatus: relay.StatusFunc()})
+
+	conn, err := protocol.Dial(fs.Arg(0))
+	if err != nil {
+		return dialError(err)
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
+	defer stop()
+	err = backend.Serve(ctx, conn, backend.Deps{Store: st, Syncer: syncer, Relay: relay, Now: time.Now})
+	if err != nil && ctx.Err() != nil {
+		// A signal is an ending like terminate.
+		return nil
+	}
+	return err
+}
+
+// dialError names a failed dial by its errno, not by the socket's path.
+func dialError(err error) error {
+	var errno syscall.Errno
+	if errors.As(err, &errno) {
+		return fmt.Errorf("could not dial AppLoad's socket: %s", errno.Error())
+	}
+	return errors.New("could not dial AppLoad's socket")
 }

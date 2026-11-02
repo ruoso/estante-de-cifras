@@ -2,7 +2,9 @@
 
 This directory is the reMarkable reader: a read-only client for the tablet,
 run by AppLoad. It holds the reader's Go backend (`cmd/estante-reader` and its
-`internal/` packages) and, to come, the QML frontend that draws (`qml/`).
+`internal/` packages), the QML frontend that draws (`qml/`, rooted at
+`qml/Main.qml`), and the tool that assembles them into AppLoad's folder
+(`tools/appfolder`).
 
 `internal/engine` evaluates the app's built device bundle in goja and answers
 its host API (design §4). Its tests read the build, so run `npm run build` in
@@ -57,6 +59,32 @@ that is not an integer, or contents that are not JSON text. The offscreen
 platform links a few system libraries (libGL, libEGL, libxkbcommon,
 fontconfig, glib, X11/xcb client libraries); the gate names them when it
 cannot start.
+
+The app AppLoad loads is a folder, `estante/`: `manifest.json`, `icon.png`,
+`resources.rcc` (everything under `qml/` but its `tests/` and `harness/`,
+rooted at `qml/Main.qml`) and `backend/entry`, which is `estante-reader`
+itself. AppLoad runs it as `backend/entry /tmp/estante.sock`, and a sole
+absolute path is read as `estante-reader run` against the store at
+`/home/root/.local/share/estante/` (`run --root DIR SOCKET` names another
+store, for development). `tools/appfolder` assembles the folder for one
+architecture from a built backend, with the venv's rcc; the gate builds both
+and loads each as AppLoad does. By hand, from this directory, for the rM2:
+
+```sh
+CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o /tmp/reader/arm/ ./cmd/...
+go run ./tools/appfolder --arch armv7 --backend /tmp/reader/arm/estante-reader \
+  --qml qml --rcc qml/tests/.venv/bin/pyside6-rcc --out /tmp/reader/app/armv7
+qml/tests/.venv/bin/python -I qml/tests/check_folder.py /tmp/reader/app/armv7/estante
+```
+
+For the Paper Pro, `GOARCH=arm64` (no `GOARM`) and `--arch arm64`. To install
+it by hand (design §2.1 step 4), with xovi and AppLoad already on the tablet,
+copy the folder over and press **Reload** in AppLoad, where *Estante* is then
+listed:
+
+```sh
+scp -r /tmp/reader/app/armv7/estante root@<address>:/home/root/xovi/exthome/appload/
+```
 
 The module needs Go 1.26 (goja's minimum).
 

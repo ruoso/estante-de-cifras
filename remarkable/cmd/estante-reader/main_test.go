@@ -3,14 +3,18 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"estantedecifras.app/remarkable/internal/protocol"
 	"estantedecifras.app/remarkable/internal/store"
 )
 
@@ -31,15 +35,17 @@ func TestVersion(t *testing.T) {
 	}
 }
 
-// TestUsage pins the usage path: no argument or an unknown one prints the
-// three-command usage line to stderr and exits 2.
+// TestUsage pins the usage path: no argument or an unknown one (a relative
+// path is not AppLoad's socket) prints the usage line, which names run
+// (reader.app_folder), to stderr and exits 2.
 func TestUsage(t *testing.T) {
-	for _, cmd := range []string{"--version", "sheet --bundle DIR", "bench --bundle DIR"} {
+	for _, cmd := range []string{"--version", "sheet --bundle DIR", "bench --bundle DIR", "run [--root DIR] SOCKET"} {
 		if !strings.Contains(usage, cmd) {
 			t.Errorf("usage %q does not name %q", usage, cmd)
 		}
 	}
-	for _, args := range [][]string{nil, {"frobnicate"}, {"--version", "extra"}} {
+	for _, args := range [][]string{nil, {"frobnicate"}, {"--version", "extra"},
+		{"estante.sock"}, {"/tmp/a.sock", "/tmp/b.sock"}, {"run"}, {"run", "--root", "/tmp/x"}} {
 		var stdout, stderr bytes.Buffer
 		if code := run(args, &stdout, &stderr); code != 2 {
 			t.Errorf("%q: exit %d, want 2", args, code)
@@ -361,5 +367,144 @@ func TestSyncUsage(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "not paired") || stdout.Len() != 0 {
 		t.Errorf("unpaired sync: stdout %q stderr %q", stdout.String(), stderr.String())
+	}
+}
+
+// appLoad is AppLoad's side of the socket: the accepted connection, read
+// through a protocol.Conn and written raw (the system types −1…−3 are
+// AppLoad's to send, which protocol.Conn refuses).
+type appLoad struct {
+	t    *testing.T
+	uc   *net.UnixConn
+	conn *protocol.Conn
+}
+
+// send writes a header record, then the payload record, as AppLoad's
+// management.cpp does.
+func (a *appLoad) send(typ int32, payload string) {
+	a.t.Helper()
+	hdr := make([]byte, 8)
+	binary.NativeEndian.PutUint32(hdr[0:4], uint32(typ))
+	binary.NativeEndian.PutUint32(hdr[4:8], uint32(len(payload)))
+	if _, err := a.uc.Write(hdr); err != nil {
+		a.t.Fatalf("send %d header: %v", typ, err)
+	}
+	if _, err := a.uc.Write([]byte(payload)); err != nil {
+		a.t.Fatalf("send %d payload: %v", typ, err)
+	}
+}
+
+// listen listens on a unixpacket socket in a temporary directory, as AppLoad
+// does at /tmp/<id>.sock, and returns its path and the accepted side.
+func listen(t *testing.T) (string, <-chan *appLoad) {
+	t.Helper()
+	sock := filepath.Join(t.TempDir(), "estante.sock")
+	ln, err := net.ListenUnix("unixpacket", &net.UnixAddr{Name: sock, Net: "unixpacket"})
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	accepted := make(chan *appLoad, 1)
+	go func() {
+		defer close(accepted)
+		ln.SetDeadline(time.Now().Add(10 * time.Second))
+		uc, err := ln.AcceptUnix()
+		if err != nil {
+			return
+		}
+		c, err := protocol.NewConn(uc)
+		if err != nil {
+			uc.Close()
+			return
+		}
+		accepted <- &appLoad{t: t, uc: uc, conn: c}
+	}()
+	return sock, accepted
+}
+
+// servesHelloAndTerminate drives one run: the backend dials, answers a hello
+// with a state, and returns 0 on AppLoad's terminate (−1 close).
+func servesHelloAndTerminate(t *testing.T, args []string, accepted <-chan *appLoad) {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	code := make(chan int, 1)
+	go func() { code <- run(args, &stdout, &stderr) }()
+	var a *appLoad
+	select {
+	case a = <-accepted:
+	case got := <-code:
+		t.Fatalf("run returned %d before dialling; stderr %q", got, stderr.String())
+	case <-time.After(10 * time.Second):
+		t.Fatal("run did not dial")
+	}
+	if a == nil {
+		t.Fatal("accept failed")
+	}
+	defer a.conn.Close()
+	a.send(protocol.TypeHello, "{}")
+	m, err := a.conn.Next()
+	if err != nil {
+		t.Fatalf("receive: %v", err)
+	}
+	if _, ok := m.(protocol.State); !ok {
+		t.Fatalf("got %T, want protocol.State", m)
+	}
+	a.send(protocol.TypeTerminate, "close")
+	select {
+	case got := <-code:
+		if got != 0 {
+			t.Errorf("exit %d, want 0; stderr %q", got, stderr.String())
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("run did not return after terminate")
+	}
+	if stdout.Len() != 0 || stderr.Len() != 0 {
+		t.Errorf("stdout %q, stderr %q; want both empty", stdout.String(), stderr.String())
+	}
+}
+
+// TestRunServesTheSocket pins reader.app_folder's run: it dials the socket,
+// answers hello with a state (design §6), and exits 0 on terminate.
+func TestRunServesTheSocket(t *testing.T) {
+	root := t.TempDir()
+	sock, accepted := listen(t)
+	servesHelloAndTerminate(t, []string{"run", "--root", root, sock}, accepted)
+	if _, err := os.Stat(filepath.Join(root, "bundle")); err != nil {
+		t.Errorf("the store was not opened at --root: %v", err)
+	}
+}
+
+// TestBareSocketPathIsRun pins backend/entry as AppLoad starts it: a sole
+// absolute path is run against the default store (rm-appload
+// src/library.cpp L24–41, argv[1] the socket path; design §3.1).
+func TestBareSocketPathIsRun(t *testing.T) {
+	root := t.TempDir()
+	saved := defaultRoot
+	defaultRoot = root
+	t.Cleanup(func() { defaultRoot = saved })
+	sock, accepted := listen(t)
+	servesHelloAndTerminate(t, []string{sock}, accepted)
+	if _, err := os.Stat(filepath.Join(root, "bundle")); err != nil {
+		t.Errorf("the store was not opened at the default root: %v", err)
+	}
+}
+
+// TestRunDialFails: no socket, exit 1, and the error line names the dial's
+// class — not the socket's path, nor anything read from it (design §10).
+func TestRunDialFails(t *testing.T) {
+	sock := filepath.Join(t.TempDir(), "secret-name", "missing.sock")
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"run", "--root", t.TempDir(), sock}, &stdout, &stderr); code != 1 {
+		t.Errorf("exit %d, want 1", code)
+	}
+	got := stderr.String()
+	if !strings.HasPrefix(got, "estante-reader run: could not dial") {
+		t.Errorf("stderr %q, want the dial's error line", got)
+	}
+	if strings.Contains(got, "secret-name") || strings.Contains(got, "missing.sock") {
+		t.Errorf("stderr %q names the socket's path", got)
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("stdout %q, want empty", stdout.String())
 	}
 }
