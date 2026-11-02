@@ -49,6 +49,7 @@ jobs:
           cache-dependency-path: |
             estante-de-cifras/service/go.mod
             estante-de-cifras/api/go.sum
+            estante-de-cifras/remarkable/go.mod
 
       # Python 3 for scripts/unblocked.py and the cifra.md reference's venv.
       - name: Set up Python

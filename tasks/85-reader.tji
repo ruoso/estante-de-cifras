@@ -20,7 +20,8 @@ task reader "The reMarkable reader" {
   task module "The reader's Go module, in the gate and in DIRECTION" {
     effort 0.5d
     allocate team
-    note "Stand up remarkable/ at the repository root: a Go module with cmd/estante-reader (the AppLoad backend binary, its subcommands to come) sharing no code with service/ (DIRECTION §3.6). scripts/gate runs its go vet, go test and go build after the app's checks, so the built bundle exists for its tests, and cross-builds it for amd64, armv7 (GOARCH=arm GOARM=7, the rM2) and arm64 (the Paper Pro), all CGO-free, so a change that breaks an ARM build fails the gate. DIRECTION §3.6's table gains the reader as a component. Docs: docs/remarkable-reader.md §3.1, §9. Tests: unit (the command builds and answers --version); the gate's three cross-builds."
+    complete 100
+    note "Stand up remarkable/ at the repository root: a Go module with cmd/estante-reader (the AppLoad backend binary, its subcommands to come) sharing no code with service/ (DIRECTION §3.6). scripts/gate runs its go vet, go test and go build after the app's checks, so the built bundle exists for its tests, and cross-builds it for amd64, armv7 (GOARCH=arm GOARM=7, the rM2) and arm64 (the Paper Pro), all CGO-free, so a change that breaks an ARM build fails the gate. DIRECTION §3.6's table gains the reader as a component. Docs: docs/remarkable-reader.md §3.1, §9. Tests: unit (the command builds and answers --version); the gate's three cross-builds. Refinement: tasks/refinements/reader/module.md"
   }
   task engine "The engine: the bundle in goja" {
     effort 2d

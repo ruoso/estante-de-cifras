@@ -9,8 +9,9 @@
 # It verifies both parts of the repository:
 #
 #   - estante-de-cifras: the WBS (tj3 and scripts/unblocked.py), the app
-#     (`app/`), the service (`service/`), and the end-to-end levels against
-#     the compose stack (`e2e/api/`, `e2e/web/`);
+#     (`app/`), the reMarkable reader (`remarkable/`, with cross-builds for
+#     the devices), the service (`service/`), and the end-to-end levels
+#     against the compose stack (`e2e/api/`, `e2e/web/`);
 #   - cifra.md (`cifra.md/`, a git subtree published to github.com/ruoso/
 #     cifra.md), where tasks whose .tji note starts with "cifra.md:" land: the
 #     Python reference's tests, the corpus check, and the JavaScript (`js/`)
@@ -24,7 +25,8 @@
 # The test levels (tasks/refinements/README.md) and where they run here:
 #
 #   unit, behavior  `npm test` in app/ and cifra.md's js/, `go test` in
-#                   service/ and cifra.md's go/, pytest in the reference, and
+#                   remarkable/, service/ and cifra.md's go/, pytest in the
+#                   reference, and
 #                   the corpus check (format work's conformance level);
 #   e2e-api         e2e/api/ (Vitest, black-box: HTTP and real git clients);
 #   e2e-web         e2e/web/ (Playwright: phone, tablet and computer, axe).
@@ -321,6 +323,27 @@ if [[ $want_estante -eq 1 ]]; then
     fi
   else
     skip "estante example-book: app/example-book/ does not exist yet"
+  fi
+
+  # The reMarkable reader (remarkable/, docs/remarkable-reader.md) is its own
+  # Go module, sharing no code with the service (DIRECTION §3.6). It runs
+  # after the app's checks, whose build writes the device bundle it loads,
+  # and needs no stack. Its tests run on this host; the cross-builds are the
+  # guard that the binary keeps building, CGO-free, for amd64, the
+  # reMarkable 2 (armv7) and the Paper Pro (arm64). Binaries go to $TMP.
+  if [[ -f remarkable/go.mod ]]; then
+    (cd remarkable; go_checks "estante reader")
+    for target in amd64 arm:7 arm64; do
+      arch="${target%%:*}"
+      goarm=""; [[ "$target" == *:* ]] && goarm="${target#*:}"
+      step "estante reader: cross-build linux/$arch${goarm:+ (GOARM=$goarm)}"
+      mkdir -p "$TMP/reader/$arch"
+      (cd remarkable
+       CGO_ENABLED=0 GOOS=linux GOARCH="$arch" GOARM="$goarm" \
+         go build -p "$JOBS" -o "$TMP/reader/$arch/" ./cmd/...)
+    done
+  else
+    skip "estante reader: remarkable/go.mod does not exist yet"
   fi
 
   # The API contract (api/) is self-contained: one OpenAPI document and a thin

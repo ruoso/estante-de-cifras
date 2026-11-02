@@ -308,13 +308,16 @@ spend its effort working around.
 | **The service** | Go | this repository, `service/` | Sign-in, the registry, sharing, the change check, and git over HTTP. |
 | **The hook** | Go | this repository, `service/cmd/pre-receive` | Checks every push (workflow 14). |
 | **The admin tool** | Go | this repository, `service/cmd/estante-admin` | Handles a copyright notice: withdraw a book's invitations, remove its members, or take it down (workflow 10), with the reason recorded. An operator command, not an endpoint. |
+| **The reader** | Go, QML | this repository, `remarkable/` | A read-only client for a reMarkable, run by AppLoad: a Go backend that syncs with go-git and runs the app's built music bundle in goja, and a QML frontend that draws (docs/remarkable-reader.md). |
 | **cifra.md for Go** | Go | this repository, `cifra.md/go/` | Reads and canonicalizes songs and setlists. The hook's; also a git merge driver for computers. |
 | **The reference** | Python | this repository, `cifra.md/reference/` | The specification's second opinion. |
 
 **The app and the service share no code**, only the HTTP API and the format.
 The API calls are cleanly separate from the interface, and the service never
 needs to understand a song except to check that a push holds canonical
-ones, which the Go implementation does in the hook.
+ones, which the Go implementation does in the hook. The reader shares no code
+with the service either: it agrees with it through the same API contract, and
+runs the app's code only as the app's built bundle, never as source it imports.
 
 **Implementations agree because they are checked, not because they are
 shared.** That is what the specification is for. The corpus holds, for every
