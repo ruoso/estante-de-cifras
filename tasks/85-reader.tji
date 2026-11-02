@@ -40,8 +40,9 @@ task reader "The reMarkable reader" {
   task store "The reader's store and its own state" {
     effort 1d
     allocate team
+    complete 100
     depends !module
-    note "remarkable/internal/store: the device's files under /home/root/.local/share/estante/ — the session (mode 0600), the clones, the current and last good bundle with its manifest — and the reader's own state, kept on the device and never written to the account: the key chosen for a song, the place in a setlist, whether shapes are shown, and the shapes hidden because they are known (by tuning, chord and frets). Written atomically, read back across restarts. Docs: docs/remarkable-reader.md §3.2, §5.4, §10; docs/workflows/19-remarkable-reader.md §A song. Tests: unit (each piece of state round-trips across a restart; a torn write leaves the previous state; the session file's mode)."
+    note "remarkable/internal/store: the device's files under /home/root/.local/share/estante/ — the session (mode 0600), the clones, the current and last good bundle with its manifest — and the reader's own state, kept on the device and never written to the account: the key chosen for a song, the place in a setlist, whether shapes are shown, and the shapes hidden because they are known (by tuning, chord and frets). Written atomically, read back across restarts. Docs: docs/remarkable-reader.md §3.2, §5.4, §10; docs/workflows/19-remarkable-reader.md §A song. Tests: unit (each piece of state round-trips across a restart; a torn write leaves the previous state; the session file's mode). Refinement: tasks/refinements/reader/store.md"
   }
   task qml_harness "QML tests in the gate" {
     effort 1d
