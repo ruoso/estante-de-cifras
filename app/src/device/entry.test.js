@@ -469,3 +469,33 @@ describe('held (§4: what the session keeps)', () => {
     expect(JSON.parse(JSON.stringify(got))).toStrictEqual(got);
   });
 });
+
+// reader.sync: the Go host hands the home book's four files to the bundle,
+// which chooses the entry and the table (design §4 host API `instrument`,
+// §4.1); the answer crosses as plain JSON.
+describe('instrument (reader.sync)', () => {
+  const at = '2026-10-06T12:00:00.000Z';
+  const files = () => ({
+    instruments: {},
+    preferences: {},
+    shapes: {},
+    defaultShapes: { [ENTRY.id]: { [ENTRY.tuning]: { [SHAPE_CACHE_SALT]: { at, value: TABLE } } } },
+  });
+
+  it("answers the standard guitar and the example book's table under the bundle's salt", () => {
+    const got = estante.instrument(files());
+    expect(got.salt).toBe(SHAPE_CACHE_SALT);
+    expect(got.table).toEqual(TABLE);
+    expect(got.entry.id).toBe(ENTRY.id);
+    expect(got.entry.tuning).toBe(ENTRY.tuning);
+    expect(estante.load(got.entry, got.table).held).toBe(Object.keys(TABLE.shapes).length);
+  });
+
+  it('answers plain JSON only', () => {
+    const got = estante.instrument(files());
+    expect(JSON.parse(JSON.stringify(got))).toStrictEqual(got);
+    const empty = estante.instrument({ instruments: {}, preferences: {}, shapes: {}, defaultShapes: {} });
+    expect(empty.table).toBeNull();
+    expect(JSON.parse(JSON.stringify(empty))).toStrictEqual(empty);
+  });
+});

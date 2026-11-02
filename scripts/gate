@@ -46,6 +46,8 @@
 #   ESTANTE_PG_USER, ESTANTE_PG_PASSWORD, ESTANTE_PG_DB     Postgres credentials
 #   ESTANTE_E2E_BASE_URL   the one origin (app and API), e.g. http://127.0.0.1:N
 #   ESTANTE_E2E_MAIL_URL   the mail catcher's HTTP API
+#   ESTANTE_E2E_READER_BIN the reMarkable reader's amd64 build (e2e-api's
+#                          reader-sync test drives it; reader.sync)
 #   ESTANTE_TEST_DATABASE_URL  the stack's Postgres, for Go behavior tests
 #   ESTANTE_COMPOSE_PROJECT    the stack's compose project name
 #
@@ -390,7 +392,9 @@ if [[ $want_estante -eq 1 ]]; then
       fi
       has_npm_script test || fail "estante e2e-api: e2e/api/package.json has no 'test' script — a harness that exists must run"
       step "estante e2e-api: npm test against the stack ($ESTANTE_E2E_BASE_URL, $E2E_WORKERS workers)"
-      CI=true npm test -- --maxWorkers="$E2E_WORKERS"
+      # The reader's own amd64 build, made above with its cross-builds.
+      ESTANTE_E2E_READER_BIN="$TMP/reader/amd64/estante-reader" \
+        CI=true npm test -- --maxWorkers="$E2E_WORKERS"
     )
   elif [[ $has_e2e_web -eq 1 ]]; then
     skip "estante e2e-api: e2e/api/package.json does not exist yet"

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"time"
 )
 
 // Voicing names a hidden voicing: the tuning, the chord as the engine keys it
@@ -20,12 +21,14 @@ type Voicing struct {
 const stateVersion = 1
 
 // state is the reader's own state (§5.4): the key chosen per song, the place
-// per setlist, whether shapes are shown, and the voicings hidden.
+// per setlist, whether shapes are shown, the voicings hidden, and when the
+// last sync finished (reader.sync).
 type state struct {
 	keys         map[string]map[string]int // bookId → song path → offset
 	places       map[string]map[string]int // bookId → setlist path → item index
 	shapesHidden bool
 	hidden       map[Voicing]struct{}
+	lastSync     time.Time // zero before the first sync
 }
 
 type stateJSON struct {
@@ -34,6 +37,7 @@ type stateJSON struct {
 	Places       map[string]map[string]int `json:"places,omitempty"`
 	ShapesHidden bool                      `json:"shapesHidden,omitempty"`
 	Hidden       []Voicing                 `json:"hidden,omitempty"`
+	LastSync     *time.Time                `json:"lastSync,omitempty"`
 }
 
 func newState() state {
@@ -58,6 +62,7 @@ func (st state) clone() state {
 	for v := range st.hidden {
 		c.hidden[v] = struct{}{}
 	}
+	c.lastSync = st.lastSync
 	return c
 }
 
@@ -95,11 +100,18 @@ func readState(path string) state {
 	for _, v := range j.Hidden {
 		st.hidden[v] = struct{}{}
 	}
+	if j.LastSync != nil {
+		st.lastSync = *j.LastSync
+	}
 	return st
 }
 
 func (st state) encode() ([]byte, error) {
 	j := stateJSON{Version: stateVersion, Keys: st.keys, Places: st.places, ShapesHidden: st.shapesHidden}
+	if !st.lastSync.IsZero() {
+		t := st.lastSync
+		j.LastSync = &t
+	}
 	for v := range st.hidden {
 		j.Hidden = append(j.Hidden, v)
 	}
@@ -217,4 +229,18 @@ func (s *Store) Show(v Voicing) error {
 // ShowAll shows every hidden voicing again.
 func (s *Store) ShowAll() error {
 	return s.mutate(func(st *state) { st.hidden = map[Voicing]struct{}{} })
+}
+
+// LastSync is when the last sync finished, false before the first (the
+// shelf's *Synced at 14:32*, *Not connected — showing what was synced at
+// 09:10*, across a restart too; workflow 19 §The shelf).
+func (s *Store) LastSync() (time.Time, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.state.lastSync, !s.state.lastSync.IsZero()
+}
+
+// SetLastSync keeps when a sync finished.
+func (s *Store) SetLastSync(t time.Time) error {
+	return s.mutate(func(st *state) { st.lastSync = t })
 }

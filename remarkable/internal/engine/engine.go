@@ -494,6 +494,59 @@ func orNull(raw json.RawMessage) json.RawMessage {
 	return raw
 }
 
+// InstrumentFiles are the home book's four instrument files as their bytes:
+// instruments.json, preferences.json, shapes.json and
+// shapes-default-cache.json. Each crosses as parsed JSON; an absent or empty
+// one crosses as {} (home-book format §2.1).
+type InstrumentFiles struct {
+	Instruments   json.RawMessage
+	Preferences   json.RawMessage
+	Shapes        json.RawMessage
+	DefaultShapes json.RawMessage
+}
+
+// Instrument is instrument's answer: the entry in use as the Worker surfaces
+// it, the default-shape table chosen for it (null when none), and the salt
+// that table was written under (nil when none) — what Load takes.
+type Instrument struct {
+	Entry json.RawMessage `json:"entry"`
+	Table json.RawMessage `json:"table"`
+	Salt  *string         `json:"salt"`
+}
+
+// orEmpty is raw JSON, or {} when empty.
+func orEmpty(raw json.RawMessage) json.RawMessage {
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return json.RawMessage("{}")
+	}
+	return raw
+}
+
+// Instrument asks the bundle for the instrument in use and its table, from
+// the home book's files (reader.sync; design §4 `instrument(files)`, §4.1):
+// the choice — the roster, the fingerprint, the salts — is the music core's,
+// so the host keeps no copy of it. A file that is not JSON is refused, naming
+// none of its bytes.
+func (e *Engine) Instrument(ctx context.Context, files InstrumentFiles) (Instrument, error) {
+	arg := struct {
+		Instruments   json.RawMessage `json:"instruments"`
+		Preferences   json.RawMessage `json:"preferences"`
+		Shapes        json.RawMessage `json:"shapes"`
+		DefaultShapes json.RawMessage `json:"defaultShapes"`
+	}{orEmpty(files.Instruments), orEmpty(files.Preferences), orEmpty(files.Shapes), orEmpty(files.DefaultShapes)}
+	for _, raw := range []json.RawMessage{arg.Instruments, arg.Preferences, arg.Shapes, arg.DefaultShapes} {
+		if !json.Valid(raw) {
+			return Instrument{}, errors.New("engine: instrument: a file is not JSON")
+		}
+	}
+	var in Instrument
+	if err := e.invoke(ctx, "instrument", &in, arg); err != nil {
+		return Instrument{}, err
+	}
+	in.Entry, in.Table = orNull(in.Entry), orNull(in.Table)
+	return in, nil
+}
+
 // Load begins a session on an instrument: its entry as the Worker surfaces
 // it, and its §4.6 table (either may be null). The same entry and table as
 // the last Load is a no-op that answers as that Load did, so the bundle's

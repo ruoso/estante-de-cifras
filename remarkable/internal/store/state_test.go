@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // TestKeyRoundTripsAcrossRestart pins workflow 19 §A song "until another is
@@ -222,5 +223,38 @@ func TestUnknownStateFieldsIgnored(t *testing.T) {
 	}
 	if !s.Hidden(Voicing{TuningID: "t", Chord: "C", Frets: "x32010"}) {
 		t.Error("hidden voicing not read")
+	}
+}
+
+// TestLastSyncRoundTripsAcrossRestart pins reader.sync Decision 12 and
+// workflow 19 §The shelf: when the last sync finished is kept in state.json,
+// so *Not connected — showing what was synced at 09:10* holds after a
+// restart.
+func TestLastSyncRoundTripsAcrossRestart(t *testing.T) {
+	s, root := newStore(t)
+	if _, ok := s.LastSync(); ok {
+		t.Fatal("a fresh store has a last sync")
+	}
+	first := time.Date(2026, 11, 1, 9, 10, 0, 0, time.UTC)
+	if err := s.SetLastSync(first); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetKey("b1", "song", intp(2)); err != nil {
+		t.Fatal(err)
+	}
+	s = openStore(t, root)
+	if got, ok := s.LastSync(); !ok || !got.Equal(first) {
+		t.Errorf("after restart: %v %v, want %v true", got, ok, first)
+	}
+	if off, ok := s.Key("b1", "song"); !ok || off != 2 {
+		t.Errorf("the key was lost beside the last sync: %d %v", off, ok)
+	}
+	later := first.Add(5*time.Hour + 22*time.Minute)
+	if err := s.SetLastSync(later); err != nil {
+		t.Fatal(err)
+	}
+	s = openStore(t, root)
+	if got, _ := s.LastSync(); !got.Equal(later) {
+		t.Errorf("after a later sync and a restart: %v, want %v", got, later)
 	}
 }

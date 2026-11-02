@@ -23,7 +23,7 @@
 import './polyfills.js';
 import { parse, parseSetlist } from 'cifra-md';
 import { HOST_API } from './host-api.js';
-import { SHAPE_CACHE_SALT, createShapeCache, shapeCacheKey } from '../core/shape-cache.js';
+import { SHAPE_CACHE_SALT, DECOMMISSIONED_SALTS, createShapeCache, shapeCacheKey } from '../core/shape-cache.js';
 import { parseChord } from '../core/notation/parse.js';
 import { transposedKeyName } from '../core/transpose.js';
 import { songKeyName } from '../core/song-key.js';
@@ -33,6 +33,7 @@ import { diagramModel } from '../render/diagram.js';
 import { resolveDiagramDisplay } from '../theme/resolve.js';
 import { setlistRows } from '../books/setlist-display.js';
 import { playableItems, playKeyOffset } from '../books/setlist-play.js';
+import { chooseInstrument } from './instrument.js';
 
 // The session, as the last `load` made it.
 let session = emptySession(null, null);
@@ -84,6 +85,17 @@ function parsedOf(text) {
 function normalOffset(offset) {
   const n = Math.trunc(Number(offset) || 0);
   return ((n % 12) + 12) % 12;
+}
+
+/**
+ * The instrument in use and its default-shape table, from the home book's
+ * files `{ instruments, preferences, shapes, defaultShapes }` (parsed JSON,
+ * absent as `{}`), for the host to hand to `load` (reader.sync; §4, §4.1):
+ * `{ entry, table, salt }`, the table this bundle's salt's, else another
+ * non-decommissioned salt's whose fingerprint fits, else null.
+ */
+function instrument(files) {
+  return chooseInstrument(files ?? {}, { salt: SHAPE_CACHE_SALT, decommissioned: DECOMMISSIONED_SALTS });
 }
 
 /**
@@ -225,6 +237,7 @@ function held() {
 export const estante = Object.freeze({
   hostApi: HOST_API,
   salt: SHAPE_CACHE_SALT,
+  instrument,
   load,
   sheet,
   setlist,

@@ -218,6 +218,7 @@ Go host and the bundle:
 
 | Call | Does |
 |---|---|
+| `instrument(files)` | From the home book's `instruments.json`, `preferences.json`, `shapes.json` and `shapes-default-cache.json` (as parsed JSON, absent as `{}`), the instrument in use as the Worker surfaces it and the default-shape table §4.1 chooses for it — the bundle's own salt, else another non-decommissioned salt's table whose fingerprint fits — for `load` (reader.sync) |
 | `load(entry, table)` | The instrument in use, as the Worker surfaces it, and its default-shape table (§4.1) |
 | `sheet(text, offset, opts)` | One song at one key: its rows (`chartRows`), its shapes (resolved §7.6 order, through the cache) as diagram models (`diagramModel`), its notes, key and title |
 | `setlist(text, …)` | A setlist's playable items and each one's key (workflow 12) |
@@ -240,7 +241,10 @@ web app when a song is saved, for the instrument in use, under the **bundle's
 own salt** — the bundle is built with the app, so its salt is the one the app
 writes. If the device's table is absent (a salt the web app has not filled
 yet), it MAY read another non-decommissioned salt's table (§4.6, the slow
-reader's allowance).
+reader's allowance). The choice is the bundle's (`instrument(files)`, §4),
+beside the core's own salt and decommissioned list, so the Go host keeps no
+copy of either: of the other salts' tables, one whose fingerprint fits the
+instrument as it is now, the latest written (`at`) first.
 
 **The search never runs on the reading path.** Measured on an rM2 it costs 1–
 2.5 s a chord. A miss draws the chart at once and leaves that chord's place in

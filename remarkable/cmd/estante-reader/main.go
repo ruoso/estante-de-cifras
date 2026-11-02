@@ -5,7 +5,12 @@
 //   - --version prints the version;
 //   - sheet prints one song's sheet at a key as JSON, from the engine
 //     (reader.engine), for development and for the screens' fixtures;
-//   - bench re-measures the reading path rows of the design's §4.2.
+//   - bench re-measures the reading path rows of the design's §4.2;
+//   - session keeps a session, its token read from stdin (never argv, which
+//     every process on the device can read), for development until pairing
+//     lands (design §12 step 3; reader.sync);
+//   - sync runs one sync pass and prints what it did: ids, statuses and
+//     heads (reader.sync, and the e2e-api's driver).
 package main
 
 import (
@@ -15,11 +20,15 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"estantedecifras.app/remarkable/internal/engine"
+	"estantedecifras.app/remarkable/internal/store"
+	"estantedecifras.app/remarkable/internal/sync"
 )
 
 // version is stamped at link time with -ldflags "-X main.version=<v>".
@@ -27,10 +36,15 @@ var version = "dev"
 
 const usage = "usage: estante-reader --version | " +
 	"sheet --bundle DIR [--shapes FILE] [--key N] [--variation V] SONG | " +
-	"bench --bundle DIR [--shapes FILE] [--rounds N] SONG..."
+	"bench --bundle DIR [--shapes FILE] [--rounds N] SONG... | " +
+	"session --root DIR --origin URL (token on stdin) | " +
+	"sync --root DIR --bundle DIR"
 
 // errUsage is a bad invocation: the usage line, exit 2.
 var errUsage = errors.New("usage")
+
+// stdin is what session reads the token from; a test replaces it.
+var stdin io.Reader = os.Stdin
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -49,6 +63,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		err = sheetCommand(args[1:], stdout)
 	case len(args) > 0 && args[0] == "bench":
 		err = benchCommand(args[1:], stdout)
+	case len(args) > 0 && args[0] == "session":
+		err = sessionCommand(args[1:], stdin)
+	case len(args) > 0 && args[0] == "sync":
+		err = syncCommand(args[1:], stdout)
 	default:
 		err = errUsage
 	}
@@ -234,4 +252,72 @@ func (m mean) String() string {
 		return "-"
 	}
 	return fmt.Sprintf("%.2f ms (n=%d)", float64(m.total)/float64(time.Millisecond)/float64(m.n), m.n)
+}
+
+// maxToken bounds what session reads from stdin.
+const maxToken = 4096
+
+// sessionCommand: estante-reader session --root DIR --origin URL, the token
+// on stdin. It keeps the session in the store (session.json, 0600) and
+// prints nothing: the token is never echoed, never in an error.
+func sessionCommand(args []string, in io.Reader) error {
+	fs := newFlags("session")
+	root := fs.String("root", "", "")
+	origin := fs.String("origin", "", "")
+	if fs.Parse(args) != nil || *root == "" || *origin == "" || fs.NArg() != 0 {
+		return errUsage
+	}
+	u, err := url.Parse(*origin)
+	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil {
+		return errors.New("--origin is not an http(s) origin")
+	}
+	raw, err := io.ReadAll(io.LimitReader(in, maxToken+1))
+	if err != nil {
+		return errors.New("reading the token from stdin failed")
+	}
+	token := strings.TrimSpace(string(raw))
+	if token == "" || len(raw) > maxToken || strings.ContainsAny(token, " \t\r\n;") {
+		return errors.New("stdin holds no token")
+	}
+	st, err := store.Open(*root)
+	if err != nil {
+		return err
+	}
+	return st.SetSession(store.Session{
+		Origin:   u.Scheme + "://" + u.Host,
+		Token:    token,
+		PairedAt: time.Now().UTC(),
+	})
+}
+
+// syncCommand: estante-reader sync --root DIR --bundle DIR — one pass, its
+// Result on stdout as JSON: ids, statuses and heads, nothing else.
+func syncCommand(args []string, stdout io.Writer) error {
+	fs := newFlags("sync")
+	root := fs.String("root", "", "")
+	bundle := fs.String("bundle", "", "")
+	if fs.Parse(args) != nil || *root == "" || *bundle == "" || fs.NArg() != 0 {
+		return errUsage
+	}
+	st, err := store.Open(*root)
+	if err != nil {
+		return err
+	}
+	e, err := engine.Open(*bundle)
+	if err != nil {
+		return err
+	}
+	defer e.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	res, err := sync.New(st, e, sync.Options{}).Pass(ctx)
+	if err != nil {
+		return err
+	}
+	out, err := json.MarshalIndent(res, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(stdout, "%s\n", out)
+	return err
 }

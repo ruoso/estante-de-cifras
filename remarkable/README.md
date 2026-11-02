@@ -20,6 +20,20 @@ go run ./cmd/estante-reader bench --bundle ../app/dist/device \
 `sheet` prints one song's sheet as JSON; `bench` prints the §4.2 reading-path
 timings, and nothing of the songs.
 
+`internal/sync` fetches the account's home book and its shelf's books into the
+store with go-git, read-only (design §5). Until pairing lands, a session is
+pasted in by hand — the token on stdin, never on the command line — and one
+pass run:
+
+```sh
+printf '%s\n' "$TOKEN" | go run ./cmd/estante-reader session --root /tmp/estante \
+  --origin https://estantedecifras.app
+go run ./cmd/estante-reader sync --root /tmp/estante --bundle ../app/dist/device
+```
+
+`sync` prints what the pass did — ids, statuses and heads, nothing else. Its
+behavior tests run real `git http-backend`, so they need `git` on the host.
+
 The module needs Go 1.26 (goja's minimum).
 
 It is its own Go module and shares no code with `service/` (DIRECTION §3.6):

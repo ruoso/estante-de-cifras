@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // TestTornWriteLeavesPreviousState pins the task's "a torn write leaves the
@@ -180,6 +181,9 @@ func TestSignOutClearsTheDevice(t *testing.T) {
 	if err := s.SetShapesShown(false); err != nil {
 		t.Fatal(err)
 	}
+	if err := s.SetLastSync(time.Date(2026, 11, 1, 9, 10, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(s.HomeDir(), "song.cifra.md"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -203,6 +207,9 @@ func TestSignOutClearsTheDevice(t *testing.T) {
 		}
 		if _, ok := s.Key("b1", "song"); ok || !s.ShapesShown() || s.HiddenCount() != 0 {
 			t.Errorf("%s: state kept", when)
+		}
+		if _, ok := s.LastSync(); ok {
+			t.Errorf("%s: last sync kept (reader.sync)", when)
 		}
 		for _, f := range []string{sessionFile, stateFile} {
 			if _, err := os.Stat(filepath.Join(root, f)); !errors.Is(err, os.ErrNotExist) {

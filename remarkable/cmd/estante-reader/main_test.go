@@ -4,11 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"estantedecifras.app/remarkable/internal/store"
 )
 
 // TestVersion pins reader.module's --version: exactly
@@ -269,5 +272,94 @@ func TestBenchCommand(t *testing.T) {
 		if strings.Contains(out, title) || strings.Contains(stderr.String(), title) {
 			t.Errorf("bench printed the title %q", title)
 		}
+	}
+}
+
+// TestSessionReadsTokenFromStdin pins reader.sync Decision 11: session takes
+// the token on stdin, never argv, keeps it in session.json at 0600, and
+// prints it nowhere.
+func TestSessionReadsTokenFromStdin(t *testing.T) {
+	const token = "tok-stdin-0123456789-secret"
+	root := filepath.Join(t.TempDir(), "estante")
+	defer func(r io.Reader) { stdin = r }(stdin)
+	stdin = strings.NewReader(token + "\n")
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"session", "--root", root, "--origin", "https://estante.test/"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr.String())
+	}
+	if strings.Contains(stdout.String(), token) || strings.Contains(stderr.String(), token) {
+		t.Error("the token was printed")
+	}
+	info, err := os.Stat(filepath.Join(root, "session.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode := info.Mode().Perm(); mode != 0o600 {
+		t.Errorf("session.json mode %o, want 600", mode)
+	}
+	st, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, ok := st.Session()
+	if !ok || sess.Token != token || sess.Origin != "https://estante.test" {
+		t.Errorf("session kept %v, origin %q, token kept %v", ok, sess.Origin, sess.Token == token)
+	}
+
+	// No token on stdin, or a bad origin: exit 1, nothing kept, no token.
+	for name, tc := range map[string]struct {
+		in   string
+		args []string
+	}{
+		"empty stdin": {"", []string{"session", "--root", filepath.Join(t.TempDir(), "r"), "--origin", "https://estante.test"}},
+		"bad origin":  {token, []string{"session", "--root", filepath.Join(t.TempDir(), "r"), "--origin", "estante.test"}},
+	} {
+		stdin = strings.NewReader(tc.in)
+		var stdout, stderr bytes.Buffer
+		if code := run(tc.args, &stdout, &stderr); code != 1 {
+			t.Errorf("%s: exit %d, want 1", name, code)
+		}
+		if strings.Contains(stderr.String(), token) {
+			t.Errorf("%s: stderr carries the token", name)
+		}
+		if _, err := os.Stat(filepath.Join(tc.args[2], "session.json")); err == nil {
+			t.Errorf("%s: a session was kept", name)
+		}
+	}
+}
+
+// TestSyncUsage pins the session and sync invocations: the usage line names
+// both; a bad one exits 2 with it; sync with no session exits 1 saying so.
+func TestSyncUsage(t *testing.T) {
+	for _, cmd := range []string{"session --root DIR --origin URL", "sync --root DIR --bundle DIR"} {
+		if !strings.Contains(usage, cmd) {
+			t.Errorf("usage %q does not name %q", usage, cmd)
+		}
+	}
+	for _, args := range [][]string{
+		{"session"},
+		{"session", "--root", "r"},
+		{"session", "--origin", "https://estante.test"},
+		{"session", "--root", "r", "--origin", "https://estante.test", "the-token"},
+		{"sync"},
+		{"sync", "--root", "r"},
+		{"sync", "--bundle", "b"},
+		{"sync", "--root", "r", "--bundle", "b", "extra"},
+	} {
+		var stdout, stderr bytes.Buffer
+		if code := run(args, &stdout, &stderr); code != 2 {
+			t.Errorf("%q: exit %d, want 2", args, code)
+		}
+		if stderr.String() != usage+"\n" {
+			t.Errorf("%q: stderr %q, want the usage line", args, stderr.String())
+		}
+	}
+	needBuild(t)
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"sync", "--root", t.TempDir(), "--bundle", builtBundle}, &stdout, &stderr); code != 1 {
+		t.Errorf("unpaired sync: exit %d, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "not paired") || stdout.Len() != 0 {
+		t.Errorf("unpaired sync: stdout %q stderr %q", stdout.String(), stderr.String())
 	}
 }
