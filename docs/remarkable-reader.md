@@ -318,29 +318,56 @@ there until another is chosen, or *As written* (workflow 19 §A song).
 
 ## 6. The messages
 
-Over the AppLoad socket, each payload JSON. Types are small positive integers,
-one table for both directions; the frontend and the backend each ignore a type
-they do not know.
+**The wire, as rm-appload defines it** (`src/protocol.h`,
+`src/management.cpp` at df974a6, 2026-10-06). AppLoad listens on a
+`SOCK_SEQPACKET` unix socket and passes its path as the backend's `argv[1]`;
+the backend connects. A message is **two records**: an 8-byte header record
+(`int type`, `int messageLength`, the machine's own order) and then, when the
+length is not zero, one payload record of exactly that many bytes of UTF-8 —
+AppLoad sends them with two `send` calls and reads them with two `read`s. A
+length above 10 MiB (10 485 760) makes AppLoad end the connection; the backend
+does the same with one it receives. A payload of zero bytes is never sent:
+AppLoad would read no payload record, and the empty record that follows reads
+as the end of the connection. The kernel bounds one record by the sender's
+socket buffer, so the backend checks a payload against that bound before it
+writes the header, never leaving a header without its payload. AppLoad's own
+types: `-1` terminate (payload `close`, then the socket closes), `-2` a
+frontend attached and `-3` one detached (payload: the number of frontends now
+attached, in decimal).
+
+Over it, each payload JSON. Types are small positive integers, one table for
+both directions; the frontend and the backend each ignore a type they do not
+know, and a field they do not know.
 
 | Type | Direction | Payload |
 |---|---|---|
 | 1 `hello` | → backend | `{}` — the frontend attached; the backend answers with `state` |
-| 2 `open` | → backend | `{ view: "shelf" }`, `{ view: "book", bookId }`, `{ view: "song", bookId, path, offset? }`, `{ view: "setlist", bookId, path, at? }` |
-| 3 `key` | → backend | `{ offset }` for the open song |
+| 2 `open` | → backend | `{ view: "shelf" }`, `{ view: "book", bookId }`, `{ view: "song", bookId, path, offset?, play? }`, `{ view: "setlist", bookId, path }`, `{ view: "settings" }` — `play` is `{ setlist, at }` when the song is opened playing a setlist (the setlist's path in the book, the item's index) |
+| 3 `key` | → backend | `{ offset }` for the open song; `{ offset: null }` is *As written* chosen, the choice forgotten |
 | 4 `sync` | → backend | `{}` — *Sync now* |
-| 5 `pair` | → backend | `{}` — begin pairing |
+| 5 `pair` | → backend | `{}` — begin pairing, or *Get a new code* |
 | 6 `signOut` | → backend | `{}` |
-| 101 `state` | → frontend | `{ paired, syncing, lastSync, error? }` |
-| 102 `pairing` | → frontend | `{ code, url, expiresAt }` |
-| 103 `shelf` | → frontend | the books, in shelf order: `{ books: [{ bookId, title, songs, setlists }] }` |
-| 104 `book` | → frontend | `{ bookId, title, songs: [{ path, title, artist }], setlists: [{ path, title }] }` |
-| 105 `sheet` | → frontend | `{ bookId, path, title, artist, key, offset, rows, shapes: [{ symbol, model }], notes }` — `model` the diagram model (§7) |
-| 106 `setlist` | → frontend | `{ bookId, path, title, items: [{ path, title, offset }] }` |
+| 7 `hideShape` | → backend | `{ tuningId, chord, frets }` — hide this voicing in every song (workflow 19 §A song) |
+| 8 `showShape` | → backend | `{ tuningId, chord, frets }` — show one hidden voicing again |
+| 9 `showAllShapes` | → backend | `{}` — *Show all again* |
+| 10 `shapesShown` | → backend | `{ shown }` — *Hide shapes* / *Show shapes*, for every song |
+| 11 `place` | → backend | `{ bookId, setlist, at }` — the setlist item being played, kept so Back returns to it |
+| 101 `state` | → frontend | `{ paired, syncing, online, lastSync, shapesShown, error? }` — `lastSync` an RFC 3339 time or `null`; `error` a word code (`offline`, `signedOut`), never a message |
+| 102 `pairing` | → frontend | `{ code, url, expiresAt }`, or `{ expired: true }`, or `{ offline: true }` |
+| 103 `shelf` | → frontend | the books, in shelf order: `{ books: [{ bookId, title, songs, setlists }] }` — `songs` and `setlists` counts |
+| 104 `book` | → frontend | `{ bookId, title, songs: [{ path, title, artist }], setlists: [{ path, title, songs }] }` |
+| 105 `sheet` | → frontend | `{ bookId, path, title, artist, key: { written, named, saved }, offset, rows, shapes: [{ chord, symbol, frets, model, hidden }], notes, keyNote, play? }` — `model` the diagram model (§7); `saved` the account's key (`songs.json`) when it has one; `play` `{ setlist, at, of, next }`, `next` `{ title, key, note }` or `null` |
+| 106 `setlist` | → frontend | `{ bookId, path, title, items: [{ path, title, key, note, offset, missing }], at? }` — `at` the item last played, for Back |
+| 107 `settings` | → frontend | `{ account, version, hiddenShapes }` — the account paired with, the reader's version, how many voicings are hidden |
 
 `rows` are `chartRows` exactly as the web app's chart receives them —
 `section`, `bars`, `run`, `sung` (segments: the chord over its words),
 `words`, `notes`, `verbatim`, `gap`, `empty` — so the frontend draws the
-same plain data the web app draws, and the layout is decided once.
+same plain data the web app draws, and the layout is decided once. The
+frontend lays the pages out, so a sheet carries every shape of the song, each
+marked `hidden` or not; the strip of a page, its count of hidden shapes and
+*Show hidden* are drawn from that. A tuning, a chord and its frets name a
+voicing to hide: the frets, not the spelling (workflow 19 §A song).
 
 ## 7. The screens
 

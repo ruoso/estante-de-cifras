@@ -33,8 +33,9 @@ task reader "The reMarkable reader" {
   task protocol "The AppLoad socket and the reader's messages" {
     effort 1d
     allocate team
+    complete 100
     depends !module
-    note "remarkable/internal/protocol: the AppLoad backend protocol, as rm-appload's source defines it — a SOCK_SEQPACKET unix socket at argv[1] (net.Dial unixpacket), each message an 8-byte header (int32 type, int32 length, native order) then a UTF-8 payload of at most 10 MiB; type -1 terminate, -2 a frontend attached, -3 it detached. Over it, the reader's message table of the design's §6, each payload JSON, a type the other side does not know ignored. Docs: docs/remarkable-reader.md §3.2, §6. Tests: unit (framing over a socketpair both ways; the size limit; the system messages; an unknown type ignored; each message of §6 round-trips)."
+    note "remarkable/internal/protocol: the AppLoad backend protocol, as rm-appload's source defines it — a SOCK_SEQPACKET unix socket at argv[1] (net.Dial unixpacket), each message an 8-byte header (int32 type, int32 length, native order) then a UTF-8 payload of at most 10 MiB; type -1 terminate, -2 a frontend attached, -3 it detached. Over it, the reader's message table of the design's §6, each payload JSON, a type the other side does not know ignored. Docs: docs/remarkable-reader.md §3.2, §6. Tests: unit (framing over a socketpair both ways; the size limit; the system messages; an unknown type ignored; each message of §6 round-trips). Refinement: tasks/refinements/reader/protocol.md"
   }
   task store "The reader's store and its own state" {
     effort 1d
