@@ -1,0 +1,9 @@
+# The Qt the reader's QML tests run on (reader.qml_harness): Qt 6.12.0 from
+# PySide6-Essentials, which carries Qt Quick, Qt Quick Test, the QML engine and
+# the offscreen platform plugin. A test-time tool only — nothing shipped links
+# it. Install with --require-hashes (scripts/gate does); the hashes are the
+# manylinux_2_34 x86_64 wheels, the gate's host and CI's ubuntu-24.04.
+PySide6-Essentials==6.12.0 \
+    --hash=sha256:16f4b5e41daf49235ae048458243da9efe5f3d8040f9cc5aa454ce69893d3bd9
+shiboken6==6.12.0 \
+    --hash=sha256:3bde565bb0890044b5c7f63808adddede5abc241e9395a2bfed61919884d6240

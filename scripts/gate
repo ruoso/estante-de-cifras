@@ -10,7 +10,7 @@
 #
 #   - estante-de-cifras: the WBS (tj3 and scripts/unblocked.py), the app
 #     (`app/`), the reMarkable reader (`remarkable/`, with cross-builds for
-#     the devices), the service (`service/`), and the end-to-end levels
+#     the devices and its QML tests), the service (`service/`), and the end-to-end levels
 #     against the compose stack (`e2e/api/`, `e2e/web/`);
 #   - cifra.md (`cifra.md/`, a git subtree published to github.com/ruoso/
 #     cifra.md), where tasks whose .tji note starts with "cifra.md:" land: the
@@ -26,7 +26,8 @@
 #
 #   unit, behavior  `npm test` in app/ and cifra.md's js/, `go test` in
 #                   remarkable/, service/ and cifra.md's go/, pytest in the
-#                   reference, and
+#                   reference, the reader's QML tests (remarkable/qml/tests,
+#                   Qt's qmltestrunner on a pinned PySide6, offscreen), and
 #                   the corpus check (format work's conformance level);
 #   e2e-api         e2e/api/ (Vitest, black-box: HTTP and real git clients);
 #   e2e-web         e2e/web/ (Playwright: phone, tablet and computer, axe).
@@ -344,6 +345,46 @@ if [[ $want_estante -eq 1 ]]; then
        CGO_ENABLED=0 GOOS=linux GOARCH="$arch" GOARM="$goarm" \
          go build -p "$JOBS" -o "$TMP/reader/$arch/" ./cmd/...)
     done
+
+    # The reader's QML frontend is tested on Qt's own qmltestrunner
+    # (qml/tests/run.py calls quick_test_main from the pinned PySide6 wheel),
+    # offscreen with Qt Quick's software renderer, against the AppLoad
+    # stand-in (docs/remarkable-reader.md §9; reader.qml_harness). The venv is
+    # rebuilt when requirements.txt is newer than its stamp. One runner
+    # process; results to stdout, nothing written into the tree.
+    if [[ -d remarkable/qml/tests ]]; then
+      qml_venv=remarkable/qml/tests/.venv
+      qml_reqs=remarkable/qml/tests/requirements.txt
+      qml_hint="the QML runner needs the offscreen Qt platform's system libraries"
+      qml_hint+=" (Debian/Ubuntu: libgl1 libegl1 libxkbcommon0 libfontconfig1"
+      qml_hint+=" libglib2.0-0 libx11-6 libx11-xcb1 libxcb1)"
+      if [[ ! -x "$qml_venv/bin/python" || ! -f "$qml_venv/.requirements-stamp" \
+            || "$qml_reqs" -nt "$qml_venv/.requirements-stamp" ]]; then
+        step "estante reader: creating the QML tests' venv"
+        rm -rf "$qml_venv"
+        python3 -m venv "$qml_venv" \
+          || fail "estante reader: could not create $qml_venv (python3 -m venv)"
+        "$qml_venv/bin/pip" install --quiet --require-hashes -r "$qml_reqs" \
+          || fail "estante reader: could not install $qml_reqs into $qml_venv"
+        touch "$qml_venv/.requirements-stamp"
+      fi
+      step "estante reader: QML tests"
+      "$qml_venv/bin/python" -I remarkable/qml/tests/run.py \
+        -input remarkable/qml/tests -o -,txt \
+        || fail "estante reader: QML tests failed (a failing test, a QML compile error, or $qml_hint)"
+      step "estante reader: QML runner fails a failing test"
+      if "$qml_venv/bin/python" -I remarkable/qml/tests/run.py \
+           -input remarkable/qml/harness/must-fail -o "$TMP/qml-must-fail.txt,txt"; then
+        fail "estante reader: the QML runner passed remarkable/qml/harness/must-fail — it cannot be trusted to fail a test"
+      fi
+      if ! grep -q '^FAIL!  : .*MustFail::test_fails()' "$TMP/qml-must-fail.txt"; then
+        cat "$TMP/qml-must-fail.txt" 2>/dev/null || true
+        fail "estante reader: the QML runner failed without running the must-fail test ($qml_hint)"
+      fi
+      echo "gate: the QML runner failed the must-fail test, as it must"
+    else
+      skip "estante reader: remarkable/qml/tests/ does not exist yet"
+    fi
   else
     skip "estante reader: remarkable/go.mod does not exist yet"
   fi

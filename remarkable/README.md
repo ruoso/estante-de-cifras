@@ -34,6 +34,30 @@ go run ./cmd/estante-reader sync --root /tmp/estante --bundle ../app/dist/device
 `sync` prints what the pass did — ids, statuses and heads, nothing else. Its
 behavior tests run real `git http-backend`, so they need `git` on the host.
 
+The QML frontend's tests (`qml/tests/tst_*.qml`) run on Qt's own
+qmltestrunner over a pinned Qt 6 from pip (PySide6-Essentials; the wheel has
+no runner binary, so `qml/tests/run.py` calls its `quick_test_main`),
+offscreen with Qt Quick's software renderer, as the rM2 has no GPU. The gate
+builds the venv and runs them; by hand, from this directory:
+
+```sh
+python3 -m venv qml/tests/.venv && qml/tests/.venv/bin/pip install \
+  --require-hashes -r qml/tests/requirements.txt
+qml/tests/.venv/bin/python -I qml/tests/run.py -input qml/tests
+```
+
+A screen is tested without the backend, the socket or the device: `run.py`
+puts a stand-in for AppLoad's `net.asivery.AppLoad` module
+(`qml/tests/appload/`) first on the import path, so the screen's own
+`AppLoad { … }` endpoint is the stand-in. A test `play`s design §6's messages
+into it (`endpoint.play(101, { paired: true, … })`) and reads what the screen
+sent back from `endpoint.sent` (`{ type, contents, payload }`), or spies on
+`messageSent`. The stand-in throws where the device would misbehave: a type
+that is not an integer, or contents that are not JSON text. The offscreen
+platform links a few system libraries (libGL, libEGL, libxkbcommon,
+fontconfig, glib, X11/xcb client libraries); the gate names them when it
+cannot start.
+
 The module needs Go 1.26 (goja's minimum).
 
 It is its own Go module and shares no code with `service/` (DIRECTION §3.6):

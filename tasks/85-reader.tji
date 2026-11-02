@@ -47,8 +47,9 @@ task reader "The reMarkable reader" {
   task qml_harness "QML tests in the gate" {
     effort 1d
     allocate team
+    complete 100
     depends !module
-    note "The frontend is QML run by AppLoad inside xochitl; its tests run where the gate runs. Pin a Qt for the gate (for example PySide6 from pip, offscreen, with Qt Quick's software renderer, as the rM2 has no GPU) and a qmltestrunner over remarkable/qml/tests, with a stand-in for AppLoad's net.asivery.AppLoad module that records sendMessage and plays messageReceived, so a screen is tested against scripted backend messages. Docs: docs/remarkable-reader.md §9. Tests: one QML test of the harness itself (a component receives a scripted message and answers), run by the gate."
+    note "The frontend is QML run by AppLoad inside xochitl; its tests run where the gate runs. Pin a Qt for the gate (for example PySide6 from pip, offscreen, with Qt Quick's software renderer, as the rM2 has no GPU) and a qmltestrunner over remarkable/qml/tests, with a stand-in for AppLoad's net.asivery.AppLoad module that records sendMessage and plays messageReceived, so a screen is tested against scripted backend messages. Docs: docs/remarkable-reader.md §9. Tests: one QML test of the harness itself (a component receives a scripted message and answers), run by the gate. Refinement: tasks/refinements/reader/qml_harness.md"
   }
   task app_folder "The AppLoad app: its folder, and its QML root" {
     effort 1d

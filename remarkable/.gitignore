@@ -1,0 +1,2 @@
+# The QML tests' Qt venv (qml/tests/requirements.txt), built by scripts/gate.
+qml/tests/.venv/
