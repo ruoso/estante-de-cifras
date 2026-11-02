@@ -60,6 +60,23 @@ platform links a few system libraries (libGL, libEGL, libxkbcommon,
 fontconfig, glib, X11/xcb client libraries); the gate names them when it
 cannot start.
 
+The chart's tests (`tst_chart_*.qml`, `tst_chord_diagram.qml`) read real
+sheets: `qml/tests/fixtures/<name>.js` is the backend's `105 sheet` for
+`qml/tests/fixtures/songs/<name>.cifra.md`, a song written for the tests,
+opened through the views with the app's built device bundle. Go's
+`TestQMLFixtures` (`internal/backend/qmlfixtures_test.go`) fails when a
+committed fixture differs from what the backend answers now — after a change
+to the songs, `chartRows` or `diagramModel` — and regenerates them, once
+`npm run build` has run in `app/`:
+
+```sh
+go test ./internal/backend -run TestQMLFixtures -update-qml-fixtures
+```
+
+Read the difference before keeping it. The faces under `qml/fonts/` are the
+app's `woff2` files and licences byte for byte (`app/src/theme/fonts/`);
+`tools/appfolder`'s tests fail when they drift.
+
 The app AppLoad loads is a folder, `estante/`: `manifest.json`, `icon.png`,
 `resources.rcc` (everything under `qml/` but its `tests/` and `harness/`,
 rooted at `qml/Main.qml`) and `backend/entry`, which is `estante-reader`

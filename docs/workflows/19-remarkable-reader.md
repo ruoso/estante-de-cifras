@@ -90,7 +90,10 @@ move:
   so the content never changes height.
 
 The interface face is Atkinson Hyperlegible, as the app's; the chart's is
-Figtree, as the app's default theme. Both are carried with the reader.
+Figtree, as the app's default theme. Both are carried with the reader, with
+Atkinson Hyperlegible Mono for a chart's verbatim blocks, whose columns a
+proportional face would break. They are the app's own font files, byte for
+byte.
 
 ## Pairing
 
@@ -187,17 +190,21 @@ The screen the reader exists for.
 **Content: the chart, in pages.** The rows the web app's chart draws — the
 section names, the bar lines, the sung lines with each chord over its words,
 the notes — laid out the way the printed book is (books.print): in two columns
-when the song's longest sung line fits half the page, else one; a column filled
-to its foot before the next begins; a sung line, a block of bars and a section
-name with its first line never split. The chart face is large enough to read
-at arm's length on a stand.
+when the song's longest sung line, and its widest row of four bars, fit half
+the page, else one; a column filled to its foot before the next begins; a sung
+line, a block of bars and a section name with its first line never split. A
+block of bars taller than a whole column — a long section written as one —
+breaks between its rows of four, never inside one. The chart face is large
+enough to read at arm's length on a stand.
 
 **A song that is all chords** — a choro, an instrumental — is the hard case,
 and the one the layout is sized for: 20 to 35 different chords, 45 to 95 bars,
 two chords to a bar, `%` repeats, first and second endings. Its bars run in
 **one column, four to a row**, each bar wide enough for two chords at the chart
-size; an ending is a row of its own, its label (*1st*, *to B*) in the place of
-its first bar. Such a song is two or three pages.
+size; a line of bars keeps its own breaks (a line of three bars is a row of
+three), and an ending is a row of its own, its label (*1st*, *2nd* — the
+ending's number, as the chart carries it) in the place of its first bar. Such a
+song is two or three pages.
 
 **Shapes on every page, for that page.** Under the chart, a strip of the shapes
 of the chords **on this page**, in the order they first appear — so the person

@@ -221,6 +221,81 @@ func TestQrcCarriesAppQMLOnly(t *testing.T) {
 	}
 }
 
+// TestQrcCarriesFaces: built from the real qml/, the resources carry the
+// reader's three faces and each family's licence (reader.qml_chart; workflow
+// 19 §The screen, as amended), and each file is byte for byte the app's
+// (app/src/theme/fonts/README.md: kept as distributed, never re-encoded).
+func TestQrcCarriesFaces(t *testing.T) {
+	const qml = "../../qml"
+	const appFonts = "../../../app/src/theme/fonts"
+	dir, err := buildFolder(t, "armv7", backendFor(t, "armv7"), qml)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "resources.rcc"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc qrcDoc
+	if err := xml.Unmarshal(raw, &doc); err != nil || len(doc.Resources) != 1 {
+		t.Fatalf("qrc: %v\n%s", err, raw)
+	}
+	carried := map[string]string{}
+	for _, f := range doc.Resources[0].Files {
+		carried[f.Alias] = f.Path
+	}
+	families := map[string][]string{
+		"figtree": {"figtree-latin-wght-normal.woff2", "figtree-latin-ext-wght-normal.woff2"},
+		"atkinson-hyperlegible": {
+			"atkinson-hyperlegible-latin-400-normal.woff2", "atkinson-hyperlegible-latin-ext-400-normal.woff2",
+			"atkinson-hyperlegible-latin-700-normal.woff2", "atkinson-hyperlegible-latin-ext-700-normal.woff2",
+		},
+		"atkinson-hyperlegible-mono": {
+			"atkinson-hyperlegible-mono-latin-wght-normal.woff2", "atkinson-hyperlegible-mono-latin-ext-wght-normal.woff2",
+		},
+	}
+	for family, files := range families {
+		for _, name := range append([]string{"LICENSE"}, files...) {
+			alias := "fonts/" + family + "/" + name
+			path, ok := carried[alias]
+			if !ok {
+				t.Errorf("the qrc does not carry %s", alias)
+				continue
+			}
+			got, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want, err := os.ReadFile(filepath.Join(appFonts, family, name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(got, want) {
+				t.Errorf("%s differs from app/src/theme/fonts/%s/%s", alias, family, name)
+			}
+		}
+	}
+	// Nothing else under fonts/: no family the reader does not load.
+	for alias := range carried {
+		if !strings.HasPrefix(alias, "fonts/") {
+			continue
+		}
+		parts := strings.Split(alias, "/")
+		if len(parts) != 3 {
+			t.Errorf("unexpected font file %s", alias)
+			continue
+		}
+		if _, ok := families[parts[1]]; !ok {
+			t.Errorf("the qrc carries %s, a family the reader does not load", alias)
+		}
+	}
+	for _, chart := range []string{"chart/SheetView.qml", "chart/Faces.qml", "chart/ChordDiagram.qml"} {
+		if _, ok := carried[chart]; !ok {
+			t.Errorf("the qrc does not carry %s", chart)
+		}
+	}
+}
+
 // TestRefusesMissingMain: no root, no folder.
 func TestRefusesMissingMain(t *testing.T) {
 	out := t.TempDir()

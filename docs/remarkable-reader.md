@@ -417,9 +417,16 @@ key grid), a setlist and its Play.
 box's diagram model (`diagramModel`: strings, frets shown, the start fret, the
 nut, each dot's string, row and finger, the open and muted marks) — plain data,
 no SVG. The frontend draws it with Qt Quick's own primitives: pixel-aligned
-`Rectangle`s for the strings, frets and nut, rounded ones for the dots, `Text`
-in the reader's face for the fingers and the fret number. Large and compact
-are one component at two sizes.
+`Rectangle`s for the strings, frets, nut and barre, rounded ones for the dots,
+`Text` in the interface face (Atkinson Hyperlegible) for the fingers — white in
+the black dot — and the fret number, the start fret beside the first row when
+the nut is not shown. Nothing is antialiased into grey. Large and compact are
+one component at two sizes.
+
+**The faces travel as the app's files.** `remarkable/qml/fonts/` holds the
+app's `woff2` files (`app/src/theme/fonts/`) byte for byte, with their
+licences, loaded with `FontLoader`; the gate's Qt reads them, and the folder
+check loads them from `resources.rcc` as AppLoad would.
 
 Why not the SVG the web app draws: measured with Qt 6.12's SVG renderer, the
 chord box as the app emits it draws only its dots — every stroke, the nut and
@@ -503,6 +510,10 @@ backend for armv7 and arm64 and compiles the QML (`rcc`), and copies them into
   backend-stamped bitmaps, are the steps if it proves slow in use.
 - **Drawing speed.** How fast QML lays out a long sung song on the rM2 is
   unmeasured; paging (§7) bounds what is drawn at once.
+- **WOFF2 on the device.** The faces are carried as `woff2` (§7), which the
+  gate's Qt reads; whether xochitl's Qt build reads it (FreeType with brotli)
+  is unchecked on a reMarkable. If not, the faces are carried as the same
+  families' TrueType files from their upstream releases, never re-encoded here.
 - **AppLoad is GPL-3.** The backend is a separate process speaking a socket
   protocol; the QML imports AppLoad's module at run time. To be read before the
   reader is published.
