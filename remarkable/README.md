@@ -2,6 +2,16 @@
 
 To install the reader on your reMarkable, follow [INSTALL.md](INSTALL.md).
 
+On a reMarkable 2 — the shelf, a book, and a song with its shapes:
+
+<p>
+<img src="screenshots/shelf.png" alt="The shelf: the book Chorinho, 12 songs, synced at 06:21, with Sync at the top and Settings at the foot" width="32%">
+<img src="screenshots/book.png" alt="A book: Chorinho's twelve songs, each title over its composers, on one page" width="32%">
+<img src="screenshots/song.png" alt="A song: Sanfonando in A, its chart in bars of four, and below it the shapes on this page, sixteen chord diagrams, 1 of 2" width="32%">
+</p>
+
+Taken from the tablet with `scripts/screenshot.sh` (below).
+
 This directory is the reMarkable reader: a read-only client for the tablet,
 run by AppLoad. It holds the reader's Go backend (`cmd/estante-reader` and its
 `internal/` packages), the QML frontend that draws (`qml/`, rooted at
@@ -165,6 +175,14 @@ Pro) and a `manifest.json` naming each with its SHA-256 and the release's
 number — then published as the GitHub release `reader-v<N>`. Release after
 `main` is deployed, so a backend a tablet updates to speaks to the service
 that runs.
+
+`scripts/screenshot.sh` takes a PNG of whatever the tablet shows, over SSH
+(`RM_IP=10.11.99.1 scripts/screenshot.sh out.png`; it needs `python3` with
+Pillow and NumPy). The rM2 has no framebuffer to read: xochitl keeps the screen
+as a 1404 × 1872 BGRA frame in its own memory, in the mapping after its
+`/dev/fb0` one, the frame's pixels opaque and what precedes them not; the
+script reads that mapping from `/proc/<xochitl>/mem` and `scripts/screenshot.py`
+cuts the frame from its first opaque pixel. It writes nothing on the tablet.
 
 The module needs Go 1.26 (goja's minimum).
 
