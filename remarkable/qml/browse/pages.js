@@ -40,8 +40,51 @@ var copy = {
     updateReader: "Update the reader on your reMarkable",
     signOut: "Sign out",
     signOutQuestion: "Sign out of this reMarkable? Your books are removed from it; nothing changes in your account.",
-    cancel: "Cancel"
+    cancel: "Cancel",
+    instrument: "Instrument",
+    change: "Change",
+    instrumentFromAccount: "As in your account",
+    instrumentChosenHere: "Chosen on this reMarkable",
+    chooseInstrument: "Read every song with",
+    accountsInstrument: "your account's",
+    variation: "Variation",
+    chordNames: "Chord names",
+    asWritten: "As written",
+    asVoiced: "As voiced",
+    nameAsVoiced: "Name as voiced",
+    nameAsWritten: "Name as written",
+    defaultVariation: "Default",
+    close: "Close"
 };
+
+// The instrument part's note: whose choice the instrument read with is
+// (workflow 19 §Settings).
+function instrumentNote(chosen) {
+    return chosen ? copy.instrumentChosenHere : copy.instrumentFromAccount;
+}
+
+// How the chart names its chords, in words: as written, or as the shapes
+// shown sound them.
+function chordNamesLine(names) {
+    return names === "voiced" ? copy.asVoiced : copy.asWritten;
+}
+
+// The chord names button's words: the other naming.
+function chordNamesSwitch(names) {
+    return names === "voiced" ? copy.nameAsWritten : copy.nameAsVoiced;
+}
+
+// An instrument's name in the choice list, the account's own marked.
+function instrumentLabel(instrument, accountId) {
+    const name = String(instrument && instrument.name || "");
+    return instrument && instrument.id === accountId ? name + " · " + copy.accountsInstrument : name;
+}
+
+// A variation's name: the song's block label, the unnamed one *Default* (as
+// the web app words it).
+function variationName(v) {
+    return v === "" || v === null || v === undefined ? copy.defaultVariation : String(v);
+}
 
 // --- pages ---
 

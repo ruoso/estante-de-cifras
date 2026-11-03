@@ -13,7 +13,7 @@ import (
 	"strconv"
 )
 
-// The message types of §6. 1–11 go to the backend, 101–109 to the frontend.
+// The message types of §6. 1–14 go to the backend, 101–109 to the frontend.
 const (
 	TypeHello         int32 = 1
 	TypeOpen          int32 = 2
@@ -26,6 +26,9 @@ const (
 	TypeShowAllShapes int32 = 9
 	TypeShapesShown   int32 = 10
 	TypePlace         int32 = 11
+	TypeInstrument    int32 = 12
+	TypeVariation     int32 = 13
+	TypeChordNames    int32 = 14
 
 	TypeState    int32 = 101
 	TypePairing  int32 = 102
@@ -137,6 +140,32 @@ type Place struct {
 	At      int    `json:"at"`
 }
 
+// Instrument (12): read with this instrument (an id the 107 settings
+// listed), on this reader only; nil follows the account's in use again
+// (workflow 19 §Settings).
+type Instrument struct {
+	ID *string `json:"id"`
+}
+
+// Variation (13): read the open song with this variation of its tuning (one
+// the 105 sheet listed; "" the unnamed block), on this reader only; nil
+// follows the account's (songs.json) again (workflow 19 §A song).
+type Variation struct {
+	Variation *string `json:"variation"`
+}
+
+func (Instrument) Type() int32 { return TypeInstrument }
+func (Variation) Type() int32  { return TypeVariation }
+
+// ChordNames (14): name the chart's chords "written" or "voiced", on this
+// reader only; nil follows the account's chordNames again (workflow 19
+// §Settings).
+type ChordNames struct {
+	Value *string `json:"value"`
+}
+
+func (ChordNames) Type() int32 { return TypeChordNames }
+
 func (Hello) Type() int32         { return TypeHello }
 func (Open) Type() int32          { return TypeOpen }
 func (Key) Type() int32           { return TypeKey }
@@ -229,6 +258,12 @@ type Sheet struct {
 	Notes    json.RawMessage `json:"notes"`
 	KeyNote  *string         `json:"keyNote"`
 	Play     *SheetPlay      `json:"play,omitempty"`
+	// The song's variations for TuningID ("" the unnamed block) and the one
+	// read; VariationChosen when this reader chose it (else it is the
+	// account's, or the first). None for a song with fewer than two.
+	Variations      []string `json:"variations,omitempty"`
+	Variation       *string  `json:"variation,omitempty"`
+	VariationChosen bool     `json:"variationChosen,omitempty"`
 }
 
 // SheetKey is the song's key as written, as named now, the account's saved
@@ -300,11 +335,32 @@ type SetlistItem struct {
 // Settings (107): the account paired with, the reader's version, how many
 // voicings are hidden, and whether the site serves a hostApi newer than this
 // backend speaks (design §8: *Update the reader on your reMarkable*).
+//
+// Instruments are the account's instruments to choose from (workflow 19
+// §Settings), Instrument the one read with now, AccountInstrument the
+// account's own in use, and InstrumentChosen whether this reader chose one
+// (else it follows the account's).
 type Settings struct {
-	Account      string `json:"account"`
-	Version      string `json:"version"`
-	HiddenShapes int    `json:"hiddenShapes"`
-	UpdateReader bool   `json:"updateReader"`
+	Account           string               `json:"account"`
+	Version           string               `json:"version"`
+	HiddenShapes      int                  `json:"hiddenShapes"`
+	UpdateReader      bool                 `json:"updateReader"`
+	Instruments       []SettingsInstrument `json:"instruments,omitempty"`
+	Instrument        string               `json:"instrument,omitempty"`
+	AccountInstrument string               `json:"accountInstrument,omitempty"`
+	InstrumentChosen  bool                 `json:"instrumentChosen,omitempty"`
+	// ChordNames is how the chart names its chords now, "written" or
+	// "voiced", ChordNamesChosen whether this reader chose it (else it is
+	// the account's), and AccountChordNames the account's own.
+	ChordNames        string `json:"chordNames"`
+	ChordNamesChosen  bool   `json:"chordNamesChosen,omitempty"`
+	AccountChordNames string `json:"accountChordNames,omitempty"`
+}
+
+// SettingsInstrument is one instrument to choose: its id and its name.
+type SettingsInstrument struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // Shapes (108): the open song's shapes as its sheet would now carry them,
@@ -345,6 +401,7 @@ var names = map[int32]string{
 	TypePair: "pair", TypeSignOut: "signOut", TypeHideShape: "hideShape",
 	TypeShowShape: "showShape", TypeShowAllShapes: "showAllShapes",
 	TypeShapesShown: "shapesShown", TypePlace: "place",
+	TypeInstrument: "instrument", TypeVariation: "variation", TypeChordNames: "chordNames",
 	TypeState: "state", TypePairing: "pairing", TypeShelf: "shelf",
 	TypeBook: "book", TypeSheet: "sheet", TypeSetlist: "setlist",
 	TypeSettings: "settings", TypeShapes: "shapes", TypeAhead: "ahead",
@@ -393,6 +450,9 @@ var decoders = map[int32]func(Frame) (Message, error){
 	TypeShowAllShapes: decodeJSON[ShowAllShapes],
 	TypeShapesShown:   decodeJSON[ShapesShown],
 	TypePlace:         decodeJSON[Place],
+	TypeInstrument:    decodeJSON[Instrument],
+	TypeVariation:     decodeJSON[Variation],
+	TypeChordNames:    decodeJSON[ChordNames],
 	TypeState:         decodeJSON[State],
 	TypePairing:       decodeJSON[Pairing],
 	TypeShelf:         decodeJSON[Shelf],

@@ -258,3 +258,93 @@ func TestLastSyncRoundTripsAcrossRestart(t *testing.T) {
 		t.Errorf("after a later sync and a restart: %v, want %v", got, later)
 	}
 }
+
+// TestInstrumentRoundTripsAcrossRestart pins workflow 19 §Settings: the
+// instrument chosen here stays on this reader; "" follows the account again.
+func TestInstrumentRoundTripsAcrossRestart(t *testing.T) {
+	s, root := newStore(t)
+	if got := s.Instrument(); got != "" {
+		t.Fatalf("a fresh store has instrument %q chosen", got)
+	}
+	if err := s.SetInstrument("cavaquinho-1"); err != nil {
+		t.Fatal(err)
+	}
+	s = openStore(t, root)
+	if got := s.Instrument(); got != "cavaquinho-1" {
+		t.Errorf("after restart: %q, want cavaquinho-1", got)
+	}
+	if err := s.SetInstrument(""); err != nil {
+		t.Fatal(err)
+	}
+	s = openStore(t, root)
+	if got := s.Instrument(); got != "" {
+		t.Errorf("the account's did not stand again across a restart: %q", got)
+	}
+}
+
+// TestVariationRoundTripsAcrossRestart pins workflow 19 §A song: a variation
+// chosen here is per song and per tuning, and nil forgets it (” is the
+// unnamed block, a choice like any other).
+func TestVariationRoundTripsAcrossRestart(t *testing.T) {
+	s, root := newStore(t)
+	const song, guitar, uke = "songs/one.cifra.md", "40 45 50 55 59 64", "67 60 64 69"
+	if _, ok := s.Variation("b1", song, guitar); ok {
+		t.Fatal("a fresh store has a variation chosen")
+	}
+	high, unnamed := "High", ""
+	if err := s.SetVariation("b1", song, guitar, &high); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetVariation("b1", song, uke, &unnamed); err != nil {
+		t.Fatal(err)
+	}
+	s = openStore(t, root)
+	if v, ok := s.Variation("b1", song, guitar); !ok || v != "High" {
+		t.Errorf("after restart, guitar: %q %v, want High true", v, ok)
+	}
+	if v, ok := s.Variation("b1", song, uke); !ok || v != "" {
+		t.Errorf("after restart, uke: %q %v, want the unnamed block, true", v, ok)
+	}
+	for _, other := range [][2]string{{"b1", "songs/two.cifra.md"}, {"b2", song}} {
+		if _, ok := s.Variation(other[0], other[1], guitar); ok {
+			t.Errorf("%v has a variation", other)
+		}
+	}
+	if err := s.SetVariation("b1", song, guitar, nil); err != nil {
+		t.Fatal(err)
+	}
+	s = openStore(t, root)
+	if _, ok := s.Variation("b1", song, guitar); ok {
+		t.Error("nil did not forget the guitar's variation across a restart")
+	}
+	if _, ok := s.Variation("b1", song, uke); !ok {
+		t.Error("forgetting the guitar's forgot the uke's")
+	}
+}
+
+// TestChordNamesRoundTripsAcrossRestart pins workflow 19 §Settings: how the
+// chart names its chords, chosen here, stays on this reader; "" follows the
+// account again; anything but written or voiced is refused.
+func TestChordNamesRoundTripsAcrossRestart(t *testing.T) {
+	s, root := newStore(t)
+	if got := s.ChordNames(); got != "" {
+		t.Fatalf("a fresh store names chords %q", got)
+	}
+	if err := s.SetChordNames("voiced"); err != nil {
+		t.Fatal(err)
+	}
+	s = openStore(t, root)
+	if got := s.ChordNames(); got != "voiced" {
+		t.Errorf("after restart: %q, want voiced", got)
+	}
+	if err := s.SetChordNames("sideways"); err == nil {
+		t.Error("an unknown naming was kept")
+	}
+	if err := s.SetChordNames(""); err != nil {
+		t.Fatal(err)
+	}
+	s = openStore(t, root)
+	if got := s.ChordNames(); got != "" {
+		t.Errorf("the account's did not stand again: %q", got)
+	}
+}

@@ -817,9 +817,26 @@ printf '%s %s\n' "$(pwd)" "$*" >>"$FAKE_NPM_LOG"
 // built here, and the bundle by npm in app/, staged in the store.
 func TestInstallFromSourceAll(t *testing.T) {
 	dist := filepath.Join("..", "..", "app", "dist", "device")
-	built, _ := filepath.Glob(filepath.Join(dist, "bundle.*.js"))
+	var built []string
+	if raw, err := os.ReadFile(filepath.Join(dist, "manifest.json")); err == nil {
+		var m struct {
+			Bundle struct {
+				Path string `json:"path"`
+			} `json:"bundle"`
+		}
+		if json.Unmarshal(raw, &m) == nil && m.Bundle.Path != "" {
+			built = []string{filepath.Join(dist, m.Bundle.Path)}
+		}
+	}
 	if len(built) != 1 {
-		t.Fatalf("this test reads the app's device bundle: run npm run build in app/ first (found %v)", built)
+		t.Fatal("this test reads the app's device bundle: run npm run build in app/ first")
+	}
+	// An earlier build's bundle beside it (build:device keeps them) is not
+	// copied: only the one the manifest names.
+	stale := filepath.Join(dist, "bundle.00000000.js")
+	if _, err := os.Stat(stale); os.IsNotExist(err) {
+		write(t, stale, "stale\n", 0o644)
+		t.Cleanup(func() { os.Remove(stale) })
 	}
 	r := newRig(t, newSite(t, nil))
 	r.goEnv()

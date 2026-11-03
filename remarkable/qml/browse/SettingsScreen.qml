@@ -5,13 +5,23 @@
 // Shapes (the count hidden, with **Show all again**, or *No shapes hidden.*),
 // This reader (*Version 0.1.0*, and under it *Update the reader on your
 // reMarkable* when the site serves a hostApi newer than the backend speaks —
-// reader.self_update, design §8), and **Sign out**, which asks once: pressed,
-// the question replaces it with **Sign out** and **Cancel**. Four regions,
-// each replaced in one place and counted in `revision`:
+// reader.self_update, design §8), Chord names (*As written* or *As voiced*
+// — as the shapes shown sound them — *As in your account* or *Chosen on this
+// reMarkable*, and the button naming the other, one tap), Instrument (the one every song is read
+// with, *As in your account* or *Chosen on this reMarkable*, and **Change**,
+// shown when the account has two or more — workflow 19 §Settings), and
+// **Sign out**, which asks once: pressed, the question replaces it with
+// **Sign out** and **Cancel**. **Change** replaces it the same way with the
+// instruments to choose, the one read with inverted, and **Cancel**; one
+// chosen is kept on this reMarkable, the account's own follows the account
+// again. Five regions, each replaced in one place and counted in `revision`:
 //
-//   the page opened (`show`)            bar, content, shapes, sign-out part
-//   Show all again answered (`showShapes`)  shapes
+//   the page opened (`show`)            bar, content, shapes, chord names, instrument, sign-out part
+//   chord names switched (`answered`)   chord names
+//   Show all again answered (`answered`)    shapes
 //   Sign out asked / Cancel             the sign-out part
+//   Change / Cancel                     the sign-out part
+//   an instrument chosen (`answered`)   instrument, the sign-out part
 //
 // `content` holds Account, Sync and This reader; Shapes sits between them in
 // a region of its own.
@@ -33,6 +43,14 @@ Item {
     readonly property Region content: contentRegion
     readonly property Region shapes: shapesRegion
     readonly property Region signOut: signOutRegion
+    readonly property Region instrument: instrumentRegion
+    readonly property Region chordNames: chordNamesRegion
+    readonly property alias chordNamesPart: chordNamesPart
+    readonly property alias chordNamesButton: chordNamesButton
+    readonly property alias instrumentPart: instrumentPart
+    readonly property alias changeButton: changeButton
+    readonly property alias instrumentButtons: instrumentRepeater
+    readonly property alias cancelInstrumentButton: cancelInstrumentButton
     readonly property alias accountPart: accountPart
     readonly property alias syncPart: syncPart
     readonly property alias readerPart: readerPart
@@ -66,20 +84,64 @@ Item {
             update: Pages.updateLine(settings && settings.updateReader)
         });
         shapesRegion.show({ hidden: Number(settings && settings.hiddenShapes) || 0 });
-        signOutRegion.show({ asking: false });
+        chordNamesRegion.show(chordNamesContent(settings));
+        instrumentRegion.show(instrumentContent(settings));
+        signOutRegion.show({ asking: false, choosing: false, instruments: [] });
     }
 
-    // A `107` while the page is shown — Show all again answered: the Shapes
-    // line only.
-    function showShapes(settings) {
+    // What the Chord names part draws, from a `107`.
+    function chordNamesContent(settings) {
+        const names = settings && settings.chordNames === "voiced" ? "voiced" : "written";
+        return {
+            names: names,
+            note: Pages.instrumentNote(settings && settings.chordNamesChosen === true),
+            account: settings && settings.accountChordNames === "voiced" ? "voiced" : "written"
+        };
+    }
+
+    // A `107` while the page is shown: an instrument chosen redraws the
+    // Instrument part and puts Sign out back; Show all again answered, the
+    // Shapes line only.
+    function answered(settings) {
+        if (d.pending === "chordNames") {
+            d.pending = "";
+            chordNamesRegion.show(chordNamesContent(settings));
+            return;
+        }
+        if (d.pending === "instrument") {
+            d.pending = "";
+            instrumentRegion.show(instrumentContent(settings));
+            signOutRegion.show({ asking: false, choosing: false, instruments: [] });
+            return;
+        }
         if (d.pending === "showAll")
             d.pending = "";
         shapesRegion.show({ hidden: Number(settings && settings.hiddenShapes) || 0 });
     }
 
+    // What the Instrument part draws, from a `107`: nothing without a choice
+    // to make.
+    function instrumentContent(settings) {
+        const list = (settings && settings.instruments) || [];
+        if (list.length < 2)
+            return { shown: false, name: "", note: "", instruments: [], current: "", account: "" };
+        const current = String(settings.instrument || "");
+        const read = list.find(i => i.id === current);
+        return {
+            shown: true,
+            name: read ? read.name : "",
+            note: Pages.instrumentNote(settings.instrumentChosen === true),
+            instruments: list,
+            current: current,
+            account: String(settings.accountInstrument || "")
+        };
+    }
+
     QtObject {
         id: d
         property string pending: ""
+        // The instrument asked for, while its 107 is awaited.
+        property string choosing: ""
 
         function send(type, payload) {
             if (screen.endpoint)
@@ -206,6 +268,90 @@ Item {
         }
     }
 
+    // How the chart names its chords (workflow 19 §Settings).
+    Region {
+        id: chordNamesRegion
+        objectName: "chordNames"
+        x: 0
+        y: M.barHeight + 3 * screen.partHeight + screen.readerHeight
+        width: screen.width
+        height: screen.partHeight
+        content: ({ names: "written", note: "", account: "written" })
+
+        Part {
+            id: chordNamesPart
+            objectName: "chordNamesPart"
+            y: 0
+            heading: Pages.copy.chordNames
+            value: Pages.chordNamesLine(chordNamesRegion.content.names)
+            note: chordNamesRegion.content.note || ""
+            valueWidth: chordNamesButton.x - 32 - M.contentSide
+        }
+
+        InkButton {
+            id: chordNamesButton
+            objectName: "switchChordNames"
+            faces: screen.faces
+            active: signOutRegion.content.choosing !== true
+            x: chordNamesRegion.width - M.contentSide - width
+            y: 30
+            height: 100
+            padding: 40
+            fontSize: 36
+            text: Pages.chordNamesSwitch(chordNamesRegion.content.names)
+            held: d.pending === "chordNames"
+            onActivated: {
+                if (d.pending !== "")
+                    return;
+                const next = chordNamesRegion.content.names === "voiced" ? "written" : "voiced";
+                d.pending = "chordNames";
+                // The account's own follows the account again.
+                d.send(14, { value: next === chordNamesRegion.content.account ? null : next });
+            }
+        }
+    }
+
+    // The instrument every song is read with (workflow 19 §Settings).
+    Region {
+        id: instrumentRegion
+        objectName: "instrument"
+        x: 0
+        y: M.barHeight + 4 * screen.partHeight + screen.readerHeight
+        width: screen.width
+        height: screen.partHeight
+        content: ({ shown: false, name: "", note: "", instruments: [], current: "", account: "" })
+
+        Part {
+            id: instrumentPart
+            objectName: "instrumentPart"
+            visible: instrumentRegion.content.shown === true
+            y: 0
+            heading: Pages.copy.instrument
+            value: instrumentRegion.content.name || ""
+            note: instrumentRegion.content.note || ""
+            valueWidth: changeButton.x - 32 - M.contentSide
+        }
+
+        InkButton {
+            id: changeButton
+            objectName: "changeInstrument"
+            faces: screen.faces
+            visible: instrumentRegion.content.shown === true
+            active: visible && signOutRegion.content.choosing !== true
+            x: instrumentRegion.width - M.contentSide - width
+            y: 30
+            height: 100
+            padding: 40
+            fontSize: 36
+            text: Pages.copy.change
+            onActivated: {
+                if (d.pending !== "")
+                    return;
+                signOutRegion.show({ asking: false, choosing: true, instruments: instrumentRegion.content.instruments });
+            }
+        }
+    }
+
     Region {
         id: shapesRegion
         objectName: "shapes"
@@ -252,16 +398,94 @@ Item {
         id: signOutRegion
         objectName: "signOut"
         x: 0
-        y: M.barHeight + 3 * screen.partHeight + screen.readerHeight
+        y: M.barHeight + 5 * screen.partHeight + screen.readerHeight
         width: screen.width
-        height: M.contentHeight - 3 * screen.partHeight - screen.readerHeight
-        content: ({ asking: false })
+        height: M.contentHeight - 5 * screen.partHeight - screen.readerHeight
+        content: ({ asking: false, choosing: false, instruments: [] })
+
+        // The instruments to choose, in place of Sign out: columns of three
+        // 100 px buttons (rule 10), up to three columns.
+        readonly property int chooseRows: 3
+        readonly property int chooseColumns: Math.min(3, Math.max(1, Math.ceil((content.instruments || []).length / chooseRows)))
+        readonly property int chooseWidth: Math.floor((width - 2 * M.contentSide - (chooseColumns - 1) * 32) / chooseColumns)
+
+        Text {
+            id: chooseText
+            objectName: "chooseInstrumentText"
+            visible: signOutRegion.content.choosing === true
+            x: M.contentSide
+            y: 32
+            width: signOutRegion.width - 2 * M.contentSide
+            height: 48
+            color: "black"
+            font.family: screen.faces.ui
+            font.pixelSize: 36
+            verticalAlignment: Text.AlignVCenter
+            textFormat: Text.PlainText
+            text: Pages.copy.chooseInstrument
+        }
+
+        Repeater {
+            id: instrumentRepeater
+            model: signOutRegion.content.choosing === true
+                   ? (signOutRegion.content.instruments || []).slice(0, signOutRegion.chooseRows * 3) : []
+            delegate: InkButton {
+                required property var modelData
+                required property int index
+                objectName: "chooseInstrument"
+                faces: screen.faces
+                readonly property int column: Math.floor(index / signOutRegion.chooseRows)
+                readonly property int row: index % signOutRegion.chooseRows
+                x: M.contentSide + column * (signOutRegion.chooseWidth + 32)
+                y: 96 + row * 112
+                width: signOutRegion.chooseWidth
+                height: 100
+                padding: 32
+                fontSize: 36
+                bold: false
+                elide: true
+                text: Pages.instrumentLabel(modelData, instrumentRegion.content.account)
+                held: modelData.id === instrumentRegion.content.current
+                      || (d.pending === "instrument" && d.choosing === modelData.id)
+                onActivated: {
+                    if (d.pending !== "")
+                        return;
+                    if (modelData.id === instrumentRegion.content.current) {
+                        signOutRegion.show({ asking: false, choosing: false, instruments: [] });
+                        return;
+                    }
+                    d.pending = "instrument";
+                    d.choosing = modelData.id;
+                    // The account's own follows the account again.
+                    d.send(12, { id: modelData.id === instrumentRegion.content.account ? null : modelData.id });
+                }
+            }
+        }
+
+        InkButton {
+            id: cancelInstrumentButton
+            objectName: "cancelInstrument"
+            faces: screen.faces
+            visible: signOutRegion.content.choosing === true
+            active: visible
+            x: M.contentSide
+            y: 96 + Math.min(signOutRegion.chooseRows, (signOutRegion.content.instruments || []).length) * 112 + 20
+            height: 100
+            padding: 56
+            fontSize: 36
+            text: Pages.copy.cancel
+            onActivated: {
+                if (d.pending !== "")
+                    return;
+                signOutRegion.show({ asking: false, choosing: false, instruments: [] });
+            }
+        }
 
         InkButton {
             id: signOutButton
             objectName: "signOutButton"
             faces: screen.faces
-            visible: signOutRegion.content.asking !== true
+            visible: signOutRegion.content.asking !== true && signOutRegion.content.choosing !== true
             active: visible
             x: M.contentSide
             y: 64
@@ -269,7 +493,7 @@ Item {
             padding: 56
             fontSize: 40
             text: Pages.copy.signOut
-            onActivated: signOutRegion.show({ asking: true })
+            onActivated: signOutRegion.show({ asking: true, choosing: false, instruments: [] })
         }
 
         Text {
@@ -326,7 +550,7 @@ Item {
             onActivated: {
                 if (d.pending !== "")
                     return;
-                signOutRegion.show({ asking: false });
+                signOutRegion.show({ asking: false, choosing: false, instruments: [] });
             }
         }
     }

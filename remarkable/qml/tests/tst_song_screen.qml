@@ -19,6 +19,8 @@ import "fixtures/choro-long.js" as ChoroLong
 import "fixtures/choro-long-hidden.js" as ChoroLongHidden
 import "fixtures/choro-31.js" as Choro31
 import "fixtures/found-shape.js" as FoundShape
+import "fixtures/two-ways.js" as TwoWays
+import "fixtures/two-ways-chosen.js" as TwoWaysChosen
 import "walk.js" as Walk
 
 TestCase {
@@ -532,5 +534,68 @@ TestCase {
         compare(screen.strip.mode, mode);
         compare(screen.strip.revision, revision);
         compare(sent(screen).length, 0);
+    }
+
+    // --- the variation (workflow 19 §A song) ---
+
+    // A song with two variations for its tuning: the variation button names
+    // the one read (the unnamed block *Default*); tapped, the list takes the
+    // strip's place, the one read inverted; one chosen is sent (13) and,
+    // answered, the song is redrawn with it on the same page — a re-voicing.
+    function test_chooseVariation() {
+        const screen = open(TwoWays.sheet);
+        verify(screen.bar.variationButton.visible);
+        compare(screen.bar.variationButton.text, "Default");
+        compare(Walk.oneBitProblems(screen), []);
+        mouseClick(screen.bar.variationButton);
+        compare(screen.strip.mode, "variations");
+        const choices = screen.strip.variationList.choices;
+        compare(choices.count, 2);
+        compare(choices.itemAt(0).text, "Default");
+        verify(choices.itemAt(0).inverted);
+        compare(choices.itemAt(1).text, "Up the neck");
+        verify(choices.itemAt(1).height >= 100);
+        compare(Walk.oneBitProblems(screen), []);
+        mouseClick(choices.itemAt(1));
+        compare(sent(screen).length, 1);
+        compare(sent(screen)[0].type, 13);
+        compare(sent(screen)[0].payload, { variation: "Up the neck" });
+
+        const page = screen.view.page;
+        screen.sheet = clone(TwoWaysChosen.sheet);
+        compare(screen.strip.mode, "shapes");
+        compare(screen.bar.variationButton.text, "Up the neck");
+        // A re-voicing: the same rows, kept at the page they were on.
+        compare(screen.view.page, page);
+        compare(screen.pending, "");
+        compare(Walk.oneBitProblems(screen), []);
+    }
+
+    // Close, or the one read tapped, puts the strip back and sends nothing.
+    function test_variationListCloses() {
+        const screen = open(TwoWays.sheet);
+        mouseClick(screen.bar.variationButton);
+        mouseClick(screen.strip.variationList.closeButton);
+        compare(screen.strip.mode, "shapes");
+        mouseClick(screen.bar.variationButton);
+        mouseClick(screen.strip.variationList.choices.itemAt(0));
+        compare(screen.strip.mode, "shapes");
+        compare(sent(screen).length, 0);
+    }
+
+    // Transposed, the song's own shapes are set aside: no button, but its room
+    // kept, so the title is as wide at every key (rule 2). A song with no
+    // choice has neither.
+    function test_variationButtonAtWrittenKeyOnly() {
+        const written = open(TwoWays.sheet);
+        const titleWidth = written.bar.title.width;
+        const moved = clone(TwoWays.sheet);
+        moved.offset = 2;
+        const transposed = open(moved);
+        verify(!transposed.bar.variationButton.visible);
+        compare(transposed.bar.title.width, titleWidth);
+        const plain = open(FewChords.sheet);
+        verify(!plain.bar.variationButton.visible);
+        verify(plain.bar.title.width > titleWidth);
     }
 }

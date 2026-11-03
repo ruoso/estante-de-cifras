@@ -104,8 +104,8 @@ func TestBuiltBundleOpens(t *testing.T) {
 	f := readFixture(t, "example-book.default-shapes.json")
 	e := openBuilt(t)
 	m := e.Manifest()
-	if m.HostAPI != 1 {
-		t.Errorf("manifest hostApi %d, want 1", m.HostAPI)
+	if m.HostAPI != HostAPI {
+		t.Errorf("manifest hostApi %d, want %d", m.HostAPI, HostAPI)
 	}
 	if m.Salt != f.Salt {
 		t.Errorf("manifest salt %q, fixture's %q", m.Salt, f.Salt)
@@ -701,5 +701,56 @@ func TestPlaySetlistKeysNotesMissing(t *testing.T) {
 	}
 	if s.Offset != 0 || str(s.KeyNote) != "D" {
 		t.Errorf("keyless song with target D: offset %d, keyNote %s; want 0 and D", s.Offset, str(s.KeyNote))
+	}
+}
+
+// TestInstrumentChoiceAndVariations pins host API 2 across goja: instrument
+// lists the account's instruments and reads with the one chosen on the reader
+// (an id the account lacks reads the one in use), and a sheet names the
+// song's variations for the tuning and the one read (workflow 19 §Settings,
+// §A song).
+func TestInstrumentChoiceAndVariations(t *testing.T) {
+	e := openBuilt(t)
+	ctx := context.Background()
+	files := InstrumentFiles{
+		Instruments: json.RawMessage(`{"u1":{"definition":{"at":"2026-10-06T12:00:00.000Z","value":{"catalogId":"ukulele","label":"My uke","tuning":"G4 C4 E4 A4","fretCount":15}}}}`),
+	}
+	in, err := e.Instrument(ctx, files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(in.Instruments) != 2 || in.Instruments[1] != (InstrumentChoice{ID: "u1", Name: "My uke", Tuning: "G4 C4 E4 A4"}) {
+		t.Errorf("instruments %+v, want the standard guitar and My uke", in.Instruments)
+	}
+	if in.EntryID() != in.InUseID || in.InUseID != in.Instruments[0].ID {
+		t.Errorf("read %q, in use %q, want the standard guitar for both", in.EntryID(), in.InUseID)
+	}
+	files.InstrumentID = "u1"
+	if in, err = e.Instrument(ctx, files); err != nil || in.EntryID() != "u1" {
+		t.Errorf("chosen u1: read %q (%v)", in.EntryID(), err)
+	}
+	files.InstrumentID = "gone"
+	if in, err = e.Instrument(ctx, files); err != nil || in.EntryID() != in.InUseID {
+		t.Errorf("chosen gone: read %q, want the one in use %q (%v)", in.EntryID(), in.InUseID, err)
+	}
+
+	f := readFixture(t, "example-book.default-shapes.json")
+	if _, err := e.Load(ctx, f.Entry, f.Table); err != nil {
+		t.Fatal(err)
+	}
+	song := "# Two ways\n- key: C\n\n```\nC | G | C\n```\n\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- C: x32010\n\n## High: E2 A2 D3 G3 B3 E4\n- C: x35553\n"
+	got, err := e.Sheet(ctx, song, 0, SheetOptions{Variation: "High"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got.Variations, []string{"", "High"}) || got.Variation == nil || *got.Variation != "High" {
+		t.Errorf("variations %q, variation %v, want ['' High] and High", got.Variations, got.Variation)
+	}
+	plain, err := e.Sheet(ctx, "# One\n\n```\nC | G\n```\n", 0, SheetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plain.Variations) != 0 || plain.Variation != nil {
+		t.Errorf("a song with no blocks: %q %v, want none", plain.Variations, plain.Variation)
 	}
 }

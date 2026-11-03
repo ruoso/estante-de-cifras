@@ -43,6 +43,11 @@ type Syncer interface {
 	Hold(bookID string) (release func())
 	SignOut(ctx context.Context) error
 	UseEngine(ctx context.Context, eng sync.Engine) error
+	// Roster is what the last instrument load offered to choose from;
+	// ReloadInstrument loads again after one is chosen here (workflow 19
+	// §Settings).
+	Roster() sync.Roster
+	ReloadInstrument(ctx context.Context) error
 }
 
 // Deps are Serve's collaborators.

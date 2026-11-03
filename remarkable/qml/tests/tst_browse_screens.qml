@@ -15,6 +15,9 @@ import "fixtures/browse-book-small.js" as BrowseBookSmall
 import "fixtures/browse-setlist.js" as BrowseSetlist
 import "fixtures/browse-settings.js" as BrowseSettings
 import "fixtures/browse-settings-update.js" as BrowseSettingsUpdate
+import "fixtures/browse-settings-instruments.js" as BrowseSettingsInstruments
+import "fixtures/browse-settings-instrument-chosen.js" as BrowseSettingsInstrumentChosen
+import "fixtures/browse-settings-voiced.js" as BrowseSettingsVoiced
 import "walk.js" as Walk
 
 TestCase {
@@ -376,7 +379,7 @@ TestCase {
         compare(screen.endpoint.sent[0].payload, {});
         const none = clone(BrowseSettings.settings);
         none.hiddenShapes = 0;
-        screen.showShapes(none);
+        screen.answered(none);
         compare(screen.shapesText.text, "No shapes hidden.");
         verify(!screen.showAllButton.visible);
 
@@ -407,6 +410,124 @@ TestCase {
     // site serving a newer hostApi — *Version …* and under it *Update the
     // reader on your reMarkable*, inside This reader's part, one-bit; the
     // parts keep their order.
+    // workflow 19 §Settings: with one instrument there is nothing to choose,
+    // and the Instrument part is not drawn.
+    function test_settingsNoInstrumentChoice() {
+        const screen = make(settingsComponent);
+        screen.show(clone(BrowseSettings.settings), { paired: true });
+        verify(!screen.instrumentPart.visible);
+        verify(!screen.changeButton.visible);
+    }
+
+    // workflow 19 §Settings: the Instrument part names the one read with and
+    // whose choice it is; Change puts the instruments in Sign out's place
+    // (one redraw), the one read inverted and the account's marked; one
+    // chosen is sent (12) and, answered, the part says it was chosen here and
+    // Sign out comes back; the account's own is sent as null.
+    function test_settingsChooseInstrument() {
+        const screen = make(settingsComponent);
+        const settings = clone(BrowseSettingsInstruments.settings);
+        screen.show(settings, { paired: true });
+        verify(screen.instrumentPart.visible);
+        verify(screen.instrumentPart.mapToItem(screen, 0, 0).y > screen.readerPart.mapToItem(screen, 0, 0).y);
+        verify(screen.signOut.mapToItem(screen, 0, 0).y >= screen.instrumentPart.mapToItem(screen, 0, 0).y + screen.partHeight);
+        compare(screen.instrumentPart.noteText.text, "As in your account");
+        const guitar = settings.instruments[0];
+        compare(screen.instrumentPart.valueText.text, guitar.name);
+        verify(screen.changeButton.visible);
+        clean(screen);
+
+        const instrumentRev = screen.instrument.revision;
+        const signOutRev = screen.signOut.revision;
+        const contentRev = screen.content.revision;
+        mouseClick(screen.changeButton);
+        compare(screen.signOut.revision, signOutRev + 1);
+        compare(screen.instrument.revision, instrumentRev);
+        compare(screen.content.revision, contentRev);
+        verify(!screen.signOutButton.visible);
+        compare(screen.instrumentButtons.count, 2);
+        const [first, uke] = [screen.instrumentButtons.itemAt(0), screen.instrumentButtons.itemAt(1)];
+        compare(first.text, guitar.name + " · your account's");
+        verify(first.inverted);
+        compare(uke.text, "My uke");
+        verify(!uke.inverted);
+        verify(uke.height >= 100);
+        clean(screen);
+
+        mouseClick(uke);
+        compare(screen.endpoint.sent.length, 1);
+        compare(screen.endpoint.sent[0].type, 12);
+        compare(screen.endpoint.sent[0].payload, { id: "u1" });
+        verify(uke.inverted);
+        // Held while waiting: a second tap sends nothing.
+        mouseClick(first);
+        compare(screen.endpoint.sent.length, 1);
+
+        screen.answered(clone(BrowseSettingsInstrumentChosen.settings));
+        compare(screen.instrumentPart.valueText.text, "My uke");
+        compare(screen.instrumentPart.noteText.text, "Chosen on this reMarkable");
+        verify(screen.signOutButton.visible);
+        compare(screen.instrumentButtons.count, 0);
+        compare(screen.shapes.revision, 1);
+
+        // The account's own follows the account again: null.
+        mouseClick(screen.changeButton);
+        mouseClick(screen.instrumentButtons.itemAt(0));
+        compare(screen.endpoint.sent[1].type, 12);
+        compare(screen.endpoint.sent[1].payload, { id: null });
+    }
+
+    // Cancel puts Sign out back and sends nothing; the one read, tapped,
+    // only closes the list.
+    function test_settingsInstrumentCancel() {
+        const screen = make(settingsComponent);
+        screen.show(clone(BrowseSettingsInstruments.settings), { paired: true });
+        mouseClick(screen.changeButton);
+        mouseClick(screen.cancelInstrumentButton);
+        verify(screen.signOutButton.visible);
+        compare(screen.instrumentButtons.count, 0);
+        mouseClick(screen.changeButton);
+        mouseClick(screen.instrumentButtons.itemAt(0));
+        verify(screen.signOutButton.visible);
+        compare(screen.endpoint.sent.length, 0);
+    }
+
+    // workflow 19 §Settings: Chord names says how the chart names its chords
+    // and whose choice it is; its button names the other, sends it (14) and,
+    // answered, the part alone is redrawn; back to the account's own, null.
+    function test_settingsChordNames() {
+        const screen = make(settingsComponent);
+        screen.show(clone(BrowseSettingsInstrumentChosen.settings), { paired: true });
+        verify(screen.chordNamesPart.mapToItem(screen, 0, 0).y > screen.readerPart.mapToItem(screen, 0, 0).y);
+        verify(screen.instrumentPart.mapToItem(screen, 0, 0).y > screen.chordNamesPart.mapToItem(screen, 0, 0).y);
+        compare(screen.chordNamesPart.valueText.text, "As written");
+        compare(screen.chordNamesPart.noteText.text, "As in your account");
+        compare(screen.chordNamesButton.text, "Name as voiced");
+        verify(screen.chordNamesButton.height >= 100);
+        clean(screen);
+
+        const others = [screen.content.revision, screen.shapes.revision, screen.instrument.revision, screen.signOut.revision];
+        mouseClick(screen.chordNamesButton);
+        compare(screen.endpoint.sent.length, 1);
+        compare(screen.endpoint.sent[0].type, 14);
+        compare(screen.endpoint.sent[0].payload, { value: "voiced" });
+        verify(screen.chordNamesButton.inverted);
+        const rev = screen.chordNames.revision;
+        screen.answered(clone(BrowseSettingsVoiced.settings));
+        compare(screen.chordNames.revision, rev + 1);
+        compare([screen.content.revision, screen.shapes.revision, screen.instrument.revision, screen.signOut.revision], others);
+        compare(screen.chordNamesPart.valueText.text, "As voiced");
+        compare(screen.chordNamesPart.noteText.text, "Chosen on this reMarkable");
+        compare(screen.chordNamesButton.text, "Name as written");
+        verify(!screen.chordNamesButton.inverted);
+
+        // Written is the account's own: null follows the account again.
+        mouseClick(screen.chordNamesButton);
+        compare(screen.endpoint.sent[1].type, 14);
+        compare(screen.endpoint.sent[1].payload, { value: null });
+        clean(screen);
+    }
+
     function test_settingsUpdateReader() {
         const screen = make(settingsComponent);
         screen.show(clone(BrowseSettingsUpdate.settings), { paired: true, lastSync: localTime(14, 32) });

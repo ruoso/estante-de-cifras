@@ -6,5 +6,7 @@ var settings = {
   "account": "marina@example.org",
   "version": "0.9.0-test",
   "hiddenShapes": 11,
-  "updateReader": false
+  "updateReader": false,
+  "chordNames": "written",
+  "accountChordNames": "written"
 };

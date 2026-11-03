@@ -225,8 +225,14 @@ if [ -n "$FROM_SOURCE" ]; then
         (cd "$APP_SRC" && { [ -d node_modules ] || npm ci --no-audit --no-fund; } &&
             npm run --silent build:device) ||
             die "could not build the bundle (the output above says why); set ESTANTE_SOURCE_BUNDLE=0 for the site's. Nothing was changed on the tablet."
-        cp "$APP_SRC/dist/device/manifest.json" "$APP_SRC"/dist/device/bundle.*.js "$bundle/" ||
-            die "the bundle build left no app/dist/device/manifest.json and bundle. Nothing was changed on the tablet."
+        # Only the bundle the manifest names: build:device leaves earlier
+        # builds' bundles beside it.
+        built_manifest=$(tr -d ' \t\r\n' <"$APP_SRC/dist/device/manifest.json" 2>/dev/null) || built_manifest=
+        built_bundle=$(printf '%s\n' "$built_manifest" | tr '{}' '\n\n' |
+            sed -n 's/.*"path":"\(bundle\.[0-9a-f]*\.js\)".*/\1/p' | head -n 1)
+        [ -n "$built_bundle" ] && [ -f "$APP_SRC/dist/device/$built_bundle" ] &&
+            cp "$APP_SRC/dist/device/manifest.json" "$APP_SRC/dist/device/$built_bundle" "$bundle/" ||
+            die "the bundle build left no app/dist/device/manifest.json and the bundle it names. Nothing was changed on the tablet."
     else
         line=$(printf '%s\n' "$flat" | tr '{}' '\n\n' | grep '"path":"bundle\.[0-9a-f]*\.js"' | head -n 1) || true
         bpath=$(printf '%s\n' "$line" | sed -n 's/.*"path":"\(bundle\.[0-9a-f]*\.js\)".*/\1/p')

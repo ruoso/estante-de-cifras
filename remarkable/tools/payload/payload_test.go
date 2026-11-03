@@ -14,6 +14,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -48,7 +49,7 @@ func write(t *testing.T, path string, data []byte, mode os.FileMode) {
 func bundleDir(t *testing.T, hostAPI int, wrongSum bool) string {
 	t.Helper()
 	dir := t.TempDir()
-	code := []byte("globalThis.estante = { hostApi: 1 };\n")
+	code := []byte(fmt.Sprintf("globalThis.estante = { hostApi: %d };\n", hostAPI))
 	s := sum(code)
 	name := "bundle." + s[:8] + ".js"
 	write(t, filepath.Join(dir, name), code, 0o644)
@@ -194,7 +195,7 @@ func TestManifestNamesEveryFile(t *testing.T) {
 	if got := orderedKeys(t, raw); !reflect.DeepEqual(got, want) {
 		t.Errorf("manifest keys = %v\nwant %v", got, want)
 	}
-	if !bytes.HasSuffix(raw, []byte("}\n")) || !bytes.Contains(raw, []byte("\n  \"hostApi\": 1,\n")) {
+	if !bytes.HasSuffix(raw, []byte("}\n")) || !bytes.Contains(raw, []byte(fmt.Sprintf("\n  \"hostApi\": %d,\n", engine.HostAPI))) {
 		t.Errorf("manifest is not two-space-indented JSON ending in a newline:\n%s", raw)
 	}
 
@@ -395,8 +396,8 @@ func TestRefusals(t *testing.T) {
 			f.device = bundleDir(t, engine.HostAPI, true)
 		}, "sha256"},
 		{"bundle hostApi", func(t *testing.T, f *fixture, _ string) {
-			f.device = bundleDir(t, 2, false)
-		}, "hostApi is 2"},
+			f.device = bundleDir(t, engine.HostAPI+1, false)
+		}, fmt.Sprintf("hostApi is %d", engine.HostAPI+1)},
 		{"rcc differs", func(t *testing.T, f *fixture, _ string) {
 			f.arm64 = folderDir(t, "arm64", []byte("another rcc"))
 		}, "resources.rcc differ"},

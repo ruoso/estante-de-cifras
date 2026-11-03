@@ -17,6 +17,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	gosync "sync"
@@ -828,8 +829,8 @@ func TestOpenSettings(t *testing.T) {
 	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
 	var got protocol.Settings
 	s.expect(t, protocol.TypeSettings, &got)
-	want := protocol.Settings{Account: "reader@example.org", Version: testVersion, HiddenShapes: 1}
-	if got != want {
+	want := protocol.Settings{Account: "reader@example.org", Version: testVersion, HiddenShapes: 1, ChordNames: "written", AccountChordNames: "written"}
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("settings %+v, want %+v", got, want)
 	}
 }
@@ -1012,5 +1013,274 @@ func TestPlayAheadKeepsItsVersion(t *testing.T) {
 	s.send(t, protocol.TypeKey, map[string]any{"offset": 2})
 	if got := s.sheet(t); got.Path != ferry || got.Title != "The Ferry Line" {
 		t.Errorf("the moved song read %s %q, want the ferry as Play started with it", got.Path, got.Title)
+	}
+}
+
+// --- choosing an instrument and a variation (workflow 19 §Settings, §A song) ---
+
+// ownEngine is the built bundle opened afresh with the example book's
+// instrument loaded: a test that loads another must not change the shared one.
+func ownEngine(t *testing.T) *engine.Engine {
+	t.Helper()
+	builtEngine(t) // the build exists, or fail as it says
+	raw, err := os.ReadFile(fixtureFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fx struct {
+		Entry json.RawMessage `json:"entry"`
+		Table json.RawMessage `json:"table"`
+	}
+	if err := json.Unmarshal(raw, &fx); err != nil {
+		t.Fatal(err)
+	}
+	e, err := engine.Open(bundleDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { e.Close() })
+	if _, err := e.Load(context.Background(), fx.Entry, fx.Table); err != nil {
+		t.Fatal(err)
+	}
+	return e
+}
+
+// withUke is an instruments.json with one ukulele beside the standard guitar.
+const withUke = `{"u1":{"definition":{"at":"2026-10-06T12:00:00.000Z","value":{"catalogId":"ukulele","label":"My uke","tuning":"G4 C4 E4 A4","fretCount":15}}}}`
+
+// serveChoosing serves f with eng and a syncer that loads instruments on it
+// from instruments.json, as the real one does, having loaded once.
+func (f *viewsFixture) serveChoosing(t *testing.T, eng *engine.Engine, instruments string) *viewsServe {
+	t.Helper()
+	s := f.serve(t, eng)
+	s.syncer.mu.Lock()
+	s.syncer.engine, s.syncer.instruments, s.syncer.loadStore = eng, json.RawMessage(instruments), f.st
+	s.syncer.mu.Unlock()
+	if err := s.syncer.ReloadInstrument(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+// TestChooseInstrument pins workflow 19 §Settings: Settings lists the
+// account's instruments, the one read with and the account's own; one chosen
+// (12) is kept on this reader, loaded, and answered as the settings again;
+// songs then read in its tuning; the account's own (null) follows the
+// account again.
+func TestChooseInstrument(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serveChoosing(t, ownEngine(t), withUke)
+	guitar := s.syncer.Roster().InUseID
+
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
+	var got protocol.Settings
+	s.expect(t, protocol.TypeSettings, &got)
+	if len(got.Instruments) != 2 || got.Instruments[1] != (protocol.SettingsInstrument{ID: "u1", Name: "My uke"}) {
+		t.Fatalf("instruments %+v, want the guitar and My uke", got.Instruments)
+	}
+	if got.Instrument != guitar || got.AccountInstrument != guitar || got.InstrumentChosen {
+		t.Errorf("read %q, account's %q, chosen %v; want the guitar, not chosen", got.Instrument, got.AccountInstrument, got.InstrumentChosen)
+	}
+
+	s.send(t, protocol.TypeInstrument, map[string]any{"id": "u1"})
+	got = protocol.Settings{}
+	s.expect(t, protocol.TypeSettings, &got)
+	if got.Instrument != "u1" || got.AccountInstrument != guitar || !got.InstrumentChosen {
+		t.Errorf("after choosing: read %q, account's %q, chosen %v; want u1, the guitar, chosen", got.Instrument, got.AccountInstrument, got.InstrumentChosen)
+	}
+	if f.st.Instrument() != "u1" {
+		t.Errorf("the store keeps %q, want u1", f.st.Instrument())
+	}
+	if sheet := s.openSong(t, walking, nil); sheet.TuningID != "67 60 64 69" {
+		t.Errorf("a song read after choosing the uke is in tuning %q, want the uke's", sheet.TuningID)
+	}
+
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
+	s.expect(t, protocol.TypeSettings, &got)
+	s.send(t, protocol.TypeInstrument, map[string]any{"id": nil})
+	got = protocol.Settings{}
+	s.expect(t, protocol.TypeSettings, &got)
+	if got.Instrument != guitar || got.InstrumentChosen || f.st.Instrument() != "" {
+		t.Errorf("the account's again: read %q, chosen %v, kept %q", got.Instrument, got.InstrumentChosen, f.st.Instrument())
+	}
+}
+
+// TestNoInstrumentChoiceWithOne pins workflow 19 §Settings: with one
+// instrument there is nothing to choose, and Settings lists none.
+func TestNoInstrumentChoiceWithOne(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serveChoosing(t, ownEngine(t), `{}`)
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
+	var got protocol.Settings
+	s.expect(t, protocol.TypeSettings, &got)
+	if len(got.Instruments) != 0 || got.Instrument != "" {
+		t.Errorf("one instrument: %+v, want no choice", got)
+	}
+}
+
+// twoWays is a song with two variations for the standard tuning.
+const twoWays = "# Two Ways\n- key: C\n\n```\nC | G | C\n```\n\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- C: x32010\n- G: 320003\n\n## High: E2 A2 D3 G3 B3 E4\n- C: x35553\n- G: 355433\n"
+
+const twoWaysPath = "two-ways.cifra.md"
+
+func framesOf(sheet protocol.Sheet) []string {
+	var out []string
+	for _, sh := range sheet.Shapes {
+		if sh.Frets != nil {
+			out = append(out, *sh.Frets)
+		}
+	}
+	return out
+}
+
+// TestChooseVariation pins workflow 19 §A song: a song with two variations
+// for its tuning lists them and the one read; one chosen (13) is kept on this
+// reader for the song and tuning, and redraws the song with it; null follows
+// the account's again; transposed, they are still listed.
+func TestChooseVariation(t *testing.T) {
+	f := newViewsFixture(t)
+	f.book[twoWaysPath] = twoWays
+	f.commitBook(t)
+	s := f.serve(t, ownEngine(t))
+
+	got := s.openSong(t, twoWaysPath, nil)
+	if !reflect.DeepEqual(got.Variations, []string{"", "High"}) || got.Variation == nil || *got.Variation != "" || got.VariationChosen {
+		t.Fatalf("variations %q, variation %v, chosen %v; want ['' High], '', not chosen", got.Variations, got.Variation, got.VariationChosen)
+	}
+	if !reflect.DeepEqual(framesOf(got), []string{"x32010", "320003"}) {
+		t.Errorf("the default's shapes %v", framesOf(got))
+	}
+
+	s.send(t, protocol.TypeVariation, map[string]any{"variation": "High"})
+	got = s.sheet(t)
+	if got.Variation == nil || *got.Variation != "High" || !got.VariationChosen {
+		t.Errorf("after choosing High: %v, chosen %v", got.Variation, got.VariationChosen)
+	}
+	if !reflect.DeepEqual(framesOf(got), []string{"x35553", "355433"}) {
+		t.Errorf("High's shapes %v", framesOf(got))
+	}
+	if v, ok := f.st.Variation(testBook, twoWaysPath, got.TuningID); !ok || v != "High" {
+		t.Errorf("the store keeps %q %v, want High", v, ok)
+	}
+	// Kept: opened again, it reads High.
+	if again := s.openSong(t, twoWaysPath, nil); again.Variation == nil || *again.Variation != "High" {
+		t.Errorf("opened again: %v, want High", again.Variation)
+	}
+
+	// Transposed, still listed (the frontend keeps the button's room and
+	// offers the choice at the written key only).
+	s.send(t, protocol.TypeKey, map[string]any{"offset": 2})
+	if tr := s.sheet(t); len(tr.Variations) != 2 || tr.Offset != 2 {
+		t.Errorf("transposed: %q at %d, want both listed at 2", tr.Variations, tr.Offset)
+	}
+	s.send(t, protocol.TypeKey, map[string]any{"offset": nil})
+	s.sheet(t)
+
+	s.send(t, protocol.TypeVariation, map[string]any{"variation": nil})
+	got = s.sheet(t)
+	if got.Variation == nil || *got.Variation != "" || got.VariationChosen {
+		t.Errorf("the account's again: %v, chosen %v", got.Variation, got.VariationChosen)
+	}
+	if _, ok := f.st.Variation(testBook, twoWaysPath, got.TuningID); ok {
+		t.Error("null kept a variation")
+	}
+}
+
+// TestAccountVariationRead pins that, with none chosen here, the account's
+// variation (songs.json) is the one read, and not marked chosen.
+func TestAccountVariationRead(t *testing.T) {
+	f := newViewsFixture(t)
+	f.book[twoWaysPath] = twoWays
+	f.commitBook(t)
+	home := homeFiles(t, true)
+	home["songs.json"] = mustMarshal(t, map[string]any{
+		testBook + "/" + twoWaysPath: map[string]any{"variation": map[string]any{"40 45 50 55 59 64": reg("High")}},
+	})
+	commit(t, f.st.HomeDir(), home)
+	s := f.serve(t, ownEngine(t))
+	got := s.openSong(t, twoWaysPath, nil)
+	if got.Variation == nil || *got.Variation != "High" || got.VariationChosen {
+		t.Errorf("the account's High: %v, chosen %v", got.Variation, got.VariationChosen)
+	}
+}
+
+// asVoiced is a song whose C is voiced with E in the bass: as voiced, C/E.
+const asVoiced = "# As Voiced\n- key: C\n\n```\nC | G | C\n```\n\n---\n\n## Voicings: E2 A2 D3 G3 B3 E4\n- C: 032010\n- G: 320003\n"
+
+const asVoicedPath = "as-voiced.cifra.md"
+
+func symbolsOf(sheet protocol.Sheet) []string {
+	var out []string
+	for _, sh := range sheet.Shapes {
+		out = append(out, sh.Symbol)
+	}
+	return out
+}
+
+// TestChooseChordNames pins workflow 19 §Settings: Settings says how the
+// chart names its chords — the account's, until one is chosen here (14),
+// kept on this reader and read by every song after; null follows the account
+// again.
+func TestChooseChordNames(t *testing.T) {
+	f := newViewsFixture(t)
+	f.book[asVoicedPath] = asVoiced
+	f.commitBook(t)
+	s := f.serve(t, ownEngine(t))
+
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
+	got := protocol.Settings{}
+	s.expect(t, protocol.TypeSettings, &got)
+	if got.ChordNames != "written" || got.ChordNamesChosen {
+		t.Errorf("before: %q chosen %v, want the account's written", got.ChordNames, got.ChordNamesChosen)
+	}
+	if sheet := s.openSong(t, asVoicedPath, nil); !reflect.DeepEqual(symbolsOf(sheet), []string{"C", "G"}) {
+		t.Errorf("as written: %v", symbolsOf(sheet))
+	}
+
+	s.send(t, protocol.TypeChordNames, map[string]any{"value": "voiced"})
+	got = protocol.Settings{}
+	s.expect(t, protocol.TypeSettings, &got)
+	if got.ChordNames != "voiced" || !got.ChordNamesChosen || f.st.ChordNames() != "voiced" {
+		t.Errorf("after choosing voiced: %q chosen %v kept %q", got.ChordNames, got.ChordNamesChosen, f.st.ChordNames())
+	}
+	sheet := s.openSong(t, asVoicedPath, nil)
+	if !reflect.DeepEqual(symbolsOf(sheet), []string{"C/E", "G"}) {
+		t.Errorf("as voiced: %v, want C/E and G", symbolsOf(sheet))
+	}
+	if !strings.Contains(string(sheet.Rows), `"C/E"`) {
+		t.Errorf("the rows do not name C as voiced: %s", sheet.Rows)
+	}
+
+	s.send(t, protocol.TypeChordNames, map[string]any{"value": nil})
+	got = protocol.Settings{}
+	s.expect(t, protocol.TypeSettings, &got)
+	if got.ChordNames != "written" || got.ChordNamesChosen || f.st.ChordNames() != "" {
+		t.Errorf("the account's again: %q chosen %v kept %q", got.ChordNames, got.ChordNamesChosen, f.st.ChordNames())
+	}
+}
+
+// TestAccountChordNamesRead pins that the account's chordNames is read with
+// none chosen here, and a choice here wins over it.
+func TestAccountChordNamesRead(t *testing.T) {
+	f := newViewsFixture(t)
+	f.book[asVoicedPath] = asVoiced
+	f.commitBook(t)
+	home := homeFiles(t, true)
+	home["preferences.json"] = mustMarshal(t, map[string]any{"chordNames": reg("voiced")})
+	commit(t, f.st.HomeDir(), home)
+	s := f.serve(t, ownEngine(t))
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
+	got := protocol.Settings{}
+	s.expect(t, protocol.TypeSettings, &got)
+	if got.ChordNames != "voiced" || got.ChordNamesChosen {
+		t.Errorf("the account's voiced: %q chosen %v", got.ChordNames, got.ChordNamesChosen)
+	}
+	if sheet := s.openSong(t, asVoicedPath, nil); symbolsOf(sheet)[0] != "C/E" {
+		t.Errorf("the account's voiced read %v", symbolsOf(sheet))
+	}
+	s.send(t, protocol.TypeChordNames, map[string]any{"value": "written"})
+	s.expect(t, protocol.TypeSettings, &protocol.Settings{})
+	if sheet := s.openSong(t, asVoicedPath, nil); symbolsOf(sheet)[0] != "C" {
+		t.Errorf("written chosen over the account's voiced read %v", symbolsOf(sheet))
 	}
 }

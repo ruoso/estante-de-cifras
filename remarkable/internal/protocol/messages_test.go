@@ -61,6 +61,9 @@ func every() []Message {
 		ShowAllShapes{},
 		ShapesShown{Shown: false},
 		Place{BookID: "b1", Setlist: "gig.setlist.md", At: 3},
+		Instrument{ID: ptr("cavaquinho-1")},
+		Variation{Variation: ptr("Up the neck")},
+		ChordNames{Value: ptr("voiced")},
 		State{Paired: true, Syncing: false, Online: false, LastSync: ptr("2026-11-01T09:10:00Z"), ShapesShown: true, Error: ErrorOffline},
 		Pairing{Code: "K7QX-2M", URL: "https://estantedecifras.app/pair", ExpiresAt: "2026-11-01T14:42:00Z"},
 		Shelf{Books: []ShelfBook{{BookID: "b1", Title: "Roda de sábado", Songs: 32, Setlists: 4}}},
@@ -73,7 +76,9 @@ func every() []Message {
 			{Path: "gone.cifra.md", Title: "gone", Key: ptr("E"), Note: ptr("se der"), Missing: true},
 			{Path: "", Title: "a tocar ainda", Missing: true},
 		}},
-		Settings{Account: "ana@example.org", Version: "0.7.0", HiddenShapes: 11},
+		Settings{Account: "ana@example.org", Version: "0.7.0", HiddenShapes: 11,
+			Instruments: []SettingsInstrument{{ID: "g", Name: "Guitar · E2 A2 D3 G3 B3 E4"}, {ID: "c1", Name: "Cavaquinho"}},
+			Instrument:  "c1", AccountInstrument: "g", InstrumentChosen: true},
 		// reader.missed_shapes: a background search filled a place (§4.1).
 		Shapes{BookID: "b1", Path: "a.cifra.md", Offset: 2, TuningID: "40 45 50 55 59 64", Shapes: []SheetShape{
 			{Chord: "C:maj7", Symbol: "C7M", Frets: ptr("x45320"), Model: rawModel, Hidden: true},
@@ -163,8 +168,15 @@ func TestWireNames(t *testing.T) {
 			{Path: "gone.cifra.md", Title: "gone", Missing: true}}, At: ptr(0)},
 			`{"bookId":"b1","path":"gig.setlist.md","title":"Sábado","items":[{"path":"a.cifra.md","title":"Maré","key":"D","note":"devagar","missing":false},{"path":"gone.cifra.md","title":"gone","key":null,"note":null,"missing":true}],"at":0}`},
 		{Setlist{BookID: "b1", Path: "gig.setlist.md", Title: "Sábado", Items: []SetlistItem{}}, `{"bookId":"b1","path":"gig.setlist.md","title":"Sábado","items":[]}`},
-		{Settings{Account: "ana@example.org", Version: "0.7.0", HiddenShapes: 11}, `{"account":"ana@example.org","version":"0.7.0","hiddenShapes":11,"updateReader":false}`},
-		{Settings{Account: "ana@example.org", Version: "0.7.0", HiddenShapes: 11, UpdateReader: true}, `{"account":"ana@example.org","version":"0.7.0","hiddenShapes":11,"updateReader":true}`},
+		{Settings{Account: "ana@example.org", Version: "0.7.0", HiddenShapes: 11}, `{"account":"ana@example.org","version":"0.7.0","hiddenShapes":11,"updateReader":false,"chordNames":""}`},
+		{Settings{Account: "ana@example.org", Version: "0.7.0", HiddenShapes: 11, UpdateReader: true}, `{"account":"ana@example.org","version":"0.7.0","hiddenShapes":11,"updateReader":true,"chordNames":""}`},
+		{Instrument{ID: ptr("c1")}, `{"id":"c1"}`},
+		{Instrument{}, `{"id":null}`},
+		{Variation{Variation: ptr("")}, `{"variation":""}`},
+		{Variation{}, `{"variation":null}`},
+		{ChordNames{Value: ptr("voiced")}, `{"value":"voiced"}`},
+		{ChordNames{}, `{"value":null}`},
+		{Settings{Account: "a", Version: "v", ChordNames: "voiced", ChordNamesChosen: true, AccountChordNames: "written"}, `{"account":"a","version":"v","hiddenShapes":0,"updateReader":false,"chordNames":"voiced","chordNamesChosen":true,"accountChordNames":"written"}`},
 		// §6 108 shapes (reader.missed_shapes).
 		{Shapes{BookID: "b1", Path: "a.cifra.md", Offset: 2, TuningID: "40 45 50 55 59 64", Shapes: []SheetShape{
 			{Chord: "F#:dim7", Symbol: "F#°", Frets: ptr("2x121x"), Model: []byte(`{}`)},

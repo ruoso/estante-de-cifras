@@ -43,8 +43,11 @@ import (
 )
 
 // HostAPI is the one version of the bundle's host API this engine speaks
-// (app/src/device/host-api.js).
-const HostAPI = 1
+// (app/src/device/host-api.js). 2: instrument takes the instrument chosen on
+// the reader and lists the instruments, sheet lists the variations, and the
+// frontend sends 12 instrument and 13 variation, which a backend of 1 would
+// end its connection on.
+const HostAPI = 2
 
 // ManifestFile is the manifest's name inside a bundle directory (§8).
 const ManifestFile = "manifest.json"
@@ -124,6 +127,10 @@ type SheetOptions struct {
 	Preferences json.RawMessage
 	TargetKey   string
 	SavedOffset *int
+	// ChordNames is the reader's own choice of how the chart names its
+	// chords, "written" or "voiced" (workflow 19 §Settings), over the
+	// account's chordNames preference; "" reads the account's.
+	ChordNames string
 }
 
 // SheetKey is the song's key as written, as named now, as named at the saved
@@ -170,6 +177,10 @@ type Sheet struct {
 	Notes      json.RawMessage `json:"notes"`
 	KeyNote    *string         `json:"keyNote"`
 	TuningID   string          `json:"tuningId"`
+	// The song's variations for the tuning ('' the unnamed block) and the one
+	// read now (nil when it has none).
+	Variations []string `json:"variations"`
+	Variation  *string  `json:"variation"`
 }
 
 // SetlistItem is one playable item of a setlist.
@@ -629,20 +640,46 @@ func orNull(raw json.RawMessage) json.RawMessage {
 // instruments.json, preferences.json, shapes.json and
 // shapes-default-cache.json. Each crosses as parsed JSON; an absent or empty
 // one crosses as {} (home-book format §2.1).
+//
+// InstrumentID is not a file: it is the instrument chosen on this reader
+// (workflow 19 §Settings; the store keeps it), which the bundle reads with
+// in place of the account's in use when the account has it ("" for none).
 type InstrumentFiles struct {
 	Instruments   json.RawMessage
 	Preferences   json.RawMessage
 	Shapes        json.RawMessage
 	DefaultShapes json.RawMessage
+	InstrumentID  string
 }
 
-// Instrument is instrument's answer: the entry in use as the Worker surfaces
-// it, the default-shape table chosen for it (null when none), and the salt
-// that table was written under (nil when none) — what Load takes.
+// Instrument is instrument's answer: the entry to read with as the Worker
+// surfaces it, the default-shape table chosen for it (null when none), and
+// the salt that table was written under (nil when none) — what Load takes —
+// and the instruments the reader can choose from, with the account's own in
+// use.
 type Instrument struct {
-	Entry json.RawMessage `json:"entry"`
-	Table json.RawMessage `json:"table"`
-	Salt  *string         `json:"salt"`
+	Entry       json.RawMessage    `json:"entry"`
+	Table       json.RawMessage    `json:"table"`
+	Salt        *string            `json:"salt"`
+	Instruments []InstrumentChoice `json:"instruments"`
+	InUseID     string             `json:"inUseId"`
+}
+
+// InstrumentChoice is one instrument to choose from: its id, the name the web
+// app's roster gives it, and its tuning.
+type InstrumentChoice struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Tuning string `json:"tuning"`
+}
+
+// EntryID is the id of the instrument entry, "" when it names none.
+func (in Instrument) EntryID() string {
+	var e struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(in.Entry, &e)
+	return e.ID
 }
 
 // orEmpty is raw JSON, or {} when empty.
@@ -670,8 +707,11 @@ func (e *Engine) Instrument(ctx context.Context, files InstrumentFiles) (Instrum
 			return Instrument{}, errors.New("engine: instrument: a file is not JSON")
 		}
 	}
+	opts := struct {
+		InstrumentID string `json:"instrumentId,omitempty"`
+	}{files.InstrumentID}
 	var in Instrument
-	if err := e.invoke(ctx, "instrument", &in, arg); err != nil {
+	if err := e.invoke(ctx, "instrument", &in, arg, opts); err != nil {
 		return Instrument{}, err
 	}
 	in.Entry, in.Table = orNull(in.Entry), orNull(in.Table)
@@ -732,7 +772,9 @@ func (e *Engine) Sheet(ctx context.Context, text string, offset int, opts SheetO
 		Preferences json.RawMessage   `json:"preferences"`
 		TargetKey   *string           `json:"targetKey"`
 		SavedOffset *int              `json:"savedOffset"`
-	}{Variation: opts.Variation, Variations: opts.Variations, Preferences: orNull(opts.Preferences), SavedOffset: opts.SavedOffset}
+		ChordNames  string            `json:"chordNames,omitempty"`
+	}{Variation: opts.Variation, Variations: opts.Variations, Preferences: orNull(opts.Preferences), SavedOffset: opts.SavedOffset,
+		ChordNames: opts.ChordNames}
 	if opts.TargetKey != "" {
 		o.TargetKey = &opts.TargetKey
 	}

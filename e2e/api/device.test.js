@@ -14,6 +14,7 @@ import { gunzipSync } from 'node:zlib';
 import { describe, it, expect, beforeAll } from 'vitest';
 
 import { HttpClient } from './lib/http.js';
+import { HOST_API } from '../../app/src/device/host-api.js';
 
 const HEX12 = /^[0-9a-f]{12}$/;
 const HEX64 = /^[0-9a-f]{64}$/;
@@ -75,7 +76,7 @@ describe('the device payload (/device/)', () => {
     expect(response.headers.get('x-robots-tag')).toBe('noindex');
 
     expect(manifest.version).toMatch(HEX12);
-    expect(manifest.hostApi).toBe(1);
+    expect(manifest.hostApi).toBe(HOST_API);
     expect(typeof manifest.salt).toBe('string');
     expect(manifest.salt.length).toBeGreaterThan(0);
     for (const [key, entry] of namedFiles(manifest)) {
@@ -83,7 +84,7 @@ describe('the device payload (/device/)', () => {
       expect(entry.sha256, key).toMatch(HEX64);
     }
     for (const arch of ['armv7', 'arm64']) {
-      expect(manifest.backend[arch].hostApi).toBe(1);
+      expect(manifest.backend[arch].hostApi).toBe(HOST_API);
       expect(manifest.backend[arch].version).toMatch(HEX12);
     }
 

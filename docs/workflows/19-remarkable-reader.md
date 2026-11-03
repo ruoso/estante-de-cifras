@@ -178,12 +178,33 @@ pressed), or *No shapes hidden.* without the button; **This reader**,
 *Version 0.1.0*, and under it, when the site serves screens and music code
 this reader's program is too old to run, *Update the reader on your
 reMarkable* (it keeps showing the books with what it has; the line goes once
-a new reader is installed — design §8); and **Sign out**, which asks once: pressed, it is replaced by
+a new reader is installed — design §8); **Chord names**, *As written* or
+*As voiced* — the chart's chords named as the shapes shown sound them, as the
+web app names them when its *chordNames* is *voiced* — with *As in your
+account* or *Chosen on this reMarkable* under it, and one button naming the
+other (*Name as voiced*, *Name as written*): one tap, the part alone
+redrawn, every song read that way from its next open; **Instrument**, shown
+when the account has two or more, the one every song is read with, *As in
+your account* or *Chosen on this reMarkable* under it, and **Change**, which
+replaces the part below it with *Read every song with* and the account's
+instruments, three to a column, the one read inverted and the account's own
+marked *your account's*, and **Cancel** — one redraw — a tap on one choosing
+it (the Instrument part redrawn, the part below put back); and **Sign out**, which asks once: pressed, it is replaced by
 *Sign out of this reMarkable? Your books are removed from it; nothing changes
 in your account.* with **Sign out** and **Cancel** — one redraw of that part of
 the page — and the second *Sign out* signs out, returning to *Not paired*.
 
-Costs: open a book — 1; turn a page — 1; Sync — 2 small (start, end).
+Both choices **stay on this reMarkable**, as a key does: never written to the
+account. Choosing the account's own (its chord names, its instrument in use)
+follows the account again, so a change made there arrives here. An instrument
+the web app has not read with lately may have no default shapes in the home
+book: the reader searches them itself, in the background, as for any chord
+it lacks (design §4.1), so a song's first opening may show some places
+empty.
+
+Costs: open a book — 1; turn a page — 1; Sync — 2 small (start, end);
+switch the chord names — 1 (the part); Change / Cancel — 1; choose an
+instrument — 1.
 
 ## A book
 
@@ -220,7 +241,9 @@ The screen the reader exists for.
 
 **Bar:** **Back** · the title (and, smaller, the artist) · at the right the
 **key**, as a button showing where the song is: *C*, or while transposed,
-*D (+2)*.
+*D (+2)* — and, left of it, for a song with two or more variations for the
+instrument's tuning, the **variation**, a button naming the one read
+(*Default* for the unnamed block, else its name).
 
 **Content: the chart, in pages.** The rows the web app's chart draws — the
 section names, the bar lines, the sung lines with each chord over its words,
@@ -333,6 +356,22 @@ shows no key button and no strip.
 Costs: turn — 1; open the key grid — 1 (the strip only); choose a key — 1;
 close — 1 (the strip only).
 
+**The variation.** A song's variations for a tuning are its voicing blocks
+(cifra.md §7), the way it can be played. Tapping the variation button replaces
+the shapes strip — only the strip — with the **variation list**, placed as
+the key grid is: *Variation*, the variations three across, the one read
+inverted, and *Close* at the right — one redraw. Tapping one redraws the song
+with its shapes on the page it is on (a re-voicing: the chart is the same) —
+one redraw; tapping the one read, or *Close*, puts the strip back. The choice
+**stays on this reMarkable**, for this song and tuning; until one is made the
+song reads the account's (`songs.json`). The button shows only at the written
+key: transposed, a song's own shapes are set aside (workflow 2 §Reading a
+song), so no variation changes what is drawn — but its room is kept while
+the song is open, so a key chosen never moves the title (rule 2).
+
+Costs: open the variation list — 1 (the strip only); choose a variation — 1;
+close — 1 (the strip only).
+
 ## A setlist
 
 Bar: **Back** (to the book) · the setlist's name · at the right, **Play**.
@@ -394,6 +433,10 @@ is the web app's.
 | Hide a shape you know | 1 | the strip; the content too when the strip loses a row |
 | Hide / show shapes | 1 | content, laid out again from the bar at the top |
 | Choose a key | 1 | content and the key button |
+| Open / close the variation list | 1 | the shapes strip, as the key grid |
+| Choose a variation | 1 | the strip; the content too when the strip changes size |
+| Switch the chord names, in Settings | 1 | the Chord names part |
+| Change / Cancel, an instrument chosen, in Settings | 1 | the part below Instrument; Instrument too when one is chosen |
 | Sync, on the shelf | 2 | one line |
 | Sync, anywhere else | 0 | — |
 | Pairing approved / code expired | 1 | content |

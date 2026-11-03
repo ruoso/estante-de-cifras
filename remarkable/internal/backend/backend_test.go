@@ -49,6 +49,14 @@ type fakeSyncer struct {
 	// useEngines counts UseEngine; engine is the last one adopted.
 	useEngines int
 	engine     sync.Engine
+	// instruments is the instruments.json the fake loads from; roster what
+	// its last load offered; reloads counts ReloadInstrument.
+	instruments json.RawMessage
+	roster      sync.Roster
+	reloads     int
+	// loadStore is the store whose chosen instrument ReloadInstrument reads
+	// (store when nil).
+	loadStore *store.Store
 }
 
 func newFakeSyncer() *fakeSyncer {
@@ -135,6 +143,43 @@ func (f *fakeSyncer) UseEngine(ctx context.Context, eng sync.Engine) error {
 		return err
 	}
 	f.engine = eng
+	return nil
+}
+
+// Roster is what the last load on the adopted engine offered.
+func (f *fakeSyncer) Roster() sync.Roster {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.roster
+}
+
+// ReloadInstrument loads the instrument chosen in the store (none: the
+// bundle's default) on the adopted engine, as the syncer does.
+func (f *fakeSyncer) ReloadInstrument(ctx context.Context) error {
+	f.mu.Lock()
+	eng, st := f.engine, f.store
+	if f.loadStore != nil {
+		st = f.loadStore
+	}
+	f.mu.Unlock()
+	if eng == nil {
+		return nil
+	}
+	files := engine.InstrumentFiles{Instruments: f.instruments}
+	if st != nil {
+		files.InstrumentID = st.Instrument()
+	}
+	in, err := eng.Instrument(ctx, files)
+	if err != nil {
+		return err
+	}
+	if _, err := eng.Load(ctx, in.Entry, in.Table); err != nil {
+		return err
+	}
+	f.mu.Lock()
+	f.reloads++
+	f.roster = sync.Roster{Instruments: in.Instruments, InUseID: in.InUseID, ReadID: in.EntryID()}
+	f.mu.Unlock()
 	return nil
 }
 

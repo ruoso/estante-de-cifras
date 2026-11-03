@@ -146,7 +146,7 @@ func TestAbsentFilesReadAsEmpty(t *testing.T) {
 	if got := readSongs(nil); len(got) != 0 {
 		t.Errorf("songs %v", got)
 	}
-	files := instrumentFiles(homeFiles{})
+	files := (&Syncer{}).instrumentFiles(homeFiles{})
 	for name, raw := range map[string]json.RawMessage{
 		"instruments": files.Instruments, "preferences": files.Preferences,
 		"shapes": files.Shapes, "defaultShapes": files.DefaultShapes,
@@ -182,7 +182,7 @@ func TestMalformedFilesTolerated(t *testing.T) {
 		}
 		_ = readSongs([]byte(raw))
 	}
-	files := instrumentFiles(homeFiles{instrumentsFile: []byte("not json"), shapesFile: []byte("[1]")})
+	files := (&Syncer{}).instrumentFiles(homeFiles{instrumentsFile: []byte("not json"), shapesFile: []byte("[1]")})
 	if string(files.Instruments) != "{}" || string(files.Shapes) != "{}" {
 		t.Errorf("malformed instrument files crossed as %s and %s", files.Instruments, files.Shapes)
 	}

@@ -28,24 +28,51 @@ type state struct {
 	places       map[string]map[string]int // bookId → setlist path → item index
 	shapesHidden bool
 	hidden       map[Voicing]struct{}
-	lastSync     time.Time // zero before the first sync
+	lastSync     time.Time                               // zero before the first sync
+	instrument   string                                  // the instrument chosen here; "" follows the account
+	chordNames   string                                  // "written" or "voiced" chosen here; "" follows the account
+	variations   map[string]map[string]map[string]string // bookId → song path → tuning id → variation
 }
 
 type stateJSON struct {
-	Version      int                       `json:"version"`
-	Keys         map[string]map[string]int `json:"keys,omitempty"`
-	Places       map[string]map[string]int `json:"places,omitempty"`
-	ShapesHidden bool                      `json:"shapesHidden,omitempty"`
-	Hidden       []Voicing                 `json:"hidden,omitempty"`
-	LastSync     *time.Time                `json:"lastSync,omitempty"`
+	Version      int                                     `json:"version"`
+	Keys         map[string]map[string]int               `json:"keys,omitempty"`
+	Places       map[string]map[string]int               `json:"places,omitempty"`
+	ShapesHidden bool                                    `json:"shapesHidden,omitempty"`
+	Hidden       []Voicing                               `json:"hidden,omitempty"`
+	LastSync     *time.Time                              `json:"lastSync,omitempty"`
+	Instrument   string                                  `json:"instrument,omitempty"`
+	ChordNames   string                                  `json:"chordNames,omitempty"`
+	Variations   map[string]map[string]map[string]string `json:"variations,omitempty"`
 }
 
 func newState() state {
 	return state{
-		keys:   map[string]map[string]int{},
-		places: map[string]map[string]int{},
-		hidden: map[Voicing]struct{}{},
+		keys:       map[string]map[string]int{},
+		places:     map[string]map[string]int{},
+		hidden:     map[Voicing]struct{}{},
+		variations: map[string]map[string]map[string]string{},
 	}
+}
+
+func copyVariations(m map[string]map[string]map[string]string) map[string]map[string]map[string]string {
+	c := make(map[string]map[string]map[string]string, len(m))
+	for b, songs := range m {
+		cs := make(map[string]map[string]string, len(songs))
+		for p, byTuning := range songs {
+			ct := make(map[string]string, len(byTuning))
+			for t, v := range byTuning {
+				ct[t] = v
+			}
+			if len(ct) > 0 {
+				cs[p] = ct
+			}
+		}
+		if len(cs) > 0 {
+			c[b] = cs
+		}
+	}
+	return c
 }
 
 // clone copies st, so a mutation is applied to the copy and kept only once
@@ -63,6 +90,9 @@ func (st state) clone() state {
 		c.hidden[v] = struct{}{}
 	}
 	c.lastSync = st.lastSync
+	c.instrument = st.instrument
+	c.chordNames = st.chordNames
+	c.variations = copyVariations(st.variations)
 	return c
 }
 
@@ -103,11 +133,20 @@ func readState(path string) state {
 	if j.LastSync != nil {
 		st.lastSync = *j.LastSync
 	}
+	st.instrument = j.Instrument
+	if j.ChordNames == "written" || j.ChordNames == "voiced" {
+		st.chordNames = j.ChordNames
+	}
+	st.variations = copyVariations(j.Variations)
 	return st
 }
 
 func (st state) encode() ([]byte, error) {
-	j := stateJSON{Version: stateVersion, Keys: st.keys, Places: st.places, ShapesHidden: st.shapesHidden}
+	j := stateJSON{Version: stateVersion, Keys: st.keys, Places: st.places, ShapesHidden: st.shapesHidden,
+		Instrument: st.instrument, ChordNames: st.chordNames}
+	if len(st.variations) > 0 {
+		j.Variations = st.variations
+	}
 	if !st.lastSync.IsZero() {
 		t := st.lastSync
 		j.LastSync = &t
@@ -159,6 +198,90 @@ func (s *Store) Key(bookID, path string) (offset int, ok bool) {
 // forgets the device's choice (protocol Key; design §5.4, §6).
 func (s *Store) SetKey(bookID, path string, offset *int) error {
 	return s.mutate(func(st *state) { setIn(st.keys, bookID, path, offset) })
+}
+
+// Instrument is the instrument chosen on this reader (workflow 19
+// §Settings), "" when none is: the account's in use is read then.
+func (s *Store) Instrument() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.state.instrument
+}
+
+// SetInstrument keeps the instrument chosen here; "" forgets the choice, so
+// the account's in use is followed again.
+func (s *Store) SetInstrument(id string) error {
+	return s.mutate(func(st *state) { st.instrument = id })
+}
+
+// ChordNames is how this reader names the chart's chords, "written" or
+// "voiced" (workflow 19 §Settings); "" when none is chosen and the account's
+// chordNames preference is read.
+func (s *Store) ChordNames() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.state.chordNames
+}
+
+// SetChordNames keeps how the chart names its chords here; "" forgets the
+// choice. Anything but "written" or "voiced" is refused.
+func (s *Store) SetChordNames(names string) error {
+	if names != "" && names != "written" && names != "voiced" {
+		return fmt.Errorf("store: chord names: %w", ErrBadID)
+	}
+	return s.mutate(func(st *state) { st.chordNames = names })
+}
+
+// Variation is the variation chosen on this reader for a song in one tuning
+// (workflow 19 §A song); false when none is, and the account's (songs.json)
+// is read.
+func (s *Store) Variation(bookID, path, tuningID string) (variation string, ok bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	variation, ok = s.state.variations[bookID][path][tuningID]
+	return variation, ok
+}
+
+// Variations is every variation chosen on this reader for a song, by tuning
+// id (nil when none is).
+func (s *Store) Variations(bookID, path string) map[string]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	byTuning := s.state.variations[bookID][path]
+	if len(byTuning) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(byTuning))
+	for t, v := range byTuning {
+		out[t] = v
+	}
+	return out
+}
+
+// SetVariation keeps the variation chosen for a song in one tuning; nil
+// forgets the choice.
+func (s *Store) SetVariation(bookID, path, tuningID string, variation *string) error {
+	return s.mutate(func(st *state) {
+		songs := st.variations[bookID]
+		if variation == nil {
+			delete(songs[path], tuningID)
+			if len(songs[path]) == 0 {
+				delete(songs, path)
+			}
+			if len(songs) == 0 {
+				delete(st.variations, bookID)
+			}
+			return
+		}
+		if songs == nil {
+			songs = map[string]map[string]string{}
+			st.variations[bookID] = songs
+		}
+		if songs[path] == nil {
+			songs[path] = map[string]string{}
+		}
+		songs[path][tuningID] = *variation
+	})
 }
 
 // Place is the item being played in the setlist at path in bookID; false when

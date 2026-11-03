@@ -194,7 +194,7 @@ Rectangle {
 
         function settings(p) {
             if (d.view === "settings") {
-                settingsScreen.showShapes(p);
+                settingsScreen.answered(p);
                 return;
             }
             leave("settings");

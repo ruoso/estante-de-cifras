@@ -144,6 +144,7 @@ type Syncer struct {
 	gone       map[string]bool // reported gone, until a check says changed
 	empty      map[string]bool // found empty, until a check says changed
 	loadDigest string          // the instrument files last loaded
+	roster     Roster          // the instruments the last load offered
 	online     bool
 	// cancelPass cancels the pass in flight (nil when none); signingOut
 	// counts sign-outs waiting for passMu, during which no pass begins.
@@ -604,14 +605,41 @@ func readHome(dir string) homeFiles {
 }
 
 // instrumentFiles are the four files the bundle chooses from, absent or
-// malformed as {}.
-func instrumentFiles(home homeFiles) engine.InstrumentFiles {
-	return engine.InstrumentFiles{
+// malformed as {}, and the instrument chosen on this reader.
+func (s *Syncer) instrumentFiles(home homeFiles) engine.InstrumentFiles {
+	files := engine.InstrumentFiles{
 		Instruments:   objectOrEmpty(home[instrumentsFile]),
 		Preferences:   objectOrEmpty(home[preferencesFile]),
 		Shapes:        objectOrEmpty(home[shapesFile]),
 		DefaultShapes: objectOrEmpty(home[defaultShapesFile]),
 	}
+	if s.st != nil {
+		files.InstrumentID = s.st.Instrument()
+	}
+	return files
+}
+
+// Roster is what the last load offered to choose from (workflow 19
+// §Settings): the account's instruments, the account's own in use, and the
+// one read with now.
+type Roster struct {
+	Instruments []engine.InstrumentChoice
+	InUseID     string
+	ReadID      string
+}
+
+// Roster is the instruments the last load offered; empty before one.
+func (s *Syncer) Roster() Roster {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.roster
+}
+
+// ReloadInstrument loads the instrument again from the home book on disk —
+// after one is chosen on this reader, whose choice is in the files' digest,
+// so it loads only when the choice changed what is read.
+func (s *Syncer) ReloadInstrument(ctx context.Context) error {
+	return s.loadInstrument(ctx, readHome(s.st.HomeDir()))
 }
 
 // engine is the engine instruments are loaded into (nil when none).
@@ -621,26 +649,28 @@ func (s *Syncer) engine() Engine {
 	return s.eng
 }
 
-// filesDigest is the digest of the four instrument files.
+// filesDigest is the digest of the four instrument files and the
+// instrument chosen here.
 func filesDigest(files engine.InstrumentFiles) string {
 	h := sha256.New()
-	for _, raw := range []json.RawMessage{files.Instruments, files.Preferences, files.Shapes, files.DefaultShapes} {
+	for _, raw := range []json.RawMessage{files.Instruments, files.Preferences, files.Shapes, files.DefaultShapes, json.RawMessage(files.InstrumentID)} {
 		fmt.Fprintf(h, "%d:", len(raw))
 		h.Write(raw)
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// loadOn asks eng's bundle for the instrument and its table and loads them.
-func loadOn(ctx context.Context, eng Engine, files engine.InstrumentFiles) error {
+// loadOn asks eng's bundle for the instrument and its table and loads them,
+// answering what the bundle offered to choose from.
+func loadOn(ctx context.Context, eng Engine, files engine.InstrumentFiles) (Roster, error) {
 	in, err := eng.Instrument(ctx, files)
 	if err != nil {
-		return fmt.Errorf("sync: instrument: %w", err)
+		return Roster{}, fmt.Errorf("sync: instrument: %w", err)
 	}
 	if _, err := eng.Load(ctx, in.Entry, in.Table); err != nil {
-		return fmt.Errorf("sync: instrument: %w", err)
+		return Roster{}, fmt.Errorf("sync: instrument: %w", err)
 	}
-	return nil
+	return Roster{Instruments: in.Instruments, InUseID: in.InUseID, ReadID: in.EntryID()}, nil
 }
 
 // loadInstrument asks the bundle for the instrument and its table and loads
@@ -649,7 +679,7 @@ func loadOn(ctx context.Context, eng Engine, files engine.InstrumentFiles) error
 // UseEngine meanwhile) is no failure: the load is tried on the engine now in
 // use, which UseEngine loaded already when the files are the same.
 func (s *Syncer) loadInstrument(ctx context.Context, home homeFiles) error {
-	files := instrumentFiles(home)
+	files := s.instrumentFiles(home)
 	digest := filesDigest(files)
 	for {
 		s.mu.Lock()
@@ -658,7 +688,7 @@ func (s *Syncer) loadInstrument(ctx context.Context, home homeFiles) error {
 		if eng == nil || same {
 			return nil
 		}
-		err := loadOn(ctx, eng, files)
+		roster, err := loadOn(ctx, eng, files)
 		if errors.Is(err, engine.ErrClosed) {
 			if next := s.engine(); next != nil && next != eng {
 				continue
@@ -669,7 +699,7 @@ func (s *Syncer) loadInstrument(ctx context.Context, home homeFiles) error {
 		}
 		s.mu.Lock()
 		if s.eng == eng {
-			s.loadDigest = digest
+			s.loadDigest, s.roster = digest, roster
 		}
 		s.mu.Unlock()
 		return nil
@@ -682,12 +712,13 @@ func (s *Syncer) loadInstrument(ctx context.Context, home homeFiles) error {
 // eng and its digest under the lock, so the next pass loads nothing twice. On
 // an error the syncer keeps the engine it had.
 func (s *Syncer) UseEngine(ctx context.Context, eng Engine) error {
-	files := instrumentFiles(readHome(s.st.HomeDir()))
-	if err := loadOn(ctx, eng, files); err != nil {
+	files := s.instrumentFiles(readHome(s.st.HomeDir()))
+	roster, err := loadOn(ctx, eng, files)
+	if err != nil {
 		return err
 	}
 	s.mu.Lock()
-	s.eng, s.loadDigest = eng, filesDigest(files)
+	s.eng, s.loadDigest, s.roster = eng, filesDigest(files), roster
 	s.mu.Unlock()
 	return nil
 }

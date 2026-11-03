@@ -11,6 +11,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -36,6 +37,9 @@ globalThis.estante = {
 };
 `
 
+// api is HostAPI as bundleJS writes it.
+var api = strconv.Itoa(HostAPI)
+
 func bundleJS(api, salt, extra string) string {
 	return strings.NewReplacer("%API%", api, "%SALT%", salt).Replace(host) + extra
 }
@@ -53,7 +57,7 @@ func writeBundle(t *testing.T, code string, edit func(m map[string]any)) string 
 	}
 	m := map[string]any{
 		"version": hash[:12],
-		"hostApi": 1,
+		"hostApi": HostAPI,
 		"salt":    testSalt,
 		"bundle":  map[string]any{"path": name, "sha256": hash},
 	}
@@ -80,24 +84,25 @@ func open(t *testing.T, code string) *Engine {
 // TestOpenRefusesOtherHostAPI pins the note's "a bundle of another hostApi
 // refused": by the manifest, and by the evaluated estante.hostApi.
 func TestOpenRefusesOtherHostAPI(t *testing.T) {
-	dir := writeBundle(t, bundleJS("2", testSalt, ""), func(m map[string]any) { m["hostApi"] = 2 })
+	other := strconv.Itoa(HostAPI + 1)
+	dir := writeBundle(t, bundleJS(other, testSalt, ""), func(m map[string]any) { m["hostApi"] = HostAPI + 1 })
 	if _, err := Open(dir); !errors.Is(err, ErrHostAPI) {
-		t.Errorf("manifest hostApi 2: %v, want ErrHostAPI", err)
+		t.Errorf("manifest hostApi %s: %v, want ErrHostAPI", other, err)
 	}
-	dir = writeBundle(t, bundleJS("2", testSalt, ""), nil)
+	dir = writeBundle(t, bundleJS(other, testSalt, ""), nil)
 	if _, err := Open(dir); !errors.Is(err, ErrHostAPI) {
-		t.Errorf("estante.hostApi 2 under a manifest saying 1: %v, want ErrHostAPI", err)
+		t.Errorf("estante.hostApi %s under a manifest saying %d: %v, want ErrHostAPI", other, HostAPI, err)
 	}
-	dir = writeBundle(t, bundleJS(`"1"`, testSalt, ""), nil)
+	dir = writeBundle(t, bundleJS(`"`+api+`"`, testSalt, ""), nil)
 	if _, err := Open(dir); !errors.Is(err, ErrHostAPI) {
-		t.Errorf("estante.hostApi \"1\": %v, want ErrHostAPI", err)
+		t.Errorf("estante.hostApi as a string: %v, want ErrHostAPI", err)
 	}
 }
 
 // TestOpenRefusesBadBundle pins each refusal of Open as its own error, so
 // reader.self_update can keep the last good bundle (§8).
 func TestOpenRefusesBadBundle(t *testing.T) {
-	good := bundleJS("1", testSalt, "")
+	good := bundleJS(api, testSalt, "")
 	cases := []struct {
 		name string
 		dir  func(t *testing.T) string
@@ -127,7 +132,7 @@ func TestOpenRefusesBadBundle(t *testing.T) {
 			return writeBundle(t, "var x = 1;", nil)
 		}, ErrNoHost},
 		{"salt mismatch", func(t *testing.T) string {
-			return writeBundle(t, bundleJS("1", "another-salt", ""), nil)
+			return writeBundle(t, bundleJS(api, "another-salt", ""), nil)
 		}, ErrSalt},
 		{"throws on evaluation", func(t *testing.T) string {
 			return writeBundle(t, good+`throw new TypeError("broken bundle");`, nil)
@@ -157,7 +162,7 @@ func TestOpenRefusesBadBundle(t *testing.T) {
 // and the bundle's own polyfills (§4): no console, require, timers, fetch or
 // process.
 func TestRuntimeHasNoHostGlobals(t *testing.T) {
-	e := open(t, bundleJS("1", testSalt, `
+	e := open(t, bundleJS(api, testSalt, `
 estante.setlist = function () {
   return { title: [typeof console, typeof require, typeof setTimeout, typeof fetch, typeof process].join(","),
     items: [], missing: 0 };
@@ -174,7 +179,7 @@ estante.setlist = function () {
 // TestCallErrorCarriesNoArguments pins §10: a call that throws names the call
 // and the exception, never the text it was handed.
 func TestCallErrorCarriesNoArguments(t *testing.T) {
-	e := open(t, bundleJS("1", testSalt, `
+	e := open(t, bundleJS(api, testSalt, `
 estante.sheet = function (text) { throw new RangeError("cannot read this"); };`))
 	const marker = "SONG-TEXT-MARKER-7f3a"
 	_, err := e.Sheet(context.Background(), "# "+marker+"\n", 0, SheetOptions{})
@@ -199,7 +204,7 @@ estante.sheet = function (text) { throw new RangeError("cannot read this"); };`)
 // TestCancelInterrupts pins cancellation: a call that never returns is
 // interrupted when its context ends, and the next call is answered.
 func TestCancelInterrupts(t *testing.T) {
-	e := open(t, bundleJS("1", testSalt, `
+	e := open(t, bundleJS(api, testSalt, `
 var plain = estante.sheet;
 estante.sheet = function (text, offset) { if (text === "forever") { for (;;) {} } return plain(text, offset); };`))
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
@@ -222,7 +227,7 @@ estante.sheet = function (text, offset) { if (text === "forever") { for (;;) {} 
 // TestCallsAreSerialised pins §3.2: one goroutine owns the runtime, so calls
 // from many goroutines never overlap in it.
 func TestCallsAreSerialised(t *testing.T) {
-	e := open(t, bundleJS("1", testSalt, `
+	e := open(t, bundleJS(api, testSalt, `
 var busy = false, calls = 0, overlaps = 0;
 estante.held = function () {
   if (busy) overlaps += 1;
@@ -261,7 +266,7 @@ estante.held = function () {
 // TestClose pins Close: later calls return ErrClosed, and Close is
 // idempotent.
 func TestClose(t *testing.T) {
-	e, err := Open(writeBundle(t, bundleJS("1", testSalt, ""), nil))
+	e, err := Open(writeBundle(t, bundleJS(api, testSalt, ""), nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +300,7 @@ func TestClose(t *testing.T) {
 // TestLoadSameIsNoop pins Decision 3: the bundle's load clears its memos, so
 // the same entry and table again never reaches it; a changed table does.
 func TestLoadSameIsNoop(t *testing.T) {
-	e := open(t, bundleJS("1", testSalt, `
+	e := open(t, bundleJS(api, testSalt, `
 var loads = 0;
 estante.load = function (entry, table) {
   loads += 1;
@@ -326,7 +331,7 @@ estante.load = function (entry, table) {
 
 // TestSheetUnreadable pins {error:"unreadable"} becoming ErrUnreadable.
 func TestSheetUnreadable(t *testing.T) {
-	e := open(t, bundleJS("1", testSalt, `
+	e := open(t, bundleJS(api, testSalt, `
 estante.sheet = function () { return { error: "unreadable" }; };`))
 	if _, err := e.Sheet(context.Background(), "x", 0, SheetOptions{}); !errors.Is(err, ErrUnreadable) {
 		t.Errorf("Sheet: %v, want ErrUnreadable", err)
@@ -336,7 +341,7 @@ estante.sheet = function () { return { error: "unreadable" }; };`))
 // TestCloseInterruptsACallInFlight pins that Close does not wait forever on a
 // call that never returns.
 func TestCloseInterruptsACallInFlight(t *testing.T) {
-	e, err := Open(writeBundle(t, bundleJS("1", testSalt, `
+	e, err := Open(writeBundle(t, bundleJS(api, testSalt, `
 estante.misses = function () { for (;;) {} };`), nil))
 	if err != nil {
 		t.Fatal(err)
@@ -362,7 +367,7 @@ estante.misses = function () { for (;;) {} };`), nil))
 // forever is interrupted by a reading call, which is answered at once, and
 // Fill returns ErrPreempted.
 func TestFillYieldsToReading(t *testing.T) {
-	e := open(t, bundleJS("1", testSalt, `
+	e := open(t, bundleJS(api, testSalt, `
 estante.fill = function () { for (;;) {} };`))
 	filled := make(chan error, 1)
 	go func() {
@@ -398,7 +403,7 @@ estante.fill = function () { for (;;) {} };`))
 // waits — with a slow reading call in flight and a fill and a second reading
 // call queued behind it, the reading call is served first.
 func TestFillWaitsForReading(t *testing.T) {
-	e := open(t, bundleJS("1", testSalt, `
+	e := open(t, bundleJS(api, testSalt, `
 var order = [];
 estante.held = function () {
   var until = Date.now() + 150;
@@ -439,7 +444,7 @@ estante.setlist = function () { return { title: order.join(","), items: [], miss
 // TestCloseEndsFill pins that Close ends a fill in flight with ErrClosed, as
 // it ends any call.
 func TestCloseEndsFill(t *testing.T) {
-	e, err := Open(writeBundle(t, bundleJS("1", testSalt, `
+	e, err := Open(writeBundle(t, bundleJS(api, testSalt, `
 estante.fill = function () { for (;;) {} };`), nil))
 	if err != nil {
 		t.Fatal(err)

@@ -90,14 +90,20 @@ function normalOffset(offset) {
 }
 
 /**
- * The instrument in use and its default-shape table, from the home book's
- * files `{ instruments, preferences, shapes, defaultShapes }` (parsed JSON,
- * absent as `{}`), for the host to hand to `load` (reader.sync; §4, §4.1):
- * `{ entry, table, salt }`, the table this bundle's salt's, else another
- * non-decommissioned salt's whose fingerprint fits, else null.
+ * The instrument to read with and its default-shape table, from the home
+ * book's files `{ instruments, preferences, shapes, defaultShapes }` (parsed
+ * JSON, absent as `{}`), for the host to hand to `load` (reader.sync; §4,
+ * §4.1): `{ entry, table, salt, instruments, inUseId }`, the table this
+ * bundle's salt's, else another non-decommissioned salt's whose fingerprint
+ * fits, else null. `opts.instrumentId`, the instrument chosen on the reader,
+ * wins over the account's in use when it names one of `instruments`.
  */
-function instrument(files) {
-  return chooseInstrument(files ?? {}, { salt: SHAPE_CACHE_SALT, decommissioned: DECOMMISSIONED_SALTS });
+function instrument(files, opts = {}) {
+  return chooseInstrument(files ?? {}, {
+    salt: SHAPE_CACHE_SALT,
+    decommissioned: DECOMMISSIONED_SALTS,
+    instrumentId: opts?.instrumentId ?? null,
+  });
 }
 
 /**
@@ -117,13 +123,16 @@ function load(entry, table) {
 /**
  * A song's sheet, read at `offset` (or at the setlist's `targetKey`), as plain
  * data. `opts` is `{ variation?, variations?, preferences?, targetKey?,
- * savedOffset? }`: `variations` is the song's `songs.json` map by tuning id —
+ * savedOffset?, chordNames? }` — `chordNames`, `'written'` or `'voiced'`, the
+ * reader's own choice of how the chart names its chords (workflow 19
+ * §Settings), wins over the account's `chordNames` preference: `variations` is the song's `songs.json` map by tuning id —
  * the session's own tuning picks from it, and it wins over `variation`, which
  * applies to the session's tuning — and `savedOffset` is the account's saved
  * transposition, named as `key.saved` by the same rule as `key.named`.
  */
 function sheet(text, offset = 0, opts = {}) {
-  const { variation = '', variations = null, preferences = null, targetKey = null, savedOffset = null } = opts ?? {};
+  const { variation = '', variations = null, targetKey = null, savedOffset = null, chordNames = null } = opts ?? {};
+  const preferences = withChordNames(opts?.preferences ?? null, chordNames);
   const parsed = parsedOf(text);
   if (!parsed) return { error: 'unreadable' };
 
@@ -213,6 +222,25 @@ function sheet(text, offset = 0, opts = {}) {
     }
   }
 
+  // The song's variations for the session's tuning (its voicing blocks, by
+  // label; '' the unnamed one) and the one read now: the reader offers the
+  // choice where there are two or more and the song is at its written key, as
+  // the web app does (workflow 2 §Reading a song) — transposed, the song's own
+  // shapes are set aside, so no variation changes what is drawn.
+  const tuningVariations = [...(read.variations ?? [])];
+  const inUse = tuningVariations.includes(read.variation) ? read.variation : (tuningVariations[0] ?? null);
+
+  // Named as voiced (the account's `chordNames`, or the reader's own): the
+  // chart's chords and the strip's symbols as the shapes shown sound them, as
+  // the web app's chart names them (readSongSheet's `renamed`).
+  const rows = renameRows(chartRows(read.model), read.renamed);
+  if (read.renamed) {
+    for (const shape of shapes) {
+      const renamed = read.renamed.get(shape.key);
+      if (renamed) shape.symbol = renamed.symbol;
+    }
+  }
+
   return {
     title: parsed.title ?? null,
     artist: read.artist ?? null,
@@ -225,13 +253,42 @@ function sheet(text, offset = 0, opts = {}) {
     },
     offset: read.offset,
     transposed: read.transposed,
-    rows: chartRows(read.model),
+    rows,
     shapes,
     unvoiced,
     notes: read.blockNotes,
     keyNote,
     tuningId: session.tuningId,
+    variations: tuningVariations,
+    variation: inUse,
   };
+}
+
+// The preferences with the reader's own `chordNames` choice in place of the
+// account's (a register, as the home book keeps it), or as given.
+function withChordNames(preferences, chordNames) {
+  if (chordNames !== 'written' && chordNames !== 'voiced') return preferences;
+  return { ...(preferences ?? {}), chordNames: { at: '', value: chordNames } };
+}
+
+// chartRows with each chord's text replaced by its name in `renamed` (by the
+// token's key): a sung segment's `chord`, a bar's or a run's cell `text`. The
+// rows are plain data; nothing else changes.
+function renameRows(rows, renamed) {
+  if (!renamed || renamed.size === 0) return rows;
+  const walk = (value) => {
+    if (Array.isArray(value)) return value.map(walk);
+    if (!value || typeof value !== 'object') return value;
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = walk(v);
+    const name = value.token && typeof value.token.key === 'string' ? renamed.get(value.token.key) : null;
+    if (name) {
+      if (typeof out.chord === 'string') out.chord = name.symbol;
+      else if (typeof out.text === 'string') out.text = name.symbol;
+    }
+    return out;
+  };
+  return walk(rows);
 }
 
 // The `songs.json` variations by tuning id, as readSongSheet takes them: the

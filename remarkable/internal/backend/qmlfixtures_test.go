@@ -331,6 +331,43 @@ func playFixture(t *testing.T, from string, sheet protocol.Sheet, ahead []protoc
 	return b.Bytes()
 }
 
+// instrumentFixtures writes (or checks) browse-settings-instruments,
+// browse-settings-instrument-chosen and browse-settings-voiced: the backend's
+// 107 for an account with a ukulele beside the standard guitar, before and
+// after the ukulele is chosen on the device, then chords named as voiced
+// chosen too (workflow 19 §Settings).
+func instrumentFixtures(t *testing.T, write func(name, from string, got []byte)) {
+	t.Helper()
+	f := newViewsFixture(t)
+	if err := f.st.SetSession(store.Session{Origin: "https://example.test", Token: "t", Account: browseAccount}); err != nil {
+		t.Fatal(err)
+	}
+	s := f.serveChoosing(t, ownEngine(t), withUke)
+	defer s.stop()
+	const from = "an account with the standard guitar and My uke (instruments.json)"
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
+	var before protocol.Settings
+	s.expect(t, protocol.TypeSettings, &before)
+	if len(before.Instruments) != 2 || before.InstrumentChosen {
+		t.Fatalf("instrument settings %+v", before)
+	}
+	write("browse-settings-instruments", from, browseFixture(t, "settings", from+": the backend's `107 settings`", before))
+	s.send(t, protocol.TypeInstrument, map[string]any{"id": "u1"})
+	var after protocol.Settings
+	s.expect(t, protocol.TypeSettings, &after)
+	if after.Instrument != "u1" || !after.InstrumentChosen {
+		t.Fatalf("instrument settings after choosing %+v", after)
+	}
+	write("browse-settings-instrument-chosen", from, browseFixture(t, "settings", from+", My uke chosen on the device: the backend's `107 settings`", after))
+	s.send(t, protocol.TypeChordNames, map[string]any{"value": "voiced"})
+	var voiced protocol.Settings
+	s.expect(t, protocol.TypeSettings, &voiced)
+	if voiced.ChordNames != "voiced" || !voiced.ChordNamesChosen {
+		t.Fatalf("settings after choosing voiced %+v", voiced)
+	}
+	write("browse-settings-voiced", from, browseFixture(t, "settings", from+", My uke and chords named as voiced chosen on the device: the backend's `107 settings`", voiced))
+}
+
 func TestQMLFixtures(t *testing.T) {
 	paths, err := filepath.Glob(filepath.Join(qmlFixtureDir, "songs", "*.cifra.md"))
 	if err != nil {
@@ -428,6 +465,22 @@ func TestQMLFixtures(t *testing.T) {
 	}
 	// few-chords-saved: a saved transposition of +2 in the home book's
 	// songs.json (Your key: A), read by a backend started after it synced.
+	// two-ways-chosen: the device choosing two-ways's Up the neck, then
+	// forgotten (workflow 19 §A song).
+	const twoWaysSong = "two-ways.cifra.md"
+	tw, ok := sheets["two-ways"]
+	if !ok || len(tw.Variations) != 2 {
+		t.Fatalf("two-ways offers %v, want two variations", tw.Variations)
+	}
+	up := "Up the neck"
+	if err := f.st.SetVariation(testBook, twoWaysSong, tw.TuningID, &up); err != nil {
+		t.Fatal(err)
+	}
+	check("two-ways-chosen", twoWaysSong+" with Up the neck chosen on the device", s.openSong(t, twoWaysSong, nil))
+	if err := f.st.SetVariation(testBook, twoWaysSong, tw.TuningID, nil); err != nil {
+		t.Fatal(err)
+	}
+
 	s.stop()
 	home := homeFiles(t, true)
 	var songs map[string]any
@@ -471,6 +524,8 @@ func TestQMLFixtures(t *testing.T) {
 	// from fixtures/browse-book/.
 	s.stop()
 	browseFixtures(t, write)
+
+	instrumentFixtures(t, write)
 
 	// A fixture with no song behind it would be read by the QML tests and held
 	// by nothing.

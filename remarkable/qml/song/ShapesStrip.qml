@@ -14,6 +14,8 @@
 //   - "grid": the key grid, over the bottom of the chart from the foot up when
 //     the strip is shorter than it (or hidden) (Song-key L58–75; workflow 19
 //     §A song as amended);
+//   - "variations": the variation list, placed as the key grid is (workflow
+//     19 §A song, the variation);
 //   - "none": nothing (a song with no shapes, or the shapes hidden).
 // What it draws is replaced in one place, `show`, which bumps `revision`. The
 // strip's buttons are its own turn zones, never the chart's (§A song).
@@ -32,6 +34,7 @@ Item {
     readonly property alias headText: headText
     readonly property alias diagrams: diagrams
     readonly property alias grid: grid
+    readonly property alias variationList: variationList
     readonly property alias showHiddenButton: showHiddenButton
     readonly property alias doneButton: doneButton
     readonly property alias stripPrevious: stripPrevious
@@ -54,6 +57,8 @@ Item {
     signal keyChosen(int offset)
     signal asWritten
     signal gridClosed
+    signal variationChosen(string variation)
+    signal variationsClosed
 
     function show(content) {
         d.content = content;
@@ -336,7 +341,7 @@ Item {
                 MouseArea {
                     id: touch
                     objectName: "shapeTouch"
-                    enabled: !cell.pendingShape && strip.mode !== "grid"
+                    enabled: !cell.pendingShape && strip.mode !== "grid" && strip.mode !== "variations"
                     x: 0
                     y: 0
                     width: cell.width
@@ -360,6 +365,20 @@ Item {
         onChosen: offset => strip.keyChosen(offset)
         onAsWritten: strip.asWritten()
         onClosed: strip.gridClosed()
+    }
+
+    VariationList {
+        id: variationList
+        faces: strip.faces
+        visible: strip.mode === "variations"
+        content: strip.content.variations || ({ variations: [], current: "" })
+        pending: strip.pending
+        x: 0
+        width: strip.width
+        height: Math.max(strip.height, M.keyGridHeight)
+        y: strip.height - height
+        onChosen: variation => strip.variationChosen(variation)
+        onClosed: strip.variationsClosed()
     }
 
     // The head's words for the mode and the page's counts.

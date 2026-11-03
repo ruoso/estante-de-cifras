@@ -37,6 +37,7 @@
 // AppLoad item); the screen computes no music: key names, the transposed
 // chart, which shapes are hidden and their models all come in the sheet.
 import QtQuick
+import "../browse/pages.js" as Pages
 import "../chart"
 import "../chart/metrics.js" as M
 import "strip.js" as Strip
@@ -115,7 +116,8 @@ Item {
         // The sheet laid out, and the strip it was given.
         property var shown: null
         property var stripInfo: ({ size: "none", rows: 0, height: 0, pages: [] })
-        // The strip's mode: "shapes", "hidden", "question" or "grid".
+        // The strip's mode: "shapes", "hidden", "question", "grid" or
+        // "variations".
         property string mode: "shapes"
         property int stripPage: 0
         property var question: null
@@ -155,6 +157,21 @@ Item {
                 d.receive();
             else
                 prepareNext();
+        }
+
+        // The song's variations for its tuning, when it has a choice of two
+        // or more (the backend lists none otherwise).
+        function variations(s) {
+            const v = list(s && s.variations);
+            return v.length > 1 ? v : [];
+        }
+
+        // The variation button's words: the one read, at the written key
+        // only; "" hides it (its room stays, SongBar).
+        function variationLabel(s) {
+            if (variations(s).length === 0 || ((s.offset % 12) + 12) % 12 !== 0)
+                return "";
+            return Pages.variationName(s.variation);
         }
 
         function hasKey() {
@@ -217,7 +234,10 @@ Item {
 
         function commitBar() {
             const s = d.shown;
-            songBar.show({ title: SongState.barTitle(s, d.place), artist: s.artist || "", keyLabel: keyLabel(s) });
+            songBar.show({
+                title: SongState.barTitle(s, d.place), artist: s.artist || "", keyLabel: keyLabel(s),
+                variations: variations(s).length > 0, variationLabel: variationLabel(s)
+            });
         }
 
         function commitFoot() {
@@ -235,7 +255,7 @@ Item {
             const page = d.front.pages[d.front.page];
             const ps = Strip.pageShapes(d.shown, page ? page.chords : []);
             let mode = d.mode;
-            if (mode !== "grid" && info.size === "none")
+            if (mode !== "grid" && mode !== "variations" && info.size === "none")
                 mode = "none";
             const shown = mode === "hidden" ? ps.hidden : ps.shown;
             const lay = Strip.drawn(info, shown.length);
@@ -260,6 +280,10 @@ Item {
                     offset: s.offset,
                     asWritten: written,
                     yourKey: saved !== "" && saved !== written ? saved : ""
+                } : null,
+                variations: mode === "variations" ? {
+                    variations: variations(s),
+                    current: s.variation === null || s.variation === undefined ? "" : s.variation
                 } : null
             });
         }
@@ -654,6 +678,17 @@ Item {
             d.send(3, { offset: saved ? 0 : null });
         }
         onGridClosed: d.stripMode("shapes")
+        onVariationChosen: variation => {
+            if (d.pending !== "")
+                return;
+            if (variation === d.shown.variation) {
+                d.stripMode("shapes");
+                return;
+            }
+            d.pending = "variation:" + variation;
+            d.send(13, { variation: variation });
+        }
+        onVariationsClosed: d.stripMode("shapes")
     }
 
     SongBar {
@@ -677,6 +712,11 @@ Item {
             if (d.shown === null || !d.hasKey())
                 return;
             d.stripMode(d.mode === "grid" ? "shapes" : "grid");
+        }
+        onVariationTapped: {
+            if (d.shown === null || d.variationLabel(d.shown) === "")
+                return;
+            d.stripMode(d.mode === "variations" ? "shapes" : "variations");
         }
     }
 

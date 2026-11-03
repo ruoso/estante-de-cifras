@@ -50,7 +50,7 @@ afterAll(async () => {
 describe('the manifest (§8)', () => {
   it('has exactly its fields, the host API and the salt', () => {
     expect(Object.keys(manifest).sort()).toEqual(['bundle', 'hostApi', 'salt', 'version']);
-    expect(manifest.hostApi).toBe(1);
+    expect(manifest.hostApi).toBe(2);
     expect(manifest.salt).toBe(SHAPE_CACHE_SALT);
   });
 
@@ -95,7 +95,7 @@ describe('the bundle', () => {
         context,
       ),
     );
-    expect(out.hostApi).toBe(1);
+    expect(out.hostApi).toBe(2);
     expect(out.salt).toBe(SHAPE_CACHE_SALT);
     expect(out.loaded.held).toBe(Object.keys(fixture.table.shapes).length);
     const model = parse(context.text);

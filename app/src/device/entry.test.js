@@ -559,7 +559,7 @@ describe('load', () => {
   });
 
   it('exposes the host API version and the salt', () => {
-    expect(estante.hostApi).toBe(1);
+    expect(estante.hostApi).toBe(2);
     expect(estante.salt).toBe(SHAPE_CACHE_SALT);
   });
 });
@@ -635,6 +635,26 @@ describe('instrument (reader.sync)', () => {
     expect(estante.load(got.entry, got.table).held).toBe(Object.keys(TABLE.shapes).length);
   });
 
+  it('lists the instruments to choose from and takes the one chosen on the reader', () => {
+    const uke = { catalogId: 'ukulele', label: 'My uke', tuning: 'G4 C4 E4 A4', fretCount: 15 };
+    const withUke = { ...files(), instruments: { u1: { definition: { at, value: uke } } } };
+    const got = estante.instrument(withUke);
+    // The standard guitar (synthesized, not yet the account's) and the uke.
+    expect(got.instruments.map((e) => e.id)).toEqual([ENTRY.id, 'u1']);
+    expect(got.instruments[1]).toEqual({ id: 'u1', name: 'My uke', tuning: 'G4 C4 E4 A4' });
+    expect(got.instruments[0].name).toMatch(/·/);
+    expect(got.inUseId).toBe(ENTRY.id);
+    expect(got.entry.id).toBe(ENTRY.id);
+    // Chosen on the reader: the uke, with no table of its own here.
+    const chosen = estante.instrument(withUke, { instrumentId: 'u1' });
+    expect(chosen.entry.id).toBe('u1');
+    expect(chosen.table).toBeNull();
+    expect(chosen.inUseId).toBe(ENTRY.id);
+    // An id the account no longer has reads the instrument in use.
+    expect(estante.instrument(withUke, { instrumentId: 'gone' }).entry.id).toBe(ENTRY.id);
+    expect(JSON.parse(JSON.stringify(chosen))).toStrictEqual(chosen);
+  });
+
   it('answers plain JSON only', () => {
     const got = estante.instrument(files());
     expect(JSON.parse(JSON.stringify(got))).toStrictEqual(got);
@@ -676,6 +696,82 @@ describe('sheet for the reader (reader.backend_views; §6 105)', () => {
     const open = estante.sheet(text, 0, { variations: { '1 2 3': 'High' }, variation: 'High' });
     expect(open.shapes.map((s) => s.frets)).toEqual(['x32010', '320003']);
     expect(estante.sheet(text, 0, { variation: 'High' }).shapes.map((s) => s.frets)).toEqual(['x35553', '355433']);
+  });
+
+  it('lists the variations for the session\'s tuning and names the one read (workflow 19 §A song)', () => {
+    const text = [
+      '# Test Three Ways',
+      '- key: C',
+      '',
+      '```',
+      'C | G | C',
+      '```',
+      '',
+      '---',
+      '',
+      '## Voicings: E2 A2 D3 G3 B3 E4',
+      '- C: x32010',
+      '',
+      '## High: E2 A2 D3 G3 B3 E4',
+      '- C: x35553',
+      '',
+      '## Uke: G4 C4 E4 A4',
+      '- C: 0003',
+      '',
+    ].join('\n');
+    const plain = estante.sheet(text, 0);
+    // The unnamed block is '' (the web app's *Default*); the other tuning's
+    // block is not offered.
+    expect(plain.variations).toEqual(['', 'High']);
+    expect(plain.variation).toBe('');
+    expect(estante.sheet(text, 0, { variation: 'High' }).variation).toBe('High');
+    // A variation the song no longer has reads the first one.
+    expect(estante.sheet(text, 0, { variation: 'Gone' }).variation).toBe('');
+    // A song with no blocks for the tuning has none to choose.
+    const none = estante.sheet(IN_C, 0);
+    expect(none.variations).toEqual([]);
+    expect(none.variation).toBeNull();
+  });
+
+  it('names the chords as voiced by the account\'s chordNames, or the reader\'s own choice over it (workflow 19 §Settings)', () => {
+    // C voiced with E in the bass sounds C/E; G as written sounds G.
+    const text = [
+      '# Test As Voiced',
+      '- key: C',
+      '',
+      '```',
+      'C | G | C',
+      '```',
+      '',
+      '---',
+      '',
+      '## Voicings: E2 A2 D3 G3 B3 E4',
+      '- C: 032010',
+      '- G: 320003',
+      '',
+    ].join('\n');
+    const chords = (sheet) =>
+      JSON.stringify(sheet.rows)
+        .match(/"text":"[^"]*"|"chord":"[^"]*"/g)
+        .map((m) => m.split(':')[1].replace(/"/g, ''));
+    const voiced = { chordNames: { at: '2026-10-31T10:02:00.000Z', value: 'voiced' } };
+
+    const written = estante.sheet(text, 0);
+    expect(chords(written)).toContain('C');
+    expect(chords(written)).not.toContain('C/E');
+    expect(written.shapes.map((s) => s.symbol)).toEqual(['C', 'G']);
+
+    const asVoiced = estante.sheet(text, 0, { preferences: voiced });
+    expect(chords(asVoiced)).toContain('C/E');
+    expect(chords(asVoiced)).not.toContain('C');
+    expect(chords(asVoiced)).toContain('G');
+    expect(asVoiced.shapes.map((s) => s.symbol)).toEqual(['C/E', 'G']);
+    // The shapes' identities stay the chords as written.
+    expect(asVoiced.shapes.map((s) => s.key)).toEqual(written.shapes.map((s) => s.key));
+
+    // The reader's own choice wins over the account's, both ways.
+    expect(chords(estante.sheet(text, 0, { preferences: voiced, chordNames: 'written' }))).not.toContain('C/E');
+    expect(chords(estante.sheet(text, 0, { chordNames: 'voiced' }))).toContain('C/E');
   });
 
   it("returns the session's tuning id", () => {

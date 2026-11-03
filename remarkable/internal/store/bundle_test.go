@@ -10,6 +10,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"estantedecifras.app/remarkable/internal/engine"
@@ -113,11 +114,12 @@ func TestStagePromoteRollback(t *testing.T) {
 
 const testSalt = "store-test-salt"
 
-// host is a minimal estante (hostApi 1, a salt) — the store's own copy of
-// internal/engine/engine_test.go's, as test helpers do not cross packages.
-const host = `
+// host is a minimal estante (the engine's hostApi, a salt) — the store's own
+// copy of internal/engine/engine_test.go's, as test helpers do not cross
+// packages.
+var host = `
 globalThis.estante = {
-  hostApi: 1,
+  hostApi: ` + strconv.Itoa(engine.HostAPI) + `,
   salt: "` + testSalt + `",
   load: function (entry, table) { return { fingerprint: null, tuningId: "", held: 0 }; },
   sheet: function (text, offset) {
@@ -140,7 +142,7 @@ func TestPromotedBundleOpensInEngine(t *testing.T) {
 	name := "bundle." + hash[:8] + ".js"
 	manifest, err := json.Marshal(map[string]any{
 		"version": hash[:12],
-		"hostApi": 1,
+		"hostApi": engine.HostAPI,
 		"salt":    testSalt,
 		"bundle":  map[string]any{"path": name, "sha256": hash},
 	})

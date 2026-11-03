@@ -18,6 +18,7 @@ package backend
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"sort"
 	"strings"
@@ -106,6 +107,9 @@ type openSong struct {
 	// empty is the chords whose place the last 105 (or 108) sent left empty
 	// (§4.1): what a fill may fill.
 	empty map[string]bool
+	// tuningID is the tuning the last sheet was read in: a variation chosen
+	// is kept for it.
+	tuningID string
 }
 
 type listingKey struct{ bookID, head string }
@@ -167,6 +171,12 @@ func (v *views) handle(m protocol.Message) error {
 		// the open song (reader.play Decision 2).
 		_ = v.st.SetPlace(m.BookID, m.Setlist, m.At)
 		return v.place(m)
+	case protocol.Instrument:
+		return v.instrument(m)
+	case protocol.Variation:
+		return v.variation(m)
+	case protocol.ChordNames:
+		return v.chordNames(m)
 	case protocol.Pair:
 		return v.pair()
 	case protocol.SignOut:
@@ -314,10 +324,91 @@ func (v *views) shelf() protocol.Shelf {
 // backend speaks (reader.self_update; design §8).
 func (v *views) settings() protocol.Settings {
 	sess, _ := v.st.Session()
-	return protocol.Settings{
+	out := protocol.Settings{
 		Account: sess.Account, Version: v.ver, HiddenShapes: v.st.HiddenCount(),
 		UpdateReader: v.st.ServedHostAPI() > engine.HostAPI,
 	}
+	// How the chart names its chords: this reader's choice, else the
+	// account's (workflow 19 §Settings).
+	out.AccountChordNames = accountChordNames(v.sync.Snapshot())
+	out.ChordNames, out.ChordNamesChosen = v.st.ChordNames(), v.st.ChordNames() != ""
+	if out.ChordNames == "" {
+		out.ChordNames = out.AccountChordNames
+	}
+	// The instruments to choose from (workflow 19 §Settings): only once an
+	// instrument has loaded, and only when there is a choice to make.
+	r := v.sync.Roster()
+	if len(r.Instruments) > 1 {
+		for _, in := range r.Instruments {
+			out.Instruments = append(out.Instruments, protocol.SettingsInstrument{ID: in.ID, Name: in.Name})
+		}
+		out.Instrument, out.AccountInstrument = r.ReadID, r.InUseID
+		out.InstrumentChosen = v.st.Instrument() != "" && r.ReadID == v.st.Instrument()
+	}
+	return out
+}
+
+// accountChordNames is the account's chordNames preference, "voiced" or
+// "written" (the default, also for none or anything else).
+func accountChordNames(snap *sync.Snapshot) string {
+	if snap == nil {
+		return "written"
+	}
+	var prefs struct {
+		ChordNames struct {
+			Value string `json:"value"`
+		} `json:"chordNames"`
+	}
+	if json.Unmarshal(snap.Preferences(), &prefs) == nil && prefs.ChordNames.Value == "voiced" {
+		return "voiced"
+	}
+	return "written"
+}
+
+// chordNames keeps how the chart names its chords here (nil: the account's
+// again) and answers the settings it was chosen from; the open song reads
+// with it from its next answer.
+func (v *views) chordNames(m protocol.ChordNames) error {
+	names := ""
+	if m.Value != nil {
+		names = *m.Value
+	}
+	if v.st.SetChordNames(names) != nil {
+		return nil
+	}
+	return v.conn.Write(v.settings())
+}
+
+// instrument keeps the instrument chosen here (nil: the account's again),
+// loads it, and answers the settings it was chosen from. A choice the store
+// cannot keep changes nothing.
+func (v *views) instrument(m protocol.Instrument) error {
+	id := ""
+	if m.ID != nil {
+		id = *m.ID
+	}
+	if v.st.SetInstrument(id) != nil {
+		return nil
+	}
+	// The open song's empty places are of the instrument it left.
+	if v.cur != nil && v.cur.song != nil {
+		v.cur.song.empty = nil
+	}
+	_ = v.sync.ReloadInstrument(v.ctx)
+	return v.conn.Write(v.settings())
+}
+
+// variation keeps the variation chosen here for the open song in the tuning
+// it is read in (nil: the account's again) and answers the song redrawn.
+func (v *views) variation(m protocol.Variation) error {
+	c := v.cur
+	if c == nil || c.song == nil || c.song.tuningID == "" {
+		return nil
+	}
+	if v.st.SetVariation(c.bookID, c.song.path, c.song.tuningID, m.Variation) != nil {
+		return nil
+	}
+	return v.redraw()
 }
 
 // label is bookID's shelf label in snap ("" when none: the frontend words
@@ -472,12 +563,26 @@ func (v *views) sheetOf(song *openSong, set *engine.Setlist) (protocol.Sheet, er
 	// at the setlist's key (the bundle reads a keyless song at this offset,
 	// with the key as a note).
 	offset := 0
-	opts := engine.SheetOptions{Preferences: c.snap.Preferences()}
+	opts := engine.SheetOptions{Preferences: c.snap.Preferences(), ChordNames: v.st.ChordNames()}
 	if saved, ok := c.snap.Songs(c.bookID + "/" + song.path); ok {
 		offset = saved.Transposition
 		t := saved.Transposition
 		opts.SavedOffset = &t
 		opts.Variations = saved.Variation
+	}
+	// A variation chosen on this reader wins over the account's for its
+	// tuning (workflow 19 §A song). Which tuning the song is read in is the
+	// bundle's; every tuning this reader chose one for is handed, and it
+	// picks its own.
+	if chosen := v.st.Variations(c.bookID, song.path); len(chosen) > 0 {
+		merged := make(map[string]string, len(opts.Variations)+len(chosen))
+		for t, val := range opts.Variations {
+			merged[t] = val
+		}
+		for t, val := range chosen {
+			merged[t] = val
+		}
+		opts.Variations = merged
 	}
 	if k, ok := v.st.Key(c.bookID, song.path); ok {
 		offset = k
@@ -513,6 +618,19 @@ func (v *views) sheetOf(song *openSong, set *engine.Setlist) (protocol.Sheet, er
 		Notes:    s.Notes,
 		KeyNote:  s.KeyNote,
 		Play:     play,
+	}
+	song.tuningID = s.TuningID
+	// The variations, where there is a choice: two or more. They are listed at
+	// every key, so the frontend keeps the button's room while the song is
+	// open; it offers the choice at the written key only — transposed, the
+	// song's own shapes are set aside (workflow 2 §Reading a song; workflow 19
+	// §A song).
+	if len(s.Variations) > 1 && s.Variation != nil {
+		out.Variations = s.Variations
+		val := *s.Variation
+		out.Variation = &val
+		chosen, ok := v.st.Variation(c.bookID, song.path, s.TuningID)
+		out.VariationChosen = ok && chosen == val
 	}
 	for _, sh := range s.Shapes {
 		if sh.Pending {

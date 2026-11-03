@@ -26,6 +26,9 @@ Item {
     property string arrow: ""
     // Inverted while the action it asked for is on its way.
     property bool held: false
+    // Elide the label to the button's width less its padding, for a button
+    // given a width (a name of any length: a variation, an instrument).
+    property bool elide: false
     property bool active: true
 
     readonly property bool inverted: area.pressed || held
@@ -73,8 +76,10 @@ Item {
         x: button.arrow === "left" ? chevron.x + chevron.width + 12
            : Math.floor((button.width - width) / 2)
         y: Math.floor((button.height - height) / 2)
-        width: Math.ceil(implicitWidth)
+        width: button.elide ? Math.min(Math.ceil(implicitWidth), Math.max(0, button.width - 2 * button.padding))
+                            : Math.ceil(implicitWidth)
         height: Math.ceil(implicitHeight)
+        elide: button.elide ? Text.ElideRight : Text.ElideNone
         color: button.ink
         font.family: button.faces ? (button.chartFace ? button.faces.chart : button.faces.ui) : ""
         font.weight: button.bold ? Font.Bold : Font.Normal

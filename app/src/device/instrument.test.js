@@ -58,6 +58,34 @@ describe('chooseInstrument — the entry (format §4.3, §4.4)', () => {
   });
 });
 
+describe('chooseInstrument — the choice made on the reader (workflow 19 §Settings)', () => {
+  it('takes instrumentId over the instrument in use when the account has it', () => {
+    const got = chooseInstrument({ instruments, preferences: {} }, { salt: SALT, instrumentId: 'u1' });
+    expect(got.entry.id).toBe('u1');
+    expect(got.inUseId).toBe(STANDARD_INSTRUMENT_ID);
+  });
+
+  it('reads the instrument in use when instrumentId names none of the account\'s', () => {
+    for (const instrumentId of ['gone', 'nope', '', null]) {
+      expect(chooseInstrument({ instruments, preferences: inUse('u1') }, { salt: SALT, instrumentId }).entry.id).toBe('u1');
+    }
+  });
+
+  it('lists the standard guitar while synthesized, then the roster, each named as the roster names it', () => {
+    const got = chooseInstrument({ instruments }, { salt: SALT });
+    expect(got.instruments.map((e) => e.id)).toEqual([STANDARD_INSTRUMENT_ID, 'u1']);
+    expect(got.instruments[1]).toEqual({ id: 'u1', name: 'Ukulele · GCEA', tuning: UKE });
+    expect(got.instruments[0].tuning).toBe(GUITAR);
+  });
+
+  it('chooses the chosen instrument\'s own table', () => {
+    const fp = fingerprintFor({ instruments, preferences: inUse('u1') });
+    const defaultShapes = { u1: { [UKE]: { [SALT]: reg(tableWith(fp)) } } };
+    const got = chooseInstrument({ instruments, defaultShapes }, { salt: SALT, instrumentId: 'u1' });
+    expect(got.table).toEqual(tableWith(fp));
+  });
+});
+
 describe('chooseInstrument — the table (format §4.6 "Which salt a reader uses")', () => {
   const files = (bySalt) => ({
     instruments,

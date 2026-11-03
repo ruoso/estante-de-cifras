@@ -12,6 +12,7 @@ import { isRegister } from '../worker/home-book-merge.js';
 import { STANDARD_INSTRUMENT_ID, surfaceInstruments } from '../worker/instruments.js';
 import { createShapeCache, isShapeTable } from '../core/shape-cache.js';
 import { instrumentFor } from '../songs/song-sheet.js';
+import { displayLabel } from '../instruments/instrument-helpers.js';
 
 const isMap = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -24,22 +25,29 @@ function tableOf(reg) {
 }
 
 /**
- * The instrument in use and the table §4.1 reads for it.
+ * The instrument to read with and the table §4.1 reads for it, and the
+ * account's instruments to choose from.
  *
  * `files` is `{ instruments, preferences, shapes, defaultShapes }`, the home
  * book's instruments.json, preferences.json, shapes.json and
- * shapes-default-cache.json as parsed JSON (absent as `{}`). The entry is the
- * one `surfaceInstruments` names in use, else the standard guitar. Its table:
+ * shapes-default-cache.json as parsed JSON (absent as `{}`). The entry is
+ * `instrumentId`'s when it names one of the account's instruments — the one
+ * chosen on the reader, which stays on the device (workflow 19 §Settings) —
+ * else the one `surfaceInstruments` names in use, else the standard guitar.
+ * `instruments` is every one the reader can choose, in the roster's order,
+ * each `{ id, name, tuning }` named as the web app's roster names it, and
+ * `inUseId` the account's own instrument in use (the standard guitar's id
+ * when none). Its table:
  * the register under `salt` when it holds a well-formed table; else, of the
  * other salts not in `decommissioned`, the well-formed tables whose
  * fingerprint fits the instrument as it is now, the latest written (`at`)
  * first (format §4.6 "Which salt a reader uses"); else null.
  *
  * @param {{ instruments?: object, preferences?: object, shapes?: object, defaultShapes?: object }} files
- * @param {{ salt: string, decommissioned?: readonly string[] }} opts
- * @returns {{ entry: object, table: object|null, salt: string|null }}
+ * @param {{ salt: string, decommissioned?: readonly string[], instrumentId?: string|null }} opts
+ * @returns {{ entry: object, table: object|null, salt: string|null, instruments: object[], inUseId: string }}
  */
-export function chooseInstrument(files, { salt, decommissioned = [] } = {}) {
+export function chooseInstrument(files, { salt, decommissioned = [], instrumentId = null } = {}) {
   const { instruments, preferences, shapes, defaultShapes } = asMap(files);
   // The roster without its tables: the table is chosen here, under the salt
   // given, and travels beside the entry rather than inside it.
@@ -49,18 +57,28 @@ export function chooseInstrument(files, { salt, decommissioned = [] } = {}) {
     shapes: asMap(shapes),
     defaultShapes: {},
   });
-  const entry =
+  const accountEntry =
     (surfaced.inUseId && surfaced.instruments.find((e) => e.id === surfaced.inUseId)) ||
     surfaced.standard ||
     surfaced.instruments.find((e) => e.id === STANDARD_INSTRUMENT_ID);
+  // The choices: the account's instruments, and the standard guitar while it
+  // is synthesized (not yet one of them).
+  const roster = surfaced.standard ? [surfaced.standard, ...surfaced.instruments] : surfaced.instruments;
+  const chosen = typeof instrumentId === 'string' && instrumentId ? roster.find((e) => e.id === instrumentId) : null;
+  const entry = chosen || accountEntry;
+  const listed = {
+    instruments: roster.map((e) => ({ id: e.id, name: displayLabel(e), tuning: e.tuning })),
+    inUseId: accountEntry.id,
+  };
+  const answer = (table, chosenSalt) => ({ entry, table, salt: chosenSalt, ...listed });
 
   const bySalt = asMap(asMap(asMap(defaultShapes)[entry.id])[entry.tuning]);
 
   const own = tableOf(bySalt[salt]);
-  if (own) return { entry, table: own, salt };
+  if (own) return answer(own, salt);
 
   const instrument = instrumentFor(entry);
-  if (!instrument) return { entry, table: null, salt: null };
+  if (!instrument) return answer(null, null);
   const { fingerprint } = createShapeCache({ instrument });
   const candidates = [];
   for (const other of Object.keys(bySalt)) {
@@ -69,7 +87,7 @@ export function chooseInstrument(files, { salt, decommissioned = [] } = {}) {
     if (!table || table.fingerprint !== fingerprint) continue;
     candidates.push({ salt: other, at: bySalt[other].at, table });
   }
-  if (candidates.length === 0) return { entry, table: null, salt: null };
+  if (candidates.length === 0) return answer(null, null);
   // Latest `at` first (§3 instants compare as text); ties by salt, so the
   // choice never depends on the file's key order.
   candidates.sort((a, b) => {
@@ -77,5 +95,5 @@ export function chooseInstrument(files, { salt, decommissioned = [] } = {}) {
     return a.salt < b.salt ? -1 : a.salt > b.salt ? 1 : 0;
   });
   const [best] = candidates;
-  return { entry, table: best.table, salt: best.salt };
+  return answer(best.table, best.salt);
 }
