@@ -131,7 +131,11 @@ type site struct {
 	requests atomic.Int64
 	archives map[string][]byte
 	manifest []byte
+	bundle   string // the bundle's name under /device/
 }
+
+// siteBundle is the site's bundle body.
+const siteBundle = "globalThis.site = 1;\n"
 
 // newSite serves both archives and a manifest naming each; edit, when not
 // nil, changes the manifest's folder entries before it is written.
@@ -148,9 +152,13 @@ func newSite(t *testing.T, edit func(folder map[string]map[string]string)) *site
 	if edit != nil {
 		edit(folder)
 	}
+	bsum := hexSum([]byte(siteBundle))
+	s.bundle = "bundle." + bsum[:8] + ".js"
+	s.archives[s.bundle] = []byte(siteBundle)
 	m := map[string]any{
 		"version": "0a1b2c3d4e5f",
 		"hostApi": 1,
+		"bundle":  map[string]any{"path": s.bundle, "sha256": bsum},
 		"backend": map[string]any{
 			"armv7": map[string]any{"path": "estante-reader-armv7.123", "sha256": strings.Repeat("1", 64), "version": "dev"},
 			"arm64": map[string]any{"path": "estante-reader-arm64.456", "sha256": strings.Repeat("2", 64), "version": "dev"},
@@ -638,9 +646,112 @@ func (r *rig) goEnv() {
 	}
 }
 
-// ESTANTE_FROM_SOURCE=1 builds backend/entry here, from this checkout, with
-// the real Go: an ELF for the tablet's architecture, stamped with the version
-// the script reports; the rest of the folder is the site's, as downloaded.
+// checkBuiltEntry pins backend/entry in dir to be the backend built here: an
+// ELF for machine, executable, linked with its version and self-update off.
+func checkBuiltEntry(t *testing.T, dir string, machine elf.Machine, version string) {
+	t.Helper()
+	entry := filepath.Join(dir, "backend/entry")
+	f, err := elf.Open(entry)
+	if err != nil {
+		t.Fatalf("backend/entry is not the built ELF: %v", err)
+	}
+	defer f.Close()
+	if f.Machine != machine {
+		t.Errorf("backend/entry is for %v, want %v", f.Machine, machine)
+	}
+	for name, want := range map[string]string{"main.version": version, "main.selfUpdate": "off"} {
+		if got := elfString(t, f, name); got != want {
+			t.Errorf("backend/entry's %s = %q, want %q", name, got, want)
+		}
+	}
+	st, err := os.Stat(entry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Mode().Perm()&0o111 == 0 {
+		t.Errorf("backend/entry is %v, not executable", st.Mode())
+	}
+}
+
+// elfString reads the Go string variable sym of a linked binary — what
+// -ldflags -X set it to — from its symbol table and data: a string header
+// (pointer, length; words of the binary's class) pointing at the bytes.
+func elfString(t *testing.T, f *elf.File, sym string) string {
+	t.Helper()
+	syms, err := f.Symbols()
+	if err != nil {
+		t.Fatalf("no symbols: %v", err)
+	}
+	word := 8
+	if f.Class == elf.ELFCLASS32 {
+		word = 4
+	}
+	read := func(addr uint64, n int) []byte {
+		for _, sec := range f.Sections {
+			if sec.Addr <= addr && addr+uint64(n) <= sec.Addr+sec.Size && sec.Type != elf.SHT_NOBITS {
+				b := make([]byte, n)
+				if _, err := sec.ReadAt(b, int64(addr-sec.Addr)); err != nil {
+					t.Fatalf("read %s: %v", sym, err)
+				}
+				return b
+			}
+		}
+		t.Fatalf("%s: address %#x is in no section", sym, addr)
+		return nil
+	}
+	uword := func(b []byte) uint64 {
+		if word == 4 {
+			return uint64(f.ByteOrder.Uint32(b))
+		}
+		return f.ByteOrder.Uint64(b)
+	}
+	for _, s := range syms {
+		if s.Name == sym {
+			hdr := read(s.Value, 2*word)
+			ptr, n := uword(hdr[:word]), uword(hdr[word:])
+			if n == 0 {
+				return ""
+			}
+			return string(read(ptr, int(n)))
+		}
+	}
+	t.Fatalf("backend/entry has no symbol %s", sym)
+	return ""
+}
+
+// builtVersion is the backend version install.sh says it built.
+func builtVersion(t *testing.T, out string) string {
+	t.Helper()
+	m := regexp.MustCompile(`Built backend version (\S+), its self-update off\.`).FindStringSubmatch(out)
+	if m == nil {
+		t.Fatalf("the output does not say which backend version was built:\n%s", out)
+	}
+	return m[1]
+}
+
+// stagedBundle is what the store's bundle/next/ holds on the fake tablet.
+func (r *rig) stagedBundle() map[string]string {
+	r.t.Helper()
+	dir := filepath.Join(r.tablet, ".local/share/estante/bundle/next")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		r.t.Fatalf("no bundle staged: %v", err)
+	}
+	got := map[string]string{}
+	for _, e := range entries {
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			r.t.Fatal(err)
+		}
+		got[e.Name()] = string(b)
+	}
+	return got
+}
+
+// ESTANTE_FROM_SOURCE=1 with ESTANTE_SOURCE_QML=0 and ESTANTE_SOURCE_BUNDLE=0
+// builds only the backend, with the real Go, in the site's folder; the
+// site's bundle, checked against its manifest, is staged in the store, as
+// the backend built here never fetches one.
 func TestInstallFromSource(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Fatal("the install test needs go on the host")
@@ -657,37 +768,13 @@ func TestInstallFromSource(t *testing.T) {
 			r.goEnv()
 			r.env["FAKE_UNAME"] = tc.uname
 			r.env["ESTANTE_FROM_SOURCE"] = "1"
+			r.env["ESTANTE_SOURCE_QML"] = "0"
+			r.env["ESTANTE_SOURCE_BUNDLE"] = "0"
 			out, ok := r.run()
 			if !ok {
 				t.Fatalf("install.sh failed:\n%s", out)
 			}
-			m := regexp.MustCompile(`Built backend version (\S+)\.`).FindStringSubmatch(out)
-			if m == nil {
-				t.Fatalf("the output does not say which backend version was built:\n%s", out)
-			}
-			entry := filepath.Join(r.appload(), "backend/entry")
-			f, err := elf.Open(entry)
-			if err != nil {
-				t.Fatalf("backend/entry is not the built ELF: %v", err)
-			}
-			defer f.Close()
-			if f.Machine != tc.machine {
-				t.Errorf("backend/entry is for %v, want %v", f.Machine, tc.machine)
-			}
-			bin, err := os.ReadFile(entry)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !bytes.Contains(bin, []byte(m[1])) {
-				t.Errorf("backend/entry does not carry the version %s the script reported", m[1])
-			}
-			info, err := os.Stat(entry)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if info.Mode().Perm()&0o111 == 0 {
-				t.Errorf("backend/entry is %v, not executable", info.Mode())
-			}
+			checkBuiltEntry(t, r.appload(), tc.machine, builtVersion(t, out))
 			site := folderFiles(tc.arch, "new")
 			for _, name := range []string{"manifest.json", "icon.png", "resources.rcc", "arch.txt"} {
 				b, err := os.ReadFile(filepath.Join(r.appload(), name))
@@ -695,8 +782,110 @@ func TestInstallFromSource(t *testing.T) {
 					t.Errorf("%s = %q (%v), want the site's %q", name, b, err, site[name])
 				}
 			}
+			want := map[string]string{"manifest.json": string(r.site.manifest), r.site.bundle: siteBundle}
+			if got := r.stagedBundle(); fmt.Sprint(got) != fmt.Sprint(want) {
+				t.Errorf("bundle/next holds %v, want the site's manifest and bundle %v", got, want)
+			}
+			if _, err := os.Stat(filepath.Join(r.appload(), ".bundle-next")); !os.IsNotExist(err) {
+				t.Errorf("the bundle was left in the app folder (%v)", err)
+			}
 		})
 	}
+}
+
+// fakeRCC stands in for pyside6-rcc as tools/appfolder runs it
+// (--binary --compress-algo zlib -o OUT QRC): it writes a fixed OUT.
+const fakeRCC = `#!/bin/sh
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-o) out=$2; shift 2 ;;
+	*) shift ;;
+	esac
+done
+printf 'rcc built here\n' >"$out"
+`
+
+// fakeNPM logs its working directory and argv, and builds nothing: the
+// bundle it would build is the checkout's app/dist/device, which the gate
+// (and engine's tests) build first.
+const fakeNPM = `#!/bin/sh
+printf '%s %s\n' "$(pwd)" "$*" >>"$FAKE_NPM_LOG"
+`
+
+// ESTANTE_FROM_SOURCE=1 alone builds all three: the folder assembled by
+// tools/appfolder with the screens compiled by ESTANTE_RCC and the backend
+// built here, and the bundle by npm in app/, staged in the store.
+func TestInstallFromSourceAll(t *testing.T) {
+	dist := filepath.Join("..", "..", "app", "dist", "device")
+	built, _ := filepath.Glob(filepath.Join(dist, "bundle.*.js"))
+	if len(built) != 1 {
+		t.Fatalf("this test reads the app's device bundle: run npm run build in app/ first (found %v)", built)
+	}
+	r := newRig(t, newSite(t, nil))
+	r.goEnv()
+	r.env["ESTANTE_FROM_SOURCE"] = "1"
+	rcc := filepath.Join(t.TempDir(), "rcc")
+	write(t, rcc, fakeRCC, 0o755)
+	r.env["ESTANTE_RCC"] = rcc
+	write(t, filepath.Join(r.bin, "npm"), fakeNPM, 0o755)
+	npmLog := filepath.Join(t.TempDir(), "npm.log")
+	r.env["FAKE_NPM_LOG"] = npmLog
+	out, ok := r.run()
+	if !ok {
+		t.Fatalf("install.sh failed:\n%s", out)
+	}
+	checkBuiltEntry(t, r.appload(), elf.EM_ARM, builtVersion(t, out))
+	if got := readFile(t, filepath.Join(r.appload(), "resources.rcc")); got != "rcc built here\n" {
+		t.Errorf("resources.rcc = %q, want the one compiled here", got)
+	}
+	repoIcon, err := os.ReadFile(filepath.Join("..", "tools", "appfolder", "icon.png"))
+	if err == nil && readFile(t, filepath.Join(r.appload(), "icon.png")) != string(repoIcon) {
+		t.Error("icon.png is not the checkout's")
+	}
+	if _, err := os.Stat(filepath.Join(r.appload(), "arch.txt")); !os.IsNotExist(err) {
+		t.Errorf("the site's folder is still there (arch.txt: %v)", err)
+	}
+	want := map[string]string{
+		"manifest.json":         readFile(t, filepath.Join(dist, "manifest.json")),
+		filepath.Base(built[0]): readFile(t, built[0]),
+	}
+	if got := r.stagedBundle(); fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("bundle/next does not hold app/dist/device's manifest and bundle")
+	}
+	app, _ := filepath.Abs(filepath.Join("..", "..", "app"))
+	if log := readFile(t, npmLog); !strings.Contains(log, app+" run --silent build:device") {
+		t.Errorf("npm was not run as build:device in app/:\n%s", log)
+	}
+	if !strings.Contains(out, "built here (the backend, the screens, the bundle;") {
+		t.Errorf("the output does not say what was built here:\n%s", out)
+	}
+}
+
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+// With ESTANTE_SOURCE_BUNDLE=0, a site bundle that does not match its
+// manifest is refused before the tablet is touched.
+func TestInstallFromSourceRefusesBadBundle(t *testing.T) {
+	s := newSite(t, nil)
+	s.archives[s.bundle] = []byte("globalThis.tampered = 1;\n")
+	r := newRig(t, s)
+	r.goEnv()
+	r.env["ESTANTE_FROM_SOURCE"] = "1"
+	r.env["ESTANTE_SOURCE_QML"] = "0"
+	r.env["ESTANTE_SOURCE_BUNDLE"] = "0"
+	before := snapshot(t, r.tablet)
+	out, ok := r.run()
+	if ok || !strings.Contains(out, "does not match") {
+		t.Fatalf("install.sh did not refuse the tampered bundle (ok %v):\n%s", ok, out)
+	}
+	sameSnapshot(t, "tablet", before, snapshot(t, r.tablet))
 }
 
 // ESTANTE_FROM_SOURCE refuses, before touching the tablet, with no Go here or
@@ -721,6 +910,39 @@ func TestInstallFromSourceRefuses(t *testing.T) {
 			t.Errorf("install.sh did not refuse for want of Go (ok %v):\n%s", ok, out)
 		}
 		sameSnapshot(t, "tablet", before, snapshot(t, r.tablet))
+		if calls := r.calls(); len(calls) != 0 {
+			t.Errorf("ssh or scp ran: %q", calls)
+		}
+	})
+	t.Run("no npm for the bundle", func(t *testing.T) {
+		r := newRig(t, newSite(t, nil))
+		r.env["ESTANTE_FROM_SOURCE"] = "1"
+		for _, tool := range []string{"go", "curl", "tar", "sha256sum", "shasum", "cut", "mktemp", "rm", "cat", "tr",
+			"grep", "sed", "head", "mkdir", "cp", "chmod", "dirname", "sh", "python3"} {
+			if p, err := exec.LookPath(tool); err == nil {
+				if err := os.Symlink(p, filepath.Join(r.bin, tool)); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		r.env["PATH"] = r.bin
+		out, ok := r.run()
+		if ok || !strings.Contains(out, "ESTANTE_SOURCE_BUNDLE=0") {
+			t.Errorf("install.sh did not refuse for want of npm (ok %v):\n%s", ok, out)
+		}
+		if calls := r.calls(); len(calls) != 0 {
+			t.Errorf("ssh or scp ran: %q", calls)
+		}
+	})
+	t.Run("ESTANTE_RCC not an executable", func(t *testing.T) {
+		r := newRig(t, newSite(t, nil))
+		r.env["ESTANTE_FROM_SOURCE"] = "1"
+		r.env["ESTANTE_SOURCE_BUNDLE"] = "0"
+		r.env["ESTANTE_RCC"] = filepath.Join(t.TempDir(), "no-rcc")
+		out, ok := r.run()
+		if ok || !strings.Contains(out, "ESTANTE_RCC") {
+			t.Errorf("install.sh did not refuse the missing rcc (ok %v):\n%s", ok, out)
+		}
 		if calls := r.calls(); len(calls) != 0 {
 			t.Errorf("ssh or scp ran: %q", calls)
 		}

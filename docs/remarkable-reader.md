@@ -577,6 +577,13 @@ file is a 404, never the app's shell.
   signature over the manifest against a key built into the binary, stage the
   new binary and switch on the next launch. A backend too old for the current
   bundle keeps its last bundle and says *Update the reader on your reMarkable*.
+- A backend **built with its self-update off** (`-ldflags "-X
+  main.selfUpdate=off"`, what `install.sh`'s `ESTANTE_FROM_SOURCE=1` builds)
+  never checks the site: the bundle and the QML the install put in place —
+  built from the same checkout, or the site's, checked against its manifest —
+  stay until the next install. The install stages the bundle in `bundle/next/`
+  as an update would, so the switch on the next attach, and its rollback, are
+  the same. `--version` says *(self-update off)*.
 
 ## 9. Testing and building
 

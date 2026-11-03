@@ -90,6 +90,39 @@ func TestBuiltBinaryAnswersVersion(t *testing.T) {
 	}
 }
 
+// TestSelfUpdateOff pins install.sh's ESTANTE_FROM_SOURCE build: linked with
+// -X main.selfUpdate=off, the backend has no updater (no pass checks the
+// site) and --version says so; otherwise the updater is the store's.
+func TestSelfUpdateOff(t *testing.T) {
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u := newUpdater(st, "/app"); u == nil || u.Store != st || u.AppDir != "/app" {
+		t.Errorf("newUpdater = %+v, want the store's with the app folder", u)
+	}
+	saved := selfUpdate
+	t.Cleanup(func() { selfUpdate = saved })
+	selfUpdate = "off"
+	if u := newUpdater(st, "/app"); u != nil {
+		t.Errorf("newUpdater = %+v with selfUpdate off, want nil", u)
+	}
+
+	bin := filepath.Join(t.TempDir(), "estante-reader")
+	build := exec.Command("go", "build", "-ldflags", "-X main.version=test -X main.selfUpdate=off", "-o", bin, ".")
+	build.Env = append(os.Environ(), "CGO_ENABLED=0")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("go build: %v\n%s", err, out)
+	}
+	out, err := exec.Command(bin, "--version").Output()
+	if err != nil {
+		t.Fatalf("run --version: %v", err)
+	}
+	if want := "estante-reader test (self-update off)\n"; string(out) != want {
+		t.Errorf("stdout %q, want %q", out, want)
+	}
+}
+
 // TestModuleSharesNoCode pins design §3.1 and DIRECTION §3.6: the reader's
 // module neither requires the service nor replaces into service/ or app/.
 func TestModuleSharesNoCode(t *testing.T) {

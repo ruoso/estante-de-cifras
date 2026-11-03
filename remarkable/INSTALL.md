@@ -185,8 +185,9 @@ login (default `root`); `ESTANTE_ORIGIN` changes the site it downloads from
 (default `https://www.estantedecifras.app`; set it to a local stack's address when
 developing).
 
-To run a backend built on your own computer instead of the site's, run the
-script from a clone of the repository with `ESTANTE_FROM_SOURCE=1`:
+To run a reader built on your own computer instead of the site's — to try a
+change before it is deployed, or to trust only what you built — run the script
+from a clone of the repository with `ESTANTE_FROM_SOURCE=1`:
 
 ```sh
 git clone https://github.com/ruoso/estante-de-cifras
@@ -194,11 +195,16 @@ cd estante-de-cifras
 ESTANTE_FROM_SOURCE=1 RM_IP=<address> sh remarkable/scripts/install.sh
 ```
 
-It needs [Go](https://go.dev/dl/) on the computer (it fetches the version the
-reader needs by itself) and builds the backend from that clone; the screens and
-the icon still come from the site, checked as always, and update from it like
-any install's. It says *Built backend version …*, the version the reader's
-settings then show.
+It builds all three parts from that clone: the backend (needs
+[Go](https://go.dev/dl/), which fetches the version the reader needs by
+itself), the screens (Qt's `rcc`, from a Python venv the script makes the
+first time, about 100 MB — needs `python3`, or `ESTANTE_RCC` naming an `rcc`)
+and the music code (needs `npm`, from [Node](https://nodejs.org/)).
+`ESTANTE_SOURCE_QML=0` or `ESTANTE_SOURCE_BUNDLE=0` takes the site's screens or
+music code instead, checked against its manifest. The backend is built with its
+self-update off, so nothing the site serves replaces what was installed until
+the script runs again; it says *Built backend version …, its self-update off*,
+and the reader's settings show that version.
 
 The script, over one SSH connection (so the password, if any, is asked once):
 

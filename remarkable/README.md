@@ -56,6 +56,10 @@ backend — only when that folder's `manifest.json` is *Estante*'s, the old one
 kept in the store's `qml/previous/`. `sync` without `--bundle` uses the store's
 own bundle, so `sync --root /tmp/estante --app DIR` brings both from the site.
 The backend binary is never replaced.
+A backend linked with `-X main.selfUpdate=off` skips the check altogether —
+what `scripts/install.sh` builds with `ESTANTE_FROM_SOURCE=1`, which also builds
+the QML and the bundle from the checkout (INSTALL.md step 4) and stages the
+bundle in the store's `bundle/next/`.
 
 The QML frontend's tests (`qml/tests/tst_*.qml`) run on Qt's own
 qmltestrunner over a pinned Qt 6 from pip (PySide6-Essentials; the wheel has

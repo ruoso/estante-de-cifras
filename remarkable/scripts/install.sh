@@ -12,11 +12,20 @@
 #                 https://www.estantedecifras.app (a local stack: its
 #                 address). The bare estantedecifras.app only forwards there.
 # ESTANTE_FROM_SOURCE=1
-#                 build the backend here, from the checkout this script is
-#                 in, instead of taking the site's: the rest of the folder
-#                 (the screens, the icon) is still the site's, checked as
-#                 always. Needs Go here; the module's go line names the
-#                 version, which Go fetches by itself when it is newer.
+#                 build the reader here, from the checkout this script is in,
+#                 instead of taking the site's: the backend (Go), the screens
+#                 (the QML, compiled with Qt's rcc) and the music code (the
+#                 app's device bundle, with npm). The backend is built with
+#                 its self-update off, so what this puts on the tablet stays
+#                 until the next install. Needs Go here (the module's go line
+#                 names the version, which Go fetches by itself), npm for the
+#                 bundle, and python3 or ESTANTE_RCC for the screens.
+# ESTANTE_SOURCE_QML=0, ESTANTE_SOURCE_BUNDLE=0
+#                 with ESTANTE_FROM_SOURCE, take the site's screens or the
+#                 site's bundle instead (checked against its manifest).
+# ESTANTE_RCC     with ESTANTE_FROM_SOURCE, the rcc to compile the screens
+#                 with; default the QML tests' venv's pyside6-rcc, made
+#                 from remarkable/qml/tests/requirements.txt when absent.
 #
 # It asks the tablet its architecture, downloads that app folder from the
 # site's /device/, checks it against the manifest's SHA-256, unpacks it here,
@@ -26,8 +35,8 @@
 # It never touches the reader's books and state in
 # /home/root/.local/share/estante/.
 #
-# Needs here: ssh, scp, curl, tar, and sha256sum or shasum (and go, with
-# ESTANTE_FROM_SOURCE=1). On the tablet:
+# Needs here: ssh, scp, curl, tar, and sha256sum or shasum (and the
+# ESTANTE_FROM_SOURCE tools above). On the tablet:
 # sh, uname, mkdir, mv, rm, readlink, kill and /proc.
 
 set -eu
@@ -37,6 +46,11 @@ APPLOAD_PARENT=/home/root/xovi/exthome/appload
 APPLOAD_DIR=/home/root/xovi/exthome/appload/estante
 PREVIOUS_DIR=/home/root/xovi/exthome/estante.previous
 STAGING_DIR=/home/root/xovi/exthome/estante.new
+# The reader's store (store.DefaultRoot) and the slot a bundle is staged in
+# for the backend to switch to on its next attach (design §8); the bundle
+# travels inside the folder under BUNDLE_IN_FOLDER and is moved there.
+STORE_DIR=/home/root/.local/share/estante
+BUNDLE_IN_FOLDER=.bundle-next
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'install.sh: %s\n' "$*" >&2; exit 1; }
@@ -64,8 +78,27 @@ case "${ESTANTE_FROM_SOURCE:-}" in
         die "ESTANTE_FROM_SOURCE needs Go on this computer (https://go.dev/dl/); install it, or run without ESTANTE_FROM_SOURCE. Nothing was changed."
     SRC=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd) || SRC=
     if [ -z "$SRC" ] || ! grep -q '^module estantedecifras.app/remarkable$' "$SRC/go.mod" 2>/dev/null ||
-        [ ! -f "$SRC/../cifra.md/go/go.mod" ]; then
+        [ ! -f "$SRC/../cifra.md/go/go.mod" ] || [ ! -f "$SRC/../app/package.json" ]; then
         die "ESTANTE_FROM_SOURCE builds from the checkout this script is in, and this one is not in one: clone https://github.com/ruoso/estante-de-cifras and run remarkable/scripts/install.sh from it. Nothing was changed."
+    fi
+    APP_SRC=$(cd "$SRC/../app" && pwd)
+    SOURCE_QML=1
+    case "${ESTANTE_SOURCE_QML:-1}" in 0) SOURCE_QML= ;; esac
+    SOURCE_BUNDLE=1
+    case "${ESTANTE_SOURCE_BUNDLE:-1}" in 0) SOURCE_BUNDLE= ;; esac
+    if [ -n "$SOURCE_BUNDLE" ]; then
+        command -v npm >/dev/null 2>&1 ||
+            die "ESTANTE_FROM_SOURCE builds the bundle with npm, which is not on this computer: install Node (its version is in .node-version), or set ESTANTE_SOURCE_BUNDLE=0 for the site's bundle. Nothing was changed."
+    fi
+    if [ -n "$SOURCE_QML" ]; then
+        RCC=${ESTANTE_RCC:-$SRC/qml/tests/.venv/bin/pyside6-rcc}
+        if [ ! -x "$RCC" ] && [ -n "${ESTANTE_RCC:-}" ]; then
+            die "ESTANTE_RCC is $ESTANTE_RCC, which is not an executable. Nothing was changed."
+        fi
+        if [ ! -x "$RCC" ]; then
+            command -v python3 >/dev/null 2>&1 ||
+                die "ESTANTE_FROM_SOURCE compiles the screens with Qt's rcc, from a Python venv, and python3 is not on this computer: install it, set ESTANTE_RCC to an rcc, or set ESTANTE_SOURCE_QML=0 for the site's screens. Nothing was changed."
+        fi
     fi
     ;;
 esac
@@ -141,9 +174,10 @@ if [ ! -f "$WORK/unpacked/estante/manifest.json" ] || [ ! -x "$WORK/unpacked/est
     die "$ARCHIVE does not hold estante/manifest.json and an executable estante/backend/entry. Nothing was changed on the tablet."
 fi
 
-# 3b. With ESTANTE_FROM_SOURCE, the backend built here replaces the site's:
-# for the tablet's architecture, stamped with its version as the image stamps
-# it (a digest of the sources and the Go toolchain), with the image's flags.
+# 3b. With ESTANTE_FROM_SOURCE, the reader built here replaces the site's.
+# The backend: for the tablet's architecture, stamped with its version as
+# the image stamps it (a digest of the sources and the Go toolchain), with
+# the image's flags, and with its self-update off.
 if [ -n "$FROM_SOURCE" ]; then
     case "$ARCH" in
         armv7) goarch=arm goarm=7 ;;
@@ -153,13 +187,57 @@ if [ -n "$FROM_SOURCE" ]; then
     mkdir "$WORK/build"
     built=$(cd "$SRC" && v=$(go run ./tools/payload digest . ../cifra.md/go) &&
         CGO_ENABLED=0 GOOS=linux GOARCH=$goarch GOARM=$goarm \
-            go build -trimpath -ldflags "-X main.version=$v" -o "$WORK/build/" ./cmd/estante-reader &&
+            go build -trimpath -ldflags "-X main.version=$v -X main.selfUpdate=off" \
+            -o "$WORK/build/" ./cmd/estante-reader &&
         printf '%s\n' "$v") ||
         die "could not build the backend from $SRC (the output above says why). Nothing was changed on the tablet."
-    cp "$WORK/build/estante-reader" "$WORK/unpacked/estante/backend/entry" &&
-        chmod 755 "$WORK/unpacked/estante/backend/entry" ||
-        die "could not put the built backend in the folder. Nothing was changed on the tablet."
-    say "Built backend version $built."
+    say "Built backend version $built, its self-update off."
+
+    # The screens: the whole folder assembled here (tools/appfolder), with
+    # the built backend; or the site's folder with the built backend in it.
+    if [ -n "$SOURCE_QML" ]; then
+        if [ ! -x "$RCC" ]; then
+            say "Making the venv with Qt's rcc in $SRC/qml/tests/.venv (a download of about 100 MB, once)…"
+            { python3 -m venv "$SRC/qml/tests/.venv" &&
+                "$SRC/qml/tests/.venv/bin/pip" install --quiet --require-hashes \
+                    -r "$SRC/qml/tests/requirements.txt"; } ||
+                die "could not make the venv with Qt's rcc (the output above says why); set ESTANTE_RCC, or ESTANTE_SOURCE_QML=0. Nothing was changed on the tablet."
+        fi
+        say "Building the screens from $SRC/qml…"
+        (cd "$SRC" && go run ./tools/appfolder --arch "$ARCH" --backend "$WORK/build/estante-reader" \
+            --qml qml --rcc "$RCC" --out "$WORK/folder") ||
+            die "could not build the screens (the output above says why). Nothing was changed on the tablet."
+        rm -rf "$WORK/unpacked/estante" && mv "$WORK/folder/estante" "$WORK/unpacked/estante" ||
+            die "could not put the built folder in place. Nothing was changed on the tablet."
+    else
+        cp "$WORK/build/estante-reader" "$WORK/unpacked/estante/backend/entry" &&
+            chmod 755 "$WORK/unpacked/estante/backend/entry" ||
+            die "could not put the built backend in the folder. Nothing was changed on the tablet."
+    fi
+
+    # The bundle, which this backend will not fetch: built here, or the
+    # site's, checked against its manifest; either way a bundle directory
+    # (manifest.json and the bundle it names) for the store's staged slot.
+    bundle="$WORK/unpacked/estante/$BUNDLE_IN_FOLDER"
+    mkdir "$bundle"
+    if [ -n "$SOURCE_BUNDLE" ]; then
+        say "Building the bundle from $APP_SRC…"
+        (cd "$APP_SRC" && { [ -d node_modules ] || npm ci --no-audit --no-fund; } &&
+            npm run --silent build:device) ||
+            die "could not build the bundle (the output above says why); set ESTANTE_SOURCE_BUNDLE=0 for the site's. Nothing was changed on the tablet."
+        cp "$APP_SRC/dist/device/manifest.json" "$APP_SRC"/dist/device/bundle.*.js "$bundle/" ||
+            die "the bundle build left no app/dist/device/manifest.json and bundle. Nothing was changed on the tablet."
+    else
+        line=$(printf '%s\n' "$flat" | tr '{}' '\n\n' | grep '"path":"bundle\.[0-9a-f]*\.js"' | head -n 1) || true
+        bpath=$(printf '%s\n' "$line" | sed -n 's/.*"path":"\(bundle\.[0-9a-f]*\.js\)".*/\1/p')
+        bsha=$(printf '%s\n' "$line" | sed -n 's/.*"sha256":"\([0-9a-fA-F]*\)".*/\1/p' | tr 'A-F' 'a-f')
+        [ -n "$bpath" ] && [ -n "$bsha" ] ||
+            die "the site's manifest names no bundle. Nothing was changed on the tablet."
+        fetch "$bpath" "$bundle/$bpath"
+        [ "$(sha256 "$bundle/$bpath")" = "$bsha" ] ||
+            die "the download does not match the site's manifest ($bpath); try again in a few minutes, the site may be mid-deploy. Nothing was changed on the tablet."
+        cp "$WORK/manifest.json" "$bundle/manifest.json"
+    fi
 fi
 
 # 4. Copied to a staging folder outside AppLoad's directory, so a Reload in
@@ -204,12 +282,22 @@ for p in /proc/[0-9]*; do
     if [ \"\$exe\" = $PREVIOUS_DIR/backend/entry ]; then
         kill \"\${p#/proc/}\" 2>/dev/null || true
     fi
-done"
+done
+if [ -d $APPLOAD_DIR/$BUNDLE_IN_FOLDER ]; then
+    mkdir -p $STORE_DIR/bundle
+    rm -rf $STORE_DIR/bundle/next
+    mv $APPLOAD_DIR/$BUNDLE_IN_FOLDER $STORE_DIR/bundle/next
+fi"
 kept=$(remote "$swap") ||
     die "the swap on the tablet failed; check $APPLOAD_DIR and $PREVIOUS_DIR with ssh $DEST ls /home/root/xovi/exthome (INSTALL.md step 7)"
 
 # 6. What was installed, and the next step.
-say "Installed the $ARCH reader, version $version, at $APPLOAD_DIR."
+if [ -n "$FROM_SOURCE" ]; then
+    built_parts="the backend${SOURCE_QML:+, the screens}${SOURCE_BUNDLE:+, the bundle}"
+    say "Installed the $ARCH reader built here ($built_parts; backend version $built, self-update off) at $APPLOAD_DIR."
+else
+    say "Installed the $ARCH reader, version $version, at $APPLOAD_DIR."
+fi
 if [ "$kept" = kept ]; then
     say "The previous install is kept at $PREVIOUS_DIR."
 else

@@ -50,6 +50,22 @@ import (
 // version is stamped at link time with -ldflags "-X main.version=<v>".
 var version = "dev"
 
+// selfUpdate is "off" in a backend built with -ldflags "-X
+// main.selfUpdate=off" — install.sh's ESTANTE_FROM_SOURCE build: such a
+// backend never checks the site for a bundle or a QML (design §8), so the
+// ones the install put in place stay until the next install.
+var selfUpdate = "on"
+
+// newUpdater is the self-update sync ends its passes with, for store st and
+// the AppLoad folder app; nil, so no pass checks the site, when selfUpdate is
+// off. A bundle already staged is still switched to on the next attach.
+func newUpdater(st *store.Store, app string) *update.Updater {
+	if selfUpdate == "off" {
+		return nil
+	}
+	return &update.Updater{Store: st, AppDir: app}
+}
+
 const usage = "usage: estante-reader --version | " +
 	"sheet --bundle DIR [--shapes FILE] [--key N] [--variation V] SONG | " +
 	"bench --bundle DIR [--shapes FILE] [--rounds N] SONG... | " +
@@ -80,7 +96,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 	var err error
 	switch {
 	case len(args) == 1 && (args[0] == "--version" || args[0] == "-version"):
-		fmt.Fprintf(stdout, "estante-reader %s\n", version)
+		if selfUpdate == "off" {
+			fmt.Fprintf(stdout, "estante-reader %s (self-update off)\n", version)
+		} else {
+			fmt.Fprintf(stdout, "estante-reader %s\n", version)
+		}
 		return 0
 	case len(args) > 0 && args[0] == "sheet":
 		err = sheetCommand(args[1:], stdout)
@@ -394,7 +414,7 @@ func syncCommand(args []string, stdout io.Writer) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	syncer := sync.New(st, eng, sync.Options{Update: &update.Updater{Store: st, AppDir: *app}})
+	syncer := sync.New(st, eng, sync.Options{Update: newUpdater(st, *app)})
 	res, err := syncer.Pass(ctx)
 	if err != nil {
 		return err
@@ -477,7 +497,7 @@ func runCommand(args []string) error {
 	relay := backend.NewRelay()
 	syncer := sync.New(st, syncEng, sync.Options{
 		OnStatus: relay.StatusFunc(),
-		Update:   &update.Updater{Store: st, AppDir: app},
+		Update:   newUpdater(st, app),
 	})
 
 	conn, err := protocol.Dial(socket)
