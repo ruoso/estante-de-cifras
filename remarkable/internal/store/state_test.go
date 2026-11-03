@@ -348,3 +348,32 @@ func TestChordNamesRoundTripsAcrossRestart(t *testing.T) {
 		t.Errorf("the account's did not stand again: %q", got)
 	}
 }
+
+// TestTextSizeRoundTripsAcrossRestart pins workflow 19 §Settings: the chart's
+// text size chosen here stays on this reader; 0 is the standard again; a size
+// not offered is refused, and one not offered on disk reads as none.
+func TestTextSizeRoundTripsAcrossRestart(t *testing.T) {
+	s, root := newStore(t)
+	if got := s.TextSize(); got != 0 {
+		t.Fatalf("a fresh store has text size %d", got)
+	}
+	if err := s.SetTextSize(11); err != nil {
+		t.Fatal(err)
+	}
+	s = openStore(t, root)
+	if got := s.TextSize(); got != 11 {
+		t.Errorf("after restart: %d, want 11", got)
+	}
+	for _, bad := range []int{7, 15, -1} {
+		if err := s.SetTextSize(bad); err == nil {
+			t.Errorf("text size %d was kept", bad)
+		}
+	}
+	if err := s.SetTextSize(0); err != nil {
+		t.Fatal(err)
+	}
+	s = openStore(t, root)
+	if got := s.TextSize(); got != 0 {
+		t.Errorf("the standard did not stand again: %d", got)
+	}
+}

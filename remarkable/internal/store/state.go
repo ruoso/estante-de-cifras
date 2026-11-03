@@ -31,6 +31,7 @@ type state struct {
 	lastSync     time.Time                               // zero before the first sync
 	instrument   string                                  // the instrument chosen here; "" follows the account
 	chordNames   string                                  // "written" or "voiced" chosen here; "" follows the account
+	textSize     int                                     // the chart\'s text size in points chosen here; 0 the standard
 	variations   map[string]map[string]map[string]string // bookId → song path → tuning id → variation
 }
 
@@ -43,6 +44,7 @@ type stateJSON struct {
 	LastSync     *time.Time                              `json:"lastSync,omitempty"`
 	Instrument   string                                  `json:"instrument,omitempty"`
 	ChordNames   string                                  `json:"chordNames,omitempty"`
+	TextSize     int                                     `json:"textSize,omitempty"`
 	Variations   map[string]map[string]map[string]string `json:"variations,omitempty"`
 }
 
@@ -92,6 +94,7 @@ func (st state) clone() state {
 	c.lastSync = st.lastSync
 	c.instrument = st.instrument
 	c.chordNames = st.chordNames
+	c.textSize = st.textSize
 	c.variations = copyVariations(st.variations)
 	return c
 }
@@ -134,6 +137,9 @@ func readState(path string) state {
 		st.lastSync = *j.LastSync
 	}
 	st.instrument = j.Instrument
+	if validTextSize(j.TextSize) {
+		st.textSize = j.TextSize
+	}
 	if j.ChordNames == "written" || j.ChordNames == "voiced" {
 		st.chordNames = j.ChordNames
 	}
@@ -143,7 +149,7 @@ func readState(path string) state {
 
 func (st state) encode() ([]byte, error) {
 	j := stateJSON{Version: stateVersion, Keys: st.keys, Places: st.places, ShapesHidden: st.shapesHidden,
-		Instrument: st.instrument, ChordNames: st.chordNames}
+		Instrument: st.instrument, ChordNames: st.chordNames, TextSize: st.textSize}
 	if len(st.variations) > 0 {
 		j.Variations = st.variations
 	}
@@ -212,6 +218,37 @@ func (s *Store) Instrument() string {
 // the account's in use is followed again.
 func (s *Store) SetInstrument(id string) error {
 	return s.mutate(func(st *state) { st.instrument = id })
+}
+
+// TextSizes are the chart's text sizes the reader offers, in points
+// (workflow 19 §Settings; the frontend's chart/metrics.js textSizes); 14 is
+// the standard.
+var TextSizes = []int{9, 10, 11, 12, 13, 14, 16, 18}
+
+func validTextSize(pt int) bool {
+	for _, s := range TextSizes {
+		if s == pt {
+			return true
+		}
+	}
+	return false
+}
+
+// TextSize is the chart's text size chosen on this reader, in points; 0 when
+// none is, and the standard is read.
+func (s *Store) TextSize() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.state.textSize
+}
+
+// SetTextSize keeps the chart's text size; 0 forgets the choice. A size not
+// offered is refused.
+func (s *Store) SetTextSize(pt int) error {
+	if pt != 0 && !validTextSize(pt) {
+		return fmt.Errorf("store: text size: %w", ErrBadID)
+	}
+	return s.mutate(func(st *state) { st.textSize = pt })
 }
 
 // ChordNames is how this reader names the chart's chords, "written" or

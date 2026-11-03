@@ -64,8 +64,13 @@ screens below draw nothing that is not information.
 
 ## The screen
 
-Portrait, 1404 × 1872 px. Every screen has the same three regions, which never
-move:
+Portrait, the device's own screen: 1404 × 1872 px on the reMarkable 2, 1620 ×
+2160 on the Paper Pro, drawn at scale 1, never magnified (design §3.1). The
+bar, the foot, the type of the interface and every control keep their sizes
+on any screen — they are sized for a finger at arm's length (rule 10); a
+larger screen gives the content more room: more rows to a list's page, more
+diagrams to a strip's row, more of the chart to a page. Every screen has the
+same three regions, which never move:
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -145,8 +150,8 @@ The screen the reader opens to once paired. Bar: **Estante** as the title; at
 the right, **Sync** (a word).
 
 Content: the books, in the shelf's order (home book, `shelf.json`), one row
-each — the book's name large, and under it *32 songs · 4 setlists*. Ten rows
-to a page.
+each — the book's name large, and under it *32 songs · 4 setlists*. As many
+rows to a page as the content holds (ten on the reMarkable 2).
 
 The sync state is a line of the content's top, not of the bar: *Synced at
 14:32*, *Not connected — showing what was synced at 09:10*, or *Syncing…*. It
@@ -194,6 +199,14 @@ it (the Instrument part redrawn, the part below put back); and **Sign out**, whi
 in your account.* with **Sign out** and **Cancel** — one redraw of that part of
 the page — and the second *Sign out* signs out, returning to *Not paired*.
 
+**Text size**, between *Chord names* and *Instrument*: the chart's text in
+points — *9 pt* … *18 pt* in a row, the one read inverted, 14 pt the
+standard (the words at 44 px on the reMarkable 2). One tap chooses: the
+screens are laid out again at it and Settings comes back — the whole page,
+once. It sizes the chart only — the words, the chords over them and in bars,
+section names, notes, their lines and gaps, in whole pixels, strokes never
+under 2 px; smaller, more of a song to a page. The interface keeps its sizes.
+
 Both choices **stay on this reMarkable**, as a key does: never written to the
 account. Choosing the account's own (its chord names, its instrument in use)
 follows the account again, so a change made there arrives here. An instrument
@@ -212,8 +225,10 @@ Bar: **Back** (to the shelf) · the book's name.
 
 Content: the book's **setlists first** — few, and what a gig opens — each a row
 with its name and *12 songs*; then its **songs**, in the order the web app's
-book page lists them, title large, artist under it. Ten rows to a page; a
-setlist or a song is never split from its second line.
+book page lists them, title large, artist under it. As many rows to a page as
+the content holds, headings counted and never left at a page's foot — the
+page is filled, not cut at a number; a setlist or a song is never split from
+its second line.
 
 **The letter row.** A book of three hundred songs is thirty pages; turning to
 *Samba de Uma Nota Só* one page at a time is twenty redraws. Above the foot, the
@@ -380,7 +395,8 @@ Content: its songs in order, one row each — *1*, the title, and the key the
 setlist sets for it (*in D*; a song the setlist sets no key for plays in its
 own key, named on its song screen, and its row names none) — and the
 setlist's note for a song under it. A missing song
-says *missing* and is skipped by Play (workflow 12). Ten rows to a page.
+says *missing* and is skipped by Play (workflow 12). As many rows to a page as
+the content holds (ten on the reMarkable 2).
 
 **Play** opens the first song; tapping a row opens Play at that song (a
 *missing* row is not a target: it has nothing to open). Playing is a song screen
@@ -436,6 +452,7 @@ is the web app's.
 | Open / close the variation list | 1 | the shapes strip, as the key grid |
 | Choose a variation | 1 | the strip; the content too when the strip changes size |
 | Switch the chord names, in Settings | 1 | the Chord names part |
+| Choose a text size, in Settings | 1 | the whole page, laid out again at it |
 | Change / Cancel, an instrument chosen, in Settings | 1 | the part below Instrument; Instrument too when one is chosen |
 | Sync, on the shelf | 2 | one line |
 | Sync, anywhere else | 0 | — |

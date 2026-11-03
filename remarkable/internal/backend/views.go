@@ -177,6 +177,16 @@ func (v *views) handle(m protocol.Message) error {
 		return v.variation(m)
 	case protocol.ChordNames:
 		return v.chordNames(m)
+	case protocol.TextSize:
+		pt := 0
+		if m.Value != nil {
+			pt = *m.Value
+		}
+		if v.st.SetTextSize(pt) != nil {
+			return nil
+		}
+		// The frontend lays its screens out again at the state's size.
+		return v.relay.sendState(v.conn)
 	case protocol.Pair:
 		return v.pair()
 	case protocol.SignOut:

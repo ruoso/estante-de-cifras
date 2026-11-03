@@ -34,7 +34,7 @@ Item {
     readonly property alias lineText: lineText
     readonly property var setlist: d.setlist
     readonly property int page: d.page
-    readonly property int pageCount: Pages.pageCount(d.items.length)
+    readonly property int pageCount: Pages.pageCount(d.items.length, d.pages)
     readonly property string pending: d.pending
 
     width: M.screenWidth
@@ -45,8 +45,9 @@ Item {
     function show(setlist, bookName) {
         d.setlist = setlist;
         d.items = Pages.list(setlist && setlist.items);
+        d.pages = Pages.evenPages(d.items.length, M.contentHeight - M.syncLineHeight, M.tallRow);
         d.page = (setlist && typeof setlist.at === "number")
-                 ? Pages.clamp(Pages.pageOf(setlist.at), d.items.length) : 0;
+                 ? Pages.clamp(Pages.pageOf(setlist.at, d.pages), d.items.length, d.pages) : 0;
         d.line = Pages.setlistLine(bookName, d.items.length);
         d.pending = "";
         listBar.show({ title: (setlist && setlist.title) || "", back: true,
@@ -60,6 +61,7 @@ Item {
         property var setlist: null
         property var items: []
         property int page: 0
+        property var pages: [0]
         property string line: ""
         property string pending: ""
 
@@ -78,8 +80,9 @@ Item {
         }
 
         function commitList() {
-            const from = d.page * Pages.perPage;
-            const rows = d.items.slice(from, from + Pages.perPage).map((it, i) => ({
+            const range = Pages.pageRange(d.page, d.items.length, d.pages);
+            const from = range.from;
+            const rows = d.items.slice(range.from, range.to).map((it, i) => ({
                 index: from + i,
                 number: String(from + i + 1),
                 title: it.title || Pages.fileName(it.path),

@@ -395,6 +395,8 @@ TestCase {
     // window's root.
     function openFound() {
         const main = createTemporaryObject(mainComponent, testCase.parent);
+        // The device's first message is the state (the screens are made then).
+        main.endpoint.play(101, { paired: true, syncing: false, online: true, lastSync: null, shapesShown: true });
         main.endpoint.play(105, FoundShape.sheet);
         verify(main.songShown);
         compare(main.songScreen.view.ready, true);

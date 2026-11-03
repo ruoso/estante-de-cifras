@@ -82,7 +82,7 @@ TestCase {
     function visibleScreens(main) {
         const out = [];
         for (const name of ["notPaired", "shelfScreen", "bookScreen", "setlistScreen", "settingsScreen", "songScreen"])
-            if (main[name].visible)
+            if (main[name] && main[name].visible)
                 out.push(name);
         return out;
     }
@@ -337,6 +337,7 @@ TestCase {
     // Design §6 `2 open`: Back sends one open of the song's book.
     function test_backOpensTheBook() {
         const main = shown();
+        main.endpoint.play(101, stateMessage({ paired: true }));
         main.endpoint.play(105, FewChords.sheet);
         main.endpoint.clear();
         mouseClick(main.songScreen.bar.back);

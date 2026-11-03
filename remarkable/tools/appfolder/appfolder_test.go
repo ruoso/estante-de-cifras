@@ -96,7 +96,7 @@ func TestManifest(t *testing.T) {
 	want := map[string]any{
 		"id": "estante", "name": "Estante", "entry": "/Main.qml",
 		"loadsBackend": true, "canHaveMultipleFrontends": false,
-		"supportsScaling": false, "aspectRatio": 0.75, "width": float64(1404),
+		"supportsScaling": false, "aspectRatio": "auto", "width": "auto",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("manifest = %v, want %v", got, want)

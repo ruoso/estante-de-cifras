@@ -166,3 +166,109 @@ var letterCellHeight = 100;
 var letterColumns = 13;
 var letterRowsHeight = 2 * letterCellHeight;
 var syncLineHeight = 96;
+
+// --- the screen and the text size (workflow 19 §The screen, §Settings) ---
+//
+// Everything above is the rM2's portrait screen at the chart's standard text
+// size, 14 pt for the words (44 px at 226 dpi). `configure` sets the screen the
+// reader is given (AppLoad's window: 1404 × 1872 on the rM2, 1620 × 2160 on
+// the Paper Pro) and the chart's text size in points, and works out again
+// every size that follows from them: the content's height and width, the
+// strip's diagrams to a row, the letter rows, and the chart's faces, lines and
+// gaps, scaled by size / 14 in whole pixels — a stroke never under 2 px. The
+// interface (bars, lists, buttons, diagrams) keeps its sizes: it is sized for
+// fingers at arm's length (rule 10). Main calls it before any screen is made:
+// the screens read these once, as they are built.
+
+var standardPt = 14;
+var textSizes = [9, 10, 11, 12, 13, 14, 16, 18];
+var textPt = standardPt;
+var screenHeight = barHeight + contentHeight + footHeight;
+
+// The chart's sizes at 14 pt, which configure scales.
+var chartBase = {
+    pieceSpacing: pieceSpacing, sectionSize: sectionSize, sectionLine: sectionLine, sectionTop: sectionTop,
+    sungChordSize: sungChordSize, sungChordLine: sungChordLine, wordsSize: wordsSize, wordsLine: wordsLine,
+    sungMargin: sungMargin, segmentGap: segmentGap, tailGap: tailGap, hyphenWidth: hyphenWidth,
+    hyphenStroke: hyphenStroke, barsHeight: barsHeight, barPadLeft: barPadLeft, barPadRight: barPadRight,
+    chordSize: chordSize, chordLine: chordLine, chordGap: chordGap, repeatThick: repeatThick,
+    repeatThin: repeatThin, repeatSpace: repeatSpace, repeatDot: repeatDot, countGap: countGap,
+    runLine: runLine, notesSize: notesSize, notesLine: notesLine, verbatimSize: verbatimSize,
+    verbatimLine: verbatimLine, emptySize: emptySize, emptyLine: emptyLine, gapHeight: gapHeight
+};
+// Strokes: scaled, never under 2 px (workflow 19 rule 6).
+var chartStrokes = { hyphenStroke: true, repeatThin: true, repeatThick: true };
+
+// The width a compact and a large diagram take in the strip on the rM2: the
+// strip holds as many as fit at those widths on another screen.
+var compactCell = Math.floor((screenWidth - stripLeft - stripRight) / stripPerRow.compact);
+var largeCell = Math.floor((screenWidth - stripLeft - stripRight) / stripPerRow.large);
+// A letter cell's least width (rule 10).
+var letterCellMin = 100;
+
+function scaled(px, k, stroke) {
+    var v = Math.round(px * k);
+    return stroke ? Math.max(2, v) : Math.max(1, v);
+}
+
+// The nearest offered text size to pt; the standard for anything else.
+function textSizeOf(pt) {
+    var n = Number(pt);
+    return textSizes.indexOf(n) >= 0 ? n : standardPt;
+}
+
+function configure(width, height, pt) {
+    var w = Math.floor(Number(width)) || 1404;
+    var h = Math.floor(Number(height)) || 1872;
+    screenWidth = w;
+    screenHeight = h;
+    contentHeight = h - barHeight - footHeight;
+    chartWidth = screenWidth - 2 * contentSide;
+
+    stripPerRow = {
+        compact: Math.max(1, Math.floor((screenWidth - stripLeft - stripRight) / compactCell)),
+        large: Math.max(1, Math.floor((screenWidth - stripLeft - stripRight) / largeCell))
+    };
+    stripPerPage = stripMaxRows * stripPerRow.compact;
+    stripLargeMax = stripPerRow.large;
+
+    letterColumns = Math.min(13, Math.max(1, Math.floor(screenWidth / letterCellMin)));
+    letterCellWidth = Math.min(108, Math.floor(screenWidth / letterColumns));
+    letterRowsHeight = Math.ceil(26 / letterColumns) * letterCellHeight;
+
+    textPt = textSizeOf(pt);
+    var k = textPt / standardPt;
+    pieceSpacing = scaled(chartBase.pieceSpacing, k);
+    sectionSize = scaled(chartBase.sectionSize, k);
+    sectionLine = scaled(chartBase.sectionLine, k);
+    sectionTop = scaled(chartBase.sectionTop, k);
+    sungChordSize = scaled(chartBase.sungChordSize, k);
+    sungChordLine = scaled(chartBase.sungChordLine, k);
+    wordsSize = scaled(chartBase.wordsSize, k);
+    wordsLine = scaled(chartBase.wordsLine, k);
+    sungMargin = scaled(chartBase.sungMargin, k);
+    segmentGap = scaled(chartBase.segmentGap, k);
+    tailGap = scaled(chartBase.tailGap, k);
+    hyphenWidth = scaled(chartBase.hyphenWidth, k);
+    hyphenStroke = scaled(chartBase.hyphenStroke, k, true);
+    barsHeight = scaled(chartBase.barsHeight, k);
+    barPadLeft = scaled(chartBase.barPadLeft, k);
+    barPadRight = scaled(chartBase.barPadRight, k);
+    chordSize = scaled(chartBase.chordSize, k);
+    chordLine = scaled(chartBase.chordLine, k);
+    chordGap = scaled(chartBase.chordGap, k);
+    repeatThick = scaled(chartBase.repeatThick, k, true);
+    repeatThin = scaled(chartBase.repeatThin, k, true);
+    repeatSpace = scaled(chartBase.repeatSpace, k);
+    repeatDot = scaled(chartBase.repeatDot, k, true);
+    repeatSign = repeatThick + repeatSpace + repeatThin + repeatSpace + repeatDot;
+    countGap = scaled(chartBase.countGap, k);
+    runLine = scaled(chartBase.runLine, k);
+    notesSize = scaled(chartBase.notesSize, k);
+    notesLine = scaled(chartBase.notesLine, k);
+    verbatimSize = scaled(chartBase.verbatimSize, k);
+    verbatimLine = scaled(chartBase.verbatimLine, k);
+    emptySize = scaled(chartBase.emptySize, k);
+    emptyLine = scaled(chartBase.emptyLine, k);
+    gapHeight = scaled(chartBase.gapHeight, k);
+}

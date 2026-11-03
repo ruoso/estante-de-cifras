@@ -182,6 +182,7 @@ func (r *Relay) stateLocked() protocol.State {
 		_, s.Paired = r.st.Session()
 		s.Paired = s.Paired && !r.firstPass
 		s.ShapesShown = r.st.ShapesShown()
+		s.TextSize = r.st.TextSize()
 		if t, ok := r.st.LastSync(); ok {
 			v := t.Format(time.RFC3339)
 			s.LastSync = &v

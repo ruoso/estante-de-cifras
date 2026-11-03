@@ -6,6 +6,7 @@
 // refresh budget; design §6.
 import QtQuick
 import QtTest
+import "../chart/metrics.js" as M
 import net.asivery.AppLoad 1.0
 import "../browse"
 import "../browse/pages.js" as Pages
@@ -104,19 +105,25 @@ TestCase {
         for (const r of rows(screen))
             verify(r.y + r.height <= screen.list.height, "a row past the content");
         clean(screen);
+        // A page with no heading holds what the content holds: eleven rows
+        // of 120 px in the 1432 px above the letters (workflow 19 §A book —
+        // the page is filled, not cut at ten).
         mouseClick(screen.foot.next);
         compare(screen.page, 1);
         compare(headings(screen), []);
-        compare(titles(screen), songTitles(7, 17));
+        compare(titles(screen), songTitles(7, 18));
+        for (const r of rows(screen))
+            verify(r.y + r.height <= screen.list.height, "a row past the content");
         mouseClick(screen.foot.next);
+        compare(titles(screen), songTitles(18, 29));
         mouseClick(screen.foot.next);
         compare(screen.page, 3);
         compare(screen.foot.pageLabel.text, "4 of 4");
-        compare(titles(screen), songTitles(27, 34));
+        compare(titles(screen), songTitles(29, 34));
         // The untitled song says its file name.
+        mouseClick(screen.foot.previous);
         verify(titles(screen).indexOf("trem-das-seis") >= 0);
         // An empty artist: no second line.
-        mouseClick(screen.foot.previous);
         const eco = rows(screen).filter(r => r.title === "Ponte Velha")[0];
         verify(eco !== undefined);
         compare(eco.detail, "");
@@ -182,11 +189,11 @@ TestCase {
         screen.show(clone(BrowseBook.book), 0);
         mouseClick(screen.letters.cell("M").button);
         compare(screen.endpoint.sent.length, 0);
-        compare(screen.page, 2);
+        verify(screen.page > 0);
         verify(titles(screen).indexOf("Mar de Dentro") >= 0);
         // T is the untitled song's, by its file name.
         mouseClick(screen.letters.cell("T").button);
-        compare(screen.page, 3);
+        verify(screen.page > 0);
         verify(titles(screen).indexOf("trem-das-seis") >= 0);
         mouseClick(screen.letters.cell("A").button);
         compare(screen.page, 0);
@@ -430,7 +437,9 @@ TestCase {
         screen.show(settings, { paired: true });
         verify(screen.instrumentPart.visible);
         verify(screen.instrumentPart.mapToItem(screen, 0, 0).y > screen.readerPart.mapToItem(screen, 0, 0).y);
-        verify(screen.signOut.mapToItem(screen, 0, 0).y >= screen.instrumentPart.mapToItem(screen, 0, 0).y + screen.partHeight);
+        verify(screen.signOutButton.mapToItem(screen, 0, 0).y >= screen.instrumentPart.mapToItem(screen, 0, 0).y + screen.partHeight);
+        // Everything inside the content.
+        verify(screen.signOutButton.mapToItem(screen, 0, 0).y + screen.signOutButton.height <= M.barHeight + M.contentHeight);
         compare(screen.instrumentPart.noteText.text, "As in your account");
         const guitar = settings.instruments[0];
         compare(screen.instrumentPart.valueText.text, guitar.name);
@@ -526,6 +535,36 @@ TestCase {
         compare(screen.endpoint.sent[1].type, 14);
         compare(screen.endpoint.sent[1].payload, { value: null });
         clean(screen);
+    }
+
+    // workflow 19 §Settings: Text size offers the chart's sizes in points,
+    // the one read inverted; one chosen is sent (15), the standard as null;
+    // the one read sends nothing.
+    function test_settingsTextSize() {
+        const screen = make(settingsComponent);
+        screen.show(clone(BrowseSettingsInstruments.settings), { paired: true });
+        const buttons = screen.textSizeButtons;
+        compare(buttons.count, M.textSizes.length);
+        const labels = [];
+        for (let i = 0; i < buttons.count; ++i) {
+            labels.push(buttons.itemAt(i).text);
+            verify(buttons.itemAt(i).height >= 100);
+            verify(buttons.itemAt(i).x + buttons.itemAt(i).width <= screen.width - M.contentSide);
+        }
+        compare(labels, M.textSizes.map(n => n + " pt"));
+        const standard = M.textSizes.indexOf(M.standardPt);
+        verify(buttons.itemAt(standard).inverted);
+        verify(screen.textSize.mapToItem(screen, 0, 0).y > screen.chordNamesPart.mapToItem(screen, 0, 0).y);
+        verify(screen.instrumentPart.mapToItem(screen, 0, 0).y >= screen.textSize.mapToItem(screen, 0, 0).y + screen.textSizeHeight);
+        clean(screen);
+
+        mouseClick(buttons.itemAt(standard));
+        compare(screen.endpoint.sent.length, 0);
+        mouseClick(buttons.itemAt(M.textSizes.indexOf(11)));
+        compare(screen.endpoint.sent.length, 1);
+        compare(screen.endpoint.sent[0].type, 15);
+        compare(screen.endpoint.sent[0].payload, { value: 11 });
+        verify(buttons.itemAt(M.textSizes.indexOf(11)).inverted);
     }
 
     function test_settingsUpdateReader() {

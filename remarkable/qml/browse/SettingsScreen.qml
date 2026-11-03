@@ -18,6 +18,7 @@
 //
 //   the page opened (`show`)            bar, content, shapes, chord names, instrument, sign-out part
 //   chord names switched (`answered`)   chord names
+//   a text size chosen                  the whole page, made again at it (Main)
 //   Show all again answered (`answered`)    shapes
 //   Sign out asked / Cancel             the sign-out part
 //   Change / Cancel                     the sign-out part
@@ -45,6 +46,8 @@ Item {
     readonly property Region signOut: signOutRegion
     readonly property Region instrument: instrumentRegion
     readonly property Region chordNames: chordNamesRegion
+    readonly property Region textSize: textSizeRegion
+    readonly property alias textSizeButtons: textSizeRepeater
     readonly property alias chordNamesPart: chordNamesPart
     readonly property alias chordNamesButton: chordNamesButton
     readonly property alias instrumentPart: instrumentPart
@@ -72,6 +75,11 @@ Item {
     readonly property int partHeight: 160
     // This reader holds a second line (the update's) under its version.
     readonly property int readerHeight: 200
+    // Text size: its heading over a row of 100 px buttons.
+    readonly property int textSizeHeight: 190
+    // Where Instrument starts; the part below it (Sign out, the instruments
+    // to choose) is drawn from there, Sign out one part lower.
+    readonly property int instrumentTop: M.barHeight + 4 * partHeight + readerHeight + textSizeHeight
 
     // A `107 settings`, and the state the shelf's sync line is read from.
     function show(settings, state) {
@@ -85,6 +93,7 @@ Item {
         });
         shapesRegion.show({ hidden: Number(settings && settings.hiddenShapes) || 0 });
         chordNamesRegion.show(chordNamesContent(settings));
+        textSizeRegion.show({ size: M.textPt });
         instrumentRegion.show(instrumentContent(settings));
         signOutRegion.show({ asking: false, choosing: false, instruments: [] });
     }
@@ -311,12 +320,82 @@ Item {
         }
     }
 
+    // The chart's text size, in points (workflow 19 §Settings): the sizes
+    // offered, the one read inverted; one chosen makes the screens again at
+    // it (Main), Settings reopened.
+    Region {
+        id: textSizeRegion
+        objectName: "textSize"
+        x: 0
+        y: M.barHeight + 4 * screen.partHeight + screen.readerHeight
+        width: screen.width
+        height: screen.textSizeHeight
+        content: ({ size: M.standardPt })
+
+        readonly property int buttonWidth: Math.floor((width - 2 * M.contentSide - (M.textSizes.length - 1) * 12) / M.textSizes.length)
+
+        Text {
+            objectName: "textSizeHeading"
+            x: M.contentSide
+            y: 28
+            width: textSizeRegion.width - 2 * M.contentSide
+            height: 40
+            color: "black"
+            font.family: screen.faces.ui
+            font.weight: Font.Bold
+            font.pixelSize: 30
+            font.letterSpacing: 2
+            font.capitalization: Font.AllUppercase
+            verticalAlignment: Text.AlignVCenter
+            textFormat: Text.PlainText
+            text: Pages.copy.textSize
+        }
+
+        Repeater {
+            id: textSizeRepeater
+            model: M.textSizes
+            delegate: InkButton {
+                required property int modelData
+                required property int index
+                readonly property int size: modelData
+                objectName: "textSizeChoice"
+                faces: screen.faces
+                active: signOutRegion.content.choosing !== true
+                x: M.contentSide + index * (textSizeRegion.buttonWidth + 12)
+                y: 74
+                width: textSizeRegion.buttonWidth
+                height: 100
+                padding: 12
+                fontSize: 34
+                bold: false
+                text: modelData + " pt"
+                held: modelData === textSizeRegion.content.size || d.pending === "textSize:" + modelData
+                onActivated: {
+                    if (d.pending !== "" || modelData === textSizeRegion.content.size)
+                        return;
+                    d.pending = "textSize:" + modelData;
+                    // The standard is no choice.
+                    d.send(15, { value: modelData === M.standardPt ? null : modelData });
+                }
+            }
+        }
+
+        Rectangle {
+            x: M.contentSide
+            y: textSizeRegion.height - M.listRule
+            width: textSizeRegion.width - 2 * M.contentSide
+            height: M.listRule
+            color: "black"
+            antialiasing: false
+        }
+    }
+
     // The instrument every song is read with (workflow 19 §Settings).
     Region {
         id: instrumentRegion
         objectName: "instrument"
         x: 0
-        y: M.barHeight + 4 * screen.partHeight + screen.readerHeight
+        y: screen.instrumentTop
         width: screen.width
         height: screen.partHeight
         content: ({ shown: false, name: "", note: "", instruments: [], current: "", account: "" })
@@ -324,7 +403,7 @@ Item {
         Part {
             id: instrumentPart
             objectName: "instrumentPart"
-            visible: instrumentRegion.content.shown === true
+            visible: instrumentRegion.content.shown === true && signOutRegion.content.choosing !== true
             y: 0
             heading: Pages.copy.instrument
             value: instrumentRegion.content.name || ""
@@ -336,7 +415,7 @@ Item {
             id: changeButton
             objectName: "changeInstrument"
             faces: screen.faces
-            visible: instrumentRegion.content.shown === true
+            visible: instrumentRegion.content.shown === true && signOutRegion.content.choosing !== true
             active: visible && signOutRegion.content.choosing !== true
             x: instrumentRegion.width - M.contentSide - width
             y: 30
@@ -398,9 +477,12 @@ Item {
         id: signOutRegion
         objectName: "signOut"
         x: 0
-        y: M.barHeight + 5 * screen.partHeight + screen.readerHeight
+        y: screen.instrumentTop
         width: screen.width
-        height: M.contentHeight - 5 * screen.partHeight - screen.readerHeight
+        height: M.barHeight + M.contentHeight - screen.instrumentTop
+        // Sign out sits one part down, under Instrument; the instruments to
+        // choose take the whole region, Instrument's place too.
+        readonly property int signOutTop: screen.partHeight
         content: ({ asking: false, choosing: false, instruments: [] })
 
         // The instruments to choose, in place of Sign out: columns of three
@@ -488,7 +570,7 @@ Item {
             visible: signOutRegion.content.asking !== true && signOutRegion.content.choosing !== true
             active: visible
             x: M.contentSide
-            y: 64
+            y: signOutRegion.signOutTop + 64
             height: 120
             padding: 56
             fontSize: 40
@@ -501,7 +583,7 @@ Item {
             objectName: "signOutQuestion"
             visible: signOutRegion.content.asking === true
             x: M.contentSide
-            y: 64
+            y: signOutRegion.signOutTop + 64
             width: 1100
             height: Math.ceil(contentHeight)
             color: "black"

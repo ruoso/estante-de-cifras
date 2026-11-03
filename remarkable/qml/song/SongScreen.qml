@@ -1,7 +1,7 @@
 // The song screen (reader.song_screen; workflow 19 §A song, §The screen, the
 // refresh budget, §What it costs; docs/remarkable-reader.md §3.3, §6). Four
 // regions, fixed in place: the bar (0–140), the chart, the strip (the bottom
-// of the content, its height fixed for the song) and the foot (1772–1872).
+// of the content, its height fixed for the song) and the foot (the screen's last 100 px).
 // Each region replaces what it draws in one place and counts it in
 // `revision`; an action replaces only the regions workflow 19's table names,
 // each once:

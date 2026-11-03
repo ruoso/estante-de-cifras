@@ -186,7 +186,7 @@ Then, on the tablet, open AppLoad and press **Reload**: *Estante* is listed.
 | `app/dist/device/` | Built by `npm run build`: `bundle.<hash>.js` and `manifest.json` |
 | `remarkable/` | The reader: a Go module (`cmd/estante-reader`, `internal/…`) and its QML frontend (`remarkable/qml/`) |
 | `remarkable/qml/Main.qml` | The QML root AppLoad loads: the `AppLoad` endpoint (`applicationID` `estante`), `signal close`, `unloading()` — which leaves the backend running, so it keeps syncing — and `hello` sent on attach |
-| `remarkable/tools/appfolder` | Assembles the AppLoad folder for one architecture: `manifest.json` (`id` `estante`, `name` *Estante*, `entry` `/Main.qml`, `loadsBackend`, one frontend, `aspectRatio` 0.75 at `width` 1404 — the rM2's screen, scale 1 there; `original` would mean the Paper Pro's 1620), `icon.png` (100 × 100, one bit), `resources.rcc` (every file under `remarkable/qml/` but its tests, compiled with `rcc --binary`, zlib) and `backend/entry` (the `estante-reader` binary itself, checked to be for that architecture) |
+| `remarkable/tools/appfolder` | Assembles the AppLoad folder for one architecture: `manifest.json` (`id` `estante`, `name` *Estante*, `entry` `/Main.qml`, `loadsBackend`, one frontend, `aspectRatio` and `width` `auto` — the device's own screen, at scale 1; the QML lays its screens out for it), `icon.png` (100 × 100, one bit), `resources.rcc` (every file under `remarkable/qml/` but its tests, compiled with `rcc --binary`, zlib) and `backend/entry` (the `estante-reader` binary itself, checked to be for that architecture) |
 
 `remarkable/` shares no code with `service/` (DIRECTION §3.6): it is a client,
 and agrees with the service through `api/openapi.yaml` like the others. It runs
@@ -379,8 +379,8 @@ The reader is **fully read-only**: it writes nothing the account holds. What
 the person does at the stand stays on the device — a key chosen for a song,
 the place in a setlist, the shapes hidden because they are known (by tuning,
 chord and frets), whether the shapes are shown at all, a variation chosen for
-a song (by tuning), the instrument every song is read with, and how the chart
-names its chords — kept in the store. The instrument and the chord names, until
+a song (by tuning), the instrument every song is read with, how the chart
+names its chords, and the chart's text size — kept in the store. The instrument and the chord names, until
 chosen here, are the account's; a variation, the account's (`songs.json`). The saved transposition in
 `songs.json` is where a song opens; a key chosen on the device overrides it
 there until another is chosen, or *As written* (workflow 19 §A song).
@@ -424,7 +424,8 @@ know, and a field they do not know.
 | 12 `instrument` | → backend | `{ id }` — read every song with this instrument (one `107` listed), on this reader; `null` follows the account's in use again. Answered with `107` |
 | 13 `variation` | → backend | `{ variation }` — read the open song with this variation of its tuning (one `105` listed; `""` the unnamed block), on this reader; `null` follows the account's again. Answered with `105` |
 | 14 `chordNames` | → backend | `{ value }` — `"written"` or `"voiced"`, how the chart names its chords, on this reader; `null` follows the account's again. Answered with `107` |
-| 101 `state` | → frontend | `{ paired, syncing, online, lastSync, shapesShown, error? }` — `lastSync` an RFC 3339 time or `null`; `error` a word code (`offline`, `signedOut`), never a message |
+| 15 `textSize` | → backend | `{ value }` — the chart's text size in points, one of 9, 10, 11, 12, 13, 14, 16, 18, on this reader; `null` the standard 14 again. Answered with `101`, whose `textSize` the frontend lays its screens out at |
+| 101 `state` | → frontend | `{ paired, syncing, online, lastSync, shapesShown, error?, textSize? }` — `lastSync` an RFC 3339 time or `null`; `error` a word code (`offline`, `signedOut`), never a message; `textSize` the chart's text size in points chosen on this reader (absent: the standard 14) — the frontend makes its screens once the first state has come, laid out for the screen AppLoad gives and at this size, and makes them again when another is named |
 | 102 `pairing` | → frontend | `{ code, url, expiresAt }`, or `{ expired: true }`, or `{ offline: true }` |
 | 103 `shelf` | → frontend | the books, in shelf order: `{ books: [{ bookId, title, songs, setlists }] }` — `songs` and `setlists` counts |
 | 104 `book` | → frontend | `{ bookId, title, songs: [{ path, title, artist }], setlists: [{ path, title, songs }] }` |

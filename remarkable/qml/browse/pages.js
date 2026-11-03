@@ -6,7 +6,10 @@
 // letter, the letters' pages, and the words — in English, the reader's one
 // locale (docs/remarkable-reader.md §3.1), kept here in one place.
 
-// Ten rows to a page (workflow 19 §A book, §A setlist, §The shelf).
+// A list's pages are as many rows as its content's height holds (workflow 19
+// §A book, §A setlist, §The shelf): `pages` is each page's first row, from
+// heightPages or evenPages. Without one, ten rows to a page — the rM2's
+// shelf and setlist, whose rows are 150 px under a 96 px line.
 var perPage = 10;
 
 // --- the copy ---
@@ -53,6 +56,7 @@ var copy = {
     asVoiced: "As voiced",
     nameAsVoiced: "Name as voiced",
     nameAsWritten: "Name as written",
+    textSize: "Text size",
     defaultVariation: "Default",
     close: "Close"
 };
@@ -88,20 +92,65 @@ function variationName(v) {
 
 // --- pages ---
 
+// The pages of rows of one height in `height`: each page's first row. One
+// page at least, so an empty list still has its page.
+function evenPages(n, height, rowHeight) {
+    const per = Math.max(1, Math.floor(height / rowHeight));
+    const out = [0];
+    for (let i = per; i < n; i += per)
+        out.push(i);
+    return out;
+}
+
+// The pages of a list whose rows may carry a heading (`heading`, drawn above
+// its row): as many as fit `height`, a heading never left at a page's foot.
+function heightPages(rows, height, rowHeight, headingHeight) {
+    const out = [0];
+    let used = 0;
+    for (let i = 0; i < rows.length; ++i) {
+        const need = rowHeight + (rows[i] && rows[i].heading ? headingHeight : 0);
+        if (used > 0 && used + need > height) {
+            out.push(i);
+            used = 0;
+        }
+        used += need;
+    }
+    return out;
+}
+
 // The pages a list of n rows takes: one at least, so an empty list still has
 // its page (the foot says 1 of 1).
-function pageCount(n) {
+function pageCount(n, pages) {
+    if (pages)
+        return Math.max(1, pages.length);
     return Math.max(1, Math.ceil(n / perPage));
 }
 
 // The page (from 0) holding row i.
-function pageOf(i) {
+function pageOf(i, pages) {
+    if (pages) {
+        let found = 0;
+        for (let p = 0; p < pages.length; ++p)
+            if (pages[p] <= i)
+                found = p;
+        return found;
+    }
     return Math.max(0, Math.floor(i / perPage));
 }
 
+// Page p's rows: { from, to }, `to` past its last.
+function pageRange(p, n, pages) {
+    if (pages) {
+        const from = pages[p] !== undefined ? pages[p] : n;
+        const to = pages[p + 1] !== undefined ? pages[p + 1] : n;
+        return { from: from, to: to };
+    }
+    return { from: p * perPage, to: Math.min(n, (p + 1) * perPage) };
+}
+
 // A page clamped to a list of n rows.
-function clamp(page, n) {
-    const last = pageCount(n) - 1;
+function clamp(page, n, pages) {
+    const last = pageCount(n, pages) - 1;
     if (!(page >= 0))
         return 0;
     return Math.min(Math.floor(page), last);
@@ -142,14 +191,14 @@ var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 // The letters' pages over a book's rows (setlists, then songs): for each
 // letter that starts a song, the page of the first song with it, in the
 // book's order; an absent letter is absent.
-function letterPages(book) {
+function letterPages(book, pages) {
     const setlists = list(book && book.setlists);
     const songs = list(book && book.songs);
     const out = {};
     for (let i = 0; i < songs.length; ++i) {
         const l = songLetter(songs[i]);
         if (l !== "" && !(l in out))
-            out[l] = pageOf(setlists.length + i);
+            out[l] = pageOf(setlists.length + i, pages);
     }
     return out;
 }
@@ -175,11 +224,11 @@ function bookRows(book) {
 }
 
 // The rows of one page, each with its y in the content and its heading's.
-function pageRows(rows, page, rowHeight, headingHeight) {
+function pageRows(rows, page, rowHeight, headingHeight, pages) {
     const out = [];
     let y = 0;
-    const from = page * perPage;
-    for (let i = from; i < Math.min(rows.length, from + perPage); ++i) {
+    const range = pageRange(page, rows.length, pages);
+    for (let i = range.from; i < range.to; ++i) {
         const r = Object.assign({ index: i }, rows[i]);
         if (r.heading) {
             r.headingY = y;

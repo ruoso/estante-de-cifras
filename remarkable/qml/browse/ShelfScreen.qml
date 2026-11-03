@@ -33,7 +33,7 @@ Item {
     readonly property alias syncText: syncText
     readonly property alias emptyText: emptyText
     readonly property int page: d.page
-    readonly property int pageCount: Pages.pageCount(d.books.length)
+    readonly property int pageCount: Pages.pageCount(d.books.length, d.pages)
     readonly property string pending: d.pending
 
     // *Sync* tapped: the person asked for this sync (reader.pairing — a
@@ -46,7 +46,8 @@ Item {
     // A `103 shelf`, drawn at `page` (clamped), with the sync line of `state`.
     function show(shelf, state, page) {
         d.books = Pages.list(shelf && shelf.books);
-        d.page = Pages.clamp(page, d.books.length);
+        d.pages = Pages.evenPages(d.books.length, M.contentHeight - M.syncLineHeight, M.tallRow);
+        d.page = Pages.clamp(page, d.books.length, d.pages);
         d.pending = "";
         listBar.show({ title: Pages.copy.shelfTitle, back: false, action: Pages.copy.sync });
         d.line = Status.statusLine(state);
@@ -69,6 +70,7 @@ Item {
         id: d
         property var books: []
         property int page: 0
+        property var pages: [0]
         property string line: ""
         property string pending: ""
 
@@ -78,8 +80,9 @@ Item {
         }
 
         function commitList() {
-            const from = d.page * Pages.perPage;
-            const rows = d.books.slice(from, from + Pages.perPage).map((b, i) => ({
+            const range = Pages.pageRange(d.page, d.books.length, d.pages);
+            const from = range.from;
+            const rows = d.books.slice(range.from, range.to).map((b, i) => ({
                 index: from + i,
                 bookId: b.bookId,
                 title: Pages.bookTitle(b.title),

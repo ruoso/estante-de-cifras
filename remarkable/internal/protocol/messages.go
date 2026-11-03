@@ -13,7 +13,7 @@ import (
 	"strconv"
 )
 
-// The message types of §6. 1–14 go to the backend, 101–109 to the frontend.
+// The message types of §6. 1–15 go to the backend, 101–109 to the frontend.
 const (
 	TypeHello         int32 = 1
 	TypeOpen          int32 = 2
@@ -29,6 +29,7 @@ const (
 	TypeInstrument    int32 = 12
 	TypeVariation     int32 = 13
 	TypeChordNames    int32 = 14
+	TypeTextSize      int32 = 15
 
 	TypeState    int32 = 101
 	TypePairing  int32 = 102
@@ -166,6 +167,15 @@ type ChordNames struct {
 
 func (ChordNames) Type() int32 { return TypeChordNames }
 
+// TextSize (15): the chart's text size in points (one the reader offers), on
+// this reader only; nil is the standard again (workflow 19 §Settings).
+// Answered with 101, whose textSize the frontend lays its screens out at.
+type TextSize struct {
+	Value *int `json:"value"`
+}
+
+func (TextSize) Type() int32 { return TypeTextSize }
+
 func (Hello) Type() int32         { return TypeHello }
 func (Open) Type() int32          { return TypeOpen }
 func (Key) Type() int32           { return TypeKey }
@@ -196,6 +206,9 @@ type State struct {
 	LastSync    *string `json:"lastSync"`
 	ShapesShown bool    `json:"shapesShown"`
 	Error       string  `json:"error,omitempty"`
+	// TextSize is the chart's text size in points chosen on this reader, 0
+	// for the standard (the frontend lays its screens out at it).
+	TextSize int `json:"textSize,omitempty"`
 }
 
 // Pairing (102): the code to enter, its address and when it expires; or
@@ -401,7 +414,7 @@ var names = map[int32]string{
 	TypePair: "pair", TypeSignOut: "signOut", TypeHideShape: "hideShape",
 	TypeShowShape: "showShape", TypeShowAllShapes: "showAllShapes",
 	TypeShapesShown: "shapesShown", TypePlace: "place",
-	TypeInstrument: "instrument", TypeVariation: "variation", TypeChordNames: "chordNames",
+	TypeInstrument: "instrument", TypeVariation: "variation", TypeChordNames: "chordNames", TypeTextSize: "textSize",
 	TypeState: "state", TypePairing: "pairing", TypeShelf: "shelf",
 	TypeBook: "book", TypeSheet: "sheet", TypeSetlist: "setlist",
 	TypeSettings: "settings", TypeShapes: "shapes", TypeAhead: "ahead",
@@ -453,6 +466,7 @@ var decoders = map[int32]func(Frame) (Message, error){
 	TypeInstrument:    decodeJSON[Instrument],
 	TypeVariation:     decodeJSON[Variation],
 	TypeChordNames:    decodeJSON[ChordNames],
+	TypeTextSize:      decodeJSON[TextSize],
 	TypeState:         decodeJSON[State],
 	TypePairing:       decodeJSON[Pairing],
 	TypeShelf:         decodeJSON[Shelf],

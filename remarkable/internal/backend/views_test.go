@@ -1284,3 +1284,23 @@ func TestAccountChordNamesRead(t *testing.T) {
 		t.Errorf("written chosen over the account's voiced read %v", symbolsOf(sheet))
 	}
 }
+
+// TestChooseTextSize pins workflow 19 §Settings: a text size chosen (15) is
+// kept on this reader and answered with the state, which carries it; null is
+// the standard again.
+func TestChooseTextSize(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, ownEngine(t))
+	s.send(t, protocol.TypeTextSize, map[string]any{"value": 11})
+	var st protocol.State
+	s.expect(t, protocol.TypeState, &st)
+	if st.TextSize != 11 || f.st.TextSize() != 11 {
+		t.Errorf("state text size %d, kept %d; want 11", st.TextSize, f.st.TextSize())
+	}
+	s.send(t, protocol.TypeTextSize, map[string]any{"value": nil})
+	st = protocol.State{}
+	s.expect(t, protocol.TypeState, &st)
+	if st.TextSize != 0 || f.st.TextSize() != 0 {
+		t.Errorf("the standard again: state %d, kept %d", st.TextSize, f.st.TextSize())
+	}
+}

@@ -64,6 +64,7 @@ func every() []Message {
 		Instrument{ID: ptr("cavaquinho-1")},
 		Variation{Variation: ptr("Up the neck")},
 		ChordNames{Value: ptr("voiced")},
+		TextSize{Value: ptr(11)},
 		State{Paired: true, Syncing: false, Online: false, LastSync: ptr("2026-11-01T09:10:00Z"), ShapesShown: true, Error: ErrorOffline},
 		Pairing{Code: "K7QX-2M", URL: "https://estantedecifras.app/pair", ExpiresAt: "2026-11-01T14:42:00Z"},
 		Shelf{Books: []ShelfBook{{BookID: "b1", Title: "Roda de sábado", Songs: 32, Setlists: 4}}},
@@ -176,6 +177,8 @@ func TestWireNames(t *testing.T) {
 		{Variation{}, `{"variation":null}`},
 		{ChordNames{Value: ptr("voiced")}, `{"value":"voiced"}`},
 		{ChordNames{}, `{"value":null}`},
+		{TextSize{Value: ptr(11)}, `{"value":11}`},
+		{TextSize{}, `{"value":null}`},
 		{Settings{Account: "a", Version: "v", ChordNames: "voiced", ChordNamesChosen: true, AccountChordNames: "written"}, `{"account":"a","version":"v","hiddenShapes":0,"updateReader":false,"chordNames":"voiced","chordNamesChosen":true,"accountChordNames":"written"}`},
 		// §6 108 shapes (reader.missed_shapes).
 		{Shapes{BookID: "b1", Path: "a.cifra.md", Offset: 2, TuningID: "40 45 50 55 59 64", Shapes: []SheetShape{

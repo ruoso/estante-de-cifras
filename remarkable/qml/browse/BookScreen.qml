@@ -35,7 +35,7 @@ Item {
     // The book shown ({ bookId, title, … }), null before the first.
     readonly property var book: d.book
     readonly property int page: d.page
-    readonly property int pageCount: Pages.pageCount(d.rows.length)
+    readonly property int pageCount: Pages.pageCount(d.rows.length, d.pages)
     readonly property bool hasLetters: d.hasLetters
     readonly property string pending: d.pending
 
@@ -46,11 +46,17 @@ Item {
     function show(book, page) {
         d.book = book;
         d.rows = Pages.bookRows(book);
-        d.page = Pages.clamp(page, d.rows.length);
+        // As many rows as the content holds; past two pages the letter rows
+        // take their room at its foot, and the rows what is left.
+        let pages = Pages.heightPages(d.rows, M.contentHeight, M.listRow, M.listHeading);
+        d.hasLetters = pages.length > 2;
+        if (d.hasLetters)
+            pages = Pages.heightPages(d.rows, M.contentHeight - M.letterRowsHeight, M.listRow, M.listHeading);
+        d.pages = pages;
+        d.page = Pages.clamp(page, d.rows.length, d.pages);
         d.pending = "";
-        d.hasLetters = screen.pageCount > 2;
         listBar.show({ title: Pages.bookTitle(book && book.title), back: true, action: "" });
-        letterRows.show({ pages: d.hasLetters ? Pages.letterPages(book) : {} });
+        letterRows.show({ pages: d.hasLetters ? Pages.letterPages(book, d.pages) : {} });
         d.commitList();
         d.commitFoot();
     }
@@ -59,6 +65,7 @@ Item {
         id: d
         property var book: null
         property var rows: []
+        property var pages: [0]
         property int page: 0
         property bool hasLetters: false
         property string pending: ""
@@ -70,7 +77,7 @@ Item {
 
         function commitList() {
             listRegion.show({
-                rows: Pages.pageRows(d.rows, d.page, M.listRow, M.listHeading),
+                rows: Pages.pageRows(d.rows, d.page, M.listRow, M.listHeading, d.pages),
                 empty: d.rows.length === 0 || Pages.list(d.book && d.book.songs).length === 0
             });
         }
