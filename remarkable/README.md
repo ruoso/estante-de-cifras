@@ -111,8 +111,14 @@ go test ./internal/backend -run TestQMLFixtures -update-qml-fixtures
 ```
 
 Read the difference before keeping it. The faces under `qml/fonts/` are the
-app's `woff2` files and licences byte for byte (`app/src/theme/fonts/`);
-`tools/appfolder`'s tests fail when they drift.
+app's `woff2` files (`app/src/theme/fonts/`) decoded to TrueType, which the
+reMarkable's Qt can read and `woff2` it cannot, with the licences byte for
+byte; `tools/appfolder`'s tests fail when an app font changes, until
+`python3 tools/fonts/convert.py` (fontTools and brotli) makes them again:
+
+```sh
+python3 tools/fonts/convert.py
+```
 
 The app AppLoad loads is a folder, `estante/`: `manifest.json`, `icon.png`,
 `resources.rcc` (everything under `qml/` but its `tests/` and `harness/`,

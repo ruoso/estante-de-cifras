@@ -8,8 +8,10 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"debug/elf"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"image"
@@ -223,8 +225,11 @@ func TestQrcCarriesAppQMLOnly(t *testing.T) {
 
 // TestQrcCarriesFaces: built from the real qml/, the resources carry the
 // reader's three faces and each family's licence (reader.qml_chart; workflow
-// 19 §The screen, as amended), and each file is byte for byte the app's
-// (app/src/theme/fonts/README.md: kept as distributed, never re-encoded).
+// 19 §The screen, as amended): each face as TrueType, decoded from the app's
+// woff2 by tools/fonts/convert.py — the reMarkable's Qt cannot read woff2 —
+// whose sources.json names the woff2 by its SHA-256, so a changed app font
+// fails here until the faces are converted again; each LICENSE byte for byte
+// the app's (app/src/theme/fonts/README.md). No woff2 is carried.
 func TestQrcCarriesFaces(t *testing.T) {
 	const qml = "../../qml"
 	const appFonts = "../../../app/src/theme/fonts"
@@ -245,39 +250,70 @@ func TestQrcCarriesFaces(t *testing.T) {
 		carried[f.Alias] = f.Path
 	}
 	families := map[string][]string{
-		"figtree": {"figtree-latin-wght-normal.woff2", "figtree-latin-ext-wght-normal.woff2"},
+		"figtree": {"figtree-latin-wght-normal", "figtree-latin-ext-wght-normal"},
 		"atkinson-hyperlegible": {
-			"atkinson-hyperlegible-latin-400-normal.woff2", "atkinson-hyperlegible-latin-ext-400-normal.woff2",
-			"atkinson-hyperlegible-latin-700-normal.woff2", "atkinson-hyperlegible-latin-ext-700-normal.woff2",
+			"atkinson-hyperlegible-latin-400-normal", "atkinson-hyperlegible-latin-ext-400-normal",
+			"atkinson-hyperlegible-latin-700-normal", "atkinson-hyperlegible-latin-ext-700-normal",
 		},
 		"atkinson-hyperlegible-mono": {
-			"atkinson-hyperlegible-mono-latin-wght-normal.woff2", "atkinson-hyperlegible-mono-latin-ext-wght-normal.woff2",
+			"atkinson-hyperlegible-mono-latin-wght-normal", "atkinson-hyperlegible-mono-latin-ext-wght-normal",
 		},
 	}
-	for family, files := range families {
-		for _, name := range append([]string{"LICENSE"}, files...) {
-			alias := "fonts/" + family + "/" + name
-			path, ok := carried[alias]
+	var sources map[string]struct {
+		From   string `json:"from"`
+		SHA256 string `json:"sha256"`
+	}
+	sraw, err := os.ReadFile(filepath.Join(qml, "fonts", "sources.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(sraw, &sources); err != nil {
+		t.Fatalf("fonts/sources.json: %v", err)
+	}
+	read := func(path string) []byte {
+		t.Helper()
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+	for family, names := range families {
+		lic, ok := carried["fonts/"+family+"/LICENSE"]
+		if !ok {
+			t.Errorf("the qrc does not carry fonts/%s/LICENSE", family)
+		} else if !bytes.Equal(read(lic), read(filepath.Join(appFonts, family, "LICENSE"))) {
+			t.Errorf("fonts/%s/LICENSE differs from the app's", family)
+		}
+		for _, name := range names {
+			rel := family + "/" + name + ".ttf"
+			path, ok := carried["fonts/"+rel]
 			if !ok {
-				t.Errorf("the qrc does not carry %s", alias)
+				t.Errorf("the qrc does not carry fonts/%s", rel)
 				continue
 			}
-			got, err := os.ReadFile(path)
-			if err != nil {
-				t.Fatal(err)
+			if head := read(path); len(head) < 4 || !bytes.Equal(head[:4], []byte{0, 1, 0, 0}) {
+				t.Errorf("fonts/%s is not TrueType", rel)
 			}
-			want, err := os.ReadFile(filepath.Join(appFonts, family, name))
-			if err != nil {
-				t.Fatal(err)
+			src, ok := sources[rel]
+			if !ok {
+				t.Errorf("fonts/sources.json does not name fonts/%s", rel)
+				continue
 			}
-			if !bytes.Equal(got, want) {
-				t.Errorf("%s differs from app/src/theme/fonts/%s/%s", alias, family, name)
+			woff2 := filepath.Join(appFonts, family, name+".woff2")
+			if want := "app/src/theme/fonts/" + family + "/" + name + ".woff2"; src.From != want {
+				t.Errorf("fonts/%s comes from %s, want %s", rel, src.From, want)
+			}
+			sum := sha256.Sum256(read(woff2))
+			if got := hex.EncodeToString(sum[:]); got != src.SHA256 {
+				t.Errorf("app/src/theme/fonts/%s/%s.woff2 changed since fonts/%s was made: run python3 tools/fonts/convert.py in remarkable/", family, name, rel)
 			}
 		}
 	}
-	// Nothing else under fonts/: no family the reader does not load.
+	// Nothing else under fonts/ but sources.json: no family the reader does
+	// not load, and no woff2 the device cannot read.
 	for alias := range carried {
-		if !strings.HasPrefix(alias, "fonts/") {
+		if !strings.HasPrefix(alias, "fonts/") || alias == "fonts/sources.json" {
 			continue
 		}
 		parts := strings.Split(alias, "/")
@@ -287,6 +323,9 @@ func TestQrcCarriesFaces(t *testing.T) {
 		}
 		if _, ok := families[parts[1]]; !ok {
 			t.Errorf("the qrc carries %s, a family the reader does not load", alias)
+		}
+		if strings.HasSuffix(alias, ".woff2") || strings.HasSuffix(alias, ".woff") {
+			t.Errorf("the qrc carries %s, which the reMarkable's Qt cannot read", alias)
 		}
 	}
 	for _, chart := range []string{"chart/SheetView.qml", "chart/Faces.qml", "chart/ChordDiagram.qml"} {

@@ -77,7 +77,9 @@ def check(folder, engine):
 
 # The chart's files and the faces it loads from the folder's own resources
 # (reader.qml_chart): each must compile and create from the rcc, and every
-# FontLoader must reach Ready, reading the woff2 files out of resources.rcc.
+# FontLoader must reach Ready, reading the .ttf files out of resources.rcc.
+# No woff2: the reMarkable's Qt cannot read it (its FreeType has no Brotli),
+# though the desktop Qt this check runs on can — so it is refused by name.
 CHART = ("chart/SheetView.qml", "chart/Faces.qml")
 FONT_LOADER_READY = 1
 
@@ -101,9 +103,12 @@ def check_chart(engine, root, names):
     from PySide6.QtCore import QUrl
 
     problems = []
-    fonts = [n for n in names if n.startswith("fonts/") and n.endswith(".woff2")]
+    fonts = [n for n in names if n.startswith("fonts/") and n.endswith(".ttf")]
     if not fonts:
-        problems.append("the resources carry no fonts/*.woff2")
+        problems.append("the resources carry no fonts/*.ttf")
+    for n in names:
+        if n.endswith(".woff2") or n.endswith(".woff"):
+            problems.append(f"the resources carry {n}, which the reMarkable's Qt cannot read")
     for rel, faces_expr in zip(CHART, ("faces", "this")):
         if rel not in names:
             problems.append(f"the resources carry no {rel}")

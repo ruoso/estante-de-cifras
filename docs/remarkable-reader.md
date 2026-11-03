@@ -482,10 +482,19 @@ the black dot — and the fret number, the start fret beside the first row when
 the nut is not shown. Nothing is antialiased into grey. Large and compact are
 one component at two sizes.
 
-**The faces travel as the app's files.** `remarkable/qml/fonts/` holds the
-app's `woff2` files (`app/src/theme/fonts/`) byte for byte, with their
-licences, loaded with `FontLoader`; the gate's Qt reads them, and the folder
-check loads them from `resources.rcc` as AppLoad would.
+**The faces travel as the app's files, as TrueType.** `remarkable/qml/fonts/`
+holds each of the app's `woff2` files (`app/src/theme/fonts/`) decoded to a
+`.ttf` — same family, name and subset; only the container changes, which the
+OFL permits — with each family's licence byte for byte, loaded with
+`FontLoader`. Not the `woff2` itself: the reMarkable's Qt (6.10 on OS 3.29)
+cannot read it, its FreeType being built without Brotli, while the desktop Qt
+the tests run on can — so the folder check refuses a `woff2` by name.
+`remarkable/tools/fonts/convert.py` makes the `.ttf` files and
+`fonts/sources.json`, which names each one's `woff2` by its SHA-256;
+`tools/appfolder`'s tests fail when an app font changes until it is run again.
+The folder check loads them from `resources.rcc` as AppLoad would. A face
+that still fails to load counts as settled (`Faces.failed`): the chart is
+laid out in Qt's fallback face rather than never.
 
 Why not the SVG the web app draws: measured with Qt 6.12's SVG renderer, the
 chord box as the app emits it draws only its dots — every stroke, the nut and

@@ -1,0 +1,34 @@
+{
+  "atkinson-hyperlegible-mono/atkinson-hyperlegible-mono-latin-ext-wght-normal.ttf": {
+    "from": "app/src/theme/fonts/atkinson-hyperlegible-mono/atkinson-hyperlegible-mono-latin-ext-wght-normal.woff2",
+    "sha256": "3fa1fa7e990377c87018d62f356cc42b8db39fd88cee5724431e9f0d63b7f32f"
+  },
+  "atkinson-hyperlegible-mono/atkinson-hyperlegible-mono-latin-wght-normal.ttf": {
+    "from": "app/src/theme/fonts/atkinson-hyperlegible-mono/atkinson-hyperlegible-mono-latin-wght-normal.woff2",
+    "sha256": "2706b1ee4f452e744ea91f7e4908cbde9c5d35521bf5ffffc71a382a2de89613"
+  },
+  "atkinson-hyperlegible/atkinson-hyperlegible-latin-400-normal.ttf": {
+    "from": "app/src/theme/fonts/atkinson-hyperlegible/atkinson-hyperlegible-latin-400-normal.woff2",
+    "sha256": "d64ba838ef5472bba248620ec4fd8b5aa7cf0db2908e0bb230600caf279ba7bc"
+  },
+  "atkinson-hyperlegible/atkinson-hyperlegible-latin-700-normal.ttf": {
+    "from": "app/src/theme/fonts/atkinson-hyperlegible/atkinson-hyperlegible-latin-700-normal.woff2",
+    "sha256": "140e2bd25a7315c8a062508391426b0d8c3297400c947b8d847be28f73a199f0"
+  },
+  "atkinson-hyperlegible/atkinson-hyperlegible-latin-ext-400-normal.ttf": {
+    "from": "app/src/theme/fonts/atkinson-hyperlegible/atkinson-hyperlegible-latin-ext-400-normal.woff2",
+    "sha256": "61eeb0eb8b881a84d069e67be1723f5b353b0b9b866ad8e7ad9dba66cdc4dabd"
+  },
+  "atkinson-hyperlegible/atkinson-hyperlegible-latin-ext-700-normal.ttf": {
+    "from": "app/src/theme/fonts/atkinson-hyperlegible/atkinson-hyperlegible-latin-ext-700-normal.woff2",
+    "sha256": "840ced16f975d8abc2594b436d0206649e0c2a7327e36750ff849d3d37c3c02e"
+  },
+  "figtree/figtree-latin-ext-wght-normal.ttf": {
+    "from": "app/src/theme/fonts/figtree/figtree-latin-ext-wght-normal.woff2",
+    "sha256": "bf7828e2c258cffcfa50a048ee388a36b95bc16b452e8d36fa797635dbe15965"
+  },
+  "figtree/figtree-latin-wght-normal.ttf": {
+    "from": "app/src/theme/fonts/figtree/figtree-latin-wght-normal.woff2",
+    "sha256": "4ba7d3d096695818fe0686be4f1e82c6b05134e18a22260336130335027462dd"
+  }
+}

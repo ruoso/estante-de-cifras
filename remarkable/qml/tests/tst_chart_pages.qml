@@ -321,4 +321,20 @@ TestCase {
         compare(view.pageCount, 2);
         verify(Walk.inked(view.pageItem(0)).length > 0);
     }
+
+    // A face that fails to load (on the reMarkable a woff2 did: its Qt has no
+    // Brotli) settles the faces anyway: the song is laid out and drawn in the
+    // fallback face, never left waiting with nothing on the screen.
+    function test_aFaceThatFailsStillLaysOut() {
+        const view = open(TwoColumns.sheet);
+        const faces = view.faces;
+        verify(!faces.failed);
+        faces.loaders[0].source = "../fonts/figtree/missing.ttf";
+        tryVerify(() => faces.loaders[0].status === FontLoader.Error);
+        verify(faces.failed);
+        verify(faces.ready);
+        compare(view.facesReady, true);
+        tryVerify(() => view.pageCount > 0);
+        verify(Walk.inked(view.pageItem(0)).length > 0);
+    }
 }
