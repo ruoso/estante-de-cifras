@@ -110,6 +110,11 @@ func TestManifest(t *testing.T) {
 	if err := json.Unmarshal(raw, &got); err != nil {
 		t.Fatal(err)
 	}
+	stamp, _ := got["screens"].(string)
+	if len(stamp) != 12 {
+		t.Errorf("screens %q, want a twelve-digit stamp", got["screens"])
+	}
+	delete(got, "screens")
 	want := map[string]any{
 		"id": "estante", "name": "Estante", "entry": "/Main.qml",
 		"loadsBackend": true, "canHaveMultipleFrontends": false,
@@ -405,5 +410,74 @@ func TestUsage(t *testing.T) {
 	}
 	if stderr.String() != usage+"\n" {
 		t.Errorf("stderr %q, want the usage line", stderr.String())
+	}
+}
+
+// stampOf builds a folder from qml and answers the manifest's screens stamp
+// and the build.js the rcc carries (read out of the qrc as rcc runs it).
+func stampOf(t *testing.T, qml string) (stamp, buildJS string) {
+	t.Helper()
+	out := t.TempDir()
+	rcc := func(tool, qrc, dst string) error {
+		raw, err := os.ReadFile(qrc)
+		if err != nil {
+			return err
+		}
+		var doc qrcDoc
+		if err := xml.Unmarshal(raw, &doc); err != nil {
+			return err
+		}
+		for _, f := range doc.Resources[0].Files {
+			if f.Alias == "build.js" {
+				b, err := os.ReadFile(f.Path)
+				if err != nil {
+					return err
+				}
+				buildJS = string(b)
+			}
+		}
+		return os.WriteFile(dst, raw, 0o644)
+	}
+	opts := options{Arch: "armv7", Backend: backendFor(t, "armv7"), QML: qml, RCC: "rcc", Bundle: bundleTree(t), Out: out}
+	if err := build(opts, rcc); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(out, appID, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m struct {
+		Screens string `json:"screens"`
+	}
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	return m.Screens, buildJS
+}
+
+// TestScreensStamp pins design §8's build stamp: the rcc's build.js names
+// the manifest's screens stamp in place of the source's; the stamp follows
+// every QML file but build.js itself.
+func TestScreensStamp(t *testing.T) {
+	qml := qmlTree(t, "Main.qml", "song/Song.qml", "build.js")
+	stamp, js := stampOf(t, qml)
+	if !strings.Contains(js, `var screens = "`+stamp+`";`) {
+		t.Errorf("the rcc's build.js %q does not name the stamp %s", js, stamp)
+	}
+	again, _ := stampOf(t, qml)
+	if again != stamp {
+		t.Errorf("the same QML stamped %s then %s", stamp, again)
+	}
+	if err := os.WriteFile(filepath.Join(qml, "build.js"), []byte("var screens = \"other\";\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := stampOf(t, qml); got != stamp {
+		t.Errorf("build.js changed the stamp: %s, want %s", got, stamp)
+	}
+	if err := os.WriteFile(filepath.Join(qml, "song", "Song.qml"), []byte("// changed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := stampOf(t, qml); got == stamp {
+		t.Error("a changed QML file kept the stamp")
 	}
 }

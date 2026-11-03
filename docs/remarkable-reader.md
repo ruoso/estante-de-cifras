@@ -584,6 +584,21 @@ one release keeps the three from ever disagreeing.
   code and backend together. A swap that fails puts the folder back and the
   backend runs on. Going back is the install's: the previous folder in place
   (INSTALL.md §6).
+- **Stale screens.** AppLoad registers an app's `resources.rcc` under a
+  prefix it draws when it loads its list of apps, so the launch after a swap
+  registers the new rcc under URLs xochitl's QML engine already compiled, and
+  runs the old screens from its cache until AppLoad's list is reloaded. So
+  `tools/appfolder` stamps the screens it compiles — a digest of the QML, in
+  the rcc's `build.js` and in the folder's `manifest.json` as `screens` — and
+  the screens say hello with their own; the backend names the folder's in
+  `101 state`. Different at the first state, the screens draw nothing, close,
+  reload AppLoad's list (`AppLoadLibrary.reloadList()`: new prefixes, new
+  URLs) and launch Estante again (`AppLoadLauncher.launchApplication`), in one
+  call — the close unloads their resources at once, and their objects are
+  deleted after it returns. Estante closes and opens once, at launch, never
+  under a song. The same stale stamp saying hello twice means the reload did
+  not help: the backend stops naming the folder's, and the screens read with
+  what they have.
 - **The music code** switches as before, through the store: at start the
   backend stages the folder's `bundle/` in `bundle/next/` when it is not the
   one current or staged and was not refused — at once current when there is

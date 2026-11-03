@@ -9,6 +9,7 @@
 // unloads, and has the root's contract AppLoad relies on.
 import QtQuick
 import QtTest
+import net.asivery.AppLoad 1.0
 import ".."
 import "fixtures/few-chords.js" as FewChords
 import "fixtures/found-shape.js" as FoundShape
@@ -529,5 +530,65 @@ TestCase {
         compare(visibleScreens(main), ["notPaired"]);
         verify(!main.notPaired.signedOut);
         verify(!main.notPaired.signedOutText.visible);
+    }
+
+    // --- stale screens (design §8) ---
+
+    Component {
+        id: stampedMainComponent
+        Main {
+            id: stamped
+            ownScreens: "aaaaaaaaaaaa"
+            readonly property SignalSpy closeSpy: SignalSpy {
+                target: stamped
+                signalName: "close"
+            }
+        }
+    }
+
+    // Screens built by tools/appfolder say hello with their stamp, and with
+    // the folder's in the state they are made as ever.
+    function test_currentScreensMade() {
+        AppLoadLauncher.clear();
+        const main = createTemporaryObject(stampedMainComponent, testCase.parent);
+        compare(main.endpoint.sent[0].payload, { screens: "aaaaaaaaaaaa" });
+        main.endpoint.play(101, stateMessage({ screens: "aaaaaaaaaaaa" }));
+        verify(main.screens !== null);
+        compare(main.view, "notPaired");
+        compare(AppLoadLauncher.calls, []);
+        compare(main.closeSpy.count, 0);
+    }
+
+    // A state naming the folder's other stamp: these screens are a stale
+    // cache; nothing is drawn, Main closes, reloads AppLoad's list and
+    // launches Estante again, in that order, and reads nothing after.
+    function test_staleScreensReloaded() {
+        AppLoadLauncher.clear();
+        const main = createTemporaryObject(stampedMainComponent, testCase.parent);
+        main.endpoint.play(101, stateMessage({ paired: true, screens: "bbbbbbbbbbbb" }));
+        verify(main.reloading);
+        compare(main.screens, null);
+        compare(main.closeSpy.count, 1);
+        compare(AppLoadLauncher.calls, ["reloadList", "launch:estante:false"]);
+        compare(sentAfterHello(main), []);
+        main.endpoint.play(101, stateMessage({ paired: true, screens: "bbbbbbbbbbbb" }));
+        main.endpoint.play(103, clone(BrowseShelf.shelf));
+        compare(main.screens, null);
+        compare(AppLoadLauncher.calls.length, 2);
+    }
+
+    // Screens with no stamp (the source, the tests) compare nothing; a state
+    // with no stamp (the backend gave up after a reload did not help) is no
+    // reason to reload.
+    function test_noStampComparesNothing() {
+        AppLoadLauncher.clear();
+        const plain = createTemporaryObject(mainComponent, testCase.parent);
+        compare(plain.endpoint.sent[0].payload, {});
+        plain.endpoint.play(101, stateMessage({ screens: "bbbbbbbbbbbb" }));
+        verify(plain.screens !== null);
+        const stamped = createTemporaryObject(stampedMainComponent, testCase.parent);
+        stamped.endpoint.play(101, stateMessage({}));
+        verify(stamped.screens !== null);
+        compare(AppLoadLauncher.calls, []);
     }
 }

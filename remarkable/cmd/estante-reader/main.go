@@ -33,6 +33,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -545,6 +546,7 @@ func runCommand(args []string) error {
 		Engine: viewEng, Version: version,
 		Pair:    &pair.Client{Origin: origin},
 		Updates: updatesOf(updater),
+		Screens: folderScreens(app),
 	})
 	if err != nil && ctx.Err() != nil {
 		// A signal is an ending like terminate.
@@ -560,6 +562,25 @@ func dialError(err error) error {
 		return fmt.Errorf("could not dial AppLoad's socket: %s", errno.Error())
 	}
 	return errors.New("could not dial AppLoad's socket")
+}
+
+// folderScreens is the build stamp of the screens in the AppLoad folder app
+// (its manifest.json's screens; tools/appfolder), "" when unknown.
+func folderScreens(app string) string {
+	if app == "" {
+		return ""
+	}
+	raw, err := os.ReadFile(filepath.Join(app, "manifest.json"))
+	if err != nil {
+		return ""
+	}
+	var m struct {
+		Screens string `json:"screens"`
+	}
+	if json.Unmarshal(raw, &m) != nil {
+		return ""
+	}
+	return m.Screens
 }
 
 // checkerOf is the updater as sync's Checker, nil (not a typed nil) when

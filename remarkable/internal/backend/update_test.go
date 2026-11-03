@@ -382,3 +382,45 @@ func TestFailedSwapRunsOn(t *testing.T) {
 		t.Errorf("after a failed swap the backend answered %q", sheet.Path)
 	}
 }
+
+// TestStateCarriesTheFolderScreens pins design §8's stale screens: states
+// carry the folder's build stamp; a frontend whose own is stale twice in a
+// row gets states without it (a reload did not bring the folder's); one
+// whose own matches resets that.
+func TestStateCarriesTheFolderScreens(t *testing.T) {
+	f := newViewsFixture(t)
+	conn, p := pair(t)
+	syncer := newFakeSyncer()
+	syncer.snap = f.snapshot()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- Serve(ctx, conn, Deps{Store: f.st, Syncer: syncer, Relay: NewRelay(), Screens: "abc123abc123"})
+	}()
+	t.Cleanup(func() { cancel(); <-done })
+	hello := func(own string) protocol.State {
+		t.Helper()
+		p.send(protocol.TypeHello, `{"screens":"`+own+`"}`)
+		var st protocol.State
+		f := p.recv()
+		if f.typ != protocol.TypeState {
+			t.Fatalf("got %d, want a state", f.typ)
+		}
+		if err := json.Unmarshal(f.payload, &st); err != nil {
+			t.Fatal(err)
+		}
+		return st
+	}
+	if got := hello("abc123abc123").Screens; got != "abc123abc123" {
+		t.Errorf("current screens: state says %q", got)
+	}
+	if got := hello("old000old000").Screens; got != "abc123abc123" {
+		t.Errorf("stale once: state says %q, want the folder's (reload)", got)
+	}
+	if got := hello("old000old000").Screens; got != "" {
+		t.Errorf("stale twice: state says %q, want none (read with what it has)", got)
+	}
+	if got := hello("abc123abc123").Screens; got != "abc123abc123" {
+		t.Errorf("current again: state says %q", got)
+	}
+}

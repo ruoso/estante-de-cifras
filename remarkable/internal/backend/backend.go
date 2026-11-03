@@ -79,6 +79,9 @@ type Deps struct {
 	// the session it brings is kept for (reader.pairing). Nil: a pair is
 	// answered as an expired code.
 	Pair *pairing.Client
+	// Screens is the build stamp of the screens in the AppLoad folder (its
+	// manifest.json's screens), which states carry ("" when unknown).
+	Screens string
 	// Updates is the self-update's staged release (design §8): once one is
 	// ready and no frontend is attached, Serve swaps it in and returns, so
 	// the next launch runs it. Nil: no self-update.
@@ -103,6 +106,34 @@ type Relay struct {
 	// which switches to a staged bundle then when no engine is loaded
 	// (reader.self_update Decision 5).
 	passEnded chan struct{}
+	// screens is the folder's build stamp; stale the stamp a frontend said
+	// hello with that differs from it, and how many hellos in a row did
+	// (design §8: a second means a reload did not bring the folder's).
+	screens    string
+	stale      string
+	staleHello int
+}
+
+// setScreens keeps the folder's build stamp, which states carry.
+func (r *Relay) setScreens(stamp string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.screens = stamp
+}
+
+// hello notes a frontend's own build stamp.
+func (r *Relay) hello(own string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.screens == "" || own == "" || own == r.screens {
+		r.stale, r.staleHello = "", 0
+		return
+	}
+	if own == r.stale {
+		r.staleHello++
+	} else {
+		r.stale, r.staleHello = own, 1
+	}
 }
 
 // NewRelay makes a Relay with no status yet.
@@ -198,6 +229,11 @@ func (r *Relay) stateLocked() protocol.State {
 			s.LastSync = &v
 		}
 	}
+	// The folder's stamp, unless the frontend's has been stale twice: then
+	// a reload did not bring the folder's, and it reads with what it has.
+	if r.staleHello < 2 {
+		s.Screens = r.screens
+	}
 	if r.status != nil {
 		s.Syncing = r.status.Syncing
 		s.Online = r.status.Online
@@ -222,6 +258,7 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 	}
 	relay.attach(conn, b.Store)
 	defer relay.attach(nil, nil)
+	relay.setScreens(b.Screens)
 
 	syncCtx, cancelSync := context.WithCancel(ctx)
 	ran := make(chan struct{})
@@ -317,6 +354,7 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 		case protocol.Terminate:
 			return nil
 		case protocol.Hello:
+			relay.hello(m.(protocol.Hello).Screens)
 			if err := relay.sendState(conn); err != nil {
 				return err
 			}

@@ -67,7 +67,11 @@ func (Detached) Type() int32  { return TypeDetached }
 // --- To the backend ---
 
 // Hello (1): the frontend attached; the backend answers with State.
-type Hello struct{}
+type Hello struct {
+	// Screens is the frontend's own build stamp (its build.js), "" for
+	// screens not built by tools/appfolder.
+	Screens string `json:"screens,omitempty"`
+}
 
 // The views Open asks for.
 const (
@@ -209,6 +213,11 @@ type State struct {
 	// TextSize is the chart's text size in points chosen on this reader, 0
 	// for the standard (the frontend lays its screens out at it).
 	TextSize int `json:"textSize,omitempty"`
+	// Screens is the build stamp of the screens in the AppLoad folder (its
+	// manifest.json): a frontend whose own differs is a stale cache, and
+	// reloads AppLoad's list and relaunches. "" when unknown, or when a
+	// reload did not bring them (design §8).
+	Screens string `json:"screens,omitempty"`
 }
 
 // Pairing (102): the code to enter, its address and when it expires; or

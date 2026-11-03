@@ -12,9 +12,22 @@
 // chart's text at the size the state names (`textSize`, in points, kept on
 // this reMarkable — workflow 19 §Settings). A state naming another text size
 // makes the screens again at it, and reopens Settings, where it was chosen.
+//
+// Stale screens (design §8): AppLoad registers an app's resources.rcc under a
+// prefix it draws when it loads its list of apps, so after an update the next
+// launch registers the new rcc under URLs xochitl's QML engine has already
+// compiled — and runs the old screens from its cache. Main says hello with
+// its own build stamp (build.js) and, when the first state names another (the
+// folder's, which the backend reads), draws nothing: it closes, reloads
+// AppLoad's list (new prefixes, new URLs) and relaunches Estante, in one
+// call — the close unloads these screens' resources at once, and their
+// objects are deleted only after it returns. The backend stops naming the
+// folder's stamp when the same stale one says hello twice, so a reload that
+// does not help is not tried again.
 import QtQuick
 import net.asivery.AppLoad 1.0
 import "chart/metrics.js" as M
+import "build.js" as Build
 
 Rectangle {
     id: root
@@ -45,6 +58,11 @@ Rectangle {
     readonly property bool songShown: view === "song"
     // The text size the screens were made at, 0 before they are.
     readonly property int textSize: d.textSize
+    // These screens' build stamp ("" for screens not built by tools/
+    // appfolder, which compare nothing).
+    property string ownScreens: Build.screens
+    // Stale screens found: closing, to be launched again.
+    readonly property bool reloading: d.reloading
 
     // Called by AppLoad as it unloads the UI. The backend is left running, so
     // it keeps syncing in the background (design §2, §5.3).
@@ -54,6 +72,21 @@ Rectangle {
     QtObject {
         id: d
         property int textSize: 0
+        property bool reloading: false
+
+        // Whether the state names screens other than these.
+        function stale(state) {
+            return root.ownScreens !== "" && typeof state.screens === "string"
+                && state.screens !== "" && state.screens !== root.ownScreens;
+        }
+
+        // Close, reload AppLoad's list, launch Estante again.
+        function reloadScreens() {
+            d.reloading = true;
+            root.close();
+            library.reloadList();
+            AppLoadLauncher.launchApplication(backend.applicationID, [], {}, false);
+        }
 
         // The screens for a state's text size: made at the first state, made
         // again when another size is named.
@@ -86,6 +119,10 @@ Rectangle {
         }
     }
 
+    AppLoadLibrary {
+        id: library
+    }
+
     AppLoad {
         id: backend
         applicationID: "estante"
@@ -100,6 +137,12 @@ Rectangle {
             }
             if (payload === null || typeof payload !== "object")
                 return;
+            if (d.reloading)
+                return;
+            if (type === 101 && loader.item === null && d.stale(payload)) {
+                d.reloadScreens();
+                return;
+            }
             if (type === 101)
                 d.screensFor(payload);
             if (loader.item !== null)
@@ -108,5 +151,5 @@ Rectangle {
     }
 
     // Design §6 `1 hello`: JSON always, `{}` (protocol.md Decision 8).
-    Component.onCompleted: backend.sendMessage(1, JSON.stringify({}))
+    Component.onCompleted: backend.sendMessage(1, JSON.stringify(root.ownScreens !== "" ? { screens: root.ownScreens } : {}))
 }

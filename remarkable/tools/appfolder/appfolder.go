@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"debug/elf"
 	_ "embed"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -44,6 +46,28 @@ type manifest struct {
 	SupportsScaling          bool   `json:"supportsScaling"`
 	AspectRatio              string `json:"aspectRatio"`
 	Width                    string `json:"width"`
+	// Screens is the screens' build stamp, the one compiled into their
+	// build.js: the backend reports it, and the screens reload when theirs
+	// differs (a stale cache of xochitl's). AppLoad ignores it.
+	Screens string `json:"screens"`
+}
+
+// buildStamp is the QML's build stamp: the first twelve hex digits of a
+// SHA-256 over each file's path and bytes, in order, but build.js's own.
+func buildStamp(dir string, files []string) (string, error) {
+	h := sha256.New()
+	for _, rel := range files {
+		if rel == "build.js" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(rel)))
+		if err != nil {
+			return "", err
+		}
+		fmt.Fprintf(h, "%s\x00%d\x00", rel, len(data))
+		h.Write(data)
+	}
+	return hex.EncodeToString(h.Sum(nil))[:12], nil
 }
 
 func theManifest() manifest {
@@ -120,7 +144,13 @@ func build(opts options, rcc rccFunc) error {
 		return err
 	}
 
-	raw, err := json.MarshalIndent(theManifest(), "", "  ")
+	stamp, err := buildStamp(opts.QML, files)
+	if err != nil {
+		return err
+	}
+	m := theManifest()
+	m.Screens = stamp
+	raw, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -152,7 +182,12 @@ func build(opts options, rcc rccFunc) error {
 	}
 	defer os.RemoveAll(work)
 	qrc := filepath.Join(work, "estante.qrc")
-	text, err := qrcText(opts.QML, files)
+	// The stamp, in place of the source's build.js.
+	stampJS := filepath.Join(work, "build.js")
+	if err := os.WriteFile(stampJS, []byte(".pragma library\n// The screens' build stamp, written by tools/appfolder.\nvar screens = \""+stamp+"\";\n"), 0o644); err != nil {
+		return err
+	}
+	text, err := qrcText(opts.QML, files, map[string]string{"build.js": stampJS})
 	if err != nil {
 		return err
 	}
@@ -261,7 +296,7 @@ func qmlFiles(dir string) ([]string, error) {
 // qrcText is the resource collection: each file at its relative path under
 // the root prefix (AppLoad registers it under /estante and loads
 // qrc:/estante/Main.qml), read from its absolute path.
-func qrcText(dir string, files []string) ([]byte, error) {
+func qrcText(dir string, files []string, override map[string]string) ([]byte, error) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
@@ -274,7 +309,11 @@ func qrcText(dir string, files []string) ([]byte, error) {
 			return nil, err
 		}
 		b.WriteString("\">")
-		if err := xml.EscapeText(&b, []byte(filepath.Join(abs, filepath.FromSlash(rel)))); err != nil {
+		src := filepath.Join(abs, filepath.FromSlash(rel))
+		if o, ok := override[rel]; ok {
+			src = o
+		}
+		if err := xml.EscapeText(&b, []byte(src)); err != nil {
 			return nil, err
 		}
 		b.WriteString("</file>\n")
