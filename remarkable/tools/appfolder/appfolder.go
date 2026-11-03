@@ -187,6 +187,18 @@ func build(opts options, rcc rccFunc) error {
 	if err := os.WriteFile(stampJS, []byte(".pragma library\n// The screens' build stamp, written by tools/appfolder.\nvar screens = \""+stamp+"\";\n"), 0o644); err != nil {
 		return err
 	}
+	// rcc records each file's modification time: the stamp takes the
+	// source's (Main.qml's when there is no build.js), so two builds of the
+	// same QML — one per architecture — compile the same bytes.
+	timeOf := filepath.Join(opts.QML, "build.js")
+	if _, err := os.Stat(timeOf); err != nil {
+		timeOf = filepath.Join(opts.QML, "Main.qml")
+	}
+	if fi, err := os.Stat(timeOf); err == nil {
+		if err := os.Chtimes(stampJS, fi.ModTime(), fi.ModTime()); err != nil {
+			return err
+		}
+	}
 	text, err := qrcText(opts.QML, files, map[string]string{"build.js": stampJS})
 	if err != nil {
 		return err
