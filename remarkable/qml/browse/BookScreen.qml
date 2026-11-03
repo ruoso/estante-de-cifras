@@ -5,11 +5,15 @@
 //   the book answered (`show`)           bar, list, letters, foot
 //   a page turned                        list, foot
 //   a letter                             list, foot (the letters untouched)
+//   the other index                      bar, list, letters, foot
 //
-// Its setlists first, each its name and *12 songs*, then its songs, title
-// over artist, in the backend's order (by path, as the web app's book page
-// lists them); a heading above the first of each kind, on the page where it
-// falls; ten rows a page. A book of more than two pages has the letter rows
+// Its setlists first, each its name and *12 songs*, then its songs in one of
+// two indexes, as the printed book has them: by title, title over artist; or
+// by author, under each author's name (a song by several under each). The
+// bar's action switches between them, drawn here (bar, list, letters, foot).
+// A heading above the first of each kind or author, on the page where it
+// falls, and an author's again atop a page their songs run onto; as many
+// rows a page as the content holds. A book of more than two pages has the letter rows
 // above the foot. A row sends `2 open` of its setlist or song and stays
 // inverted until the answer replaces the screen (rule 7); Back sends
 // `2 open {view: "shelf"}`.
@@ -42,23 +46,15 @@ Item {
     width: M.screenWidth
     height: M.barHeight + M.contentHeight + M.footHeight
 
-    // A `104 book`, drawn at `page` (clamped to its pages).
+    // The index the songs are listed in: "title" or "author".
+    readonly property string index: d.index
+
+    // A `104 book`, drawn at `page` (clamped to its pages), in the index it
+    // was last read in.
     function show(book, page) {
         d.book = book;
-        d.rows = Pages.bookRows(book);
-        // As many rows as the content holds; past two pages the letter rows
-        // take their room at its foot, and the rows what is left.
-        let pages = Pages.heightPages(d.rows, M.contentHeight, M.listRow, M.listHeading);
-        d.hasLetters = pages.length > 2;
-        if (d.hasLetters)
-            pages = Pages.heightPages(d.rows, M.contentHeight - M.letterRowsHeight, M.listRow, M.listHeading);
-        d.pages = pages;
-        d.page = Pages.clamp(page, d.rows.length, d.pages);
         d.pending = "";
-        listBar.show({ title: Pages.bookTitle(book && book.title), back: true, action: "" });
-        letterRows.show({ pages: d.hasLetters ? Pages.letterPages(book, d.pages) : {} });
-        d.commitList();
-        d.commitFoot();
+        d.layout(page);
     }
 
     QtObject {
@@ -69,6 +65,37 @@ Item {
         property int page: 0
         property bool hasLetters: false
         property string pending: ""
+        property string index: "title"
+
+        // The book's rows in the index, paged, and every region drawn: the
+        // bar (its action names the other index), the list, the letters and
+        // the foot.
+        function layout(page) {
+            d.rows = Pages.bookRows(d.book, d.index);
+            // As many rows as the content holds; past two pages the letter
+            // rows take their room at its foot, and the rows what is left.
+            let pages = Pages.heightPages(d.rows, M.contentHeight, M.listRow, M.listHeading);
+            d.hasLetters = pages.length > 2;
+            if (d.hasLetters)
+                pages = Pages.heightPages(d.rows, M.contentHeight - M.letterRowsHeight, M.listRow, M.listHeading);
+            d.pages = pages;
+            d.page = Pages.clamp(page, d.rows.length, d.pages);
+            const songs = Pages.list(d.book && d.book.songs).length;
+            listBar.show({ title: Pages.bookTitle(d.book && d.book.title), back: true,
+                           action: songs > 0 ? (d.index === "title" ? Pages.copy.byAuthor : Pages.copy.byTitle) : "" });
+            letterRows.show({ pages: d.hasLetters ? Pages.letterPages(d.rows, d.pages) : {} });
+            d.commitList();
+            d.commitFoot();
+        }
+
+        // The other index, from its first page — drawn here, nothing asked of
+        // the backend.
+        function switchIndex() {
+            if (d.pending !== "" || d.book === null)
+                return;
+            d.index = d.index === "title" ? "author" : "title";
+            d.layout(0);
+        }
 
         function send(type, payload) {
             if (screen.endpoint)
@@ -114,6 +141,7 @@ Item {
             d.pending = "back";
             d.send(2, { view: "shelf" });
         }
+        onActionTapped: d.switchIndex()
     }
 
     Region {
@@ -153,6 +181,7 @@ Item {
                     font.letterSpacing: 2
                     font.capitalization: Font.AllUppercase
                     verticalAlignment: Text.AlignBottom
+                    elide: Text.ElideRight
                     textFormat: Text.PlainText
                     text: modelData.heading
                 }

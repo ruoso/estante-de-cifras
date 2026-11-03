@@ -16,7 +16,8 @@ Estante on your phone or computer, and comes to the tablet when it syncs.
 ## What it does
 
 - **The shelf and your books** — the books on your Estante shelf, each with
-  its setlists and its songs; a long book has a row of letters to jump to.
+  its setlists and its songs, listed by title or by author, as the printed
+  book's two indexes are; a long book has a row of letters to jump to.
 - **A song, in pages** — turned by a tap at the left or right of the page, or
   a swipe. Every page shows the shapes of the chords on it, in a strip at the
   foot; a shape you know can be hidden in every song, and shown again.

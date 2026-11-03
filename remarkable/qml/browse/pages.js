@@ -32,6 +32,9 @@ var copy = {
     untitledBook: "Untitled book",
     setlistsHeading: "Setlists",
     songsHeading: "Songs",
+    byTitle: "By title",
+    byAuthor: "By author",
+    noAuthor: "No author",
     emptyBook: "No songs in this book yet.",
     missing: "missing",
     play: "Play",
@@ -123,14 +126,22 @@ function heightPages(rows, height, rowHeight, headingHeight) {
     const out = [0];
     let used = 0;
     for (let i = 0; i < rows.length; ++i) {
-        const need = rowHeight + (rows[i] && rows[i].heading ? headingHeight : 0);
+        let need = rowHeight + (headed(rows[i], used === 0) ? headingHeight : 0);
         if (used > 0 && used + need > height) {
             out.push(i);
             used = 0;
+            need = rowHeight + (headed(rows[i], true) ? headingHeight : 0);
         }
         used += need;
     }
     return out;
+}
+
+// Whether a row has a heading over it: its own, or, first on its page, its
+// group's again — an author's songs that run over a page are named again at
+// the top of the next.
+function headed(row, first) {
+    return !!row && (!!row.heading || (first && !!row.group));
 }
 
 // The pages a list of n rows takes: one at least, so an empty list still has
@@ -203,24 +214,107 @@ function songLetter(song) {
 
 var alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
-// The letters' pages over a book's rows (setlists, then songs): for each
-// letter that starts a song, the page of the first song with it, in the
-// book's order; an absent letter is absent.
-function letterPages(book, pages) {
-    const setlists = list(book && book.setlists);
-    const songs = list(book && book.songs);
+// The letters' pages over a book's rows (bookRows): for each letter that
+// starts a song's title — or, in the index by author, an author's name — the
+// page of the first row with it; an absent letter is absent.
+function letterPages(rows, pages) {
     const out = {};
-    for (let i = 0; i < songs.length; ++i) {
-        const l = songLetter(songs[i]);
+    for (let i = 0; i < rows.length; ++i) {
+        const l = rows[i].letter || "";
         if (l !== "" && !(l in out))
-            out[l] = pageOf(setlists.length + i, pages);
+            out[l] = pageOf(i, pages);
     }
     return out;
 }
 
-// A book's rows: its setlists, then its songs, each with what its row says
-// and, the first of each kind, its heading.
-function bookRows(book) {
+// --- a book's two indexes (books.print_authors, as the printed book has) ---
+
+// A name as it is compared: without its accents, in lower case.
+function bare(s) {
+    return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+// Two names in alphabetical order, accents and case aside, a number by its
+// value (*2 Pássaros* before *10 Rosas*), as the web app's Intl.Collator
+// ({ sensitivity: "base", numeric: true }) sorts them for the print.
+function collate(a, b) {
+    const x = bare(a).match(/\d+|\D+/g) || [];
+    const y = bare(b).match(/\d+|\D+/g) || [];
+    for (let i = 0; i < Math.min(x.length, y.length); ++i) {
+        const nx = /^\d/.test(x[i]), ny = /^\d/.test(y[i]);
+        if (nx && ny) {
+            const d = Number(x[i]) - Number(y[i]);
+            if (d !== 0)
+                return d < 0 ? -1 : 1;
+        } else if (x[i] !== y[i]) {
+            return x[i] < y[i] ? -1 : 1;
+        }
+    }
+    return x.length - y.length;
+}
+
+// Two strings by code point, the last word on a tie.
+function exact(a, b) {
+    return a < b ? -1 : a > b ? 1 : 0;
+}
+
+// The authors a song's artist names: split on /, , and ;, each trimmed —
+// not on *e*, *and* or *&*, which as often join a duo that is one name
+// (book-print.js splitArtists).
+function splitArtists(artist) {
+    return String(artist || "").split(/[\/,;]/).map(n => n.trim()).filter(n => n !== "");
+}
+
+// Two songs by the title they show, then by path.
+function byTitle(a, b) {
+    return collate(songTitle(a), songTitle(b)) || exact(songTitle(a), songTitle(b)) || exact(a.path, b.path);
+}
+
+// A book's songs by title.
+function songsByTitle(songs) {
+    return list(songs).slice().sort(byTitle);
+}
+
+// A book's songs by author: [{ author, songs }], the authors in alphabetical
+// order, each one's songs by title, a song with several authors under each,
+// and the songs that name none last (author null) — as the printed book's
+// index by artist (book-print.js songsByArtist).
+function songsByAuthor(songs) {
+    const groups = [];
+    let none = null;
+    for (const song of list(songs)) {
+        const authors = splitArtists(song.artist);
+        if (authors.length === 0) {
+            if (none === null)
+                none = { author: null, songs: [] };
+            none.songs.push(song);
+            continue;
+        }
+        for (const author of authors) {
+            let g = groups.find(x => collate(x.author, author) === 0);
+            if (!g) {
+                g = { author: author, songs: [] };
+                groups.push(g);
+            }
+            if (g.songs.indexOf(song) < 0)
+                g.songs.push(song);
+        }
+    }
+    groups.sort((a, b) => collate(a.author, b.author) || exact(a.author, b.author));
+    if (none !== null)
+        groups.push(none);
+    for (const g of groups)
+        g.songs.sort(byTitle);
+    return groups;
+}
+
+// A book's rows in one of its indexes, "title" (the default) or "author":
+// its setlists, then its songs — by title, each title over its artist, under
+// *Songs*; or by author, under each author's name, a song's artist under its
+// title only when it names others too. Each row with what it says, the
+// heading over it (the first of each kind, or of each author), its group (the
+// author it is listed under) and the letter it starts.
+function bookRows(book, index) {
     const setlists = list(book && book.setlists);
     const songs = list(book && book.songs);
     const rows = [];
@@ -228,12 +322,27 @@ function bookRows(book) {
         const s = setlists[i];
         rows.push({ kind: "setlist", path: s.path, title: s.title || fileName(s.path),
                     detail: "", right: songCount(s.songs),
-                    heading: i === 0 ? copy.setlistsHeading : "" });
+                    heading: i === 0 ? copy.setlistsHeading : "", group: "", letter: "" });
     }
-    for (let i = 0; i < songs.length; ++i) {
-        const s = songs[i];
+    if (index === "author") {
+        for (const g of songsByAuthor(songs)) {
+            const name = g.author === null ? copy.noAuthor : g.author;
+            for (let i = 0; i < g.songs.length; ++i) {
+                const s = g.songs[i];
+                rows.push({ kind: "song", path: s.path, title: songTitle(s),
+                            detail: splitArtists(s.artist).length > 1 ? s.artist : "",
+                            right: "", heading: i === 0 ? name : "", group: name,
+                            letter: i === 0 && g.author !== null ? letterOf(g.author) : "" });
+            }
+        }
+        return rows;
+    }
+    const sorted = songsByTitle(songs);
+    for (let i = 0; i < sorted.length; ++i) {
+        const s = sorted[i];
         rows.push({ kind: "song", path: s.path, title: songTitle(s), detail: s.artist || "",
-                    right: "", heading: i === 0 ? copy.songsHeading : "" });
+                    right: "", heading: i === 0 ? copy.songsHeading : "", group: "",
+                    letter: songLetter(s) });
     }
     return rows;
 }
@@ -245,6 +354,8 @@ function pageRows(rows, page, rowHeight, headingHeight, pages) {
     const range = pageRange(page, rows.length, pages);
     for (let i = range.from; i < range.to; ++i) {
         const r = Object.assign({ index: i }, rows[i]);
+        if (i === range.from && !r.heading && r.group)
+            r.heading = r.group;
         if (r.heading) {
             r.headingY = y;
             y += headingHeight;

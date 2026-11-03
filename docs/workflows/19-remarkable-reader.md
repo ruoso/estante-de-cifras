@@ -229,11 +229,27 @@ instrument — 1.
 
 ## A book
 
-Bar: **Back** (to the shelf) · the book's name.
+Bar: **Back** (to the shelf) · the book's name · at the right, **By author**
+or **By title**, which switches the songs to the other index.
 
 Content: the book's **setlists first** — few, and what a gig opens — each a row
-with its name and *12 songs*; then its **songs**, in the order the web app's
-book page lists them, title large, artist under it. As many rows to a page as
+with its name and *12 songs*; then its **songs**, in one of the two indexes the
+printed book has (books.print_authors):
+
+- **By title** (the index a book opens in): every song once, in alphabetical
+  order, title large, artist under it.
+- **By author**: the songs under each author's name, the authors in
+  alphabetical order and each one's songs by title. A song's artist is split
+  into its authors as the print splits it — on `/`, `,` and `;`, never on *e*,
+  *and* or *&* (*Tonico e Tinoco* is one name) — and the song is listed under
+  each of them, its whole artist under its title so the others are named; the
+  songs that name no author come last, under *No author*. An author whose songs
+  run onto the next page is named again at its top.
+
+Alphabetical order is the print's: accents and case aside, a number by its
+value (*2 Pássaros* before *10 Rosas*). Switching draws the other index from
+its first page, with nothing asked of the backend; the book stays in it,
+Back from a song included, until switched again. As many rows to a page as
 the content holds, headings counted and never left at a page's foot — the
 page is filled, not cut at a number; a setlist or a song is never split from
 its second line.
@@ -245,18 +261,20 @@ letter is a full-size target (rule 10) — of which only the letters that
 start a song are drawn as targets (the rest are not drawn at all, so there is
 nothing to tap that leads nowhere). A letter turns to the page where that
 letter starts — one redraw (rule 8). A song's letter is its title's first
-letter without its accent (*Ária* under **A**, *Ção* under **C**); a title
-that starts with a digit or a sign has no letter and is reached by turning. A
+letter without its accent (*Ária* under **A**, *Ção* under **C**) — in the
+index by author, the author's name's; a title that starts with a digit or a
+sign has no letter and is reached by turning. A
 letter that starts no song leaves its place empty, so the letters never move.
-The letter rows are part of the fixed chrome and never change while the book
-is open — none is marked as the current one. They are not shown for a book of
+The letter rows are part of the fixed chrome and change only when the index
+does — none is marked as the current one. They are not shown for a book of
 two pages or fewer.
 
 Back from a song or a setlist returns to the book at the page it was left on.
 
 **Empty book:** *No songs in this book yet.*
 
-Costs: open a song or a setlist — 1; turn a page — 1; a letter — 1.
+Costs: open a song or a setlist — 1; turn a page — 1; a letter — 1; the
+other index — 1.
 
 ## A song
 
@@ -451,6 +469,7 @@ is the web app's.
 | Open a book, a song, a setlist; Back | 1 | content and bar |
 | Turn a page (and a song, in Play) | 1 | content and foot |
 | A letter, in a book | 1 | content and foot |
+| By author / By title, in a book | 1 | bar, content, letters and foot |
 | Open / close the key grid | 1 | the shapes strip (with shapes hidden, the page's foot of the chart) |
 | Turn the shapes strip | 1 | the strip only |
 | Tap a diagram (the question) / Cancel | 1 | the strip only |

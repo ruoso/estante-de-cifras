@@ -78,7 +78,7 @@ TestCase {
     }
 
     function songTitles(from, to) {
-        return BrowseBook.book.songs.slice(from, to).map(s => Pages.songTitle(s));
+        return Pages.songsByTitle(BrowseBook.book.songs).slice(from, to).map(s => Pages.songTitle(s));
     }
 
     function clean(screen) {
@@ -223,12 +223,47 @@ TestCase {
         screen.endpoint.clear();
         mouseClick(rows(screen)[4]);
         compare(screen.endpoint.sent[0].payload, { view: "song", bookId: book.bookId,
-                                                   path: book.songs[1].path });
+                                                   path: Pages.songsByTitle(book.songs)[1].path });
         screen.show(book, 0);
         screen.endpoint.clear();
         mouseClick(screen.bar.back);
         compare(screen.endpoint.sent.length, 1);
         compare(screen.endpoint.sent[0].payload, { view: "shelf" });
+    }
+
+    // §A book: the bar's action switches the index, here, from the first
+    // page; Back from a song keeps it; a book with no songs has no switch.
+    function test_bookSwitchesIndex() {
+        const screen = make(bookComponent);
+        const book = clone(BrowseBook.book);
+        screen.show(book, 2);
+        compare(screen.index, "title");
+        compare(screen.bar.action.text, "By author");
+        mouseClick(screen.bar.action);
+        compare(screen.endpoint.sent.length, 0);
+        compare(screen.index, "author");
+        compare(screen.page, 0);
+        compare(screen.bar.action.text, "By title");
+        compare(headings(screen).slice(0, 2), ["Setlists", "Banda do Bairro"]);
+        // Every row of a page sits in the content, headings counted.
+        for (let p = 0; p < screen.pageCount; ++p) {
+            for (const r of rows(screen))
+                verify(r.y + r.height <= screen.list.height, "a row past the content");
+            mouseClick(screen.foot.next);
+        }
+        // The letters go to the authors: B, T, and the songs with none last.
+        mouseClick(screen.letters.cell("T").button);
+        verify(headings(screen).indexOf("Trio da Praça") >= 0);
+        verify(!screen.letters.cell("M").button.visible);
+        clean(screen);
+        screen.show(book, 1);
+        compare(screen.index, "author");
+        compare(screen.page, 1);
+        mouseClick(screen.bar.action);
+        compare(screen.index, "title");
+        compare(headings(screen), ["Setlists", "Songs"]);
+        screen.show({ bookId: "bk-empty", title: "", songs: [], setlists: [] }, 0);
+        verify(!screen.bar.action.visible);
     }
 
     // §A book: *No songs in this book yet.* for a book with none.

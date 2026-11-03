@@ -84,7 +84,7 @@ TestCase {
                         "Domingo", "Eco", "Estrada", "Feira"];
         for (const t of titles)
             book.songs.push({ path: t + ".cifra.md", title: t, artist: "" });
-        const pages = Pages.letterPages(book);
+        const pages = Pages.letterPages(Pages.bookRows(book));
         // Ária is row 4 (3 setlists, then 7 Cordas): page 0; Domingo row 10.
         compare(pages, { A: 0, B: 0, C: 0, D: 1, E: 1, F: 1 });
         verify(!("H" in pages));
@@ -92,12 +92,95 @@ TestCase {
 
     // The fixture book: its letters, each to its first song's page.
     function test_letterPagesOfTheFixture() {
-        const pages = Pages.letterPages(BrowseBook.book);
+        const pages = Pages.letterPages(Pages.bookRows(BrowseBook.book));
         compare(pages, {
             A: 0, B: 0, C: 0, D: 1, E: 1, F: 1, G: 1, I: 1, J: 1, L: 1,
             M: 2, N: 2, O: 2, P: 2, Q: 2, R: 2, S: 2,
             T: 3, U: 3, V: 3, X: 3, Z: 3
         });
+    }
+
+    // The two indexes compare as the print's Intl.Collator does: accents and
+    // case aside, a number by its value.
+    function test_collate() {
+        verify(Pages.collate("Ária", "asa") < 0);
+        compare(Pages.collate("ÁRIA", "aria"), 0);
+        verify(Pages.collate("2 Pássaros", "10 Rosas") < 0);
+        verify(Pages.collate("Canção", "Cancioneiro") < 0);
+        verify(Pages.collate("Zé", "Zeca") < 0);
+    }
+
+    // The authors an artist names, split as the print splits them (on /, ,
+    // and ;), never on *e*, *and* or *&*.
+    function test_splitArtists() {
+        compare(Pages.splitArtists("Pixinguinha / Benedito Lacerda"), ["Pixinguinha", "Benedito Lacerda"]);
+        compare(Pages.splitArtists("Pixinguinha, João de Barros; Alberto Ribeiro"),
+                ["Pixinguinha", "João de Barros", "Alberto Ribeiro"]);
+        compare(Pages.splitArtists("Tonico e Tinoco"), ["Tonico e Tinoco"]);
+        compare(Pages.splitArtists(" / "), []);
+        compare(Pages.splitArtists(""), []);
+    }
+
+    function authorsBook() {
+        return {
+            setlists: [{ path: "roda.setlist.md", title: "Roda", songs: 2 }],
+            songs: [
+                { path: "carinhoso.cifra.md", title: "Carinhoso", artist: "Pixinguinha / João de Barros" },
+                { path: "um-a-zero.cifra.md", title: "Um a Zero", artist: "Pixinguinha, Benedito Lacerda" },
+                { path: "brejeiro.cifra.md", title: "Brejeiro", artist: "Ernesto Nazareth" },
+                { path: "ainda-me-recordo.cifra.md", title: "Ainda Me Recordo", artist: "pixinguinha" },
+                { path: "sem-nome.cifra.md", title: "Sem Nome", artist: "" },
+                { path: "tico-tico.cifra.md", title: "Tico-Tico no Fubá", artist: "Zequinha de Abreu" }
+            ]
+        };
+    }
+
+    // §A book, by title: every song once, alphabetically, its artist under.
+    function test_bookRowsByTitle() {
+        const rows = Pages.bookRows(authorsBook(), "title");
+        compare(rows.map(r => r.title),
+                ["Roda", "Ainda Me Recordo", "Brejeiro", "Carinhoso", "Sem Nome", "Tico-Tico no Fubá", "Um a Zero"]);
+        compare(rows[1].heading, "Songs");
+        compare(rows[3].detail, "Pixinguinha / João de Barros");
+        compare(rows.map(r => r.letter), ["", "A", "B", "C", "S", "T", "U"]);
+    }
+
+    // §A book, by author: a song under each of its authors, the authors in
+    // alphabetical order (one group however capitalised), each one's songs by
+    // title, the songs with none last; the artist under a title only when it
+    // names others too; a letter on each author's first row.
+    function test_bookRowsByAuthor() {
+        const rows = Pages.bookRows(authorsBook(), "author");
+        compare(rows.map(r => r.heading),
+                ["Setlists", "Benedito Lacerda", "Ernesto Nazareth", "João de Barros",
+                 "Pixinguinha", "", "", "Zequinha de Abreu", "No author"]);
+        compare(rows.map(r => r.title),
+                ["Roda", "Um a Zero", "Brejeiro", "Carinhoso",
+                 "Ainda Me Recordo", "Carinhoso", "Um a Zero", "Tico-Tico no Fubá", "Sem Nome"]);
+        compare(rows.map(r => r.detail),
+                ["", "Pixinguinha, Benedito Lacerda", "", "Pixinguinha / João de Barros",
+                 "", "Pixinguinha / João de Barros", "Pixinguinha, Benedito Lacerda", "", ""]);
+        compare(rows.map(r => r.letter), ["", "B", "E", "J", "P", "", "", "Z", ""]);
+        compare(Pages.letterPages(rows), { B: 0, E: 0, J: 0, P: 0, Z: 0 });
+    }
+
+    // An author's songs that run onto the next page are named again atop it,
+    // and that heading is counted in the page's height.
+    function test_authorHeadingRepeatsAtopAPage() {
+        const songs = [];
+        for (let i = 0; i < 5; ++i)
+            songs.push({ path: "s" + i + ".cifra.md", title: "Song " + i, artist: "Same" });
+        const rows = Pages.bookRows({ setlists: [], songs: songs }, "author");
+        // 72 + 3 × 120 = 432 fits 450; the fourth row starts the next page,
+        // under the heading again.
+        const pages = Pages.heightPages(rows, 450, 120, 72);
+        compare(pages, [0, 3]);
+        const second = Pages.pageRows(rows, 1, 120, 72, pages);
+        compare(second[0].heading, "Same");
+        compare(second[0].headingY, 0);
+        compare(second[0].y, 72);
+        compare(second[1].heading, "");
+        compare(rows[3].heading, "");
     }
 
     // A book's rows: setlists first, then songs, a heading on the first of
