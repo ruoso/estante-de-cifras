@@ -11,7 +11,10 @@
 // (reader.pairing), the poll running off the loop and its news reaching the
 // views on it. The
 // background search for the shapes the table did not hold is fill.go's
-// (reader.missed_shapes): its news reaches the views on this loop.
+// (reader.missed_shapes): its news reaches the views on this loop. A staged
+// bundle is switched to in update.go (reader.self_update): on a frontend's
+// attach, before its hello is answered, or at the end of a pass when no
+// engine is loaded.
 package backend
 
 import (
@@ -30,13 +33,16 @@ import (
 // Syncer is the sync schedule Serve runs (*sync.Syncer satisfies it): Run
 // passes until its context ends, Trigger asks for one more pass, Snapshot is
 // the last pass's snapshot the views read, Hold keeps a book's clone on disk
-// while a view reads it, and SignOut signs the device out (reader.pairing).
+// while a view reads it, SignOut signs the device out (reader.pairing), and
+// UseEngine loads the instrument on a new bundle's engine and, when it loads,
+// adopts it (reader.self_update).
 type Syncer interface {
 	Run(ctx context.Context)
 	Trigger()
 	Snapshot() *sync.Snapshot
 	Hold(bookID string) (release func())
 	SignOut(ctx context.Context) error
+	UseEngine(ctx context.Context, eng sync.Engine) error
 }
 
 // Deps are Serve's collaborators.
@@ -53,7 +59,8 @@ type Deps struct {
 	Now func() time.Time
 	// Engine computes the music the views show; nil when no bundle is
 	// installed or it failed to open (then songs and setlists answer their
-	// book). Never a typed-nil pointer.
+	// book). Never a typed-nil pointer. When a staged bundle is switched to,
+	// the one it replaces is closed when it has a Close method.
 	Engine Engine
 	// Version is the reader's version, which Settings names.
 	Version string
@@ -77,10 +84,14 @@ type Relay struct {
 	// firstPass: a pairing was approved and its first pass has not ended —
 	// states say not paired until it does (reader.pairing Decision 2).
 	firstPass bool
+	// passEnded holds at most one pending "a pass ended" for Serve's loop,
+	// which switches to a staged bundle then when no engine is loaded
+	// (reader.self_update Decision 5).
+	passEnded chan struct{}
 }
 
 // NewRelay makes a Relay with no status yet.
-func NewRelay() *Relay { return &Relay{} }
+func NewRelay() *Relay { return &Relay{passEnded: make(chan struct{}, 1)} }
 
 // StatusFunc is the function to give sync.Options.OnStatus: it keeps the
 // status and, while connected, writes the state it makes.
@@ -93,6 +104,10 @@ func (r *Relay) StatusFunc() func(sync.Status) {
 			// The first pass after an approval ended, done or failed: the
 			// reader reports itself paired from this state on.
 			r.firstPass = false
+			select {
+			case r.passEnded <- struct{}{}:
+			default:
+			}
 		}
 		if r.conn != nil {
 			// A failed write ends the connection, which Serve's loop reads.
@@ -203,20 +218,11 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 	v := newViews(ctx, conn, relay, b)
 	defer v.close()
 
-	// The filler, with the engine (none without one).
-	fillCtx, cancelFill := context.WithCancel(ctx)
-	filled := make(chan struct{})
-	var found <-chan struct{}
-	if b.Engine != nil {
-		f := newFiller(b.Engine)
-		v.nudge, found = f.nudge, f.found
-		go func() {
-			defer close(filled)
-			f.run(fillCtx)
-		}()
-	} else {
-		close(filled)
-	}
+	// The filler, with the engine (none without one); started again with
+	// each bundle switched to.
+	fill := startFiller(ctx, v, b.Engine)
+	sw := &switcher{ctx: ctx, st: b.Store, syncer: b.Syncer}
+	defer sw.closeOpened()
 
 	// The socket's reader: each message, or its error, handed to the loop.
 	type incoming struct {
@@ -245,11 +251,10 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 	defer func() {
 		stop()
 		cancelSync()
-		cancelFill()
+		fill.stop()
 		close(done)
 		conn.Close()
 		<-ran
-		<-filled
 		<-read
 	}()
 
@@ -262,9 +267,16 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 				return err
 			}
 			continue
-		case <-found:
+		case <-fill.found:
 			if err := v.found(); err != nil {
 				return err
+			}
+			continue
+		case <-relay.passEnded:
+			// The first bundle: with none loaded, nothing on screen depends
+			// on one (Decision 5).
+			if v.eng == nil {
+				fill = sw.switchBundle(v, fill)
 			}
 			continue
 		}
@@ -287,7 +299,12 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 			if err := relay.sendState(conn); err != nil {
 				return err
 			}
-		case protocol.Attached, protocol.Sync:
+		case protocol.Attached:
+			// Before this frontend's hello and opens are answered, and
+			// never a redraw (workflow 19 rule 5).
+			fill = sw.switchBundle(v, fill)
+			b.Syncer.Trigger()
+		case protocol.Sync:
 			b.Syncer.Trigger()
 		case protocol.Detached:
 			// The schedule goes on without a frontend.

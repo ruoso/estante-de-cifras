@@ -157,8 +157,9 @@ task reader "The reMarkable reader" {
   task self_update "The bundle and the QML update themselves" {
     effort 2d
     allocate team
+    complete 100
     depends !payload, !sync
-    note "At sync the backend reads /device/manifest.json; a bundle or QML it does not have, whose hostApi it speaks, is downloaded, its SHA-256 checked, kept beside the last good one, and switched to on the next frontend attach (the bundle) or launch (the QML); a bundle that fails to evaluate is dropped and the last good one kept; a backend too old for the current bundle keeps its own and the settings say Update the reader on your reMarkable. The backend binary itself is never replaced by this task: it runs as root, and its signed self-update is a later decision. Docs: docs/remarkable-reader.md §8, §10. Tests: unit (the choice of what to fetch; a bad hash refused; a hostApi too new refused); behavior (against an httptest server: an update fetched, switched on attach, a broken bundle rolled back to the last good)."
+    note "At sync the backend reads /device/manifest.json; a bundle or QML it does not have, whose hostApi it speaks, is downloaded, its SHA-256 checked, kept beside the last good one, and switched to on the next frontend attach (the bundle) or launch (the QML); a bundle that fails to evaluate is dropped and the last good one kept; a backend too old for the current bundle keeps its own and the settings say Update the reader on your reMarkable. The backend binary itself is never replaced by this task: it runs as root, and its signed self-update is a later decision. Docs: docs/remarkable-reader.md §8, §10. Tests: unit (the choice of what to fetch; a bad hash refused; a hostApi too new refused); behavior (against an httptest server: an update fetched, switched on attach, a broken bundle rolled back to the last good). Refinement: tasks/refinements/reader/self_update.md"
   }
   task install "Installing the reader" {
     effort 1d

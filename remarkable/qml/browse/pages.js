@@ -37,6 +37,7 @@ var copy = {
     shapes: "Shapes",
     showAllAgain: "Show all again",
     thisReader: "This reader",
+    updateReader: "Update the reader on your reMarkable",
     signOut: "Sign out",
     signOutQuestion: "Sign out of this reMarkable? Your books are removed from it; nothing changes in your account.",
     cancel: "Cancel"
@@ -278,6 +279,13 @@ function hiddenLine(n) {
 
 function versionLine(version) {
     return "Version " + (version || "");
+}
+
+// This reader's second line: the site serves screens and music code this
+// reader's program is too old to run (reader.self_update; design §8). One
+// bit: a sentence, or nothing.
+function updateLine(updateReader) {
+    return updateReader === true ? copy.updateReader : "";
 }
 
 // --- pairing ---

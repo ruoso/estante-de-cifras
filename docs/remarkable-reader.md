@@ -424,7 +424,7 @@ know, and a field they do not know.
 | 104 `book` | → frontend | `{ bookId, title, songs: [{ path, title, artist }], setlists: [{ path, title, songs }] }` |
 | 105 `sheet` | → frontend | `{ bookId, path, title, artist, key: { written, named, saved, choices }, offset, tuningId, rows, shapes: [{ chord, symbol, frets, model, hidden }], notes, keyNote, play? }` — `model` the diagram model (§7); `saved` the account's key (`songs.json`) when it has one; `choices` the key grid's twelve `{ name, offset }`, ordered by the key's root from C, each named by the music core from the song's as-written key (offsets −5…+6), `[]` for a song with no chords; `tuningId` the tuning the shapes are for, which `hideShape` and `showShape` name; a chord the cache did not hold keeps its place in `shapes` with `model` and `frets` `null`, its place in the strip left empty (§4.1); `play` `{ setlist, at, of, next }`, `next` `{ title, key, note }` or `null` |
 | 106 `setlist` | → frontend | `{ bookId, path, title, items: [{ path, title, key, note, missing }], at? }` — every item in order; `path` the song's book-root path (`""` for an unlinked item); `key` the item's own `key` property (`null` when it has none); `at` the item last played, for Back |
-| 107 `settings` | → frontend | `{ account, version, hiddenShapes }` — the account paired with, the reader's version, how many voicings are hidden |
+| 107 `settings` | → frontend | `{ account, version, hiddenShapes, updateReader }` — the account paired with, the reader's version, how many voicings are hidden, and whether the site serves a `hostApi` newer than this backend speaks (§8) |
 | 108 `shapes` | → frontend | `{ bookId, path, offset, tuningId, shapes }` — the open song's `shapes`, as its `sheet` would now carry them, sent when a background search (§4.1) has filled a place the last `sheet` left empty; the frontend fills the matching empty places of the sheet on screen and draws them on the next page it draws, never on the page shown (workflow 19 rule 5), and ignores one for another song, key or tuning |
 | 109 `ahead` | → frontend | a `105`'s payload, with `play`, for the next or the previous playable item of the setlist being played, read ahead; never shown until a turn reaches it |
 
@@ -544,6 +544,34 @@ file is a 404, never the app's shell.
   frontend attach (the bundle) or the next app launch (the QML). A bundle that
   fails to evaluate is dropped and the last good one kept. They run in goja or
   in QML and can reach nothing the backend does not hand them.
+  - **One `hostApi` for both.** The bundle and the QML come from one image, so
+    the manifest's `hostApi` stands for the pair: an incompatible change to the
+    host calls (§4) or to the messages (§6) bumps it. A backend that does not
+    speak the served `hostApi` fetches neither.
+  - **Fetched after the shelf, from the session's origin, without the
+    session.** `/device/` is the site's public payload, so the manifest and the
+    files are fetched with no cookie, after the books of the pass, and an
+    update that fails changes nothing the pass reports: the shelf's sync line
+    is the books'.
+  - **The bundle** is staged in the store's `bundle/next/` with the served
+    manifest as it is. On the next attach it is promoted and opened; if it does
+    not open, or the instrument in use does not load in it, it is rolled back,
+    the backend keeps the bundle it was running, and its SHA-256 is remembered
+    as refused so no later sync fetches it again. A reader with no bundle loaded
+    at all — just installed — switches to a staged one at the end of the pass,
+    since no screen depends on one. At backend start a current bundle that does
+    not open is rolled back the same way.
+  - **The QML** is placed in the AppLoad folder (the backend's working
+    directory, checked to be *Estante*'s) by replacing its `resources.rcc` in
+    one rename, the one it replaced kept in the store's `qml/previous/`.
+    AppLoad reads the file when it next loads the app, so the screens on view
+    are never changed under the person.
+  - **Too old.** When the served `hostApi` is newer than the backend's, the
+    backend keeps its bundle and QML, remembers the served `hostApi` in the
+    store (so the settings say it offline too), and the settings say *Update
+    the reader on your reMarkable* until a backend that speaks it is
+    installed. A served `hostApi` older than the backend's is fetched by
+    neither and said by nothing.
 - The **backend** runs as root, so it is not updated blindly. At first it is
   installed by hand; a self-update, when it comes, will verify an Ed25519
   signature over the manifest against a key built into the binary, stage the

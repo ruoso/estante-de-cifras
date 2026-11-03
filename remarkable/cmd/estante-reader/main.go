@@ -11,13 +11,16 @@
 //     approved — the backend's pairing, for development and the e2e-api;
 //   - signout signs the device out as Settings' Sign out does;
 //   - sync runs one sync pass and prints what it did: ids, statuses and
-//     heads (reader.sync, and the e2e-api's driver);
+//     heads (reader.sync, and the e2e-api's driver); the pass ends with the
+//     self-update (reader.self_update), which places the QML in --app when
+//     given, and switches to the bundle it staged when none was loaded;
 //   - run is the backend proper (reader.app_folder): it dials AppLoad's
 //     socket and serves the frontend (internal/backend) while the sync
 //     schedule runs, pairing with --origin. AppLoad starts backend/entry with
 //     the socket's path as its only argument (rm-appload src/library.cpp), so
-//     a sole absolute path is run against the default store and origin
-//     (design §3.1).
+//     a sole absolute path is run against the default store and origin,
+//     the working directory — the app folder AppLoad starts it in — as
+//     --app (design §3.1).
 package main
 
 import (
@@ -41,6 +44,7 @@ import (
 	"estantedecifras.app/remarkable/internal/protocol"
 	"estantedecifras.app/remarkable/internal/store"
 	"estantedecifras.app/remarkable/internal/sync"
+	"estantedecifras.app/remarkable/internal/update"
 )
 
 // version is stamped at link time with -ldflags "-X main.version=<v>".
@@ -51,8 +55,8 @@ const usage = "usage: estante-reader --version | " +
 	"bench --bundle DIR [--shapes FILE] [--rounds N] SONG... | " +
 	"pair --root DIR [--origin URL] | " +
 	"signout --root DIR | " +
-	"sync --root DIR --bundle DIR | " +
-	"run [--root DIR] [--origin URL] SOCKET"
+	"sync --root DIR [--bundle DIR] [--app DIR] | " +
+	"run [--root DIR] [--origin URL] [--app DIR] SOCKET"
 
 // errUsage is a bad invocation: the usage line, exit 2.
 var errUsage = errors.New("usage")
@@ -93,7 +97,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case len(args) == 1 && strings.HasPrefix(args[0], "/"):
 		// AppLoad's backend/entry /tmp/estante.sock: no subcommand starts
 		// with "/".
-		err = runCommand([]string{"--root", defaultRoot, args[0]})
+		err = runCommand(bareRunArgs(args[0]))
 		args = []string{"run"}
 	default:
 		err = errUsage
@@ -357,29 +361,50 @@ func signOutCommand(args []string) error {
 	return sync.New(st, nil, sync.Options{}).SignOut(context.Background())
 }
 
-// syncCommand: estante-reader sync --root DIR --bundle DIR — one pass, its
-// Result on stdout as JSON: ids, statuses and heads, nothing else.
+// syncCommand: estante-reader sync --root DIR [--bundle DIR] [--app DIR] —
+// one pass, its Result on stdout as JSON: ids, statuses and heads, nothing
+// else. The engine is --bundle's, or the store's current bundle (rolled back
+// as run does when it does not open), or none. The pass ends with the
+// self-update, placing the QML in --app when given (reader.self_update); with
+// no engine, a bundle it staged is switched to, as run does at a pass's end.
 func syncCommand(args []string, stdout io.Writer) error {
 	fs := newFlags("sync")
 	root := fs.String("root", "", "")
 	bundle := fs.String("bundle", "", "")
-	if fs.Parse(args) != nil || *root == "" || *bundle == "" || fs.NArg() != 0 {
+	app := fs.String("app", "", "")
+	if fs.Parse(args) != nil || *root == "" || fs.NArg() != 0 {
 		return errUsage
 	}
 	st, err := store.Open(*root)
 	if err != nil {
 		return err
 	}
-	e, err := engine.Open(*bundle)
+	var e *engine.Engine
+	if *bundle != "" {
+		if e, err = engine.Open(*bundle); err != nil {
+			return err
+		}
+	} else {
+		e = update.OpenCurrent(st)
+	}
+	var eng sync.Engine
+	if e != nil {
+		defer e.Close()
+		eng = e
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	syncer := sync.New(st, eng, sync.Options{Update: &update.Updater{Store: st, AppDir: *app}})
+	res, err := syncer.Pass(ctx)
 	if err != nil {
 		return err
 	}
-	defer e.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
-	res, err := sync.New(st, e, sync.Options{}).Pass(ctx)
-	if err != nil {
-		return err
+	if e == nil {
+		// The first bundle (reader.self_update Decision 5); one that does not
+		// open is rolled back and refused, and the pass's answer stands.
+		if ne, err := update.Switch(st, func(n *engine.Engine) error { return syncer.UseEngine(ctx, n) }); err == nil {
+			defer ne.Close()
+		}
 	}
 	out, err := json.MarshalIndent(res, "", "  ")
 	if err != nil {
@@ -389,31 +414,48 @@ func syncCommand(args []string, stdout io.Writer) error {
 	return err
 }
 
+// bareRunArgs is run's arguments when AppLoad starts backend/entry with the
+// socket's path alone: the default store, and the working directory — the
+// app folder AppLoad starts the backend in (design §3.1) — as the folder the
+// QML is placed in (reader.self_update constraint 12). A working directory
+// that cannot be read is none.
+func bareRunArgs(socket string) []string {
+	args := []string{"--root", defaultRoot}
+	if wd, err := os.Getwd(); err == nil {
+		args = append(args, "--app", wd)
+	}
+	return append(args, socket)
+}
+
 // runFlags reads run's arguments: the root, the origin pairing begins with,
-// and the socket.
-func runFlags(args []string) (root string, origin *url.URL, socket string, err error) {
+// the app folder the QML is placed in ("" for none), and the socket.
+func runFlags(args []string) (root string, origin *url.URL, app, socket string, err error) {
 	fs := newFlags("run")
 	rootArg := fs.String("root", defaultRoot, "")
 	originArg := fs.String("origin", pair.DefaultOrigin, "")
+	appArg := fs.String("app", "", "")
 	if fs.Parse(args) != nil || *rootArg == "" || fs.NArg() != 1 || fs.Arg(0) == "" {
-		return "", nil, "", errUsage
+		return "", nil, "", "", errUsage
 	}
 	origin, err = originFlag(*originArg)
 	if err != nil {
-		return "", nil, "", err
+		return "", nil, "", "", err
 	}
-	return *rootArg, origin, fs.Arg(0), nil
+	return *rootArg, origin, *appArg, fs.Arg(0), nil
 }
 
-// runCommand: estante-reader run [--root DIR] [--origin URL] SOCKET — the
-// backend AppLoad runs. It opens the store and, when a bundle is installed
-// and opens, the engine; builds the sync schedule with its statuses relayed
+// runCommand: estante-reader run [--root DIR] [--origin URL] [--app DIR]
+// SOCKET — the backend AppLoad runs. It opens the store and, when a bundle is
+// installed and opens, the engine (a current bundle that does not open rolled
+// back and refused, until one opens or none is left — reader.self_update);
+// builds the sync schedule, which ends each pass with the self-update
+// (placing the QML in --app when given), with its statuses relayed
 // to the frontend; dials SOCKET; and serves until AppLoad's terminate or the
 // socket's close, pairing with the origin (pair.DefaultOrigin by default).
 // It logs nothing: an error names its class, never a payload, a song or a
 // token.
 func runCommand(args []string) error {
-	root, origin, socket, err := runFlags(args)
+	root, origin, app, socket, err := runFlags(args)
 	if err != nil {
 		return err
 	}
@@ -423,18 +465,20 @@ func runCommand(args []string) error {
 	}
 	// The engine is optional: without a bundle (reader.self_update brings it)
 	// sync runs and loads no instrument, and the views answer no music. A
-	// bundle that fails to open is none. Each side is handed a nil interface
-	// then, never a nil *engine.Engine inside one (which would not be nil).
+	// bundle that fails to open is rolled back, and with none left there is
+	// none. Each side is handed a nil interface then, never a nil
+	// *engine.Engine inside one (which would not be nil).
 	var syncEng sync.Engine
 	var viewEng backend.Engine
-	if dir, ok := st.BundleDir(); ok {
-		if e, err := engine.Open(dir); err == nil {
-			defer e.Close()
-			syncEng, viewEng = e, e
-		}
+	if e := update.OpenCurrent(st); e != nil {
+		defer e.Close()
+		syncEng, viewEng = e, e
 	}
 	relay := backend.NewRelay()
-	syncer := sync.New(st, syncEng, sync.Options{OnStatus: relay.StatusFunc()})
+	syncer := sync.New(st, syncEng, sync.Options{
+		OnStatus: relay.StatusFunc(),
+		Update:   &update.Updater{Store: st, AppDir: app},
+	})
 
 	conn, err := protocol.Dial(socket)
 	if err != nil {

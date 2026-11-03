@@ -163,7 +163,8 @@ func TestWireNames(t *testing.T) {
 			{Path: "gone.cifra.md", Title: "gone", Missing: true}}, At: ptr(0)},
 			`{"bookId":"b1","path":"gig.setlist.md","title":"Sábado","items":[{"path":"a.cifra.md","title":"Maré","key":"D","note":"devagar","missing":false},{"path":"gone.cifra.md","title":"gone","key":null,"note":null,"missing":true}],"at":0}`},
 		{Setlist{BookID: "b1", Path: "gig.setlist.md", Title: "Sábado", Items: []SetlistItem{}}, `{"bookId":"b1","path":"gig.setlist.md","title":"Sábado","items":[]}`},
-		{Settings{Account: "ana@example.org", Version: "0.7.0", HiddenShapes: 11}, `{"account":"ana@example.org","version":"0.7.0","hiddenShapes":11}`},
+		{Settings{Account: "ana@example.org", Version: "0.7.0", HiddenShapes: 11}, `{"account":"ana@example.org","version":"0.7.0","hiddenShapes":11,"updateReader":false}`},
+		{Settings{Account: "ana@example.org", Version: "0.7.0", HiddenShapes: 11, UpdateReader: true}, `{"account":"ana@example.org","version":"0.7.0","hiddenShapes":11,"updateReader":true}`},
 		// §6 108 shapes (reader.missed_shapes).
 		{Shapes{BookID: "b1", Path: "a.cifra.md", Offset: 2, TuningID: "40 45 50 55 59 64", Shapes: []SheetShape{
 			{Chord: "F#:dim7", Symbol: "F#°", Frets: ptr("2x121x"), Model: []byte(`{}`)},

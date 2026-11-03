@@ -297,12 +297,14 @@ type SetlistItem struct {
 	Missing bool    `json:"missing"`
 }
 
-// Settings (107): the account paired with, the reader's version, and how many
-// voicings are hidden.
+// Settings (107): the account paired with, the reader's version, how many
+// voicings are hidden, and whether the site serves a hostApi newer than this
+// backend speaks (design §8: *Update the reader on your reMarkable*).
 type Settings struct {
 	Account      string `json:"account"`
 	Version      string `json:"version"`
 	HiddenShapes int    `json:"hiddenShapes"`
+	UpdateReader bool   `json:"updateReader"`
 }
 
 // Shapes (108): the open song's shapes as its sheet would now carry them,

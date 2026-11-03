@@ -266,6 +266,7 @@ func (f *viewsFixture) reopen(t *testing.T) {
 type viewsServe struct {
 	peer   *peer
 	syncer *fakeSyncer
+	relay  *Relay
 	parses *atomic.Int64
 	stop   func()
 }
@@ -273,12 +274,12 @@ type viewsServe struct {
 func (f *viewsFixture) serve(t *testing.T, eng Engine) *viewsServe {
 	t.Helper()
 	conn, p := pair(t)
-	s := &viewsServe{peer: p, syncer: newFakeSyncer(), parses: &atomic.Int64{}}
+	s := &viewsServe{peer: p, syncer: newFakeSyncer(), relay: NewRelay(), parses: &atomic.Int64{}}
 	s.syncer.snap = f.snapshot()
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	deps := Deps{
-		Store: f.st, Syncer: s.syncer, Relay: NewRelay(), Engine: eng, Version: testVersion,
+		Store: f.st, Syncer: s.syncer, Relay: s.relay, Engine: eng, Version: testVersion,
 		onParse: func() { s.parses.Add(1) },
 	}
 	go func() { done <- Serve(ctx, conn, deps) }()

@@ -5,5 +5,6 @@
 var settings = {
   "account": "marina@example.org",
   "version": "0.9.0-test",
-  "hiddenShapes": 11
+  "hiddenShapes": 11,
+  "updateReader": false
 };

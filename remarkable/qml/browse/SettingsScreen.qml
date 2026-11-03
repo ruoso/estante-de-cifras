@@ -3,7 +3,9 @@
 // this order: Account (*Paired with* the account), Sync (the shelf's sync
 // line as it was when the page opened — it does not change here, rule 5),
 // Shapes (the count hidden, with **Show all again**, or *No shapes hidden.*),
-// This reader (*Version 0.1.0*), and **Sign out**, which asks once: pressed,
+// This reader (*Version 0.1.0*, and under it *Update the reader on your
+// reMarkable* when the site serves a hostApi newer than the backend speaks —
+// reader.self_update, design §8), and **Sign out**, which asks once: pressed,
 // the question replaces it with **Sign out** and **Cancel**. Four regions,
 // each replaced in one place and counted in `revision`:
 //
@@ -34,6 +36,7 @@ Item {
     readonly property alias accountPart: accountPart
     readonly property alias syncPart: syncPart
     readonly property alias readerPart: readerPart
+    readonly property Text updateText: readerPart.noteText
     readonly property Text shapesText: shapesPart.valueText
     readonly property alias showAllButton: showAllButton
     readonly property alias signOutButton: signOutButton
@@ -49,6 +52,8 @@ Item {
     height: M.barHeight + M.contentHeight + M.footHeight
 
     readonly property int partHeight: 160
+    // This reader holds a second line (the update's) under its version.
+    readonly property int readerHeight: 200
 
     // A `107 settings`, and the state the shelf's sync line is read from.
     function show(settings, state) {
@@ -57,7 +62,8 @@ Item {
         contentRegion.show({
             account: Pages.pairedWith(settings && settings.account),
             sync: Status.statusLine(state),
-            version: Pages.versionLine(settings && settings.version)
+            version: Pages.versionLine(settings && settings.version),
+            update: Pages.updateLine(settings && settings.updateReader)
         });
         shapesRegion.show({ hidden: Number(settings && settings.hiddenShapes) || 0 });
         signOutRegion.show({ asking: false });
@@ -87,8 +93,11 @@ Item {
         id: part
         property string heading: ""
         property string value: ""
+        // A second line under the value ("" for none).
+        property string note: ""
         property int valueWidth: width - 2 * M.contentSide
         readonly property alias valueText: valueText
+        readonly property alias noteText: noteText
         width: M.screenWidth
         height: screen.partHeight
         Text {
@@ -122,6 +131,22 @@ Item {
             textFormat: Text.PlainText
             text: part.value
         }
+        Text {
+            id: noteText
+            objectName: "partNote"
+            visible: part.note !== ""
+            x: M.contentSide
+            y: 136
+            width: part.width - 2 * M.contentSide
+            height: 40
+            color: "black"
+            font.family: screen.faces.ui
+            font.pixelSize: 32
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+            textFormat: Text.PlainText
+            text: part.note
+        }
         Rectangle {
             objectName: "partRule"
             x: M.contentSide
@@ -153,8 +178,8 @@ Item {
         x: 0
         y: M.barHeight
         width: screen.width
-        height: 4 * screen.partHeight
-        content: ({ account: "", sync: "", version: "" })
+        height: 3 * screen.partHeight + screen.readerHeight
+        content: ({ account: "", sync: "", version: "", update: "" })
 
         Part {
             id: accountPart
@@ -174,8 +199,10 @@ Item {
             id: readerPart
             objectName: "thisReader"
             y: 3 * screen.partHeight
+            height: screen.readerHeight
             heading: Pages.copy.thisReader
             value: contentRegion.content.version || ""
+            note: contentRegion.content.update || ""
         }
     }
 
@@ -225,9 +252,9 @@ Item {
         id: signOutRegion
         objectName: "signOut"
         x: 0
-        y: M.barHeight + 4 * screen.partHeight
+        y: M.barHeight + 3 * screen.partHeight + screen.readerHeight
         width: screen.width
-        height: M.contentHeight - 4 * screen.partHeight
+        height: M.contentHeight - 3 * screen.partHeight - screen.readerHeight
         content: ({ asking: false })
 
         InkButton {

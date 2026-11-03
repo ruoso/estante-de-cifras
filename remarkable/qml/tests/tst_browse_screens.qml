@@ -14,6 +14,7 @@ import "fixtures/browse-book.js" as BrowseBook
 import "fixtures/browse-book-small.js" as BrowseBookSmall
 import "fixtures/browse-setlist.js" as BrowseSetlist
 import "fixtures/browse-settings.js" as BrowseSettings
+import "fixtures/browse-settings-update.js" as BrowseSettingsUpdate
 import "walk.js" as Walk
 
 TestCase {
@@ -360,6 +361,10 @@ TestCase {
         compare(screen.syncPart.valueText.text, "Synced at 14:32");
         compare(screen.shapesText.text, "11 shapes hidden — the ones you know");
         compare(screen.readerPart.valueText.text, "Version 0.9.0-test");
+        // updateReader false (reader.self_update): no update line.
+        compare(BrowseSettings.settings.updateReader, false);
+        verify(!screen.updateText.visible);
+        compare(screen.updateText.text, "");
         verify(screen.showAllButton.visible);
         verify(screen.signOutButton.visible);
         verify(!screen.questionText.visible);
@@ -396,6 +401,27 @@ TestCase {
         compare(screen.endpoint.sent[0].payload, {});
         mouseClick(screen.bar.back);
         compare(screen.endpoint.sent.length, 1);
+    }
+
+    // reader.self_update (design §8; workflow 19 §The shelf, This reader): a
+    // site serving a newer hostApi — *Version …* and under it *Update the
+    // reader on your reMarkable*, inside This reader's part, one-bit; the
+    // parts keep their order.
+    function test_settingsUpdateReader() {
+        const screen = make(settingsComponent);
+        screen.show(clone(BrowseSettingsUpdate.settings), { paired: true, lastSync: localTime(14, 32) });
+        compare(BrowseSettingsUpdate.settings.updateReader, true);
+        compare(screen.readerPart.valueText.text, "Version 0.9.0-test");
+        verify(screen.updateText.visible);
+        compare(screen.updateText.text, "Update the reader on your reMarkable");
+        const part = screen.readerPart.mapToItem(screen, 0, 0).y;
+        const version = screen.readerPart.valueText.mapToItem(screen, 0, 0).y;
+        const line = screen.updateText.mapToItem(screen, 0, 0).y;
+        verify(line >= version + screen.readerPart.valueText.height, "the update line under the version");
+        verify(line + screen.updateText.height <= part + screen.readerPart.height - 2, "the update line inside its part");
+        verify(screen.updateText.implicitWidth <= screen.updateText.width, "the update line is not cut");
+        verify(screen.signOut.mapToItem(screen, 0, 0).y >= part + screen.readerPart.height, "Sign out under This reader");
+        clean(screen);
     }
 
     // Settings' Back opens the shelf; the hidden count's singular.

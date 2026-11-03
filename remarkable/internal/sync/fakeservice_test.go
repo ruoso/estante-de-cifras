@@ -6,11 +6,15 @@ package sync
 // /api/shelf/change-check computed from those repositories' heads. It records
 // every request, and in t.Cleanup fails the test on any git-receive-pack
 // request or any request without the session cookie (design §3.2 "Never a
-// push", §10). POST /api/auth/signout is answered 204 and counted
+// push", §10) — except /device/, the site's public payload, which it serves
+// from device and where it fails the test on a request that carries the
+// cookie (reader.self_update Decision 8). POST /api/auth/signout is answered 204 and counted
 // (reader.pairing), and the home-book read can be held in flight.
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -55,6 +59,10 @@ type fakeService struct {
 	// stalled is told when one is held.
 	stall   bool
 	stalled chan struct{}
+	// device is /device/'s files by name; deviceStatus, when not 0, answers
+	// every /device/ request with it.
+	device       map[string][]byte
+	deviceStatus int
 }
 
 // gitEnv keeps the git CLI away from the user's and the system's config.
@@ -91,7 +99,7 @@ func startFake(t *testing.T, tls bool) *fakeService {
 	}
 	f := &fakeService{
 		t: t, root: t.TempDir(), work: t.TempDir(), homeID: "home-0001",
-		gone: map[string]bool{}, cut: map[string]bool{},
+		gone: map[string]bool{}, cut: map[string]bool{}, device: map[string][]byte{},
 	}
 	backend := &cgi.Handler{
 		Path: gitPath, Args: []string{"http-backend"}, Root: "/git",
@@ -107,6 +115,7 @@ func startFake(t *testing.T, tls bool) *fakeService {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("/git/", func(w http.ResponseWriter, r *http.Request) { f.git(backend, w, r) })
+	mux.HandleFunc("GET /device/", f.serveDevice)
 	record := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(cookieName)
 		f.mu.Lock()
@@ -129,12 +138,69 @@ func startFake(t *testing.T, tls bool) *fakeService {
 			if strings.Contains(r.Path, "git-receive-pack") || strings.Contains(r.Query, "git-receive-pack") {
 				t.Errorf("the reader asked for receive-pack: %s %s?%s", r.Method, r.Path, r.Query)
 			}
-			if !r.Cookie {
+			device := strings.HasPrefix(r.Path, "/device/")
+			if device && r.Cookie {
+				t.Errorf("a /device/ request with the session cookie: %s %s", r.Method, r.Path)
+			}
+			if !device && !r.Cookie {
 				t.Errorf("a request without the session cookie: %s %s", r.Method, r.Path)
 			}
 		}
 	})
 	return f
+}
+
+// serveDevice answers /device/<name> from device (404 when absent).
+func (f *fakeService) serveDevice(w http.ResponseWriter, r *http.Request) {
+	f.mu.Lock()
+	body, ok := f.device[strings.TrimPrefix(r.URL.Path, "/device/")]
+	status := f.deviceStatus
+	f.mu.Unlock()
+	switch {
+	case status != 0:
+		w.WriteHeader(status)
+	case !ok:
+		http.NotFound(w, r)
+	default:
+		w.Write(body)
+	}
+}
+
+// serveBundle puts a payload on /device/: a bundle of code and an rcc, named
+// by their hashes under the manifest naming them; it answers the manifest's
+// bytes and the bundle's SHA-256.
+func (f *fakeService) serveBundle(code, rcc []byte) (manifest []byte, sha string) {
+	f.t.Helper()
+	hexOf := func(b []byte) string { s := sha256.Sum256(b); return hex.EncodeToString(s[:]) }
+	sha = hexOf(code)
+	bundle := map[string]string{"path": "bundle." + sha[:8] + ".js", "sha256": sha}
+	qml := map[string]string{"path": "resources." + hexOf(rcc)[:8] + ".rcc", "sha256": hexOf(rcc)}
+	manifest, err := json.Marshal(map[string]any{
+		"version": "test", "hostApi": engine.HostAPI, "salt": "defaults-1", "bundle": bundle, "qml": qml,
+	})
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.device["manifest.json"] = manifest
+	f.device[bundle["path"]] = code
+	f.device[qml["path"]] = rcc
+	return manifest, sha
+}
+
+// setDevice replaces /device/<name>'s answer.
+func (f *fakeService) setDevice(name string, body []byte) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.device[name] = body
+}
+
+// setDeviceStatus answers every /device/ request with status (0: the files).
+func (f *fakeService) setDeviceStatus(status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.deviceStatus = status
 }
 
 func (f *fakeService) homeBook(w http.ResponseWriter, r *http.Request) {

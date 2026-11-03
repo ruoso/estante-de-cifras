@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -19,6 +21,7 @@ import (
 	"estantedecifras.app/remarkable/internal/pair"
 	"estantedecifras.app/remarkable/internal/protocol"
 	"estantedecifras.app/remarkable/internal/store"
+	"estantedecifras.app/remarkable/internal/update"
 )
 
 // TestVersion pins reader.module's --version: exactly
@@ -42,7 +45,7 @@ func TestVersion(t *testing.T) {
 // path is not AppLoad's socket) prints the usage line, which names run
 // (reader.app_folder), to stderr and exits 2.
 func TestUsage(t *testing.T) {
-	for _, cmd := range []string{"--version", "sheet --bundle DIR", "bench --bundle DIR", "run [--root DIR] [--origin URL] SOCKET"} {
+	for _, cmd := range []string{"--version", "sheet --bundle DIR", "bench --bundle DIR", "run [--root DIR] [--origin URL] [--app DIR] SOCKET"} {
 		if !strings.Contains(usage, cmd) {
 			t.Errorf("usage %q does not name %q", usage, cmd)
 		}
@@ -291,7 +294,9 @@ func TestSyncUsage(t *testing.T) {
 	if strings.Contains(usage, "session") {
 		t.Errorf("usage %q still names the session stand-in", usage)
 	}
-	for _, cmd := range []string{"pair --root DIR [--origin URL]", "signout --root DIR", "sync --root DIR --bundle DIR"} {
+	// reader.self_update: sync's bundle is optional (the store's current, or
+	// the one its update brings), and it takes the app folder.
+	for _, cmd := range []string{"pair --root DIR [--origin URL]", "signout --root DIR", "sync --root DIR [--bundle DIR] [--app DIR]"} {
 		if !strings.Contains(usage, cmd) {
 			t.Errorf("usage %q does not name %q", usage, cmd)
 		}
@@ -304,8 +309,8 @@ func TestSyncUsage(t *testing.T) {
 		{"signout"},
 		{"signout", "--root", "r", "extra"},
 		{"sync"},
-		{"sync", "--root", "r"},
 		{"sync", "--bundle", "b"},
+		{"sync", "--app", "a"},
 		{"sync", "--root", "r", "--bundle", "b", "extra"},
 	} {
 		var stdout, stderr bytes.Buffer
@@ -516,7 +521,7 @@ func TestRunOriginDefault(t *testing.T) {
 		{[]string{"--origin", "http://localhost:8080", "/tmp/estante.sock"}, "http://localhost:8080"},
 		{[]string{"--origin", "https://stack.test/", "/tmp/estante.sock"}, "https://stack.test"},
 	} {
-		root, origin, socket, err := runFlags(tc.args)
+		root, origin, _, socket, err := runFlags(tc.args)
 		if err != nil {
 			t.Errorf("%q: %v", tc.args, err)
 			continue
@@ -723,5 +728,109 @@ func TestSignOutCommandClears(t *testing.T) {
 	}
 	if _, ok := again.BundleDir(); !ok {
 		t.Error("the bundle was removed")
+	}
+}
+
+// --- the self-update at start (reader.self_update) ---
+
+// bundleFiles is a bundle directory's files: the manifest naming code by its
+// hashed name and SHA-256, under the built bundle's hostApi and salt.
+func bundleFiles(t *testing.T, code []byte) (map[string][]byte, string) {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(builtBundle, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(code)
+	sha := hex.EncodeToString(sum[:])
+	name := "bundle." + sha[:8] + ".js"
+	m["bundle"] = map[string]any{"path": name, "sha256": sha}
+	mraw, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return map[string][]byte{"manifest.json": mraw, name: code}, sha
+}
+
+// builtCode is the built bundle's code.
+func builtCode(t *testing.T) []byte {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(builtBundle, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m struct {
+		Bundle struct{ Path string } `json:"bundle"`
+	}
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	code, err := os.ReadFile(filepath.Join(builtBundle, m.Bundle.Path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return code
+}
+
+// TestRunRollsBackABundleThatDoesNotOpen pins reader.self_update constraint
+// 10 (design §8): a bundle/current that does not evaluate, with a good
+// previous, starts with the previous current and the bad one refused.
+func TestRunRollsBackABundleThatDoesNotOpen(t *testing.T) {
+	needBuild(t)
+	root := t.TempDir()
+	st, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	good, goodSHA := bundleFiles(t, builtCode(t))
+	bad, badSHA := bundleFiles(t, []byte(`throw new Error("broken");`))
+	for _, files := range []map[string][]byte{good, bad} {
+		if err := st.StageBundle(files); err != nil {
+			t.Fatal(err)
+		}
+		if err := st.PromoteBundle(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sock, accepted := listen(t)
+	servesHelloAndTerminate(t, []string{"run", "--root", root, sock}, accepted)
+
+	st, err = store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir, ok := st.BundleDir()
+	if !ok {
+		t.Fatal("no current bundle after the start")
+	}
+	if got := update.BundleSHA(dir); got != goodSHA {
+		t.Errorf("current bundle %s, want the good previous %s", got, goodSHA)
+	}
+	if got := st.Refused(); len(got) != 1 || got[0] != badSHA {
+		t.Errorf("refused %v, want [%s]", got, badSHA)
+	}
+}
+
+// TestBareSocketPathAppIsTheWorkingDirectory pins reader.self_update
+// constraint 12: run reached by AppLoad's bare socket path places the QML in
+// its working directory, the app folder; an explicit run has none.
+func TestBareSocketPathAppIsTheWorkingDirectory(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, app, socket, err := runFlags(bareRunArgs("/tmp/estante.sock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if app != wd || socket != "/tmp/estante.sock" {
+		t.Errorf("bare socket path: app %q socket %q, want %q and the socket", app, socket, wd)
+	}
+	if _, _, app, _, err := runFlags([]string{"/tmp/estante.sock"}); err != nil || app != "" {
+		t.Errorf("explicit run: app %q (%v), want none", app, err)
 	}
 }

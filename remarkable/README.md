@@ -45,6 +45,18 @@ statuses and heads, nothing else. `signout` ends the session with the service
 `run --origin URL SOCKET` pairs the backend with the same origin. The sync's
 behavior tests run real `git http-backend`, so they need `git` on the host.
 
+`internal/update` is the self-update (design §8): each pass ends by reading the
+site's public `/device/manifest.json` — without the session — and fetching the
+bundle and the QML it names when this backend speaks its `hostApi`, each
+checked against its SHA-256. The bundle is staged in the store and switched to
+on the next frontend attach (or at once when none is loaded), rolled back and
+remembered as refused if it does not open; the QML replaces `resources.rcc` in
+the app folder — `--app DIR`, or the working directory when AppLoad starts the
+backend — only when that folder's `manifest.json` is *Estante*'s, the old one
+kept in the store's `qml/previous/`. `sync` without `--bundle` uses the store's
+own bundle, so `sync --root /tmp/estante --app DIR` brings both from the site.
+The backend binary is never replaced.
+
 The QML frontend's tests (`qml/tests/tst_*.qml`) run on Qt's own
 qmltestrunner over a pinned Qt 6 from pip (PySide6-Essentials; the wheel has
 no runner binary, so `qml/tests/run.py` calls its `quick_test_main`),

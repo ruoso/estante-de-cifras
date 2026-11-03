@@ -175,7 +175,10 @@ line as it was when the page opened (it does not change while the page is on
 screen — rule 5's exception is the shelf's); **Shapes**, *11 shapes hidden —
 the ones you know* with **Show all again** (the count redrawn when it is
 pressed), or *No shapes hidden.* without the button; **This reader**,
-*Version 0.1.0*; and **Sign out**, which asks once: pressed, it is replaced by
+*Version 0.1.0*, and under it, when the site serves screens and music code
+this reader's program is too old to run, *Update the reader on your
+reMarkable* (it keeps showing the books with what it has; the line goes once
+a new reader is installed — design §8); and **Sign out**, which asks once: pressed, it is replaced by
 *Sign out of this reMarkable? Your books are removed from it; nothing changes
 in your account.* with **Sign out** and **Cancel** — one redraw of that part of
 the page — and the second *Sign out* signs out, returning to *Not paired*.

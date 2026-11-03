@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"estantedecifras.app/remarkable/internal/engine"
 	pairing "estantedecifras.app/remarkable/internal/pair"
 	"estantedecifras.app/remarkable/internal/protocol"
 	"estantedecifras.app/remarkable/internal/store"
@@ -45,6 +46,9 @@ type fakeSyncer struct {
 	releases map[string]int
 	signOuts int
 	store    *store.Store
+	// useEngines counts UseEngine; engine is the last one adopted.
+	useEngines int
+	engine     sync.Engine
 }
 
 func newFakeSyncer() *fakeSyncer {
@@ -114,6 +118,23 @@ func (f *fakeSyncer) SignOut(ctx context.Context) error {
 	if st != nil {
 		return st.SignOut()
 	}
+	return nil
+}
+
+// UseEngine loads an instrument (none chosen: the bundle's default) on eng
+// as the syncer does, and adopts eng when it loads (reader.self_update).
+func (f *fakeSyncer) UseEngine(ctx context.Context, eng sync.Engine) error {
+	in, err := eng.Instrument(ctx, engine.InstrumentFiles{})
+	if err == nil {
+		_, err = eng.Load(ctx, in.Entry, in.Table)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.useEngines++
+	if err != nil {
+		return err
+	}
+	f.engine = eng
 	return nil
 }
 

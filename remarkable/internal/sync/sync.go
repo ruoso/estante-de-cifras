@@ -15,7 +15,9 @@
 // /api/account/home-book, POST /api/shelf/change-check (a read, by the
 // contract) and git upload-pack, all to the session's one origin — and, when
 // the person signs the device out, POST /api/auth/signout, which ends this
-// device's own session (reader.pairing).
+// device's own session (reader.pairing). At the end of a pass, Options.Update
+// reads the site's public /device/ payload from the same origin, without the
+// session (reader.self_update).
 //
 // A session the service refuses (401) is forgotten: the session, the state,
 // the home book and every clone no screen holds go at once, the held ones
@@ -44,6 +46,7 @@ import (
 
 	"estantedecifras.app/remarkable/internal/engine"
 	"estantedecifras.app/remarkable/internal/store"
+	"estantedecifras.app/remarkable/internal/update"
 )
 
 // ErrNotPaired is Pass's answer when the store holds no session.
@@ -107,6 +110,10 @@ type Options struct {
 	Online func() bool
 	// OnStatus is told when a pass begins and how it ended.
 	OnStatus func(Status)
+	// Update, when set, checks the site for a new bundle and QML at the end
+	// of every pass that got as far as the snapshot (reader.self_update). Its
+	// outcome changes nothing the pass reports.
+	Update *update.Updater
 }
 
 // BookResult is what a pass did with one book, and the head it has now
@@ -153,7 +160,7 @@ type Syncer struct {
 }
 
 // New makes a Syncer for st, loading instruments into eng (which may be nil:
-// then nothing is loaded). Its first snapshot is what is already on disk, so
+// then nothing is loaded until UseEngine hands it one). Its first snapshot is what is already on disk, so
 // the screens have the last sync's books before any pass.
 func New(st *store.Store, eng Engine, opts Options) *Syncer {
 	if opts.HTTPClient == nil {
@@ -482,6 +489,12 @@ func (s *Syncer) run(ctx context.Context, origin *url.URL, token string) (Result
 	if err := s.st.SetLastSync(s.opts.Now()); err != nil {
 		return res, err
 	}
+	// The self-update, after the books and the snapshot, inside the pass's
+	// timeout: what it did, or why it failed, is not the pass's to report
+	// (reader.self_update constraint 7).
+	if s.opts.Update != nil {
+		_, _ = s.opts.Update.Check(ctx, s.opts.HTTPClient, origin)
+	}
 	return res, instrErr
 }
 
@@ -601,35 +614,80 @@ func instrumentFiles(home homeFiles) engine.InstrumentFiles {
 	}
 }
 
-// loadInstrument asks the bundle for the instrument and its table and loads
-// them — only when the four files differ from those last loaded, so an
-// unchanged home book loads nothing.
-func (s *Syncer) loadInstrument(ctx context.Context, home homeFiles) error {
-	if s.eng == nil {
-		return nil
-	}
-	files := instrumentFiles(home)
+// engine is the engine instruments are loaded into (nil when none).
+func (s *Syncer) engine() Engine {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.eng
+}
+
+// filesDigest is the digest of the four instrument files.
+func filesDigest(files engine.InstrumentFiles) string {
 	h := sha256.New()
 	for _, raw := range []json.RawMessage{files.Instruments, files.Preferences, files.Shapes, files.DefaultShapes} {
 		fmt.Fprintf(h, "%d:", len(raw))
 		h.Write(raw)
 	}
-	digest := hex.EncodeToString(h.Sum(nil))
-	s.mu.Lock()
-	same := digest == s.loadDigest
-	s.mu.Unlock()
-	if same {
-		return nil
-	}
-	in, err := s.eng.Instrument(ctx, files)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// loadOn asks eng's bundle for the instrument and its table and loads them.
+func loadOn(ctx context.Context, eng Engine, files engine.InstrumentFiles) error {
+	in, err := eng.Instrument(ctx, files)
 	if err != nil {
 		return fmt.Errorf("sync: instrument: %w", err)
 	}
-	if _, err := s.eng.Load(ctx, in.Entry, in.Table); err != nil {
+	if _, err := eng.Load(ctx, in.Entry, in.Table); err != nil {
 		return fmt.Errorf("sync: instrument: %w", err)
 	}
+	return nil
+}
+
+// loadInstrument asks the bundle for the instrument and its table and loads
+// them — only when the four files differ from those last loaded, so an
+// unchanged home book loads nothing. An engine closed under it (switched by
+// UseEngine meanwhile) is no failure: the load is tried on the engine now in
+// use, which UseEngine loaded already when the files are the same.
+func (s *Syncer) loadInstrument(ctx context.Context, home homeFiles) error {
+	files := instrumentFiles(home)
+	digest := filesDigest(files)
+	for {
+		s.mu.Lock()
+		eng, same := s.eng, digest == s.loadDigest
+		s.mu.Unlock()
+		if eng == nil || same {
+			return nil
+		}
+		err := loadOn(ctx, eng, files)
+		if errors.Is(err, engine.ErrClosed) {
+			if next := s.engine(); next != nil && next != eng {
+				continue
+			}
+		}
+		if err != nil {
+			return err
+		}
+		s.mu.Lock()
+		if s.eng == eng {
+			s.loadDigest = digest
+		}
+		s.mu.Unlock()
+		return nil
+	}
+}
+
+// UseEngine makes eng the engine instruments are loaded into
+// (reader.self_update constraint 9): it loads the instrument in use — the
+// home book on disk, or none — on eng and, only when that succeeds, adopts
+// eng and its digest under the lock, so the next pass loads nothing twice. On
+// an error the syncer keeps the engine it had.
+func (s *Syncer) UseEngine(ctx context.Context, eng Engine) error {
+	files := instrumentFiles(readHome(s.st.HomeDir()))
+	if err := loadOn(ctx, eng, files); err != nil {
+		return err
+	}
 	s.mu.Lock()
-	s.loadDigest = digest
+	s.eng, s.loadDigest = eng, filesDigest(files)
 	s.mu.Unlock()
 	return nil
 }

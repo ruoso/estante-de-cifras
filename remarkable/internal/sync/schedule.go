@@ -25,7 +25,7 @@ const passTimeout = 10 * time.Minute
 func (s *Syncer) Run(ctx context.Context) {
 	tick, stop := s.newTicker(Interval)
 	defer stop()
-	if s.eng != nil && s.st != nil {
+	if s.engine() != nil && s.st != nil {
 		if home := readHome(s.st.HomeDir()); len(home) > 0 {
 			// A failure leaves the engine as it was; the pass tries again.
 			_ = s.loadInstrument(ctx, home)

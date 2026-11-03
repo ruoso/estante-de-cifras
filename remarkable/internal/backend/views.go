@@ -309,11 +309,15 @@ func (v *views) shelf() protocol.Shelf {
 	return out
 }
 
-// settings is 107: the account paired with, the reader's version, and how
-// many voicings are hidden.
+// settings is 107: the account paired with, the reader's version, how many
+// voicings are hidden, and whether the site serves a hostApi newer than this
+// backend speaks (reader.self_update; design §8).
 func (v *views) settings() protocol.Settings {
 	sess, _ := v.st.Session()
-	return protocol.Settings{Account: sess.Account, Version: v.ver, HiddenShapes: v.st.HiddenCount()}
+	return protocol.Settings{
+		Account: sess.Account, Version: v.ver, HiddenShapes: v.st.HiddenCount(),
+		UpdateReader: v.st.ServedHostAPI() > engine.HostAPI,
+	}
 }
 
 // label is bookID's shelf label in snap ("" when none: the frontend words
