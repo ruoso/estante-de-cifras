@@ -26,15 +26,20 @@ var icon []byte
 
 // manifest is the folder's manifest.json (rm-appload README §Applications'
 // format; design §3.1; refinement Decision 8): fixed at the rM2's portrait
-// screen, which AppLoad scales to its window, one frontend.
+// screen, which AppLoad scales to its window, one frontend. The width is the
+// rM2's 1404 by number: AppLoad reads aspectRatio "original" as 0.75 at a
+// width of 1620 (the Paper Pro's), which on the rM2 scaled the page by
+// 1404/1620 and left the root's 1404 × 1872 content in the top-left of a
+// 1620 × 2160 box.
 type manifest struct {
-	ID                       string `json:"id"`
-	Name                     string `json:"name"`
-	Entry                    string `json:"entry"`
-	LoadsBackend             bool   `json:"loadsBackend"`
-	CanHaveMultipleFrontends bool   `json:"canHaveMultipleFrontends"`
-	SupportsScaling          bool   `json:"supportsScaling"`
-	AspectRatio              string `json:"aspectRatio"`
+	ID                       string  `json:"id"`
+	Name                     string  `json:"name"`
+	Entry                    string  `json:"entry"`
+	LoadsBackend             bool    `json:"loadsBackend"`
+	CanHaveMultipleFrontends bool    `json:"canHaveMultipleFrontends"`
+	SupportsScaling          bool    `json:"supportsScaling"`
+	AspectRatio              float64 `json:"aspectRatio"`
+	Width                    int     `json:"width"`
 }
 
 func theManifest() manifest {
@@ -45,7 +50,8 @@ func theManifest() manifest {
 		LoadsBackend:             true,
 		CanHaveMultipleFrontends: false,
 		SupportsScaling:          false,
-		AspectRatio:              "original",
+		AspectRatio:              0.75,
+		Width:                    1404,
 	}
 }
 
