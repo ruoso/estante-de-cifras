@@ -34,10 +34,10 @@ each screen ends with what its actions cost.
    never move. Changing the content redraws the content region only; changing a
    word in the bar redraws that word only.
 5. **Background news never redraws the screen.** A sync that brings a new
-   version of a song, a new book, a shape found late — none of it changes what
-   is on the screen. It shows on the next screen the person opens. The only
-   exceptions are the two the person is waiting for: a pairing approved, and
-   the sync word on the shelf.
+   version of a song, a shape found late — none of it changes what is on the
+   screen. It shows on the next screen the person opens. The only exceptions
+   are the ones the person is waiting for: a pairing approved, the sync word on
+   the shelf, and the shelf's list when a sync changed it.
 6. **Black and white.** One bit: black ink on white paper, no greys, no tints,
    no shadows, strokes at least 2 px. A one-bit change can use the panel's fast
    black-and-white update, which is quicker and leaves less ghosting than a
@@ -162,8 +162,11 @@ begins and ends while another screen is open changes nothing until the shelf
 is opened again.
 
 **Sync** starts a sync at once (the line changes) and does nothing else. A
-book that arrived in the sync appears in the list on the next opening of the
-shelf, not while it is on screen (rule 5).
+sync that changes the shelf — a book arrived or left, or a book's counts
+moved — redraws the shelf once at its end, on the page shown, while the
+shelf is on screen (rule 5's exception); one that changes nothing redraws
+only the line. On any other screen it changes nothing until the shelf is
+opened again.
 
 Each row's second line counts what the book holds: *32 songs · 4 setlists*,
 *1 song*; a book with no setlists says only its songs (*12 songs*) — nothing
@@ -460,7 +463,7 @@ is the web app's.
 | Switch the bar numbers, in Settings | 1 | the Bar numbers part |
 | Choose a text size, in Settings | 1 | the whole page, laid out again at it |
 | Change / Cancel, an instrument chosen, in Settings | 1 | the part below Instrument; Instrument too when one is chosen |
-| Sync, on the shelf | 2 | one line |
+| Sync, on the shelf | 2 | one line; and the shelf, once, when the sync changed it |
 | Sync, anywhere else | 0 | — |
 | Pairing approved / code expired | 1 | content |
 

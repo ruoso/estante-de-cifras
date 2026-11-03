@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"sort"
 	"strings"
 	gosync "sync"
@@ -73,6 +74,12 @@ type views struct {
 
 	cur      *viewContext
 	listings map[listingKey]listing
+
+	// shelfShown while the last view answered is the shelf, and shelfSent
+	// what it was answered with: a pass that changes it sends it again
+	// (shelfNews).
+	shelfShown bool
+	shelfSent  protocol.Shelf
 
 	// The pairing (pairing.go): the client, the news of the one in progress
 	// (only its generation's counts), and how to stop it.
@@ -209,10 +216,11 @@ func (v *views) open(o protocol.Open) error {
 		v.leave()
 		return v.conn.Write(protocol.Shelf{Books: []protocol.ShelfBook{}})
 	}
+	v.shelfShown = false
 	switch o.View {
 	case protocol.ViewShelf:
 		v.leave()
-		return v.conn.Write(v.shelf())
+		return v.writeShelf()
 	case protocol.ViewSettings:
 		v.leave()
 		return v.conn.Write(v.settings())
@@ -296,7 +304,32 @@ func (v *views) answerBook() error {
 // answerShelf leaves the current context and answers the shelf.
 func (v *views) answerShelf() error {
 	v.leave()
-	return v.conn.Write(v.shelf())
+	return v.writeShelf()
+}
+
+// writeShelf answers the shelf as the latest snapshot has it, and keeps that
+// it is on screen.
+func (v *views) writeShelf() error {
+	s := v.shelf()
+	v.shelfShown, v.shelfSent = true, s
+	return v.conn.Write(s)
+}
+
+// shelfNews is a pass's end: with the shelf on screen, a shelf the pass
+// changed — a book arrived, left, or its counts moved — is sent again, so
+// the list shows every book synced (workflow 19 §The shelf, as amended). An
+// unchanged one sends nothing.
+func (v *views) shelfNews() error {
+	if !v.shelfShown {
+		return nil
+	}
+	if _, paired := v.st.Session(); !paired {
+		return nil
+	}
+	if s := v.shelf(); !reflect.DeepEqual(s, v.shelfSent) {
+		return v.writeShelf()
+	}
+	return nil
 }
 
 // --- the shelf, a book, settings ---

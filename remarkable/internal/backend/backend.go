@@ -328,6 +328,9 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 			}
 			continue
 		case <-relay.passEnded:
+			if err := v.shelfNews(); err != nil {
+				return err
+			}
 			// The first bundle: with none loaded, nothing on screen depends
 			// on one (Decision 5).
 			if v.eng == nil {

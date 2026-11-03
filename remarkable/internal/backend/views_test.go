@@ -394,6 +394,55 @@ func TestOpenShelf(t *testing.T) {
 	s.peer.silent()
 }
 
+// TestShelfResentWhenAPassChangesIt pins workflow 19 §The shelf, as
+// amended: with the shelf on screen, a pass that brings a book sends the
+// shelf again, with it; a pass that changes nothing sends only the state;
+// with another view on screen, nothing but the state.
+func TestShelfResentWhenAPassChangesIt(t *testing.T) {
+	f := newViewsFixture(t)
+	s := f.serve(t, builtEngine(t))
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "shelf"})
+	var shelf protocol.Shelf
+	s.expect(t, protocol.TypeShelf, &shelf)
+	if len(shelf.Books) != 1 {
+		t.Fatalf("shelf %+v, want the one cloned book", shelf.Books)
+	}
+
+	// The pass clones the book that was on the shelf without a clone.
+	dir, err := f.st.BookDir(noClone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commit(t, dir, map[string]string{ferry: exampleText(t, ferry)})
+	s.syncer.setSnapshot(f.snapshot())
+	s.relay.StatusFunc()(sync.Status{Online: true})
+	s.peer.state()
+	shelf = protocol.Shelf{}
+	s.expect(t, protocol.TypeShelf, &shelf)
+	ids := []string{}
+	for _, b := range shelf.Books {
+		ids = append(ids, b.BookID)
+	}
+	if !reflect.DeepEqual(ids, []string{testBook, noClone}) {
+		t.Errorf("shelf after the pass %v, want %v", ids, []string{testBook, noClone})
+	}
+
+	// Nothing changed: the state alone.
+	s.relay.StatusFunc()(sync.Status{Online: true})
+	s.peer.state()
+	s.peer.silent()
+
+	// Another view on screen: the state alone, the shelf not sent.
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
+	s.expect(t, protocol.TypeSettings, &protocol.Settings{})
+	f.book[walking] = "# Changed\n"
+	f.commitBook(t)
+	s.syncer.setSnapshot(f.snapshot())
+	s.relay.StatusFunc()(sync.Status{Online: true})
+	s.peer.state()
+	s.peer.silent()
+}
+
 // TestOpenBook pins workflow 19 §A book and the web app's browse order: the
 // setlists by path with their counts (song and unlinked items), then the
 // songs by path with their titles and artists.
