@@ -1,6 +1,6 @@
 module estantedecifras.app/api
 
-go 1.25
+go 1.26.0
 
 require github.com/getkin/kin-openapi v0.149.0
 

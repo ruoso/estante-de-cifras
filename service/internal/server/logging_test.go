@@ -79,7 +79,7 @@ func TestLogRequestsLogsMetadataOnlyNeverBodyOrSecret(t *testing.T) {
 // TestRedactLinkToken pins workflow 13 "never logged", service.recovery_email
 // Constraint 6 and DIRECTION §3.3 as LogRequests cites it: every path under an
 // emailed-link route (linkRoutes) — with a trailing slash, below it, or in a
-// non-clean form the router 301s — logs as /<route>/{token}; every other path
+// non-clean form the router redirects — logs as /<route>/{token}; every other path
 // is logged unchanged, raw.
 func TestRedactLinkToken(t *testing.T) {
 	const tok = "c2lnbi1pbi1pZA.c2lnbmF0dXJlLWhhbGY"

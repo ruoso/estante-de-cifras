@@ -57,7 +57,7 @@ func LogRequests(logger *slog.Logger, h http.Handler) http.Handler {
 			// The app pages an emailed link opens carry their token in the path
 			// too (/sign-in/<token>, /recovery-email/<token> — linkRoutes),
 			// redacted alike. Both match on the path the router sees, so a
-			// non-clean form (//sign-in/<token>, answered with a 301) is caught.
+			// non-clean form (//sign-in/<token>, answered with a redirect) is caught.
 			slog.String("path", redactLinkToken(redactInvitationToken(r.URL.Path))),
 			slog.Int("status", rec.status),
 			slog.Duration("duration", time.Since(start)),
@@ -68,7 +68,7 @@ func LogRequests(logger *slog.Logger, h http.Handler) http.Handler {
 // redactInvitationToken replaces the secret token segment of the invitation
 // accept route (/api/invitations/{token}/accept) with a placeholder, so the raw
 // token — the invitation's capability — never reaches a log line. It matches on
-// path.Clean of p — the shape ServeMux routes (and 301s a non-clean path to) —
+// path.Clean of p — the shape ServeMux routes (and redirects a non-clean path to) —
 // so //api/invitations/<token>/accept is redacted too. Any other path is
 // returned unchanged, raw.
 func redactInvitationToken(p string) string {

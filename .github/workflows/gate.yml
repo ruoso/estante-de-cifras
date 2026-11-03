@@ -41,7 +41,9 @@ jobs:
             estante-de-cifras/api/package-lock.json
             estante-de-cifras/cifra.md/js/package-lock.json
 
-      # Go, pinned by service/go.mod; module/build cache keyed on go.mod/go.sum.
+      # Go, pinned by the go line every module shares (service, api, remarkable
+      # and cifra.md's go/ all name the same 1.26.0); module/build cache keyed
+      # on go.mod/go.sum.
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
@@ -51,18 +53,6 @@ jobs:
             estante-de-cifras/api/go.sum
             estante-de-cifras/remarkable/go.mod
             estante-de-cifras/remarkable/go.sum
-
-      # setup-go exports GOTOOLCHAIN=local, so a module whose go line is newer
-      # than the Go above cannot fetch its toolchain: the reader's goja needs
-      # the Go remarkable/go.mod names (reader.engine). Installed second, it is
-      # the go on PATH for the whole gate; a go line is a minimum, so the
-      # service's and the other modules' builds take it too. The cache is the
-      # step above's.
-      - name: Set up Go for the reader
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: estante-de-cifras/remarkable/go.mod
-          cache: false
 
       # Python 3 for scripts/unblocked.py and the cifra.md reference's venv.
       - name: Set up Python

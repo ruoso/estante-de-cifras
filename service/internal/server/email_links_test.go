@@ -491,7 +491,7 @@ func TestNoAddressOrTokenInLogs(t *testing.T) {
 
 // TestSignInLinkPageNeverLogged pins workflow 13 "Signing in on a new device"
 // and "never logged": opening the mailed sign-in link's app page — plain, with
-// a trailing slash, or in a non-clean form the router 301s — leaves only
+// a trailing slash, or in a non-clean form the router redirects — leaves only
 // /sign-in/{token} in the captured log: no token, neither half of it, and no
 // address.
 func TestSignInLinkPageNeverLogged(t *testing.T) {
@@ -519,8 +519,16 @@ func TestSignInLinkPageNeverLogged(t *testing.T) {
 			t.Errorf("GET %s = %d, want 200 with the app shell", p, status)
 		}
 	}
-	if status, _ := get("//sign-in/" + token); status != http.StatusMovedPermanently {
-		t.Errorf("GET //sign-in/<token> = %d, want 301", status)
+	// ServeMux redirects a non-clean path to its clean form with a 307 (Go 1.26).
+	resp, err := client.Get(e.server.URL + "//sign-in/" + token)
+	if err != nil {
+		t.Fatalf("GET //sign-in/<token>: %v", err)
+	}
+	resp.Body.Close()
+	if s := resp.StatusCode; s != http.StatusTemporaryRedirect {
+		t.Errorf("GET //sign-in/<token> = %d, want 307", s)
+	} else if loc := resp.Header.Get("Location"); loc != "/sign-in/"+token {
+		t.Errorf("GET //sign-in/<token> redirected to %q, want the clean /sign-in/<token>", loc)
 	}
 
 	logs := e.logBuf.String()

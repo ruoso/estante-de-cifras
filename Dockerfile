@@ -30,7 +30,7 @@ COPY app/ ./
 RUN npm run build
 
 # --- Stage 2: build the Go service binary, CGO-free --------------------------
-FROM golang:1.25-alpine AS service
+FROM golang:1.26-alpine AS service
 WORKDIR /src
 # Copying the module files first keeps the download layer cached when only
 # sources change. go.sum appears with the service's first dependency, pgx
