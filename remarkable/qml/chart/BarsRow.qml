@@ -4,8 +4,10 @@
 // L92–98). An ending's row has its ordinal label in its first place (*1st*,
 // *2nd*: workflow 19 §A song, as amended). A repeat opens with a 6 px and a
 // 3 px line and two 8 px dots, and closes with the same mirrored, its count
-// drawn as `×n` after it (Chart.jsx RuleMarks). Bar numbers are not drawn
-// (refinement Decision 10).
+// drawn as `×n` after it (Chart.jsx RuleMarks). With bar numbers shown
+// (blocks.js `numbered`), the row keeps a margin ahead of its bars, three
+// digits wide, and its first counted bar's number sits there, right-aligned
+// and level with the chords (Chart.jsx `barnum`).
 import QtQuick
 import "metrics.js" as M
 
@@ -17,16 +19,19 @@ Item {
     readonly property string kind: "bars"
     readonly property int rowIndex: piece.row
     property int naturalWidth: 0
+    // The bar numbers' margin: none unless the rows are numbered.
+    readonly property int margin: piece.numbered === true
+                                  ? Math.ceil(digits.advanceWidth) + M.barNumberGap : 0
 
     function layout(w) {
         width = w;
-        const quarter = Math.floor(w / M.barsPerRow);
-        let x = 0;
-        let natural = 0;
+        const quarter = Math.floor((w - margin) / M.barsPerRow);
+        let x = margin;
+        let natural = margin;
         if (labels.count > 0) {
             const label = labels.itemAt(0);
             const labelNatural = M.barPadLeft + label.width + M.barPadRight;
-            label.x = M.barPadLeft;
+            label.x = margin + M.barPadLeft;
             natural += labelNatural;
             x += Math.max(quarter, labelNatural);
         }
@@ -41,6 +46,47 @@ Item {
         }
         naturalWidth = natural;
         height = M.barsHeight + M.pieceSpacing;
+    }
+
+    TextMetrics {
+        id: digits
+        font.family: row.faces.mono
+        font.pixelSize: M.barNumberSize
+        text: "000"
+    }
+
+    // The chords' line, unseen: the bar number's baseline is theirs.
+    Text {
+        id: chordLevel
+        visible: false
+        y: Math.floor((M.barsHeight - M.chordLine) / 2)
+        width: Math.ceil(implicitWidth)
+        height: M.chordLine
+        color: "black"
+        font.family: row.faces.chart
+        font.variableAxes: ({ "wght": 700 })
+        font.pixelSize: M.chordSize
+        lineHeightMode: Text.FixedHeight
+        lineHeight: M.chordLine
+        textFormat: Text.PlainText
+        text: "0"
+    }
+
+    Repeater {
+        model: row.piece.numbered === true && row.piece.number !== null && row.piece.number !== undefined ? 1 : 0
+        delegate: Text {
+            objectName: "barNumber"
+            x: row.margin - M.barNumberGap - width
+            id: number
+            y: Math.round(chordLevel.y + chordLevel.baselineOffset - number.baselineOffset)
+            width: Math.ceil(implicitWidth)
+            color: "black"
+            font.family: row.faces.mono
+            font.variableAxes: ({ "wght": 500 })
+            font.pixelSize: M.barNumberSize
+            textFormat: Text.PlainText
+            text: String(row.piece.number)
+        }
     }
 
     Repeater {

@@ -123,16 +123,19 @@ function load(entry, table) {
 /**
  * A song's sheet, read at `offset` (or at the setlist's `targetKey`), as plain
  * data. `opts` is `{ variation?, variations?, preferences?, targetKey?,
- * savedOffset?, chordNames? }` — `chordNames`, `'written'` or `'voiced'`, the
- * reader's own choice of how the chart names its chords (workflow 19
- * §Settings), wins over the account's `chordNames` preference: `variations` is the song's `songs.json` map by tuning id —
+ * savedOffset?, chordNames?, barNumbers? }` — `chordNames`, `'written'` or
+ * `'voiced'`, the reader's own choice of how the chart names its chords
+ * (workflow 19 §Settings), wins over the account's `chordNames` preference,
+ * and `barNumbers`, `'shown'` or `'hidden'`, over its `barNumbers` (the
+ * sheet's `barNumbers` says whether the chart draws them: only for a song
+ * whose bars are counted): `variations` is the song's `songs.json` map by tuning id —
  * the session's own tuning picks from it, and it wins over `variation`, which
  * applies to the session's tuning — and `savedOffset` is the account's saved
  * transposition, named as `key.saved` by the same rule as `key.named`.
  */
 function sheet(text, offset = 0, opts = {}) {
-  const { variation = '', variations = null, targetKey = null, savedOffset = null, chordNames = null } = opts ?? {};
-  const preferences = withChordNames(opts?.preferences ?? null, chordNames);
+  const { variation = '', variations = null, targetKey = null, savedOffset = null, chordNames = null, barNumbers = null } = opts ?? {};
+  const preferences = withBarNumbers(withChordNames(opts?.preferences ?? null, chordNames), barNumbers);
   const parsed = parsedOf(text);
   if (!parsed) return { error: 'unreadable' };
 
@@ -261,6 +264,7 @@ function sheet(text, offset = 0, opts = {}) {
     tuningId: session.tuningId,
     variations: tuningVariations,
     variation: inUse,
+    barNumbers: read.barNumbers === true,
   };
 }
 
@@ -269,6 +273,13 @@ function sheet(text, offset = 0, opts = {}) {
 function withChordNames(preferences, chordNames) {
   if (chordNames !== 'written' && chordNames !== 'voiced') return preferences;
   return { ...(preferences ?? {}), chordNames: { at: '', value: chordNames } };
+}
+
+// The preferences with the reader's own `barNumbers` choice in place of the
+// account's, or as given.
+function withBarNumbers(preferences, barNumbers) {
+  if (barNumbers !== 'shown' && barNumbers !== 'hidden') return preferences;
+  return { ...(preferences ?? {}), barNumbers: { at: '', value: barNumbers } };
 }
 
 // chartRows with each chord's text replaced by its name in `renamed` (by the

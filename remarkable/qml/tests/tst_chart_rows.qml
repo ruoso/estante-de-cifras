@@ -190,6 +190,58 @@ TestCase {
         verify(count.x >= close.x + close.width);
     }
 
+    // every-row with its bars counted 1, 2, 3… (its sung lines leave them
+    // uncounted, cifra.md §2.8, so the count is spliced in) and, with
+    // `shown`, the sheet's barNumbers on.
+    function counted(shown) {
+        const sheet = copy(EveryRow.sheet);
+        let n = 1;
+        for (const r of sheet.rows) {
+            if (r.type === "bars")
+                r.numbers = r.cells.map(() => ({ number: n++, stated: false }));
+        }
+        sheet.barNumbers = shown;
+        return sheet;
+    }
+
+    // songs.bar_numbers, as the web app draws them (Chart.jsx `barnum`): with
+    // the sheet's barNumbers, each row of bars has its first bar's number in
+    // a margin ahead of it, right-aligned, one bit; without, none and no
+    // margin.
+    function test_barNumbers() {
+        const hidden = open(counted(false));
+        compare(Walk.named(hidden.pageItem(0), "barNumber").length, 0);
+        const shown = open(counted(true));
+        const sheet = counted(true);
+        const row = rowIndex(sheet, r => r.type === "bars");
+        verify(row >= 0, "a row of bars");
+        // Each row of four numbered by its first bar: the line's first bar,
+        // then the bar after the row before.
+        let drawn = 0;
+        for (let r = 0; r < sheet.rows.length; ++r) {
+            if (sheet.rows[r].type !== "bars")
+                continue;
+            let next = sheet.rows[r].numbers[0].number;
+            for (const p of pieceOfRow(shown, r)) {
+                compare(texts(p, "barNumber"), [String(next)], "row " + r);
+                next += Walk.named(p, "bar").length;
+                const number = Walk.named(p, "barNumber")[0];
+                const bar = Walk.named(p, "bar")[0];
+                verify(number.x >= 0, "the number inside the row");
+                verify(number.x + number.width <= bar.x - M.barNumberGap, "the number ahead of the first bar line");
+                compare(number.fontInfo.family, shown.faces.mono);
+                compare(number.font.pixelSize, M.barNumberSize);
+                drawn += 1;
+            }
+        }
+        verify(drawn > 0);
+        // Hidden, the bars start at the row's edge.
+        compare(Walk.named(pieceOfRow(hidden, row)[0], "bar")[0].x, 0);
+        compare(Walk.oneBitProblems(shown.pageItem(0)), []);
+        for (const p of pieces(shown, 0))
+            verify(Walk.integral(p), p.kind + " at " + [p.x, p.y, p.width, p.height]);
+    }
+
     // Design §6: a type the frontend does not know draws nothing and leaves
     // the layout as it is without it.
     function test_unknownRowIgnored() {

@@ -8,5 +8,7 @@ var settings = {
   "hiddenShapes": 11,
   "updateReader": false,
   "chordNames": "written",
-  "accountChordNames": "written"
+  "accountChordNames": "written",
+  "barNumbers": "hidden",
+  "accountBarNumbers": "hidden"
 };

@@ -51,24 +51,30 @@ function ordinal(n) {
 // One bars row → its rows of four (workflow 19 §A song, as amended): the
 // line's own break starts a row; a measure that begins an ending
 // (`marks.ending`) starts a row whose first place holds its ordinal label, so
-// that row holds up to three bars; otherwise a row takes four.
+// that row holds up to three bars; otherwise a row takes four. A row's
+// `number` is the count of its first counted bar (cifra.md §2.8; the row's
+// `numbers`), null when none is counted.
 //
-//   [{ label?, bars: [{ cells, marks }] }]
+//   [{ label?, number, bars: [{ cells, marks }] }]
 function reflowBars(row) {
     var out = [];
     var cur = null;
     var cells = list(row.cells) || [];
     var allMarks = list(row.marks);
+    var numbers = list(row.numbers) || [];
     for (var i = 0; i < cells.length; ++i) {
         var marks = allMarks ? (allMarks[i] || null) : null;
         var ending = marks && marks.ending !== null && marks.ending !== undefined ? marks.ending : null;
         if (ending !== null) {
-            cur = { label: ordinal(ending), bars: [] };
+            cur = { label: ordinal(ending), number: null, bars: [] };
             out.push(cur);
         } else if (cur === null || cur.bars.length + (cur.label ? 1 : 0) >= 4) {
-            cur = { bars: [] };
+            cur = { number: null, bars: [] };
             out.push(cur);
         }
+        var counted = numbers[i] && typeof numbers[i].number === "number" ? numbers[i].number : null;
+        if (cur.number === null && counted !== null)
+            cur.number = counted;
         cur.bars.push({ cells: list(cells[i]) || [], marks: marks });
     }
     return out;
@@ -89,7 +95,11 @@ function unit(kind, rows, pieces, keepWithNext) {
 }
 
 // The keep-together units of `rows`, in order.
-function blocks(rows) {
+// With `opts.barNumbers` (the sheet's barNumbers: shown, on a counted song),
+// every row of bars is `numbered` — it keeps a margin for the numbers, so the
+// rows' bars line up — and carries its first counted bar's `number`.
+function blocks(rows, opts) {
+    var numbered = !!(opts && opts.barNumbers);
     var units = [];
     rows = list(rows);
     if (rows === null)
@@ -122,7 +132,8 @@ function blocks(rows) {
                     var reflowed = reflowBars(r);
                     for (var k = 0; k < reflowed.length; ++k)
                         pieces.push({ kind: "bars", row: j, label: reflowed[k].label || null,
-                                      bars: reflowed[k].bars });
+                                      bars: reflowed[k].bars, numbered: numbered,
+                                      number: numbered ? reflowed[k].number : null });
                     rowsIn.push(j);
                 } else if (r.type === "gap" && r.grid) {
                     pieces.push({ kind: "gap", row: j });

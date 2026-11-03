@@ -22,5 +22,7 @@ var settings = {
   "instrumentChosen": true,
   "chordNames": "voiced",
   "chordNamesChosen": true,
-  "accountChordNames": "written"
+  "accountChordNames": "written",
+  "barNumbers": "hidden",
+  "accountBarNumbers": "hidden"
 };

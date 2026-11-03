@@ -366,6 +366,13 @@ func instrumentFixtures(t *testing.T, write func(name, from string, got []byte))
 		t.Fatalf("settings after choosing voiced %+v", voiced)
 	}
 	write("browse-settings-voiced", from, browseFixture(t, "settings", from+", My uke and chords named as voiced chosen on the device: the backend's `107 settings`", voiced))
+	s.send(t, protocol.TypeBarNumbers, map[string]any{"value": "shown"})
+	var numbered protocol.Settings
+	s.expect(t, protocol.TypeSettings, &numbered)
+	if numbered.BarNumbers != "shown" || !numbered.BarNumbersChosen {
+		t.Fatalf("settings after showing bar numbers %+v", numbered)
+	}
+	write("browse-settings-bar-numbers", from, browseFixture(t, "settings", from+", My uke, chords named as voiced and bar numbers shown chosen on the device: the backend's `107 settings`", numbered))
 }
 
 func TestQMLFixtures(t *testing.T) {

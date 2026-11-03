@@ -7,7 +7,10 @@
 // reMarkable* when the site serves a hostApi newer than the backend speaks —
 // reader.self_update, design §8), Chord names (*As written* or *As voiced*
 // — as the shapes shown sound them — *As in your account* or *Chosen on this
-// reMarkable*, and the button naming the other, one tap), Instrument (the one every song is read
+// reMarkable*, and the button naming the other, one tap), Bar numbers
+// (*Shown* or *Hidden* — on a song whose bars are counted, the first bar's
+// number at the start of each line — whose, and **Show** or **Hide**, the
+// same way), Text size, Instrument (the one every song is read
 // with, *As in your account* or *Chosen on this reMarkable*, and **Change**,
 // shown when the account has two or more — workflow 19 §Settings), and
 // **Sign out**, which asks once: pressed, the question replaces it with
@@ -18,6 +21,7 @@
 //
 //   the page opened (`show`)            bar, content, shapes, chord names, instrument, sign-out part
 //   chord names switched (`answered`)   chord names
+//   bar numbers switched (`answered`)   bar numbers
 //   a text size chosen                  the whole page, made again at it (Main)
 //   Show all again answered (`answered`)    shapes
 //   Sign out asked / Cancel             the sign-out part
@@ -46,6 +50,9 @@ Item {
     readonly property Region signOut: signOutRegion
     readonly property Region instrument: instrumentRegion
     readonly property Region chordNames: chordNamesRegion
+    readonly property Region barNumbers: barNumbersRegion
+    readonly property alias barNumbersPart: barNumbersPart
+    readonly property alias barNumbersButton: barNumbersButton
     readonly property Region textSize: textSizeRegion
     readonly property alias textSizeButtons: textSizeRepeater
     readonly property alias chordNamesPart: chordNamesPart
@@ -79,7 +86,7 @@ Item {
     readonly property int textSizeHeight: 190
     // Where Instrument starts; the part below it (Sign out, the instruments
     // to choose) is drawn from there, Sign out one part lower.
-    readonly property int instrumentTop: M.barHeight + 4 * partHeight + readerHeight + textSizeHeight
+    readonly property int instrumentTop: M.barHeight + 5 * partHeight + readerHeight + textSizeHeight
 
     // A `107 settings`, and the state the shelf's sync line is read from.
     function show(settings, state) {
@@ -93,6 +100,7 @@ Item {
         });
         shapesRegion.show({ hidden: Number(settings && settings.hiddenShapes) || 0 });
         chordNamesRegion.show(chordNamesContent(settings));
+        barNumbersRegion.show(barNumbersContent(settings));
         textSizeRegion.show({ size: M.textPt });
         instrumentRegion.show(instrumentContent(settings));
         signOutRegion.show({ asking: false, choosing: false, instruments: [] });
@@ -108,6 +116,15 @@ Item {
         };
     }
 
+    // What the Bar numbers part draws, from a `107`.
+    function barNumbersContent(settings) {
+        return {
+            numbers: settings && settings.barNumbers === "shown" ? "shown" : "hidden",
+            note: Pages.instrumentNote(settings && settings.barNumbersChosen === true),
+            account: settings && settings.accountBarNumbers === "shown" ? "shown" : "hidden"
+        };
+    }
+
     // A `107` while the page is shown: an instrument chosen redraws the
     // Instrument part and puts Sign out back; Show all again answered, the
     // Shapes line only.
@@ -115,6 +132,11 @@ Item {
         if (d.pending === "chordNames") {
             d.pending = "";
             chordNamesRegion.show(chordNamesContent(settings));
+            return;
+        }
+        if (d.pending === "barNumbers") {
+            d.pending = "";
+            barNumbersRegion.show(barNumbersContent(settings));
             return;
         }
         if (d.pending === "instrument") {
@@ -323,6 +345,49 @@ Item {
         }
     }
 
+    // Whether the chart shows bar numbers (workflow 19 §Settings).
+    Region {
+        id: barNumbersRegion
+        objectName: "barNumbers"
+        x: 0
+        y: M.barHeight + 4 * screen.partHeight + screen.readerHeight
+        width: screen.width
+        height: screen.partHeight
+        content: ({ numbers: "hidden", note: "", account: "hidden" })
+
+        Part {
+            id: barNumbersPart
+            objectName: "barNumbersPart"
+            y: 0
+            heading: Pages.copy.barNumbers
+            value: Pages.barNumbersLine(barNumbersRegion.content.numbers)
+            note: barNumbersRegion.content.note || ""
+            valueWidth: barNumbersButton.x - 32 - M.contentSide
+        }
+
+        InkButton {
+            id: barNumbersButton
+            objectName: "switchBarNumbers"
+            faces: screen.faces
+            active: signOutRegion.content.choosing !== true
+            x: barNumbersRegion.width - M.contentSide - width
+            y: 30
+            height: 100
+            padding: 40
+            fontSize: 36
+            text: Pages.barNumbersSwitch(barNumbersRegion.content.numbers)
+            held: d.pending === "barNumbers"
+            onActivated: {
+                if (d.pending !== "")
+                    return;
+                const next = barNumbersRegion.content.numbers === "shown" ? "hidden" : "shown";
+                d.pending = "barNumbers";
+                // The account's own follows the account again.
+                d.send(16, { value: next === barNumbersRegion.content.account ? null : next });
+            }
+        }
+    }
+
     // The chart's text size, in points (workflow 19 §Settings): the sizes
     // offered, the one read inverted; one chosen makes the screens again at
     // it (Main), Settings reopened.
@@ -330,7 +395,7 @@ Item {
         id: textSizeRegion
         objectName: "textSize"
         x: 0
-        y: M.barHeight + 4 * screen.partHeight + screen.readerHeight
+        y: M.barHeight + 5 * screen.partHeight + screen.readerHeight
         width: screen.width
         height: screen.textSizeHeight
         content: ({ size: M.standardPt })

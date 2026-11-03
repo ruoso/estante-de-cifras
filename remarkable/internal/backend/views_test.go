@@ -837,7 +837,7 @@ func TestOpenSettings(t *testing.T) {
 	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
 	var got protocol.Settings
 	s.expect(t, protocol.TypeSettings, &got)
-	want := protocol.Settings{Account: "reader@example.org", Version: testVersion, HiddenShapes: 1, ChordNames: "written", AccountChordNames: "written"}
+	want := protocol.Settings{Account: "reader@example.org", Version: testVersion, HiddenShapes: 1, ChordNames: "written", AccountChordNames: "written", BarNumbers: "hidden", AccountBarNumbers: "hidden"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("settings %+v, want %+v", got, want)
 	}
@@ -1290,6 +1290,51 @@ func TestAccountChordNamesRead(t *testing.T) {
 	s.expect(t, protocol.TypeSettings, &protocol.Settings{})
 	if sheet := s.openSong(t, asVoicedPath, nil); symbolsOf(sheet)[0] != "C" {
 		t.Errorf("written chosen over the account's voiced read %v", symbolsOf(sheet))
+	}
+}
+
+const counted = "# Counted\n\n```\nDm | G7\n@9 C | F\n```\n"
+
+const countedPath = "counted.cifra.md"
+
+// TestChooseBarNumbers pins workflow 19 §Settings: Settings says whether the
+// chart shows bar numbers — the account's, until one is chosen here (16),
+// kept on this reader and read by every song after; null follows the
+// account again.
+func TestChooseBarNumbers(t *testing.T) {
+	f := newViewsFixture(t)
+	f.book[countedPath] = counted
+	f.commitBook(t)
+	home := homeFiles(t, true)
+	home["preferences.json"] = mustMarshal(t, map[string]any{"barNumbers": reg("shown")})
+	commit(t, f.st.HomeDir(), home)
+	s := f.serve(t, ownEngine(t))
+
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
+	got := protocol.Settings{}
+	s.expect(t, protocol.TypeSettings, &got)
+	if got.BarNumbers != "shown" || got.BarNumbersChosen || got.AccountBarNumbers != "shown" {
+		t.Errorf("before: %q chosen %v account %q, want the account's shown", got.BarNumbers, got.BarNumbersChosen, got.AccountBarNumbers)
+	}
+	if sheet := s.openSong(t, countedPath, nil); !sheet.BarNumbers {
+		t.Error("the account's shown: the sheet has no bar numbers")
+	}
+
+	s.send(t, protocol.TypeBarNumbers, map[string]any{"value": "hidden"})
+	got = protocol.Settings{}
+	s.expect(t, protocol.TypeSettings, &got)
+	if got.BarNumbers != "hidden" || !got.BarNumbersChosen || f.st.BarNumbers() != "hidden" {
+		t.Errorf("after choosing hidden: %q chosen %v kept %q", got.BarNumbers, got.BarNumbersChosen, f.st.BarNumbers())
+	}
+	if sheet := s.openSong(t, countedPath, nil); sheet.BarNumbers {
+		t.Error("hidden chosen over the account's shown: the sheet has bar numbers")
+	}
+
+	s.send(t, protocol.TypeBarNumbers, map[string]any{"value": nil})
+	got = protocol.Settings{}
+	s.expect(t, protocol.TypeSettings, &got)
+	if got.BarNumbers != "shown" || got.BarNumbersChosen || f.st.BarNumbers() != "" {
+		t.Errorf("the account's again: %q chosen %v kept %q", got.BarNumbers, got.BarNumbersChosen, f.st.BarNumbers())
 	}
 }
 

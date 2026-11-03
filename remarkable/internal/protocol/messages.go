@@ -30,6 +30,7 @@ const (
 	TypeVariation     int32 = 13
 	TypeChordNames    int32 = 14
 	TypeTextSize      int32 = 15
+	TypeBarNumbers    int32 = 16
 
 	TypeState    int32 = 101
 	TypePairing  int32 = 102
@@ -180,6 +181,15 @@ type TextSize struct {
 
 func (TextSize) Type() int32 { return TypeTextSize }
 
+// BarNumbers (16): show the chart's bar numbers, "shown", or not, "hidden",
+// on this reader only; nil follows the account's barNumbers again (workflow
+// 19 §Settings).
+type BarNumbers struct {
+	Value *string `json:"value"`
+}
+
+func (BarNumbers) Type() int32 { return TypeBarNumbers }
+
 func (Hello) Type() int32         { return TypeHello }
 func (Open) Type() int32          { return TypeOpen }
 func (Key) Type() int32           { return TypeKey }
@@ -286,6 +296,8 @@ type Sheet struct {
 	Variations      []string `json:"variations,omitempty"`
 	Variation       *string  `json:"variation,omitempty"`
 	VariationChosen bool     `json:"variationChosen,omitempty"`
+	// BarNumbers when the chart draws its rows' bar numbers.
+	BarNumbers bool `json:"barNumbers,omitempty"`
 }
 
 // SheetKey is the song's key as written, as named now, the account's saved
@@ -377,6 +389,12 @@ type Settings struct {
 	ChordNames        string `json:"chordNames"`
 	ChordNamesChosen  bool   `json:"chordNamesChosen,omitempty"`
 	AccountChordNames string `json:"accountChordNames,omitempty"`
+	// BarNumbers is whether the chart shows bar numbers now, "shown" or
+	// "hidden", BarNumbersChosen whether this reader chose it, and
+	// AccountBarNumbers the account's own.
+	BarNumbers        string `json:"barNumbers"`
+	BarNumbersChosen  bool   `json:"barNumbersChosen,omitempty"`
+	AccountBarNumbers string `json:"accountBarNumbers,omitempty"`
 }
 
 // SettingsInstrument is one instrument to choose: its id and its name.
@@ -424,7 +442,8 @@ var names = map[int32]string{
 	TypeShowShape: "showShape", TypeShowAllShapes: "showAllShapes",
 	TypeShapesShown: "shapesShown", TypePlace: "place",
 	TypeInstrument: "instrument", TypeVariation: "variation", TypeChordNames: "chordNames", TypeTextSize: "textSize",
-	TypeState: "state", TypePairing: "pairing", TypeShelf: "shelf",
+	TypeBarNumbers: "barNumbers",
+	TypeState:      "state", TypePairing: "pairing", TypeShelf: "shelf",
 	TypeBook: "book", TypeSheet: "sheet", TypeSetlist: "setlist",
 	TypeSettings: "settings", TypeShapes: "shapes", TypeAhead: "ahead",
 }
@@ -476,6 +495,7 @@ var decoders = map[int32]func(Frame) (Message, error){
 	TypeVariation:     decodeJSON[Variation],
 	TypeChordNames:    decodeJSON[ChordNames],
 	TypeTextSize:      decodeJSON[TextSize],
+	TypeBarNumbers:    decodeJSON[BarNumbers],
 	TypeState:         decodeJSON[State],
 	TypePairing:       decodeJSON[Pairing],
 	TypeShelf:         decodeJSON[Shelf],

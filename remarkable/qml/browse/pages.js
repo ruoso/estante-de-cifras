@@ -57,6 +57,11 @@ var copy = {
     nameAsVoiced: "Name as voiced",
     nameAsWritten: "Name as written",
     textSize: "Text size",
+    barNumbers: "Bar numbers",
+    barNumbersShown: "Shown",
+    barNumbersHidden: "Hidden",
+    showBarNumbers: "Show",
+    hideBarNumbers: "Hide",
     defaultVariation: "Default",
     close: "Close"
 };
@@ -76,6 +81,16 @@ function chordNamesLine(names) {
 // The chord names button's words: the other naming.
 function chordNamesSwitch(names) {
     return names === "voiced" ? copy.nameAsWritten : copy.nameAsVoiced;
+}
+
+// Whether the chart shows bar numbers, in words.
+function barNumbersLine(numbers) {
+    return numbers === "shown" ? copy.barNumbersShown : copy.barNumbersHidden;
+}
+
+// The bar numbers button's words: the other choice.
+function barNumbersSwitch(numbers) {
+    return numbers === "shown" ? copy.hideBarNumbers : copy.showBarNumbers;
 }
 
 // An instrument's name in the choice list, the account's own marked.

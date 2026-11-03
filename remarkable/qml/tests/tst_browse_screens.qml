@@ -19,6 +19,7 @@ import "fixtures/browse-settings-update.js" as BrowseSettingsUpdate
 import "fixtures/browse-settings-instruments.js" as BrowseSettingsInstruments
 import "fixtures/browse-settings-instrument-chosen.js" as BrowseSettingsInstrumentChosen
 import "fixtures/browse-settings-voiced.js" as BrowseSettingsVoiced
+import "fixtures/browse-settings-bar-numbers.js" as BrowseSettingsBarNumbers
 import "walk.js" as Walk
 
 TestCase {
@@ -514,7 +515,7 @@ TestCase {
         compare(screen.chordNamesButton.text, "Name as voiced");
         verify(screen.chordNamesButton.height >= 100);
         // Every part's lines above its rule, its note among them.
-        for (const part of [screen.accountPart, screen.syncPart, screen.readerPart, screen.chordNamesPart, screen.instrumentPart]) {
+        for (const part of [screen.accountPart, screen.syncPart, screen.readerPart, screen.chordNamesPart, screen.barNumbersPart, screen.instrumentPart]) {
             for (const line of [part.valueText, part.noteText])
                 if (line.visible)
                     verify(line.y + line.height <= part.height - M.listRule, part.objectName + ": a line crosses its rule");
@@ -539,6 +540,43 @@ TestCase {
         // Written is the account's own: null follows the account again.
         mouseClick(screen.chordNamesButton);
         compare(screen.endpoint.sent[1].type, 14);
+        compare(screen.endpoint.sent[1].payload, { value: null });
+        clean(screen);
+    }
+
+    // workflow 19 §Settings: Bar numbers says whether the chart shows them
+    // and whose choice it is; its button sends the other (16) and, answered,
+    // the part alone is redrawn; back to the account's own, null.
+    function test_settingsBarNumbers() {
+        const screen = make(settingsComponent);
+        screen.show(clone(BrowseSettingsVoiced.settings), { paired: true });
+        const y = (item) => item.mapToItem(screen, 0, 0).y;
+        verify(y(screen.barNumbersPart) > y(screen.chordNamesPart));
+        verify(y(screen.textSize) > y(screen.barNumbersPart));
+        compare(screen.barNumbersPart.valueText.text, "Hidden");
+        compare(screen.barNumbersPart.noteText.text, "As in your account");
+        compare(screen.barNumbersButton.text, "Show");
+        verify(screen.barNumbersButton.height >= 100);
+        // Sign out still above the foot.
+        verify(y(screen.signOutButton) + screen.signOutButton.height <= M.barHeight + M.contentHeight);
+        clean(screen);
+
+        const others = [screen.content.revision, screen.chordNames.revision, screen.instrument.revision, screen.signOut.revision];
+        mouseClick(screen.barNumbersButton);
+        compare(screen.endpoint.sent.length, 1);
+        compare(screen.endpoint.sent[0].type, 16);
+        compare(screen.endpoint.sent[0].payload, { value: "shown" });
+        const rev = screen.barNumbers.revision;
+        screen.answered(clone(BrowseSettingsBarNumbers.settings));
+        compare(screen.barNumbers.revision, rev + 1);
+        compare([screen.content.revision, screen.chordNames.revision, screen.instrument.revision, screen.signOut.revision], others);
+        compare(screen.barNumbersPart.valueText.text, "Shown");
+        compare(screen.barNumbersPart.noteText.text, "Chosen on this reMarkable");
+        compare(screen.barNumbersButton.text, "Hide");
+
+        // Hidden is the account's own: null follows the account again.
+        mouseClick(screen.barNumbersButton);
+        compare(screen.endpoint.sent[1].type, 16);
         compare(screen.endpoint.sent[1].payload, { value: null });
         clean(screen);
     }

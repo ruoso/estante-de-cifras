@@ -131,6 +131,10 @@ type SheetOptions struct {
 	// chords, "written" or "voiced" (workflow 19 §Settings), over the
 	// account's chordNames preference; "" reads the account's.
 	ChordNames string
+	// BarNumbers is the reader's own choice of whether the chart shows bar
+	// numbers, "shown" or "hidden", over the account's barNumbers
+	// preference; "" reads the account's.
+	BarNumbers string
 }
 
 // SheetKey is the song's key as written, as named now, as named at the saved
@@ -181,6 +185,9 @@ type Sheet struct {
 	// read now (nil when it has none).
 	Variations []string `json:"variations"`
 	Variation  *string  `json:"variation"`
+	// BarNumbers is whether the chart shows the rows' bar numbers: shown by
+	// choice, for a song whose bars are counted (cifra.md §2.8).
+	BarNumbers bool `json:"barNumbers"`
 }
 
 // SetlistItem is one playable item of a setlist.
@@ -773,8 +780,9 @@ func (e *Engine) Sheet(ctx context.Context, text string, offset int, opts SheetO
 		TargetKey   *string           `json:"targetKey"`
 		SavedOffset *int              `json:"savedOffset"`
 		ChordNames  string            `json:"chordNames,omitempty"`
+		BarNumbers  string            `json:"barNumbers,omitempty"`
 	}{Variation: opts.Variation, Variations: opts.Variations, Preferences: orNull(opts.Preferences), SavedOffset: opts.SavedOffset,
-		ChordNames: opts.ChordNames}
+		ChordNames: opts.ChordNames, BarNumbers: opts.BarNumbers}
 	if opts.TargetKey != "" {
 		o.TargetKey = &opts.TargetKey
 	}

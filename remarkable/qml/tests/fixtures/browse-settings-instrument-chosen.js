@@ -21,5 +21,7 @@ var settings = {
   "accountInstrument": "standard",
   "instrumentChosen": true,
   "chordNames": "written",
-  "accountChordNames": "written"
+  "accountChordNames": "written",
+  "barNumbers": "hidden",
+  "accountBarNumbers": "hidden"
 };

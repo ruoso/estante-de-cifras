@@ -188,7 +188,12 @@ a new reader is installed — design §8); **Chord names**, *As written* or
 web app names them when its *chordNames* is *voiced* — with *As in your
 account* or *Chosen on this reMarkable* under it, and one button naming the
 other (*Name as voiced*, *Name as written*): one tap, the part alone
-redrawn, every song read that way from its next open; **Instrument**, shown
+redrawn, every song read that way from its next open; **Bar numbers**,
+*Shown* or *Hidden* — on a song that is all chart, each line's first bar
+number small in a margin at its start, as the web app shows them when its
+*barNumbers* is *shown* (workflow 2 §Reading a song) — with whose choice it
+is under it, and one button, **Show** or **Hide**, the same way;
+**Instrument**, shown
 when the account has two or more, the one every song is read with, *As in
 your account* or *Chosen on this reMarkable* under it, and **Change**, which
 replaces the part below it with *Read every song with* and the account's
@@ -199,7 +204,7 @@ it (the Instrument part redrawn, the part below put back); and **Sign out**, whi
 in your account.* with **Sign out** and **Cancel** — one redraw of that part of
 the page — and the second *Sign out* signs out, returning to *Not paired*.
 
-**Text size**, between *Chord names* and *Instrument*: the chart's text in
+**Text size**, between *Bar numbers* and *Instrument*: the chart's text in
 points — *9 pt* … *18 pt* in a row, the one read inverted, 14 pt the
 standard (the words at 44 px on the reMarkable 2). One tap chooses: the
 screens are laid out again at it and Settings comes back — the whole page,
@@ -208,7 +213,7 @@ section names, notes, their lines and gaps, in whole pixels, strokes never
 under 2 px; smaller, more of a song to a page. The interface keeps its sizes.
 
 Both choices **stay on this reMarkable**, as a key does: never written to the
-account. Choosing the account's own (its chord names, its instrument in use)
+account. Choosing the account's own (its chord names, its bar numbers, its instrument in use)
 follows the account again, so a change made there arrives here. An instrument
 the web app has not read with lately may have no default shapes in the home
 book: the reader searches them itself, in the background, as for any chord
@@ -216,7 +221,7 @@ it lacks (design §4.1), so a song's first opening may show some places
 empty.
 
 Costs: open a book — 1; turn a page — 1; Sync — 2 small (start, end);
-switch the chord names — 1 (the part); Change / Cancel — 1; choose an
+switch the chord names or the bar numbers — 1 (the part); Change / Cancel — 1; choose an
 instrument — 1.
 
 ## A book
@@ -452,6 +457,7 @@ is the web app's.
 | Open / close the variation list | 1 | the shapes strip, as the key grid |
 | Choose a variation | 1 | the strip; the content too when the strip changes size |
 | Switch the chord names, in Settings | 1 | the Chord names part |
+| Switch the bar numbers, in Settings | 1 | the Bar numbers part |
 | Choose a text size, in Settings | 1 | the whole page, laid out again at it |
 | Change / Cancel, an instrument chosen, in Settings | 1 | the part below Instrument; Instrument too when one is chosen |
 | Sync, on the shelf | 2 | one line |

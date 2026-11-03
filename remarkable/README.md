@@ -27,7 +27,8 @@ Estante on your phone or computer, and comes to the tablet when it syncs.
 - **Playing a setlist** — *Play* goes through a setlist song by song, each in
   the setlist's key, the next song named at the end of each.
 - **Settings** — how chords are named (as written, or as the shapes you play
-  sound them), the chart's text size (9 to 18 pt), and which of your
+  sound them), whether bar numbers are shown (at the start of each line, on a
+  song that is all chart), the chart's text size (9 to 18 pt), and which of your
   instruments every song is read with. These stay on the tablet; until you
   choose, it follows your account.
 - **Offline** — it keeps what it last synced, and syncs again when the tablet

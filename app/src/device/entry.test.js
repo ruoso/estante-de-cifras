@@ -774,6 +774,22 @@ describe('sheet for the reader (reader.backend_views; §6 105)', () => {
     expect(chords(estante.sheet(text, 0, { chordNames: 'voiced' }))).toContain('C/E');
   });
 
+  it("shows bar numbers by the account's barNumbers, or the reader's own choice over it, for a counted song only (workflow 19 §Settings)", () => {
+    const FENCE = '```';
+    const counted = ['# Counted', '', FENCE, 'Dm | G7', '@9 C | F', FENCE, ''].join('\n');
+    const shown = { barNumbers: { at: '2026-10-31T10:02:00.000Z', value: 'shown' } };
+    expect(estante.sheet(counted, 0).barNumbers).toBe(false);
+    expect(estante.sheet(counted, 0, { preferences: shown }).barNumbers).toBe(true);
+    expect(estante.sheet(counted, 0, { preferences: shown, barNumbers: 'hidden' }).barNumbers).toBe(false);
+    expect(estante.sheet(counted, 0, { barNumbers: 'shown' }).barNumbers).toBe(true);
+    // The rows carry the count either way.
+    const bars = estante.sheet(counted, 0).rows.filter((r) => r.type === 'bars');
+    expect(bars.map((r) => r.numbers.map((n) => n.number))).toEqual([[1, 2], [9, 10]]);
+    // A sung song has no bars to count.
+    const sung = ['# Sung', '', FENCE, 'G      C', 'some words here', FENCE, ''].join('\n');
+    expect(estante.sheet(sung, 0, { barNumbers: 'shown' }).barNumbers).toBe(false);
+  });
+
   it("returns the session's tuning id", () => {
     const got = estante.sheet(song('walking-to-the-market.cifra.md'), 0);
     expect(got.tuningId).toBe(estante.load(ENTRY, TABLE).tuningId);

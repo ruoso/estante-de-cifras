@@ -349,6 +349,33 @@ func TestChordNamesRoundTripsAcrossRestart(t *testing.T) {
 	}
 }
 
+// TestBarNumbersRoundTripsAcrossRestart pins workflow 19 §Settings: whether
+// the chart shows bar numbers, chosen here, stays on this reader; "" follows
+// the account again; anything but shown or hidden is refused.
+func TestBarNumbersRoundTripsAcrossRestart(t *testing.T) {
+	s, root := newStore(t)
+	if got := s.BarNumbers(); got != "" {
+		t.Fatalf("a fresh store has bar numbers %q", got)
+	}
+	if err := s.SetBarNumbers("shown"); err != nil {
+		t.Fatal(err)
+	}
+	s = openStore(t, root)
+	if got := s.BarNumbers(); got != "shown" {
+		t.Errorf("after restart: %q, want shown", got)
+	}
+	if err := s.SetBarNumbers("sometimes"); err == nil {
+		t.Error("an unknown choice was kept")
+	}
+	if err := s.SetBarNumbers(""); err != nil {
+		t.Fatal(err)
+	}
+	s = openStore(t, root)
+	if got := s.BarNumbers(); got != "" {
+		t.Errorf("the account's did not stand again: %q", got)
+	}
+}
+
 // TestTextSizeRoundTripsAcrossRestart pins workflow 19 §Settings: the chart's
 // text size chosen here stays on this reader; 0 is the standard again; a size
 // not offered is refused, and one not offered on disk reads as none.

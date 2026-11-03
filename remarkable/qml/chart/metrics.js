@@ -51,6 +51,12 @@ var repeatSpace = 4;
 var repeatDot = 8;
 var repeatSign = repeatThick + repeatSpace + repeatThin + repeatSpace + repeatDot;
 var countGap = 8;
+// Bar numbers (songs.bar_numbers, as the web app's chart draws them): the
+// line's first counted bar's number in a margin ahead of its bars, Atkinson
+// Hyperlegible Mono 24 px (0.6 of a chord), level with the chords, 12 px
+// from the first bar line; the margin holds three digits.
+var barNumberSize = 24;
+var barNumberGap = 12;
 
 // A run line and a words line: the chord face and the words face.
 var runLine = 56;
@@ -193,6 +199,7 @@ var chartBase = {
     hyphenStroke: hyphenStroke, barsHeight: barsHeight, barPadLeft: barPadLeft, barPadRight: barPadRight,
     chordSize: chordSize, chordLine: chordLine, chordGap: chordGap, repeatThick: repeatThick,
     repeatThin: repeatThin, repeatSpace: repeatSpace, repeatDot: repeatDot, countGap: countGap,
+    barNumberSize: barNumberSize, barNumberGap: barNumberGap,
     runLine: runLine, notesSize: notesSize, notesLine: notesLine, verbatimSize: verbatimSize,
     verbatimLine: verbatimLine, emptySize: emptySize, emptyLine: emptyLine, gapHeight: gapHeight
 };
@@ -263,6 +270,8 @@ function configure(width, height, pt) {
     repeatDot = scaled(chartBase.repeatDot, k, true);
     repeatSign = repeatThick + repeatSpace + repeatThin + repeatSpace + repeatDot;
     countGap = scaled(chartBase.countGap, k);
+    barNumberSize = scaled(chartBase.barNumberSize, k);
+    barNumberGap = scaled(chartBase.barNumberGap, k);
     runLine = scaled(chartBase.runLine, k);
     notesSize = scaled(chartBase.notesSize, k);
     notesLine = scaled(chartBase.notesLine, k);

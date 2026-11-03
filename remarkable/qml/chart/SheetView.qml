@@ -138,7 +138,7 @@ Item {
             if (!view.facesReady || rows === null || fullWidth <= 0)
                 return;
 
-            const found = Blocks.blocks(rows);
+            const found = Blocks.blocks(rows, { barNumbers: view.sheet.barNumbers === true });
             // Measure: every block built once, invisible, at the full width
             // for the natural widths, then at the column's width.
             const measured = found.map(u => blockComponent.createObject(measuring, {

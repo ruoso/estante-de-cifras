@@ -179,6 +179,8 @@ func (v *views) handle(m protocol.Message) error {
 		return v.variation(m)
 	case protocol.ChordNames:
 		return v.chordNames(m)
+	case protocol.BarNumbers:
+		return v.barNumbers(m)
 	case protocol.TextSize:
 		pt := 0
 		if m.Value != nil {
@@ -347,6 +349,12 @@ func (v *views) settings() protocol.Settings {
 	if out.ChordNames == "" {
 		out.ChordNames = out.AccountChordNames
 	}
+	// Whether the chart shows bar numbers, the same way.
+	out.AccountBarNumbers = accountBarNumbers(v.sync.Snapshot())
+	out.BarNumbers, out.BarNumbersChosen = v.st.BarNumbers(), v.st.BarNumbers() != ""
+	if out.BarNumbers == "" {
+		out.BarNumbers = out.AccountBarNumbers
+	}
 	// The instruments to choose from (workflow 19 §Settings): only once an
 	// instrument has loaded, and only when there is a choice to make.
 	r := v.sync.Roster()
@@ -386,6 +394,37 @@ func (v *views) chordNames(m protocol.ChordNames) error {
 		names = *m.Value
 	}
 	if v.st.SetChordNames(names) != nil {
+		return nil
+	}
+	return v.conn.Write(v.settings())
+}
+
+// accountBarNumbers is the account's barNumbers preference, "shown" or
+// "hidden" (the default, also for none or anything else).
+func accountBarNumbers(snap *sync.Snapshot) string {
+	if snap == nil {
+		return "hidden"
+	}
+	var prefs struct {
+		BarNumbers struct {
+			Value string `json:"value"`
+		} `json:"barNumbers"`
+	}
+	if json.Unmarshal(snap.Preferences(), &prefs) == nil && prefs.BarNumbers.Value == "shown" {
+		return "shown"
+	}
+	return "hidden"
+}
+
+// barNumbers keeps whether the chart shows bar numbers here (nil: the
+// account's again) and answers the settings it was chosen from; the open
+// song reads with it from its next answer.
+func (v *views) barNumbers(m protocol.BarNumbers) error {
+	numbers := ""
+	if m.Value != nil {
+		numbers = *m.Value
+	}
+	if v.st.SetBarNumbers(numbers) != nil {
 		return nil
 	}
 	return v.conn.Write(v.settings())
@@ -575,7 +614,8 @@ func (v *views) sheetOf(song *openSong, set *engine.Setlist) (protocol.Sheet, er
 	// at the setlist's key (the bundle reads a keyless song at this offset,
 	// with the key as a note).
 	offset := 0
-	opts := engine.SheetOptions{Preferences: c.snap.Preferences(), ChordNames: v.st.ChordNames()}
+	opts := engine.SheetOptions{Preferences: c.snap.Preferences(), ChordNames: v.st.ChordNames(),
+		BarNumbers: v.st.BarNumbers()}
 	if saved, ok := c.snap.Songs(c.bookID + "/" + song.path); ok {
 		offset = saved.Transposition
 		t := saved.Transposition
@@ -618,18 +658,19 @@ func (v *views) sheetOf(song *openSong, set *engine.Setlist) (protocol.Sheet, er
 		return protocol.Sheet{}, errNoView
 	}
 	out := protocol.Sheet{
-		BookID:   c.bookID,
-		Path:     song.path,
-		Title:    deref(s.Title),
-		Artist:   deref(s.Artist),
-		Key:      protocol.SheetKey{Written: s.Key.Written, Named: s.Key.Named, Saved: s.Key.Saved, Choices: keyChoices(s.Key.Choices)},
-		Offset:   s.Offset,
-		TuningID: s.TuningID,
-		Rows:     s.Rows,
-		Shapes:   make([]protocol.SheetShape, 0, len(s.Shapes)),
-		Notes:    s.Notes,
-		KeyNote:  s.KeyNote,
-		Play:     play,
+		BookID:     c.bookID,
+		Path:       song.path,
+		Title:      deref(s.Title),
+		Artist:     deref(s.Artist),
+		Key:        protocol.SheetKey{Written: s.Key.Written, Named: s.Key.Named, Saved: s.Key.Saved, Choices: keyChoices(s.Key.Choices)},
+		Offset:     s.Offset,
+		TuningID:   s.TuningID,
+		Rows:       s.Rows,
+		Shapes:     make([]protocol.SheetShape, 0, len(s.Shapes)),
+		Notes:      s.Notes,
+		KeyNote:    s.KeyNote,
+		Play:       play,
+		BarNumbers: s.BarNumbers,
 	}
 	song.tuningID = s.TuningID
 	// The variations, where there is a choice: two or more. They are listed at

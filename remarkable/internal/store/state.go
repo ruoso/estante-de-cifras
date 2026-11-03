@@ -31,6 +31,7 @@ type state struct {
 	lastSync     time.Time                               // zero before the first sync
 	instrument   string                                  // the instrument chosen here; "" follows the account
 	chordNames   string                                  // "written" or "voiced" chosen here; "" follows the account
+	barNumbers   string                                  // "shown" or "hidden" chosen here; "" follows the account
 	textSize     int                                     // the chart\'s text size in points chosen here; 0 the standard
 	variations   map[string]map[string]map[string]string // bookId → song path → tuning id → variation
 }
@@ -44,6 +45,7 @@ type stateJSON struct {
 	LastSync     *time.Time                              `json:"lastSync,omitempty"`
 	Instrument   string                                  `json:"instrument,omitempty"`
 	ChordNames   string                                  `json:"chordNames,omitempty"`
+	BarNumbers   string                                  `json:"barNumbers,omitempty"`
 	TextSize     int                                     `json:"textSize,omitempty"`
 	Variations   map[string]map[string]map[string]string `json:"variations,omitempty"`
 }
@@ -94,6 +96,7 @@ func (st state) clone() state {
 	c.lastSync = st.lastSync
 	c.instrument = st.instrument
 	c.chordNames = st.chordNames
+	c.barNumbers = st.barNumbers
 	c.textSize = st.textSize
 	c.variations = copyVariations(st.variations)
 	return c
@@ -143,13 +146,16 @@ func readState(path string) state {
 	if j.ChordNames == "written" || j.ChordNames == "voiced" {
 		st.chordNames = j.ChordNames
 	}
+	if j.BarNumbers == "shown" || j.BarNumbers == "hidden" {
+		st.barNumbers = j.BarNumbers
+	}
 	st.variations = copyVariations(j.Variations)
 	return st
 }
 
 func (st state) encode() ([]byte, error) {
 	j := stateJSON{Version: stateVersion, Keys: st.keys, Places: st.places, ShapesHidden: st.shapesHidden,
-		Instrument: st.instrument, ChordNames: st.chordNames, TextSize: st.textSize}
+		Instrument: st.instrument, ChordNames: st.chordNames, BarNumbers: st.barNumbers, TextSize: st.textSize}
 	if len(st.variations) > 0 {
 		j.Variations = st.variations
 	}
@@ -267,6 +273,24 @@ func (s *Store) SetChordNames(names string) error {
 		return fmt.Errorf("store: chord names: %w", ErrBadID)
 	}
 	return s.mutate(func(st *state) { st.chordNames = names })
+}
+
+// BarNumbers is whether this reader shows the chart's bar numbers, "shown"
+// or "hidden" (workflow 19 §Settings); "" when none is chosen and the
+// account's barNumbers preference is read.
+func (s *Store) BarNumbers() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.state.barNumbers
+}
+
+// SetBarNumbers keeps whether the chart shows bar numbers here; "" forgets
+// the choice. Anything but "shown" or "hidden" is refused.
+func (s *Store) SetBarNumbers(numbers string) error {
+	if numbers != "" && numbers != "shown" && numbers != "hidden" {
+		return fmt.Errorf("store: bar numbers: %w", ErrBadID)
+	}
+	return s.mutate(func(st *state) { st.barNumbers = numbers })
 }
 
 // Variation is the variation chosen on this reader for a song in one tuning
