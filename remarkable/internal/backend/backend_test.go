@@ -11,13 +11,18 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
 	gosync "sync"
 	"syscall"
 	"testing"
 	"time"
 
+	pairing "estantedecifras.app/remarkable/internal/pair"
 	"estantedecifras.app/remarkable/internal/protocol"
 	"estantedecifras.app/remarkable/internal/store"
 	"estantedecifras.app/remarkable/internal/sync"
@@ -38,6 +43,8 @@ type fakeSyncer struct {
 	snap     *sync.Snapshot
 	holds    map[string]int
 	releases map[string]int
+	signOuts int
+	store    *store.Store
 }
 
 func newFakeSyncer() *fakeSyncer {
@@ -95,6 +102,19 @@ func (f *fakeSyncer) Trigger() {
 	f.triggers++
 	f.mu.Unlock()
 	f.trigged <- struct{}{}
+}
+
+// SignOut signs the store out, as the syncer does, and counts the call.
+func (f *fakeSyncer) SignOut(ctx context.Context) error {
+	f.mu.Lock()
+	f.signOuts++
+	st := f.store
+	f.snap = nil
+	f.mu.Unlock()
+	if st != nil {
+		return st.SignOut()
+	}
+	return nil
 }
 
 func (f *fakeSyncer) counts() (runs, triggers int) {
@@ -428,5 +448,455 @@ func must(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// --- pairing and signing out (reader.pairing) ---
+
+const pairedSession = "session-from-the-pairing-0123456789"
+
+// pairService is a fake of the service for pair and signout: each begin
+// gives the next poll token, each poll answers that token's status as the
+// test sets it ("pending" until then), and each signout records its cookie.
+// Everything else is 404, which the real syncer reads as offline.
+type pairService struct {
+	srv *httptest.Server
+
+	mu        gosync.Mutex
+	beginCode int // 201 unless set
+	begins    int
+	status    map[string]string
+	polls     map[string]int
+	signouts  []string
+}
+
+func newPairService(t *testing.T) *pairService {
+	t.Helper()
+	f := &pairService{beginCode: http.StatusCreated, status: map[string]string{}, polls: map[string]int{}}
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/devices/pair/begin", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		code := f.beginCode
+		f.begins++
+		n := f.begins
+		f.mu.Unlock()
+		if code != http.StatusCreated {
+			http.Error(w, `{"code":"rate_limited","message":"slow down"}`, code)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{
+			"code": fmt.Sprintf("KQ7-4T%c", 'A'+rune(n)), "url": "https://estantedecifras.app/pair",
+			"pollToken": fmt.Sprintf("poll-token-%d", n), "expiresAt": "2026-11-02T14:42:00Z",
+		})
+	})
+	mux.HandleFunc("POST /api/devices/pair/poll", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			PollToken string `json:"pollToken"`
+		}
+		json.NewDecoder(r.Body).Decode(&body)
+		f.mu.Lock()
+		f.polls[body.PollToken]++
+		st := f.status[body.PollToken]
+		if st == "approved" {
+			// Delivered once.
+			f.status[body.PollToken] = "delivered"
+		}
+		f.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		switch st {
+		case "approved":
+			json.NewEncoder(w).Encode(map[string]string{"status": "approved", "session": pairedSession})
+		case "expired":
+			json.NewEncoder(w).Encode(map[string]string{"status": "expired"})
+		case "delivered":
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(`{"code":"pair_token_unknown","message":"no such pairing"}`))
+		default:
+			json.NewEncoder(w).Encode(map[string]string{"status": "pending"})
+		}
+	})
+	mux.HandleFunc("POST /api/auth/signout", func(w http.ResponseWriter, r *http.Request) {
+		c, err := r.Cookie("estante_session")
+		f.mu.Lock()
+		if err == nil {
+			f.signouts = append(f.signouts, c.Value)
+		} else {
+			f.signouts = append(f.signouts, "")
+		}
+		f.mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	})
+	f.srv = httptest.NewServer(mux)
+	t.Cleanup(f.srv.Close)
+	return f
+}
+
+func (f *pairService) set(token, status string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.status[token] = status
+}
+
+func (f *pairService) pollsOf(token string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.polls[token]
+}
+
+func (f *pairService) beginCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.begins
+}
+
+func (f *pairService) signedOut() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.signouts...)
+}
+
+// client is a pair client for f polling every few milliseconds.
+func (f *pairService) client(t *testing.T) *pairing.Client {
+	t.Helper()
+	origin, err := pairing.ParseOrigin(f.srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &pairing.Client{Origin: origin, HTTP: f.srv.Client(), Interval: 5 * time.Millisecond}
+}
+
+// waitUntil polls cond until it holds, failing the test after five seconds.
+func waitUntil(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+}
+
+// servePairing starts Serve over a fresh socketpair with st, syncer and the
+// pair client.
+func servePairing(t *testing.T, st *store.Store, syncer Syncer, client *pairing.Client) (*peer, *Relay) {
+	t.Helper()
+	conn, p := pair(t)
+	relay := NewRelay()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- Serve(ctx, conn, Deps{Store: st, Syncer: syncer, Relay: relay, Pair: client})
+	}()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("Serve did not return after its context ended")
+		}
+	})
+	return p, relay
+}
+
+func openStore(t *testing.T) *store.Store {
+	t.Helper()
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return st
+}
+
+// pairingMsg reads one message as a 102, also raw.
+func (p *peer) pairingMsg() (protocol.Pairing, map[string]any) {
+	p.t.Helper()
+	f := p.recv()
+	if f.typ != protocol.TypePairing {
+		p.t.Fatalf("got message %d %s, want %d pairing", f.typ, f.payload, protocol.TypePairing)
+	}
+	var got protocol.Pairing
+	var raw map[string]any
+	if err := json.Unmarshal(f.payload, &got); err != nil {
+		p.t.Fatal(err)
+	}
+	json.Unmarshal(f.payload, &raw)
+	return got, raw
+}
+
+// Design §6 `5 pair` → `102`, workflow 19 §Pairing (the page stays still,
+// rule 5): one `102` with the code, its address and its end — no poll token
+// — then nothing while the poll goes on; the end of the pairing is the next
+// message.
+func TestPairAnswersTheCodeThenNothingUntilItEnds(t *testing.T) {
+	f := newPairService(t)
+	syncer := newFakeSyncer()
+	p, _ := servePairing(t, openStore(t), syncer, f.client(t))
+	p.send(protocol.TypePair, "{}")
+	got, raw := p.pairingMsg()
+	want := protocol.Pairing{Code: "KQ7-4TB", URL: "https://estantedecifras.app/pair", ExpiresAt: "2026-11-02T14:42:00Z"}
+	if got != want {
+		t.Errorf("102 %+v, want %+v", got, want)
+	}
+	if len(raw) != 3 {
+		t.Errorf("102 carries %v, want code, url and expiresAt only", raw)
+	}
+	waitUntil(t, "several polls", func() bool { return f.pollsOf("poll-token-1") >= 5 })
+	p.silent()
+	f.set("poll-token-1", "expired")
+	if got, _ := p.pairingMsg(); !got.Expired {
+		t.Errorf("102 %+v, want expired", got)
+	}
+}
+
+// §5.1 *On the device*, Decision 2: approved, the session is kept (0600,
+// for the pairing's origin) and the first sync triggered; the states that
+// sync writes say not paired, the one ending it paired; the next `open
+// shelf` is answered from that pass's snapshot.
+func TestPairApprovedSyncsBeforePaired(t *testing.T) {
+	f := newPairService(t)
+	fx := newViewsFixture(t)
+	must(t, fx.st.ClearSession())
+	synced := fx.snapshot()
+	syncer := newFakeSyncer()
+	p, relay := servePairing(t, fx.st, syncer, f.client(t))
+	select {
+	case <-syncer.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run not started")
+	}
+	p.send(protocol.TypeHello, "{}")
+	if s, _ := p.state(); s.Paired {
+		t.Fatal("paired before pairing")
+	}
+	p.send(protocol.TypePair, "{}")
+	p.pairingMsg()
+	f.set("poll-token-1", "approved")
+	select {
+	case <-syncer.trigged:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the first sync was not triggered")
+	}
+	sess, ok := fx.st.Session()
+	if !ok || sess.Token != pairedSession || sess.Origin != f.srv.URL || sess.PairedAt.IsZero() {
+		t.Fatalf("session %v kept as %+v", ok, sess.Origin)
+	}
+	info, err := os.Stat(filepath.Join(fx.st.Root(), "session.json"))
+	if err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("session.json %v, mode %v", err, info)
+	}
+
+	status := relay.StatusFunc()
+	status(sync.Status{Syncing: true, Online: true})
+	if s, _ := p.state(); s.Paired || !s.Syncing {
+		t.Errorf("state during the first pass %+v, want not paired, syncing", s)
+	}
+	p.send(protocol.TypeHello, "{}")
+	if s, _ := p.state(); s.Paired {
+		t.Errorf("hello during the first pass answered paired")
+	}
+	syncer.setSnapshot(synced)
+	status(sync.Status{Online: true})
+	if s, raw := p.state(); !s.Paired || s.Syncing {
+		t.Errorf("state ending the first pass %+v, want paired", s)
+	} else if _, ok := raw["error"]; ok {
+		t.Errorf("state carries an error: %v", raw)
+	}
+	p.send(protocol.TypeOpen, `{"view":"shelf"}`)
+	fr := p.recv()
+	var shelf protocol.Shelf
+	if fr.typ != protocol.TypeShelf || json.Unmarshal(fr.payload, &shelf) != nil {
+		t.Fatalf("got %d %s, want the shelf", fr.typ, fr.payload)
+	}
+	if len(shelf.Books) != 1 || shelf.Books[0].BookID != testBook {
+		t.Errorf("shelf %+v, want the synced book", shelf.Books)
+	}
+	p.silent()
+}
+
+// Workflow 19 §Pairing: the code expired is `102 {expired:true}`; so is a
+// begin the service refuses (Decision 4); no network, `102 {offline:true}`.
+func TestPairExpired(t *testing.T) {
+	f := newPairService(t)
+	p, _ := servePairing(t, openStore(t), newFakeSyncer(), f.client(t))
+	p.send(protocol.TypePair, "{}")
+	p.pairingMsg()
+	f.set("poll-token-1", "expired")
+	if got, raw := p.pairingMsg(); !got.Expired || len(raw) != 1 {
+		t.Errorf("102 %v, want {expired:true}", raw)
+	}
+
+	f.mu.Lock()
+	f.beginCode = http.StatusTooManyRequests
+	f.mu.Unlock()
+	p.send(protocol.TypePair, "{}")
+	if got, raw := p.pairingMsg(); !got.Expired || len(raw) != 1 {
+		t.Errorf("102 for a refused begin %v, want {expired:true}", raw)
+	}
+
+	f.srv.Close()
+	p.send(protocol.TypePair, "{}")
+	if got, raw := p.pairingMsg(); !got.Offline || len(raw) != 1 {
+		t.Errorf("102 with no network %v, want {offline:true}", raw)
+	}
+}
+
+// Constraint 2, workflow 19 §Pairing (*Get a new code*): a new `5 pair`
+// stops the pairing in progress — its token is never polled again — and
+// answers the new code.
+func TestGetANewCodeDropsTheOldPoll(t *testing.T) {
+	f := newPairService(t)
+	p, _ := servePairing(t, openStore(t), newFakeSyncer(), f.client(t))
+	p.send(protocol.TypePair, "{}")
+	first, _ := p.pairingMsg()
+	waitUntil(t, "the first token's polls", func() bool { return f.pollsOf("poll-token-1") >= 2 })
+	p.send(protocol.TypePair, "{}")
+	second, _ := p.pairingMsg()
+	if second.Code == first.Code || second.Code == "" {
+		t.Errorf("new code %q, first %q", second.Code, first.Code)
+	}
+	waitUntil(t, "the second token's polls", func() bool { return f.pollsOf("poll-token-2") >= 3 })
+	old := f.pollsOf("poll-token-1")
+	waitUntil(t, "more polls", func() bool { return f.pollsOf("poll-token-2") >= 10 })
+	if n := f.pollsOf("poll-token-1"); n != old {
+		t.Errorf("the first token was polled again: %d → %d", old, n)
+	}
+	// The first token approved now pairs nothing.
+	f.set("poll-token-1", "approved")
+	p.silent()
+	f.set("poll-token-2", "approved")
+	waitUntil(t, "the second pairing to end", func() bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return f.status["poll-token-2"] == "delivered"
+	})
+}
+
+// Constraint 4: `5 pair` while paired answers the state and begins nothing.
+func TestPairWhilePairedAnswersState(t *testing.T) {
+	f := newPairService(t)
+	st := openStore(t)
+	must(t, st.SetSession(store.Session{Origin: f.srv.URL, Token: "t"}))
+	p, _ := servePairing(t, st, newFakeSyncer(), f.client(t))
+	p.send(protocol.TypePair, "{}")
+	if s, _ := p.state(); !s.Paired {
+		t.Errorf("state %+v, want paired", s)
+	}
+	p.silent()
+	if n := f.beginCount(); n != 0 {
+		t.Errorf("%d begins while paired", n)
+	}
+}
+
+// A store paired with f, with a home book, a clone and an installed bundle.
+func pairedStore(t *testing.T, origin, token string) *store.Store {
+	t.Helper()
+	st := openStore(t)
+	must(t, st.SetSession(store.Session{Origin: origin, Token: token, Account: "Marina Souza"}))
+	must(t, st.SetShapesShown(false))
+	must(t, os.WriteFile(filepath.Join(st.HomeDir(), "shelf.json"), []byte("{}"), 0o600))
+	dir, err := st.BookDir("b1")
+	must(t, err)
+	must(t, os.MkdirAll(filepath.Join(dir, "objects"), 0o700))
+	must(t, st.StageBundle(map[string][]byte{"manifest.json": []byte("{}")}))
+	must(t, st.PromoteBundle())
+	return st
+}
+
+func wantSignedOut(t *testing.T, st *store.Store) {
+	t.Helper()
+	if _, ok := st.Session(); ok {
+		t.Error("still paired")
+	}
+	if ids, _ := st.BookIDs(); len(ids) != 0 {
+		t.Errorf("books kept: %v", ids)
+	}
+	if entries, _ := os.ReadDir(st.HomeDir()); len(entries) != 0 {
+		t.Errorf("home/ kept %d entries", len(entries))
+	}
+	if !st.ShapesShown() {
+		t.Error("the reader's state kept")
+	}
+	if d, ok := st.BundleDir(); !ok {
+		t.Error("the bundle was removed")
+	} else if _, err := os.Stat(filepath.Join(d, "manifest.json")); err != nil {
+		t.Errorf("the bundle's manifest: %v", err)
+	}
+}
+
+// Workflow 19 §The shelf (Sign out), design §6 `6 signOut`, Constraint 7:
+// with the real syncer, Sign out ends the session with the service (the
+// cookie sent), leaves the store empty but the bundle, and answers `101`
+// not paired with no error.
+func TestSignOutClearsTheDevice(t *testing.T) {
+	f := newPairService(t)
+	st := pairedStore(t, f.srv.URL, "device-token-0123")
+	syncer := sync.New(st, nil, sync.Options{HTTPClient: f.srv.Client(), Online: func() bool { return true }})
+	p, _ := servePairing(t, st, syncer, f.client(t))
+	p.send(protocol.TypeSignOut, "{}")
+	s, raw := p.state()
+	if s.Paired {
+		t.Errorf("state %+v, want not paired", s)
+	}
+	if _, ok := raw["error"]; ok {
+		t.Errorf("state after the person's own sign out carries an error: %v", raw)
+	}
+	if got := f.signedOut(); len(got) != 1 || got[0] != "device-token-0123" {
+		t.Errorf("signout called with %q, want once with the session's cookie", got)
+	}
+	wantSignedOut(t, st)
+	if len(syncer.Snapshot().Shelf()) != 0 {
+		t.Error("the snapshot kept the shelf")
+	}
+}
+
+// Decision 5 (offline first): the service unreachable, the device signs out
+// all the same, within the bound.
+func TestSignOutOfflineStillSignsOut(t *testing.T) {
+	f := newPairService(t)
+	origin := f.srv.URL
+	f.srv.Close()
+	st := pairedStore(t, origin, "device-token-0123")
+	syncer := sync.New(st, nil, sync.Options{Online: func() bool { return false }})
+	p, _ := servePairing(t, st, syncer, f.client(t))
+	start := time.Now()
+	p.send(protocol.TypeSignOut, "{}")
+	s, raw := p.state()
+	if d := time.Since(start); d > sync.SignOutTimeout+time.Second {
+		t.Errorf("signed out after %v", d)
+	}
+	if s.Paired {
+		t.Errorf("state %+v, want not paired", s)
+	}
+	if _, ok := raw["error"]; ok {
+		t.Errorf("state carries an error: %v", raw)
+	}
+	wantSignedOut(t, st)
+}
+
+// Constraint 8: unpaired — a session refused, or signed out — every open is
+// answered with the empty shelf, which the frontend draws as Not paired.
+func TestOpenUnpairedAnswersEmptyShelf(t *testing.T) {
+	fx := newViewsFixture(t)
+	must(t, fx.st.ClearSession())
+	syncer := newFakeSyncer()
+	syncer.snap = fx.snapshot()
+	p, _ := servePairing(t, fx.st, syncer, nil)
+	for _, open := range []string{
+		`{"view":"shelf"}`,
+		`{"view":"book","bookId":"` + testBook + `"}`,
+		`{"view":"song","bookId":"` + testBook + `","path":"` + walking + `"}`,
+		`{"view":"settings"}`,
+	} {
+		p.send(protocol.TypeOpen, open)
+		fr := p.recv()
+		if fr.typ != protocol.TypeShelf || string(fr.payload) != `{"books":[]}` {
+			t.Errorf("open %s answered %d %s, want 103 {\"books\":[]}", open, fr.typ, fr.payload)
+		}
+	}
+	if h, _ := syncer.held(testBook); h != 0 {
+		t.Errorf("an unpaired open held the book %d times", h)
 	}
 }

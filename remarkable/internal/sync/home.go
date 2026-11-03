@@ -101,6 +101,13 @@ func asMap(raw []byte) map[string]json.RawMessage {
 	return m
 }
 
+// readAuthorName reads preferences.json's authorName (format §4.1): the
+// account's name, "" when absent, tombstoned or not a string.
+func readAuthorName(raw []byte) string {
+	name, _ := liveString(asMap(raw)["authorName"])
+	return name
+}
+
 // readShelf reads shelf.json: every books.<id> with a live link string, in
 // ascending live position, a book without one last, ties by id — the web
 // app's fill order (format §4.2). Local books (never cloned, design §5.2),

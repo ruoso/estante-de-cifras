@@ -5,15 +5,18 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	gosync "sync"
 	"testing"
 	"time"
 
+	"estantedecifras.app/remarkable/internal/pair"
 	"estantedecifras.app/remarkable/internal/protocol"
 	"estantedecifras.app/remarkable/internal/store"
 )
@@ -39,7 +42,7 @@ func TestVersion(t *testing.T) {
 // path is not AppLoad's socket) prints the usage line, which names run
 // (reader.app_folder), to stderr and exits 2.
 func TestUsage(t *testing.T) {
-	for _, cmd := range []string{"--version", "sheet --bundle DIR", "bench --bundle DIR", "run [--root DIR] SOCKET"} {
+	for _, cmd := range []string{"--version", "sheet --bundle DIR", "bench --bundle DIR", "run [--root DIR] [--origin URL] SOCKET"} {
 		if !strings.Contains(usage, cmd) {
 			t.Errorf("usage %q does not name %q", usage, cmd)
 		}
@@ -281,72 +284,25 @@ func TestBenchCommand(t *testing.T) {
 	}
 }
 
-// TestSessionReadsTokenFromStdin pins reader.sync Decision 11: session takes
-// the token on stdin, never argv, keeps it in session.json at 0600, and
-// prints it nowhere.
-func TestSessionReadsTokenFromStdin(t *testing.T) {
-	const token = "tok-stdin-0123456789-secret"
-	root := filepath.Join(t.TempDir(), "estante")
-	defer func(r io.Reader) { stdin = r }(stdin)
-	stdin = strings.NewReader(token + "\n")
-	var stdout, stderr bytes.Buffer
-	if code := run([]string{"session", "--root", root, "--origin", "https://estante.test/"}, &stdout, &stderr); code != 0 {
-		t.Fatalf("exit %d, stderr %q", code, stderr.String())
-	}
-	if strings.Contains(stdout.String(), token) || strings.Contains(stderr.String(), token) {
-		t.Error("the token was printed")
-	}
-	info, err := os.Stat(filepath.Join(root, "session.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if mode := info.Mode().Perm(); mode != 0o600 {
-		t.Errorf("session.json mode %o, want 600", mode)
-	}
-	st, err := store.Open(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sess, ok := st.Session()
-	if !ok || sess.Token != token || sess.Origin != "https://estante.test" {
-		t.Errorf("session kept %v, origin %q, token kept %v", ok, sess.Origin, sess.Token == token)
-	}
-
-	// No token on stdin, or a bad origin: exit 1, nothing kept, no token.
-	for name, tc := range map[string]struct {
-		in   string
-		args []string
-	}{
-		"empty stdin": {"", []string{"session", "--root", filepath.Join(t.TempDir(), "r"), "--origin", "https://estante.test"}},
-		"bad origin":  {token, []string{"session", "--root", filepath.Join(t.TempDir(), "r"), "--origin", "estante.test"}},
-	} {
-		stdin = strings.NewReader(tc.in)
-		var stdout, stderr bytes.Buffer
-		if code := run(tc.args, &stdout, &stderr); code != 1 {
-			t.Errorf("%s: exit %d, want 1", name, code)
-		}
-		if strings.Contains(stderr.String(), token) {
-			t.Errorf("%s: stderr carries the token", name)
-		}
-		if _, err := os.Stat(filepath.Join(tc.args[2], "session.json")); err == nil {
-			t.Errorf("%s: a session was kept", name)
-		}
-	}
-}
-
-// TestSyncUsage pins the session and sync invocations: the usage line names
-// both; a bad one exits 2 with it; sync with no session exits 1 saying so.
+// TestSyncUsage pins the pair, signout and sync invocations: the usage line
+// names them (and no session stand-in, reader.pairing Decision 3); a bad one
+// exits 2 with it; sync with no session exits 1 saying so.
 func TestSyncUsage(t *testing.T) {
-	for _, cmd := range []string{"session --root DIR --origin URL", "sync --root DIR --bundle DIR"} {
+	if strings.Contains(usage, "session") {
+		t.Errorf("usage %q still names the session stand-in", usage)
+	}
+	for _, cmd := range []string{"pair --root DIR [--origin URL]", "signout --root DIR", "sync --root DIR --bundle DIR"} {
 		if !strings.Contains(usage, cmd) {
 			t.Errorf("usage %q does not name %q", usage, cmd)
 		}
 	}
 	for _, args := range [][]string{
-		{"session"},
-		{"session", "--root", "r"},
-		{"session", "--origin", "https://estante.test"},
-		{"session", "--root", "r", "--origin", "https://estante.test", "the-token"},
+		{"session", "--root", "r", "--origin", "https://estante.test"},
+		{"pair"},
+		{"pair", "--origin", "https://estante.test"},
+		{"pair", "--root", "r", "extra"},
+		{"signout"},
+		{"signout", "--root", "r", "extra"},
 		{"sync"},
 		{"sync", "--root", "r"},
 		{"sync", "--bundle", "b"},
@@ -472,6 +428,15 @@ func servesHelloAndTerminate(t *testing.T, args []string, accepted <-chan *appLo
 // the binary's version (workflow 19 §The shelf, Settings).
 func TestRunServesTheSocket(t *testing.T) {
 	root := t.TempDir()
+	// Paired (with a service that is not there): unpaired, an open is
+	// answered with the empty shelf (reader.pairing).
+	st, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetSession(store.Session{Origin: "http://127.0.0.1:1", Token: "t"}); err != nil {
+		t.Fatal(err)
+	}
 	sock, accepted := listen(t)
 	servesHelloAndTerminate(t, []string{"run", "--root", root, sock}, accepted, func(a *appLoad) {
 		a.send(protocol.TypeOpen, `{"view":"settings"}`)
@@ -533,5 +498,230 @@ func TestRunDialFails(t *testing.T) {
 	}
 	if stdout.Len() != 0 {
 		t.Errorf("stdout %q, want empty", stdout.String())
+	}
+}
+
+// --- pairing (reader.pairing) ---
+
+// TestRunOriginDefault pins Constraint 1: run pairs with
+// https://estantedecifras.app unless --origin says otherwise — also when
+// AppLoad starts it with the socket's path alone.
+func TestRunOriginDefault(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"/tmp/estante.sock"}, "https://estantedecifras.app"},
+		{[]string{"--root", defaultRoot, "/tmp/estante.sock"}, "https://estantedecifras.app"},
+		{[]string{"--origin", "http://localhost:8080", "/tmp/estante.sock"}, "http://localhost:8080"},
+		{[]string{"--origin", "https://stack.test/", "/tmp/estante.sock"}, "https://stack.test"},
+	} {
+		root, origin, socket, err := runFlags(tc.args)
+		if err != nil {
+			t.Errorf("%q: %v", tc.args, err)
+			continue
+		}
+		if got := pair.OriginString(origin); got != tc.want {
+			t.Errorf("%q: origin %s, want %s", tc.args, got, tc.want)
+		}
+		if root != defaultRoot || socket != "/tmp/estante.sock" {
+			t.Errorf("%q: root %q socket %q", tc.args, root, socket)
+		}
+	}
+}
+
+// TestOriginMustBeHTTP pins Constraint 1: an --origin that is not
+// http(s)://host[:port] is a usage error, for run and pair alike.
+func TestOriginMustBeHTTP(t *testing.T) {
+	for _, origin := range []string{"estantedecifras.app", "ftp://estante.test", "https://estante.test/pair",
+		"https://user@estante.test", "https://", ""} {
+		for _, args := range [][]string{
+			{"run", "--root", t.TempDir(), "--origin", origin, "/tmp/estante.sock"},
+			{"pair", "--root", t.TempDir(), "--origin", origin},
+		} {
+			var stdout, stderr bytes.Buffer
+			if code := run(args, &stdout, &stderr); code != 2 {
+				t.Errorf("%q: exit %d, want 2", args, code)
+			}
+			if stderr.String() != usage+"\n" {
+				t.Errorf("%q: stderr %q, want the usage line", args, stderr.String())
+			}
+		}
+	}
+}
+
+const (
+	cmdPollToken = "poll-token-cmd-0123456789"
+	cmdSession   = "session-cmd-0123456789-secret"
+)
+
+// pairService answers begin, then poll: pending, then the status given.
+func pairService(t *testing.T, end string) *httptest.Server {
+	t.Helper()
+	var mu gosync.Mutex
+	polls := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/devices/pair/begin", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{
+			"code": "KQ7-4TM", "url": "https://estantedecifras.app/pair",
+			"pollToken": cmdPollToken, "expiresAt": "2026-11-02T14:42:00Z",
+		})
+	})
+	mux.HandleFunc("POST /api/devices/pair/poll", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		polls++
+		n := polls
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case n < 3:
+			w.Write([]byte(`{"status":"pending"}`))
+		case end == "approved":
+			w.Write([]byte(`{"status":"approved","session":"` + cmdSession + `"}`))
+		default:
+			w.Write([]byte(`{"status":"expired"}`))
+		}
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func fastPolls(t *testing.T) {
+	saved := pollInterval
+	pollInterval = 5 * time.Millisecond
+	t.Cleanup(func() { pollInterval = saved })
+}
+
+// TestPairPrintsTheCodeNotTheToken pins the pair subcommand (Constraints 2,
+// 11): one JSON line {code, url, expiresAt} on stdout, exit 0 once approved
+// with the session in session.json (0600) for the origin; neither the poll
+// token nor the session printed. Expired: exit 1, nothing kept.
+func TestPairPrintsTheCodeNotTheToken(t *testing.T) {
+	fastPolls(t)
+	srv := pairService(t, "approved")
+	root := filepath.Join(t.TempDir(), "estante")
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"pair", "--root", root, "--origin", srv.URL}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr.String())
+	}
+	lines := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("stdout %d lines, want one", len(lines))
+	}
+	var line map[string]string
+	if err := json.Unmarshal([]byte(lines[0]), &line); err != nil {
+		t.Fatalf("stdout is not one JSON line: %v", err)
+	}
+	want := map[string]string{"code": "KQ7-4TM", "url": "https://estantedecifras.app/pair", "expiresAt": "2026-11-02T14:42:00Z"}
+	if len(line) != len(want) || line["code"] != want["code"] || line["url"] != want["url"] || line["expiresAt"] != want["expiresAt"] {
+		t.Errorf("stdout %v, want %v", line, want)
+	}
+	for _, secret := range []string{cmdPollToken, cmdSession} {
+		if strings.Contains(stdout.String(), secret) || strings.Contains(stderr.String(), secret) {
+			t.Errorf("a secret was printed")
+		}
+	}
+	if stderr.Len() != 0 {
+		t.Errorf("stderr %q, want empty", stderr.String())
+	}
+	info, err := os.Stat(filepath.Join(root, "session.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mode := info.Mode().Perm(); mode != 0o600 {
+		t.Errorf("session.json mode %o, want 600", mode)
+	}
+	st, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, ok := st.Session()
+	if !ok || sess.Token != cmdSession || sess.Origin != srv.URL {
+		t.Errorf("session kept %v, origin %q, the token kept %v", ok, sess.Origin, sess.Token == cmdSession)
+	}
+
+	// Expired: exit 1, no session, no secret.
+	expired := pairService(t, "expired")
+	root2 := filepath.Join(t.TempDir(), "estante")
+	stdout.Reset()
+	stderr.Reset()
+	if code := run([]string{"pair", "--root", root2, "--origin", expired.URL}, &stdout, &stderr); code != 1 {
+		t.Errorf("expired: exit %d, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "expired") || strings.Contains(stderr.String(), cmdPollToken) ||
+		strings.Contains(stderr.String(), "KQ7-4TM") {
+		t.Errorf("expired: stderr %q", stderr.String())
+	}
+	if _, err := os.Stat(filepath.Join(root2, "session.json")); err == nil {
+		t.Error("expired: a session was kept")
+	}
+}
+
+// TestSignOutCommandClears pins the signout subcommand (workflow 19 §The
+// shelf, Sign out): the service asked to end the session with its cookie;
+// the session, home book, books and state gone, the bundle kept.
+func TestSignOutCommandClears(t *testing.T) {
+	var mu gosync.Mutex
+	var cookies []string
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/auth/signout", func(w http.ResponseWriter, r *http.Request) {
+		c, err := r.Cookie("estante_session")
+		mu.Lock()
+		if err == nil {
+			cookies = append(cookies, c.Value)
+		}
+		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	root := t.TempDir()
+	st, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetSession(store.Session{Origin: srv.URL, Token: cmdSession}); err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := st.BookDir("b1")
+	if err := os.MkdirAll(filepath.Join(dir, "objects"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.StageBundle(map[string][]byte{"manifest.json": []byte("{}")}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.PromoteBundle(); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"signout", "--root", root}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit %d, stderr %q", code, stderr.String())
+	}
+	if stdout.Len() != 0 || stderr.Len() != 0 {
+		t.Errorf("stdout %q stderr %q, want both empty", stdout.String(), stderr.String())
+	}
+	mu.Lock()
+	got := append([]string(nil), cookies...)
+	mu.Unlock()
+	if len(got) != 1 || got[0] != cmdSession {
+		t.Errorf("signout called %d times with the session's cookie %v", len(got), len(got) == 1 && got[0] == cmdSession)
+	}
+	again, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := again.Session(); ok {
+		t.Error("still paired")
+	}
+	if ids, _ := again.BookIDs(); len(ids) != 0 {
+		t.Errorf("books kept: %v", ids)
+	}
+	if _, ok := again.BundleDir(); !ok {
+		t.Error("the bundle was removed")
 	}
 }

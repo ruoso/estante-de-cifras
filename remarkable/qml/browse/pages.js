@@ -20,6 +20,7 @@ var copy = {
     getNewCode: "Get a new code",
     expired: "That code has expired.",
     offline: "This reMarkable is not connected to Wi-Fi. Connect it in Settings and try again.",
+    signedOutFromAccount: "This reMarkable was signed out from your account.",
     back: "Back",
     shelfTitle: "Estante",
     sync: "Sync",
@@ -259,8 +260,10 @@ function keyNoteLine(keyNote) {
 
 // --- settings ---
 
+// The account by its home book's authorName, *your account* until it has one
+// (reader.pairing; device_pairing Decision 10).
 function pairedWith(account) {
-    return "Paired with " + (account || "");
+    return "Paired with " + (account || "your account");
 }
 
 // The Shapes line (workflow 19 §The shelf, Settings).

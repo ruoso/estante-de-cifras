@@ -143,8 +143,9 @@ task reader "The reMarkable reader" {
   task pairing "Pairing the reader, and signing it out" {
     effort 1d
     allocate team
+    complete 100
     depends !sync, !browse_screens, !device_pairing
-    note "The reader's side of pairing: Pair with your account begins a pairing with the service, shows its code and address, polls with the token only it holds, and on approval keeps the read-only session in the store (mode 0600) and opens the shelf; an expired code is said, with Get a new code; Sign out ends the session with the service, removes the books from the device and returns to Not paired. Docs: docs/remarkable-reader.md §5.1; docs/workflows/19-remarkable-reader.md §Pairing. Tests: unit (the poll: pending, approved, expired); behavior (QML: the pairing page still until a message changes it); e2e-api (against the compose stack: the reader begins, a signed-in web client approves, the reader syncs; a push with the reader's session refused)."
+    note "The reader's side of pairing: Pair with your account begins a pairing with the service, shows its code and address, polls with the token only it holds, and on approval keeps the read-only session in the store (mode 0600) and opens the shelf; an expired code is said, with Get a new code; Sign out ends the session with the service, removes the books from the device and returns to Not paired. Docs: docs/remarkable-reader.md §5.1; docs/workflows/19-remarkable-reader.md §Pairing. Tests: unit (the poll: pending, approved, expired); behavior (QML: the pairing page still until a message changes it); e2e-api (against the compose stack: the reader begins, a signed-in web client approves, the reader syncs; a push with the reader's session refused). Refinement: tasks/refinements/reader/pairing.md"
   }
   task payload "The device payload, served from the site" {
     effort 1d

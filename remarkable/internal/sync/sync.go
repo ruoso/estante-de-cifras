@@ -13,7 +13,13 @@
 //
 // Read-only toward the account: the only requests are GET
 // /api/account/home-book, POST /api/shelf/change-check (a read, by the
-// contract) and git upload-pack, all to the session's one origin. The package
+// contract) and git upload-pack, all to the session's one origin — and, when
+// the person signs the device out, POST /api/auth/signout, which ends this
+// device's own session (reader.pairing).
+//
+// A session the service refuses (401) is forgotten: the session, the state,
+// the home book and every clone no screen holds go at once, the held ones
+// when let go, and the pass ends signedOut (reader.pairing Decision 6). The package
 // logs nothing; its errors name a step and a book's id, never a token, a link,
 // a label or a song's words (§10).
 package sync
@@ -68,6 +74,11 @@ const homeBookID = "home"
 
 // changeCheckMax is the contract's most books in one change check.
 const changeCheckMax = 500
+
+// SignOutTimeout bounds asking the service to end the session at sign out:
+// offline or slow, the device signs out all the same (reader.pairing
+// Decision 5).
+const SignOutTimeout = 5 * time.Second
 
 // Engine is what sync needs of the engine: the bundle's choice of instrument
 // and table, and loading them (engine.Engine satisfies it).
@@ -127,11 +138,18 @@ type Syncer struct {
 	empty      map[string]bool // found empty, until a check says changed
 	loadDigest string          // the instrument files last loaded
 	online     bool
+	// cancelPass cancels the pass in flight (nil when none); signingOut
+	// counts sign-outs waiting for passMu, during which no pass begins.
+	cancelPass context.CancelFunc
+	signingOut int
 
 	// The schedule (schedule.go) and its test seams.
 	trigger   chan struct{}
 	newTicker func(time.Duration) (<-chan time.Time, func())
 	pass      func(context.Context) (Result, error)
+
+	// signOutTimeout is SignOutTimeout (a test seam).
+	signOutTimeout time.Duration
 }
 
 // New makes a Syncer for st, loading instruments into eng (which may be nil:
@@ -149,10 +167,11 @@ func New(st *store.Store, eng Engine, opts Options) *Syncer {
 	}
 	s := &Syncer{
 		st: st, eng: eng, opts: opts,
-		holds:   map[string]int{},
-		gone:    map[string]bool{},
-		empty:   map[string]bool{},
-		trigger: make(chan struct{}, 1),
+		holds:          map[string]int{},
+		gone:           map[string]bool{},
+		empty:          map[string]bool{},
+		trigger:        make(chan struct{}, 1),
+		signOutTimeout: SignOutTimeout,
 		newTicker: func(d time.Duration) (<-chan time.Time, func()) {
 			t := time.NewTicker(d)
 			return t.C, t.Stop
@@ -178,7 +197,9 @@ func (s *Syncer) Snapshot() *Snapshot {
 
 // Hold keeps bookID's clone on disk until release is called, while a screen
 // reads it (workflow 19: "a song open from it stays readable until Back").
-// release is idempotent.
+// release is idempotent. Released once the device is no longer paired (its
+// session refused while a screen held the book), the clone goes with the
+// last hold (reader.pairing Decision 6).
 func (s *Syncer) Hold(bookID string) (release func()) {
 	s.mu.Lock()
 	s.holds[bookID]++
@@ -188,11 +209,77 @@ func (s *Syncer) Hold(bookID string) (release func()) {
 		once.Do(func() {
 			s.mu.Lock()
 			defer s.mu.Unlock()
-			if s.holds[bookID]--; s.holds[bookID] <= 0 {
-				delete(s.holds, bookID)
+			if s.holds[bookID]--; s.holds[bookID] > 0 {
+				return
+			}
+			delete(s.holds, bookID)
+			if _, paired := s.st.Session(); !paired {
+				// Nothing to report: the next pass, or the next sign out,
+				// removes what this could not.
+				_ = s.st.RemoveBook(bookID)
 			}
 		})
 	}
+}
+
+// forget forgets the device after the service refused its session: the
+// session, the state, the home book and every clone no screen holds, and the
+// snapshot. Under mu, so no hold is taken between the list of the held books
+// and their removal.
+func (s *Syncer) forget() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	held := make([]string, 0, len(s.holds))
+	for id := range s.holds {
+		held = append(held, id)
+	}
+	err := s.st.SignOutKeeping(held)
+	s.resetLocked()
+	return err
+}
+
+// resetLocked drops what the syncer knows of the account: the snapshot and
+// the books reported gone or empty.
+func (s *Syncer) resetLocked() {
+	s.snap = emptySnapshot()
+	s.gone = map[string]bool{}
+	s.empty = map[string]bool{}
+}
+
+// SignOut signs the device out (workflow 19 §The shelf, Sign out): it
+// cancels the pass in flight and waits for it, asks the service to end the
+// session (POST /api/auth/signout, bounded by SignOutTimeout — offline or
+// refused, the device signs out all the same), then clears the store of the
+// account (the bundle kept) and drops the snapshot. Its error is the store's
+// only.
+func (s *Syncer) SignOut(ctx context.Context) error {
+	s.mu.Lock()
+	s.signingOut++
+	if s.cancelPass != nil {
+		s.cancelPass()
+	}
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.signingOut--
+		s.mu.Unlock()
+	}()
+	s.passMu.Lock()
+	defer s.passMu.Unlock()
+
+	if sess, ok := s.st.Session(); ok {
+		if origin, err := parseOrigin(sess.Origin); err == nil {
+			cctx, cancel := context.WithTimeout(ctx, s.signOutTimeout)
+			a := &api{client: s.opts.HTTPClient, origin: origin, token: sess.Token}
+			_ = a.signOut(cctx)
+			cancel()
+		}
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	err := s.st.SignOut()
+	s.resetLocked()
+	return err
 }
 
 func (s *Syncer) status(st Status) {
@@ -221,8 +308,21 @@ func (s *Syncer) Pass(ctx context.Context) (Result, error) {
 		return Result{}, err
 	}
 	s.mu.Lock()
+	if s.signingOut > 0 {
+		// A sign out waits for passMu: this pass gives way.
+		s.mu.Unlock()
+		return Result{}, ErrNotPaired
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	s.cancelPass = cancel
 	online := s.online
 	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.cancelPass = nil
+		s.mu.Unlock()
+	}()
 	s.status(Status{Syncing: true, Online: online, LastSync: s.lastSync()})
 
 	res, err := s.run(ctx, origin, sess.Token)
@@ -231,6 +331,9 @@ func (s *Syncer) Pass(ctx context.Context) (Result, error) {
 	switch {
 	case errors.Is(err, errSignedOut):
 		end.Error = ErrorSignedOut
+		if ferr := s.forget(); ferr != nil {
+			err = errors.Join(err, ferr)
+		}
 	case errors.Is(err, errOffline), errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		end.Online, end.Error = false, ErrorOffline
 	}
@@ -266,6 +369,11 @@ func (s *Syncer) run(ctx context.Context, origin *url.URL, token string) (Result
 	home := readHome(homeDir)
 	shelf := readShelf(home[shelfFile])
 	instrErr := s.loadInstrument(ctx, home)
+	if !headOf(homeDir).IsZero() {
+		if err := s.setAccount(readAuthorName(home[preferencesFile])); err != nil {
+			return Result{}, err
+		}
+	}
 
 	// One change check for the whole shelf.
 	local := make(map[string]plumbing.Hash, len(shelf))
@@ -375,6 +483,21 @@ func (s *Syncer) run(ctx context.Context, origin *url.URL, token string) (Result
 		return res, err
 	}
 	return res, instrErr
+}
+
+// setAccount keeps name as the session's account — what Settings says it is
+// paired with (device_pairing Decision 10) — when it differs; no write
+// otherwise.
+func (s *Syncer) setAccount(name string) error {
+	sess, ok := s.st.Session()
+	if !ok || sess.Account == name {
+		return nil
+	}
+	sess.Account = name
+	if err := s.st.SetSession(sess); err != nil {
+		return fmt.Errorf("sync: account: %w", err)
+	}
+	return nil
 }
 
 func result(status string, head plumbing.Hash) BookResult {

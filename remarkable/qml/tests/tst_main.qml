@@ -418,4 +418,115 @@ TestCase {
         compare(revisions(), before);
         compare(visibleScreens(main), ["songScreen"]);
     }
+
+    // --- reader.pairing ---
+
+    // The note's "the pairing page still until a message changes it" (rule
+    // 5, Decision 2): on the code page, states — syncing, offline, not paired
+    // — change no region; a `102 expired` does, and `101 paired:true` then the
+    // `103` replaces the page.
+    function test_pairingPageStillUntilAMessage() {
+        const main = shown();
+        main.endpoint.play(101, stateMessage({}));
+        mouseClick(main.notPaired.pairButton);
+        main.endpoint.play(102, { code: "KQ7-4TM", url: "https://estantedecifras.app/pair",
+                                  expiresAt: localTime(14, 42) });
+        compare(main.notPaired.mode, "code");
+        const page = main.notPaired;
+        const revisions = () => [page.bar.revision, page.content.revision];
+        const before = revisions();
+        main.endpoint.clear();
+        main.endpoint.play(101, stateMessage({ syncing: true }));
+        main.endpoint.play(101, stateMessage({ online: false, error: "offline" }));
+        main.endpoint.play(101, stateMessage({}));
+        compare(revisions(), before);
+        compare(visibleScreens(main), ["notPaired"]);
+        compare(main.endpoint.sent.length, 0);
+
+        main.endpoint.play(102, { expired: true });
+        compare(main.notPaired.mode, "expired");
+        verify(page.content.revision > before[1]);
+        const expired = revisions();
+        main.endpoint.play(101, stateMessage({ syncing: true }));
+        compare(revisions(), expired);
+
+        mouseClick(main.notPaired.newCodeButton);
+        main.endpoint.play(102, { code: "PX4-9RW", url: "https://estantedecifras.app/pair",
+                                  expiresAt: localTime(14, 52) });
+        const coded = revisions();
+        main.endpoint.clear();
+        main.endpoint.play(101, stateMessage({ paired: true, lastSync: localTime(14, 45) }));
+        compare(revisions(), coded);
+        compare(main.endpoint.sent.length, 1);
+        compare(main.endpoint.sent[0].payload, { view: "shelf" });
+        main.endpoint.play(103, clone(BrowseShelf.shelf));
+        compare(visibleScreens(main), ["shelfScreen"]);
+    }
+
+    // Workflow 19 §Pairing, rule 5: a refusal met by the person's Sync on the
+    // shelf shows Not paired at once, with the signed-out line, in the
+    // redraw that ends the sync.
+    function test_refusalMetBySyncShowsNotPairedAtOnce() {
+        const main = onShelf();
+        mouseClick(main.shelfScreen.bar.action);
+        compare(main.endpoint.sent.length, 1);
+        compare(main.endpoint.sent[0].type, 4);
+        main.endpoint.play(101, stateMessage({ paired: true, syncing: true, lastSync: localTime(14, 32) }));
+        compare(visibleScreens(main), ["shelfScreen"]);
+        compare(main.shelfScreen.syncText.text, "Syncing…");
+        main.endpoint.play(101, stateMessage({ paired: false, error: "signedOut" }));
+        compare(visibleScreens(main), ["notPaired"]);
+        compare(main.notPaired.mode, "notPaired");
+        verify(main.notPaired.signedOutText.visible);
+        compare(main.notPaired.signedOutText.text, "This reMarkable was signed out from your account.");
+    }
+
+    // Workflow 19 §Pairing, rule 5: a refusal met by a background sync, on
+    // the shelf with no Sync tapped, changes nothing on screen; the next page
+    // opened — answered by the unpaired backend with the empty shelf — shows
+    // Not paired with the line.
+    function test_backgroundRefusalWaitsForTheNextPage() {
+        const main = onShelf();
+        const shelf = main.shelfScreen;
+        const revisions = () => [shelf.bar.revision, shelf.syncLine.revision, shelf.list.revision,
+                                 shelf.foot.revision];
+        const before = revisions();
+        main.endpoint.play(101, stateMessage({ paired: true, syncing: true, lastSync: localTime(14, 32) }));
+        const syncing = revisions();
+        main.endpoint.play(101, stateMessage({ paired: false, error: "signedOut" }));
+        compare(revisions(), syncing);
+        compare(visibleScreens(main), ["shelfScreen"]);
+        compare(main.endpoint.sent.length, 0);
+        // The next page: a book row opened, answered with the empty shelf.
+        mouseClick(shelf.rows.itemAt(0));
+        compare(main.endpoint.sent.length, 1);
+        compare(main.endpoint.sent[0].payload.view, "book");
+        main.endpoint.play(103, { books: [] });
+        compare(visibleScreens(main), ["notPaired"]);
+        verify(main.notPaired.signedOutText.visible);
+        verify(before[1] < syncing[1]);
+
+        // A song on screen stays readable until Back.
+        const reading = onShelf();
+        reading.endpoint.play(105, clone(FewChords.sheet));
+        reading.endpoint.play(101, stateMessage({ paired: false, error: "signedOut" }));
+        compare(visibleScreens(reading), ["songScreen"]);
+        reading.endpoint.play(103, { books: [] });
+        compare(visibleScreens(reading), ["notPaired"]);
+        verify(reading.notPaired.signedOutText.visible);
+    }
+
+    // Workflow 19 §The shelf (Sign out): after the person's own Sign out,
+    // Not paired carries no signed-out line.
+    function test_ownSignOutHasNoRefusalLine() {
+        const main = onShelf();
+        main.endpoint.play(107, clone(BrowseSettings.settings));
+        mouseClick(main.settingsScreen.signOutButton);
+        mouseClick(main.settingsScreen.confirmButton);
+        compare(main.endpoint.sent[0].type, 6);
+        main.endpoint.play(101, stateMessage({ paired: false }));
+        compare(visibleScreens(main), ["notPaired"]);
+        verify(!main.notPaired.signedOut);
+        verify(!main.notPaired.signedOutText.visible);
+    }
 }

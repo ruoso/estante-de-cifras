@@ -169,7 +169,8 @@ phone or computer come here.*
 
 At the foot's left, **Settings** — a word, not a gear — opens the one page of
 settings (bar: **Back** to the shelf · *Settings*), in this order: **Account**,
-*Paired with* and the account it is paired with; **Sync**, the shelf's sync
+*Paired with* and the account it is paired with (its name as the account's
+home book carries it, *Paired with your account* until the account has one); **Sync**, the shelf's sync
 line as it was when the page opened (it does not change while the page is on
 screen — rule 5's exception is the shelf's); **Shapes**, *11 shapes hidden —
 the ones you know* with **Show all again** (the count redrawn when it is

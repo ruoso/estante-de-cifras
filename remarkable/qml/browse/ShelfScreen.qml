@@ -36,6 +36,10 @@ Item {
     readonly property int pageCount: Pages.pageCount(d.books.length)
     readonly property string pending: d.pending
 
+    // *Sync* tapped: the person asked for this sync (reader.pairing — a
+    // refusal it meets is shown at once, rule 5).
+    signal syncTapped
+
     width: M.screenWidth
     height: M.barHeight + M.contentHeight + M.footHeight
 
@@ -103,7 +107,10 @@ Item {
         x: 0
         y: 0
         faces: screen.faces
-        onActionTapped: d.send(4, {})
+        onActionTapped: {
+            d.send(4, {});
+            screen.syncTapped();
+        }
     }
 
     // The sync line: *Synced at 14:32*, *Syncing…*, a 2 px rule under it.

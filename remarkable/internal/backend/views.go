@@ -21,10 +21,12 @@ import (
 	"errors"
 	"sort"
 	"strings"
+	gosync "sync"
 
 	cifra "github.com/ruoso/cifra.md/go"
 
 	"estantedecifras.app/remarkable/internal/engine"
+	pairing "estantedecifras.app/remarkable/internal/pair"
 	"estantedecifras.app/remarkable/internal/protocol"
 	"estantedecifras.app/remarkable/internal/store"
 	"estantedecifras.app/remarkable/internal/sync"
@@ -68,6 +70,14 @@ type views struct {
 
 	cur      *viewContext
 	listings map[listingKey]listing
+
+	// The pairing (pairing.go): the client, the news of the one in progress
+	// (only its generation's counts), and how to stop it.
+	pairer      *pairing.Client
+	pairCh      chan pairNews
+	pairGen     int
+	pairCancel  context.CancelFunc
+	pairRunning gosync.WaitGroup
 }
 
 // viewContext is the view on screen within one book: the snapshot it was read
@@ -112,11 +122,17 @@ func newViews(ctx context.Context, conn *protocol.Conn, relay *Relay, b Deps) *v
 		st: b.Store, sync: b.Syncer, eng: b.Engine, ver: b.Version,
 		onParse:  b.onParse,
 		listings: map[listingKey]listing{},
+		pairer:   b.Pair,
+		pairCh:   make(chan pairNews),
 	}
 }
 
-// close releases the hold of the view on screen, when there is one.
-func (v *views) close() { v.leave() }
+// close stops a pairing in progress and releases the hold of the view on
+// screen, when there is one.
+func (v *views) close() {
+	v.stopPairing()
+	v.leave()
+}
 
 // leave drops the current context, releasing its hold exactly once.
 func (v *views) leave() {
@@ -151,6 +167,10 @@ func (v *views) handle(m protocol.Message) error {
 		// the open song (reader.play Decision 2).
 		_ = v.st.SetPlace(m.BookID, m.Setlist, m.At)
 		return v.place(m)
+	case protocol.Pair:
+		return v.pair()
+	case protocol.SignOut:
+		return v.signOut()
 	}
 	return nil
 }
@@ -158,6 +178,13 @@ func (v *views) handle(m protocol.Message) error {
 // --- open ---
 
 func (v *views) open(o protocol.Open) error {
+	if _, paired := v.st.Session(); !paired {
+		// Unpaired — signed out, or the session refused: the nearest view
+		// is the empty shelf, which the frontend draws as Not paired
+		// (reader.pairing Constraint 8).
+		v.leave()
+		return v.conn.Write(protocol.Shelf{Books: []protocol.ShelfBook{}})
+	}
 	switch o.View {
 	case protocol.ViewShelf:
 		v.leave()

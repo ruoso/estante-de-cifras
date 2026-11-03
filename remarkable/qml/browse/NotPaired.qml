@@ -13,7 +13,9 @@
 // code page draws the code, the address from its `url` and *This code works
 // until 14:42*; `{ expired: true }` puts *That code has expired.* in the
 // code's place, `{ offline: true }` the Wi-Fi sentence, each with *Get a new
-// code*. Nothing on it changes by itself (rule 2).
+// code*. Nothing on it changes by itself (rule 2). Shown after the account
+// signed this reMarkable out (`show(true)`, reader.pairing), Not paired
+// carries *This reMarkable was signed out from your account.* above its words.
 import QtQuick
 import "../song"
 import "../chart"
@@ -42,16 +44,20 @@ Item {
     readonly property alias codeText: codeText
     readonly property alias untilText: untilText
     readonly property alias sentenceText: sentenceText
+    readonly property alias signedOutText: signedOutText
+    // Not paired says the account signed this reMarkable out.
+    readonly property bool signedOut: contentRegion.content.signedOut === true
 
     width: M.screenWidth
     height: M.barHeight + M.contentHeight + M.footHeight
 
-    // Not paired, from the start.
-    function show() {
+    // Not paired, from the start; `signedOut`, with the line saying the
+    // account signed this reMarkable out.
+    function show(signedOut) {
         d.asked = false;
         d.pending = "";
         listBar.show({ title: Pages.copy.appName, back: false, action: "" });
-        contentRegion.show({ mode: "notPaired" });
+        contentRegion.show({ mode: "notPaired", signedOut: signedOut === true });
     }
 
     // A `102 pairing`, when accepted.
@@ -96,7 +102,7 @@ Item {
         x: 0
         y: 0
         faces: screen.faces
-        onBackTapped: screen.show()
+        onBackTapped: screen.show(false)
     }
 
     Region {
@@ -115,12 +121,31 @@ Item {
 
         // --- Not paired ---
 
+        // Above its words, when the account signed this reMarkable out.
+        Text {
+            id: signedOutText
+            objectName: "signedOutLine"
+            visible: contentRegion.start && contentRegion.content.signedOut === true
+            x: contentRegion.side
+            y: 220
+            width: contentRegion.textWidth
+            height: Math.ceil(contentHeight)
+            color: "black"
+            font.family: screen.faces.ui
+            font.weight: Font.Bold
+            font.pixelSize: 44
+            lineHeight: 1.4
+            wrapMode: Text.WordWrap
+            textFormat: Text.PlainText
+            text: Pages.copy.signedOutFromAccount
+        }
+
         Text {
             id: titleText
             objectName: "notPairedTitle"
             visible: contentRegion.start
             x: contentRegion.side
-            y: 220
+            y: signedOutText.visible ? signedOutText.y + signedOutText.height + 72 : 220
             width: contentRegion.textWidth
             height: Math.ceil(contentHeight)
             color: "black"

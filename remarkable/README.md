@@ -22,18 +22,25 @@ go run ./cmd/estante-reader bench --bundle ../app/dist/device \
 `sheet` prints one song's sheet as JSON; `bench` prints the §4.2 reading-path
 timings, and nothing of the songs.
 
+`internal/pair` pairs the reader with an account (design §5.1), and
 `internal/sync` fetches the account's home book and its shelf's books into the
-store with go-git, read-only (design §5). Until pairing lands, a session is
-pasted in by hand — the token on stdin, never on the command line — and one
-pass run:
+store with go-git, read-only (design §5). To pair a development store — with a
+local stack, give its address as `--origin`; without one, the reader pairs
+with `https://estantedecifras.app` — and run one pass:
 
 ```sh
-printf '%s\n' "$TOKEN" | go run ./cmd/estante-reader session --root /tmp/estante \
-  --origin https://estantedecifras.app
+go run ./cmd/estante-reader pair --root /tmp/estante --origin http://localhost:8080
+# prints {"code":"KQ7-4TM","url":…,"expiresAt":…}: enter the code at the url,
+# signed in; pair exits once it is approved (1 if the code expires)
 go run ./cmd/estante-reader sync --root /tmp/estante --bundle ../app/dist/device
+go run ./cmd/estante-reader signout --root /tmp/estante
 ```
 
-`sync` prints what the pass did — ids, statuses and heads, nothing else. Its
+`pair` prints the code line only — never the poll token or the session, which
+it keeps in `session.json` (0600). `sync` prints what the pass did — ids,
+statuses and heads, nothing else. `signout` ends the session with the service
+(a few seconds at most) and removes the account's files, keeping the bundle.
+`run --origin URL SOCKET` pairs the backend with the same origin. The sync's
 behavior tests run real `git http-backend`, so they need `git` on the host.
 
 The QML frontend's tests (`qml/tests/tst_*.qml`) run on Qt's own

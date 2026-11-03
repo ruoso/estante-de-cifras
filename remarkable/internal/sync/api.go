@@ -1,7 +1,8 @@
 package sync
 
 // The two API reads a pass makes (api/openapi.yaml): getHomeBook and
-// changeCheck. Nothing here writes to the account: changeCheck is a POST by
+// changeCheck; and signOut, which ends this device's session when the person
+// signs it out (reader.pairing). Nothing here writes to the account: changeCheck is a POST by
 // the contract and a read by its meaning. The session cookie goes only to the
 // session's origin, and no error carries it, or a link, or a book's words.
 
@@ -128,4 +129,26 @@ func (a *api) changeCheck(ctx context.Context, heads []shelfHead) (map[string]bo
 		out[c.BookID] = c
 	}
 	return out, nil
+}
+
+// signOut: POST /api/auth/signout — ends this device's session with the
+// service. Any answer is an answer: 204 ends it, 401 says it had ended.
+func (a *api) signOut(ctx context.Context) error {
+	u := a.origin.ResolveReference(&url.URL{Path: "/api/auth/signout"})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), nil)
+	if err != nil {
+		return fmt.Errorf("sync: signOut: %w", errOffline)
+	}
+	req.Header.Set("Accept", "application/json")
+	req.AddCookie(&http.Cookie{Name: cookieName, Value: a.token})
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("sync: signOut: %w", errOffline)
+	}
+	defer resp.Body.Close()
+	io.Copy(io.Discard, io.LimitReader(resp.Body, maxAPIBody))
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusUnauthorized {
+		return fmt.Errorf("sync: signOut: status %d: %w", resp.StatusCode, errOffline)
+	}
+	return nil
 }

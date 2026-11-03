@@ -149,7 +149,13 @@ func (s *Store) RemoveBook(bookID string) error {
 // SignOut clears the device of the account: the session, the clones and the
 // reader's state go; the bundle slots — the app's code, not the account's —
 // stay (§2.1 step 6; workflow 19 §The shelf).
-func (s *Store) SignOut() error {
+func (s *Store) SignOut() error { return s.SignOutKeeping(nil) }
+
+// SignOutKeeping is SignOut, except that the clones of the books in keep —
+// the ones a screen holds open — stay until the caller removes them
+// (RemoveBook) once let go (reader.pairing Decision 6: a session the service
+// refuses, with a song on screen).
+func (s *Store) SignOutKeeping(keep []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, f := range []string{sessionFile, stateFile} {
@@ -159,10 +165,11 @@ func (s *Store) SignOut() error {
 	}
 	s.session = nil
 	s.state = newState()
-	for _, d := range []string{homeDir, booksDir} {
-		if err := os.RemoveAll(filepath.Join(s.root, d)); err != nil {
-			return fmt.Errorf("store: sign out: %w", err)
-		}
+	if err := os.RemoveAll(filepath.Join(s.root, homeDir)); err != nil {
+		return fmt.Errorf("store: sign out: %w", err)
+	}
+	if err := s.removeBooksExcept(keep); err != nil {
+		return err
 	}
 	if err := s.makeDirs(); err != nil {
 		return err
@@ -171,6 +178,40 @@ func (s *Store) SignOut() error {
 		return fmt.Errorf("store: sign out: %w", err)
 	}
 	return nil
+}
+
+// removeBooksExcept removes books/ whole, or — when keep names any — every
+// entry of it but the kept clones.
+func (s *Store) removeBooksExcept(keep []string) error {
+	dir := filepath.Join(s.root, booksDir)
+	if len(keep) == 0 {
+		if err := os.RemoveAll(dir); err != nil {
+			return fmt.Errorf("store: sign out: %w", err)
+		}
+		return nil
+	}
+	kept := make(map[string]bool, len(keep))
+	for _, id := range keep {
+		if validID(id) {
+			kept[id] = true
+		}
+	}
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("store: sign out: %w", err)
+	}
+	for _, e := range entries {
+		if kept[e.Name()] {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(dir, e.Name())); err != nil {
+			return fmt.Errorf("store: sign out: %w", err)
+		}
+	}
+	return syncDir(dir)
 }
 
 // validID reports whether id is one local path element, safe as a directory

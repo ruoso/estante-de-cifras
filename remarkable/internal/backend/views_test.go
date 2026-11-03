@@ -230,6 +230,11 @@ func newViewsFixture(t *testing.T) *viewsFixture {
 	}
 	f.commitBook(t)
 	commit(t, st.HomeDir(), homeFiles(t, true))
+	// A paired reader: unpaired, every open is answered with the empty
+	// shelf (reader.pairing Constraint 8).
+	if err := st.SetSession(store.Session{Origin: "https://example.test", Token: "t"}); err != nil {
+		t.Fatal(err)
+	}
 	return f
 }
 

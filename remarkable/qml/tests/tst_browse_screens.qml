@@ -478,4 +478,55 @@ TestCase {
         verify(!screen.bar.back.visible);
         verify(!screen.accepts);
     }
+
+    // --- reader.pairing ---
+
+    // Workflow 19 §The shelf (Settings), as reader.pairing amends it:
+    // *Paired with* the account's name (its home book's authorName), *your
+    // account* until it has one.
+    function test_pairedWithYourAccount() {
+        const screen = make(settingsComponent);
+        const unnamed = clone(BrowseSettings.settings);
+        unnamed.account = "";
+        screen.show(unnamed, { paired: true, lastSync: localTime(14, 32) });
+        compare(screen.accountPart.valueText.text, "Paired with your account");
+        clean(screen);
+        const named = clone(BrowseSettings.settings);
+        named.account = "Marina Souza";
+        screen.show(named, { paired: true, lastSync: localTime(14, 32) });
+        compare(screen.accountPart.valueText.text, "Paired with Marina Souza");
+    }
+
+    // Workflow 19 §Pairing (signed out from the account): Not paired shown
+    // after a refusal carries *This reMarkable was signed out from your
+    // account.* above its words — drawn one-bit, inside the content region;
+    // shown otherwise, and after the code page's Back, it does not.
+    function test_signedOutLine() {
+        const screen = make(notPairedComponent);
+        screen.show(true);
+        verify(screen.signedOut);
+        verify(screen.signedOutText.visible);
+        compare(screen.signedOutText.text, "This reMarkable was signed out from your account.");
+        const line = screen.signedOutText.mapToItem(screen.content, 0, 0);
+        verify(line.x >= 0 && line.y >= 0);
+        verify(line.x + screen.signedOutText.width <= screen.content.width);
+        verify(line.y + screen.signedOutText.height <= screen.content.height);
+        const title = screen.titleText.mapToItem(screen.content, 0, 0);
+        verify(title.y >= line.y + screen.signedOutText.height, "the line is above the words");
+        const button = screen.pairButton.mapToItem(screen.content, 0, 0);
+        verify(button.y + screen.pairButton.height <= screen.content.height, "the button stays in the content");
+        clean(screen);
+
+        screen.show();
+        verify(!screen.signedOut);
+        verify(!screen.signedOutText.visible);
+        screen.show(true);
+        mouseClick(screen.pairButton);
+        screen.pairing({ code: "KQ7-4TM", url: "https://estantedecifras.app/pair",
+                         expiresAt: localTime(14, 42) });
+        verify(!screen.signedOutText.visible);
+        mouseClick(screen.bar.back);
+        compare(screen.mode, "notPaired");
+        verify(!screen.signedOutText.visible);
+    }
 }

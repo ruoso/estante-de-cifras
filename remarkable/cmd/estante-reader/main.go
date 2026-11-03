@@ -6,16 +6,18 @@
 //   - sheet prints one song's sheet at a key as JSON, from the engine
 //     (reader.engine), for development and for the screens' fixtures;
 //   - bench re-measures the reading path rows of the design's §4.2;
-//   - session keeps a session, its token read from stdin (never argv, which
-//     every process on the device can read), for development until pairing
-//     lands (design §12 step 3; reader.sync);
+//   - pair pairs the device with an account (reader.pairing): it begins,
+//     prints the code as one JSON line, polls, and keeps the session once
+//     approved — the backend's pairing, for development and the e2e-api;
+//   - signout signs the device out as Settings' Sign out does;
 //   - sync runs one sync pass and prints what it did: ids, statuses and
 //     heads (reader.sync, and the e2e-api's driver);
 //   - run is the backend proper (reader.app_folder): it dials AppLoad's
 //     socket and serves the frontend (internal/backend) while the sync
-//     schedule runs. AppLoad starts backend/entry with the socket's path as
-//     its only argument (rm-appload src/library.cpp), so a sole absolute path
-//     is run against the default store (design §3.1).
+//     schedule runs, pairing with --origin. AppLoad starts backend/entry with
+//     the socket's path as its only argument (rm-appload src/library.cpp), so
+//     a sole absolute path is run against the default store and origin
+//     (design §3.1).
 package main
 
 import (
@@ -35,6 +37,7 @@ import (
 
 	"estantedecifras.app/remarkable/internal/backend"
 	"estantedecifras.app/remarkable/internal/engine"
+	"estantedecifras.app/remarkable/internal/pair"
 	"estantedecifras.app/remarkable/internal/protocol"
 	"estantedecifras.app/remarkable/internal/store"
 	"estantedecifras.app/remarkable/internal/sync"
@@ -46,15 +49,17 @@ var version = "dev"
 const usage = "usage: estante-reader --version | " +
 	"sheet --bundle DIR [--shapes FILE] [--key N] [--variation V] SONG | " +
 	"bench --bundle DIR [--shapes FILE] [--rounds N] SONG... | " +
-	"session --root DIR --origin URL (token on stdin) | " +
+	"pair --root DIR [--origin URL] | " +
+	"signout --root DIR | " +
 	"sync --root DIR --bundle DIR | " +
-	"run [--root DIR] SOCKET"
+	"run [--root DIR] [--origin URL] SOCKET"
 
 // errUsage is a bad invocation: the usage line, exit 2.
 var errUsage = errors.New("usage")
 
-// stdin is what session reads the token from; a test replaces it.
-var stdin io.Reader = os.Stdin
+// pollInterval is how often pair polls (pair.DefaultInterval); a test
+// replaces it.
+var pollInterval = pair.DefaultInterval
 
 // defaultRoot is the store run uses without --root: the device's
 // (store.DefaultRoot); a test replaces it.
@@ -77,8 +82,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		err = sheetCommand(args[1:], stdout)
 	case len(args) > 0 && args[0] == "bench":
 		err = benchCommand(args[1:], stdout)
-	case len(args) > 0 && args[0] == "session":
-		err = sessionCommand(args[1:], stdin)
+	case len(args) > 0 && args[0] == "pair":
+		err = pairCommand(args[1:], stdout)
+	case len(args) > 0 && args[0] == "signout":
+		err = signOutCommand(args[1:])
 	case len(args) > 0 && args[0] == "sync":
 		err = syncCommand(args[1:], stdout)
 	case len(args) > 0 && args[0] == "run":
@@ -275,40 +282,79 @@ func (m mean) String() string {
 	return fmt.Sprintf("%.2f ms (n=%d)", float64(m.total)/float64(time.Millisecond)/float64(m.n), m.n)
 }
 
-// maxToken bounds what session reads from stdin.
-const maxToken = 4096
+// originFlag reads --origin: http(s)://host[:port], or a usage error (the
+// value never echoed).
+func originFlag(value string) (*url.URL, error) {
+	u, err := pair.ParseOrigin(value)
+	if err != nil {
+		return nil, errUsage
+	}
+	return u, nil
+}
 
-// sessionCommand: estante-reader session --root DIR --origin URL, the token
-// on stdin. It keeps the session in the store (session.json, 0600) and
-// prints nothing: the token is never echoed, never in an error.
-func sessionCommand(args []string, in io.Reader) error {
-	fs := newFlags("session")
+// pairCommand: estante-reader pair --root DIR [--origin URL] — begins a
+// pairing with the origin (pair.DefaultOrigin by default), prints the code as
+// one JSON line {code, url, expiresAt}, polls, and once approved keeps the
+// session in the store (session.json, 0600) and exits 0; expired, 1. Nothing
+// else is printed: never the poll token, never the session.
+func pairCommand(args []string, stdout io.Writer) error {
+	fs := newFlags("pair")
 	root := fs.String("root", "", "")
-	origin := fs.String("origin", "", "")
-	if fs.Parse(args) != nil || *root == "" || *origin == "" || fs.NArg() != 0 {
+	originArg := fs.String("origin", pair.DefaultOrigin, "")
+	if fs.Parse(args) != nil || *root == "" || fs.NArg() != 0 {
 		return errUsage
 	}
-	u, err := url.Parse(*origin)
-	if err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil {
-		return errors.New("--origin is not an http(s) origin")
-	}
-	raw, err := io.ReadAll(io.LimitReader(in, maxToken+1))
+	origin, err := originFlag(*originArg)
 	if err != nil {
-		return errors.New("reading the token from stdin failed")
-	}
-	token := strings.TrimSpace(string(raw))
-	if token == "" || len(raw) > maxToken || strings.ContainsAny(token, " \t\r\n;") {
-		return errors.New("stdin holds no token")
+		return err
 	}
 	st, err := store.Open(*root)
 	if err != nil {
 		return err
 	}
+	if _, paired := st.Session(); paired {
+		return errors.New("already paired; sign out first")
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
+	defer stop()
+	c := &pair.Client{Origin: origin, Interval: pollInterval}
+	p, err := c.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	line, err := json.Marshal(p.Code())
+	if err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(stdout, "%s\n", line); err != nil {
+		return err
+	}
+	session, err := c.Wait(ctx, p)
+	if err != nil {
+		return err
+	}
 	return st.SetSession(store.Session{
-		Origin:   u.Scheme + "://" + u.Host,
-		Token:    token,
+		Origin:   pair.OriginString(origin),
+		Token:    session,
 		PairedAt: time.Now().UTC(),
 	})
+}
+
+// signOutCommand: estante-reader signout --root DIR — signs the device out
+// as Settings' Sign out does: the service asked to end the session (a few
+// seconds at most), then the session, the home book, the books and the state
+// removed, the bundle kept.
+func signOutCommand(args []string) error {
+	fs := newFlags("signout")
+	root := fs.String("root", "", "")
+	if fs.Parse(args) != nil || *root == "" || fs.NArg() != 0 {
+		return errUsage
+	}
+	st, err := store.Open(*root)
+	if err != nil {
+		return err
+	}
+	return sync.New(st, nil, sync.Options{}).SignOut(context.Background())
 }
 
 // syncCommand: estante-reader sync --root DIR --bundle DIR — one pass, its
@@ -343,19 +389,35 @@ func syncCommand(args []string, stdout io.Writer) error {
 	return err
 }
 
-// runCommand: estante-reader run [--root DIR] SOCKET — the backend AppLoad
-// runs. It opens the store and, when a bundle is installed and opens, the
-// engine; builds the sync schedule with its statuses relayed to the frontend;
-// dials SOCKET; and serves until AppLoad's terminate or the socket's close.
+// runFlags reads run's arguments: the root, the origin pairing begins with,
+// and the socket.
+func runFlags(args []string) (root string, origin *url.URL, socket string, err error) {
+	fs := newFlags("run")
+	rootArg := fs.String("root", defaultRoot, "")
+	originArg := fs.String("origin", pair.DefaultOrigin, "")
+	if fs.Parse(args) != nil || *rootArg == "" || fs.NArg() != 1 || fs.Arg(0) == "" {
+		return "", nil, "", errUsage
+	}
+	origin, err = originFlag(*originArg)
+	if err != nil {
+		return "", nil, "", err
+	}
+	return *rootArg, origin, fs.Arg(0), nil
+}
+
+// runCommand: estante-reader run [--root DIR] [--origin URL] SOCKET — the
+// backend AppLoad runs. It opens the store and, when a bundle is installed
+// and opens, the engine; builds the sync schedule with its statuses relayed
+// to the frontend; dials SOCKET; and serves until AppLoad's terminate or the
+// socket's close, pairing with the origin (pair.DefaultOrigin by default).
 // It logs nothing: an error names its class, never a payload, a song or a
 // token.
 func runCommand(args []string) error {
-	fs := newFlags("run")
-	root := fs.String("root", defaultRoot, "")
-	if fs.Parse(args) != nil || *root == "" || fs.NArg() != 1 || fs.Arg(0) == "" {
-		return errUsage
+	root, origin, socket, err := runFlags(args)
+	if err != nil {
+		return err
 	}
-	st, err := store.Open(*root)
+	st, err := store.Open(root)
 	if err != nil {
 		return err
 	}
@@ -374,7 +436,7 @@ func runCommand(args []string) error {
 	relay := backend.NewRelay()
 	syncer := sync.New(st, syncEng, sync.Options{OnStatus: relay.StatusFunc()})
 
-	conn, err := protocol.Dial(fs.Arg(0))
+	conn, err := protocol.Dial(socket)
 	if err != nil {
 		return dialError(err)
 	}
@@ -383,6 +445,7 @@ func runCommand(args []string) error {
 	err = backend.Serve(ctx, conn, backend.Deps{
 		Store: st, Syncer: syncer, Relay: relay, Now: time.Now,
 		Engine: viewEng, Version: version,
+		Pair: &pair.Client{Origin: origin},
 	})
 	if err != nil && ctx.Err() != nil {
 		// A signal is an ending like terminate.

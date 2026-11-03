@@ -15,7 +15,11 @@
 // answered fills its screen, then that screen alone is shown — one redraw.
 // Background news redraws nothing but the shelf's sync line (rule 5): a
 // `101` elsewhere changes nothing on screen; `paired: false` mid-reading
-// waits for the next shelf, which is drawn as *Not paired* (Decision 4).
+// waits for the next page opened — which the backend, unpaired, answers with
+// the empty shelf — drawn as *Not paired* (Decision 4). A refusal met by the
+// person's *Sync* on the shelf is shown at once; either way *Not paired*
+// then says *This reMarkable was signed out from your account.*, which the
+// person's own *Sign out* does not (reader.pairing).
 import QtQuick
 import net.asivery.AppLoad 1.0
 import "song"
@@ -59,6 +63,10 @@ Rectangle {
         property bool shelfAsked: false
         // Sign out confirmed: the next unpaired state shows Not paired.
         property bool signingOut: false
+        // *Sync* tapped on the shelf and that sync not yet ended (syncSeen:
+        // it has begun): a refusal it meets is shown at once.
+        property bool syncAsked: false
+        property bool syncSeen: false
         // The page each book was left on for a song or a setlist, by bookId,
         // and the shelf's (Decision 9); in memory only.
         property var bookPages: ({})
@@ -88,19 +96,26 @@ Rectangle {
             }
             if (d.view === "shelf" && next !== "shelf")
                 d.shelfPage = shelfScreen.page;
+            if (d.view === "shelf" && next !== "shelf")
+                d.syncAsked = false;
             if (d.view === "song" && next !== "song")
                 // The song left: opened again, it is laid out from its first
                 // page, never taken for a re-voicing.
                 songScreen.sheet = null;
         }
 
+        // Not paired; with the signed-out line when the state says the
+        // account refused the session and the person did not sign out.
         function showNotPaired() {
+            const s = root.backendState;
+            const refused = !d.signingOut && s !== null && s.error === "signedOut";
             leave("notPaired");
             d.signingOut = false;
             d.shelfAsked = false;
+            d.syncAsked = false;
             d.bookPages = {};
             d.shelfPage = 0;
-            notPaired.show();
+            notPaired.show(refused);
             d.view = "notPaired";
         }
 
@@ -125,8 +140,27 @@ Rectangle {
                 showNotPaired();
                 return;
             }
-            if (d.view === "shelf")
-                shelfScreen.showState(s);
+            if (d.view !== "shelf")
+                return;
+            if (!paired) {
+                // Refused: at once when the person's Sync met it; a
+                // background sync's waits for the next page (rule 5).
+                if (d.syncAsked)
+                    showNotPaired();
+                return;
+            }
+            if (d.syncAsked) {
+                if (s.syncing === true)
+                    d.syncSeen = true;
+                else if (d.syncSeen)
+                    d.syncAsked = false;
+            }
+            shelfScreen.showState(s);
+        }
+
+        function syncTapped() {
+            d.syncAsked = true;
+            d.syncSeen = false;
         }
 
         function shelf(p) {
@@ -245,6 +279,7 @@ Rectangle {
         y: 0
         visible: d.view === "shelf"
         endpoint: backend
+        onSyncTapped: d.syncTapped()
     }
 
     BookScreen {

@@ -231,3 +231,66 @@ func TestSignOutClearsTheDevice(t *testing.T) {
 	check("after SignOut", s)
 	check("after a restart", openStore(t, root))
 }
+
+// TestSignOutKeepsHeldBooks pins §5.1 (reader.pairing Decision 6): a sign
+// out that keeps the clones a screen holds removes the session, the state,
+// the home book and every other clone; the held clone stays, as does the
+// bundle, until it is removed when let go.
+func TestSignOutKeepsHeldBooks(t *testing.T) {
+	s, root := newStore(t)
+	if err := s.SetSession(testSession); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetShapesShown(false); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(s.HomeDir(), "shelf.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"held", "other", "third"} {
+		dir, _ := s.BookDir(id)
+		if err := os.MkdirAll(filepath.Join(dir, "objects"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.StageBundle(map[string][]byte{"manifest.json": []byte("{}")}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.PromoteBundle(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.SignOutKeeping([]string{"held"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := s.Session(); ok {
+		t.Error("still paired")
+	}
+	if !s.ShapesShown() {
+		t.Error("state kept")
+	}
+	for _, f := range []string{sessionFile, stateFile} {
+		if _, err := os.Stat(filepath.Join(root, f)); !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("%s kept: %v", f, err)
+		}
+	}
+	if entries, _ := os.ReadDir(s.HomeDir()); len(entries) != 0 {
+		t.Errorf("home/ kept %d entries", len(entries))
+	}
+	if ids, _ := s.BookIDs(); len(ids) != 1 || ids[0] != "held" {
+		t.Errorf("books %v, want only the held one", ids)
+	}
+	if d, ok := s.BundleDir(); !ok {
+		t.Error("bundle dropped")
+	} else if _, err := os.Stat(filepath.Join(d, "manifest.json")); err != nil {
+		t.Errorf("bundle manifest dropped: %v", err)
+	}
+
+	// Let go, the held clone goes too.
+	if err := s.RemoveBook("held"); err != nil {
+		t.Fatal(err)
+	}
+	if ids, _ := openStore(t, root).BookIDs(); len(ids) != 0 {
+		t.Errorf("books %v after the hold was let go", ids)
+	}
+}

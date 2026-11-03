@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"estantedecifras.app/remarkable/internal/engine"
 )
@@ -406,9 +407,14 @@ func TestOfflineChangesNothing(t *testing.T) {
 	}
 }
 
-// TestUnauthorizedIsSignedOut pins step 2: a 401 is signedOut, and nothing
-// is removed (signing out is reader.pairing's).
-func TestUnauthorizedIsSignedOut(t *testing.T) {
+// TestRefusedSessionForgetsTheDevice pins workflow 19 §Pairing (signed out
+// from the account) and design §5.1, as reader.pairing Constraint 8 and
+// Decision 6 settle it: a 401 ends the pass signedOut and forgets the device
+// — the session, the state, the home book and every book no screen holds go
+// at once, with the snapshot; a held book stays readable until let go, then
+// goes too. (It replaces reader.sync's "nothing is removed", which left
+// signing out to this task.)
+func TestRefusedSessionForgetsTheDevice(t *testing.T) {
 	f := newFakeService(t)
 	twoBooks(t, f)
 	var statuses []Status
@@ -416,25 +422,156 @@ func TestUnauthorizedIsSignedOut(t *testing.T) {
 	s := newTestSyncer(t, f, st, newFakeEngine())
 	s.opts.OnStatus = func(x Status) { statuses = append(statuses, x) }
 	mustPass(t, s)
+	if err := st.SetShapesShown(false); err != nil {
+		t.Fatal(err)
+	}
+	dirA, dirB := bookDir(t, s, bookA), bookDir(t, s, bookB)
+	release := s.Hold(bookA) // the song on screen is book A's
 
 	f.setUnauthorized(true)
 	_, err := s.Pass(context.Background())
 	if !errors.Is(err, errSignedOut) {
 		t.Fatalf("Pass: %v, want signed out", err)
 	}
-	if last := statuses[len(statuses)-1]; last.Error != ErrorSignedOut {
+	if last := statuses[len(statuses)-1]; last.Error != ErrorSignedOut || last.Syncing {
 		t.Errorf("status %+v, want signedOut", last)
 	}
-	if _, ok := st.Session(); !ok {
-		t.Error("the session was removed")
+	if _, ok := st.Session(); ok {
+		t.Error("the session was kept")
 	}
-	for _, id := range []string{bookA, bookB} {
-		if !isClone(bookDir(t, s, id)) {
-			t.Errorf("clone %s removed", id)
+	if _, err := os.Stat(filepath.Join(st.Root(), "session.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("session.json kept: %v", err)
+	}
+	if !st.ShapesShown() {
+		t.Error("the reader's state was kept")
+	}
+	if entries, _ := os.ReadDir(st.HomeDir()); len(entries) != 0 {
+		t.Errorf("home/ kept %d entries", len(entries))
+	}
+	if exists(dirB) {
+		t.Error("the unheld book was kept")
+	}
+	if !isClone(dirA) {
+		t.Error("the held book was removed while a screen holds it")
+	}
+	if sn := s.Snapshot(); len(sn.Shelf()) != 0 || sn.Book(bookA) != nil {
+		t.Error("the snapshot still has the account's books")
+	}
+
+	release()
+	if exists(dirA) {
+		t.Error("the held book stayed after it was let go")
+	}
+	if ids, _ := st.BookIDs(); len(ids) != 0 {
+		t.Errorf("books %v remain", ids)
+	}
+	// Unpaired, the next pass sends nothing.
+	f.reset()
+	if _, err := s.Pass(context.Background()); !errors.Is(err, ErrNotPaired) {
+		t.Errorf("Pass after the refusal: %v, want not paired", err)
+	}
+	if n := len(f.all()); n != 0 {
+		t.Errorf("%d requests after the refusal", n)
+	}
+}
+
+// TestSignOutCancelsThePassInFlight pins workflow 19 §The shelf (Sign out)
+// and reader.pairing Constraint 7: Sign out cancels a pass in flight and
+// waits for it, ends the session with the service (with the cookie), and
+// clears the store of the account but the bundle, and the snapshot.
+func TestSignOutCancelsThePassInFlight(t *testing.T) {
+	f := newFakeService(t)
+	twoBooks(t, f)
+	st := newTestStore(t, f)
+	s := newTestSyncer(t, f, st, newFakeEngine())
+	mustPass(t, s)
+
+	stalled := f.setStall()
+	passed := make(chan error, 1)
+	go func() {
+		_, err := s.Pass(context.Background())
+		passed <- err
+	}()
+	select {
+	case <-stalled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the pass did not reach the service")
+	}
+
+	start := time.Now()
+	if err := s.SignOut(context.Background()); err != nil {
+		t.Fatalf("SignOut: %v", err)
+	}
+	if d := time.Since(start); d > SignOutTimeout {
+		t.Errorf("SignOut took %v", d)
+	}
+	select {
+	case err := <-passed:
+		if err == nil {
+			t.Error("the pass in flight finished as if not cancelled")
 		}
+	default:
+		t.Fatal("SignOut returned before the pass in flight ended")
 	}
-	if !isClone(st.HomeDir()) || len(s.Snapshot().Shelf()) != 2 {
-		t.Error("the home book or the snapshot was dropped")
+	if n := f.signoutCount(); n != 1 {
+		t.Errorf("signout called %d times, want 1", n)
+	}
+	if _, ok := st.Session(); ok {
+		t.Error("still paired")
+	}
+	if ids, _ := st.BookIDs(); len(ids) != 0 {
+		t.Errorf("books %v kept", ids)
+	}
+	if entries, _ := os.ReadDir(st.HomeDir()); len(entries) != 0 {
+		t.Errorf("home/ kept %d entries", len(entries))
+	}
+	if len(s.Snapshot().Shelf()) != 0 {
+		t.Error("the snapshot kept the shelf")
+	}
+	// The cleanup's check: every request, signout's among them, carried the
+	// cookie.
+}
+
+// TestAccountFromAuthorName pins device_pairing Decision 10 and
+// reader.pairing Constraint 10: each pass that reads the home book sets the
+// session's account to preferences.json's authorName — and writes nothing
+// when it is unchanged.
+func TestAccountFromAuthorName(t *testing.T) {
+	f := newFakeService(t)
+	twoBooks(t, f)
+	prefs := func(name string) string {
+		raw, _ := json.Marshal(map[string]any{"authorName": reg(name)})
+		return string(raw) + "\n"
+	}
+	f.push(f.homeID, map[string]string{preferencesFile: prefs("Marina Souza")})
+	st := newTestStore(t, f)
+	s := newTestSyncer(t, f, st, nil)
+	mustPass(t, s)
+	sess, _ := st.Session()
+	if sess.Account != "Marina Souza" {
+		t.Fatalf("account %q, want the home book's authorName", sess.Account)
+	}
+	if sess.Token != testToken || sess.Origin != f.srv.URL {
+		t.Errorf("the session's other fields changed: %+v", sess.Origin)
+	}
+	path := filepath.Join(st.Root(), "session.json")
+	before, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustPass(t, s)
+	after, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(before, after) {
+		t.Error("session.json rewritten with the account unchanged")
+	}
+
+	f.push(f.homeID, map[string]string{preferencesFile: prefs("Marina S.")})
+	mustPass(t, s)
+	if sess, _ := st.Session(); sess.Account != "Marina S." {
+		t.Errorf("account %q after the name changed", sess.Account)
 	}
 }
 

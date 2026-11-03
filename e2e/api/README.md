@@ -48,6 +48,10 @@ ESTANTE_E2E_MAIL_URL=http://127.0.0.1:8025 \
   per instance), paths resolved against the one origin.
 - `lib/mail.js` — the Mailpit reader: list, fetch, find-latest-by-recipient,
   extract a link, clear, and (to exercise the reader) send.
+- `lib/reader.js` — the built reMarkable reader (`ESTANTE_E2E_READER_BIN`):
+  `runReader` runs a subcommand, `pairReader` pairs a reader root through the
+  real pairing (its `pair` prints the code, the signed-in client approves it),
+  `readerSession` reads the `session.json` it keeps (reader.pairing).
 - `lib/git.js` — `GitCli` (host `git` via argument arrays) and `IsoGit`
   (isomorphic-git with `node:fs` and the package's Node HTTP client), each in
   its own working directory.

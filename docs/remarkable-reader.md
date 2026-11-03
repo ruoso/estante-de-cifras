@@ -325,6 +325,26 @@ the device would never send one, and a stolen token cannot either. Codes are
 short-lived (ten minutes), single-use and rate-limited. This is the one change
 the reader needs in the service and the API contract.
 
+**On the device** (reader.pairing). The backend pairs with one origin — its
+`--origin`, `https://estantedecifras.app` unless a test says otherwise — and
+the session it keeps is for that origin alone. The poll token is held in memory
+only, never written or logged, and polled every three seconds; a poll the
+network does not answer is tried again until the code's ten minutes are over,
+and then the code has expired. A code the service will not give (a refusal
+rather than no network) is said as an expired code, with *Get a new code*.
+Once approved, the session is kept and the first sync runs while the code page
+stays still; the reader reports itself paired when that sync ends, so the
+shelf that replaces the code is the shelf the account has (or, offline, the
+empty one with its sync line). *Paired with* in Settings names the account by
+the home book's `authorName` (home book format §4.1), *your account* until it has
+one. **Signing out** cancels a sync in flight, asks the service to end the
+session (`POST /api/auth/signout`, a few seconds at most — offline, the device
+signs out all the same, and the session stays listed in the account until it is
+signed out from there), then removes the session, the home book, the books and
+the reader's state, keeping the bundle. A session the service **refuses** (401)
+is forgotten the same way, except that a book a screen holds open stays on disk
+until it is let go (workflow 19 §Pairing).
+
 ### 5.2 What comes down
 
 - The **home book**, fetched (never pushed): `shelf.json` for the books and

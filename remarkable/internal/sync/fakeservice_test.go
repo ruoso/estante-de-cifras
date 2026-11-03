@@ -6,7 +6,8 @@ package sync
 // /api/shelf/change-check computed from those repositories' heads. It records
 // every request, and in t.Cleanup fails the test on any git-receive-pack
 // request or any request without the session cookie (design §3.2 "Never a
-// push", §10).
+// push", §10). POST /api/auth/signout is answered 204 and counted
+// (reader.pairing), and the home-book read can be held in flight.
 
 import (
 	"context"
@@ -49,6 +50,11 @@ type fakeService struct {
 	gone         map[string]bool
 	cut          map[string]bool // ids whose upload-pack answer is cut mid-pack
 	unauthorized bool
+	signouts     int
+	// stall, when set, holds each home-book read until the request ends;
+	// stalled is told when one is held.
+	stall   bool
+	stalled chan struct{}
 }
 
 // gitEnv keeps the git CLI away from the user's and the system's config.
@@ -94,6 +100,12 @@ func startFake(t *testing.T, tls bool) *fakeService {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/account/home-book", f.homeBook)
 	mux.HandleFunc("POST /api/shelf/change-check", f.changeCheck)
+	mux.HandleFunc("POST /api/auth/signout", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		f.signouts++
+		f.mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	})
 	mux.HandleFunc("/git/", func(w http.ResponseWriter, r *http.Request) { f.git(backend, w, r) })
 	record := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(cookieName)
@@ -127,8 +139,13 @@ func startFake(t *testing.T, tls bool) *fakeService {
 
 func (f *fakeService) homeBook(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
-	unauthorized := f.unauthorized
+	unauthorized, stall, stalled := f.unauthorized, f.stall, f.stalled
 	f.mu.Unlock()
+	if stall {
+		stalled <- struct{}{}
+		<-r.Context().Done()
+		return
+	}
 	if unauthorized {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
@@ -303,6 +320,22 @@ func (f *fakeService) setCut(id string, cut bool) {
 	f.mu.Lock()
 	f.cut[id] = cut
 	f.mu.Unlock()
+}
+
+// setStall holds every home-book read from now on until its request ends,
+// telling the channel answered when one is held.
+func (f *fakeService) setStall() <-chan struct{} {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.stall = true
+	f.stalled = make(chan struct{}, 4)
+	return f.stalled
+}
+
+func (f *fakeService) signoutCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.signouts
 }
 
 func (f *fakeService) setUnauthorized(v bool) {

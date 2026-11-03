@@ -7,7 +7,9 @@
 // socket closes.
 //
 // The views — open, key, place and the shapes' messages — are answered in
-// views.go (reader.backend_views); signOut and pair are reader.pairing's. The
+// views.go (reader.backend_views); pair and signOut in pairing.go
+// (reader.pairing), the poll running off the loop and its news reaching the
+// views on it. The
 // background search for the shapes the table did not hold is fill.go's
 // (reader.missed_shapes): its news reaches the views on this loop.
 package backend
@@ -19,6 +21,7 @@ import (
 	gosync "sync"
 	"time"
 
+	pairing "estantedecifras.app/remarkable/internal/pair"
 	"estantedecifras.app/remarkable/internal/protocol"
 	"estantedecifras.app/remarkable/internal/store"
 	"estantedecifras.app/remarkable/internal/sync"
@@ -26,13 +29,14 @@ import (
 
 // Syncer is the sync schedule Serve runs (*sync.Syncer satisfies it): Run
 // passes until its context ends, Trigger asks for one more pass, Snapshot is
-// the last pass's snapshot the views read, and Hold keeps a book's clone on
-// disk while a view reads it.
+// the last pass's snapshot the views read, Hold keeps a book's clone on disk
+// while a view reads it, and SignOut signs the device out (reader.pairing).
 type Syncer interface {
 	Run(ctx context.Context)
 	Trigger()
 	Snapshot() *sync.Snapshot
 	Hold(bookID string) (release func())
+	SignOut(ctx context.Context) error
 }
 
 // Deps are Serve's collaborators.
@@ -53,6 +57,10 @@ type Deps struct {
 	Engine Engine
 	// Version is the reader's version, which Settings names.
 	Version string
+	// Pair begins and polls a pairing with the service at its Origin, which
+	// the session it brings is kept for (reader.pairing). Nil: a pair is
+	// answered as an expired code.
+	Pair *pairing.Client
 
 	// onParse is told of each file the book listing parses (tests only).
 	onParse func()
@@ -66,6 +74,9 @@ type Relay struct {
 	status *sync.Status
 	conn   *protocol.Conn
 	st     *store.Store
+	// firstPass: a pairing was approved and its first pass has not ended —
+	// states say not paired until it does (reader.pairing Decision 2).
+	firstPass bool
 }
 
 // NewRelay makes a Relay with no status yet.
@@ -78,6 +89,11 @@ func (r *Relay) StatusFunc() func(sync.Status) {
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		r.status = &s
+		if !s.Syncing {
+			// The first pass after an approval ended, done or failed: the
+			// reader reports itself paired from this state on.
+			r.firstPass = false
+		}
 		if r.conn != nil {
 			// A failed write ends the connection, which Serve's loop reads.
 			_ = r.conn.Write(r.stateLocked())
@@ -101,6 +117,42 @@ func (r *Relay) sendState(conn *protocol.Conn) error {
 	return conn.Write(r.stateLocked())
 }
 
+// approved marks a pairing approved: the earlier status (a refusal's
+// error among it) is forgotten, and states say not paired until the first
+// pass ends.
+func (r *Relay) approved() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.status, r.firstPass = nil, true
+}
+
+// unapproved undoes approved, for a session the store could not keep.
+func (r *Relay) unapproved() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.firstPass = false
+}
+
+// clearError forgets the last status's error: a refusal's signedOut is kept
+// until the next pairing begins.
+func (r *Relay) clearError() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.status != nil {
+		st := *r.status
+		st.Error = ""
+		r.status = &st
+	}
+}
+
+// reset forgets the last status: after a sign out, the state is not paired
+// with no error.
+func (r *Relay) reset() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.status, r.firstPass = nil, false
+}
+
 // stateLocked builds the state (design §6, 101 state): paired, shapesShown
 // and lastSync from the store; syncing, online and error from the last
 // status, or not syncing, online and no error before any.
@@ -108,6 +160,7 @@ func (r *Relay) stateLocked() protocol.State {
 	s := protocol.State{Online: true, ShapesShown: true}
 	if r.st != nil {
 		_, s.Paired = r.st.Session()
+		s.Paired = s.Paired && !r.firstPass
 		s.ShapesShown = r.st.ShapesShown()
 		if t, ok := r.st.LastSync(); ok {
 			v := t.Format(time.RFC3339)
@@ -204,6 +257,11 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 		var in incoming
 		select {
 		case in = <-msgs:
+		case n := <-v.pairCh:
+			if err := v.pairingNews(n); err != nil {
+				return err
+			}
+			continue
 		case <-found:
 			if err := v.found(); err != nil {
 				return err

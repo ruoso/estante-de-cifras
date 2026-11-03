@@ -7,9 +7,9 @@
  * song written for the test to each with the git CLI, then brings its home book
  * online with the §2.2 README and .gitattributes and a canonical shelf.json
  * naming both books (each `link` its gitUrl). The built reader
- * (ESTANTE_E2E_READER_BIN) is given the session cookie by `session` on stdin —
- * standing in for the paired session until reader.pairing — and runs `sync`,
- * whose stdout is its Result: ids, statuses and heads. Pins the note's "a book
+ * (ESTANTE_E2E_READER_BIN) is paired with the account through the real
+ * pairing (`pairReader`, reader.pairing) and runs `sync`, whose stdout is its
+ * Result: ids, statuses and heads. Pins the note's "a book
  * pushed by a web client appears on the reader after a sync" and "a second
  * sync fetches only the book that moved".
  */
@@ -17,15 +17,12 @@ import { afterEach, describe, it, expect } from 'vitest';
 import { spawn } from 'node:child_process';
 import { writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { GitCli, makeTempDir } from './lib/git.js';
 import { HttpClient } from './lib/http.js';
-import { baseUrl, readerBin } from './lib/env.js';
+import { baseUrl } from './lib/env.js';
 import { Authenticator } from './lib/authenticator.js';
-
-// The app's built device bundle, which the gate builds before the stack.
-const bundleDir = fileURLToPath(new URL('../../app/dist/device', import.meta.url));
+import { bundleDir, pairReader, readerSession, runReader } from './lib/reader.js';
 
 // The exact §2.2 bytes a home book holds (docs/home-book-format.md), as
 // home-book.test.js uses.
@@ -92,28 +89,6 @@ afterEach(async () => {
   await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
-// Run the reader with `args`, `input` on its stdin; resolves its stdout,
-// rejects (with its exit status and stderr) when it fails.
-function runReader(args, input = '') {
-  return new Promise((resolve, reject) => {
-    const child = spawn(readerBin, args, { stdio: ['pipe', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (d) => {
-      stdout += d;
-    });
-    child.stderr.on('data', (d) => {
-      stderr += d;
-    });
-    child.on('error', reject);
-    child.on('close', (code) => {
-      if (code === 0) resolve({ stdout, stderr });
-      else reject(new Error(`estante-reader ${args[0]} exited ${code}: ${stderr}`));
-    });
-    child.stdin.end(input);
-  });
-}
-
 function runGit(args) {
   return new Promise((resolve, reject) => {
     const child = spawn('git', args, { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -145,7 +120,7 @@ async function pushedBook(client, title, song) {
 }
 
 // The account, its two books, its home book listing them, and a reader root
-// holding the session.
+// paired with the account.
 async function setUp() {
   const client = new HttpClient();
   await registerNewAccount(client);
@@ -182,10 +157,10 @@ async function setUp() {
   await homeWork.pushHTTP(gitEndpoint(home.gitUrl), client.cookieHeader());
 
   const root = join(await tempDir('estante-e2e-reader-root-'), 'estante');
-  const token = client.cookies.get('estante_session');
-  const session = await runReader(['session', '--root', root, '--origin', baseUrl], `${token}\n`);
-  expect(session.stdout).not.toContain(token);
-  expect(session.stderr).not.toContain(token);
+  const paired = await pairReader(client, root);
+  const { token } = await readerSession(root);
+  expect(paired.stdout).not.toContain(token);
+  expect(paired.stderr).not.toContain(token);
   return { client, first, second, root, token };
 }
 

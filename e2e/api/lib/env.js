@@ -31,12 +31,13 @@ export const mailUrl = required('ESTANTE_E2E_MAIL_URL');
 
 // The reMarkable reader's backend, built for this host (scripts/gate builds it
 // for linux/amd64 with the reader's cross-builds and exports its path), which
-// reader-sync.test.js drives as a device would (reader.sync).
+// reader-sync.test.js and reader-pairing.test.js drive as a device would
+// (reader.sync, reader.pairing; lib/reader.js).
 export const readerBin = (() => {
   const value = process.env.ESTANTE_E2E_READER_BIN;
   if (!value) {
     throw new Error(
-      'ESTANTE_E2E_READER_BIN is not set — the reader-sync tests drive the built ' +
+      'ESTANTE_E2E_READER_BIN is not set — the reader tests drive the built ' +
         'reader binary. Run them via scripts/gate (which builds it and exports the ' +
         'variable), or build remarkable/cmd/estante-reader yourself and point ' +
         'ESTANTE_E2E_READER_BIN at it.',
