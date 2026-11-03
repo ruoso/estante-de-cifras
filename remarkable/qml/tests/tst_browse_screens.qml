@@ -464,13 +464,13 @@ TestCase {
         verify(screen.pairButton.inverted);
         verify(screen.accepts);
 
-        screen.pairing({ code: "KQ7-4TM", url: "https://estantedecifras.app/pair",
+        screen.pairing({ code: "KQ7-4TM", url: "https://www.estantedecifras.app/pair",
                          expiresAt: localTime(14, 42) });
         compare(screen.mode, "code");
         compare(screen.bar.title.text, "Pair this reMarkable");
         verify(screen.bar.back.visible);
         compare(screen.codeText.text, "KQ7-4TM");
-        verify(screen.introText.text.indexOf("<b>estantedecifras.app/pair</b>") >= 0);
+        verify(screen.introText.text.indexOf("<b>www.estantedecifras.app/pair</b>") >= 0);
         compare(screen.untilText.text, "This code works until 14:42.");
         compare(screen.newCodeButton.text, "Get a new code");
         clean(screen);
@@ -548,7 +548,7 @@ TestCase {
         verify(!screen.signedOutText.visible);
         screen.show(true);
         mouseClick(screen.pairButton);
-        screen.pairing({ code: "KQ7-4TM", url: "https://estantedecifras.app/pair",
+        screen.pairing({ code: "KQ7-4TM", url: "https://www.estantedecifras.app/pair",
                          expiresAt: localTime(14, 42) });
         verify(!screen.signedOutText.visible);
         mouseClick(screen.bar.back);

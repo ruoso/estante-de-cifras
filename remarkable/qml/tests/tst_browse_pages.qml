@@ -157,6 +157,7 @@ TestCase {
     // §Pairing: the address without its scheme; the end as a local time.
     function test_pairingCopy() {
         compare(Pages.address("https://estantedecifras.app/pair"), "estantedecifras.app/pair");
+        compare(Pages.address("https://www.estantedecifras.app/pair"), "www.estantedecifras.app/pair");
         compare(Pages.address("https://example.test/pair/"), "example.test/pair");
         const t = new Date(2026, 9, 30, 14, 42, 0).toISOString();
         compare(Pages.worksUntil(t), "This code works until 14:42.");

@@ -340,10 +340,10 @@ side; the reader's pages are workflow 19's.
 
 ### Where it lives
 
-- **An address**, the one the reader shows: **estantedecifras.app/pair**. It
-  opens the app at its **Pair a device** page, on whatever device it is typed
-  on. The bare domain forwards there with the path kept (DIRECTION §3.3), so
-  the short address is the one to type. It holds no token: anyone may open
+- **An address**, the one the reader shows: **www.estantedecifras.app/pair**.
+  It opens the app at its **Pair a device** page, on whatever device it is
+  typed on. It names `www`: the bare domain forwards only its root, not a
+  path (DIRECTION §3.3). It holds no token: anyone may open
   the page, and only a signed-in account can approve a code from it.
 - **The account screen**: **Pair a device** at the foot of Signed-in devices
   (§The account screen) opens the same page.

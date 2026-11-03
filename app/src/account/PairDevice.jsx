@@ -1,6 +1,6 @@
 // PairDevice — the Pair a device page (reader.pair_web; workflow 13 §Pairing a
 // reMarkable; board Pair-a-device.dc.html). A reMarkable has no browser, so it
-// is paired: it shows a short code and the address estantedecifras.app/pair,
+// is paired: it shows a short code and the address www.estantedecifras.app/pair,
 // and the person, signed in here, enters the code. AppShell shows this page as a
 // surface over the shell — opened by that address (App.jsx, `isPairPath`) or by
 // **Pair a device** at the foot of the account screen's Signed-in devices.

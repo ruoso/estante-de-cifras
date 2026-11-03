@@ -125,12 +125,12 @@ func (e *passkeyEnv) execSQL(t *testing.T, sql string, args ...any) {
 	}
 }
 
-// TestPairURLDropsWWW pins Constraint 10: the address is the public base with a
-// leading www. dropped, plus /pair.
-func TestPairURLDropsWWW(t *testing.T) {
+// TestPairURLKeepsHost pins the address a code is typed at: the public base,
+// www. kept (the bare domain's forwarding 404s every path), plus /pair.
+func TestPairURLKeepsHost(t *testing.T) {
 	for base, want := range map[string]string{
-		"https://www.estantedecifras.app":  "https://estantedecifras.app/pair",
-		"https://www.estantedecifras.app/": "https://estantedecifras.app/pair",
+		"https://www.estantedecifras.app":  "https://www.estantedecifras.app/pair",
+		"https://www.estantedecifras.app/": "https://www.estantedecifras.app/pair",
 		"https://estantedecifras.app":      "https://estantedecifras.app/pair",
 		"http://127.0.0.1:8080":            "http://127.0.0.1:8080/pair",
 	} {
@@ -142,7 +142,7 @@ func TestPairURLDropsWWW(t *testing.T) {
 
 // TestPairBeginGivesCodeURLTokenExpiry pins begin (remarkable-reader.md §5.1;
 // Constraints 2, 5, 10): 201 with a three-dash-three code, the public base's
-// /pair with www. dropped, a poll token and an expiry ten minutes on; the
+// /pair (www. kept), a poll token and an expiry ten minutes on; the
 // database holds only hashes.
 func TestPairBeginGivesCodeURLTokenExpiry(t *testing.T) {
 	e := newBooksEnvWith(t, func(api *APIDeps) { api.PublicBaseURL = "https://www.estante.test" })
@@ -151,8 +151,8 @@ func TestPairBeginGivesCodeURLTokenExpiry(t *testing.T) {
 	if !shownCode.MatchString(p.Code) {
 		t.Errorf("code = %q, want XXX-XXX of the alphabet", p.Code)
 	}
-	if p.URL != "https://estante.test/pair" {
-		t.Errorf("url = %q, want https://estante.test/pair", p.URL)
+	if p.URL != "https://www.estante.test/pair" {
+		t.Errorf("url = %q, want https://www.estante.test/pair", p.URL)
 	}
 	if len(p.PollToken) < 32 {
 		t.Errorf("pollToken %q is too short to be 256 bits", p.PollToken)

@@ -51,16 +51,15 @@ type devicePairingPollJSON struct {
 	Session string `json:"session,omitempty"`
 }
 
-// pairURL is the address a code is typed at: the public base with a leading
-// www. host label dropped, plus /pair (Constraint 10) — the apex forwards
-// with the path kept, so the shorter address is the one to show.
+// pairURL is the address a code is typed at: the public base, plus /pair.
+// The host is kept as it is, www. included: the bare estantedecifras.app's
+// forwarding (at the registrar) answers only its root and 404s every path, so
+// a shorter address without www. would not open the page (Constraint 10 as
+// first written dropped it; DIRECTION §3.3).
 func pairURL(base string) string {
 	u, err := url.Parse(strings.TrimRight(base, "/"))
 	if err != nil || u.Host == "" {
 		return strings.TrimRight(base, "/") + "/pair"
-	}
-	if strings.HasPrefix(strings.ToLower(u.Host), "www.") {
-		u.Host = u.Host[len("www."):]
 	}
 	u.Path = "/pair"
 	u.RawQuery = ""

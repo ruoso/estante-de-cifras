@@ -1,5 +1,5 @@
 // The boot-route reader for the address a reMarkable shows (reader.pair_web;
-// workflow 13 §Where it lives): `estantedecifras.app/pair` opens the app at its
+// workflow 13 §Where it lives): `www.estantedecifras.app/pair` opens the app at its
 // Pair a device page. `App` reads `location.pathname` at boot, beside the token
 // routes, and cleans the address to `/` once it has been read (Decision 2).
 //

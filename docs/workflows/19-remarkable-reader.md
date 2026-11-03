@@ -122,7 +122,7 @@ redraw that ends it. The web page the code is entered on is workflow 13's
 *Pair with your account* replaces the page with the code — one redraw:
 
 > **Pair this reMarkable**
-> On your phone or computer, go to **estantedecifras.app/pair** and enter:
+> On your phone or computer, go to **www.estantedecifras.app/pair** and enter:
 >
 > # KQ7-4TM
 >

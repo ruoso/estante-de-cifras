@@ -159,10 +159,11 @@ be small, and one place to run is worth more than a CDN. The project runs
 beside it (§3.6). The same service serves the app — a static PWA, which the
 browser installs and caches, so serving it costs little — at the root of
 **`www.estantedecifras.app`**, and its API beneath it. The bare
-`estantedecifras.app` only forwards there, with the path kept — the address a
-reMarkable shows, `estantedecifras.app/pair`, lands on `www`'s `/pair`
-(workflow 13 §Pairing a reMarkable): the domain's DNS stays with its
-registrar, which cannot point an apex at Railway's CNAME. That origin is for
+`estantedecifras.app` only forwards its root there: the domain's DNS stays
+with its registrar, which cannot point an apex at Railway's CNAME, and the
+registrar's forwarding drops the path (every other path is a 404). So an
+address meant to be typed names `www` — the one a reMarkable shows is
+`www.estantedecifras.app/pair` (workflow 13 §Pairing a reMarkable). That origin is for
 good — a device's books, the installed app and the git remotes in every home
 book belong to it — while passkeys are bound to `estantedecifras.app`, which
 covers `www` and leaves the apex open later. The `.app` domain is
@@ -633,7 +634,7 @@ workflows do not yet cover, and work that comes before building:
 - **Pairing a reMarkable**, decided (workflow 13 §Pairing a reMarkable) and
   drawn: [mockups/Pair-a-device.dc.html](mockups/Pair-a-device.dc.html) — the
   web side of the reader's pairing (remarkable-reader.md §5.1): the address
-  `estantedecifras.app/pair` and *Pair a device* on the account screen open
+  `www.estantedecifras.app/pair` and *Pair a device* on the account screen open
   one page, the code field, what the reMarkable will be able to do (read every
   book, never change one), a warning to enter only a code on one's own device,
   and *Pair your reMarkable*; an unknown, expired, used or rate-limited code
