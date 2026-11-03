@@ -114,17 +114,33 @@ repeat their install scripts.
    then, on the tablet:
 
    ```sh
-   vellum add xovi
+   vellum add xovi appload
    ```
 
-   and AppLoad with its dependency `qt-resource-rebuilder` the same way (the
-   package names are on Vellum's page).
+   `appload` brings in `qt-resource-rebuilder`, the xovi extension AppLoad
+   draws itself with, and with it the script step 3 runs. `xovi` alone does
+   not: without `appload` there is no `/home/root/xovi/rebuild_hashtable`.
+   Vellum's AppLoad package installs only on the OS versions it lists
+   (3.28 and 3.29 when this was written); on another, it says so.
 2. Or with a community installer for the reMarkable 2, for example
    [remarkable-xovi-installer](https://github.com/wowitsjack/remarkable-xovi-installer),
-   as its instructions say.
-3. Rebuild xovi's hashtable for this OS version, as the installer says
-   (xovi's `rebuild_hashtable`). It is needed again after every OS update.
-4. Install [**xovi-tripletap**](https://github.com/rmitchellscott/xovi-tripletap):
+   as its instructions say. It installs the same pieces, the script included.
+3. Rebuild xovi's hashtable for this OS version. qt-resource-rebuilder needs
+   it to find its way around this version's interface; it is needed again
+   after every OS update. Over ssh:
+
+   ```sh
+   /home/root/xovi/rebuild_hashtable
+   ```
+
+   It stops the tablet's interface and asks for **Enter**. It then starts the
+   interface by itself to build the table — if the tablet has a passcode,
+   enter it on the tablet when asked — and stops it again once it prints
+   `[qmldiff]: Hashtab saved to /home/root/xovi/exthome/qt-resource-rebuilder/hashtab`.
+   It ends with *Hashtable rebuilt*; the tablet's screen stays without its
+   interface until step 5.
+4. Install [**xovi-tripletap**](https://github.com/rmitchellscott/xovi-tripletap)
+   (with Vellum, `vellum add tripletap`):
    xovi does not start on its own after a reboot, and tripletap starts it with
    **three presses of the power button**. A plain reboot always returns to the
    tablet's own interface, which is what keeps a broken extension from locking
@@ -132,11 +148,16 @@ repeat their install scripts.
 5. Start xovi: press the power button three times.
 
 **When it worked.** The tablet's interface restarts, and AppLoad's icon
-appears in it. Over ssh, `ls /home/root/xovi/exthome/appload/` lists the
-directory (empty, or with other apps in it).
+appears in it. Over ssh, `ls /home/root/xovi/extensions.d/` lists
+`appload.so`. The folder AppLoad lists its apps from,
+`/home/root/xovi/exthome/appload/`, may not exist yet — a Vellum install does
+not make it — and step 4 makes it.
 
 **When it did not.**
 
+- *`rebuild_hashtable: No such file or directory`*, or *Please install
+  qt-resource-rebuilder*: AppLoad is not installed yet — `vellum add appload`
+  (3.1), then run it again.
 - *No AppLoad icon after the three presses*: the hashtable is missing or for
   another OS version — rebuild it (3.3), then press three times again.
 - *The tablet's interface does not come back*: restart the tablet (hold the
@@ -161,8 +182,23 @@ RM_IP=<address> sh install.sh
 
 `RM_IP` is required — over USB it is `RM_IP=10.11.99.1`. `RM_USER` changes the
 login (default `root`); `ESTANTE_ORIGIN` changes the site it downloads from
-(default `https://estantedecifras.app`; set it to a local stack's address when
+(default `https://www.estantedecifras.app`; set it to a local stack's address when
 developing).
+
+To run a backend built on your own computer instead of the site's, run the
+script from a clone of the repository with `ESTANTE_FROM_SOURCE=1`:
+
+```sh
+git clone https://github.com/ruoso/estante-de-cifras
+cd estante-de-cifras
+ESTANTE_FROM_SOURCE=1 RM_IP=<address> sh remarkable/scripts/install.sh
+```
+
+It needs [Go](https://go.dev/dl/) on the computer (it fetches the version the
+reader needs by itself) and builds the backend from that clone; the screens and
+the icon still come from the site, checked as always, and update from it like
+any install's. It says *Built backend version …*, the version the reader's
+settings then show.
 
 The script, over one SSH connection (so the password, if any, is asked once):
 
@@ -184,7 +220,7 @@ its pairing and synced books: installing or updating keeps both.
 *Or by hand*, for the reMarkable 2 (armv7):
 
 ```sh
-curl -fLO https://estantedecifras.app/device/estante-armv7.tar.gz
+curl -fLO https://www.estantedecifras.app/device/estante-armv7.tar.gz
 tar xzf estante-armv7.tar.gz
 scp -r estante root@<address>:/home/root/xovi/exthome/appload/
 ```
@@ -226,8 +262,9 @@ Next: on the tablet, open AppLoad and press Reload; Estante is listed.
 - *`the tablet is a … machine`*: the reader runs on `armv7l` and `aarch64`
   only; check `RM_IP` points at the tablet.
 - *`the download does not match the site's manifest`*: see step 7.
-- *`… is not on the tablet: install xovi and AppLoad first`*: step 3 is not
-  done, or not on this tablet.
+- *`AppLoad is not installed on the tablet yet`*: the reader was installed,
+  but step 3 is not done (or not on this tablet); AppLoad lists *Estante* once
+  it is installed and xovi started.
 - *`could not copy the reader to the tablet`*: check the connection and run
   it again; nothing in AppLoad's directory was changed.
 
@@ -236,7 +273,7 @@ Next: on the tablet, open AppLoad and press Reload; Estante is listed.
 **What to do.**
 
 1. Open *Estante* from AppLoad. It says *Pair with your account*.
-2. Press it: it shows a code and an address — *go to estantedecifras.app/pair
+2. Press it: it shows a code and an address — *go to www.estantedecifras.app/pair
    and enter KQ7-4TM* (your code differs).
 3. On a phone or a computer signed in to Estante, open that address, enter the
    code and confirm *Pair your reMarkable*.

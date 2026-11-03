@@ -509,15 +509,15 @@ func TestRunDialFails(t *testing.T) {
 // --- pairing (reader.pairing) ---
 
 // TestRunOriginDefault pins Constraint 1: run pairs with
-// https://estantedecifras.app unless --origin says otherwise — also when
+// https://www.estantedecifras.app unless --origin says otherwise — also when
 // AppLoad starts it with the socket's path alone.
 func TestRunOriginDefault(t *testing.T) {
 	for _, tc := range []struct {
 		args []string
 		want string
 	}{
-		{[]string{"/tmp/estante.sock"}, "https://estantedecifras.app"},
-		{[]string{"--root", defaultRoot, "/tmp/estante.sock"}, "https://estantedecifras.app"},
+		{[]string{"/tmp/estante.sock"}, "https://www.estantedecifras.app"},
+		{[]string{"--root", defaultRoot, "/tmp/estante.sock"}, "https://www.estantedecifras.app"},
 		{[]string{"--origin", "http://localhost:8080", "/tmp/estante.sock"}, "http://localhost:8080"},
 		{[]string{"--origin", "https://stack.test/", "/tmp/estante.sock"}, "https://stack.test"},
 	} {

@@ -123,7 +123,7 @@ Then, on the tablet, open AppLoad and press **Reload**: *Estante* is listed.
 **5. Opening and pairing.**
 
 1. Open *Estante* from AppLoad. It says *Pair with your account*.
-2. Press it: it shows a code and an address — *go to estantedecifras.app/pair
+2. Press it: it shows a code and an address — *go to www.estantedecifras.app/pair
    and enter KQ7-4TM*.
 3. On a phone or a computer signed in to Estante, open that address, enter the
    code and confirm *Pair your reMarkable*.
@@ -320,7 +320,7 @@ way a television is:
 
 1. The device asks the service for a code — `POST /api/devices/pair/begin` —
    and shows it, with the address to enter it at: *Go to
-   estantedecifras.app/pair and enter* `KQ7-4TM`.
+   www.estantedecifras.app/pair and enter* `KQ7-4TM`.
 2. Signed in on a phone or a computer, the person enters the code there
    (`POST /api/devices/pair/approve`), and confirms *Pair your reMarkable*.
 3. The device, polling `POST /api/devices/pair/poll` with the token only it
@@ -334,7 +334,7 @@ short-lived (ten minutes), single-use and rate-limited. This is the one change
 the reader needs in the service and the API contract.
 
 **On the device** (reader.pairing). The backend pairs with one origin — its
-`--origin`, `https://estantedecifras.app` unless a test says otherwise — and
+`--origin`, `https://www.estantedecifras.app` unless a test says otherwise — and
 the session it keeps is for that origin alone. The poll token is held in memory
 only, never written or logged, and polled every three seconds; a poll the
 network does not answer is tried again until the code's ten minutes are over,

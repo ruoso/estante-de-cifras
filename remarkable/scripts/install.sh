@@ -9,7 +9,14 @@
 # RM_IP           the tablet's address (10.11.99.1 over USB); required.
 # RM_USER         the login on the tablet; default root.
 # ESTANTE_ORIGIN  the site to download from; default
-#                 https://estantedecifras.app (a local stack: its address).
+#                 https://www.estantedecifras.app (a local stack: its
+#                 address). The bare estantedecifras.app only forwards there.
+# ESTANTE_FROM_SOURCE=1
+#                 build the backend here, from the checkout this script is
+#                 in, instead of taking the site's: the rest of the folder
+#                 (the screens, the icon) is still the site's, checked as
+#                 always. Needs Go here; the module's go line names the
+#                 version, which Go fetches by itself when it is newer.
 #
 # It asks the tablet its architecture, downloads that app folder from the
 # site's /device/, checks it against the manifest's SHA-256, unpacks it here,
@@ -19,11 +26,13 @@
 # It never touches the reader's books and state in
 # /home/root/.local/share/estante/.
 #
-# Needs here: ssh, scp, curl, tar, and sha256sum or shasum. On the tablet:
+# Needs here: ssh, scp, curl, tar, and sha256sum or shasum (and go, with
+# ESTANTE_FROM_SOURCE=1). On the tablet:
 # sh, uname, mkdir, mv, rm, readlink, kill and /proc.
 
 set -eu
 
+APPLOAD_SO=/home/root/xovi/extensions.d/appload.so
 APPLOAD_PARENT=/home/root/xovi/exthome/appload
 APPLOAD_DIR=/home/root/xovi/exthome/appload/estante
 PREVIOUS_DIR=/home/root/xovi/exthome/estante.previous
@@ -36,13 +45,30 @@ if [ -z "${RM_IP:-}" ]; then
     die "set RM_IP to the tablet's address: RM_IP=10.11.99.1 ./install.sh over USB, or the Wi-Fi address from Settings → General → Help → About → Copyrights and licenses (INSTALL.md step 2)"
 fi
 RM_USER=${RM_USER:-root}
-ESTANTE_ORIGIN=${ESTANTE_ORIGIN:-https://estantedecifras.app}
+ESTANTE_ORIGIN=${ESTANTE_ORIGIN:-https://www.estantedecifras.app}
 ESTANTE_ORIGIN=${ESTANTE_ORIGIN%/}
 DEST="$RM_USER@$RM_IP"
 
 for tool in ssh scp curl tar; do
     command -v "$tool" >/dev/null 2>&1 || die "$tool is not installed on this computer; install it, or install the reader by hand (INSTALL.md step 4)"
 done
+
+# The checkout to build from: the reader's module this script sits in, and
+# cifra.md's Go module beside it, which the backend's version also digests.
+FROM_SOURCE=
+case "${ESTANTE_FROM_SOURCE:-}" in
+'' | 0) ;;
+*)
+    FROM_SOURCE=1
+    command -v go >/dev/null 2>&1 ||
+        die "ESTANTE_FROM_SOURCE needs Go on this computer (https://go.dev/dl/); install it, or run without ESTANTE_FROM_SOURCE. Nothing was changed."
+    SRC=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd) || SRC=
+    if [ -z "$SRC" ] || ! grep -q '^module estantedecifras.app/remarkable$' "$SRC/go.mod" 2>/dev/null ||
+        [ ! -f "$SRC/../cifra.md/go/go.mod" ]; then
+        die "ESTANTE_FROM_SOURCE builds from the checkout this script is in, and this one is not in one: clone https://github.com/ruoso/estante-de-cifras and run remarkable/scripts/install.sh from it. Nothing was changed."
+    fi
+    ;;
+esac
 if command -v sha256sum >/dev/null 2>&1; then
     sha256() { sha256sum "$1" | cut -d ' ' -f 1; }
 elif command -v shasum >/dev/null 2>&1; then
@@ -115,13 +141,40 @@ if [ ! -f "$WORK/unpacked/estante/manifest.json" ] || [ ! -x "$WORK/unpacked/est
     die "$ARCHIVE does not hold estante/manifest.json and an executable estante/backend/entry. Nothing was changed on the tablet."
 fi
 
+# 3b. With ESTANTE_FROM_SOURCE, the backend built here replaces the site's:
+# for the tablet's architecture, stamped with its version as the image stamps
+# it (a digest of the sources and the Go toolchain), with the image's flags.
+if [ -n "$FROM_SOURCE" ]; then
+    case "$ARCH" in
+        armv7) goarch=arm goarm=7 ;;
+        arm64) goarch=arm64 goarm= ;;
+    esac
+    say "Building the $ARCH backend from $SRC…"
+    mkdir "$WORK/build"
+    built=$(cd "$SRC" && v=$(go run ./tools/payload digest . ../cifra.md/go) &&
+        CGO_ENABLED=0 GOOS=linux GOARCH=$goarch GOARM=$goarm \
+            go build -trimpath -ldflags "-X main.version=$v" -o "$WORK/build/" ./cmd/estante-reader &&
+        printf '%s\n' "$v") ||
+        die "could not build the backend from $SRC (the output above says why). Nothing was changed on the tablet."
+    cp "$WORK/build/estante-reader" "$WORK/unpacked/estante/backend/entry" &&
+        chmod 755 "$WORK/unpacked/estante/backend/entry" ||
+        die "could not put the built backend in the folder. Nothing was changed on the tablet."
+    say "Built backend version $built."
+fi
+
 # 4. Copied to a staging folder outside AppLoad's directory, so a Reload in
 # the middle of the copy never lists a half-copied app.
-ready=$(remote "if [ -d $APPLOAD_PARENT ]; then rm -rf $STAGING_DIR && echo ready; else echo no-appload; fi") ||
+# AppLoad lists the apps in its xovi extension directory but does not make
+# it, and an install by Vellum leaves it absent: it is made here. An AppLoad
+# not installed yet (no extension in extensions.d) lists the reader once it
+# is; the person is told, and the install goes on.
+ready=$(remote "mkdir -p $APPLOAD_PARENT && rm -rf $STAGING_DIR && if [ -f $APPLOAD_SO ]; then echo ready; else echo no-appload; fi") ||
     die "lost the connection to the tablet; try again. Nothing was changed in AppLoad's directory."
-if [ "$ready" != ready ]; then
-    die "$APPLOAD_PARENT is not on the tablet: install xovi and AppLoad first (INSTALL.md step 3). Nothing was changed."
-fi
+case "$ready" in
+ready) ;;
+no-appload) say "AppLoad is not installed on the tablet yet (no $APPLOAD_SO): the reader is installed, and AppLoad lists it once AppLoad is (INSTALL.md step 3)." ;;
+*) die "could not prepare $APPLOAD_PARENT on the tablet; try again. Nothing was changed in AppLoad's directory." ;;
+esac
 say "Copying the reader to the tablet…"
 copy() {
     scp -q -r "$@" -o ControlMaster=auto -o "ControlPath=$CONTROL" -o ControlPersist=60 \

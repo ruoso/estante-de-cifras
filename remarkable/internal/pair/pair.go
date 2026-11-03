@@ -28,8 +28,10 @@ import (
 	"time"
 )
 
-// DefaultOrigin is the service the reader pairs with unless told otherwise.
-const DefaultOrigin = "https://estantedecifras.app"
+// DefaultOrigin is the service the reader pairs with unless told otherwise:
+// www, where the site is served. The bare estantedecifras.app only forwards
+// there (DIRECTION §3.3), and a forwarded POST arrives as a GET.
+const DefaultOrigin = "https://www.estantedecifras.app"
 
 // DefaultInterval is how often the poll asks: every three seconds, well under
 // the service's 120 a minute per client.

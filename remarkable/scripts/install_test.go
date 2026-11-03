@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"debug/elf"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -186,6 +187,7 @@ type rig struct {
 	tmp    string
 	site   *site
 	env    map[string]string
+	script string // install.sh unless a test runs a copy
 }
 
 func needHostTools(t *testing.T) {
@@ -217,6 +219,7 @@ func newRig(t *testing.T, s *site) *rig {
 	}
 	// A tablet with xovi and AppLoad (step 3), a reader's state from a pairing.
 	write(t, filepath.Join(r.tablet, "xovi/exthome/appload/other-app/manifest.json"), "other\n", 0o644)
+	write(t, filepath.Join(r.tablet, "xovi/extensions.d/appload.so"), "so\n", 0o644)
 	write(t, filepath.Join(r.tablet, ".local/share/estante/session.json"), "{}\n", 0o600)
 	write(t, filepath.Join(r.tablet, ".local/share/estante/books/home/notes.txt"), "kept\n", 0o644)
 	r.env = map[string]string{
@@ -262,7 +265,11 @@ func putFolder(t *testing.T, dir string, files map[string]string) {
 // whether it exited zero.
 func (r *rig) run() (string, bool) {
 	r.t.Helper()
-	cmd := exec.Command("/bin/sh", "install.sh")
+	script := r.script
+	if script == "" {
+		script = "install.sh"
+	}
+	cmd := exec.Command("/bin/sh", script)
 	for k, v := range r.env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
@@ -574,6 +581,169 @@ func TestInstallOneConnection(t *testing.T) {
 	if scps != 1 {
 		t.Errorf("%d scp calls, want 1", scps)
 	}
+}
+
+// AppLoad reads its xovi extension directory but never makes it (xovi's
+// getExtensionDirectory only names it), and Vellum's appload package leaves it
+// absent: the script makes it. With AppLoad not installed yet (no appload.so
+// in extensions.d) it still installs, and says AppLoad is missing.
+func TestInstallAppLoadDirectory(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		appload bool
+	}{
+		{"AppLoad installed, its directory absent", true},
+		{"AppLoad not installed yet", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRig(t, newSite(t, nil))
+			if err := os.RemoveAll(filepath.Join(r.tablet, "xovi/exthome/appload")); err != nil {
+				t.Fatal(err)
+			}
+			if !tc.appload {
+				if err := os.Remove(filepath.Join(r.tablet, "xovi/extensions.d/appload.so")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			out, ok := r.run()
+			if !ok {
+				t.Fatalf("install.sh failed:\n%s", out)
+			}
+			checkFolder(t, r.appload(), folderFiles("armv7", "new"))
+			warned := strings.Contains(out, "AppLoad is not installed") && strings.Contains(out, "INSTALL.md step 3")
+			if warned == tc.appload {
+				t.Errorf("AppLoad installed %v, but the warning shown is %v:\n%s", tc.appload, warned, out)
+			}
+		})
+	}
+}
+
+// goEnv passes the host's Go caches and toolchain choice to a rig whose HOME
+// is its own, so a build reuses what the host (or the gate) already built and
+// downloaded instead of starting cold.
+func (r *rig) goEnv() {
+	r.t.Helper()
+	out, err := exec.Command("go", "env", "-json", "GOCACHE", "GOMODCACHE", "GOPATH", "GOTOOLCHAIN", "GOPROXY", "GOFLAGS").Output()
+	if err != nil {
+		r.t.Fatalf("go env: %v", err)
+	}
+	var env map[string]string
+	if err := json.Unmarshal(out, &env); err != nil {
+		r.t.Fatal(err)
+	}
+	for k, v := range env {
+		if v != "" {
+			r.env[k] = v
+		}
+	}
+}
+
+// ESTANTE_FROM_SOURCE=1 builds backend/entry here, from this checkout, with
+// the real Go: an ELF for the tablet's architecture, stamped with the version
+// the script reports; the rest of the folder is the site's, as downloaded.
+func TestInstallFromSource(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Fatal("the install test needs go on the host")
+	}
+	for _, tc := range []struct {
+		uname, arch string
+		machine     elf.Machine
+	}{
+		{"armv7l", "armv7", elf.EM_ARM},
+		{"aarch64", "arm64", elf.EM_AARCH64},
+	} {
+		t.Run(tc.arch, func(t *testing.T) {
+			r := newRig(t, newSite(t, nil))
+			r.goEnv()
+			r.env["FAKE_UNAME"] = tc.uname
+			r.env["ESTANTE_FROM_SOURCE"] = "1"
+			out, ok := r.run()
+			if !ok {
+				t.Fatalf("install.sh failed:\n%s", out)
+			}
+			m := regexp.MustCompile(`Built backend version (\S+)\.`).FindStringSubmatch(out)
+			if m == nil {
+				t.Fatalf("the output does not say which backend version was built:\n%s", out)
+			}
+			entry := filepath.Join(r.appload(), "backend/entry")
+			f, err := elf.Open(entry)
+			if err != nil {
+				t.Fatalf("backend/entry is not the built ELF: %v", err)
+			}
+			defer f.Close()
+			if f.Machine != tc.machine {
+				t.Errorf("backend/entry is for %v, want %v", f.Machine, tc.machine)
+			}
+			bin, err := os.ReadFile(entry)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Contains(bin, []byte(m[1])) {
+				t.Errorf("backend/entry does not carry the version %s the script reported", m[1])
+			}
+			info, err := os.Stat(entry)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if info.Mode().Perm()&0o111 == 0 {
+				t.Errorf("backend/entry is %v, not executable", info.Mode())
+			}
+			site := folderFiles(tc.arch, "new")
+			for _, name := range []string{"manifest.json", "icon.png", "resources.rcc", "arch.txt"} {
+				b, err := os.ReadFile(filepath.Join(r.appload(), name))
+				if err != nil || string(b) != site[name] {
+					t.Errorf("%s = %q (%v), want the site's %q", name, b, err, site[name])
+				}
+			}
+		})
+	}
+}
+
+// ESTANTE_FROM_SOURCE refuses, before touching the tablet, with no Go here or
+// when the script is not in a checkout.
+func TestInstallFromSourceRefuses(t *testing.T) {
+	t.Run("no go", func(t *testing.T) {
+		r := newRig(t, newSite(t, nil))
+		r.env["ESTANTE_FROM_SOURCE"] = "1"
+		// A PATH with the stand-ins and the host tools the script runs, no go.
+		for _, tool := range []string{"curl", "tar", "sha256sum", "shasum", "cut", "mktemp", "rm", "cat", "tr",
+			"grep", "sed", "head", "mkdir", "cp", "chmod", "dirname", "sh"} {
+			if p, err := exec.LookPath(tool); err == nil {
+				if err := os.Symlink(p, filepath.Join(r.bin, tool)); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		r.env["PATH"] = r.bin
+		before := snapshot(t, r.tablet)
+		out, ok := r.run()
+		if ok || !strings.Contains(out, "needs Go") {
+			t.Errorf("install.sh did not refuse for want of Go (ok %v):\n%s", ok, out)
+		}
+		sameSnapshot(t, "tablet", before, snapshot(t, r.tablet))
+		if calls := r.calls(); len(calls) != 0 {
+			t.Errorf("ssh or scp ran: %q", calls)
+		}
+	})
+	t.Run("not in a checkout", func(t *testing.T) {
+		r := newRig(t, newSite(t, nil))
+		r.env["ESTANTE_FROM_SOURCE"] = "1"
+		script, err := os.ReadFile("install.sh")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.script = filepath.Join(t.TempDir(), "install.sh")
+		write(t, r.script, string(script), 0o755)
+		before := snapshot(t, r.tablet)
+		out, ok := r.run()
+		if ok || !strings.Contains(out, "clone https://github.com/ruoso/estante-de-cifras") {
+			t.Errorf("install.sh did not refuse outside a checkout (ok %v):\n%s", ok, out)
+		}
+		sameSnapshot(t, "tablet", before, snapshot(t, r.tablet))
+		if calls := r.calls(); len(calls) != 0 {
+			t.Errorf("ssh or scp ran: %q", calls)
+		}
+	})
 }
 
 // payload.md Decision 3: the manifest's folder.<arch>.sha256 lets the script

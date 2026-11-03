@@ -28,7 +28,7 @@ timings, and nothing of the songs.
 `internal/sync` fetches the account's home book and its shelf's books into the
 store with go-git, read-only (design §5). To pair a development store — with a
 local stack, give its address as `--origin`; without one, the reader pairs
-with `https://estantedecifras.app` — and run one pass:
+with `https://www.estantedecifras.app` — and run one pass:
 
 ```sh
 go run ./cmd/estante-reader pair --root /tmp/estante --origin http://localhost:8080
