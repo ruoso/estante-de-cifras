@@ -169,12 +169,15 @@ Item {
         property int valueWidth: width - 2 * M.contentSide
         readonly property alias valueText: valueText
         readonly property alias noteText: noteText
+        // A second line in a part of the standard height: the three lines
+        // drawn closer, so the note stays above the rule.
+        readonly property bool tight: note !== "" && height < screen.readerHeight
         width: M.screenWidth
         height: screen.partHeight
         Text {
             objectName: "partHeading"
             x: M.contentSide
-            y: 28
+            y: part.tight ? 16 : 28
             width: part.width - 2 * M.contentSide
             height: 40
             color: "black"
@@ -191,7 +194,7 @@ Item {
             id: valueText
             objectName: "partValue"
             x: M.contentSide
-            y: 78
+            y: part.tight ? 58 : 78
             width: part.valueWidth
             height: 56
             color: "black"
@@ -207,7 +210,7 @@ Item {
             objectName: "partNote"
             visible: part.note !== ""
             x: M.contentSide
-            y: 136
+            y: part.tight ? 112 : 136
             width: part.width - 2 * M.contentSide
             height: 40
             color: "black"

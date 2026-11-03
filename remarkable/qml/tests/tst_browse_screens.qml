@@ -513,6 +513,12 @@ TestCase {
         compare(screen.chordNamesPart.noteText.text, "As in your account");
         compare(screen.chordNamesButton.text, "Name as voiced");
         verify(screen.chordNamesButton.height >= 100);
+        // Every part's lines above its rule, its note among them.
+        for (const part of [screen.accountPart, screen.syncPart, screen.readerPart, screen.chordNamesPart, screen.instrumentPart]) {
+            for (const line of [part.valueText, part.noteText])
+                if (line.visible)
+                    verify(line.y + line.height <= part.height - M.listRule, part.objectName + ": a line crosses its rule");
+        }
         clean(screen);
 
         const others = [screen.content.revision, screen.shapes.revision, screen.instrument.revision, screen.signOut.revision];
