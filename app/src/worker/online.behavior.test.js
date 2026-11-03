@@ -10,7 +10,7 @@
 // and song text are written for the test (no-song-text rule).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
-import { waitFor } from '@testing-library/react';
+import { waitFor as rtlWaitFor } from '@testing-library/react';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -30,6 +30,11 @@ import { readZip } from './book-zip.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { installWebLocks } from '../test/web-locks.js';
 import { startGitHttpRemote } from '../test/git-http-remote.js';
+
+// Every wait here is on the Worker doing git or indexing work, which on a busy
+// runner outlasts testing-library's 1 s default (as the other worker behavior
+// tests allow for).
+const waitFor = (fn, opts) => rtlWaitFor(fn, { timeout: 8000, ...opts });
 
 const IDENTITY = { id: 'u_tester', name: 'A Tester' };
 const rand = () => Math.random().toString(36).slice(2);
