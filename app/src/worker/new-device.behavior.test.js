@@ -714,11 +714,16 @@ describe('the two My songs (account.new_device, workflow 13 §A device used befo
     await accountMySongsOnline();
     const { b } = await deviceWithMySongs([ONLY_B]);
     await signIn(service, b);
-    await waitEvent(b, EventKind.MY_SONGS_CHOICE, (p) => p.offered);
+    // The offer is sent again once the account's My songs is cloned (`ready`):
+    // wait for that one, so it cannot land after the choice and read as its
+    // answer.
+    await waitEvent(b, EventKind.MY_SONGS_CHOICE, (p) => p.offered && p.ready);
 
     const mark = b.events.length;
     b.send(command(CommandKind.KEEP_BOTH_MY_SONGS, { title: 'My songs (this device)', author: IDENTITY }));
-    expect(await waitEvent(b, EventKind.MY_SONGS_CHOICE, () => true, mark)).toEqual({ offered: false });
+    expect(await waitEvent(b, EventKind.MY_SONGS_CHOICE, (p) => !p.offered, mark)).toEqual({ offered: false });
+    // Nothing offers it again after the choice.
+    expect(b.events.slice(mark).filter((e) => e.kind === EventKind.MY_SONGS_CHOICE && e.payload?.offered)).toEqual([]);
     expect(lastPayload(b, EventKind.SHELF).local[MY_SONGS_ID].title.value).toBe('My songs (this device)');
 
     // The next start does not ask again.
