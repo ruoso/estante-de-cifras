@@ -1,5 +1,7 @@
 # remarkable/ — the reMarkable reader
 
+To install the reader on your reMarkable, follow [INSTALL.md](INSTALL.md).
+
 This directory is the reMarkable reader: a read-only client for the tablet,
 run by AppLoad. It holds the reader's Go backend (`cmd/estante-reader` and its
 `internal/` packages), the QML frontend that draws (`qml/`, rooted at
@@ -113,10 +115,13 @@ go run ./tools/appfolder --arch armv7 --backend /tmp/reader/arm/estante-reader \
 qml/tests/.venv/bin/python -I qml/tests/check_folder.py /tmp/reader/app/armv7/estante
 ```
 
-For the Paper Pro, `GOARCH=arm64` (no `GOARM`) and `--arch arm64`. To install
-it by hand (design §2.1 step 4), with xovi and AppLoad already on the tablet,
-copy the folder over and press **Reload** in AppLoad, where *Estante* is then
-listed:
+For the Paper Pro, `GOARCH=arm64` (no `GOARM`) and `--arch arm64`. A person
+installs the reader from the site with [INSTALL.md](INSTALL.md) (design §2.1)
+and its `scripts/install.sh`, whose tests (`scripts/install_test.go`) run it
+with `/bin/sh` against a stand-in site, stand-in `ssh` and `scp`, and a fake
+tablet. To install a local build by hand (step 4), with xovi and AppLoad
+already on the tablet, copy the folder over and press **Reload** in AppLoad,
+where *Estante* is then listed:
 
 ```sh
 scp -r /tmp/reader/app/armv7/estante root@<address>:/home/root/xovi/exthome/appload/

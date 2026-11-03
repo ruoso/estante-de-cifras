@@ -104,9 +104,15 @@ an extension of xovi, which hooks into the tablet's own interface.
 
 - By its script, from a computer:
   `RM_IP=<address> ./install.sh`. It asks the tablet its architecture
-  (`uname -m`: `armv7l` for the rM2), downloads that app folder from
-  `/device/` on the site, keeps any installed reader as the previous one, and
-  copies the new one to `/home/root/xovi/exthome/appload/estante/`.
+  (`uname -m`: `armv7l` for the rM2, `aarch64` for the Paper Pro), downloads
+  that app folder from `/device/` on the site and checks it against the
+  manifest's SHA-256, copies it over one SSH connection, keeps any installed
+  reader as the previous one in `/home/root/xovi/exthome/estante.previous/`
+  (outside AppLoad's directory, so AppLoad does not list it twice), puts the
+  new one at `/home/root/xovi/exthome/appload/estante/`, and stops the
+  previous one's backend if it is still running, so the next opening starts
+  the new one. It needs `sh`, `curl` and `tar` on the computer (macOS and
+  Linux; on Windows, WSL or Git Bash — or install by hand).
 - Or by hand: download the app folder for the rM2 (armv7) from the site's
   `/device/estante-armv7.tar.gz`, unpack it (`tar xzf estante-armv7.tar.gz`),
   and
@@ -135,8 +141,10 @@ Then, on the tablet, open AppLoad and press **Reload**: *Estante* is listed.
   (*Settings → General → Software*) and updating by hand avoids being caught
   out before a gig.
 - **Removing it**: *Sign out* in the reader's settings, then
-  `ssh root@<address> rm -r /home/root/xovi/exthome/appload/estante` and
-  Reload in AppLoad. Its synced books and state are in
+  `ssh root@<address> rm -r /home/root/xovi/exthome/appload/estante
+  /home/root/xovi/exthome/estante.previous` and Reload in AppLoad. Going
+  back to the previous install instead is moving `estante.previous` back to
+  `appload/estante`. Its synced books and state are in
   `/home/root/.local/share/estante/`, removed by *Sign out* or by hand.
 
 **7. When something goes wrong.**

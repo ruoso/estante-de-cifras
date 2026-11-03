@@ -199,3 +199,7 @@ Append one `###` block per item, newest at the bottom:
 ### 2026-11-01 — `syncHome` test helper cannot tell its own completion from a background sync's (from `reader.bundle`)
 - **What**: `SYNC_HOME` has no reply of its own, so the Worker behavior-test helper treats the next `INSTRUMENTS` event as its completion; a background sync (e.g. started by putting a book online) sends the same event. `new-device.behavior.test.js` flaked this way under full-suite load and was fixed locally by waiting on the remote shelf; other tests that rely on `syncHome` could flake the same way.
 - **Why parked**: test-infrastructure only — never a WBS leaf; a person decides whether `SYNC_HOME` should get an acknowledgement or each test should wait on its own observable outcome.
+
+### 2026-11-02 — Walk the install guide on a real reMarkable 2 (from `reader.install`)
+- **What**: `remarkable/INSTALL.md` and `remarkable/scripts/install.sh` are tested against stand-ins only; the "written against" versions (xovi, AppLoad, Vellum) came from GitHub releases on 2026-11-02. Nobody has followed the seven steps on a tablet fresh out of the box.
+- **Decide**: work only a person with a device can do: walk the guide, fix what differs, and record the result in the refinement's Status block.
