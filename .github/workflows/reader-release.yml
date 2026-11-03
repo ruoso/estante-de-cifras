@@ -1,0 +1,143 @@
+# Publishes a release of the reMarkable reader (docs/remarkable-reader.md §8).
+#
+# Everything the reader runs — the backend, the screens' QML and the music
+# code — is built here, together, from the tagged commit, and published as
+# one GitHub release; the site never serves it. A tablet installs the latest
+# release with remarkable/scripts/install.sh and updates itself from it
+# (internal/update reads releases/latest/download/manifest.json from this
+# repository only). Release after main is deployed, so the backend a tablet
+# updates to speaks to the service that is running.
+#
+# Push a tag reader-v<N>, N the release's number, one more than the last:
+#
+#   git tag reader-v12 && git push origin reader-v12
+#
+# A tablet updates to a release only when its number is higher than its own.
+# Turn on immutable releases in the repository's settings, so a published
+# release's assets cannot be replaced.
+name: reader-release
+
+on:
+  push:
+    tags: ['reader-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Pinned, as the gate's runner is (gate.yml).
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out estante-de-cifras
+        uses: actions/checkout@v7
+        with:
+          path: estante-de-cifras
+
+      - name: The release's number, from the tag
+        id: number
+        run: |
+          n="${GITHUB_REF_NAME#reader-v}"
+          case "$n" in
+            ''|*[!0-9]*|0*) echo "the tag $GITHUB_REF_NAME is not reader-v<N>, N a number from 1"; exit 1 ;;
+          esac
+          echo "release=$n" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: estante-de-cifras/.node-version
+          cache: npm
+          cache-dependency-path: estante-de-cifras/app/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: estante-de-cifras/remarkable/go.mod
+          cache-dependency-path: |
+            estante-de-cifras/remarkable/go.mod
+            estante-de-cifras/remarkable/go.sum
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3"
+
+      # The offscreen Qt platform's system libraries the folder check needs
+      # (scripts/gate names them).
+      - name: Install the offscreen Qt libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgl1 libegl1 libxkbcommon0 libfontconfig1 libglib2.0-0 libx11-6 libx11-xcb1 libxcb1
+
+      # The music code: the app's device bundle (app/dist/device).
+      - name: Build the device bundle
+        working-directory: estante-de-cifras/app
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build:device
+
+      # Qt's rcc, pinned by the QML tests' requirements (--require-hashes).
+      - name: Make the venv with Qt's rcc
+        working-directory: estante-de-cifras/remarkable
+        run: |
+          python3 -m venv qml/tests/.venv
+          qml/tests/.venv/bin/pip install --require-hashes -r qml/tests/requirements.txt
+
+      - name: Test the reader
+        working-directory: estante-de-cifras/remarkable
+        run: |
+          go vet ./...
+          go test -p "$(nproc)" ./...
+          QT_QPA_PLATFORM=offscreen qml/tests/.venv/bin/python -I qml/tests/run.py -input qml/tests
+
+      # Both backends, stamped with their version (a digest of the sources
+      # and the Go toolchain) and the release's number; the self-update on.
+      - name: Build the backends
+        id: backends
+        working-directory: estante-de-cifras/remarkable
+        env:
+          RELEASE: ${{ steps.number.outputs.release }}
+        run: |
+          v="$(go run ./tools/payload digest . ../cifra.md/go)"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          flags="-X main.version=$v -X main.release=$RELEASE"
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -trimpath -ldflags "$flags" -o "$RUNNER_TEMP/reader/arm/" ./cmd/estante-reader
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "$flags" -o "$RUNNER_TEMP/reader/arm64/" ./cmd/estante-reader
+
+      # Each architecture's AppLoad folder — backend, screens and music code —
+      # loaded as AppLoad loads it, then laid out as the release.
+      - name: Assemble the release
+        working-directory: estante-de-cifras/remarkable
+        env:
+          RELEASE: ${{ steps.number.outputs.release }}
+          VERSION: ${{ steps.backends.outputs.version }}
+        run: |
+          for folder in armv7:arm arm64:arm64; do
+            go run ./tools/appfolder --arch "${folder%%:*}" \
+              --backend "$RUNNER_TEMP/reader/${folder#*:}/estante-reader" \
+              --qml qml --rcc qml/tests/.venv/bin/pyside6-rcc --bundle ../app/dist/device \
+              --out "$RUNNER_TEMP/reader/app/${folder%%:*}"
+          done
+          QT_QPA_PLATFORM=offscreen qml/tests/.venv/bin/python -I qml/tests/check_folder.py \
+            "$RUNNER_TEMP/reader/app/armv7/estante" "$RUNNER_TEMP/reader/app/arm64/estante"
+          go run ./tools/payload --folder "armv7=$RUNNER_TEMP/reader/app/armv7" \
+            --folder "arm64=$RUNNER_TEMP/reader/app/arm64" \
+            --backend-version "$VERSION" --release "$RELEASE" --out "$RUNNER_TEMP/release"
+          ls -l "$RUNNER_TEMP/release"
+
+      - name: Publish the release
+        working-directory: estante-de-cifras
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ steps.number.outputs.release }}
+          VERSION: ${{ steps.backends.outputs.version }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "$RUNNER_TEMP/release/manifest.json" \
+            "$RUNNER_TEMP/release/estante-armv7.tar.gz" \
+            "$RUNNER_TEMP/release/estante-arm64.tar.gz" \
+            --verify-tag --latest \
+            --title "Reader $RELEASE" \
+            --notes "The reMarkable reader, release $RELEASE (backend $VERSION): install with remarkable/scripts/install.sh (remarkable/INSTALL.md); a reader already installed updates itself."

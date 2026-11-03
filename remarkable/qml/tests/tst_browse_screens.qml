@@ -573,7 +573,7 @@ TestCase {
         compare(BrowseSettingsUpdate.settings.updateReader, true);
         compare(screen.readerPart.valueText.text, "Version 0.9.0-test");
         verify(screen.updateText.visible);
-        compare(screen.updateText.text, "Update the reader on your reMarkable");
+        compare(screen.updateText.text, "A new version is ready: it starts the next time Estante opens");
         const part = screen.readerPart.mapToItem(screen, 0, 0).y;
         const version = screen.readerPart.valueText.mapToItem(screen, 0, 0).y;
         const line = screen.updateText.mapToItem(screen, 0, 0).y;

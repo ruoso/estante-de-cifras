@@ -110,10 +110,15 @@ type Options struct {
 	Online func() bool
 	// OnStatus is told when a pass begins and how it ended.
 	OnStatus func(Status)
-	// Update, when set, checks the site for a new bundle and QML at the end
-	// of every pass that got as far as the snapshot (reader.self_update). Its
-	// outcome changes nothing the pass reports.
-	Update *update.Updater
+	// Update, when set, checks for a newer release of the reader at the end
+	// of every pass that got as far as the snapshot (reader.self_update;
+	// update.Updater). Its outcome changes nothing the pass reports.
+	Update Checker
+}
+
+// Checker is the self-update a pass ends with (update.Updater).
+type Checker interface {
+	Check(ctx context.Context, client *http.Client, origin any) (update.Result, error)
 }
 
 // BookResult is what a pass did with one book, and the head it has now

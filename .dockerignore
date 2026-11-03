@@ -1,6 +1,5 @@
 # The image is built from the repository root but needs only app/, service/,
-# api/, remarkable/ (the reader's payload, reader.payload) and cifra.md's js/
-# and go/ sources (service/ replaces
+# api/ and cifra.md's js/ and go/ sources (service/ replaces
 # estantedecifras.app/api with ../api, so the API contract module meets it in
 # the build); keep the build context small,
 # deterministic and free of host-built artefacts (node_modules and dist are
@@ -13,12 +12,11 @@
 **/playwright-report
 **/blob-report
 **/*.log
-# The QML tests' local venv (scripts/gate builds it); the image installs its
-# own from the same pinned requirements.
-remarkable/qml/tests/.venv
 
-# Repository areas the service image does not build from.
+# Repository areas the service image does not build from — the reMarkable
+# reader among them, published as GitHub releases.
 .git
+remarkable
 .github
 .claude
 docs

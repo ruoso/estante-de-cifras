@@ -181,11 +181,14 @@ RM_IP=<address> sh install.sh
 ```
 
 `RM_IP` is required — over USB it is `RM_IP=10.11.99.1`. `RM_USER` changes the
-login (default `root`); `ESTANTE_ORIGIN` changes the site it downloads from
-(default `https://www.estantedecifras.app`; set it to a local stack's address when
-developing).
+login (default `root`); `ESTANTE_RELEASES` changes where it downloads the
+reader from (default the latest release on GitHub,
+`https://github.com/ruoso/estante-de-cifras/releases/latest/download`). The
+reader is published only there, as a release of the repository: the
+backend, the screens and the music code, built together by the repository's
+release workflow. The site only pairs it and syncs your books.
 
-To run a reader built on your own computer instead of the site's — to try a
+To run a reader built on your own computer instead of the release's — to try a
 change before it is deployed, or to trust only what you built — run the script
 from a clone of the repository with `ESTANTE_FROM_SOURCE=1`:
 
@@ -200,18 +203,19 @@ It builds all three parts from that clone: the backend (needs
 itself), the screens (Qt's `rcc`, from a Python venv the script makes the
 first time, about 100 MB — needs `python3`, or `ESTANTE_RCC` naming an `rcc`)
 and the music code (needs `npm`, from [Node](https://nodejs.org/)).
-`ESTANTE_SOURCE_QML=0` or `ESTANTE_SOURCE_BUNDLE=0` takes the site's screens or
-music code instead, checked against its manifest. The backend is built with its
-self-update off, so nothing the site serves replaces what was installed until
-the script runs again; it says *Built backend version …, its self-update off*,
-and the reader's settings show that version.
+With all three built there, nothing is downloaded.
+`ESTANTE_SOURCE_QML=0` or `ESTANTE_SOURCE_BUNDLE=0` keeps the release's screens
+or music code instead. The backend is built with its self-update off, so no
+release replaces what was installed until the script runs again; it says
+*Built backend version …, its self-update off*, and the reader's settings show
+that version.
 
 The script, over one SSH connection (so the password, if any, is asked once):
 
 1. asks the tablet its architecture with `uname -m` — `armv7l` for the
    reMarkable 2, `aarch64` for the Paper Pro — and stops on anything else;
-2. downloads that app folder from the site's `/device/`
-   (`estante-armv7.tar.gz` or `estante-arm64.tar.gz`) with the site's
+2. downloads that app folder from the latest release
+   (`estante-armv7.tar.gz` or `estante-arm64.tar.gz`) with the release's
    `manifest.json`, and checks the folder against the manifest's SHA-256;
 3. unpacks it on the computer, and copies it to the tablet;
 4. keeps any installed reader as the previous one, in
@@ -226,7 +230,7 @@ its pairing and synced books: installing or updating keeps both.
 *Or by hand*, for the reMarkable 2 (armv7):
 
 ```sh
-curl -fLO https://www.estantedecifras.app/device/estante-armv7.tar.gz
+curl -fLO https://github.com/ruoso/estante-de-cifras/releases/latest/download/estante-armv7.tar.gz
 tar xzf estante-armv7.tar.gz
 scp -r estante root@<address>:/home/root/xovi/exthome/appload/
 ```
@@ -267,7 +271,7 @@ Next: on the tablet, open AppLoad and press Reload; Estante is listed.
   install by hand.
 - *`the tablet is a … machine`*: the reader runs on `armv7l` and `aarch64`
   only; check `RM_IP` points at the tablet.
-- *`the download does not match the site's manifest`*: see step 7.
+- *`the download does not match the release's manifest`*: see step 7.
 - *`AppLoad is not installed on the tablet yet`*: the reader was installed,
   but step 3 is not done (or not on this tablet); AppLoad lists *Estante* once
   it is installed and xovi started.
@@ -301,10 +305,12 @@ runs.
 
 **What to do.**
 
-- **The reader updates itself.** Its music code and screens update at sync
-  (design §8); nothing to do. A new backend, when one comes, is installed as in
-  step 4: run the script again. Its settings say so when it is needed: *Update
-  the reader on your reMarkable*.
+- **The reader updates itself**, whole: when a newer release is published, it
+  downloads it at its next sync (from GitHub only, checked against the
+  release's SHA-256), and its settings say *A new version is ready: it starts
+  the next time Estante opens*. Once Estante is closed, it puts the new
+  version in place — the one it replaces kept as the previous install — and
+  the next opening runs it. Nothing to do.
 - **reMarkable OS updates** can stop xovi until its hashtable is rebuilt for the
   new version (step 3.3), and tripletap may need its own step again (its page
   says). The reader itself is untouched in `/home/root`. Turning automatic OS
@@ -327,7 +333,7 @@ runs.
   `/home/root/.local/share/estante/`, removed by *Sign out* or by hand.
 
 **When it worked.** After an update, the reader's settings show the new
-version and no longer say *Update the reader on your reMarkable*. After
+version and no longer say *A new version is ready*. After
 removing it, *Estante* is no longer listed in AppLoad.
 
 **When it did not.**
@@ -354,8 +360,9 @@ removing it, *Estante* is no longer listed in AppLoad.
   `backend/entry` not executable:
   `ssh root@<address> chmod +x /home/root/xovi/exthome/appload/estante/backend/entry`.
 - *The script says the download does not match*: run it again in a few
-  minutes. If it persists, the site is mid-deploy (a new manifest beside an
-  old archive); nothing was changed on the tablet, so waiting costs nothing.
+  minutes. If it persists, a release is being published (a new manifest
+  beside an old archive); nothing was changed on the tablet, so waiting costs
+  nothing.
 - *The old version still shows in the settings* after an update: close and
   reopen *Estante*. If it persists, restart the tablet and press the power
   button three times.

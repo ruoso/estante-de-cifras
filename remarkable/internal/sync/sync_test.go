@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -679,105 +680,76 @@ func openBuiltEngine(t *testing.T) *engine.Engine {
 
 // --- the self-update at the end of a pass (reader.self_update) ---
 
-// newUpdatingSyncer is newTestSyncer with the self-update on, and its
-// statuses recorded.
-func newUpdatingSyncer(t *testing.T, f *fakeService, st *store.Store, statuses *[]Status) *Syncer {
+// fakeChecker records when the pass called it — how many requests the
+// service had seen by then — and answers err.
+type fakeChecker struct {
+	f      *fakeService
+	calls  int
+	seenAt int
+	err    error
+}
+
+func (c *fakeChecker) Check(ctx context.Context, client *http.Client, origin any) (update.Result, error) {
+	c.calls++
+	c.seenAt = len(c.f.all())
+	return update.Result{}, c.err
+}
+
+// newUpdatingSyncer is newTestSyncer with a self-update, and its statuses
+// recorded.
+func newUpdatingSyncer(t *testing.T, f *fakeService, st *store.Store, statuses *[]Status, c Checker) *Syncer {
 	t.Helper()
 	return New(st, newFakeEngine(), Options{
 		HTTPClient: f.srv.Client(),
 		Now:        func() time.Time { return time.Date(2026, 11, 1, 14, 32, 0, 0, time.UTC) },
 		Online:     func() bool { return true },
 		OnStatus:   func(s Status) { *statuses = append(*statuses, s) },
-		Update:     &update.Updater{Store: st},
+		Update:     c,
 	})
 }
 
-// TestPassStagesTheServedBundle pins constraint 7 and design §8: a pass
-// fetches the books, then reads /device/ — without the cookie, which the fake
-// checks — and stages the served bundle beside its manifest as served.
-func TestPassStagesTheServedBundle(t *testing.T) {
+// TestPassEndsWithTheUpdate pins constraint 7 and design §8: a pass checks
+// for a release once, after the books were fetched.
+func TestPassEndsWithTheUpdate(t *testing.T) {
 	f := newFakeService(t)
 	twoBooks(t, f)
-	manifest, sha := f.serveBundle([]byte("globalThis.x = 1;\n"), []byte("rcc"))
 	st := newTestStore(t, f)
 	var statuses []Status
-	s := newUpdatingSyncer(t, f, st, &statuses)
+	c := &fakeChecker{f: f}
+	s := newUpdatingSyncer(t, f, st, &statuses, c)
 	mustPass(t, s)
-
-	dir, ok := st.StagedBundleDir()
-	if !ok {
-		t.Fatal("no bundle staged")
+	if c.calls != 1 {
+		t.Fatalf("the update was checked %d times, want once", c.calls)
 	}
-	if raw, err := os.ReadFile(filepath.Join(dir, engine.ManifestFile)); err != nil || string(raw) != string(manifest) {
-		t.Errorf("staged manifest %q (%v), want the served bytes", raw, err)
-	}
-	if got := update.BundleSHA(dir); got != sha {
-		t.Errorf("staged bundle %s, want %s", got, sha)
-	}
-	reqs := f.all()
-	lastBook, firstDevice := -1, -1
-	for i, r := range reqs {
-		if strings.HasPrefix(r.Path, "/device/") {
-			if firstDevice < 0 {
-				firstDevice = i
-			}
-		} else {
-			lastBook = i
-		}
-	}
-	if firstDevice < 0 || firstDevice < lastBook {
-		t.Errorf("requests %+v: /device/ read before the books were fetched", reqs)
-	}
-	if reqs[firstDevice].Path != "/device/manifest.json" {
-		t.Errorf("first /device/ request %s, want the manifest", reqs[firstDevice].Path)
+	if c.seenAt != len(f.all()) {
+		t.Errorf("the update was checked after %d of the pass's %d requests, want after all", c.seenAt, len(f.all()))
 	}
 }
 
-// TestDeviceFailureChangesNothingThePassReports pins constraint 7: a /device/
-// that fails (a 500, a bad hash) leaves the pass's Status and lastSync as
-// without it — online, no error, the pass's time — and stages nothing.
-func TestDeviceFailureChangesNothingThePassReports(t *testing.T) {
-	for _, tc := range []struct {
-		name  string
-		spoil func(f *fakeService)
-	}{
-		{"a 500", func(f *fakeService) { f.setDeviceStatus(500) }},
-		{"a bad hash", func(f *fakeService) {
-			f.setDevice("bundle."+sha256Hex([]byte("globalThis.x = 1;\n"))[:8]+".js", []byte("globalThis.x = 2;\n"))
-		}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			f := newFakeService(t)
-			twoBooks(t, f)
-			f.serveBundle([]byte("globalThis.x = 1;\n"), []byte("rcc"))
-			tc.spoil(f)
+// TestUpdateFailureChangesNothingThePassReports pins constraint 7: an update
+// that fails leaves the pass's Status and lastSync as without it — online, no
+// error, the pass's time.
+func TestUpdateFailureChangesNothingThePassReports(t *testing.T) {
+	f := newFakeService(t)
+	twoBooks(t, f)
+	var plain []Status
+	mustPass(t, newUpdatingSyncer(t, f, newTestStore(t, f), &plain, nil))
 
-			// Without the update, for comparison.
-			var plain []Status
-			ps := newUpdatingSyncer(t, f, newTestStore(t, f), &plain)
-			ps.opts.Update = nil
-			mustPass(t, ps)
-
-			st := newTestStore(t, f)
-			var statuses []Status
-			s := newUpdatingSyncer(t, f, st, &statuses)
-			if _, err := s.Pass(context.Background()); err != nil {
-				t.Fatalf("Pass: %v, want no error", err)
-			}
-			if len(statuses) != len(plain) || statuses[len(statuses)-1] != plain[len(plain)-1] {
-				t.Errorf("statuses %+v, want as without the update %+v", statuses, plain)
-			}
-			end := statuses[len(statuses)-1]
-			if !end.Online || end.Error != "" || end.Syncing {
-				t.Errorf("end status %+v, want online with no error", end)
-			}
-			if last, ok := st.LastSync(); !ok || !last.Equal(end.LastSync) {
-				t.Errorf("lastSync %v %v, want %v", last, ok, end.LastSync)
-			}
-			if _, staged := st.StagedBundleDir(); staged {
-				t.Error("a failed /device/ staged a bundle")
-			}
-		})
+	st := newTestStore(t, f)
+	var statuses []Status
+	s := newUpdatingSyncer(t, f, st, &statuses, &fakeChecker{f: f, err: errors.New("update: folder: checksum")})
+	if _, err := s.Pass(context.Background()); err != nil {
+		t.Fatalf("Pass: %v, want no error", err)
+	}
+	if len(statuses) != len(plain) || statuses[len(statuses)-1] != plain[len(plain)-1] {
+		t.Errorf("statuses %+v, want as without the update %+v", statuses, plain)
+	}
+	end := statuses[len(statuses)-1]
+	if !end.Online || end.Error != "" || end.Syncing {
+		t.Errorf("end status %+v, want online with no error", end)
+	}
+	if last, ok := st.LastSync(); !ok || !last.Equal(end.LastSync) {
+		t.Errorf("lastSync %v %v, want %v", last, ok, end.LastSync)
 	}
 }
 

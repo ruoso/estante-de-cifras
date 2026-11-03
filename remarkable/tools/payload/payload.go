@@ -24,43 +24,43 @@ import (
 var archs = []string{"armv7", "arm64"}
 
 // folderEntries are what every assembled folder must hold under estante/
-// (tools/appfolder; design §3.1).
-var folderEntries = []string{"manifest.json", "icon.png", "resources.rcc", "backend/entry"}
+// (tools/appfolder; design §3.1): everything the reader runs, the music code
+// in bundle/ beside the screens and the backend.
+var folderEntries = []string{"manifest.json", "icon.png", "resources.rcc", "backend/entry", "bundle/manifest.json"}
 
 // options are the command's flags.
 type options struct {
-	Device         string            // the app's dist/device
 	Folders        map[string]string // arch → the parent of estante/
 	BackendVersion string
+	Release        int
 	Out            string
 }
 
-// file is a served file the manifest names.
+// file is a published file the manifest names.
 type file struct {
 	Path   string `json:"path"`
 	SHA256 string `json:"sha256"`
 }
 
-// backendFile is a served backend: the file, the version it prints, and the
-// host API it speaks.
-type backendFile struct {
-	Path    string `json:"path"`
-	SHA256  string `json:"sha256"`
+// backendInfo is a folder's backend: the version it prints and the host API
+// it speaks.
+type backendInfo struct {
 	Version string `json:"version"`
 	HostAPI int    `json:"hostApi"`
 }
 
-// manifest is /device/manifest.json, its keys in design §8's order. It is a
-// superset of engine.Manifest, which engine.Open reads ignoring the rest.
+// manifest is the release's manifest.json (design §8), its keys in that
+// order: the release's number, the payload's version, the host API and salt
+// of the bundle every folder carries, each folder's backend, and each
+// folder's archive.
 type manifest struct {
+	Release int    `json:"release"`
 	Version string `json:"version"`
 	HostAPI int    `json:"hostApi"`
 	Salt    string `json:"salt"`
-	Bundle  file   `json:"bundle"`
-	QML     file   `json:"qml"`
 	Backend struct {
-		ARMv7 backendFile `json:"armv7"`
-		ARM64 backendFile `json:"arm64"`
+		ARMv7 backendInfo `json:"armv7"`
+		ARM64 backendInfo `json:"arm64"`
 	} `json:"backend"`
 	Folder struct {
 		ARMv7 file `json:"armv7"`
@@ -75,7 +75,7 @@ type output struct {
 	mode fs.FileMode
 }
 
-// build checks every input, then writes the payload into a temporary
+// build checks every input, then writes the release's files into a temporary
 // directory beside opts.Out and renames it into place. Every refusal comes
 // before anything is written, so a refused payload leaves --out as it was.
 func build(opts options) error {
@@ -89,36 +89,18 @@ func build(opts options) error {
 			return fmt.Errorf("no --folder %s=DIR", arch)
 		}
 	}
+	if opts.Release <= 0 {
+		return fmt.Errorf("--release %d: want the release's number, from 1", opts.Release)
+	}
 	if err := checkOut(opts.Out); err != nil {
 		return err
 	}
 
-	// The bundle: the app's build's manifest, checked as the reader checks it.
-	raw, err := os.ReadFile(filepath.Join(opts.Device, engine.ManifestFile))
-	if err != nil {
-		return fmt.Errorf("--device: %w", err)
-	}
-	var bm engine.Manifest
-	if err := json.Unmarshal(raw, &bm); err != nil {
-		return fmt.Errorf("--device: %s is not JSON: %w", engine.ManifestFile, err)
-	}
-	if bm.HostAPI != engine.HostAPI {
-		return fmt.Errorf("--device: the bundle's hostApi is %d, the backend speaks %d", bm.HostAPI, engine.HostAPI)
-	}
-	if bm.Bundle.Path == "" || filepath.Base(bm.Bundle.Path) != bm.Bundle.Path {
-		return fmt.Errorf("--device: the manifest's bundle path %q is not a file name", bm.Bundle.Path)
-	}
-	bundle, err := os.ReadFile(filepath.Join(opts.Device, bm.Bundle.Path))
-	if err != nil {
-		return fmt.Errorf("--device: %w", err)
-	}
-	if sum := hexSum(bundle); sum != bm.Bundle.SHA256 {
-		return fmt.Errorf("--device: %s's sha256 is %s, its manifest says %s", bm.Bundle.Path, sum, bm.Bundle.SHA256)
-	}
-
-	// The folders: complete, and carrying the same QML.
+	// The folders: complete, carrying the same QML and the same bundle, the
+	// bundle checked as the reader checks it.
 	type folder struct {
-		rcc, backend, archive []byte
+		rcc, bundle, archive []byte
+		bm                   engine.Manifest
 	}
 	folders := map[string]folder{}
 	for _, arch := range archs {
@@ -130,11 +112,28 @@ func build(opts options) error {
 			}
 		}
 		var f folder
+		var err error
 		if f.rcc, err = os.ReadFile(filepath.Join(root, "resources.rcc")); err != nil {
 			return err
 		}
-		if f.backend, err = os.ReadFile(filepath.Join(root, "backend", "entry")); err != nil {
+		raw, err := os.ReadFile(filepath.Join(root, "bundle", engine.ManifestFile))
+		if err != nil {
 			return err
+		}
+		if err := json.Unmarshal(raw, &f.bm); err != nil {
+			return fmt.Errorf("--folder %s: bundle/%s is not JSON: %w", arch, engine.ManifestFile, err)
+		}
+		if f.bm.HostAPI != engine.HostAPI {
+			return fmt.Errorf("--folder %s: the bundle's hostApi is %d, the backend speaks %d", arch, f.bm.HostAPI, engine.HostAPI)
+		}
+		if f.bm.Bundle.Path == "" || filepath.Base(f.bm.Bundle.Path) != f.bm.Bundle.Path {
+			return fmt.Errorf("--folder %s: the bundle's path %q is not a file name", arch, f.bm.Bundle.Path)
+		}
+		if f.bundle, err = os.ReadFile(filepath.Join(root, "bundle", f.bm.Bundle.Path)); err != nil {
+			return fmt.Errorf("--folder %s: %w", arch, err)
+		}
+		if sum := hexSum(f.bundle); sum != f.bm.Bundle.SHA256 {
+			return fmt.Errorf("--folder %s: %s's sha256 is %s, its manifest says %s", arch, f.bm.Bundle.Path, sum, f.bm.Bundle.SHA256)
 		}
 		if f.archive, err = archive(root); err != nil {
 			return fmt.Errorf("--folder %s: %w", arch, err)
@@ -144,32 +143,24 @@ func build(opts options) error {
 	if !bytes.Equal(folders["armv7"].rcc, folders["arm64"].rcc) {
 		return fmt.Errorf("--folder: the armv7 and arm64 folders' resources.rcc differ")
 	}
+	if !bytes.Equal(folders["armv7"].bundle, folders["arm64"].bundle) {
+		return fmt.Errorf("--folder: the armv7 and arm64 folders' bundles differ")
+	}
 
-	// The files, each named by its content but the folders.
 	var outs []output
-	add := func(name string, data []byte, mode fs.FileMode) file {
-		outs = append(outs, output{name, data, mode})
-		return file{Path: name, SHA256: hexSum(data)}
-	}
-	hashed := func(prefix, suffix string, data []byte, mode fs.FileMode) file {
-		return add(prefix+hexSum(data)[:8]+suffix, data, mode)
-	}
 	var m manifest
-	m.HostAPI = bm.HostAPI
-	m.Salt = bm.Salt
-	m.Bundle = hashed("bundle.", ".js", bundle, 0o644)
-	m.QML = hashed("resources.", ".rcc", folders["armv7"].rcc, 0o644)
-	backends := map[string]*backendFile{"armv7": &m.Backend.ARMv7, "arm64": &m.Backend.ARM64}
+	m.Release = opts.Release
+	m.HostAPI = folders["armv7"].bm.HostAPI
+	m.Salt = folders["armv7"].bm.Salt
+	backends := map[string]*backendInfo{"armv7": &m.Backend.ARMv7, "arm64": &m.Backend.ARM64}
 	archives := map[string]*file{"armv7": &m.Folder.ARMv7, "arm64": &m.Folder.ARM64}
 	for _, arch := range archs {
-		b := hashed("estante-reader-"+arch+".", "", folders[arch].backend, 0o755)
-		*backends[arch] = backendFile{Path: b.Path, SHA256: b.SHA256,
-			Version: opts.BackendVersion, HostAPI: engine.HostAPI}
-		*archives[arch] = add("estante-"+arch+".tar.gz", folders[arch].archive, 0o644)
+		*backends[arch] = backendInfo{Version: opts.BackendVersion, HostAPI: engine.HostAPI}
+		name := "estante-" + arch + ".tar.gz"
+		outs = append(outs, output{name, folders[arch].archive, 0o644})
+		*archives[arch] = file{Path: name, SHA256: hexSum(folders[arch].archive)}
 	}
-	m.Version = payloadVersion([]file{m.Bundle, m.QML,
-		{m.Backend.ARMv7.Path, m.Backend.ARMv7.SHA256}, {m.Backend.ARM64.Path, m.Backend.ARM64.SHA256},
-		m.Folder.ARMv7, m.Folder.ARM64})
+	m.Version = payloadVersion([]file{m.Folder.ARMv7, m.Folder.ARM64})
 	text, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
 		return err

@@ -45,21 +45,26 @@ statuses and heads, nothing else. `signout` ends the session with the service
 `run --origin URL SOCKET` pairs the backend with the same origin. The sync's
 behavior tests run real `git http-backend`, so they need `git` on the host.
 
-`internal/update` is the self-update (design §8): each pass ends by reading the
-site's public `/device/manifest.json` — without the session — and fetching the
-bundle and the QML it names when this backend speaks its `hostApi`, each
-checked against its SHA-256. The bundle is staged in the store and switched to
-on the next frontend attach (or at once when none is loaded), rolled back and
-remembered as refused if it does not open; the QML replaces `resources.rcc` in
-the app folder — `--app DIR`, or the working directory when AppLoad starts the
-backend — only when that folder's `manifest.json` is *Estante*'s, the old one
-kept in the store's `qml/previous/`. `sync` without `--bundle` uses the store's
-own bundle, so `sync --root /tmp/estante --app DIR` brings both from the site.
-The backend binary is never replaced.
+`internal/update` is the self-update (design §8). The reader — backend,
+screens and music code, one AppLoad folder — is published only as GitHub
+releases of this repository (`.github/workflows/reader-release.yml`, on a
+`reader-v<N>` tag). Each pass ends by reading the latest release's
+`manifest.json` from `github.com/ruoso/estante-de-cifras` only (redirects
+followed to GitHub's hosts only, https, no session); a release whose number is
+higher than the backend's own (`-X main.release=<N>`) has its folder for this
+architecture fetched, checked against the manifest's SHA-256, unpacked —
+paths under `estante/` only, no links, `backend/entry` an ELF for this
+machine — and staged as `exthome/estante.next`. Once no frontend is attached,
+the backend swaps it in (the folder it replaces kept as `estante.previous`)
+and exits, so the next launch runs the new release whole; Settings says *A new
+version is ready* meanwhile. At start, the backend stages the folder's own
+`bundle/` in the store when it is not the one read with, so it is switched to
+on the next attach (at once with none), rolled back and refused if it does not
+open. Only the folder given as `--app` (or AppLoad's working directory) is
+replaced, and only when its `manifest.json` is *Estante*'s.
 A backend linked with `-X main.selfUpdate=off` skips the check altogether —
 what `scripts/install.sh` builds with `ESTANTE_FROM_SOURCE=1`, which also builds
-the QML and the bundle from the checkout (INSTALL.md step 4) and stages the
-bundle in the store's `bundle/next/`.
+the QML and the bundle from the checkout (INSTALL.md step 4) into the folder.
 
 The QML frontend's tests (`qml/tests/tst_*.qml`) run on Qt's own
 qmltestrunner over a pinned Qt 6 from pip (PySide6-Essentials; the wheel has
@@ -127,20 +132,22 @@ itself. AppLoad runs it as `backend/entry /tmp/estante.sock`, and a sole
 absolute path is read as `estante-reader run` against the store at
 `/home/root/.local/share/estante/` (`run --root DIR SOCKET` names another
 store, for development). `tools/appfolder` assembles the folder for one
-architecture from a built backend, with the venv's rcc; the gate builds both
-and loads each as AppLoad does. By hand, from this directory, for the rM2:
+architecture from a built backend, with the venv's rcc and the app's device
+bundle; the gate builds both and loads each as AppLoad does. By hand, from
+this directory, for the rM2:
 
 ```sh
 CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -o /tmp/reader/arm/ ./cmd/...
 go run ./tools/appfolder --arch armv7 --backend /tmp/reader/arm/estante-reader \
-  --qml qml --rcc qml/tests/.venv/bin/pyside6-rcc --out /tmp/reader/app/armv7
+  --qml qml --rcc qml/tests/.venv/bin/pyside6-rcc --bundle ../app/dist/device \
+  --out /tmp/reader/app/armv7
 qml/tests/.venv/bin/python -I qml/tests/check_folder.py /tmp/reader/app/armv7/estante
 ```
 
 For the Paper Pro, `GOARCH=arm64` (no `GOARM`) and `--arch arm64`. A person
-installs the reader from the site with [INSTALL.md](INSTALL.md) (design §2.1)
+installs the latest release with [INSTALL.md](INSTALL.md) (design §2.1)
 and its `scripts/install.sh`, whose tests (`scripts/install_test.go`) run it
-with `/bin/sh` against a stand-in site, stand-in `ssh` and `scp`, and a fake
+with `/bin/sh` against a stand-in release, stand-in `ssh` and `scp`, and a fake
 tablet. To install a local build by hand (step 4), with xovi and AppLoad
 already on the tablet, copy the folder over and press **Reload** in AppLoad,
 where *Estante* is then listed:
@@ -149,15 +156,15 @@ where *Estante* is then listed:
 scp -r /tmp/reader/app/armv7/estante root@<address>:/home/root/xovi/exthome/appload/
 ```
 
-The site serves the reader's payload under `/device/` (design §8): the
-image's `reader` stage (the `Dockerfile`) builds both backends, stamped with
-`go run ./tools/payload digest . ../cifra.md/go`, assembles both folders with
-`tools/appfolder` and the gate's pinned `pyside6-rcc`, and lays them out beside
-the app's device bundle with `tools/payload` — content-hashed bundle, rcc and
-backends, a `manifest.json` naming each with its SHA-256, and the two folders a
-person downloads to install, `/device/estante-armv7.tar.gz` (rM2) and
-`/device/estante-arm64.tar.gz` (Paper Pro), each unpacked with `tar xzf` into
-AppLoad's directory. `app/dist/device/manifest.json` stays the bundle-only one.
+A release (design §8) is built by `.github/workflows/reader-release.yml`:
+both backends, stamped with `go run ./tools/payload digest . ../cifra.md/go`
+and the release's number, both folders assembled with `tools/appfolder`, the
+pinned `pyside6-rcc` and the app's device bundle, and laid out with
+`tools/payload` — `estante-armv7.tar.gz` (rM2), `estante-arm64.tar.gz` (Paper
+Pro) and a `manifest.json` naming each with its SHA-256 and the release's
+number — then published as the GitHub release `reader-v<N>`. Release after
+`main` is deployed, so a backend a tablet updates to speaks to the service
+that runs.
 
 The module needs Go 1.26 (goja's minimum).
 

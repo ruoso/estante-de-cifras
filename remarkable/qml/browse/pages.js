@@ -40,7 +40,7 @@ var copy = {
     shapes: "Shapes",
     showAllAgain: "Show all again",
     thisReader: "This reader",
-    updateReader: "Update the reader on your reMarkable",
+    updateReader: "A new version is ready: it starts the next time Estante opens",
     signOut: "Sign out",
     signOutQuestion: "Sign out of this reMarkable? Your books are removed from it; nothing changes in your account.",
     cancel: "Cancel",

@@ -385,7 +385,8 @@ if [[ $want_estante -eq 1 ]]; then
 
       # The AppLoad folders (reader.app_folder; design §2, §9): tools/appfolder
       # assembles estante/ for the rM2 (armv7) and the Paper Pro (arm64) from
-      # the cross-builds above and qml/, compiled by the venv's rcc, into $TMP;
+      # the cross-builds above, qml/ compiled by the venv's rcc, and the app's
+      # device bundle (app/dist/device, built above), into $TMP;
       # check_folder.py then loads each resources.rcc the way AppLoad does.
       qml_rcc="$PWD/$qml_venv/bin/pyside6-rcc"
       for folder in armv7:arm arm64:arm64; do
@@ -393,7 +394,7 @@ if [[ $want_estante -eq 1 ]]; then
         (cd remarkable
          go run -p "$JOBS" ./tools/appfolder --arch "${folder%%:*}" \
            --backend "$TMP/reader/${folder#*:}/estante-reader" \
-           --qml qml --rcc "$qml_rcc" \
+           --qml qml --rcc "$qml_rcc" --bundle ../app/dist/device \
            --out "$TMP/reader/app/${folder%%:*}")
       done
       step "estante reader: app folders load as AppLoad loads them"

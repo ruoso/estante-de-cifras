@@ -74,15 +74,28 @@ exec cp -R "$src" "$path"
 
 var archs = []string{"armv7", "arm64"}
 
+// releaseBundle is the release's music code, in its folder's bundle/.
+const releaseBundle = "globalThis.release = 1;\n"
+
+// releaseBundleName is releaseBundle's name, bundle.<hash>.js.
+func releaseBundleName() string { return "bundle." + hexSum([]byte(releaseBundle))[:8] + ".js" }
+
+// releaseBundleManifest is the release's bundle/manifest.json.
+func releaseBundleManifest() string {
+	return `{"hostApi":2,"bundle":{"path":"` + releaseBundleName() + `","sha256":"` + hexSum([]byte(releaseBundle)) + `"}}` + "\n"
+}
+
 // folderFiles is one architecture's app folder, as tools/payload's archive
 // lays it out under estante/; arch.txt is the marker naming the architecture.
 func folderFiles(arch, release string) map[string]string {
 	return map[string]string{
-		"manifest.json": `{"name":"Estante","entry":"/qml/Main.qml"}` + "\n",
-		"icon.png":      "icon " + release + "\n",
-		"resources.rcc": "rcc " + release + "\n",
-		"backend/entry": "#!/bin/sh\necho " + arch + " " + release + "\n",
-		"arch.txt":      arch + " " + release + "\n",
+		"manifest.json":                 `{"name":"Estante","entry":"/qml/Main.qml"}` + "\n",
+		"icon.png":                      "icon " + release + "\n",
+		"resources.rcc":                 "rcc " + release + "\n",
+		"backend/entry":                 "#!/bin/sh\necho " + arch + " " + release + "\n",
+		"arch.txt":                      arch + " " + release + "\n",
+		"bundle/manifest.json":          releaseBundleManifest(),
+		"bundle/" + releaseBundleName(): releaseBundle,
 	}
 }
 
@@ -93,7 +106,7 @@ func buildArchive(t *testing.T, files map[string]string) []byte {
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gz)
-	for _, d := range []string{"estante/", "estante/backend/"} {
+	for _, d := range []string{"estante/", "estante/backend/", "estante/bundle/"} {
 		if err := tw.WriteHeader(&tar.Header{Name: d, Typeflag: tar.TypeDir, Mode: 0o755}); err != nil {
 			t.Fatal(err)
 		}
@@ -125,17 +138,14 @@ func hexSum(b []byte) string {
 	return hex.EncodeToString(s[:])
 }
 
-// site is the stand-in for the site's /device/.
+// site is the stand-in for the latest release's files on GitHub
+// (releases/latest/download/<name>).
 type site struct {
 	srv      *httptest.Server
 	requests atomic.Int64
 	archives map[string][]byte
 	manifest []byte
-	bundle   string // the bundle's name under /device/
 }
-
-// siteBundle is the site's bundle body.
-const siteBundle = "globalThis.site = 1;\n"
 
 // newSite serves both archives and a manifest naming each; edit, when not
 // nil, changes the manifest's folder entries before it is written.
@@ -152,16 +162,13 @@ func newSite(t *testing.T, edit func(folder map[string]map[string]string)) *site
 	if edit != nil {
 		edit(folder)
 	}
-	bsum := hexSum([]byte(siteBundle))
-	s.bundle = "bundle." + bsum[:8] + ".js"
-	s.archives[s.bundle] = []byte(siteBundle)
 	m := map[string]any{
+		"release": 7,
 		"version": "0a1b2c3d4e5f",
-		"hostApi": 1,
-		"bundle":  map[string]any{"path": s.bundle, "sha256": bsum},
+		"hostApi": 2,
 		"backend": map[string]any{
-			"armv7": map[string]any{"path": "estante-reader-armv7.123", "sha256": strings.Repeat("1", 64), "version": "dev"},
-			"arm64": map[string]any{"path": "estante-reader-arm64.456", "sha256": strings.Repeat("2", 64), "version": "dev"},
+			"armv7": map[string]any{"version": "0a1b2c3d4e5f", "hostApi": 2},
+			"arm64": map[string]any{"version": "0a1b2c3d4e5f", "hostApi": 2},
 		},
 		"folder": folder,
 	}
@@ -172,7 +179,7 @@ func newSite(t *testing.T, edit func(folder map[string]map[string]string)) *site
 	s.manifest = append(text, '\n')
 	s.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.requests.Add(1)
-		name, ok := strings.CutPrefix(r.URL.Path, "/device/")
+		name, ok := strings.CutPrefix(r.URL.Path, "/")
 		switch {
 		case ok && name == "manifest.json":
 			w.Write(s.manifest)
@@ -231,15 +238,15 @@ func newRig(t *testing.T, s *site) *rig {
 	write(t, filepath.Join(r.tablet, ".local/share/estante/session.json"), "{}\n", 0o600)
 	write(t, filepath.Join(r.tablet, ".local/share/estante/books/home/notes.txt"), "kept\n", 0o644)
 	r.env = map[string]string{
-		"PATH":           r.bin + string(os.PathListSeparator) + os.Getenv("PATH"),
-		"HOME":           t.TempDir(),
-		"TMPDIR":         r.tmp,
-		"LC_ALL":         "C",
-		"FAKE_LOG":       r.log,
-		"FAKE_ROOT":      r.tablet,
-		"FAKE_UNAME":     "armv7l",
-		"RM_IP":          "192.0.2.7",
-		"ESTANTE_ORIGIN": s.srv.URL,
+		"PATH":             r.bin + string(os.PathListSeparator) + os.Getenv("PATH"),
+		"HOME":             t.TempDir(),
+		"TMPDIR":           r.tmp,
+		"LC_ALL":           "C",
+		"FAKE_LOG":         r.log,
+		"FAKE_ROOT":        r.tablet,
+		"FAKE_UNAME":       "armv7l",
+		"RM_IP":            "192.0.2.7",
+		"ESTANTE_RELEASES": s.srv.URL,
 	}
 	return r
 }
@@ -408,8 +415,8 @@ func TestInstallArchFromUname(t *testing.T) {
 			if string(marker) != tc.arch+" new\n" {
 				t.Errorf("installed marker %q, want the %s folder", marker, tc.arch)
 			}
-			if !strings.Contains(out, tc.arch) || !strings.Contains(out, "0a1b2c3d4e5f") {
-				t.Errorf("output does not name the architecture and the version:\n%s", out)
+			if !strings.Contains(out, tc.arch) || !strings.Contains(out, "release 7") {
+				t.Errorf("output does not name the architecture and the release:\n%s", out)
 			}
 			if !strings.Contains(out, "Reload") {
 				t.Errorf("output does not name the next step (Reload):\n%s", out)
@@ -729,13 +736,14 @@ func builtVersion(t *testing.T, out string) string {
 	return m[1]
 }
 
-// stagedBundle is what the store's bundle/next/ holds on the fake tablet.
-func (r *rig) stagedBundle() map[string]string {
+// folderBundle is what the installed folder's bundle/ holds on the fake
+// tablet (the backend stages it in its store when it starts).
+func (r *rig) folderBundle() map[string]string {
 	r.t.Helper()
-	dir := filepath.Join(r.tablet, ".local/share/estante/bundle/next")
+	dir := filepath.Join(r.appload(), "bundle")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		r.t.Fatalf("no bundle staged: %v", err)
+		r.t.Fatalf("no bundle in the folder: %v", err)
 	}
 	got := map[string]string{}
 	for _, e := range entries {
@@ -749,9 +757,8 @@ func (r *rig) stagedBundle() map[string]string {
 }
 
 // ESTANTE_FROM_SOURCE=1 with ESTANTE_SOURCE_QML=0 and ESTANTE_SOURCE_BUNDLE=0
-// builds only the backend, with the real Go, in the site's folder; the
-// site's bundle, checked against its manifest, is staged in the store, as
-// the backend built here never fetches one.
+// builds only the backend, with the real Go, in the release's folder, whose
+// screens and bundle stay.
 func TestInstallFromSource(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Fatal("the install test needs go on the host")
@@ -775,19 +782,16 @@ func TestInstallFromSource(t *testing.T) {
 				t.Fatalf("install.sh failed:\n%s", out)
 			}
 			checkBuiltEntry(t, r.appload(), tc.machine, builtVersion(t, out))
-			site := folderFiles(tc.arch, "new")
+			release := folderFiles(tc.arch, "new")
 			for _, name := range []string{"manifest.json", "icon.png", "resources.rcc", "arch.txt"} {
 				b, err := os.ReadFile(filepath.Join(r.appload(), name))
-				if err != nil || string(b) != site[name] {
-					t.Errorf("%s = %q (%v), want the site's %q", name, b, err, site[name])
+				if err != nil || string(b) != release[name] {
+					t.Errorf("%s = %q (%v), want the release's %q", name, b, err, release[name])
 				}
 			}
-			want := map[string]string{"manifest.json": string(r.site.manifest), r.site.bundle: siteBundle}
-			if got := r.stagedBundle(); fmt.Sprint(got) != fmt.Sprint(want) {
-				t.Errorf("bundle/next holds %v, want the site's manifest and bundle %v", got, want)
-			}
-			if _, err := os.Stat(filepath.Join(r.appload(), ".bundle-next")); !os.IsNotExist(err) {
-				t.Errorf("the bundle was left in the app folder (%v)", err)
+			want := map[string]string{"manifest.json": releaseBundleManifest(), releaseBundleName(): releaseBundle}
+			if got := r.folderBundle(); fmt.Sprint(got) != fmt.Sprint(want) {
+				t.Errorf("the folder's bundle/ holds %v, want the release's %v", got, want)
 			}
 		})
 	}
@@ -855,19 +859,20 @@ func TestInstallFromSourceAll(t *testing.T) {
 	if got := readFile(t, filepath.Join(r.appload(), "resources.rcc")); got != "rcc built here\n" {
 		t.Errorf("resources.rcc = %q, want the one compiled here", got)
 	}
-	repoIcon, err := os.ReadFile(filepath.Join("..", "tools", "appfolder", "icon.png"))
-	if err == nil && readFile(t, filepath.Join(r.appload(), "icon.png")) != string(repoIcon) {
-		t.Error("icon.png is not the checkout's")
-	}
+	// Everything built here: the folder is the checkout's, and nothing was
+	// asked of the release.
 	if _, err := os.Stat(filepath.Join(r.appload(), "arch.txt")); !os.IsNotExist(err) {
-		t.Errorf("the site's folder is still there (arch.txt: %v)", err)
+		t.Errorf("the release's folder is there (arch.txt: %v)", err)
+	}
+	if n := r.site.requests.Load(); n != 0 {
+		t.Errorf("%d requests to the release, want none", n)
 	}
 	want := map[string]string{
 		"manifest.json":         readFile(t, filepath.Join(dist, "manifest.json")),
 		filepath.Base(built[0]): readFile(t, built[0]),
 	}
-	if got := r.stagedBundle(); fmt.Sprint(got) != fmt.Sprint(want) {
-		t.Errorf("bundle/next does not hold app/dist/device's manifest and bundle")
+	if got := r.folderBundle(); fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("the folder's bundle/ does not hold app/dist/device's manifest and bundle alone")
 	}
 	app, _ := filepath.Abs(filepath.Join("..", "..", "app"))
 	if log := readFile(t, npmLog); !strings.Contains(log, app+" run --silent build:device") {
@@ -885,24 +890,6 @@ func readFile(t *testing.T, path string) string {
 		t.Fatal(err)
 	}
 	return string(b)
-}
-
-// With ESTANTE_SOURCE_BUNDLE=0, a site bundle that does not match its
-// manifest is refused before the tablet is touched.
-func TestInstallFromSourceRefusesBadBundle(t *testing.T) {
-	s := newSite(t, nil)
-	s.archives[s.bundle] = []byte("globalThis.tampered = 1;\n")
-	r := newRig(t, s)
-	r.goEnv()
-	r.env["ESTANTE_FROM_SOURCE"] = "1"
-	r.env["ESTANTE_SOURCE_QML"] = "0"
-	r.env["ESTANTE_SOURCE_BUNDLE"] = "0"
-	before := snapshot(t, r.tablet)
-	out, ok := r.run()
-	if ok || !strings.Contains(out, "does not match") {
-		t.Fatalf("install.sh did not refuse the tampered bundle (ok %v):\n%s", ok, out)
-	}
-	sameSnapshot(t, "tablet", before, snapshot(t, r.tablet))
 }
 
 // ESTANTE_FROM_SOURCE refuses, before touching the tablet, with no Go here or
@@ -1114,7 +1101,7 @@ func TestGuideAgreesWithScript(t *testing.T) {
 			t.Errorf("install.sh does not name %s", s)
 		}
 	}
-	for _, s := range []string{"RM_IP", "RM_USER", "ESTANTE_ORIGIN", "/home/root/.local/share/estante/", "10.11.99.1"} {
+	for _, s := range []string{"RM_IP", "RM_USER", "ESTANTE_RELEASES", "/home/root/.local/share/estante/", "10.11.99.1"} {
 		if !strings.Contains(guide, s) {
 			t.Errorf("the guide does not name %s", s)
 		}

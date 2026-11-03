@@ -74,8 +74,25 @@ func qmlTree(t *testing.T, files ...string) string {
 func buildFolder(t *testing.T, arch, backend, qml string) (string, error) {
 	t.Helper()
 	out := t.TempDir()
-	err := build(options{Arch: arch, Backend: backend, QML: qml, RCC: "rcc", Out: out}, fakeRCC)
+	err := build(options{Arch: arch, Backend: backend, QML: qml, RCC: "rcc", Bundle: bundleTree(t), Out: out}, fakeRCC)
 	return filepath.Join(out, appID), err
+}
+
+// bundleTree is a device build: its manifest, the bundle it names, and an
+// earlier build's bundle beside them, which is never carried.
+func bundleTree(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for name, text := range map[string]string{
+		"manifest.json":      `{"version":"0a1b2c3d4e5f","hostApi":2,"salt":"s","bundle":{"path":"bundle.1234abcd.js","sha256":"x"}}` + "\n",
+		"bundle.1234abcd.js": "globalThis.estante = {};\n",
+		"bundle.00000000.js": "stale\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
 }
 
 // TestManifest pins manifest.json's fields (rm-appload README §Applications'
@@ -103,7 +120,8 @@ func TestManifest(t *testing.T) {
 	}
 }
 
-// TestLayoutPerArch pins the folder's four entries and an executable entry
+// TestLayoutPerArch pins the folder's entries — its bundle the one the
+// device build names — and an executable entry
 // (design §2; §2.1 step 7, "backend/entry not executable"), and that a
 // second build replaces the folder whole.
 func TestLayoutPerArch(t *testing.T) {
@@ -117,7 +135,7 @@ func TestLayoutPerArch(t *testing.T) {
 			if err := os.WriteFile(stale, nil, 0o644); err != nil {
 				t.Fatal(err)
 			}
-			opts := options{Arch: arch, Backend: backendFor(t, arch), QML: qmlTree(t, "Main.qml"), RCC: "rcc", Out: out}
+			opts := options{Arch: arch, Backend: backendFor(t, arch), QML: qmlTree(t, "Main.qml"), RCC: "rcc", Bundle: bundleTree(t), Out: out}
 			if err := build(opts, fakeRCC); err != nil {
 				t.Fatal(err)
 			}
@@ -131,7 +149,7 @@ func TestLayoutPerArch(t *testing.T) {
 				return err
 			})
 			sort.Strings(got)
-			want := []string{"backend/entry", "icon.png", "manifest.json", "resources.rcc"}
+			want := []string{"backend/entry", "bundle/bundle.1234abcd.js", "bundle/manifest.json", "icon.png", "manifest.json", "resources.rcc"}
 			if !reflect.DeepEqual(got, want) {
 				t.Errorf("folder = %v, want %v", got, want)
 			}
@@ -338,7 +356,7 @@ func TestQrcCarriesFaces(t *testing.T) {
 // TestRefusesMissingMain: no root, no folder.
 func TestRefusesMissingMain(t *testing.T) {
 	out := t.TempDir()
-	opts := options{Arch: "armv7", Backend: backendFor(t, "armv7"), QML: qmlTree(t, "status.js", "tests/Main.qml"), RCC: "rcc", Out: out}
+	opts := options{Arch: "armv7", Backend: backendFor(t, "armv7"), QML: qmlTree(t, "status.js", "tests/Main.qml"), RCC: "rcc", Bundle: bundleTree(t), Out: out}
 	err := build(opts, fakeRCC)
 	if err == nil || !strings.Contains(err.Error(), "Main.qml") {
 		t.Errorf("build = %v, want an error naming Main.qml", err)

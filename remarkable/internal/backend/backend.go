@@ -50,6 +50,12 @@ type Syncer interface {
 	ReloadInstrument(ctx context.Context) error
 }
 
+// Updates is a release staged by the self-update, waiting to be swapped in.
+type Updates interface {
+	Ready() bool
+	Swap() error
+}
+
 // Deps are Serve's collaborators.
 type Deps struct {
 	// Store is the device's store: the session, the last sync, the shapes'
@@ -73,6 +79,10 @@ type Deps struct {
 	// the session it brings is kept for (reader.pairing). Nil: a pair is
 	// answered as an expired code.
 	Pair *pairing.Client
+	// Updates is the self-update's staged release (design §8): once one is
+	// ready and no frontend is attached, Serve swaps it in and returns, so
+	// the next launch runs it. Nil: no self-update.
+	Updates Updates
 
 	// onParse is told of each file the book listing parses (tests only).
 	onParse func()
@@ -264,6 +274,8 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 		<-read
 	}()
 
+	// How many frontends AppLoad says are attached (its −2 and −3).
+	frontends := 0
 	for {
 		var in incoming
 		select {
@@ -283,6 +295,9 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 			// on one (Decision 5).
 			if v.eng == nil {
 				fill = sw.switchBundle(v, fill)
+			}
+			if swapped(b.Updates, frontends) {
+				return nil
 			}
 			continue
 		}
@@ -306,6 +321,7 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 				return err
 			}
 		case protocol.Attached:
+			frontends = m.(protocol.Attached).Frontends
 			// Before this frontend's hello and opens are answered, and
 			// never a redraw (workflow 19 rule 5).
 			fill = sw.switchBundle(v, fill)
@@ -313,11 +329,27 @@ func Serve(ctx context.Context, conn *protocol.Conn, b Deps) error {
 		case protocol.Sync:
 			b.Syncer.Trigger()
 		case protocol.Detached:
-			// The schedule goes on without a frontend.
+			// The schedule goes on without a frontend — unless a release is
+			// staged: with none attached it is swapped in, and the backend
+			// ends so the next launch runs it.
+			frontends = m.(protocol.Detached).Frontends
+			if swapped(b.Updates, frontends) {
+				return nil
+			}
 		default:
 			if err := v.handle(m); err != nil {
 				return err
 			}
 		}
 	}
+}
+
+// swapped swaps a staged release in when no frontend is attached, and
+// reports whether it did (the backend then ends). A swap that fails leaves
+// the folder as it was, and the backend runs on.
+func swapped(u Updates, frontends int) bool {
+	if u == nil || frontends > 0 || !u.Ready() {
+		return false
+	}
+	return u.Swap() == nil
 }

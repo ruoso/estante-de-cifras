@@ -216,6 +216,8 @@ type viewsFixture struct {
 	root string
 	st   *store.Store
 	book map[string]string
+	// updates is Serve's staged release (nil: none).
+	updates Updates
 }
 
 func newViewsFixture(t *testing.T) *viewsFixture {
@@ -270,24 +272,30 @@ type viewsServe struct {
 	relay  *Relay
 	parses *atomic.Int64
 	stop   func()
+	// ended closes when Serve returns; err is what it returned.
+	ended chan struct{}
+	err   error
 }
 
 func (f *viewsFixture) serve(t *testing.T, eng Engine) *viewsServe {
 	t.Helper()
 	conn, p := pair(t)
-	s := &viewsServe{peer: p, syncer: newFakeSyncer(), relay: NewRelay(), parses: &atomic.Int64{}}
+	s := &viewsServe{peer: p, syncer: newFakeSyncer(), relay: NewRelay(), parses: &atomic.Int64{}, ended: make(chan struct{})}
 	s.syncer.snap = f.snapshot()
 	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
 	deps := Deps{
 		Store: f.st, Syncer: s.syncer, Relay: s.relay, Engine: eng, Version: testVersion,
+		Updates: f.updates,
 		onParse: func() { s.parses.Add(1) },
 	}
-	go func() { done <- Serve(ctx, conn, deps) }()
+	go func() {
+		s.err = Serve(ctx, conn, deps)
+		close(s.ended)
+	}()
 	s.stop = gosync.OnceFunc(func() {
 		cancel()
 		select {
-		case <-done:
+		case <-s.ended:
 		case <-time.After(5 * time.Second):
 			t.Error("Serve did not return after its context ended")
 		}

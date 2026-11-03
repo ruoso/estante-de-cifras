@@ -14,15 +14,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	gosync "sync"
 	"testing"
+	"time"
 
 	"estantedecifras.app/remarkable/internal/engine"
 	"estantedecifras.app/remarkable/internal/protocol"
@@ -217,62 +214,34 @@ func rolledBack(t *testing.T, bad testBundle) *viewsFixture {
 	return f
 }
 
-// deviceSite is a stand-in site serving b on /device/, recording the paths
-// asked for.
-func deviceSite(t *testing.T, b testBundle) (*httptest.Server, func() []string) {
+// folderWith is an AppLoad folder carrying b as its bundle/.
+func folderWith(t *testing.T, b testBundle) string {
 	t.Helper()
-	var mu gosync.Mutex
-	var paths []string
-	var bundlePath string
-	for name := range b.files {
-		if name != engine.ManifestFile {
-			bundlePath = name
+	app := filepath.Join(t.TempDir(), "estante")
+	dir := filepath.Join(app, update.FolderBundle)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, data := range b.files {
+		if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
+			t.Fatal(err)
 		}
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mu.Lock()
-		paths = append(paths, r.URL.Path)
-		mu.Unlock()
-		switch r.URL.Path {
-		case "/device/manifest.json":
-			w.Write(b.manifest)
-		case "/device/" + bundlePath:
-			w.Write(b.files[bundlePath])
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(srv.Close)
-	return srv, func() []string {
-		mu.Lock()
-		defer mu.Unlock()
-		return slices.Clone(paths)
-	}
+	return app
 }
 
 // TestBrokenBundleRolledBack pins constraint 9 and Decision 4: a bundle that
-// throws on evaluation is rolled back to the last good one, and the next
-// check does not fetch it again.
+// throws on evaluation is rolled back to the last good one, and a folder
+// carrying it does not stage it again.
 func TestBrokenBundleRolledBack(t *testing.T) {
 	broken := brokenBundle(t)
 	f := rolledBack(t, broken)
-
-	srv, paths := deviceSite(t, broken)
-	origin, _ := url.Parse(srv.URL)
-	u := &update.Updater{Store: f.st}
-	// The stand-in serves no QML, which the check refuses by its name; the
-	// bundle is what is asked about.
-	u.Check(context.Background(), srv.Client(), origin)
-	if got := paths(); !slices.Contains(got, "/device/manifest.json") {
-		t.Errorf("the check asked for %v, want the manifest", got)
+	staged, err := update.AdoptFolderBundle(f.st, folderWith(t, broken))
+	if err != nil || staged {
+		t.Errorf("the refused bundle was staged again (%v %v)", staged, err)
 	}
-	for _, p := range paths() {
-		if strings.HasPrefix(p, "/device/bundle.") {
-			t.Errorf("the refused bundle was fetched again: %s", p)
-		}
-	}
-	if _, staged := f.st.StagedBundleDir(); staged {
-		t.Error("the refused bundle was staged again")
+	if _, ok := f.st.StagedBundleDir(); ok {
+		t.Error("the refused bundle is staged")
 	}
 }
 
@@ -326,25 +295,90 @@ func TestNoSwitchAtPassEndWithAnEngine(t *testing.T) {
 	}
 }
 
-// TestSettingsUpdateReader pins design §6 107 and §8 *Too old*: updateReader
-// is true when the site served a hostApi newer than the backend's, false
-// otherwise.
+// fakeUpdates is a staged release: ready or not, and the swaps asked for.
+type fakeUpdates struct {
+	mu    gosync.Mutex
+	ready bool
+	swaps int
+	err   error
+}
+
+func (u *fakeUpdates) Ready() bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.ready
+}
+
+func (u *fakeUpdates) Swap() error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.swaps++
+	if u.err == nil {
+		u.ready = false
+	}
+	return u.err
+}
+
+func (u *fakeUpdates) swapped() int {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.swaps
+}
+
+// TestSettingsUpdateReader pins design §6 107 and §8: updateReader is true
+// while a release is staged, waiting for the next launch.
 func TestSettingsUpdateReader(t *testing.T) {
-	for _, tc := range []struct {
-		served int
-		want   bool
-	}{{0, false}, {engine.HostAPI - 1, false}, {engine.HostAPI, false}, {engine.HostAPI + 1, true}} {
+	for _, ready := range []bool{false, true} {
 		f := newViewsFixture(t)
-		if tc.served != 0 {
-			must(t, f.st.SetServedHostAPI(tc.served))
-		}
+		f.updates = &fakeUpdates{ready: ready}
 		s := f.serve(t, builtEngine(t))
 		s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
 		var got protocol.Settings
 		s.expect(t, protocol.TypeSettings, &got)
-		if got.UpdateReader != tc.want {
-			t.Errorf("served hostApi %d: updateReader %v, want %v", tc.served, got.UpdateReader, tc.want)
+		if got.UpdateReader != ready {
+			t.Errorf("staged %v: updateReader %v", ready, got.UpdateReader)
 		}
 		s.stop()
+	}
+}
+
+// TestReleaseSwappedWithNoFrontend pins design §8: a staged release is never
+// swapped in under a frontend; once the last one detaches it is, and the
+// backend ends, so the next launch runs it.
+func TestReleaseSwappedWithNoFrontend(t *testing.T) {
+	f := newViewsFixture(t)
+	u := &fakeUpdates{ready: true}
+	f.updates = u
+	s := f.serve(t, builtEngine(t))
+	s.attachThenHello(t) // the attach read before the pass ends
+	s.relay.StatusFunc()(sync.Status{Online: true})
+	s.peer.state() // a pass ended with a frontend attached
+	s.openSong(t, ferry, nil)
+	if n := u.swapped(); n != 0 {
+		t.Fatalf("swapped %d times under a frontend", n)
+	}
+	s.peer.send(protocol.TypeDetached, "0")
+	waitUntil(t, "the swap", func() bool { return u.swapped() == 1 })
+	select {
+	case <-s.ended:
+		if s.err != nil {
+			t.Errorf("Serve after the swap: %v, want nil", s.err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Serve did not end after the swap")
+	}
+}
+
+// TestFailedSwapRunsOn pins that a swap that fails leaves the backend
+// running: the folder is as it was.
+func TestFailedSwapRunsOn(t *testing.T) {
+	f := newViewsFixture(t)
+	u := &fakeUpdates{ready: true, err: errors.New("update: swap: rename")}
+	f.updates = u
+	s := f.serve(t, builtEngine(t))
+	s.peer.send(protocol.TypeDetached, "0")
+	waitUntil(t, "the swap tried", func() bool { return u.swapped() >= 1 })
+	if sheet := s.openSong(t, ferry, nil); sheet.Path != ferry {
+		t.Errorf("after a failed swap the backend answered %q", sheet.Path)
 	}
 }

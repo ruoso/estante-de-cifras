@@ -64,6 +64,8 @@ type views struct {
 	sync  Syncer
 	eng   Engine
 	ver   string
+	// updates is the staged release, for Settings' line (nil: none).
+	updates Updates
 	// onParse is told of each file the book listing parses (a test seam).
 	onParse func()
 	// nudge starts the filler's round (§4.1); nil without an engine.
@@ -123,7 +125,7 @@ type listing struct {
 func newViews(ctx context.Context, conn *protocol.Conn, relay *Relay, b Deps) *views {
 	return &views{
 		ctx: ctx, conn: conn, relay: relay,
-		st: b.Store, sync: b.Syncer, eng: b.Engine, ver: b.Version,
+		st: b.Store, sync: b.Syncer, eng: b.Engine, ver: b.Version, updates: b.Updates,
 		onParse:  b.onParse,
 		listings: map[listingKey]listing{},
 		pairer:   b.Pair,
@@ -336,7 +338,7 @@ func (v *views) settings() protocol.Settings {
 	sess, _ := v.st.Session()
 	out := protocol.Settings{
 		Account: sess.Account, Version: v.ver, HiddenShapes: v.st.HiddenCount(),
-		UpdateReader: v.st.ServedHostAPI() > engine.HostAPI,
+		UpdateReader: v.updates != nil && v.updates.Ready(),
 	}
 	// How the chart names its chords: this reader's choice, else the
 	// account's (workflow 19 §Settings).

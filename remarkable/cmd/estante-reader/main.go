@@ -34,6 +34,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -56,14 +57,41 @@ var version = "dev"
 // ones the install put in place stay until the next install.
 var selfUpdate = "on"
 
+// release is the reader's release number, stamped at link time by the
+// release workflow with -ldflags "-X main.release=<n>"; "0" for a build that
+// is not a release (every release is newer).
+var release = "0"
+
+// releasesURL is where the self-update reads the latest release
+// (update.ReleasesURL; a test replaces it).
+var releasesURL = update.ReleasesURL
+
+// releaseNumber is release as a number, 0 when it is not one.
+func releaseNumber() int {
+	n, err := strconv.Atoi(release)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
+}
+
+// folderArch is the AppLoad folder's architecture for this binary: armv7 for
+// the rM2, arm64 for the Paper Pro.
+func folderArch() string {
+	if runtime.GOARCH == "arm64" {
+		return "arm64"
+	}
+	return "armv7"
+}
+
 // newUpdater is the self-update sync ends its passes with, for store st and
-// the AppLoad folder app; nil, so no pass checks the site, when selfUpdate is
-// off. A bundle already staged is still switched to on the next attach.
+// the AppLoad folder app (design §8: the latest GitHub release); nil, so no
+// pass checks for one, when selfUpdate is off.
 func newUpdater(st *store.Store, app string) *update.Updater {
 	if selfUpdate == "off" {
 		return nil
 	}
-	return &update.Updater{Store: st, AppDir: app}
+	return &update.Updater{Store: st, AppDir: app, Release: releaseNumber(), Arch: folderArch(), URL: releasesURL}
 }
 
 const usage = "usage: estante-reader --version | " +
@@ -405,6 +433,7 @@ func syncCommand(args []string, stdout io.Writer) error {
 			return err
 		}
 	} else {
+		_, _ = update.AdoptFolderBundle(st, *app)
 		e = update.OpenCurrent(st)
 	}
 	var eng sync.Engine
@@ -414,7 +443,7 @@ func syncCommand(args []string, stdout io.Writer) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	syncer := sync.New(st, eng, sync.Options{Update: newUpdater(st, *app)})
+	syncer := sync.New(st, eng, sync.Options{Update: checkerOf(newUpdater(st, *app))})
 	res, err := syncer.Pass(ctx)
 	if err != nil {
 		return err
@@ -490,14 +519,19 @@ func runCommand(args []string) error {
 	// *engine.Engine inside one (which would not be nil).
 	var syncEng sync.Engine
 	var viewEng backend.Engine
+	// The folder's own bundle, staged when it is not the one read with
+	// (design §8): after an install or a swap, the folder's music code is
+	// switched to on the next attach, or opened now when there is none.
+	_, _ = update.AdoptFolderBundle(st, app)
 	if e := update.OpenCurrent(st); e != nil {
 		defer e.Close()
 		syncEng, viewEng = e, e
 	}
+	updater := newUpdater(st, app)
 	relay := backend.NewRelay()
 	syncer := sync.New(st, syncEng, sync.Options{
 		OnStatus: relay.StatusFunc(),
-		Update:   newUpdater(st, app),
+		Update:   checkerOf(updater),
 	})
 
 	conn, err := protocol.Dial(socket)
@@ -509,7 +543,8 @@ func runCommand(args []string) error {
 	err = backend.Serve(ctx, conn, backend.Deps{
 		Store: st, Syncer: syncer, Relay: relay, Now: time.Now,
 		Engine: viewEng, Version: version,
-		Pair: &pair.Client{Origin: origin},
+		Pair:    &pair.Client{Origin: origin},
+		Updates: updatesOf(updater),
 	})
 	if err != nil && ctx.Err() != nil {
 		// A signal is an ending like terminate.
@@ -525,4 +560,22 @@ func dialError(err error) error {
 		return fmt.Errorf("could not dial AppLoad's socket: %s", errno.Error())
 	}
 	return errors.New("could not dial AppLoad's socket")
+}
+
+// checkerOf is the updater as sync's Checker, nil (not a typed nil) when
+// there is none.
+func checkerOf(u *update.Updater) sync.Checker {
+	if u == nil {
+		return nil
+	}
+	return u
+}
+
+// updatesOf is the updater as Serve's Updates, nil (not a typed nil) when
+// there is none.
+func updatesOf(u *update.Updater) backend.Updates {
+	if u == nil {
+		return nil
+	}
+	return u
 }

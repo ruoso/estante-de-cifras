@@ -8,12 +8,13 @@
 #
 # RM_IP           the tablet's address (10.11.99.1 over USB); required.
 # RM_USER         the login on the tablet; default root.
-# ESTANTE_ORIGIN  the site to download from; default
-#                 https://www.estantedecifras.app (a local stack: its
-#                 address). The bare estantedecifras.app only forwards there.
+# ESTANTE_RELEASES  where the latest release is; default
+#                 https://github.com/ruoso/estante-de-cifras/releases/latest/download
+#                 — the reader is published as GitHub releases of the
+#                 repository, never by the site (design §8).
 # ESTANTE_FROM_SOURCE=1
 #                 build the reader here, from the checkout this script is in,
-#                 instead of taking the site's: the backend (Go), the screens
+#                 instead of taking the release's: the backend (Go), the screens
 #                 (the QML, compiled with Qt's rcc) and the music code (the
 #                 app's device bundle, with npm). The backend is built with
 #                 its self-update off, so what this puts on the tablet stays
@@ -21,14 +22,15 @@
 #                 names the version, which Go fetches by itself), npm for the
 #                 bundle, and python3 or ESTANTE_RCC for the screens.
 # ESTANTE_SOURCE_QML=0, ESTANTE_SOURCE_BUNDLE=0
-#                 with ESTANTE_FROM_SOURCE, take the site's screens or the
-#                 site's bundle instead (checked against its manifest).
+#                 with ESTANTE_FROM_SOURCE, keep the release's screens or the
+#                 release's bundle instead.
 # ESTANTE_RCC     with ESTANTE_FROM_SOURCE, the rcc to compile the screens
 #                 with; default the QML tests' venv's pyside6-rcc, made
 #                 from remarkable/qml/tests/requirements.txt when absent.
 #
 # It asks the tablet its architecture, downloads that app folder from the
-# site's /device/, checks it against the manifest's SHA-256, unpacks it here,
+# latest release — everything the reader runs: the backend, the screens, the
+# music code — checks it against the release's manifest's SHA-256, unpacks it here,
 # copies it over one SSH connection to a staging folder, then swaps it into
 # AppLoad's directory, keeping the installed one as the previous install
 # (outside AppLoad's directory) and stopping its backend if it still runs.
@@ -46,11 +48,8 @@ APPLOAD_PARENT=/home/root/xovi/exthome/appload
 APPLOAD_DIR=/home/root/xovi/exthome/appload/estante
 PREVIOUS_DIR=/home/root/xovi/exthome/estante.previous
 STAGING_DIR=/home/root/xovi/exthome/estante.new
-# The reader's store (store.DefaultRoot) and the slot a bundle is staged in
-# for the backend to switch to on its next attach (design §8); the bundle
-# travels inside the folder under BUNDLE_IN_FOLDER and is moved there.
-STORE_DIR=/home/root/.local/share/estante
-BUNDLE_IN_FOLDER=.bundle-next
+# A release the self-update staged, which an install makes stale.
+NEXT_DIR=/home/root/xovi/exthome/estante.next
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'install.sh: %s\n' "$*" >&2; exit 1; }
@@ -59,8 +58,8 @@ if [ -z "${RM_IP:-}" ]; then
     die "set RM_IP to the tablet's address: RM_IP=10.11.99.1 ./install.sh over USB, or the Wi-Fi address from Settings → General → Help → About → Copyrights and licenses (INSTALL.md step 2)"
 fi
 RM_USER=${RM_USER:-root}
-ESTANTE_ORIGIN=${ESTANTE_ORIGIN:-https://www.estantedecifras.app}
-ESTANTE_ORIGIN=${ESTANTE_ORIGIN%/}
+ESTANTE_RELEASES=${ESTANTE_RELEASES:-https://github.com/ruoso/estante-de-cifras/releases/latest/download}
+ESTANTE_RELEASES=${ESTANTE_RELEASES%/}
 DEST="$RM_USER@$RM_IP"
 
 for tool in ssh scp curl tar; do
@@ -88,7 +87,7 @@ case "${ESTANTE_FROM_SOURCE:-}" in
     case "${ESTANTE_SOURCE_BUNDLE:-1}" in 0) SOURCE_BUNDLE= ;; esac
     if [ -n "$SOURCE_BUNDLE" ]; then
         command -v npm >/dev/null 2>&1 ||
-            die "ESTANTE_FROM_SOURCE builds the bundle with npm, which is not on this computer: install Node (its version is in .node-version), or set ESTANTE_SOURCE_BUNDLE=0 for the site's bundle. Nothing was changed."
+            die "ESTANTE_FROM_SOURCE builds the bundle with npm, which is not on this computer: install Node (its version is in .node-version), or set ESTANTE_SOURCE_BUNDLE=0 for the release's bundle. Nothing was changed."
     fi
     if [ -n "$SOURCE_QML" ]; then
         RCC=${ESTANTE_RCC:-$SRC/qml/tests/.venv/bin/pyside6-rcc}
@@ -97,7 +96,7 @@ case "${ESTANTE_FROM_SOURCE:-}" in
         fi
         if [ ! -x "$RCC" ]; then
             command -v python3 >/dev/null 2>&1 ||
-                die "ESTANTE_FROM_SOURCE compiles the screens with Qt's rcc, from a Python venv, and python3 is not on this computer: install it, set ESTANTE_RCC to an rcc, or set ESTANTE_SOURCE_QML=0 for the site's screens. Nothing was changed."
+                die "ESTANTE_FROM_SOURCE compiles the screens with Qt's rcc, from a Python venv, and python3 is not on this computer: install it, set ESTANTE_RCC to an rcc, or set ESTANTE_SOURCE_QML=0 for the release's screens. Nothing was changed."
         fi
     fi
     ;;
@@ -140,13 +139,23 @@ case "$machine" in
     *) die "the tablet is a $machine machine; the reader runs on armv7l (reMarkable 2) and aarch64 (Paper Pro) only. Nothing was downloaded or changed." ;;
 esac
 ARCHIVE="estante-${ARCH}.tar.gz"
-say "The tablet is $machine: installing the $ARCH reader from $ESTANTE_ORIGIN."
+# Everything built here: nothing is taken from a release.
+LOCAL_ONLY=
+if [ -n "$FROM_SOURCE" ] && [ -n "$SOURCE_QML" ] && [ -n "$SOURCE_BUNDLE" ]; then
+    LOCAL_ONLY=1
+    say "The tablet is $machine: installing the $ARCH reader built here."
+else
+    say "The tablet is $machine: installing the $ARCH reader from the latest release ($ESTANTE_RELEASES)."
+fi
 
 # 2. The folder and the manifest that names its SHA-256.
 fetch() {
-    curl --fail --location --silent --show-error -o "$2" "$ESTANTE_ORIGIN/device/$1" ||
-        die "could not download $ESTANTE_ORIGIN/device/$1; check this computer's connection and try again. Nothing was changed on the tablet."
+    curl --fail --location --silent --show-error -o "$2" "$ESTANTE_RELEASES/$1" ||
+        die "could not download $ESTANTE_RELEASES/$1; check this computer's connection and try again. Nothing was changed on the tablet."
 }
+mkdir "$WORK/unpacked"
+version=
+if [ -z "$LOCAL_ONLY" ]; then
 fetch manifest.json "$WORK/manifest.json"
 fetch "$ARCHIVE" "$WORK/$ARCHIVE"
 
@@ -157,24 +166,24 @@ want=$(printf '%s\n' "$flat" | tr '{}' '\n\n' | grep -F "\"path\":\"$ARCHIVE\"" 
     sed -n 's/.*"sha256":"\([0-9a-fA-F]*\)".*/\1/p' | head -n 1 | tr 'A-F' 'a-f') || true
 got=$(sha256 "$WORK/$ARCHIVE")
 if [ -z "$want" ] || [ "$want" != "$got" ]; then
-    die "the download does not match the site's manifest ($ARCHIVE); try again in a few minutes, the site may be mid-deploy. Nothing was changed on the tablet."
+    die "the download does not match the release's manifest ($ARCHIVE); try again in a few minutes, a release may be being published. Nothing was changed on the tablet."
 fi
-# The payload's version: the top-level key, once every nested object (the
-# backends' own versions among them) is removed, innermost first.
+# The release's number: the top-level key, once every nested object is
+# removed, innermost first.
 version=$(printf '%s\n' "$flat" | sed 's/^{//; s/}$//' |
     sed -e ':a' -e 's/{[^{}]*}//' -e 'ta' |
-    sed -n 's/.*"version":"\([^"]*\)".*/\1/p')
+    sed -n 's/.*"release":\([0-9][0-9]*\).*/\1/p')
 version=${version:-unknown}
 
 # 3. Unpacked here: the tablet needs no tar.
-mkdir "$WORK/unpacked"
 tar -x -z -f "$WORK/$ARCHIVE" -C "$WORK/unpacked" ||
     die "could not unpack $ARCHIVE; try again. Nothing was changed on the tablet."
 if [ ! -f "$WORK/unpacked/estante/manifest.json" ] || [ ! -x "$WORK/unpacked/estante/backend/entry" ]; then
     die "$ARCHIVE does not hold estante/manifest.json and an executable estante/backend/entry. Nothing was changed on the tablet."
 fi
+fi
 
-# 3b. With ESTANTE_FROM_SOURCE, the reader built here replaces the site's.
+# 3b. With ESTANTE_FROM_SOURCE, the reader built here replaces the release's.
 # The backend: for the tablet's architecture, stamped with its version as
 # the image stamps it (a digest of the sources and the Go toolchain), with
 # the image's flags, and with its self-update off.
@@ -193,8 +202,26 @@ if [ -n "$FROM_SOURCE" ]; then
         die "could not build the backend from $SRC (the output above says why). Nothing was changed on the tablet."
     say "Built backend version $built, its self-update off."
 
-    # The screens: the whole folder assembled here (tools/appfolder), with
-    # the built backend; or the site's folder with the built backend in it.
+    # The music code: built here, the bundle the build's manifest names
+    # (build:device leaves earlier builds' bundles beside it); else the
+    # release's, in its folder's bundle/.
+    bundle="$WORK/unpacked/estante/bundle"
+    if [ -n "$SOURCE_BUNDLE" ]; then
+        say "Building the bundle from $APP_SRC…"
+        (cd "$APP_SRC" && { [ -d node_modules ] || npm ci --no-audit --no-fund; } &&
+            npm run --silent build:device) ||
+            die "could not build the bundle (the output above says why); set ESTANTE_SOURCE_BUNDLE=0 for the release's. Nothing was changed on the tablet."
+        built_manifest=$(tr -d ' \t\r\n' <"$APP_SRC/dist/device/manifest.json" 2>/dev/null) || built_manifest=
+        built_bundle=$(printf '%s\n' "$built_manifest" | tr '{}' '\n\n' |
+            sed -n 's/.*"path":"\(bundle\.[0-9a-f]*\.js\)".*/\1/p' | head -n 1)
+        bundle="$WORK/bundle"
+        [ -n "$built_bundle" ] && [ -f "$APP_SRC/dist/device/$built_bundle" ] && mkdir "$bundle" &&
+            cp "$APP_SRC/dist/device/manifest.json" "$APP_SRC/dist/device/$built_bundle" "$bundle/" ||
+            die "the bundle build left no app/dist/device/manifest.json and the bundle it names. Nothing was changed on the tablet."
+    fi
+
+    # The screens: compiled here (tools/appfolder), the whole folder when
+    # everything is built here, else their resources.rcc in the release's.
     if [ -n "$SOURCE_QML" ]; then
         if [ ! -x "$RCC" ]; then
             say "Making the venv with Qt's rcc in $SRC/qml/tests/.venv (a download of about 100 MB, once)…"
@@ -205,44 +232,26 @@ if [ -n "$FROM_SOURCE" ]; then
         fi
         say "Building the screens from $SRC/qml…"
         (cd "$SRC" && go run ./tools/appfolder --arch "$ARCH" --backend "$WORK/build/estante-reader" \
-            --qml qml --rcc "$RCC" --out "$WORK/folder") ||
+            --qml qml --rcc "$RCC" --bundle "$bundle" --out "$WORK/folder") ||
             die "could not build the screens (the output above says why). Nothing was changed on the tablet."
-        rm -rf "$WORK/unpacked/estante" && mv "$WORK/folder/estante" "$WORK/unpacked/estante" ||
-            die "could not put the built folder in place. Nothing was changed on the tablet."
-    else
+        if [ -n "$LOCAL_ONLY" ]; then
+            mv "$WORK/folder/estante" "$WORK/unpacked/estante" ||
+                die "could not put the built folder in place. Nothing was changed on the tablet."
+        else
+            cp "$WORK/folder/estante/resources.rcc" "$WORK/unpacked/estante/resources.rcc" ||
+                die "could not put the built screens in the folder. Nothing was changed on the tablet."
+        fi
+    fi
+
+    # The backend and the music code in the release's folder.
+    if [ -z "$LOCAL_ONLY" ]; then
         cp "$WORK/build/estante-reader" "$WORK/unpacked/estante/backend/entry" &&
             chmod 755 "$WORK/unpacked/estante/backend/entry" ||
             die "could not put the built backend in the folder. Nothing was changed on the tablet."
-    fi
-
-    # The bundle, which this backend will not fetch: built here, or the
-    # site's, checked against its manifest; either way a bundle directory
-    # (manifest.json and the bundle it names) for the store's staged slot.
-    bundle="$WORK/unpacked/estante/$BUNDLE_IN_FOLDER"
-    mkdir "$bundle"
-    if [ -n "$SOURCE_BUNDLE" ]; then
-        say "Building the bundle from $APP_SRC…"
-        (cd "$APP_SRC" && { [ -d node_modules ] || npm ci --no-audit --no-fund; } &&
-            npm run --silent build:device) ||
-            die "could not build the bundle (the output above says why); set ESTANTE_SOURCE_BUNDLE=0 for the site's. Nothing was changed on the tablet."
-        # Only the bundle the manifest names: build:device leaves earlier
-        # builds' bundles beside it.
-        built_manifest=$(tr -d ' \t\r\n' <"$APP_SRC/dist/device/manifest.json" 2>/dev/null) || built_manifest=
-        built_bundle=$(printf '%s\n' "$built_manifest" | tr '{}' '\n\n' |
-            sed -n 's/.*"path":"\(bundle\.[0-9a-f]*\.js\)".*/\1/p' | head -n 1)
-        [ -n "$built_bundle" ] && [ -f "$APP_SRC/dist/device/$built_bundle" ] &&
-            cp "$APP_SRC/dist/device/manifest.json" "$APP_SRC/dist/device/$built_bundle" "$bundle/" ||
-            die "the bundle build left no app/dist/device/manifest.json and the bundle it names. Nothing was changed on the tablet."
-    else
-        line=$(printf '%s\n' "$flat" | tr '{}' '\n\n' | grep '"path":"bundle\.[0-9a-f]*\.js"' | head -n 1) || true
-        bpath=$(printf '%s\n' "$line" | sed -n 's/.*"path":"\(bundle\.[0-9a-f]*\.js\)".*/\1/p')
-        bsha=$(printf '%s\n' "$line" | sed -n 's/.*"sha256":"\([0-9a-fA-F]*\)".*/\1/p' | tr 'A-F' 'a-f')
-        [ -n "$bpath" ] && [ -n "$bsha" ] ||
-            die "the site's manifest names no bundle. Nothing was changed on the tablet."
-        fetch "$bpath" "$bundle/$bpath"
-        [ "$(sha256 "$bundle/$bpath")" = "$bsha" ] ||
-            die "the download does not match the site's manifest ($bpath); try again in a few minutes, the site may be mid-deploy. Nothing was changed on the tablet."
-        cp "$WORK/manifest.json" "$bundle/manifest.json"
+        if [ -n "$SOURCE_BUNDLE" ]; then
+            rm -rf "$WORK/unpacked/estante/bundle" && cp -R "$bundle" "$WORK/unpacked/estante/bundle" ||
+                die "could not put the built bundle in the folder. Nothing was changed on the tablet."
+        fi
     fi
 fi
 
@@ -283,17 +292,14 @@ else
     echo none
 fi
 mv $STAGING_DIR $APPLOAD_DIR
+rm -rf $NEXT_DIR
 for p in /proc/[0-9]*; do
     exe=\$(readlink \"\$p/exe\" 2>/dev/null) || continue
     if [ \"\$exe\" = $PREVIOUS_DIR/backend/entry ]; then
         kill \"\${p#/proc/}\" 2>/dev/null || true
     fi
 done
-if [ -d $APPLOAD_DIR/$BUNDLE_IN_FOLDER ]; then
-    mkdir -p $STORE_DIR/bundle
-    rm -rf $STORE_DIR/bundle/next
-    mv $APPLOAD_DIR/$BUNDLE_IN_FOLDER $STORE_DIR/bundle/next
-fi"
+"
 kept=$(remote "$swap") ||
     die "the swap on the tablet failed; check $APPLOAD_DIR and $PREVIOUS_DIR with ssh $DEST ls /home/root/xovi/exthome (INSTALL.md step 7)"
 
@@ -302,7 +308,7 @@ if [ -n "$FROM_SOURCE" ]; then
     built_parts="the backend${SOURCE_QML:+, the screens}${SOURCE_BUNDLE:+, the bundle}"
     say "Installed the $ARCH reader built here ($built_parts; backend version $built, self-update off) at $APPLOAD_DIR."
 else
-    say "Installed the $ARCH reader, version $version, at $APPLOAD_DIR."
+    say "Installed the $ARCH reader, release $version, at $APPLOAD_DIR."
 fi
 if [ "$kept" = kept ]; then
     say "The previous install is kept at $PREVIOUS_DIR."

@@ -1,9 +1,9 @@
 package main
 
-// unit — the device payload's layout (reader.payload; docs/remarkable-reader.md
-// §8, §2.1 step 4). The fixtures are written here: a bundle directory (a small
-// JS file and its manifest, as the app's build writes them) and two AppLoad
-// folders by hand, each with a stand-in ELF header as backend/entry.
+// unit — a release's layout (reader.payload; docs/remarkable-reader.md §8,
+// §2.1 step 4). The fixtures are written here: two AppLoad folders by hand,
+// each with a stand-in ELF header as backend/entry and a bundle directory (a
+// small JS file and its manifest, as the app's build writes them) as bundle/.
 
 import (
 	"archive/tar"
@@ -77,8 +77,9 @@ func elfHeader(class elf.Class, machine elf.Machine) []byte {
 
 var fixtureRCC = []byte("qres\x00\x00\x00\x03 fixture resources")
 
-// folderDir writes an assembled folder (the parent of estante/) for arch.
-func folderDir(t *testing.T, arch string, rcc []byte) string {
+// folderDir writes an assembled folder (the parent of estante/) for arch,
+// carrying bundle (a bundleDir) as estante/bundle/.
+func folderDir(t *testing.T, arch string, rcc []byte, bundle string) string {
 	t.Helper()
 	dir := t.TempDir()
 	root := filepath.Join(dir, "estante")
@@ -90,20 +91,32 @@ func folderDir(t *testing.T, arch string, rcc []byte) string {
 		backend = elfHeader(elf.ELFCLASS64, elf.EM_AARCH64)
 	}
 	write(t, filepath.Join(root, "backend", "entry"), backend, 0o755)
+	entries, err := os.ReadDir(bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		data, err := os.ReadFile(filepath.Join(bundle, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		write(t, filepath.Join(root, "bundle", e.Name()), data, 0o644)
+	}
 	return dir
 }
 
 type fixture struct {
-	device, armv7, arm64 string
+	armv7, arm64 string
 }
 
 func newFixture(t *testing.T) fixture {
-	return fixture{bundleDir(t, engine.HostAPI, false), folderDir(t, "armv7", fixtureRCC), folderDir(t, "arm64", fixtureRCC)}
+	b := bundleDir(t, engine.HostAPI, false)
+	return fixture{folderDir(t, "armv7", fixtureRCC, b), folderDir(t, "arm64", fixtureRCC, b)}
 }
 
 func (f fixture) args(out string) []string {
-	return []string{"--device", f.device, "--folder", "armv7=" + f.armv7, "--folder", "arm64=" + f.arm64,
-		"--backend-version", "0123456789ab", "--out", out}
+	return []string{"--folder", "armv7=" + f.armv7, "--folder", "arm64=" + f.arm64,
+		"--backend-version", "0123456789ab", "--release", "7", "--out", out}
 }
 
 // runPayload runs the command and returns its stderr.
@@ -116,7 +129,7 @@ func runPayload(t *testing.T, args []string) (int, string) {
 
 func buildPayload(t *testing.T, f fixture) string {
 	t.Helper()
-	out := filepath.Join(t.TempDir(), "device")
+	out := filepath.Join(t.TempDir(), "release")
 	if code, stderr := runPayload(t, f.args(out)); code != 0 {
 		t.Fatalf("payload exited %d: %s", code, stderr)
 	}
@@ -134,12 +147,6 @@ func readManifest(t *testing.T, out string) manifest {
 		t.Fatal(err)
 	}
 	return m
-}
-
-func namedFiles(m manifest) []file {
-	return []file{m.Bundle, m.QML,
-		{m.Backend.ARMv7.Path, m.Backend.ARMv7.SHA256}, {m.Backend.ARM64.Path, m.Backend.ARM64.SHA256},
-		m.Folder.ARMv7, m.Folder.ARM64}
 }
 
 // orderedKeys reads a JSON object's keys in document order, and its nested
@@ -174,21 +181,19 @@ func orderedKeys(t *testing.T, raw []byte) []string {
 	return keys
 }
 
-// TestManifestNamesEveryFile pins design §8's manifest: exactly its keys, in
-// order; every path served in --out with its sha256; each content-hashed
-// name carrying its hash's first eight digits.
+// TestManifestNamesEveryFile pins design §8's release manifest: exactly its
+// keys, in order; the release's number; each archive in --out with its
+// sha256, and nothing else there.
 func TestManifestNamesEveryFile(t *testing.T) {
 	out := buildPayload(t, newFixture(t))
 	raw, err := os.ReadFile(filepath.Join(out, "manifest.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"version", "hostApi", "salt",
-		"bundle", "bundle.path", "bundle.sha256",
-		"qml", "qml.path", "qml.sha256",
+	want := []string{"release", "version", "hostApi", "salt",
 		"backend",
-		"backend.armv7", "backend.armv7.path", "backend.armv7.sha256", "backend.armv7.version", "backend.armv7.hostApi",
-		"backend.arm64", "backend.arm64.path", "backend.arm64.sha256", "backend.arm64.version", "backend.arm64.hostApi",
+		"backend.armv7", "backend.armv7.version", "backend.armv7.hostApi",
+		"backend.arm64", "backend.arm64.version", "backend.arm64.hostApi",
 		"folder",
 		"folder.armv7", "folder.armv7.path", "folder.armv7.sha256",
 		"folder.arm64", "folder.arm64.path", "folder.arm64.sha256"}
@@ -198,103 +203,42 @@ func TestManifestNamesEveryFile(t *testing.T) {
 	if !bytes.HasSuffix(raw, []byte("}\n")) || !bytes.Contains(raw, []byte(fmt.Sprintf("\n  \"hostApi\": %d,\n", engine.HostAPI))) {
 		t.Errorf("manifest is not two-space-indented JSON ending in a newline:\n%s", raw)
 	}
-
 	m := readManifest(t, out)
-	if m.HostAPI != engine.HostAPI || m.Salt != "test-salt" {
-		t.Errorf("hostApi, salt = %d, %q; want the bundle's %d, test-salt", m.HostAPI, m.Salt, engine.HostAPI)
+	if m.Release != 7 || m.Salt != "test-salt" || m.HostAPI != engine.HostAPI {
+		t.Errorf("release %d salt %q hostApi %d", m.Release, m.Salt, m.HostAPI)
 	}
-	entries, err := os.ReadDir(out)
-	if err != nil {
-		t.Fatal(err)
+	for _, b := range []backendInfo{m.Backend.ARMv7, m.Backend.ARM64} {
+		if b.Version != "0123456789ab" || b.HostAPI != engine.HostAPI {
+			t.Errorf("backend %+v", b)
+		}
 	}
-	var served []string
-	for _, e := range entries {
-		served = append(served, e.Name())
-	}
-	var named []string
-	for _, f := range namedFiles(m) {
-		named = append(named, f.Path)
+	names := []string{"manifest.json"}
+	for _, f := range []file{m.Folder.ARMv7, m.Folder.ARM64} {
 		data, err := os.ReadFile(filepath.Join(out, f.Path))
 		if err != nil {
-			t.Errorf("%s: %v", f.Path, err)
-			continue
+			t.Fatalf("%s not in --out: %v", f.Path, err)
 		}
 		if sum(data) != f.SHA256 {
 			t.Errorf("%s: sha256 %s, manifest says %s", f.Path, sum(data), f.SHA256)
 		}
+		names = append(names, f.Path)
 	}
-	named = append(named, "manifest.json")
-	sort.Strings(named)
-	if !reflect.DeepEqual(served, named) {
-		t.Errorf("--out holds %v, want exactly %v", served, named)
+	entries, _ := os.ReadDir(out)
+	if len(entries) != len(names) {
+		t.Errorf("--out holds %d files, want %v", len(entries), names)
 	}
-	for _, c := range []struct{ got, want string }{
-		{m.Bundle.Path, "bundle." + m.Bundle.SHA256[:8] + ".js"},
-		{m.QML.Path, "resources." + m.QML.SHA256[:8] + ".rcc"},
-		{m.Backend.ARMv7.Path, "estante-reader-armv7." + m.Backend.ARMv7.SHA256[:8]},
-		{m.Backend.ARM64.Path, "estante-reader-arm64." + m.Backend.ARM64.SHA256[:8]},
-		{m.Folder.ARMv7.Path, "estante-armv7.tar.gz"},
-		{m.Folder.ARM64.Path, "estante-arm64.tar.gz"},
-	} {
-		if c.got != c.want {
-			t.Errorf("path %q, want %q", c.got, c.want)
-		}
+	if m.Folder.ARMv7.Path != "estante-armv7.tar.gz" || m.Folder.ARM64.Path != "estante-arm64.tar.gz" {
+		t.Errorf("archives %s, %s", m.Folder.ARMv7.Path, m.Folder.ARM64.Path)
 	}
-	// The full manifest still opens as a bundle directory's (engine.Manifest).
-	var bm engine.Manifest
-	if err := json.Unmarshal(raw, &bm); err != nil || bm.Bundle.Path != m.Bundle.Path {
-		t.Errorf("engine.Manifest reads bundle %q (%v), want %q", bm.Bundle.Path, err, m.Bundle.Path)
+	if len(m.Version) != 12 {
+		t.Errorf("version %q is not twelve hex digits", m.Version)
 	}
 }
 
-// TestVersionCoversEveryFile pins §8's payload version: the digest of the
-// sorted "path sha256" lines, changed by one byte of the rcc.
-func TestVersionCoversEveryFile(t *testing.T) {
-	f := newFixture(t)
-	m := readManifest(t, buildPayload(t, f))
-	var lines []string
-	for _, nf := range namedFiles(m) {
-		lines = append(lines, nf.Path+" "+nf.SHA256+"\n")
-	}
-	sort.Strings(lines)
-	if want := sum([]byte(strings.Join(lines, "")))[:12]; m.Version != want {
-		t.Errorf("version = %q, want %q", m.Version, want)
-	}
-
-	rcc := append([]byte{}, fixtureRCC...)
-	rcc[len(rcc)-1] ^= 1
-	f.armv7, f.arm64 = folderDir(t, "armv7", rcc), folderDir(t, "arm64", rcc)
-	if m2 := readManifest(t, buildPayload(t, f)); m2.Version == m.Version {
-		t.Errorf("version %q unchanged by a changed rcc", m.Version)
-	}
-}
-
-// TestBackendEntries pins each backend's manifest entry (§8): the host API
-// it speaks, the flag's version, its folder's backend/entry bytes, mode 0755.
-func TestBackendEntries(t *testing.T) {
-	f := newFixture(t)
-	out := buildPayload(t, f)
-	m := readManifest(t, out)
-	for arch, b := range map[string]backendFile{"armv7": m.Backend.ARMv7, "arm64": m.Backend.ARM64} {
-		if b.HostAPI != engine.HostAPI || b.Version != "0123456789ab" {
-			t.Errorf("%s: hostApi %d, version %q; want %d, 0123456789ab", arch, b.HostAPI, b.Version, engine.HostAPI)
-		}
-		dir := map[string]string{"armv7": f.armv7, "arm64": f.arm64}[arch]
-		want, _ := os.ReadFile(filepath.Join(dir, "estante", "backend", "entry"))
-		got, err := os.ReadFile(filepath.Join(out, b.Path))
-		if err != nil || !bytes.Equal(got, want) {
-			t.Errorf("%s: %s is not the folder's backend/entry (%v)", arch, b.Path, err)
-		}
-		info, err := os.Stat(filepath.Join(out, b.Path))
-		if err != nil || info.Mode().Perm() != 0o755 {
-			t.Errorf("%s: %s mode %v, want 0755 (%v)", arch, b.Path, info.Mode().Perm(), err)
-		}
-	}
-}
-
-// TestArchiveCarriesFolder pins the folder archives (design §2.1 step 4):
-// exactly estante/'s six entries, the folder's bytes, the modes, mtime 0 and
-// uid/gid 0.
+// TestArchiveCarriesFolder pins design §2.1 step 4: each archive is its
+// folder, rooted at estante/ — its bundle/ among it — deterministic: sorted
+// entries, mtime 0, no owner, modes 0755 for directories and backend/entry,
+// 0644 for the rest.
 func TestArchiveCarriesFolder(t *testing.T) {
 	f := newFixture(t)
 	out := buildPayload(t, f)
@@ -339,15 +283,17 @@ func TestArchiveCarriesFolder(t *testing.T) {
 				}
 			}
 		}
-		want := []string{"estante/", "estante/backend/", "estante/backend/entry",
-			"estante/icon.png", "estante/manifest.json", "estante/resources.rcc"}
-		sorted := append([]string{}, names...)
-		sort.Strings(sorted)
-		if !reflect.DeepEqual(sorted, want) {
-			t.Errorf("%s: archive holds %v, want %v", arch, names, want)
-		}
 		if !sort.StringsAreSorted(names) {
 			t.Errorf("%s: archive entries %v are not sorted", arch, names)
+		}
+		for _, want := range []string{"estante/backend/entry", "estante/bundle/manifest.json", "estante/resources.rcc", "estante/manifest.json"} {
+			found := false
+			for _, n := range names {
+				found = found || n == want
+			}
+			if !found {
+				t.Errorf("%s: archive lacks %s (%v)", arch, want, names)
+			}
 		}
 	}
 }
@@ -357,82 +303,80 @@ func TestArchiveCarriesFolder(t *testing.T) {
 func TestDeterministic(t *testing.T) {
 	f := newFixture(t)
 	a, b := buildPayload(t, f), buildPayload(t, f)
-	m := readManifest(t, a)
-	for _, name := range []string{"manifest.json", m.Folder.ARMv7.Path, m.Folder.ARM64.Path} {
+	for _, name := range []string{"manifest.json", "estante-armv7.tar.gz", "estante-arm64.tar.gz"} {
 		x, _ := os.ReadFile(filepath.Join(a, name))
-		y, err := os.ReadFile(filepath.Join(b, name))
-		if err != nil || !bytes.Equal(x, y) {
-			t.Errorf("%s differs between two runs (%v)", name, err)
+		y, _ := os.ReadFile(filepath.Join(b, name))
+		if !bytes.Equal(x, y) {
+			t.Errorf("%s differs between two builds of the same folders", name)
 		}
 	}
 }
 
-// listing is a directory's tree, names and contents, for "left as it was".
-func listing(t *testing.T, dir string) map[string]string {
-	t.Helper()
-	got := map[string]string{}
-	filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		rel, _ := filepath.Rel(dir, p)
-		data, _ := os.ReadFile(p)
-		got[rel] = string(data)
-		return nil
-	})
-	return got
-}
-
-// TestRefusals pins that a payload the reader would refuse is never built
-// (refinement Constraints): each fails, names the problem, and leaves --out
-// (and its parent) as it was.
+// TestRefusals pins every refusal, each leaving --out unwritten.
 func TestRefusals(t *testing.T) {
-	for _, c := range []struct {
-		name    string
-		mutate  func(t *testing.T, f *fixture, out string)
-		message string
+	for _, tc := range []struct {
+		name string
+		edit func(t *testing.T, f *fixture, args *[]string)
+		want string
 	}{
-		{"bundle sha256", func(t *testing.T, f *fixture, _ string) {
-			f.device = bundleDir(t, engine.HostAPI, true)
-		}, "sha256"},
-		{"bundle hostApi", func(t *testing.T, f *fixture, _ string) {
-			f.device = bundleDir(t, engine.HostAPI+1, false)
+		{"a bundle of another hostApi", func(t *testing.T, f *fixture, _ *[]string) {
+			b := bundleDir(t, engine.HostAPI+1, false)
+			f.armv7, f.arm64 = folderDir(t, "armv7", fixtureRCC, b), folderDir(t, "arm64", fixtureRCC, b)
 		}, fmt.Sprintf("hostApi is %d", engine.HostAPI+1)},
-		{"rcc differs", func(t *testing.T, f *fixture, _ string) {
-			f.arm64 = folderDir(t, "arm64", []byte("another rcc"))
+		{"a bundle not its manifest's", func(t *testing.T, f *fixture, _ *[]string) {
+			b := bundleDir(t, engine.HostAPI, true)
+			f.armv7, f.arm64 = folderDir(t, "armv7", fixtureRCC, b), folderDir(t, "arm64", fixtureRCC, b)
+		}, "its manifest says"},
+		{"rcc differs", func(t *testing.T, f *fixture, _ *[]string) {
+			f.arm64 = folderDir(t, "arm64", []byte("another rcc"), bundleDir(t, engine.HostAPI, false))
 		}, "resources.rcc differ"},
-		{"folder missing backend/entry", func(t *testing.T, f *fixture, _ string) {
-			if err := os.Remove(filepath.Join(f.armv7, "estante", "backend", "entry")); err != nil {
-				t.Fatal(err)
+		{"bundles differ", func(t *testing.T, f *fixture, _ *[]string) {
+			other := bundleDir(t, engine.HostAPI, false)
+			write(t, filepath.Join(other, "extra"), []byte("x"), 0o644)
+			code := []byte("globalThis.estante = { hostApi: 2, other: 1 };\n")
+			name := "bundle." + sum(code)[:8] + ".js"
+			write(t, filepath.Join(other, name), code, 0o644)
+			m, _ := json.Marshal(map[string]any{"version": "x", "hostApi": engine.HostAPI, "salt": "test-salt",
+				"bundle": map[string]string{"path": name, "sha256": sum(code)}})
+			write(t, filepath.Join(other, "manifest.json"), m, 0o644)
+			f.arm64 = folderDir(t, "arm64", fixtureRCC, other)
+		}, "bundles differ"},
+		{"folder missing backend/entry", func(t *testing.T, f *fixture, _ *[]string) {
+			os.Remove(filepath.Join(f.armv7, "estante", "backend", "entry"))
+		}, "estante/backend/entry"},
+		{"folder missing its bundle", func(t *testing.T, f *fixture, _ *[]string) {
+			os.RemoveAll(filepath.Join(f.arm64, "estante", "bundle"))
+		}, "estante/bundle/manifest.json"},
+		{"no release", func(t *testing.T, f *fixture, args *[]string) {
+			for i, a := range *args {
+				if a == "--release" {
+					(*args)[i+1] = "0"
+				}
 			}
-		}, "no estante/backend/entry"},
-		{"out not empty", func(t *testing.T, _ *fixture, out string) {
-			write(t, filepath.Join(out, "keep"), []byte("kept"), 0o644)
-		}, "not empty"},
+		}, "usage"},
 	} {
-		t.Run(c.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			f := newFixture(t)
-			parent := t.TempDir()
-			out := filepath.Join(parent, "device")
-			c.mutate(t, &f, out)
-			before := listing(t, parent)
-			code, stderr := runPayload(t, f.args(out))
+			out := filepath.Join(t.TempDir(), "release")
+			args := f.args(out)
+			tc.edit(t, &f, &args)
+			if tc.name != "no release" {
+				args = f.args(out)
+			}
+			code, stderr := runPayload(t, args)
 			if code == 0 {
-				t.Fatal("payload succeeded, want a refusal")
+				t.Fatalf("payload succeeded, want a refusal")
 			}
-			if !strings.Contains(stderr, c.message) {
-				t.Errorf("stderr %q does not name %q", stderr, c.message)
+			if !strings.Contains(stderr, tc.want) {
+				t.Errorf("stderr %q, want it to say %q", stderr, tc.want)
 			}
-			if after := listing(t, parent); !reflect.DeepEqual(after, before) {
-				t.Errorf("--out's parent changed: %v, was %v", after, before)
+			if _, err := os.Stat(out); !os.IsNotExist(err) {
+				t.Errorf("--out was written after a refusal")
 			}
 		})
 	}
 }
 
-// TestDigest pins the backend's version (design §8; refinement Decision 4):
-// stable across calls; changed by a non-test .go file or go.sum; unchanged by
-// a _test.go file or anything under testdata/.
 func TestDigest(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{

@@ -211,7 +211,8 @@ func browseFixtures(t *testing.T, write func(name, from string, got []byte)) {
 		}
 	}
 
-	f := &viewsFixture{root: root, st: st, book: books[browseBook]}
+	updates := &fakeUpdates{}
+	f := &viewsFixture{root: root, st: st, book: books[browseBook], updates: updates}
 	s := f.serve(t, noFill{builtEngine(t)})
 	defer s.stop()
 	const from = "fixtures/browse-book/"
@@ -261,21 +262,20 @@ func browseFixtures(t *testing.T, write func(name, from string, got []byte)) {
 	}
 	write("browse-settings", from, browseFixture(t, "settings", "a reader paired with "+browseAccount+" hiding "+fmt.Sprint(browseHidden)+" voicings: the backend's `107 settings`", settings))
 
-	// reader.self_update: the site serves a hostApi newer than this backend
-	// speaks, so the settings say *Update the reader on your reMarkable*.
-	if err := st.SetServedHostAPI(engine.HostAPI + 1); err != nil {
-		t.Fatal(err)
-	}
+	// reader.self_update: a release staged, waiting for the next launch.
+	updates.mu.Lock()
+	updates.ready = true
+	updates.mu.Unlock()
 	s.send(t, protocol.TypeOpen, map[string]any{"view": "settings"})
 	var tooOld protocol.Settings
 	s.expect(t, protocol.TypeSettings, &tooOld)
 	if !tooOld.UpdateReader {
 		t.Fatalf("browse settings, too old %+v", tooOld)
 	}
-	write("browse-settings-update", from, browseFixture(t, "settings", "a reader paired with "+browseAccount+" hiding "+fmt.Sprint(browseHidden)+" voicings, the site serving a newer hostApi: the backend's `107 settings`", tooOld))
-	if err := st.SetServedHostAPI(engine.HostAPI); err != nil {
-		t.Fatal(err)
-	}
+	write("browse-settings-update", from, browseFixture(t, "settings", "a reader paired with "+browseAccount+" hiding "+fmt.Sprint(browseHidden)+" voicings, a release staged: the backend's `107 settings`", tooOld))
+	updates.mu.Lock()
+	updates.ready = false
+	updates.mu.Unlock()
 
 	// The played sheets (reader.play): items of the browse setlist opened
 	// playing, each its `105 sheet` and the `109 ahead`s that follow it — the

@@ -105,16 +105,16 @@ an extension of xovi, which hooks into the tablet's own interface.
 - By its script, from a computer:
   `RM_IP=<address> ./install.sh`. It asks the tablet its architecture
   (`uname -m`: `armv7l` for the rM2, `aarch64` for the Paper Pro), downloads
-  that app folder from `/device/` on the site and checks it against the
-  manifest's SHA-256, copies it over one SSH connection, keeps any installed
+  that app folder from the latest GitHub release (§8) and checks it against
+  the release's manifest's SHA-256, copies it over one SSH connection, keeps any installed
   reader as the previous one in `/home/root/xovi/exthome/estante.previous/`
   (outside AppLoad's directory, so AppLoad does not list it twice), puts the
   new one at `/home/root/xovi/exthome/appload/estante/`, and stops the
   previous one's backend if it is still running, so the next opening starts
   the new one. It needs `sh`, `curl` and `tar` on the computer (macOS and
   Linux; on Windows, WSL or Git Bash — or install by hand).
-- Or by hand: download the app folder for the rM2 (armv7) from the site's
-  `/device/estante-armv7.tar.gz`, unpack it (`tar xzf estante-armv7.tar.gz`),
+- Or by hand: download the app folder for the rM2 (armv7) from the latest
+  release's `estante-armv7.tar.gz`, unpack it (`tar xzf estante-armv7.tar.gz`),
   and
   `scp -r estante root@<address>:/home/root/xovi/exthome/appload/`.
 
@@ -132,9 +132,9 @@ Then, on the tablet, open AppLoad and press **Reload**: *Estante* is listed.
 
 **6. Updating it, and the tablet's own updates.**
 
-- The reader's music code and screens **update themselves** at sync (§8). A
-  new backend, when one comes, is installed as in step 4; its settings say so
-  when it is needed (*Update the reader on your reMarkable*).
+- The reader **updates itself**, whole, from the latest release (§8): its
+  settings say *A new version is ready: it starts the next time Estante
+  opens*, and the next opening after Estante is closed runs it.
 - **reMarkable OS updates** can stop xovi until its hashtable is rebuilt for the
   new version (step 3.3), and tripletap may need its version step again; the
   reader itself is untouched in `/home/root`. Turning automatic OS updates off
@@ -169,7 +169,7 @@ Then, on the tablet, open AppLoad and press **Reload**: *Estante* is listed.
 │ xochitl + xovi + AppLoad                               │      │ service      │
 │ ┌──────────────┐  AppLoad socket   ┌────────────────┐ │HTTPS │  /api/…      │
 │ │ QML frontend │ ◄──────────────► │ Go backend      │─┼─────►│  /git/…      │
-│ │ (draws rows, │  (type, JSON)     │  protocol       │ │      │  /device/…   │
+│ │ (draws rows, │  (type, JSON)     │  protocol       │ │      │              │
 │ │  diagrams)   │                   │  sync (go-git)  │ │      └──────────────┘
 │ └──────────────┘                   │  store (disk)   │ │
 │                                    │  engine (goja ──┼─┼── bundle.js: the web
@@ -431,7 +431,7 @@ know, and a field they do not know.
 | 104 `book` | → frontend | `{ bookId, title, songs: [{ path, title, artist }], setlists: [{ path, title, songs }] }` |
 | 105 `sheet` | → frontend | `{ bookId, path, title, artist, key: { written, named, saved, choices }, offset, tuningId, rows, shapes: [{ chord, symbol, frets, model, hidden }], notes, keyNote, play? }` — `model` the diagram model (§7); `saved` the account's key (`songs.json`) when it has one; `choices` the key grid's twelve `{ name, offset }`, ordered by the key's root from C, each named by the music core from the song's as-written key (offsets −5…+6), `[]` for a song with no chords; `tuningId` the tuning the shapes are for, which `hideShape` and `showShape` name; a chord the cache did not hold keeps its place in `shapes` with `model` and `frets` `null`, its place in the strip left empty (§4.1); `play` `{ setlist, at, of, next }`, `next` `{ title, key, note }` or `null`; for a song with two or more variations for the tuning, at every key, `variations` (`""` the unnamed block), `variation` the one read and `variationChosen` when this reader chose it |
 | 106 `setlist` | → frontend | `{ bookId, path, title, items: [{ path, title, key, note, missing }], at? }` — every item in order; `path` the song's book-root path (`""` for an unlinked item); `key` the item's own `key` property (`null` when it has none); `at` the item last played, for Back |
-| 107 `settings` | → frontend | `{ account, version, hiddenShapes, updateReader, chordNames, chordNamesChosen, accountChordNames, instruments, instrument, accountInstrument, instrumentChosen }` — the account paired with, the reader's version, how many voicings are hidden, whether the site serves a `hostApi` newer than this backend speaks (§8), how the chart names its chords now (and whether chosen here, and the account's own), and — when the account has two or more — the instruments `{ id, name }`, the one read with, the account's in use, and whether it was chosen here |
+| 107 `settings` | → frontend | `{ account, version, hiddenShapes, updateReader, chordNames, chordNamesChosen, accountChordNames, instruments, instrument, accountInstrument, instrumentChosen }` — the account paired with, the reader's version, how many voicings are hidden, whether a newer release is staged, waiting for the next launch (§8), how the chart names its chords now (and whether chosen here, and the account's own), and — when the account has two or more — the instruments `{ id, name }`, the one read with, the account's in use, and whether it was chosen here |
 | 108 `shapes` | → frontend | `{ bookId, path, offset, tuningId, shapes }` — the open song's `shapes`, as its `sheet` would now carry them, sent when a background search (§4.1) has filled a place the last `sheet` left empty; the frontend fills the matching empty places of the sheet on screen and draws them on the next page it draws, never on the page shown (workflow 19 rule 5), and ignores one for another song, key or tuning |
 | 109 `ahead` | → frontend | a `105`'s payload, with `play`, for the next or the previous playable item of the setlist being played, read ahead; never shown until a turn reaches it |
 
@@ -525,81 +525,80 @@ model in every case.
 
 ## 8. Updates
 
-The site serves the device's payload beside the app, from the same image:
+**The reader is published as GitHub releases of this repository, never by
+the site.** Everything it runs — the backend, the screens' QML and the music
+code — is one AppLoad folder, built together from one commit by
+`.github/workflows/reader-release.yml` when a tag `reader-v<N>` is pushed, N
+the release's number. The site only pairs it and syncs its books. A release
+holds:
 
 ```
-/device/manifest.json          { version, hostApi, salt, bundle: { path, sha256 },
-                                 qml: { path, sha256 },
-                                 backend: { armv7: { path, sha256, version, hostApi }, arm64: {…} },
-                                 folder:  { armv7: { path, sha256 }, arm64: {…} } }
-/device/bundle.<hash>.js
-/device/resources.<hash>.rcc
-/device/estante-reader-armv7.<hash>
-/device/estante-reader-arm64.<hash>
-/device/estante-armv7.tar.gz
-/device/estante-arm64.tar.gz
+manifest.json            { release, version, hostApi, salt,
+                           backend: { armv7: { version, hostApi }, arm64: {…} },
+                           folder:  { armv7: { path, sha256 }, arm64: {…} } }
+estante-armv7.tar.gz     the rM2's folder: manifest.json, icon.png,
+                         resources.rcc, backend/entry, bundle/
+estante-arm64.tar.gz     the Paper Pro's
 ```
 
-Every file is named in the manifest with its SHA-256; `<hash>` is the first
-eight hex digits of it. The manifest's `version` is the payload's: the first
-twelve hex digits of the SHA-256 over its files' `path sha256` lines, sorted,
-so it changes exactly when a served byte does. `hostApi` is the bundle's; each
-backend's `hostApi` is the one it speaks, and its `version` is the one it
+`version` is the payload's: the first twelve hex digits of the SHA-256 over
+the archives' `path sha256` lines; each backend's `version` is the one it
 prints and the settings show — a digest of the sources it was built from and
-the Go toolchain, stamped at link time. The two `.tar.gz` are the AppLoad
-folder for each architecture (`estante/`, as `remarkable/tools/appfolder`
-assembles it, carrying the same `resources.rcc` and backend bytes the manifest
-names): what a person downloads to install (§2.1) and what `install.sh` fetches,
-under a fixed name. The content-hashed files are served as immutable; the
-manifest and the two folders are revalidated. A `/device/` path that names no
-file is a 404, never the app's shell.
+the Go toolchain, stamped at link time with the release's number
+(`-X main.release=<N>`). The folder's `bundle/` is the app's device bundle,
+its `manifest.json` and the bundle it names. The archives are deterministic
+(sorted entries, mtime 0, no owner). Release after `main` is deployed, so a
+backend a tablet updates to speaks to the service that runs; the repository's
+immutable releases keep a published release's assets from being replaced.
 
-- The **bundle** and the **QML** update themselves: at sync, when the manifest
-  names a new one whose `hostApi` this backend speaks, the backend downloads
-  it, checks its SHA-256, keeps the last good one, and switches on the next
-  frontend attach (the bundle) or the next app launch (the QML). A bundle that
-  fails to evaluate is dropped and the last good one kept. They run in goja or
-  in QML and can reach nothing the backend does not hand them.
-  - **One `hostApi` for both.** The bundle and the QML come from one image, so
-    the manifest's `hostApi` stands for the pair: an incompatible change to the
-    host calls (§4) or to the messages (§6) bumps it. A backend that does not
-    speak the served `hostApi` fetches neither.
-  - **Fetched after the shelf, from the session's origin, without the
-    session.** `/device/` is the site's public payload, so the manifest and the
-    files are fetched with no cookie, after the books of the pass, and an
-    update that fails changes nothing the pass reports: the shelf's sync line
-    is the books'.
-  - **The bundle** is staged in the store's `bundle/next/` with the served
-    manifest as it is. On the next attach it is promoted and opened; if it does
-    not open, or the instrument in use does not load in it, it is rolled back,
-    the backend keeps the bundle it was running, and its SHA-256 is remembered
-    as refused so no later sync fetches it again. A reader with no bundle loaded
-    at all — just installed — switches to a staged one at the end of the pass,
-    since no screen depends on one. At backend start a current bundle that does
-    not open is rolled back the same way.
-  - **The QML** is placed in the AppLoad folder (the backend's working
-    directory, checked to be *Estante*'s) by replacing its `resources.rcc` in
-    one rename, the one it replaced kept in the store's `qml/previous/`.
-    AppLoad reads the file when it next loads the app, so the screens on view
-    are never changed under the person.
-  - **Too old.** When the served `hostApi` is newer than the backend's, the
-    backend keeps its bundle and QML, remembers the served `hostApi` in the
-    store (so the settings say it offline too), and the settings say *Update
-    the reader on your reMarkable* until a backend that speaks it is
-    installed. A served `hostApi` older than the backend's is fetched by
-    neither and said by nothing.
-- The **backend** runs as root, so it is not updated blindly. At first it is
-  installed by hand; a self-update, when it comes, will verify an Ed25519
-  signature over the manifest against a key built into the binary, stage the
-  new binary and switch on the next launch. A backend too old for the current
-  bundle keeps its last bundle and says *Update the reader on your reMarkable*.
+**Why not the site.** The QML runs inside xochitl, the tablet's own
+interface, as root and unsandboxed: it can reach the network and what
+xochitl's QML can, and with the `qt-command-executor` xovi extension
+installed, run commands as root. The backend runs as root. So both come from
+where only the repository's workflow can build them, as the music code does
+with them — it is sandboxed in goja (no host globals, data in and out), but
+one release keeps the three from ever disagreeing.
+
+- **Installing** (§2.1): `install.sh` downloads the latest release's
+  `manifest.json` and this architecture's folder from
+  `github.com/ruoso/estante-de-cifras/releases/latest/download`, checks the
+  folder against the manifest's SHA-256, and puts it in AppLoad's directory.
+- **Updating itself**: at the end of a pass that got as far as the snapshot,
+  the backend reads the latest release's `manifest.json` — from GitHub only,
+  over https, redirects followed only to GitHub's hosts, without the session —
+  and when its `release` is higher than the backend's own and not staged
+  already, fetches this architecture's folder, checks its SHA-256, and unpacks
+  it — directories and regular files only, every path under `estante/`, none
+  escaping it; the folder's `manifest.json` id `estante`, its `resources.rcc`
+  and `bundle/manifest.json` present, `backend/entry` an ELF for this
+  machine — into `exthome/estante.next`, beside AppLoad's directory, never in
+  it. A release not higher than the backend's own is never fetched, so no
+  release can take a tablet back. An update that fails changes nothing the
+  pass reports: the shelf's sync line is the books'.
+- **Switching**: a staged release is never put in place under a screen.
+  Settings says *A new version is ready: it starts the next time Estante
+  opens*; once no frontend is attached (AppLoad's −3 with none left, or a
+  pass ending with none), the backend renames the folder to
+  `exthome/estante.previous` (replacing the one before), the staged folder
+  into its place, and exits, so the next launch runs the new screens, music
+  code and backend together. A swap that fails puts the folder back and the
+  backend runs on. Going back is the install's: the previous folder in place
+  (INSTALL.md §6).
+- **The music code** switches as before, through the store: at start the
+  backend stages the folder's `bundle/` in `bundle/next/` when it is not the
+  one current or staged and was not refused — at once current when there is
+  none — and switches to it on the next frontend attach; a bundle that does
+  not open, or in which the instrument in use does not load, is rolled back
+  to the last good one and remembered as refused, so no folder stages it
+  again.
+- **`hostApi`** is the host API the bundle and the backend share (§4); the
+  QML's messages (§6) follow it too. One release builds all three, so they
+  always agree; the backend refuses a bundle of another `hostApi`.
 - A backend **built with its self-update off** (`-ldflags "-X
   main.selfUpdate=off"`, what `install.sh`'s `ESTANTE_FROM_SOURCE=1` builds)
-  never checks the site: the bundle and the QML the install put in place —
-  built from the same checkout, or the site's, checked against its manifest —
-  stay until the next install. The install stages the bundle in `bundle/next/`
-  as an update would, so the switch on the next attach, and its rollback, are
-  the same. `--version` says *(self-update off)*.
+  never checks for a release: what the install put in the folder — built from
+  the same checkout, or the release's — stays until the next install.
+  `--version` says *(self-update off)*.
 
 ## 9. Testing and building
 
@@ -616,20 +615,26 @@ bundle), and cross-builds the backend for **amd64** (the tests' host),
 **armv7** (the rM2) and **arm64** (the Paper Pro), so a change that breaks an
 ARM build fails the gate; it then assembles the armv7 and arm64 app folders
 and loads each folder's `resources.rcc` the way AppLoad does, so a QML file the
-folder does not carry, or one that does not compile, fails it too. The **Dockerfile**'s `reader` stage builds the
-backend for armv7 and arm64, compiles the QML with the gate's own pinned
-`pyside6-rcc` into each app folder (`tools/appfolder`), and lays out the payload
-of §8 with `remarkable/tools/payload` — beside the bundle the app's build made —
-into `/srv/app/device/`.
+folder does not carry, or one that does not compile, fails it too. A
+**release** (§8) is `.github/workflows/reader-release.yml`: on a `reader-v<N>`
+tag it tests the reader, builds the backend for armv7 and arm64, compiles the
+QML with the gate's own pinned `pyside6-rcc` into each app folder with the
+app's device bundle (`tools/appfolder`), loads each as AppLoad does, lays out
+the release with `remarkable/tools/payload` and publishes it as the GitHub
+release of that tag. The site's image carries none of it.
 
 ## 10. Security and privacy
 
 - The session lives in the store, mode 0600, under root's home; it is
   read-only by scope (§5.1) and revocable from the account.
-- HTTPS to the one origin only; the backend never listens on a port.
+- HTTPS to the one origin only for the account, and to GitHub only for a
+  release (§8); the backend never listens on a port.
 - No song text, title, label or shape in a log, as everywhere (standing rule).
-- The bundle and the QML are checked by hash against a manifest fetched over
-  HTTPS; the backend binary is never replaced unsigned (§8).
+- What runs on the tablet — the backend (root), the QML (inside xochitl,
+  root, unsandboxed), the bundle (sandboxed in goja) — comes only from a
+  GitHub release of the repository, built by its workflow from one commit,
+  each folder checked against the release's manifest's SHA-256, never older
+  than what runs; the site can choose none of it (§8).
 
 ## 11. Risks and open questions
 

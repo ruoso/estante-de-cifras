@@ -79,11 +79,17 @@ type options struct {
 	Backend string
 	QML     string
 	RCC     string
+	Bundle  string
 	Out     string
 }
 
+// BundleDir is the folder's music code: the app's device bundle, its
+// manifest.json and the bundle that manifest names (design §8), which the
+// backend stages in its store when it differs from the one it reads with.
+const BundleDir = "bundle"
+
 // build writes opts.Out/estante/ — manifest.json, icon.png, resources.rcc,
-// backend/entry — replacing an existing one whole. It assembles the folder
+// backend/entry, bundle/ — replacing an existing one whole. It assembles the folder
 // beside it and renames it into place, so a failure leaves the old folder.
 func build(opts options, rcc rccFunc) error {
 	want, ok := machines[opts.Arch]
@@ -94,6 +100,10 @@ func build(opts options, rcc rccFunc) error {
 		return err
 	}
 	files, err := qmlFiles(opts.QML)
+	if err != nil {
+		return err
+	}
+	bundleName, err := bundleNamed(opts.Bundle)
 	if err != nil {
 		return err
 	}
@@ -126,6 +136,14 @@ func build(opts options, rcc rccFunc) error {
 	if err := copyFile(opts.Backend, filepath.Join(tmp, "backend", "entry"), 0o755); err != nil {
 		return err
 	}
+	if err := os.Mkdir(filepath.Join(tmp, BundleDir), 0o755); err != nil {
+		return err
+	}
+	for _, name := range []string{"manifest.json", bundleName} {
+		if err := copyFile(filepath.Join(opts.Bundle, name), filepath.Join(tmp, BundleDir, name), 0o644); err != nil {
+			return err
+		}
+	}
 
 	// The qrc lives outside the folder, so it never ships.
 	work, err := os.MkdirTemp("", "appfolder-")
@@ -150,6 +168,25 @@ func build(opts options, rcc rccFunc) error {
 		return err
 	}
 	return os.Rename(tmp, dest)
+}
+
+// bundleNamed is the bundle the device build's manifest in dir names
+// (bundle.<hash>.js): only it is carried, never an earlier build's beside it.
+func bundleNamed(dir string) (string, error) {
+	raw, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+	if err != nil {
+		return "", fmt.Errorf("--bundle: %w", err)
+	}
+	var m struct {
+		Bundle struct {
+			Path string `json:"path"`
+		} `json:"bundle"`
+	}
+	if json.Unmarshal(raw, &m) != nil || m.Bundle.Path == "" || filepath.Base(m.Bundle.Path) != m.Bundle.Path ||
+		!strings.HasPrefix(m.Bundle.Path, "bundle.") || !strings.HasSuffix(m.Bundle.Path, ".js") {
+		return "", fmt.Errorf("--bundle %s: its manifest.json names no bundle", dir)
+	}
+	return m.Bundle.Path, nil
 }
 
 // checkELF refuses a backend that is not an ELF executable for class and

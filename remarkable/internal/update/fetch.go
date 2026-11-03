@@ -1,9 +1,10 @@
 package update
 
-// Fetching from /device/ (constraints 4–6): GET <origin>/device/<name> with
-// sync's HTTP client, no cookie (the payload is public; the session goes only
-// where it is needed), no redirect off the origin, only a 200, and every body
-// read through its limit.
+// Fetching a release (§8, §10): GET with sync's HTTP client, no cookie (a
+// release is public; the session goes only to the service), only https, and
+// redirects followed only to GitHub — releases/latest/download answers with
+// a redirect to the release's asset on GitHub's asset hosts — only a 200,
+// and every body read through its limit.
 
 import (
 	"context"
@@ -17,23 +18,28 @@ import (
 	"strings"
 )
 
-// The limits a body is read through; vars so a test can lower them.
-var (
-	maxManifest int64 = 64 << 10
-	maxFile     int64 = 32 << 20
-)
+// releaseHost reports whether u is one GitHub serves releases from: github.com
+// and its asset hosts (objects. and release-assets.githubusercontent.com).
+// A test lets its own server through.
+var releaseHost = func(u *url.URL) bool {
+	if u.Scheme != "https" || u.User != nil {
+		return false
+	}
+	h := strings.ToLower(u.Hostname())
+	return h == "github.com" || strings.HasSuffix(h, ".githubusercontent.com")
+}
 
-// deviceClient is client without a cookie jar and with no redirect followed
-// off origin.
-func deviceClient(client *http.Client, origin *url.URL) *http.Client {
+// releaseClient is client without a cookie jar, following redirects only to
+// a release host.
+func releaseClient(client *http.Client) *http.Client {
 	if client == nil {
 		client = &http.Client{}
 	}
 	c := *client
 	c.Jar = nil
 	c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		if !sameOrigin(origin, req.URL) {
-			return errors.New("redirect off the origin")
+		if !releaseHost(req.URL) {
+			return errors.New("redirect off GitHub")
 		}
 		if len(via) >= 10 {
 			return errors.New("too many redirects")
@@ -43,32 +49,13 @@ func deviceClient(client *http.Client, origin *url.URL) *http.Client {
 	return &c
 }
 
-// sameOrigin reports whether u has exactly origin's scheme, host and port,
-// and no credentials (design §10).
-func sameOrigin(origin, u *url.URL) bool {
-	return u.User == nil &&
-		strings.EqualFold(u.Scheme, origin.Scheme) &&
-		strings.EqualFold(u.Hostname(), origin.Hostname()) &&
-		portOf(u) == portOf(origin)
-}
-
-func portOf(u *url.URL) string {
-	if p := u.Port(); p != "" {
-		return p
+// get fetches raw, refusing a URL off GitHub, an answer that is not a 200 or a
+// body over limit. role names the file in an error.
+func get(ctx context.Context, client *http.Client, raw, role string, limit int64) ([]byte, error) {
+	u, err := url.Parse(raw)
+	if err != nil || !releaseHost(u) {
+		return nil, fmt.Errorf("update: %s: not a release URL", role)
 	}
-	switch strings.ToLower(u.Scheme) {
-	case "https":
-		return "443"
-	case "http":
-		return "80"
-	}
-	return ""
-}
-
-// get fetches /device/<name> from origin, refusing an answer that is not a
-// 200 or a body over limit. role names the file in an error.
-func get(ctx context.Context, client *http.Client, origin *url.URL, role, name string, limit int64) ([]byte, error) {
-	u := origin.ResolveReference(&url.URL{Path: "/device/" + name})
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("update: %s: request: %w", role, err)
@@ -90,18 +77,6 @@ func get(ctx context.Context, client *http.Client, origin *url.URL, role, name s
 	}
 	if int64(len(body)) > limit {
 		return nil, fmt.Errorf("update: %s: %w", role, ErrTooLarge)
-	}
-	return body, nil
-}
-
-// getChecked fetches f and refuses a body whose SHA-256 is not f's.
-func getChecked(ctx context.Context, client *http.Client, origin *url.URL, role string, f File) ([]byte, error) {
-	body, err := get(ctx, client, origin, role, f.Path, maxFile)
-	if err != nil {
-		return nil, err
-	}
-	if hexSum(body) != f.SHA256 {
-		return nil, fmt.Errorf("update: %s: %w", role, ErrChecksum)
 	}
 	return body, nil
 }

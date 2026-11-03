@@ -1,9 +1,10 @@
 package store
 
-// The update record and the QML's previous slot (reader.self_update;
-// docs/remarkable-reader.md §8): what the self-update remembers between
-// passes and restarts. Both sit beside the bundle slots and, like them, are
-// the app's code and not the account's, so Sign out keeps them.
+// The update record (reader.self_update; docs/remarkable-reader.md §8): the
+// bundles refused — a bundle that would not open, or that the instrument
+// would not load in — so none is staged again. It sits beside the bundle
+// slots and, like them, is the app's code and not the account's, so Sign out
+// keeps it.
 
 import (
 	"encoding/json"
@@ -14,12 +15,8 @@ import (
 )
 
 const (
-	// updateFile is bundle/update.json: {servedHostApi, refused}.
+	// updateFile is bundle/update.json: {refused}.
 	updateFile = "update.json"
-	// qmlDir/qmlPrevSub is where the QML a placement replaced is kept.
-	qmlDir     = "qml"
-	qmlPrevSub = "previous"
-	qmlFile    = "resources.rcc"
 	// maxRefused is how many refused bundles are remembered, the oldest
 	// dropped first.
 	maxRefused = 16
@@ -27,8 +24,7 @@ const (
 
 // updateRecord is bundle/update.json.
 type updateRecord struct {
-	ServedHostAPI int      `json:"servedHostApi"`
-	Refused       []string `json:"refused"`
+	Refused []string `json:"refused"`
 }
 
 // readUpdate reads the record; absent or unreadable reads as empty.
@@ -75,50 +71,10 @@ func (s *Store) Refused() []string {
 	return s.readUpdate().Refused
 }
 
-// SetServedHostAPI remembers the hostApi the site last served; no write when
-// it is the one remembered.
-func (s *Store) SetServedHostAPI(api int) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	r := s.readUpdate()
-	if r.ServedHostAPI == api {
-		if _, err := os.Stat(filepath.Join(s.root, bundleDir, updateFile)); err == nil {
-			return nil
-		}
-	}
-	r.ServedHostAPI = api
-	return s.writeUpdate(r)
-}
-
-// ServedHostAPI is the hostApi the site last served (0 before any).
-func (s *Store) ServedHostAPI() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.readUpdate().ServedHostAPI
-}
-
 // StagedBundleDir is the staged bundle's directory; false when none is staged.
 func (s *Store) StagedBundleDir() (string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	dir := s.slot(slotNext)
 	return dir, isDir(dir)
-}
-
-// PreviousQML is the path the QML a placement replaced is kept at
-// (qml/previous/resources.rcc), present or not.
-func (s *Store) PreviousQML() string {
-	return filepath.Join(s.root, qmlDir, qmlPrevSub, qmlFile)
-}
-
-// KeepPreviousQML keeps data as qml/previous/resources.rcc, replacing what
-// was kept.
-func (s *Store) KeepPreviousQML(data []byte) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	dir := filepath.Dir(s.PreviousQML())
-	if err := os.MkdirAll(dir, dirMode); err != nil {
-		return fmt.Errorf("store: keep previous qml: %w", err)
-	}
-	return writeAtomic(dir, qmlFile, data, fileMode, "previous qml")
 }
