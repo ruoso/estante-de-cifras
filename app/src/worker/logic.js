@@ -1909,6 +1909,9 @@ export function createWorkerLogic(port, options = {}) {
               kickFill({ reconcile: true });
               await evaluateMySongsOffer();
             }
+            // Signed in again: a book left `signed_out` (its pushes refused
+            // with 401) sends its waiting saves now, not on the next heartbeat.
+            ensureSyncScheduler().trigger();
             break;
           }
           case CommandKind.KEEP_BOTH_MY_SONGS: {

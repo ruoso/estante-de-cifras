@@ -102,3 +102,21 @@ export function readerPushRefused(err) {
     return false;
   }
 }
+
+/**
+ * Does this error mean the device is not signed in — the service's `401` on a
+ * change check or a git request? The device keeps its account locally, so it
+ * can believe it is signed in while the session cookie is gone (a phone that
+ * ended the app's process dropped it, or the session was signed out from
+ * another device). Nothing it pushes can go up until the person signs in
+ * again, so the engine says so (`signed_out`) instead of reading it as offline.
+ *
+ * The change-check client throws an Error carrying `status`; isomorphic-git's
+ * `HttpError` carries it as `data.statusCode`. Anything else is false.
+ *
+ * @param {unknown} err
+ * @returns {boolean}
+ */
+export function isSignedOut(err) {
+  return err?.status === 401 || err?.data?.statusCode === 401;
+}

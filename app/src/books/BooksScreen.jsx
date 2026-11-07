@@ -54,7 +54,7 @@ import {
 import { inUseEntry } from '../instruments/InstrumentChip.jsx';
 import { chipLabel } from '../instruments/instrument-helpers.js';
 import { DEFAULT_DIALECT } from '../core/notation/dialects.js';
-import { anyOutOfStep } from '../sync-display.js';
+import { anyOutOfStep, signedOutSaves } from '../sync-display.js';
 import { SyncBadge } from './BookBar.jsx';
 import LeaveDialog from './LeaveDialog.jsx';
 import './books.css';
@@ -667,6 +667,7 @@ export default function BooksScreen({
   const showRestored = home?.restored === true && !dismissed;
   const filling = Object.keys(fill ?? {}).length > 0;
   const sync = useSlice(store, 'sync');
+  const signedOut = useMemo(() => signedOutSaves(sync), [sync]);
   const originals = useSlice(store, 'originals');
   const mine = useSlice(store, 'mine');
   const index = useSlice(store, 'index');
@@ -792,6 +793,22 @@ export default function BooksScreen({
             onDismissRestored();
           }}
         />
+      ) : null}
+
+      {signedOut !== null ? (
+        // The service answered 401: this device keeps its account, but the
+        // session is gone, so nothing can go up. Say it once above the shelf,
+        // with the saves it holds back, and offer the sign-in that sends them.
+        <div className="notice accent signed-out-notice">
+          <span role="status">
+            {signedOut > 0
+              ? t('books.signedOutNotice', { count: signedOut })
+              : t('books.signedOutNoticeNone')}
+          </span>
+          <Button className="btn" onPress={() => onSignInFirstRun()}>
+            {t('books.signedOutSignIn')}
+          </Button>
+        </div>
       ) : null}
 
       {filling ? (

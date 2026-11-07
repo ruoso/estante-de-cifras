@@ -125,6 +125,15 @@ export default {
     // books.fork (workflow 11): the shelf's fork lines and the cannot-save word —
     // each state carried by a word, never colour alone.
     cannotSaveHere: 'can’t save here',
+    // The service answered 401 (sync): this device is not signed in, so
+    // nothing goes up until the person signs in again.
+    signInToSync: 'sign in to sync',
+    signedOutNotice: {
+      one: 'You’re not signed in on this device, so {count} save can’t go up. Sign in to send it.',
+      other: 'You’re not signed in on this device, so {count} saves can’t go up. Sign in to send them.',
+    },
+    signedOutNoticeNone: 'You’re not signed in on this device, so your books don’t sync. Sign in to sync them.',
+    signedOutSignIn: 'Sign in',
     fromOriginal: 'from {original}',
     originalNewSaves: {
       one: '{original} has {count} new save.',

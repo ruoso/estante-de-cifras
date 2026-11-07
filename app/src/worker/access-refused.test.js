@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isAccessRefused, takenDownReason, readerPushRefused } from './access-refused.js';
+import { isAccessRefused, takenDownReason, readerPushRefused, isSignedOut } from './access-refused.js';
 
 // unit — the lost-access classifier (sync.lost_access) and the take-down
 // classifier (books.notice_surface). Pins DIRECTION §3.3 L338-341 (the service
@@ -135,5 +135,22 @@ describe('readerPushRefused (unit; books.fork Constraint 6, workflow 10 L83-85)'
     expect(readerPushRefused(httpError(403))).toBe(false);
     expect(readerPushRefused(httpError(403, 'not json'))).toBe(false);
     expect(readerPushRefused(null)).toBe(false);
+  });
+});
+
+describe('isSignedOut — the service answered 401 (the session is gone)', () => {
+  it('is true for a git 401 (isomorphic-git HttpError) and a change-check 401', () => {
+    expect(isSignedOut(httpError(401))).toBe(true);
+    const checkErr = new Error('change-check: 401');
+    checkErr.status = 401;
+    expect(isSignedOut(checkErr)).toBe(true);
+  });
+
+  it('is false offline, for a 403, a 404 and a 5xx', () => {
+    expect(isSignedOut(new TypeError('Failed to fetch'))).toBe(false);
+    expect(isSignedOut(httpError(403))).toBe(false);
+    expect(isSignedOut(httpError(404))).toBe(false);
+    expect(isSignedOut(httpError(500))).toBe(false);
+    expect(isSignedOut(null)).toBe(false);
   });
 });
