@@ -354,7 +354,9 @@ func assertSessionCookie(t *testing.T, resp *http.Response) {
 	if raw == "" {
 		t.Fatalf("no %s cookie set; Set-Cookie = %v", session.CookieName, resp.Header.Values("Set-Cookie"))
 	}
-	for _, want := range []string{"HttpOnly", "Secure", "SameSite=Lax", "Path=/"} {
+	// Max-Age keeps the cookie past the browser session: a phone that ends the
+	// app's process must not lose the sign-in (session.cookieMaxAge).
+	for _, want := range []string{"HttpOnly", "Secure", "SameSite=Lax", "Path=/", "Max-Age=7776000"} {
 		if !strings.Contains(raw, want) {
 			t.Errorf("session cookie %q missing attribute %q", raw, want)
 		}

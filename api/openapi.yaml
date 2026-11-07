@@ -1060,6 +1060,8 @@ components:
       description: >-
         The session cookie, set on sign-in and cleared on sign-out. One origin,
         so it simply flows; there is no CORS and no bearer token (DIRECTION §3.3).
+        It lasts ninety days (Max-Age), renewed by every change check, so a
+        device in use stays signed in even when the browser ends its session.
 
   parameters:
     BookId:

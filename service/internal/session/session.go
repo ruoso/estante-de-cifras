@@ -60,8 +60,31 @@ func Issue(ctx context.Context, db Execer, accountID string, r *http.Request, w 
 		return fmt.Errorf("session: inserting a session row: %w", err)
 	}
 
-	writeCookie(w, id, 0, time.Time{})
+	writeCookie(w, id, cookieMaxAge, time.Now().Add(cookieMaxAge*time.Second))
 	return nil
+}
+
+// cookieMaxAge is how long, in seconds, the estante_session cookie lives on the
+// device: ninety days, renewed by Refresh while the device keeps using it. A
+// browser-session cookie (no Max-Age) is thrown away when a phone ends the
+// app's process — an installed web app on iOS loses it every time it is swiped
+// away — and the device, which keeps its account locally, went on believing it
+// was signed in while every sync was refused. The row has no expiry of its own:
+// only revocation (Revoke) ends a session, so the cookie's lifetime is the one
+// clock, and a device unused for ninety days signs in again.
+const cookieMaxAge = 90 * 24 * 60 * 60
+
+// Refresh renews the estante_session cookie the request carries for another
+// cookieMaxAge, keeping its value. Call it only after Resolve accepted the
+// session, so a revoked or unknown cookie is never renewed. The change check
+// calls it: a device that syncs (every pass, at least every five minutes while
+// the app is open) stays signed in.
+func Refresh(w http.ResponseWriter, r *http.Request) {
+	c, err := r.Cookie(CookieName)
+	if err != nil || c.Value == "" {
+		return
+	}
+	writeCookie(w, c.Value, cookieMaxAge, time.Now().Add(cookieMaxAge*time.Second))
 }
 
 // Revoke marks a session revoked (lazy sign-out, workflow 13; refinement
@@ -95,10 +118,10 @@ func ClearCookie(w http.ResponseWriter) {
 	writeCookie(w, "", -1, time.Unix(0, 0))
 }
 
-// writeCookie sets the estante_session cookie with the fixed attributes Issue
-// and ClearCookie share, so they can never drift apart. maxAge/expires are 0
-// and the zero time for a session cookie (Issue), and -1 / the epoch to expire
-// it (ClearCookie).
+// writeCookie sets the estante_session cookie with the fixed attributes Issue,
+// Refresh and ClearCookie share, so they can never drift apart. maxAge/expires
+// are cookieMaxAge and that instant to keep it (Issue, Refresh), and -1 / the
+// epoch to expire it (ClearCookie).
 func writeCookie(w http.ResponseWriter, value string, maxAge int, expires time.Time) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     CookieName,
