@@ -52,7 +52,7 @@ import { parse, diff } from 'cifra-md';
 import { authorFrom } from './author.js';
 import { reapplyWorkingText } from './cifra-merge-driver.js';
 import { HOME_BOOK_ID } from './home-book.js';
-import { isAccessRefused, takenDownReason, readerPushRefused } from './access-refused.js';
+import { isAccessRefused, takenDownReason, readerPushRefused, isSignedOut } from './access-refused.js';
 
 // A merge that does not merge cleanly (a cifra-aware conflict, or isomorphic-git
 // refusing an unsupported merge). The engine halts the book and emits
@@ -786,6 +786,10 @@ export function createSyncEngine(deps = {}) {
             emitFact(bookId, 'gone');
             return;
           }
+          if (isSignedOut(err)) {
+            emitFact(bookId, 'signed_out', { savesWaiting: await countAhead(bookId) });
+            return;
+          }
           emitFact(bookId, 'saves_waiting', { savesWaiting: await countAhead(bookId) });
           return;
         }
@@ -842,6 +846,14 @@ export function createSyncEngine(deps = {}) {
         // still a member) is NOT lost access — it falls through to `saves_waiting`.
         if (isAccessRefused(err)) {
           emitFact(bookId, 'gone');
+          return;
+        }
+        // A `401`: the session is gone (the cookie dropped, or signed out from
+        // another device). The push cannot go up until the person signs in
+        // again, so say so rather than read it as offline — that hid it behind
+        // "N saves waiting" for good. The commits are kept.
+        if (isSignedOut(err)) {
+          emitFact(bookId, 'signed_out', { savesWaiting: await countAhead(bookId) });
           return;
         }
         // A `403 forbidden` is the service refusing a READER's push
@@ -969,6 +981,10 @@ export function createSyncEngine(deps = {}) {
           // offline — fall through to the best-effort push, retried next pass.
           if (isAccessRefused(err)) {
             emitFact(bookId, 'gone');
+            return;
+          }
+          if (isSignedOut(err)) {
+            emitFact(bookId, 'signed_out', { savesWaiting: await countAhead(bookId) });
             return;
           }
           fetched = false; // offline; fall through to the best-effort push
@@ -1107,8 +1123,24 @@ export function createSyncEngine(deps = {}) {
       news = await changeCheck.check(
         books.map(({ bookId, head, checkId }) => ({ bookId: checkId ?? bookId, head })),
       );
-    } catch {
+    } catch (err) {
       news = null;
+      if (isSignedOut(err)) {
+        // The service answered, and this device is not signed in: no fetch or
+        // push can go through, so none is tried. Every book says `signed_out`
+        // with its waiting saves, and the pass asks for no retry — signing in
+        // again triggers the next one (ATTACH_HOME).
+        for (const { bookId } of books) {
+          let savesWaiting = 0;
+          try {
+            savesWaiting = await countAhead(bookId);
+          } catch {
+            savesWaiting = 0;
+          }
+          emitFact(bookId, 'signed_out', { savesWaiting });
+        }
+        return { retry: false };
+      }
     }
     // A book named in the check by another id (the home book, by its service
     // id) reads its answer back under its own id.

@@ -718,7 +718,9 @@ export const EventKind = Object.freeze({
   // reader's, `403 forbidden` — still a member, fetched and read, its saves
   // waiting for the fork; books.fork, carrying `savesWaiting`) or 'taken_down' (the service removed the book for
   // a copyright notice; still a member — books.notice_surface, carrying the
-  // operator's reason as `reason`). `savesWaiting` counts the local-ahead commits
+  // operator's reason as `reason`) or 'signed_out' (the service answered `401`:
+  // the device is not signed in, so nothing goes up until the person signs in
+  // again — carrying `savesWaiting`). `savesWaiting` counts the local-ahead commits
   // for the "N saves waiting" word; `lastInStep` is the instant the book was last
   // in step; `reason` is the take-down message on a `taken_down` fact. A book an
   // event does not touch keeps its slice reference.

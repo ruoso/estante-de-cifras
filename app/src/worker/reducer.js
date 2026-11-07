@@ -136,7 +136,7 @@ export const initialState = {
   // The per-book sync state (sync.engine, SYNC), keyed by `bookId`: `{ phase,
   // savesWaiting, lastInStep, reason, at }`. `phase` is carried as a word (never
   // colour alone) — 'syncing' | 'in_step' | 'saves_waiting' | 'offline' |
-  // 'needs_you' | 'gone' | 'cannot_save' | 'taken_down' (workflow 8 §What the
+  // 'needs_you' | 'gone' | 'cannot_save' | 'taken_down' | 'signed_out' (workflow 8 §What the
   // shelf says; 'cannot_save' is books.fork's reader-push refusal;
   // 'taken_down' is books.notice_surface, carrying the operator's copyright-notice
   // `reason`). The engine is the single source of

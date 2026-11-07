@@ -95,6 +95,9 @@ func handleChangeCheck(api *APIDeps) http.HandlerFunc {
 			writeUnauthorized(w)
 			return
 		}
+		// Every sync pass asks this, so a device in use renews its cookie here
+		// and stays signed in (session.Refresh).
+		session.Refresh(w, r)
 
 		var req changeCheckRequest
 		if err := decodeStrict(r, &req); err != nil {

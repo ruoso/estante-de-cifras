@@ -31,7 +31,14 @@ Each book has one state, shown only when it is not *in step*:
 - *2 saves waiting to go up* — offline, or the service unreachable;
 - *offline*, with when the book was last in step;
 - *needs you* — a conflict (workflow 9);
-- *no longer shared with you* (workflow 10).
+- *no longer shared with you* (workflow 10);
+- *sign in to sync* — the service answered that this device is not signed
+  in (its session ended, or was signed out from another device). The shelf
+  says once, above the books, how many saves are held back, with *Sign in*;
+  signing in sends them.
+
+A device stays signed in while it is used: the session cookie lasts ninety
+days and every sync renews it, so closing the app does not sign it out.
 
 The header shows one quiet mark when any book is not in step, and nothing
 otherwise. *Sync now* is on the book-management screen, and pulling down on

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	apicontract "estantedecifras.app/api"
+	"estantedecifras.app/service/internal/session"
 )
 
 // These behavior tests drive the real change-check handler through httptest
@@ -275,6 +276,25 @@ func TestChangeCheckRequestAndAuthEdges(t *testing.T) {
 	// No session -> 401.
 	if resp, _ := e.do(t, http.MethodPost, "/api/shelf/change-check", "", ccBody(t)); resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("no session: status = %d, want 401", resp.StatusCode)
+	}
+
+	// A signed-in change check renews the session cookie, same value, for
+	// another ninety days (session.Refresh).
+	{
+		resp, _ := e.do(t, http.MethodPost, "/api/shelf/change-check", cookie, ccBody(t))
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("signed in: status = %d, want 200", resp.StatusCode)
+		}
+		assertSessionCookie(t, resp)
+		var got string
+		for _, c := range resp.Cookies() {
+			if c.Name == session.CookieName {
+				got = c.Value
+			}
+		}
+		if got != cookie {
+			t.Errorf("renewed cookie %q, want the same session %q", got, cookie)
+		}
 	}
 
 	// Not an object / not JSON -> 400.

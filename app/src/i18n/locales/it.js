@@ -115,6 +115,15 @@ export default {
     noLongerShared: 'non più condiviso con te',
     // books.fork (workflow 11): le righe della copia propria sullo scaffale.
     cannotSaveHere: 'non puoi salvare qui',
+    // The service answered 401 (sync): this device is not signed in, so
+    // nothing goes up until the person signs in again.
+    signInToSync: 'accedi per sincronizzare',
+    signedOutNotice: {
+      one: 'Non hai effettuato l’accesso su questo dispositivo, quindi {count} salvataggio non può essere caricato. Accedi per inviarlo.',
+      other: 'Non hai effettuato l’accesso su questo dispositivo, quindi {count} salvataggi non possono essere caricati. Accedi per inviarli.',
+    },
+    signedOutNoticeNone: 'Non hai effettuato l’accesso su questo dispositivo, quindi i tuoi libri non si sincronizzano. Accedi per sincronizzarli.',
+    signedOutSignIn: 'Accedi',
     fromOriginal: 'da {original}',
     originalNewSaves: {
       one: '{original} ha {count} modifica nuova.',
