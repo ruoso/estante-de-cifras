@@ -68,6 +68,37 @@ function makeStore() {
 const lastCommand = (sent, kind) => [...sent].reverse().find((m) => m.kind === kind);
 
 describe('BooksScreen (behavior)', () => {
+  // The service answered 401: the device keeps its account but the session is
+  // gone. The book says *sign in to sync*, and one notice above the shelf says
+  // how many saves are held back and offers the sign-in that sends them.
+  it('a book signed out reads *sign in to sync*, with a notice that offers the sign-in', async () => {
+    const { store, emit } = makeStore();
+    const onSignInFirstRun = vi.fn();
+    const { container } = renderScreen(store, { onSignInFirstRun });
+    emit(
+      event(EventKind.SHELF, {
+        books: { 'b-1': { label: reg('Ensaio da Banda'), position: reg(0), role: reg('owner') } },
+        local: {},
+      }),
+    );
+    expect(screen.queryByText(/not signed in on this device/)).toBeNull();
+
+    emit(event(EventKind.SYNC, { bookId: 'b-1', phase: 'signed_out', savesWaiting: 3, at: AT }));
+
+    const row = screen.getByText('Ensaio da Banda').closest('.book-row');
+    expect(within(row).getByText('sign in to sync')).toBeInTheDocument();
+    expect(
+      screen.getByText('You’re not signed in on this device, so 3 saves can’t go up. Sign in to send them.'),
+    ).toBeInTheDocument();
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Sign in' })));
+    expect(onSignInFirstRun).toHaveBeenCalledTimes(1);
+    expect(await checkWcag21aa(container)).toHaveNoViolations();
+
+    // Signed in again, the pass lands: the notice goes.
+    emit(event(EventKind.SYNC, { bookId: 'b-1', phase: 'in_step', at: AT }));
+    expect(screen.queryByText(/not signed in on this device/)).toBeNull();
+  });
+
   // books.owner_can_save: a book the signed-in person put online (or forked) is
   // shelved with role `owner`; its row says *can save* in a word (workflow 7 L19).
   it('an owner-role row reads *On Estante · you can edit · …* (books.owner_can_save, workflow 7 L19)', async () => {

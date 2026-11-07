@@ -35,6 +35,7 @@ const OUT_OF_STEP = new Set([
   'gone',
   'cannot_save',
   'taken_down',
+  'signed_out',
 ]);
 
 // The last-in-step instant (an ISO §3 instant) as the HH:MM a person reads
@@ -69,6 +70,7 @@ function timeOf(iso) {
  *   gone          → "no longer shared with you"    (.badge.conflict.dot)
  *   taken_down    → "no longer shared with you"    (.badge.conflict.dot, same as gone)
  *   cannot_save   → "can't save here"              (.badge.conflict.dot; books.fork)
+ *   signed_out    → "sign in to sync"              (.badge.conflict.dot; the service's 401)
  *
  * @param {{ phase?: string, savesWaiting?: number, lastInStep?: string|null }|null|undefined} entry
  * @param {{ t: (key: string, params?: object) => string, now?: () => number }} options
@@ -113,6 +115,17 @@ export function syncDisplayFor(entry, options = {}) {
         dot: true,
         count: entry?.savesWaiting ?? 0,
       };
+    case 'signed_out':
+      // The service answered 401: this device is not signed in, so its saves
+      // cannot go up. Said in a word, with the count kept for the notice above
+      // the shelf — never "saves waiting", which reads as merely offline.
+      return {
+        kind: 'signed_out',
+        word: t('books.signInToSync'),
+        cls: 'conflict dot',
+        dot: true,
+        count: entry?.savesWaiting ?? 0,
+      };
     case 'taken_down':
       // A book the service took down for a copyright notice reads the same word
       // and badge as gone on every shelf (workflow 10 L113; books.notice_surface
@@ -145,4 +158,24 @@ export function anyOutOfStep(syncSlice) {
     if (OUT_OF_STEP.has(entry?.phase)) return true;
   }
   return false;
+}
+
+/**
+ * How many saves the shelf books not signed in are holding back, or null when
+ * no shelf book is `signed_out` — the Books screen's sign-in notice (the
+ * service's 401). The home book is excluded, as in `anyOutOfStep`.
+ *
+ * @param {Record<string, { phase?: string, savesWaiting?: number }>} syncSlice
+ * @returns {number|null}
+ */
+export function signedOutSaves(syncSlice) {
+  if (!syncSlice) return null;
+  let any = false;
+  let count = 0;
+  for (const [bookId, entry] of Object.entries(syncSlice)) {
+    if (bookId === HOME_BOOK_ID || entry?.phase !== 'signed_out') continue;
+    any = true;
+    count += entry?.savesWaiting ?? 0;
+  }
+  return any ? count : null;
 }

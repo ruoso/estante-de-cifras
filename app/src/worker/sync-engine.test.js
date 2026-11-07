@@ -118,6 +118,65 @@ describe('sync engine retry policy (unit)', () => {
   });
 });
 
+describe('sync engine signed out — the service answered 401 (unit)', () => {
+  const http401 = () => {
+    const err = new Error('HTTP Error: 401');
+    err.code = err.name = 'HttpError';
+    err.data = { statusCode: 401, statusMessage: 'Unauthorized' };
+    return err;
+  };
+
+  it('a change check refused 401 tries no fetch or push, says signed_out with the waiting saves, and asks no retry', async () => {
+    const err = new Error('change-check: 401');
+    err.status = 401;
+    const fetchBook = vi.fn(async () => {});
+    const pushBook = vi.fn(async () => {});
+    const { engine, facts } = makeEngine({
+      changeCheck: { check: vi.fn(async () => { throw err; }) },
+      fetchBook,
+      pushBook,
+      countAhead: async () => 3,
+    });
+
+    const result = await engine.pass();
+
+    expect(fetchBook).not.toHaveBeenCalled();
+    expect(pushBook).not.toHaveBeenCalled();
+    const fact = [...facts].reverse().find((f) => f.bookId === 'book1');
+    expect(fact.phase).toBe('signed_out');
+    expect(fact.savesWaiting).toBe(3);
+    expect(result).toEqual({ retry: false });
+  });
+
+  it('a push refused 401 says signed_out (not saves_waiting) and is not retried', async () => {
+    const pushBook = vi.fn(async () => {
+      throw http401();
+    });
+    const { engine, facts } = makeEngine({ pushBook, countAhead: async () => 3 });
+
+    const result = await engine.pass();
+
+    expect(pushBook).toHaveBeenCalledTimes(1);
+    const fact = [...facts].reverse().find((f) => f.bookId === 'book1');
+    expect(fact.phase).toBe('signed_out');
+    expect(fact.savesWaiting).toBe(3);
+    expect(result).toEqual({ retry: false });
+  });
+
+  it('a fetch refused 401 says signed_out and pushes nothing', async () => {
+    const fetchBook = vi.fn(async () => {
+      throw http401();
+    });
+    const pushBook = vi.fn(async () => {});
+    const { engine, facts } = makeEngine({ fetchBook, pushBook, countAhead: async () => 1 });
+
+    await engine.pass();
+
+    expect(pushBook).not.toHaveBeenCalled();
+    expect(lastPhase(facts)).toBe('signed_out');
+  });
+});
+
 describe('sync engine routing (unit)', () => {
   it('halts a book on a merge conflict and emits needs_you (no push)', async () => {
     const mergeBook = vi.fn(async () => {

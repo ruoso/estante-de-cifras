@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { syncDisplayFor, anyOutOfStep } from './sync-display.js';
+import { syncDisplayFor, anyOutOfStep, signedOutSaves } from './sync-display.js';
 import { t, setLocale } from './i18n/index.js';
 
 // unit — "deriving each state" (the .tji note's unit clause): the pure mapping
@@ -117,5 +117,28 @@ describe('anyOutOfStep — the header quiet mark (workflow 8 L36-37)', () => {
     expect(anyOutOfStep({ home: { phase: 'offline' } })).toBe(false);
     expect(anyOutOfStep({ home: { phase: 'offline' }, 'b-1': { phase: 'in_step' } })).toBe(false);
     expect(anyOutOfStep({ home: { phase: 'offline' }, 'b-1': { phase: 'gone' } })).toBe(true);
+  });
+});
+
+describe('signed out — the service answered 401', () => {
+  beforeAll(() => setLocale('en'));
+
+  it('signed_out → "sign in to sync" on .badge.conflict with the dot, keeping the count', () => {
+    const atom = syncDisplayFor({ phase: 'signed_out', savesWaiting: 3 }, { t });
+    expect(atom).toEqual({ kind: 'signed_out', word: 'sign in to sync', cls: 'conflict dot', dot: true, count: 3 });
+    expect(anyOutOfStep({ 'b-1': { phase: 'signed_out', savesWaiting: 3 } })).toBe(true);
+  });
+
+  it('signedOutSaves sums the shelf books held back, ignores the home book, and is null when none is signed out', () => {
+    expect(signedOutSaves({})).toBe(null);
+    expect(signedOutSaves({ a: { phase: 'saves_waiting', savesWaiting: 2 } })).toBe(null);
+    expect(
+      signedOutSaves({
+        a: { phase: 'signed_out', savesWaiting: 2 },
+        b: { phase: 'signed_out', savesWaiting: 1 },
+        home: { phase: 'signed_out', savesWaiting: 5 },
+      }),
+    ).toBe(3);
+    expect(signedOutSaves({ a: { phase: 'signed_out', savesWaiting: 0 } })).toBe(0);
   });
 });
