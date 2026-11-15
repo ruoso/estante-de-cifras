@@ -196,6 +196,21 @@ describe('UploadPreview — a real round-trip (workflow 7 §Uploading a book, §
     // The merge settles (SYNC) and the surface closes.
     await waitFor(() => expect(document.querySelector('.upload-preview')).toBeNull());
   });
+
+  it('a file that is not a zip is worded with the reader’s error code, through the real Worker', async () => {
+    const { store } = await makeWorkerStore('notzip');
+    render(
+      <ThemeRoot store={store}>
+        <ShelfWithUpload store={store} />
+      </ThemeRoot>,
+    );
+    act(() => store.open());
+
+    await uploadThroughSheet(new Blob([enc('these are not the bytes of a zip')]), 'notes.zip');
+
+    const status = await screen.findByText(/That file could not be read as a book zip/);
+    expect(status).toHaveTextContent('That file could not be read as a book zip. (Error code: zip_not_a_zip)');
+  });
 });
 
 // ---- synthetic preview models (inline endpoint) ----------------------------

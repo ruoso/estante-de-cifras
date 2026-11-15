@@ -53,7 +53,7 @@ import { parse } from 'cifra-md';
 import { canonicaliseFile } from './canonicalise.js';
 import { authorFrom } from './author.js';
 import { createMergePath, basename, titleOf, diffRow, readBlobBytes } from './bring-in.js';
-import { readZip } from './book-zip.js';
+import { readZip, ZipError } from './book-zip.js';
 import { readmeTitle } from './readme-title.js';
 import { GITATTRIBUTES_BYTES } from './books.js';
 
@@ -263,7 +263,7 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
   async function materialise(scratchDir, entries) {
     for (const { name, bytes } of entries) {
       const safe = safeEntryName(name);
-      if (safe === null) throw new Error('upload: unsafe entry name');
+      if (safe === null) throw new ZipError('zip_unsafe_name', 'upload: unsafe entry name');
       if (safe.endsWith('/')) continue;
       if (safe === '.git/config' || safe.startsWith('.git/hooks/')) continue;
       const destDir = `${scratchDir}/${safe}`.split('/').slice(0, -1).join('/');

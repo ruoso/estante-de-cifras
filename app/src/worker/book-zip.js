@@ -55,9 +55,23 @@ async function deflate(bytes) {
   }
 }
 
+/**
+ * A refusal to read a zip, with a `code` naming which check failed, so the
+ * view can show it (the Worker's ERROR carries an error's code as its `cause`):
+ * `zip_not_a_zip`, `zip_unreadable`, `zip_entry_damaged`,
+ * `zip_cannot_decompress`.
+ */
+export class ZipError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.name = 'ZipError';
+    this.code = code;
+  }
+}
+
 async function inflate(bytes) {
   if (typeof DecompressionStream === 'undefined') {
-    throw new Error('book-zip: this environment cannot decompress a zip');
+    throw new ZipError('zip_cannot_decompress', 'book-zip: this environment cannot decompress a zip');
   }
   return through(bytes, new DecompressionStream('deflate-raw'));
 }
@@ -147,7 +161,9 @@ export async function createZip(files, at = new Date()) {
  *
  * @param {ArrayBuffer} buffer
  * @returns {Promise<{ name: string, bytes: Uint8Array }[]>}
- * @throws when it is not a zip, or an entry did not arrive whole
+ * @throws {ZipError} when it is not a zip (`zip_not_a_zip`), its directory
+ *   cannot be read (`zip_unreadable`), an entry did not arrive whole
+ *   (`zip_entry_damaged`) or cannot be decompressed here (`zip_cannot_decompress`)
  */
 export async function readZip(buffer) {
   const bytes = new Uint8Array(buffer);
@@ -163,7 +179,7 @@ export async function readZip(buffer) {
       break;
     }
   }
-  if (end < 0) throw new Error('book-zip: that file is not a zip');
+  if (end < 0) throw new ZipError('zip_not_a_zip', 'book-zip: that file is not a zip');
 
   const count = view.getUint16(end + 10, true);
   let at = view.getUint32(end + 16, true);
@@ -171,7 +187,7 @@ export async function readZip(buffer) {
 
   for (let i = 0; i < count; i += 1) {
     if (view.getUint32(at, true) !== CENTRAL_SIGNATURE) {
-      throw new Error('book-zip: that zip is not readable');
+      throw new ZipError('zip_unreadable', 'book-zip: that zip is not readable');
     }
     const method = view.getUint16(at + 10, true);
     const sum = view.getUint32(at + 16, true);
@@ -188,7 +204,7 @@ export async function readZip(buffer) {
     const body = bytes.subarray(from, from + compressed);
     const raw = method === DEFLATED ? await inflate(body) : body;
     if (crc32(raw) !== sum) {
-      throw new Error('book-zip: an entry did not arrive whole');
+      throw new ZipError('zip_entry_damaged', 'book-zip: an entry did not arrive whole');
     }
     files.push({ name, bytes: raw });
 
