@@ -257,11 +257,14 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
 
   // Write the zip entries into the scratch dir, refusing a zip-slip name and
   // ignoring `.git/config` (and its remotes) and `.git/hooks` — nothing in them
-  // is read or run (Constraints).
+  // is read or run (Constraints). A folder entry (a name ending in `/`, which a
+  // computer's zip tool writes for every folder; the download's writer never
+  // does) holds nothing: the folders a file needs are made when it is written.
   async function materialise(scratchDir, entries) {
     for (const { name, bytes } of entries) {
       const safe = safeEntryName(name);
       if (safe === null) throw new Error('upload: unsafe entry name');
+      if (safe.endsWith('/')) continue;
       if (safe === '.git/config' || safe.startsWith('.git/hooks/')) continue;
       const destDir = `${scratchDir}/${safe}`.split('/').slice(0, -1).join('/');
       await mkdirp(destDir);

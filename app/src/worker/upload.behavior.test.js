@@ -13,7 +13,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { waitFor } from '@testing-library/react';
 import { spawn } from 'node:child_process';
-import { rmSync } from 'node:fs';
+import { rmSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
 import {
   init as gitInit,
   add as gitAdd,
@@ -22,6 +24,8 @@ import {
   readBlob,
   log as gitLog,
 } from 'isomorphic-git';
+
+import { parse as parseSong, unknownTokens } from 'cifra-md';
 
 import { createFileSystem } from './fs.js';
 import { createGitLayer } from './git.js';
@@ -263,6 +267,119 @@ describe('upload — import as a new book (workflow 7 §Ends one of two ways, sp
     const stored = await w.fs.promises.readFile(`${dir}/partida.cifra.md`, 'utf8');
     expect(stored).toBe(canonicaliseFile('partida.cifra.md', nonCanonical).text);
     expect(stored).not.toBe(nonCanonical); // landed canonical, not its original spelling
+  });
+});
+
+// A book made on a computer: the repository is built by the git CLI, not by
+// isomorphic-git, and zipped by the computer's own zip tool, which (unlike the
+// download's writer) gives every folder an entry of its own — a name ending in
+// `/` with no bytes (workflow 7 §Uploading a book: "unzipped the download,
+// edited a song in a text editor and zipped the folder again"). Both must import.
+describe('upload — a book zipped on a computer (workflow 7 §Uploading a book)', () => {
+  // Real chord charts, canonical, so opening one can be checked down to its
+  // chords — one with a repeat and first and second endings.
+  const PARTIDA = ['# Partida', '- artist: A Tester', '', '## A', '```', 'Dm | A7 | % | Dm', 'Gm | Dm | E7 A7 | Dm', '```', ''].join('\n');
+  const CHEGADA = ['# Chegada', '- artist: A Tester', '', '## A', '```', '|: F | D7 | Gm | C7', '1. | F :| 2. F C7 |', '```', ''].join('\n');
+  const CLI_FILES = {
+    'README.md': '# Caderno do computador\n',
+    '.gitattributes': '*.cifra.md merge=cifra\n*.setlist.md merge=cifra\n',
+    'partida.cifra.md': PARTIDA,
+    'choros/chegada.cifra.md': CHEGADA,
+  };
+  // The chord symbols of a parsed song, in the order written.
+  const chordsOf = (model) =>
+    model.sections.flatMap((s) =>
+      s.body
+        .filter((part) => part.type === 'music')
+        .flatMap((part) => part.lines.flatMap((l) => (l.measures ?? []).flatMap((m) => m.items)))
+        .filter((it) => it.type === 'chord')
+        .map((it) => it.symbol),
+    );
+
+  // A repository built with the git CLI on the real filesystem, one commit on
+  // `main`. Returns its directory and head.
+  async function cliRepo(files) {
+    const dir = mkdtempSync(join(tmpdir(), 'upload-cli-'));
+    scratch.push(dir);
+    await run('git', ['init', '-q', '-b', 'main', dir]);
+    for (const [path, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(dir, path)), { recursive: true });
+      writeFileSync(join(dir, path), text);
+    }
+    await run('git', ['-C', dir, 'add', '-A']);
+    await run('git', ['-C', dir, '-c', 'user.name=Up Loader', '-c', 'user.email=up@example.invalid',
+      'commit', '-q', '-m', 'Create book']);
+    return { dir, head: (await run('git', ['-C', dir, 'rev-parse', 'HEAD'])).trim() };
+  }
+
+  // Zip a folder from the real filesystem, everything under it including `.git`,
+  // with or without an entry for each folder, as a computer's zip tool writes it.
+  async function zipFolder(root, { folderEntries }) {
+    const entries = [];
+    const walk = (rel) => {
+      for (const name of readdirSync(join(root, rel)).sort()) {
+        const path = rel ? `${rel}/${name}` : name;
+        if (statSync(join(root, path)).isDirectory()) {
+          if (folderEntries) entries.push({ name: `${path}/`, bytes: new Uint8Array(0) });
+          walk(path);
+        } else {
+          entries.push({ name: path, bytes: new Uint8Array(readFileSync(join(root, path))) });
+        }
+      }
+    };
+    walk('');
+    const blob = await createZip(entries);
+    return new Uint8Array(await blob.arrayBuffer());
+  }
+
+  async function importsVerbatim(bytes, head) {
+    const w = await makeWorker();
+    const preview = await previewUpload(w, { kind: 'new' }, bytes);
+    expect(preview.hasHistory).toBe(true);
+    expect(preview.branch).toBe('main');
+    w.send(command(CommandKind.IMPORT_UPLOAD, { uploadId: preview.uploadId, choice: 'new_book', author: IDENTITY }));
+    const { bookId } = await awaitEvent(w, EventKind.BOOK_CREATED);
+    const dir = w.git.bookDir(bookId);
+    expect(await resolveRef({ fs: w.fs, dir, ref: 'main' })).toBe(head); // the computer's commit, verbatim
+    expect(await w.fs.promises.readFile(`${dir}/partida.cifra.md`, 'utf8')).toBe(PARTIDA);
+    expect(await w.fs.promises.readFile(`${dir}/choros/chegada.cifra.md`, 'utf8')).toBe(CHEGADA);
+    const entry = [...w.events].reverse().find((e) => e.kind === EventKind.SHELF).payload.local[bookId];
+    expect(entry.title.value).toBe('Caderno do computador');
+
+    // And the songs can be found and read the way the app reads them: the book
+    // is indexed, its songs are listed by title, and opening one in a folder
+    // gives back its text, which reads as the song it is.
+    await awaitEvent(w, EventKind.INDEX_STATUS, (p) => p.bookId === bookId && p.state === 'ready' && p.songs === 2);
+    w.send(command(CommandKind.BROWSE, { scope: { books: [bookId] } }));
+    const browse = await awaitEvent(w, EventKind.BROWSE_RESULTS, (p) => p.books.some((b) => b.bookId === bookId));
+    const listed = browse.books.find((b) => b.bookId === bookId).songs;
+    expect(listed.map((s) => [s.path, s.title]).sort()).toEqual([
+      ['choros/chegada.cifra.md', 'Chegada'],
+      ['partida.cifra.md', 'Partida'],
+    ]);
+    expect(listed.every((s) => !s.unsaved)).toBe(true); // the working copy is the commit
+
+    const path = 'choros/chegada.cifra.md';
+    w.send(command(CommandKind.OPEN_SONG, { bookId, path }));
+    await awaitEvent(w, EventKind.SONG, (p) => p.bookId === bookId && p.path === path);
+    w.send(command(CommandKind.OPEN_SOURCE, { bookId, path }));
+    const source = await awaitEvent(w, EventKind.SOURCE, (p) => p.bookId === bookId && p.path === path);
+    expect(source.text).toBe(CHEGADA);
+    expect(source.unsaved).toBe(false);
+    const model = parseSong(source.text);
+    expect(model.title).toBe('Chegada');
+    expect(unknownTokens(source.text)).toEqual([]);
+    expect(chordsOf(model)).toEqual(['F', 'D7', 'Gm', 'C7', 'F', 'F', 'C7']);
+  }
+
+  it('a repository made with the git CLI imports verbatim as a new book', async () => {
+    const { dir, head } = await cliRepo(CLI_FILES);
+    await importsVerbatim(await zipFolder(dir, { folderEntries: false }), head);
+  });
+
+  it('a zip with an entry for each folder imports the same', async () => {
+    const { dir, head } = await cliRepo(CLI_FILES);
+    await importsVerbatim(await zipFolder(dir, { folderEntries: true }), head);
   });
 });
 
