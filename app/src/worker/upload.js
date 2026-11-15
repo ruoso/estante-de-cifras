@@ -68,6 +68,10 @@ const decoder = new TextDecoder();
 const scratchDirOf = (uploadId) => `/uploads/${uploadId}`;
 const uploadRefOf = (uploadId) => `refs/upload/${uploadId}`;
 
+// How old an upload's scratch repo must be before `pruneStale` takes it: a day,
+// far longer than anyone looks at one preview.
+export const STALE_UPLOAD_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Validate one zip entry name against zip-slip (Constraints): reject an absolute
  * path, a Windows drive, a backslash-separated escape or any `..` segment, so a
@@ -453,8 +457,26 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
    *
    * @param {{ target: { kind: 'new' } | { kind: 'existing', bookId: string }, bytes: ArrayBuffer|Uint8Array }} opts
    */
+  // The uploads this engine has previewed and not yet imported or cancelled:
+  // their scratch repos are in use, so `pruneStale` never removes them.
+  const active = new Set();
+
   async function preview({ target, bytes }) {
     const uploadId = globalThis.crypto.randomUUID();
+    active.add(uploadId);
+    try {
+      return await previewInto(uploadId, { target, bytes });
+    } catch (err) {
+      // A preview that failed leaves nothing behind: its scratch repo would
+      // otherwise sit in storage until a prune (this is how failed uploads
+      // filled a device's quota). Best-effort; the failure is what is reported.
+      active.delete(uploadId);
+      await removeTree(scratchDirOf(uploadId)).catch(() => {});
+      throw err;
+    }
+  }
+
+  async function previewInto(uploadId, { target, bytes }) {
     const scratchDir = scratchDirOf(uploadId);
     const entries = await readZip(toArrayBuffer(bytes)); // throws on non-zip / CRC
     await materialise(scratchDir, entries); // throws on zip-slip
@@ -643,7 +665,15 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
    * @param {{ uploadId: string, choice: 'new_book'|'latest_without_history'|'merge'|'replace',
    *   target?: { bookId?: string }, perFile?: string[], untitledTitle?: string }} opts
    */
-  async function import_({ uploadId, choice, target, perFile, untitledTitle }) {
+  async function import_(opts) {
+    const result = await importInto(opts);
+    // Landed: its scratch repo is gone. (A failed import keeps it, and keeps it
+    // in use: the preview is still on screen and may be confirmed again.)
+    active.delete(opts.uploadId);
+    return result;
+  }
+
+  async function importInto({ uploadId, choice, target, perFile, untitledTitle }) {
     const scratchDir = scratchDirOf(uploadId);
     const identity = authorFrom(await author(), clock());
     const headForMerge = await oidAt(scratchDir, uploadRefOf(uploadId));
@@ -700,8 +730,43 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
    * @param {{ uploadId: string }} opts
    */
   async function cancel({ uploadId }) {
+    active.delete(uploadId);
     await removeTree(scratchDirOf(uploadId));
     await fs.flush?.();
+  }
+
+  /**
+   * Remove upload scratch repos nobody will come back to: the ones not in use
+   * here whose newest file is at least `olderThanMs` old. A preview left open
+   * when the app was closed, or one whose import failed, otherwise stays in
+   * storage for good. The age keeps a preview open in another tab (another
+   * Worker, the same storage) safe.
+   *
+   * @param {{ olderThanMs?: number, now?: number }} [opts]
+   * @returns {Promise<{ removed: number }>}
+   */
+  async function pruneStale({ olderThanMs = STALE_UPLOAD_MS, now = clock() } = {}) {
+    let names;
+    try {
+      names = await fs.promises.readdir('/uploads');
+    } catch (err) {
+      if (err?.code === 'ENOENT') return { removed: 0 };
+      throw err;
+    }
+    let removed = 0;
+    for (const name of names) {
+      if (active.has(name)) continue;
+      const dir = `/uploads/${name}`;
+      let newest = (await fs.promises.stat(dir)).mtimeMs || 0;
+      for (const rel of await listFiles(dir)) {
+        newest = Math.max(newest, (await fs.promises.stat(`${dir}/${rel}`)).mtimeMs || 0);
+      }
+      if (now - newest < olderThanMs) continue;
+      await removeTree(dir);
+      removed += 1;
+    }
+    if (removed) await fs.flush?.();
+    return { removed };
   }
 
   // The on-disk upload ref a book retains after a colliding upload merge, or null
@@ -718,5 +783,5 @@ export function createUpload({ fs, git, locks, mergeDriver, resolveAuthor, now }
     return 'refs/remotes/origin/main';
   }
 
-  return { preview, import_, cancel, incomingRefFor };
+  return { preview, import_, cancel, incomingRefFor, pruneStale };
 }

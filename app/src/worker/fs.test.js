@@ -84,4 +84,37 @@ describe('file contents are stored as their own bytes', () => {
     // And the bytes are the window's.
     expect(Array.from(await fs.promises.readFile('/f2'))).toEqual(Array.from(big.subarray(20, 120)));
   });
+
+  it('compact() rewrites a record stored before with its whole buffer, and keeps what the file holds', async () => {
+    const idb = new IDBFactory();
+    const fs = createFileSystem('compact-fs', { indexedDB: idb });
+    const big = new Uint8Array(1024 * 1024);
+    for (let i = 0; i < big.length; i += 1) big[i] = i % 251;
+    await fs.promises.writeFile('/old', big.subarray(1000, 1100));
+    await fs.promises.writeFile('/fine', new Uint8Array([1, 2, 3]));
+    await fs.flush();
+    // Store /old the way it was stored before writeFile kept only a view's own
+    // bytes: the same 100 bytes, as a window onto the whole megabyte.
+    const { ino } = await fs.promises.stat('/old');
+    await new Promise((resolve, reject) => {
+      const open = idb.open('compact-fs');
+      open.onsuccess = () => {
+        const tx = open.result.transaction('compact-fs_files', 'readwrite');
+        tx.objectStore('compact-fs_files').put(big.subarray(1000, 1100), ino);
+        tx.oncomplete = () => {
+          open.result.close();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error);
+      };
+    });
+    expect(await storedFileBytes(idb, 'compact-fs')).toBe(1024 * 1024 + 3);
+
+    expect(await fs.compact()).toEqual({ rewritten: 1, freedBytes: 1024 * 1024 - 100 });
+    expect(await storedFileBytes(idb, 'compact-fs')).toBe(100 + 3);
+    expect(Array.from(await fs.promises.readFile('/old'))).toEqual(Array.from(big.subarray(1000, 1100)));
+    expect(Array.from(await fs.promises.readFile('/fine'))).toEqual([1, 2, 3]);
+    // Nothing left to rewrite.
+    expect(await fs.compact()).toEqual({ rewritten: 0, freedBytes: 0 });
+  });
 });

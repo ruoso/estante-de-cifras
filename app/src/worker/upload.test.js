@@ -23,7 +23,7 @@ import { createBookLocks } from './locks.js';
 import { createCifraMergeDriver } from './cifra-merge-driver.js';
 import { canonicaliseFile } from './canonicalise.js';
 import { createZip } from './book-zip.js';
-import { createUpload, safeEntryName } from './upload.js';
+import { createUpload, safeEntryName, STALE_UPLOAD_MS } from './upload.js';
 import { installWebLocks } from '../test/web-locks.js';
 
 const rand = () => Math.random().toString(36).slice(2);
@@ -216,5 +216,51 @@ describe('untrusted input is refused (Constraints)', () => {
     await expect(fs.promises.stat(`${dir}/.git/config`)).rejects.toMatchObject({ code: 'ENOENT' });
     // The repo is still readable as a remote despite the dropped config.
     expect(model.hasHistory).toBe(true);
+  });
+});
+
+// Upload scratch repos do not stay in storage (storage-prune.js): a failed
+// preview removes its own, and `pruneStale` takes the ones a day old that are
+// not in use. Storage is the browser's quota; when it is full nothing saves.
+describe('upload scratch repos are cleaned up', () => {
+  const uploadsIn = async (fs) => fs.promises.readdir('/uploads').catch(() => []);
+
+  it('a preview that fails leaves no scratch repo behind', async () => {
+    const blob = await createZip([
+      { name: 'boa.cifra.md', bytes: new TextEncoder().encode(SONG) },
+      { name: '../escape.cifra.md', bytes: new TextEncoder().encode(SONG) },
+    ]);
+    const { fs, upload } = makeUpload();
+    await expect(upload.preview({ target: { kind: 'new' }, bytes: new Uint8Array(await blob.arrayBuffer()) })).rejects.toThrow();
+    expect(await uploadsIn(fs)).toEqual([]);
+  });
+
+  it('pruneStale removes a day-old scratch repo, and keeps a fresh one and one still in use', async () => {
+    const src = await makeSourceRepo();
+    const bytes = await zipRepo(src.fs, src.dir);
+    const { fs, upload } = makeUpload();
+    // One preview still on screen, and two scratch repos no Worker is using
+    // (a preview left open when the app closed, an import that failed).
+    const open = await upload.preview({ target: { kind: 'new' }, bytes });
+    for (const id of ['left-open', 'failed-import']) {
+      await fs.promises.mkdir(`/uploads/${id}`);
+      await fs.promises.writeFile(`/uploads/${id}/README.md`, '# Esquecido\n');
+    }
+
+    // A day later the two unused repos are stale and go; the one on screen,
+    // just as old, is kept because it is in use.
+    const result = await upload.pruneStale({ now: Date.now() + STALE_UPLOAD_MS + 1000 });
+    expect(result.removed).toBe(2);
+    expect(await uploadsIn(fs)).toEqual([open.uploadId]);
+
+    // And a repo touched within the day is kept.
+    await fs.promises.mkdir('/uploads/fresh');
+    await fs.promises.writeFile('/uploads/fresh/README.md', '# Novo\n');
+    expect((await upload.pruneStale({ now: Date.now() })).removed).toBe(0);
+    expect((await uploadsIn(fs)).sort()).toEqual(['fresh', open.uploadId].sort());
+
+    // Once cancelled, the preview's repo is gone, and nothing else is touched.
+    await upload.cancel({ uploadId: open.uploadId });
+    expect(await uploadsIn(fs)).toEqual(['fresh']);
   });
 });

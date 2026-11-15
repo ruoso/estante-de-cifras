@@ -45,6 +45,7 @@ import { createCifraMergeDriver } from './cifra-merge-driver.js';
 import { createSyncEngine, countCommitsAhead, resolveOriginHead } from './sync-engine.js';
 import { keepAsLocalChanges, removeChanges } from './sign-out.js';
 import { createSyncScheduler } from './sync-scheduler.js';
+import { createPruner } from './storage-prune.js';
 import { createConflicts } from './conflicts.js';
 import { createUpload } from './upload.js';
 import { createBringIn } from './bring-in.js';
@@ -405,6 +406,7 @@ export function createWorkerLogic(port, options = {}) {
   let addByLink = null;
   let syncEngine = null;
   let syncScheduler = null;
+  let pruner = null;
   let conflicts = null;
   let upload = null;
   let bringIn = null;
@@ -898,6 +900,26 @@ export function createWorkerLogic(port, options = {}) {
       });
     }
     return syncScheduler;
+  }
+
+  // The periodic clean-up of data nothing needs (storage-prune.js): file
+  // records holding more than their own bytes, and upload scratch repos a day
+  // old and not in use. `options.prune` ({ firstDelayMs, intervalMs,
+  // staleUploadMs }) lets a test run it without waiting; the timers are the
+  // scheduler's injectables.
+  function ensurePruner() {
+    if (!pruner) {
+      pruner = createPruner({
+        compactFiles: () => ensureFs().compact(),
+        pruneUploads: () => ensureUpload().pruneStale({ olderThanMs: options.prune?.staleUploadMs }),
+        ...(options.prune ?? {}),
+        setInterval: options.setInterval,
+        clearInterval: options.clearInterval,
+        setTimeout: options.setTimeout,
+        clearTimeout: options.clearTimeout,
+      });
+    }
+    return pruner;
   }
 
   // The one commit identity (account.commit_author Constraint 2): every save,
@@ -1880,6 +1902,9 @@ export function createWorkerLogic(port, options = {}) {
     // returns and the scheduler coalesces it with any trigger that follows.
     ensureSyncScheduler().start();
     ensureSyncScheduler().trigger();
+    // Start the storage clean-up: its first pass a minute from now, after this
+    // start-up work, then every six hours (storage-prune.js).
+    ensurePruner().start();
     // The home book follows the account (account.new_device Decision 3): attach
     // it if this device is signed in, else fill an attached one's shelf.
     // Fire-and-forget, like the first pass.

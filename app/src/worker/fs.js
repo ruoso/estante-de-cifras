@@ -40,6 +40,8 @@ import LightningFS from '@isomorphic-git/lightning-fs';
  *
  * @typedef {Object} FileSystem
  * @property {FsPromises} promises
+ * @property {() => Promise<{ rewritten: number, freedBytes: number }>} compact
+ *   rewrite file records that hold more than their own bytes (storage-prune.js)
  * @property {() => Promise<void>} flush force the backend to persist its
  *   directory structure (the superblock) NOW rather than on its debounce — the
  *   durability seam (Decision 6). lightning-fs commits each file's bytes on the
@@ -120,6 +122,33 @@ class InjectedIdbBackend {
   wipe() {
     return this._run('readwrite', (store) => store.clear());
   }
+
+  // Rewrite every file record that holds more than its own bytes — stored as a
+  // view onto a larger buffer before writeFile kept only a view's own bytes —
+  // with exactly its bytes. One readwrite transaction, so a write racing it
+  // either lands before (and is what gets read) or after (and wins): nothing a
+  // file holds changes, only what storing it costs.
+  async compact() {
+    const db = await this._open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(this._storeName, 'readwrite');
+      const result = { rewritten: 0, freedBytes: 0 };
+      const cursor = tx.objectStore(this._storeName).openCursor();
+      cursor.onsuccess = () => {
+        const c = cursor.result;
+        if (!c) return;
+        const value = c.value;
+        if (c.key !== '!root' && ArrayBuffer.isView(value) && value.buffer.byteLength > value.byteLength) {
+          result.freedBytes += value.buffer.byteLength - value.byteLength;
+          result.rewritten += 1;
+          c.update(ownBytes(value));
+        }
+        c.continue();
+      };
+      tx.oncomplete = () => resolve(result);
+      tx.onabort = tx.onerror = () => reject(tx.error);
+    });
+  }
   async close() {
     if (!this._dbp) return;
     (await this._dbp).close();
@@ -182,7 +211,11 @@ export function createFileSystem(name, options = {}) {
   // just-written file to a reload can force the inode table out. Kept off
   // `promises` — isomorphic-git never calls it — so the git surface stays the
   // eleven contract methods and nothing more.
-  return { promises, flush: () => source.flush() };
+  //
+  // `compact()` is the storage seam beside it: it rewrites file records that
+  // hold more than their own bytes (storage-prune.js runs it), returning
+  // `{ rewritten, freedBytes }`. Also off `promises`, for the same reason.
+  return { promises, flush: () => source.flush(), compact: () => backend.compact() };
 }
 
 /**
