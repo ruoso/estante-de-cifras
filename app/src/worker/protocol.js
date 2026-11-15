@@ -480,7 +480,10 @@ export const CommandKind = Object.freeze({
 });
 
 // Events: Worker -> main. `READY` carries the Worker's persisted `meta`;
-// `ERROR` carries a message and a code. The working-copy outcomes
+// `ERROR` carries a message and a code, and — for a command that threw — the
+// failed command's kind (`command`) and the error's own code or name (`cause`,
+// e.g. `EISDIR`, `QuotaExceededError`; null when it has none), a short
+// identifier a view may show, never a path or text. The working-copy outcomes
 // (storage.working_copy): `SAVED` (the commit, posted once it is durable on
 // this device — never after a push, whose outcome is the `SYNC` facts'
 // (songs.save_feedback Constraint 2) — and the saved `paths` — or, for

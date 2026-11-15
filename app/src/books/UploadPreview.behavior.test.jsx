@@ -314,6 +314,41 @@ describe('UploadPreview — every status word renders (synthetic UPLOAD_PREVIEW;
     expect(screen.getByText(/The voicings are put in canonical order/)).toBeInTheDocument();
   });
 
+  it('a failed import shows the words with the error code; another command’s error meanwhile is not taken for it', () => {
+    const { store, emit } = makeStore();
+    renderPreview(store);
+    emit(event(EventKind.UPLOAD_PREVIEW, model({ uploadId: 'u-fail', previews: [] })));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Import as a new book' })));
+
+    // A background sync failing while the import runs is not the import's failure.
+    emit(event(EventKind.ERROR, { message: 'offline', code: 'command_failed', command: 'sync', cause: 'TypeError' }));
+    expect(screen.queryByText(/The import could not be completed/)).toBeNull();
+
+    // The import's own failure is worded, with its code.
+    emit(
+      event(EventKind.ERROR, {
+        message: 'quota',
+        code: 'command_failed',
+        command: CommandKind.IMPORT_UPLOAD,
+        cause: 'QuotaExceededError',
+      }),
+    );
+    const status = screen.getByText(/The import could not be completed/);
+    expect(status).toHaveTextContent('The import could not be completed. Nothing was written. (Error code: QuotaExceededError)');
+    expect(status).not.toHaveTextContent('quota'); // the error's own text is not shown
+  });
+
+  it('an import error with no code is worded as before, without a code', () => {
+    const { store, emit } = makeStore();
+    renderPreview(store);
+    emit(event(EventKind.UPLOAD_PREVIEW, model({ uploadId: 'u-fail2', previews: [] })));
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Import as a new book' })));
+    emit(event(EventKind.ERROR, { message: 'boom', code: 'command_failed' }));
+    expect(screen.getByText(/The import could not be completed/)).toHaveTextContent(
+      /^The import could not be completed\. Nothing was written\.$/,
+    );
+  });
+
   it('a cancel sends CANCEL_UPLOAD for the shown upload (Decision 5)', () => {
     const { store, sent, emit } = makeStore();
     let closed = false;

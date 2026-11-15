@@ -92,6 +92,7 @@ export default {
     uploadConfirmMerge: 'Unisci e salva',
     uploadBadZip: 'Non è stato possibile leggere quel file come zip di un libro.',
     uploadFailed: 'Non è stato possibile completare l’importazione. Non è stato scritto nulla.',
+    uploadErrorCode: '(Codice di errore: {code})',
     cancel: 'Annulla',
     save: 'Salva',
     onDevice: 'Su questo dispositivo',

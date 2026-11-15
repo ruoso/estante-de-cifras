@@ -330,6 +330,18 @@ function refusedReason(err) {
   return 'error';
 }
 
+// What a failed command's ERROR names as its cause: the error's own code (an
+// fs `EISDIR`, an isomorphic-git `NotFoundError`) or, failing that, its name (a
+// DOMException's `QuotaExceededError`, a `TypeError`) — a short identifier that
+// never holds a path or the user's text, so a view may show it. Null when the
+// error has neither, or is only the generic `Error`.
+function errorCause(err) {
+  const isId = (v) => typeof v === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(v);
+  if (isId(err?.code)) return err.code;
+  if (isId(err?.name) && err.name !== 'Error') return err.name;
+  return null;
+}
+
 // Fold one index change-set into an accumulator (SAVE/DISCARD touch many paths).
 function mergeIndexChanges(into, from) {
   into.putDocs.push(...from.putDocs);
@@ -3912,11 +3924,17 @@ export function createWorkerLogic(port, options = {}) {
         }
       } catch (err) {
         // Report the failure as an event; never throw across the port. The
-        // message is the error's own text (no song text, no secrets).
+        // message is the error's own text (no song text, no secrets). `command`
+        // names the command that failed, so a view waiting on one of its own
+        // can tell its failure from another's; `cause` is the error's own code
+        // or name (`EISDIR`, `QuotaExceededError`, `TypeError`), which a view
+        // may show — unlike the message, it never carries a path or text.
         port.postMessage(
           event(EventKind.ERROR, {
             message: String(err?.message ?? err),
             code: 'command_failed',
+            command: message?.kind ?? null,
+            cause: errorCause(err),
           }),
         );
       }

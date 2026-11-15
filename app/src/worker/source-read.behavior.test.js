@@ -67,6 +67,10 @@ describe('OPEN_SOURCE read-back', () => {
 
     store.send(command(CommandKind.OPEN_SOURCE, { bookId: 'local-harbour', path: 'nope.cifra.md' }));
     await until(() => expect(store.slice('connection').status).toBe('error'));
+    // The ERROR names the command that failed and the error's own code — a
+    // short identifier, never the path it was about.
+    const { error } = store.slice('connection');
+    expect(error).toMatchObject({ code: 'command_failed', command: CommandKind.OPEN_SOURCE, cause: 'ENOENT' });
     // The source slice is left untouched — no partial entry for the missing path.
     expect(store.slice('source')['local-harbour']?.['nope.cifra.md']).toBeUndefined();
   });

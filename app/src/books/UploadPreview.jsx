@@ -81,12 +81,17 @@ export default function UploadPreview({
   const [preview, setPreview] = useState(null);
   const [kept, setKept] = useState(() => new Set());
   const [error, setError] = useState(null);
+  // The failed command's `cause` (an error code such as `EISDIR`), shown with the
+  // words; null when the error named none.
+  const [errorCause, setErrorCause] = useState(null);
 
   // The uploadId of the preview currently shown (for CANCEL_UPLOAD / IMPORT); the
   // import we are waiting a reply for ('new' or a bookId) so we only react to the
   // reply that is ours; and whether a PREVIEW_UPLOAD is still in flight. The live
   // Worker emits ERROR for unrelated failures too, so we only read an ERROR as
-  // ours while a preview or an import is pending (there is no correlation id).
+  // ours while a preview or an import is pending, and only when it names our
+  // command (there is no correlation id; an ERROR naming no command is read as
+  // ours, as before).
   const uploadIdRef = useRef(null);
   const awaitingRef = useRef(null);
   const pendingPreviewRef = useRef(false);
@@ -102,6 +107,7 @@ export default function UploadPreview({
     }
     setPreview(null);
     setError(null);
+    setErrorCause(null);
     pendingPreviewRef.current = true;
     store.send(command(CommandKind.PREVIEW_UPLOAD, { target, bytes }));
   };
@@ -128,6 +134,7 @@ export default function UploadPreview({
     uploadIdRef.current = model.uploadId;
     setPreview(model);
     setError(null);
+    setErrorCause(null);
     // Default the no-history replace to replacing every matched song; the user
     // can keep a book's version by clearing a row.
     setKept(new Set(model.previews.filter((p) => p.status === 'replace').map((p) => p.path)));
@@ -136,13 +143,19 @@ export default function UploadPreview({
   // A non-zip / corrupt file (before a preview) or a failed import: word it, never
   // crash (AC1; the engine's ERROR, workflow 7 §The preview "never a crash"). Only
   // our own commands' failures matter — an unrelated Worker ERROR is ignored while
-  // nothing of ours is in flight.
-  useWorkerEvent(store, EventKind.ERROR, () => {
-    if (awaitingRef.current) {
+  // nothing of ours is in flight, and one that names another command (a
+  // background sync's, say) is ignored while ours is. The error's `cause` is
+  // shown with the words, so a failure can be told apart from the next one.
+  useWorkerEvent(store, EventKind.ERROR, (payload) => {
+    const failed = payload?.command;
+    const ours = (kind) => failed == null || failed === kind;
+    if (awaitingRef.current && ours(CommandKind.IMPORT_UPLOAD)) {
       setError('failed');
+      setErrorCause(payload?.cause ?? null);
       awaitingRef.current = null;
-    } else if (pendingPreviewRef.current) {
+    } else if (pendingPreviewRef.current && ours(CommandKind.PREVIEW_UPLOAD)) {
       setError('badZip');
+      setErrorCause(payload?.cause ?? null);
       pendingPreviewRef.current = false;
     }
   });
@@ -330,6 +343,12 @@ export default function UploadPreview({
         {error ? (
           <p className="t-small upload-error" role="status">
             {error === 'failed' ? t('books.uploadFailed') : t('books.uploadBadZip')}
+            {errorCause ? (
+              <>
+                {' '}
+                <span className="upload-error-code">{t('books.uploadErrorCode', { code: errorCause })}</span>
+              </>
+            ) : null}
           </p>
         ) : null}
 
