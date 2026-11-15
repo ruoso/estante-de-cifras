@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App.jsx';
 import { updateStore } from './pwa/update-state.js';
+import { startUpdateChecks } from './pwa/update-checks.js';
 import { installStore } from './pwa/install-state.js';
 import { getAppStore } from './worker/store.js';
 import { createSyncTriggers } from './sync-triggers.js';
@@ -21,10 +22,19 @@ import { createSyncTriggers } from './sync-triggers.js';
 // is waiting the plugin fires onNeedRefresh; we hand that to the main-thread
 // update store, which the shell's quiet, dismissible notice reads. The returned
 // updateSW is what Reload now calls to take the update on the person's terms.
+//
+// A browser checks for a new version only when a page loads, and an installed
+// app brought back from the background is not reloaded; so once the worker is
+// registered the app also asks on returning to the foreground, when the network
+// comes back, and hourly (pwa/update-checks.js). Asking only checks: the new
+// version still waits for the person's Reload.
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
     updateStore.onNeedRefresh(updateSW);
+  },
+  onRegisteredSW(_swUrl, registration) {
+    startUpdateChecks({ registration, window, document });
   },
 });
 
