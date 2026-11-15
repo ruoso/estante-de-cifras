@@ -202,7 +202,10 @@ export async function readZip(buffer) {
     const localExtra = view.getUint16(start + 28, true);
     const from = start + 30 + localName + localExtra;
     const body = bytes.subarray(from, from + compressed);
-    const raw = method === DEFLATED ? await inflate(body) : body;
+    // A stored entry is copied out of the zip rather than left a window onto
+    // it: a window keeps the whole zip alive, and anything that stores it
+    // (IndexedDB clones the whole buffer under a view) stores the whole zip.
+    const raw = method === DEFLATED ? await inflate(body) : body.slice();
     if (crc32(raw) !== sum) {
       throw new ZipError('zip_entry_damaged', 'book-zip: an entry did not arrive whole');
     }

@@ -59,6 +59,19 @@ import LightningFS from '@isomorphic-git/lightning-fs';
 // global is mutated either way. It owns one object store keyed by inode number,
 // with the superblock under `!root`, exactly as lightning-fs's default backend
 // lays it out.
+
+// A file's bytes as an array of their own. IndexedDB stores a typed array by
+// structured clone, which keeps the WHOLE buffer under a view, not just the
+// view: a file handed over as a window onto something larger (a zip entry read
+// out of the whole zip) would store a copy of all of it, once per file. That is
+// how importing a 421 KB zip once filled 130 MB, and a few imports the
+// browser's quota. A view that is its whole buffer is stored as it is.
+function ownBytes(data) {
+  if (!ArrayBuffer.isView(data)) return data;
+  if (data.byteOffset === 0 && data.byteLength === data.buffer.byteLength) return data;
+  return new Uint8Array(data.buffer, data.byteOffset, data.byteLength).slice();
+}
+
 class InjectedIdbBackend {
   constructor(idb, dbName, storeName) {
     this._idb = idb;
@@ -99,7 +112,7 @@ class InjectedIdbBackend {
     return this._run('readonly', (store) => store.get(inode));
   }
   writeFile(inode, data) {
-    return this._run('readwrite', (store) => store.put(data, inode));
+    return this._run('readwrite', (store) => store.put(ownBytes(data), inode));
   }
   unlink(inode) {
     return this._run('readwrite', (store) => store.delete(inode));

@@ -44,6 +44,21 @@ describe('book-zip (workflow 7 L55-63)', () => {
     await expect(readZip(enc('not a zip at all').buffer)).rejects.toThrow();
   });
 
+  it('gives each entry bytes of its own, not a window onto the whole zip', async () => {
+    // A window keeps the whole zip alive, and IndexedDB stores the whole buffer
+    // under a view: a book's git objects (stored, not deflated) once each
+    // carried a copy of the zip into storage.
+    const blob = await createZip([
+      { name: 'a.cifra.md', bytes: enc('# A\n') },
+      { name: 'b.cifra.md', bytes: enc('# B\n') },
+    ]);
+    const entries = await readZip(await blob.arrayBuffer());
+    for (const { bytes } of entries) {
+      expect(bytes.byteOffset).toBe(0);
+      expect(bytes.buffer.byteLength).toBe(bytes.byteLength);
+    }
+  });
+
   // Each refusal names the check that failed, so the upload screen can show it
   // as an error code (books.uploadErrorCode).
   describe('each refusal carries a code', () => {

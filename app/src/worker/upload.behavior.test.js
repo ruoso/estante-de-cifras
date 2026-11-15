@@ -39,6 +39,7 @@ import { canonicaliseFile } from './canonicalise.js';
 import { createLoopbackEndpoint } from '../test/loopback.js';
 import { installWebLocks } from '../test/web-locks.js';
 import { startGitHttpRemote } from '../test/git-http-remote.js';
+import { storedFileBytes } from '../test/stored-file-bytes.js';
 
 const IDENTITY = { id: 'u_tester', name: 'A Tester' };
 const rand = () => Math.random().toString(36).slice(2);
@@ -334,6 +335,7 @@ describe('upload — a book zipped on a computer (workflow 7 §Uploading a book)
 
   async function importsVerbatim(bytes, head) {
     const w = await makeWorker();
+    const storedBefore = await storedFileBytes(w.idb, `${w.name}-fs`);
     const preview = await previewUpload(w, { kind: 'new' }, bytes);
     expect(preview.hasHistory).toBe(true);
     expect(preview.branch).toBe('main');
@@ -345,6 +347,13 @@ describe('upload — a book zipped on a computer (workflow 7 §Uploading a book)
     expect(await w.fs.promises.readFile(`${dir}/choros/chegada.cifra.md`, 'utf8')).toBe(CHEGADA);
     const entry = [...w.events].reverse().find((e) => e.kind === EventKind.SHELF).payload.local[bookId];
     expect(entry.title.value).toBe('Caderno do computador');
+
+    // The import costs about what the book is, not a copy of the zip per file:
+    // its git objects are stored, not deflated, in a zip, and each once went
+    // into storage as a window onto the whole zip, which IndexedDB keeps whole.
+    // The book (its objects and its working tree) is at most about the zip.
+    const grew = (await storedFileBytes(w.idb, `${w.name}-fs`)) - storedBefore;
+    expect(grew).toBeLessThan(2 * bytes.byteLength);
 
     // And the songs can be found and read the way the app reads them: the book
     // is indexed, its songs are listed by title, and opening one in a folder

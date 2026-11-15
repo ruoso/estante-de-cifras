@@ -3,6 +3,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { createFileSystem, createPersister } from './fs.js';
 import { runFsContract } from './fs.contract.js';
 import { installWebLocks } from '../test/web-locks.js';
+import { storedFileBytes } from '../test/stored-file-bytes.js';
 
 // unit — the filesystem interface's contract suite run against lightning-fs
 // over a fresh fake IndexedDB (storage.fs acceptance; the `.tji` note lines
@@ -64,5 +65,23 @@ describe('createPersister (unit)', () => {
   it('surfaces a denied result as false', async () => {
     const persist = vi.fn().mockResolvedValue(false);
     expect(await createPersister({ storage: { persist } })()).toBe(false);
+  });
+});
+
+describe('file contents are stored as their own bytes', () => {
+  it('a file written from a window onto a larger buffer stores only the window', async () => {
+    // IndexedDB keeps the whole buffer under a typed-array view, so a file
+    // handed over as a slice of something big (a zip entry read out of the
+    // whole zip) once stored all of it, per file.
+    const idb = new IDBFactory();
+    const fs = createFileSystem('own-bytes', { indexedDB: idb });
+    const big = new Uint8Array(1024 * 1024).fill(7);
+    for (let i = 0; i < 5; i += 1) {
+      await fs.promises.writeFile(`/f${i}`, big.subarray(i * 10, i * 10 + 100));
+    }
+    await fs.flush();
+    expect(await storedFileBytes(idb, 'own-bytes')).toBe(5 * 100);
+    // And the bytes are the window's.
+    expect(Array.from(await fs.promises.readFile('/f2'))).toEqual(Array.from(big.subarray(20, 120)));
   });
 });
