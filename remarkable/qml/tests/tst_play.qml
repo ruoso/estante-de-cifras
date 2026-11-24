@@ -16,6 +16,7 @@ import "fixtures/few-chords.js" as FewChords
 import "fixtures/choro-long.js" as ChoroLong
 import "fixtures/play-0.js" as Play0
 import "fixtures/play-1.js" as Play1
+import "fixtures/play-1-shapes-hidden.js" as Play1Hidden
 import "fixtures/play-3.js" as Play3
 import "fixtures/play-4.js" as Play4
 import "fixtures/play-12.js" as Play12
@@ -314,6 +315,44 @@ TestCase {
         compare(screen.view.sheet.play.at, 1);
         for (const m of main.endpoint.sent)
             verify(m.payload.at !== 2 && (!m.payload.play || m.payload.play.at !== 2));
+    }
+
+    // Hide shapes kept on the device while playing: item 1 and its
+    // neighbours arrive without their shapes. Show shapes lets the
+    // neighbours held without theirs go and lays nothing out on the state;
+    // the song redrawn with its shapes is laid out once, and the neighbours
+    // that follow it are held with theirs, the next laid out ahead.
+    function test_showShapesWhilePlaying() {
+        const main = onSetlist();
+        const state = { paired: true, syncing: false, online: true, lastSync: null };
+        main.endpoint.play(101, Object.assign({ shapesShown: false }, state));
+        answer(main, Play1Hidden);
+        main.endpoint.clear();
+        const screen = main.songScreen;
+        compare(screen.strip.height, 0);
+        compare(screen.held.next.path, Play3.sheet.path);
+        compare(screen.aheadView.sheet.path, Play3.sheet.path);
+        compare(screen.foot.shapesButton.text, "Show shapes");
+
+        mouseClick(screen.foot.shapesButton);
+        compare(sentPayloads(main, 10), [{ shown: true }]);
+        const before = revisions(screen);
+        main.endpoint.play(101, Object.assign({ shapesShown: true }, state));
+        compare(moved(before, screen), { bar: 0, chart: 0, strip: 0, foot: 0 });
+        compare(screen.held.next, null);
+        compare(screen.held.previous, null);
+
+        main.endpoint.play(105, clone(Play1.sheet));
+        compare(moved(before, screen), { bar: 0, chart: 1, strip: 1, foot: 1 });
+        verify(screen.strip.height > 0);
+        compare(screen.foot.shapesButton.text, "Hide shapes");
+        for (const a of Play1.ahead)
+            main.endpoint.play(109, clone(a));
+        compare(screen.held.next.path, Play3.sheet.path);
+        verify(screen.held.next.shapes.length > 0);
+        compare(screen.aheadView.sheet.path, Play3.sheet.path);
+        verify(screen.held.previous.shapes.length > 0);
+        compare(moved(before, screen), { bar: 0, chart: 1, strip: 1, foot: 1 });
     }
 
     // Rule 1: a turn with no `109` held opens the neighbour (and sends its

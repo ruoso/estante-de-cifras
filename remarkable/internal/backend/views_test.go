@@ -690,11 +690,18 @@ func TestHiddenVoicingMarkedInNextSheet(t *testing.T) {
 }
 
 // TestShapesShownAnswersState pins Decision 8: shapesShown is kept and
-// answered with 101 state.
+// answered with 101 state. Hide shapes answers nothing more (the frontend
+// draws no strip whatever the sheet it holds); a song read while they are
+// hidden carries no shape and says it leaves some out, its chart the one
+// read with them; Show shapes answers the state, then — when a sheet was read
+// hidden — the open song redrawn with its shapes.
 func TestShapesShownAnswersState(t *testing.T) {
 	f := newViewsFixture(t)
 	s := f.serve(t, builtEngine(t))
-	s.openSong(t, walking, nil)
+	shown := s.openSong(t, walking, nil)
+	if len(shown.Shapes) == 0 || shown.ShapesLeftOut {
+		t.Fatalf("shown: %d shapes, left out %v", len(shown.Shapes), shown.ShapesLeftOut)
+	}
 	s.send(t, protocol.TypeShapesShown, map[string]any{"shown": false})
 	got, _ := s.peer.state()
 	if got.ShapesShown {
@@ -702,6 +709,68 @@ func TestShapesShownAnswersState(t *testing.T) {
 	}
 	if f.st.ShapesShown() {
 		t.Error("the store says shapes shown")
+	}
+	s.peer.silent()
+	// Shown again before anything is read hidden: the sheet held has its
+	// shapes, so the state alone.
+	s.send(t, protocol.TypeShapesShown, map[string]any{"shown": true})
+	s.peer.state()
+	s.peer.silent()
+	s.send(t, protocol.TypeShapesShown, map[string]any{"shown": false})
+	s.peer.state()
+	s.peer.silent()
+
+	hidden := s.openSong(t, walking, nil)
+	if len(hidden.Shapes) != 0 || !hidden.ShapesLeftOut {
+		t.Errorf("hidden: %d shapes, left out %v, want none, left out", len(hidden.Shapes), hidden.ShapesLeftOut)
+	}
+	if !jsonEqual(t, hidden.Rows, shown.Rows) || !reflect.DeepEqual(hidden.Key, shown.Key) {
+		t.Error("the chart or the key read with the shapes hidden differs from the one read with them")
+	}
+	s.peer.silent()
+
+	s.send(t, protocol.TypeShapesShown, map[string]any{"shown": true})
+	if got, _ := s.peer.state(); !got.ShapesShown {
+		t.Error("state says shapes hidden")
+	}
+	again := s.sheet(t)
+	if mustMarshal(t, again) != mustMarshal(t, shown) {
+		t.Errorf("Show shapes redrew\n %s\nwant the sheet first read\n %s", mustMarshal(t, again), mustMarshal(t, shown))
+	}
+	s.peer.silent()
+	// Shown again while shown: the state alone.
+	s.send(t, protocol.TypeShapesShown, map[string]any{"shown": true})
+	s.peer.state()
+	s.peer.silent()
+}
+
+// TestShowShapesWhilePlayingSendsNeighbours pins reader.play rule 9 with
+// Show shapes: the neighbours read ahead while the shapes were hidden carry
+// none, so Show shapes sends them again after the open song, with theirs.
+func TestShowShapesWhilePlayingSendsNeighbours(t *testing.T) {
+	f := newViewsFixture(t)
+	must(t, f.st.SetShapesShown(false))
+	s := f.serve(t, builtEngine(t))
+	open := s.openSong(t, ferry, played(shortSet, 1))
+	next, prev := s.ahead(t), s.ahead(t)
+	for _, sh := range []protocol.Sheet{open, next, prev} {
+		if len(sh.Shapes) != 0 || !sh.ShapesLeftOut {
+			t.Errorf("%s read hidden: %d shapes, left out %v", sh.Path, len(sh.Shapes), sh.ShapesLeftOut)
+		}
+	}
+	s.peer.silent()
+
+	s.send(t, protocol.TypeShapesShown, map[string]any{"shown": true})
+	s.peer.state()
+	redrawn := s.sheet(t)
+	next, prev = s.ahead(t), s.ahead(t)
+	if redrawn.Path != ferry || next.Path != walking || prev.Path != morning {
+		t.Fatalf("after Show shapes: %s, ahead %s and %s", redrawn.Path, next.Path, prev.Path)
+	}
+	for _, sh := range []protocol.Sheet{redrawn, next, prev} {
+		if len(sh.Shapes) == 0 || sh.ShapesLeftOut {
+			t.Errorf("%s after Show shapes: %d shapes, left out %v", sh.Path, len(sh.Shapes), sh.ShapesLeftOut)
+		}
 	}
 	s.peer.silent()
 }

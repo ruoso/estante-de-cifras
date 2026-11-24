@@ -103,6 +103,9 @@ type viewContext struct {
 	// ahead is the places each neighbour last sent as 109 left empty, by its
 	// item's index (reader.play).
 	ahead map[int]map[string]bool
+	// readHidden: a sheet (105 or 109) was read here with the shapes hidden,
+	// so the frontend holds one without them — Show shapes sends them again.
+	readHidden bool
 }
 
 // openSong is the song on screen: its path, the open's one-off offset (nil
@@ -170,10 +173,7 @@ func (v *views) handle(m protocol.Message) error {
 	case protocol.ShowAllShapes:
 		return v.voicing(v.st.ShowAll)
 	case protocol.ShapesShown:
-		if v.st.SetShapesShown(m.Shown) != nil {
-			return nil
-		}
-		return v.relay.sendState(v.conn)
+		return v.shapesShown(m)
 	case protocol.Place:
 		// Kept so Back returns to it; the frontend already shows the song.
 		// While playing that setlist, an item other than the open song becomes
@@ -647,8 +647,13 @@ func (v *views) sheetOf(song *openSong, set *engine.Setlist) (protocol.Sheet, er
 	// at the setlist's key (the bundle reads a keyless song at this offset,
 	// with the key as a note).
 	offset := 0
+	// With the shapes hidden none is read for the strip (Hide shapes): no
+	// diagram built, no miss queued for the filler.
 	opts := engine.SheetOptions{Preferences: c.snap.Preferences(), ChordNames: v.st.ChordNames(),
-		BarNumbers: v.st.BarNumbers()}
+		BarNumbers: v.st.BarNumbers(), HideShapes: !v.st.ShapesShown()}
+	if opts.HideShapes {
+		c.readHidden = true
+	}
 	if saved, ok := c.snap.Songs(c.bookID + "/" + song.path); ok {
 		offset = saved.Transposition
 		t := saved.Transposition
@@ -691,19 +696,20 @@ func (v *views) sheetOf(song *openSong, set *engine.Setlist) (protocol.Sheet, er
 		return protocol.Sheet{}, errNoView
 	}
 	out := protocol.Sheet{
-		BookID:     c.bookID,
-		Path:       song.path,
-		Title:      deref(s.Title),
-		Artist:     deref(s.Artist),
-		Key:        protocol.SheetKey{Written: s.Key.Written, Named: s.Key.Named, Saved: s.Key.Saved, Choices: keyChoices(s.Key.Choices)},
-		Offset:     s.Offset,
-		TuningID:   s.TuningID,
-		Rows:       s.Rows,
-		Shapes:     make([]protocol.SheetShape, 0, len(s.Shapes)),
-		Notes:      s.Notes,
-		KeyNote:    s.KeyNote,
-		Play:       play,
-		BarNumbers: s.BarNumbers,
+		BookID:        c.bookID,
+		Path:          song.path,
+		Title:         deref(s.Title),
+		Artist:        deref(s.Artist),
+		Key:           protocol.SheetKey{Written: s.Key.Written, Named: s.Key.Named, Saved: s.Key.Saved, Choices: keyChoices(s.Key.Choices)},
+		Offset:        s.Offset,
+		TuningID:      s.TuningID,
+		Rows:          s.Rows,
+		Shapes:        make([]protocol.SheetShape, 0, len(s.Shapes)),
+		ShapesLeftOut: s.ShapesLeftOut,
+		Notes:         s.Notes,
+		KeyNote:       s.KeyNote,
+		Play:          play,
+		BarNumbers:    s.BarNumbers,
 	}
 	song.tuningID = s.TuningID
 	// The variations, where there is a choice: two or more. They are listed at
@@ -944,6 +950,30 @@ func (v *views) key(k protocol.Key) error {
 	}
 	c.song.oneOff, c.song.useTarget = nil, false
 	return v.redraw()
+}
+
+// shapesShown keeps Hide shapes / Show shapes and answers the state. A sheet
+// read with the shapes hidden carries none, so when one was, Show shapes
+// answers the open song redrawn after the state, and its neighbours when it
+// is played (the frontend lays the song out once, with the sheet); Hide
+// shapes needs no sheet — the frontend draws no strip whatever the one it
+// holds carries.
+func (v *views) shapesShown(m protocol.ShapesShown) error {
+	if v.st.SetShapesShown(m.Shown) != nil {
+		return nil
+	}
+	if err := v.relay.sendState(v.conn); err != nil {
+		return err
+	}
+	c := v.cur
+	if !m.Shown || c == nil || c.song == nil || !c.readHidden {
+		return nil
+	}
+	c.readHidden = false
+	if err := v.redraw(); err != nil {
+		return err
+	}
+	return v.ahead()
 }
 
 // voicing applies a hide or show and answers the redrawn sheet when a song is

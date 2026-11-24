@@ -299,6 +299,27 @@ func browseFixtures(t *testing.T, write func(name, from string, got []byte)) {
 		name := fmt.Sprintf("play-%d", at)
 		write(name, from, playFixture(t, from+browseSetlist+" item "+fmt.Sprint(at), sheet, ahead))
 	}
+
+	// play-1-shapes-hidden: item 1 opened playing with Hide shapes kept on
+	// the device — it and its neighbours read without their shapes — then
+	// shown again.
+	if err := st.SetShapesShown(false); err != nil {
+		t.Fatal(err)
+	}
+	s.send(t, protocol.TypeOpen, map[string]any{"view": "song", "bookId": browseBook,
+		"path": set.Items[1].Path, "play": map[string]any{"setlist": browseSetlist, "at": 1}})
+	hiddenSheet := s.sheet(t)
+	hiddenAhead := []protocol.Sheet{s.ahead(t), s.ahead(t)}
+	for _, sh := range append([]protocol.Sheet{hiddenSheet}, hiddenAhead...) {
+		if len(sh.Shapes) != 0 || !sh.ShapesLeftOut {
+			t.Fatalf("played %s with the shapes hidden: %d shapes, left out %v", sh.Path, len(sh.Shapes), sh.ShapesLeftOut)
+		}
+	}
+	write("play-1-shapes-hidden", from, playFixture(t, from+browseSetlist+" item 1 with the shapes hidden",
+		hiddenSheet, hiddenAhead))
+	if err := st.SetShapesShown(true); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // playFixtureItems are the browse setlist's items the played-sheet fixtures
@@ -459,6 +480,19 @@ func TestQMLFixtures(t *testing.T) {
 	}
 	check("choro-long-hidden", choroLong+" with its first shape hidden", s.openSong(t, choroLong, nil))
 	if err := f.st.Show(hidden); err != nil {
+		t.Fatal(err)
+	}
+	// choro-long-shapes-hidden: Hide shapes kept on the device, then shown
+	// again — the sheet carries no shape and says it leaves some out.
+	if err := f.st.SetShapesShown(false); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.openSong(t, choroLong, nil); len(got.Shapes) != 0 || !got.ShapesLeftOut {
+		t.Fatalf("choro-long with the shapes hidden: %d shapes, left out %v", len(got.Shapes), got.ShapesLeftOut)
+	} else {
+		check("choro-long-shapes-hidden", choroLong+" with the shapes hidden", got)
+	}
+	if err := f.st.SetShapesShown(true); err != nil {
 		t.Fatal(err)
 	}
 	// few-chords-up2: the device's key at +2, then forgotten.

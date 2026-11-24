@@ -84,6 +84,10 @@ function shapeCacheFor(entry, instrument) {
  *   it is not parsed again (§4: the parsed model stays in memory)
  * @param {Map} [args.defaults]  a host's memo of the defaults across reads,
  *   passed through to `resolveSongVoicings`
+ * @param {boolean} [args.voice]  false resolves no voicing: `shapes`,
+ *   `unvoiced` and `chosen` come back empty and `renamed` null — for a host
+ *   that draws no shapes and names the chart as written (the device bundle
+ *   with its shapes hidden, docs/remarkable-reader.md §4)
  */
 export function readSongSheet({
   text,
@@ -93,6 +97,7 @@ export function readSongSheet({
   cache,
   parsed,
   defaults,
+  voice = true,
 }) {
   const offset = reading?.transposition ?? 0;
   const dialect = preferences?.notation?.value ?? DEFAULT_DIALECT;
@@ -116,8 +121,9 @@ export function readSongSheet({
   // Every chord in the §7.6 order. While transposed the song's own voicings are
   // suppressed (the rewritten symbols no longer match them), so every shape
   // falls to yours or the default (workflow 2 L120-125).
+  const resolving = Boolean(voice && instrument && model);
   const resolved =
-    instrument && model
+    resolving
       ? resolveSongVoicings(model, instrument, {
           variation,
           shapes: entry?.shapes ?? [],
@@ -131,7 +137,7 @@ export function readSongSheet({
   // chosen key left unresolved can never take a default (cifra.md §7.6), which
   // the device bundle reads to leave it unvoiced, never pending (reader §4.1).
   const chosen =
-    instrument && model
+    resolving
       ? songChosenKeys(model, instrument, { variation, ignoreSongVoicings: offset !== 0 })
       : new Set();
   const chordList = model ? chartChordList(model) : [];
@@ -142,11 +148,11 @@ export function readSongSheet({
     source: v.source,
     fingering: v.fingering,
   }));
-  const unvoiced = model ? unvoiceableKeys(model, resolved, { dialect: notation }) : [];
+  const unvoiced = model && voice ? unvoiceableKeys(model, resolved, { dialect: notation }) : [];
   // The chart names its chords as written, or — the reader's choice, kept in the
   // home book (`chordNames`) — as the shapes shown sound them.
   const naming = resolveChordNaming(preferences);
-  const renamed = naming === 'voiced' ? voicedNames(shapes, notation) : null;
+  const renamed = naming === 'voiced' && voice ? voicedNames(shapes, notation) : null;
   // Bar numbers (cifra.md §2.8): the reader's choice, kept in the home book
   // (`barNumbers`), only for a song whose bars are counted.
   const numbered = isNumberedSong(model);

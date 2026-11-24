@@ -8,6 +8,10 @@ package backend
 // reading call never waits behind a search. After each search it tells Serve's
 // loop, which lets the views send what it filled (108 shapes).
 //
+// A round stops between searches once the shapes are hidden (Hide shapes):
+// nothing it finds would be drawn, and what stays queued is searched on the
+// next nudge, which comes with a sheet that shows the shapes again.
+//
 // It searches only what is queued, holds no view state, and writes nothing:
 // what it finds lives in the bundle session's cache until the next Load that
 // reloads. It logs nothing — no chord, no song.
@@ -28,10 +32,12 @@ type filler struct {
 	// found holds at most one pending event for Serve's loop: the views read
 	// the open song again on it, which sees every search done before it.
 	found chan struct{}
+	// wanted is whether the shapes are shown; nil is always.
+	wanted func() bool
 }
 
-func newFiller(eng Engine) *filler {
-	return &filler{eng: eng, nudges: make(chan struct{}, 1), found: make(chan struct{}, 1)}
+func newFiller(eng Engine, wanted func() bool) *filler {
+	return &filler{eng: eng, nudges: make(chan struct{}, 1), found: make(chan struct{}, 1), wanted: wanted}
 }
 
 // nudge asks for a round; it never blocks.
@@ -60,6 +66,9 @@ func (f *filler) run(ctx context.Context) {
 func (f *filler) round(ctx context.Context) {
 	skip := map[string]bool{}
 	for ctx.Err() == nil {
+		if f.wanted != nil && !f.wanted() {
+			return
+		}
 		misses, err := f.eng.Misses(ctx)
 		if err != nil {
 			return

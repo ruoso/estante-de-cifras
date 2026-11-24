@@ -37,7 +37,7 @@ func startFiller(ctx context.Context, v *views, eng Engine) *fillRun {
 		return r
 	}
 	fctx, cancel := context.WithCancel(ctx)
-	f := newFiller(eng)
+	f := newFiller(eng, func() bool { return v.st == nil || v.st.ShapesShown() })
 	v.nudge, r.found, r.cancel = f.nudge, f.found, cancel
 	go func() {
 		defer close(r.done)

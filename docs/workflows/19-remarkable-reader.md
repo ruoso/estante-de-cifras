@@ -353,7 +353,11 @@ page: the song is laid out again without the strip, from the bar that was at
 the top of the page, so the person stays where they were — one redraw. A choro
 of three pages may become two; *Três Estrelinhas* fits on one. *Show shapes*
 brings the strip back the same way. The choice is the reader's, kept on this
-reMarkable for every song (the reader writes nothing to the account). With the
+reMarkable for every song (the reader writes nothing to the account). While
+the shapes are hidden the reader works none of them out — no diagram, no
+background search — so *Show shapes* waits for the song read again with them,
+the button held, and is still one redraw. Named *As voiced*, the chart keeps
+its voiced names with the shapes hidden. With the
 shapes hidden, or a strip shorter than the grid, the key grid opens over the
 bottom of the page, from the foot up, and closes the same way — one redraw
 each, the chart under it unchanged.

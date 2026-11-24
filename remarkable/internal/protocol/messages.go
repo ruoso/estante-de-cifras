@@ -276,7 +276,9 @@ type BookSetlist struct {
 }
 
 // Sheet (105): one song read at one key. Shapes carries every shape of the
-// song, each marked Hidden or not: the frontend lays the pages out.
+// song, each marked Hidden or not: the frontend lays the pages out. With the
+// shapes hidden it carries none, and ShapesLeftOut says the song has some for
+// Show shapes to bring back.
 type Sheet struct {
 	BookID   string          `json:"bookId"`
 	Path     string          `json:"path"`
@@ -287,9 +289,11 @@ type Sheet struct {
 	TuningID string          `json:"tuningId"`
 	Rows     json.RawMessage `json:"rows"`
 	Shapes   []SheetShape    `json:"shapes"`
-	Notes    json.RawMessage `json:"notes"`
-	KeyNote  *string         `json:"keyNote"`
-	Play     *SheetPlay      `json:"play,omitempty"`
+	// ShapesLeftOut: read with the shapes hidden, a song that has some.
+	ShapesLeftOut bool            `json:"shapesLeftOut,omitempty"`
+	Notes         json.RawMessage `json:"notes"`
+	KeyNote       *string         `json:"keyNote"`
+	Play          *SheetPlay      `json:"play,omitempty"`
 	// The song's variations for TuningID ("" the unnamed block) and the one
 	// read; VariationChosen when this reader chose it (else it is the
 	// account's, or the first). None for a song with fewer than two.

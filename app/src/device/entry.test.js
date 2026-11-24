@@ -362,6 +362,63 @@ describe('no search on the reading path (§4.1)', () => {
   });
 });
 
+// reader.shapes_hidden: with the reader's shapes hidden (workflow 19 §A song,
+// *Hide shapes*), `sheet` with `shapes: false` resolves no voicing for the
+// strip — nothing rebuilt from the table, no diagram, no miss queued for the
+// background search — and says the song has shapes left out. Named as voiced,
+// the voicings are still resolved, for the chart's names alone.
+describe('shapes hidden (§4 sheet `shapes: false`)', () => {
+  const WALKING = 'walking-to-the-market.cifra.md';
+
+  it('resolves nothing, queues nothing and carries no shape', () => {
+    estante.load(ENTRY, null);
+    const before = spies.search;
+    const got = estante.sheet(song(WALKING), 2, { shapes: false });
+    expect(got.shapes).toEqual([]);
+    expect(got.shapesLeftOut).toBe(true);
+    expect(got.unvoiced).toEqual([]);
+    expect(estante.misses()).toEqual([]);
+    expect(estante.held().rebuilt).toBe(0);
+    expect(spies.search - before).toBe(0);
+    // The chart, the key and its choices are the ones read with the shapes.
+    const shown = estante.sheet(song(WALKING), 2);
+    expect(shown.shapesLeftOut).toBe(false);
+    expect(got.rows).toEqual(shown.rows);
+    expect(got.key).toEqual(shown.key);
+    expect(got.notes).toEqual(shown.notes);
+    // Read with them, the misses are queued as before.
+    expect(estante.misses().length).toBeGreaterThan(0);
+  });
+
+  it('rebuilds nothing from a table that holds every chord', () => {
+    const got = estante.sheet(song(WALKING), 2, { shapes: false });
+    expect(got.shapes).toEqual([]);
+    expect(estante.held().rebuilt).toBe(0);
+    expect(estante.sheet(song(WALKING), 2).shapes.length).toBeGreaterThan(0);
+    expect(estante.held().rebuilt).toBeGreaterThan(0);
+  });
+
+  it('named as voiced, resolves for the names alone: the same rows, no shape, nothing queued', () => {
+    estante.load(ENTRY, TABLE);
+    const text = song(WALKING);
+    const hidden = estante.sheet(text, 2, { shapes: false, chordNames: 'voiced' });
+    expect(hidden.shapes).toEqual([]);
+    expect(hidden.shapesLeftOut).toBe(true);
+    expect(estante.held().rebuilt).toBeGreaterThan(0);
+    expect(hidden.rows).toEqual(estante.sheet(text, 2, { chordNames: 'voiced' }).rows);
+
+    estante.load(ENTRY, null);
+    estante.sheet(text, 2, { shapes: false, chordNames: 'voiced' });
+    expect(estante.misses()).toEqual([]);
+  });
+
+  it('leaves out nothing for a song with no chords', () => {
+    const got = estante.sheet(NO_CHORDS, 0, { shapes: false });
+    expect(got.shapes).toEqual([]);
+    expect(got.shapesLeftOut).toBe(false);
+  });
+});
+
 // reader.missed_shapes: the host's background search (§4.1; §4 host API
 // `fill`), over the example book with one chord's entry removed from the table.
 describe('fill (§4.1)', () => {

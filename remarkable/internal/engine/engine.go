@@ -135,6 +135,10 @@ type SheetOptions struct {
 	// numbers, "shown" or "hidden", over the account's barNumbers
 	// preference; "" reads the account's.
 	BarNumbers string
+	// HideShapes is the reader with its shapes hidden (workflow 19 §A song,
+	// Hide shapes): the sheet carries no shapes and queues no miss, and its
+	// voicings are resolved only to name the chart as voiced.
+	HideShapes bool
 }
 
 // SheetKey is the song's key as written, as named now, as named at the saved
@@ -177,10 +181,13 @@ type Sheet struct {
 	Transposed bool            `json:"transposed"`
 	Rows       json.RawMessage `json:"rows"`
 	Shapes     []Shape         `json:"shapes"`
-	Unvoiced   []string        `json:"unvoiced"`
-	Notes      json.RawMessage `json:"notes"`
-	KeyNote    *string         `json:"keyNote"`
-	TuningID   string          `json:"tuningId"`
+	// ShapesLeftOut: read with HideShapes, a song with chords to voice on
+	// the instrument — Show shapes has something to bring back.
+	ShapesLeftOut bool            `json:"shapesLeftOut"`
+	Unvoiced      []string        `json:"unvoiced"`
+	Notes         json.RawMessage `json:"notes"`
+	KeyNote       *string         `json:"keyNote"`
+	TuningID      string          `json:"tuningId"`
 	// The song's variations for the tuning ('' the unnamed block) and the one
 	// read now (nil when it has none).
 	Variations []string `json:"variations"`
@@ -781,8 +788,13 @@ func (e *Engine) Sheet(ctx context.Context, text string, offset int, opts SheetO
 		SavedOffset *int              `json:"savedOffset"`
 		ChordNames  string            `json:"chordNames,omitempty"`
 		BarNumbers  string            `json:"barNumbers,omitempty"`
+		Shapes      *bool             `json:"shapes,omitempty"`
 	}{Variation: opts.Variation, Variations: opts.Variations, Preferences: orNull(opts.Preferences), SavedOffset: opts.SavedOffset,
 		ChordNames: opts.ChordNames, BarNumbers: opts.BarNumbers}
+	if opts.HideShapes {
+		no := false
+		o.Shapes = &no
+	}
 	if opts.TargetKey != "" {
 		o.TargetKey = &opts.TargetKey
 	}

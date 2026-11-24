@@ -32,7 +32,7 @@ import { songKeyName } from '../core/song-key.js';
 import { readSongSheet, instrumentFor, songProperty, tuningIdOf } from '../songs/song-sheet.js';
 import { chartRows } from '../chart/layout.js';
 import { diagramModel } from '../render/diagram.js';
-import { resolveDiagramDisplay } from '../theme/resolve.js';
+import { resolveChordNaming, resolveDiagramDisplay } from '../theme/resolve.js';
 import { setlistRows } from '../books/setlist-display.js';
 import { playableItems, playKeyOffset } from '../books/setlist-play.js';
 import { chooseInstrument } from './instrument.js';
@@ -132,9 +132,16 @@ function load(entry, table) {
  * the session's own tuning picks from it, and it wins over `variation`, which
  * applies to the session's tuning — and `savedOffset` is the account's saved
  * transposition, named as `key.saved` by the same rule as `key.named`.
+ *
+ * `shapes: false` is the reader with its shapes hidden: the sheet carries no
+ * shapes (`shapes: []`, `shapesLeftOut` true when the song has chords to voice
+ * on the instrument), no diagram model is built and no miss is queued, so the
+ * background search does nothing for it. Its voicings are resolved only to
+ * name the chart as voiced; named as written, none is.
  */
 function sheet(text, offset = 0, opts = {}) {
   const { variation = '', variations = null, targetKey = null, savedOffset = null, chordNames = null, barNumbers = null } = opts ?? {};
+  const shapesShown = opts?.shapes !== false;
   const preferences = withBarNumbers(withChordNames(opts?.preferences ?? null, chordNames), barNumbers);
   const parsed = parsedOf(text);
   if (!parsed) return { error: 'unreadable' };
@@ -161,6 +168,7 @@ function sheet(text, offset = 0, opts = {}) {
     preferences,
     cache: session.view ?? undefined,
     defaults: session.defaults,
+    voice: shapesShown || resolveChordNaming(preferences) === 'voiced',
   });
 
   // A chord left unresolved is pending when the table does not hold it — it is
@@ -171,7 +179,7 @@ function sheet(text, offset = 0, opts = {}) {
   // the first read, with no cache lookup, nothing queued and its memo untouched.
   const pending = new Set();
   const unvoiced = [];
-  for (const key of read.unvoiced) {
+  for (const key of shapesShown ? read.unvoiced : []) {
     if (read.chosen?.has(key)) {
       unvoiced.push(key);
       continue;
@@ -210,7 +218,7 @@ function sheet(text, offset = 0, opts = {}) {
   const { handed } = resolveDiagramDisplay(preferences);
   const resolved = new Map(read.shapes.map((s) => [s.key, s]));
   const shapes = [];
-  for (const { key, symbol } of read.chordList) {
+  for (const { key, symbol } of shapesShown ? read.chordList : []) {
     const shape = resolved.get(key);
     if (shape) {
       shapes.push({
@@ -258,6 +266,7 @@ function sheet(text, offset = 0, opts = {}) {
     transposed: read.transposed,
     rows,
     shapes,
+    shapesLeftOut: !shapesShown && Boolean(read.instrument) && read.chordList.length > 0,
     unvoiced,
     notes: read.blockNotes,
     keyNote,

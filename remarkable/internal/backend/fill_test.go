@@ -17,7 +17,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	gosync "sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -474,5 +476,94 @@ func TestChosenUnbuildableNotSearched(t *testing.T) {
 	s.peer.silent()
 	if calls, _, _ := probe.counts(); calls != 0 {
 		t.Errorf("%d fills, want none", calls)
+	}
+}
+
+// TestHiddenShapesSearchNothing pins Hide shapes over §4.1: a song read with
+// the shapes hidden leaves no place empty, so nothing is queued, searched or
+// sent as 108; Show shapes reads it with its places, the empty one is
+// searched in the background, and 108 brings it.
+func TestHiddenShapesSearchNothing(t *testing.T) {
+	f := newViewsFixture(t)
+	must(t, f.st.SetShapesShown(false))
+	probe := newFillProbe(missingEngine(t))
+	s := f.serve(t, probe)
+
+	sheet := s.openSong(t, walking, map[string]any{"offset": 2})
+	if len(sheet.Shapes) != 0 || !sheet.ShapesLeftOut {
+		t.Fatalf("hidden: %d shapes, left out %v", len(sheet.Shapes), sheet.ShapesLeftOut)
+	}
+	s.peer.silent()
+	if calls, _, _ := probe.counts(); calls != 0 {
+		t.Errorf("%d fills with the shapes hidden, want 0", calls)
+	}
+	if ms, err := probe.Misses(context.Background()); err != nil || len(ms) != 0 {
+		t.Errorf("misses queued with the shapes hidden: %v %v", ms, err)
+	}
+
+	s.send(t, protocol.TypeShapesShown, map[string]any{"shown": true})
+	s.peer.state()
+	shown := s.sheet(t)
+	if a := shapeOf(t, shown.Shapes, missedSymbol); !isNull(a.Model) {
+		t.Fatalf("A after Show shapes: model %s, want an empty place", a.Model)
+	}
+	var found protocol.Shapes
+	s.expect(t, protocol.TypeShapes, &found)
+	if a := shapeOf(t, found.Shapes, missedSymbol); isNull(a.Model) {
+		t.Error("the 108 after Show shapes leaves A empty")
+	}
+	if _, searched, _ := probe.counts(); searched != 1 {
+		t.Errorf("%d searches, want 1", searched)
+	}
+}
+
+// queueEngine is an Engine whose queue is two misses, each Fill taking one.
+type queueEngine struct {
+	Engine
+	mu     gosync.Mutex
+	queue  []string
+	filled []string
+	onFill func()
+}
+
+func (q *queueEngine) Misses(context.Context) ([]engine.Miss, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	out := make([]engine.Miss, 0, len(q.queue))
+	for _, c := range q.queue {
+		out = append(out, engine.Miss{Chord: c})
+	}
+	return out, nil
+}
+
+func (q *queueEngine) Fill(_ context.Context, chord string) (engine.Filled, error) {
+	q.mu.Lock()
+	q.filled = append(q.filled, chord)
+	q.queue = q.queue[1:]
+	q.mu.Unlock()
+	if q.onFill != nil {
+		q.onFill()
+	}
+	return engine.Filled{Searched: true}, nil
+}
+
+// TestRoundStopsWhenShapesHidden pins that a round under way stops between
+// searches once the shapes are hidden, the rest left queued; shown, the
+// round fills the whole queue.
+func TestRoundStopsWhenShapesHidden(t *testing.T) {
+	var shown atomic.Bool
+	shown.Store(true)
+	q := &queueEngine{queue: []string{"x", "y"}}
+	q.onFill = func() { shown.Store(false) } // Hide shapes during the first search
+	newFiller(q, shown.Load).round(context.Background())
+	if !reflect.DeepEqual(q.filled, []string{"x"}) || !reflect.DeepEqual(q.queue, []string{"y"}) {
+		t.Errorf("hidden mid-round: filled %v, queued %v; want x filled, y queued", q.filled, q.queue)
+	}
+
+	shown.Store(true)
+	q.onFill = nil
+	newFiller(q, shown.Load).round(context.Background())
+	if !reflect.DeepEqual(q.filled, []string{"x", "y"}) || len(q.queue) != 0 {
+		t.Errorf("shown: filled %v, queued %v; want both filled", q.filled, q.queue)
 	}
 }

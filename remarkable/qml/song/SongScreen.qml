@@ -31,6 +31,11 @@
 // page. A turn whose neighbour has not arrived opens it and waits on the old
 // page (rule 1). Each song shown is sent as `11 place`, for Back.
 //
+// A sheet read with the shapes hidden carries none (`shapesLeftOut`), so
+// *Show shapes* waits for the song redrawn with them, the button held, and
+// lays it out once from the row at the top; neighbours held without theirs
+// are let go until theirs arrive (`109`).
+//
 // The pressed control inverts at once, and one whose action waits on the
 // backend stays inverted until the answer replaces its region (rule 7).
 // What the person chooses is sent to the backend to keep (`endpoint`, the
@@ -136,6 +141,9 @@ Item {
         property var backInfo: null
         // The row last sent as `11 place`, −1 for none.
         property int placed: -1
+        // Show shapes answered with a sheet that left them out: the song
+        // with them, which the backend sends after the state, is awaited.
+        property bool awaitingShapes: false
 
         function send(type, payload) {
             if (screen.endpoint)
@@ -147,7 +155,7 @@ Item {
         }
 
         function hasShapes() {
-            return d.shown !== null && list(d.shown.shapes).length > 0;
+            return d.shown !== null && (list(d.shown.shapes).length > 0 || d.shown.shapesLeftOut === true);
         }
 
         function whenReady() {
@@ -299,6 +307,7 @@ Item {
                 // held. Nothing is redrawn — the screen is not shown without
                 // a song.
                 d.shown = null;
+                d.awaitingShapes = false;
                 d.place = null;
                 d.held = { next: null, previous: null };
                 d.backFor = -1;
@@ -308,7 +317,18 @@ Item {
             }
             if (!viewA.ready || !viewB.ready)
                 return;
-            if (SongState.change(d.shown, s) === "revoiced") {
+            const how = SongState.change(d.shown, s);
+            if (d.awaitingShapes) {
+                d.awaitingShapes = false;
+                if (how === "revoiced") {
+                    // The song with its shapes: laid out once, from the row
+                    // that was at the top.
+                    d.shown = s;
+                    reshape();
+                    return;
+                }
+            }
+            if (how === "revoiced") {
                 revoice(s);
                 return;
             }
@@ -479,6 +499,18 @@ Item {
         function reshape() {
             if (d.shown === null)
                 return;
+            if (screen.shapesShown && d.shown.shapesLeftOut === true) {
+                // Read without them: nothing is laid out until the sheet
+                // with them comes, and the neighbours held without theirs
+                // are let go for the ones that will.
+                d.awaitingShapes = true;
+                const h = d.held;
+                const keep = x => x !== null && x.shapesLeftOut !== true ? x : null;
+                d.held = { next: keep(h.next), previous: keep(h.previous) };
+                d.backFor = -1;
+                return;
+            }
+            d.awaitingShapes = false;
             const row = topRow();
             d.mode = "shapes";
             d.stripPage = 0;

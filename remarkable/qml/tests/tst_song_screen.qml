@@ -17,6 +17,7 @@ import "fixtures/no-chords.js" as NoChords
 import "fixtures/strip-17.js" as Strip17
 import "fixtures/choro-long.js" as ChoroLong
 import "fixtures/choro-long-hidden.js" as ChoroLongHidden
+import "fixtures/choro-long-shapes-hidden.js" as ChoroLongShapesHidden
 import "fixtures/choro-31.js" as Choro31
 import "fixtures/found-shape.js" as FoundShape
 import "fixtures/two-ways.js" as TwoWays
@@ -374,6 +375,54 @@ TestCase {
         compare(screen.strip.height, M.stripHeight("compact", 2));
         compare(screen.view.page, screen.view.pageOfRow(hiddenTop));
         compare(screen.foot.shapesButton.text, "Hide shapes");
+    }
+
+    // Hide shapes kept on the device: the song read without its shapes is
+    // laid out with no strip and offers Show shapes. Tapped, the button
+    // stays held through the state's answer — nothing laid out — until the
+    // song arrives with its shapes, laid out once from the row at the top.
+    function test_showShapesWaitsForTheSheet() {
+        const screen = open(ChoroLongShapesHidden.sheet, { shapesShown: false });
+        // Delivered as Screens.qml delivers every sheet, by assignment: the
+        // creation properties hand the rows over with their keys reordered,
+        // which SongState.change would read as another song.
+        screen.sheet = clone(ChoroLongShapesHidden.sheet);
+        compare(screen.strip.height, 0);
+        compare(screen.strip.diagrams.count, 0);
+        compare(screen.view.height, M.contentHeight);
+        verify(screen.foot.shapesButton.visible);
+        compare(screen.foot.shapesButton.text, "Show shapes");
+        mouseClick(screen.foot.next);
+        compare(screen.view.page, 1);
+        const top = screen.view.pages[1].firstRow;
+
+        mouseClick(screen.foot.shapesButton);
+        compare(sent(screen).length, 1);
+        compare(sent(screen)[0].type, 10);
+        compare(sent(screen)[0].payload, { shown: true });
+        const chartRevision = screen.chart.revision;
+        const stripRevision = screen.strip.revision;
+        screen.shapesShown = true;
+        compare(screen.chart.revision, chartRevision);
+        compare(screen.strip.revision, stripRevision);
+        compare(screen.strip.height, 0);
+        compare(screen.pending, "shapes");
+
+        screen.sheet = clone(ChoroLong.sheet);
+        compare(screen.chart.revision, chartRevision + 1);
+        compare(screen.strip.height, M.stripHeight("compact", 2));
+        verify(screen.strip.diagrams.count > 0);
+        compare(screen.view.page, screen.view.pageOfRow(top));
+        compare(screen.foot.shapesButton.text, "Hide shapes");
+        compare(screen.pending, "");
+        compare(sent(screen).length, 1);
+    }
+
+    // A song with no chords read with the shapes hidden offers no Show
+    // shapes: there is nothing to bring back.
+    function test_noShowShapesWithoutChords() {
+        const screen = open(NoChords.sheet, { shapesShown: false });
+        compare(screen.foot.shapesButton.visible, false);
     }
 
     // Workflow 19 §A song L216–219 as amended: the shapes' notes follow the
